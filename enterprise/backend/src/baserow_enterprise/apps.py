@@ -216,6 +216,15 @@ class BaserowEnterpriseConfig(AppConfig):
         element_type_registry.register(FileInputElementType())
 
         from baserow.contrib.database.data_sync.registries import (
+            two_way_sync_strategy_type_registry,
+        )
+        from baserow_enterprise.data_sync.two_way_sync_strategy_types import (
+            RealtimePushTwoWaySyncStrategy,
+        )
+
+        two_way_sync_strategy_type_registry.register(RealtimePushTwoWaySyncStrategy())
+
+        from baserow.contrib.database.data_sync.registries import (
             data_sync_type_registry,
         )
         from baserow_enterprise.data_sync.data_sync_types import (
@@ -224,6 +233,7 @@ class BaserowEnterpriseConfig(AppConfig):
             HubspotContactsDataSyncType,
             JiraIssuesDataSyncType,
             LocalBaserowTableDataSyncType,
+            PostgreSQLDataSyncType,
         )
 
         data_sync_type_registry.register(LocalBaserowTableDataSyncType())
@@ -231,6 +241,9 @@ class BaserowEnterpriseConfig(AppConfig):
         data_sync_type_registry.register(GitHubIssuesDataSyncType())
         data_sync_type_registry.register(GitLabIssuesDataSyncType())
         data_sync_type_registry.register(HubspotContactsDataSyncType())
+
+        data_sync_type_registry.unregister(PostgreSQLDataSyncType.type)
+        data_sync_type_registry.register(PostgreSQLDataSyncType())
 
         from baserow_enterprise.data_sync.actions import (
             UpdatePeriodicDataSyncIntervalActionType,
@@ -267,11 +280,15 @@ class BaserowEnterpriseConfig(AppConfig):
         from baserow.core.notifications.registries import notification_type_registry
         from baserow_enterprise.data_sync.notification_types import (
             PeriodicDataSyncDeactivatedNotificationType,
+            TwoWaySyncDeactivatedNotificationType,
+            TwoWaySyncUpdateFailedNotificationType,
         )
 
         notification_type_registry.register(
             PeriodicDataSyncDeactivatedNotificationType()
         )
+        notification_type_registry.register(TwoWaySyncUpdateFailedNotificationType())
+        notification_type_registry.register(TwoWaySyncDeactivatedNotificationType())
 
         # The signals must always be imported last because they use the registries
         # which need to be filled first.

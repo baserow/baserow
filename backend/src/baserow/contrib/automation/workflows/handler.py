@@ -41,7 +41,9 @@ class AutomationWorkflowHandler:
     allowed_fields = ["name", "allow_test_run_until", "paused"]
 
     def run_workflow(
-        self, workflow_id: int, event_payload: Optional[List[Dict]] = None
+        self,
+        workflow: AutomationWorkflow,
+        event_payload: Optional[List[Dict]] = None,
     ) -> None:
         """
         Runs the provided workflow.
@@ -50,7 +52,7 @@ class AutomationWorkflowHandler:
         :param event_payload: The payload from the action.
         """
 
-        run_workflow.delay(workflow_id, event_payload)
+        run_workflow.delay(workflow.id, self.is_test_run(workflow), event_payload)
 
     def get_workflow(
         self,
@@ -109,6 +111,30 @@ class AutomationWorkflowHandler:
             )
 
         return _get_published_workflow(workflow)
+
+    def get_original_workflow(
+        self, workflow: AutomationWorkflow
+    ) -> Optional[AutomationWorkflow]:
+        """
+        Gets the original workflow related to the provided published
+        AutomationWorkflow instance.
+
+        If the workflow isn't published but allow_test_run_until is set,
+        it indicates that the provided workflow is the one being run. Thus the
+        same workflow is returned.
+
+        :param workflow: The published workflow for which the original version
+            should be returned.
+        :raises AutomationWorkflowDoesNotExist: If the workflow doesn't exist.
+        :return: The original workflow, if it exists.
+        """
+
+        if workflow.published:
+            return workflow.automation.published_from
+        elif workflow.allow_test_run_until:
+            return workflow
+        else:
+            return None
 
     def get_workflows(
         self, automation: Automation, base_queryset: Optional[QuerySet] = None
@@ -643,3 +669,10 @@ class AutomationWorkflowHandler:
         duplicate_automation.save(update_fields=["published_from"])
 
         return duplicate_automation.workflows.first()
+
+    def is_test_run(self, workflow: AutomationWorkflow) -> bool:
+        """
+        Returns True if the current workflow run is a Test Run, False otherwise.
+        """
+
+        return bool(workflow.allow_test_run_until)

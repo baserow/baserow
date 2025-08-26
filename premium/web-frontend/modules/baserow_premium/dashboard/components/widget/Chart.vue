@@ -1,5 +1,6 @@
 <template>
-  <Bar
+  <component
+    :is="chartComponent"
     v-if="chartData.datasets.length > 0"
     id="chart-id"
     :options="chartOptions"
@@ -18,7 +19,8 @@
 </template>
 
 <script>
-import { Bar } from 'vue-chartjs'
+import { colorPalette, getBaseColors } from '@baserow/modules/core/utils/colors'
+import { Bar, Pie } from 'vue-chartjs'
 import {
   Chart as ChartJS,
   ArcElement,
@@ -76,7 +78,7 @@ ChartJS.register(
 
 export default {
   name: 'Chart',
-  components: { Bar },
+  components: { Bar, Pie },
   props: {
     dataSource: {
       type: Object,
@@ -92,6 +94,23 @@ export default {
     },
   },
   computed: {
+    chartComponent() {
+      if (this.chartSeries.length > 0) {
+        const firstSeriesConfig = this.getIndividualSeriesConfig(
+          this.chartSeries[0].id
+        )
+        const chartType = this.convertChartJsType(
+          firstSeriesConfig.series_chart_type
+        )
+        if (['pie', 'doughnut'].includes(chartType)) {
+          return 'Pie'
+        }
+      }
+      return 'Bar'
+    },
+    colorSeries() {
+      return this.chartComponent === 'Bar'
+    },
     chartOptions() {
       return {
         responsive: true,
@@ -106,6 +125,35 @@ export default {
               boxWidth: 14,
               pointStyle: 'circle',
               padding: 20,
+              generateLabels: function (chart) {
+                if (chart.config.type === 'bar') {
+                  return Legend.defaults.labels.generateLabels(chart)
+                } else {
+                  const original =
+                    ChartJS.overrides.pie.plugins.legend.labels.generateLabels
+                  const originalLabels = original.call(this, chart)
+                  const datasetColors = chart.data.datasets.map(function (e) {
+                    return e.backgroundColor
+                  })
+                  let datasetIndex = 0
+                  const newLabels = []
+                  for (const dataset of chart.data.datasets) {
+                    originalLabels.forEach((label) => {
+                      const newLabel = JSON.parse(JSON.stringify(label))
+                      if (label.text) {
+                        newLabel.text = `${label.text} - ${dataset.label}`
+                      } else {
+                        newLabel.text = dataset.label
+                      }
+                      newLabel.fillStyle =
+                        datasetColors[datasetIndex][label.index % 10]
+                      newLabels.push(newLabel)
+                    })
+                    datasetIndex += 1
+                  }
+                  return newLabels
+                }
+              },
             },
           },
           tooltip: {
@@ -168,10 +216,11 @@ export default {
         const label = this.getLabel(series.fieldName, series.aggregationType)
         const seriesConfig = this.getIndividualSeriesConfig(series.id)
         datasets.push({
-          type: seriesConfig.series_chart_type?.toLowerCase() || 'bar',
+          type:
+            this.convertChartJsType(seriesConfig.series_chart_type) || 'bar',
           data: seriesData,
           label,
-          ...this.chartColors[index],
+          ...this.chartColorsSeriesOrValues(index),
         })
       }
       return {
@@ -189,10 +238,11 @@ export default {
         const label = this.getLabel(series.fieldName, series.aggregationType)
         const seriesConfig = this.getIndividualSeriesConfig(series.id)
         datasets.push({
-          type: seriesConfig.series_chart_type?.toLowerCase() || 'bar',
+          type:
+            this.convertChartJsType(seriesConfig.series_chart_type) || 'bar',
           data: seriesData,
           label,
-          ...this.chartColors[index],
+          ...this.seriesColors[index],
         })
       }
       return {
@@ -209,37 +259,49 @@ export default {
         }
       })
     },
-    chartColors() {
-      return [
-        {
-          backgroundColor: '#5190ef',
-          borderColor: '#5190ef',
-          hoverBackgroundColor: '#5190ef',
-        },
-        {
-          backgroundColor: '#2BC3F1',
-          borderColor: '#2BC3F1',
-          hoverBackgroundColor: '#2BC3F1',
-        },
-        {
-          backgroundColor: '#FFC744',
-          borderColor: '#FFC744',
-          hoverBackgroundColor: '#FFC744',
-        },
-        {
-          backgroundColor: '#E26AB0',
-          borderColor: '#E26AB0',
-          hoverBackgroundColor: '#E26AB0',
-        },
-        {
-          backgroundColor: '#3E4ACB',
-          borderColor: '#3E4ACB',
-          hoverBackgroundColor: '#3E4ACB',
-        },
-      ]
+    seriesColors() {
+      return getBaseColors().map((color) => {
+        return {
+          backgroundColor: color,
+          borderColor: color,
+          hoverBackgroundColor: color,
+        }
+      })
+    },
+    valuesColors() {
+      return colorPalette.map((palette) => {
+        return [
+          palette[4].color,
+          palette[6].color,
+          palette[8].color,
+          palette[0].color,
+          palette[2].color,
+          palette[9].color,
+          palette[7].color,
+          palette[5].color,
+          palette[3].color,
+          palette[1].color,
+        ]
+      })
     },
   },
   methods: {
+    chartColorsSeriesOrValues(seriesIndex) {
+      if (this.colorSeries) {
+        return this.seriesColors[seriesIndex]
+      } else {
+        return {
+          backgroundColor: this.valuesColors[seriesIndex],
+        }
+      }
+    },
+    convertChartJsType(chartType) {
+      if (!chartType) {
+        return null
+      }
+
+      return chartType.toLowerCase()
+    },
     getFieldTitle(fieldName) {
       return this.dataSource.schema.properties[fieldName].title
     },
@@ -270,6 +332,14 @@ export default {
           serializedField,
           item[fieldName]
         )
+      }
+
+      if (item[fieldName] === true) {
+        return this.$t('chart.true')
+      }
+
+      if (item[fieldName] === false) {
+        return this.$t('chart.false')
       }
 
       return item[fieldName] ?? ''

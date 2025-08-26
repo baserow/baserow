@@ -8,7 +8,7 @@ from baserow.core.services.utils import ServiceAdhocRefinements
 
 
 class DispatchContext(RuntimeFormulaContext, ABC):
-    own_properties = []
+    own_properties = ["only_record_id"]
 
     """
     Should return the record id requested for the given service. Used by list
@@ -17,8 +17,9 @@ class DispatchContext(RuntimeFormulaContext, ABC):
     """
     only_record_id = None
 
-    def __init__(self):
+    def __init__(self, only_record_id=None):
         self.cache = {}  # can be used by data providers to save queries
+        self.only_record_id = only_record_id
         super().__init__()
 
     @abstractmethod
@@ -32,24 +33,20 @@ class DispatchContext(RuntimeFormulaContext, ABC):
           the default number of record should be returned.
         """
 
-    @classmethod
-    def from_context(
-        cls, context: RuntimeFormulaContextSubClass, **kwargs
-    ) -> RuntimeFormulaContextSubClass:
+    def clone(self, **kwargs) -> RuntimeFormulaContextSubClass:
         """
-        Return a new DispatchContext instance from the given context, without
-        losing the original cached data.
-
-        :params context: The context to create a new DispatchContext instance from.
+        Return a new DispatchContext instance cloned from the current context, without
+        losing the original cached data and call stack but updating some properties.
         """
 
         new_values = {}
-        for prop in cls.own_properties:
-            new_values[prop] = getattr(context, prop)
+        for prop in self.own_properties:
+            new_values[prop] = getattr(self, prop)
         new_values.update(kwargs)
 
-        new_context = cls(**new_values)
-        new_context.cache = {**context.cache}
+        new_context = self.__class__(**new_values)
+        new_context.cache = {**self.cache}
+        new_context.call_stack = set(self.call_stack)
 
         return new_context
 

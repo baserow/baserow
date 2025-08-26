@@ -13,6 +13,7 @@ from baserow_premium.integrations.local_baserow.models import (
 from baserow_premium.integrations.local_baserow.service_types import (
     LocalBaserowGroupedAggregateRowsUserServiceType,
 )
+from pytest_unordered import unordered
 from rest_framework.exceptions import ValidationError
 
 from baserow.contrib.database.rows.handler import RowHandler
@@ -1695,32 +1696,34 @@ def test_grouped_aggregate_rows_service_dispatch_group_by_id(data_fixture):
     result = ServiceHandler().dispatch_service(service, dispatch_context)
 
     assert result.data == {
-        "result": [
-            {
-                f"field_{field.id}": Decimal("2"),
-                f"field_{field.id}_sum": Decimal("2"),
-                f"field_{field_2.id}_sum": Decimal("2"),
-                "id": 1,
-            },
-            {
-                f"field_{field.id}": Decimal("4"),
-                f"field_{field.id}_sum": Decimal("4"),
-                f"field_{field_2.id}_sum": Decimal("2"),
-                "id": 2,
-            },
-            {
-                f"field_{field.id}": Decimal("6"),
-                f"field_{field.id}_sum": Decimal("6"),
-                f"field_{field_2.id}_sum": Decimal("2"),
-                "id": 3,
-            },
-            {
-                f"field_{field.id}": Decimal("8"),
-                f"field_{field.id}_sum": Decimal("8"),
-                f"field_{field_2.id}_sum": Decimal("2"),
-                "id": 4,
-            },
-        ]
+        "result": unordered(
+            [
+                {
+                    f"field_{field.id}": Decimal("2"),
+                    f"field_{field.id}_sum": Decimal("2"),
+                    f"field_{field_2.id}_sum": Decimal("2"),
+                    "id": 1,
+                },
+                {
+                    f"field_{field.id}": Decimal("4"),
+                    f"field_{field.id}_sum": Decimal("4"),
+                    f"field_{field_2.id}_sum": Decimal("2"),
+                    "id": 2,
+                },
+                {
+                    f"field_{field.id}": Decimal("6"),
+                    f"field_{field.id}_sum": Decimal("6"),
+                    f"field_{field_2.id}_sum": Decimal("2"),
+                    "id": 3,
+                },
+                {
+                    f"field_{field.id}": Decimal("8"),
+                    f"field_{field.id}_sum": Decimal("8"),
+                    f"field_{field_2.id}_sum": Decimal("2"),
+                    "id": 4,
+                },
+            ]
+        )
     }
 
 
@@ -2535,32 +2538,34 @@ def test_grouped_aggregate_rows_service_dispatch_sort_by_series_with_group_by_ig
     result = ServiceHandler().dispatch_service(service, dispatch_context)
 
     assert result.data == {
-        "result": [
-            {
-                f"field_{field.id}": None,
-                f"field_{field.id}_sum": None,
-                f"field_{field_2.id}_sum": Decimal("100"),
-                f"field_{field_3.id}_sum": Decimal("100"),
-            },
-            {
-                f"field_{field.id}": Decimal("10"),
-                f"field_{field.id}_sum": Decimal("30"),
-                f"field_{field_2.id}_sum": Decimal("3"),
-                f"field_{field_3.id}_sum": Decimal("6"),
-            },
-            {
-                f"field_{field.id}": Decimal("30"),
-                f"field_{field.id}_sum": Decimal("90"),
-                f"field_{field_2.id}_sum": Decimal("9"),
-                f"field_{field_3.id}_sum": Decimal("3"),
-            },
-            {
-                f"field_{field.id}": Decimal("20"),
-                f"field_{field.id}_sum": Decimal("60"),
-                f"field_{field_2.id}_sum": Decimal("6"),
-                f"field_{field_3.id}_sum": Decimal("6"),
-            },
-        ],
+        "result": unordered(
+            [
+                {
+                    f"field_{field.id}": None,
+                    f"field_{field.id}_sum": None,
+                    f"field_{field_2.id}_sum": Decimal("100"),
+                    f"field_{field_3.id}_sum": Decimal("100"),
+                },
+                {
+                    f"field_{field.id}": Decimal("10"),
+                    f"field_{field.id}_sum": Decimal("30"),
+                    f"field_{field_2.id}_sum": Decimal("3"),
+                    f"field_{field_3.id}_sum": Decimal("6"),
+                },
+                {
+                    f"field_{field.id}": Decimal("30"),
+                    f"field_{field.id}_sum": Decimal("90"),
+                    f"field_{field_2.id}_sum": Decimal("9"),
+                    f"field_{field_3.id}_sum": Decimal("3"),
+                },
+                {
+                    f"field_{field.id}": Decimal("20"),
+                    f"field_{field.id}_sum": Decimal("60"),
+                    f"field_{field_2.id}_sum": Decimal("6"),
+                    f"field_{field_3.id}_sum": Decimal("6"),
+                },
+            ]
+        ),
     }
 
 

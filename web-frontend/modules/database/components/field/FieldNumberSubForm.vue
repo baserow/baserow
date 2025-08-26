@@ -78,10 +78,21 @@
         :error="fieldHasErrors('number_default')"
         type="text"
         :placeholder="$t('fieldNumberSubForm.defaultValuePlaceholder')"
+        :disabled="isDefaultValueFieldDisabled"
         @focus="onDefaultValueFocus"
         @blur="onDefaultValueBlur"
         @keypress="onKeyPress"
       ></FormInput>
+      <div
+        v-if="isDefaultValueFieldDisabled"
+        class="control__messages padding-top-0"
+      >
+        <p
+          class="control__helper-text control__helper-text--warning field-context__inner-element-width"
+        >
+          {{ $t('fieldForm.defaultValueDisabledByConstraint') }}
+        </p>
+      </div>
     </FormGroup>
   </div>
 </template>

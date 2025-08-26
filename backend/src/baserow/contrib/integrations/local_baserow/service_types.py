@@ -21,7 +21,6 @@ from django.db import transaction
 from django.db.models import QuerySet
 from django.dispatch import Signal
 
-from loguru import logger
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
@@ -106,22 +105,13 @@ from baserow.contrib.integrations.local_baserow.utils import (
     guess_json_type_from_response_serializer_field,
 )
 from baserow.core.cache import global_cache
-from baserow.core.formula import resolve_formula
-from baserow.core.formula.exceptions import (
-    InvalidFormulaContext,
-    InvalidFormulaContextContent,
-)
-from baserow.core.formula.parser.exceptions import BaserowFormulaException
-from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.handler import CoreHandler
 from baserow.core.registry import Instance
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.exceptions import (
     DoesNotExist,
     InvalidContextContentDispatchException,
-    InvalidContextDispatchException,
     ServiceImproperlyConfiguredDispatchException,
-    UnexpectedDispatchException,
 )
 from baserow.core.services.registries import (
     DispatchTypes,
@@ -129,7 +119,12 @@ from baserow.core.services.registries import (
     ServiceType,
     TriggerServiceTypeMixin,
 )
-from baserow.core.services.types import DispatchResult, ServiceDict, ServiceSubClass
+from baserow.core.services.types import (
+    DispatchResult,
+    FormulaToResolve,
+    ServiceDict,
+    ServiceSubClass,
+)
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.types import PermissionCheck
 
@@ -288,10 +283,7 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
                 "The selected table is trashed"
             )
 
-        resolved_values = super().resolve_service_formulas(service, dispatch_context)
-        resolved_values["table"] = service.table
-
-        return resolved_values
+        return super().resolve_service_formulas(service, dispatch_context)
 
     def import_property_name(
         self, property_name: Union[str, int], id_mapping: Dict[str, Any]
@@ -994,7 +986,7 @@ class LocalBaserowListRowsUserServiceType(
 
         only_field_names = self.get_used_field_names(service, dispatch_context)
 
-        table = resolved_values["table"]
+        table = service.table
         table_model = self.get_table_model(service)
 
         queryset = self.build_queryset(
@@ -1416,7 +1408,7 @@ class LocalBaserowAggregateRowsUserServiceType(
             return {"data": {"result": None}}
 
         try:
-            table = resolved_values["table"]
+            table = service.table
             if service.field.trashed:
                 raise ServiceImproperlyConfiguredDispatchException(
                     f"The field with ID {service.field.id} is trashed."
@@ -1599,22 +1591,6 @@ class LocalBaserowGetRowUserServiceType(
 
         return DispatchResult(data=serialized_row)
 
-    def resolve_service_formulas(
-        self,
-        service: ServiceSubClass,
-        dispatch_context: DispatchContext,
-    ) -> Dict[str, Any]:
-        """
-        :param service: A `LocalBaserowTableService` instance.
-        :param dispatch_context: The dispatch_context instance used to
-            resolve formulas (if any).
-        :raises ServiceImproperlyConfiguredDispatchException: When we try and dispatch
-            a service that has no `Table` associated with it.
-        """
-
-        resolved_values = super().resolve_service_formulas(service, dispatch_context)
-        return self.resolve_row_id(resolved_values, service, dispatch_context)
-
     def dispatch_data(
         self,
         service: LocalBaserowGetRow,
@@ -1632,7 +1608,7 @@ class LocalBaserowGetRowUserServiceType(
         :return: The rows.
         """
 
-        table = resolved_values["table"]
+        table = service.table
         only_field_names = self.get_used_field_names(service, dispatch_context)
 
         table_model = self.get_table_model(service)
@@ -1663,7 +1639,7 @@ class LocalBaserowGetRowUserServiceType(
 
 
 class LocalBaserowUpsertRowServiceType(
-    LocalBaserowTableServiceType, LocalBaserowTableServiceSpecificRowMixin
+    LocalBaserowTableServiceSpecificRowMixin, LocalBaserowTableServiceType
 ):
     """
     A `LocalBaserow` service type which will create or update rows in
@@ -1905,86 +1881,30 @@ class LocalBaserowUpsertRowServiceType(
     def enhance_queryset(self, queryset):
         return super().enhance_queryset(queryset).prefetch_related("field_mappings")
 
-    def dispatch_transform(self, dispatch_data: Dict[str, Any]) -> DispatchResult:
+    def formulas_to_resolve(
+        self, service: LocalBaserowUpsertRow
+    ) -> list[FormulaToResolve]:
         """
-        Responsible for serializing the `dispatch_data` row.
-
-        :param dispatch_data: The `dispatch_data` result.
-        :return:
+        Returns the formula to resolve for this service.
         """
-
-        field_ids = (
-            extract_field_ids_from_list(dispatch_data["public_formula_fields"])
-            if isinstance(dispatch_data["public_formula_fields"], list)
-            else None
-        )
-
-        serializer = get_row_serializer_class(
-            dispatch_data["baserow_table_model"],
-            RowSerializer,
-            is_response=True,
-            field_ids=field_ids,
-        )
-        serialized_row = serializer(dispatch_data["data"]).data
-
-        return DispatchResult(data=serialized_row)
-
-    def resolve_service_formulas(
-        self,
-        service: LocalBaserowUpsertRow,
-        dispatch_context: DispatchContext,
-    ) -> Dict[str, Any]:
-        """
-        :param service: A `LocalBaserowTableService` instance.
-        :param dispatch_context: The dispatch_context instance used to
-            resolve formulas (if any).
-        :raises ServiceImproperlyConfiguredDispatchException: When we try and dispatch
-            a service that has no `Table` associated with it.
-        """
-
-        resolved_values = super().resolve_service_formulas(service, dispatch_context)
-        dispatch_context.reset_call_stack()  # Before resolving the row_id
-        resolved_values = self.resolve_row_id(
-            resolved_values, service, dispatch_context
-        )
 
         field_mappings = (
             service.field_mappings.select_related("field")
             .exclude(field__trashed=True)
             .all()
         )
+        formulas = []
         for field_mapping in field_mappings:
-            dispatch_context.reset_call_stack()
-            try:
-                resolved_values[field_mapping.id] = resolve_formula(
+            formulas.append(
+                FormulaToResolve(
+                    field_mapping.id,
                     field_mapping.value,
-                    formula_runtime_function_registry,
-                    dispatch_context,
-                )
-            except InvalidFormulaContext as e:
-                raise InvalidContextDispatchException(str(e)) from e
-            except InvalidFormulaContextContent as e:
-                message = (
-                    f'Value error for field "{field_mapping.field.name}": {str(e)}'
-                )
-                raise InvalidContextContentDispatchException(message) from e
-            except BaserowFormulaException as e:
-                message = (
-                    "Error in formula for "
-                    f'field "{field_mapping.field.name}": {str(e)}'
-                )
-                raise ServiceImproperlyConfiguredDispatchException(message) from e
-            except Exception as e:
-                logger.exception(
-                    f"Unexpected error for field {field_mapping.field.name}"
-                )
-                message = (
-                    "Unknown error in formula for "
-                    f'field "{field_mapping.field.name}": {repr(e)} - {str(e)}'
-                )
-                raise UnexpectedDispatchException(message) from e
+                    lambda x: x,
+                    f'field "{field_mapping.field.name}"',
+                ),
+            )
 
-        return resolved_values
+        return super().formulas_to_resolve(service) + formulas
 
     def _get_validation_details(self, error):
         detail = error.detail
@@ -2018,7 +1938,7 @@ class LocalBaserowUpsertRowServiceType(
         :return: The created or updated rows.
         """
 
-        table = resolved_values["table"]
+        table = service.table
         used_field_names = self.get_used_field_names(service, dispatch_context)
 
         service.integration = service.integration.specific
@@ -2136,6 +2056,30 @@ class LocalBaserowUpsertRowServiceType(
             "public_formula_fields": used_field_names,
         }
 
+    def dispatch_transform(self, dispatch_data: Dict[str, Any]) -> DispatchResult:
+        """
+        Responsible for serializing the `dispatch_data` row.
+
+        :param dispatch_data: The `dispatch_data` result.
+        :return:
+        """
+
+        field_ids = (
+            extract_field_ids_from_list(dispatch_data["public_formula_fields"])
+            if isinstance(dispatch_data["public_formula_fields"], list)
+            else None
+        )
+
+        serializer = get_row_serializer_class(
+            dispatch_data["baserow_table_model"],
+            RowSerializer,
+            is_response=True,
+            field_ids=field_ids,
+        )
+        serialized_row = serializer(dispatch_data["data"]).data
+
+        return DispatchResult(data=serialized_row)
+
     def import_path(self, path, id_mapping):
         """
         Updates the field ids in the path.
@@ -2171,7 +2115,7 @@ class LocalBaserowUpsertRowServiceType(
 
 
 class LocalBaserowDeleteRowServiceType(
-    LocalBaserowTableServiceType, LocalBaserowTableServiceSpecificRowMixin
+    LocalBaserowTableServiceSpecificRowMixin, LocalBaserowTableServiceType
 ):
     type = "local_baserow_delete_row"
     model_class = LocalBaserowDeleteRow
@@ -2211,34 +2155,6 @@ class LocalBaserowDeleteRowServiceType(
     ):
         pass
 
-    def resolve_service_formulas(
-        self,
-        service: LocalBaserowDeleteRow,
-        dispatch_context: DispatchContext,
-    ) -> Dict[str, Any]:
-        """
-        :param service: A `LocalBaserowTableService` instance.
-        :param dispatch_context: The dispatch_context instance used to
-            resolve formulas (if any).
-        :raises ServiceImproperlyConfiguredDispatchException: When we try and dispatch
-            a service that has no `Table` associated with it.
-        """
-
-        resolved_values = super().resolve_service_formulas(service, dispatch_context)
-        return self.resolve_row_id(resolved_values, service, dispatch_context)
-
-    def dispatch_transform(self, dispatch_data: Dict[str, Any]) -> DispatchResult:
-        """
-        The delete row action's `dispatch_data` will contain an empty
-        `data` dictionary. When we get to this method and wish to transform
-        the data, we can simply return a 204 response.
-
-        :param dispatch_data: The `dispatch_data` result.
-        :return: A dispatch result with no data, and a 204 status code.
-        """
-
-        return DispatchResult(status=204)
-
     def dispatch_data(
         self,
         service: LocalBaserowDeleteRow,
@@ -2256,7 +2172,7 @@ class LocalBaserowDeleteRowServiceType(
         :return: A dictionary with empty `data`.
         """
 
-        table = resolved_values["table"]
+        table = service.table
         integration = service.integration.specific
         row_id: Optional[int] = resolved_values.get("row_id", None)
         model = table.get_model()
@@ -2267,9 +2183,7 @@ class LocalBaserowDeleteRowServiceType(
                     integration.authorized_user, table, [row_id], model=model
                 )
             except RowDoesNotExist as exc:
-                raise ServiceImproperlyConfiguredDispatchException(
-                    f"The row with id {row_id} does not exist."
-                ) from exc
+                raise DoesNotExist(f"The row with id {row_id} does not exist.") from exc
             except CannotDeleteRowsInTable as exc:
                 raise ServiceImproperlyConfiguredDispatchException(
                     f"Cannot delete rows in table {table.id} because "
@@ -2277,6 +2191,18 @@ class LocalBaserowDeleteRowServiceType(
                 ) from exc
 
         return {"data": {}, "baserow_table_model": model}
+
+    def dispatch_transform(self, dispatch_data: Dict[str, Any]) -> DispatchResult:
+        """
+        The delete row action's `dispatch_data` will contain an empty
+        `data` dictionary. When we get to this method and wish to transform
+        the data, we can simply return a 204 response.
+
+        :param dispatch_data: The `dispatch_data` result.
+        :return: A dispatch result with no data, and a 204 status code.
+        """
+
+        return DispatchResult(status=204)
 
 
 T = TypeVar("T", bound="Instance")

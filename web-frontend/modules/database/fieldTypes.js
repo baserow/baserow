@@ -352,6 +352,13 @@ export class FieldType extends Registerable {
   }
 
   /**
+   * Returns the name of the field that contains the default value.
+   */
+  getDefaultValueFieldName() {
+    return null
+  }
+
+  /**
    * Should return true if the provided value is empty.
    */
   isEmpty(field, value) {
@@ -1079,8 +1086,13 @@ export class TextFieldType extends FieldType {
     return ''
   }
 
+  getDefaultValueFieldName() {
+    return 'text_default'
+  }
+
   getDefaultValue(field, flat) {
-    return field.text_default || this.getEmptyValue(field)
+    const defaultValueFieldName = this.getDefaultValueFieldName()
+    return field[defaultValueFieldName] || this.getEmptyValue(field)
   }
 
   canUpsert() {
@@ -1697,12 +1709,18 @@ export class NumberFieldType extends FieldType {
     return ['text', '1', '9']
   }
 
+  getDefaultValueFieldName() {
+    return 'number_default'
+  }
+
   getDefaultValue(field, flat) {
-    if (field.number_default === null || field.number_default === undefined) {
+    const defaultValueFieldName = this.getDefaultValueFieldName()
+    const defaultValue = field[defaultValueFieldName]
+    if (defaultValue === null || defaultValue === undefined) {
       return null
     }
     const decimalPlaces = field.number_decimal_places || 0
-    return Number(field.number_default).toFixed(decimalPlaces)
+    return new BigNumber(defaultValue).toFixed(decimalPlaces)
   }
 
   canUpsert() {
@@ -1923,6 +1941,10 @@ export class RatingFieldType extends FieldType {
     return ['text', '1', '9']
   }
 
+  getDefaultValueFieldName() {
+    return 'rating_default'
+  }
+
   getDefaultValue(field, flat) {
     return 0
   }
@@ -2073,8 +2095,13 @@ export class BooleanFieldType extends FieldType {
     return false
   }
 
+  getDefaultValueFieldName() {
+    return 'boolean_default'
+  }
+
   getDefaultValue(field, flat) {
-    return field.boolean_default || this.getEmptyValue(field)
+    const defaultValueFieldName = this.getDefaultValueFieldName()
+    return field[defaultValueFieldName] || this.getEmptyValue(field)
   }
 
   getSortIndicator() {
@@ -3698,15 +3725,20 @@ export class SingleSelectFieldType extends SelectOptionBaseFieldType {
     return value1Id === value2Id
   }
 
-  getDefaultValue(field, flat) {
-    if (field.single_select_default != null) {
-      if (flat) {
-        return field.single_select_default
-      }
+  getDefaultValueFieldName() {
+    return 'single_select_default'
+  }
 
-      return field.select_options.find(
-        (option) => option.id === field.single_select_default
+  getDefaultValue(field, flat) {
+    const defaultValueFieldName = this.getDefaultValueFieldName()
+    const defaultValue = field[defaultValueFieldName]
+    if (defaultValue != null) {
+      const defaultValueOption = field.select_options.find(
+        (option) => option.id === defaultValue
       )
+      if (defaultValueOption) {
+        return flat ? defaultValue : defaultValueOption
+      }
     }
     return this.getEmptyValue(field)
   }
@@ -3943,14 +3975,20 @@ export class MultipleSelectFieldType extends SelectOptionBaseFieldType {
     return []
   }
 
+  getDefaultValueFieldName() {
+    return 'multiple_select_default'
+  }
+
   getDefaultValue(field, flat) {
-    if (!field.multiple_select_default) {
+    const defaultValueFieldName = this.getDefaultValueFieldName()
+    const defaultValue = field[defaultValueFieldName]
+    if (defaultValue == null) {
       return this.getEmptyValue(field)
     }
     if (flat) {
-      return field.multiple_select_default
+      return defaultValue
     }
-    return (field.multiple_select_default || [])
+    return (defaultValue || [])
       .map((id) => field.select_options.find((opt) => opt.id === id))
       .filter(Boolean)
   }

@@ -59,6 +59,8 @@ def run_async_job(self, job_id: int):
             should_raise = True
             for exception, error_message in exception_mapping.items():
                 if isinstance(e, exception):
+                    if callable(error_message):
+                        error_message = error_message(e)
                     error = error_message.format(e=e)
                     should_raise = False
                     break

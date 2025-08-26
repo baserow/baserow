@@ -217,7 +217,8 @@
     "errorGenericData": "Cannot apply field constraint due to existing data conflicts.",
     "errorUniqueOrEmpty": "Some values in this field are duplicated. Remove or edit duplicates before applying this constraint.",
     "errorInvalidConstraint": "This field constraint is not supported for this field type.",
-    "errorDoesNotSupportDefaultValue": "Cannot set this constraint when default value is set."
+    "errorDoesNotSupportDefaultValue": "Cannot set this constraint when default value is set.",
+    "noConstraintsCompatibleWithDefaultValue": "No constraints are compatible when a default value is enabled."
   },
   "fieldConstraintParametersText": {
     "placeholder": "Enter constraint value"

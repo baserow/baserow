@@ -16,7 +16,8 @@
         "enabled": "Ingeschakeld",
         "or": "of",
         "and": "en",
-        "optional": "Optioneel"
+        "optional": "Optioneel",
+        "alpha": "Alfa"
     },
     "action": {
         "upload": "Uploaden",
@@ -628,7 +629,9 @@
         "readonlyFieldMessage": "Beperkingen kunnen niet worden toegepast op alleen-lezen velden.",
         "errorGenericData": "Kan veldbeperking niet toepassen vanwege bestaande gegevensconflicten.",
         "errorUniqueOrEmpty": "Sommige waarden in dit veld zijn gedupliceerd. Verwijder of bewerk duplicaten voordat je deze beperking toepast.",
-        "errorInvalidConstraint": "Deze veldbeperking wordt niet ondersteund voor dit veldtype."
+        "errorInvalidConstraint": "Deze veldbeperking wordt niet ondersteund voor dit veldtype.",
+        "errorDoesNotSupportDefaultValue": "Kan deze beperking niet instellen wanneer de standaardwaarde is ingesteld.",
+        "noConstraintsCompatibleWithDefaultValue": "Er zijn geen beperkingen compatibel wanneer een standaardwaarde is ingeschakeld."
     },
     "fieldConstraintParametersText": {
         "placeholder": "Beperkingswaarde invoeren"

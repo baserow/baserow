@@ -496,7 +496,9 @@
         "triggerWhenRowsEnterView": "행이 뷰에 진입할 때 작동합니다."
     },
     "chartWidget": {
-        "name": "차트"
+        "name": "차트",
+        "bar": "막대형 차트",
+        "line": "선형 차트"
     },
     "aggregationSeriesForm": {
         "aggregationFieldLabel": "필드",
@@ -591,5 +593,9 @@
         "crossoriginTypeNone": "일반",
         "crossoriginTypeAnonymous": "익명",
         "crossoriginTypeCredentials": "자격 증명 사용"
+    },
+    "elementType": {
+        "errorUserSourceHasNoLoginOption": "선택된 사용자 소스에 로그인 옵션이 없습니다",
+        "errorUserSourceMissing": "사용자 소스가 선택되지 않았습니다"
     }
 }

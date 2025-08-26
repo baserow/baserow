@@ -829,6 +829,7 @@ def test_get_data_sync(enterprise_data_fixture, api_client):
         "last_sync": None,
         "last_error": None,
         "auto_add_new_properties": False,
+        "two_way_sync": False,
         # The `github_issues_api_token` should not be in here.
         "github_issues_owner": "baserow_owner",
         "github_issues_repo": "baserow_repo",

@@ -1,7 +1,8 @@
 from dataclasses import dataclass, field
-from typing import NewType, Optional, TypedDict, TypeVar
+from typing import NamedTuple, NewType, Optional, TypedDict, TypeVar
 
 from baserow.core.formula.runtime_formula_context import RuntimeFormulaContext
+from baserow.core.formula.types import BaserowFormula
 from baserow.core.services.models import Service
 
 
@@ -37,6 +38,13 @@ class UpdatedService:
     service: Service
     original_service_values: dict[str, any]
     new_service_values: dict[str, any]
+
+
+class FormulaToResolve(NamedTuple):
+    key: str
+    formula: BaserowFormula
+    ensurer: callable
+    label: str
 
 
 ServiceDictSubClass = TypeVar("ServiceDictSubClass", bound="ServiceDict")

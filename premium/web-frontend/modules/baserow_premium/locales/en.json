@@ -366,6 +366,8 @@
     "export": "Export"
   },
   "chart": {
+    "true": "true",
+    "false": "false",
     "other": "Other"
   }
 }

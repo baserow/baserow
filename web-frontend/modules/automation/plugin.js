@@ -16,6 +16,7 @@ import { AutomationApplicationType } from '@baserow/modules/automation/applicati
 import automationApplicationStore from '@baserow/modules/automation/store/automationApplication'
 import automationWorkflowStore from '@baserow/modules/automation/store/automationWorkflow'
 import automationWorkflowNodeStore from '@baserow/modules/automation/store/automationWorkflowNode'
+import automationHistoryStore from '@baserow/modules/automation/store/automationHistory'
 import {
   LocalBaserowCreateRowActionNodeType,
   LocalBaserowUpdateRowActionNodeType,
@@ -58,6 +59,7 @@ export default (context) => {
   store.registerModule('automationApplication', automationApplicationStore)
   store.registerModule('automationWorkflow', automationWorkflowStore)
   store.registerModule('automationWorkflowNode', automationWorkflowNodeStore)
+  store.registerModule('automationHistory', automationHistoryStore)
   store.registerModule(
     'template/automationApplication',
     automationApplicationStore

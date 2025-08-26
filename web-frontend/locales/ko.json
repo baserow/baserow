@@ -14,7 +14,8 @@
         "disabled": "비활성화됨",
         "or": "또는",
         "and": "그리고",
-        "optional": "선택적"
+        "optional": "선택적",
+        "alpha": "알파"
     },
     "action": {
         "close": "닫기",
@@ -434,7 +435,11 @@
         "databaseDeadlockDescription": "여러 개의 충돌하는 작업이 동시에 데이터에 수행되어 작업을 완료할 수 없습니다. 다시 시도해 주세요.",
         "databaseUniquePrimaryPropertyNotFoundTitle": "고유한 기본 속성이 없습니다",
         "databaseUniquePrimaryPropertyNotFoundDescription": "이 문제는 보통 데이터 동기화 소스에 고유한 행 값을 가져올 수 있는 속성이 없을 때 발생합니다. 테이블의 경우, 기본 키가 없을 때 이런 문제가 발생할 수 있습니다.",
-        "databaseDeadlockTitle": "작업 실패"
+        "databaseDeadlockTitle": "작업 실패",
+        "fieldConstraintTitle": "필드 제약 조건 위반",
+        "fieldConstraintDescription": "제약조건을 적용할 수 없습니다.",
+        "fieldDataConstraintTitle": "필드 데이터 제약 조건 위반",
+        "fieldDataConstraintDescription": "기존 제약 조건 위반으로 인해 작업을 완료할 수 없습니다."
     },
     "importerType": {
         "csv": "CSV 파일 가져오기",
@@ -605,5 +610,22 @@
         "submit": "테스트 이메일 보내기",
         "success": "테스트 이메일을 성공적으로 보냈습니다",
         "configLink": "이메일 구성 도움말"
+    },
+    "fieldConstraint": {
+        "uniqueWithEmpty": "빈 값을 제외한 고유항목"
+    },
+    "fieldConstraintsSubform": {
+        "title": "제약 조건",
+        "description": "필드 값이 따라야 하는 규칙을 정의합니다.",
+        "addConstraint": "제약 조건 추가",
+        "noConstraintsAvailable": "이 필드 유형에는 제약 조건이 없습니다.",
+        "readonlyFieldMessage": "읽기 전용 필드에는 제약 조건을 적용할 수 없습니다.",
+        "errorGenericData": "기존 데이터 충돌로 인해 필드 제약 조건을 적용할 수 없습니다.",
+        "errorUniqueOrEmpty": "이 필드의 일부 값이 중복되었습니다. 이 제약 조건을 적용하기 전에 중복된 값을 제거하거나 편집하세요.",
+        "errorInvalidConstraint": "이 필드 제약조건은 이 필드 유형에 지원되지 않습니다.",
+        "errorDoesNotSupportDefaultValue": "기본값이 설정되어 있으면 이 제약 조건을 설정할 수 없습니다."
+    },
+    "fieldConstraintParametersText": {
+        "placeholder": "제약 조건 값을 입력하세요"
     }
 }

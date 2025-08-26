@@ -143,3 +143,26 @@ export class GroupTaskQueue {
     queue.release()
   }
 }
+
+/**
+ * Helper function that resolves when the `checkFunction` returns true.
+ */
+export function waitFor(checkFunction, interval = 5, timeout = 10000) {
+  return new Promise((resolve, reject) => {
+    const startTime = Date.now()
+
+    const check = () => {
+      const loaded = checkFunction()
+
+      if (loaded) {
+        resolve()
+      } else if (Date.now() - startTime >= timeout) {
+        reject(new Error('Timeout waiting.'))
+      } else {
+        setTimeout(check, interval)
+      }
+    }
+
+    check()
+  })
+}

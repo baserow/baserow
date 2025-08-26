@@ -1,5 +1,5 @@
 .create-widget-modal__cards {
   display: flex;
-  flex-direction: row;
+  flex-flow: row wrap;
   gap: 22px;
 }

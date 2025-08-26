@@ -1257,6 +1257,7 @@ class ImportApplicationsActionType(ActionType):
         user: AbstractUser,
         workspace: Workspace,
         resource: ImportExportResource,
+        application_ids: Optional[List[int]] = None,
         progress_builder: Optional[ChildProgressBuilder] = None,
     ) -> List[Application]:
         """
@@ -1270,6 +1271,9 @@ class ImportApplicationsActionType(ActionType):
         :param user: The user performing the import.
         :param workspace: The workspace where the applications will be imported.
         :param resource: The resource containing the applications to import.
+        :param application_ids: Optional list of application IDs to import from the
+            resource. If not provided, all applications in the resource will be
+            imported.
         :param progress_builder: An optional progress builder to track the import
             progress.
         :return: A list of the imported Application instances.
@@ -1279,6 +1283,7 @@ class ImportApplicationsActionType(ActionType):
             user=user,
             workspace=workspace,
             resource=resource,
+            application_ids=application_ids,
             progress_builder=progress_builder,
         )
 

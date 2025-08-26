@@ -1811,6 +1811,18 @@ class FieldType(
             option list.
         """
 
+    def should_update_search_data(
+        self, old_field: Field, new_field_attrs: Dict[str, Any]
+    ) -> bool:
+        """
+        When a field is updated we might need to recalculate the search data for it.
+        This method is called if the new field does not change the type but only its
+        attributes and returns whether or not the search data should be recalculated
+        because of a potential change in the field value due to the new attributes.
+        """
+
+        return False
+
     def should_backup_field_data_for_same_type_update(
         self, old_field: Field, new_field_attrs: Dict[str, Any]
     ) -> bool:

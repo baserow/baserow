@@ -697,6 +697,10 @@ class NumberFieldType(FieldType):
             return self.get_serializer_field(instance).to_representation(value)
 
         formatted_value = self.get_serializer_field(instance).to_representation(value)
+
+        if formatted_value == "NaN":
+            return "NaN"
+
         fractional_part = ""
         if instance.number_decimal_places == 0:
             integer_part = formatted_value.split(".")[0]
@@ -804,6 +808,14 @@ class NumberFieldType(FieldType):
             number_suffix=formula_type.number_suffix,
             number_separator=formula_type.number_separator,
         )
+
+    def should_update_search_data(
+        self, old_field: NumberField, new_field_attrs: Dict[str, Any]
+    ) -> bool:
+        new_number_decimal_places = new_field_attrs.get(
+            "number_decimal_places", old_field.number_decimal_places
+        )
+        return old_field.number_decimal_places != new_number_decimal_places
 
     def should_backup_field_data_for_same_type_update(
         self, old_field: NumberField, new_field_attrs: Dict[str, Any]
@@ -979,6 +991,12 @@ class RatingFieldType(FieldType):
         self, formula_type: BaserowFormulaNumberType
     ) -> "RatingField":
         return RatingField()
+
+    def should_update_search_data(
+        self, old_field: RatingField, new_field_attrs: Dict[str, Any]
+    ) -> bool:
+        new_max_value = new_field_attrs.get("max_value", old_field.max_value)
+        return old_field.max_value > new_max_value
 
     def should_backup_field_data_for_same_type_update(
         self, old_field: RatingField, new_field_attrs: Dict[str, Any]
@@ -1422,6 +1440,26 @@ class DateFieldType(FieldType):
             "date_include_time", old_field.date_include_time
         )
         return old_field.date_include_time and not new_date_include_time
+
+    def should_update_search_data(
+        self, old_field: DateField, new_field_attrs: Dict[str, Any]
+    ) -> bool:
+        new_date_include_time = new_field_attrs.get(
+            "date_include_time", old_field.date_include_time
+        )
+        new_date_format = new_field_attrs.get("date_format", old_field.date_format)
+        new_date_time_format = new_field_attrs.get(
+            "date_time_format", old_field.date_time_format
+        )
+        new_force_timezone = new_field_attrs.get(
+            "date_force_timezone", old_field.date_force_timezone
+        )
+        return (
+            old_field.date_include_time != new_date_include_time
+            or old_field.date_format != new_date_format
+            or old_field.date_time_format != new_date_time_format
+            or old_field.date_force_timezone != new_force_timezone
+        )
 
     def serialize_metadata_for_row_history(
         self,
@@ -2101,6 +2139,17 @@ class DurationFieldType(FieldType):
         return self.format_duration(value, duration_format)
 
     def should_backup_field_data_for_same_type_update(
+        self, old_field: DurationField, new_field_attrs: Dict[str, Any]
+    ) -> bool:
+        new_duration_format = new_field_attrs.get(
+            "duration_format", old_field.duration_format
+        )
+
+        return is_duration_format_conversion_lossy(
+            new_duration_format, old_field.duration_format
+        )
+
+    def should_update_search_data(
         self, old_field: DurationField, new_field_attrs: Dict[str, Any]
     ) -> bool:
         new_duration_format = new_field_attrs.get(
@@ -3500,6 +3549,14 @@ class LinkRowFieldType(
         )
         return old_field.link_row_table_id != new_link_row_table_id
 
+    def should_update_search_data(
+        self, old_field: LinkRowField, new_field_attrs: Dict[str, Any]
+    ) -> bool:
+        new_link_row_table_id = new_field_attrs.get(
+            "link_row_table_id", old_field.link_row_table_id
+        )
+        return old_field.link_row_table_id != new_link_row_table_id
+
     def get_dependants_which_will_break_when_field_type_changes(
         self, field: LinkRowField, to_field_type: "FieldType", field_cache: "FieldCache"
     ) -> "FieldDependants":
@@ -4075,6 +4132,11 @@ class SelectOptionBaseFieldType(FieldType):
         # If there are any deleted options we need to backup
         return old_field.select_options.exclude(id__in=updated_ids).exists()
 
+    def should_update_search_data(self, old_field, new_field_attrs):
+        return self.should_backup_field_data_for_same_type_update(
+            old_field, new_field_attrs
+        )
+
     def enhance_queryset_in_bulk(self, queryset, field_objects, **kwargs):
         existing_multi_field_prefetches = queryset.get_multi_field_prefetches()
         select_model_prefetch = None
@@ -4178,7 +4240,8 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
             (
                 index
                 for index, option in enumerate(select_options)
-                if option["id"] == default
+                if option.get("id") == default
+                or option.get(UPSERT_OPTION_DICT_KEY) == default
             ),
             None,
         )
@@ -4677,7 +4740,8 @@ class MultipleSelectFieldType(
         return [
             index
             for index, option in enumerate(select_options)
-            if option["id"] in default
+            if option.get("id") in default
+            or option.get(UPSERT_OPTION_DICT_KEY) in default
         ]
 
     def get_options_by_index(self, field, index):
@@ -5839,6 +5903,12 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
             row, field
         )
 
+    def should_update_search_data(
+        self, old_field: LinkRowField, new_field_attrs: Dict[str, Any]
+    ) -> bool:
+        new_formula = new_field_attrs.get("formula", old_field.formula)
+        return old_field.formula != new_formula
+
     def should_backup_field_data_for_same_type_update(
         self, old_field: FormulaField, new_field_attrs: Dict[str, Any]
     ) -> bool:
@@ -6274,6 +6344,24 @@ class RollupFieldType(FormulaFieldType):
     ) -> QuerySet[Field]:
         return queryset.select_related("through_field", "target_field")
 
+    def should_update_search_data(
+        self, old_field: LinkRowField, new_field_attrs: Dict[str, Any]
+    ) -> bool:
+        new_through_field_id = new_field_attrs.get(
+            "through_field_id", old_field.through_field_id
+        )
+        new_target_field_id = new_field_attrs.get(
+            "target_field_id", old_field.target_field_id
+        )
+        new_rollup_function = new_field_attrs.get(
+            "rollup_function", old_field.rollup_function
+        )
+        return (
+            old_field.through_field_id != new_through_field_id
+            or old_field.target_field_id != new_target_field_id
+            or old_field.rollup_function != new_rollup_function
+        )
+
 
 class LookupFieldType(FormulaFieldType):
     type = "lookup"
@@ -6576,6 +6664,20 @@ class LookupFieldType(FormulaFieldType):
         self, queryset: QuerySet[Field], field: Field
     ) -> QuerySet[Field]:
         return queryset.select_related("through_field", "target_field")
+
+    def should_update_search_data(
+        self, old_field: LinkRowField, new_field_attrs: Dict[str, Any]
+    ) -> bool:
+        new_through_field_id = new_field_attrs.get(
+            "through_field_id", old_field.through_field_id
+        )
+        new_target_field_id = new_field_attrs.get(
+            "target_field_id", old_field.target_field_id
+        )
+        return (
+            old_field.through_field_id != new_through_field_id
+            or old_field.target_field_id != new_target_field_id
+        )
 
 
 class MultipleCollaboratorsFieldType(

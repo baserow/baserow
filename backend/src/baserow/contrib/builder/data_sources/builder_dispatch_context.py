@@ -49,8 +49,8 @@ class BuilderDispatchContext(DispatchContext):
         data_source: Optional["DataSource"] = None,
         offset: Optional[int] = None,
         count: Optional[int] = None,
-        only_record_id: Optional[int | str] = None,
         only_expose_public_allowed_properties: Optional[bool] = True,
+        **kwargs,
     ):
         """
         Dispatch context used in the builder.
@@ -71,7 +71,6 @@ class BuilderDispatchContext(DispatchContext):
         self.page = page
         self.workflow_action = workflow_action
         self.data_source = data_source
-        self.only_record_id = only_record_id
 
         # Overrides the `request` GET offset/count values.
         self.offset = offset
@@ -80,7 +79,7 @@ class BuilderDispatchContext(DispatchContext):
             only_expose_public_allowed_properties
         )
 
-        super().__init__()
+        super().__init__(**kwargs)
 
         # Early call to quickly trigger a validation error
         self.request_data

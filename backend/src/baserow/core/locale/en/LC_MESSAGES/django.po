@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-04-29 15:29+0000\n"
+"POT-Creation-Date: 2025-08-06 12:24+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -242,7 +242,7 @@ msgstr ""
 msgid "Decimal number"
 msgstr ""
 
-#: src/baserow/core/handler.py:2185 src/baserow/core/user/handler.py:267
+#: src/baserow/core/handler.py:2183 src/baserow/core/user/handler.py:267
 #, python-format
 msgid "%(name)s's workspace"
 msgstr ""
@@ -281,12 +281,12 @@ msgstr ""
 
 #: src/baserow/core/notification_types.py:92
 #, python-format
-msgid "%(user)s accepted your invitation to collaborate to %(workspace_name)s."
+msgid "%(user)s accepted your invitation to collaborate on %(workspace_name)s."
 msgstr ""
 
 #: src/baserow/core/notification_types.py:133
 #, python-format
-msgid "%(user)s rejected your invitation to collaborate to %(workspace_name)s."
+msgid "%(user)s rejected your invitation to collaborate on %(workspace_name)s."
 msgstr ""
 
 #: src/baserow/core/snapshots/actions.py:21

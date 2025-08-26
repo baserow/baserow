@@ -4,7 +4,8 @@ import CrudTableColumn from '@baserow/modules/core/crudTable/crudTableColumn'
 import InvitesRoleField from '@baserow_enterprise/components/InvitesRoleField'
 import EnterpriseFeatures from '@baserow_enterprise/features'
 import UserTeamsField from '@baserow_enterprise/components/crudTable/fields/UserTeamsField'
-import HighestPaidRoleField from '@baserow_enterprise/components/crudTable/fields/HighestPaidRoleField.vue'
+import HighestPaidRoleField from '@baserow_enterprise/components/crudTable/fields/HighestPaidRoleField'
+import AdminHighestPaidRoleField from '@baserow/modules/core/components/admin/users/fields/HighestPaidRoleField'
 
 export class EnterpriseMembersPagePluginType extends MembersPagePluginType {
   static getType() {
@@ -58,6 +59,24 @@ export class EnterpriseMembersPagePluginType extends MembersPagePluginType {
       'permissions',
       context
     )
+  }
+
+  mutateAdminUsersTableColumns(columns, context) {
+    const highestRoleColumn = new CrudTableColumn(
+      'highest_role_uid',
+      this.app.i18n.t('membersSettings.membersTable.columns.highestRole'),
+      AdminHighestPaidRoleField,
+      false,
+      false,
+      false,
+      {},
+      20,
+      this.app.i18n.t(
+        'membersSettings.membersTable.columns.highestRoleInstanceHelpText'
+      )
+    )
+    columns.splice(columns.length - 1, 0, highestRoleColumn)
+    return columns
   }
 
   isDeactivated(workspaceId) {

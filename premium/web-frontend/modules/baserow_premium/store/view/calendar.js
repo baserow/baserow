@@ -82,6 +82,8 @@ export const state = () => ({
   // have any matching cells will still be displayed.
   hideRowsNotMatchingSearch: true,
   adhocFiltering: false,
+  // Indicates whether row(s) are currently being created.
+  creating: false,
 })
 
 export const mutations = {
@@ -232,6 +234,9 @@ export const mutations = {
         existingRowState._.fullyLoaded = !value
       }
     })
+  },
+  SET_CREATING(state, value) {
+    state.creating = value
   },
 }
 
@@ -550,10 +555,12 @@ export const actions = {
   ) {
     const preparedRow = prepareRowForRequest(values, fields, this.$registry)
 
+    commit('SET_CREATING', true)
     const { data } = await RowService(this.$client).create(
       table.id,
       preparedRow
     )
+    commit('SET_CREATING', false)
     return await dispatch('createdNewRow', {
       view,
       values: data,
@@ -1074,6 +1081,9 @@ export const getters = {
   },
   getAdhocFiltering(state) {
     return state.adhocFiltering
+  },
+  getCreating(state) {
+    return state.creating
   },
 }
 

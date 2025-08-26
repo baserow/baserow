@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-04-22 11:57+0000\n"
+"POT-Creation-Date: 2025-07-25 07:49+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -26,58 +26,128 @@ msgstr ""
 msgid "User not found"
 msgstr ""
 
+#: src/baserow/contrib/automation/action_scopes.py:10
 #: src/baserow/contrib/automation/actions.py:4
 #, python-format
 msgid "in automation \"%(automation_name)s\" (%(automation_id)s)."
+msgstr ""
+
+#: src/baserow/contrib/automation/action_scopes.py:14
+#, python-format
+msgid ""
+"of type (%(node_type)s) in automation "
+"\"%(automation_name)s\" (%(automation_id)s)."
+msgstr ""
+
+#: src/baserow/contrib/automation/actions.py:8
+#, python-format
+msgid ""
+"in workflow (%(workflow_id)s) in automation "
+"\"%(automation_name)s\" (%(automation_id)s)."
 msgstr ""
 
 #: src/baserow/contrib/automation/automation_init_application.py:24
 msgid "Workflow"
 msgstr ""
 
-#: src/baserow/contrib/automation/workflows/actions.py:25
+#: src/baserow/contrib/automation/nodes/actions.py:27
+msgid "Create automation node"
+msgstr ""
+
+#: src/baserow/contrib/automation/nodes/actions.py:28
+#, python-format
+msgid "Node (%(node_id)s) created"
+msgstr ""
+
+#: src/baserow/contrib/automation/nodes/actions.py:99
+msgid "Update automation node"
+msgstr ""
+
+#: src/baserow/contrib/automation/nodes/actions.py:100
+#, python-format
+msgid "Node (%(node_id)s) updated"
+msgstr ""
+
+#: src/baserow/contrib/automation/nodes/actions.py:168
+msgid "Delete automation node"
+msgstr ""
+
+#: src/baserow/contrib/automation/nodes/actions.py:169
+#, python-format
+msgid "Node (%(node_id)s) deleted"
+msgstr ""
+
+#: src/baserow/contrib/automation/nodes/actions.py:226
+msgid "Order nodes"
+msgstr ""
+
+#: src/baserow/contrib/automation/nodes/actions.py:227
+msgid "Node order changed"
+msgstr ""
+
+#: src/baserow/contrib/automation/nodes/actions.py:295
+msgid "Duplicate automation node"
+msgstr ""
+
+#: src/baserow/contrib/automation/nodes/actions.py:296
+#, python-format
+msgid "Node (%(node_id)s) duplicated"
+msgstr ""
+
+#: src/baserow/contrib/automation/nodes/actions.py:363
+msgid "Replace automation node"
+msgstr ""
+
+#: src/baserow/contrib/automation/nodes/actions.py:365
+#, python-format
+msgid ""
+"Node (%(node_id)s) changed from a type of %(original_node_type)s to "
+"%(node_type)s"
+msgstr ""
+
+#: src/baserow/contrib/automation/workflows/actions.py:28
 msgid "Create automation workflow"
 msgstr ""
 
-#: src/baserow/contrib/automation/workflows/actions.py:26
+#: src/baserow/contrib/automation/workflows/actions.py:29
 #, python-format
 msgid "Workflow \"%(workflow_name)s\" (%(workflow_id)s) created"
 msgstr ""
 
-#: src/baserow/contrib/automation/workflows/actions.py:87
+#: src/baserow/contrib/automation/workflows/actions.py:90
 msgid "Update automation workflow"
 msgstr ""
 
-#: src/baserow/contrib/automation/workflows/actions.py:88
+#: src/baserow/contrib/automation/workflows/actions.py:91
 #, python-format
 msgid "Workflow \"%(workflow_name)s\" (%(workflow_id)s) updated"
 msgstr ""
 
-#: src/baserow/contrib/automation/workflows/actions.py:156
+#: src/baserow/contrib/automation/workflows/actions.py:170
 msgid "Delete workflow"
 msgstr ""
 
-#: src/baserow/contrib/automation/workflows/actions.py:157
+#: src/baserow/contrib/automation/workflows/actions.py:171
 #, python-format
 msgid "Workflow \"%(workflow_name)s\" (%(workflow_id)s) deleted"
 msgstr ""
 
-#: src/baserow/contrib/automation/workflows/actions.py:213
+#: src/baserow/contrib/automation/workflows/actions.py:227
 msgid "Duplicate automation workflow"
 msgstr ""
 
-#: src/baserow/contrib/automation/workflows/actions.py:215
+#: src/baserow/contrib/automation/workflows/actions.py:229
 #, python-format
 msgid ""
 "Workflow \"%(workflow_name)s\" (%(workflow_id)s) duplicated "
 "from\"%(original_workflow_name)s\" (%(original_workflow_id)s) "
 msgstr ""
 
-#: src/baserow/contrib/automation/workflows/actions.py:285
+#: src/baserow/contrib/automation/workflows/actions.py:299
 msgid "Order workflows"
 msgstr ""
 
-#: src/baserow/contrib/automation/workflows/actions.py:286
+#: src/baserow/contrib/automation/workflows/actions.py:300
 msgid "Workflow order changed"
 msgstr ""
 

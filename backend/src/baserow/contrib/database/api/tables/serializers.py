@@ -52,6 +52,13 @@ class TableImportConfiguration(serializers.Serializer):
             "the same order as the table rows for correct matching."
         ),
     )
+    skipped_fields = serializers.ListField(
+        child=serializers.IntegerField(min_value=1),
+        allow_null=True,
+        allow_empty=True,
+        default=None,
+        help_text="A list of field IDs that should not be overwritten during upsert operations.",
+    )
 
     def validate(self, attrs):
         if attrs.get("upsert_fields") and not len(attrs.get("upsert_values") or []):

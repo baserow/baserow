@@ -65,15 +65,11 @@
           @change="seriesChartTypeChanged"
         >
           <DropdownItem
-            :name="$t('aggregationSeriesForm.barChart')"
-            :value="'BAR'"
-            icon="baserow-icon-bar-chart"
-          >
-          </DropdownItem>
-          <DropdownItem
-            :name="$t('aggregationSeriesForm.lineChart')"
-            :value="'LINE'"
-            icon="baserow-icon-line-chart"
+            v-for="variation in widgetVariations"
+            :key="variation.params.default_series_chart_type"
+            :name="variation.name"
+            :value="variation.params.default_series_chart_type"
+            :icon="variation.dropdownIcon"
           >
           </DropdownItem>
         </Dropdown>
@@ -207,6 +203,10 @@ export default {
           (item) => item.series_id === series.id
         ) || {}
       )
+    },
+    widgetVariations() {
+      const widgetType = this.$registry.get('dashboardWidget', this.widget.type)
+      return widgetType.variations
     },
   },
   mounted() {

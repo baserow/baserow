@@ -287,10 +287,13 @@ class ElementType(
             prefix = str(DEFAULT_USER_ROLE_PREFIX)
             if role.startswith(prefix) and user_sources_mapping:
                 old_user_source_id = int(role[len(prefix) :])
-                new_user_source_id = user_sources_mapping[old_user_source_id]
-                new_role_name = f"{prefix}{new_user_source_id}"
-                if new_role_name in existing_roles:
-                    sanitized_roles.append(new_role_name)
+                # if the user source has been removed in the meantime we can't have
+                # a match so we just ignore it.
+                if old_user_source_id in user_sources_mapping:
+                    new_user_source_id = user_sources_mapping[old_user_source_id]
+                    new_role_name = f"{prefix}{new_user_source_id}"
+                    if new_role_name in existing_roles:
+                        sanitized_roles.append(new_role_name)
 
         return sanitized_roles
 

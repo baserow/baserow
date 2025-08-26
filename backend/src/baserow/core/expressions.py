@@ -1,4 +1,4 @@
-from django.db.models import DateTimeField, Expression, Func, Value
+from django.db.models import DateTimeField, Expression, Field, Func, Lookup, Value
 
 
 class Timezone(Expression):
@@ -71,3 +71,14 @@ class DateTrunc(Func):
 
     def __init__(self, trunc_type, field_expression, **extra):
         super(DateTrunc, self).__init__(Value(trunc_type), field_expression, **extra)
+
+
+@Field.register_lookup
+class IsDistinctFrom(Lookup):
+    lookup_name = "isdistinctfrom"
+
+    def as_sql(self, compiler, connection):
+        lhs, lhs_params = self.process_lhs(compiler, connection)
+        rhs, rhs_params = self.process_rhs(compiler, connection)
+        params = lhs_params + rhs_params
+        return "%s IS DISTINCT FROM %s" % (lhs, rhs), params

@@ -3,10 +3,10 @@ import socket
 from smtplib import SMTPAuthenticationError, SMTPConnectError, SMTPNotSupportedError
 from typing import Any, Dict, Generator, List, Optional, Tuple
 
-from django.core.exceptions import ValidationError
+from django.conf import settings
 from django.core.mail import EmailMultiAlternatives, get_connection
 
-import advocate
+from advocate.connection import UnacceptableAddressException
 from loguru import logger
 from requests import exceptions as request_exceptions
 from rest_framework import serializers
@@ -18,25 +18,17 @@ from baserow.contrib.integrations.core.models import (
     HTTPHeader,
     HTTPQueryParam,
 )
-from baserow.core.formula import resolve_formula
-from baserow.core.formula.exceptions import (
-    BaserowFormulaException,
-    InvalidFormulaContext,
-    InvalidFormulaContextContent,
-)
-from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.formula.validator import ensure_array, ensure_email, ensure_string
 from baserow.core.registry import Instance
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.exceptions import (
     InvalidContextContentDispatchException,
-    InvalidContextDispatchException,
     ServiceImproperlyConfiguredDispatchException,
     UnexpectedDispatchException,
 )
 from baserow.core.services.models import Service
 from baserow.core.services.registries import DispatchTypes, ServiceType
-from baserow.core.services.types import DispatchResult, ServiceDict
+from baserow.core.services.types import DispatchResult, FormulaToResolve, ServiceDict
 from baserow.version import VERSION as BASEROW_VERSION
 
 from .constants import BODY_TYPE, HTTP_METHOD
@@ -424,119 +416,68 @@ class CoreHTTPRequestServiceType(ServiceType):
             "properties": properties,
         }
 
-    def resolve_service_formulas(
-        self,
-        service: CoreHTTPRequestService,
-        dispatch_context: DispatchContext,
-    ) -> Dict[str, Any]:
-        """
-        Resolves the formulas for url, body, form_data, headers and query_params.
-        """
-
-        resolved_values = {}
-
-        resolved_values["body_content"] = ensure_string(
-            resolve_formula(
+    def formulas_to_resolve(
+        self, service: CoreHTTPRequestService
+    ) -> list[FormulaToResolve]:
+        formulas = [
+            FormulaToResolve(
+                "body_content",
                 service.body_content,
-                formula_runtime_function_registry,
-                dispatch_context,
-            )
-        )
-
-        dispatch_context.reset_call_stack()
-        resolved_values["url"] = ensure_string(
-            resolve_formula(
-                service.url,
-                formula_runtime_function_registry,
-                dispatch_context,
-            )
-        )
+                ensure_string,
+                'property "body_content"',
+            ),
+            FormulaToResolve("url", service.url, ensure_string, 'property "URL"'),
+        ]
 
         for fdata in service.form_data.all():
-            dispatch_context.reset_call_stack()
-            try:
-                resolved_values[f"form_data_{fdata.id}"] = ensure_string(
-                    resolve_formula(
-                        fdata.value,
-                        formula_runtime_function_registry,
-                        dispatch_context,
-                    )
-                )
-            except InvalidFormulaContext as e:
-                raise InvalidContextDispatchException(str(e)) from e
-            except InvalidFormulaContextContent as e:
-                message = f'Value error for form data "{fdata.key}": {str(e)}'
-                raise InvalidContextContentDispatchException(message) from e
-            except BaserowFormulaException as e:
-                message = f'Error in formula for form data "{fdata.key}": {str(e)}'
-                raise ServiceImproperlyConfiguredDispatchException(message) from e
-            except ServiceImproperlyConfiguredDispatchException:
-                raise
-            except Exception as e:
-                logger.exception(f"Unexpected error for form data {fdata.key}")
-                message = (
-                    "Unknown error in formula for "
-                    f"form_data {fdata.key}: {repr(e)} - {str(e)}"
-                )
-                raise UnexpectedDispatchException(message) from e
+            formulas.append(
+                FormulaToResolve(
+                    f"form_data_{fdata.id}",
+                    fdata.value,
+                    ensure_string,
+                    f'form data "{fdata.key}"',
+                ),
+            )
 
         for header in service.headers.all():
-            dispatch_context.reset_call_stack()
-            try:
-                resolved_values[f"header_{header.id}"] = ensure_string(
-                    resolve_formula(
-                        header.value,
-                        formula_runtime_function_registry,
-                        dispatch_context,
-                    )
-                )
-            except InvalidFormulaContext as e:
-                raise InvalidContextDispatchException(str(e)) from e
-            except InvalidFormulaContextContent as e:
-                message = f'Value error for header "{header.key}": {str(e)}'
-                raise InvalidContextContentDispatchException(message) from e
-            except BaserowFormulaException as e:
-                message = f'Error in formula for header "{header.key}": {str(e)}'
-                raise ServiceImproperlyConfiguredDispatchException(message) from e
-            except ServiceImproperlyConfiguredDispatchException:
-                raise
-            except Exception as e:
-                logger.exception(f'Unexpected error for header "{header.key}"')
-                message = (
-                    "Unknown error in formula for "
-                    f'header "{header.key}": {repr(e)} - {str(e)}'
-                )
-                raise UnexpectedDispatchException(message) from e
+            formulas.append(
+                FormulaToResolve(
+                    f"header_{header.id}",
+                    header.value,
+                    ensure_string,
+                    f'header "{header.key}"',
+                ),
+            )
 
         for param in service.query_params.all():
-            dispatch_context.reset_call_stack()
-            try:
-                resolved_values[f"param_{param.id}"] = ensure_string(
-                    resolve_formula(
-                        param.value,
-                        formula_runtime_function_registry,
-                        dispatch_context,
-                    )
-                )
-            except InvalidFormulaContext as e:
-                raise InvalidContextDispatchException(str(e)) from e
-            except InvalidFormulaContextContent as e:
-                message = f'Value error for query param "{param.key}": {str(e)}'
-                raise InvalidContextContentDispatchException(message) from e
-            except BaserowFormulaException as e:
-                message = f'Error in formula for query param "{param.key}": {str(e)}'
-                raise ServiceImproperlyConfiguredDispatchException(message) from e
-            except ServiceImproperlyConfiguredDispatchException:
-                raise
-            except Exception as e:
-                logger.exception(f'Unexpected error for query param "{param.key}"')
-                message = (
-                    "Unknown error in formula for "
-                    f'query param "{param.key}": {repr(e)} - {str(e)}'
-                )
-                raise UnexpectedDispatchException(message) from e
+            formulas.append(
+                FormulaToResolve(
+                    f"param_{param.id}",
+                    param.value,
+                    ensure_string,
+                    f'query parameter "{param.key}"',
+                ),
+            )
 
-        return resolved_values
+        return formulas
+
+    def _get_request_function(self) -> callable:
+        """
+        Return the appropriate request function based on production environment
+        or settings.
+        In production mode, the advocate library is used so that the internal
+        network can't be reached. This can be disabled by changing the Django
+        setting INTEGRATIONS_ALLOW_PRIVATE_ADDRESS.
+        """
+
+        if settings.INTEGRATIONS_ALLOW_PRIVATE_ADDRESS is True:
+            from requests import request
+
+            return request
+        else:
+            from advocate import request
+
+            return request
 
     def dispatch_data(
         self,
@@ -574,7 +515,7 @@ class CoreHTTPRequestServiceType(ServiceType):
         }
 
         try:
-            response = advocate.request(
+            response = self._get_request_function()(
                 method=service.http_method,
                 url=resolved_values["url"],
                 headers=headers,
@@ -582,9 +523,15 @@ class CoreHTTPRequestServiceType(ServiceType):
                 timeout=service.timeout,
                 **body_dict,
             )
+
+        except (UnacceptableAddressException, ConnectionError) as e:
+            raise UnexpectedDispatchException(
+                f'Invalid URL: {resolved_values["url"]}'
+            ) from e
         except request_exceptions.RequestException as e:
             raise UnexpectedDispatchException(str(e)) from e
         except Exception as e:
+            logger.exception("Error while dispatching HTTP request")
             raise UnexpectedDispatchException(f"Unknown error: {str(e)}") from e
 
         response_body = (
@@ -753,12 +700,12 @@ class CoreSMTPEmailServiceType(ServiceType):
             "properties": properties,
         }
 
-    def resolve_service_formulas(
-        self,
-        service: CoreSMTPEmailService,
-        dispatch_context: DispatchContext,
-    ) -> Dict[str, Any]:
-        resolved_values = {}
+    def formulas_to_resolve(
+        self, service: CoreHTTPRequestService
+    ) -> list[FormulaToResolve]:
+        """
+        Returns the formula to resolve for this service.
+        """
 
         ensurers = {
             "from_email": ensure_email,
@@ -770,38 +717,16 @@ class CoreSMTPEmailServiceType(ServiceType):
             "body": ensure_string,
         }
 
-        for field_name, ensurer in ensurers.items():
-            dispatch_context.reset_call_stack()
-            field_value = getattr(service, field_name)
-            try:
-                resolved_values[field_name] = ensurer(
-                    resolve_formula(
-                        field_value,
-                        formula_runtime_function_registry,
-                        dispatch_context,
-                    )
-                )
-            except InvalidFormulaContext as e:
-                raise InvalidContextDispatchException(str(e)) from e
-            except (InvalidFormulaContextContent, ValidationError) as e:
-                message = f'Value error for property "{field_name}": {str(e)}'
-                raise InvalidContextContentDispatchException(message) from e
-            except BaserowFormulaException as e:
-                message = f'Error in formula for property "{field_name}": {str(e)}'
-                raise ServiceImproperlyConfiguredDispatchException(message) from e
-            except Exception as e:
-                logger.exception(f'Unexpected error for property "{field_name}"')
-                message = (
-                    f'Unknown error in formula for property "{field_name}": {str(e)}'
-                )
-                raise UnexpectedDispatchException(message) from e
+        formulas = []
 
-        if not resolved_values["to_emails"]:
-            raise InvalidContextContentDispatchException(
-                "At least one recipient email is required"
+        for key, ensurer in ensurers.items():
+            formulas.append(
+                FormulaToResolve(
+                    key, getattr(service, key), ensurer, f'property "{key}"'
+                )
             )
 
-        return resolved_values
+        return formulas
 
     def dispatch_data(
         self,
@@ -809,9 +734,9 @@ class CoreSMTPEmailServiceType(ServiceType):
         resolved_values: Dict[str, Any],
         dispatch_context: DispatchContext,
     ) -> Any:
-        if not service.integration:
-            raise ServiceImproperlyConfiguredDispatchException(
-                "SMTP Email service must be connected to an SMTP integration"
+        if not resolved_values["to_emails"]:
+            raise InvalidContextContentDispatchException(
+                "At least one recipient email is required"
             )
 
         smtp_integration = service.integration.specific

@@ -55,6 +55,8 @@ export const state = () => ({
   draggingOriginalBefore: null,
   // If true, ad hoc filtering is used instead of persistent one
   adhocFiltering: false,
+  // Indicates whether row(s) are currently being created.
+  creating: false,
 })
 
 export const mutations = {
@@ -199,6 +201,9 @@ export const mutations = {
   },
   SET_ADHOC_FILTERING(state, adhocFiltering) {
     state.adhocFiltering = adhocFiltering
+  },
+  SET_CREATING(state, value) {
+    state.creating = value
   },
 }
 
@@ -417,10 +422,12 @@ export const actions = {
   ) {
     const preparedRow = prepareRowForRequest(values, fields, this.$registry)
 
+    commit('SET_CREATING', true)
     const { data } = await RowService(this.$client).create(
       table.id,
       preparedRow
     )
+    commit('SET_CREATING', false)
     return await dispatch('createdNewRow', {
       view,
       values: data,
@@ -1129,6 +1136,9 @@ export const getters = {
   },
   getAdhocFiltering(state) {
     return state.adhocFiltering
+  },
+  getCreating(state) {
+    return state.creating
   },
 }
 

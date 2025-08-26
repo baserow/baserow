@@ -19,6 +19,7 @@ from baserow.api.errors import (
     ERROR_USER_NOT_IN_GROUP,
 )
 from baserow.api.import_export.errors import (
+    ERROR_APPLICATION_IDS_NOT_FOUND,
     ERROR_RESOURCE_DOES_NOT_EXIST,
     ERROR_RESOURCE_IS_BEING_IMPORTED,
     ERROR_RESOURCE_IS_INVALID,
@@ -54,6 +55,7 @@ from baserow.core.exceptions import (
 )
 from baserow.core.handler import CoreHandler
 from baserow.core.import_export.exceptions import (
+    ImportExportApplicationIdsNotFound,
     ImportExportResourceDoesNotExist,
     ImportExportResourceInBeingImported,
     ImportExportResourceInvalidFile,
@@ -721,6 +723,7 @@ class AsyncImportApplicationsView(APIView):
                     "ERROR_MAX_JOB_COUNT_EXCEEDED",
                     "ERROR_RESOURCE_DOES_NOT_EXIST",
                     "ERROR_RESOURCE_IS_INVALID",
+                    "ERROR_APPLICATION_IDS_NOT_FOUND",
                 ]
             ),
             404: get_error_schema(["ERROR_GROUP_DOES_NOT_EXIST"]),
@@ -734,6 +737,7 @@ class AsyncImportApplicationsView(APIView):
             MaxJobCountExceeded: ERROR_MAX_JOB_COUNT_EXCEEDED,
             ImportExportResourceDoesNotExist: ERROR_RESOURCE_DOES_NOT_EXIST,
             ImportExportResourceInvalidFile: ERROR_RESOURCE_IS_INVALID,
+            ImportExportApplicationIdsNotFound: ERROR_APPLICATION_IDS_NOT_FOUND,
         }
     )
     @validate_body(
@@ -745,6 +749,7 @@ class AsyncImportApplicationsView(APIView):
             ImportApplicationsJobType.type,
             workspace_id=workspace_id,
             resource_id=data["resource_id"],
+            application_ids=data.get("application_ids"),
         )
 
         serializer = job_type_registry.get_serializer(job, JobSerializer)

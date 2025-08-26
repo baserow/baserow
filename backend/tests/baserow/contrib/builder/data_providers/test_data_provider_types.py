@@ -554,8 +554,7 @@ def test_data_source_data_provider_get_data_chunk_with_formula_recursion(
         )
 
     assert (
-        exc.value.args[0]
-        == "Row id formula could not be resolved: Formula recursion detected"
+        exc.value.args[0] == 'Error in formula for "row_id": Formula recursion detected'
     )
 
 

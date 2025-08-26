@@ -22,7 +22,11 @@
         <i :class="`grid-view__description-icon ${field._.type.iconClass}`"></i>
         <i
           v-if="synced"
-          v-tooltip="$t('gridViewFieldType.dataSyncField')"
+          v-tooltip="
+            table.data_sync.two_way_sync && canWriteFieldValues
+              ? $t('gridViewFieldType.dataSyncFieldTwoWaySync')
+              : $t('gridViewFieldType.dataSyncField')
+          "
           class="grid-view__description-extra-icon iconoir-data-transfer-down"
         ></i>
         <i

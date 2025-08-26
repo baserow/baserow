@@ -20,6 +20,7 @@
         <Dropdown
           v-model="v$.values.single_select_default.$model"
           :fixed-items="true"
+          :disabled="isDefaultValueFieldDisabled"
         >
           <DropdownItem key="empty-option" name="" :value="null" />
           <DropdownItem
@@ -29,6 +30,16 @@
             :value="option.id"
           />
         </Dropdown>
+        <div
+          v-if="isDefaultValueFieldDisabled"
+          class="control__messages padding-top-0"
+        >
+          <p
+            class="control__helper-text control__helper-text--warning field-context__inner-element-width"
+          >
+            {{ $t('fieldForm.defaultValueDisabledByConstraint') }}
+          </p>
+        </div>
       </FormGroup>
     </template>
   </div>

@@ -771,7 +771,7 @@ def test_admin_getting_view_users_only_runs_two_queries_instead_of_n(
         first_name="Test1",
         is_staff=True,
     )
-    fixed_num_of_queries_unrelated_to_number_of_rows = 5
+    fixed_num_of_queries_unrelated_to_number_of_rows = 6
 
     for i in range(10):
         data_fixture.create_user_workspace()

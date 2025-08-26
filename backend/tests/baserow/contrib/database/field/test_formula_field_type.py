@@ -38,6 +38,7 @@ from baserow.contrib.database.views.exceptions import (
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import SORT_ORDER_ASC, SORT_ORDER_DESC
 from baserow.contrib.database.views.registries import view_filter_type_registry
+from baserow.core.handler import CoreHandler
 from baserow.test_utils.helpers import AnyStr
 
 
@@ -2248,3 +2249,91 @@ def test_formula_number_type_without_decimal_places(data_fixture):
     # the fix in NumerFieldType.from_baserow_formula_type replaces `None` with `0`,
     # otherwise the operation below would fail.
     FieldHandler().duplicate_field(user, formula_field, duplicate_data=True)
+
+
+@pytest.mark.django_db
+def test_can_export_import_database_with_broken_via_dependency(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table_1 = data_fixture.create_database_table(database=database)
+    table_1_field_1 = data_fixture.create_text_field(
+        table=table_1, name="Name", primary=True
+    )
+    table_2 = data_fixture.create_database_table(database=database)
+    table_2_field_1 = data_fixture.create_text_field(
+        table=table_2, name="Name", primary=True
+    )
+
+    field_handler = FieldHandler()
+    link_row_field = field_handler.create_field(
+        user=user,
+        table=table_2,
+        type_name="link_row",
+        name="Link",
+        link_row_table=table_1,
+    )
+    formula_field = field_handler.create_field(
+        user,
+        table_2,
+        name="Lookup",
+        type_name="formula",
+        formula=f"lookup('{link_row_field.name}', '{table_1_field_1.name}')",
+    )
+
+    field_handler.delete_field(user, link_row_field)
+    formula_field.refresh_from_db()
+    assert formula_field.formula_type == "invalid"
+
+    duplicated_database = CoreHandler().duplicate_application(user, database)
+    duplicated_tables = duplicated_database.table_set.all()
+    duplicated_formula = (
+        duplicated_tables[1].field_set.filter(name="Lookup")[0].specific
+    )
+    assert duplicated_formula.formula_type == "invalid"
+
+    # Fix the broken via dependency by creating the missing field.
+    field_handler.create_field(
+        user=user,
+        table=duplicated_tables[1],
+        type_name="link_row",
+        name="Link",
+        link_row_table=duplicated_tables[0],
+    )
+
+    duplicated_formula.refresh_from_db()
+    assert duplicated_formula.formula_type == "array"
+
+
+@pytest.mark.django_db
+def test_count_formula_for_link_row_field_with_null_values(data_fixture):
+    user = data_fixture.create_user()
+
+    table_a = data_fixture.create_database_table(user=user)
+    data_fixture.create_text_field(table=table_a, name="Field A", primary=True)
+
+    table_b = data_fixture.create_database_table(user=user)
+    data_fixture.create_date_field(table=table_b, name="Field B", primary=True)
+    link_field = data_fixture.create_link_row_field(
+        table=table_a,
+        link_row_table=table_b,
+        name="Link",
+    )
+    formula_field = data_fixture.create_formula_field(
+        table=table_a,
+        name="Count",
+        formula="count(field('Link'))",
+    )
+
+    row_handler = RowHandler()
+    rows, _ = row_handler.create_rows(
+        user=user, table=table_b, rows_values=[{}, {}, {}], model=table_b.get_model()
+    )
+
+    row_a = row_handler.create_row(
+        user=user,
+        table=table_a,
+        values={link_field.db_column: [row.id for row in rows]},
+    )
+
+    assert getattr(row_a, formula_field.db_column) == 3

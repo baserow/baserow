@@ -589,17 +589,16 @@ def test_local_baserow_upsert_row_service_resolve_service_formulas(
 
     # We're creating a row.
     assert service.row_id == ""
-    assert service_type.resolve_service_formulas(service, dispatch_context) == {
-        "table": table,
-    }
+    assert service_type.resolve_service_formulas(service, dispatch_context) == {}
 
     # We're updating a row, but the ID isn't an integer
     service.row_id = "'horse'"
-    with pytest.raises(ServiceImproperlyConfiguredDispatchException) as exc:
+    with pytest.raises(InvalidContextContentDispatchException) as exc:
         service_type.resolve_service_formulas(service, dispatch_context)
 
     assert exc.value.args[0] == (
-        "The `row_id` value must be an integer or convertible to an integer."
+        'Value error for "row_id": '
+        "The value must be an integer or convertible to an integer."
     )
 
     # We're updating a row, but the ID formula can't be resolved
@@ -607,7 +606,7 @@ def test_local_baserow_upsert_row_service_resolve_service_formulas(
     with pytest.raises(ServiceImproperlyConfiguredDispatchException) as exc:
         service_type.resolve_service_formulas(service, dispatch_context)
 
-    assert exc.value.args[0].startswith("Row id formula could not be resolved:")
+    assert exc.value.args[0].startswith('Error in formula for "row_id"')
 
 
 @pytest.mark.django_db

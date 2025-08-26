@@ -2,7 +2,8 @@
     "integrationType": {
         "localBaserowSummary": "Baserow local - {name}, {username}",
         "localBaserow": "Baserow local",
-        "localBaserowWarning": "Associer votre compte donne à tous ceux qui peuvent modifier l'application un accès complet aux données auxquelles vous avez accès. Il est possible de créer un deuxième utilisateur, donner les bonnes autorisations et utiliser celui-ci."
+        "localBaserowWarning": "Associer votre compte donne à tous ceux qui peuvent modifier l'application un accès complet aux données auxquelles vous avez accès. Il est possible de créer un deuxième utilisateur, donner les bonnes autorisations et utiliser celui-ci.",
+        "smtp": "Mail SMTP"
     },
     "serviceType": {
         "localBaserowGetRow": "Obtenir une ligne",
@@ -29,7 +30,14 @@
         "errorFilterInError": "Au moins un filtre est mal configuré",
         "errorSortingInError": "Au moins un tri est mal configuré",
         "errorNoFieldSelected": "Aucun champ sélectionné",
-        "errorNoAggregationTypeSelected": "Aucun type d'agrégation n'a été sélectionné"
+        "errorNoAggregationTypeSelected": "Aucun type d'agrégation n'a été sélectionné",
+        "localBaserowGetRowDescription": "Lire une seule ligne d'une table Baserow.",
+        "localBaserowListRowsDescription": "Lit plusieurs lignes d'une table Baserow.",
+        "localBaserowAggregateRowsDescription": "Résume un champ dans une table Baserow.",
+        "coreSMTPEmail": "Envoyer un e-mail",
+        "coreSMTPEmailDescription": "Envoie un e-mail à l'aide de la configuration SMTP.",
+        "errorFromEmailMissing": "Propriété \"From Email\" manquante",
+        "errorToEmailsMissing": "Propriété \"To Emails\" manquante"
     },
     "localBaserowForm": {
         "user": "Utilisateur",
@@ -132,5 +140,48 @@
         "url": "URL de destination",
         "seconds": "secondes",
         "valuePlaceholder": "Valeur..."
+    },
+    "serviceRefinementForms": {
+        "filterTabTitle": "Filtre | 1 filtre | {count} filtres",
+        "sortTabTitle": "Spell | 1 Spell | {count} Spells",
+        "searchTabTitle": "Trier | 1 tri | {count} tris",
+        "searchFieldPlaceHolder": "Entrez une recherche...",
+        "noTableChosenForFiltering": "Choisissez une table pour commencer à utiliser les filtres de source de données.",
+        "noTableChosenForSorting": "Choisissez une table pour commencer à utiliser les tris de sources de données.",
+        "refinements": "Affinages"
+    },
+    "smtpIntegrationType": {
+        "smtpSummary": "SMTP - {hôte} : {port}"
+    },
+    "smtpForm": {
+        "host": "Hôte SMTP",
+        "hostPlaceholder": "smtp.gmail.com",
+        "port": "Port SMTP",
+        "portPlaceholder": "587",
+        "useTls": "Utiliser TLS",
+        "username": "Nom d'utilisateur",
+        "usernamePlaceholder": "email@exemple.com",
+        "password": "Mot de passe",
+        "passwordPlaceholder": "mot-de-passe"
+    },
+    "smtpEmailForm": {
+        "integrationDropdownLabel": "Intégration",
+        "fromEmail": "Adresse email d'émission",
+        "fromEmailPlaceholder": "expediteur@exemple.com",
+        "fromName": "Nom d'émission",
+        "fromNamePlaceholder": "Nom",
+        "toEmails": "Adresse mails d'envoi",
+        "toEmailsPlaceholder": "destinataire1@exemple.com,destinataire2@exemple.com",
+        "ccEmails": "Adresses mail CC",
+        "ccEmailsPlaceholder": "cc1@exemple.com,cc2@exemple.com",
+        "bccEmails": "Adresses email BCC",
+        "bccEmailsPlaceholder": "bcc1@exemple.com,bcc2@exemple.com",
+        "subject": "Objet",
+        "subjectPlaceholder": "Objet de l'email",
+        "bodyType": "Corps du mail",
+        "bodyTypePlain": "Texte",
+        "bodyTypeHtml": "HTML",
+        "body": "Corps",
+        "bodyPlaceholder": "Le contenu de votre e-mail..."
     }
 }

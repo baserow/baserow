@@ -27,6 +27,10 @@ def test_serializer_to_openapi_inline():
                         "description": "If enabled and new properties are detected on sync, then they're automatically added. Note that this means all properties will always be added.",
                         "type": "boolean",
                     },
+                    "two_way_sync": {
+                        "description": "If enabled, then it's possible to make changes to the synced table. They will automatically be synced with the source data. Note that this is only possible if the data sync type has a two-way sync strategy.",
+                        "type": "boolean",
+                    },
                     "id": {"type": "integer", "readOnly": True},
                     "type": {"type": "string", "readOnly": True},
                     "synced_properties": {
@@ -56,7 +60,11 @@ def test_serializer_to_openapi_inline():
                     },
                     "last_error": {"type": "string", "nullable": True},
                 },
-                "required": ["id", "synced_properties", "type"],
+                "required": [
+                    "id",
+                    "synced_properties",
+                    "type",
+                ],
             },
         },
         "required": ["data_sync", "database_id", "id", "name", "order"],

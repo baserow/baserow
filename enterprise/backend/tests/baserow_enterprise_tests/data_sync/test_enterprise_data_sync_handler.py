@@ -1,6 +1,7 @@
 from datetime import datetime, time, timezone
 from unittest.mock import patch
 
+from django.conf import settings
 from django.core.cache import cache
 from django.db import transaction
 from django.test.utils import override_settings
@@ -13,16 +14,24 @@ from freezegun.api import freeze_time
 
 from baserow.contrib.database.data_sync.handler import DataSyncHandler
 from baserow.contrib.database.data_sync.models import DataSync
+from baserow.core.db import specific_iterator
 from baserow.core.exceptions import UserNotInWorkspace
 from baserow.core.notifications.models import Notification
 from baserow_enterprise.data_sync.handler import EnterpriseDataSyncHandler
-from baserow_enterprise.data_sync.models import PeriodicDataSyncInterval
+from baserow_enterprise.data_sync.models import (
+    DATA_SYNC_INTERVAL_DAILY,
+    DATA_SYNC_INTERVAL_MANUAL,
+    DEACTIVATION_REASON_FAILURE,
+    DEACTIVATION_REASON_LICENSE_UNAVAILABLE,
+    PeriodicDataSyncInterval,
+)
 from baserow_enterprise.data_sync.notification_types import (
     PeriodicDataSyncDeactivatedNotificationType,
 )
 
 
 @pytest.mark.django_db
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 def test_update_periodic_data_sync_interval_licence_check(enterprise_data_fixture):
     user = enterprise_data_fixture.create_user()
@@ -38,6 +47,7 @@ def test_update_periodic_data_sync_interval_licence_check(enterprise_data_fixtur
 
 
 @pytest.mark.django_db
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 def test_update_periodic_data_sync_interval_check_permissions(enterprise_data_fixture):
     enterprise_data_fixture.enable_enterprise()
@@ -55,6 +65,7 @@ def test_update_periodic_data_sync_interval_check_permissions(enterprise_data_fi
 
 
 @pytest.mark.django_db
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 def test_update_periodic_data_sync_interval_create(enterprise_data_fixture):
     enterprise_data_fixture.enable_enterprise()
@@ -93,6 +104,7 @@ def test_update_periodic_data_sync_interval_create(enterprise_data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 def test_update_periodic_data_sync_interval_update(enterprise_data_fixture):
     enterprise_data_fixture.enable_enterprise()
@@ -138,6 +150,7 @@ def test_update_periodic_data_sync_interval_update(enterprise_data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 def test_update_periodic_data_sync_interval_update_automatically_disabled(
     enterprise_data_fixture,
@@ -166,6 +179,7 @@ def test_update_periodic_data_sync_interval_update_automatically_disabled(
 
 
 @pytest.mark.django_db
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 def test_call_daily_periodic_data_sync_syncs(enterprise_data_fixture):
     enterprise_data_fixture.enable_enterprise()
@@ -254,6 +268,7 @@ def test_call_daily_periodic_data_sync_syncs(enterprise_data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 def test_call_hourly_periodic_data_sync_syncs(enterprise_data_fixture):
     enterprise_data_fixture.enable_enterprise()
@@ -342,6 +357,7 @@ def test_call_hourly_periodic_data_sync_syncs(enterprise_data_fixture):
 
 
 @pytest.mark.django_db(transaction=True)
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 @patch("baserow_enterprise.data_sync.handler.sync_periodic_data_sync")
 def test_call_periodic_data_sync_syncs_starts_task(
@@ -368,6 +384,7 @@ def test_call_periodic_data_sync_syncs_starts_task(
 
 
 @pytest.mark.django_db
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 def test_skip_automatically_deactivated_periodic_data_syncs(enterprise_data_fixture):
     enterprise_data_fixture.enable_enterprise()
@@ -392,6 +409,7 @@ def test_skip_automatically_deactivated_periodic_data_syncs(enterprise_data_fixt
 
 
 @pytest.mark.django_db(transaction=True, databases=["default", "default-copy"])
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 def test_skip_locked_data_syncs(enterprise_data_fixture):
     enterprise_data_fixture.enable_enterprise()
@@ -432,6 +450,7 @@ def test_skip_locked_data_syncs(enterprise_data_fixture):
 
 
 @pytest.mark.django_db(transaction=True)
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 @patch("baserow_enterprise.data_sync.handler.sync_periodic_data_sync")
 def test_skip_syncing_data_syncs(
@@ -465,6 +484,7 @@ def test_skip_syncing_data_syncs(
 
 
 @pytest.mark.django_db
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 def test_sync_periodic_data_sync_deactivated(enterprise_data_fixture):
     enterprise_data_fixture.enable_enterprise()
@@ -489,6 +509,7 @@ def test_sync_periodic_data_sync_deactivated(enterprise_data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 def test_sync_periodic_data_sync_already_syncing(enterprise_data_fixture):
     enterprise_data_fixture.enable_enterprise()
@@ -516,6 +537,7 @@ def test_sync_periodic_data_sync_already_syncing(enterprise_data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 @responses.activate
 def test_sync_periodic_data_sync_consecutive_failed_count_increases(
@@ -547,6 +569,7 @@ def test_sync_periodic_data_sync_consecutive_failed_count_increases(
 
 
 @pytest.mark.django_db
+@pytest.mark.data_sync
 @override_settings(
     DEBUG=True, BASEROW_ENTERPRISE_MAX_PERIODIC_DATA_SYNC_CONSECUTIVE_ERRORS=2
 )
@@ -586,6 +609,7 @@ END:VCALENDAR""",
 
 
 @pytest.mark.django_db
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 @responses.activate
 def test_sync_periodic_data_sync_deactivated_max_failure(enterprise_data_fixture):
@@ -618,6 +642,7 @@ def test_sync_periodic_data_sync_deactivated_max_failure(enterprise_data_fixture
 
 
 @pytest.mark.django_db(transaction=True)
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 @responses.activate
 def test_sync_periodic_data_sync_deactivated_max_failure_notification_send(
@@ -662,10 +687,12 @@ def test_sync_periodic_data_sync_deactivated_max_failure_notification_send(
         "table_name": periodic_data_sync.data_sync.table.name,
         "table_id": periodic_data_sync.data_sync.table.id,
         "database_id": periodic_data_sync.data_sync.table.database_id,
+        "deactivation_reason": DEACTIVATION_REASON_FAILURE,
     }
 
 
 @pytest.mark.django_db
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 def test_sync_periodic_data_sync_authorized_user_is_none(enterprise_data_fixture):
     enterprise_data_fixture.enable_enterprise()
@@ -689,6 +716,7 @@ def test_sync_periodic_data_sync_authorized_user_is_none(enterprise_data_fixture
 
 
 @pytest.mark.django_db
+@pytest.mark.data_sync
 @override_settings(DEBUG=True)
 @responses.activate
 def test_sync_periodic_data_sync(enterprise_data_fixture):
@@ -720,3 +748,285 @@ END:VCALENDAR""",
     periodic_data_sync.data_sync.refresh_from_db()
     assert periodic_data_sync.data_sync.last_sync is not None
     assert periodic_data_sync.data_sync.last_error is None
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.data_sync
+@override_settings(DEBUG=True)
+def test_periodic_sync_disabled_on_license_loss_sends_notification(
+    enterprise_data_fixture, synced_roles
+):
+    enterprise_data_fixture.enable_enterprise()
+    user = enterprise_data_fixture.create_user()
+
+    periodic_data_sync = EnterpriseDataSyncHandler.update_periodic_data_sync_interval(
+        user=user,
+        data_sync=enterprise_data_fixture.create_ical_data_sync(user=user),
+        interval=DATA_SYNC_INTERVAL_DAILY,
+        when=time(hour=12, minute=10, second=1, microsecond=1),
+    )
+
+    enterprise_data_fixture.delete_all_licenses()
+
+    with freeze_time("2024-10-10T12:15:00.00Z"):
+        with transaction.atomic():
+            EnterpriseDataSyncHandler.call_periodic_data_sync_syncs_that_are_due()
+
+    periodic_data_sync.refresh_from_db()
+    assert periodic_data_sync.interval == DATA_SYNC_INTERVAL_MANUAL
+    assert periodic_data_sync.automatically_deactivated is True
+    assert (
+        periodic_data_sync.deactivation_reason
+        == DEACTIVATION_REASON_LICENSE_UNAVAILABLE
+    )
+
+    notifications = Notification.objects.filter(
+        type=PeriodicDataSyncDeactivatedNotificationType.type
+    )
+    assert len(notifications) == 1
+
+    notification_data = notifications[0].data
+    assert notification_data["data_sync_id"] == periodic_data_sync.data_sync_id
+    assert notification_data["table_name"] == periodic_data_sync.data_sync.table.name
+    assert (
+        notification_data["deactivation_reason"]
+        == DEACTIVATION_REASON_LICENSE_UNAVAILABLE
+    )
+
+
+@pytest.mark.django_db
+@pytest.mark.data_sync
+@override_settings(DEBUG=True)
+def test_periodic_sync_failure_deactivation_shows_failure_message(
+    enterprise_data_fixture, synced_roles
+):
+    enterprise_data_fixture.enable_enterprise()
+    user = enterprise_data_fixture.create_user()
+
+    periodic_data_sync = EnterpriseDataSyncHandler.update_periodic_data_sync_interval(
+        user=user,
+        data_sync=enterprise_data_fixture.create_ical_data_sync(user=user),
+        interval="DAILY",
+        when=time(hour=12, minute=10, second=1, microsecond=1),
+    )
+
+    periodic_data_sync.consecutive_failed_count = 5
+    periodic_data_sync.automatically_deactivated = True
+    periodic_data_sync.deactivation_reason = DEACTIVATION_REASON_FAILURE
+    periodic_data_sync.save()
+
+    with transaction.atomic():
+        PeriodicDataSyncDeactivatedNotificationType.notify_authorized_user(
+            periodic_data_sync
+        )
+
+    notifications = Notification.objects.filter(
+        type=PeriodicDataSyncDeactivatedNotificationType.type
+    )
+    assert len(notifications) == 1
+    notification_data = notifications[0].data
+    assert notification_data["data_sync_id"] == periodic_data_sync.data_sync_id
+    assert notification_data["table_name"] == periodic_data_sync.data_sync.table.name
+    assert notification_data["deactivation_reason"] == DEACTIVATION_REASON_FAILURE
+
+
+@pytest.mark.django_db(transaction=True)
+@override_settings(DEBUG=True)
+@patch("baserow.contrib.database.table.signals.table_created.send")
+def test_create_two_way_data_sync_table(
+    send_mock, enterprise_data_fixture, create_postgresql_test_table
+):
+    enterprise_data_fixture.enable_enterprise()
+
+    default_database = settings.DATABASES["default"]
+    user = enterprise_data_fixture.create_user()
+    database = enterprise_data_fixture.create_database_application(user=user)
+
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="postgresql",
+        synced_properties=[
+            "id",
+            "text_col",
+        ],
+        two_way_sync=True,
+        postgresql_host=default_database["HOST"],
+        postgresql_username=default_database["USER"],
+        postgresql_password=default_database["PASSWORD"],
+        postgresql_port=default_database["PORT"],
+        postgresql_database=default_database["NAME"],
+        postgresql_table=create_postgresql_test_table,
+        postgresql_sslmode=default_database["OPTIONS"].get("sslmode", "prefer"),
+    )
+
+    fields = specific_iterator(data_sync.table.field_set.all().order_by("id"))
+    assert len(fields) == 2
+    assert fields[0].primary is True
+    assert fields[0].read_only is True
+    assert fields[1].primary is False
+    assert fields[1].read_only is False
+
+
+@pytest.mark.django_db(transaction=True)
+@override_settings(DEBUG=True)
+@patch("baserow.contrib.database.table.signals.table_created.send")
+def test_create_two_way_data_sync_table_and_add_properties(
+    send_mock, enterprise_data_fixture, create_postgresql_test_table
+):
+    enterprise_data_fixture.enable_enterprise()
+
+    default_database = settings.DATABASES["default"]
+    user = enterprise_data_fixture.create_user()
+    database = enterprise_data_fixture.create_database_application(user=user)
+
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="postgresql",
+        synced_properties=[
+            "id",
+        ],
+        two_way_sync=True,
+        postgresql_host=default_database["HOST"],
+        postgresql_username=default_database["USER"],
+        postgresql_password=default_database["PASSWORD"],
+        postgresql_port=default_database["PORT"],
+        postgresql_database=default_database["NAME"],
+        postgresql_table=create_postgresql_test_table,
+        postgresql_sslmode=default_database["OPTIONS"].get("sslmode", "prefer"),
+    )
+
+    fields = specific_iterator(data_sync.table.field_set.all().order_by("id"))
+    assert len(fields) == 1
+    assert fields[0].primary is True
+    assert fields[0].read_only is True
+
+    data_sync = handler.update_data_sync_table(
+        user=user,
+        data_sync=data_sync,
+        synced_properties=["id", "text_col"],
+        two_way_sync=True,
+    )
+
+    fields = specific_iterator(data_sync.table.field_set.all().order_by("id"))
+    assert len(fields) == 2
+    assert fields[0].primary is True
+    assert fields[0].read_only is True
+    assert fields[1].primary is False
+    assert fields[1].read_only is False
+
+
+@pytest.mark.django_db(transaction=True)
+@override_settings(DEBUG=True)
+@patch("baserow.contrib.database.table.signals.table_created.send")
+def test_create_and_unset_two_way_data_sync_table(
+    send_mock, enterprise_data_fixture, create_postgresql_test_table
+):
+    enterprise_data_fixture.enable_enterprise()
+
+    default_database = settings.DATABASES["default"]
+    user = enterprise_data_fixture.create_user()
+    database = enterprise_data_fixture.create_database_application(user=user)
+
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="postgresql",
+        synced_properties=["id", "text_col"],
+        two_way_sync=True,
+        postgresql_host=default_database["HOST"],
+        postgresql_username=default_database["USER"],
+        postgresql_password=default_database["PASSWORD"],
+        postgresql_port=default_database["PORT"],
+        postgresql_database=default_database["NAME"],
+        postgresql_table=create_postgresql_test_table,
+        postgresql_sslmode=default_database["OPTIONS"].get("sslmode", "prefer"),
+    )
+
+    fields = specific_iterator(data_sync.table.field_set.all().order_by("id"))
+    assert len(fields) == 2
+    assert fields[0].primary is True
+    assert fields[0].read_only is True
+    assert fields[1].primary is False
+    assert fields[1].read_only is False
+
+    data_sync = handler.update_data_sync_table(
+        user=user,
+        data_sync=data_sync,
+        synced_properties=["id", "text_col"],
+        two_way_sync=False,
+    )
+
+    fields = specific_iterator(data_sync.table.field_set.all().order_by("id"))
+    assert len(fields) == 2
+    assert fields[0].primary is True
+    assert fields[0].read_only is True
+    assert fields[1].primary is False
+    assert fields[1].read_only is True
+
+
+@pytest.mark.django_db(transaction=True)
+@override_settings(DEBUG=True)
+@patch("baserow.contrib.database.table.signals.table_created.send")
+def test_create_and_set_two_way_data_sync_table(
+    send_mock, enterprise_data_fixture, create_postgresql_test_table
+):
+    enterprise_data_fixture.enable_enterprise()
+
+    default_database = settings.DATABASES["default"]
+    user = enterprise_data_fixture.create_user()
+    database = enterprise_data_fixture.create_database_application(user=user)
+
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="postgresql",
+        synced_properties=["id", "text_col"],
+        two_way_sync=False,
+        two_way_sync_consecutive_failures=3,
+        postgresql_host=default_database["HOST"],
+        postgresql_username=default_database["USER"],
+        postgresql_password=default_database["PASSWORD"],
+        postgresql_port=default_database["PORT"],
+        postgresql_database=default_database["NAME"],
+        postgresql_table=create_postgresql_test_table,
+        postgresql_sslmode=default_database["OPTIONS"].get("sslmode", "prefer"),
+    )
+
+    fields = specific_iterator(data_sync.table.field_set.all().order_by("id"))
+    assert len(fields) == 2
+    assert fields[0].primary is True
+    assert fields[0].read_only is True
+    assert fields[1].primary is False
+    assert fields[1].read_only is True
+
+    with transaction.atomic():
+        data_sync = handler.update_data_sync_table(
+            user=user,
+            data_sync=data_sync,
+            synced_properties=["id", "text_col"],
+            two_way_sync=True,
+        )
+
+    # THis value should be reset when the two-way data sync is enabled.
+    assert data_sync.two_way_sync_consecutive_failures == 0
+
+    fields = specific_iterator(data_sync.table.field_set.all().order_by("id"))
+    assert len(fields) == 2
+    assert fields[0].primary is True
+    assert fields[0].read_only is True
+    assert fields[1].primary is False
+    assert fields[1].read_only is False

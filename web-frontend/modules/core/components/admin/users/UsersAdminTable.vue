@@ -39,49 +39,64 @@ export default {
     EditUserContext,
   },
   data() {
-    this.columns = [
-      new CrudTableColumn(
-        'username',
-        () => this.$t('usersAdminTable.username'),
-        UsernameField,
-        true,
-        true
-      ),
-      new CrudTableColumn(
-        'name',
-        () => this.$t('usersAdminTable.name'),
-        SimpleField,
-        true
-      ),
-      new CrudTableColumn(
-        'workspaces',
-        () => this.$t('usersAdminTable.workspaces'),
-        UserWorkspacesField
-      ),
-      new CrudTableColumn(
-        'last_login',
-        () => this.$t('usersAdminTable.lastLogin'),
-        LocalDateField,
-        true
-      ),
-      new CrudTableColumn(
-        'date_joined',
-        () => this.$t('usersAdminTable.dateJoined'),
-        LocalDateField,
-        true
-      ),
-      new CrudTableColumn(
-        'is_active',
-        () => this.$t('user.active'),
-        ActiveField,
-        true
-      ),
-      new CrudTableColumn('more', '', MoreField, false, false, true),
-    ]
     this.service = UserAdminService(this.$client)
     return {
       editUser: {},
     }
+  },
+  computed: {
+    membersPagePlugins() {
+      return Object.values(this.$registry.getAll('membersPagePlugins'))
+    },
+    columns() {
+      let columns = [
+        new CrudTableColumn(
+          'username',
+          () => this.$t('usersAdminTable.username'),
+          UsernameField,
+          true,
+          true
+        ),
+        new CrudTableColumn(
+          'name',
+          () => this.$t('usersAdminTable.name'),
+          SimpleField,
+          true
+        ),
+        new CrudTableColumn(
+          'workspaces',
+          () => this.$t('usersAdminTable.workspaces'),
+          UserWorkspacesField
+        ),
+        new CrudTableColumn(
+          'last_login',
+          () => this.$t('usersAdminTable.lastLogin'),
+          LocalDateField,
+          true
+        ),
+        new CrudTableColumn(
+          'date_joined',
+          () => this.$t('usersAdminTable.dateJoined'),
+          LocalDateField,
+          true
+        ),
+        new CrudTableColumn(
+          'is_active',
+          () => this.$t('user.active'),
+          ActiveField,
+          true
+        ),
+        new CrudTableColumn('more', '', MoreField, false, false, true),
+      ]
+      for (const plugin of this.membersPagePlugins) {
+        if (!plugin.isDeactivated()) {
+          columns = plugin.mutateAdminUsersTableColumns(columns, {
+            client: this.$client,
+          })
+        }
+      }
+      return columns
+    },
   },
   methods: {
     onRowContext({ row, event, target }) {

@@ -69,6 +69,30 @@
   gap: 16px;
 }
 
+.import-workspace__button-section {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 24px;
+  padding-top: 20px;
+  align-items: center;
+  border-top: 1px solid $color-neutral-200;
+  gap: 16px;
+}
+
+.import-workspace__button-section--with-progress {
+  justify-content: space-between;
+}
+
 .import-workspace__progress {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
+}
+
+.import-workspace {
+  &__application-selection {
+    margin: 10px 0;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    background-color: var(--color-background);
+  }
 }

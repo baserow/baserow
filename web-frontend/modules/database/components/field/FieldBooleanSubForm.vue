@@ -1,8 +1,21 @@
 <template>
   <FormGroup>
-    <Checkbox v-model="values.boolean_default">
+    <Checkbox
+      v-model="values.boolean_default"
+      :disabled="isDefaultValueFieldDisabled"
+    >
       {{ $t('fieldBooleanSubForm.defaultValue') }}
     </Checkbox>
+    <div
+      v-if="isDefaultValueFieldDisabled"
+      class="control__messages padding-top-0"
+    >
+      <p
+        class="control__helper-text control__helper-text--warning field-context__inner-element-width"
+      >
+        {{ $t('fieldForm.defaultValueDisabledByConstraint') }}
+      </p>
+    </div>
   </FormGroup>
 </template>
 

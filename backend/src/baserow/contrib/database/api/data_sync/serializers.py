@@ -26,6 +26,7 @@ class DataSyncSerializer(serializers.ModelSerializer):
             "last_sync",
             "last_error",
             "auto_add_new_properties",
+            "two_way_sync",
         )
 
     def get_type(self, instance):
@@ -45,7 +46,13 @@ class CreateDataSyncSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = DataSync
-        fields = ("synced_properties", "type", "table_name", "auto_add_new_properties")
+        fields = (
+            "synced_properties",
+            "type",
+            "table_name",
+            "auto_add_new_properties",
+            "two_way_sync",
+        )
 
 
 class UpdateDataSyncSerializer(serializers.ModelSerializer):
@@ -58,6 +65,7 @@ class UpdateDataSyncSerializer(serializers.ModelSerializer):
         fields = (
             "synced_properties",
             "auto_add_new_properties",
+            "two_way_sync",
         )
 
 

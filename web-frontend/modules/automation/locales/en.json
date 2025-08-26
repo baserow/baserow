@@ -51,9 +51,16 @@
   "dataProviderType": {
     "previousNode": "Previous node"
   },
-  "emptyHistorySidePanelState": {
-    "title": "No runs yet",
-    "description": "When this automation has run, the results will be shown here."
+  "historySidePanel": {
+    "title": "History",
+    "noRunsTitle": "No runs yet",
+    "noRunsDescription": "When this automation has run, the results will be shown here.",
+    "statusSuccess": "Ran successfully",
+    "statusError": "Failed to run",
+    "statusDisabled": "Disabled by Baserow",
+    "completedInSeconds": "Completed in {s} seconds.",
+    "completedInLessThanSecond": "Completed in less than 1 second.",
+    "testRun": "Test"
   },
   "nodeType": {
     "localBaserowRowsCreatedLabel": "Rows are created in {tableName}",

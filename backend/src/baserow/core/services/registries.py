@@ -3,9 +3,18 @@ from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type, TypeVar
 
 from django.contrib.auth.models import AbstractUser
+from django.core.exceptions import ValidationError
 
+from loguru import logger
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
+from baserow.core.formula import resolve_formula
+from baserow.core.formula.exceptions import (
+    InvalidFormulaContext,
+    InvalidFormulaContextContent,
+)
+from baserow.core.formula.parser.exceptions import BaserowFormulaException
+from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.integrations.exceptions import IntegrationDoesNotExist
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.registry import (
@@ -20,9 +29,16 @@ from baserow.core.registry import (
     Registry,
 )
 from baserow.core.services.dispatch_context import DispatchContext
-from baserow.core.services.types import DispatchResult
+from baserow.core.services.types import DispatchResult, FormulaToResolve
 
-from .exceptions import ServiceTypeDoesNotExist
+from .exceptions import (
+    DispatchException,
+    InvalidContextContentDispatchException,
+    InvalidContextDispatchException,
+    ServiceImproperlyConfiguredDispatchException,
+    ServiceTypeDoesNotExist,
+    UnexpectedDispatchException,
+)
 from .models import Service
 from .types import ServiceDictSubClass, ServiceSubClass
 
@@ -207,6 +223,24 @@ class ServiceType(
 
         return None
 
+    def formulas_to_resolve(self, service: ServiceSubClass) -> list[FormulaToResolve]:
+        return []
+
+    def _get_validation_details(self, error):
+        detail = error.detail
+
+        if isinstance(detail, str):
+            return detail
+        elif isinstance(detail, list):
+            return str(detail[0]) if detail else ""
+        elif isinstance(detail, dict):
+            for field, errors in detail.items():
+                if isinstance(errors, list) and errors:
+                    return str(errors[0])
+                else:
+                    return str(errors)
+        return str(detail)
+
     def resolve_service_formulas(
         self,
         service: ServiceSubClass,
@@ -222,7 +256,35 @@ class ServiceType(
         :return: Any
         """
 
-        return {}
+        resolved_values = {}
+        for key, formula, ensurer, label in self.formulas_to_resolve(service):
+            try:
+                resolved_values[key] = ensurer(
+                    resolve_formula(
+                        formula,
+                        formula_runtime_function_registry,
+                        dispatch_context.clone(),
+                    )
+                )
+            except InvalidFormulaContext as e:
+                raise InvalidContextDispatchException(str(e)) from e
+            except InvalidFormulaContextContent as e:
+                message = f"Value error for {label}: {str(e)}"
+                raise InvalidContextContentDispatchException(message) from e
+            except ValidationError as e:
+                message = f"Value error for {label}: {e.message}"
+                raise InvalidContextContentDispatchException(message) from e
+            except BaserowFormulaException as e:
+                message = f"Error in formula for {label}: {str(e)}"
+                raise ServiceImproperlyConfiguredDispatchException(message) from e
+            except DispatchException:
+                raise
+            except Exception as e:
+                logger.exception(f"Unexpected error for {label}")
+                message = f"Unknown error in formula for {label}: {str(e)}"
+                raise UnexpectedDispatchException(message) from e
+
+        return resolved_values
 
     def dispatch_transform(
         self,

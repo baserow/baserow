@@ -18,9 +18,9 @@
       v-if="selectedIntegration"
       v-model="fakeTableId"
       :view-id.sync="values.view_id"
-      disallow-data-synced-tables
       :databases="databases"
       :display-view-dropdown="enableViewPicker"
+      :disallow-data-synced-tables="disallowDataSyncedTables"
     />
     <FormGroup
       v-if="enableRowId && values.integration_id"
@@ -88,6 +88,15 @@ export default {
       type: Boolean,
       required: false,
       default: true,
+    },
+    /**
+     * Whether to disallow the selection of data synced tables. Data sources
+     * can select them, but workflow actions cannot.
+     */
+    disallowDataSyncedTables: {
+      type: Boolean,
+      required: false,
+      default: false,
     },
   },
   data() {

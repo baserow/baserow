@@ -40,7 +40,7 @@ def test_dispatch_context_page_range():
 
 @pytest.mark.django_db
 @patch("baserow.contrib.builder.handler.get_builder_used_property_names")
-def test_dispatch_context_page_from_context(mock_get_field_names, data_fixture):
+def test_dispatch_context_page_clone(mock_get_field_names, data_fixture):
     mock_get_field_names.return_value = {"all": {}, "external": {}, "internal": {}}
 
     user = data_fixture.create_user()
@@ -64,9 +64,8 @@ def test_dispatch_context_page_from_context(mock_get_field_names, data_fixture):
     dispatch_context.annotated_data = "foobar"
 
     dispatch_context.cache = {"key": "value"}
-    new_dispatch_context = BuilderDispatchContext.from_context(
-        dispatch_context, offset=5, count=1
-    )
+    new_dispatch_context = dispatch_context.clone(offset=5, count=1)
+
     assert getattr(new_dispatch_context, "annotated_data", None) is None
     assert new_dispatch_context.cache == {"key": "value"}
     assert new_dispatch_context.request == request

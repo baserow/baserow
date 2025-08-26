@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock, patch
 
 from django.db.utils import IntegrityError
+from django.utils import timezone
 
 import pytest
 
@@ -445,3 +446,50 @@ def test_update_workflow_correctly_pauses_published_workflow(data_fixture):
 
     published_workflow.refresh_from_db()
     assert published_workflow.paused is True
+
+
+@pytest.mark.django_db
+def test_get_original_workflow_returns_original_workflow(data_fixture):
+    original_workflow = data_fixture.create_automation_workflow()
+    published_workflow = data_fixture.create_automation_workflow(published=True)
+    published_workflow.automation.published_from = original_workflow
+    published_workflow.automation.save()
+
+    workflow = AutomationWorkflowHandler().get_original_workflow(published_workflow)
+
+    assert workflow == original_workflow
+
+
+@pytest.mark.django_db
+def test_get_original_workflow_returns_same_workflow_if_test_run(data_fixture):
+    original_workflow = data_fixture.create_automation_workflow(
+        published=False,
+        allow_test_run_until=timezone.now(),
+    )
+
+    workflow = AutomationWorkflowHandler().get_original_workflow(original_workflow)
+
+    assert workflow == original_workflow
+
+
+@pytest.mark.django_db
+def test_is_test_run_returns_true_if_workflow_test_run(data_fixture):
+    original_workflow = data_fixture.create_automation_workflow(
+        allow_test_run_until=timezone.now(),
+    )
+
+    status = AutomationWorkflowHandler().is_test_run(original_workflow)
+
+    assert status is True
+
+
+@pytest.mark.django_db
+def test_is_test_run_returns_false_if_workflow_not_test_run(data_fixture):
+    original_workflow = data_fixture.create_automation_workflow()
+    published_workflow = data_fixture.create_automation_workflow(published=True)
+    published_workflow.automation.published_from = original_workflow
+    published_workflow.automation.save()
+
+    status = AutomationWorkflowHandler().is_test_run(published_workflow)
+
+    assert status is False

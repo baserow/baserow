@@ -14,6 +14,7 @@
         <a
           data-item-type="history"
           class="header__filter-link"
+          :class="{ 'active--primary': activeSidePanel === 'history' }"
           @click="historyClick()"
           ><i class="header__filter-icon baserow-icon-history"></i>
           <span class="header__filter-name">{{
@@ -153,6 +154,10 @@ export default defineComponent({
       return publishedOn.value && workflow.value?.paused
     })
 
+    const activeSidePanel = computed(() => {
+      return store.getters['automationWorkflow/getActiveSidePanel']
+    })
+
     const toggleTestRun = async () => {
       try {
         await store.dispatch('automationWorkflow/toggleTestRun', {
@@ -183,10 +188,14 @@ export default defineComponent({
     }
 
     const historyClick = () => {
-      store.dispatch(
-        'automationWorkflow/setActiveSidePanel',
-        HistoryEditorSidePanelType.getType()
-      )
+      let sidePanelType = HistoryEditorSidePanelType.getType()
+
+      // Clicking the History button should toggle the active state
+      if (activeSidePanel.value === sidePanelType) {
+        sidePanelType = null
+      }
+
+      store.dispatch('automationWorkflow/setActiveSidePanel', sidePanelType)
     }
 
     const publishWorkflow = async () => {
@@ -223,6 +232,7 @@ export default defineComponent({
       isPaused,
       selectedWorkflow,
       workflow,
+      activeSidePanel,
     }
   },
 })

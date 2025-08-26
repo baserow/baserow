@@ -10,10 +10,7 @@ from freezegun import freeze_time
 from pyinstrument import Profiler
 
 from baserow.contrib.database.fields.dependencies.handler import FieldDependencyHandler
-from baserow.contrib.database.fields.exceptions import (
-    FieldNotInTable,
-    IncompatibleField,
-)
+from baserow.contrib.database.fields.exceptions import IncompatibleField
 from baserow.contrib.database.fields.field_cache import FieldCache
 from baserow.contrib.database.fields.field_constraints import (
     TextTypeUniqueWithEmptyConstraint,
@@ -690,17 +687,24 @@ def test_run_file_import_task_with_upsert_fields_not_in_table(
     data_fixture.create_text_field(table=table, order=1, name="text 1")
     init_data = [["foo"], ["bar"]]
 
-    with pytest.raises(FieldNotInTable):
-        with patch_filefield_storage():
-            job = data_fixture.create_file_import_job(
-                data={
-                    "data": init_data,
-                    "configuration": {"upsert_fields": [100, 120]},
-                },
-                table=table,
-                user=user,
-            )
-            run_async_job(job.id)
+    with patch_filefield_storage():
+        job = data_fixture.create_file_import_job(
+            data={
+                "data": init_data,
+                "configuration": {"upsert_fields": [100, 120]},
+            },
+            table=table,
+            user=user,
+        )
+        run_async_job(job.id)
+
+    job.refresh_from_db()
+    assert job.failed
+    assert job.error == "100"
+    assert (
+        job.human_readable_error
+        == f"The provided field does not belong in the related table."
+    )
 
     model = table.get_model()
     assert len(model.objects.all()) == 0
@@ -1461,3 +1465,208 @@ def test_run_file_import_task_with_upsert_and_field_constraints(
         for row in model.objects.all()
     )
     assert values == {("1", "1"), ("2", "2"), ("3", "3")}
+
+
+@pytest.mark.django_db(transaction=True)
+def test_run_file_import_task_with_upsert_and_valid_skipped_fields(
+    data_fixture, patch_filefield_storage
+):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(user=user, database=database)
+
+    name_field = data_fixture.create_text_field(table=table, order=1, name="name")
+    age_field = data_fixture.create_number_field(table=table, order=2, name="age")
+    email_field = data_fixture.create_text_field(table=table, order=3, name="email")
+
+    model = table.get_model()
+
+    initial_data = {
+        "data": [
+            ["Alice", 25, "alice@example.com"],
+            ["Bob", 30, "bob@example.com"],
+        ]
+    }
+
+    with patch_filefield_storage():
+        job = data_fixture.create_file_import_job(
+            data=initial_data,
+            table=table,
+            user=user,
+            first_row_header=False,
+        )
+        run_async_job(job.id)
+
+    alice = model.objects.filter(**{name_field.db_column: "Alice"}).first()
+    bob = model.objects.filter(**{name_field.db_column: "Bob"}).first()
+
+    assert getattr(alice, email_field.db_column) == "alice@example.com"
+    assert getattr(bob, email_field.db_column) == "bob@example.com"
+
+    upsert_data = {
+        "data": [
+            ["Alice", 26],
+            ["Bob", 31],
+            ["Charlie", 28],
+        ],
+        "configuration": {
+            "upsert_fields": [name_field.id],
+            "upsert_values": [["Alice"], ["Bob"], ["Charlie"]],
+            "skipped_fields": [email_field.id],
+        },
+    }
+
+    with patch_filefield_storage():
+        job = data_fixture.create_file_import_job(
+            data=upsert_data,
+            table=table,
+            user=user,
+            first_row_header=False,
+        )
+        run_async_job(job.id)
+
+    job.refresh_from_db()
+    assert job.finished
+    assert not job.failed
+    assert model.objects.count() == 3
+
+    alice = model.objects.filter(**{name_field.db_column: "Alice"}).first()
+    bob = model.objects.filter(**{name_field.db_column: "Bob"}).first()
+    charlie = model.objects.filter(**{name_field.db_column: "Charlie"}).first()
+
+    assert getattr(alice, age_field.db_column) == 26
+    assert getattr(alice, email_field.db_column) == "alice@example.com"
+
+    assert getattr(bob, age_field.db_column) == 31
+    assert getattr(bob, email_field.db_column) == "bob@example.com"
+
+    assert getattr(charlie, age_field.db_column) == 28
+    assert getattr(charlie, email_field.db_column) is None
+
+
+@pytest.mark.django_db(transaction=True)
+def test_run_file_import_task_with_upsert_and_invalid_skipped_fields(
+    data_fixture, patch_filefield_storage
+):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(user=user, database=database)
+
+    name_field = data_fixture.create_text_field(table=table, order=1, name="name")
+
+    initial_data = {
+        "data": [
+            ["Alice", 25],
+        ]
+    }
+
+    with patch_filefield_storage():
+        job = data_fixture.create_file_import_job(
+            data=initial_data,
+            table=table,
+            user=user,
+            first_row_header=False,
+        )
+        run_async_job(job.id)
+
+    upsert_data = {
+        "data": [
+            ["Alice", 26],
+        ],
+        "configuration": {
+            "upsert_fields": [name_field.id],
+            "upsert_values": [["Alice"]],
+            "skipped_fields": [99999],
+        },
+    }
+
+    with patch_filefield_storage():
+        job = data_fixture.create_file_import_job(
+            data=upsert_data,
+            table=table,
+            user=user,
+            first_row_header=False,
+        )
+        run_async_job(job.id)
+
+    job.refresh_from_db()
+
+    assert job.failed
+    assert job.error == f"The field ID is not found in the table."
+
+
+@pytest.mark.django_db(transaction=True)
+def test_run_file_import_task_with_upsert_and_none_skipped_fields(
+    data_fixture, patch_filefield_storage
+):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(user=user, database=database)
+
+    name_field = data_fixture.create_text_field(table=table, order=1, name="name")
+    age_field = data_fixture.create_number_field(table=table, order=2, name="age")
+    email_field = data_fixture.create_text_field(table=table, order=3, name="email")
+
+    model = table.get_model()
+
+    initial_data = {
+        "data": [
+            ["Alice", 25, "alice@example.com"],
+            ["Bob", 30, "bob@example.com"],
+        ]
+    }
+
+    with patch_filefield_storage():
+        job = data_fixture.create_file_import_job(
+            data=initial_data,
+            table=table,
+            user=user,
+            first_row_header=False,
+        )
+        run_async_job(job.id)
+
+    alice = model.objects.filter(**{name_field.db_column: "Alice"}).first()
+    bob = model.objects.filter(**{name_field.db_column: "Bob"}).first()
+
+    assert getattr(alice, email_field.db_column) == "alice@example.com"
+    assert getattr(bob, email_field.db_column) == "bob@example.com"
+
+    upsert_data = {
+        "data": [
+            ["Alice", 26, "new_alice@example.com"],
+            ["Bob", 31, "new_bob@example.com"],
+            ["Charlie", 28, "charlie@example.com"],
+        ],
+        "configuration": {
+            "upsert_fields": [name_field.id],
+            "upsert_values": [["Alice"], ["Bob"], ["Charlie"]],
+            "skipped_fields": None,
+        },
+    }
+
+    with patch_filefield_storage():
+        job = data_fixture.create_file_import_job(
+            data=upsert_data,
+            table=table,
+            user=user,
+            first_row_header=False,
+        )
+        run_async_job(job.id)
+
+    job.refresh_from_db()
+    assert job.finished
+    assert not job.failed
+    assert model.objects.count() == 3
+
+    alice = model.objects.filter(**{name_field.db_column: "Alice"}).first()
+    bob = model.objects.filter(**{name_field.db_column: "Bob"}).first()
+    charlie = model.objects.filter(**{name_field.db_column: "Charlie"}).first()
+
+    assert getattr(alice, age_field.db_column) == 26
+    assert getattr(alice, email_field.db_column) == "new_alice@example.com"
+
+    assert getattr(bob, age_field.db_column) == 31
+    assert getattr(bob, email_field.db_column) == "new_bob@example.com"
+
+    assert getattr(charlie, age_field.db_column) == 28
+    assert getattr(charlie, email_field.db_column) == "charlie@example.com"

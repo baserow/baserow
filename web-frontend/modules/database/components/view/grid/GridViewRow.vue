@@ -142,7 +142,7 @@
 import GridViewCell from '@baserow/modules/database/components/view/grid/GridViewCell'
 import gridViewHelpers from '@baserow/modules/database/mixins/gridViewHelpers'
 import GridViewRowExpandButton from '@baserow/modules/database/components/view/grid/GridViewRowExpandButton'
-import RecursiveWrapper from '@baserow/modules/database/components/RecursiveWrapper'
+import RecursiveWrapper from '@baserow/modules/core/components/RecursiveWrapper'
 import { GRID_VIEW_MULTI_SELECT_AREA } from '@baserow/modules/database/constants'
 
 export default {

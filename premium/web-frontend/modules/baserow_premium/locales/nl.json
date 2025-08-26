@@ -385,6 +385,8 @@
         "addStack": "Stapel toevoegen"
     },
     "chart": {
-        "other": "Andere"
+        "other": "Andere",
+        "true": "waar",
+        "false": "onwaar"
     }
 }

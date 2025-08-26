@@ -1,6 +1,6 @@
-## PostgreSQL locking and Baserow
+# PostgreSQL locking and Baserow
 
-### Exceeding `max_locks_per_transaction`
+## Exceeding `max_locks_per_transaction`
 
 In a handful of Baserow features, such as snapshotting and duplicating, we take the specified database and fetch all of its tables
 to perform operations on them.

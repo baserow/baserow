@@ -4,7 +4,7 @@
       v-if="
         !readOnly &&
         // Can't create rows in a table data sync table.
-        !table.data_sync &&
+        (!table.data_sync || table.data_sync.two_way_sync) &&
         $hasPermission(
           'database.table.create_row',
           table,

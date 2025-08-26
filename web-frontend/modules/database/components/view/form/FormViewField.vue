@@ -36,6 +36,9 @@
             @change="$emit('updated-field-options', { name: $event.value })"
             @editing="editingName = $event"
           ></Editable>
+          <span v-if="fieldOptions.required" class="form-view__field-required">
+            *
+          </span>
           <a
             v-if="!readOnly"
             class="form-view__edit form-view-field-edit"
@@ -287,6 +290,14 @@ export default {
         this.resetValue()
       },
     },
+    preparedFieldForEditInputComponent: {
+      deep: true,
+      handler() {
+        this.$nextTick(() => {
+          this.resetValue()
+        })
+      },
+    },
   },
   created() {
     this.resetValue()
@@ -323,7 +334,9 @@ export default {
       return this.$registry.get('field', this.field.type)
     },
     resetValue() {
-      this.value = this.getFieldType().getDefaultValue(this.field)
+      this.value = this.getFieldType().getDefaultValue(
+        this.preparedFieldForEditInputComponent
+      )
     },
     createConditionGroup(parentGroupId) {
       return {

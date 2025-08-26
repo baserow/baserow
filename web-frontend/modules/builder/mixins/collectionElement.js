@@ -43,6 +43,14 @@ export default {
       }
       return this.$registry.get('service', this.dataSource.type)
     },
+    dataSourceInError() {
+      return !!this.elementType.getDataSourceErrorMessage({
+        workspace: this.workspace,
+        page: this.elementPage,
+        element: this.element,
+        builder: this.builder,
+      })
+    },
     elementContent() {
       return this.getElementContent(this.element, this.applicationContext)
     },
@@ -109,7 +117,7 @@ export default {
     },
   },
   async fetch() {
-    if (!this.elementIsInError && this.elementType.fetchAtLoad) {
+    if (this.elementType.fetchAtLoad) {
       await this.fetchContent([0, this.element.items_per_page])
     }
   },
@@ -171,7 +179,7 @@ export default {
     },
     /** Overrides this if you want to prevent data fetching */
     canFetch() {
-      return this.contentFetchEnabled
+      return !this.dataSourceInError && this.contentFetchEnabled
     },
 
     /** Override this if you want to handle content fetch errors */

@@ -24,5 +24,29 @@ export default {
       type: Object,
       required: true,
     },
+    fieldConstraints: {
+      type: Array,
+      required: false,
+      default: () => [],
+    },
+  },
+  computed: {
+    isDefaultValueFieldDisabled() {
+      if (!this.fieldConstraints || this.fieldConstraints.length === 0) {
+        return false
+      }
+
+      return this.fieldConstraints.some(
+        (constraint) =>
+          constraint.type_name &&
+          !this.$registry
+            .getSpecificConstraint(
+              'fieldConstraint',
+              constraint.type_name,
+              this.fieldType
+            )
+            .canSupportDefaultValue()
+      )
+    },
   },
 }

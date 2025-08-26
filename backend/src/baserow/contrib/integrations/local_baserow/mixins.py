@@ -1,19 +1,6 @@
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Dict,
-    Generator,
-    List,
-    Optional,
-    Tuple,
-    Type,
-    Union,
-)
+from typing import TYPE_CHECKING, Dict, Generator, List, Optional, Tuple, Type, Union
 
-from django.core.exceptions import ValidationError
 from django.db.models import OrderBy, Prefetch, QuerySet
-
-from loguru import logger
 
 from baserow.contrib.database.api.utils import extract_field_ids_from_list
 from baserow.contrib.database.fields.field_filters import FilterBuilder
@@ -34,7 +21,6 @@ from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowViewService,
 )
 from baserow.core.formula import BaserowFormula, resolve_formula
-from baserow.core.formula.parser.exceptions import BaserowFormulaException
 from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.formula.serializers import FormulaSerializerField
 from baserow.core.formula.validator import ensure_integer, ensure_string
@@ -44,9 +30,9 @@ from baserow.core.services.exceptions import (
     ServiceFilterPropertyDoesNotExist,
     ServiceImproperlyConfiguredDispatchException,
     ServiceSortPropertyDoesNotExist,
-    UnexpectedDispatchException,
 )
 from baserow.core.services.types import (
+    FormulaToResolve,
     ServiceDict,
     ServiceFilterDictSubClass,
     ServiceSortDictSubClass,
@@ -811,42 +797,17 @@ class LocalBaserowTableServiceSpecificRowMixin:
     class SerializedDict(ServiceDict):
         row_id: BaserowFormula
 
-    def resolve_row_id(
-        self, resolved_values, service, dispatch_context
-    ) -> Dict[str, Any]:
+    def formulas_to_resolve(self, service: ServiceSubClass) -> list[FormulaToResolve]:
         """
-        Responsible for resolving the `row_id` formula for the service.
-
-        :param resolved_values: The resolved values for the service.
-        :param service: The service instance.
-        :param dispatch_context: The dispatch context.
-        :return: The resolved values with the `row_id` formula resolved.
+        Returns the formula to resolve for this service.
         """
 
-        # Ignore validation for empty formulas
+        super_formulas = super().formulas_to_resolve(service)
+
+        # Ignore empty formulas
         if not service.row_id:
-            return resolved_values
+            return super_formulas
 
-        try:
-            resolved_values["row_id"] = ensure_integer(
-                resolve_formula(
-                    service.row_id,
-                    formula_runtime_function_registry,
-                    dispatch_context,
-                )
-            )
-        except ValidationError as exc:
-            raise ServiceImproperlyConfiguredDispatchException(
-                "The `row_id` value must be an integer or convertible to an integer."
-            ) from exc
-        except BaserowFormulaException as e:
-            message = f"Row id formula could not be resolved: {str(e)}"
-            raise ServiceImproperlyConfiguredDispatchException(message) from e
-        except ServiceImproperlyConfiguredDispatchException:
-            raise
-        except Exception as e:
-            logger.exception("Unexpected error for row_id formula")
-            message = f"Unknown error in row_id formula: {str(e)}"
-            raise UnexpectedDispatchException(message) from e
-
-        return resolved_values
+        return super_formulas + [
+            FormulaToResolve("row_id", service.row_id, ensure_integer, '"row_id"')
+        ]

@@ -425,8 +425,6 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
                             f"Could not add constraint {constraint.name} on field {instance.name}."
                         )
 
-            SearchHandler.after_field_created(instance, skip_search_updates)
-
         field_type.after_create(
             instance,
             to_model,
@@ -447,6 +445,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             field_cache,
             skip_search_updates,
         )
+        SearchHandler.schedule_update_search_data(table, fields=[instance])
 
         field_created.send(
             self,
@@ -613,8 +612,12 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             )
             new_model_class = to_field_type.model_class
             field.change_polymorphic_type_to(new_model_class)
+            needs_to_update_search_data = True
         else:
             dependants_broken_due_to_type_change = []
+            needs_to_update_search_data = from_field_type.should_update_search_data(
+                old_field, field_values
+            )
 
         self._validate_name_and_optionally_rename_if_collision(
             field, field_values, postfix_to_fix_name_collisions
@@ -832,8 +835,8 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
         )
 
         ViewHandler().field_updated(field)
-        # Always refresh search data since field type or formatting may have changed.
-        SearchHandler.schedule_update_search_data(field.table, fields=[field])
+        if needs_to_update_search_data:
+            SearchHandler.schedule_update_search_data(field.table, fields=[field])
 
         field_updated.send(
             self,
@@ -1248,6 +1251,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             field_names_to_try,
             existing_field_name_collisions,
             max_length=max_field_name_length,
+            reserved_names=RESERVED_BASEROW_FIELD_NAMES,
         )
 
     def restore_field(
@@ -1303,7 +1307,6 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             )
 
             ViewHandler().field_updated(updated_fields)
-            SearchHandler.schedule_update_search_data(field.table, fields=[field])
 
             if send_field_restored_signal:
                 field_restored.send(
@@ -1398,7 +1401,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
         # We are changing the related fields table so we need to invalidate
         # its old model cache as this will not happen automatically.
         invalidate_table_in_model_cache(original_table_id)
-        SearchHandler.after_field_moved_between_tables(field_to_move, original_table_id)
+        SearchHandler.schedule_update_search_data(target_table, fields=[field_to_move])
         ViewHandler().after_field_moved_between_tables(field_to_move, original_table_id)
 
     def get_unique_row_values(

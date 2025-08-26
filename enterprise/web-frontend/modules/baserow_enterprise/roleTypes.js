@@ -11,8 +11,8 @@ export class EnterpriseAdminRoleType extends AdminRoleType {
     return this.app.$hasFeature(EnterpriseFeatures.RBAC, workspaceId)
   }
 
-  getIsBillable(workspaceId) {
-    return this.app.$hasFeature(EnterpriseFeatures.RBAC, workspaceId)
+  getIsBillable() {
+    return true
   }
 }
 
@@ -46,7 +46,7 @@ export class EnterpriseBuilderRoleType extends MemberRoleType {
     return true
   }
 
-  getIsBillable(workspaceId) {
+  getIsBillable() {
     return true
   }
 
@@ -89,7 +89,7 @@ export class EnterpriseEditorRoleType extends MemberRoleType {
     return true
   }
 
-  getIsBillable(workspaceId) {
+  getIsBillable() {
     return true
   }
 
@@ -128,7 +128,7 @@ export class EnterpriseCommenterRoleType extends MemberRoleType {
     return true
   }
 
-  getIsBillable(workspaceId) {
+  getIsBillable() {
     return false
   }
 
@@ -167,7 +167,7 @@ export class EnterpriseViewerRoleType extends MemberRoleType {
     return true
   }
 
-  getIsBillable(workspaceId) {
+  getIsBillable() {
     return false
   }
 
@@ -206,7 +206,7 @@ export class NoAccessRoleType extends MemberRoleType {
     return true
   }
 
-  getIsBillable(workspaceId) {
+  getIsBillable() {
     return false
   }
 
@@ -245,7 +245,7 @@ export class NoRoleLowPriorityRoleType extends MemberRoleType {
     return true
   }
 
-  getIsBillable(workspaceId) {
+  getIsBillable() {
     return false
   }
 

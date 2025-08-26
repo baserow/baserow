@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 
+from django.conf import settings
 from django.core.cache import cache
 from django.urls import reverse
 
@@ -217,6 +218,7 @@ def test_create_data_sync(data_fixture, api_client):
             "id": data_sync.id,
             "type": "ical_calendar",
             "auto_add_new_properties": False,
+            "two_way_sync": False,
             "synced_properties": [
                 {
                     "field_id": properties[0].field_id,
@@ -266,6 +268,7 @@ def test_create_data_sync_with_auto_add_new_properties(data_fixture, api_client)
             "type": "ical_calendar",
             "synced_properties": ["uid"],
             "auto_add_new_properties": True,
+            "two_way_sync": False,
             "ical_url": "https://baserow.io/ical.ics",
         },
         format="json",
@@ -292,6 +295,7 @@ def test_create_data_sync_with_auto_add_new_properties(data_fixture, api_client)
             "id": data_sync.id,
             "type": "ical_calendar",
             "auto_add_new_properties": True,
+            "two_way_sync": False,
             "synced_properties": [
                 {
                     "field_id": properties[0].field_id,
@@ -514,6 +518,7 @@ def test_update_data_sync_not_providing_anything(data_fixture, api_client):
         "id": data_sync.id,
         "type": "ical_calendar",
         "auto_add_new_properties": False,
+        "two_way_sync": False,
         "synced_properties": [
             {
                 "field_id": data_sync.table.field_set.all().first().id,
@@ -561,6 +566,7 @@ def test_update_data_sync(data_fixture, api_client):
         "id": data_sync.id,
         "type": "ical_calendar",
         "auto_add_new_properties": False,
+        "two_way_sync": False,
         "synced_properties": [
             {
                 "field_id": properties[0].field_id,
@@ -1319,6 +1325,7 @@ def test_get_data_sync(data_fixture, api_client):
         "id": data_sync.id,
         "type": "ical_calendar",
         "auto_add_new_properties": False,
+        "two_way_sync": False,
         "synced_properties": [
             {
                 "field_id": data_sync.table.field_set.all().first().id,
@@ -1330,3 +1337,140 @@ def test_get_data_sync(data_fixture, api_client):
         "last_error": None,
         "ical_url": "https://baserow.io",
     }
+
+
+@pytest.mark.django_db
+def test_create_data_sync_with_two_way_sync_unsupported_type(data_fixture, api_client):
+    user, token = data_fixture.create_user_and_token()
+    database = data_fixture.create_database_application(user=user)
+
+    url = reverse("api:database:data_sync:list", kwargs={"database_id": database.id})
+    response = api_client.post(
+        url,
+        {
+            "table_name": "Test 1",
+            "type": "ical_calendar",
+            "synced_properties": ["uid"],
+            "two_way_sync": True,
+            "ical_url": "https://baserow.io/ical.ics",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    response_json = response.json()
+    assert response_json["error"] == "ERROR_TWO_WAY_DATA_SYNC_NOT_SUPPORTED"
+    assert (
+        "Two-way sync is not supported for this data sync type"
+        in response_json["detail"]
+    )
+
+
+@pytest.mark.django_db
+def test_update_data_sync_enable_two_way_sync_unsupported_type(
+    data_fixture, api_client
+):
+    user, token = data_fixture.create_user_and_token()
+    database = data_fixture.create_database_application(user=user)
+
+    handler = DataSyncHandler()
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="ical_calendar",
+        synced_properties=["uid"],
+        ical_url="https://baserow.io",
+    )
+
+    url = reverse("api:database:data_sync:item", kwargs={"data_sync_id": data_sync.id})
+    response = api_client.patch(
+        url,
+        {
+            "two_way_sync": True,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    response_json = response.json()
+    assert response_json["error"] == "ERROR_TWO_WAY_DATA_SYNC_NOT_SUPPORTED"
+    assert (
+        "Two-way sync is not supported for this data sync type"
+        in response_json["detail"]
+    )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_cannot_create_row_without_two_way_data_sync(
+    data_fixture, api_client, create_postgresql_test_table
+):
+    default_database = settings.DATABASES["default"]
+    user, token = data_fixture.create_user_and_token()
+    database = data_fixture.create_database_application(user=user)
+
+    url = reverse("api:database:data_sync:list", kwargs={"database_id": database.id})
+    response = api_client.post(
+        url,
+        {
+            "table_name": "Test 1",
+            "type": "postgresql",
+            "synced_properties": ["id"],
+            "two_way_sync": False,
+            "postgresql_host": default_database["HOST"],
+            "postgresql_username": default_database["USER"],
+            "postgresql_password": default_database["PASSWORD"],
+            "postgresql_port": default_database["PORT"],
+            "postgresql_database": default_database["NAME"],
+            "postgresql_table": create_postgresql_test_table,
+            "postgresql_sslmode": default_database["OPTIONS"].get("sslmode", "prefer"),
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    table_id = response.json()["id"]
+
+    response = api_client.post(
+        reverse("api:database:rows:list", kwargs={"table_id": table_id}),
+        {},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response_json["error"] == "ERROR_CANNOT_CREATE_ROWS_IN_TABLE"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_cannot_delete_row_without_two_way_data_sync(
+    data_fixture, api_client, create_postgresql_test_table
+):
+    default_database = settings.DATABASES["default"]
+    user, token = data_fixture.create_user_and_token()
+    database = data_fixture.create_database_application(user=user)
+
+    url = reverse("api:database:data_sync:list", kwargs={"database_id": database.id})
+    response = api_client.post(
+        url,
+        {
+            "table_name": "Test 1",
+            "type": "postgresql",
+            "synced_properties": ["id"],
+            "two_way_sync": False,
+            "postgresql_host": default_database["HOST"],
+            "postgresql_username": default_database["USER"],
+            "postgresql_password": default_database["PASSWORD"],
+            "postgresql_port": default_database["PORT"],
+            "postgresql_database": default_database["NAME"],
+            "postgresql_table": create_postgresql_test_table,
+            "postgresql_sslmode": default_database["OPTIONS"].get("sslmode", "prefer"),
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    table_id = response.json()["id"]
+
+    url = reverse("api:database:rows:item", kwargs={"table_id": table_id, "row_id": 1})
+    response = api_client.delete(url, HTTP_AUTHORIZATION=f"JWT {token}")
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_CANNOT_DELETE_ROWS_IN_TABLE"

@@ -143,6 +143,9 @@
   },
   "exportWorkspaceForm": {
     "exportSettingsLabel": "Export settings",
+    "selectDataToExport": "Select data to export",
+    "selectAll": "Select all",
+    "deselectAll": "Deselect all",
     "onlyStructureLabel": "Export structure only",
     "onlyStructureDescription": "If enabled, only the structure of the applications will be exported. The data will not be included."
   },
@@ -151,6 +154,7 @@
     "description": "You can import an existing Baserow data by uploading the .zip file from other Baserow instance.",
     "import": "Import data",
     "upload": "Upload",
+    "uploadAndImport": "Upload & Import",
     "cancel": "Cancel",
     "done": "Done",
     "close": "Close",
@@ -172,6 +176,9 @@
     "importingState": "Importing...",
     "importingTableStructure": "Creating: {table}",
     "importingTableData": "Importing data: {table}"
+  },
+  "importWorkspaceForm": {
+    "selectApplicationsToImport": "Select applications to import"
   },
   "dashboardWorkspace": {
     "createApplication": "Create new"
@@ -594,6 +601,7 @@
     "statePending": "Waiting to start...",
     "stateStarted": "Started...",
     "stateFinished": "Finished",
+    "stateCanceled": "Canceled",
     "stateFailed": "Failed",
     "errorJobCannotBeCancelledTitle": "Could not cancel",
     "errorJobCannotBeCancelledDescription": "It’s not possible to cancel the job as it has already been completed.\nPlease delete the first snapshot in the list below to remove it.",
@@ -625,6 +633,7 @@
         "role": "Default role",
         "highestRole": "Highest Role",
         "highestRoleHelpText": "The highest role this user assigned to them directly or from a team, on anything in this workspace",
+        "highestRoleInstanceHelpText": "The highest role this user has in the instance",
         "teams": "Teams"
       },
       "actions": {

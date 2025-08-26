@@ -44,6 +44,30 @@
           {{ $t('createDataSync.autoAddLabel') }}</SwitchInput
         >
       </FormGroup>
+      <FormGroup
+        v-if="twoWaySyncStrategy"
+        small-label
+        class="margin-top-2"
+        :helper-text="twoWaySyncStrategy.getDescription()"
+      >
+        <SwitchInput
+          v-model="twoWayDataSync"
+          class="margin-top-2"
+          small
+          :disabled="updateLoading || isTwoWaySyncDeactivated"
+          @input="completed = false"
+          @click="clickTwoWaySync"
+        >
+          {{ $t('createDataSync.twoWaySyncLabel') }}
+          <i v-if="isTwoWaySyncDeactivated" class="iconoir-lock"></i>
+        </SwitchInput>
+      </FormGroup>
+      <component
+        :is="twoWaySyncDeactivatedModal[0]"
+        v-if="twoWaySyncDeactivatedModal !== null"
+        ref="twoWaySyncDeactivatedModal"
+        v-bind="twoWaySyncDeactivatedModal[1]"
+      ></component>
       <Error :error="error"></Error>
       <div class="modal-progress__actions margin-top-2">
         <ProgressBar
@@ -105,7 +129,33 @@ export default {
       completed: false,
       syncTableValue: true,
       autoAddNewProperties: false,
+      twoWayDataSync: false,
     }
+  },
+  computed: {
+    dataSyncType() {
+      return this.$registry.get('dataSync', this.table.data_sync.type)
+    },
+    twoWaySyncStrategy() {
+      const strategy = this.dataSyncType.getTwoWayDataSyncStrategy()
+      if (!strategy) {
+        return null
+      }
+
+      return this.$registry.get('twoWaySyncStrategy', strategy)
+    },
+    isTwoWaySyncDeactivated() {
+      if (!this.twoWaySyncStrategy) {
+        return true
+      }
+      return this.twoWaySyncStrategy.isDeactivated(this.database.workspace.id)
+    },
+    twoWaySyncDeactivatedModal() {
+      if (!this.twoWaySyncStrategy) {
+        return null
+      }
+      return this.twoWaySyncStrategy.getDeactivatedClickModal()
+    },
   },
   mounted() {
     this.hideError()
@@ -113,6 +163,9 @@ export default {
       (p) => p.key
     )
     this.autoAddNewProperties = this.table.data_sync.auto_add_new_properties
+    this.twoWayDataSync = this.isTwoWaySyncDeactivated
+      ? false
+      : this.table.data_sync.two_way_sync
     this.fetchExistingProperties(this.table)
   },
   methods: {
@@ -125,11 +178,17 @@ export default {
         {
           synced_properties: this.syncedProperties,
           auto_add_new_properties: this.autoAddNewProperties,
+          two_way_sync: this.twoWayDataSync,
         },
         this.syncTableValue
       )
       if (!this.syncTableValue) {
         this.completed = true
+      }
+    },
+    clickTwoWaySync() {
+      if (this.isTwoWaySyncDeactivated) {
+        this.$refs.twoWaySyncDeactivatedModal.show()
       }
     },
   },

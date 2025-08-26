@@ -485,6 +485,22 @@ class DataSourceHandler:
 
         data_sources_dispatch = {}
         for data_source in data_sources:
+            if (
+                dispatch_context.public_allowed_properties is not None
+                and data_source.service_id
+                not in dispatch_context.public_allowed_properties["all"]
+            ):
+                # We ignore data sources that have no used properties at all.
+                # It means they are not used at least for the current user.
+                if data_source.service.get_type().returns_list:
+                    data_sources_dispatch[data_source.id] = {
+                        "has_next_page": False,
+                        "results": [],
+                    }
+                else:
+                    data_sources_dispatch[data_source.id] = {}
+                continue
+
             # Add the initial call to the call stack
             dispatch_context.add_call(data_source.id)
             try:
@@ -521,8 +537,7 @@ class DataSourceHandler:
 
         current_data_source_dispatched = dispatch_context.data_source or data_source
 
-        dispatch_context = BuilderDispatchContext.from_context(
-            dispatch_context,
+        dispatch_context = dispatch_context.clone(
             data_source=current_data_source_dispatched,
         )
 

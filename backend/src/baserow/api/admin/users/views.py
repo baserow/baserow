@@ -24,6 +24,7 @@ from baserow.api.admin.users.serializers import (
 from baserow.api.admin.views import AdminListingView
 from baserow.api.decorators import map_exceptions, validate_body
 from baserow.api.schemas import get_error_schema
+from baserow.api.user.registries import member_data_registry
 from baserow.api.user.schemas import authenticate_user_schema
 from baserow.api.user.serializers import get_all_user_data_serialized
 from baserow.core.admin.users.exceptions import (
@@ -67,7 +68,16 @@ class UsersAdminView(AdminListingView):
         ),
     )
     def get(self, request):
-        return super().get(request)
+        response = super().get(request)
+        results = response.data["results"]
+        user_ids = [result["id"] for result in results]
+        # Iterate over any registered `member_data_registry member data types and
+        # annotate the response with it.
+        for data_type in member_data_registry.get_all():
+            data_type.annotate_serialized_admin_users_data(
+                user_ids, results, request.user
+            )
+        return response
 
     @extend_schema(
         tags=["Admin"],

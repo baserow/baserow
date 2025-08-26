@@ -1,5 +1,6 @@
 from django.db import models
 
+from baserow.contrib.automation.history.models import AutomationWorkflowHistory
 from baserow.contrib.automation.workflows.models import (
     AutomationWorkflow,
     DuplicateAutomationWorkflowJob,
@@ -10,6 +11,7 @@ __all__ = [
     "Automation",
     "AutomationWorkflow",
     "DuplicateAutomationWorkflowJob",
+    "AutomationWorkflowHistory",
 ]
 
 

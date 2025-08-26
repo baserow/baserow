@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Dict, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Union
 
 from django.contrib.auth.models import AbstractUser
 
@@ -88,8 +88,9 @@ class UserDataRegistry(Registry[UserDataType]):
 class MemberDataType(Instance):
     """
     The member data type can be used to inject an additional payload to the API
-    workspace user list responses. The returned dict of the `annotate_serialized_data`
-    method is added to the payload under the key containing the type name.
+    workspace user list responses. The returned dict of the
+    `annotate_serialized_workspace_members_data` method is added to the payload under
+    the key containing the type name.
     """
 
     def get_request_serializer_field(
@@ -104,18 +105,23 @@ class MemberDataType(Instance):
             "The get_request_serializer_field must be implemented and should return a Field."
         )
 
-    def annotate_serialized_data(
+    def annotate_serialized_workspace_members_data(
         self, workspace: "Workspace", serialized_data: dict, user: AbstractUser
     ) -> dict:
         """
         Should be given a `Serializer.data` object, which the `MemberDataType`
         implementation will annotate with its own data. Should return the same
-        `serialized_dat` dict.
+        `serialized_dat` dict. This data is used on the workspace members listing page.
         """
 
-        raise NotImplementedError(
-            "The annotate_serialized_data must be implemented and should return a dict."
-        )
+    def annotate_serialized_admin_users_data(
+        self, user_ids: List[int], serialized_data: dict, user: AbstractUser
+    ) -> dict:
+        """
+        Should be given a `Serializer.data` object, which the `MemberDataType`
+        implementation will annotate with its own data. Should return the same
+        `serialized_dat` dict. This data is used on the admin users listing page.
+        """
 
 
 class MemberDataRegistry(Registry):

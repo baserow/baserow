@@ -4,7 +4,8 @@
         "multipleRows": "다중 행"
     },
     "integrationType": {
-        "localBaserow": "로컬 Baserow"
+        "localBaserow": "로컬 Baserow",
+        "smtp": "SMTP 이메일"
     },
     "localBaserowIntegrationType": {
         "localBaserowSummary": "로컬 Baserow - {name}, {username}",
@@ -29,7 +30,21 @@
         "localBaserowRowsDeleted": "행 삭제됨",
         "localBaserowRowsDeletedDescription": "Baserow 테이블에서 행이 삭제되면 발생합니다.",
         "localBaserowUpdateRowDescription": "Baserow 테이블의 기존 행을 업데이트합니다.",
-        "localBaserowRowsUpdatedDescription": "Baserow 테이블의 행이 업데이트될 때 트리거됩니다."
+        "localBaserowRowsUpdatedDescription": "Baserow 테이블의 행이 업데이트될 때 트리거됩니다.",
+        "localBaserowGetRowDescription": "Baserow 테이블에서 단일 행을 읽습니다.",
+        "localBaserowListRowsDescription": "Baserow 테이블에서 여러 행을 읽습니다.",
+        "localBaserowAggregateRowsDescription": "Baserow 테이블의 필드를 요약합니다.",
+        "coreHTTPRequestDescription": "지정된 엔드포인트에 HTTP 요청을 보냅니다.",
+        "coreSMTPEmail": "이메일 보내기",
+        "coreSMTPEmailDescription": "SMTP 구성을 사용하여 이메일을 보냅니다.",
+        "errorFromEmailMissing": "이메일에서 누락된 속성",
+        "errorToEmailsMissing": "이메일 속성 누락",
+        "errorUrlMissing": "URL 속성이 누락되었습니다",
+        "errorNoTableSelected": "선택된 테이블이 없습니다",
+        "errorFilterInError": "적어도 하나의 필터가 잘못 구성되었습니다",
+        "errorSortingInError": "적어도 하나의 종류가 잘못 구성되었습니다",
+        "errorNoFieldSelected": "선택된 필드가 없습니다",
+        "errorNoAggregationTypeSelected": "선택된 집계 유형이 없습니다"
     },
     "userSourceType": {
         "localBaserow": "Baserow 테이블 인증"
@@ -123,5 +138,48 @@
         "seconds": "초",
         "timeout": "시간초과",
         "nameFieldInvalid": "이름은 영숫자, 대시 또는 밑줄만 포함할 수 있으며 대시나 밑줄로 시작할 수 없습니다."
+    },
+    "smtpIntegrationType": {
+        "smtpSummary": "SMTP - {host}:{port}"
+    },
+    "smtpForm": {
+        "host": "SMTP 호스트",
+        "hostPlaceholder": "smtp.gmail.com",
+        "port": "SMTP 포트",
+        "portPlaceholder": "587",
+        "useTls": "TLS 사용",
+        "username": "사용자 이름",
+        "usernamePlaceholder": "your-email@example.com",
+        "password": "비밀번호",
+        "passwordPlaceholder": "당신의 비밀번호"
+    },
+    "smtpEmailForm": {
+        "integrationDropdownLabel": "통합",
+        "fromEmail": "이메일에서",
+        "fromEmailPlaceholder": "sender@example.com",
+        "fromName": "이름에서",
+        "fromNamePlaceholder": "당신의 이름",
+        "toEmails": "이메일로",
+        "toEmailsPlaceholder": "수신자1@example.com,수신자2@example.com",
+        "ccEmails": "CC 이메일",
+        "ccEmailsPlaceholder": "cc1@example.com,cc2@example.com",
+        "bccEmails": "숨은 참조 이메일",
+        "bccEmailsPlaceholder": "bcc1@example.com,bcc2@example.com",
+        "subject": "제목",
+        "subjectPlaceholder": "귀하의 이메일 제목",
+        "bodyType": "Body 유형",
+        "bodyTypePlain": "일반 텍스트",
+        "bodyTypeHtml": "HTML",
+        "body": "Body",
+        "bodyPlaceholder": "이메일 내용..."
+    },
+    "serviceRefinementForms": {
+        "filterTabTitle": "필터 | 1 필터 | {count} 필터",
+        "sortTabTitle": "정렬 | 1 정렬 | {count} 정렬",
+        "searchTabTitle": "검색 | 1 검색 | {count} 검색",
+        "searchFieldPlaceHolder": "검색어를 입력하세요...",
+        "noTableChosenForFiltering": "데이터 소스 필터를 사용하려면 테이블을 선택하세요.",
+        "noTableChosenForSorting": "데이터 소스 정렬을 사용하려면 테이블을 선택하세요.",
+        "refinements": "개선 사항"
     }
 }

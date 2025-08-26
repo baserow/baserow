@@ -1,0 +1,27 @@
+.history-section__header {
+  display: flex;
+  padding: 18px 0;
+  gap: 10px;
+  align-items: center;
+  border-top: 1px solid $palette-neutral-200;
+  font-size: 14px;
+  color: $palette-neutral-600;
+  user-select: none;
+}
+
+.history-section__header-title {
+  color: $color-neutral-900;
+  font-size: 12px;
+  font-weight: 500;
+  flex: 1;
+}
+
+.history-section__header-date {
+  font-size: 11px;
+}
+
+.history-section__message {
+  display: flex;
+  padding: 5px 5px 5px 10px;
+  margin-bottom: 10px;
+}
