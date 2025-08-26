@@ -1183,5 +1183,18 @@
     "previewPublishGuidedTourStep": {
         "title": "Prévisualiser et publier votre application",
         "content": "Cliquez sur **Preview** pour tester votre application en privé. Lorsque vous êtes prêt, cliquez sur **Publier** pour la partager avec le public via un domaine."
+    },
+    "builderToast": {
+        "details": "Détails",
+        "defaultTitle": "Erreur inattendue",
+        "defaultMessage": "Une erreur inattendue s'est produite. Veuillez réessayer plus tard.",
+        "invalidContextTitle": "Demande non valide",
+        "invalidContextMessage": "La demande n'est pas valide.",
+        "InvalidContentTitle": "Formulaire invalide",
+        "invalidContentMessage": "Un ou plusieurs champs contiennent des valeurs non valides.",
+        "serviceMisconfiguredTitle": "Configuration incomplète",
+        "serviceMisconfiguredMessage": "Veuillez vérifier la configuration.",
+        "errorWorkflowActionDispatch": "L'action « {nom} » a échoué : ",
+        "errorDataSourceDispatch": "Échec du chargement de « {name} » : "
     }
 }
