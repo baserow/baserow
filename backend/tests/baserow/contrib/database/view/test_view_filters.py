@@ -4723,6 +4723,77 @@ def test_multiple_select_has_not_filter_type(data_fixture):
 
 
 @pytest.mark.django_db
+def test_multiple_select_has_and_empty_or_filter_no_duplicates(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    grid_view = data_fixture.create_grid_view(table=table)
+    multiple_select_field = data_fixture.create_multiple_select_field(table=table)
+
+    select_option_a = data_fixture.create_select_option(
+        field=multiple_select_field, value="A", color="blue"
+    )
+    select_option_b = data_fixture.create_select_option(
+        field=multiple_select_field, value="B", color="red"
+    )
+    select_option_c = data_fixture.create_select_option(
+        field=multiple_select_field, value="C", color="green"
+    )
+
+    handler = ViewHandler()
+    model = table.get_model()
+
+    row_empty = model.objects.create()
+
+    row_single_a = model.objects.create()
+    getattr(row_single_a, f"field_{multiple_select_field.id}").set([select_option_a.id])
+
+    row_single_b = model.objects.create()
+    getattr(row_single_b, f"field_{multiple_select_field.id}").set([select_option_b.id])
+
+    row_multiple_ab = model.objects.create()
+    getattr(row_multiple_ab, f"field_{multiple_select_field.id}").set(
+        [select_option_a.id, select_option_b.id]
+    )
+
+    row_multiple_ac = model.objects.create()
+    getattr(row_multiple_ac, f"field_{multiple_select_field.id}").set(
+        [select_option_a.id, select_option_c.id]
+    )
+
+    handler.update_view(user=user, view=grid_view, filter_type="OR")
+
+    data_fixture.create_view_filter(
+        view=grid_view,
+        field=multiple_select_field,
+        type="multiple_select_has",
+        value=f"{select_option_a.id},{select_option_b.id}",
+    )
+
+    data_fixture.create_view_filter(
+        view=grid_view,
+        field=multiple_select_field,
+        type="empty",
+        value="",
+    )
+
+    queryset = handler.apply_filters(grid_view, model.objects.all())
+    result_ids = [r.id for r in queryset.all()]
+
+    expected_ids = {
+        row_empty.id,
+        row_single_a.id,
+        row_single_b.id,
+        row_multiple_ab.id,
+        row_multiple_ac.id,
+    }
+
+    assert len(result_ids) == len(set(result_ids))
+
+    assert set(result_ids) == expected_ids
+    assert len(result_ids) == 5
+
+
+@pytest.mark.django_db
 def test_length_is_lower_than_filter_type(data_fixture):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)

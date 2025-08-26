@@ -1,0 +1,8 @@
+{
+    "type": "bug",
+    "message": "Fix duplicated results from OR filters",
+    "domain": "database",
+    "issue_number": 3799,
+    "bullet_points": [],
+    "created_at": "2025-08-26"
+}
