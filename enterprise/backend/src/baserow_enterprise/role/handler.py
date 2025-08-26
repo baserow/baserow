@@ -561,9 +561,9 @@ class RoleAssignmentHandler:
         """
         Returns the computed roles for the given actor on the given context.
 
-        :param roles_per_scopes: @TODO
+        :param roles_per_scopes: The roles that the user has per scope object.
         :param context: The context on which we want to now the role.
-        :param cache: @TODO
+        :param cache: A cache dict to temporarily store reusable values in.
         :return: A list of roles that applies on this context.
         """
 
