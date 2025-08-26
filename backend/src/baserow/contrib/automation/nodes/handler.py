@@ -526,6 +526,16 @@ class AutomationNodeHandler:
             # when the trigger node is executed.
             node.service.sample_data = None
             node.service.save()
+
+            # We must also reset the sample data for all subsequent nodes,
+            # since they assume that the preceding node (this trigger node)
+            # is tested.
+            base_queryset = AutomationNode.objects.filter(
+                workflow=node.workflow
+            ).exclude(id=node.id)
+            action_nodes = self.get_nodes(node.workflow, base_queryset=base_queryset)
+            self.reset_sample_data(action_nodes)
+
             node.simulate_dispatch = True
             node.save()
             return
