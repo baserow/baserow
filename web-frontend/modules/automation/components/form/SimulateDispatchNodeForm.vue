@@ -2,8 +2,8 @@
   <div class="simulate-dispatch-node">
     <div class="simulate-dispatch-node__header">
       <div class="simulate-dispatch-node__header-title">
-        <template v-if="isActionNode"> Test Action Node </template>
-        <template v-else> Test Trigger Node </template>
+        <template v-if="isActionNode">{{ $t('simulateDispatch.testActionNode') }}</template>
+        <template v-else>{{ $t('simulateDispatch.testTriggerNode') }}</template>
       </div>
 
       <Button
@@ -21,13 +21,13 @@
     </div>
 
     <div v-if="hasSampleData">
-      <div class="simulate-dispatch-node__sample-data-label">Sample Data:</div>
+      <div class="simulate-dispatch-node__sample-data-label">{{ $t('simulateDispatch.sampleDataLabel') }}:</div>
       <pre><code class="simulate-dispatch-node__sample-data-code">{{ node.service.sample_data }}</code></pre>
     </div>
     <div v-else-if="node.simulate_dispatch_trigger">
-      This trigger node is waiting for an event.
+      {{ $t('simulateDispatch.triggerNodeAwaitingEvent') }}
     </div>
-    <div v-else>This Node has not been tested.</div>
+    <div v-else>{{ $t('simulateDispatch.nodeNotTested') }}</div>
   </div>
 </template>
 
@@ -58,7 +58,7 @@ const isSimulatingDispatch = ref(false)
 const nodeIsInError = computed(() => {
   const nodeType = app.$registry.get('node', props.node.type)
   if (nodeType.isInError({ service: props.node.service })) {
-    return 'The Node must be configured before it can be tested.'
+    return app.i18n.t('simulateDispatch.errorNodeNotConfigured')
   }
 
   for (const node of workflow.value.orderedNodes) {
@@ -67,11 +67,11 @@ const nodeIsInError = computed(() => {
     if (node.order >= props.node.order) continue
 
     if (nodeType.isInError({ service: node.service })) {
-      return 'All previous nodes must be configured.'
+      return app.i18n.t('simulateDispatch.errorPreviousNodeNotConfigured')
     }
 
     if (!node.service?.sample_data) {
-      return 'All previous nodes must be tested.'
+      return app.i18n.t('simulateDispatch.errorPreviousNodesNotTested')
     }
   }
 
@@ -92,7 +92,7 @@ const hasSampleData = computed(() => {
 })
 
 const buttonLabel = computed(() => {
-  return hasSampleData.value ? 'Re-test Node' : 'Test Node'
+  return hasSampleData.value ? app.i18n.t('simulateDispatch.buttonLabelReTest') : app.i18n.t('simulateDispatch.buttonLabelTest')
 })
 
 const isActionNode = computed(() => {
@@ -102,26 +102,14 @@ const isActionNode = computed(() => {
 
 const simulateDispatchNode = async () => {
   isSimulatingDispatch.value = true
-  const currentSelectedNodeId = workflow.value.selectedNodeId
 
   try {
     await store.dispatch('automationWorkflowNode/simulateDispatch', {
       nodeId: props.node.id,
       reTest: hasSampleData.value,
     })
-    await store.dispatch('automationWorkflowNode/fetch', {
+    await store.dispatch('automationWorkflowNode/fetchNodesAndSelect', {
       workflow: workflow.value,
-    })
-    workflow.value = { ...workflow.value }
-
-    // restore the selected node after refreshing the nodes
-    const nodeToSelect = store.getters['automationWorkflowNode/findById'](
-      workflow.value,
-      currentSelectedNodeId
-    )
-    store.dispatch('automationWorkflowNode/select', {
-      workflow: workflow.value,
-      node: nodeToSelect,
     })
   } catch (error) {
     notifyIf(error, 'automationWorkflow')
