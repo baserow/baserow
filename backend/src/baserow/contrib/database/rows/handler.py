@@ -1739,7 +1739,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         # Can raise InvalidRowLength
         update_handler.validate()
 
-        skipped_field_ids = configuration.get("skipped_fields", [])
+        skipped_field_ids = configuration.get("skipped_fields", []) or []
         try:
             skipped_fields = [
                 model.get_field_object_by_id(field_id)["field"]
