@@ -562,15 +562,11 @@ class CoreHTTPRequestServiceType(ServiceType):
             raise UnexpectedDispatchException(f"Unknown error: {str(e)}") from e
 
         try:
-            response_body = (
-                response.json()
-                if response.headers.get("Content-Type") == "application/json"
-                else response.text
-            )
+            # Try to parse as JSON regardless of Content-Type
+            response_body = response.json()
         except request_exceptions.JSONDecodeError:
-            raise UnexpectedDispatchException(
-                "The response doesn't contain valid JSON."
-            )
+            # Fall back to text
+            response_body = response.text
 
         # Extract the response headers
         response_headers = {key: value for key, value in response.headers.items()}

@@ -587,25 +587,3 @@ def test_core_http_request_dispatch_data_with_sample_data(
         "headers": {"Content-Type": "application/json", "test": "header"},
         "status_code": 204,
     }
-
-
-@pytest.mark.django_db
-def test_core_http_request_dispatch_data_invalid_json(
-    data_fixture,
-):
-    service = data_fixture.create_core_http_request_service(url="'http://example.com/'")
-    service_type = service.get_type()
-
-    dispatch_context = FakeDispatchContext()
-
-    with pytest.raises(UnexpectedDispatchException) as e:
-        with mock_advocate_request(
-            status_code=200, body={}, headers={"Content-Type": "application/json"}
-        ) as mock_request:
-            # Mock an invalid JSON response
-            mock_request.return_value.json.side_effect = (
-                request_exceptions.JSONDecodeError("Expecting value", "invalid json", 0)
-            )
-            service_type.dispatch(service, dispatch_context)
-
-    assert str(e.value) == "The response doesn't contain valid JSON."
