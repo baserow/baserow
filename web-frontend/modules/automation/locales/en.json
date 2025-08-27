@@ -83,7 +83,14 @@
     "beforeLabelTrigger": "Starts when",
     "beforeLabelAction": "Then",
     "moreEdit": "Edit",
-    "moreReplace": "Replace"
+    "moreReplace": "Replace",
+    "nodeOptions": "Node options",
+    "displayLabelDebug": "ID: {id} | Prev: {previousNodeId} | {outputUid}",
+    "moreDuplicate": "Duplicate"
+  },
+  "workflowAddNode": {
+    "displayTitle": "Create automation node",
+    "displayTitleDebug": "ID: {id} | {outputUid}"
   },
   "workflowNodeContext": {
     "searchPlaceholderTrigger": "Search for a trigger...",

@@ -43,6 +43,16 @@
         <li class="context__menu-item">
           <a
             role="button"
+            class="context__menu-item-link"
+            @click="emit('duplicate-node', props.id)"
+          >
+            <i class="context__menu-item-icon iconoir-copy"></i>
+            {{ $t('workflowNode.moreDuplicate') }}
+          </a>
+        </li>
+        <li class="context__menu-item">
+          <a
+            role="button"
             class="context__menu-item-link context__menu-item-link--switch"
             @click="openReplaceContext()"
           >
@@ -101,7 +111,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['remove-node', 'replace-node'])
+const emit = defineEmits(['remove-node', 'replace-node', 'duplicate-node'])
 
 /**
  * When the pane is moved, if we have an active node context (whether it is
