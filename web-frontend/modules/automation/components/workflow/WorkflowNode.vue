@@ -45,10 +45,20 @@
         {{ nodeType.getDefaultLabel({ automation, node }) }} ({{ data.nodeId }})
       </div>
       <ul class="context__menu">
-        <li class="context__menu-item">
+        <li v-if="canBeDuplicated" class="context__menu-item">
           <a
             :key="getReplaceErrorMessage"
             v-tooltip="getReplaceErrorMessage || null"
+            role="button"
+            class="context__menu-item-link"
+            @click="emit('duplicate-node', props.id)"
+          >
+            <i class="context__menu-item-icon iconoir-copy"></i>
+            {{ $t('workflowNode.moreDuplicate') }}
+          </a>
+        </li>
+        <li class="context__menu-item">
+          <a
             role="button"
             class="context__menu-item-link context__menu-item-link--switch"
             :class="{ disabled: getReplaceErrorMessage }"
@@ -113,7 +123,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['remove-node', 'replace-node'])
+const emit = defineEmits(['remove-node', 'replace-node', 'duplicate-node'])
 
 /**
  * When the pane is moved, if we have an active node context (whether it is
@@ -225,6 +235,12 @@ const getDeleteErrorMessage = computed(() => {
     workflow: workflow.value,
     node: node.value,
   })
+})
+
+const canBeDuplicated = computed(() => {
+  const isTrigger = nodeType.value.isTrigger
+  const isRouter = nodeType.value.type === CoreRouterNodeType.getType()
+  return !isTrigger && !isRouter
 })
 
 /**

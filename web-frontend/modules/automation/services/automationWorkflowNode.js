@@ -36,5 +36,8 @@ export default (client) => {
     replace(nodeId, values) {
       return client.post(`automation/node/${nodeId}/replace/`, values)
     },
+    duplicate(nodeId) {
+      return client.post(`automation/node/${nodeId}/duplicate/`)
+    },
   }
 }
