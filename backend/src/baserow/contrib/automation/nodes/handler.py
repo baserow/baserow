@@ -27,7 +27,7 @@ from baserow.core.utils import MirrorDict, extract_allowed
 
 
 class AutomationNodeHandler:
-    allowed_fields = ["service", "previous_node_id", "previous_node_output"]
+    allowed_fields = ["label", "service", "previous_node_id", "previous_node_output"]
     workflow_handler = AutomationWorkflowHandler()
 
     def get_nodes(

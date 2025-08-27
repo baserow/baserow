@@ -38,6 +38,7 @@ def test_create_node(api_client, data_fixture):
     assert response.status_code == HTTP_200_OK
     assert response.json() == {
         "id": 1,
+        "label": "",
         "order": AnyStr(),
         "previous_node_id": None,
         "previous_node_output": "",
@@ -69,6 +70,7 @@ def test_create_node_before(api_client, data_fixture):
     assert response.status_code == HTTP_200_OK
     assert response.json() == {
         "id": AnyInt(),
+        "label": "",
         "order": "1.50000000000000000000",
         "previous_node_id": node1.id,
         "previous_node_output": "",
@@ -249,6 +251,7 @@ def test_get_node(api_client, data_fixture):
     assert response.json() == [
         {
             "id": node.id,
+            "label": "",
             "order": AnyStr(),
             "previous_node_id": None,
             "previous_node_output": "",
@@ -518,6 +521,7 @@ def test_update_node(api_client, data_fixture):
     assert response.status_code == HTTP_200_OK
     assert response.json() == {
         "id": node.id,
+        "label": "",
         "order": AnyStr(),
         "service": AnyDict(),
         "previous_node_id": None,
@@ -623,6 +627,7 @@ def test_replace_node_type_with_replaceable_type(
     assert response.status_code == HTTP_200_OK
     assert response.json() == {
         "id": AnyInt(),
+        "label": "",
         "type": replaceable_type,
         "workflow": workflow.id,
         "previous_node_id": None,

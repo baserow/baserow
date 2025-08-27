@@ -117,6 +117,7 @@ def test_automation_export_serialized(data_fixture):
                 "nodes": [
                     {
                         "id": trigger.id,
+                        "label": trigger.label,
                         "type": "rows_created",
                         "order": str(trigger.order),
                         "workflow_id": trigger.workflow_id,
@@ -132,6 +133,7 @@ def test_automation_export_serialized(data_fixture):
                     },
                     {
                         "id": first_action.id,
+                        "label": first_action.label,
                         "type": "create_row",
                         "order": str(first_action.order),
                         "workflow_id": first_action.workflow_id,

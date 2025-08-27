@@ -28,6 +28,7 @@ class AutomationNodeSerializer(serializers.ModelSerializer):
         model = AutomationNode
         fields = (
             "id",
+            "label",
             "order",
             "service",
             "workflow",
@@ -69,6 +70,7 @@ class UpdateAutomationNodeSerializer(serializers.ModelSerializer):
     class Meta:
         model = AutomationNode
         fields = (
+            "label",
             "service",
             "previous_node_output",
         )

@@ -51,6 +51,7 @@ class AutomationNodeType(
     is_workflow_action = False
 
     class SerializedDict(AutomationNodeDict):
+        label: str
         service: Dict
         parent_node_id: Optional[int]
         previous_node_id: Optional[int]
@@ -58,6 +59,7 @@ class AutomationNodeType(
     @property
     def allowed_fields(self):
         return super().allowed_fields + [
+            "label",
             "previous_node_output",
             "service",
         ]

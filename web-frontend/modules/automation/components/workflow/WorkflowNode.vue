@@ -2,7 +2,7 @@
   <div
     class="workflow-editor__node"
     :data-before-label="
-      props.data.isTrigger
+      data.isTrigger
         ? $t('workflowNode.beforeLabelTrigger')
         : $t('workflowNode.beforeLabelAction')
     "
@@ -11,15 +11,12 @@
       <i :class="loading ? 'loading' : nodeType.iconClass"></i>
     </div>
 
-    <h1 class="workflow-editor__node-title">{{ props.label }}</h1>
+    <h1 class="workflow-editor__node-title">{{ label }}</h1>
 
     <Badge v-if="isInError" rounded color="yellow" size="large">
       {{ $t('workflowNode.actionConfigure') }}</Badge
     >
-    <div
-      v-if="!props.data.readOnly"
-      class="workflow-editor__node-more--wrapper"
-    >
+    <div v-if="!data.readOnly" class="workflow-editor__node-more--wrapper">
       <a
         ref="editNodeContextToggle"
         role="button"
@@ -37,7 +34,7 @@
       max-height-if-outside-viewport
     >
       <div class="context__menu-title">
-        {{ label }} ({{ props.data.nodeId }})
+        {{ nodeType.getDefaultLabel({ automation, node }) }} ({{ data.nodeId }})
       </div>
       <ul class="context__menu">
         <li class="context__menu-item">
@@ -50,11 +47,11 @@
             {{ $t('workflowNode.moreReplace') }}
           </a>
         </li>
-        <li v-if="!props.data.isTrigger" class="context__menu-item">
+        <li v-if="!data.isTrigger" class="context__menu-item">
           <a
             role="button"
             class="context__menu-item-link context__menu-item-link--delete"
-            @click="emit('remove-node', props.id)"
+            @click="emit('remove-node', id)"
           >
             <i class="context__menu-item-icon iconoir-bin"></i>
             {{ $t('workflowNode.actionDelete') }}
@@ -145,6 +142,7 @@ const openReplaceContext = async () => {
 const store = useStore()
 const { app } = useContext()
 const workflow = inject('workflow')
+const automation = inject('automation')
 const node = computed(() => {
   return store.getters['automationWorkflowNode/findById'](
     workflow.value,
