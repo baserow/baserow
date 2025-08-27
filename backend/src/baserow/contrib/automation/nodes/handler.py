@@ -24,9 +24,6 @@ from baserow.contrib.automation.nodes.types import (
     UpdatedAutomationNode,
 )
 from baserow.contrib.automation.workflows.runner import AutomationWorkflowRunner
-from baserow.contrib.integrations.core.exceptions import (
-    ServiceTypeSchemaGenerationError,
-)
 from baserow.core.cache import local_cache
 from baserow.core.db import specific_iterator
 from baserow.core.exceptions import IdDoesNotExist
@@ -584,7 +581,6 @@ class AutomationNodeHandler:
             AutomationWorkflowRunner().run(node.workflow, dispatch_context)
         except (
             AutomationNodeError,
-            ServiceTypeSchemaGenerationError,
             UnexpectedDispatchException,
         ) as e:
             raise AutomationNodeSimulateDispatchError(str(e))
