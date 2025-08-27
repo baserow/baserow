@@ -81,6 +81,12 @@ class OrderAutomationNodesSerializer(serializers.Serializer):
     )
 
 
+class DuplicateAutomationNodeSerializer(serializers.Serializer):
+    node_id = serializers.IntegerField(
+        help_text="The ID of the automation node that should be duplicated.",
+    )
+
+
 class ReplaceAutomationNodeSerializer(serializers.Serializer):
     new_type = serializers.ChoiceField(
         choices=lazy(automation_node_type_registry.get_types, list)(),
