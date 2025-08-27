@@ -86,7 +86,7 @@ test.describe("Grid view tests", () => {
     expect(tablePage.fields(), 'Field is not hidden anymore').toHaveCount(3)
   })
 
-  test.only("User can create and delete filters", async ({
+  test("User can create and delete filters", async ({
     page, tablePage
   }) => {
       const headerPage = new TableHeaderPage(page)
