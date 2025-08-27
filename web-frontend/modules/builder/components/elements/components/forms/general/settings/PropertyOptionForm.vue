@@ -27,13 +27,13 @@
         >
           <Checkbox
             v-tooltip="
-              optionIsDisabled(rows[rowIndex], field.name)
+              optionIsDisabled(rows[rowIndex], field.__id__)
                 ? $t('propertyOptionForm.optionUnavailable')
                 : null
             "
             tooltip-position="top"
             :checked="value"
-            :disabled="optionIsDisabled(rows[rowIndex], field.name)"
+            :disabled="optionIsDisabled(rows[rowIndex], field.__id__)"
             @input="onOptionChange(rows[rowIndex], field.property, $event)"
           ></Checkbox>
         </td>

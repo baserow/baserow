@@ -95,7 +95,8 @@ export const CollectionElementTypeMixin = (Base) =>
      * the results down to the properties which are `filterable`, `sortable`,
      * and `searchable`, and then returning the property value.
      * @param {string} option - the `filterable`, `sortable` or `searchable`
-     *  property option. If the value is `true` then the property will be
+     *  property option. If the value is `true`, and the property itself is
+     *  actually capable of being refined, then the property will be
      *  included in the adhoc header component.
      * @param {object} element - the element we want to extract options from.
      * @param {object} dataSource - the dataSource used by `element`.
@@ -108,10 +109,12 @@ export const CollectionElementTypeMixin = (Base) =>
         : []
       return Object.entries(schemaProperties)
         .filter(
-          ([schemaProperty, _]) =>
-            this.getPropertyOptionsByProperty(element, schemaProperty)[
-              option
-            ] || false
+          ([schemaProperty, propertyValues]) =>
+            (propertyValues[option] &&
+              this.getPropertyOptionsByProperty(element, schemaProperty)[
+                option
+              ]) ||
+            false
         )
         .map(([_, property]) => property)
     }
