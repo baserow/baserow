@@ -27,5 +27,8 @@ export default (client) => {
     simulateDispatch(nodeId) {
       return client.post(`automation/node/${nodeId}/simulate-dispatch/`)
     },
+    duplicate(nodeId) {
+      return client.post(`automation/node/${nodeId}/duplicate/`)
+    },
   }
 }

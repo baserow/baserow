@@ -27,6 +27,7 @@
             @remove-node="handleRemoveNode"
             @replace-node="handleReplaceNode"
             @move-node="handleMoveNode"
+            @duplicate-node="handleDuplicateNode"
           />
         </client-only>
       </div>
@@ -264,6 +265,12 @@ export default {
         console.error('Failed to move node:', err)
         notifyIf(err, 'automation')
       }
+    },
+    async handleDuplicateNode(nodeId) {
+      await this.$store.dispatch('automationWorkflowNode/duplicate', {
+        workflow: this.workflow,
+        nodeId,
+      })
     },
   },
 }

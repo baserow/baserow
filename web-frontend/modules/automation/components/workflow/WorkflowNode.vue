@@ -14,6 +14,7 @@
       @select-node="emit('select-node', $event)"
       @remove-node="emit('remove-node', $event)"
       @replace-node="emit('replace-node', $event)"
+      @duplicate-node="emit('duplicate-node', $event)"
     />
     <div v-if="nodeType.isContainer" class="workflow-node__children">
       <div ref="children" class="workflow-node__children-wrapper">
@@ -67,6 +68,7 @@
         @remove-node="emit('remove-node', $event)"
         @replace-node="emit('replace-node', $event)"
         @move-node="emit('move-node', $event)"
+        @duplicate-node="emit('duplicate-node', $event)"
       />
     </div>
   </div>
@@ -111,6 +113,7 @@ const emit = defineEmits([
   'remove-node',
   'replace-node',
   'move-node',
+  'duplicate-node',
 ])
 
 const { app } = useContext()

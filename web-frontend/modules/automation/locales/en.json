@@ -132,7 +132,9 @@
     "beforeLabelRepeat": "For each item",
     "moreEdit": "Edit",
     "moreReplace": "Replace",
-    "nodeOptions": "Node options"
+    "nodeOptions": "Node options",
+    "displayLabelDebug": "ID: {id} | Prev: {previousNodeId} | {outputUid}",
+    "moreDuplicate": "Duplicate"
   },
   "workflowAddNode": {
     "displayTitle": "Create automation node"

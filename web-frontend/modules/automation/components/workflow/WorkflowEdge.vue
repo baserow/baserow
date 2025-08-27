@@ -50,6 +50,7 @@
       @remove-node="emit('remove-node', $event)"
       @replace-node="emit('replace-node', $event)"
       @move-node="emit('move-node', $event)"
+      @duplicate-node="emit('duplicate-node', $event)"
     />
   </div>
 </template>
@@ -90,7 +91,14 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['add-node', 'select-node', 'move-node'])
+const emit = defineEmits([
+  'add-node',
+  'select-node',
+  'move-node',
+  'remove-node',
+  'replace-node',
+  'duplicate-node',
+])
 
 const store = useStore()
 const workflow = inject('workflow')

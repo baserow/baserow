@@ -29,6 +29,7 @@
         @replace-node="emit('replace-node', $event)"
         @select-node="emit('input', $event.id)"
         @move-node="emit('move-node', $event)"
+        @duplicate-node="emit('duplicate-node', $event)"
       />
       <template v-else>
         <div class="workflow-editor__trigger-selector" @scroll.stop>
@@ -72,7 +73,13 @@ const props = defineProps({
 })
 
 const vueFlowEdges = []
-const emit = defineEmits(['add-node', 'remove-node', 'input', 'move-node'])
+const emit = defineEmits([
+  'add-node',
+  'remove-node',
+  'input',
+  'move-node',
+  'duplicate-node',
+])
 
 const { onPaneClick } = useVueFlow()
 
