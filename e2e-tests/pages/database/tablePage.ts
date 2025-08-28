@@ -65,7 +65,7 @@ export class TablePage extends BaserowPage {
     this.searchMatchCells = this.page.locator(
       ".grid-view__column--matches-search"
     );
-    this.fieldHeader = this.page.locator(".grid-view__description");
+    this.fieldHeader = this.page.locator(".grid-view__description").filter({ visible: true });
     this.loadingOverlay = this.page.locator(".content .loading-overlay");
     this.searchInput = this.page.getByPlaceholder("Search in all rows");
     this.rowIdDivsMatchingSearch = this.page.locator(

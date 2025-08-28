@@ -17,6 +17,7 @@ test.describe("Grid view tests", () => {
   }) => {
     await tablePage.addNewRow();
 
+    await page.waitForTimeout(1000)
     await expect(tablePage.rows(), 'A new row was added').toHaveCount(3);
 
     const [newRowFieldIndex, newRowRowIndex] = [1, 2];
@@ -30,6 +31,7 @@ test.describe("Grid view tests", () => {
     const rowContextMenu = new TableRowContextMenuPage(page);
     await rowContextMenu.deleteRow();
 
+    await page.waitForTimeout(1000)
     await expect(tablePage.rows(), 'The added row was deleted').toHaveCount(2);
   });
 
@@ -65,8 +67,7 @@ test.describe("Grid view tests", () => {
     await tablePage.openFieldContextMenu(fieldIndex)
     await fieldContextMenu.delete()
 
-    await page.waitForTimeout(200);
-
+    await page.waitForTimeout(1000)
     expect(tablePage.fields(), 'Field was deleted').toHaveCount(3)
   })
 
@@ -97,10 +98,9 @@ test.describe("Grid view tests", () => {
 
       // Set 'is' filter for 'Active' field
       await page.locator('a').filter({ hasText: 'Name' }).first().click();
-      await page.pause()
-      await page.waitForTimeout(200);
+      await page.waitForTimeout(1000);
       await page.locator('a').filter({ hasText: 'Active' }).click();
-      await page.waitForTimeout(200);
+      await page.waitForTimeout(1000);
       const firstFilterPage = new FiltersPanelRowPage(page, filtersPanelPage.getFilterRow(0))
       await firstFilterPage.filterRow.locator('.checkbox__button').click()
       await headerPage.toggleFiltersPanel()
@@ -111,6 +111,7 @@ test.describe("Grid view tests", () => {
       await headerPage.toggleFiltersPanel()
       await firstFilterPage.delete()
 
+      await page.waitForTimeout(1000)
       await expect(tablePage.rows(), 'Filter successfully removed').toHaveCount(2);
   })
 });
@@ -126,6 +127,7 @@ test.describe("Grid view collaboration tests", () => {
 
     const createdRows = await createRows(collaborator, tablePage.table, [{}]);
 
+    await page.waitForTimeout(1000)
     await expect(tablePage.rows(), 'A new row was added').toHaveCount(3);
 
     await updateRows(collaborator, tablePage.table, [{ 'id': createdRows[0].id, "Name": "New name" }]);
@@ -137,6 +139,7 @@ test.describe("Grid view collaboration tests", () => {
 
     await deleteRows(collaborator, tablePage.table, [createdRows[0].id]);
 
+    await page.waitForTimeout(1000)
     await expect(tablePage.rows(), 'The added row was deleted').toHaveCount(2);
   });
 

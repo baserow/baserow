@@ -89,18 +89,11 @@ To use the Playwright codegen tool from VSCode:
 Using timeouts is discouraged but there are situations where the test execution is too fast and the mechanism of waiting for an element to appear doesn't help. For example,
 counting elements after some backend call.
 
-If it is enough, increase the default timeout for standard element waiting:
-
-```js
-// for example
-await expect(locator).toHaveCount(2, { timeout: 15000 })
-```
-
-Or introduce a timeout with a comment:
+You can introduce a timeout with a comment:
 
 ```js
 // Explanation
-await page.waitForTimeout(200)
+await page.waitForTimeout(1000)
 ```
 
 ## Debugging tests
@@ -112,5 +105,5 @@ await page.waitForTimeout(200)
   - Use `await page.pause()` in tests to pause execution (like a breakpoint)
 - Look at detailed HTML report or follow the traces in the UI mode (`--ui`)
 - Examine final Playwright selector from any `Locator` object with `locator._selector`.
-  - You can test any selector using `playwright.$$('here goes my selector')` function call in the browser's console during test runs.
+  - You can test any selector using `playwright.$$('here goes my selector')` function call in the browser's console during debug test runs.
     - This way it is possible to see how many and if any elements are selected on the page.
