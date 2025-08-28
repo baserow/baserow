@@ -525,7 +525,7 @@ export class CoreRouterNodeType extends ActionNodeTypeMixin(NodeType) {
     return 9
   }
 
-  getLabel({ node }) {
+  getDefaultLabel({ node }) {
     if (!node.service) return this.name
     return node.service.edges.length
       ? this.app.i18n.t('nodeType.routerLabel', {
