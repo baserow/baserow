@@ -145,7 +145,10 @@
     "exportWorkspaceForm": {
         "exportSettingsLabel": "내보내기 설정",
         "onlyStructureLabel": "구조만 내보내기",
-        "onlyStructureDescription": "활성화하면 애플리케이션의 구조만 내보내집니다. 데이터는 포함되지 않습니다."
+        "onlyStructureDescription": "활성화하면 애플리케이션의 구조만 내보내집니다. 데이터는 포함되지 않습니다.",
+        "selectDataToExport": "내보낼 데이터를 선택하세요",
+        "selectAll": "모두 선택",
+        "deselectAll": "모두 선택 해제"
     },
     "importWorkspaceModal": {
         "title": "Baserow 데이터 가져오기",
@@ -172,7 +175,8 @@
         "untrustedPublicKeyMessage": "제공된 파일은 신뢰할 수 없는 공개 키로 서명되었습니다. 관리자에게 공개 키를 신뢰할 수 있는 키 목록에 추가하거나 서명 확인을 비활성화하여 이 파일을 가져올 수 있도록 요청하세요.",
         "importingState": "불러오기...",
         "importingTableStructure": "생성 중: {table}",
-        "importingTableData": "데이터 가져오기: {table}"
+        "importingTableData": "데이터 가져오기: {table}",
+        "uploadAndImport": "업로드 & 가져오기"
     },
     "dashboardWorkspace": {
         "createApplication": "새로 만들기"
@@ -603,7 +607,8 @@
         "errorJobCannotBeCancelledTitle": "취소할 수 없음",
         "errorJobCannotBeCancelledDescription": "작업이 이미 완료되어 취소할 수 없습니다.\n첫 번째 스냅샷을 삭제하여 제거하세요.",
         "errorJobAlreadyRunningTitle": "이미 실행 중",
-        "errorJobAlreadyRunningDescription": "다른 가져오기 작업이 이미 실행 중입니다. 새로운 작업을 시작하려면 해당 작업이 완료될 때까지 기다려야 합니다."
+        "errorJobAlreadyRunningDescription": "다른 가져오기 작업이 이미 실행 중입니다. 새로운 작업을 시작하려면 해당 작업이 완료될 때까지 기다려야 합니다.",
+        "stateCanceled": "취소"
     },
     "datetime": {
         "secondsAgo": "방금 전 | 1초 전 | {n}초 전",
@@ -630,7 +635,8 @@
                 "role": "기본 역할",
                 "highestRole": "최고 역할",
                 "highestRoleHelpText": "이 작업공간의 어떤 것에서 직접 또는 팀에서 할당된 이 사용자의 최고 역할",
-                "teams": "팀"
+                "teams": "팀",
+                "highestRoleInstanceHelpText": "인스턴스에서 이 사용자가 갖는 가장 높은 역할"
             },
             "actions": {
                 "copyEmail": "이메일 복사",
@@ -967,5 +973,8 @@
     "mcpEndpointForm": {
         "nameLabel": "이름",
         "workspaceLabel": "작업공간"
+    },
+    "importWorkspaceForm": {
+        "selectApplicationsToImport": "가져올 애플리케이션을 선택하세요"
     }
 }
