@@ -307,7 +307,8 @@
         "addDescription": "설명 추가",
         "dbIndex": "색인",
         "dbIndexError": "이 필드 유형에는 인덱스가 있을 수 없습니다. 필드 유형을 저장하거나 변경하기 전에 인덱스를 제거하세요.",
-        "dbIndexDescription": "인덱싱을 사용하면 필터링 성능이 크게 향상되지만 생성, 업데이트 및 삭제 작업 속도가 느려집니다."
+        "dbIndexDescription": "인덱싱을 사용하면 필터링 성능이 크게 향상되지만 생성, 업데이트 및 삭제 작업 속도가 느려집니다.",
+        "defaultValueDisabledByConstraint": "고유 제약 조건으로 기본값을 설정할 수 없습니다"
     },
     "fieldSelectThroughFieldSubForm": {
         "noTable": "이 필드를 생성하려면 최소 하나의 테이블 링크 필드가 필요합니다.",
@@ -638,7 +639,8 @@
         "sortField": "정렬",
         "hideField": "필드 숨기기",
         "dataSyncField": "필드는 읽기 전용이며 테이블의 데이터 동기화의 일부입니다.",
-        "noWriteValues": "이 필드에 대한 변경은 제한되어 있습니다."
+        "noWriteValues": "이 필드에 대한 변경은 제한되어 있습니다.",
+        "dataSyncFieldTwoWaySync": "필드는 테이블의 데이터 동기화와 동기화됩니다."
     },
     "gridViewRow": {
         "rowNotMatchingFilters": "행이 필터와 일치하지 않음",
@@ -1059,7 +1061,8 @@
         "create": "테이블 생성 및 동기화",
         "error": "동기화 중 문제가 발생했습니다",
         "autoAddLabel": "새로운 속성을 자동으로 추가합니다",
-        "autoAddHelper": "새로 사용 가능한 속성을 테이블에 자동으로 추가하고 동기화합니다. 이 기능을 사용하려면 모든 속성이 동기화되어야 합니다."
+        "autoAddHelper": "데이터 소스에서 새로 사용 가능한 속성을 Baserow 테이블에 자동으로 추가하고 동기화합니다. 이 기능을 사용하려면 모든 속성을 동기화해야 합니다.",
+        "twoWaySyncLabel": "양방향 동기화"
     },
     "syncTableModal": {
         "title": "{name} 동기화",
