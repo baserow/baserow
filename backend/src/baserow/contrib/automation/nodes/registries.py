@@ -8,6 +8,7 @@ from baserow.contrib.automation.automation_dispatch_context import (
     AutomationDispatchContext,
 )
 from baserow.contrib.automation.formula_importer import import_formula
+from baserow.contrib.automation.nodes.exceptions import AutomationNodeNotReplaceable
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.types import AutomationNodeDict
 from baserow.core.integrations.models import Integration
@@ -37,8 +38,13 @@ class AutomationNodeType(
     parent_property_name = "workflow"
     id_mapping_name = "automation_workflow_nodes"
 
-    request_serializer_field_names = ["previous_node_output"]
+    request_serializer_field_names = ["previous_node_id", "previous_node_output"]
     request_serializer_field_overrides = {
+        "previous_node_id": serializers.IntegerField(
+            required=False,
+            default=None,
+            allow_null=True,
+        ),
         "previous_node_output": serializers.CharField(
             required=False,
             default="",
@@ -60,9 +66,46 @@ class AutomationNodeType(
     def allowed_fields(self):
         return super().allowed_fields + [
             "label",
+            "previous_node_id",
             "previous_node_output",
             "service",
         ]
+
+    def before_delete(self, node: AutomationNode) -> None:
+        """
+        A hook called just before a node is deleted. Can be
+        overridden by subclasses to implement specific logic.
+
+        :param node: The node instance to about to be deleted.
+        """
+
+        ...
+
+    def before_replace(self, node: AutomationNode, new_node_type: Instance) -> None:
+        """
+        A hook called just before a node is replaced. Can be
+        overridden by subclasses to implement specific logic.
+
+        :param node: The node instance to about to be replaced.
+        :param new_node_type: The new node type that will
+            replace the current one.
+        """
+
+        if not node.get_type().is_replaceable_with(new_node_type):
+            raise AutomationNodeNotReplaceable(
+                "Automation nodes can only be updated with a type of the same "
+                "category. Triggers cannot be updated with actions, and vice-versa."
+            )
+
+    def after_create(self, node: AutomationNode) -> None:
+        """
+        A hook called just after a node is created. Can be
+        overridden by subclasses to implement specific logic.
+
+        :param node: The node instance that was just created.
+        """
+
+        ...
 
     def get_service_type(self) -> Optional[ServiceTypeSubClass]:
         return (
@@ -136,9 +179,7 @@ class AutomationNodeType(
         **kwargs,
     ) -> Any:
         """
-        If the workflow action has a relation to a service, this method will
-        map the service's new `integration_id` and call `import_service` on
-        the serialized service values.
+        Responsible for deserializing a property of the node type.
 
         :param prop_name: the name of the property being transformed.
         :param value: the value of this property.
@@ -148,6 +189,9 @@ class AutomationNodeType(
 
         if prop_name in ["previous_node_id", "parent_node_id"] and value:
             return id_mapping["automation_workflow_nodes"][value]
+
+        if prop_name == "previous_node_output" and value:
+            return id_mapping["automation_edge_outputs"].get(value, value)
 
         if prop_name == "service" and value:
             integration = None
@@ -178,6 +222,23 @@ class AutomationNodeType(
             **kwargs,
         )
 
+    def import_serialized(
+        self,
+        parent: Any,
+        serialized_values: Dict[str, Any],
+        id_mapping: Dict[str, Dict[str, Any]],
+        **kwargs,
+    ):
+        if "automation_edge_outputs" not in id_mapping:
+            id_mapping["automation_edge_outputs"] = {}
+
+        return super().import_serialized(
+            parent,
+            serialized_values,
+            id_mapping,
+            **kwargs,
+        )
+
     def prepare_values(
         self,
         values: Dict[str, Any],
@@ -185,21 +246,21 @@ class AutomationNodeType(
         instance: AutomationNode = None,
     ) -> Dict[str, Any]:
         """
-        Responsible for preparing the service-based trigger node. By default,
+        Responsible for preparing the node's service. By default,
         the only step is to pass any `service` data into the service.
 
-        :param values: The full trigger node values to prepare.
+        :param values: The full node values to prepare.
         :param user: The user on whose behalf the change is made.
-        :param instance: A `AutomationServiceNode` subclass instance.
-        :return: The modified trigger node values, prepared.
+        :param instance: A `AutomationNode` instance.
+        :return: The modified node values, prepared.
         """
 
         service_type = service_type_registry.get(self.service_type)
 
         if not instance:
-            # If we haven't received a trigger node instance, we're preparing
-            # as part of creating a new node. If this happens, we need to create
-            # a new service.
+            # If we haven't received a node instance, we're preparing
+            # as part of creating a new node. If this happens, we need
+            # to create a new service.
             service = ServiceHandler().create_service(service_type)
         else:
             service = instance.service.specific

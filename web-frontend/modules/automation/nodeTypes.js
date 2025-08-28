@@ -17,8 +17,10 @@ import {
 import localBaserowIntegration from '@baserow/modules/integrations/localBaserow/assets/images/localBaserowIntegration.svg'
 import {
   CoreHTTPRequestServiceType,
+  CoreRouterServiceType,
   CoreSMTPEmailServiceType,
 } from '@baserow/modules/integrations/core/serviceTypes'
+import { uuid } from '@baserow/modules/core/utils/string'
 
 export class NodeType extends Registerable {
   /**
@@ -103,6 +105,15 @@ export class NodeType extends Registerable {
   }
 
   /**
+   * Allow to hook into default values for this node type at node creation.
+   * @param {object} values the current values for the node to create.
+   * @returns an object containing values updated with the default values.
+   */
+  getDefaultValues(values) {
+    return values
+  }
+
+  /**
    * Returns whether the node is in-error or not.
    * By default, this is derived from the service type's `isInError`
    * method, but can be overridden by the node type.
@@ -110,6 +121,54 @@ export class NodeType extends Registerable {
    */
   isInError({ service }) {
     return this.serviceType.isInError({ service })
+  }
+
+  /**
+   * Returns whether this individual node is allowed to be deleted.
+   * By default, all nodes (except triggers) are allowed to be deleted.
+   * This can be overridden by the node type to prevent deletion.
+   * @param {object} workflow - The workflow the node belongs to.
+   * @param {object} node - The node for which the deletability is being checked.
+   * @returns {boolean} - Whether the node is allowed to be deleted.
+   */
+  isDeletable({ workflow, node }) {
+    return Boolean(this.getDeleteErrorMessage({ workflow, node }))
+  }
+
+  /**
+   * Returns the error message we should show when a node cannot be deleted.
+   * By default, this method is empty, but can be overridden by the node type
+   * to provide a custom deletion message.
+   * @param {object} workflow - The workflow the node belongs to.
+   * @param {object} node - The node for which the deletion message is being retrieved.
+   * @returns {string} - The message
+   */
+  getDeleteErrorMessage({ workflow, node }) {
+    return ''
+  }
+
+  /**
+   * Returns whether this individual node is allowed to be replaced.
+   * By default, all nodes are allowed to be replaced.
+   * This can be overridden by the node type to prevent replacement.
+   * @param {object} workflow - The workflow the node belongs to.
+   * @param {object} node - The node for which the replaceability is being checked.
+   * @returns {boolean} - Whether the node is allowed to be replaced.
+   */
+  isReplaceable({ workflow, node }) {
+    return Boolean(this.getReplaceErrorMessage({ workflow, node }))
+  }
+
+  /**
+   * Returns the error message we should show when a node cannot be replaced.
+   * By default, this method is empty, but can be overridden by the node type
+   * to provide a custom replacement message.
+   * @param {object} workflow - The workflow the node belongs to.
+   * @param {object} node - The node for which the replacement message is being retrieved.
+   * @returns {string} - The message.
+   */
+  getReplaceErrorMessage({ workflow, node }) {
+    return ''
   }
 
   /**
@@ -130,6 +189,9 @@ export class NodeType extends Registerable {
    * @returns {object} - The data schema for the node.
    */
   getDataSchema({ automation, node }) {
+    if (!node.service) {
+      return null
+    }
     const serviceSchema = this.serviceType.getDataSchema(node.service)
     if (serviceSchema) {
       return {
@@ -140,6 +202,10 @@ export class NodeType extends Registerable {
       }
     }
     return null
+  }
+
+  getEdges({ node }) {
+    return [{ uid: '', label: '' }]
   }
 }
 
@@ -412,7 +478,7 @@ export class CoreHttpRequestNodeType extends ActionNodeTypeMixin(NodeType) {
   }
 
   getOrder() {
-    return 4
+    return 7
   }
 
   get iconClass() {
@@ -437,7 +503,7 @@ export class CoreSMTPEmailNodeType extends ActionNodeTypeMixin(NodeType) {
   }
 
   getOrder() {
-    return 5
+    return 8
   }
 
   get iconClass() {
@@ -450,5 +516,126 @@ export class CoreSMTPEmailNodeType extends ActionNodeTypeMixin(NodeType) {
 
   get serviceType() {
     return this.app.$registry.get('service', CoreSMTPEmailServiceType.getType())
+  }
+}
+
+export class CoreRouterNodeType extends ActionNodeTypeMixin(NodeType) {
+  static getType() {
+    return 'router'
+  }
+
+  getOrder() {
+    return 9
+  }
+
+  getDefaultLabel({ node }) {
+    if (!node.service) return this.name
+    return node.service.edges.length
+      ? this.app.i18n.t('nodeType.routerLabel', {
+          edgeCount: this.getEdges({ node }).length,
+        })
+      : this.name
+  }
+
+  get iconClass() {
+    return 'iconoir-git-fork'
+  }
+
+  get serviceType() {
+    return this.app.$registry.get('service', CoreRouterServiceType.getType())
+  }
+
+  /**
+   * Allow to hook into default values for this node type at node creation.
+   * The fallback edge is deliberately omitted as the goal is to replicate
+   * what the API returns when creating a router node.
+   * @param {object} values the current values for the node to create.
+   * @returns an object containing values updated with the default values.
+   */
+  getDefaultValues(values) {
+    return {
+      ...values,
+      service: {
+        edges: [
+          {
+            uid: uuid(),
+            order: 0,
+            condition: '',
+            label: this.app.i18n.t('routerForm.edgeDefaultName'),
+          },
+        ],
+      },
+    }
+  }
+
+  /**
+   * Responsible for checking if the router node can be deleted. It can't be
+   * if it has output nodes connected to its edges.
+   * @param workflow - The workflow the router belongs to.
+   * @param node - The router node for which the deletability is being checked.
+   * @returns {string} - An error message if the router cannot be deleted.
+   */
+  getDeleteErrorMessage({ workflow, node }) {
+    const outputCount = this.getOutputNodes({ workflow, router: node }).length
+    if (outputCount) {
+      return this.app.i18n.t('nodeType.routerWithOutputNodesDeleteError', {
+        outputCount,
+      })
+    }
+    return ''
+  }
+
+  /**
+   * Responsible for checking if the router node can be replaced. It can't be
+   * if it has output nodes connected to its edges.
+   * @param workflow - The workflow the router belongs to.
+   * @param node - The router node for which the replaceability is being checked.
+   * @returns {string} - An error message if the router cannot be replaced.
+   */
+  getReplaceErrorMessage({ workflow, node }) {
+    const outputCount = this.getOutputNodes({ workflow, router: node }).length
+    if (outputCount) {
+      return this.app.i18n.t('nodeType.routerWithOutputNodesReplaceError', {
+        outputCount,
+      })
+    }
+    return ''
+  }
+
+  /**
+   * Responsible for finding the output nodes coming out of this router's edges.
+   * @param workflow - The workflow the router belongs to.
+   * @param router - The router node for which the output nodes are being retrieved.
+   * @returns {Array} - An array of output nodes that are connected to the router's edges.
+   */
+  getOutputNodes({ workflow, router }) {
+    const edgeUids = this.getEdges({ node: router }).map((edge) => edge.uid)
+    return this.app.store.getters['automationWorkflowNode/getNodes'](
+      workflow
+    ).filter(
+      (node) =>
+        node.previous_node_id === router.id &&
+        edgeUids.includes(node.previous_node_output)
+    )
+  }
+
+  /**
+   * Responsible for retrieving the edges of the router node. This will include
+   * the user-created edges as well as a fallback edge with an empty uid.
+   * @param node - The router node for which the edges are being retrieved.
+   * @returns {array} - An array of edges, each with a uid and label.
+   */
+  getEdges({ node }) {
+    if (!node.service) return []
+    return [
+      ...node.service.edges,
+      {
+        uid: '', // The fallback edge has no uid.
+        condition: '',
+        label:
+          node.service.default_edge_label ||
+          this.app.i18n.t('nodeType.routerDefaultEdgeLabelFallback'),
+      },
+    ]
   }
 }

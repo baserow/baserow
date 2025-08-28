@@ -56,10 +56,19 @@ class CreateAutomationNodeSerializer(serializers.ModelSerializer):
         required=False,
         help_text="If provided, creates the node before the node with the given id.",
     )
+    previous_node_id = serializers.IntegerField(
+        required=False,
+        help_text="If provided, creates the node after this given id.",
+    )
+    previous_node_output = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        help_text="The unique ID of the branch this node is an output for.",
+    )
 
     class Meta:
         model = AutomationNode
-        fields = ("id", "type", "before_id")
+        fields = ("id", "type", "before_id", "previous_node_id", "previous_node_output")
 
 
 class UpdateAutomationNodeSerializer(serializers.ModelSerializer):

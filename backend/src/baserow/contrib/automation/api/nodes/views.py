@@ -18,6 +18,8 @@ from baserow.api.utils import DiscriminatorCustomFieldsMappingSerializer
 from baserow.contrib.automation.api.nodes.errors import (
     ERROR_AUTOMATION_NODE_BEFORE_INVALID,
     ERROR_AUTOMATION_NODE_DOES_NOT_EXIST,
+    ERROR_AUTOMATION_NODE_MISCONFIGURED_SERVICE,
+    ERROR_AUTOMATION_NODE_NOT_DELETABLE,
     ERROR_AUTOMATION_NODE_NOT_IN_WORKFLOW,
     ERROR_AUTOMATION_NODE_NOT_REPLACEABLE,
     ERROR_AUTOMATION_TRIGGER_NODE_MODIFICATION_DISALLOWED,
@@ -43,8 +45,10 @@ from baserow.contrib.automation.nodes.actions import (
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeBeforeInvalid,
     AutomationNodeDoesNotExist,
+    AutomationNodeMisconfiguredService,
+    AutomationNodeNotDeletable,
     AutomationNodeNotInWorkflow,
-    AutomationNodeTypeNotReplaceable,
+    AutomationNodeNotReplaceable,
     AutomationTriggerModificationDisallowed,
 )
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
@@ -105,10 +109,7 @@ class AutomationNodesView(APIView):
             AutomationTriggerModificationDisallowed: ERROR_AUTOMATION_TRIGGER_NODE_MODIFICATION_DISALLOWED,
         }
     )
-    @validate_body_custom_fields(
-        automation_node_type_registry,
-        base_serializer_class=CreateAutomationNodeSerializer,
-    )
+    @validate_body(CreateAutomationNodeSerializer)
     def post(self, request, data: Dict, workflow_id: int):
         type_name = data.pop("type")
         node_type = automation_node_type_registry.get(type_name)
@@ -208,6 +209,7 @@ class AutomationNodeView(APIView):
     @map_exceptions(
         {
             AutomationNodeDoesNotExist: ERROR_AUTOMATION_NODE_DOES_NOT_EXIST,
+            AutomationNodeMisconfiguredService: ERROR_AUTOMATION_NODE_MISCONFIGURED_SERVICE,
         }
     )
     @validate_body_custom_fields(
@@ -247,11 +249,13 @@ class AutomationNodeView(APIView):
     @map_exceptions(
         {
             AutomationNodeDoesNotExist: ERROR_AUTOMATION_NODE_DOES_NOT_EXIST,
-            AutomationTriggerModificationDisallowed: ERROR_AUTOMATION_TRIGGER_NODE_MODIFICATION_DISALLOWED,
+            AutomationNodeNotDeletable: ERROR_AUTOMATION_NODE_NOT_DELETABLE,
         }
     )
     @transaction.atomic
     def delete(self, request, node_id: int):
+        node = AutomationNodeService().get_node(request.user, node_id)
+        node.get_type().before_delete(node)
         DeleteAutomationNodeActionType.do(request.user, node_id)
 
         return Response(status=204)
@@ -377,7 +381,7 @@ class ReplaceAutomationNodeView(APIView):
     @map_exceptions(
         {
             AutomationNodeDoesNotExist: ERROR_AUTOMATION_NODE_DOES_NOT_EXIST,
-            AutomationNodeTypeNotReplaceable: ERROR_AUTOMATION_NODE_NOT_REPLACEABLE,
+            AutomationNodeNotReplaceable: ERROR_AUTOMATION_NODE_NOT_REPLACEABLE,
         }
     )
     @validate_body(ReplaceAutomationNodeSerializer)

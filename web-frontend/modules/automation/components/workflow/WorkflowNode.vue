@@ -1,26 +1,34 @@
 <template>
   <div
     class="workflow-editor__node"
-    :data-before-label="
-      data.isTrigger
-        ? $t('workflowNode.beforeLabelTrigger')
-        : $t('workflowNode.beforeLabelAction')
-    "
+    :title="label"
+    :data-before-label="getDataBeforeLabel"
   >
     <div class="workflow-editor__node-icon">
-      <i :class="loading ? 'loading' : nodeType.iconClass"></i>
+      <i
+        :class="{
+          loading: loading,
+          'iconoir-hammer': !loading && !isInteractionReady,
+          [nodeType.iconClass]: !loading && isInteractionReady,
+        }"
+      ></i>
     </div>
 
-    <h1 class="workflow-editor__node-title">{{ label }}</h1>
+    <h1 class="workflow-editor__node-title">{{ displayLabel }}</h1>
 
-    <Badge v-if="isInError" rounded color="yellow" size="large">
+    <Badge
+      v-if="isInteractionReady && isInError"
+      rounded
+      color="yellow"
+      size="large"
+    >
       {{ $t('workflowNode.actionConfigure') }}</Badge
     >
-    <div v-if="!data.readOnly" class="workflow-editor__node-more--wrapper">
+    <div v-if="isInteractionReady" class="workflow-editor__node-more--wrapper">
       <a
         ref="editNodeContextToggle"
         role="button"
-        title="Node options"
+        :title="$t('workflowNode.nodeOptions')"
         class="workflow-editor__node-more-icon"
         @click="openEditContext()"
       >
@@ -39,19 +47,25 @@
       <ul class="context__menu">
         <li class="context__menu-item">
           <a
+            :key="getReplaceErrorMessage"
+            v-tooltip="getReplaceErrorMessage || null"
             role="button"
             class="context__menu-item-link context__menu-item-link--switch"
-            @click="openReplaceContext()"
+            :class="{ disabled: getReplaceErrorMessage }"
+            @click="!getReplaceErrorMessage && openReplaceContext()"
           >
             <i class="context__menu-item-icon baserow-icon-history"></i>
             {{ $t('workflowNode.moreReplace') }}
           </a>
         </li>
-        <li v-if="!data.isTrigger" class="context__menu-item">
+        <li class="context__menu-item">
           <a
+            :key="getDeleteErrorMessage"
+            v-tooltip="getDeleteErrorMessage || null"
             role="button"
             class="context__menu-item-link context__menu-item-link--delete"
-            @click="emit('remove-node', id)"
+            :class="{ disabled: getDeleteErrorMessage }"
+            @click="!getDeleteErrorMessage && emit('remove-node', props.id)"
           >
             <i class="context__menu-item-icon iconoir-bin"></i>
             {{ $t('workflowNode.actionDelete') }}
@@ -73,6 +87,7 @@ import { useVueFlow } from '@vue2-flow/core'
 import { useStore, useContext, inject, computed } from '@nuxtjs/composition-api'
 import WorkflowNodeContext from '@baserow/modules/automation/components/workflow/WorkflowNodeContext'
 import flushPromises from 'flush-promises'
+import { CoreRouterNodeType } from '@baserow/modules/automation/nodeTypes'
 
 const { onMove } = useVueFlow()
 const props = defineProps({
@@ -157,6 +172,87 @@ const loading = computed(() => {
 })
 const isInError = computed(() => {
   return nodeType.value.isInError({ service: node.value.service })
+})
+
+/**
+ * This computed property checks if the node is ready for interaction.
+ * A node is considered ready if it is not in read-only mode and not in
+ * debug mode (i.e. it is not being debugged).
+ * @type {bool} - Indicates whether the node is ready for interaction.
+ */
+const isInteractionReady = computed(() => {
+  return !props.data.readOnly && !props.data.debug
+})
+
+/**
+ * This computed property returns the label that should be displayed
+ * for this node. If the node is in debug mode, it will return a debug
+ * label that includes the node ID, previous node ID, and output UID.
+ * Otherwise, it will return the label passed in through props.
+ * Useful for debugging purposes to quickly identify nodes in the workflow.
+ * @type {string} - The label to display for the node.
+ */
+const displayLabel = computed(() => {
+  return props.data.debug
+    ? app.i18n.t('workflowNode.displayLabelDebug', {
+        id: node.value.id,
+        previousNodeId: node.value.previous_node_id || 'none',
+        outputUid: props.data.outputUid || 'none',
+      })
+    : props.label
+})
+
+/**
+ * If this node's type finds that in its current state, it cannot
+ * be replaced with a different node type, this computed property
+ * will return a human-friendly error message.
+ * @type {string} - A human-friendly error message.
+ */
+const getReplaceErrorMessage = computed(() => {
+  return nodeType.value.getReplaceErrorMessage({
+    workflow: workflow.value,
+    node: node.value,
+  })
+})
+
+/**
+ * If this node's type finds that in its current state, it cannot be deleted,
+ * this computed property will return a human-friendly error message.
+ * @type {string} - A human-friendly error message.
+ */
+const getDeleteErrorMessage = computed(() => {
+  return nodeType.value.getDeleteErrorMessage({
+    workflow: workflow.value,
+    node: node.value,
+  })
+})
+
+/**
+ * This computed property determines the label that should be displayed
+ * before the node label in the workflow editor. It checks the previous node
+ * in the workflow to determine if it is a router node or if the current node
+ * is an output node. Based on these conditions, it returns the appropriate
+ * label for the node.
+ * @returns {string} - The label to display before the node label.
+ */
+const getDataBeforeLabel = computed(() => {
+  const previousNode = store.getters['automationWorkflowNode/getPreviousNode'](
+    workflow.value,
+    node.value
+  )
+  const previousNodeIsRouter =
+    previousNode?.type === CoreRouterNodeType.getType()
+  const isOutputNode = node.value.previous_node_output.length > 0
+  switch (true) {
+    case props.data.isTrigger:
+      return app.i18n.t('workflowNode.beforeLabelTrigger')
+    case isOutputNode:
+      return app.i18n.t('workflowNode.beforeLabelCondition')
+    case previousNodeIsRouter && !isOutputNode:
+      return app.i18n.t('workflowNode.beforeLabelConditionDefault')
+    default:
+      return app.i18n.t('workflowNode.beforeLabelAction')
+  }
 })
 
 const handleReplaceNode = (newType) => {

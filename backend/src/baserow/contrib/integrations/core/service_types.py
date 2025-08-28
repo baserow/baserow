@@ -1,10 +1,12 @@
 import json
 import socket
+import uuid
 from smtplib import SMTPAuthenticationError, SMTPConnectError, SMTPNotSupportedError
 from typing import Any, Dict, Generator, List, Optional, Tuple
 
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives, get_connection
+from django.utils.translation import gettext as _
 
 from advocate.connection import UnacceptableAddressException
 from loguru import logger
@@ -13,12 +15,19 @@ from rest_framework import serializers
 
 from baserow.contrib.integrations.core.models import (
     CoreHTTPRequestService,
+    CoreRouterService,
+    CoreRouterServiceEdge,
     CoreSMTPEmailService,
     HTTPFormData,
     HTTPHeader,
     HTTPQueryParam,
 )
-from baserow.core.formula.validator import ensure_array, ensure_email, ensure_string
+from baserow.core.formula.validator import (
+    ensure_array,
+    ensure_boolean,
+    ensure_email,
+    ensure_string,
+)
 from baserow.core.registry import Instance
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.exceptions import (
@@ -819,3 +828,259 @@ class CoreSMTPEmailServiceType(ServiceType):
             del values["integration"]
             values["integration_id"] = instance.integration_id
         return values
+
+
+class CoreRouterServiceType(ServiceType):
+    type = "router"
+    model_class = CoreRouterService
+    allowed_fields = ["default_edge_label"]
+    dispatch_type = DispatchTypes.DISPATCH_TRIGGER
+    serializer_field_names = ["default_edge_label", "edges"]
+
+    class SerializedDict(ServiceDict):
+        edges: List[Dict]
+        default_edge_label: str
+
+    def enhance_queryset(self, queryset):
+        return super().enhance_queryset(queryset).prefetch_related("edges")
+
+    @property
+    def serializer_field_overrides(self):
+        from baserow.contrib.integrations.api.core.serializers import (
+            CoreRouterServiceEdgeSerializer,
+        )
+
+        return {
+            **super().serializer_field_overrides,
+            "edges": CoreRouterServiceEdgeSerializer(
+                many=True,
+                required=False,
+                help_text="The edges associated with this service.",
+            ),
+        }
+
+    def import_serialized(
+        self,
+        parent: Any,
+        serialized_values: Dict[str, Any],
+        id_mapping: Dict[str, Dict[str, str]],
+        **kwargs,
+    ):
+        """
+        Responsible for importing the router service and its edges.
+
+        For each edge that we find, generate a new unique ID and store it in the
+        `id_mapping` dictionary under the key "automation_edge_outputs". Any nodes
+        with a `previous_node_output` that matches the edge's UID will be updated to
+        use the new unique ID in their own deserialization.
+        """
+
+        for edge in serialized_values["edges"]:
+            id_mapping["automation_edge_outputs"][edge["uid"]] = str(uuid.uuid4())
+
+        return super().import_serialized(
+            parent,
+            serialized_values,
+            id_mapping,
+            **kwargs,
+        )
+
+    def create_instance_from_serialized(
+        self,
+        serialized_values,
+        id_mapping,
+        files_zip=None,
+        storage=None,
+        cache=None,
+        **kwargs,
+    ):
+        """
+        Responsible for creating the router service and its edges.
+        """
+
+        edges = serialized_values.pop("edges", [])
+        service = super().create_instance_from_serialized(
+            serialized_values,
+            id_mapping,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
+            **kwargs,
+        )
+        CoreRouterServiceEdge.objects.bulk_create(
+            [
+                CoreRouterServiceEdge(
+                    service=service,
+                    label=edge["label"],
+                    condition=edge["condition"],
+                    uid=id_mapping["automation_edge_outputs"][edge["uid"]],
+                )
+                for edge in edges
+            ]
+        )
+        return service
+
+    def serialize_property(
+        self,
+        service: CoreRouterService,
+        prop_name: str,
+        files_zip=None,
+        storage=None,
+        cache=None,
+    ):
+        """
+        Responsible for serializing the `edges` properties.
+
+        :param service: The CoreRouterService service.
+        :param prop_name: The property name we're serializing.
+        :param files_zip: The zip file containing the files.
+        :param storage: The storage to use for the files.
+        :param cache: The cache to use for the files.
+        """
+
+        if prop_name == "edges":
+            return [
+                {
+                    "label": e.label,
+                    "uid": str(e.uid),
+                    "condition": e.condition,
+                }
+                for e in service.edges.all()
+            ]
+
+        return super().serialize_property(
+            service, prop_name, files_zip=files_zip, storage=storage, cache=cache
+        )
+
+    def formulas_to_resolve(self, service: CoreRouterService) -> list[FormulaToResolve]:
+        """
+        Returns the formula to resolve for this service.
+        """
+
+        return [
+            FormulaToResolve(
+                f"edge_{edge.uid}",
+                edge.condition,
+                ensure_boolean,
+                f'edge "{edge.label}" condition',
+            )
+            for edge in service.edges.all()
+        ]
+
+    def formula_generator(
+        self, service: CoreRouterService
+    ) -> Generator[str | Instance, str, None]:
+        yield from super().formula_generator(service)
+
+        for edge in service.edges.all():
+            new_formula = yield edge.condition
+            if new_formula is not None:
+                edge.condition = new_formula
+                yield edge
+
+    def after_update(
+        self,
+        instance: CoreRouterService,
+        values: Dict,
+        changes: Dict[str, Tuple],
+    ) -> None:
+        """
+        Responsible for updating router edges which have been PATCHED.
+
+        :param instance: The service we want to manage edges for.
+        :param values: A dictionary which may contain edges.
+        :param changes: A dictionary containing all changes which were made to the
+            service prior to `after_update` being called.
+        """
+
+        super().after_update(instance, values, changes)
+
+        if "edges" in values:
+            instance.edges.all().delete()
+            CoreRouterServiceEdge.objects.bulk_create(
+                [
+                    CoreRouterServiceEdge(**edge, service=instance, order=index)
+                    for index, edge in enumerate(values["edges"])
+                ]
+            )
+
+    def get_schema_name(self, service: CoreRouterService) -> str:
+        return f"CoreRouter{service.id}Schema"
+
+    def generate_schema(
+        self,
+        service: CoreRouterService,
+        allowed_fields: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Generates the schema for the router service.
+
+        :param service: The CoreRouterService instance to generate the schema for.
+        :param allowed_fields: Optional list of fields to include in the schema.
+        :return: A dictionary representing the schema.
+        """
+
+        properties = {}
+        if allowed_fields is None or "edge" in allowed_fields:
+            properties.update(
+                **{
+                    "edge": {
+                        "title": _("Branch taken"),
+                        "type": "object",
+                        "properties": {
+                            "label": {
+                                "type": "string",
+                                "title": _("Label"),
+                                "description": _(
+                                    "The label of the "
+                                    "branch that matched the condition."
+                                ),
+                            },
+                        },
+                    }
+                },
+            )
+
+        return {
+            "title": self.get_schema_name(service),
+            "type": "object",
+            "properties": properties,
+        }
+
+    def dispatch_data(
+        self,
+        service: CoreRouterService,
+        resolved_values: Dict[str, Any],
+        dispatch_context: DispatchContext,
+    ) -> Dict[str, Dict[str, Any]]:
+        """
+        Dispatches the router service by evaluating the conditions of its edges
+        and returning the first edge that matches the condition.
+
+        If no conditions evaluate to true, it returns the last edge by default, which
+        is always false.
+
+        :param service: The CoreRouterService instance to dispatch.
+        :param resolved_values: The resolved values from the service's formulas.
+        :param dispatch_context: The context in which the service is being dispatched.
+        :return: A dictionary containing the data of the first matching edge.
+        """
+
+        for edge in service.edges.all():
+            condition_result = resolved_values[f"edge_{edge.uid}"]
+            if condition_result:
+                return {
+                    "output_uid": str(edge.uid),
+                    "data": {"edge": {"label": edge.label}},
+                }
+
+        return {
+            "output_uid": "",
+            "data": {"edge": {"label": service.default_edge_label}},
+        }
+
+    def dispatch_transform(
+        self,
+        data: Any,
+    ) -> DispatchResult:
+        return DispatchResult(output_uid=data["output_uid"], data=data["data"])

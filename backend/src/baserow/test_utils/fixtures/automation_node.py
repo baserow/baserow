@@ -1,6 +1,7 @@
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.node_types import (
+    CoreRouterActionNodeType,
     LocalBaserowCreateRowNodeType,
     LocalBaserowDeleteRowNodeType,
     LocalBaserowRowsCreatedNodeTriggerType,
@@ -65,5 +66,12 @@ class AutomationNodeFixtures:
         return self.create_automation_node(
             user=user,
             type=LocalBaserowDeleteRowNodeType.type,
+            **kwargs,
+        )
+
+    def create_core_router_action_node(self, user=None, **kwargs):
+        return self.create_automation_node(
+            user=user,
+            type=CoreRouterActionNodeType.type,
             **kwargs,
         )

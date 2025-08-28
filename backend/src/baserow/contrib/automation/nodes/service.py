@@ -5,15 +5,11 @@ from django.contrib.auth.models import AbstractUser
 from baserow.contrib.automation.models import AutomationWorkflow
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeBeforeInvalid,
-    AutomationNodeTypeNotReplaceable,
     AutomationTriggerModificationDisallowed,
 )
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.models import AutomationNode
-from baserow.contrib.automation.nodes.node_types import (
-    AutomationNodeTriggerType,
-    AutomationNodeType,
-)
+from baserow.contrib.automation.nodes.node_types import AutomationNodeType
 from baserow.contrib.automation.nodes.operations import (
     CreateAutomationNodeOperationType,
     DeleteAutomationNodeOperationType,
@@ -139,8 +135,7 @@ class AutomationNodeService:
                     "The `before` node must belong to the same workflow "
                     "as the one supplied."
                 )
-            # TODO: replace with a `before.get_type().is_trigger` check.
-            if isinstance(before.get_type(), AutomationNodeTriggerType):
+            if not before.previous_node_id:
                 # You can't create a node before a trigger node. Even if `node_type` is
                 # a trigger, API consumers must delete `before` and then try again.
                 raise AutomationNodeBeforeInvalid(
@@ -152,6 +147,7 @@ class AutomationNodeService:
         new_node = self.handler.create_node(
             node_type, order=order, workflow=workflow, before=before, **prepared_values
         )
+        node_type.after_create(new_node)
 
         automation_node_created.send(
             self,
@@ -199,10 +195,6 @@ class AutomationNodeService:
         """
 
         node = self.handler.get_node(node_id)
-
-        # If we received a trigger node, we cannot delete it.
-        if node.get_type().is_workflow_trigger:
-            raise AutomationTriggerModificationDisallowed()
 
         CoreHandler().check_permissions(
             user,
@@ -311,7 +303,6 @@ class AutomationNodeService:
         :param user: The user trying to replace the node.
         :param node_id: The ID of the node to replace.
         :param new_node_type_str: The type of the new node to replace with.
-        :raises AutomationNodeTypeNotReplaceable when the node type cannot be replaced
         :return: The replaced automation node.
         """
 
@@ -326,11 +317,7 @@ class AutomationNodeService:
         )
 
         new_node_type = automation_node_type_registry.get(new_node_type_str)
-
-        # If they tried to update a trigger with an action
-        # or vice versa, raise an error.
-        if not node_type.is_replaceable_with(new_node_type):
-            raise AutomationNodeTypeNotReplaceable()
+        node_type.before_replace(node, new_node_type)
 
         prepared_values = new_node_type.prepare_values(
             {},
@@ -342,8 +329,10 @@ class AutomationNodeService:
             workflow=node.workflow,
             before=node,
             order=node.order,
+            previous_node_output=node.previous_node_output,
             **prepared_values,
         )
+        new_node_type.after_create(new_node)
 
         # After the node creation, the replaced node has changed
         node.refresh_from_db()

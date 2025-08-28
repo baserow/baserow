@@ -32,6 +32,7 @@ from baserow.core.trash.exceptions import (
     ParentIdMustBeProvidedException,
     ParentIdMustNotBeProvidedException,
     RelatedTableTrashedException,
+    TrashItemRestorationDisallowed,
 )
 from baserow.core.trash.handler import TrashHandler
 
@@ -42,6 +43,7 @@ from .errors import (
     ERROR_PARENT_ID_MUST_BE_PROVIDED,
     ERROR_PARENT_ID_MUST_NOT_BE_PROVIDED,
     ERROR_TRASH_ITEM_DOES_NOT_EXIST,
+    ERROR_TRASH_ITEM_RESTORATION_DISALLOWED,
 )
 from .serializers import (
     TrashContentsSerializer,
@@ -88,6 +90,7 @@ class TrashItemView(APIView):
             RelatedTableTrashedException: ERROR_CANT_RESTORE_AS_RELATED_TABLE_TRASHED,
             CannotRestoreItemNotOwnedByUser: ERROR_CANNOT_RESTORE_ITEM_NOT_OWNED_BY_USER,
             FieldDataConstraintException: ERROR_FIELD_DATA_CONSTRAINT,
+            TrashItemRestorationDisallowed: ERROR_TRASH_ITEM_RESTORATION_DISALLOWED,
         }
     )
     def patch(self, request, data):

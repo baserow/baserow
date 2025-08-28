@@ -22,6 +22,7 @@
     </FormGroup>
     <component
       :is="nodeType.formComponent"
+      ref="formComponent"
       :key="node.id"
       small
       :loading="nodeLoading"
@@ -29,6 +30,7 @@
       :application="automation"
       enable-integration-picker
       :default-values="node.service"
+      :edge-in-use-fn="nodeEdgeInUseFn"
       class="margin-top-2"
       @values-changed="handleNodeChange({ service: $event })"
     />
@@ -44,8 +46,8 @@ import {
   computed,
   watch,
 } from '@nuxtjs/composition-api'
-import { reactive } from 'vue'
 import useVuelidate from '@vuelidate/core'
+import { reactive, ref } from 'vue'
 import ReadOnlyForm from '@baserow/modules/core/components/ReadOnlyForm'
 import AutomationBuilderFormulaInput from '@baserow/modules/automation/components/AutomationBuilderFormulaInput'
 import { DATA_PROVIDERS_ALLOWED_NODE_ACTIONS } from '@baserow/modules/automation/enums'
@@ -112,6 +114,7 @@ const nodeType = computed(() => {
   return app.$registry.get('node', node.value.type)
 })
 
+const formComponent = ref(null)
 const handleNodeChange = async ({
   node: nodeChanges,
   service: serviceChanges,
@@ -144,6 +147,9 @@ const handleNodeChange = async ({
 
   // Handle service changes next
   if (serviceChanges) {
+    if (!formComponent.value?.isFormValid()) {
+      return
+    }
     const serviceDifferences = Object.fromEntries(
       Object.entries(serviceChanges).filter(
         ([key, value]) => !_.isEqual(value, node.value.service[key])
@@ -171,4 +177,15 @@ const handleNodeChange = async ({
 const nodeLoading = computed(() => {
   return store.getters['automationWorkflowNode/getLoading'](node.value)
 })
+
+/**
+ * Responsible for informing the core router service form if an edge has an
+ * output. As the service form can't refer to automation nodes, we have to
+ * perform the check here, and pass the function as a prop into the form.
+ */
+const nodeEdgeInUseFn = (edge) => {
+  return store.getters['automationWorkflowNode/getNodes'](workflow.value).some(
+    (node) => node.previous_node_output === edge.uid
+  )
+}
 </script>

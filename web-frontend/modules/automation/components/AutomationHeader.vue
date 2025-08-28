@@ -1,7 +1,7 @@
 <template>
   <header class="layout__col-2-1 header header--space-between">
-    <ul class="header__filter">
-      <li v-if="isDev" class="header__filter-item">
+    <ul v-if="isDev" class="header__filter">
+      <li class="header__filter-item">
         <a data-item-type="settings" class="header__filter-link"
           ><i class="header__filter-icon iconoir-settings"></i>
           <span class="header__filter-name">{{
@@ -9,8 +9,7 @@
           }}</span>
         </a>
       </li>
-
-      <li v-if="isDev" class="header__filter-item">
+      <li class="header__filter-item">
         <a
           data-item-type="history"
           class="header__filter-link"
@@ -19,6 +18,20 @@
           ><i class="header__filter-icon baserow-icon-history"></i>
           <span class="header__filter-name">{{
             $t('automationHeader.historyBtn')
+          }}</span>
+        </a>
+      </li>
+      <li class="header__filter-item">
+        <a
+          data-item-type="debug"
+          class="header__filter-link"
+          :class="{
+            'active active--purple': debug,
+          }"
+          @click="debugClick()"
+          ><i class="header__filter-icon iconoir-hammer"></i>
+          <span class="header__filter-name">{{
+            debug ? 'Debug off' : 'Debug on'
           }}</span>
         </a>
       </li>
@@ -100,6 +113,7 @@ export default defineComponent({
     const { app } = useContext()
     const isDev = inject('isDev')
 
+    const debug = ref(false)
     const isPublishing = ref(false)
 
     const workflow = inject('workflow')
@@ -198,6 +212,11 @@ export default defineComponent({
       store.dispatch('automationWorkflow/setActiveSidePanel', sidePanelType)
     }
 
+    const debugClick = () => {
+      debug.value = !debug.value
+      emit('debug-toggled', debug.value)
+    }
+
     const publishWorkflow = async () => {
       isPublishing.value = true
 
@@ -220,7 +239,9 @@ export default defineComponent({
 
     return {
       isDev,
+      debug,
       statusSwitch,
+      debugClick,
       historyClick,
       toggleTestRun,
       testRunEnabled,

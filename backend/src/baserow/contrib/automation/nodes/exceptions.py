@@ -40,14 +40,6 @@ class AutomationNodeBeforeInvalid(Exception):
 class AutomationNodeMisconfiguredService(AutomationNodeError):
     """When the node's service is misconfigured."""
 
-    def __init__(self, node_id=None, *args, **kwargs):
-        self.node_id = node_id
-        super().__init__(
-            f"The node {node_id} has a misconfigured service.",
-            *args,
-            **kwargs,
-        )
-
 
 class AutomationTriggerModificationDisallowed(AutomationNodeError):
     """
@@ -57,9 +49,16 @@ class AutomationTriggerModificationDisallowed(AutomationNodeError):
     """
 
 
-class AutomationNodeTypeNotReplaceable(AutomationNodeError):
+class AutomationNodeNotDeletable(AutomationNodeError):
     """
-    Raised when an API consumer tries to update an automation node with a
-    new type, but the source type and update type are irreplaceable. This
-    happens, for example, if you try and replace a trigger node with an action.
+    Raised when an automation node is not deletable. This can happen if
+    the node's type dictates that it cannot be deleted.
+    """
+
+
+class AutomationNodeNotReplaceable(AutomationNodeError):
+    """
+    Raised when an automation node is not replaceable. This can happen if
+    the node's type dictates that it cannot be replaced, or if a trigger
+    is being replaced with an action, or vice versa.
     """
