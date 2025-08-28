@@ -25,7 +25,6 @@ from baserow.contrib.automation.api.nodes.errors import (
 from baserow.contrib.automation.api.nodes.serializers import (
     AutomationNodeSerializer,
     CreateAutomationNodeSerializer,
-    DuplicateAutomationNodeSerializer,
     OrderAutomationNodesSerializer,
     ReplaceAutomationNodeSerializer,
     UpdateAutomationNodeSerializer,
@@ -320,7 +319,6 @@ class DuplicateAutomationNodeView(APIView):
         tags=[AUTOMATION_NODES_TAG],
         operation_id="duplicate_automation_node",
         description="Duplicate a node of a workflow.",
-        request=DuplicateAutomationNodeSerializer,
         responses={
             200: DiscriminatorCustomFieldsMappingSerializer(
                 automation_node_type_registry, AutomationNodeSerializer
