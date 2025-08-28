@@ -274,6 +274,63 @@ const actions = {
       dispatch('select', { workflow, node: newNode })
     })
   },
+  async duplicate({ commit, getters }, { workflow, nodeId }) {
+    const originalNodes = getters.getNodes(workflow).map((n) => ({ ...n }))
+
+    try {
+      const nodes = getters.getNodes(workflow).map((n) => ({ ...n }))
+      const nodeToDuplicateIndex = nodes.findIndex(
+        (node) => node.id.toString() === nodeId.toString()
+      )
+
+      if (nodeToDuplicateIndex === -1) {
+        return
+      }
+
+      const nodeToDuplicate = nodes[nodeToDuplicateIndex]
+      const insertionIndex = nodeToDuplicateIndex + 1
+
+      // Optimistically create a temporary node
+      const tempId = uuid()
+      const tempNode = { ...nodeToDuplicate, id: tempId }
+
+      // Create the new node list
+      const optimisticNodes = [...nodes]
+      optimisticNodes.splice(insertionIndex, 0, populateNode(tempNode))
+
+      // Re-order all nodes
+      optimisticNodes.forEach((node, index) => {
+        node.order = index
+      })
+
+      // Commit the optimistic update
+      commit('SET_ITEMS', { workflow, nodes: optimisticNodes })
+
+      const { data: createdNode } = await AutomationWorkflowNodeService(
+        this.$client
+      ).duplicate(nodeId)
+
+      // Now replace the temp node with the real one from the API
+      const finalNodes = getters.getNodes(workflow).map((n) => ({ ...n }))
+      const tempNodeIndex = finalNodes.findIndex((node) => node.id === tempId)
+
+      if (tempNodeIndex !== -1) {
+        finalNodes.splice(tempNodeIndex, 1, populateNode(createdNode))
+      }
+
+      // After replacing, re-run the ordering logic to ensure consistency
+      finalNodes.forEach((node, index) => {
+        node.order = index
+      })
+
+      // Commit the final, correctly ordered list
+      commit('SET_ITEMS', { workflow, nodes: finalNodes })
+    } catch (error) {
+      commit('SET_ITEMS', { workflow, nodes: originalNodes })
+      throw error
+    }
+  },
+
   async order({ commit }, { workflow, order, oldOrder }) {
     commit('ORDER_ITEMS', { workflow, order })
     try {
@@ -316,7 +373,7 @@ const getters = {
     return workflow.nodeMap?.[workflow.selectedNodeId] || null
   },
   getLoading: (state) => (node) => {
-    return node._.loading
+    return node?._?.loading
   },
 }
 

@@ -21,6 +21,7 @@
             @add-node="handleAddNode"
             @remove-node="handleRemoveNode"
             @replace-node="handleReplaceNode"
+            @duplicate-node="handleDuplicateNode"
           />
         </client-only>
       </div>
@@ -205,6 +206,13 @@ export default defineComponent({
       },
     })
 
+    const handleDuplicateNode = (nodeId) => {
+      store.dispatch('automationWorkflowNode/duplicate', {
+        workflow: workflow.value,
+        nodeId,
+      })
+    }
+
     /**
      * When the route changes (i.e. leave, such as going to the dashboard, or update,
      * such as changing workflows), we need to ensure that we unselect the current
@@ -251,6 +259,7 @@ export default defineComponent({
       workflowId,
       isAddingNode,
       onRouteChange,
+      handleDuplicateNode,
     }
   },
 })
