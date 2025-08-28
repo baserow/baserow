@@ -697,6 +697,7 @@ def test_create_router_node(api_client, data_fixture):
     assert response.json() == {
         "id": AnyInt(),
         "order": AnyStr(),
+        "label": "",
         "previous_node_id": None,
         "previous_node_output": "",
         "service": {
