@@ -5,10 +5,10 @@ from baserow.core.trash.handler import TrashHandler
 
 
 @pytest.mark.django_db
-def test_trashing_automation_deletes_published_workflows(data_fixture):
+def test_trashing_automation_deletes_published_automations(data_fixture):
     """
     When an Automation application is trashed, ensure that all published
-    workflows are deleted.
+    automations are deleted.
     """
 
     user = data_fixture.create_user()

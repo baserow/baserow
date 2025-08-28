@@ -47,24 +47,6 @@ class ApplicationTrashableItemType(TrashableItemType):
     def get_restore_operation_type(self) -> str:
         return RestoreApplicationOperationType.type
 
-    def trash(self, item_to_trash, requesting_user, trash_entry):
-        """
-        Trash the application.
-
-        If the application has a specific trash type, call its trash()
-        method instead.
-        """
-
-        # Get the specific instance (e.g., Automation instead of Application)
-        specific_item = item_to_trash.specific
-
-        # If a specific trash type exists, delegate the trash() call to it.
-        specific_trash_type = trash_item_type_registry.get_by_model(specific_item)
-        if specific_trash_type != self:
-            specific_trash_type.trash(specific_item, requesting_user, trash_entry)
-        else:
-            super().trash(item_to_trash, requesting_user, trash_entry)
-
 
 class WorkspaceTrashableItemType(TrashableItemType):
     type = "workspace"

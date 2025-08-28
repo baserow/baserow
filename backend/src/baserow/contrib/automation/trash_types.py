@@ -1,4 +1,4 @@
-from baserow.contrib.automation.models import Automation, AutomationWorkflow
+from baserow.contrib.automation.models import Automation
 from baserow.core.models import TrashEntry, Workspace
 from baserow.core.operations import RestoreApplicationOperationType
 from baserow.core.signals import application_created
@@ -23,12 +23,10 @@ class AutomationTrashableItemType(TrashableItemType):
     ):
         """
         When an Automation application is trashed, ensure that all
-        related workflows are deleted.
+        related published Automations are deleted.
         """
 
-        AutomationWorkflow.objects.filter(
-            automation__published_from__automation=item_to_trash, published=True
-        ).delete()
+        Automation.objects.filter(published_from__automation=item_to_trash).delete()
 
         super().trash(item_to_trash, requesting_user, trash_entry)
 
