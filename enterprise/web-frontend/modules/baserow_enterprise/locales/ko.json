@@ -303,7 +303,7 @@
         "rbacContent": "정밀하게 권한을 관리하세요. 작업공간, 데이터베이스, 또는 테이블 수준에서 관리자, 빌더, 편집자, 댓글 작성자, 보기 전용 사용자와 같은 역할을 지정할 수 있습니다. 팀 단위로 접근 권한을 관리하는 것도 가능합니다.",
         "advancedWebhooksContent": "행이 특정 보기에 들어올 때 웹훅을 트리거하세요. 필터 조건을 기반으로 워크플로를 자동화하는 데 유용합니다.",
         "auditLogsContent": "무슨 일이 일어났는지 모두 추적할 수 있어요. 인스턴스나 워크스페이스에서 이루어진 모든 작업 기록을 확인하고, 사용자나 작업 유형 등으로 손쉽게 필터링할 수 있습니다.",
-        "dataSyncContent": "다른 Baserow 테이블이나 Jira, GitHub, GitLab, HubSpot과 같은 외부 소스와 동기화하여 테이블을 자동으로 최신 상태로 유지하세요.",
+        "dataSyncContent": "다른 Baserow 테이블이나 Jira, GitHub, GitLab, HubSpot 등의 외부 소스와 동기화하여 테이블을 자동으로 최신 상태로 유지합니다. 또한, 주기적인 동기화를 지원하고, 지원되는 데이터 동기화 유형에 대한 양방향 데이터 동기화를 지원합니다.",
         "coBrandingContent": "Baserow 인터페이스에 사용자 지정 로고를 설정해보세요. 단, \"powered by Baserow\" 문구는 함께 표시됩니다.",
         "supportContent": "도움이 필요할 때 언제든지 지원을 받아보세요. 플랫폼 내에서 직접 Baserow 팀에 문의할 수 있습니다.",
         "fieldLevelPermissions": "필드 수준 권한",
@@ -489,7 +489,9 @@
         "notSelected": "선택되지 않음"
     },
     "periodicDataSyncDeactivatedNotification": {
-        "body": "{name}의 주기적 데이터 동기화가 연속적으로 너무 많이 실패하여 비활성화되었습니다."
+        "body": "{name}의 주기적 데이터 동기화가 연속적으로 너무 많이 실패하여 비활성화되었습니다.",
+        "failure": "{name}의 주기적 데이터 동기화가 연속적으로 너무 많이 실패하여 비활성화되었습니다.",
+        "licenseUnavailable": "{name}의 정기적 데이터 동기화가 작업 공간에 더 이상 유효한 라이선스가 없으므로 비활성화되었습니다. 자동 동기화를 복원하려면 라이선스를 업데이트하세요."
     },
     "webhookForm": {
         "helpTriggerWhenRowsEnterView": "행이 뷰에 진입할 때 옵션이 선택된 경우에만 작동되며, 필터 조건을 만족하는 행이 새롭게 뷰에 포함될 때 실행됩니다.",
@@ -506,7 +508,10 @@
         "deleteSeries": "시리즈 삭제",
         "lineChart": "선",
         "barChart": "막대",
-        "chartType": "차트 유형"
+        "chartType": "차트 유형",
+        "pieChart": "파이",
+        "doughnutChart": "도넛",
+        "polarAreaChart": "극영역"
     },
     "aggregationGroupByForm": {
         "groupByFieldLabel": "그룹별로",
@@ -597,5 +602,20 @@
     "elementType": {
         "errorUserSourceHasNoLoginOption": "선택된 사용자 소스에 로그인 옵션이 없습니다",
         "errorUserSourceMissing": "사용자 소스가 선택되지 않았습니다"
+    },
+    "pieChartWidget": {
+        "name": "파이 차트",
+        "pie": "파이 차트",
+        "doughnut": "도넛 차트",
+        "polarArea": "극영역 차트"
+    },
+    "twoWaySyncUpdateFailed": {
+        "title": "{name} 양방향 동기화 업데이트에 실패했습니다: {error}"
+    },
+    "twoWaySyncDeactivated": {
+        "title": "{name}의 양방향 동기화가 업데이트가 연속으로 너무 많이 실패하여 비활성화되었습니다. 수동으로 동기화하고 문제가 해결되면 다시 활성화하세요."
+    },
+    "enterpriseTwoWaySyncStrategyType": {
+        "realtimePushDescription": "Baserow에서 셀 값을 직접 편집하고 실시간으로 데이터 동기화 소스에 푸시합니다. 변경 사항은 (주기적인) 동기화 작업에 의존하기 때문에 실시간으로 가져오지 않습니다. 실수로 변경되는 것을 방지하려면 PostgreSQL 데이터베이스 백업을 생성하는 것이 좋습니다."
     }
 }
