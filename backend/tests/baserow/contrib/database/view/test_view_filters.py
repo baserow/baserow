@@ -6912,7 +6912,7 @@ def test_all_view_filters_can_accept_strings_as_filter_value(data_fixture):
     # We should be able to load the view without any errors
     handler = ViewHandler()
     try:
-        handler.get_queryset(view)
+        handler.get_queryset(user, view)
     except Exception as e:
         pytest.fail(f"Exception raised: {e}")
 

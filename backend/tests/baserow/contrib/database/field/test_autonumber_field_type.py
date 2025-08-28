@@ -552,37 +552,37 @@ def test_autonumber_field_view_filters(data_fixture):
         view=view, field=autonumber_field, type="equal", value=1
     )
 
-    qs = ViewHandler().get_queryset(view, model=model)
+    qs = ViewHandler().get_queryset(user, view, model=model)
     assert list(qs.values_list("id", flat=True)) == [row_1.id]
 
     view_filter.type = "not_equal"
     view_filter.save(update_fields=["type"])
 
-    qs = ViewHandler().get_queryset(view, model=model)
+    qs = ViewHandler().get_queryset(user, view, model=model)
     assert list(qs.values_list("id", flat=True)) == [row_2.id]
 
     view_filter.type = "lower_than"
     view_filter.save(update_fields=["type"])
 
-    qs = ViewHandler().get_queryset(view, model=model)
+    qs = ViewHandler().get_queryset(user, view, model=model)
     assert list(qs.values_list("id", flat=True)) == []
 
     view_filter.type = "higher_than"
     view_filter.save(update_fields=["type"])
 
-    qs = ViewHandler().get_queryset(view, model=model)
+    qs = ViewHandler().get_queryset(user, view, model=model)
     assert list(qs.values_list("id", flat=True)) == [row_2.id]
 
     view_filter.type = "contains"
     view_filter.save(update_fields=["type"])
 
-    qs = ViewHandler().get_queryset(view, model=model)
+    qs = ViewHandler().get_queryset(user, view, model=model)
     assert list(qs.values_list("id", flat=True)) == [row_1.id]
 
     view_filter.type = "contains_not"
     view_filter.save(update_fields=["type"])
 
-    qs = ViewHandler().get_queryset(view, model=model)
+    qs = ViewHandler().get_queryset(user, view, model=model)
     assert list(qs.values_list("id", flat=True)) == [row_2.id]
 
 

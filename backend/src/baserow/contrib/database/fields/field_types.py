@@ -7345,7 +7345,7 @@ class AutonumberFieldType(ReadOnlyFieldType):
         order_bys = (not_trashed_first, "order", "id")
 
         if view is not None:
-            queryset = ViewHandler().get_queryset(view).values("id")
+            queryset = ViewHandler().get_queryset(None, view).values("id")
 
             filters = queryset.query.where
             filtered_first = Case(When(filters, then=Value(0)), default=1).asc()

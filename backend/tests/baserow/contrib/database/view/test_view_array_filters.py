@@ -153,7 +153,7 @@ def boolean_lookup_filter_proc(
         type_name=filter_type_name,
         value=test_value,
     )
-    q = test_setup.view_handler.get_queryset(test_setup.grid_view)
+    q = test_setup.view_handler.get_queryset(test_setup.user, test_setup.grid_view)
     assert len(q) == len(selected)
     assert set([r.id for r in q]) == set([r.id for r in selected])
 

@@ -49,6 +49,7 @@ def get_public_view_authorization_token(request: Request) -> Optional[str]:
 
 
 def get_view_filtered_queryset(
+    user: AbstractUser,
     view: Type[View],
     filters: Optional[AdHocFilters] = None,
     order_by: Optional[str] = None,
@@ -59,6 +60,8 @@ def get_view_filtered_queryset(
     Returns a queryset that is filtered based on the provided view, adhoc filters, and
     query parameters (i.e. search value).
 
+    :param user: The user on whose behalf the filtered queryset is requested. This is
+        needed for permission checks.
     :param view: The view to filter the queryset by.
     :param filters: The adhoc filters to apply to the queryset.
     :param order_by: The order by string to apply to the queryset.
@@ -79,6 +82,7 @@ def get_view_filtered_queryset(
     search_mode = query_params.get("search_mode")
 
     queryset = ViewHandler().get_queryset(
+        user,
         view,
         apply_sorts=not has_adhoc_sorts,
         apply_filters=not has_adhoc_filters,

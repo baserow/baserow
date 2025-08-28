@@ -536,7 +536,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         from baserow.contrib.database.views.handler import ViewHandler
 
         if view is not None:
-            queryset = ViewHandler().get_queryset(view, model=table_model)
+            queryset = ViewHandler().get_queryset(None, view, model=table_model)
         else:
             queryset = table_model.objects.all().enhance_by_fields()
 
