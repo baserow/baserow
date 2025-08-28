@@ -16,7 +16,8 @@ from baserow.core.exceptions import PermissionDenied
 def test_get_rows_grouped_by_single_select_field(
     premium_data_fixture, django_assert_num_queries
 ):
-    table = premium_data_fixture.create_database_table()
+    user = premium_data_fixture.create_user()
+    table = premium_data_fixture.create_database_table(user=user)
     view = premium_data_fixture.create_grid_view(table=table)
     text_field = premium_data_fixture.create_text_field(table=table, primary=True)
     single_select_field = premium_data_fixture.create_single_select_field(table=table)
@@ -68,7 +69,7 @@ def test_get_rows_grouped_by_single_select_field(
     # The amount of queries including
     with django_assert_num_queries(6):
         rows = get_rows_grouped_by_single_select_field(
-            view, single_select_field, model=model
+            user, view, single_select_field, model=model
         )
 
     assert len(rows) == 3
@@ -88,7 +89,7 @@ def test_get_rows_grouped_by_single_select_field(
     assert rows[str(option_b.id)]["results"][1].id == row_b2.id
 
     rows = get_rows_grouped_by_single_select_field(
-        view, single_select_field, default_limit=1
+        user, view, single_select_field, default_limit=1
     )
 
     assert len(rows) == 3
@@ -105,7 +106,7 @@ def test_get_rows_grouped_by_single_select_field(
     assert rows[str(option_b.id)]["results"][0].id == row_b1.id
 
     rows = get_rows_grouped_by_single_select_field(
-        view, single_select_field, default_limit=1, default_offset=1
+        user, view, single_select_field, default_limit=1, default_offset=1
     )
 
     assert len(rows) == 3
@@ -122,6 +123,7 @@ def test_get_rows_grouped_by_single_select_field(
     assert rows[str(option_b.id)]["results"][0].id == row_b2.id
 
     rows = get_rows_grouped_by_single_select_field(
+        user,
         view,
         single_select_field,
         option_settings={"null": {"limit": 1, "offset": 1}},
@@ -133,6 +135,7 @@ def test_get_rows_grouped_by_single_select_field(
     assert rows["null"]["results"][0].id == row_none2.id
 
     rows = get_rows_grouped_by_single_select_field(
+        user,
         view,
         single_select_field,
         option_settings={
@@ -152,6 +155,7 @@ def test_get_rows_grouped_by_single_select_field(
     assert rows[str(option_b.id)]["results"][0].id == row_b2.id
 
     rows = get_rows_grouped_by_single_select_field(
+        user,
         view,
         single_select_field,
         option_settings={
@@ -168,7 +172,8 @@ def test_get_rows_grouped_by_single_select_field(
 def test_get_rows_grouped_by_single_select_field_not_existing_options_are_null(
     premium_data_fixture,
 ):
-    table = premium_data_fixture.create_database_table()
+    user = premium_data_fixture.create_user()
+    table = premium_data_fixture.create_database_table(user=user)
     view = View()
     view.id = 999  # fake pk
     view.table = table
@@ -203,7 +208,7 @@ def test_get_rows_grouped_by_single_select_field_not_existing_options_are_null(
 
     option_b.delete()
     rows = get_rows_grouped_by_single_select_field(
-        view, single_select_field, model=model
+        user, view, single_select_field, model=model
     )
 
     assert len(rows) == 2
@@ -217,7 +222,7 @@ def test_get_rows_grouped_by_single_select_field_not_existing_options_are_null(
 
     option_a.delete()
     rows = get_rows_grouped_by_single_select_field(
-        view, single_select_field, model=model
+        user, view, single_select_field, model=model
     )
 
     assert len(rows) == 1
@@ -232,12 +237,13 @@ def test_get_rows_grouped_by_single_select_field_not_existing_options_are_null(
 def test_get_rows_grouped_by_single_select_field_with_empty_table(
     premium_data_fixture,
 ):
+    user = premium_data_fixture.create_user()
     table = premium_data_fixture.create_database_table()
     view = View()
     view.id = 999  # fake pk
     view.table = table
     single_select_field = premium_data_fixture.create_single_select_field(table=table)
-    rows = get_rows_grouped_by_single_select_field(view, single_select_field)
+    rows = get_rows_grouped_by_single_select_field(user, view, single_select_field)
     assert len(rows) == 1
     assert rows["null"]["count"] == 0
     assert len(rows["null"]["results"]) == 0

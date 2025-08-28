@@ -229,6 +229,7 @@ def test_calendar_view_convert_date_field_to_another(premium_data_fixture):
     calendar_view.refresh_from_db()
     with pytest.raises(CalendarViewHasNoDateField):
         get_rows_grouped_by_date_field(
+            user,
             calendar_view,
             date_field,
             from_timestamp=datetime.now(tz=timezone.utc),
@@ -643,6 +644,7 @@ GET_ROWS_GROUPED_BY_DATE_FIELD_CASES = [
 def test_calendar_timezone_test_cases(
     premium_data_fixture, name, test_case, django_assert_num_queries
 ):
+    user = premium_data_fixture.create_user()
     table, fields, rows = premium_data_fixture.build_table(
         columns=[test_case["field"]], rows=[[v] for v in test_case["rows"]]
     )
@@ -652,6 +654,7 @@ def test_calendar_timezone_test_cases(
     )
 
     grouped_rows = get_rows_grouped_by_date_field(
+        user,
         calendar_view,
         field,
         from_timestamp=test_case["from_timestamp"],

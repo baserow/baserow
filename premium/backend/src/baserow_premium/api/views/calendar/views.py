@@ -231,6 +231,7 @@ class CalendarViewView(APIView):
         adhoc_filters = AdHocFilters.from_request(request)
 
         grouped_rows = get_rows_grouped_by_date_field(
+            user=request.user,
             view=view,
             date_field=date_field,
             from_timestamp=query_params.get("from_timestamp"),
@@ -416,6 +417,7 @@ class PublicCalendarViewView(APIView):
         )
 
         grouped_rows = get_rows_grouped_by_date_field(
+            user=None,
             view=view,
             date_field=date_field,
             from_timestamp=query_params.get("from_timestamp"),
@@ -505,7 +507,7 @@ class ICalView(APIView):
         )
         if not view.ical_public:
             raise ViewDoesNotExist()
-        qs = view_handler.get_queryset(view)
+        qs = view_handler.get_queryset(request.user, view)
         cal = build_calendar(qs, view, limit=settings.BASEROW_ICAL_VIEW_MAX_EVENTS)
         return HttpResponse(
             cal.to_ical(),

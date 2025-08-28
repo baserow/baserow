@@ -222,7 +222,7 @@ class QuerysetSerializer(abc.ABC):
                 for field_id in visible_field_ids_in_order
                 if field_id in field_map
             ]
-        qs = ViewHandler().get_queryset(view, model=model)
+        qs = ViewHandler().get_queryset(None, view, model=model)
         return cls(qs, fields), visible_field_objects_in_view
 
     def add_ad_hoc_filters_dict_to_queryset(self, filters_dict, only_by_field_ids=None):

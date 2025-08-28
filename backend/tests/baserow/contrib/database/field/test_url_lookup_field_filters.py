@@ -47,7 +47,7 @@ def url_formula_field_filter_proc(
         send_realtime_update=False,
     )
 
-    q = view_handler.get_queryset(grid_view)
+    q = view_handler.get_queryset(user, grid_view)
     assert len(q) == len(expected_rows)
     assert set([getattr(r, path_field.db_column) for r in q]) == set(expected_rows)
 

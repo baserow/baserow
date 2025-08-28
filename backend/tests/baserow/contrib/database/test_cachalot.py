@@ -59,7 +59,7 @@ if settings.CACHALOT_ENABLED:
 
         table_model = table_a.get_model()
         table_model.objects.create()
-        queryset = ViewHandler().get_queryset(view=grid_view)
+        queryset = ViewHandler().get_queryset(user=user, view=grid_view)
 
         def assert_cachalot_cache_queryset_count_of(expected_count):
             # count() should save the result of the query in the cache

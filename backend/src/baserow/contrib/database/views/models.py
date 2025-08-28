@@ -998,7 +998,7 @@ class ViewRows(CreatedAndUpdatedOnMixin, models.Model):
             view = view_map[view_id]
             row_ids = (
                 ViewHandler()
-                .get_queryset(view, model=model, apply_sorts=False)
+                .get_queryset(None, view, model=model, apply_sorts=False)
                 .values_list("id", flat=True)
             )
             view_rows.append(ViewRows(view=view, row_ids=list(row_ids)))
@@ -1013,7 +1013,9 @@ class ViewRows(CreatedAndUpdatedOnMixin, models.Model):
 
         from baserow.contrib.database.views.handler import ViewHandler
 
-        rows = ViewHandler().get_queryset(self.view, model=model, apply_sorts=False)
+        rows = ViewHandler().get_queryset(
+            None, self.view, model=model, apply_sorts=False
+        )
         previous_row_ids = set(self.row_ids)
         new_row_ids = set(rows.order_by().values_list("id", flat=True))
 
