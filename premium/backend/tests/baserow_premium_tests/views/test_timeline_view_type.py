@@ -223,7 +223,7 @@ def test_timeline_view_get_rows_raises_if_date_settings_are_invalid(
     )
     timeline_view.refresh_from_db()
     with pytest.raises(IncompatibleField):
-        get_timeline_view_filtered_queryset(timeline_view)
+        get_timeline_view_filtered_queryset(user, timeline_view)
 
     start_date_field = FieldHandler().update_field(
         user=user,
@@ -236,7 +236,7 @@ def test_timeline_view_get_rows_raises_if_date_settings_are_invalid(
 
     timeline_view.refresh_from_db()
     with pytest.raises(IncompatibleField):
-        get_timeline_view_filtered_queryset(timeline_view)
+        get_timeline_view_filtered_queryset(user, timeline_view)
 
     end_date_field = FieldHandler().update_field(
         user=user, field=end_date_field, new_type_name="date"
@@ -261,7 +261,7 @@ def test_timeline_view_get_rows_raises_if_date_settings_are_invalid(
 
         timeline_view.refresh_from_db()
         with pytest.raises(TimelineViewHasInvalidDateSettings):
-            get_timeline_view_filtered_queryset(timeline_view)
+            get_timeline_view_filtered_queryset(user, timeline_view)
 
 
 @pytest.mark.django_db

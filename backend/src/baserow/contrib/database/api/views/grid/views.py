@@ -248,7 +248,7 @@ class GridViewView(APIView):
         )
 
         queryset = get_view_filtered_queryset(
-            view, adhoc_filters, order_by, query_params
+            request.user, view, adhoc_filters, order_by, query_params
         )
         model = queryset.model
 

@@ -2423,14 +2423,15 @@ def test_get_public_rows_raises_with_form_view(data_fixture):
 
 @pytest.mark.django_db
 def test_get_rows_raises_with_form_view(data_fixture):
-    form_view = data_fixture.create_form_view(public=True)
+    user = data_fixture.create_user()
+    form_view = data_fixture.create_form_view(public=True, user=user)
     field = data_fixture.create_number_field(table=form_view.table)
 
     model = form_view.table.get_model()
     model.objects.create(**{f"field_{field.id}": 1})
 
     with pytest.raises(ViewDoesNotSupportListingRows):
-        ViewHandler().get_queryset(form_view)
+        ViewHandler().get_queryset(user, form_view)
 
 
 @pytest.mark.django_db
@@ -4403,13 +4404,13 @@ def test_get_queryset_apply_sorts(data_fixture):
     )
 
     # Don't apply view sorting
-    rows = view_handler.get_queryset(grid_view, apply_sorts=False)
+    rows = view_handler.get_queryset(user, grid_view, apply_sorts=False)
 
     row_ids = [row.id for row in rows]
     assert row_ids == [row_1.id, row_2.id, row_3.id]
 
     # Apply view sorting
-    rows = view_handler.get_queryset(grid_view, apply_sorts=True)
+    rows = view_handler.get_queryset(user, grid_view, apply_sorts=True)
 
     row_ids = [row.id for row in rows]
     assert row_ids == [row_3.id, row_2.id, row_1.id]
@@ -4442,14 +4443,14 @@ def test_can_duplicate_views_with_multiple_collaborator_has_filter(data_fixture)
         .created_rows
     )
 
-    results = ViewHandler().get_queryset(grid)
+    results = ViewHandler().get_queryset(user_1, grid)
     assert len(results) == 1
     assert list(getattr(results[0], field.db_column).values_list("id", flat=True)) == [
         user_1.id
     ]
 
     new_grid = ViewHandler().duplicate_view(user_1, grid)
-    new_results = ViewHandler().get_queryset(new_grid)
+    new_results = ViewHandler().get_queryset(user_1, new_grid)
     assert len(new_results) == 1
     assert list(
         getattr(new_results[0], field.db_column).values_list("id", flat=True)

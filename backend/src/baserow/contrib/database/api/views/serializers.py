@@ -420,13 +420,29 @@ class ViewSerializer(serializers.ModelSerializer):
             "owned_by_id": {"read_only": True},
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, instance=None, *args, **kwargs):
         context = kwargs.setdefault("context", {})
         context["include_filters"] = kwargs.pop("filters", False)
         context["include_sortings"] = kwargs.pop("sortings", False)
         context["include_decorations"] = kwargs.pop("decorations", False)
         context["include_group_bys"] = kwargs.pop("group_bys", False)
-        super().__init__(*args, **kwargs)
+        enhance_objects_by_view_ownership = kwargs.pop(
+            "enhance_objects_by_view_ownership", True
+        )
+        # If the provided view object(s) must be enhanced by the view type, then
+        # correctly call those methods. The view ownership type can be responsible for
+        # adding or omitting data about the view. Making this call in the serializer
+        # makes sure that the user
+        if enhance_objects_by_view_ownership and "user" in context:
+            if isinstance(instance, list):
+                instance = view_ownership_type_registry.enhance_view_objects_of_different_types(
+                    context["user"], instance
+                )
+            else:
+                view_ownership_type_registry.enhance_view_objects_of_different_types(
+                    context["user"], [instance]
+                )[0]
+        super().__init__(instance, *args, **kwargs)
 
     def to_representation(self, instance):
         # We remove the fields in to_representation rather than __init__ as otherwise

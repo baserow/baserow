@@ -607,7 +607,9 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             views,
             table.database.workspace,
         )
-        views = views.select_related("content_type", "table")
+        views = views.select_related(
+            "content_type", "table", "table__database__workspace"
+        )
 
         if _type:
             view_type = view_type_registry.get(_type)
@@ -637,6 +639,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
                 ).enhance_queryset(queryset)
             ),
         )
+
         return views
 
     def before_field_type_change(self, field: Field):
@@ -2776,6 +2779,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
 
     def get_queryset(
         self,
+        user: Optional[AbstractUser],
         view: View,
         search: Optional[str] = None,
         model: Optional[GeneratedTableModel] = None,
@@ -2789,6 +2793,8 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         Returns a queryset for the provided view which is appropriately sorted,
         filtered and searched according to the view type and its settings.
 
+        :param user: The user on whose behalf the queryset is requested. This is needed
+            for permission checks.
         :param search: A search term to apply to the resulting queryset.
         :param model: The model for this views table to generate the queryset from, if
             not specified then the model will be generated automatically.
@@ -2819,6 +2825,14 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             raise ViewDoesNotSupportListingRows(
                 f"The view type {view_type.type} does not support listing rows."
             )
+
+        # Check if the view ownership type is enforcing the filters to be applied. If
+        # so, then regardless of what argument is provided, the filters are applied to
+        # the queryset. This can be useful if the view restricts access to rows that
+        # don't match the filters.
+        view_ownership_type = view_ownership_type_registry.get(view.ownership_type)
+        if view_ownership_type.enforce_apply_filters(user, view):
+            apply_filters = True
 
         if view_type.can_filter and apply_filters:
             queryset = self.apply_filters(view, queryset)
