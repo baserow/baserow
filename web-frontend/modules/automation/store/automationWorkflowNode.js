@@ -1,6 +1,7 @@
 import { uuid } from '@baserow/modules/core/utils/string'
 import AutomationWorkflowNodeService from '@baserow/modules/automation/services/automationWorkflowNode'
 import { NodeEditorSidePanelType } from '@baserow/modules/automation/editorSidePanelTypes'
+import { topologicalSort } from '@baserow/modules/automation/utils/workflow'
 
 const state = {}
 
@@ -319,6 +320,73 @@ const actions = {
     setTimeout(() => {
       dispatch('select', { workflow, node: newNode })
     })
+  },
+  reorder({ commit, getters }, { workflow, reorderData }) {
+    const originalNodes = getters.getNodes(workflow).map((n) => ({ ...n }))
+
+    try {
+      const { draggedNodeId, targetNodeId, targetNodeOutput } = reorderData
+      const nodes = getters.getNodes(workflow)
+
+      // Create a mutable copy to work with
+      const nodesCopy = nodes.map((n) => ({ ...n }))
+
+      // Find the nodes involved in the operation
+      const draggedNode = nodesCopy.find((n) => n.id === draggedNodeId)
+      const oldNextNode = nodesCopy.find(
+        (n) => n.previous_node_id === draggedNodeId
+      )
+      const targetNextNode = nodesCopy.find(
+        (n) =>
+          n.previous_node_id === targetNodeId &&
+          n.previous_node_output === targetNodeOutput
+      )
+
+      // 1. Update the node that was after the dragged node
+      if (oldNextNode) {
+        oldNextNode.previous_node_id = draggedNode.previous_node_id
+        oldNextNode.previous_node_output = draggedNode.previous_node_output
+      }
+
+      // 2. Update the dragged node
+      draggedNode.previous_node_id = targetNodeId
+      draggedNode.previous_node_output = targetNodeOutput
+
+      // 3. Update the node that was after the target, to be after the dragged node
+      if (targetNextNode) {
+        targetNextNode.previous_node_id = draggedNode.id
+        targetNextNode.previous_node_output = '' // Default output
+      }
+
+      const finalOrder = topologicalSort(nodesCopy)
+      const orderedNodes = nodesCopy.sort(
+        (a, b) => finalOrder.indexOf(a.id) - finalOrder.indexOf(b.id)
+      )
+
+      orderedNodes.forEach((node, index) => {
+        node.order = index
+      })
+
+      // Apply changes atomically
+      commit('SET_ITEMS', {
+        workflow,
+        nodes: orderedNodes,
+      })
+
+      // TODO: Call the backend API to persist the new node order.
+      // await AutomationWorkflowNodeService(this.$client).order(
+      //   workflow.id,
+      //   finalOrder
+      // )
+    } catch (error) {
+      // If the API call fails, revert to the original state
+      commit('SET_ITEMS', {
+        workflow,
+        nodes: originalNodes,
+      })
+      // Optional: re-throw the error to be handled in the component
+      throw error
+    }
   },
   async order({ commit }, { workflow, order, oldOrder }) {
     commit('ORDER_ITEMS', { workflow, order })
