@@ -319,9 +319,10 @@ class DuplicateAutomationNodeView(APIView):
         tags=[AUTOMATION_NODES_TAG],
         operation_id="duplicate_automation_node",
         description="Duplicate a node of a workflow.",
-        request=OrderAutomationNodesSerializer,
         responses={
-            204: None,
+            200: DiscriminatorCustomFieldsMappingSerializer(
+                automation_node_type_registry, AutomationNodeSerializer
+            ),
             404: get_error_schema(
                 [
                     "ERROR_AUTOMATION_NODE_DOES_NOT_EXIST",
@@ -336,12 +337,15 @@ class DuplicateAutomationNodeView(APIView):
             AutomationTriggerModificationDisallowed: ERROR_AUTOMATION_TRIGGER_NODE_MODIFICATION_DISALLOWED,
         }
     )
-    def post(self, request, node_id):
+    def post(self, request, node_id: int):
         """Duplicate an automation node."""
 
-        DuplicateAutomationNodeActionType.do(request.user, node_id)
-
-        return Response(status=204)
+        duplicated_node = DuplicateAutomationNodeActionType.do(request.user, node_id)
+        return Response(
+            automation_node_type_registry.get_serializer(
+                duplicated_node, AutomationNodeSerializer
+            ).data
+        )
 
 
 class ReplaceAutomationNodeView(APIView):

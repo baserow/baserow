@@ -430,16 +430,16 @@ def test_delete_node_undo_redo(api_client, data_fixture):
 def test_duplicate_node(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workflow = data_fixture.create_automation_workflow(user=user)
-    node = data_fixture.create_automation_node(user=user, workflow=workflow)
+    data_fixture.create_local_baserow_rows_created_trigger_node(workflow=workflow)
+    action = data_fixture.create_local_baserow_create_row_action_node(workflow=workflow)
 
-    assert workflow.automation_workflow_nodes.count() == 1
-
-    api_kwargs = get_api_kwargs(token)
-    duplicate_url = reverse(API_URL_DUPLICATE, kwargs={"node_id": node.id})
-    response = api_client.post(duplicate_url, **api_kwargs)
-    assert response.status_code == HTTP_204_NO_CONTENT
-
-    assert workflow.automation_workflow_nodes.count() == 2
+    duplicate_url = reverse(API_URL_DUPLICATE, kwargs={"node_id": action.id})
+    response = api_client.post(duplicate_url, **get_api_kwargs(token))
+    assert response.status_code == HTTP_200_OK
+    response_json = response.json()
+    assert response_json["id"] != action.id
+    assert response_json["previous_node_output"] == ""
+    assert response_json["previous_node_id"] == action.id
 
 
 @pytest.mark.django_db
@@ -485,7 +485,7 @@ def test_duplicate_node_undo_redo(api_client, data_fixture):
     api_kwargs = get_api_kwargs(token)
     duplicate_url = reverse(API_URL_DUPLICATE, kwargs={"node_id": node.id})
     response = api_client.post(duplicate_url, **api_kwargs)
-    assert response.status_code == HTTP_204_NO_CONTENT
+    assert response.status_code == HTTP_200_OK
 
     assert workflow.automation_workflow_nodes.count() == 2
 
