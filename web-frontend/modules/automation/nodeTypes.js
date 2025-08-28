@@ -351,7 +351,7 @@ export class PeriodicTriggerNodeType extends TriggerNodeTypeMixin(NodeType) {
     return this.app.$registry.get('service', 'periodic_trigger')
   }
 
-  getLabel({ node }) {
+  getDefaultLabel({ node }) {
     if (!node.service) {
       return this.name
     }
