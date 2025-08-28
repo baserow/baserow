@@ -189,6 +189,9 @@ export class NodeType extends Registerable {
    * @returns {object} - The data schema for the node.
    */
   getDataSchema({ automation, node }) {
+    if (!node.service) {
+      return null
+    }
     const serviceSchema = this.serviceType.getDataSchema(node.service)
     if (serviceSchema) {
       return {
