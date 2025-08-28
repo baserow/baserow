@@ -265,6 +265,8 @@ def test_automation_node_migrates_its_previous_node_output_on_import(
         new_output_node.previous_node_output
         == id_mapping["automation_edge_outputs"][str(edge.uid)]
     )
+
+
 @patch(
     "baserow.contrib.automation.workflows.service.AutomationWorkflowHandler.run_workflow"
 )
