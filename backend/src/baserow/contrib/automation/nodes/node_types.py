@@ -32,11 +32,11 @@ from baserow.contrib.automation.nodes.models import (
     LocalBaserowUpdateRowActionNode,
     PeriodicTriggerNode,
 )
-from baserow.contrib.automation.nodes.registries import AutomationNodeType
-from baserow.contrib.automation.periodic_trigger.service_types import (
+from baserow.contrib.automation.nodes.periodic_trigger.service_types import (
     PeriodicTriggerServiceType,
 )
 from baserow.contrib.automation.workflows.constants import WorkflowState
+from baserow.contrib.automation.nodes.registries import AutomationNodeType
 from baserow.contrib.integrations.core.service_types import (
     CoreHTTPRequestServiceType,
     CoreRouterServiceType,
@@ -303,6 +303,8 @@ class AutomationNodeTriggerType(AutomationNodeType):
                 trigger.service.sample_data = {"data": event_payload}
                 trigger.service.save()
 
+
+class AutomationNodeSignalTriggerType(AutomationNodeTriggerType):
     def after_register(self):
         service_type_registry.get(self.service_type).start_listening(self.on_event)
         return super().after_register()
@@ -312,19 +314,19 @@ class AutomationNodeTriggerType(AutomationNodeType):
         return super().before_unregister()
 
 
-class LocalBaserowRowsCreatedNodeTriggerType(AutomationNodeTriggerType):
+class LocalBaserowRowsCreatedNodeTriggerType(AutomationNodeSignalTriggerType):
     type = "rows_created"
     model_class = LocalBaserowRowsCreatedTriggerNode
     service_type = LocalBaserowRowsCreatedTriggerServiceType.type
 
 
-class LocalBaserowRowsUpdatedNodeTriggerType(AutomationNodeTriggerType):
+class LocalBaserowRowsUpdatedNodeTriggerType(AutomationNodeSignalTriggerType):
     type = "rows_updated"
     model_class = LocalBaserowRowsUpdatedTriggerNode
     service_type = LocalBaserowRowsUpdatedTriggerServiceType.type
 
 
-class LocalBaserowRowsDeletedNodeTriggerType(AutomationNodeTriggerType):
+class LocalBaserowRowsDeletedNodeTriggerType(AutomationNodeSignalTriggerType):
     type = "rows_deleted"
     model_class = LocalBaserowRowsDeletedTriggerNode
     service_type = LocalBaserowRowsDeletedTriggerServiceType.type

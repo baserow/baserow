@@ -180,13 +180,13 @@ export default {
     },
     daysOfWeek() {
       return {
-        0: this.$t('periodicTriggerServiceForm.monday'),
-        1: this.$t('periodicTriggerServiceForm.tuesday'),
-        2: this.$t('periodicTriggerServiceForm.wednesday'),
-        3: this.$t('periodicTriggerServiceForm.thursday'),
-        4: this.$t('periodicTriggerServiceForm.friday'),
-        5: this.$t('periodicTriggerServiceForm.saturday'),
-        6: this.$t('periodicTriggerServiceForm.sunday'),
+        0: this.$t('common.monday'),
+        1: this.$t('common.tuesday'),
+        2: this.$t('common.wednesday'),
+        3: this.$t('common.thursday'),
+        4: this.$t('common.friday'),
+        5: this.$t('common.saturday'),
+        6: this.$t('common.sunday'),
       }
     },
   },

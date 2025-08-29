@@ -117,7 +117,7 @@ from baserow.core.services.registries import (
     DispatchTypes,
     ListServiceTypeMixin,
     ServiceType,
-    TriggerServiceTypeMixin,
+    SignalTriggerServiceTypeMixin,
 )
 from baserow.core.services.types import (
     DispatchResult,
@@ -2292,7 +2292,7 @@ class LocalBaserowSignalTriggerTypeMixin(Generic[T]):
 class LocalBaserowRowsCreatedTriggerServiceType(
     LocalBaserowSignalTriggerTypeMixin,
     LocalBaserowTableServiceType,
-    TriggerServiceTypeMixin,
+    SignalTriggerServiceTypeMixin,
 ):
     signal = rows_created
     type = "local_baserow_rows_created"
@@ -2302,7 +2302,7 @@ class LocalBaserowRowsCreatedTriggerServiceType(
 class LocalBaserowRowsUpdatedTriggerServiceType(
     LocalBaserowSignalTriggerTypeMixin,
     LocalBaserowTableServiceType,
-    TriggerServiceTypeMixin,
+    SignalTriggerServiceTypeMixin,
 ):
     signal = rows_updated
     type = "local_baserow_rows_updated"
@@ -2312,7 +2312,7 @@ class LocalBaserowRowsUpdatedTriggerServiceType(
 class LocalBaserowRowsDeletedTriggerServiceType(
     LocalBaserowSignalTriggerTypeMixin,
     LocalBaserowTableServiceType,
-    TriggerServiceTypeMixin,
+    SignalTriggerServiceTypeMixin,
 ):
     signal = rows_deleted
     type = "local_baserow_rows_deleted"

@@ -6,7 +6,7 @@ from django.utils import timezone
 from dateutil.relativedelta import relativedelta
 from loguru import logger
 
-from baserow.contrib.automation.periodic_trigger.models import (
+from baserow.contrib.automation.nodes.periodic_trigger.models import (
     PERIODIC_INTERVAL_DAY,
     PERIODIC_INTERVAL_HOUR,
     PERIODIC_INTERVAL_MINUTE,
@@ -14,7 +14,7 @@ from baserow.contrib.automation.periodic_trigger.models import (
     PERIODIC_INTERVAL_WEEK,
     PeriodicTriggerService,
 )
-from baserow.contrib.automation.periodic_trigger.utils import (
+from baserow.contrib.automation.nodes.periodic_trigger.utils import (
     get_periodic_trigger_payload,
 )
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler

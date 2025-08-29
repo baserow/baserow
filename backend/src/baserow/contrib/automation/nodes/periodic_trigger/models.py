@@ -30,7 +30,7 @@ class PeriodicTriggerService(Service):
         max_length=10,
         choices=PERIODIC_INTERVAL_CHOICES,
         default=PERIODIC_INTERVAL_MINUTE,
-        help_text="The interval frequency for triggering the automation.",
+        help_text="The interval frequency for triggering the workflow.",
     )
     minute = models.PositiveSmallIntegerField(
         default=0,

@@ -4,11 +4,13 @@ from django.utils import timezone
 
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.node_types import PeriodicTriggerNodeType
-from baserow.contrib.automation.nodes.registries import automation_node_type_registry
-from baserow.contrib.automation.periodic_trigger.models import PeriodicTriggerService
-from baserow.contrib.automation.periodic_trigger.utils import (
+from baserow.contrib.automation.nodes.periodic_trigger.models import (
+    PeriodicTriggerService,
+)
+from baserow.contrib.automation.nodes.periodic_trigger.utils import (
     get_periodic_trigger_payload,
 )
+from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.contrib.automation.workflows.signals import automation_workflow_updated
 
@@ -18,10 +20,7 @@ def workflow_updated(
     sender, workflow: AutomationWorkflow, user: AbstractUser, **kwargs
 ):
     if workflow.allow_test_run_until:
-        try:
-            trigger = workflow.get_trigger(specific=False)
-        except AutomationNode.DoesNotExist:
-            return
+        trigger = workflow.get_trigger(specific=False)
         node_type = automation_node_type_registry.get_by_model(trigger.specific_class)
         if node_type.type == PeriodicTriggerNodeType.type:
             # If the `allow_test_run_until` is enabled on the workflow, then a test

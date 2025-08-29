@@ -1,9 +1,14 @@
-import { Registerable } from '@baserow/modules/core/registry'
 import PeriodicTriggerServiceForm from '@baserow/modules/automation/components/services/PeriodicTriggerServiceForm'
+import {
+  ServiceType,
+  TriggerServiceTypeMixin,
+} from '@baserow/modules/core/serviceTypes'
 
-export class PeriodicTriggerServiceType extends Registerable {
+export class PeriodicTriggerServiceType extends TriggerServiceTypeMixin(
+  ServiceType
+) {
   static getType() {
-    return 'periodic_trigger'
+    return 'periodic'
   }
 
   get name() {
@@ -18,17 +23,8 @@ export class PeriodicTriggerServiceType extends Registerable {
     return PeriodicTriggerServiceForm
   }
 
-  getDataSchema() {
-    return {
-      type: 'object',
-      title: this.app.i18n.t('serviceType.periodicTrigger'),
-      properties: {
-        triggered_at: {
-          type: 'string',
-          title: this.app.i18n.t('serviceType.periodicTriggerTriggeredAt'),
-        },
-      },
-    }
+  getDataSchema(service) {
+    return service.schema
   }
 
   isInError() {

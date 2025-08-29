@@ -462,8 +462,8 @@ class ServiceType(
         return property_name
 
 
-class TriggerServiceTypeMixin:
-    service_type = DispatchTypes.DISPATCH_TRIGGER
+class SignalTriggerServiceTypeMixin:
+    dispatch_type = DispatchTypes.DISPATCH_TRIGGER
 
     @abstractmethod
     def start_listening(self, on_event: Callable):

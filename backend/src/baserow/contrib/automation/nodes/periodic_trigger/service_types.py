@@ -2,17 +2,18 @@ from typing import Any, Dict, List, Optional
 
 from rest_framework import serializers
 
-from baserow.contrib.automation.periodic_trigger.models import (
+from baserow.contrib.automation.nodes.periodic_trigger.models import (
     PERIODIC_INTERVAL_CHOICES,
     PeriodicTriggerService,
 )
-from baserow.core.services.registries import ServiceType, TriggerServiceTypeMixin
+from baserow.core.services.registries import DispatchTypes, ServiceType
 from baserow.core.services.types import ServiceDict
 
 
-class PeriodicTriggerServiceType(ServiceType, TriggerServiceTypeMixin):
-    type = "periodic_trigger"
+class PeriodicTriggerServiceType(ServiceType):
+    type = "periodic"
     model_class = PeriodicTriggerService
+    dispatch_type = DispatchTypes.DISPATCH_TRIGGER
 
     allowed_fields = [
         "interval",

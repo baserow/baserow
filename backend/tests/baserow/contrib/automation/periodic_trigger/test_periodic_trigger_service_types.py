@@ -2,15 +2,15 @@ import pytest
 
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.node_types import PeriodicTriggerNodeType
-from baserow.contrib.automation.nodes.registries import automation_node_type_registry
-from baserow.contrib.automation.periodic_trigger.models import (
+from baserow.contrib.automation.nodes.periodic_trigger.models import (
     PERIODIC_INTERVAL_HOUR,
     PERIODIC_INTERVAL_MINUTE,
     PeriodicTriggerService,
 )
-from baserow.contrib.automation.periodic_trigger.service_types import (
+from baserow.contrib.automation.nodes.periodic_trigger.service_types import (
     PeriodicTriggerServiceType,
 )
+from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.core.services.handler import ServiceHandler
 
 
@@ -34,7 +34,7 @@ def test_periodic_trigger_service_type_generate_schema(data_fixture):
     service_type = PeriodicTriggerServiceType()
     service = trigger_node.service.specific
 
-    assert service_type.type == "periodic_trigger"
+    assert service_type.type == "periodic"
     assert service_type.model_class == PeriodicTriggerService
 
     schema = service_type.generate_schema(service)

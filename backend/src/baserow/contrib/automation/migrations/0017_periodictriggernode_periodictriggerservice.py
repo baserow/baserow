@@ -63,7 +63,7 @@ class Migration(migrations.Migration):
                             ("MONTH", "MONTH"),
                         ],
                         default="MINUTE",
-                        help_text="The interval frequency for triggering the automation.",
+                        help_text="The interval frequency for triggering the workflow.",
                         max_length=10,
                     ),
                 ),

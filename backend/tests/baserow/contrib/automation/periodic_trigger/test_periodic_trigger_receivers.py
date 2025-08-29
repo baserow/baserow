@@ -4,7 +4,9 @@ from django.utils import timezone
 
 import pytest
 
-from baserow.contrib.automation.periodic_trigger.models import PERIODIC_INTERVAL_MINUTE
+from baserow.contrib.automation.nodes.periodic_trigger.models import (
+    PERIODIC_INTERVAL_MINUTE,
+)
 from baserow.contrib.automation.workflows.signals import automation_workflow_updated
 
 

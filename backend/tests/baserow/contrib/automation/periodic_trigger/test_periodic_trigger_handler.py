@@ -6,8 +6,10 @@ from django.db import transaction
 import pytest
 from freezegun import freeze_time
 
-from baserow.contrib.automation.periodic_trigger.handler import PeriodicTriggerHandler
-from baserow.contrib.automation.periodic_trigger.models import (
+from baserow.contrib.automation.nodes.periodic_trigger.handler import (
+    PeriodicTriggerHandler,
+)
+from baserow.contrib.automation.nodes.periodic_trigger.models import (
     PERIODIC_INTERVAL_DAY,
     PERIODIC_INTERVAL_HOUR,
     PERIODIC_INTERVAL_MINUTE,

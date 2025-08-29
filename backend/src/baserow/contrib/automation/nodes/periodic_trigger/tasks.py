@@ -7,7 +7,7 @@ from baserow.config.celery import app
 
 @app.task(
     bind=True,
-    queue="export",
+    queue="automation_workflow",
 )
 def call_periodic_triggers_that_are_due(self):
     """
@@ -18,7 +18,7 @@ def call_periodic_triggers_that_are_due(self):
     are locked.
     """
 
-    from baserow.contrib.automation.periodic_trigger.handler import (
+    from baserow.contrib.automation.nodes.periodic_trigger.handler import (
         PeriodicTriggerHandler,
     )
 
