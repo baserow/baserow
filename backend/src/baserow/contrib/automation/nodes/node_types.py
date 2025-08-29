@@ -140,9 +140,13 @@ class CoreRouterActionNodeType(AutomationNodeActionNodeType):
         """
 
         return node.workflow.automation_workflow_nodes.filter(
-            previous_node_id=node.id,
-            previous_node_output__in=node.service.specific.edges.values_list(
-                Cast("uid", output_field=CharField()), flat=True
+            previous_node_id=node.id
+        ).filter(
+            Q(previous_node_output="")
+            | Q(
+                previous_node_output__in=node.service.specific.edges.values_list(
+                    Cast("uid", output_field=CharField()), flat=True
+                )
             ),
         )
 
@@ -171,6 +175,43 @@ class CoreRouterActionNodeType(AutomationNodeActionNodeType):
         """
 
         node.service.edges.create(label=_("Branch"))
+
+    def after_duplication(
+        self, source_node: CoreRouterActionNode, duplicated_node: CoreRouterActionNode
+    ) -> None:
+        """
+        After a router node is duplicated, this method will ensure that we migrate
+        the output nodes that were connected to the source node to now be connected
+        to the duplicated node instead.
+        """
+
+        # Build a dictionary mapping the source node's output UIDs to their
+        # corresponding AutomationNode instances for quick lookup.
+        source_output_map = {
+            on.previous_node_output: on for on in self.get_output_nodes(source_node)
+        }
+
+        # Get the list of UIDs for both the source and duplicated edges.
+        source_edges = list(
+            source_node.service.specific.edges.values_list("uid", flat=True)
+        )
+        duplicated_edges = list(
+            duplicated_node.service.specific.edges.values_list("uid", flat=True)
+        )
+
+        # Zip the two lists together and migrate the output nodes so that their
+        # `previous_node_output` points to the duplicated edge UID.
+        output_node_updates = []
+        for source_uid, duplicated_uid in zip(source_edges, duplicated_edges):
+            output_node = source_output_map.get(str(source_uid))
+            if output_node is not None:
+                output_node.previous_node_output = duplicated_uid
+                output_node_updates.append(output_node)
+        AutomationNode.objects.bulk_update(
+            output_node_updates, ["previous_node_output"]
+        )
+
+        return super().after_duplication(source_node, duplicated_node)
 
     def prepare_values(
         self,

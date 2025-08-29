@@ -220,22 +220,17 @@ def test_order_nodes_invalid_node(data_fixture):
 def test_duplicate_node(data_fixture):
     user, _ = data_fixture.create_user_and_token()
     workflow = data_fixture.create_automation_workflow(user=user)
-    trigger = data_fixture.create_local_baserow_rows_created_trigger_node(
-        workflow=workflow
-    )
+    data_fixture.create_local_baserow_rows_created_trigger_node(workflow=workflow)
     action1 = data_fixture.create_local_baserow_create_row_action_node(
-        workflow=workflow, previous_node_output="foo"
+        workflow=workflow,
     )
-
-    assert action1.previous_node_id == trigger.id
-    assert action1.previous_node_output == "foo"
-    assert workflow.automation_workflow_nodes.count() == 2
-
-    action2 = AutomationNodeHandler().duplicate_node(action1)
-    assert action2.workflow == workflow
-    assert action2.previous_node_id == action1.id
-    assert action2.previous_node_output == ""
-    assert workflow.automation_workflow_nodes.count() == 3
+    action2 = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow,
+    )
+    action1b = AutomationNodeHandler().duplicate_node(action1)
+    action2.refresh_from_db()
+    assert action1b.previous_node_id == action1.id
+    assert action2.previous_node_id == action1b.id
 
 
 @pytest.mark.django_db

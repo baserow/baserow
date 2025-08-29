@@ -312,14 +312,15 @@ class AutomationNodeHandler:
 
         exported_node = self.export_node(node)
 
+        # Does `node` have any next nodes? If so, we need to ensure
+        # their `previous_node_id` are updated to the new duplicated node.
+        next_nodes = list(node.get_next_nodes())
+
         exported_node["order"] = AutomationNode.get_last_order(node.workflow)
         # The duplicated node can't have the same output as the source node.
         exported_node["previous_node_output"] = ""
-        # The duplicated node can't have the same `previous_node_id` as the source node,
-        # so we find the last node in the workflow and parent scope.
-        exported_node["previous_node_id"] = AutomationWorkflow.get_last_node_id(
-            node.workflow, node.parent_node_id
-        )
+        # The duplicated node will follow `node`.
+        exported_node["previous_node_id"] = node.id
 
         id_mapping = defaultdict(lambda: MirrorDict())
         id_mapping["automation_workflow_nodes"] = MirrorDict()
@@ -329,6 +330,12 @@ class AutomationNodeHandler:
             exported_node,
             id_mapping=id_mapping,
         )
+
+        # Call the after duplication hook to perform any per-type logic.
+        new_node_clone.get_type().after_duplication(node, new_node_clone)
+
+        # Update the nodes that follow the original node to now follow the new clone.
+        self.update_previous_node(new_node_clone, next_nodes)
 
         return new_node_clone
 

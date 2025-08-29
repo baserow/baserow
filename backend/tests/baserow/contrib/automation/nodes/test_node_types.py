@@ -7,6 +7,7 @@ import pytest
 from baserow.contrib.automation.automation_dispatch_context import (
     AutomationDispatchContext,
 )
+from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.node_types import AutomationNodeTriggerType
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.workflows.constants import WorkflowState
@@ -311,3 +312,81 @@ def test_on_event_excludes_disabled_workflows(mock_run_workflow, data_fixture):
 
     node.get_type().on_event(service_queryset, event_payload, user=user)
     mock_run_workflow.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_duplicating_router_with_output_nodes_migrates_outputs(data_fixture):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    service = data_fixture.create_core_router_service(default_edge_label="Default")
+    router = data_fixture.create_core_router_action_node(
+        workflow=workflow, service=service
+    )
+    edge1 = data_fixture.create_core_router_service_edge(
+        service=service, label="Do this", condition="'true'"
+    )
+    edge1_output = workflow.automation_workflow_nodes.get(
+        previous_node_output=edge1.uid
+    )
+    edge2 = data_fixture.create_core_router_service_edge(
+        service=service, label="Do that", condition="'true'"
+    )
+    data_fixture.create_core_router_service_edge(
+        service=service, label="Do more", condition="'true'", skip_output_node=True
+    )
+    edge2_output = workflow.automation_workflow_nodes.get(
+        previous_node_output=edge2.uid
+    )
+    fallback_output_node = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow, previous_node_id=router.id, previous_node_output=""
+    )
+
+    router_type = router.get_type()
+    source_router_outputs = router_type.get_output_nodes(router)
+    assert source_router_outputs.count() == 3
+    source_router_outputs.contains(edge1_output)
+    source_router_outputs.contains(edge2_output)
+    source_router_outputs.contains(fallback_output_node.automationnode_ptr)
+
+    duplicated_router = AutomationNodeHandler().duplicate_node(router)
+
+    source_edges = list(router.service.specific.edges.values_list("uid", flat=True))
+    duplicated_edges = list(
+        duplicated_router.service.specific.edges.values_list("uid", flat=True)
+    )
+    edge_uid_mapping = {
+        str(source_uid): str(duplicated_uid)
+        for (source_uid, duplicated_uid) in zip(source_edges, duplicated_edges)
+    }
+
+    # After duplication, the source router only has one output, the duplicated router.
+    assert source_router_outputs.count() == 1
+    source_router_outputs.contains(duplicated_router)
+
+    # The duplicated router has three outputs, the original router's outputs.
+    duplicated_router_outputs = router_type.get_output_nodes(duplicated_router)
+    assert duplicated_router_outputs.count() == 3
+
+    # Confirm the edge1 output node migrated.
+    source_edge1_output_uid = edge1_output.previous_node_output
+    edge1_output.refresh_from_db()
+    assert duplicated_router_outputs.contains(edge1_output)
+    assert edge1_output.previous_node_id == duplicated_router.id
+    assert (
+        edge1_output.previous_node_output == edge_uid_mapping[source_edge1_output_uid]
+    )
+
+    # Confirm the edge2 output node migrated.
+    source_edge2_output_uid = edge2_output.previous_node_output
+    edge2_output.refresh_from_db()
+    assert duplicated_router_outputs.contains(edge2_output)
+    assert edge2_output.previous_node_id == duplicated_router.id
+    assert (
+        edge2_output.previous_node_output == edge_uid_mapping[source_edge2_output_uid]
+    )
+
+    # Confirm the fallback edge output node migrated.
+    fallback_output_node.refresh_from_db()
+    assert duplicated_router_outputs.contains(fallback_output_node.automationnode_ptr)
+    assert fallback_output_node.previous_node_id == duplicated_router.id
+    assert fallback_output_node.previous_node_output == ""
