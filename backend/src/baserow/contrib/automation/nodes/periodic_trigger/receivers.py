@@ -2,7 +2,6 @@ from django.contrib.auth.models import AbstractUser
 from django.dispatch import receiver
 from django.utils import timezone
 
-from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.node_types import PeriodicTriggerNodeType
 from baserow.contrib.automation.nodes.periodic_trigger.models import (
     PeriodicTriggerService,
