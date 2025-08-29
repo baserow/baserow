@@ -429,7 +429,7 @@ def test_admin_cannot_delete_saml_provider_without_an_enterprise_license(
 def test_admin_can_delete_saml_provider_with_an_enterprise_license(
     api_client, data_fixture, enterprise_data_fixture
 ):
-    unrelated_provider = enterprise_data_fixture.create_saml_auth_provider()
+    enterprise_data_fixture.create_saml_auth_provider()
     saml_provider_1 = enterprise_data_fixture.create_saml_auth_provider()
 
     _, token = enterprise_data_fixture.create_enterprise_admin_user_and_token()
@@ -668,7 +668,7 @@ def test_update_oauth2_provider(
 
     admin, token = enterprise_data_fixture.create_enterprise_admin_user_and_token()
 
-    unrelated_provider = enterprise_data_fixture.create_saml_auth_provider()
+    enterprise_data_fixture.create_saml_auth_provider()
     provider = enterprise_data_fixture.create_oauth_provider(
         type=provider_type, **extra_params
     )

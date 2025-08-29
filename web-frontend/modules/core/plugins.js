@@ -46,6 +46,14 @@ export class BaserowPlugin extends Registerable {
   }
 
   /**
+   * Every registered plugin can display an additional item in the right sidebar within
+   * the workspace context.
+   */
+  getRightSidebarWorkspaceComponents(workspace) {
+    return null
+  }
+
+  /**
    * Every registered plugin can display additional items in the user context menu.
    */
   getUserContextComponents() {

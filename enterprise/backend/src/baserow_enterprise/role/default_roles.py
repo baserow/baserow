@@ -258,6 +258,7 @@ from baserow.core.user_sources.operations import (
     ReadUserSourceOperationType,
     UpdateUserSourceOperationType,
 )
+from baserow_enterprise.ai_assistant.operations import ChatAiAssistantChatOperationType
 from baserow_enterprise.audit_log.operations import (
     ListWorkspaceAuditLogEntriesOperationType,
 )
@@ -359,6 +360,7 @@ default_roles[VIEWER_ROLE_UID].extend(
         CreateMCPEndpointOperationType,
         UpdateMCPEndpointOperationType,
         DeleteMCPEndpointOperationType,
+        ChatAiAssistantChatOperationType,
     ]
 )
 default_roles[COMMENTER_ROLE_UID].extend(

@@ -28,6 +28,9 @@ class BaserowEnterpriseConfig(AppConfig):
             plugin_registry,
         )
         from baserow.core.trash.registries import trash_item_type_registry
+        from baserow_enterprise.ai_assistant.operations import (
+            ChatAiAssistantChatOperationType,
+        )
         from baserow_enterprise.api.member_data_types import (
             EnterpriseMemberTeamsDataType,
         )
@@ -127,6 +130,7 @@ class BaserowEnterpriseConfig(AppConfig):
         operation_type_registry.register(ListWorkspaceAuditLogEntriesOperationType())
         operation_type_registry.register(UpdateFieldPermissionsOperationType())
         operation_type_registry.register(ReadFieldPermissionsOperationType())
+        operation_type_registry.register(ChatAiAssistantChatOperationType())
 
         from baserow.core.registries import subject_type_registry
 

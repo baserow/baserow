@@ -1,6 +1,7 @@
 from django.urls import include, path
 
 from .admin import urls as admin_urls
+from .ai_assistant import urls as ai_assistant_urls
 from .audit_log import urls as audit_log_urls
 from .builder.custom_code import urls as custom_code_urls
 from .data_sync import urls as data_sync_urls
@@ -26,4 +27,5 @@ urlpatterns = [
         "custom_code/",
         include(custom_code_urls, namespace="custom_code"),
     ),
+    path("ai-assistant/", include(ai_assistant_urls, namespace="ai_assistant")),
 ]

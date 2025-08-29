@@ -1,0 +1,2 @@
+class AiAssistantChatDoesNotExist(Exception):
+    pass

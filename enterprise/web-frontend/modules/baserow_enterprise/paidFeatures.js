@@ -156,6 +156,32 @@ export class FieldLevelPermissionsPaidFeature extends PaidFeature {
   }
 }
 
+export class AiAssistantPaidFeature extends PaidFeature {
+  static getType() {
+    return 'ai_assistant'
+  }
+
+  getPlan() {
+    return 'Advanced'
+  }
+
+  getIconClass() {
+    return 'iconoir-sparks'
+  }
+
+  getName() {
+    return this.app.i18n.t('enterpriseFeatures.aiAssistant')
+  }
+
+  getImage() {
+    return '/img/features/ai_assistant.png'
+  }
+
+  getContent() {
+    return this.app.i18n.t('enterpriseFeatures.aiAssistantContent')
+  }
+}
+
 export class CoBrandingPaidFeature extends PaidFeature {
   static getType() {
     return 'co_branding'
