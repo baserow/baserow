@@ -9,7 +9,7 @@ from baserow.contrib.automation.automation_dispatch_context import (
 )
 from baserow.contrib.automation.formula_importer import import_formula
 from baserow.contrib.automation.nodes.exceptions import AutomationNodeNotReplaceable
-from baserow.contrib.automation.nodes.models import AutomationNode
+from baserow.contrib.automation.nodes.models import AutomationActionNode, AutomationNode
 from baserow.contrib.automation.nodes.types import AutomationNodeDict
 from baserow.core.integrations.models import Integration
 from baserow.core.registry import (
@@ -107,6 +107,19 @@ class AutomationNodeType(
         overridden by subclasses to implement specific logic.
 
         :param node: The node instance that was just created.
+        """
+
+        ...
+
+    def after_duplication(
+        self, source_node: AutomationActionNode, duplicated_node: AutomationActionNode
+    ) -> None:
+        """
+        A hook called just after a node is duplicated. Can be
+        overridden by subclasses to implement specific logic.
+
+        :param source_node: The node instance that was duplicated.
+        :param duplicated_node: The node instance that was just created.
         """
 
         ...
