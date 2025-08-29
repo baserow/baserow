@@ -57,6 +57,7 @@ class AutomationConfig(AppConfig):
             ListAutomationWorkflowsOperationType,
             OrderAutomationWorkflowsOperationType,
         )
+        from baserow.contrib.automation.trash_types import AutomationTrashableItemType
         from baserow.contrib.automation.workflows.actions import (
             CreateAutomationWorkflowActionType,
             DeleteAutomationWorkflowActionType,
@@ -123,6 +124,7 @@ class AutomationConfig(AppConfig):
             job_type_registry.register(DuplicateAutomationWorkflowJobType())
             job_type_registry.register(PublishAutomationWorkflowJobType())
 
+            trash_item_type_registry.register(AutomationTrashableItemType())
             trash_item_type_registry.register(AutomationWorkflowTrashableItemType())
             trash_item_type_registry.register(AutomationNodeTrashableItemType())
 

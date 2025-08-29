@@ -186,6 +186,9 @@ class AutomationWorkflowHandler:
         :param workflow: The AutomationWorkflow that must be deleted.
         """
 
+        if published_workflow := self.get_published_workflow(workflow):
+            published_workflow.delete()
+
         TrashHandler.trash(
             user, workflow.automation.workspace, workflow.automation, workflow
         )
@@ -598,9 +601,9 @@ class AutomationWorkflowHandler:
             Automation.objects.filter(id__in=ids_to_delete).delete()
 
         # Disable the last published workflow
-        published_workflow = published_automations[-1].workflows.first()
-        published_workflow.published = False
-        published_workflow.save(update_fields=["published"])
+        if published_workflow := published_automations[-1].workflows.first():
+            published_workflow.published = False
+            published_workflow.save(update_fields=["published"])
 
     def publish(
         self,

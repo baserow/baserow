@@ -21,7 +21,8 @@
     "errorNameNotUnique": "A workflow with this name already exists"
   },
   "trashType": {
-    "workflow": "workflow"
+    "workflow": "workflow",
+    "automation": "automation"
   },
   "generalSettings": {
     "titleOverview": "General",
