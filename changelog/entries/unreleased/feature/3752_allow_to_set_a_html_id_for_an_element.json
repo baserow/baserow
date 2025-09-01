@@ -1,0 +1,8 @@
+{
+    "type": "feature",
+    "message": "Allow to set CSS classes for any element",
+    "domain": "builder",
+    "issue_number": 3752,
+    "bullet_points": [],
+    "created_at": "2025-08-06"
+}

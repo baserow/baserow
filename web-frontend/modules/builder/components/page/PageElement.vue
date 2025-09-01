@@ -2,7 +2,7 @@
   <div
     v-if="elementMode === 'editing' || isVisible"
     class="element__wrapper"
-    :class="elementClasses"
+    :class="wrapperClasses"
     :style="elementStyles"
   >
     <div class="element__inner-wrapper">
@@ -19,6 +19,7 @@
           page: elementPage,
         }"
         class="element"
+        :class="elementClasses"
         @move="$emit('move', $event)"
       />
     </div>
@@ -103,6 +104,9 @@ export default {
     elementType() {
       return this.$registry.get('element', this.element.type)
     },
+    elementClasses() {
+      return this.element.css_classes.replaceAll('"', '')
+    },
     isVisible() {
       const elementType = this.$registry.get('element', this.element.type)
       const isInError = elementType.isInError({
@@ -151,7 +155,7 @@ export default {
         return true
       }
     },
-    elementClasses() {
+    wrapperClasses() {
       if (this.element?.parent_element_id) {
         return {
           'element__wrapper--full-width':
