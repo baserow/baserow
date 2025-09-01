@@ -518,7 +518,7 @@ def test_trashing_workflow_deletes_published_workflow(data_fixture):
     user = data_fixture.create_user()
     original_workflow = data_fixture.create_automation_workflow(user=user)
     published_workflow = data_fixture.create_automation_workflow(
-        user=user, published=True
+        user=user, state=WorkflowState.LIVE
     )
     published_workflow.automation.published_from = original_workflow
     published_workflow.automation.save()

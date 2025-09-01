@@ -267,6 +267,7 @@ def test_automation_node_migrates_its_previous_node_output_on_import(
     )
 
 
+@pytest.mark.django_db
 @patch(
     "baserow.contrib.automation.workflows.service.AutomationWorkflowHandler.run_workflow"
 )
