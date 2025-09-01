@@ -5,7 +5,7 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("integrations", "0016_coresmtpemailservice_smtpintegration"),
+        ("integrations", "0017_corerouterservice_corerouterserviceedge"),
     ]
 
     operations = [

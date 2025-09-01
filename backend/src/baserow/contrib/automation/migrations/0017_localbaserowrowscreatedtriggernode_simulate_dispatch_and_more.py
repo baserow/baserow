@@ -5,7 +5,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("automation", "0014_automationworkflowhistory"),
+        ("automation", "0016_corerouteractionnode"),
     ]
 
     operations = [

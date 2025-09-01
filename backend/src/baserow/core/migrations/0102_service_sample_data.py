@@ -5,7 +5,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("core", "0100_auto_20250610_1917"),
+        ("core", "0101_trashentry_additional_restoration_data"),
     ]
 
     operations = [
