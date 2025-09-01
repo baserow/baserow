@@ -510,3 +510,9 @@ def test_trashing_workflow_deletes_published_workflow(data_fixture):
     original_workflow.refresh_from_db()
     assert original_workflow.trashed is True
     assert AutomationWorkflow.objects.filter(id=published_workflow.id).exists() is False
+
+
+@pytest.mark.parametrize("workflow_id", [10, 100, 200, 300])
+def test_get_rate_limit_cache_key(workflow_id):
+    result = AutomationWorkflowHandler().get_rate_limit_cache_key(workflow_id)
+    assert result == f"automation_workflow_{workflow_id}"
