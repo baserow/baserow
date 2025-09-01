@@ -19,6 +19,7 @@ from baserow.contrib.automation.models import Automation
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.types import AutomationNodeDict
 from baserow.contrib.automation.types import AutomationWorkflowDict
+from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.contrib.automation.workflows.exceptions import (
     AutomationWorkflowDoesNotExist,
     AutomationWorkflowNameNotUnique,
@@ -45,7 +46,7 @@ AUTOMATION_WORKFLOW_CACHE_LOCK_SECONDS = 5
 
 
 class AutomationWorkflowHandler:
-    allowed_fields = ["name", "allow_test_run_until", "paused"]
+    allowed_fields = ["name", "allow_test_run_until", "state"]
 
     def run_workflow(
         self,
@@ -120,7 +121,7 @@ class AutomationWorkflowHandler:
         return _get_published_workflow(workflow)
 
     def get_original_workflow(
-        self, workflow: AutomationWorkflow
+        self, workflow: AutomationWorkflow, is_test_run: bool = False
     ) -> Optional[AutomationWorkflow]:
         """
         Gets the original workflow related to the provided published
@@ -132,14 +133,15 @@ class AutomationWorkflowHandler:
 
         :param workflow: The published workflow for which the original version
             should be returned.
-        :raises AutomationWorkflowDoesNotExist: If the workflow doesn't exist.
+        :param is_test_run: True if the provided workflow is a test run,
+            False otherwise.
         :return: The original workflow, if it exists.
         """
 
-        if workflow.published:
-            return workflow.automation.published_from
-        elif workflow.allow_test_run_until:
+        if is_test_run or workflow.allow_test_run_until:
             return workflow
+        elif workflow.is_published:
+            return workflow.automation.published_from
         else:
             return None
 
@@ -229,13 +231,13 @@ class AutomationWorkflowHandler:
 
         allowed_values = extract_allowed(kwargs, self.allowed_fields)
 
-        # paused is a special value that should only be set on the
+        # The state is a special value that should only be set on the
         # published workflow, if available.
-        paused = allowed_values.pop("paused", None)
-        if paused is not None:
+        state = allowed_values.pop("state", None)
+        if state is not None:
             if published_workflow := self.get_published_workflow(workflow):
-                published_workflow.paused = paused
-                published_workflow.save(update_fields=["paused"])
+                published_workflow.state = WorkflowState(state)
+                published_workflow.save(update_fields=["state"])
 
         for key, value in allowed_values.items():
             setattr(workflow, key, value)
@@ -387,6 +389,7 @@ class AutomationWorkflowHandler:
             name=workflow.name,
             order=workflow.order,
             nodes=serialized_nodes,
+            state=workflow.state,
         )
 
     def _ops_count_for_import_workflow(
@@ -583,7 +586,7 @@ class AutomationWorkflowHandler:
             automation=automation,
             name=serialized_workflow["name"],
             order=serialized_workflow["order"],
-            published=serialized_workflow.get("published") or False,
+            state=serialized_workflow["state"] or WorkflowState.DRAFT,
         )
 
         id_mapping["automation_workflows"][
@@ -609,8 +612,8 @@ class AutomationWorkflowHandler:
 
         # Disable the last published workflow
         if published_workflow := published_automations[-1].workflows.first():
-            published_workflow.published = False
-            published_workflow.save(update_fields=["published"])
+            published_workflow.state = WorkflowState.DISABLED
+            published_workflow.save(update_fields=["state"])
 
     def publish(
         self,
@@ -654,9 +657,7 @@ class AutomationWorkflowHandler:
         )
 
         # Manually set the published status for the newly created workflow.
-        exported_automation["workflows"][0]["published"] = True
-        exported_automation["workflows"][0]["paused"] = False
-        exported_automation["workflows"][0]["disabled_on"] = None
+        exported_automation["workflows"][0]["state"] = WorkflowState.LIVE
 
         progress_builder = None
         if progress:
@@ -737,5 +738,5 @@ class AutomationWorkflowHandler:
             workflow_ids.add(original_workflow.id)
 
         AutomationWorkflow.objects.filter(id__in=workflow_ids).update(
-            disabled_on=timezone.now()
+            state=WorkflowState.DISABLED
         )

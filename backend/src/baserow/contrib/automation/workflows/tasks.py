@@ -27,7 +27,10 @@ def run_workflow(
 
     workflow_handler = AutomationWorkflowHandler()
     workflow = workflow_handler.get_workflow(workflow_id)
-    original_workflow = workflow.automation.published_from
+    original_workflow = workflow_handler.get_original_workflow(
+        workflow, is_test_run=is_test_run
+    )
+
     dispatch_context = AutomationDispatchContext(workflow, event_payload)
     history_handler = AutomationHistoryHandler()
 

@@ -3,6 +3,7 @@ from unittest.mock import patch
 import pytest
 
 from baserow.contrib.automation.history.models import AutomationWorkflowHistory
+from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.contrib.automation.workflows.tasks import run_workflow
 from baserow.core.services.exceptions import DispatchException
 
@@ -10,7 +11,9 @@ from baserow.core.services.exceptions import DispatchException
 @pytest.mark.django_db
 def test_run_workflow_success_creates_workflow_history(data_fixture):
     original_workflow = data_fixture.create_automation_workflow()
-    published_workflow = data_fixture.create_automation_workflow(published=True)
+    published_workflow = data_fixture.create_automation_workflow(
+        state=WorkflowState.LIVE
+    )
     published_workflow.automation.published_from = original_workflow
     published_workflow.automation.save()
     data_fixture.create_local_baserow_rows_created_trigger_node(
@@ -37,7 +40,9 @@ def test_run_workflow_success_creates_workflow_history(data_fixture):
 @patch("baserow.contrib.automation.workflows.tasks.AutomationWorkflowRunner.run")
 def test_run_workflow_dispatch_error_creates_workflow_history(mock_run, data_fixture):
     original_workflow = data_fixture.create_automation_workflow()
-    published_workflow = data_fixture.create_automation_workflow(published=True)
+    published_workflow = data_fixture.create_automation_workflow(
+        state=WorkflowState.LIVE
+    )
     published_workflow.automation.published_from = original_workflow
     published_workflow.automation.save()
     data_fixture.create_local_baserow_rows_created_trigger_node(
@@ -69,7 +74,9 @@ def test_run_workflow_unexpected_error_creates_workflow_history(
     mock_logger, mock_run, data_fixture
 ):
     original_workflow = data_fixture.create_automation_workflow()
-    published_workflow = data_fixture.create_automation_workflow(published=True)
+    published_workflow = data_fixture.create_automation_workflow(
+        state=WorkflowState.LIVE
+    )
     published_workflow.automation.published_from = original_workflow
     published_workflow.automation.save()
     data_fixture.create_local_baserow_rows_created_trigger_node(
@@ -111,7 +118,9 @@ def test_run_workflow_rate_limiting_disables_workflow(
     mock_is_rate_limited.return_value = True
 
     original_workflow = data_fixture.create_automation_workflow()
-    published_workflow = data_fixture.create_automation_workflow(published=True)
+    published_workflow = data_fixture.create_automation_workflow(
+        state=WorkflowState.LIVE
+    )
     published_workflow.automation.published_from = original_workflow
     published_workflow.automation.save()
     data_fixture.create_local_baserow_rows_created_trigger_node(
@@ -136,5 +145,5 @@ def test_run_workflow_rate_limiting_disables_workflow(
     original_workflow.refresh_from_db()
     published_workflow.refresh_from_db()
 
-    assert bool(original_workflow.disabled_on) is True
-    assert bool(published_workflow.disabled_on) is True
+    assert original_workflow.state == WorkflowState.DISABLED
+    assert published_workflow.state == WorkflowState.DISABLED

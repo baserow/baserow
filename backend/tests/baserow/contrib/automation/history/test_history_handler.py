@@ -4,6 +4,7 @@ import pytest
 
 from baserow.contrib.automation.history.handler import AutomationHistoryHandler
 from baserow.contrib.automation.history.models import AutomationWorkflowHistory
+from baserow.contrib.automation.workflows.constants import WorkflowState
 
 
 @pytest.mark.django_db
@@ -47,7 +48,9 @@ def test_get_workflow_history_returns_ordered_histories(data_fixture):
 @pytest.mark.django_db
 def test_create_workflow_history(data_fixture):
     original_workflow = data_fixture.create_automation_workflow()
-    published_workflow = data_fixture.create_automation_workflow(published=True)
+    published_workflow = data_fixture.create_automation_workflow(
+        state=WorkflowState.LIVE
+    )
     published_workflow.automation.published_from = original_workflow
     published_workflow.automation.save()
 

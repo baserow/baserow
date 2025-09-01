@@ -33,12 +33,11 @@ def test_automation_workflow_serializer_fields(workflow_fixture):
     assert sorted(serializer.data.keys()) == [
         "allow_test_run_until",
         "automation_id",
-        "disabled",
         "id",
         "name",
         "order",
-        "paused",
         "published_on",
+        "state",
     ]
 
 
@@ -57,4 +56,4 @@ def test_update_automation_workflow_serializer_fields(workflow_fixture):
 
     serializer = UpdateAutomationWorkflowSerializer(instance=workflow)
 
-    assert sorted(serializer.data.keys()) == ["name", "paused"]
+    assert sorted(serializer.data.keys()) == ["name", "state"]

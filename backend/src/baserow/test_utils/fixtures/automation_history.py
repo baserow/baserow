@@ -2,6 +2,7 @@ from django.utils import timezone
 
 from baserow.contrib.automation.history.constants import HistoryStatusChoices
 from baserow.contrib.automation.history.handler import AutomationHistoryHandler
+from baserow.contrib.automation.workflows.constants import WorkflowState
 
 
 class AutomationHistoryFixtures:
@@ -12,7 +13,7 @@ class AutomationHistoryFixtures:
         published_workflow = kwargs.pop("published_workflow", None)
         if published_workflow is None:
             published_workflow = self.create_automation_workflow(
-                user=user, published=True
+                user=user, state=WorkflowState.LIVE
             )
 
         original_workflow = kwargs.pop("original_workflow", None)

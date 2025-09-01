@@ -9,6 +9,7 @@ from freezegun import freeze_time
 
 from baserow.contrib.automation.models import AutomationWorkflow
 from baserow.contrib.automation.nodes.types import AutomationNodeDict
+from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.contrib.automation.workflows.exceptions import (
     AutomationWorkflowDoesNotExist,
     AutomationWorkflowNameNotUnique,
@@ -265,6 +266,7 @@ def test_import_workflow_only(data_fixture):
         "name": "new workflow",
         "id": 1,
         "order": 88,
+        "state": "draft",
     }
 
     id_mapping = {}
@@ -286,7 +288,11 @@ def test_export_prepared_values(data_fixture):
 
     result = AutomationWorkflowHandler().export_prepared_values(workflow)
 
-    assert result == {"name": "test", "allow_test_run_until": None, "paused": False}
+    assert result == {
+        "name": "test",
+        "allow_test_run_until": None,
+        "state": WorkflowState.DRAFT,
+    }
 
 
 def test_sort_serialized_nodes_by_priority():
@@ -317,16 +323,16 @@ def test_publish_returns_published_workflow(data_fixture):
     published_workflow = AutomationWorkflowHandler().publish(workflow)
 
     workflow.refresh_from_db()
+
+    assert workflow.is_published is True
     # Existing workflow shouldn't be affected
-    assert workflow.published is False
-    assert workflow.paused is False
+    assert workflow.state == WorkflowState.DRAFT
 
     assert published_workflow.automation.workspace is None
     assert published_workflow.automation.published_from == workflow
 
-    assert published_workflow.published is True
-    assert published_workflow.paused is False
-    assert published_workflow.disabled_on is None
+    assert published_workflow.is_published is True
+    assert published_workflow.state == WorkflowState.LIVE
 
 
 @pytest.mark.django_db
@@ -344,10 +350,10 @@ def test_publish_cleans_up_old_workflows(data_fixture):
 
     # The 3rd workflow should exist but in a disabled state
     published_3.refresh_from_db()
-    assert published_3.published is False
+    assert published_3.is_published is False
 
     # The latest published workflow should be active
-    assert published_4.published is True
+    assert published_4.is_published is True
 
 
 @pytest.mark.django_db
@@ -383,7 +389,7 @@ def test_get_published_workflow_returns_none(data_fixture):
         automation=automation,
         name="foo",
     )
-    workflow_2 = data_fixture.create_automation_workflow(
+    data_fixture.create_automation_workflow(
         automation=automation,
         name="bar",
     )
@@ -402,7 +408,7 @@ def test_get_published_workflow_returns_workflow(data_fixture):
         automation=automation,
         name="foo",
     )
-    workflow_2 = data_fixture.create_automation_workflow(
+    data_fixture.create_automation_workflow(
         automation=automation,
         name="bar",
     )
@@ -426,34 +432,36 @@ def test_update_workflow_correctly_pauses_published_workflow(data_fixture):
     handler = AutomationWorkflowHandler()
     published_workflow = handler.publish(workflow)
 
-    assert published_workflow.paused is False
+    assert published_workflow.state == WorkflowState.LIVE
 
-    # Let's pause the workflow. Note that we're passing in the actual
+    # Let's pause the workflow. Note that we're passing in the original
     # workflow, not the published one. This is because the published
     # workflow is a backend-specific implementation detail.
-    updated = handler.update_workflow(workflow, paused=True)
+    updated = handler.update_workflow(workflow, state=WorkflowState.PAUSED)
 
     assert updated.workflow == workflow
     assert updated.original_values == {
         "name": "foo",
         "allow_test_run_until": None,
-        "paused": False,
+        "state": WorkflowState.DRAFT,
     }
     assert updated.new_values == {
         "name": "foo",
         "allow_test_run_until": None,
         # The original workflow should indeed be unaffected
-        "paused": False,
+        "state": WorkflowState.DRAFT,
     }
 
     published_workflow.refresh_from_db()
-    assert published_workflow.paused is True
+    assert published_workflow.state == WorkflowState.PAUSED
 
 
 @pytest.mark.django_db
 def test_get_original_workflow_returns_original_workflow(data_fixture):
     original_workflow = data_fixture.create_automation_workflow()
-    published_workflow = data_fixture.create_automation_workflow(published=True)
+    published_workflow = data_fixture.create_automation_workflow(
+        state=WorkflowState.LIVE
+    )
     published_workflow.automation.published_from = original_workflow
     published_workflow.automation.save()
 
@@ -465,9 +473,14 @@ def test_get_original_workflow_returns_original_workflow(data_fixture):
 @pytest.mark.django_db
 def test_get_original_workflow_returns_same_workflow_if_test_run(data_fixture):
     original_workflow = data_fixture.create_automation_workflow(
-        published=False,
+        state=WorkflowState.DRAFT,
         allow_test_run_until=timezone.now(),
     )
+    published_workflow = data_fixture.create_automation_workflow(
+        state=WorkflowState.LIVE
+    )
+    published_workflow.automation.published_from = original_workflow
+    published_workflow.automation.save()
 
     workflow = AutomationWorkflowHandler().get_original_workflow(original_workflow)
 
@@ -488,7 +501,9 @@ def test_is_test_run_returns_true_if_workflow_test_run(data_fixture):
 @pytest.mark.django_db
 def test_is_test_run_returns_false_if_workflow_not_test_run(data_fixture):
     original_workflow = data_fixture.create_automation_workflow()
-    published_workflow = data_fixture.create_automation_workflow(published=True)
+    published_workflow = data_fixture.create_automation_workflow(
+        state=WorkflowState.LIVE
+    )
     published_workflow.automation.published_from = original_workflow
     published_workflow.automation.save()
 
@@ -583,13 +598,15 @@ def test_disable_workflow_disables_original_workflow(data_fixture):
         AutomationWorkflowHandler().disable_workflow(original_workflow)
 
     original_workflow.refresh_from_db()
-    assert str(original_workflow.disabled_on) == now_str
+    assert original_workflow.state == WorkflowState.DISABLED
 
 
 @pytest.mark.django_db
 def test_disable_workflow_disables_published_workflow(data_fixture):
     original_workflow = data_fixture.create_automation_workflow()
-    published_workflow = data_fixture.create_automation_workflow(published=True)
+    published_workflow = data_fixture.create_automation_workflow(
+        state=WorkflowState.LIVE
+    )
     published_workflow.automation.published_from = original_workflow
     published_workflow.automation.save()
 
@@ -601,5 +618,5 @@ def test_disable_workflow_disables_published_workflow(data_fixture):
     original_workflow.refresh_from_db()
 
     # Ensure both published and original workflows are disabled
-    assert str(published_workflow.disabled_on) == now_str
-    assert str(original_workflow.disabled_on) == now_str
+    assert published_workflow.state == WorkflowState.DISABLED
+    assert original_workflow.state == WorkflowState.DISABLED

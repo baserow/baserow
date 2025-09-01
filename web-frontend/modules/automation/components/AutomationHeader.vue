@@ -45,7 +45,7 @@
           }}</Badge>
         </template>
         <template v-else>
-          <Badge v-if="workflow?.disabled" color="red" rounded size="small">{{
+          <Badge v-if="isDisabled" color="red" rounded size="small">{{
             $t('automationHeader.switchLabelDisabled')
           }}</Badge>
           <Badge v-else-if="isPaused" color="red" rounded size="small">{{
@@ -58,7 +58,7 @@
         <SwitchInput
           small
           :value="statusSwitch"
-          :disabled="workflow?.disabled || !publishedOn"
+          :disabled="isDisabled || !publishedOn"
           @input="toggleStatusSwitch"
         ></SwitchInput>
       </span>
@@ -161,11 +161,15 @@ export default defineComponent({
     })
 
     const statusSwitch = computed(() => {
-      return (publishedOn.value && !workflow.value?.paused) || false
+      return (publishedOn.value && !workflow.value?.state === 'paused') || false
     })
 
     const isPaused = computed(() => {
-      return publishedOn.value && workflow.value?.paused
+      return publishedOn.value && workflow.value?.state === 'paused'
+    })
+
+    const isDisabled = computed(() => {
+      return workflow.value?.state === 'disabled'
     })
 
     const activeSidePanel = computed(() => {
@@ -184,19 +188,20 @@ export default defineComponent({
     }
 
     const toggleStatusSwitch = async () => {
-      const oldValue = workflow.value.paused
-      workflow.value.paused = !oldValue
+      const oldValue = workflow.value.state
+      const newValue = oldValue === 'paused' ? 'live' : 'paused'
+      workflow.value.state = newValue
 
       try {
         await store.dispatch('automationWorkflow/update', {
           automation: props.automation,
           workflow: workflow.value,
           values: {
-            paused: workflow.value.paused,
+            state: workflow.value.state,
           },
         })
       } catch (error) {
-        workflow.value.paused = oldValue
+        workflow.value.state = oldValue
         notifyIf(error, 'automationWorkflow')
       }
     }
@@ -219,19 +224,15 @@ export default defineComponent({
 
     const publishWorkflow = async () => {
       isPublishing.value = true
-
-      const originalPaused = workflow.value.paused
-      const originalDisabled = workflow.value.disabled
+      const originalState = workflow.value.state
 
       try {
-        workflow.value.paused = false
-        workflow.value.disabled = false
         await store.dispatch('automationWorkflow/publishWorkflow', {
           workflow: workflow.value,
         })
+        workflow.value.state = 'live'
       } catch (error) {
-        workflow.value.paused = originalPaused
-        workflow.value.disabled = originalDisabled
+        workflow.value.state = originalState
         notifyIf(error, 'automationWorkflow')
       }
       isPublishing.value = false
@@ -251,6 +252,7 @@ export default defineComponent({
       publishedOn,
       isPublishing,
       isPaused,
+      isDisabled,
       selectedWorkflow,
       workflow,
       activeSidePanel,

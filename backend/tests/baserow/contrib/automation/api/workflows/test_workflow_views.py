@@ -51,8 +51,7 @@ def test_create_workflow(api_client, data_fixture):
         "id": AnyInt(),
         "name": name,
         "order": AnyInt(),
-        "disabled": False,
-        "paused": False,
+        "state": "draft",
         "published_on": None,
     }
 
@@ -138,8 +137,7 @@ def test_read_workflow(api_client, data_fixture):
         "name": workflow.name,
         "automation_id": automation.id,
         "allow_test_run_until": None,
-        "disabled": False,
-        "paused": False,
+        "state": "draft",
         "published_on": None,
     }
 
@@ -361,8 +359,7 @@ def test_duplicate_workflow(api_client, data_fixture):
             "id": workflow.id,
             "name": "test",
             "order": AnyInt(),
-            "disabled": False,
-            "paused": False,
+            "state": "draft",
             "published_on": None,
         },
         "progress_percentage": 0,
@@ -477,7 +474,7 @@ def test_run_workflow_in_test_mode(api_client, data_fixture):
     )
     workflow.refresh_from_db()
     assert workflow.allow_test_run_until is not None
-    assert workflow.published is False
+    assert workflow.is_published is False
 
     # Insert a row to cause the trigger node to run
     row_handler = RowHandler()

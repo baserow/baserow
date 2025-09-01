@@ -2,8 +2,6 @@ import json
 import uuid
 from unittest.mock import MagicMock, patch
 
-from django.utils import timezone
-
 import pytest
 
 from baserow.contrib.automation.automation_dispatch_context import (
@@ -11,6 +9,7 @@ from baserow.contrib.automation.automation_dispatch_context import (
 )
 from baserow.contrib.automation.nodes.node_types import AutomationNodeTriggerType
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
+from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.core.exceptions import InstanceTypeDoesNotExist
 from baserow.core.utils import MirrorDict
 
@@ -38,7 +37,7 @@ def test_automation_service_node_trigger_type_on_event(mock_run_workflow, data_f
         table=table,
     )
     original_workflow = data_fixture.create_automation_workflow()
-    workflow = data_fixture.create_automation_workflow(published=True)
+    workflow = data_fixture.create_automation_workflow(state=WorkflowState.LIVE)
     workflow.automation.published_from = original_workflow
     workflow.automation.save()
     node = data_fixture.create_local_baserow_rows_created_trigger_node(
@@ -284,8 +283,7 @@ def test_on_event_excludes_disabled_workflows(mock_run_workflow, data_fixture):
     # Create a Node + workflow that is disabled
     original_workflow = data_fixture.create_automation_workflow()
     workflow = data_fixture.create_automation_workflow(
-        published=True,
-        disabled_on=timezone.now(),
+        state=WorkflowState.DISABLED,
     )
     workflow.automation.published_from = original_workflow
     workflow.automation.save()
