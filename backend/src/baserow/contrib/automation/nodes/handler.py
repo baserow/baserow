@@ -543,7 +543,7 @@ class AutomationNodeHandler:
         if `re_test=True` the sample data will be re-generated and the cache
         will be updated.
 
-        :param nodes: List of AutomationNode instances.
+        :param node: The node to simulate the dispatch for.
         :param re_test: Whether to ignore existing sample data and force a
             real dispatch.
         :return: None.

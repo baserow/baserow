@@ -39,8 +39,9 @@ class AutomationWorkflowRunner:
             dispatch_context.after_dispatch(node, dispatch_result)
 
             # Return early if this is a simulated dispatch
-            if getattr(dispatch_context, "simulate_until_node", None) == node:
-                return
+            if until_node := getattr(dispatch_context, "simulate_until_node", None):
+                if until_node.id == node.id:
+                    return
 
             next_nodes = node.get_next_nodes(dispatch_result.output_uid)
 
@@ -48,7 +49,9 @@ class AutomationWorkflowRunner:
                 self.dispatch_node(next_node, dispatch_context)
 
         except ServiceImproperlyConfiguredDispatchException as e:
-            raise AutomationNodeMisconfiguredService(node.id) from e
+            raise AutomationNodeMisconfiguredService(
+                f"The node {node.id} has a misconfigured service."
+            ) from e
 
     def run(
         self,

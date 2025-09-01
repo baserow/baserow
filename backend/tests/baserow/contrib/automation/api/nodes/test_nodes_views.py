@@ -677,6 +677,7 @@ def test_create_router_node(api_client, data_fixture):
         "previous_node_id": trigger.id,
         "previous_node_output": "",
         "service": {
+            "sample_data": None,
             "context_data": None,
             "context_data_schema": None,
             "default_edge_label": "",
@@ -710,6 +711,7 @@ def test_create_router_node(api_client, data_fixture):
             "type": "router",
         },
         "type": "router",
+        "simulate_dispatch_trigger": False,
         "workflow": workflow.id,
     }
 

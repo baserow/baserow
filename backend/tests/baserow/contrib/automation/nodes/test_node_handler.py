@@ -388,16 +388,27 @@ def test_simulate_dispatch_node_trigger(mock_run, data_fixture):
 
 def create_action_node(data_fixture):
     user, _ = data_fixture.create_user_and_token()
-    node = data_fixture.create_automation_node(user=user)
+    workspace = data_fixture.create_workspace(user=user)
+    automation = data_fixture.create_automation_application(
+        user=user, workspace=workspace
+    )
+    workflow = data_fixture.create_automation_workflow(user=user, automation=automation)
+    integration = data_fixture.create_local_baserow_integration(
+        user=user, application=automation
+    )
 
+    node = data_fixture.create_automation_node(user=user, workflow=workflow)
+
+    database = data_fixture.create_database_application(user=user, workspace=workspace)
     table, fields, _ = data_fixture.build_table(
         user=user,
+        database=database,
         columns=[("Name", "text")],
         rows=[],
     )
     action_service = data_fixture.create_local_baserow_upsert_row_service(
         table=table,
-        integration=data_fixture.create_local_baserow_integration(user=user),
+        integration=integration,
     )
     action_service.field_mappings.create(
         field=fields[0],
@@ -495,6 +506,7 @@ def test_simulate_dispatch_node_action_with_simulate_until_node(data_fixture):
         workflow=action_node_1.workflow,
         type="create_row",
     )
+
     action_node_3 = data_fixture.create_automation_node(
         workflow=action_node_1.workflow,
         type="create_row",
