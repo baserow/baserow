@@ -192,6 +192,10 @@ export default defineComponent({
         nodeId: parseInt(nodeId),
         newType,
       })
+
+      await store.dispatch('automationWorkflowNode/fetchNodesAndSelect', {
+        workflow: workflow.value,
+      })
     }
 
     const activeSidePanel = computed(() => {

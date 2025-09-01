@@ -521,3 +521,12 @@ class AutomationNodeHandler:
             AutomationWorkflowRunner().run(node.workflow, dispatch_context)
         except AutomationNodeError as e:
             raise AutomationNodeSimulateDispatchError(str(e))
+
+    def reset_sample_data(self, nodes: List[AutomationNode]) -> None:
+        services_to_update = []
+        for node in nodes:
+            if node.service.sample_data is not None:
+                node.service.sample_data = None
+                services_to_update.append(node.service)
+
+        Service.objects.bulk_update(services_to_update, ["sample_data"])

@@ -315,9 +315,8 @@ const actions = {
         values: { previous_node_id: newNode.id },
       })
     }
-    setTimeout(() => {
-      dispatch('select', { workflow, node: newNode })
-    })
+
+    await dispatch('select', { workflow, node: newNode })
   },
   async order({ commit }, { workflow, order, oldOrder }) {
     commit('ORDER_ITEMS', { workflow, order })
@@ -344,6 +343,15 @@ const actions = {
       nodeId,
       reTest
     )
+  },
+  async fetchNodesAndSelect({ dispatch, getters }, { workflow }) {
+    const currentSelectedNodeId = workflow.selectedNodeId
+    await dispatch('fetch', { workflow })
+    workflow.value = { ...workflow.value }
+
+    // restore the selected node after refreshing the nodes
+    const node = getters.findById(workflow, currentSelectedNodeId)
+    await dispatch('select', { workflow, node })
   },
 }
 
