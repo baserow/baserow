@@ -105,7 +105,7 @@ export default {
       return this.$registry.get('element', this.element.type)
     },
     elementClasses() {
-      return this.element.css_classes.replace('"', '')
+      return this.element.css_classes.replaceAll('"', '')
     },
     isVisible() {
       const elementType = this.$registry.get('element', this.element.type)
