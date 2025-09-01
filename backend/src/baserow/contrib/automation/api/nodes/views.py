@@ -22,6 +22,7 @@ from baserow.contrib.automation.api.nodes.errors import (
     ERROR_AUTOMATION_NODE_NOT_DELETABLE,
     ERROR_AUTOMATION_NODE_NOT_IN_WORKFLOW,
     ERROR_AUTOMATION_NODE_NOT_REPLACEABLE,
+    ERROR_AUTOMATION_NODE_SIMULATE_DISPATCH,
     ERROR_AUTOMATION_TRIGGER_NODE_MODIFICATION_DISALLOWED,
 )
 from baserow.contrib.automation.api.nodes.serializers import (
@@ -29,6 +30,7 @@ from baserow.contrib.automation.api.nodes.serializers import (
     CreateAutomationNodeSerializer,
     OrderAutomationNodesSerializer,
     ReplaceAutomationNodeSerializer,
+    SimulateDispatchNodeSerializer,
     UpdateAutomationNodeSerializer,
 )
 from baserow.contrib.automation.api.workflows.errors import (
@@ -49,6 +51,7 @@ from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeNotDeletable,
     AutomationNodeNotInWorkflow,
     AutomationNodeNotReplaceable,
+    AutomationNodeSimulateDispatchError,
     AutomationTriggerModificationDisallowed,
 )
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
@@ -394,3 +397,42 @@ class ReplaceAutomationNodeView(APIView):
                 replaced_node, AutomationNodeSerializer
             ).data
         )
+
+
+class SimulateDispatchAutomationNodeView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="node_id",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.INT,
+                description="The node to simulate the dispatch for.",
+            ),
+            CLIENT_SESSION_ID_SCHEMA_PARAMETER,
+        ],
+        tags=[AUTOMATION_NODES_TAG],
+        operation_id="simulate_dispatch_automation_node",
+        description="Simulate a dispatch for a node.",
+        request=SimulateDispatchNodeSerializer,
+        responses={
+            204: None,
+            400: get_error_schema(["ERROR_AUTOMATION_NODE_SIMULATE_DISPATCH"]),
+            404: get_error_schema(["ERROR_AUTOMATION_NODE_DOES_NOT_EXIST"]),
+        },
+    )
+    @transaction.atomic
+    @map_exceptions(
+        {
+            AutomationNodeDoesNotExist: ERROR_AUTOMATION_NODE_DOES_NOT_EXIST,
+            AutomationNodeSimulateDispatchError: ERROR_AUTOMATION_NODE_SIMULATE_DISPATCH,
+        }
+    )
+    @validate_body(SimulateDispatchNodeSerializer)
+    def post(self, request, data, node_id: int):
+        AutomationNodeService().simulate_dispatch_node(
+            request.user, node_id, data["re_test"]
+        )
+
+        return Response(status=204)
