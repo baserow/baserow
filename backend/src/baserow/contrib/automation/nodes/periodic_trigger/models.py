@@ -29,7 +29,8 @@ class PeriodicTriggerService(Service):
     interval = models.CharField(
         max_length=10,
         choices=PERIODIC_INTERVAL_CHOICES,
-        default=PERIODIC_INTERVAL_MINUTE,
+        null=True,
+        default=None,
         help_text="The interval frequency for triggering the workflow.",
     )
     minute = models.PositiveSmallIntegerField(

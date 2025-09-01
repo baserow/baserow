@@ -111,7 +111,8 @@
   "serviceType": {
     "periodicTrigger": "Periodic trigger",
     "periodicTriggerDescription": "Triggers the workflow on a periodic basis at specified intervals",
-    "periodicTriggerTriggeredAt": "Triggered at"
+    "periodicTriggerTriggeredAt": "Triggered at",
+    "errorIntervalMissing": "An interval is required."
   },
   "periodicTriggerServiceForm": {
     "intervalLabel": "Interval",

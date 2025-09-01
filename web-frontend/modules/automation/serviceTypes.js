@@ -27,7 +27,10 @@ export class PeriodicTriggerServiceType extends TriggerServiceTypeMixin(
     return service.schema
   }
 
-  isInError() {
-    return false
+  getErrorMessage({ service }) {
+    if (!service.interval) {
+      return this.app.i18n.t('serviceType.errorIntervalMissing')
+    }
+    return super.getErrorMessage({ service })
   }
 }
