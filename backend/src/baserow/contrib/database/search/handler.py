@@ -864,9 +864,13 @@ class SearchHandler(
             .order_by()
             .values_list("id", flat=True)
         )
-        full_field_updates = PendingSearchValueUpdate.objects.filter(
-            field_id__in=table_field_ids, row_id=None
-        ).values_list("field_id", flat=True)
+        full_field_updates = (
+            PendingSearchValueUpdate.objects.filter(
+                field_id__in=table_field_ids, row_id=None
+            )
+            .order_by("-updated_on")
+            .values_list("field_id", flat=True)
+        )
 
         # Balance between query efficiency and cpu-usage for complex search expressions.
         fields_batch_size = 3
@@ -891,7 +895,7 @@ class SearchHandler(
         def _fetch_next_batch() -> QuerySet[PendingSearchValueUpdate]:
             return PendingSearchValueUpdate.objects.filter(
                 field_id__in=table_field_ids, row_id__isnull=False
-            )
+            ).order_by("-updated_on")
 
         # Now handle single-cells updates, grouping them for efficiency
         last = False

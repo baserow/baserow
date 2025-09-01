@@ -52,12 +52,17 @@ class PendingSearchValueUpdate(models.Model):
         # Avoid duplicate entries for the same field and row.
         unique_together = [("field_id", "row_id")]
 
-        # Speed up deletion of pending updates
         indexes = [
+            # Speed up deletion of pending updates
             models.Index(
                 fields=["deletion_workspace_id", "field_id", "row_id"],
                 name="pendingsearchvaluedeletion_idx",
                 condition=models.Q(deletion_workspace_id__isnull=False),
+            ),
+            # Speed up selecting the latest values for update.
+            models.Index(
+                name="pendingsearchvaluedeletion_ord",
+                fields=["-updated_on"],
             ),
         ]
 
