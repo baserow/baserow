@@ -1,4 +1,7 @@
+from datetime import timedelta
+
 from django.urls import reverse
+from django.utils import timezone
 
 import pytest
 from rest_framework.status import (
@@ -10,6 +13,7 @@ from rest_framework.status import (
 
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
+from baserow.contrib.database.rows.signals import rows_created
 from baserow.test_utils.helpers import AnyDict, AnyInt, AnyStr
 from tests.baserow.contrib.automation.api.utils import get_api_kwargs
 
@@ -19,6 +23,7 @@ API_URL_ITEM = f"{API_URL_BASE}:item"
 API_URL_ORDER = f"{API_URL_BASE}:order"
 API_URL_DUPLICATE = f"{API_URL_BASE}:duplicate"
 API_URL_REPLACE = f"{API_URL_BASE}:replace"
+API_URL_SIMULATE_DISPATCH = f"{API_URL_BASE}:simulate_dispatch"
 API_URL_UNDO = "api:user:undo"
 API_URL_REDO = "api:user:redo"
 
@@ -831,4 +836,213 @@ def test_replacing_router_node_with_output_nodes_disallowed(api_client, data_fix
         "error": "ERROR_AUTOMATION_NODE_NOT_REPLACEABLE",
         "detail": "Router nodes cannot be replaced if they "
         "have one or more output nodes associated with them.",
+    }
+
+
+@pytest.mark.django_db
+def test_updating_router_node_removing_edge_without_output_allowed(
+    api_client,
+    data_fixture,
+):
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    service = data_fixture.create_core_router_service(default_edge_label="Default")
+    router = data_fixture.create_core_router_action_node(
+        workflow=workflow, service=service
+    )
+    first_edge = data_fixture.create_core_router_service_edge(
+        service=service, label="Do this", condition="'true'"
+    )
+    AutomationNode.objects.filter(previous_node_output=first_edge.uid).delete()
+    second_edge = data_fixture.create_core_router_service_edge(
+        service=service, label="Do that", condition="'true'"
+    )
+    response = api_client.patch(
+        reverse(API_URL_ITEM, kwargs={"node_id": router.id}),
+        {
+            "service": {
+                "type": "router",
+                "edges": [
+                    {
+                        "uid": second_edge.uid,
+                        "label": second_edge.label,
+                        "condition": second_edge.condition,
+                    }
+                ],
+            },
+            "type": "router",
+        },
+        **get_api_kwargs(token),
+    )
+    assert response.status_code == HTTP_200_OK
+    response_json = response.json()
+    assert response_json["service"]["edges"] == [
+        {
+            "uid": str(second_edge.uid),
+            "label": second_edge.label,
+            "order": "0.00000000000000000000",
+            "condition": second_edge.condition,
+        }
+    ]
+
+
+@pytest.mark.django_db
+def test_simulate_dispatch_invalid_node(api_client, data_fixture):
+    _, token = data_fixture.create_user_and_token()
+
+    api_kwargs = get_api_kwargs(token)
+    update_url = reverse(API_URL_SIMULATE_DISPATCH, kwargs={"node_id": 100})
+    payload = {"re_test": False}
+    response = api_client.post(update_url, payload, **api_kwargs)
+
+    assert response.status_code == HTTP_404_NOT_FOUND
+    assert response.json() == {
+        "detail": "The requested node does not exist.",
+        "error": "ERROR_AUTOMATION_NODE_DOES_NOT_EXIST",
+    }
+
+
+@pytest.mark.django_db
+def test_simulate_dispatch_error_service_not_configured(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    _ = data_fixture.create_local_baserow_rows_created_trigger_node(user=user)
+    node = data_fixture.create_local_baserow_create_row_action_node(
+        user=user, workflow=_.workflow
+    )
+
+    api_kwargs = get_api_kwargs(token)
+    update_url = reverse(API_URL_SIMULATE_DISPATCH, kwargs={"node_id": node.id})
+    payload = {"re_test": False}
+    response = api_client.post(update_url, payload, **api_kwargs)
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "detail": f"Failed to simulate dispatch: The node {node.id} has a misconfigured service.",
+        "error": "ERROR_AUTOMATION_NODE_SIMULATE_DISPATCH",
+    }
+
+
+@pytest.mark.django_db(transaction=True)
+def test_simulate_dispatch_trigger_node(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user=user)
+
+    # Create a trigger node with service
+    table, fields, _ = data_fixture.build_table(
+        user=user,
+        columns=[("Name", "text")],
+        rows=[["Blueberry Muffin"]],
+    )
+
+    trigger_service = data_fixture.create_local_baserow_rows_created_service(
+        table=table,
+        integration=data_fixture.create_local_baserow_integration(user=user),
+    )
+    trigger_node = data_fixture.create_automation_node(
+        user=user, workflow=workflow, type="rows_created", service=trigger_service
+    )
+
+    # Initially, the sample_data should be empty
+    assert trigger_node.service.sample_data is None
+    assert trigger_node.simulate_dispatch is False
+
+    api_kwargs = get_api_kwargs(token)
+    update_url = reverse(API_URL_SIMULATE_DISPATCH, kwargs={"node_id": trigger_node.id})
+    payload = {"re_test": False}
+    response = api_client.post(update_url, payload, **api_kwargs)
+
+    assert response.status_code == HTTP_204_NO_CONTENT
+
+    trigger_node.refresh_from_db()
+    assert trigger_node.simulate_dispatch is True
+    # Sample data should still be empty, since the trigger hasn't fired yet.
+    assert trigger_node.service.sample_data is None
+
+    workflow.allow_test_run_until = timezone.now() + timedelta(seconds=10)
+    workflow.save()
+
+    row = table.get_model().objects.first()
+    rows_created.send(
+        None,
+        rows=[row],
+        table=table,
+        model=table.get_model(),
+        before=None,
+        user=None,
+        fields=[],
+        dependant_fields=[],
+    )
+
+    trigger_node.refresh_from_db()
+    assert trigger_node.simulate_dispatch is False
+    # Having dispatched the trigger, the sample_data should be populated
+    assert trigger_node.service.sample_data == [
+        {
+            f"field_{fields[0].id}": "Blueberry Muffin",
+            "id": row.id,
+            "order": str(row.order),
+        }
+    ]
+
+
+@pytest.mark.django_db
+def test_simulate_dispatch_action_node(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user=user)
+
+    # Create a trigger node with service
+    table_1, _, _ = data_fixture.build_table(
+        user=user,
+        columns=[("Name", "text")],
+        rows=[["Pumpkin pie"]],
+    )
+
+    trigger_service = data_fixture.create_local_baserow_rows_created_service(
+        table=table_1,
+        integration=data_fixture.create_local_baserow_integration(user=user),
+    )
+    data_fixture.create_automation_node(
+        user=user, workflow=workflow, type="rows_created", service=trigger_service
+    )
+
+    # Create an action node with service
+    table_2, fields_2, _ = data_fixture.build_table(
+        user=user,
+        columns=[("Name", "text")],
+        rows=[],
+    )
+
+    action_service = data_fixture.create_local_baserow_upsert_row_service(
+        table=table_2,
+        integration=data_fixture.create_local_baserow_integration(user=user),
+    )
+    action_service.field_mappings.create(
+        field=fields_2[0],
+        value="'A new row'",
+    )
+    action_node = data_fixture.create_automation_node(
+        user=user,
+        workflow=workflow,
+        type="create_row",
+        service=action_service,
+    )
+
+    # Initially, the sample_data should be empty
+    assert action_node.service.sample_data is None
+
+    api_kwargs = get_api_kwargs(token)
+    update_url = reverse(API_URL_SIMULATE_DISPATCH, kwargs={"node_id": action_node.id})
+    payload = {"re_test": False}
+    response = api_client.post(update_url, payload, **api_kwargs)
+
+    assert response.status_code == HTTP_204_NO_CONTENT
+
+    action_node.refresh_from_db()
+    row = table_2.get_model().objects.first()
+
+    # Having dispatched the action, the sample_data should be populated
+    assert action_node.service.sample_data == {
+        f"field_{fields_2[0].id}": "A new row",
+        "id": row.id,
+        "order": AnyStr(),
     }
