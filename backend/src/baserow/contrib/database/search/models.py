@@ -59,10 +59,15 @@ class PendingSearchValueUpdate(models.Model):
                 name="pendingsearchvaluedeletion_idx",
                 condition=models.Q(deletion_workspace_id__isnull=False),
             ),
-            # Speed up selecting the latest values for update.
+            # This speeds up `field_id__in=[... many field IDS...]`.
             models.Index(
                 name="pendingsearchvaluedeletion_ord",
                 fields=["-updated_on"],
+            ),
+            # This speeds up `field_id__in=[... few field IDS...]`.
+            models.Index(
+                name="pendingsearchvaluedeletion_frd",
+                fields=["field_id", "-updated_on"],
             ),
         ]
 
