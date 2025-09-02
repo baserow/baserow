@@ -20,6 +20,7 @@ from baserow.api.pagination import LimitOffsetPagination
 from baserow.api.schemas import get_error_schema
 from baserow.api.serializers import get_example_pagination_serializer_class
 from baserow.core.exceptions import UserNotInWorkspace, WorkspaceDoesNotExist
+from baserow.core.feature_flags import FF_AI_ASSISTANT, feature_flag_is_enabled
 from baserow.core.handler import CoreHandler
 from baserow.core.service import CoreService
 from baserow_enterprise.ai_assistant.exceptions import AiAssistantChatDoesNotExist
@@ -62,6 +63,8 @@ class AiAssistantChatsView(APIView):
         }
     )
     def get(self, request: Request, query_params) -> Response:
+        feature_flag_is_enabled(FF_AI_ASSISTANT, raise_if_disabled=True)
+
         workspace_id = query_params["workspace_id"]
         workspace = CoreService().get_workspace(request.user, workspace_id)
 
@@ -116,6 +119,8 @@ class AiAssistantChatView(APIView):
     )
     @transaction.atomic
     def post(self, request: Request, chat_uuid: str, data) -> StreamingHttpResponse:
+        feature_flag_is_enabled(FF_AI_ASSISTANT, raise_if_disabled=True)
+
         ui_context = data["ui_context"]
         workspace_id = ui_context["workspace"]["id"]
         workspace = CoreService().get_workspace(request.user, workspace_id)
@@ -171,6 +176,8 @@ class AiAssistantChatView(APIView):
         }
     )
     def get(self, request: Request, chat_uuid: str) -> Response:
+        feature_flag_is_enabled(FF_AI_ASSISTANT, raise_if_disabled=True)
+
         handler = AiAssistantHandler()
         chat = handler.get_chat(request.user, chat_uuid)
 

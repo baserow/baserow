@@ -12,6 +12,7 @@ import { DatabaseApplicationType } from '@baserow/modules/database/applicationTy
 import ExportWorkspaceModalWarning from '@baserow_enterprise/components/ExportWorkspaceModalWarning'
 import AiAssistantSidebarItem from '@baserow_enterprise/components/aiAssistant/AiAssistantSidebarItem'
 import AiAssistantPanel from '@baserow_enterprise/components/aiAssistant/AiAssistantPanel'
+import { FF_AI_ASSISTANT } from '@baserow/modules/core/plugins/featureFlags'
 
 export class EnterprisePlugin extends BaserowPlugin {
   static getType() {
@@ -20,7 +21,9 @@ export class EnterprisePlugin extends BaserowPlugin {
 
   getSidebarWorkspaceComponents(workspace) {
     const sidebarItems = []
-    sidebarItems.push(AiAssistantSidebarItem)
+    if (this.app.$featureFlagIsEnabled(FF_AI_ASSISTANT)) {
+      sidebarItems.push(AiAssistantSidebarItem)
+    }
     if (!this.app.$config.BASEROW_DISABLE_SUPPORT) {
       sidebarItems.push(ChatwootSupportSidebarWorkspace)
     }
@@ -46,7 +49,9 @@ export class EnterprisePlugin extends BaserowPlugin {
 
   getRightSidebarWorkspaceComponents(workspace) {
     const rightSidebarItems = []
-    rightSidebarItems.push(AiAssistantPanel)
+    if (this.app.$featureFlagIsEnabled(FF_AI_ASSISTANT)) {
+      rightSidebarItems.push(AiAssistantPanel)
+    }
     return rightSidebarItems
   }
 
