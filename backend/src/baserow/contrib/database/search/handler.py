@@ -708,7 +708,7 @@ class SearchHandler(
             # exist`. In that case, the pending search updates must be deleted so
             # that the error doesn't happen again and the pending items do not remain
             # in the pendingsearchvalueupdate table. We're therefore not doing anything.
-            if "does not exist" in str(e):
+            if isinstance(e.__cause__, errors.UndefinedTable):
                 pass
             else:
                 raise e
