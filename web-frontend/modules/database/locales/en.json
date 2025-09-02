@@ -471,7 +471,10 @@
     "filePreview": "File content preview",
     "importPreview": "Import preview",
     "useUpsertField": "Update rows if they already exist",
-    "upsertTooltip": "Match existing rows using a unique field to overwrite data with imported values."
+    "upsertTooltip": "Match existing rows using a unique field to overwrite data with imported values.",
+    "stateRowCreation": "Importing...",
+    "statePreValidation": "Validating data...",
+    "stateCreateTable": "Creating table..."
   },
   "formulaAdvancedEditContext": {
     "textAreaFormulaInputPlaceholder": "Click to edit the formula",

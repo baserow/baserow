@@ -42,7 +42,9 @@
       />
       <WorkflowNodeContext
         :ref="`nodeContext-${slotProps.id}`"
-        @change="createNode($event, slotProps.data.nodeId)"
+        @change="
+          createNode($event, slotProps.data.nodeId, slotProps.data.outputUid)
+        "
       ></WorkflowNodeContext>
     </template>
 
@@ -68,8 +70,9 @@ import {
   useContext,
   nextTick,
   getCurrentInstance,
+  useStore,
 } from '@nuxtjs/composition-api'
-import { uuid } from '@baserow/modules/core/utils/string'
+import _ from 'lodash'
 import WorkflowNode from '@baserow/modules/automation/components/workflow/WorkflowNode'
 import WorkflowAddBtnNode from '@baserow/modules/automation/components/workflow/WorkflowAddBtnNode'
 import WorkflowEdge from '@baserow/modules/automation/components/workflow/WorkflowEdge'
@@ -101,19 +104,27 @@ const { value: selectedNodeId } = toRefs(props)
 
 const { app } = useContext()
 
-const nodesDraggable = ref(false)
+const nodesDraggable = ref(true)
 const zoomOnScroll = ref(false)
 const panOnScroll = ref(true)
 const zoomOnDoubleClick = ref(false)
 
+const workflowDebug = inject('workflowDebug')
 const workflowReadOnly = inject('workflowReadOnly')
 
-// Constants for positioning
-const NODE_VERTICAL_SPACING = 144 // Vertical distance between the tops of consecutive data nodes
-const ADD_BUTTON_OFFSET_Y = 92 // Vertical offset of add button relative to the data node above it
-const INITIAL_Y_POS = 0
-const DATA_NODE_X_POS = 0
-const ADD_BUTTON_X_POS = 190
+// Constants for dimensions and positioning
+const DATA_NODE_HEIGHT = 72 // How tall is a node?
+const DATA_NODE_WIDTH = 412 // How wide is a node?
+const DATA_NODE_MIDDLE = DATA_NODE_WIDTH / 2 // The middle of a node.
+
+const NODE_PADDING = 30 // Padding between node edges
+
+const ADD_BUTTON_WIDTH = 32 // The width of the add button
+const ADD_BUTTON_MIDDLE = ADD_BUTTON_WIDTH / 2 // The middle of the add button
+
+const EDGE_HEIGHT = 100 // The height an edge occupies
+const EDGE_WITHOUT_OUTPUT_NODE_WIDTH = 100 // The width of an edge when there is no output node
+const EDGE_WITHOUT_OUTPUT_NODE_INPUT = EDGE_WITHOUT_OUTPUT_NODE_WIDTH / 2 // The height of an edge when there is no output node
 
 watch(
   selectedNodeId,
@@ -124,6 +135,231 @@ watch(
 )
 
 /**
+ * Recursively calculates the dimensions of a node and its edges. An object is
+ * returned where each key is a node ID and the value is an object containing
+ * the dimensions of that node, including its width, height, input position,
+ * (left) output position, and the dimensions of its edges.
+ * @param node - The node for which to calculate dimensions.
+ * @returns {object} - An object containing the dimensions of the node and its edges.
+ */
+const calculateNodeDimensions = (node) => {
+  // We start by getting this node's type, and then fetching the one or more
+  // nodes which follow `node` in the workflow, we'll use them to recursively
+  // compute their dimensions.
+  const nodeType = app.$registry.get('node', node.type)
+  const nextNodes = store.getters['automationWorkflowNode/getNextNodes'](
+    workflow.value,
+    node
+  )
+
+  // Map over each next node, and calculate their dimensions.
+  const nextNodeDimensions = Object.assign(
+    {},
+    ...nextNodes.map((nextNode) => calculateNodeDimensions(nextNode))
+  )
+
+  // We now have an object containing all the next node dimensions, but we
+  // don't yet have the dimensions of the edge. We do that now by finding
+  // the edges associated with this node.
+  const nodeEdges = nodeType.getEdges({ node })
+  const edgeDimensions = Object.assign(
+    {},
+    ...nodeEdges.map((edge) => {
+      // Get all the next nodes after `node` which are connected to this edge.
+      const nextNodesOnEdge = store.getters[
+        'automationWorkflowNode/getNextNodes'
+      ](workflow.value, node, edge.uid)
+
+      // If we have found one or more output nodes associated with this edge...
+      if (nextNodesOnEdge.length) {
+        // The width will be the sum of the next nodes' dimensions, with
+        // some padding added between them.
+        const width = _.sum(
+          nextNodesOnEdge.map(
+            (nextNode) =>
+              nextNodeDimensions[nextNode.id].width +
+              (nextNodesOnEdge.length - 1) * NODE_PADDING
+          )
+        )
+
+        // We compute the position of the input by taking the
+        // middle between the first and the last input
+        const leftMost = nextNodeDimensions[nextNodesOnEdge[0].id]
+        const rightMost = nextNodeDimensions[nextNodesOnEdge.at(-1).id]
+        const edgeWidth =
+          width - leftMost.input - (rightMost.width - rightMost.input)
+
+        return {
+          [edge.uid]: {
+            width,
+            input: leftMost.input + edgeWidth / 2,
+          },
+        }
+      }
+      // We did not find any output nodes associated with this edge, so
+      // to size this bounding box correctly, we'll use a default width
+      // and input value.
+      return {
+        [edge.uid]: {
+          width: EDGE_WITHOUT_OUTPUT_NODE_WIDTH,
+          input: EDGE_WITHOUT_OUTPUT_NODE_INPUT,
+        },
+      }
+    })
+  )
+
+  // Calculate the sum of all widths of the edges, including padding,
+  // to determine the total width of the node. We will use the MAX
+  // of `widthSum` and `DATA_NODE_WIDTH` to ensure that the node
+  // is *at least* as wide as the default data node width.
+  const widthSum =
+    _.sum(nodeEdges.map((edge) => edgeDimensions[edge.uid].width)) +
+    (nodeEdges.length - 1) * NODE_PADDING
+  const width = Math.max(widthSum, DATA_NODE_WIDTH)
+
+  // We take the left and right edge to compute the input position for this node
+  const leftMost = edgeDimensions[nodeEdges[0].uid]
+  const rightMost = edgeDimensions[nodeEdges.at(-1).uid]
+  const edgesWidth =
+    width - leftMost.input - (rightMost.width - rightMost.input)
+  const input = leftMost.input + edgesWidth / 2
+
+  // The height of the node is determined by the edge height, and
+  // the default height of the data node itself.
+  const height = EDGE_HEIGHT + DATA_NODE_HEIGHT
+
+  return {
+    ...nextNodeDimensions,
+    ...{
+      [node.id]: {
+        width,
+        // Sometimes the width of edges is smaller than the width of node
+        outputLeft: input - (width - widthSum) / 2,
+        height,
+        input,
+        edges: edgeDimensions,
+      },
+    },
+  }
+}
+
+/**
+ * Recursively calculates the positions of nodes and their edges in the workflow.
+ * It returns an object where each key is a node ID and the value is an object
+ * containing the position of the node, the positions of the add buttons for each
+ * edge, and the edges themselves.
+ *
+ * @param dimensions - An object containing the dimensions of each node,
+ *  as returned by `calculateNodeDimensions`.
+ * @param node - The current node for which to calculate positions.
+ * @param x - The x-coordinate for the current node's position.
+ * @param y - The y-coordinate for the current node's position.
+ * @returns {object} - An object containing the positions of nodes, add buttons, and edges.
+ */
+const calculatePositions = (dimensions, node, { x = 0, y = 0 } = {}) => {
+  // We start by getting the type of the node, which will be used
+  // to fetch the edges associated with this node.
+  const nodeType = app.$registry.get('node', node.type)
+
+  // Store two different values: the X-coordinate of the current edge,
+  // which is the position of the output, plus the middle of the node,
+  // and the current X-coordinate, which is the position of the output.
+  let currentEdgeX = x - dimensions[node.id].outputLeft + DATA_NODE_MIDDLE
+  let currentX = x - dimensions[node.id].outputLeft // As input is the number of pixel from the left
+
+  // Find the edges associated with this node, very frequently it'll be one.
+  const nodeEdges = nodeType.getEdges({ node })
+  const oneEdge = nodeEdges.length === 1
+
+  // Keep track of `vue-flow` edges and add button positions.
+  const edges = []
+  const addButtonPositions = []
+
+  // Build an object containing the positions of `node`'s next nodes and their edges.
+  const nextNodePositions = Object.assign(
+    {},
+    ...nodeEdges.map((edge, edgeIndex) => {
+      // Are there any output nodes associated with this edge?
+      const nextNodesAlongEdge = store.getters[
+        'automationWorkflowNode/getNextNodes'
+      ](workflow.value, node, edge.uid)
+
+      // Generate a unique key for the add button based on the node ID and edge UID.
+      const buttonKey = `edge-${node.id}-${edge.uid || 'default'}`
+
+      // Add an edge between `node` and its add button
+      edges.push({
+        id: `e-${workflowDebug.value}-${node.id}-${buttonKey}-${edge.uid}`,
+        source: node.id.toString(),
+        target: buttonKey,
+        data: { outputUid: edge.uid },
+        label: workflowDebug.value
+          ? `from:${node.id} to:addBtn${edgeIndex}`
+          : edge.label,
+        type: oneEdge ? 'straight' : 'smoothstep',
+      })
+
+      // We define the position of the buttons
+      addButtonPositions.push({
+        uid: edge.uid,
+        key: buttonKey,
+        x:
+          currentEdgeX -
+          ADD_BUTTON_MIDDLE +
+          dimensions[node.id].edges[edge.uid].input,
+        y: y + (oneEdge ? 90 : 130),
+      })
+
+      const noNodeOnEdge = nextNodesAlongEdge.length === 0
+      const edgeWidth = dimensions[node.id].edges[edge.uid].width
+
+      if (noNodeOnEdge) {
+        // The currentX didn't change as we have no node, but it has to increase
+        currentX += edgeWidth + NODE_PADDING
+      }
+      currentEdgeX += edgeWidth + NODE_PADDING
+
+      return Object.assign(
+        {},
+        ...nextNodesAlongEdge.map((nextNode) => {
+          // Add edge between the add button and next node
+          edges.push({
+            id: `e-${workflowDebug.value}-${nextNode.id}-${buttonKey}-${edge.uid}`,
+            source: buttonKey,
+            target: nextNode.id.toString(),
+            data: { outputUid: edge.uid },
+            label: workflowDebug.value
+              ? `from:${nextNode.id} to:addBtn${edgeIndex}`
+              : '',
+            type: nextNodesAlongEdge.length === 1 ? 'straight' : 'smoothstep',
+          })
+
+          // The next X is the input position of the next node
+          const nextX = currentX + dimensions[nextNode.id].input
+          const nextY = y + dimensions[node.id].height
+          currentX += dimensions[nextNode.id].width + NODE_PADDING // Moving to next node
+
+          return calculatePositions(dimensions, nextNode, {
+            x: nextX,
+            y: nextY,
+          })
+        })
+      )
+    })
+  )
+
+  return {
+    ...nextNodePositions,
+    [node.id]: {
+      x,
+      y,
+      addButtonPositions,
+      edges,
+    },
+  }
+}
+
+/**
  * When the component is mounted, we emit the first node's ID. This is
  * to ensure that the first node (the trigger) is selected by default.
  */
@@ -132,82 +368,60 @@ onMounted(() => {
 })
 
 const automation = inject('automation')
-const displayNodes = computed(() => {
-  const vueFlowNodes = []
-  // props.nodes should already be sorted by 'order' from the store getter
-  const sortedDataNodes = [...props.nodes]
 
-  if (sortedDataNodes.length > 0) {
-    let currentY = INITIAL_Y_POS
-    sortedDataNodes.forEach((dataNode) => {
+const positions = computed(() => {
+  const trigger = props.nodes.find((node) => node.previous_node_id === null)
+  const dimensions = calculateNodeDimensions(trigger)
+  return calculatePositions(dimensions, trigger)
+})
+
+const displayNodes = computed(() => {
+  return props.nodes
+    .map((dataNode) => {
       const nodeType = app.$registry.get('node', dataNode.type)
-      vueFlowNodes.push({
+      const nodeNode = {
         type: 'workflow-node',
         label: nodeType.getLabel({
           automation: automation.value,
           node: dataNode,
         }),
         id: dataNode.id.toString(),
-        position: { x: DATA_NODE_X_POS, y: currentY },
+        position: positions.value[dataNode.id],
         data: {
           nodeId: dataNode.id,
-          readOnly: workflowReadOnly.value,
           isTrigger: nodeType.isTrigger,
+          readOnly: workflowReadOnly.value,
+          debug: workflowDebug.value,
+          outputUid: dataNode.previous_node_output,
         },
-      })
+      }
 
-      // Add an Add Node Button node below it
-      vueFlowNodes.push({
-        id: uuid(),
+      const addButtonsNodes = positions.value[
+        dataNode.id
+      ].addButtonPositions.map((addButtonPosition) => ({
+        id: addButtonPosition.key,
         type: 'workflow-add-button-node',
-        position: {
-          x: ADD_BUTTON_X_POS,
-          y: currentY + ADD_BUTTON_OFFSET_Y,
-        },
+        position: addButtonPosition,
         data: {
           nodeId: dataNode.id,
+          outputUid: addButtonPosition.uid,
+          debug: workflowDebug.value,
           disabled: props.isAddingNode || workflowReadOnly.value,
         },
-      })
+      }))
 
-      // Increment Y for the next node
-      currentY += NODE_VERTICAL_SPACING
+      return [nodeNode, ...addButtonsNodes]
     })
-  }
-  return vueFlowNodes
+    .flat()
 })
 
+const store = useStore()
+const workflow = inject('workflow')
+
 const computedEdges = computed(() => {
-  const edges = []
-  const currentNodesToProcess = displayNodes.value
-
-  if (workflowReadOnly.value) {
-    const dataNodesOnly = displayNodes.value
-    for (let i = 0; i < dataNodesOnly.length - 1; i++) {
-      const sourceNode = dataNodesOnly[i]
-      const targetNode = dataNodesOnly[i + 1]
-      edges.push({
-        id: `e-${sourceNode.id}-${targetNode.id}`,
-        source: sourceNode.id,
-        target: targetNode.id,
-        type: 'workflow-edge',
-      })
-    }
-  } else {
-    for (let i = 0; i < currentNodesToProcess.length - 1; i++) {
-      const source = currentNodesToProcess[i]
-      const target = currentNodesToProcess[i + 1]
-
-      edges.push({
-        id: `e-${source.id}-${target.id}`,
-        source: source.id,
-        target: target.id,
-        type: 'workflow-edge',
-      })
-    }
-  }
-
-  return edges
+  return Object.values(positions.value)
+    .map((nodePosition) => nodePosition.edges)
+    .flat()
 })
 
 /**
@@ -246,10 +460,11 @@ const toggleCreateContext = async (nodeId) => {
   nodeContext.show(nodeAddBtn.$el, 'bottom', 'left', 10, -225)
 }
 
-const createNode = (nodeType, previousNodeId) => {
+const createNode = (nodeType, previousNodeId, previousNodeOutput) => {
   emit('add-node', {
     type: nodeType,
     previousNodeId,
+    previousNodeOutput,
   })
 }
 

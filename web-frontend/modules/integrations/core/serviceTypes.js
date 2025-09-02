@@ -4,6 +4,7 @@ import {
 } from '@baserow/modules/core/serviceTypes'
 import CoreHTTPRequestServiceForm from '@baserow/modules/integrations/core/components/services/CoreHTTPRequestServiceForm'
 import CoreSMTPEmailServiceForm from '@baserow/modules/integrations/core/components/services/CoreSMTPEmailServiceForm'
+import CoreRouterServiceForm from '@baserow/modules/integrations/core/components/services/CoreRouterServiceForm'
 
 export class CoreHTTPRequestServiceType extends WorkflowActionServiceTypeMixin(
   ServiceType
@@ -88,5 +89,58 @@ export class CoreSMTPEmailServiceType extends WorkflowActionServiceTypeMixin(
 
   getOrder() {
     return 6
+  }
+}
+
+export class CoreRouterServiceType extends WorkflowActionServiceTypeMixin(
+  ServiceType
+) {
+  static getType() {
+    return 'router'
+  }
+
+  get name() {
+    return this.app.i18n.t('serviceType.coreRouter')
+  }
+
+  get description() {
+    return this.app.i18n.t('serviceType.coreRouterDescription')
+  }
+
+  getEdgeErrorMessage(edge) {
+    if (!edge.label.length) {
+      return this.app.i18n.t('serviceType.coreRouterEdgeLabelRequired')
+    } else if (!edge.condition.length) {
+      return this.app.i18n.t('serviceType.coreRouterEdgeConditionRequired')
+    }
+    return null
+  }
+
+  getErrorMessage({ service }) {
+    if (service === undefined) {
+      return null
+    }
+    if (!service.edges.length) {
+      return this.app.i18n.t('serviceType.coreRouterEdgesRequired')
+    }
+    const hasEdgeInError = service.edges.some((edge) => {
+      return this.getEdgeErrorMessage(edge)
+    })
+    if (hasEdgeInError) {
+      return hasEdgeInError
+    }
+    return super.getErrorMessage({ service })
+  }
+
+  getDataSchema(service) {
+    return service.schema
+  }
+
+  get formComponent() {
+    return CoreRouterServiceForm
+  }
+
+  getOrder() {
+    return 7
   }
 }

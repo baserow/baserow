@@ -5,10 +5,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.db import models
 from django.db.models import Manager, QuerySet
 
-from baserow.contrib.automation.workflows.models import (
-    AutomationWorkflow,
-    DuplicateAutomationWorkflowJob,
-)
+from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.core.db import get_unique_orders_before_item
 from baserow.core.mixins import (
     CreatedAndUpdatedOnMixin,
@@ -19,19 +16,6 @@ from baserow.core.mixins import (
     WithRegistry,
 )
 from baserow.core.services.models import Service
-
-__all__ = [
-    "AutomationNode",
-    "AutomationWorkflow",
-    "DuplicateAutomationWorkflowJob",
-    "LocalBaserowRowsCreatedTriggerNode",
-    "LocalBaserowRowsUpdatedTriggerNode",
-    "LocalBaserowRowsDeletedTriggerNode",
-    "LocalBaserowCreateRowActionNode",
-    "LocalBaserowUpdateRowActionNode",
-    "LocalBaserowDeleteRowActionNode",
-    "CoreSMTPEmailActionNode",
-]
 
 
 def get_default_node_content_type():
@@ -73,6 +57,13 @@ class AutomationNode(
     typically have a Trigger Node and one or more Action Nodes.
     """
 
+    label = models.CharField(
+        blank=True,
+        default="",
+        db_default="",
+        max_length=75,
+        help_text="A label to use when displaying this node in a graph.",
+    )
     content_type = models.ForeignKey(
         ContentType,
         verbose_name="content type",
@@ -134,7 +125,7 @@ class AutomationNode(
         return self.workflow
 
     def get_next_nodes(
-        self, output_uid: str | None = None
+        self, output_uid: str | None = None, specific: bool = False
     ) -> Iterable["AutomationNode"]:
         """
         Returns all nodes which follow this node in the workflow. A list of nodes
@@ -142,12 +133,13 @@ class AutomationNode(
         when there are multiple branches in the workflow.
 
         :param output_uid: filter nodes only for this output uid.
+        :param specific: If True, returns the specific node type.
         """
 
         from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 
         return AutomationNodeHandler().get_next_nodes(
-            self.workflow, self, output_uid=output_uid
+            self.workflow, self, output_uid=output_uid, specific=specific
         )
 
     @classmethod
@@ -254,4 +246,8 @@ class CoreHTTPRequestActionNode(AutomationActionNode):
 
 
 class CoreSMTPEmailActionNode(AutomationActionNode):
+    ...
+
+
+class CoreRouterActionNode(AutomationActionNode):
     ...

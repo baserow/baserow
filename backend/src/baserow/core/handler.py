@@ -1671,7 +1671,9 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
         )
 
         application_id = application.id
-        TrashHandler.trash(user, application.workspace, application, application)
+        TrashHandler.trash(
+            user, application.workspace, application, application.specific
+        )
 
         application_deleted.send(
             self, application_id=application_id, application=application, user=user

@@ -547,7 +547,10 @@
     "backgroundColor": "Background color",
     "widthLabel": "Width",
     "backgroundImage": "Image",
-    "backgroundImageMode": "Fill mode"
+    "backgroundImageMode": "Fill mode",
+    "cssClasses": "CSS classes",
+    "cssClassesHelp": "Set a space separated list of classes for this element that will appear in the generated HTML.",
+    "cssClassesPlaceholder": "Enter CSS classes..."
   },
   "styleBoxForm": {
     "borderColor": "Border color",

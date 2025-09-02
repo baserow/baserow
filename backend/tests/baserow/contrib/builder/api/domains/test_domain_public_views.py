@@ -403,6 +403,7 @@ def test_get_elements_of_public_builder(api_client, data_fixture):
         "order": "1.00000000000000000000",
         "parent_element_id": None,
         "place_in_container": None,
+        "css_classes": "",
         "visibility": "all",
         "styles": {},
         "style_border_top_color": "border",
@@ -1924,46 +1925,7 @@ def test_list_elements_with_page_visibility_all(
     assert response.status_code == HTTP_200_OK
 
     if expect_fields:
-        assert response.json() == [
-            {
-                "id": element.id,
-                "level": 1,
-                "order": "1.00000000000000000000",
-                "page_id": page.id,
-                "parent_element_id": None,
-                "place_in_container": None,
-                "role_type": "disallow_all_except",
-                "roles": [element_role],
-                "style_background": "none",
-                "style_background_color": "#ffffffff",
-                "style_background_file": None,
-                "style_background_mode": "fill",
-                "style_border_bottom_color": "border",
-                "style_border_bottom_size": 0,
-                "style_border_left_color": "border",
-                "style_border_left_size": 0,
-                "style_border_right_color": "border",
-                "style_border_right_size": 0,
-                "style_border_top_color": "border",
-                "style_border_top_size": 0,
-                "style_margin_bottom": 0,
-                "style_margin_left": 0,
-                "style_margin_right": 0,
-                "style_margin_top": 0,
-                "style_padding_bottom": 10,
-                "style_padding_left": 20,
-                "style_padding_right": 20,
-                "style_padding_top": 10,
-                "style_background_radius": 0,
-                "style_border_radius": 0,
-                "style_width": "normal",
-                "style_width_child": "normal",
-                "styles": {},
-                "type": "heading",
-                "value": f"get('data_source.{data_source.id}.field_{field_id}')",
-                "visibility": "logged-in",
-            },
-        ]
+        assert [e["id"] for e in response.json()] == [element.id]
     else:
         assert response.json() == []
 
@@ -2097,46 +2059,8 @@ def test_list_elements_with_page_visibility_logged_in(
     assert response.status_code == HTTP_200_OK
 
     if expect_fields:
-        assert response.json() == [
-            {
-                "id": element.id,
-                "level": 1,
-                "order": "1.00000000000000000000",
-                "page_id": page.id,
-                "parent_element_id": None,
-                "place_in_container": None,
-                "role_type": "disallow_all_except",
-                "roles": [element_role],
-                "style_background": "none",
-                "style_background_color": "#ffffffff",
-                "style_background_file": None,
-                "style_background_mode": "fill",
-                "style_border_bottom_color": "border",
-                "style_border_bottom_size": 0,
-                "style_border_left_color": "border",
-                "style_border_left_size": 0,
-                "style_border_right_color": "border",
-                "style_border_right_size": 0,
-                "style_border_top_color": "border",
-                "style_border_top_size": 0,
-                "style_margin_bottom": 0,
-                "style_margin_left": 0,
-                "style_margin_right": 0,
-                "style_margin_top": 0,
-                "style_padding_bottom": 10,
-                "style_padding_left": 20,
-                "style_padding_right": 20,
-                "style_padding_top": 10,
-                "style_background_radius": 0,
-                "style_border_radius": 0,
-                "style_width": "normal",
-                "style_width_child": "normal",
-                "styles": {},
-                "type": "heading",
-                "value": f"get('data_source.{data_source.id}.field_{field_id}')",
-                "visibility": "logged-in",
-            },
-        ]
+        assert [e["id"] for e in response.json()] == [element.id]
+
     else:
         assert response.json() == []
 

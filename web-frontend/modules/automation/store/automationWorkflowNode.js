@@ -38,22 +38,18 @@ const mutations = {
     state,
     { workflow, node: nodeToUpdate, values, override = false }
   ) {
-    const index = workflow.nodes.findIndex(
-      (node) => node.id === nodeToUpdate.id
-    )
-    if (index === -1) {
-      // The node might have been deleted during the debounced update
-      return
-    }
-
-    const newValue = override
-      ? populateNode(values)
-      : {
-          ...workflow.nodes[index],
-          ...values,
-        }
-
-    Object.assign(workflow.nodes[index], newValue)
+    workflow.nodes.forEach((node) => {
+      if (node.id === nodeToUpdate.id) {
+        const newValue = override
+          ? populateNode(values)
+          : {
+              ...node,
+              ...values,
+            }
+        Object.assign(node, newValue)
+      }
+    })
+    updateCachedValues(workflow)
   },
   DELETE_ITEM(state, { workflow, nodeId }) {
     const nodeIdStr = nodeId.toString()
@@ -70,10 +66,6 @@ const mutations = {
     })
     updatedNodes.sort((a, b) => a.order - b.order)
     workflow.nodes = updatedNodes
-    updateCachedValues(workflow)
-  },
-  ADD_ITEM_AT(state, { workflow, node, index }) {
-    workflow.nodes.splice(index, 0, populateNode(node))
     updateCachedValues(workflow)
   },
   SELECT_ITEM(state, { workflow, node }) {
@@ -101,56 +93,69 @@ const actions = {
   },
   async create(
     { commit, dispatch, getters },
-    { workflow, type, previousNodeId = null }
+    { workflow, type, previousNodeId = null, previousNodeOutput = null }
   ) {
-    // Get existing nodes to determine beforeId
-    const existingNodes = getters.getNodes(workflow)
+    // Using the `previousNodeId` and `previousNodeOutput` to determine
+    // what the `beforeId` should be. We will have `beforeId` if we're
+    // creating a node after `previousNodeId`, and `previousNodeId` has
+    // a node that follows it.
+    const nodeType = this.$registry.get('node', type)
+    const previousNode = getters.findById(workflow, previousNodeId)
+    const nextNodes = getters.getNextNodes(
+      workflow,
+      previousNode,
+      previousNodeOutput
+    )
 
-    let beforeId = null
-    let nodeIndex = 0
-
-    if (previousNodeId) {
-      // Find the previous node and get the next one as beforeId
-      const prevNodeIndex = existingNodes.findIndex(
-        (n) => n.id.toString() === previousNodeId.toString()
-      )
-
-      if (prevNodeIndex === -1) {
-        // Previous node not found, add at the end (beforeId = null)
-        beforeId = null
-        nodeIndex = existingNodes.length
-      } else {
-        // Add after the specified node
-        const nextNode = existingNodes[prevNodeIndex + 1]
-        beforeId = nextNode ? nextNode.id : null
-        nodeIndex = prevNodeIndex + 1
-      }
-    } else if (existingNodes.length > 0) {
-      // previousNodeId is null and there are existing nodes - add at the beginning
-      beforeId = existingNodes[0].id
-      nodeIndex = 0
-    }
-
-    // Create a temporary node for optimistic UI
-    const tempId = uuid()
-    const tempNode = {
-      id: tempId,
-      type,
-      workflow_id: workflow.id,
-    }
+    const beforeNode = nextNodes.length > 0 ? nextNodes[0] : null
+    const beforeId = beforeNode?.id || null
+    const beforeOldValues = beforeNode
+      ? {
+          previous_node_id: beforeNode.previous_node_id,
+          previous_node_output: beforeNode.previous_node_output,
+        }
+      : {}
 
     // Apply optimistic create
-    commit('ADD_ITEM_AT', { workflow, node: tempNode, index: nodeIndex })
+    const tempNode = nodeType.getDefaultValues({
+      id: uuid(),
+      type,
+      previous_node_id: previousNodeId,
+      previous_node_output: previousNodeOutput,
+      workflow: workflow.id,
+    })
+    commit('ADD_ITEM', { workflow, node: tempNode })
+
+    // Apply optimistic beforeNode update.
+    if (beforeNode) {
+      commit('UPDATE_ITEM', {
+        workflow,
+        node: beforeNode,
+        values: { previous_node_id: tempNode.id, previous_node_output: '' },
+      })
+    }
 
     try {
-      // Send API request with beforeId
       const { data: node } = await AutomationWorkflowNodeService(
         this.$client
-      ).create(workflow.id, type, beforeId)
+      ).create(workflow.id, type, beforeId, previousNodeId, previousNodeOutput)
 
       // Remove temp node and add real one
-      commit('DELETE_ITEM', { workflow, nodeId: tempId })
-      commit('ADD_ITEM_AT', { workflow, node, index: nodeIndex })
+      commit('DELETE_ITEM', { workflow, nodeId: tempNode.id })
+      commit('ADD_ITEM', { workflow, node })
+
+      // If we have a `beforeNode`, we need to update its `previous_node_id`
+      // and `previous_node_output`. The former so that it points to our newly
+      // created node, and the latter so that it has a blank output.
+      // This all happens in the backend, but we need the store to reflect the
+      // change immediately.
+      if (beforeNode) {
+        commit('UPDATE_ITEM', {
+          workflow,
+          node: beforeNode,
+          values: { previous_node_id: node.id, previous_node_output: '' },
+        })
+      }
 
       setTimeout(() => {
         const populatedNode = getters.findById(workflow, node.id)
@@ -160,7 +165,15 @@ const actions = {
       return node
     } catch (error) {
       // If API fails, remove the temporary node
-      commit('DELETE_ITEM', { workflow, nodeId: tempId })
+      commit('DELETE_ITEM', { workflow, nodeId: tempNode.id })
+      // And restore the previous `beforeNode` values.
+      if (beforeNode) {
+        commit('UPDATE_ITEM', {
+          workflow,
+          node: beforeNode,
+          values: beforeOldValues,
+        })
+      }
       throw error
     }
   },
@@ -250,9 +263,27 @@ const actions = {
   },
   async delete({ commit, dispatch, getters }, { workflow, nodeId }) {
     const node = getters.findById(workflow, nodeId)
+    // Note that when we fetch the next node, we don't pass in the output,
+    // this is because the next node in that scenario *won't have* an output.
+    const nextNodes = getters.getNextNodes(workflow, node)
+    const nextNode = nextNodes.length > 0 ? nextNodes[0] : null
     const originalNode = { ...node }
     if (getters.getSelected(workflow)?.id === nodeId) {
       dispatch('select', { workflow, node: null })
+    }
+    // If we have a node after the one we're deleting, we need to update its
+    // `previous_node_id` and `previous_node_output` to point to the node
+    // we're deleting.
+    if (nextNode) {
+      commit('UPDATE_ITEM', {
+        workflow,
+        node: nextNode,
+        values: {
+          previous_node_id: node.previous_node_id,
+          previous_node_output: node.previous_node_output,
+        },
+      })
+      dispatch('select', { workflow, node: nextNode })
     }
     commit('DELETE_ITEM', { workflow, nodeId })
     try {
@@ -263,6 +294,10 @@ const actions = {
     }
   },
   async replace({ commit, dispatch, getters }, { workflow, nodeId, newType }) {
+    const node = getters.findById(workflow, nodeId)
+    const nextNodes = getters.getNextNodes(workflow, node)
+    const nextNode = nextNodes.length > 0 ? nextNodes[0] : null
+
     const { data: newNode } = await AutomationWorkflowNodeService(
       this.$client
     ).replace(nodeId, {
@@ -270,6 +305,16 @@ const actions = {
     })
     commit('DELETE_ITEM', { workflow, nodeId })
     commit('ADD_ITEM', { workflow, node: newNode })
+
+    // If the node that we replaced had a node after it, we need to update
+    // its `previous_node_id` to point to the new node ID.
+    if (nextNode) {
+      commit('UPDATE_ITEM', {
+        workflow,
+        node: nextNode,
+        values: { previous_node_id: newNode.id },
+      })
+    }
     setTimeout(() => {
       dispatch('select', { workflow, node: newNode })
     })
@@ -304,7 +349,7 @@ const getters = {
     return workflow.orderedNodes
   },
   findById: (state) => (workflow, nodeId) => {
-    if (!workflow || !workflow.nodes) return null
+    if (!workflow || !workflow.nodes || !nodeId) return null
     const nodeIdStr = nodeId.toString()
     if (workflow.nodeMap && workflow.nodeMap[nodeIdStr]) {
       return workflow.nodeMap[nodeIdStr]
@@ -318,6 +363,43 @@ const getters = {
   getLoading: (state) => (node) => {
     return node._.loading
   },
+  getNextNodes:
+    (state, getters) =>
+    (workflow, targetNode, outputUid = null) => {
+      const nodes = getters.getNodesOrdered(workflow)
+      const nextNodes = nodes.filter(
+        (node) => node.previous_node_id === targetNode.id
+      )
+      if (outputUid !== null) {
+        return nextNodes.filter(
+          (node) => node.previous_node_output === outputUid
+        )
+      }
+      return nextNodes
+    },
+  getPreviousNode: (state, getters) => (workflow, node) => {
+    return getters.findById(workflow, node?.previous_node_id)
+  },
+  getPreviousNodes:
+    (state, getters) =>
+    (
+      workflow,
+      targetNode,
+      { targetFirst = false, includeSelf = false } = {}
+    ) => {
+      const getPreviousForNode = (node) => {
+        const previousNode = getters.getPreviousNode(workflow, node)
+        if (previousNode) {
+          return [...getPreviousForNode(previousNode), previousNode]
+        } else {
+          return []
+        }
+      }
+      const previous = includeSelf
+        ? [...getPreviousForNode(targetNode), targetNode]
+        : getPreviousForNode(targetNode)
+      return targetFirst ? previous.reverse() : previous
+    },
 }
 
 export default {

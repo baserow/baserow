@@ -1,5 +1,5 @@
 {
-  "type": "bug",
+  "type": "feature",
   "message": "Two-way PostgreSQL data sync.",
   "domain": "database",
   "issue_number": 3082,

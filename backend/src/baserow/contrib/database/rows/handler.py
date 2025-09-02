@@ -2808,7 +2808,11 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         )
 
         for dependent_fields_level in all_dependent_fields_grouped_by_level:
-            for table_id, dependant_field in dependent_fields_level:
+            for (
+                table_id,
+                dependant_field,
+                path_to_starting_table,
+            ) in dependent_fields_level:
                 dependant_fields.append(dependant_field)
                 dependant_field_type = field_type_registry.get_by_model(dependant_field)
                 dependant_field_type.row_of_dependency_deleted(
@@ -2816,7 +2820,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                     rows,
                     update_collector,
                     field_cache,
-                    None,  # No via path for this method
+                    path_to_starting_table,
                 )
             update_collector.apply_updates_and_get_updated_fields(field_cache)
 

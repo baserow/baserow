@@ -27,7 +27,7 @@ from baserow.core.utils import MirrorDict, extract_allowed
 
 
 class AutomationNodeHandler:
-    allowed_fields = ["service", "previous_node_id", "previous_node_output"]
+    allowed_fields = ["label", "service", "previous_node_id", "previous_node_output"]
     workflow_handler = AutomationWorkflowHandler()
 
     def get_nodes(
@@ -81,7 +81,11 @@ class AutomationNodeHandler:
         return _get_nodes()
 
     def get_next_nodes(
-        self, workflow, node: None | AutomationNode, output_uid: str | None = None
+        self,
+        workflow,
+        node: None | AutomationNode,
+        output_uid: str | None = None,
+        specific: bool = False,
     ) -> Iterable["AutomationNode"]:
         """
         Returns all nodes which follow the given node in the workflow. A list of nodes
@@ -91,6 +95,7 @@ class AutomationNodeHandler:
         :param workflow: filter nodes for this workflow.
         :param node: this is the previous not. If null, first nodes are returned.
         :param output_uid: filter nodes only for this output uid.
+        :param specific: If True, returns the specific node type.
         """
 
         queryset = AutomationNode.objects.filter(
@@ -98,9 +103,9 @@ class AutomationNodeHandler:
         )
 
         if output_uid is not None:
-            queryset.filter(previous_node_output=output_uid)
+            queryset = queryset.filter(previous_node_output=output_uid)
 
-        return self.get_nodes(workflow, base_queryset=queryset)
+        return self.get_nodes(workflow, base_queryset=queryset, specific=specific)
 
     def get_node(
         self, node_id: int, base_queryset: Optional[QuerySet] = None
@@ -127,16 +132,27 @@ class AutomationNodeHandler:
         except AutomationNode.DoesNotExist:
             raise AutomationNodeDoesNotExist(node_id)
 
-    def update_previous_node(self, new_previous_node, nodes):
+    def update_previous_node(
+        self,
+        new_previous_node: AutomationNode,
+        nodes: List[AutomationNode],
+        previous_node_output: Optional[str] = None,
+    ):
         """
-        Relink all nodes to the given new previous node.
+        Relink all nodes to the given new previous node and ensure that we set the
+        previous node output correctly.
 
         :param new_previous_node: The new previous node.
         :param nodes: The nodes to relink.
+        :param previous_node_output: The output of the previous node, if any.
         """
 
+        update_kwargs = {"previous_node": new_previous_node}
+        if previous_node_output is not None:
+            update_kwargs["previous_node_output"] = previous_node_output
+
         AutomationNode.objects.filter(id__in=[n.id for n in nodes]).update(
-            previous_node=new_previous_node
+            **update_kwargs
         )
 
     def create_node(
@@ -163,14 +179,29 @@ class AutomationNodeHandler:
         # Are we creating a node as a child of another node?
         parent_node_id = allowed_prepared_values.get("parent_node_id", None)
 
-        nodes_to_relink = []
+        node_previous_ids_to_update = []
 
+        # Are we creating a node before another? If we are, the
+        # `previous_node_id` and `previous_node_output` fields
+        # need to be adjusted.
         if before:
-            nodes_to_relink = list(
-                AutomationNode.objects.filter(previous_node_id=before.previous_node_id)
+            # We're creating a node before another, and it has an
+            # output, so we need to re-use it for this new node.
+            if before.previous_node_output:
+                allowed_prepared_values[
+                    "previous_node_output"
+                ] = before.previous_node_output
+
+            # Find any nodes which have a previous node ID and output
+            # that match the before node's previous node ID and output.
+            node_previous_ids_to_update = list(
+                workflow.automation_workflow_nodes.filter(
+                    previous_node_id=before.previous_node_id,
+                    previous_node_output=before.previous_node_output,
+                )
             )
 
-        # If we don't already have a `previous_node_id` (users won't provide this)
+        # If we don't already have a `previous_node_id`...
         if "previous_node_id" not in allowed_prepared_values:
             # Figure out what the previous node ID should be. If we've been given a
             # `before` node, then we'll use its previous node ID. If not, we'll use the
@@ -191,10 +222,15 @@ class AutomationNodeHandler:
         node = node_type.model_class(order=order, **allowed_prepared_values)
         node.save()
 
-        # If we've created a node before another, then that node's
-        # previous node ID should be updated to point to the new node.
-        if nodes_to_relink:
-            self.update_previous_node(node, nodes_to_relink)
+        # If we have `previous_node_id` to update, we need to adjust them.
+        if node_previous_ids_to_update:
+            self.update_previous_node(node, node_previous_ids_to_update)
+
+        # If we have a `before` node, and it had an output, then
+        # we need to clear it as `node` has now claimed it as its output.
+        if before and before.previous_node_output:
+            before.previous_node_output = ""
+            before.save(update_fields=["previous_node_output"])
 
         return node
 
@@ -279,6 +315,10 @@ class AutomationNodeHandler:
         exported_node = self.export_node(node)
 
         exported_node["order"] = AutomationNode.get_last_order(node.workflow)
+        # The duplicated node can't have the same output as the source node.
+        exported_node["previous_node_output"] = ""
+        # The duplicated node can't have the same `previous_node_id` as the source node,
+        # so we find the last node in the workflow and parent scope.
         exported_node["previous_node_id"] = AutomationWorkflow.get_last_node_id(
             node.workflow, node.parent_node_id
         )

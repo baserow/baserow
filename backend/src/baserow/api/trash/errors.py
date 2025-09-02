@@ -43,3 +43,9 @@ ERROR_CANNOT_RESTORE_ITEM_NOT_OWNED_BY_USER = (
     HTTP_400_BAD_REQUEST,
     "This item cannot be restored as it is not owned by the user.",
 )
+
+ERROR_TRASH_ITEM_RESTORATION_DISALLOWED = (
+    "ERROR_TRASH_ITEM_DISALLOWED",
+    HTTP_400_BAD_REQUEST,
+    "{e}",
+)

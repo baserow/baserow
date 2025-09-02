@@ -4,6 +4,7 @@
       v-if="automation"
       :automation="automation"
       @read-only-toggled="handleReadOnlyToggle"
+      @debug-toggled="handleDebugToggle"
     />
     <div
       class="layout__col-2-2 automation-workflow__content"
@@ -142,13 +143,24 @@ export default defineComponent({
     }
     provide('workflowReadOnly', workflowReadOnly)
 
-    const handleAddNode = async ({ type, previousNodeId }) => {
+    const workflowDebug = ref(false)
+    const handleDebugToggle = (newDebugState) => {
+      workflowDebug.value = newDebugState
+    }
+    provide('workflowDebug', workflowDebug)
+
+    const handleAddNode = async ({
+      type,
+      previousNodeId,
+      previousNodeOutput,
+    }) => {
       try {
         isAddingNode.value = true
         await store.dispatch('automationWorkflowNode/create', {
           workflow: workflow.value,
           type,
           previousNodeId,
+          previousNodeOutput,
         })
       } catch (err) {
         console.error('Failed to add node:', err)
@@ -244,6 +256,7 @@ export default defineComponent({
       workflowNodes,
       activeSidePanel,
       handleReadOnlyToggle,
+      handleDebugToggle,
       handleAddNode,
       handleRemoveNode,
       handleReplaceNode,

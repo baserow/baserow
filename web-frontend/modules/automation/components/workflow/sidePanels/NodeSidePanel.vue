@@ -6,8 +6,23 @@
       !$hasPermission('automation.node.update', node, workspace.id)
     "
   >
+    <FormGroup
+      class="margin-bottom-1"
+      :label="$t('nodeSidePanel.labelTitle')"
+      :error="v$.label.$error"
+      :error-message="v$.label.$errors[0]?.$message"
+      small-label
+    >
+      <FormInput
+        :value="values.label"
+        :placeholder="nodeType.getDefaultLabel({ automation, node })"
+        :error="v$.label.$error"
+        @input="handleNodeChange({ node: { label: $event } })"
+      />
+    </FormGroup>
     <component
       :is="nodeType.formComponent"
+      ref="formComponent"
       :key="node.id"
       small
       :loading="nodeLoading"
@@ -15,8 +30,9 @@
       :application="automation"
       enable-integration-picker
       :default-values="node.service"
+      :edge-in-use-fn="nodeEdgeInUseFn"
       class="margin-top-2"
-      @values-changed="handleNodeServiceChange"
+      @values-changed="handleNodeChange({ service: $event })"
     />
   </ReadOnlyForm>
 </template>
@@ -28,12 +44,15 @@ import {
   useStore,
   useContext,
   computed,
+  watch,
 } from '@nuxtjs/composition-api'
-import { reactive } from 'vue'
+import useVuelidate from '@vuelidate/core'
+import { reactive, ref } from 'vue'
 import ReadOnlyForm from '@baserow/modules/core/components/ReadOnlyForm'
 import AutomationBuilderFormulaInput from '@baserow/modules/automation/components/AutomationBuilderFormulaInput'
 import { DATA_PROVIDERS_ALLOWED_NODE_ACTIONS } from '@baserow/modules/automation/enums'
 import _ from 'lodash'
+import { helpers, maxLength } from '@vuelidate/validators'
 
 const store = useStore()
 const { app } = useContext()
@@ -49,6 +68,28 @@ const workflowReadOnly = inject('workflowReadOnly')
 const node = computed(() => {
   return store.getters['automationWorkflowNode/getSelected'](workflow.value)
 })
+
+const values = reactive({
+  label: '',
+})
+watch(
+  node,
+  (newNode) => {
+    if (newNode) {
+      values.label = newNode.label || ''
+    }
+  },
+  { immediate: true }
+)
+const rules = {
+  label: {
+    maxLength: helpers.withMessage(
+      app.i18n.t('error.maxLength', { max: 75 }),
+      maxLength(75)
+    ),
+  },
+}
+const v$ = useVuelidate(rules, values, { $lazy: true })
 
 /**
  * The application context is provided as a reactive object
@@ -73,18 +114,59 @@ const nodeType = computed(() => {
   return app.$registry.get('node', node.value.type)
 })
 
-const handleNodeServiceChange = async (newServiceChanges) => {
-  const differences = Object.fromEntries(
-    Object.entries(newServiceChanges).filter(
-      ([key, value]) => !_.isEqual(value, node.value.service[key])
+const formComponent = ref(null)
+const handleNodeChange = async ({
+  node: nodeChanges,
+  service: serviceChanges,
+}) => {
+  let updatedNode = { ...node.value }
+  let anyChanges = false
+
+  // Handle node changes first
+  if (nodeChanges) {
+    // Do we have a new label? If we do, validate it.
+    if (nodeChanges.label !== undefined) {
+      values.label = nodeChanges.label
+      v$.value.$touch()
+      if (v$.value.$invalid) {
+        return
+      }
+    }
+
+    const nodeDifferences = Object.fromEntries(
+      Object.entries(nodeChanges).filter(
+        ([key, value]) => !_.isEqual(value, node.value[key])
+      )
     )
-  )
-  if (Object.keys(differences).length === 0) {
-    // Nothing has changed.
+
+    if (Object.keys(nodeDifferences).length > 0) {
+      updatedNode = { ...updatedNode, ...nodeDifferences }
+      anyChanges = true
+    }
+  }
+
+  // Handle service changes next
+  if (serviceChanges) {
+    if (!formComponent.value?.isFormValid()) {
+      return
+    }
+    const serviceDifferences = Object.fromEntries(
+      Object.entries(serviceChanges).filter(
+        ([key, value]) => !_.isEqual(value, node.value.service[key])
+      )
+    )
+
+    if (Object.keys(serviceDifferences).length > 0) {
+      updatedNode.service = { ...updatedNode.service, ...serviceDifferences }
+      anyChanges = true
+    }
+  }
+
+  // Early return if nothing has changed
+  if (!anyChanges) {
     return
   }
-  const updatedNode = { ...node.value }
-  updatedNode.service = { ...updatedNode.service, ...differences }
+
   await store.dispatch('automationWorkflowNode/updateDebounced', {
     workflow: workflow.value,
     node: node.value,
@@ -95,4 +177,15 @@ const handleNodeServiceChange = async (newServiceChanges) => {
 const nodeLoading = computed(() => {
   return store.getters['automationWorkflowNode/getLoading'](node.value)
 })
+
+/**
+ * Responsible for informing the core router service form if an edge has an
+ * output. As the service form can't refer to automation nodes, we have to
+ * perform the check here, and pass the function as a prop into the form.
+ */
+const nodeEdgeInUseFn = (edge) => {
+  return store.getters['automationWorkflowNode/getNodes'](workflow.value).some(
+    (node) => node.previous_node_output === edge.uid
+  )
+}
 </script>

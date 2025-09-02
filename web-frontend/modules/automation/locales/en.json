@@ -21,7 +21,8 @@
     "errorNameNotUnique": "A workflow with this name already exists"
   },
   "trashType": {
-    "workflow": "workflow"
+    "workflow": "workflow",
+    "automation": "automation"
   },
   "generalSettings": {
     "titleOverview": "General",
@@ -51,6 +52,9 @@
   "dataProviderType": {
     "previousNode": "Previous node"
   },
+  "nodeSidePanel": {
+    "labelTitle": "Label"
+  },
   "historySidePanel": {
     "title": "History",
     "noRunsTitle": "No runs yet",
@@ -63,6 +67,7 @@
     "testRun": "Test"
   },
   "nodeType": {
+    "triggerDeletionError": "Triggers cannot be deleted, only replaced.",
     "localBaserowRowsCreatedLabel": "Rows are created in {tableName}",
     "localBaserowRowsUpdatedLabel": "Rows are updated in {tableName}",
     "localBaserowRowsDeletedLabel": "Rows are deleted in {tableName}",
@@ -73,7 +78,11 @@
     "localBaserowListRowsLabel": "List rows in {tableName}",
     "localBaserowAggregateRowsLabel": "Summarize rows in {tableName}",
     "httpRequestLabel": "Send an HTTP request",
-    "smtpEmailLabel": "Send an email"
+    "smtpEmailLabel": "Send an email",
+    "routerLabel": "Follow 1 of {edgeCount} branches",
+    "routerDefaultEdgeLabelFallback": "Default",
+    "routerWithOutputNodesDeleteError": "Cannot be deleted until its {outputCount} output nodes are removed.",
+    "routerWithOutputNodesReplaceError": "Cannot be replaced until its {outputCount} output nodes are removed."
   },
   "workflowNode": {
     "actionDelete": "Delete",
@@ -82,8 +91,16 @@
     "actionConfigure": "Configure",
     "beforeLabelTrigger": "Starts when",
     "beforeLabelAction": "Then",
+    "beforeLabelCondition": "If condition is met",
+    "beforeLabelConditionDefault": "If no condition(s) are met",
     "moreEdit": "Edit",
-    "moreReplace": "Replace"
+    "moreReplace": "Replace",
+    "nodeOptions": "Node options",
+    "displayLabelDebug": "ID: {id} | Prev: {previousNodeId} | {outputUid}"
+  },
+  "workflowAddNode": {
+    "displayTitle": "Create automation node",
+    "displayTitleDebug": "ID: {id} | {outputUid}"
   },
   "workflowNodeContext": {
     "searchPlaceholderTrigger": "Search for a trigger...",

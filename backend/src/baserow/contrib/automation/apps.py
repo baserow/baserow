@@ -21,6 +21,7 @@ class AutomationConfig(AppConfig):
         )
         from baserow.contrib.automation.nodes.node_types import (
             CoreHttpRequestNodeType,
+            CoreRouterActionNodeType,
             CoreSMTPEmailNodeType,
             LocalBaserowAggregateRowsNodeType,
             LocalBaserowCreateRowNodeType,
@@ -56,6 +57,7 @@ class AutomationConfig(AppConfig):
             ListAutomationWorkflowsOperationType,
             OrderAutomationWorkflowsOperationType,
         )
+        from baserow.contrib.automation.trash_types import AutomationTrashableItemType
         from baserow.contrib.automation.workflows.actions import (
             CreateAutomationWorkflowActionType,
             DeleteAutomationWorkflowActionType,
@@ -122,6 +124,7 @@ class AutomationConfig(AppConfig):
             job_type_registry.register(DuplicateAutomationWorkflowJobType())
             job_type_registry.register(PublishAutomationWorkflowJobType())
 
+            trash_item_type_registry.register(AutomationTrashableItemType())
             trash_item_type_registry.register(AutomationWorkflowTrashableItemType())
             trash_item_type_registry.register(AutomationNodeTrashableItemType())
 
@@ -147,6 +150,7 @@ class AutomationConfig(AppConfig):
             automation_node_type_registry.register(LocalBaserowAggregateRowsNodeType())
             automation_node_type_registry.register(CoreHttpRequestNodeType())
             automation_node_type_registry.register(CoreSMTPEmailNodeType())
+            automation_node_type_registry.register(CoreRouterActionNodeType())
             automation_node_type_registry.register(
                 LocalBaserowRowsCreatedNodeTriggerType()
             )

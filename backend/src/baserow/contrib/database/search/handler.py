@@ -678,27 +678,40 @@ class SearchHandler(
 
         search_model = cls.get_workspace_search_table_model(workspace_id)
 
-        with connection.cursor() as cursor:
-            # We use two separate DELETE statements:
-            # 1. Delete all rows for full-field removals (p.row_id IS NULL)
-            # 2. Delete specific rows for per-row removals (d.row_id = p.row_id)
-            #
-            # A single DELETE with
-            #   WHERE p.row_id IS NULL OR d.row_id = p.row_id
-            # would disable index usage and be extremely slow (>10s on large tables).
-            # Two indexed deletes each complete in ~10ms even for large tables.
+        try:
+            with transaction.atomic():
+                with connection.cursor() as cursor:
+                    # We use two separate DELETE statements:
+                    # 1. Delete all rows for full-field removals (p.row_id IS NULL)
+                    # 2. Delete specific rows for per-row removals (d.row_id = p.row_id)
+                    #
+                    # A single DELETE with
+                    #   WHERE p.row_id IS NULL OR d.row_id = p.row_id
+                    # would disable index usage and be extremely slow (>10s on large
+                    # tables). Two indexed deletes each complete in ~10ms even for
+                    # large tables.
 
-            row_checks = ("p.row_id IS NULL", "d.row_id = p.row_id")
+                    row_checks = ("p.row_id IS NULL", "d.row_id = p.row_id")
 
-            for row_check in row_checks:
-                raw_sql = f"""
-                    DELETE FROM {search_model._meta.db_table} d
-                    USING {PendingSearchValueUpdate._meta.db_table} p
-                    WHERE d.field_id = p.field_id
-                    AND {row_check}
-                    AND p.deletion_workspace_id = %s;
-                """  # nosec B608
-                cursor.execute(raw_sql, (workspace_id,))
+                    for row_check in row_checks:
+                        raw_sql = f"""
+                            DELETE FROM {search_model._meta.db_table} d
+                            USING {PendingSearchValueUpdate._meta.db_table} p
+                            WHERE d.field_id = p.field_id
+                            AND {row_check}
+                            AND p.deletion_workspace_id = %s;
+                        """  # nosec B608
+                        cursor.execute(raw_sql, (workspace_id,))
+        except ProgrammingError as e:
+            # It could be that the workspace search table has already been deleted,
+            # resulting in `relation "database_search_workspace_{}_data" does not
+            # exist`. In that case, the pending search updates must be deleted so
+            # that the error doesn't happen again and the pending items do not remain
+            # in the pendingsearchvalueupdate table. We're therefore not doing anything.
+            if isinstance(e.__cause__, errors.UndefinedTable):
+                pass
+            else:
+                raise e
 
         cls.delete_pending_updates(
             Q(deletion_workspace_id=workspace_id), manager="objects_and_trash"
@@ -710,7 +723,6 @@ class SearchHandler(
         Deletes all search data marked for deletion in all workspaces, committing the
         changes for each workspace separately to avoid locking issues and ensure
         progress can be made even if some workspaces fail.
-        :param table: The table for which the search data should be deleted.
         """
 
         qs = (
@@ -864,9 +876,13 @@ class SearchHandler(
             .order_by()
             .values_list("id", flat=True)
         )
-        full_field_updates = PendingSearchValueUpdate.objects.filter(
-            field_id__in=table_field_ids, row_id=None
-        ).values_list("field_id", flat=True)
+        full_field_updates = (
+            PendingSearchValueUpdate.objects.filter(
+                field_id__in=table_field_ids, row_id=None
+            )
+            .order_by("-updated_on")
+            .values_list("field_id", flat=True)
+        )
 
         # Balance between query efficiency and cpu-usage for complex search expressions.
         fields_batch_size = 3
@@ -891,7 +907,7 @@ class SearchHandler(
         def _fetch_next_batch() -> QuerySet[PendingSearchValueUpdate]:
             return PendingSearchValueUpdate.objects.filter(
                 field_id__in=table_field_ids, row_id__isnull=False
-            )
+            ).order_by("-updated_on")
 
         # Now handle single-cells updates, grouping them for efficiency
         last = False

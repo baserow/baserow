@@ -43,7 +43,7 @@ global:
   baserow:
     imageRegistry: baserow
     image:
-      tag: 1.35.0
+      tag: 1.35.1
     imagePullSecrets: []
     serviceAccount:
       shared: true
@@ -564,6 +564,9 @@ ingress:
 ## @param redis.auth.password The password for the Redis database
 ## @param redis.auth.existingSecret The name of an existing secret containing the database password
 redis:
+  image:
+    registry: docker.io
+    repository: bitnamilegacy/redis
   enabled: true
   architecture: standalone
   auth:
@@ -579,6 +582,9 @@ redis:
 ## @param postgresql.auth.password The password for the database
 ## @param postgresql.auth.username The username for the database
 postgresql:
+  image:
+    registry: docker.io
+    repository: bitnamilegacy/postgresql
   enabled: true
   auth:
     database: baserow
@@ -595,6 +601,9 @@ postgresql:
 ## @param minio.provisioning.buckets[0].name Name of the bucket to create
 ## @param minio.provisioning.extraCommands List of extra commands to run after provisioning
 minio:
+  image:
+    registry: docker.io
+    repository: bitnamilegacy/minio
   enabled: true
   networkPolicy:
     enabled: false

@@ -29,8 +29,12 @@ import {
   LocalBaserowAggregateRowsActionNodeType,
   CoreHttpRequestNodeType,
   CoreSMTPEmailNodeType,
+  CoreRouterNodeType,
 } from '@baserow/modules/automation/nodeTypes'
-import { DuplicateAutomationWorkflowJobType } from '@baserow/modules/automation/jobTypes'
+import {
+  DuplicateAutomationWorkflowJobType,
+  PublishAutomationWorkflowJobType,
+} from '@baserow/modules/automation/jobTypes'
 import { FF_AUTOMATION } from '@baserow/modules/core/plugins/featureFlags'
 import {
   HistoryEditorSidePanelType,
@@ -96,6 +100,7 @@ export default (context) => {
     )
     app.$registry.register('node', new CoreHttpRequestNodeType(context))
     app.$registry.register('node', new CoreSMTPEmailNodeType(context))
+    app.$registry.register('node', new CoreRouterNodeType(context))
     app.$registry.register(
       'node',
       new LocalBaserowDeleteRowActionNodeType(context)
@@ -116,6 +121,7 @@ export default (context) => {
       'job',
       new DuplicateAutomationWorkflowJobType(context)
     )
+    app.$registry.register('job', new PublishAutomationWorkflowJobType(context))
     app.$registry.registerNamespace('automationSettings')
     app.$registry.register(
       'automationSettings',

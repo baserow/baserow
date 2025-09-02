@@ -1,3 +1,5 @@
+import uuid
+
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
@@ -117,6 +119,39 @@ class CoreSMTPEmailService(Service):
     body = FormulaField(
         help_text="The email body content.",
     )
+
+
+class CoreRouterService(Service):
+    default_edge_label = models.CharField(
+        blank=True,
+        max_length=75,
+        help_text="The label to apply next to router edge.",
+    )
+
+
+class CoreRouterServiceEdge(models.Model):
+    uid = models.UUIDField(default=uuid.uuid4)
+    label = models.CharField(
+        blank=True,
+        max_length=75,
+        help_text="The label to apply next to router edge.",
+    )
+    order = models.DecimalField(
+        help_text="Lowest first.",
+        max_digits=40,
+        decimal_places=20,
+        editable=False,
+        default=1,
+    )
+    condition = FormulaField(
+        help_text="The formula that must evaluate to true for this edge to be followed.",
+    )
+    service = models.ForeignKey(
+        CoreRouterService, on_delete=models.CASCADE, related_name="edges"
+    )
+
+    class Meta:
+        ordering = ("order",)
 
 
 class HTTPFormData(models.Model):

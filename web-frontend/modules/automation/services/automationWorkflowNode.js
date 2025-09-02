@@ -1,9 +1,21 @@
 export default (client) => {
   return {
-    create(workflowId, type, beforeId = null) {
+    create(
+      workflowId,
+      type,
+      beforeId = null,
+      previousNodeId = null,
+      previousNodeOutput = null
+    ) {
       const payload = { type }
       if (beforeId !== null) {
         payload.before_id = beforeId
+      }
+      if (previousNodeId !== null) {
+        payload.previous_node_id = previousNodeId
+      }
+      if (previousNodeOutput !== null) {
+        payload.previous_node_output = previousNodeOutput
       }
       return client.post(`automation/workflow/${workflowId}/nodes/`, payload)
     },

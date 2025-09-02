@@ -5667,7 +5667,7 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
             )
         )
         for dependant_fields_group in all_dependent_fields_grouped_by_depth:
-            for table_id, dependant_field in dependant_fields_group:
+            for table_id, dependant_field, _ in dependant_fields_group:
                 if not isinstance(dependant_field, FormulaField):
                     # LinkRowFields might depends on FormulaFields, but we can't update
                     # them here because this is only valid for FormulaFields.

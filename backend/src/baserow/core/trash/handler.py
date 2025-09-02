@@ -98,6 +98,9 @@ class TrashHandler(metaclass=baserow_trace_methods(tracer)):
                         parent_name=parent_name,
                         parent_trash_item_id=parent_trash_item_id,
                         trash_item_owner=trash_item_type.get_owner(trash_item),
+                        additional_restoration_data=trash_item_type.get_additional_restoration_data(
+                            trash_item
+                        ),
                     )
                 except IntegrityError as e:
                     if "unique constraint" in e.args[0]:

@@ -150,6 +150,14 @@ class Element(
         help_text="The theme overrides for this element",
     )
 
+    css_classes = models.CharField(
+        max_length=255,
+        default="",
+        db_default="",
+        blank=True,
+        help_text="The additional CSS classes for this element.",
+    )
+
     style_border_top_color = models.CharField(
         max_length=COLOR_FIELD_MAX_LENGTH,
         default="border",

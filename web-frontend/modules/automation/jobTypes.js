@@ -59,3 +59,13 @@ export class DuplicateAutomationWorkflowJobType extends JobType {
     store.dispatch('job/forceDelete', job)
   }
 }
+
+export class PublishAutomationWorkflowJobType extends JobType {
+  static getType() {
+    return 'publish_automation_workflow'
+  }
+
+  getName() {
+    return 'publishAutomationWorkflow'
+  }
+}

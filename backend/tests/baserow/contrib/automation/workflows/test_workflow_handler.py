@@ -493,3 +493,20 @@ def test_is_test_run_returns_false_if_workflow_not_test_run(data_fixture):
     status = AutomationWorkflowHandler().is_test_run(published_workflow)
 
     assert status is False
+
+
+@pytest.mark.django_db
+def test_trashing_workflow_deletes_published_workflow(data_fixture):
+    user = data_fixture.create_user()
+    original_workflow = data_fixture.create_automation_workflow(user=user)
+    published_workflow = data_fixture.create_automation_workflow(
+        user=user, published=True
+    )
+    published_workflow.automation.published_from = original_workflow
+    published_workflow.automation.save()
+
+    AutomationWorkflowHandler().delete_workflow(user, original_workflow)
+
+    original_workflow.refresh_from_db()
+    assert original_workflow.trashed is True
+    assert AutomationWorkflow.objects.filter(id=published_workflow.id).exists() is False

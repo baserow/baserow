@@ -144,14 +144,16 @@ def test_update_node(data_fixture):
 
 @pytest.mark.django_db
 def test_export_prepared_values(data_fixture):
-    node = data_fixture.create_automation_node()
+    node = data_fixture.create_automation_node(label="My node")
 
     values = node.get_type().export_prepared_values(node)
 
     assert values == {
+        "label": "My node",
         "service": AnyDict(),
         "workflow": node.workflow_id,
-        "previous_node_output": "",
+        "previous_node_id": node.previous_node_id,
+        "previous_node_output": node.previous_node_output,
     }
 
 
@@ -232,7 +234,7 @@ def test_duplicate_node(data_fixture):
     action2 = AutomationNodeHandler().duplicate_node(action1)
     assert action2.workflow == workflow
     assert action2.previous_node_id == action1.id
-    assert action2.previous_node_output == "foo"
+    assert action2.previous_node_output == ""
     assert workflow.automation_workflow_nodes.count() == 3
 
 
@@ -245,6 +247,7 @@ def test_export_node(data_fixture):
 
     assert result == {
         "id": node.id,
+        "label": node.label,
         "order": str(node.order),
         "parent_node_id": None,
         "previous_node_id": None,
@@ -314,6 +317,7 @@ def test_import_node_only(data_fixture):
     assert new_node == workflow.automation_workflow_nodes.all()[1].specific
     assert id_mapping == {
         "integrations": MirrorDict(),
+        "automation_edge_outputs": {},
         "automation_workflow_nodes": {node.id: new_node.id},
         "services": {node.service_id: new_node.service_id},
     }
