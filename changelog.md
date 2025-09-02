@@ -1,5 +1,18 @@
 # Changelog
 
+## Released 1.35.1
+
+### New features
+* [Builder] Allow to set CSS classes for any element [#3752](https://gitlab.com/baserow/baserow/-/issues/3752)
+
+### Bug fixes
+* [Database] Added missing translations for ImportFileModal.vue [#3802](https://gitlab.com/baserow/baserow/-/issues/3802)
+* [Database] Clears the pendingsearchvalueupdate entries of a table where the workspace table does not exist anymore.
+* [Database] Fix a performance regression when deleting rows.
+* [Database] Fix performance bug selecting from pendingsearchvalueupdate table.
+* [Builder] Resolved a table element bug which allowed users to mark non-filterable fields as filterable to external users.
+
+
 ## Released 1.35.0
 
 ### New features
@@ -8,6 +21,7 @@
 * [Database] Allow application selection during workspace export [#3734](https://gitlab.com/baserow/baserow/-/issues/3734)
 * [Builder] Add environment variable to allow sending request to internal IPs with HTTP request action [#](https://gitlab.com/baserow/baserow/-/issues/)
 * [Core] Show highest role on admin user listing page. [#3754](https://gitlab.com/baserow/baserow/-/issues/3754)
+* [Database] Two-way PostgreSQL data sync. [#3082](https://gitlab.com/baserow/baserow/-/issues/3082)
 
 ### Bug fixes
 * [Database] Deactivate data sync and notify user when no proper license is available [#3562](https://gitlab.com/baserow/baserow/-/issues/3562)
@@ -30,7 +44,6 @@
 * [Database] Fix broken export/import with broken via dependency
 * [Builder] Fix crash when toggling the share status of a used data source
 * [Builder] Fix error while duplicating an application referencing a default role for a deleted data source
-* [Database] Two-way PostgreSQL data sync. [#3082](https://gitlab.com/baserow/baserow/-/issues/3082)
 
 ### Refactors
 * [Core] Fix grammar in workspace invitation related emails. [#3775](https://gitlab.com/baserow/baserow/-/issues/3775)
