@@ -514,7 +514,7 @@ build-final-web-frontend-image-manual:
 
 # ==================================== E2E TESTS ======================================
 
-e2e-tests:
+e2e-tests-group-1:
   extends:
     - .docker-image-test-stage
     - .requires-lint
@@ -522,13 +522,62 @@ e2e-tests:
     variables:
       - $CI_COMMIT_BRANCH == $MASTER_BRANCH_NAME
       - $CI_COMMIT_BRANCH == $DEVELOP_BRANCH_NAME
+  variables:
+    SHARD_INDEX: 1
   script:
     - cd e2e-tests
-    - E2E_TEST_YARN_RUN_CMD=test-ci docker compose up --no-build --exit-code-from e2e-tests
+    - E2E_TEST_YARN_RUN_CMD="test-ci --shard=$SHARD_INDEX/4" docker compose up --no-build --exit-code-from e2e-tests
+  artifacts:
+    name: "$CI_JOB_NAME-e2e-report"
+    paths:
+      # Save the HTML report as an artifact for download or visualization
+      - e2e-tests/blob-report/
+      - e2e-tests/playwright-report
+    expire_in: 1 week
+    when: always
+
+e2e-tests-group-2:
+  extends: e2e-tests-group-1
+  variables:
+    SHARD_INDEX: 2
+
+e2e-tests-group-3:
+  extends: e2e-tests-group-1
+  variables:
+    SHARD_INDEX: 3
+
+e2e-tests-group-4:
+  extends: e2e-tests-group-1
+  variables:
+    SHARD_INDEX: 4
+
+collect-e2e-test-coverage:
+  stage: build-final
+  extends:
+    - .docker-image-test-stage
+  only:
+    variables:
+      - $ENABLE_COVERAGE == "true"
+  # Prevent rebuilds when tagging as all we want to do is tag and push
+  except:
+    refs:
+      - tags
+  interruptible: true
+  needs:
+    - job: e2e-tests-group-1
+      artifacts: true
+    - job: e2e-tests-group-2
+      artifacts: true
+    - job: e2e-tests-group-3
+      artifacts: true
+    - job: e2e-tests-group-4
+      artifacts: true
+  script:
+    - cd e2e-tests
+    - npx playwright merge-reports --reporter html blob-report/
   artifacts:
     name: "e2e-report"
     paths:
-      # Save the HTML report as an artifact for download or visualization
       - e2e-tests/playwright-report
     expire_in: 1 week
     when: always
