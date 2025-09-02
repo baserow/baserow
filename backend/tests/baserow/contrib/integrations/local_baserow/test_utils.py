@@ -4,6 +4,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test.utils import override_settings
 
 import pytest
+import responses
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
 from rest_framework.fields import (
@@ -254,21 +255,30 @@ def test_prepare_file_for_db_with_file(data_fixture, fake):
 
 
 @pytest.mark.django_db
-def test_prepare_file_for_db_with_url(data_fixture):
+@responses.activate
+def test_prepare_file_for_db_with_url(data_fixture, fake):
     user = data_fixture.create_user()
 
+    url = "https://picsum.photos/200/300"
     value = {
         "__file__": True,
         "name": "filename",
-        "url": "https://picsum.photos/200/300",
+        "url": url,
     }
+
+    responses.add(
+        responses.GET,
+        url,
+        status=200,
+        body=fake.image((200, 300)),
+    )
 
     assert prepare_files_for_db(value, user) == [
         {
             "image_height": 300,
             "image_width": 200,
             "is_image": True,
-            "mime_type": "image/jpeg",
+            "mime_type": "image/png",
             "name": AnyStr(),
             "size": AnyInt(),
             "uploaded_at": AnyStr(),
@@ -280,7 +290,7 @@ def test_prepare_file_for_db_with_url(data_fixture):
             "image_height": 300,
             "image_width": 200,
             "is_image": True,
-            "mime_type": "image/jpeg",
+            "mime_type": "image/png",
             "name": AnyStr(),
             "size": AnyInt(),
             "uploaded_at": AnyStr(),
@@ -289,7 +299,7 @@ def test_prepare_file_for_db_with_url(data_fixture):
             "image_height": 300,
             "image_width": 200,
             "is_image": True,
-            "mime_type": "image/jpeg",
+            "mime_type": "image/png",
             "name": AnyStr(),
             "size": AnyInt(),
             "uploaded_at": AnyStr(),
@@ -298,14 +308,18 @@ def test_prepare_file_for_db_with_url(data_fixture):
 
 
 @pytest.mark.django_db
+@responses.activate
 def test_prepare_file_for_db_with_unreachable_url(data_fixture):
     user = data_fixture.create_user()
 
+    url = "https://somenthing.doesnt.exist.com"
     value = {
         "__file__": True,
         "name": "filename",
-        "url": "https://somenthing.doesnt.exist.com",
+        "url": url,
     }
+
+    responses.add(responses.GET, url, status=404)
 
     with pytest.raises(ServiceImproperlyConfiguredDispatchException):
         prepare_files_for_db(value, user)
