@@ -15,6 +15,8 @@ from baserow.contrib.automation.workflows.exceptions import (
     AutomationWorkflowDoesNotExist,
     AutomationWorkflowNameNotUnique,
     AutomationWorkflowNotInAutomation,
+    AutomationWorkflowRateLimited,
+    AutomationWorkflowTooManyErrors,
 )
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 from baserow.core.trash.handler import TrashHandler
@@ -536,58 +538,63 @@ def test_get_rate_limit_cache_key(workflow_id):
     assert result == f"automation_workflow_{workflow_id}"
 
 
-def test_is_rate_limited_returns_false_if_empty_cache():
+def test_check_is_rate_limited_returns_none_if_empty_cache():
     with freeze_time("2025-08-01 14:00:00"):
-        result = AutomationWorkflowHandler().is_rate_limited(100)
-        assert result is False
+        result = AutomationWorkflowHandler().check_is_rate_limited(100)
+        assert result is None
 
 
 @override_settings(
     AUTOMATION_WORKFLOW_RATE_LIMIT_CACHE_EXPIRY_SECONDS=5,
     AUTOMATION_WORKFLOW_RATE_LIMIT_MAX_RUNS=5,
 )
-def test_is_rate_limited_returns_false_if_below_limit():
+def test_check_is_rate_limited_returns_none_if_below_limit():
     with freeze_time("2025-08-01 14:00:00"):
         for _ in range(4):
-            result = AutomationWorkflowHandler().is_rate_limited(100)
-            assert result is False
+            result = AutomationWorkflowHandler().check_is_rate_limited(100)
+            assert result is None
 
         # This 5th attempt shouldn't be rate limited
-        result = AutomationWorkflowHandler().is_rate_limited(100)
-        assert result is False
+        result = AutomationWorkflowHandler().check_is_rate_limited(100)
+        assert result is None
 
 
 @override_settings(
     AUTOMATION_WORKFLOW_RATE_LIMIT_CACHE_EXPIRY_SECONDS=5,
     AUTOMATION_WORKFLOW_RATE_LIMIT_MAX_RUNS=5,
 )
-def test_is_rate_limited_returns_false_if_cache_expires():
+def test_check_is_rate_limited_returns_none_if_cache_expires():
     with freeze_time("2025-08-01 14:00:00"):
         for _ in range(5):
-            result = AutomationWorkflowHandler().is_rate_limited(100)
-            assert result is False
+            result = AutomationWorkflowHandler().check_is_rate_limited(100)
+            assert result is None
 
     # 6 seconds after the first/initial cache entry
     with freeze_time("2025-08-01 14:00:06"):
         # The next 5 requests should not be rate limited
         for _ in range(5):
-            result = AutomationWorkflowHandler().is_rate_limited(100)
-            assert result is False
+            result = AutomationWorkflowHandler().check_is_rate_limited(100)
+            assert result is None
 
 
 @override_settings(
     AUTOMATION_WORKFLOW_RATE_LIMIT_CACHE_EXPIRY_SECONDS=5,
     AUTOMATION_WORKFLOW_RATE_LIMIT_MAX_RUNS=5,
 )
-def test_is_rate_limited_returns_true_if_above_limit():
+def test_check_is_rate_limited_raises_if_above_limit():
     with freeze_time("2025-08-01 14:00:00"):
         for _ in range(5):
-            result = AutomationWorkflowHandler().is_rate_limited(100)
-            assert result is False
+            result = AutomationWorkflowHandler().check_is_rate_limited(100)
+            assert result is None
 
         # This 6th attempt should be rate limited
-        result = AutomationWorkflowHandler().is_rate_limited(100)
-        assert result is True
+        with pytest.raises(AutomationWorkflowRateLimited) as e:
+            AutomationWorkflowHandler().check_is_rate_limited(100)
+
+        assert (
+            str(e.value)
+            == "The workflow was rate limited and disabled due to too many recent runs."
+        )
 
 
 @pytest.mark.django_db
@@ -625,7 +632,7 @@ def test_disable_workflow_disables_published_workflow(data_fixture):
 
 @override_settings(AUTOMATION_WORKFLOW_MAX_CONSECUTIVE_ERRORS=5)
 @pytest.mark.django_db
-def test_has_too_many_errors_returns_true_if_above_limit(data_fixture):
+def test_check_too_many_errors_raises_if_above_limit(data_fixture):
     original_workflow = data_fixture.create_automation_workflow()
 
     for _ in range(4):
@@ -634,21 +641,27 @@ def test_has_too_many_errors_returns_true_if_above_limit(data_fixture):
             status=HistoryStatusChoices.ERROR,
         )
 
-    result = AutomationWorkflowHandler().has_too_many_errors(original_workflow)
-    assert result is False
+    result = AutomationWorkflowHandler().check_too_many_errors(original_workflow)
+    assert result is None
 
     # This 6th error should cause True to be returned
     data_fixture.create_automation_workflow_history(
         workflow=original_workflow,
         status=HistoryStatusChoices.ERROR,
     )
-    result = AutomationWorkflowHandler().has_too_many_errors(original_workflow)
-    assert result is True
+
+    with pytest.raises(AutomationWorkflowTooManyErrors) as e:
+        AutomationWorkflowHandler().check_too_many_errors(original_workflow)
+
+    assert str(e.value) == (
+        f"The workflow {original_workflow.id} was disabled "
+        "due to too many consecutive errors."
+    )
 
 
 @override_settings(AUTOMATION_WORKFLOW_MAX_CONSECUTIVE_ERRORS=5)
 @pytest.mark.django_db
-def test_has_too_many_errors_returns_false_if_below_limit(data_fixture):
+def test_check_too_many_errors_returns_none_if_below_limit(data_fixture):
     original_workflow = data_fixture.create_automation_workflow()
 
     for _ in range(4):
@@ -657,8 +670,8 @@ def test_has_too_many_errors_returns_false_if_below_limit(data_fixture):
             status=HistoryStatusChoices.ERROR,
         )
 
-    result = AutomationWorkflowHandler().has_too_many_errors(original_workflow)
-    assert result is False
+    result = AutomationWorkflowHandler().check_too_many_errors(original_workflow)
+    assert result is None
 
     # The next history is not an error, which should break the
     # consecutive count.
@@ -667,8 +680,8 @@ def test_has_too_many_errors_returns_false_if_below_limit(data_fixture):
         status=HistoryStatusChoices.SUCCESS,
     )
 
-    result = AutomationWorkflowHandler().has_too_many_errors(original_workflow)
-    assert result is False
+    result = AutomationWorkflowHandler().check_too_many_errors(original_workflow)
+    assert result is None
 
     # Create another 4 errors
     for _ in range(4):
@@ -678,5 +691,21 @@ def test_has_too_many_errors_returns_false_if_below_limit(data_fixture):
         )
 
     # This should still be False, because it is below the threshold of 5
-    result = AutomationWorkflowHandler().has_too_many_errors(original_workflow)
-    assert result is False
+    result = AutomationWorkflowHandler().check_too_many_errors(original_workflow)
+    assert result is None
+
+
+@pytest.mark.django_db
+def test_before_run_calls_checks(data_fixture):
+    workflow = data_fixture.create_automation_workflow()
+
+    handler = AutomationWorkflowHandler()
+
+    handler.check_is_rate_limited = MagicMock()
+    handler.check_too_many_errors = MagicMock()
+
+    result = handler.before_run(workflow)
+
+    assert result is None
+    handler.check_is_rate_limited.assert_called_once_with(workflow.id)
+    handler.check_too_many_errors.assert_called_once_with(workflow)

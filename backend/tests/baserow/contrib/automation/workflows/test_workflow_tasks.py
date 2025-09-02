@@ -4,6 +4,10 @@ import pytest
 
 from baserow.contrib.automation.history.models import AutomationWorkflowHistory
 from baserow.contrib.automation.workflows.constants import WorkflowState
+from baserow.contrib.automation.workflows.exceptions import (
+    AutomationWorkflowRateLimited,
+    AutomationWorkflowTooManyErrors,
+)
 from baserow.contrib.automation.workflows.tasks import run_workflow
 from baserow.core.services.exceptions import DispatchException
 
@@ -109,13 +113,15 @@ def test_run_workflow_unexpected_error_creates_workflow_history(
 
 @pytest.mark.django_db
 @patch(
-    "baserow.contrib.automation.workflows.handler.AutomationWorkflowHandler.is_rate_limited"
+    "baserow.contrib.automation.workflows.handler.AutomationWorkflowHandler.check_is_rate_limited"
 )
 @patch("baserow.contrib.automation.workflows.tasks.AutomationWorkflowRunner.run")
 def test_run_workflow_disables_workflow_if_rate_limited(
     mock_run, mock_is_rate_limited, data_fixture
 ):
-    mock_is_rate_limited.return_value = True
+    mock_is_rate_limited.side_effect = AutomationWorkflowRateLimited(
+        "mock rate limited error"
+    )
 
     original_workflow = data_fixture.create_automation_workflow()
     published_workflow = data_fixture.create_automation_workflow(
@@ -136,10 +142,7 @@ def test_run_workflow_disables_workflow_if_rate_limited(
     history = histories[0]
     assert history.workflow == original_workflow
     assert history.status == "disabled"
-    error_msg = (
-        f"The workflow {original_workflow.id} was rate limited and disabled "
-        "due to too many recent runs."
-    )
+    error_msg = "mock rate limited error"
     assert history.message == error_msg
 
     original_workflow.refresh_from_db()
@@ -151,13 +154,15 @@ def test_run_workflow_disables_workflow_if_rate_limited(
 
 @pytest.mark.django_db
 @patch(
-    "baserow.contrib.automation.workflows.handler.AutomationWorkflowHandler.has_too_many_errors"
+    "baserow.contrib.automation.workflows.handler.AutomationWorkflowHandler.check_too_many_errors"
 )
 @patch("baserow.contrib.automation.workflows.tasks.AutomationWorkflowRunner.run")
 def test_run_workflow_disables_workflow_if_too_many_consecutive_errors(
     mock_run, mock_has_too_many_errors, data_fixture
 ):
-    mock_has_too_many_errors.return_value = True
+    mock_has_too_many_errors.side_effect = AutomationWorkflowTooManyErrors(
+        "mock too many errors"
+    )
 
     original_workflow = data_fixture.create_automation_workflow()
     published_workflow = data_fixture.create_automation_workflow(
@@ -178,10 +183,7 @@ def test_run_workflow_disables_workflow_if_too_many_consecutive_errors(
     history = histories[0]
     assert history.workflow == original_workflow
     assert history.status == "disabled"
-    error_msg = (
-        f"The workflow {original_workflow.id} was disabled "
-        "due to too many consecutive errors."
-    )
+    error_msg = "mock too many errors"
     assert history.message == error_msg
 
     original_workflow.refresh_from_db()

@@ -9,6 +9,9 @@ from baserow.contrib.automation.automation_dispatch_context import (
     AutomationDispatchContext,
 )
 from baserow.contrib.automation.history.constants import HistoryStatusChoices
+from baserow.contrib.automation.workflows.exceptions import (
+    AutomationWorkflowBeforeRunError,
+)
 from baserow.contrib.automation.workflows.runner import AutomationWorkflowRunner
 from baserow.core.db import atomic_with_retry_on_deadlock
 from baserow.core.services.exceptions import DispatchException
@@ -42,30 +45,15 @@ def run_workflow(
         is_test_run=is_test_run,
     )
 
-    if workflow_handler.is_rate_limited(original_workflow.id):
+    try:
+        workflow_handler.before_run(original_workflow)
+    except AutomationWorkflowBeforeRunError as e:
         history.completed_on = timezone.now()
-        history.message = (
-            f"The workflow {original_workflow.id} was rate limited and "
-            "disabled due to too many recent runs."
-        )
+        history.message = str(e)
         history.status = HistoryStatusChoices.DISABLED
         history.save()
 
         workflow_handler.disable_workflow(workflow)
-
-        return
-
-    if workflow_handler.has_too_many_errors(original_workflow):
-        history.completed_on = timezone.now()
-        history.message = (
-            f"The workflow {original_workflow.id} was disabled "
-            "due to too many consecutive errors."
-        )
-        history.status = HistoryStatusChoices.DISABLED
-        history.save()
-
-        workflow_handler.disable_workflow(workflow)
-
         return
 
     try:
@@ -88,3 +76,5 @@ def run_workflow(
         history.message = history_message
         history.status = history_status
         history.save()
+
+    workflow_handler.after_run()

@@ -35,3 +35,19 @@ class AutomationWorkflowDoesNotExist(AutomationWorkflowError):
     """When the workflow doesn't exist."""
 
     pass
+
+
+class AutomationWorkflowBeforeRunError(AutomationWorkflowError):
+    pass
+
+
+class AutomationWorkflowRateLimited(AutomationWorkflowBeforeRunError):
+    """When the workflow is run too many times in a certain window."""
+
+    pass
+
+
+class AutomationWorkflowTooManyErrors(AutomationWorkflowBeforeRunError):
+    """When the workflow has too many consecutive errors."""
+
+    pass

@@ -5,7 +5,6 @@ from zipfile import ZipFile
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
-from django.core.cache import cache
 from django.core.files.storage import Storage
 from django.db import IntegrityError
 from django.db.models import QuerySet
@@ -26,11 +25,13 @@ from baserow.contrib.automation.workflows.exceptions import (
     AutomationWorkflowDoesNotExist,
     AutomationWorkflowNameNotUnique,
     AutomationWorkflowNotInAutomation,
+    AutomationWorkflowRateLimited,
+    AutomationWorkflowTooManyErrors,
 )
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.contrib.automation.workflows.tasks import run_workflow
 from baserow.contrib.automation.workflows.types import UpdatedAutomationWorkflow
-from baserow.core.cache import local_cache
+from baserow.core.cache import global_cache, local_cache
 from baserow.core.exceptions import IdDoesNotExist
 from baserow.core.registries import ImportExportConfig
 from baserow.core.storage import ExportZipFile, get_default_storage
@@ -690,50 +691,70 @@ class AutomationWorkflowHandler:
 
         return bool(workflow.allow_test_run_until)
 
+    def before_run(self, workflow: AutomationWorkflow) -> None:
+        """
+        Runs pre-flight checks before a workflow is allowed to run.
+
+        Each check may raise a subclass of the AutomationWorkflowBeforeRunError error.
+        """
+
+        self.check_is_rate_limited(workflow.id)
+        self.check_too_many_errors(workflow)
+
+    def after_run(self):
+        """
+        Any logic that should be executed after a workflow run should be
+        called here.
+        """
+
     def get_rate_limit_cache_key(self, workflow_id: int) -> str:
         return WORKFLOW_RATE_LIMIT_CACHE_PREFIX.format(workflow_id)
 
-    def is_rate_limited(self, workflow_id: int) -> bool:
-        """
-        Returns True if the workflow is rate limited, False otherwise.
+    def check_is_rate_limited(self, workflow_id: int) -> None:
+        """Uses a global cache key to track recent runs for the given workflow."""
 
-        Uses a global cache key to track recent runs for the given workflow.
+        expiry_seconds = settings.AUTOMATION_WORKFLOW_RATE_LIMIT_CACHE_EXPIRY_SECONDS
+        cache_key = self.get_rate_limit_cache_key(workflow_id)
+
+        global_cache.update(
+            cache_key,
+            self._check_is_rate_limited,
+            default_value=lambda: [],
+            timeout=expiry_seconds,
+        )
+
+    def _check_is_rate_limited(self, data: List[datetime]) -> List[datetime]:
+        """
+        Given a list of recent workflow run timestamps, determines whether
+        the workflow run should be rate limited. If so, raises the
+        AutomationWorkflowRateLimited error.
         """
 
         now = timezone.now()
         expiry_seconds = settings.AUTOMATION_WORKFLOW_RATE_LIMIT_CACHE_EXPIRY_SECONDS
         start_window = now - timedelta(seconds=expiry_seconds)
-        cache_key = self.get_rate_limit_cache_key(workflow_id)
 
-        with cache.lock(
-            f"{cache_key}_lock", timeout=AUTOMATION_WORKFLOW_CACHE_LOCK_SECONDS
-        ):
-            data = cache.get(cache_key, default=[])
+        # Check the number of past runs that are in the window
+        runs_in_window = [
+            timestamp
+            for timestamp in data
+            if isinstance(timestamp, datetime) and timestamp > start_window
+        ]
 
-            # Check the number of past runs that are in the window
-            runs_in_window = [
-                timestamp
-                for timestamp in data
-                if isinstance(timestamp, datetime) and timestamp > start_window
-            ]
-
-            if len(runs_in_window) >= settings.AUTOMATION_WORKFLOW_RATE_LIMIT_MAX_RUNS:
-                return True
-
-            runs_in_window.append(now)
-
-            cache.set(
-                cache_key,
-                runs_in_window,
-                timeout=expiry_seconds,
+        if len(runs_in_window) >= settings.AUTOMATION_WORKFLOW_RATE_LIMIT_MAX_RUNS:
+            raise AutomationWorkflowRateLimited(
+                "The workflow was rate limited and disabled due to too "
+                "many recent runs."
             )
 
-        return False
+        runs_in_window.append(now)
 
-    def has_too_many_errors(self, workflow: AutomationWorkflow) -> bool:
+        return runs_in_window
+
+    def check_too_many_errors(self, workflow: AutomationWorkflow) -> None:
         """
-        Returns True if the workflow has too may consecutive errors,
-        False otherwise.
+        Checks if the given workflow has too many consecutive errors. If so,
+        raises AutomationWorkflowTooManyErrors.
         """
 
         max_errors = settings.AUTOMATION_WORKFLOW_MAX_CONSECUTIVE_ERRORS
@@ -753,9 +774,13 @@ class AutomationWorkflowHandler:
 
         # Not enough history to exceed threshold
         if len(statuses) < max_errors:
-            return False
+            return
 
-        return all(status == HistoryStatusChoices.ERROR for status in statuses)
+        if all(status == HistoryStatusChoices.ERROR for status in statuses):
+            raise AutomationWorkflowTooManyErrors(
+                f"The workflow {workflow.id} was disabled due to too "
+                "many consecutive errors."
+            )
 
     def disable_workflow(self, workflow: AutomationWorkflow) -> None:
         """
