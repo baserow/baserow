@@ -33,4 +33,4 @@ dependencies:
   repository: https://caddyserver.github.io/ingress
   version: 1.1.0
 digest: sha256:1359aad9558d11caf1703f7e9000c5ca9b31d59869d9ebe76425640e1e51087a
-generated: "2025-08-29T10:48:16.020063+02:00"
+generated: "2025-09-02T18:14:34.685096+02:00"
