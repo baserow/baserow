@@ -410,9 +410,20 @@ class FieldDependencyHandler:
                     # If somehow the dependant is trashed it will be None. We can't
                     # really trigger any updates for it so ignore it.
                     continue
-
+                # The first raw query has constructed a path of link row fields that
+                # lead back to the original table so that we can later efficiently
+                # update the correct rows.
+                #
+                # We only want to add via's to the path which are valid joins required
+                # to get from the dependant cell to the dependency. The queryset can
+                # return dependencies with via's for dependants in the same row, which
+                # don't need a join, so we filter those out here.
+                via_path_to_starting_table = [
+                    field_cache.lookup_specific(specific_fields[via_id])
+                    for via_id in dependency.via_ids
+                ] or None
                 dependency_map[dependant_field.id].append(
-                    (starting_table_id, dependant_field)
+                    (starting_table_id, dependant_field, via_path_to_starting_table)
                 )
                 dependencies[dependant_field.id] = set(dependency.dependency_ids)
 
