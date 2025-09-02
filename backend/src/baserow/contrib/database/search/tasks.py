@@ -220,6 +220,7 @@ def periodic_check_pending_search_data():
         .values_list("table_id", flat=True)
         .distinct()
     )
+    print(table_ids_with_pending_updates)
     for table_id in table_ids_with_pending_updates:
         schedule_update_search_data(table_id)
 
