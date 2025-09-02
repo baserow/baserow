@@ -562,6 +562,9 @@ collect-e2e-test-coverage:
   except:
     refs:
       - tags
+    variables:
+      - $CI_COMMIT_BRANCH == $MASTER_BRANCH_NAME
+      - $CI_COMMIT_BRANCH == $DEVELOP_BRANCH_NAME
   interruptible: true
   needs:
     - job: e2e-tests-group-1
