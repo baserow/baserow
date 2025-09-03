@@ -32,7 +32,7 @@ from .models import (
     OpenIdConnectAuthProviderModel,
 )
 
-OAUTH_BACKEND_URL = settings.PUBLIC_BACKEND_URL
+OAUTH_BACKEND_URL = settings.OAUTH_BACKEND_URL
 
 _is_url_already_loaded = False
 

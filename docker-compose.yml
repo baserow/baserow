@@ -233,7 +233,8 @@ x-backend-variables:
   BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS:
   BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL:
   BASEROW_EMBEDDINGS_API_URL:
-  
+  BASEROW_OAUTH_BACKEND_URL:
+  BASEROW_TOTP_ISSUER_NAME:
 
 services:
   # A caddy reverse proxy sitting in-front of all the services. Responsible for routing

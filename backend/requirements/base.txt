@@ -585,6 +585,8 @@ pyopenssl==24.3.0
     #   ndg-httpsclient
     #   pysaml2
     #   twisted
+pyotp==2.9.0
+    # via -r base.in
 pyparsing==3.2.1
     # via jira2markdown
 pysaml2==7.5.0
@@ -623,6 +625,7 @@ pyyaml==6.0.2
     #   optuna
     #   uvicorn
 redis==5.2.1
+qrcode==8.2
     # via
     #   -r base.in
     #   celery-redbeat

@@ -71,6 +71,52 @@
     "changedDescription": "Your account information has been changed.",
     "submitButton": "Update account"
   },
+  "twoFactorAuthSettings": {
+    "title": "Two-factor authentication",
+    "loadingError": "Could not load two-factor configuration."
+  },
+  "disableTwoFactorAuth": {
+    "title": "Are you sure you want to disable 2FA?",
+    "description": "Your account will lose an extra layer of security. If someone finds out your password, they might be able to log in to your account.",
+    "cancel": "Leave it on",
+    "disable": "Disable",
+    "successTitle": "Two-factor authentication has been disabled",
+    "errorWrongPasswordTitle": "Wrong password",
+    "errorWrongPasswordMessage": "The password entered doesn't match your password."
+  },
+  "enableTwoFactorOptions": {
+    "cancel": "Cancel",
+    "continue": "Continue"
+  },
+  "saveBackupCode": {
+    "description": "If you lose access to your authenticator app or phone and can’t receive or generate authentication codes, you can use this backup. You can only use it once. Make sure you write it down or copy it into a safe place so that you can access it without logging in.",
+    "backupCodes": "Backup codes",
+    "copy": "Copy",
+    "continue": "Continue",
+    "backupCodesCopiedTitle": "Copied!",
+    "backupCodesCopiedMessage": "Backup codes copied to clipboard."
+  },
+  "totpAuthType": {
+    "name": "Authenticator app",
+    "description": "Use an app to get two-factor authentication codes. We recommend using apps such as Google Authenticator, Authy and Microsoft Authenticator.",
+    "enabledDescription": "You'll receive verification codes via an authenticator app. To set up different app or method, simply disable 2FA and setup again.",
+    "sideLabel": "Recommended"
+  },
+  "twoFactorEnabled": {
+    "enabled": "Enabled",
+    "disable": "Disable 2FA"
+  },
+  "totpLogin": {
+    "backupCodesTitle": "Enter backup code",
+    "backupCodesDescription": "Log in with your single-use backup code.",
+    "authenticate": "Authenticate",
+    "goBack": "Go back",
+    "totpTitle": "Two-factor authentication",
+    "totpDescription": "Enter the code from your authenticator app.",
+    "verify": "Verify",
+    "useBackupCode": "Use backup code",
+    "verificationFailed": "Verification failed"
+  },
   "settingsModal": {
     "title": "My settings"
   },
@@ -1008,5 +1054,21 @@
     "methodsOptionDescription": "Controls which HTTP methods are allowed for this webhook. Excluding GET reduces the chance of the webhook being triggered accidentally.",
     "methodsOptionAll": "All",
     "methodsOptionExcludeGet": "Exclude GET"
+  },
+  "twoFactorAuthEmpty": {
+    "title": "You have not yet enabled 2FA",
+    "description": "Add an extra layer of security to your account.",
+    "enable": "Enable 2FA",
+    "notAllowedTitle": "2FA not enabled",
+    "notAllowedDescription": "Adding 2FA is only possible to password-based accounts."
+  },
+  "enableWithQRCode": {
+    "scanQRCode": "Scan QR code",
+    "scanQRCodeDescription": "Scan the code with an app like Google Authenticator, Authy or Microsoft Authenticator.",
+    "enterCode": "Enter the code shown",
+    "enterCodeDescription": "Enter a 6-digit code shown by the app to confirm that you have set it up correctly.",
+    "verificationFailed": "Verification failed",
+    "provisioningFailed": "Provisioning failed",
+    "checkSuccess": "Successfully enabled two-factor authentication"
   }
 }

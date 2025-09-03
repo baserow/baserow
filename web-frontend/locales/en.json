@@ -94,7 +94,8 @@
     "emailNotifications": "Email notifications",
     "tokens": "Database tokens",
     "deleteAccount": "Delete account",
-    "mcpEndpoint": "MCP server"
+    "mcpEndpoint": "MCP server",
+    "twoFactorAuth": "Two-factor authentication"
   },
   "userFileUploadType": {
     "file": "my device",

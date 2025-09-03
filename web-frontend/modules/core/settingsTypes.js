@@ -4,6 +4,7 @@ import AccountSettings from '@baserow/modules/core/components/settings/AccountSe
 import DeleteAccountSettings from '@baserow/modules/core/components/settings/DeleteAccountSettings'
 import EmailNotifications from '@baserow/modules/core/components/settings/EmailNotifications'
 import McpEndpointSettings from '@baserow/modules/core/components/settings/McpEndpointSettings.vue'
+import TwoFactorAuthSettings from '@baserow/modules/core/components/settings/TwoFactorAuthSettings.vue'
 
 /**
  * All settings types will be added to the settings modal.
@@ -132,6 +133,25 @@ export class EmailNotificationsSettingsType extends SettingsType {
 
   getComponent() {
     return EmailNotifications
+  }
+}
+
+export class TwoFactorAuthSettingsType extends SettingsType {
+  static getType() {
+    return 'two-factor-auth'
+  }
+
+  getIconClass() {
+    return 'baserow-icon-password-check'
+  }
+
+  getName() {
+    const { i18n } = this.app
+    return i18n.t('settingType.twoFactorAuth')
+  }
+
+  getComponent() {
+    return TwoFactorAuthSettings
   }
 }
 

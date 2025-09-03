@@ -1,0 +1,8 @@
+{
+    "type": "feature",
+    "message": "Add TOTP 2fa support",
+    "domain": "core",
+    "issue_number": 725,
+    "bullet_points": [],
+    "created_at": "2025-10-27"
+}

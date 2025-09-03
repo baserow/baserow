@@ -771,3 +771,33 @@ def test_token_blacklist(api_client, data_fixture):
     response_json = response.json()
     assert response.status_code == HTTP_401_UNAUTHORIZED
     assert response_json["error"] == "ERROR_INVALID_REFRESH_TOKEN"
+
+
+@pytest.mark.django_db
+def test_token_auth_two_factor_token_is_not_access_token(api_client, data_fixture):
+    data_fixture.create_password_provider()
+    user = data_fixture.create_user(email="test@example.com", password="password")
+    data_fixture.configure_totp(user)
+
+    response = api_client.post(
+        reverse("api:user:token_auth"),
+        {"email": "test@example.com", "password": "password"},
+        format="json",
+    )
+
+    response_json = response.json()
+    two_fa_token = response_json["token"]
+
+    # using 2fa token as access token should not work
+    response = api_client.patch(
+        reverse("api:user:account"),
+        {
+            "first_name": "Changed name",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {two_fa_token}",
+    )
+
+    response_json = response.json()
+    assert response.status_code == HTTP_401_UNAUTHORIZED, response_json
+    assert response_json["error"] == "ERROR_INVALID_ACCESS_TOKEN"

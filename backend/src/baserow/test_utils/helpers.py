@@ -644,6 +644,16 @@ class AnyDict(dict):
         return isinstance(other, dict)
 
 
+class AnyList(dict):
+    """
+    A class that can be used to check if a value is a list. Useful in tests when
+    you don't care about the contents.
+    """
+
+    def __eq__(self, other):
+        return isinstance(other, list)
+
+
 def load_test_cases(name: str) -> Union[List, Dict]:
     """
     Load test data from the global cases directory. These cases are used to run the

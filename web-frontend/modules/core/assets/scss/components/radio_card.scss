@@ -1,0 +1,40 @@
+.radio-card {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  padding: 14px 16px 16px;
+  border-radius: 6px;
+  border: 1.5px solid $palette-neutral-400;
+  box-shadow: 0 1px 2px 0 rgba(7, 8, 16, 0.1);
+}
+
+.radio-card--selected {
+  border: 1.5px solid #4e5cfe;
+}
+
+.radio-card__input {
+  padding-top: 5px;
+}
+
+.radio-card__content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.radio-card__labels {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+}
+
+.radio-card__label {
+  padding-top: 4px;
+  font-size: 13px;
+  color: $palette-neutral-1200;
+  font-weight: 500;
+}
+
+.radio-card__description {
+  color: $palette-neutral-900;
+}

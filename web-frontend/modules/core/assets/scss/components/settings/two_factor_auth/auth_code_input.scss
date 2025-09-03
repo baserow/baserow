@@ -1,0 +1,19 @@
+.auth-code-input {
+  display: flex;
+  flex-direction: row;
+  gap: 12px;
+}
+
+.auth-code-input__input {
+  width: 44px;
+  height: 52px;
+  font-size: 18px;
+  color: $palette-neutral-900;
+  border-radius: 6px;
+  border: 1px solid $palette-neutral-400;
+  text-align: center;
+}
+
+.auth-code-input__input--filled {
+  background: $palette-neutral-100;
+}

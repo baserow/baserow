@@ -17,6 +17,7 @@ import {
   EmailNotificationsSettingsType,
   MCPEndpointSettingsType,
   DeleteAccountSettingsType,
+  TwoFactorAuthSettingsType,
 } from '@baserow/modules/core/settingsTypes'
 import { GenerativeAIWorkspaceSettingsType } from '@baserow/modules/core/workspaceSettingsTypes'
 import {
@@ -64,6 +65,8 @@ import {
   InviteOnboardingType,
 } from '@baserow/modules/core/onboardingTypes'
 import { SidebarGuidedTourType } from '@baserow/modules/core/guidedTourTypes'
+
+import { TOTPAuthType } from '@baserow/modules/core/twoFactorAuthTypes'
 
 import settingsStore from '@baserow/modules/core/store/settings'
 import applicationStore from '@baserow/modules/core/store/application'
@@ -179,6 +182,7 @@ export default (context, inject) => {
   registry.register('settings', new EmailNotificationsSettingsType(context))
   registry.register('settings', new MCPEndpointSettingsType(context))
   registry.register('settings', new DeleteAccountSettingsType(context))
+  registry.register('settings', new TwoFactorAuthSettingsType(context))
 
   registry.register(
     'workspaceSettings',
@@ -322,6 +326,8 @@ export default (context, inject) => {
     'notification',
     new BaserowVersionUpgradeNotificationType(context)
   )
+
+  registry.register('twoFactorAuth', new TOTPAuthType(context))
 
   registry.register('onboarding', new TeamOnboardingType(context))
   registry.register('onboarding', new MoreOnboardingType(context))

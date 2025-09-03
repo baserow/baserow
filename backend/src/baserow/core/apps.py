@@ -382,6 +382,13 @@ class CoreConfig(AppConfig):
 
         auth_provider_type_registry.register(PasswordAuthProviderType())
 
+        from baserow.core.two_factor_auth.registries import (
+            TOTPAuthProviderType,
+            two_factor_auth_type_registry,
+        )
+
+        two_factor_auth_type_registry.register(TOTPAuthProviderType())
+
         import baserow.core.notifications.receivers  # noqa: F401
         import baserow.core.notifications.tasks  # noqa: F401
         from baserow.core.notification_types import (

@@ -1,4 +1,5 @@
 from baserow.core.db import get_collation_name
+from baserow.test_utils.fixtures.two_factor_auth import TwoFactorAuthFixtures
 
 from .airtable import AirtableFixtures
 from .app_auth_provider import AppAuthProviderFixtures
@@ -54,6 +55,7 @@ class Fixtures(
     ViewFixtures,
     FieldFixtures,
     TokenFixtures,
+    TwoFactorAuthFixtures,
     TemplateFixtures,
     RowFixture,
     TableWebhookFixture,
