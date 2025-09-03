@@ -137,7 +137,7 @@ build-e2e-tests-image:
     - cd e2e-tests
     - docker build -t $E2E_TEST_IMAGE .
     - docker push $CI_REGISTRY/$PROJECT_PATH_FOR_E2E_TEST_IMAGE/ci/baserow_e2e-tests:latest
-  # Offer manual build step for e2e image.
+  # Offer manual build step for e2e image
   when: manual
   # We can't use the newer rules: syntax due to https://gitlab.com/gitlab-org/gitlab/-/issues/34756
   only:

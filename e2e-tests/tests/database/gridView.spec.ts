@@ -120,7 +120,7 @@ test.describe("Grid view collaboration tests", () => {
   test("User can see created, updated and deleted rows", async ({
     page, tablePage,
   }) => {
-    const baseUrl = baserowConfig.PUBLIC_WEB_FRONTEND_URL;
+    const baseUrl = 'http://localhost:3000/workspace-invitation'
     const collaborator = await createUser();
     const invitation = await createWorkspaceInvitation(tablePage.user, tablePage.workspace, collaborator.email, "ADMIN", "", baseUrl);
     await acceptWorkspaceInvitation(collaborator, invitation);
@@ -146,7 +146,7 @@ test.describe("Grid view collaboration tests", () => {
   test("User can see created, updated, and deleted fields", async ({
     page, tablePage
   }) => {
-    const baseUrl = baserowConfig.PUBLIC_WEB_FRONTEND_URL;
+    const baseUrl = 'http://localhost:3000/workspace-invitation'
     const collaborator = await createUser();
     const invitation = await createWorkspaceInvitation(tablePage.user, tablePage.workspace, collaborator.email, "ADMIN", "", baseUrl);
     await acceptWorkspaceInvitation(collaborator, invitation);
