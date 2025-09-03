@@ -14,7 +14,7 @@ def automation_fixture(data_fixture):
         order=1,
     )
     workflow = data_fixture.create_automation_workflow(
-        automation=automation, name="test"
+        user, automation=automation, name="test"
     )
 
     return {

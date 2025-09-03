@@ -27,6 +27,7 @@ from baserow.contrib.automation.nodes.signals import (
     automation_nodes_reordered,
 )
 from baserow.contrib.automation.nodes.types import (
+    AutomationNodeDuplication,
     ReplacedAutomationNode,
     UpdatedAutomationNode,
 )
@@ -258,7 +259,7 @@ class AutomationNodeService:
         self,
         user: AbstractUser,
         node: AutomationNode,
-    ) -> AutomationNode:
+    ) -> AutomationNodeDuplication:
         """
         Duplicates an existing AutomationNode instance.
 
@@ -267,7 +268,8 @@ class AutomationNodeService:
         :raises ValueError: When the provided node is not an instance of
             AutomationNode.
         :raises AutomationTriggerModificationDisallowed: If the node is a trigger.
-        :return: The duplicated node.
+        :return: The `AutomationNodeDuplication` dataclass containing the source
+            node, its next nodes values and the duplicated node.
         """
 
         CoreHandler().check_permissions(
@@ -281,15 +283,15 @@ class AutomationNodeService:
         if node.get_type().is_workflow_trigger:
             raise AutomationTriggerModificationDisallowed()
 
-        node_clone = self.handler.duplicate_node(node)
+        duplication = self.handler.duplicate_node(node)
 
         automation_node_created.send(
             self,
-            node=node_clone,
+            node=duplication.duplicated_node,
             user=user,
         )
 
-        return node_clone
+        return duplication
 
     def replace_node(
         self,

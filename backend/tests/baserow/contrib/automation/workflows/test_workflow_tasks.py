@@ -16,15 +16,13 @@ from baserow.core.services.exceptions import DispatchException
 
 @pytest.mark.django_db
 def test_run_workflow_success_creates_workflow_history(data_fixture):
-    original_workflow = data_fixture.create_automation_workflow()
+    user = data_fixture.create_user()
+    original_workflow = data_fixture.create_automation_workflow(user)
     published_workflow = data_fixture.create_automation_workflow(
-        state=WorkflowState.LIVE
+        user, state=WorkflowState.LIVE
     )
     published_workflow.automation.published_from = original_workflow
     published_workflow.automation.save()
-    data_fixture.create_local_baserow_rows_created_trigger_node(
-        workflow=published_workflow
-    )
 
     assert (
         AutomationWorkflowHistory.objects.filter(workflow=original_workflow).count()

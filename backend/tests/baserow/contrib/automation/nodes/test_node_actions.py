@@ -6,6 +6,7 @@ from baserow.contrib.automation.action_scopes import WorkflowActionScopeType
 from baserow.contrib.automation.nodes.actions import (
     CreateAutomationNodeActionType,
     DeleteAutomationNodeActionType,
+    DuplicateAutomationNodeActionType,
     ReplaceAutomationNodeActionType,
 )
 from baserow.contrib.automation.nodes.node_types import (
@@ -25,7 +26,7 @@ def test_create_node_action(data_fixture):
     user = data_fixture.create_user(session_id=session_id)
     workspace = data_fixture.create_workspace(user=user)
     automation = data_fixture.create_automation_application(workspace=workspace)
-    workflow = data_fixture.create_automation_workflow(automation=automation)
+    workflow = data_fixture.create_automation_workflow(user, automation=automation)
     node_before = data_fixture.create_automation_node(
         workflow=workflow,
         type=LocalBaserowCreateRowNodeType.type,
@@ -80,8 +81,7 @@ def test_replace_automation_action_node_type(data_fixture):
     user = data_fixture.create_user(session_id=session_id)
     workspace = data_fixture.create_workspace(user=user)
     automation = data_fixture.create_automation_application(workspace=workspace)
-    workflow = data_fixture.create_automation_workflow(automation=automation)
-    data_fixture.create_local_baserow_rows_created_trigger_node(workflow=workflow)
+    workflow = data_fixture.create_automation_workflow(user, automation=automation)
     node = data_fixture.create_automation_node(
         workflow=workflow,
         type=LocalBaserowCreateRowNodeType.type,
@@ -136,10 +136,8 @@ def test_replace_automation_trigger_node_type(data_fixture):
     user = data_fixture.create_user(session_id=session_id)
     workspace = data_fixture.create_workspace(user=user)
     automation = data_fixture.create_automation_application(workspace=workspace)
-    workflow = data_fixture.create_automation_workflow(automation=automation)
-    original_trigger = data_fixture.create_local_baserow_rows_created_trigger_node(
-        workflow=workflow
-    )
+    workflow = data_fixture.create_automation_workflow(user, automation=automation)
+    original_trigger = workflow.get_trigger()
     action_node = data_fixture.create_automation_node(
         workflow=workflow,
         type=LocalBaserowCreateRowNodeType.type,
@@ -193,7 +191,7 @@ def test_delete_node_action(data_fixture):
     user = data_fixture.create_user(session_id=session_id)
     workspace = data_fixture.create_workspace(user=user)
     automation = data_fixture.create_automation_application(workspace=workspace)
-    workflow = data_fixture.create_automation_workflow(automation=automation)
+    workflow = data_fixture.create_automation_workflow(user, automation=automation)
     node_before = data_fixture.create_automation_node(
         workflow=workflow,
         type=LocalBaserowCreateRowNodeType.type,
@@ -246,7 +244,7 @@ def test_delete_node_action_after_nothing(data_fixture):
     user = data_fixture.create_user(session_id=session_id)
     workspace = data_fixture.create_workspace(user=user)
     automation = data_fixture.create_automation_application(workspace=workspace)
-    workflow = data_fixture.create_automation_workflow(automation=automation)
+    workflow = data_fixture.create_automation_workflow(user, automation=automation)
     node_before = data_fixture.create_automation_node(
         workflow=workflow,
         type=LocalBaserowCreateRowNodeType.type,
@@ -281,3 +279,116 @@ def test_delete_node_action_after_nothing(data_fixture):
     # The node is trashed again
     node.refresh_from_db(fields=["trashed"])
     assert node.trashed
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_duplicate_node_action(data_fixture):
+    session_id = str(uuid.uuid4())
+    user = data_fixture.create_user(session_id=session_id)
+    workspace = data_fixture.create_workspace(user=user)
+    automation = data_fixture.create_automation_application(workspace=workspace)
+    workflow = data_fixture.create_automation_workflow(user, automation=automation)
+    source_node = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow,
+    )
+    after_source_node = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow,
+    )
+
+    with local_cache.context():
+        duplicated_node = DuplicateAutomationNodeActionType.do(user, source_node.id)
+
+    # The node is duplicated
+    assert duplicated_node.previous_node_id == source_node.id
+    after_source_node.refresh_from_db()
+    assert after_source_node.previous_node_id == duplicated_node.id
+    assert after_source_node.previous_node_output == ""
+
+    with local_cache.context():
+        ActionHandler.undo(
+            user, [WorkflowActionScopeType.value(workflow.id)], session_id
+        )
+
+    # The duplicated node is trashed
+    duplicated_node.refresh_from_db(fields=["trashed"])
+    assert duplicated_node.trashed
+    after_source_node.refresh_from_db()
+    assert after_source_node.previous_node_id == source_node.id
+    assert after_source_node.previous_node_output == ""
+
+    with local_cache.context():
+        ActionHandler.redo(
+            user, [WorkflowActionScopeType.value(workflow.id)], session_id
+        )
+
+    # The duplicated node is restored
+    duplicated_node.refresh_from_db(fields=["trashed"])
+    assert not duplicated_node.trashed
+    after_source_node.refresh_from_db()
+    assert after_source_node.previous_node_id == duplicated_node.id
+    assert after_source_node.previous_node_output == ""
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_duplicate_node_action_with_multiple_outputs(data_fixture):
+    session_id = str(uuid.uuid4())
+    user = data_fixture.create_user(session_id=session_id)
+    workspace = data_fixture.create_workspace(user=user)
+    automation = data_fixture.create_automation_application(workspace=workspace)
+    workflow = data_fixture.create_automation_workflow(user, automation=automation)
+    core_router_with_edges = data_fixture.create_core_router_action_node_with_edges(
+        workflow=workflow,
+    )
+    source_node = core_router_with_edges.router
+    edge1 = core_router_with_edges.edge1
+    edge1_output = core_router_with_edges.edge1_output
+    edge2 = core_router_with_edges.edge2
+    edge2_output = core_router_with_edges.edge2_output
+    fallback_output_node = core_router_with_edges.fallback_output_node
+
+    with local_cache.context():
+        duplicated_node = DuplicateAutomationNodeActionType.do(user, source_node.id)
+
+    # The node is duplicated
+    assert duplicated_node.previous_node_id == source_node.id
+
+    # The edge1/edge2 outputs are intact.
+    edge1_output.refresh_from_db()
+    assert edge1_output.previous_node_id == source_node.id
+    assert edge1_output.previous_node_output == str(edge1.uid)
+    edge2_output.refresh_from_db()
+    assert edge2_output.previous_node_id == source_node.id
+    assert edge2_output.previous_node_output == str(edge2.uid)
+
+    # The original fallback output node is now after our duplicated router.
+    fallback_output_node.refresh_from_db()
+    assert fallback_output_node.previous_node_id == duplicated_node.id
+    assert fallback_output_node.previous_node_output == ""
+
+    with local_cache.context():
+        ActionHandler.undo(
+            user, [WorkflowActionScopeType.value(workflow.id)], session_id
+        )
+
+    # The duplicated node is trashed
+    duplicated_node.refresh_from_db(fields=["trashed"])
+    assert duplicated_node.trashed
+    fallback_output_node.refresh_from_db()
+    # The original fallback output node is now after our source router, again.
+    assert fallback_output_node.previous_node_id == source_node.id
+    assert fallback_output_node.previous_node_output == ""
+
+    with local_cache.context():
+        ActionHandler.redo(
+            user, [WorkflowActionScopeType.value(workflow.id)], session_id
+        )
+
+    # The duplicated node is restored
+    duplicated_node.refresh_from_db(fields=["trashed"])
+    assert not duplicated_node.trashed
+    fallback_output_node.refresh_from_db()
+    # The original fallback output node is now after our duplicated router, again.
+    assert fallback_output_node.previous_node_id == duplicated_node.id
+    assert fallback_output_node.previous_node_output == ""
