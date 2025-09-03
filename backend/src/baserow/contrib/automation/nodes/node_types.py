@@ -19,6 +19,7 @@ from baserow.contrib.automation.nodes.models import (
     AutomationNode,
     AutomationTriggerNode,
     CoreHTTPRequestActionNode,
+    CorePeriodicTriggerNode,
     CoreRouterActionNode,
     CoreSMTPEmailActionNode,
     LocalBaserowAggregateRowsActionNode,
@@ -30,15 +31,12 @@ from baserow.contrib.automation.nodes.models import (
     LocalBaserowRowsDeletedTriggerNode,
     LocalBaserowRowsUpdatedTriggerNode,
     LocalBaserowUpdateRowActionNode,
-    PeriodicTriggerNode,
-)
-from baserow.contrib.automation.nodes.periodic_trigger.service_types import (
-    PeriodicTriggerServiceType,
 )
 from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.contrib.automation.nodes.registries import AutomationNodeType
 from baserow.contrib.integrations.core.service_types import (
     CoreHTTPRequestServiceType,
+    CorePeriodicServiceType,
     CoreRouterServiceType,
     CoreSMTPEmailServiceType,
 )
@@ -332,7 +330,7 @@ class LocalBaserowRowsDeletedNodeTriggerType(AutomationNodeSignalTriggerType):
     service_type = LocalBaserowRowsDeletedTriggerServiceType.type
 
 
-class PeriodicTriggerNodeType(AutomationNodeTriggerType):
+class CorePeriodicTriggerNodeType(AutomationNodeTriggerType):
     type = "periodic"
-    model_class = PeriodicTriggerNode
-    service_type = PeriodicTriggerServiceType.type
+    model_class = CorePeriodicTriggerNode
+    service_type = CorePeriodicServiceType.type

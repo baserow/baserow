@@ -1,16 +1,14 @@
 import pytest
 
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
-from baserow.contrib.automation.nodes.node_types import PeriodicTriggerNodeType
-from baserow.contrib.automation.nodes.periodic_trigger.models import (
+from baserow.contrib.automation.nodes.node_types import CorePeriodicTriggerNodeType
+from baserow.contrib.automation.nodes.registries import automation_node_type_registry
+from baserow.contrib.integrations.core.models import (
     PERIODIC_INTERVAL_HOUR,
     PERIODIC_INTERVAL_MINUTE,
-    PeriodicTriggerService,
+    CorePeriodicService,
 )
-from baserow.contrib.automation.nodes.periodic_trigger.service_types import (
-    PeriodicTriggerServiceType,
-)
-from baserow.contrib.automation.nodes.registries import automation_node_type_registry
+from baserow.contrib.integrations.core.service_types import CorePeriodicServiceType
 from baserow.core.services.handler import ServiceHandler
 
 
@@ -31,11 +29,11 @@ def test_periodic_trigger_service_type_generate_schema(data_fixture):
         },
     )
 
-    service_type = PeriodicTriggerServiceType()
+    service_type = CorePeriodicServiceType()
     service = trigger_node.service.specific
 
     assert service_type.type == "periodic"
-    assert service_type.model_class == PeriodicTriggerService
+    assert service_type.model_class == CorePeriodicService
 
     schema = service_type.generate_schema(service)
     assert schema is not None
@@ -59,8 +57,8 @@ def test_periodic_trigger_node_creation_and_property_updates(data_fixture):
 
     node_handler = AutomationNodeHandler()
     service_handler = ServiceHandler()
-    node_type = automation_node_type_registry.get(PeriodicTriggerNodeType.type)
-    service_type = PeriodicTriggerServiceType()
+    node_type = automation_node_type_registry.get(CorePeriodicTriggerNodeType.type)
+    service_type = CorePeriodicServiceType()
 
     service = service_handler.create_service(
         service_type,
@@ -77,11 +75,11 @@ def test_periodic_trigger_node_creation_and_property_updates(data_fixture):
     assert trigger_node.workflow == workflow
     assert trigger_node.service == service
     service_specific = service.specific
-    assert isinstance(service_specific, PeriodicTriggerService)
+    assert isinstance(service_specific, CorePeriodicService)
     assert service_specific.interval == PERIODIC_INTERVAL_MINUTE
     assert service_specific.minute == 15
     assert service_specific.hour == 10
-    assert service_specific.last_periodic_trigger is None
+    assert service_specific.last_periodic_run is None
 
     updated_service = service_handler.update_service(
         service_type=service_type,

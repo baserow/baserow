@@ -16,6 +16,7 @@ from rest_framework import serializers
 
 from baserow.contrib.integrations.core.models import (
     CoreHTTPRequestService,
+    CorePeriodicService,
     CoreRouterService,
     CoreRouterServiceEdge,
     CoreSMTPEmailService,
@@ -41,7 +42,7 @@ from baserow.core.services.registries import DispatchTypes, ServiceType
 from baserow.core.services.types import DispatchResult, FormulaToResolve, ServiceDict
 from baserow.version import VERSION as BASEROW_VERSION
 
-from .constants import BODY_TYPE, HTTP_METHOD
+from .constants import BODY_TYPE, HTTP_METHOD, PERIODIC_INTERVAL_CHOICES
 from .integration_types import SMTPIntegrationType
 
 
@@ -1132,3 +1133,86 @@ class CoreRouterServiceType(ServiceType):
 
     def get_sample_data(self, service):
         return None
+
+
+class CorePeriodicServiceType(ServiceType):
+    type = "periodic"
+    model_class = CorePeriodicService
+    dispatch_type = DispatchTypes.DISPATCH_TRIGGER
+
+    allowed_fields = [
+        "interval",
+        "minute",
+        "hour",
+        "day_of_week",
+        "day_of_month",
+    ]
+
+    serializer_field_names = [
+        "interval",
+        "minute",
+        "hour",
+        "day_of_week",
+        "day_of_month",
+    ]
+
+    serializer_field_overrides = {
+        "interval": serializers.ChoiceField(
+            choices=PERIODIC_INTERVAL_CHOICES,
+            help_text=CorePeriodicService._meta.get_field("interval").help_text,
+        ),
+        "minute": serializers.IntegerField(
+            min_value=0,
+            max_value=59,
+            required=False,
+            allow_null=True,
+            help_text=CorePeriodicService._meta.get_field("minute").help_text,
+        ),
+        "hour": serializers.IntegerField(
+            min_value=0,
+            max_value=23,
+            required=False,
+            allow_null=True,
+            help_text=CorePeriodicService._meta.get_field("hour").help_text,
+        ),
+        "day_of_week": serializers.IntegerField(
+            min_value=0,
+            max_value=6,
+            required=False,
+            allow_null=True,
+            help_text=CorePeriodicService._meta.get_field("day_of_week").help_text,
+        ),
+        "day_of_month": serializers.IntegerField(
+            min_value=1,
+            max_value=31,
+            required=False,
+            allow_null=True,
+            help_text=CorePeriodicService._meta.get_field("day_of_month").help_text,
+        ),
+    }
+
+    class SerializedDict(ServiceDict):
+        interval: str
+        minute: int
+        hour: int
+        day_of_week: int
+        day_of_month: int
+
+    def get_schema_name(self, service: CorePeriodicService) -> str:
+        return f"Periodic{service.id}Schema"
+
+    def generate_schema(
+        self,
+        service: CorePeriodicService,
+        allowed_fields: Optional[List[str]] = None,
+    ) -> Optional[Dict[str, Any]]:
+        return {
+            "title": self.get_schema_name(service),
+            "type": "object",
+            "properties": {
+                "triggered_at": {
+                    "type": "string",
+                    "title": _("Triggered at"),
+                },
+            },
+        }

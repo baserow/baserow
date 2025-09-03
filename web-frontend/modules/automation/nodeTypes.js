@@ -330,7 +330,9 @@ export class LocalBaserowRowsDeletedTriggerNodeType extends TriggerNodeTypeMixin
   }
 }
 
-export class PeriodicTriggerNodeType extends TriggerNodeTypeMixin(NodeType) {
+export class CorePeriodicTriggerNodeType extends TriggerNodeTypeMixin(
+  NodeType
+) {
   static getType() {
     return 'periodic'
   }

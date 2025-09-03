@@ -30,7 +30,7 @@ import {
   CoreHttpRequestNodeType,
   CoreSMTPEmailNodeType,
   CoreRouterNodeType,
-  PeriodicTriggerNodeType,
+  CorePeriodicTriggerNodeType,
 } from '@baserow/modules/automation/nodeTypes'
 import {
   DuplicateAutomationWorkflowJobType,
@@ -119,7 +119,7 @@ export default (context) => {
       'node',
       new LocalBaserowAggregateRowsActionNodeType(context)
     )
-    app.$registry.register('node', new PeriodicTriggerNodeType(context))
+    app.$registry.register('node', new CorePeriodicTriggerNodeType(context))
     app.$registry.register('service', new PeriodicTriggerServiceType(context))
     app.$registry.register(
       'job',

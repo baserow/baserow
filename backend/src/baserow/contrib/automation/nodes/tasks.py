@@ -18,12 +18,10 @@ def call_periodic_triggers_that_are_due(self):
     are locked.
     """
 
-    from baserow.contrib.automation.nodes.periodic_trigger.handler import (
-        PeriodicTriggerHandler,
-    )
+    from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 
     with transaction.atomic():
-        PeriodicTriggerHandler().call_periodic_triggers_that_are_due()
+        AutomationNodeHandler().call_periodic_triggers_that_are_due()
 
 
 @app.on_after_finalize.connect

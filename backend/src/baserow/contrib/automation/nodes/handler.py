@@ -1,8 +1,13 @@
 from collections import defaultdict
+from datetime import timedelta
 from typing import Any, Dict, Iterable, List, Optional, Union
 
 from django.core.files.storage import Storage
-from django.db.models import QuerySet
+from django.db.models import Q, QuerySet
+from django.utils import timezone
+
+from dateutil.relativedelta import relativedelta
+from loguru import logger
 
 from baserow.contrib.automation.automation_dispatch_context import (
     AutomationDispatchContext,
@@ -24,6 +29,16 @@ from baserow.contrib.automation.nodes.types import (
     UpdatedAutomationNode,
 )
 from baserow.contrib.automation.workflows.runner import AutomationWorkflowRunner
+from baserow.contrib.automation.nodes.utils import get_periodic_trigger_payload
+from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
+from baserow.contrib.integrations.core.constants import (
+    PERIODIC_INTERVAL_DAY,
+    PERIODIC_INTERVAL_HOUR,
+    PERIODIC_INTERVAL_MINUTE,
+    PERIODIC_INTERVAL_MONTH,
+    PERIODIC_INTERVAL_WEEK,
+)
+from baserow.contrib.integrations.core.models import CorePeriodicService
 from baserow.core.cache import local_cache
 from baserow.core.db import specific_iterator
 from baserow.core.exceptions import IdDoesNotExist
@@ -501,6 +516,99 @@ class AutomationNodeHandler:
         )
 
         return node_instance
+
+    @classmethod
+    def call_periodic_triggers_that_are_due(cls):
+        """
+        This method is typically called by an async task. It uses a single ORM query
+        to find all periodic triggers that are due to be executed based on the
+        `last_periodic_run`.
+        """
+
+        now = timezone.now()
+        query_conditions = Q()
+        is_null = Q(last_periodic_run__isnull=True)
+        workflow_handler = AutomationWorkflowHandler()
+
+        # MINUTE
+        minute_ago = now - timedelta(minutes=1)
+        minute_condition = Q(
+            is_null | Q(last_periodic_run__lt=minute_ago),
+            interval=PERIODIC_INTERVAL_MINUTE,
+        )
+        query_conditions |= minute_condition
+
+        # HOUR
+        hour_ago = now - timedelta(hours=1)
+        hour_condition = Q(
+            is_null | Q(last_periodic_run__lt=hour_ago),
+            interval=PERIODIC_INTERVAL_HOUR,
+            minute__lte=now.minute,
+        )
+        query_conditions |= hour_condition
+
+        # DAY
+        day_ago = now - timedelta(days=1)
+        day_condition = Q(
+            is_null | Q(last_periodic_run__lt=day_ago),
+            interval=PERIODIC_INTERVAL_DAY,
+            hour__lte=now.hour,
+            minute__lte=now.minute,
+        )
+        query_conditions |= day_condition
+
+        # WEEK
+        week_ago = now - timedelta(weeks=1)
+        week_condition = Q(
+            is_null | Q(last_periodic_run__lt=week_ago),
+            interval=PERIODIC_INTERVAL_WEEK,
+            day_of_week=now.weekday(),
+            hour__lte=now.hour,
+            minute__lte=now.minute,
+        )
+        query_conditions |= week_condition
+
+        # MONTH
+        month_ago = now - relativedelta(months=1)
+        month_condition = Q(
+            is_null | Q(last_periodic_run__lt=month_ago),
+            interval=PERIODIC_INTERVAL_MONTH,
+            day_of_month=now.day,
+            hour__lte=now.hour,
+            minute__lte=now.minute,
+        )
+        query_conditions |= month_condition
+
+        periodic_services = (
+            CorePeriodicService.objects.filter(query_conditions)
+            .filter(
+                Q(
+                    automation_workflow_node__workflow__published=True,
+                    automation_workflow_node__workflow__paused=False,
+                )
+            )
+            .select_related(
+                "automation_workflow_node__workflow__automation__workspace",
+                "automation_workflow_node__workflow",
+            )
+            .select_for_update(
+                of=("self",),
+                skip_locked=True,
+            )
+            .order_by("id")
+        )
+
+        for service in periodic_services:
+            service.last_periodic_run = now
+            workflow = service.automation_workflow_node.workflow
+            workflow_handler.run_workflow(workflow, get_periodic_trigger_payload(now))
+
+        if periodic_services:
+            CorePeriodicService.objects.bulk_update(
+                periodic_services, fields=["last_periodic_run"]
+            )
+
+        logger.info(f"Scheduled {len(periodic_services)} periodic triggers")
 
     def simulate_dispatch_node(self, node: AutomationNode) -> AutomationNode:
         """

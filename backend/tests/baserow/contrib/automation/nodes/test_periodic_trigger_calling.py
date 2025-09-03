@@ -6,17 +6,15 @@ from django.db import transaction
 import pytest
 from freezegun import freeze_time
 
-from baserow.contrib.automation.nodes.periodic_trigger.handler import (
-    PeriodicTriggerHandler,
-)
-from baserow.contrib.automation.nodes.periodic_trigger.models import (
+from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
+from baserow.contrib.integrations.core.constants import (
     PERIODIC_INTERVAL_DAY,
     PERIODIC_INTERVAL_HOUR,
     PERIODIC_INTERVAL_MINUTE,
     PERIODIC_INTERVAL_MONTH,
     PERIODIC_INTERVAL_WEEK,
-    PeriodicTriggerService,
 )
+from baserow.contrib.integrations.core.models import CorePeriodicService
 
 
 @pytest.mark.django_db(transaction=True)
@@ -29,17 +27,17 @@ def test_call_periodic_triggers_that_are_not_published(mock_run_workflow, data_f
         published=False,
         paused=False,
     )
-    trigger_node = data_fixture.create_periodic_trigger_node(
+    data_fixture.create_periodic_trigger_node(
         workflow=workflow,
         service_kwargs={
             "interval": PERIODIC_INTERVAL_MINUTE,
-            "last_periodic_trigger": None,
+            "last_periodic_run": None,
         },
     )
 
     with freeze_time("2025-02-15 10:30:45"):
         with transaction.atomic():
-            PeriodicTriggerHandler.call_periodic_triggers_that_are_due()
+            AutomationNodeHandler().call_periodic_triggers_that_are_due()
 
     mock_run_workflow.delay.assert_not_called()
 
@@ -54,17 +52,17 @@ def test_call_periodic_triggers_that_are_paused(mock_run_workflow, data_fixture)
         published=True,
         paused=True,
     )
-    trigger_node = data_fixture.create_periodic_trigger_node(
+    data_fixture.create_periodic_trigger_node(
         workflow=workflow,
         service_kwargs={
             "interval": PERIODIC_INTERVAL_MINUTE,
-            "last_periodic_trigger": None,
+            "last_periodic_run": None,
         },
     )
 
     with freeze_time("2025-02-15 10:30:45"):
         with transaction.atomic():
-            PeriodicTriggerHandler.call_periodic_triggers_that_are_due()
+            AutomationNodeHandler().call_periodic_triggers_that_are_due()
 
     mock_run_workflow.delay.assert_not_called()
 
@@ -83,18 +81,18 @@ def test_call_periodic_triggers_that_are_locked(mock_run_workflow, data_fixture)
         workflow=workflow,
         service_kwargs={
             "interval": PERIODIC_INTERVAL_MINUTE,
-            "last_periodic_trigger": None,
+            "last_periodic_run": None,
         },
     )
 
     with transaction.atomic(using="default-copy"):
-        PeriodicTriggerService.objects.using("default-copy").filter(
+        CorePeriodicService.objects.using("default-copy").filter(
             id=trigger_node.service_id,
         ).select_for_update().get()
 
         with freeze_time("2025-02-15 10:30:45"):
             with transaction.atomic():
-                PeriodicTriggerHandler.call_periodic_triggers_that_are_due()
+                AutomationNodeHandler().call_periodic_triggers_that_are_due()
 
         mock_run_workflow.delay.assert_not_called()
 
@@ -114,24 +112,24 @@ def test_call_multiple_periodic_triggers_that_are_due(mock_run_workflow, data_fi
         published=True,
         paused=False,
     )
-    trigger_node = data_fixture.create_periodic_trigger_node(
+    data_fixture.create_periodic_trigger_node(
         workflow=workflow,
         service_kwargs={
             "interval": PERIODIC_INTERVAL_MINUTE,
-            "last_periodic_trigger": None,
+            "last_periodic_run": None,
         },
     )
-    trigger_node_2 = data_fixture.create_periodic_trigger_node(
+    data_fixture.create_periodic_trigger_node(
         workflow=workflow_2,
         service_kwargs={
             "interval": PERIODIC_INTERVAL_MINUTE,
-            "last_periodic_trigger": None,
+            "last_periodic_run": None,
         },
     )
 
     with freeze_time("2025-02-15 10:30:45"):
         with transaction.atomic():
-            PeriodicTriggerHandler.call_periodic_triggers_that_are_due()
+            AutomationNodeHandler().call_periodic_triggers_that_are_due()
 
     mock_run_workflow.delay.assert_has_calls(
         [
@@ -150,7 +148,7 @@ def test_call_multiple_periodic_triggers_that_are_due(mock_run_workflow, data_fi
         (
             {
                 "interval": PERIODIC_INTERVAL_MINUTE,
-                "last_periodic_trigger": None,
+                "last_periodic_run": None,
             },
             "2025-02-15 10:30:45",
             # never triggered before, so it must always be triggered.
@@ -159,7 +157,7 @@ def test_call_multiple_periodic_triggers_that_are_due(mock_run_workflow, data_fi
         (
             {
                 "interval": PERIODIC_INTERVAL_MINUTE,
-                "last_periodic_trigger": datetime(
+                "last_periodic_run": datetime(
                     2025, 2, 15, 10, 30, 30, tzinfo=timezone.utc
                 ),
             },
@@ -171,7 +169,7 @@ def test_call_multiple_periodic_triggers_that_are_due(mock_run_workflow, data_fi
         (
             {
                 "interval": PERIODIC_INTERVAL_MINUTE,
-                "last_periodic_trigger": datetime(
+                "last_periodic_run": datetime(
                     2025, 2, 15, 10, 30, 0, tzinfo=timezone.utc
                 ),
             },
@@ -183,7 +181,7 @@ def test_call_multiple_periodic_triggers_that_are_due(mock_run_workflow, data_fi
         (
             {
                 "interval": PERIODIC_INTERVAL_MINUTE,
-                "last_periodic_trigger": datetime(
+                "last_periodic_run": datetime(
                     2025, 2, 15, 10, 29, 59, tzinfo=timezone.utc
                 ),
             },
@@ -195,7 +193,7 @@ def test_call_multiple_periodic_triggers_that_are_due(mock_run_workflow, data_fi
         (
             {
                 "interval": PERIODIC_INTERVAL_MINUTE,
-                "last_periodic_trigger": datetime(
+                "last_periodic_run": datetime(
                     2025, 2, 15, 10, 28, 59, tzinfo=timezone.utc
                 ),
             },
@@ -207,7 +205,7 @@ def test_call_multiple_periodic_triggers_that_are_due(mock_run_workflow, data_fi
         (
             {
                 "interval": PERIODIC_INTERVAL_MINUTE,
-                "last_periodic_trigger": datetime(
+                "last_periodic_run": datetime(
                     2025, 1, 16, 2, 59, 59, tzinfo=timezone.utc
                 ),
             },
@@ -219,7 +217,7 @@ def test_call_multiple_periodic_triggers_that_are_due(mock_run_workflow, data_fi
         (
             {
                 "interval": PERIODIC_INTERVAL_HOUR,
-                "last_periodic_trigger": None,
+                "last_periodic_run": None,
                 "minute": 34,
             },
             "2025-02-15 10:30:45",
@@ -230,7 +228,7 @@ def test_call_multiple_periodic_triggers_that_are_due(mock_run_workflow, data_fi
         (
             {
                 "interval": PERIODIC_INTERVAL_HOUR,
-                "last_periodic_trigger": None,
+                "last_periodic_run": None,
                 "minute": 34,
             },
             "2025-02-15 10:35:45",
@@ -241,7 +239,7 @@ def test_call_multiple_periodic_triggers_that_are_due(mock_run_workflow, data_fi
         (
             {
                 "interval": PERIODIC_INTERVAL_HOUR,
-                "last_periodic_trigger": datetime(
+                "last_periodic_run": datetime(
                     2025, 2, 15, 10, 5, 45, tzinfo=timezone.utc
                 ),
                 "minute": 5,
@@ -254,7 +252,7 @@ def test_call_multiple_periodic_triggers_that_are_due(mock_run_workflow, data_fi
         (
             {
                 "interval": PERIODIC_INTERVAL_HOUR,
-                "last_periodic_trigger": datetime(
+                "last_periodic_run": datetime(
                     2025, 2, 15, 9, 45, 45, tzinfo=timezone.utc
                 ),
                 "minute": 45,
@@ -267,7 +265,7 @@ def test_call_multiple_periodic_triggers_that_are_due(mock_run_workflow, data_fi
         (
             {
                 "interval": PERIODIC_INTERVAL_HOUR,
-                "last_periodic_trigger": datetime(
+                "last_periodic_run": datetime(
                     2025, 2, 15, 9, 27, 45, tzinfo=timezone.utc
                 ),
                 "minute": 31,
@@ -280,7 +278,7 @@ def test_call_multiple_periodic_triggers_that_are_due(mock_run_workflow, data_fi
         (
             {
                 "interval": PERIODIC_INTERVAL_HOUR,
-                "last_periodic_trigger": datetime(
+                "last_periodic_run": datetime(
                     2025, 2, 15, 9, 27, 45, tzinfo=timezone.utc
                 ),
                 "minute": 29,
@@ -294,7 +292,7 @@ def test_call_multiple_periodic_triggers_that_are_due(mock_run_workflow, data_fi
         (
             {
                 "interval": PERIODIC_INTERVAL_DAY,
-                "last_periodic_trigger": None,
+                "last_periodic_run": None,
                 "minute": 34,
                 "hour": 10,
             },
@@ -306,7 +304,7 @@ def test_call_multiple_periodic_triggers_that_are_due(mock_run_workflow, data_fi
         (
             {
                 "interval": PERIODIC_INTERVAL_DAY,
-                "last_periodic_trigger": None,
+                "last_periodic_run": None,
                 "minute": 34,
                 "hour": 10,
             },
@@ -317,7 +315,7 @@ def test_call_multiple_periodic_triggers_that_are_due(mock_run_workflow, data_fi
         (
             {
                 "interval": PERIODIC_INTERVAL_HOUR,
-                "last_periodic_trigger": datetime(
+                "last_periodic_run": datetime(
                     2025, 2, 14, 10, 40, 45, tzinfo=timezone.utc
                 ),
                 "minute": 34,
@@ -331,7 +329,7 @@ def test_call_multiple_periodic_triggers_that_are_due(mock_run_workflow, data_fi
         (
             {
                 "interval": PERIODIC_INTERVAL_HOUR,
-                "last_periodic_trigger": datetime(
+                "last_periodic_run": datetime(
                     2025, 2, 14, 9, 45, 45, tzinfo=timezone.utc
                 ),
                 "minute": 45,
@@ -345,7 +343,7 @@ def test_call_multiple_periodic_triggers_that_are_due(mock_run_workflow, data_fi
         (
             {
                 "interval": PERIODIC_INTERVAL_HOUR,
-                "last_periodic_trigger": datetime(
+                "last_periodic_run": datetime(
                     2025, 2, 14, 9, 45, 45, tzinfo=timezone.utc
                 ),
                 "minute": 15,
@@ -360,7 +358,7 @@ def test_call_multiple_periodic_triggers_that_are_due(mock_run_workflow, data_fi
         (
             {
                 "interval": PERIODIC_INTERVAL_WEEK,
-                "last_periodic_trigger": None,
+                "last_periodic_run": None,
                 "minute": 34,
                 "hour": 10,
                 "day_of_week": 1,  # Tuesday
@@ -373,7 +371,7 @@ def test_call_multiple_periodic_triggers_that_are_due(mock_run_workflow, data_fi
         (
             {
                 "interval": PERIODIC_INTERVAL_WEEK,
-                "last_periodic_trigger": None,
+                "last_periodic_run": None,
                 "minute": 34,
                 "hour": 10,
                 "day_of_week": 1,  # Tuesday
@@ -386,7 +384,7 @@ def test_call_multiple_periodic_triggers_that_are_due(mock_run_workflow, data_fi
         (
             {
                 "interval": PERIODIC_INTERVAL_HOUR,
-                "last_periodic_trigger": datetime(
+                "last_periodic_run": datetime(
                     2025, 2, 4, 10, 40, 45, tzinfo=timezone.utc
                 ),
                 "minute": 34,
@@ -401,7 +399,7 @@ def test_call_multiple_periodic_triggers_that_are_due(mock_run_workflow, data_fi
         (
             {
                 "interval": PERIODIC_INTERVAL_HOUR,
-                "last_periodic_trigger": datetime(
+                "last_periodic_run": datetime(
                     2025, 2, 4, 9, 45, 45, tzinfo=timezone.utc
                 ),
                 "minute": 45,
@@ -416,7 +414,7 @@ def test_call_multiple_periodic_triggers_that_are_due(mock_run_workflow, data_fi
         (
             {
                 "interval": PERIODIC_INTERVAL_HOUR,
-                "last_periodic_trigger": datetime(
+                "last_periodic_run": datetime(
                     2025, 2, 4, 9, 45, 45, tzinfo=timezone.utc
                 ),
                 "minute": 45,
@@ -432,7 +430,7 @@ def test_call_multiple_periodic_triggers_that_are_due(mock_run_workflow, data_fi
         (
             {
                 "interval": PERIODIC_INTERVAL_MONTH,
-                "last_periodic_trigger": None,
+                "last_periodic_run": None,
                 "minute": 34,
                 "hour": 10,
                 "day_of_month": 12,
@@ -445,7 +443,7 @@ def test_call_multiple_periodic_triggers_that_are_due(mock_run_workflow, data_fi
         (
             {
                 "interval": PERIODIC_INTERVAL_MONTH,
-                "last_periodic_trigger": None,
+                "last_periodic_run": None,
                 "minute": 34,
                 "hour": 10,
                 "day_of_month": 11,
@@ -457,7 +455,7 @@ def test_call_multiple_periodic_triggers_that_are_due(mock_run_workflow, data_fi
         (
             {
                 "interval": PERIODIC_INTERVAL_MONTH,
-                "last_periodic_trigger": datetime(
+                "last_periodic_run": datetime(
                     2025, 1, 10, 10, 40, 45, tzinfo=timezone.utc
                 ),
                 "minute": 34,
@@ -472,7 +470,7 @@ def test_call_multiple_periodic_triggers_that_are_due(mock_run_workflow, data_fi
         (
             {
                 "interval": PERIODIC_INTERVAL_MONTH,
-                "last_periodic_trigger": datetime(
+                "last_periodic_run": datetime(
                     2025, 1, 11, 10, 20, 45, tzinfo=timezone.utc
                 ),
                 "minute": 45,
@@ -486,7 +484,7 @@ def test_call_multiple_periodic_triggers_that_are_due(mock_run_workflow, data_fi
         (
             {
                 "interval": PERIODIC_INTERVAL_MONTH,
-                "last_periodic_trigger": datetime(
+                "last_periodic_run": datetime(
                     2025, 1, 11, 11, 44, 45, tzinfo=timezone.utc
                 ),
                 "minute": 45,
@@ -517,7 +515,7 @@ def test_call_periodic_triggers_that_are_due(
 
     with freeze_time(frozen_time):
         with transaction.atomic():
-            PeriodicTriggerHandler.call_periodic_triggers_that_are_due()
+            AutomationNodeHandler().call_periodic_triggers_that_are_due()
 
     trigger_node.refresh_from_db()
     service = trigger_node.service.specific
@@ -527,11 +525,11 @@ def test_call_periodic_triggers_that_are_due(
         mock_run_workflow.delay.assert_called_once_with(
             workflow.id,
             False,
-            {"triggered_at": service.last_periodic_trigger.isoformat()},
+            {"triggered_at": service.last_periodic_run.isoformat()},
         )
     else:
         mock_run_workflow.delay.assert_not_called()
 
     if should_be_called:
         target_date = datetime.fromisoformat(frozen_time).replace(tzinfo=timezone.utc)
-        assert service.last_periodic_trigger == target_date
+        assert service.last_periodic_run == target_date

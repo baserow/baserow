@@ -8,12 +8,12 @@ from baserow.contrib.automation.nodes.models import (
     LocalBaserowCreateRowActionNode,
 )
 from baserow.contrib.automation.nodes.node_types import (
+    CorePeriodicTriggerNodeType,
     CoreRouterActionNodeType,
     LocalBaserowCreateRowNodeType,
     LocalBaserowDeleteRowNodeType,
     LocalBaserowRowsCreatedNodeTriggerType,
     LocalBaserowUpdateRowNodeType,
-    PeriodicTriggerNodeType,
 )
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.integrations.core.models import CoreRouterServiceEdge
@@ -133,6 +133,6 @@ class AutomationNodeFixtures:
     def create_periodic_trigger_node(self, user=None, **kwargs):
         return self.create_automation_node(
             user=user,
-            type=PeriodicTriggerNodeType.type,
+            type=CorePeriodicTriggerNodeType.type,
             **kwargs,
         )

@@ -21,6 +21,7 @@ class AutomationConfig(AppConfig):
         )
         from baserow.contrib.automation.nodes.node_types import (
             CoreHttpRequestNodeType,
+            CorePeriodicTriggerNodeType,
             CoreRouterActionNodeType,
             CoreSMTPEmailNodeType,
             LocalBaserowAggregateRowsNodeType,
@@ -32,7 +33,6 @@ class AutomationConfig(AppConfig):
             LocalBaserowRowsDeletedNodeTriggerType,
             LocalBaserowRowsUpdatedNodeTriggerType,
             LocalBaserowUpdateRowNodeType,
-            PeriodicTriggerNodeType,
         )
         from baserow.contrib.automation.nodes.object_scopes import (
             AutomationNodeObjectScopeType,
@@ -46,9 +46,6 @@ class AutomationConfig(AppConfig):
             ReadAutomationNodeOperationType,
             RestoreAutomationNodeOperationType,
             UpdateAutomationNodeOperationType,
-        )
-        from baserow.contrib.automation.nodes.periodic_trigger.service_types import (
-            PeriodicTriggerServiceType,
         )
         from baserow.contrib.automation.nodes.registries import (
             automation_node_type_registry,
@@ -87,6 +84,9 @@ class AutomationConfig(AppConfig):
         )
         from baserow.contrib.automation.workflows.trash_types import (
             AutomationWorkflowTrashableItemType,
+        )
+        from baserow.contrib.integrations.core.service_types import (
+            CorePeriodicServiceType,
         )
         from baserow.core.action.registries import (
             action_scope_registry,
@@ -147,7 +147,7 @@ class AutomationConfig(AppConfig):
 
             action_scope_registry.register(WorkflowActionScopeType())
 
-            service_type_registry.register(PeriodicTriggerServiceType())
+            service_type_registry.register(CorePeriodicServiceType())
 
             automation_node_type_registry.register(LocalBaserowCreateRowNodeType())
             automation_node_type_registry.register(LocalBaserowUpdateRowNodeType())
@@ -167,7 +167,7 @@ class AutomationConfig(AppConfig):
             automation_node_type_registry.register(
                 LocalBaserowRowsDeletedNodeTriggerType()
             )
-            automation_node_type_registry.register(PeriodicTriggerNodeType())
+            automation_node_type_registry.register(CorePeriodicTriggerNodeType())
 
             from baserow.contrib.automation.data_providers.data_provider_types import (
                 PreviousNodeProviderType,
@@ -193,8 +193,7 @@ class AutomationConfig(AppConfig):
 
             # The signals must always be imported last because they use
             # the registries which need to be filled first.
-            import baserow.contrib.automation.nodes.periodic_trigger.receivers  # noqa: F403, F401
-            import baserow.contrib.automation.nodes.periodic_trigger.tasks  # noqa: F403, F401
+            import baserow.contrib.automation.nodes.tasks  # noqa: F403, F401
             import baserow.contrib.automation.nodes.ws.signals  # noqa: F403, F401
             import baserow.contrib.automation.workflows.signals  # noqa: F403, F401
             import baserow.contrib.automation.workflows.ws.signals  # noqa: F403, F401
