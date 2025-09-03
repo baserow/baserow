@@ -556,15 +556,6 @@ class AutomationNodeHandler:
             node.service.sample_data = None
             node.service.save()
 
-            # We must also reset the sample data for all subsequent nodes,
-            # since they assume that the preceding node (this trigger node)
-            # is tested.
-            base_queryset = AutomationNode.objects.filter(
-                workflow=node.workflow
-            ).exclude(id=node.id)
-            action_nodes = self.get_nodes(node.workflow, base_queryset=base_queryset)
-            self.reset_sample_data(action_nodes)
-
             node.simulate_dispatch = True
             node.save()
             return
@@ -584,19 +575,3 @@ class AutomationNodeHandler:
             UnexpectedDispatchException,
         ) as e:
             raise AutomationNodeSimulateDispatchError(str(e))
-
-    def reset_sample_data(self, nodes: List[AutomationNode]) -> None:
-        """
-        Given a list of nodes, sets the sample_data to None for each node's service.
-
-        :param nodes: List of AutomationNode instances.
-        :return: None.
-        """
-
-        services_to_update = []
-        for node in nodes:
-            if node.service.sample_data is not None:
-                node.service.sample_data = None
-                services_to_update.append(node.service)
-
-        Service.objects.bulk_update(services_to_update, ["sample_data"])

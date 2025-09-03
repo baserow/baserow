@@ -321,40 +321,6 @@ def test_import_node_only(data_fixture):
 
 
 @pytest.mark.django_db
-def test_reset_sample_data(data_fixture):
-    user, _ = data_fixture.create_user_and_token()
-    workflow = data_fixture.create_automation_workflow(user=user)
-    trigger_node = data_fixture.create_local_baserow_rows_created_trigger_node(
-        workflow=workflow
-    )
-    action_node_1 = data_fixture.create_automation_node(
-        workflow=workflow,
-        type="create_row",
-    )
-    action_node_2 = data_fixture.create_automation_node(
-        workflow=workflow,
-        type="create_row",
-    )
-    action_node_3 = data_fixture.create_automation_node(
-        workflow=workflow,
-        type="create_row",
-    )
-
-    nodes = [trigger_node, action_node_1, action_node_2, action_node_3]
-
-    # Set initial fake data
-    for node in nodes:
-        node.service.sample_data = {"foo": "bar"}
-        node.service.save()
-
-    AutomationNodeHandler().reset_sample_data(nodes)
-
-    for node in nodes:
-        node.refresh_from_db()
-        assert node.service.sample_data is None
-
-
-@pytest.mark.django_db
 @patch("baserow.contrib.automation.nodes.handler.AutomationWorkflowRunner.run")
 def test_simulate_dispatch_node_trigger(mock_run, data_fixture):
     user, _ = data_fixture.create_user_and_token()
