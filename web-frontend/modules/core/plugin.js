@@ -17,6 +17,7 @@ import {
   EmailNotificationsSettingsType,
   MCPEndpointSettingsType,
   DeleteAccountSettingsType,
+  TwoFactorAuthSettingsType,
 } from '@baserow/modules/core/settingsTypes'
 import { GenerativeAIWorkspaceSettingsType } from '@baserow/modules/core/workspaceSettingsTypes'
 import {
@@ -148,6 +149,7 @@ export default (context, inject) => {
   registry.register('settings', new EmailNotificationsSettingsType(context))
   registry.register('settings', new MCPEndpointSettingsType(context))
   registry.register('settings', new DeleteAccountSettingsType(context))
+  registry.register('settings', new TwoFactorAuthSettingsType(context))
 
   registry.register(
     'workspaceSettings',
