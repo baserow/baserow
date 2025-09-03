@@ -2,33 +2,18 @@
   <form @submit.prevent>
     <FormGroup
       :error="fieldHasErrors('interval')"
-      :label="$t('periodicTriggerServiceForm.intervalLabel')"
-      :helper-text="$t('periodicTriggerServiceForm.intervalHelper')"
+      :label="$t('periodicForm.intervalLabel')"
+      :helper-text="$t('periodicForm.intervalHelper')"
       required
       small-label
       class="margin-bottom-2"
     >
       <Dropdown v-model="values.interval" size="large">
-        <DropdownItem
-          :name="$t('periodicTriggerServiceForm.everyMinute')"
-          value="MINUTE"
-        />
-        <DropdownItem
-          :name="$t('periodicTriggerServiceForm.everyHour')"
-          value="HOUR"
-        />
-        <DropdownItem
-          :name="$t('periodicTriggerServiceForm.everyDay')"
-          value="DAY"
-        />
-        <DropdownItem
-          :name="$t('periodicTriggerServiceForm.everyWeek')"
-          value="WEEK"
-        />
-        <DropdownItem
-          :name="$t('periodicTriggerServiceForm.everyMonth')"
-          value="MONTH"
-        />
+        <DropdownItem :name="$t('periodicForm.everyMinute')" value="MINUTE" />
+        <DropdownItem :name="$t('periodicForm.everyHour')" value="HOUR" />
+        <DropdownItem :name="$t('periodicForm.everyDay')" value="DAY" />
+        <DropdownItem :name="$t('periodicForm.everyWeek')" value="WEEK" />
+        <DropdownItem :name="$t('periodicForm.everyMonth')" value="MONTH" />
       </Dropdown>
     </FormGroup>
 
@@ -37,7 +22,7 @@
         <FormGroup
           v-if="showHourField"
           small-label
-          :label="$t('periodicTriggerServiceForm.hour')"
+          :label="$t('periodicForm.hour')"
           required
           class="margin-right-1"
         >
@@ -47,13 +32,13 @@
             type="number"
             :min="0"
             :max="23"
-            :placeholder="$t('periodicTriggerServiceForm.hourPlaceholder')"
+            :placeholder="$t('periodicForm.hourPlaceholder')"
           />
         </FormGroup>
         <FormGroup
           v-if="showMinuteField"
           small-label
-          :label="$t('periodicTriggerServiceForm.minute')"
+          :label="$t('periodicForm.minute')"
           required
         >
           <FormInput
@@ -62,7 +47,7 @@
             type="number"
             :min="0"
             :max="59"
-            :placeholder="$t('periodicTriggerServiceForm.minutePlaceholder')"
+            :placeholder="$t('periodicForm.minutePlaceholder')"
           />
         </FormGroup>
       </div>
@@ -77,7 +62,7 @@
       <FormGroup
         v-if="values.interval === 'WEEK'"
         :error="fieldHasLocalErrors('day_of_week')"
-        :label="$t('periodicTriggerServiceForm.dayOfWeek')"
+        :label="$t('periodicForm.dayOfWeek')"
         required
         small-label
         class="margin-bottom-2"
@@ -95,7 +80,7 @@
       <FormGroup
         v-if="values.interval === 'MONTH'"
         :error="fieldHasLocalErrors('day_of_month')"
-        :label="$t('periodicTriggerServiceForm.dayOfMonth')"
+        :label="$t('periodicForm.dayOfMonth')"
         required
         small-label
         class="margin-bottom-2"
@@ -106,7 +91,7 @@
           type="number"
           :min="1"
           :max="31"
-          :placeholder="$t('periodicTriggerServiceForm.dayOfMonthPlaceholder')"
+          :placeholder="$t('periodicForm.dayOfMonthPlaceholder')"
           @blur="v$.user.day_of_month.$touch()"
         />
         <template #error>
@@ -116,16 +101,16 @@
 
       <p class="control__helper-text">
         <template v-if="values.interval === 'HOUR'">
-          {{ $t('periodicTriggerServiceForm.hourHelper', { timezone }) }}
+          {{ $t('periodicForm.hourHelper', { timezone }) }}
         </template>
         <template v-else-if="values.interval === 'DAY'">
-          {{ $t('periodicTriggerServiceForm.dayHelper', { timezone }) }}
+          {{ $t('periodicForm.dayHelper', { timezone }) }}
         </template>
         <template v-else-if="values.interval === 'WEEK'">
-          {{ $t('periodicTriggerServiceForm.weekHelper', { timezone }) }}
+          {{ $t('periodicForm.weekHelper', { timezone }) }}
         </template>
         <template v-else-if="values.interval === 'MONTH'">
-          {{ $t('periodicTriggerServiceForm.monthHelper', { timezone }) }}
+          {{ $t('periodicForm.monthHelper', { timezone }) }}
         </template>
       </p>
     </div>
@@ -139,7 +124,7 @@ import { between, required, helpers } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
 
 export default {
-  name: 'PeriodicTriggerServiceForm',
+  name: 'CorePeriodicServiceForm',
   mixins: [form],
   setup() {
     return { v$: useVuelidate() }

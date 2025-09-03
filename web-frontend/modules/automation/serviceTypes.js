@@ -1,4 +1,4 @@
-import PeriodicTriggerServiceForm from '@baserow/modules/automation/components/services/PeriodicTriggerServiceForm'
+import CorePeriodicServiceForm from '@baserow/modules/integrations/core/components/services/CorePeriodicServiceForm.vue'
 import {
   ServiceType,
   TriggerServiceTypeMixin,
@@ -12,15 +12,15 @@ export class PeriodicTriggerServiceType extends TriggerServiceTypeMixin(
   }
 
   get name() {
-    return this.app.i18n.t('serviceType.periodicTrigger')
+    return this.app.i18n.t('serviceType.corePeriodic')
   }
 
   get description() {
-    return this.app.i18n.t('serviceType.periodicTriggerDescription')
+    return this.app.i18n.t('serviceType.corePeriodicDescription')
   }
 
   get formComponent() {
-    return PeriodicTriggerServiceForm
+    return CorePeriodicServiceForm
   }
 
   getDataSchema(service) {
@@ -29,7 +29,7 @@ export class PeriodicTriggerServiceType extends TriggerServiceTypeMixin(
 
   getErrorMessage({ service }) {
     if (!service.interval) {
-      return this.app.i18n.t('serviceType.errorIntervalMissing')
+      return this.app.i18n.t('serviceType.corePeriodicErrorIntervalMissing')
     }
     return super.getErrorMessage({ service })
   }

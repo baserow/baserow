@@ -359,11 +359,11 @@ export class CorePeriodicTriggerNodeType extends TriggerNodeTypeMixin(
     }
 
     const intervalLabels = {
-      MINUTE: this.app.i18n.t('periodicTriggerServiceForm.everyMinute'),
-      HOUR: this.app.i18n.t('periodicTriggerServiceForm.everyHour'),
-      DAY: this.app.i18n.t('periodicTriggerServiceForm.everyDay'),
-      WEEK: this.app.i18n.t('periodicTriggerServiceForm.everyWeek'),
-      MONTH: this.app.i18n.t('periodicTriggerServiceForm.everyMonth'),
+      MINUTE: this.app.i18n.t('periodicForm.everyMinute'),
+      HOUR: this.app.i18n.t('periodicForm.everyHour'),
+      DAY: this.app.i18n.t('periodicForm.everyDay'),
+      WEEK: this.app.i18n.t('periodicForm.everyWeek'),
+      MONTH: this.app.i18n.t('periodicForm.everyMonth'),
     }
 
     return intervalLabels[node.service.interval] || this.name

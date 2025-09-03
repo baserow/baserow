@@ -135,7 +135,8 @@
     "weekHelper": "This workflow will run every week on the specified day and time in your local timezone ({timezone})",
     "monthHelper": "This workflow will run every month on the specified day and time in your local timezone ({timezone})",
     "deactivatedTitle": "Periodic trigger deactivated",
-    "deactivatedText": "This periodic trigger has been automatically deactivated due to consecutive failures."
+    "deactivatedText": "This periodic trigger has been automatically deactivated due to consecutive failures.",
+  },
   "simulateDispatch": {
     "sampleDataLabel": "Sample Data",
     "triggerNodeAwaitingEvent": "This trigger node is waiting for an event.",
