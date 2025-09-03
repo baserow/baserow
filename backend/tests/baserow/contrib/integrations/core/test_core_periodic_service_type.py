@@ -3,11 +3,11 @@ import pytest
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.node_types import CorePeriodicTriggerNodeType
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
-from baserow.contrib.integrations.core.models import (
+from baserow.contrib.integrations.core.constants import (
     PERIODIC_INTERVAL_HOUR,
     PERIODIC_INTERVAL_MINUTE,
-    CorePeriodicService,
 )
+from baserow.contrib.integrations.core.models import CorePeriodicService
 from baserow.contrib.integrations.core.service_types import CorePeriodicServiceType
 from baserow.core.services.handler import ServiceHandler
 
@@ -28,21 +28,12 @@ def test_periodic_trigger_service_type_generate_schema(data_fixture):
             "minute": 30,
         },
     )
-
-    service_type = CorePeriodicServiceType()
-    service = trigger_node.service.specific
-
-    assert service_type.type == "periodic"
-    assert service_type.model_class == CorePeriodicService
-
-    schema = service_type.generate_schema(service)
-    assert schema is not None
-    assert schema["title"] == "PeriodicTriggerSchema"
-    assert schema["type"] == "object"
-    assert "triggered_at" in schema["properties"]
-
-    schema_name = service_type.get_schema_name(service)
-    assert schema_name == "PeriodicTriggerSchema"
+    service = trigger_node.service
+    assert CorePeriodicServiceType().generate_schema(service) == {
+        "title": f"Periodic{service.id}Schema",
+        "type": "object",
+        "properties": {"triggered_at": {"type": "string", "title": "Triggered at"}},
+    }
 
 
 @pytest.mark.django_db
