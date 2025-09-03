@@ -114,38 +114,6 @@ class AutomationNodeHandler:
 
         return self.get_nodes(workflow, base_queryset=queryset, specific=specific)
 
-    def get_all_subsequent_nodes(
-        self, node: AutomationNode
-    ) -> Iterable["AutomationNode"]:
-        """
-        Returns all nodes that come after the given node.
-
-        :param node: the starting node to traverse from.
-        :return: All subsequent nodes in the workflow after the given node.
-        """
-
-        all_nodes = list(self.get_nodes(node.workflow))
-
-        previous_ids_nodes = defaultdict(list)
-        for _node in all_nodes:
-            previous_ids_nodes[_node.previous_node_id].append(_node)
-
-        subsequent_nodes = []
-        visited_node_ids = set()
-        node_ids = [node.id]
-
-        while node_ids:
-            current_node_id = node_ids.pop(0)
-            children = previous_ids_nodes.get(current_node_id, [])
-
-            for child in children:
-                if child.id not in visited_node_ids:
-                    visited_node_ids.add(child.id)
-                    subsequent_nodes.append(child)
-                    node_ids.append(child.id)
-
-        return subsequent_nodes
-
     def get_node(
         self, node_id: int, base_queryset: Optional[QuerySet] = None
     ) -> AutomationNode:
