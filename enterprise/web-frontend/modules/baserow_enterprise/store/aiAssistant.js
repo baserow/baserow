@@ -19,7 +19,9 @@ export const mutations = {
   SET_CURRENT_CHAT_ID(state, id) {
     state.currentChatId = id
   },
-
+  SET_CHAT_LOADING(state, { chat, value }) {
+    chat.loading = value
+  },
   SET_MESSAGES(state, messages) {
     state.messages = messages
   },
@@ -54,6 +56,7 @@ export const mutations = {
       createdAt: chat.created_on,
       updatedAt: chat.updated_on,
       status: chat.status,
+      loading: false,
     }))
   },
 
@@ -91,17 +94,18 @@ export const actions = {
   },
 
   async selectChat({ commit }, chat) {
-    commit('CLEAR_MESSAGES')
-    commit('SET_CURRENT_CHAT_ID', chat.id)
+    commit('SET_CHAT_LOADING', { chat, value: true })
 
     commit('SET_LOADING_MESSAGE', false)
     try {
       const { messages } = await aiAssistant(this.$client).fetchChatMessages(
         chat.id
       )
+      commit('SET_CURRENT_CHAT_ID', chat.id)
       commit('SET_MESSAGES', messages)
     } finally {
       commit('SET_LOADING_MESSAGE', false)
+      commit('SET_CHAT_LOADING', { chat, value: false })
     }
   },
 

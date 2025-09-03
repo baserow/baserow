@@ -6,16 +6,16 @@
   flex-direction: column;
   background-color: $white;
   overflow: hidden;
-  border: 1px solid $color-neutral-200;
+  border-left: 1px solid $color-neutral-200;
 }
 
 .ai-assistant__header {
   display: flex;
   align-items: center;
   padding: 16px 20px;
-  border-bottom: 1px solid $color-neutral-200;
+  border-bottom: 1px solid $palette-neutral-200;
   flex-shrink: 0;
-  height: 50px;
+  height: 51px;
   gap: 12px;
 }
 
@@ -45,30 +45,25 @@
   scrollbar-gutter: stable;
 }
 
-.ai-assistant__header-back-icon {
-  color: $palette-neutral-900;
-  font-size: 16px;
-}
-
 .ai-assistant__header-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
   margin-left: auto;
 }
 
 .ai-assistant__header-separator {
   width: 1px;
-  height: 20px;
-  background-color: $color-neutral-300;
+  height: 16px;
+  background-color: $palette-neutral-200;
 }
 
 .ai-assistant__header-icon {
-  color: $color-neutral-600;
-  transition: color 0.2s;
+  font-size: 16px;
+  color: $palette-neutral-700;
 
   &:hover {
-    color: $color-neutral-900;
+    color: $palette-neutral-1200;
   }
 }
 
@@ -76,7 +71,7 @@
   @extend %ellipsis;
 
   font-size: 13px;
-  font-weight: 600;
+  font-weight: ⁨;
   line-height: 20px;
   flex: 1;
 
@@ -152,7 +147,7 @@
   font-weight: 400;
   line-height: 20px;
   border-radius: 12px 12px 0 0;
-  background: $palette-neutral-100;
+  background: $palette-neutral-25;
   color: $palette-neutral-900;
 
   &.is-running {
@@ -162,7 +157,7 @@
 }
 
 .ai-assistant__input-section {
-  background: $palette-neutral-100;
+  background: $palette-neutral-25;
 
   &.is-running {
     background-color: $palette-cyan-50;
@@ -174,10 +169,11 @@
   display: flex;
   align-items: center;
   background: $white;
-  border: 1px solid #d8dae5;
-  border-radius: 6px;
+  border: 1px solid $palette-neutral-500;
   transition: all 0.2s;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+
+  @include rounded($rounded-md);
+  @include elevation($elevation-low);
 
   &.has-context {
     padding-top: 36px;
@@ -247,19 +243,19 @@
   flex-shrink: 0;
 
   i {
-    font-size: 16px;
+    font-size: 14px;
   }
 
   &--is-running i {
     animation: spin 1.2s linear infinite;
   }
 
-  &:hover:not(.ai-assistant__button--disabled) {
+  &:hover:not(.ai-assistant__send-button--disabled) {
     background: $palette-neutral-1200;
     transform: scale(1.05);
   }
 
-  &:active:not(.ai-assistant__button--disabled) {
+  &:active:not(.ai-assistant__send-button--disabled) {
     transform: scale(0.95);
   }
 
@@ -331,7 +327,6 @@
 
 .ai-assistant__message {
   display: flex;
-  margin-bottom: 16px;
 
   &--human {
     justify-content: flex-end;
@@ -359,10 +354,9 @@
 
 .ai-assistant__message-bubble {
   background-color: $white;
-  border: 1px solid $color-neutral-200;
+  border: 1px solid $palette-neutral-200;
   border-radius: 12px;
   padding: 12px 16px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
   word-wrap: break-word;
   word-break: break-word;
   overflow-wrap: break-word;
@@ -548,51 +542,7 @@
   }
 }
 
-// History chat
-.ai-assistant__chat-history-context {
-  .context__menu {
-    max-height: 480px; // Fallback for older browsers
-    max-height: #{'min(480px, 50vh)'};
-    overflow: hidden auto;
-    max-width: 330px;
-  }
+.ai-assistant__chat-history-spacer {
+  width: 300px;
 }
 
-.ai-assistant__chat-history-menu {
-  @extend %scrollbar-thin;
-
-  max-height: 480px; // Fallback for older browsers
-  max-height: #{'min(480px, 50vh)'};
-  overflow: hidden auto;
-  scrollbar-gutter: stable;
-  width: 320px
-}
-
-.ai-assistant__chat-history-link {
-  @extend %ellipsis;
-
-  display: inline-block;
-  width: 100%;
-  line-height: 20px;
-}
-
-.ai-assistant__chat-history-loading {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: $color-neutral-600;
-  font-size: 13px;
-  justify-content: center;
-  padding: 4px 12px;
-
-  i {
-    animation: spin 1s linear infinite;
-  }
-}
-
-.ai-assistant__chat-history-empty {
-  text-align: center;
-  color: $color-neutral-500;
-  font-size: 13px;
-  padding: 4px 12px;
-}

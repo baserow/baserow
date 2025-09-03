@@ -4,9 +4,10 @@
       <a
         v-if="messages.length"
         :title="$t('aiAssistantPanel.back')"
+        class="ai-assistant__header-icon"
         @click.prevent="clearChat"
       >
-        <i class="ai-assistant__header-back-icon iconoir-nav-arrow-left"></i>
+        <i class="iconoir-nav-arrow-left"></i>
       </a>
       <div class="ai-assistant__title">
         <i class="iconoir-sparks"></i>
@@ -19,23 +20,22 @@
           :current-chat-id="currentChatId"
           :chats="chats"
           :loading="isLoadingChats"
-          @select-chat="
-            selectChat($event)
-            $refs.chatHistory.hide()
-          "
+          @select-chat="selectAndCloseChat($event)"
         />
         <a
           v-if="chats.length"
           ref="chatHistoryButton"
           :title="$t('aiAssistantPanel.history')"
+          class="ai-assistant__header-icon"
           @click.prevent="toggleChatHistoryContext"
-          ><i class="ai-assistant__header-icon iconoir-clock-rotate-right"></i
+          ><i class="iconoir-clock-rotate-right"></i
         ></a>
         <div v-if="chats.length" class="ai-assistant__header-separator"></div>
         <a
           :title="$t('aiAssistantPanel.close')"
+          class="ai-assistant__header-icon"
           @click.prevent="$bus.$emit('toggle-right-sidebar')"
-          ><i class="ai-assistant__header-icon iconoir-cancel"></i
+          ><i class="iconoir-cancel"></i
         ></a>
       </div>
     </div>
@@ -47,6 +47,7 @@
       <AiAssistantMessageList
         v-else
         :messages="messages"
+        @scroll-to-bottom="scrollToBottom"
       ></AiAssistantMessageList>
     </div>
     <div class="ai-assistant__footer">
@@ -171,6 +172,16 @@ export default {
         10,
         4
       )
+    },
+    async selectAndCloseChat(chat) {
+      await this.selectChat(chat)
+      this.$refs.chatHistory.hide()
+    },
+    scrollToBottom() {
+      this.$nextTick(() => {
+        const el = this.$refs.scrollContainer
+        if (el) el.scrollTop = el.scrollHeight
+      })
     },
   },
 }

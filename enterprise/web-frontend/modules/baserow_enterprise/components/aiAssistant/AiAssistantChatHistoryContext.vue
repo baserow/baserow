@@ -1,37 +1,38 @@
 <template>
-  <Context ref="context" class="ai-assistant__chat-history-context">
-    <ul class="context__menu ai-assistant__chat-history-menu">
+  <Context ref="context" max-height-if-outside-viewport class="select">
+    <div v-if="loading" class="ai-assistant__chat-history-spacer context--loading">
+      <div class="loading"></div>
+    </div>
+    <div v-else-if="!chats.length" class="ai-assistant__chat-history-spacer context__description">
+      {{ $t('aiAssistantChatHistoryContext.empty') }}
+    </div>
+    <ul
+      v-else
+      ref="dropdown"
+      v-auto-overflow-scroll
+      class="select__items select__items--no-max-height"
+    >
       <li
-        v-if="loading"
-        class="context__menu-item ai-assistant__chat-history-loading"
+        v-for="chat in chats"
+        :key="chat.id"
+        class="select__item select__item--no-options"
+        :class="{
+          active: chat.id === currentChatId,
+          'select__item--loading': chat.loading,
+        }"
       >
+        <a class="select__item-link" @click="$emit('select-chat', chat)">
+          <div class="select__item-name">
+            <span class="select__item-name-text">
+              {{ chat.title }}
+            </span>
+          </div>
+        </a>
         <i
-          class="iconoir-system-restart ai-assistant__chat-history-loading-icon"
+          v-if="chat.id === currentChatId"
+          class="select__item-active-icon iconoir-check"
         ></i>
-        <span>{{ $t('aiAssistantChatHistoryContext.loading') }}</span>
       </li>
-
-      <li
-        v-else-if="!chats.length"
-        class="context__menu-item ai-assistant__chat-history-empty"
-      >
-        <span>{{ $t('aiAssistantChatHistoryContext.empty') }}</span>
-      </li>
-
-      <template v-else>
-        <li v-for="chat in chats" :key="chat.id" class="context__menu-item">
-          <a
-            class="context__menu-item-link ai-assistant__chat-history-link"
-            @click="$emit('select-chat', chat)"
-          >
-            {{ chat.title }}
-            <i
-              v-if="chat.id === currentChatId"
-              class="context__menu-active-icon iconoir-check"
-            ></i>
-          </a>
-        </li>
-      </template>
     </ul>
   </Context>
 </template>
