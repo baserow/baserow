@@ -3,6 +3,7 @@ import { baserowConfig } from "../playwright.config";
 import { User } from "../fixtures/user";
 
 export class BaserowPage {
+  user: User;
   readonly page: Page;
   readonly baseUrl = baserowConfig.PUBLIC_WEB_FRONTEND_URL;
   pageUrl: string;
@@ -12,6 +13,7 @@ export class BaserowPage {
   }
 
   async authenticate(user: User) {
+    this.user = user
     await this.page.goto(`${this.baseUrl}?token=${user.refreshToken}`);
   }
 
