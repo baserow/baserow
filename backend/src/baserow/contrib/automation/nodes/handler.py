@@ -502,18 +502,18 @@ class AutomationNodeHandler:
 
         return node_instance
 
-    def simulate_dispatch_node(self, node: AutomationActionNode, force: bool) -> None:
+    def simulate_dispatch_node(self, node: AutomationActionNode, update_sample_data: bool) -> None:
         """
         Simulates a dispatch of the provided node. This will cause the node's
         `service.sample_data` to be populated.
 
         If the sample data already exists, the cached value is used. However,
-        if `force=True` the sample data will be re-generated and the cache
-        will be updated.
+        if `update_sample_data=True` the sample data will be re-generated
+        and the cache will be updated.
 
         :param node: The node to simulate the dispatch for.
-        :param force: Whether to ignore existing sample data and force a
-            real dispatch.
+        :param update_sample_data: Whether to ignore existing sample data and
+            force a real dispatch.
         :return: None.
         """
 
@@ -533,7 +533,7 @@ class AutomationNodeHandler:
             None,
             is_simulated=True,
             simulate_until_node=node.specific,
-            force=force,
+            update_sample_data=update_sample_data,
         )
 
         try:

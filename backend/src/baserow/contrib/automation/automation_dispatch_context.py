@@ -20,7 +20,7 @@ class AutomationDispatchContext(DispatchContext):
         event_payload: Optional[Union[Dict, List[Dict]]] = None,
         is_simulated: bool = False,
         simulate_until_node: Optional[AutomationActionNode] = None,
-        force: bool = False,
+        update_sample_data: bool = False,
         is_test_run: bool = False,
     ):
         """
@@ -33,7 +33,7 @@ class AutomationDispatchContext(DispatchContext):
             provided, as this is optional.
         :param is_simulated: Whether the node dispatch is simulated or not.
         :param simulate_until_node: The last node to simulate the dispatch of.
-        :param force: Execute a real disaptch during simulation.
+        :param update_sample_data: Execute a real dispatch during simulation.
         :param is_test_run: Whether the current workflow run is a test run.
         """
 
@@ -42,7 +42,7 @@ class AutomationDispatchContext(DispatchContext):
         self.dispatch_history: List[int] = []
         self.is_simulated = is_simulated
         self.simulate_until_node = simulate_until_node
-        self.force = force
+        self.update_sample_data = update_sample_data
         self.is_test_run = is_test_run
         self._initialize_trigger_results(event_payload)
         super().__init__()

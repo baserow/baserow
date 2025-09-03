@@ -894,7 +894,7 @@ def test_simulate_dispatch_invalid_node(api_client, data_fixture):
 
     api_kwargs = get_api_kwargs(token)
     update_url = reverse(API_URL_SIMULATE_DISPATCH, kwargs={"node_id": 100})
-    payload = {"force": False}
+    payload = {"update_sample_data": False}
     response = api_client.post(update_url, payload, **api_kwargs)
 
     assert response.status_code == HTTP_404_NOT_FOUND
@@ -914,7 +914,7 @@ def test_simulate_dispatch_error_service_not_configured(api_client, data_fixture
 
     api_kwargs = get_api_kwargs(token)
     update_url = reverse(API_URL_SIMULATE_DISPATCH, kwargs={"node_id": node.id})
-    payload = {"force": False}
+    payload = {"update_sample_data": False}
     response = api_client.post(update_url, payload, **api_kwargs)
 
     assert response.status_code == HTTP_400_BAD_REQUEST
@@ -950,7 +950,7 @@ def test_simulate_dispatch_trigger_node(api_client, data_fixture):
 
     api_kwargs = get_api_kwargs(token)
     update_url = reverse(API_URL_SIMULATE_DISPATCH, kwargs={"node_id": trigger_node.id})
-    payload = {"force": False}
+    payload = {"update_sample_data": False}
     response = api_client.post(update_url, payload, **api_kwargs)
 
     assert response.status_code == HTTP_204_NO_CONTENT
@@ -1034,7 +1034,7 @@ def test_simulate_dispatch_action_node(api_client, data_fixture):
 
     api_kwargs = get_api_kwargs(token)
     update_url = reverse(API_URL_SIMULATE_DISPATCH, kwargs={"node_id": action_node.id})
-    payload = {"force": False}
+    payload = {"update_sample_data": False}
     response = api_client.post(update_url, payload, **api_kwargs)
 
     assert response.status_code == HTTP_204_NO_CONTENT

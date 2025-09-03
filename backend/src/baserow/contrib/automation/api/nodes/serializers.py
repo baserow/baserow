@@ -110,7 +110,7 @@ class ReplaceAutomationNodeSerializer(serializers.Serializer):
 
 
 class SimulateDispatchNodeSerializer(serializers.Serializer):
-    force = serializers.BooleanField(
+    update_sample_data = serializers.BooleanField(
         default=False,
         help_text="Whether to force an actual dispatch, even if sample data exists.",
     )

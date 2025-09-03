@@ -418,7 +418,7 @@ def test_simulate_dispatch_node_action(data_fixture):
 
 @pytest.mark.django_db
 @patch("baserow.core.services.registries.ServiceType.get_sample_data")
-def test_simulate_dispatch_node_action_with_force(mock_get_sample_data, data_fixture):
+def test_simulate_dispatch_node_action_with_update_sample_data(mock_get_sample_data, data_fixture):
     data = create_action_node(data_fixture)
     action_node = data["action_node"]
     table = data["table"]

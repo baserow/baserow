@@ -432,7 +432,7 @@ class SimulateDispatchAutomationNodeView(APIView):
     @validate_body(SimulateDispatchNodeSerializer)
     def post(self, request, data, node_id: int):
         AutomationNodeService().simulate_dispatch_node(
-            request.user, node_id, data["force"]
+            request.user, node_id, data["update_sample_data"]
         )
 
         return Response(status=204)
