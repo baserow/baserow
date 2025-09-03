@@ -338,10 +338,10 @@ const actions = {
       { root: true }
     )
   },
-  async simulateDispatch({ dispatch }, { nodeId, reTest }) {
+  async simulateDispatch({ dispatch }, { nodeId, force }) {
     await AutomationWorkflowNodeService(this.$client).simulateDispatch(
       nodeId,
-      reTest
+      force
     )
   },
   async fetchNodesAndSelect({ dispatch, getters }, { workflow }) {

@@ -152,7 +152,7 @@ def test_dispatch_returns_sample_data_when_simulated():
     mock_dispatch_context = MagicMock()
 
     mock_dispatch_context.is_simulated = True
-    mock_dispatch_context.re_test = False
+    mock_dispatch_context.force = False
 
     result = service_type.dispatch(mock_service, mock_dispatch_context)
 

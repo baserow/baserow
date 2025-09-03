@@ -338,7 +338,7 @@ class ServiceType(
         # If simulated, try to return existing sample data
         if (
             getattr(dispatch_context, "is_simulated", False)
-            and not getattr(dispatch_context, "re_test", False)
+            and not getattr(dispatch_context, "force", False)
             and service.sample_data is not None
         ):
             return DispatchResult(data=self.get_sample_data(service))
