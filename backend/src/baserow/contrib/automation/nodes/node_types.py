@@ -219,6 +219,21 @@ class CoreRouterActionNodeType(AutomationNodeActionNodeType):
 class AutomationNodeTriggerType(AutomationNodeType):
     is_workflow_trigger = True
 
+    def dispatch(
+        self,
+        node: AutomationNode,
+        dispatch_context: AutomationDispatchContext,
+    ) -> DispatchResult:
+        if dispatch_context.use_sample_data:
+            if sample_data := node.service.get_type().get_sample_data(
+                node.service.specific
+            ):
+                return DispatchResult(data=sample_data)
+            else:
+                raise Exception("Can't use sample data on an unsimulated trigger node.")
+
+        return DispatchResult(data=dispatch_context.event_payload)
+
     def before_delete(self, node: AutomationTriggerNode):
         """
         Trigger nodes cannot be deleted.
@@ -252,7 +267,7 @@ class AutomationNodeTriggerType(AutomationNodeType):
                 Q(
                     Q(workflow__state=WorkflowState.LIVE)
                     | Q(workflow__allow_test_run_until__gte=now)
-                    | Q(simulate_dispatch=True)
+                    | Q(workflow__simulate_until_node__isnull=False)
                 ),
             )
             .select_related("workflow__automation__workspace")
@@ -260,9 +275,15 @@ class AutomationNodeTriggerType(AutomationNodeType):
 
         for trigger in triggers:
             workflow = trigger.workflow
+            simulate_until_node_id = (
+                trigger.workflow.simulate_until_node.id
+                if trigger.workflow.simulate_until_node
+                else None
+            )
             workflow_handler.run_workflow(
                 workflow,
                 event_payload,
+                simulate_until_node_id,
             )
 
             save_sample_data = False
@@ -271,9 +292,9 @@ class AutomationNodeTriggerType(AutomationNodeType):
                 workflow.save(update_fields=["allow_test_run_until"])
                 save_sample_data = True
 
-            if trigger.simulate_dispatch and not workflow.published:
-                trigger.simulate_dispatch = False
-                trigger.save(update_fields=["simulate_dispatch"])
+            if workflow.simulate_until_node and not workflow.published:
+                workflow.simulate_until_node = None
+                workflow.save(update_fields=["simulate_until_node"])
                 save_sample_data = True
 
             if save_sample_data:
