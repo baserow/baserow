@@ -349,15 +349,13 @@ class AutomationNodeService:
         )
 
     def simulate_dispatch_node(
-        self, user: AbstractUser, node_id: int, update_sample_data: bool = False
+        self, user: AbstractUser, node_id: int
     ) -> None:
         """
         Simulates the dispatch of an automation node.
 
         :param user: The user trying to simulate the node dispatch.
         :param node_id: The ID of the node to dispatch.
-        :param update_sample_data: Whether to update_sample_data a dispatch
-            of the node, despite existing sample data.
         :return: None.
         """
 
@@ -370,4 +368,4 @@ class AutomationNodeService:
             context=node,
         )
 
-        self.handler.simulate_dispatch_node(node, update_sample_data)
+        self.handler.simulate_dispatch_node(node)

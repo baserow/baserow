@@ -14,7 +14,7 @@ from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeNotInWorkflow,
     AutomationNodeSimulateDispatchError,
 )
-from baserow.contrib.automation.nodes.models import AutomationActionNode, AutomationNode
+from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.node_types import AutomationNodeType
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.nodes.types import (
@@ -502,38 +502,27 @@ class AutomationNodeHandler:
 
         return node_instance
 
-    def simulate_dispatch_node(self, node: AutomationActionNode, update_sample_data: bool) -> None:
+    def simulate_dispatch_node(self, node: AutomationNode) -> None:
         """
         Simulates a dispatch of the provided node. This will cause the node's
         `service.sample_data` to be populated.
 
-        If the sample data already exists, the cached value is used. However,
-        if `update_sample_data=True` the sample data will be re-generated
-        and the cache will be updated.
-
         :param node: The node to simulate the dispatch for.
-        :param update_sample_data: Whether to ignore existing sample data and
-            force a real dispatch.
         :return: None.
         """
 
         if node.get_type().is_workflow_trigger:
-            # To simulate the dispatch of a trigger node, its simulate_dispatch
-            # is set to True. This ensures that the new sample data is saved
-            # when the trigger node is executed.
+            node.workflow.simulate_until_node = node
+            node.workflow.save()
+
             node.service.sample_data = None
             node.service.save()
 
-            node.simulate_dispatch = True
-            node.save()
             return
 
         dispatch_context = AutomationDispatchContext(
             node.workflow,
-            None,
-            is_simulated=True,
             simulate_until_node=node.specific,
-            update_sample_data=update_sample_data,
         )
 
         try:
