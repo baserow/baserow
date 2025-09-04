@@ -49,6 +49,9 @@
     "changedDescription": "Your account information has been changed.",
     "submitButton": "Update account"
   },
+  "twoFactorAuthSettings": {
+    "title": "Two-factor authentication"
+  },
   "settingsModal": {
     "title": "My settings"
   },

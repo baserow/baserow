@@ -8,7 +8,7 @@ export class TwoFactorAuthType extends Registerable {
   /**
    * Returns a description of the given auth type
    */
-  getDescription(service, application) {
+  getDescription() {
     return this.name
   }
 

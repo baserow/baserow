@@ -161,7 +161,7 @@ export class TwoFactorAuthSettingsType extends SettingsType {
   }
 
   getIconClass() {
-    return 'iconoir-password-check'
+    return 'baserow-icon-password-check'
   }
 
   getName() {
@@ -171,6 +171,10 @@ export class TwoFactorAuthSettingsType extends SettingsType {
 
   getComponent() {
     return TwoFactorAuthSettings
+  }
+
+  getOrder() {
+    return 51
   }
 }
 
