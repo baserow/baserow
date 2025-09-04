@@ -423,12 +423,7 @@ class CoreHTTPRequestServiceType(ServiceType):
         schema_builder = SchemaBuilder()
 
         if service.sample_data:
-            try:
-                sample_data = json.loads(service.sample_data["raw_body"])
-            except json.decoder.JSONDecodeError:
-                sample_data = service.sample_data
-
-            schema_builder.add_object(sample_data)
+            schema_builder.add_object(service.sample_data["body"])
             schema = schema_builder.to_schema()
 
             if schema_properties := schema.get("properties", None):
@@ -571,6 +566,7 @@ class CoreHTTPRequestServiceType(ServiceType):
 
         data = {
             "raw_body": ensure_string(response_body, allow_empty=True),
+            "body": response_body,
             "headers": response_headers,
             "status_code": response.status_code,
         }
