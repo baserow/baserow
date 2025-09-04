@@ -337,15 +337,27 @@ class ServiceType(
 
         # If simulated, try to return existing sample data
         if (
-            getattr(dispatch_context, "is_simulated", False)
-            and not getattr(dispatch_context, "force", False)
+            dispatch_context.use_sample_data
+            and (
+                dispatch_context.update_sample_data_for is None
+                or service not in dispatch_context.update_sample_data_for
+            )
             and service.sample_data is not None
         ):
             return DispatchResult(data=self.get_sample_data(service))
-
-        # This is a real dispatch or there is no sample data
+        
         data = self.dispatch_data(service, resolved_values, dispatch_context)
-        return self.dispatch_transform(data)
+        serialized_data = self.dispatch_transform(data)
+
+        if (
+            dispatch_context.use_sample_data
+            or dispatch_context.update_sample_data_for is None
+            or service in dispatch_context.update_sample_data_for
+        ):
+            service.sample_data = serialized_data.data
+            service.save()
+
+        return serialized_data
 
     def get_schema_name(self, service: Service) -> str:
         """
