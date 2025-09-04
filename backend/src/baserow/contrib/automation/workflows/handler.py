@@ -64,6 +64,7 @@ class AutomationWorkflowHandler:
         self,
         workflow: AutomationWorkflow,
         event_payload: Optional[List[Dict]] = None,
+        simulate_until_node_id: Optional[int] = None,
     ) -> None:
         """
         Runs the provided workflow.
@@ -72,7 +73,12 @@ class AutomationWorkflowHandler:
         :param event_payload: The payload from the action.
         """
 
-        run_workflow.delay(workflow.id, self.is_test_run(workflow), event_payload)
+        run_workflow.delay(
+            workflow.id,
+            self.is_test_run(workflow),
+            event_payload,
+            simulate_until_node_id,
+        )
 
     def get_workflow(
         self,
