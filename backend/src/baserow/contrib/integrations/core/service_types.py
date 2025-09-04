@@ -569,6 +569,15 @@ class CoreHTTPRequestServiceType(ServiceType):
         # Extract the response headers
         response_headers = {key: value for key, value in response.headers.items()}
 
+        data = {
+            "raw_body": ensure_string(response_body, allow_empty=True),
+            "headers": response_headers,
+            "status_code": response.status_code,
+        }
+
+        service.sample_data = data
+        service.save()
+
         schema = self.generate_schema(service)
         schema_keys = schema["properties"].keys()
 
@@ -577,16 +586,10 @@ class CoreHTTPRequestServiceType(ServiceType):
             for key, value in response_body.items():
                 if key in schema_keys:
                     dynamic_data[key] = value
+        
+        data |= dynamic_data
 
-        return {
-            "data": {
-                # For now we always convert the body to a string
-                "raw_body": ensure_string(response_body, allow_empty=True),
-                "headers": response_headers,
-                "status_code": response.status_code,
-                **dynamic_data,
-            },
-        }
+        return {"data": data}
 
     def dispatch_transform(
         self,
