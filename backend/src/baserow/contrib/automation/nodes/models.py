@@ -201,14 +201,6 @@ class AutomationActionNode(AutomationNode):
 
 
 class AutomationTriggerNode(AutomationNode):
-    simulate_dispatch = models.BooleanField(
-        default=False,
-        help_text=(
-            "When True, updates the sample_data of the trigger's service "
-            "the next time the trigger is executed."
-        ),
-    )
-
     class Meta:
         abstract = True
 
