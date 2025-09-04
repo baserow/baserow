@@ -62,7 +62,11 @@ export default {
   },
   computed: {
     resolvedValue() {
-      return ensureString(this.resolveFormula(this.element.value))
+      try {
+        return ensureString(this.resolveFormula(this.element.value))
+      } catch (e) {
+        return ''
+      }
     },
     paragraphs() {
       return this.resolvedValue
