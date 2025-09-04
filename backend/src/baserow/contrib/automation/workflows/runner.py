@@ -39,7 +39,7 @@ class AutomationWorkflowRunner:
             dispatch_context.after_dispatch(node, dispatch_result)
 
             # Return early if this is a simulated dispatch
-            if until_node := getattr(dispatch_context, "simulate_until_node", None):
+            if until_node := dispatch_context.simulate_until_node:
                 if until_node.id == node.id:
                     return
 
@@ -68,5 +68,4 @@ class AutomationWorkflowRunner:
             which contains the event payload and other relevant data.
         """
 
-        for node in workflow.get_trigger().get_next_nodes():
-            self.dispatch_node(node, dispatch_context)
+        self.dispatch_node(workflow.get_trigger(), dispatch_context)
