@@ -28,7 +28,7 @@
       </div>
       <pre><code class="simulate-dispatch-node__sample-data-code">{{ node.service.sample_data }}</code></pre>
     </div>
-    <div v-else-if="node.simulate_dispatch_trigger">
+    <div v-else-if="node.simulate_until_node">
       {{ $t('simulateDispatch.triggerNodeAwaitingEvent') }}
     </div>
     <div v-else>{{ $t('simulateDispatch.nodeNotTested') }}</div>
@@ -86,7 +86,7 @@ const isDisabled = computed(() => {
   return (
     Boolean(nodeIsInError.value) ||
     isSimulatingDispatch.value ||
-    (props.node.simulate_dispatch_trigger &&
+    (props.node.simulate_until_node &&
       props.node.service.sample_data === null)
   )
 })
@@ -112,7 +112,7 @@ const simulateDispatchNode = async () => {
   try {
     await store.dispatch('automationWorkflowNode/simulateDispatch', {
       nodeId: props.node.id,
-      updateSampleData: hasSampleData.value,
+      updateSampleData: true,
     })
     await store.dispatch('automationWorkflowNode/fetchNodesAndSelect', {
       workflow: workflow.value,
