@@ -19,8 +19,8 @@ class AutomationNodeSerializer(serializers.ModelSerializer):
     service = PolymorphicServiceSerializer(
         help_text="The service associated with this automation node."
     )
-    simulate_dispatch_trigger = serializers.SerializerMethodField(
-        help_text="Whether to simulate the dispatching of the trigger node."
+    simulate_until_node = serializers.SerializerMethodField(
+        help_text="Whether to simulate the dispatching of the node."
     )
 
     @extend_schema_field(OpenApiTypes.STR)
@@ -28,8 +28,8 @@ class AutomationNodeSerializer(serializers.ModelSerializer):
         return automation_node_type_registry.get_by_model(instance.specific_class).type
 
     @extend_schema_field(OpenApiTypes.BOOL)
-    def get_simulate_dispatch_trigger(self, instance):
-        return getattr(instance, "simulate_dispatch", False)
+    def get_simulate_until_node(self, instance):
+        return bool(instance.workflow.simulate_until_node)
 
     class Meta:
         model = AutomationNode
@@ -42,7 +42,7 @@ class AutomationNodeSerializer(serializers.ModelSerializer):
             "type",
             "previous_node_id",
             "previous_node_output",
-            "simulate_dispatch_trigger",
+            "simulate_until_node",
         )
 
         extra_kwargs = {
@@ -51,7 +51,7 @@ class AutomationNodeSerializer(serializers.ModelSerializer):
             "type": {"read_only": True},
             "previous_node_id": {"read_only": True},
             "order": {"read_only": True, "help_text": "Lowest first."},
-            "simulate_dispatch_trigger": {"read_only": True},
+            "simulate_until_node": {"read_only": True},
         }
 
 
@@ -106,11 +106,4 @@ class ReplaceAutomationNodeSerializer(serializers.Serializer):
         choices=lazy(automation_node_type_registry.get_types, list)(),
         required=True,
         help_text="The type of the new automation node",
-    )
-
-
-class SimulateDispatchNodeSerializer(serializers.Serializer):
-    update_sample_data = serializers.BooleanField(
-        default=False,
-        help_text="Whether to force an actual dispatch, even if sample data exists.",
     )

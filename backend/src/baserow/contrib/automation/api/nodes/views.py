@@ -30,7 +30,6 @@ from baserow.contrib.automation.api.nodes.serializers import (
     CreateAutomationNodeSerializer,
     OrderAutomationNodesSerializer,
     ReplaceAutomationNodeSerializer,
-    SimulateDispatchNodeSerializer,
     UpdateAutomationNodeSerializer,
 )
 from baserow.contrib.automation.api.workflows.errors import (
@@ -415,7 +414,6 @@ class SimulateDispatchAutomationNodeView(APIView):
         tags=[AUTOMATION_NODES_TAG],
         operation_id="simulate_dispatch_automation_node",
         description="Simulate a dispatch for a node.",
-        request=SimulateDispatchNodeSerializer,
         responses={
             204: None,
             400: get_error_schema(["ERROR_AUTOMATION_NODE_SIMULATE_DISPATCH"]),
@@ -429,10 +427,7 @@ class SimulateDispatchAutomationNodeView(APIView):
             AutomationNodeSimulateDispatchError: ERROR_AUTOMATION_NODE_SIMULATE_DISPATCH,
         }
     )
-    @validate_body(SimulateDispatchNodeSerializer)
-    def post(self, request, data, node_id: int):
-        AutomationNodeService().simulate_dispatch_node(
-            request.user, node_id, data["update_sample_data"]
-        )
+    def post(self, request, node_id: int):
+        AutomationNodeService().simulate_dispatch_node(request.user, node_id)
 
         return Response(status=204)
