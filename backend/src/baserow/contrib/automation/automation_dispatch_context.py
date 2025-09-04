@@ -12,16 +12,13 @@ from baserow.core.services.utils import ServiceAdhocRefinements
 
 
 class AutomationDispatchContext(DispatchContext):
-    own_properties = ["workflow"]
+    own_properties = ["workflow", "simulate_until_node"]
 
     def __init__(
         self,
         workflow: AutomationWorkflow,
         event_payload: Optional[Union[Dict, List[Dict]]] = None,
-        is_simulated: bool = False,
         simulate_until_node: Optional[AutomationActionNode] = None,
-        update_sample_data: bool = False,
-        is_test_run: bool = False,
     ):
         """
         The `DispatchContext` implementation for automations. This context is provided
@@ -31,21 +28,20 @@ class AutomationDispatchContext(DispatchContext):
         :param workflow: The workflow that this dispatch context is associated with.
         :param event_payload: The event data from the trigger node, if any was
             provided, as this is optional.
-        :param is_simulated: Whether the node dispatch is simulated or not.
         :param simulate_until_node: The last node to simulate the dispatch of.
-        :param update_sample_data: Execute a real dispatch during simulation.
-        :param is_test_run: Whether the current workflow run is a test run.
         """
 
         self.workflow = workflow
         self.previous_nodes_results: Dict[int, Any] = {}
         self.dispatch_history: List[int] = []
-        self.is_simulated = is_simulated
+        self.event_payload = event_payload
         self.simulate_until_node = simulate_until_node
-        self.update_sample_data = update_sample_data
-        self.is_test_run = is_test_run
-        self._initialize_trigger_results(event_payload)
-        super().__init__()
+
+        services = [self.simulate_until_node.service.specific] if self.simulate_until_node else None
+        super().__init__(
+            update_sample_data_for=services,
+            use_sample_data=bool(self.simulate_until_node),            
+        )
 
     def clone(self, **kwargs):
         new_context = super().clone(**kwargs)
@@ -57,22 +53,6 @@ class AutomationDispatchContext(DispatchContext):
     @property
     def data_provider_registry(self):
         return automation_data_provider_type_registry
-
-    def _initialize_trigger_results(
-        self,
-        event_payload: Optional[Union[List[Dict[Any, Any]], Dict[Any, Any]]] = None,
-    ):
-        """
-        Responsible for finding the trigger node in the workflow and storing the
-        event payload in the `previous_nodes_results` dictionary, if we've been
-        given any.
-
-        :param event_payload: The event data from the trigger node.
-        """
-
-        trigger_node = self.workflow.get_trigger(specific=False)
-        if event_payload and trigger_node:
-            self._register_node_result(trigger_node, event_payload)
 
     def _register_node_result(
         self, node: AutomationNode, dispatch_data: Dict[str, Any]
@@ -88,7 +68,7 @@ class AutomationDispatchContext(DispatchContext):
         self.dispatch_history.append(node.id)
         self._register_node_result(node, dispatch_result.data)
 
-        if self.is_simulated or self.is_test_run:
+        if self.use_sample_data:
             node.service.sample_data = dispatch_result.data
             node.service.save()
 
