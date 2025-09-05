@@ -111,6 +111,15 @@ def test_run_workflow_unexpected_error_creates_workflow_history(
     mock_logger.exception.assert_called_once_with(error_msg)
 
 
+def assert_history(workflow, expected_count, expected_status, expected_msg):
+    histories = AutomationWorkflowHistory.objects.filter(workflow=workflow)
+    assert len(histories) == expected_count
+    history = histories[0]
+    assert history.workflow == workflow
+    assert history.status == expected_status
+    assert history.message == expected_msg
+
+
 @pytest.mark.django_db
 @patch(
     "baserow.contrib.automation.workflows.handler.AutomationWorkflowHandler.check_is_rate_limited"
@@ -133,21 +142,27 @@ def test_run_workflow_disables_workflow_if_rate_limited(
         workflow=published_workflow
     )
 
+    # The first 5 runs should just be an error
+    for i in range(5):
+        run_workflow(published_workflow.id, False, None)
+        mock_run.assert_not_called()
+        assert_history(original_workflow, i + 1, "error", "mock rate limited error")
+        original_workflow.refresh_from_db()
+        published_workflow.refresh_from_db()
+        assert original_workflow.state == WorkflowState.DRAFT
+        assert published_workflow.state == WorkflowState.LIVE
+
+    # The sixth run should disable the workflow
     run_workflow(published_workflow.id, False, None)
-
     mock_run.assert_not_called()
-
-    histories = AutomationWorkflowHistory.objects.filter(workflow=original_workflow)
-    assert len(histories) == 1
-    history = histories[0]
-    assert history.workflow == original_workflow
-    assert history.status == "disabled"
-    error_msg = "mock rate limited error"
-    assert history.message == error_msg
-
+    assert_history(
+        original_workflow,
+        6,
+        "disabled",
+        f"The workflow {original_workflow.id} was disabled due to too many consecutive errors.",
+    )
     original_workflow.refresh_from_db()
     published_workflow.refresh_from_db()
-
     assert original_workflow.state == WorkflowState.DISABLED
     assert published_workflow.state == WorkflowState.DISABLED
 

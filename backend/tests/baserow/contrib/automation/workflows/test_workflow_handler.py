@@ -592,8 +592,7 @@ def test_check_is_rate_limited_raises_if_above_limit():
             AutomationWorkflowHandler().check_is_rate_limited(100)
 
         assert (
-            str(e.value)
-            == "The workflow was rate limited and disabled due to too many recent runs."
+            str(e.value) == "The workflow was rate limited due to too many recent runs."
         )
 
 

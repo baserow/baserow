@@ -707,10 +707,10 @@ class AutomationWorkflowHandler:
         Each check may raise a subclass of the AutomationWorkflowBeforeRunError error.
         """
 
-        self.check_is_rate_limited(workflow.id)
         self.check_too_many_errors(workflow)
+        self.check_is_rate_limited(workflow.id)
 
-    def after_run(self):
+    def after_run(self, workflow: AutomationWorkflow):
         """
         Any logic that should be executed after a workflow run should be
         called here.
@@ -752,8 +752,7 @@ class AutomationWorkflowHandler:
 
         if len(runs_in_window) >= settings.AUTOMATION_WORKFLOW_RATE_LIMIT_MAX_RUNS:
             raise AutomationWorkflowRateLimited(
-                "The workflow was rate limited and disabled due to too "
-                "many recent runs."
+                "The workflow was rate limited due to too many recent runs."
             )
 
         runs_in_window.append(now)
@@ -829,18 +828,12 @@ class AutomationWorkflowHandler:
 
         try:
             self.before_run(original_workflow)
-        except AutomationWorkflowBeforeRunError as e:
-            history.completed_on = timezone.now()
-            history.message = str(e)
-            history.status = HistoryStatusChoices.DISABLED
-            history.save()
-
-            self.disable_workflow(workflow)
-            return
-
-        try:
             AutomationWorkflowRunner().run(workflow, dispatch_context)
-        except DispatchException as e:
+        except AutomationWorkflowTooManyErrors as e:
+            history_message = str(e)
+            history_status = HistoryStatusChoices.DISABLED
+            self.disable_workflow(workflow)
+        except (DispatchException, AutomationWorkflowBeforeRunError) as e:
             history_message = str(e)
             history_status = HistoryStatusChoices.ERROR
         except Exception as e:
@@ -859,4 +852,4 @@ class AutomationWorkflowHandler:
             history.status = history_status
             history.save()
 
-        self.after_run()
+        self.after_run(original_workflow)
