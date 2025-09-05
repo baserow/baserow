@@ -4,7 +4,6 @@ from django.db import models
 
 from baserow.contrib.automation.constants import WORKFLOW_NAME_MAX_LEN
 from baserow.contrib.automation.workflows.constants import (
-    WORKFLOW_STATE_MAX_LEN,
     WorkflowState,
 )
 from baserow.core.jobs.mixins import (
@@ -61,7 +60,7 @@ class AutomationWorkflow(
         choices=WorkflowState.choices,
         default=WorkflowState.DRAFT,
         db_default=WorkflowState.DRAFT,
-        max_length=WORKFLOW_STATE_MAX_LEN,
+        max_length=20,
     )
 
     order = models.PositiveIntegerField()
