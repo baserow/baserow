@@ -102,6 +102,7 @@ def test_dispatch_passes_field_names(field_names, expected_field_names):
     mock_dispatch_context = MagicMock()
 
     mock_dispatch_context.public_allowed_properties = field_names
+    mock_dispatch_context.use_sample_data = False
 
     service_type.dispatch(mock_service, mock_dispatch_context)
 
