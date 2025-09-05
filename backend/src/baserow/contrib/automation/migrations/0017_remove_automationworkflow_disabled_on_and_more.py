@@ -28,8 +28,6 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        # Add field first since we need to populate the state from
-        # existing data.
         migrations.AddField(
             model_name="automationworkflow",
             name="state",
@@ -40,8 +38,10 @@ class Migration(migrations.Migration):
                     ("paused", "Paused"),
                     ("disabled", "Disabled"),
                 ],
+                default="draft",
+                db_default="draft",
                 max_length=20,
-                null=True,
+                null=False,
             ),
         ),
 
@@ -62,23 +62,5 @@ class Migration(migrations.Migration):
         migrations.RemoveField(
             model_name="automationworkflow",
             name="published",
-        ),
-
-        # Make the state field not nullable.
-        migrations.AlterField(
-            model_name="automationworkflow",
-            name="state",
-            field=models.CharField(
-                choices=[
-                    ("draft", "Draft"),
-                    ("live", "Live"),
-                    ("paused", "Paused"),
-                    ("disabled", "Disabled"),
-                ],
-                default="draft",
-                db_default="draft",
-                max_length=20,
-                null=False,
-            ),
         ),
     ]
