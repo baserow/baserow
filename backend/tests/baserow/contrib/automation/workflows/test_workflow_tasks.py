@@ -41,7 +41,7 @@ def test_run_workflow_success_creates_workflow_history(data_fixture):
 
 
 @pytest.mark.django_db
-@patch("baserow.contrib.automation.workflows.tasks.AutomationWorkflowRunner.run")
+@patch("baserow.contrib.automation.workflows.handler.AutomationWorkflowRunner.run")
 def test_run_workflow_dispatch_error_creates_workflow_history(mock_run, data_fixture):
     original_workflow = data_fixture.create_automation_workflow()
     published_workflow = data_fixture.create_automation_workflow(
@@ -72,8 +72,8 @@ def test_run_workflow_dispatch_error_creates_workflow_history(mock_run, data_fix
 
 
 @pytest.mark.django_db
-@patch("baserow.contrib.automation.workflows.tasks.AutomationWorkflowRunner.run")
-@patch("baserow.contrib.automation.workflows.tasks.logger")
+@patch("baserow.contrib.automation.workflows.handler.AutomationWorkflowRunner.run")
+@patch("baserow.contrib.automation.workflows.handler.logger")
 def test_run_workflow_unexpected_error_creates_workflow_history(
     mock_logger, mock_run, data_fixture
 ):
@@ -115,7 +115,7 @@ def test_run_workflow_unexpected_error_creates_workflow_history(
 @patch(
     "baserow.contrib.automation.workflows.handler.AutomationWorkflowHandler.check_is_rate_limited"
 )
-@patch("baserow.contrib.automation.workflows.tasks.AutomationWorkflowRunner.run")
+@patch("baserow.contrib.automation.workflows.handler.AutomationWorkflowRunner.run")
 def test_run_workflow_disables_workflow_if_rate_limited(
     mock_run, mock_is_rate_limited, data_fixture
 ):
@@ -156,7 +156,7 @@ def test_run_workflow_disables_workflow_if_rate_limited(
 @patch(
     "baserow.contrib.automation.workflows.handler.AutomationWorkflowHandler.check_too_many_errors"
 )
-@patch("baserow.contrib.automation.workflows.tasks.AutomationWorkflowRunner.run")
+@patch("baserow.contrib.automation.workflows.handler.AutomationWorkflowRunner.run")
 def test_run_workflow_disables_workflow_if_too_many_consecutive_errors(
     mock_run, mock_has_too_many_errors, data_fixture
 ):

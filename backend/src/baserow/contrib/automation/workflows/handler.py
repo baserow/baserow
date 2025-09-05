@@ -1,6 +1,6 @@
 from collections import defaultdict
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 from zipfile import ZipFile
 
 from django.conf import settings
@@ -10,11 +10,17 @@ from django.db import IntegrityError
 from django.db.models import QuerySet
 from django.utils import timezone
 
+from loguru import logger
+
+from baserow.contrib.automation.automation_dispatch_context import (
+    AutomationDispatchContext,
+)
 from baserow.contrib.automation.constants import (
     IMPORT_SERIALIZED_IMPORTING,
     WORKFLOW_NAME_MAX_LEN,
 )
 from baserow.contrib.automation.history.constants import HistoryStatusChoices
+from baserow.contrib.automation.history.handler import AutomationHistoryHandler
 from baserow.contrib.automation.history.models import AutomationWorkflowHistory
 from baserow.contrib.automation.models import Automation
 from baserow.contrib.automation.nodes.models import AutomationNode
@@ -22,6 +28,7 @@ from baserow.contrib.automation.nodes.types import AutomationNodeDict
 from baserow.contrib.automation.types import AutomationWorkflowDict
 from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.contrib.automation.workflows.exceptions import (
+    AutomationWorkflowBeforeRunError,
     AutomationWorkflowDoesNotExist,
     AutomationWorkflowNameNotUnique,
     AutomationWorkflowNotInAutomation,
@@ -29,11 +36,13 @@ from baserow.contrib.automation.workflows.exceptions import (
     AutomationWorkflowTooManyErrors,
 )
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
+from baserow.contrib.automation.workflows.runner import AutomationWorkflowRunner
 from baserow.contrib.automation.workflows.tasks import run_workflow
 from baserow.contrib.automation.workflows.types import UpdatedAutomationWorkflow
 from baserow.core.cache import global_cache, local_cache
 from baserow.core.exceptions import IdDoesNotExist
 from baserow.core.registries import ImportExportConfig
+from baserow.core.services.exceptions import DispatchException
 from baserow.core.storage import ExportZipFile, get_default_storage
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import (
@@ -794,3 +803,60 @@ class AutomationWorkflowHandler:
         AutomationWorkflow.objects.filter(id__in=workflow_ids).update(
             state=WorkflowState.DISABLED
         )
+
+    def start_workflow(
+        self,
+        workflow_id: int,
+        is_test_run: bool,
+        event_payload: Optional[Union[Dict, List[Dict]]],
+    ) -> None:
+        """Start the workflow run."""
+
+        workflow = self.get_workflow(workflow_id)
+        original_workflow = self.get_original_workflow(
+            workflow, is_test_run=is_test_run
+        )
+
+        dispatch_context = AutomationDispatchContext(workflow, event_payload)
+
+        start_time = timezone.now()
+
+        history = AutomationHistoryHandler().create_workflow_history(
+            workflow if is_test_run else original_workflow,
+            started_on=start_time,
+            is_test_run=is_test_run,
+        )
+
+        try:
+            self.before_run(original_workflow)
+        except AutomationWorkflowBeforeRunError as e:
+            history.completed_on = timezone.now()
+            history.message = str(e)
+            history.status = HistoryStatusChoices.DISABLED
+            history.save()
+
+            self.disable_workflow(workflow)
+            return
+
+        try:
+            AutomationWorkflowRunner().run(workflow, dispatch_context)
+        except DispatchException as e:
+            history_message = str(e)
+            history_status = HistoryStatusChoices.ERROR
+        except Exception as e:
+            history_message = (
+                f"Unexpected error while running workflow {original_workflow.id}. "
+                f"Error: {str(e)}"
+            )
+            history_status = HistoryStatusChoices.ERROR
+            logger.exception(history_message)
+        else:
+            history_message = ""
+            history_status = HistoryStatusChoices.SUCCESS
+        finally:
+            history.completed_on = timezone.now()
+            history.message = history_message
+            history.status = history_status
+            history.save()
+
+        self.after_run()

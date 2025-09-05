@@ -9,12 +9,6 @@ from baserow.contrib.automation.workflows.models import AutomationWorkflow
 
 
 class AutomationHistoryHandler:
-    from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
-    from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
-
-    workflow_handler = AutomationWorkflowHandler()
-    node_handler = AutomationNodeHandler()
-
     def get_workflow_history(
         self, workflow: AutomationWorkflow, base_queryset: Optional[QuerySet] = None
     ) -> QuerySet[AutomationWorkflowHistory]:

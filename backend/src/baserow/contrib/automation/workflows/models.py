@@ -3,9 +3,7 @@ from typing import TYPE_CHECKING, Optional
 from django.db import models
 
 from baserow.contrib.automation.constants import WORKFLOW_NAME_MAX_LEN
-from baserow.contrib.automation.workflows.constants import (
-    WorkflowState,
-)
+from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.core.jobs.mixins import (
     JobWithUndoRedoIds,
     JobWithUserIpAddress,
