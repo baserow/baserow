@@ -229,8 +229,6 @@ class AutomationNodeTriggerType(AutomationNodeType):
                 node.service.specific
             ):
                 return DispatchResult(data=sample_data)
-            else:
-                raise Exception("Can't use sample data on an unsimulated trigger node.")
 
         return DispatchResult(data=dispatch_context.event_payload)
 
