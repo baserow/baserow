@@ -1,6 +1,7 @@
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
 
+from baserow.core.encoders import JSONEncoderSupportingDataClasses
 from baserow.core.integrations.models import Integration
 from baserow.core.mixins import (
     HierarchicalModelMixin,
@@ -49,6 +50,7 @@ class Service(
         blank=True,
         null=True,
         help_text="Store the sample data used for generating a schema.",
+        encoder=JSONEncoderSupportingDataClasses,
     )
 
     class Meta:

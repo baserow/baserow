@@ -349,9 +349,8 @@ class ServiceType(
         data = self.dispatch_data(service, resolved_values, dispatch_context)
         serialized_data = self.dispatch_transform(data)
 
-        if (
-            dispatch_context.use_sample_data
-            or dispatch_context.update_sample_data_for is None
+        if dispatch_context.use_sample_data or (
+            dispatch_context.update_sample_data_for is None
             or service in dispatch_context.update_sample_data_for
         ):
             service.sample_data = serialized_data.data

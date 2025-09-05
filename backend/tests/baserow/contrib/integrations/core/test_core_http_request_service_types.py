@@ -78,6 +78,9 @@ def test_core_http_request_basic(
         )
 
     assert dispatch_data.data == {
+        "body": {
+            "raw_body": "body",
+        },
         "raw_body": "body",
         "headers": {"test": "header"},
         "status_code": 204,
@@ -117,7 +120,7 @@ def test_core_http_request_basic_body_raw(
     dispatch_context = FakeDispatchContext()
 
     # Use the patch context manager to mock `advocate.request`
-    with mock_advocate_request() as mock_request:
+    with mock_advocate_request({"foo": "bar"}) as mock_request:
         service_type.dispatch(service, dispatch_context)
 
         mock_request.assert_called_once_with(
@@ -146,7 +149,7 @@ def test_core_http_request_basic_body_json(
     dispatch_context = FakeDispatchContext()
 
     # Use the patch context manager to mock `advocate.request`
-    with mock_advocate_request() as mock_request:
+    with mock_advocate_request({"foo": "bar"}) as mock_request:
         service_type.dispatch(service, dispatch_context)
 
         mock_request.assert_called_once_with(
@@ -176,7 +179,7 @@ def test_core_http_request_with_formulas(
     dispatch_context = FakeDispatchContext(context=formula_context)
 
     # Use the patch context manager to mock `advocate.request`
-    with mock_advocate_request() as mock_request:
+    with mock_advocate_request({"foo": "bar"}) as mock_request:
         service_type.dispatch(service, dispatch_context)
 
         mock_request.assert_called_once_with(
@@ -209,7 +212,7 @@ def test_core_http_request_with_headers(
     dispatch_context = FakeDispatchContext(context=formula_context)
 
     # Use the patch context manager to mock `advocate.request`
-    with mock_advocate_request() as mock_request:
+    with mock_advocate_request({"foo": "bar"}) as mock_request:
         service_type.dispatch(service, dispatch_context)
 
         mock_request.assert_called_once_with(
@@ -245,7 +248,7 @@ def test_core_http_request_with_query_params(
     dispatch_context = FakeDispatchContext(context=formula_context)
 
     # Use the patch context manager to mock `advocate.request`
-    with mock_advocate_request() as mock_request:
+    with mock_advocate_request({"foo": "bar"}) as mock_request:
         service_type.dispatch(service, dispatch_context)
 
         mock_request.assert_called_once_with(
@@ -277,7 +280,7 @@ def test_core_http_request_with_form_data(
     dispatch_context = FakeDispatchContext(context=formula_context)
 
     # Use the patch context manager to mock `advocate.request`
-    with mock_advocate_request() as mock_request:
+    with mock_advocate_request({"foo": "bar"}) as mock_request:
         service_type.dispatch(service, dispatch_context)
 
         mock_request.assert_called_once_with(
@@ -483,16 +486,17 @@ def get_raw_sample_data():
 
 @pytest.mark.django_db
 def test_core_http_request_generate_schema_with_sample_data():
+    api_response = get_raw_sample_data()
     service = ServiceHandler().create_service(
         CoreHTTPRequestServiceType(),
         url="'http://example.com'",
-        body_content="'body'",
+        body_content=api_response,
         headers=[{"key": "key", "value": "'value1'"}],
         query_params=[{"key": "key", "value": "'value2'"}],
         form_data=[{"key": "key", "value": "'value3'"}],
     )
 
-    service.sample_data = {"raw_body": get_raw_sample_data()}
+    service.sample_data = {"body": json.loads(api_response)}
     service.save()
 
     service_type = service.get_type()
@@ -548,8 +552,6 @@ def test_core_http_request_dispatch_data_with_json(data_fixture, content_type):
     service = data_fixture.create_core_http_request_service(
         url="'http://example.notexist/'", timeout=15, http_method=HTTP_METHOD.POST
     )
-    service.sample_data = {"raw_body": get_raw_sample_data()}
-    service.save()
 
     service_type = service.get_type()
     dispatch_context = FakeDispatchContext()
@@ -577,8 +579,9 @@ def test_core_http_request_dispatch_data_with_json(data_fixture, content_type):
         )
 
     assert dispatch_data.data == {
-        "fighters": {"Ryu": {"power": "Hadogen"}},
+        "body": {"fighters": {"Ryu": {"power": "Hadogen"}}},
         "raw_body": '{"fighters": {"Ryu": {"power": "Hadogen"}}}',
+        "fighters": {"Ryu": {"power": "Hadogen"}},
         "headers": headers,
         "status_code": 204,
     }
@@ -631,6 +634,7 @@ def test_core_http_request_dispatch_data_with_text(data_fixture, content_type):
         )
 
     assert dispatch_data.data == {
+        "body": "Hello world!",
         "raw_body": "Hello world!",
         "headers": headers,
         "status_code": 204,

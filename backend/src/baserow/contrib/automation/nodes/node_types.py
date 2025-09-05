@@ -235,7 +235,9 @@ class AutomationNodeTriggerType(AutomationNodeType):
             else:
                 raise Exception("Can't use sample data on an unsimulated trigger node.")
 
-        return DispatchResult(data=dispatch_context.event_payload)
+        return ServiceHandler().dispatch_service(
+            node.service.specific, dispatch_context
+        )
 
     def before_delete(self, node: AutomationTriggerNode):
         """
