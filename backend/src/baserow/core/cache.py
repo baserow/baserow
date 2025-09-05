@@ -191,7 +191,7 @@ class GlobalCache:
         version = cache.get(self._get_version_cache_key(key), 0)
         return f"{BASEROW_VERSION}_{GLOBAL_CACHE_VERSION}_{key}__version_{version}"
 
-    def get_versioned_cache_key(
+    def _get_versioned_cache_key(
         self, key: str, invalidate_key: None | str = None
     ) -> str:
         version_key = self._get_version_cache_key(key, invalidate_key)
@@ -232,7 +232,7 @@ class GlobalCache:
         :return: The cached value if it exists; otherwise, the newly set value.
         """
 
-        cache_key_to_use = self.get_versioned_cache_key(key, invalidate_key)
+        cache_key_to_use = self._get_versioned_cache_key(key, invalidate_key)
         cached = cache.get(cache_key_to_use, SENTINEL)
 
         if cached is SENTINEL:
@@ -279,7 +279,7 @@ class GlobalCache:
         invalidate_key: None | str = None,
         timeout: int = 60,
     ) -> T:
-        cache_key_to_use = self.get_versioned_cache_key(key, invalidate_key)
+        cache_key_to_use = self._get_versioned_cache_key(key, invalidate_key)
 
         use_lock = hasattr(cache, "lock")
         if use_lock:

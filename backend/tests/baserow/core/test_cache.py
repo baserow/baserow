@@ -98,7 +98,7 @@ def test_cache_disabled():
     ],
 )
 def test_get_versioned_cache_key(key):
-    result = global_cache.get_versioned_cache_key(key)
+    result = global_cache._get_versioned_cache_key(key)
     assert result == f"{VERSION}_{GLOBAL_CACHE_VERSION}_{key}__version_0"
 
 
@@ -158,7 +158,7 @@ def test_global_update_with_locking():
         )
 
         # Ensure the lock was acquired and released
-        cache_key = global_cache.get_versioned_cache_key("my-key")
+        cache_key = global_cache._get_versioned_cache_key("my-key")
         mocked_lock.assert_called_once_with(f"{cache_key}__lock", timeout=10)
         mock_lock.acquire.assert_called_once_with()
         mock_lock.release.assert_called_once_with()
