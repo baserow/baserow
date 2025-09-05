@@ -1,26 +1,20 @@
 <template>
   <div class="simulate-dispatch-node">
-    <div class="simulate-dispatch-node__header">
-      <div class="simulate-dispatch-node__header-title">
-        <template v-if="isActionNode">{{
-          $t('simulateDispatch.testActionNode')
-        }}</template>
-        <template v-else>{{ $t('simulateDispatch.testTriggerNode') }}</template>
-      </div>
-
-      <Button
-        :loading="isSimulatingDispatch"
-        :disabled="isDisabled"
-        size="small"
-        @click="simulateDispatchNode()"
-      >
-        {{ buttonLabel }}
-      </Button>
-    </div>
+    <Button
+      :loading="isSimulatingDispatch"
+      :disabled="isDisabled"
+      class="simulate-dispatch-node__button"
+      type="secondary"
+      @click="simulateDispatchNode()"
+    >
+      {{ buttonLabel }}
+    </Button>
 
     <div v-if="nodeIsInError">
       {{ nodeIsInError }}
     </div>
+
+    <div>{{ $t('simulateDispatch.testNodeDescription') }}</div>
 
     <div v-if="hasSampleData">
       <div class="simulate-dispatch-node__sample-data-label">
@@ -31,7 +25,6 @@
     <div v-else-if="node.simulate_until_node">
       {{ $t('simulateDispatch.triggerNodeAwaitingEvent') }}
     </div>
-    <div v-else>{{ $t('simulateDispatch.nodeNotTested') }}</div>
   </div>
 </template>
 
@@ -96,13 +89,8 @@ const hasSampleData = computed(() => {
 
 const buttonLabel = computed(() => {
   return hasSampleData.value
-    ? app.i18n.t('simulateDispatch.buttonLabelReTest')
+    ? app.i18n.t('simulateDispatch.buttonLabelTestAgain')
     : app.i18n.t('simulateDispatch.buttonLabelTest')
-})
-
-const isActionNode = computed(() => {
-  const nodeType = app.$registry.get('node', props.node.type)
-  return nodeType.isWorkflowAction
 })
 
 const simulateDispatchNode = async () => {
