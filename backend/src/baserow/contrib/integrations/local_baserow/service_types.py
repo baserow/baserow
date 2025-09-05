@@ -4,12 +4,10 @@ from typing import (
     Callable,
     Dict,
     Generator,
-    Generic,
     List,
     Optional,
     Tuple,
     Type,
-    TypeVar,
     Union,
 )
 
@@ -117,7 +115,7 @@ from baserow.core.services.registries import (
     DispatchTypes,
     ListServiceTypeMixin,
     ServiceType,
-    SignalTriggerServiceTypeMixin,
+    TriggerServiceTypeMixin,
 )
 from baserow.core.services.types import (
     DispatchResult,
@@ -2203,52 +2201,47 @@ class LocalBaserowDeleteRowServiceType(
         return DispatchResult(status=204)
 
 
-T = TypeVar("T", bound="Instance")
+class LocalBaserowRowsSignalServiceType(
+    TriggerServiceTypeMixin, LocalBaserowTableServiceType
+):
+    # The signal that this service type is called by.
+    signal: Signal = None
 
-
-class LocalBaserowSignalTriggerTypeMixin(Generic[T]):
-    """
-    A mixin which `AutomationNodeType` can implement if they are related to a
-    Local Baserow signal, such as `rows_created`, `rows_updated`, etc.
-
-    New trigger types should inherit from this class, set the `signal` and `handler`
-    to point to the signal/function they are related to, and only implement the
-    `start_listening` and `stop_listening` methods.
-    """
-
-    signal: Optional[Signal] = None
-    on_event = None
-    model_class = None
-
-    # Local Baserow signal triggers (e.g. rows created, updated, deleted)
+    # Local Baserow signal services (e.g. rows created, updated, deleted)
     # all return an array of rows, even if only a single row is affected.
     # We set `returns_list` to `True` so that when we generate the schema,
     # the `type` is set to `array` instead of `object`.
     returns_list = True
 
     def start_listening(self, on_event: Callable):
-        self.on_event = on_event
+        super().start_listening(on_event)
         self.signal.connect(self.handler)
 
     def stop_listening(self):
         self.signal.disconnect(self.handler)
 
-    def handle_signal(self, sender, user, rows, table, model, **kwargs):
+    def process_event(self, *args, **kwargs):
+        return self.on_event(*args, **kwargs) if callable(self.on_event) else None
+
+    def handle_signal(
+        self,
+        sender,
+        user: AbstractUser,
+        rows: QuerySet["GeneratedTableModel"],
+        table: "Table",
+        model: "GeneratedTableModel",
+        **kwargs,
+    ):
         serializer = get_row_serializer_class(
             model,
             RowSerializer,
             is_response=True,
         )
-        serialized_rows = serializer(rows, many=True).data
-
         self.process_event(
             self.model_class.objects.filter(table=table),
-            serialized_rows,
+            serializer(rows, many=True).data,
             user=user,
         )
-
-    def process_event(self, *args, **kwargs):
-        return self.on_event(*args, **kwargs) if callable(self.on_event) else None
 
     def handler(self, *args, **kwargs):
         transaction.on_commit(lambda: self.handle_signal(*args, **kwargs))
@@ -2264,10 +2257,10 @@ class LocalBaserowSignalTriggerTypeMixin(Generic[T]):
 
     def import_path(self, path, id_mapping):
         """
-        Import Local Baserow signal trigger service types paths.
+        Import Local Baserow signal service types paths.
         """
 
-        # All Local Baserow signal trigger service types have a length of 3:
+        # All Local Baserow signal service types have a length of 3:
         # {previousNodeId}.{rowIndex}.{fieldName}. By this point, we should
         # only have two parts: {rowIndex}.{fieldName}.
         if len(path) == 2:
@@ -2289,31 +2282,19 @@ class LocalBaserowSignalTriggerTypeMixin(Generic[T]):
         return [index, imported_field_dbname]
 
 
-class LocalBaserowRowsCreatedTriggerServiceType(
-    LocalBaserowSignalTriggerTypeMixin,
-    LocalBaserowTableServiceType,
-    SignalTriggerServiceTypeMixin,
-):
+class LocalBaserowRowsCreatedServiceType(LocalBaserowRowsSignalServiceType):
     signal = rows_created
     type = "local_baserow_rows_created"
     model_class = LocalBaserowRowsCreated
 
 
-class LocalBaserowRowsUpdatedTriggerServiceType(
-    LocalBaserowSignalTriggerTypeMixin,
-    LocalBaserowTableServiceType,
-    SignalTriggerServiceTypeMixin,
-):
+class LocalBaserowRowsUpdatedServiceType(LocalBaserowRowsSignalServiceType):
     signal = rows_updated
     type = "local_baserow_rows_updated"
     model_class = LocalBaserowRowsUpdated
 
 
-class LocalBaserowRowsDeletedTriggerServiceType(
-    LocalBaserowSignalTriggerTypeMixin,
-    LocalBaserowTableServiceType,
-    SignalTriggerServiceTypeMixin,
-):
+class LocalBaserowRowsDeletedServiceType(LocalBaserowRowsSignalServiceType):
     signal = rows_deleted
     type = "local_baserow_rows_deleted"
     model_class = LocalBaserowRowsDeleted

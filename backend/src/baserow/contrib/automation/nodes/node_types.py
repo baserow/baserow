@@ -45,9 +45,9 @@ from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowDeleteRowServiceType,
     LocalBaserowGetRowUserServiceType,
     LocalBaserowListRowsUserServiceType,
-    LocalBaserowRowsCreatedTriggerServiceType,
-    LocalBaserowRowsDeletedTriggerServiceType,
-    LocalBaserowRowsUpdatedTriggerServiceType,
+    LocalBaserowRowsCreatedServiceType,
+    LocalBaserowRowsDeletedServiceType,
+    LocalBaserowRowsUpdatedServiceType,
     LocalBaserowUpsertRowServiceType,
 )
 from baserow.core.db import specific_iterator
@@ -234,6 +234,14 @@ class AutomationNodeTriggerType(AutomationNodeType):
 
         return DispatchResult(data=dispatch_context.event_payload)
 
+    def after_register(self):
+        service_type_registry.get(self.service_type).start_listening(self.on_event)
+        return super().after_register()
+
+    def before_unregister(self):
+        service_type_registry.get(self.service_type).stop_listening()
+        return super().before_unregister()
+
     def before_delete(self, node: AutomationTriggerNode):
         """
         Trigger nodes cannot be deleted.
@@ -256,9 +264,6 @@ class AutomationNodeTriggerType(AutomationNodeType):
             AutomationWorkflowHandler,
         )
 
-        workflow_handler = AutomationWorkflowHandler()
-        now = timezone.now()
-
         triggers = (
             self.model_class.objects.filter(
                 service__in=service_queryset,
@@ -266,7 +271,7 @@ class AutomationNodeTriggerType(AutomationNodeType):
             .filter(
                 Q(
                     Q(workflow__state=WorkflowState.LIVE)
-                    | Q(workflow__allow_test_run_until__gte=now)
+                    | Q(workflow__allow_test_run_until__gte=timezone.now())
                     | Q(workflow__simulate_until_node__isnull=False)
                 ),
             )
@@ -280,7 +285,7 @@ class AutomationNodeTriggerType(AutomationNodeType):
                 if trigger.workflow.simulate_until_node
                 else None
             )
-            workflow_handler.run_workflow(
+            AutomationWorkflowHandler().run_workflow(
                 workflow,
                 event_payload,
                 simulate_until_node_id,
@@ -302,32 +307,22 @@ class AutomationNodeTriggerType(AutomationNodeType):
                 trigger.service.save()
 
 
-class AutomationNodeSignalTriggerType(AutomationNodeTriggerType):
-    def after_register(self):
-        service_type_registry.get(self.service_type).start_listening(self.on_event)
-        return super().after_register()
-
-    def before_unregister(self):
-        service_type_registry.get(self.service_type).stop_listening()
-        return super().before_unregister()
-
-
-class LocalBaserowRowsCreatedNodeTriggerType(AutomationNodeSignalTriggerType):
+class LocalBaserowRowsCreatedNodeTriggerType(AutomationNodeTriggerType):
     type = "rows_created"
     model_class = LocalBaserowRowsCreatedTriggerNode
-    service_type = LocalBaserowRowsCreatedTriggerServiceType.type
+    service_type = LocalBaserowRowsCreatedServiceType.type
 
 
-class LocalBaserowRowsUpdatedNodeTriggerType(AutomationNodeSignalTriggerType):
+class LocalBaserowRowsUpdatedNodeTriggerType(AutomationNodeTriggerType):
     type = "rows_updated"
     model_class = LocalBaserowRowsUpdatedTriggerNode
-    service_type = LocalBaserowRowsUpdatedTriggerServiceType.type
+    service_type = LocalBaserowRowsUpdatedServiceType.type
 
 
-class LocalBaserowRowsDeletedNodeTriggerType(AutomationNodeSignalTriggerType):
+class LocalBaserowRowsDeletedNodeTriggerType(AutomationNodeTriggerType):
     type = "rows_deleted"
     model_class = LocalBaserowRowsDeletedTriggerNode
-    service_type = LocalBaserowRowsDeletedTriggerServiceType.type
+    service_type = LocalBaserowRowsDeletedServiceType.type
 
 
 class CorePeriodicTriggerNodeType(AutomationNodeTriggerType):

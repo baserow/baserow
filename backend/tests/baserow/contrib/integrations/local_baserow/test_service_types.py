@@ -13,9 +13,9 @@ from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowGetRowUserServiceType,
     LocalBaserowListRowsUserServiceType,
-    LocalBaserowRowsCreatedTriggerServiceType,
-    LocalBaserowRowsDeletedTriggerServiceType,
-    LocalBaserowRowsUpdatedTriggerServiceType,
+    LocalBaserowRowsCreatedServiceType,
+    LocalBaserowRowsDeletedServiceType,
+    LocalBaserowRowsUpdatedServiceType,
     LocalBaserowServiceType,
     LocalBaserowTableServiceType,
     LocalBaserowViewServiceType,
@@ -2020,9 +2020,7 @@ def test_local_baserow_agg_service_type_generate_schema_excludes_fields(data_fix
 def test_local_baserow_rows_created_trigger_service_type_handler(data_fixture):
     mocked_on_event = Mock()
     user = data_fixture.create_user()
-    service_type = service_type_registry.get(
-        LocalBaserowRowsCreatedTriggerServiceType.type
-    )
+    service_type = service_type_registry.get(LocalBaserowRowsCreatedServiceType.type)
     service_type.on_event = mocked_on_event
     table = data_fixture.create_database_table(user=user)
     field = data_fixture.create_text_field(user, table=table)
@@ -2046,9 +2044,7 @@ def test_local_baserow_rows_created_trigger_service_type_handler(data_fixture):
 def test_local_baserow_rows_updated_trigger_service_type_handler(data_fixture):
     mocked_on_event = Mock()
     user = data_fixture.create_user()
-    service_type = service_type_registry.get(
-        LocalBaserowRowsUpdatedTriggerServiceType.type
-    )
+    service_type = service_type_registry.get(LocalBaserowRowsUpdatedServiceType.type)
     service_type.on_event = mocked_on_event
     table = data_fixture.create_database_table(user=user)
     field = data_fixture.create_text_field(user, table=table)
@@ -2076,9 +2072,7 @@ def test_local_baserow_rows_updated_trigger_service_type_handler(data_fixture):
 def test_local_baserow_rows_deleted_trigger_service_type_handler(data_fixture):
     mocked_on_event = Mock()
     user = data_fixture.create_user()
-    service_type = service_type_registry.get(
-        LocalBaserowRowsDeletedTriggerServiceType.type
-    )
+    service_type = service_type_registry.get(LocalBaserowRowsDeletedServiceType.type)
     service_type.on_event = mocked_on_event
     table = data_fixture.create_database_table(user=user)
     model = table.get_model()

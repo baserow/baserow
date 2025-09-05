@@ -1,19 +1,23 @@
 import json
 import socket
 import uuid
+from datetime import datetime, timedelta
 from smtplib import SMTPAuthenticationError, SMTPConnectError, SMTPNotSupportedError
-from typing import Any, Dict, Generator, List, Optional, Tuple
+from typing import Any, Callable, Dict, Generator, List, Optional, Tuple
 
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives, get_connection
+from django.db.models import Q
 from django.utils.translation import gettext as _
 
 from advocate.connection import UnacceptableAddressException
 from genson import SchemaBuilder
+from dateutil.relativedelta import relativedelta
 from loguru import logger
 from requests import exceptions as request_exceptions
 from rest_framework import serializers
 
+from baserow.config.celery import app as celery_app
 from baserow.contrib.integrations.core.models import (
     CoreHTTPRequestService,
     CorePeriodicService,
@@ -38,11 +42,25 @@ from baserow.core.services.exceptions import (
     UnexpectedDispatchException,
 )
 from baserow.core.services.models import Service
-from baserow.core.services.registries import DispatchTypes, ServiceType
+from baserow.core.services.registries import (
+    DispatchTypes,
+    ServiceType,
+    TriggerServiceTypeMixin,
+)
 from baserow.core.services.types import DispatchResult, FormulaToResolve, ServiceDict
 from baserow.version import VERSION as BASEROW_VERSION
 
-from .constants import BODY_TYPE, HTTP_METHOD, PERIODIC_INTERVAL_CHOICES
+from ...automation.nodes.utils import get_periodic_trigger_payload
+from .constants import (
+    BODY_TYPE,
+    HTTP_METHOD,
+    PERIODIC_INTERVAL_CHOICES,
+    PERIODIC_INTERVAL_DAY,
+    PERIODIC_INTERVAL_HOUR,
+    PERIODIC_INTERVAL_MINUTE,
+    PERIODIC_INTERVAL_MONTH,
+    PERIODIC_INTERVAL_WEEK,
+)
 from .integration_types import SMTPIntegrationType
 
 
@@ -1135,10 +1153,10 @@ class CoreRouterServiceType(ServiceType):
         return None
 
 
-class CorePeriodicServiceType(ServiceType):
+class CorePeriodicServiceType(TriggerServiceTypeMixin, ServiceType):
     type = "periodic"
     model_class = CorePeriodicService
-    dispatch_type = DispatchTypes.DISPATCH_TRIGGER
+    signal = celery_app.on_after_finalize
 
     allowed_fields = [
         "interval",
@@ -1197,6 +1215,120 @@ class CorePeriodicServiceType(ServiceType):
         hour: int
         day_of_week: int
         day_of_month: int
+
+    def handler(self, sender, **kwargs):
+        """
+        Responsible for adding the periodic task to call due periodic services.
+
+        :param sender: The sender of the signal.
+        """
+
+        from baserow.contrib.integrations.tasks import (
+            call_periodic_services_that_are_due,
+        )
+
+        sender.add_periodic_task(
+            timedelta(seconds=30), call_periodic_services_that_are_due.s()
+        )
+
+    def start_listening(self, on_event: Callable):
+        super().start_listening(on_event)
+        self.signal.connect(self.handler)
+
+    def stop_listening(self):
+        super().stop_listening()
+        self.signal.disconnect(self.handler)
+
+    def call_periodic_services_that_are_due(self, now: datetime):
+        """
+        Responsible for finding all periodic services that are due to run and
+        calling the `on_event` callback with them.
+
+        :param now: The current datetime.
+        """
+
+        query_conditions = Q()
+        is_null = Q(last_periodic_run__isnull=True)
+
+        # MINUTE
+        minute_ago = now - timedelta(minutes=1)
+        minute_condition = Q(
+            is_null | Q(last_periodic_run__lt=minute_ago),
+            interval=PERIODIC_INTERVAL_MINUTE,
+        )
+        query_conditions |= minute_condition
+
+        # HOUR
+        hour_ago = now - timedelta(hours=1)
+        hour_condition = Q(
+            is_null | Q(last_periodic_run__lt=hour_ago),
+            interval=PERIODIC_INTERVAL_HOUR,
+            minute__lte=now.minute,
+        )
+        query_conditions |= hour_condition
+
+        # DAY
+        day_ago = now - timedelta(days=1)
+        day_condition = Q(
+            is_null | Q(last_periodic_run__lt=day_ago),
+            interval=PERIODIC_INTERVAL_DAY,
+            hour__lte=now.hour,
+            minute__lte=now.minute,
+        )
+        query_conditions |= day_condition
+
+        # WEEK
+        week_ago = now - timedelta(weeks=1)
+        week_condition = Q(
+            is_null | Q(last_periodic_run__lt=week_ago),
+            interval=PERIODIC_INTERVAL_WEEK,
+            day_of_week=now.weekday(),
+            hour__lte=now.hour,
+            minute__lte=now.minute,
+        )
+        query_conditions |= week_condition
+
+        # MONTH
+        month_ago = now - relativedelta(months=1)
+        month_condition = Q(
+            is_null | Q(last_periodic_run__lt=month_ago),
+            interval=PERIODIC_INTERVAL_MONTH,
+            day_of_month=now.day,
+            hour__lte=now.hour,
+            minute__lte=now.minute,
+        )
+        query_conditions |= month_condition
+
+        periodic_services = (
+            CorePeriodicService.objects.filter(query_conditions)
+            .filter(
+                Q(
+                    automation_workflow_node__workflow__published=True,
+                    automation_workflow_node__workflow__paused=False,
+                )
+            )
+            .select_related(
+                "automation_workflow_node__workflow__automation__workspace",
+                "automation_workflow_node__workflow",
+            )
+            .select_for_update(
+                of=("self",),
+                skip_locked=True,
+            )
+            .order_by("id")
+        )
+
+        if periodic_services:
+            self.on_event(
+                periodic_services,
+                get_periodic_trigger_payload(now),
+            )
+
+            for service in periodic_services:
+                service.last_periodic_run = now
+            CorePeriodicService.objects.bulk_update(
+                periodic_services, fields=["last_periodic_run"]
+            )
 
     def get_schema_name(self, service: CorePeriodicService) -> str:
         return f"Periodic{service.id}Schema"
