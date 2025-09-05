@@ -582,7 +582,7 @@ class CoreHTTPRequestServiceType(ServiceType):
             for key, value in response_body.items():
                 if key in schema_keys:
                     dynamic_data[key] = value
-        
+
         data |= dynamic_data
 
         return {"data": data}

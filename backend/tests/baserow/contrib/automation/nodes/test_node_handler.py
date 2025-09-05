@@ -328,7 +328,7 @@ def test_simulate_dispatch_node_trigger(mock_run, data_fixture):
     trigger_node = data_fixture.create_local_baserow_rows_created_trigger_node(
         workflow=workflow
     )
-    assert trigger_node.simulate_dispatch is False
+    assert workflow.simulate_until_node is None
     action_node = data_fixture.create_automation_node(
         workflow=workflow,
         type="create_row",
@@ -340,16 +340,18 @@ def test_simulate_dispatch_node_trigger(mock_run, data_fixture):
     action_node.service.sample_data = {"foo": "bar"}
     action_node.service.save()
 
-    AutomationNodeHandler().simulate_dispatch_node(trigger_node, False)
+    AutomationNodeHandler().simulate_dispatch_node(trigger_node)
 
     mock_run.assert_not_called()
 
+    workflow.refresh_from_db()
+    assert workflow.simulate_until_node.id is trigger_node.id
+
     trigger_node.refresh_from_db()
-    assert trigger_node.simulate_dispatch is True
     assert trigger_node.service.sample_data is None
 
     action_node.refresh_from_db()
-    assert action_node.service.sample_data is None
+    assert action_node.service.sample_data == {"foo": "bar"}
 
 
 def create_action_node(data_fixture):
@@ -362,8 +364,6 @@ def create_action_node(data_fixture):
     integration = data_fixture.create_local_baserow_integration(
         user=user, application=automation
     )
-
-    node = data_fixture.create_automation_node(user=user, workflow=workflow)
 
     database = data_fixture.create_database_application(user=user, workspace=workspace)
     table, fields, _ = data_fixture.build_table(
@@ -382,7 +382,7 @@ def create_action_node(data_fixture):
     )
     action_node = data_fixture.create_automation_node(
         user=user,
-        workflow=node.workflow,
+        workflow=workflow,
         type="create_row",
         service=action_service,
     )
@@ -404,7 +404,7 @@ def test_simulate_dispatch_node_action(data_fixture):
 
     assert action_node.service.sample_data is None
 
-    AutomationNodeHandler().simulate_dispatch_node(action_node, False)
+    AutomationNodeHandler().simulate_dispatch_node(action_node)
 
     action_node.refresh_from_db()
     row = table.get_model().objects.first()
@@ -418,7 +418,9 @@ def test_simulate_dispatch_node_action(data_fixture):
 
 @pytest.mark.django_db
 @patch("baserow.core.services.registries.ServiceType.get_sample_data")
-def test_simulate_dispatch_node_action_with_update_sample_data(mock_get_sample_data, data_fixture):
+def test_simulate_dispatch_node_action_with_update_sample_data(
+    mock_get_sample_data, data_fixture
+):
     data = create_action_node(data_fixture)
     action_node = data["action_node"]
     table = data["table"]
@@ -426,7 +428,7 @@ def test_simulate_dispatch_node_action_with_update_sample_data(mock_get_sample_d
 
     assert action_node.service.sample_data is None
 
-    AutomationNodeHandler().simulate_dispatch_node(action_node, False)
+    AutomationNodeHandler().simulate_dispatch_node(action_node)
 
     # Since a real dispatch happened, the get_sample_data() shouldn't
     # have been called.
@@ -446,7 +448,7 @@ def test_simulate_dispatch_node_action_with_update_sample_data(mock_get_sample_d
     existing_mapping.save()
 
     # Set re-test to True
-    AutomationNodeHandler().simulate_dispatch_node(action_node, True)
+    AutomationNodeHandler().simulate_dispatch_node(action_node)
 
     latest_row = table.get_model().objects.order_by("-id")[0]
 
@@ -482,7 +484,7 @@ def test_simulate_dispatch_node_action_with_simulate_until_node(data_fixture):
     for node in nodes:
         assert node.service.sample_data is None
 
-    AutomationNodeHandler().simulate_dispatch_node(action_node_1, False)
+    AutomationNodeHandler().simulate_dispatch_node(action_node_1)
 
     # Only the first action nodes dispatch should be simulated
     action_node_1.refresh_from_db()

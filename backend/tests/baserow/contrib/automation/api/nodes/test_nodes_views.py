@@ -49,7 +49,7 @@ def test_create_node(api_client, data_fixture):
         "service": AnyDict(),
         "type": "create_row",
         "workflow": AnyInt(),
-        "simulate_dispatch_trigger": False,
+        "simulate_until_node": False,
     }
 
 
@@ -79,7 +79,7 @@ def test_create_node_before(api_client, data_fixture):
         "service": AnyDict(),
         "type": "create_row",
         "workflow": workflow.id,
-        "simulate_dispatch_trigger": False,
+        "simulate_until_node": False,
     }
 
     new_node = AutomationNode.objects.get(id=response.json()["id"])
@@ -309,7 +309,7 @@ def test_get_nodes(api_client, data_fixture):
             "service": AnyDict(),
             "type": "create_row",
             "workflow": node.workflow.id,
-            "simulate_dispatch_trigger": False,
+            "simulate_until_node": False,
         },
     ]
 
@@ -545,7 +545,7 @@ def test_update_node(api_client, data_fixture):
         "previous_node_output": "foo",
         "type": "create_row",
         "workflow": workflow.id,
-        "simulate_dispatch_trigger": False,
+        "simulate_until_node": False,
     }
 
 
@@ -653,7 +653,7 @@ def test_replace_node_type_with_replaceable_type(
         "order": AnyStr(),
         "service": AnyDict(),
         "previous_node_output": "",
-        "simulate_dispatch_trigger": False,
+        "simulate_until_node": False,
     }
 
 
@@ -711,7 +711,7 @@ def test_create_router_node(api_client, data_fixture):
             "type": "router",
         },
         "type": "router",
-        "simulate_dispatch_trigger": False,
+        "simulate_until_node": False,
         "workflow": workflow.id,
     }
 
@@ -893,9 +893,9 @@ def test_simulate_dispatch_invalid_node(api_client, data_fixture):
     _, token = data_fixture.create_user_and_token()
 
     api_kwargs = get_api_kwargs(token)
-    update_url = reverse(API_URL_SIMULATE_DISPATCH, kwargs={"node_id": 100})
+    url = reverse(API_URL_SIMULATE_DISPATCH, kwargs={"node_id": 100})
     payload = {"update_sample_data": False}
-    response = api_client.post(update_url, payload, **api_kwargs)
+    response = api_client.post(url, payload, **api_kwargs)
 
     assert response.status_code == HTTP_404_NOT_FOUND
     assert response.json() == {
@@ -913,9 +913,8 @@ def test_simulate_dispatch_error_service_not_configured(api_client, data_fixture
     )
 
     api_kwargs = get_api_kwargs(token)
-    update_url = reverse(API_URL_SIMULATE_DISPATCH, kwargs={"node_id": node.id})
-    payload = {"update_sample_data": False}
-    response = api_client.post(update_url, payload, **api_kwargs)
+    url = reverse(API_URL_SIMULATE_DISPATCH, kwargs={"node_id": node.id})
+    response = api_client.post(url, **api_kwargs)
 
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json() == {
@@ -946,17 +945,18 @@ def test_simulate_dispatch_trigger_node(api_client, data_fixture):
 
     # Initially, the sample_data should be empty
     assert trigger_node.service.sample_data is None
-    assert trigger_node.simulate_dispatch is False
+    assert trigger_node.workflow.simulate_until_node is None
 
     api_kwargs = get_api_kwargs(token)
-    update_url = reverse(API_URL_SIMULATE_DISPATCH, kwargs={"node_id": trigger_node.id})
-    payload = {"update_sample_data": False}
-    response = api_client.post(update_url, payload, **api_kwargs)
+    url = reverse(API_URL_SIMULATE_DISPATCH, kwargs={"node_id": trigger_node.id})
+    response = api_client.post(url, **api_kwargs)
 
     assert response.status_code == HTTP_204_NO_CONTENT
 
+    workflow.refresh_from_db()
+    assert workflow.simulate_until_node.id == trigger_node.id
+
     trigger_node.refresh_from_db()
-    assert trigger_node.simulate_dispatch is True
     # Sample data should still be empty, since the trigger hasn't fired yet.
     assert trigger_node.service.sample_data is None
 
@@ -976,7 +976,7 @@ def test_simulate_dispatch_trigger_node(api_client, data_fixture):
     )
 
     trigger_node.refresh_from_db()
-    assert trigger_node.simulate_dispatch is False
+    assert trigger_node.workflow.simulate_until_node is None
     # Having dispatched the trigger, the sample_data should be populated
     assert trigger_node.service.sample_data == [
         {
@@ -1033,9 +1033,8 @@ def test_simulate_dispatch_action_node(api_client, data_fixture):
     assert action_node.service.sample_data is None
 
     api_kwargs = get_api_kwargs(token)
-    update_url = reverse(API_URL_SIMULATE_DISPATCH, kwargs={"node_id": action_node.id})
-    payload = {"update_sample_data": False}
-    response = api_client.post(update_url, payload, **api_kwargs)
+    url = reverse(API_URL_SIMULATE_DISPATCH, kwargs={"node_id": action_node.id})
+    response = api_client.post(url, **api_kwargs)
 
     assert response.status_code == HTTP_204_NO_CONTENT
 

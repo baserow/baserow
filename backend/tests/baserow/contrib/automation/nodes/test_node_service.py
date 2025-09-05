@@ -427,20 +427,20 @@ def test_simulate_dispatch_node_trigger(data_fixture):
     )
 
     assert trigger_node.service.sample_data is None
-    assert trigger_node.simulate_dispatch is False
+    assert trigger_node.workflow.simulate_until_node is None
 
     AutomationNodeService().simulate_dispatch_node(user, trigger_node.id)
 
     trigger_node.refresh_from_db()
 
     assert trigger_node.service.sample_data is None
-    assert trigger_node.simulate_dispatch is True
+    assert trigger_node.workflow.simulate_until_node.id == trigger_node.id
 
 
 @pytest.mark.django_db
 def test_simulate_dispatch_node_action(data_fixture):
     user, _ = data_fixture.create_user_and_token()
-    node = data_fixture.create_automation_node(user=user)
+    workflow = data_fixture.create_automation_workflow(user=user)
 
     table, fields, _ = data_fixture.build_table(
         user=user,
@@ -457,7 +457,7 @@ def test_simulate_dispatch_node_action(data_fixture):
     )
     action_node = data_fixture.create_automation_node(
         user=user,
-        workflow=node.workflow,
+        workflow=workflow,
         type="create_row",
         service=action_service,
     )

@@ -224,7 +224,10 @@ class AutomationNodeTriggerType(AutomationNodeType):
         node: AutomationNode,
         dispatch_context: AutomationDispatchContext,
     ) -> DispatchResult:
-        if dispatch_context.use_sample_data:
+        if (
+            dispatch_context.use_sample_data
+            and dispatch_context.simulate_until_node == node
+        ):
             if sample_data := node.service.get_type().get_sample_data(
                 node.service.specific
             ):

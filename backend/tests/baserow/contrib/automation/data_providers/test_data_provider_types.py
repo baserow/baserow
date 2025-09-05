@@ -21,7 +21,13 @@ def test_previous_node_data_provider_get_data_chunk(data_fixture):
     data_fixture.create_local_baserow_create_row_action_node(
         workflow=workflow,
     )
-    dispatch_context = AutomationDispatchContext(workflow, [{"field_1": "Horse"}])
+
+    dispatch_context = AutomationDispatchContext(workflow)
+
+    dispatch_context.after_dispatch(
+        trigger, DispatchResult(data=[{"field_1": "Horse"}])
+    )
+
     dispatch_context.after_dispatch(
         first_action, DispatchResult(data={"field_2": "Badger"})
     )

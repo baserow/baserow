@@ -345,7 +345,7 @@ class ServiceType(
             and service.sample_data is not None
         ):
             return DispatchResult(data=self.get_sample_data(service))
-        
+
         data = self.dispatch_data(service, resolved_values, dispatch_context)
         serialized_data = self.dispatch_transform(data)
 

@@ -348,9 +348,7 @@ class AutomationNodeService:
             original_node_type=node_type.type,
         )
 
-    def simulate_dispatch_node(
-        self, user: AbstractUser, node_id: int
-    ) -> None:
+    def simulate_dispatch_node(self, user: AbstractUser, node_id: int) -> None:
         """
         Simulates the dispatch of an automation node.
 

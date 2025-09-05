@@ -37,10 +37,14 @@ class AutomationDispatchContext(DispatchContext):
         self.event_payload = event_payload
         self.simulate_until_node = simulate_until_node
 
-        services = [self.simulate_until_node.service.specific] if self.simulate_until_node else None
+        services = (
+            [self.simulate_until_node.service.specific]
+            if self.simulate_until_node
+            else None
+        )
         super().__init__(
             update_sample_data_for=services,
-            use_sample_data=bool(self.simulate_until_node),            
+            use_sample_data=bool(self.simulate_until_node),
         )
 
     def clone(self, **kwargs):

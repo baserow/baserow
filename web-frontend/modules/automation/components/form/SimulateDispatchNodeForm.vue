@@ -86,8 +86,7 @@ const isDisabled = computed(() => {
   return (
     Boolean(nodeIsInError.value) ||
     isSimulatingDispatch.value ||
-    (props.node.simulate_until_node &&
-      props.node.service.sample_data === null)
+    (props.node.simulate_until_node && props.node.service.sample_data === null)
   )
 })
 
