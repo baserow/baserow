@@ -62,7 +62,7 @@ brotli==1.1.0
     # via -r base.in
 cachetools==5.5.0
     # via google-auth
-celery[redis]==5.4.0
+celery[redis]==5.5.3
     # via
     #   -r base.in
     #   celery-redbeat
@@ -130,7 +130,7 @@ distro==1.9.0
     #   openai
 dj-database-url==2.1.0
     # via -r base.in
-django==5.0.13
+django==5.0.14
     # via
     #   -r base.in
     #   channels
@@ -275,6 +275,8 @@ jmespath==1.0.1
     #   botocore
 jsonpatch==1.33
     # via langchain-core
+jsonpath-ng==1.7.0
+    # via redisvl
 jsonpath-python==1.0.6
     # via mistralai
 jsonpointer==3.0.0
@@ -283,7 +285,7 @@ jsonschema==4.25.0
     # via drf-spectacular
 jsonschema-specifications==2025.4.1
     # via jsonschema
-kombu==5.4.2
+kombu[redis]==5.5.4
     # via celery
 langchain==0.3.27
     # via -r base.in
@@ -326,6 +328,8 @@ mdurl==0.1.2
     # via markdown-it-py
 mistralai==1.1.0
     # via -r base.in
+ml-dtypes==0.5.3
+    # via redisvl
 monotonic==1.6
     # via posthog
 msgpack==1.1.0
@@ -336,6 +340,10 @@ ndg-httpsclient==0.5.1
     # via advocate
 netifaces==0.11.0
     # via advocate
+numpy==2.3.3
+    # via
+    #   ml-dtypes
+    #   redisvl
 oauthlib==3.2.2
     # via requests-oauthlib
 ollama==0.1.9
@@ -463,11 +471,14 @@ packaging==23.2
     # via
     #   gunicorn
     #   huggingface-hub
+    #   kombu
     #   langchain-core
     #   langsmith
     #   opentelemetry-instrumentation
 pillow==10.3.0
     # via -r base.in
+ply==3.11
+    # via jsonpath-ng
 posthog==3.5.0
     # via -r base.in
 prometheus-client==0.21.1
@@ -516,6 +527,7 @@ pydantic==2.9.2
     #   mistralai
     #   openai
     #   pydantic-settings
+    #   redisvl
 pydantic-core==2.23.4
     # via pydantic
 pydantic-settings==2.8.1
@@ -551,6 +563,8 @@ python-dotenv==1.0.1
     # via
     #   pydantic-settings
     #   uvicorn
+python-ulid==3.1.0
+    # via redisvl
 pytz==2024.2
     # via
     #   flower
@@ -562,15 +576,19 @@ pyyaml==6.0.2
     #   huggingface-hub
     #   langchain
     #   langchain-core
+    #   redisvl
     #   uvicorn
-redis==5.0.4
+redis==5.2.1
     # via
     #   -r base.in
-    #   celery
     #   celery-redbeat
     #   celery-singleton
     #   channels-redis
     #   django-redis
+    #   kombu
+    #   redisvl
+redisvl==0.8.2
+    # via -r base.in
 referencing==0.36.2
     # via
     #   jsonschema
@@ -641,6 +659,7 @@ tenacity==8.5.0
     # via
     #   celery-redbeat
     #   langchain-core
+    #   redisvl
 tiktoken==0.9.0
     # via langchain-openai
 tokenizers==0.21.0
@@ -683,10 +702,9 @@ typing-extensions==4.11.0
     #   typing-inspect
 typing-inspect==0.9.0
     # via mistralai
-tzdata==2024.1
+tzdata==2025.2
     # via
     #   -r base.in
-    #   celery
     #   django-celery-beat
     #   kombu
 unicodecsv==0.14.1

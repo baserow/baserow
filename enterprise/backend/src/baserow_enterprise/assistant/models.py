@@ -1,7 +1,14 @@
 import uuid
+from typing import Iterable, NamedTuple
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.postgres.fields import ArrayField
 from django.db import models
+from django.db.models.signals import post_migrate, pre_delete
+from django.dispatch import receiver
+
+from loguru import logger
 
 from baserow.core.mixins import BigAutoFieldMixin, CreatedAndUpdatedOnMixin
 from baserow.core.models import Workspace
@@ -48,3 +55,287 @@ class AssistantChat(BigAutoFieldMixin, CreatedAndUpdatedOnMixin, models.Model):
 
     def __str__(self):
         return f"Chat: {self.title} ({self.user_id})"
+
+
+class DocumentCategory(NamedTuple):
+    name: str
+    parent: str
+
+
+# More categories can be added to the model, but these are the defaults ones.
+DEFAULT_CATEGORIES = [
+    # Workspace
+    DocumentCategory("workspace", None),
+    DocumentCategory("snapshot", "workspace"),
+    DocumentCategory("roles and permissions", "workspace"),
+    # Database
+    DocumentCategory("database", "workspace"),
+    DocumentCategory("table", "database"),
+    DocumentCategory("field", "table"),
+    DocumentCategory("view", "table"),
+    DocumentCategory("row", "table"),
+    DocumentCategory("database formula", "table"),
+    # Application Builder
+    DocumentCategory("application builder", "workspace"),
+    DocumentCategory("element", "application builder"),
+    DocumentCategory("data source", "application builder"),
+    DocumentCategory("page", "application builder"),
+    DocumentCategory("builder formula", "application builder"),
+    # Automation
+    DocumentCategory("automation", "workspace"),
+    DocumentCategory("workflow", "automation"),
+    DocumentCategory("node", "workflow"),
+    # Dashboard
+    DocumentCategory("dashboard", "workspace"),
+    DocumentCategory("widget", "dashboard"),
+    #
+    DocumentCategory("collaboration", None),
+    DocumentCategory("integrations", None),
+    DocumentCategory("mcp", None),
+    DocumentCategory("getting started", None),
+    DocumentCategory("hosting", None),
+    DocumentCategory("account management", None),
+    DocumentCategory("sso", None),
+    # Plans
+    DocumentCategory("billing", None),
+    DocumentCategory("premium", "billing"),
+    DocumentCategory("advanced", "billing"),
+    DocumentCategory("enterprise", "billing"),
+]
+
+
+class KnowledgeBaseDocumentCategoryManager(models.Manager):
+    def get_by_natural_key(self, name):
+        return self.get(name=name)
+
+
+class KnowledgeBaseCategory(models.Model):
+    name = models.CharField(max_length=255, unique=True)
+    description = models.TextField(blank=True)
+    parent = models.ForeignKey(
+        "self",
+        on_delete=models.CASCADE,
+        null=True,
+        related_name="children",
+        help_text="The parent document category, if any.",
+    )
+
+    objects = KnowledgeBaseDocumentCategoryManager()
+
+    @property
+    def full_path(self) -> str:
+        """
+        Get the full path of the category, including all parent categories.
+        """
+
+        if self.parent:
+            return f"{self.parent.full_path} > {self.name}"
+        return self.name
+
+    def __str__(self):
+        return self.name
+
+    def natural_key(self):
+        return (self.name,)
+
+
+class KnowledgeBaseDocumentManager(models.Manager):
+    def get_by_natural_key(self, slug):
+        return self.get(slug=slug)
+
+
+class KnowledgeBaseDocument(CreatedAndUpdatedOnMixin, models.Model):
+    """
+    Model representing a document in the Assistant knowledge base. The IngestionStatus
+    defines the state of the document, from when it's created to when it's fully
+    processed and ready for use to the assistant.
+    """
+
+    TITLE_MAX_LENGTH = 250
+
+    class Status(models.TextChoices):
+        NEW = "new", "New"  # never ingested
+        PROCESSING = "processing", "Processing"  # any step running
+        READY = "ready", "Ready"  # fully indexed and retrievable
+        STALE_CONTENT = (
+            "stale_content",
+            "Stale content",
+        )  # source changed (checksum/version differ) needs re-ingest
+        ERROR = "error", "Error"  # last run failed (any step).
+        DISABLED = "disabled", "Disabled"  # excluded from retrieval.
+
+    class DocumentType(models.TextChoices):
+        RAW_DOCUMENT = "raw_document", "Raw Document"
+        """
+        Raw document where the content is manually provided in `raw_content`, without a
+        source_url.
+        """
+        BASEROW_USER_DOCS = "baserow_user_docs", "Baserow User Docs"
+        """
+        Documents downloaded from `baserow.io/user-docs`, our online Knowledge Base.
+        """
+        FAQ = "faq", "FAQ"
+        """
+        Frequently Asked Question. It could be a single question or multiple ones for
+        the same topic.
+        """
+        TEMPLATE = "template", "Template"
+        """
+        A document that contains a template example for a specific use case.
+        """
+
+    title = models.CharField(
+        max_length=TITLE_MAX_LENGTH, help_text="The title of the document."
+    )
+    slug = models.SlugField(
+        max_length=255,
+        unique=True,
+        help_text=(
+            "A unique slug identifier for the document, used for easy reference."
+        ),
+    )
+    source_url = models.URLField(
+        blank=True, help_text="The source URL of the document, if applicable."
+    )
+    type = models.CharField(
+        max_length=20, choices=DocumentType.choices, default=DocumentType.RAW_DOCUMENT
+    )
+    raw_content = models.TextField(
+        help_text=(
+            "The raw content of the document, before any processing. "
+            "This field can be automatically populated by the source_url or set manually."
+        )
+    )
+    process_document = models.BooleanField(
+        default=True,
+        help_text="Whether to process the document for ingestion or use the raw_content as-is.",
+    )
+    content = models.TextField(
+        help_text="The processed content of the document, ready for use by the AI assistant."
+    )
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.NEW)
+    category = models.ForeignKey(
+        KnowledgeBaseCategory,
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="documents",
+        help_text=(
+            "The category this document belongs to. "
+            "Every document should belong to exactly one category. "
+            "If not, split it in multiple documents first."
+        ),
+    )
+
+    objects = KnowledgeBaseDocumentManager()
+
+    def generate_slug(self, excludes: Iterable[str] | None = None) -> str:
+        """
+        Generate a slug from the title. This is used when creating a new document
+        without a slug.
+        """
+
+        base_slug = self.title.lower().replace(" ", "-")
+        slug = base_slug
+
+        excludes = set(list(excludes or []))
+        counter = 1
+
+        while slug in excludes:
+            slug = f"{base_slug}-{counter}"
+            counter += 1
+
+        self.slug = slug
+        return slug
+
+    def __str__(self):
+        return f"Document: {self.title}"
+
+    def natural_key(self):
+        return (self.slug,)
+
+
+class KnowledgeBaseChunk(CreatedAndUpdatedOnMixin, models.Model):
+    source_document = models.ForeignKey(
+        KnowledgeBaseDocument,
+        null=True,  # Needed for serializers.deserialize
+        on_delete=models.CASCADE,
+        related_name="chunks",
+        help_text="The document this chunk belongs to.",
+    )
+    vector_id = models.CharField(
+        null=True,
+        max_length=255,
+        help_text="The vector ID used in the vector store of the chunk.",
+    )
+    embedding = ArrayField(
+        models.FloatField(),
+        help_text=(
+            "The embedding vector for the chunk. This won't be used to retrieve the chunk. "
+            "It's only a backup copy of the one used in the vector store, in case redis is cleared."
+        ),
+        default=list,
+    )
+    index = models.PositiveIntegerField(
+        help_text="The chunk index within the document."
+    )
+    content = models.TextField(help_text="The content of the chunk.")
+    metadata = models.JSONField(
+        help_text="Additional metadata about the chunk.", default=dict
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["vector_id"],
+                condition=(models.Q(vector_id__isnull=False)),
+                name="unique_vector_id_constraint",
+            ),
+            models.UniqueConstraint(
+                fields=["source_document", "index"],
+                name="unique_document_index_constraint",
+            ),
+        ]
+
+
+@receiver(pre_delete, sender=KnowledgeBaseDocument)
+def cleanup_document_vector_chunks(sender, instance: "KnowledgeBaseDocument", **kwargs):
+    """
+    Before deleting a KnowledgeBaseDocument, clean up all related vector chunks
+    from the RedisVectorStore to prevent orphaned vectors.
+    """
+
+    from baserow_enterprise.assistant.capabilities.knowledge_retrieval.handler import (
+        VectorStore,
+    )
+
+    try:
+        chunks_with_vectors = instance.chunks.filter(vector_id__isnull=False)
+        vector_ids = [
+            chunk.vector_id for chunk in chunks_with_vectors if chunk.vector_id
+        ]
+
+        if vector_ids:
+            VectorStore().delete_many(vector_ids)
+
+    except Exception as e:
+        logger.error(
+            f"Failed to cleanup vector chunks for document {instance.id}: {e}",
+            exc_info=True,
+        )
+
+
+@receiver(post_migrate)
+def create_default_knowledge_base_categories(sender, **kwargs):
+    """
+    Create default knowledge base categories if they don't exist. They're needed as
+    document type importers rely on them.
+    """
+
+    from baserow_enterprise.assistant.capabilities.knowledge_retrieval.handler import (
+        KnowledgeBaseHandler,
+    )
+
+    if settings.TESTS:
+        return
+
+    KnowledgeBaseHandler().load_categories(DEFAULT_CATEGORIES)

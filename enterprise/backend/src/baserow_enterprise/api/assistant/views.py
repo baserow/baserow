@@ -29,7 +29,7 @@ from baserow_enterprise.assistant.types import BaseMessage, HumanMessage
 from baserow_enterprise.features import ASSISTANT
 
 from .serializers import (
-    AssistantChatMessageSerializer,
+    AssistantChatMessagesSerializer,
     AssistantChatSerializer,
     AssistantChatsRequestSerializer,
     AssistantMessageRequestSerializer,
@@ -157,14 +157,18 @@ class AssistantChatView(APIView):
             ):
                 yield self._stream_assistant_message(msg)
 
-        return StreamingHttpResponse(
+        response = StreamingHttpResponse(
             stream_assistant_messages(),
             content_type="text/event-stream",
         )
+        response["Cache-Control"] = "no-cache"
+        response["X-Accel-Buffering"] = "no"  # helpful behind Nginx
+        return response
 
     def _stream_assistant_message(self, message: BaseMessage) -> str:
-        message = AssistantMessageSerializer.from_assistant_message(message)
-        return json.dumps(message.data) + "\n\n"
+        if AssistantMessageSerializer.can_serialize(message):
+            serializer = AssistantMessageSerializer(message)
+            return json.dumps(serializer.data) + "\n\n"
 
     @extend_schema(
         tags=["AI Assistant"],
@@ -174,7 +178,7 @@ class AssistantChatView(APIView):
             "This is an **advanced/enterprise** feature."
         ),
         responses={
-            200: AssistantChatMessageSerializer,
+            200: AssistantChatMessagesSerializer,
             400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
         },
     )
@@ -203,14 +207,8 @@ class AssistantChatView(APIView):
         )
 
         messages = handler.get_chat_messages(chat)
-        serializer = AssistantChatMessageSerializer(
-            data={
-                "messages": [
-                    AssistantMessageSerializer.from_assistant_message(msg).data
-                    for msg in messages
-                ],
-            }
-        )
-        serializer.is_valid(raise_exception=True)
+
+        # Pass the messages as an instance for serialization
+        serializer = AssistantChatMessagesSerializer({"messages": messages})
 
         return Response(serializer.data)
