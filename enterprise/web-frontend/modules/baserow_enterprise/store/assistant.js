@@ -4,8 +4,15 @@ import Vue from 'vue'
 
 const MESSAGE_TYPE = {
   MESSAGE: 'ai/message',
+  THINKING: 'ai/thinking',
   ERROR: 'ai/error',
   CHAT_TITLE: 'chat/title',
+}
+
+export const THINKING_MESSAGES = {
+  THINKING: 'thinking',
+  SEARCHING_DOCS: 'searching_docs',
+  ANSWERING: 'answering',
 }
 
 export const state = () => ({
@@ -26,6 +33,10 @@ export const mutations = {
 
   SET_ASSISTANT_RUNNING(state, { chat, value }) {
     Vue.set(chat, 'running', value)
+  },
+
+  SET_ASSISTANT_RUNNING_MESSAGE(state, { chat, message }) {
+    Vue.set(chat, 'runningMessage', message)
   },
 
   SET_MESSAGES(state, messages) {
@@ -134,15 +145,26 @@ export const actions = {
     }
   },
 
-  handleStreamingResponse({ commit, state }, { id, update }) {
+  handleStreamingResponse({ commit, state }, { chat, id, update }) {
     switch (update.type) {
       case MESSAGE_TYPE.MESSAGE:
+        commit('SET_ASSISTANT_RUNNING_MESSAGE', {
+          chat,
+          message: THINKING_MESSAGES.ANSWERING,
+        })
         commit('UPDATE_MESSAGE', {
           id,
           updates: {
             content: update.content,
             loading: false,
           },
+        })
+        break
+      case MESSAGE_TYPE.THINKING:
+        console.log('THINKING', update.content)
+        commit('SET_ASSISTANT_RUNNING_MESSAGE', {
+          chat,
+          message: update.content,
         })
         break
       case MESSAGE_TYPE.CHAT_TITLE:
@@ -185,6 +207,10 @@ export const actions = {
     }
     commit('ADD_MESSAGE', aiMessage)
     commit('SET_ASSISTANT_RUNNING', { chat, value: true })
+    commit('SET_ASSISTANT_RUNNING_MESSAGE', {
+      chat,
+      message: THINKING_MESSAGES.THINKING,
+    })
     const uiContext = { workspace: { id: workspace.id, name: workspace.name } }
 
     try {
@@ -194,6 +220,7 @@ export const actions = {
         uiContext,
         async (progressEvent) => {
           await dispatch('handleStreamingResponse', {
+            chat,
             id: aiMessageId,
             update: progressEvent,
           })

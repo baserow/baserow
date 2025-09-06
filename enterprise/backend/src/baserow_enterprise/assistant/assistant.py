@@ -8,7 +8,7 @@ from langgraph.errors import GraphRecursionError
 from langgraph.types import StreamMode
 from loguru import logger
 
-from .graph.base import AssistantGraph, Node
+from .graph.base import AssistantGraphBuilder, Node
 from .models import AssistantChat
 from .types import (
     AiErrorMessage,
@@ -68,7 +68,7 @@ class Assistant:
         self.user = chat.user
         self.workspace = chat.workspace
         self._state = None
-        self._graph_builder = AssistantGraph(self.chat)
+        self._graph_builder = AssistantGraphBuilder(self.chat)
         self._graph = None
         self._last_message = new_message
         self._chunks = defaultdict(AIMessageChunk)
@@ -109,6 +109,9 @@ class Assistant:
             messages.append(self._last_message)
         return AssistantState(messages=messages)
 
+    def _process_custom_update(self, update: Any):
+        return [update]
+
     def _process_update(self, update: Any) -> Optional[list[AssistantMessageUnion]]:
         """
         Process an update from the assistant graph. Considering the different stream
@@ -119,6 +122,10 @@ class Assistant:
         :return: A list of messages generated from the update to stream to the user, if
             any.
         """
+
+        if update[1] == "custom":
+            # Custom streams come from a tool call
+            return self._process_custom_update(update[2])
 
         # remove the first element, which is the node/subgraph node name
         update = update[1:]
@@ -162,7 +169,7 @@ class Assistant:
         self._state = self._init_state()
         config = self._get_config()
 
-        stream_mode: list[StreamMode] = ["values", "updates", "messages"]
+        stream_mode: list[StreamMode] = ["values", "updates", "messages", "custom"]
 
         graph = await self._get_graph()
         generator: AsyncIterator[Any] = graph.astream(

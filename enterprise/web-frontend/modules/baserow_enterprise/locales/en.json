@@ -337,7 +337,10 @@
     "statusWaiting": "Assistant is ready to help",
     "statusRunning": "Running...",
     "placeholder": "Ask me anything...",
-    "send": "Send message"
+    "send": "Send message",
+    "statusThinking": "Thinking...",
+    "statusAnswering": "Answering...",
+    "statusSearchingDocs": "Exploring the knowledge base..."
   },
   "assistantChatHistoryContext": {
     "empty": "No chat history available",

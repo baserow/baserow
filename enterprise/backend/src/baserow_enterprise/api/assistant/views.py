@@ -6,6 +6,7 @@ from django.http import StreamingHttpResponse
 from baserow_premium.license.handler import LicenseHandler
 from drf_spectacular.openapi import OpenApiParameter, OpenApiTypes
 from drf_spectacular.utils import OpenApiResponse, extend_schema
+from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -157,10 +158,13 @@ class AssistantChatView(APIView):
             ):
                 yield self._stream_assistant_message(msg)
 
-        return StreamingHttpResponse(
+        response = StreamingHttpResponse(
             stream_assistant_messages(),
             content_type="text/event-stream",
         )
+        response["Cache-Control"] = "no-cache"
+        response["X-Accel-Buffering"] = "no"  # helpful behind Nginx
+        return response
 
     def _stream_assistant_message(self, message: BaseMessage) -> str:
         message = AssistantMessageSerializer.from_assistant_message(message)
@@ -203,12 +207,17 @@ class AssistantChatView(APIView):
         )
 
         messages = handler.get_chat_messages(chat)
+        serialized_messages = []
+        for msg in messages:
+            try:
+                serialized = AssistantMessageSerializer.from_assistant_message(msg).data
+                serialized_messages.append(serialized)
+            except ValidationError:
+                continue  # ugly way to skip messages not contemplated by the serializer
+
         serializer = AssistantChatMessageSerializer(
             data={
-                "messages": [
-                    AssistantMessageSerializer.from_assistant_message(msg).data
-                    for msg in messages
-                ],
+                "messages": serialized_messages,
             }
         )
         serializer.is_valid(raise_exception=True)

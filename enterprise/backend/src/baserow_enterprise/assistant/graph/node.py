@@ -14,14 +14,15 @@ class AssistantNode(Generic[StateType, PartialStateType]):
     asynchronous `arun` function to implement the logic of a given node in the assistant
     graph. A node receive the current state as input, perform some computation or
     side-effect, and return an updated state. They are interconnected via edges defined
-    in the AssistantGraph. Sometimes nodes can directly jump to other nodes in the graph
-    without going through the usual edges, via the `langgraph.types.Command` class.
+    in the AssistantGraphBuilder. Sometimes nodes can directly jump to other nodes in
+    the graph without going through the usual edges, via the `langgraph.types.Command`
+    class.
     """
 
     def __init__(self, chat: AssistantChat):
-        self.chat = chat
-        self.user = chat.user
-        self.workspace = chat.workspace
+        self._chat = chat
+        self._user = chat.user
+        self._workspace = chat.workspace
 
     def _get_ui_context(self, state: StateType) -> UIContext | None:
         """

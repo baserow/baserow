@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from enum import StrEnum
 from typing import Annotated, Any, Literal, Optional, Sequence, TypeVar
 from uuid import uuid4
@@ -33,6 +34,7 @@ class BaseMessage(BaseModel):
         extra="forbid",
     )
     id: Optional[str] = Field(default_factory=uuid4_str)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
 
 
 class HumanMessage(BaseMessage):
@@ -53,24 +55,30 @@ class ToolCall(BaseMessage):
     args: dict[str, Any]
 
 
-class ToolMessage(BaseMessage):
+class ToolCallMessage(BaseMessage):
     type: Literal["tool"] = "tool"
     content: str
     tool_call_id: str
-    ui_payload: Optional[dict[str, Any]] = Field(
-        default=None,
-        description=(
-            "Payload passed through to the frontend - specifically for calls of "
-            "contextual tool. Tool call messages without a ui_payload are not passed "
-            "through to the frontend."
-        ),
-    )
+    artifact: Optional[Any] = None
 
 
 class AiMessage(BaseMessage):
     type: Literal["ai/message"] = "ai/message"
     tool_calls: Optional[list[ToolCall]] = None
     content: str = Field(description="The AI message content")
+
+
+class THINKING_MESSAGES(StrEnum):
+    THINKING = "thinking"
+    SEARCHING_DOCS = "searching_docs"
+    ANSWERING = "answering"
+
+
+class AiThinkingMessage(BaseMessage):
+    type: Literal["ai/thinking"] = "ai/thinking"
+    content: str = Field(
+        default="", description="Thinking content. Empty signals end of thinking."
+    )
 
 
 class AiMessageChunk(BaseModel):
@@ -94,7 +102,7 @@ class AiErrorMessage(BaseMessage):
     code: AiErrorMessageCode = Field(description="The type of error that occurred")
 
 
-AIMessageUnion = AiMessage | ToolCall | ToolMessage | ChatTitleMessage
+AIMessageUnion = AiMessage | ToolCall | ToolCallMessage | ChatTitleMessage
 AssistantMessageUnion = HumanMessage | AIMessageUnion | AiErrorMessage
 
 

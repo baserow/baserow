@@ -7,7 +7,7 @@ from baserow_enterprise.assistant.types import (
     AiMessage,
     AssistantMessageUnion,
     HumanMessage,
-    ToolMessage,
+    ToolCallMessage,
     UIContext,
 )
 
@@ -73,7 +73,7 @@ def get_buffer_string(
             role = ai_prefix
         elif isinstance(m, SystemMessage):
             role = "System"
-        elif isinstance(m, ToolMessage):
+        elif isinstance(m, ToolCallMessage):
             role = "Tool"
         else:
             msg = f"Got unsupported message type: {m}"

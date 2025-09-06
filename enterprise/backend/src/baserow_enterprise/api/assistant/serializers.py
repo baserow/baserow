@@ -1,8 +1,9 @@
 from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
 
 from baserow_enterprise.assistant.graph.base import StrEnum
 from baserow_enterprise.assistant.models import AssistantChat
-from baserow_enterprise.assistant.types import BaseMessage, HumanMessage
+from baserow_enterprise.assistant.types import AiMessage, BaseMessage, HumanMessage
 
 
 class AssistantChatsRequestSerializer(serializers.Serializer):
@@ -62,6 +63,10 @@ class AssistantMessageType(StrEnum):
     """
     Use to signal that the AI has failed to process the message
     """
+    THINKING = "ai/thinking"
+    """
+    Use to signal that the AI is currently processing the message
+    """
     CHAT_TITLE = "chat/title"
     """
     Use to signal the chat title should be updated with the message content
@@ -70,7 +75,9 @@ class AssistantMessageType(StrEnum):
 
 class AssistantMessageSerializer(serializers.Serializer):
     id = serializers.UUIDField(help_text="The unique UUID of the message.")
-    content = serializers.CharField(help_text="The content of the message.", default="")
+    content = serializers.CharField(
+        help_text="The content of the message.", default="", allow_blank=True
+    )
     role = serializers.ChoiceField(
         choices=[
             (AssistantMessageRole.HUMAN, "Human"),
@@ -83,6 +90,7 @@ class AssistantMessageSerializer(serializers.Serializer):
         choices=[
             (AssistantMessageType.MESSAGE, "Message"),
             (AssistantMessageType.ERROR, "Error"),
+            (AssistantMessageType.THINKING, "Thinking"),
             (AssistantMessageType.CHAT_TITLE, "Chat Title"),
         ],
         required=False,
@@ -98,11 +106,15 @@ class AssistantMessageSerializer(serializers.Serializer):
             "id": message.id,
             "content": message.content,
         }
+
         if isinstance(message, HumanMessage):
             data["role"] = AssistantMessageRole.HUMAN
         else:
             data["role"] = AssistantMessageRole.AI
             data["type"] = message.type
+
+        if isinstance(message, AiMessage) and message.tool_calls:
+            raise ValidationError("Tool calls are not supported in this serializer.")
 
         serializer = cls(data=data)
         serializer.is_valid(raise_exception=True)

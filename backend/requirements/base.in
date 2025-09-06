@@ -35,7 +35,8 @@ django-storages[google]==1.14.3
 django-health-check==3.18.2
 psutil==5.9.8
 dj-database-url==2.1.0
-redis==5.0.4
+redis==6.4.0
+redisvl==0.8.2
 pysaml2==7.5.0
 validators==0.28.1
 requests-oauthlib==2.0.0
