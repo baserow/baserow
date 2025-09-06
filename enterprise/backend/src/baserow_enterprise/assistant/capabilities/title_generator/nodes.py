@@ -3,8 +3,8 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnableConfig
 
+from baserow_enterprise.assistant.capabilities.base import AssistantNode
 from baserow_enterprise.assistant.models import AssistantChat
-from baserow_enterprise.assistant.nodes.base import AssistantNode
 from baserow_enterprise.assistant.types import (
     AssistantState,
     HumanMessage,
@@ -19,7 +19,7 @@ class TitleGeneratorNode(AssistantNode):
     def run(
         self, state: AssistantState, config: RunnableConfig
     ) -> PartialAssistantState | None:
-        already_has_title = bool(self.chat.title.strip())
+        already_has_title = bool(self._chat.title.strip())
         if already_has_title:
             return None
 
@@ -41,8 +41,8 @@ class TitleGeneratorNode(AssistantNode):
         title = runnable.invoke(
             {"user_input": last_human_message.content}, config=config
         )
-        self.chat.title = title[: AssistantChat.TITLE_MAX_LENGTH].strip().capitalize()
-        self.chat.save()
+        self._chat.title = title[: AssistantChat.TITLE_MAX_LENGTH].strip().capitalize()
+        self._chat.save()
 
         return None
 

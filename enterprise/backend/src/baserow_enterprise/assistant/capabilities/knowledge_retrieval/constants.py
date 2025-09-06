@@ -1,0 +1,7 @@
+EMBEDDING_MODEL = "text-embedding-3-large"
+EMBEDDING_DIMENSIONS = 3072
+
+KNOWLEDGE_INDEX_NAME = "assistant_knowledge_base"
+KNOWLEDGE_EMBEDDING_FIELD_NAME = "embedding"
+DOCUMENT_CHUNK_ID_FIELD_NAME = "document_chunk_id"
+DOCUMENT_CONTENT_FIELD_NAME = "content"

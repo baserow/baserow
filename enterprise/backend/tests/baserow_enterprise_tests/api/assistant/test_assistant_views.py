@@ -11,8 +11,10 @@ from freezegun import freeze_time
 from baserow.test_utils.helpers import AnyStr
 from baserow_enterprise.assistant.models import AssistantChat
 from baserow_enterprise.assistant.types import (
+    THINKING_MESSAGES,
     AiErrorMessage,
     AiMessage,
+    AiThinkingMessage,
     ChatTitleMessage,
     HumanMessage,
     UIContext,
@@ -247,7 +249,6 @@ def test_send_message_creates_chat_if_not_exists(
     assert len(chunks) > 0
     ai_response = json.loads(chunks[0])
     assert ai_response["id"] is not None
-    assert ai_response["role"] == "ai"
     assert ai_response["type"] == "ai/message"
     assert ai_response["content"] == "Hello! How can I help you today?"
 
@@ -319,17 +320,14 @@ def test_send_message_streams_response(
 
     # Check first message
     assert messages[0]["content"] == "I'm thinking..."
-    assert messages[0]["role"] == "ai"
     assert messages[0]["type"] == "ai/message"
 
     # Check second message
     assert messages[1]["content"] == "Here's my response!"
-    assert messages[1]["role"] == "ai"
     assert messages[1]["type"] == "ai/message"
 
     # Check title update message
     assert messages[2]["content"] == "Chat about AI assistance"
-    assert messages[2]["role"] == "ai"
     assert messages[2]["type"] == "chat/title"
 
 
@@ -476,6 +474,9 @@ def test_get_messages_returns_chat_history(
                 workspace=WorkspaceUIContext(id=workspace.id, name=workspace.name)
             ),
         ),
+        ChatTitleMessage(content="Weather Chat"),
+        AiThinkingMessage(code=THINKING_MESSAGES.THINKING),
+        AiThinkingMessage(code=THINKING_MESSAGES.ANSWERING),
         AiMessage(
             content="I don't have access to real-time weather data.",
         ),
@@ -485,9 +486,13 @@ def test_get_messages_returns_chat_history(
                 workspace=WorkspaceUIContext(id=workspace.id, name=workspace.name)
             ),
         ),
+        AiThinkingMessage(code=THINKING_MESSAGES.RETRIEVE_KNOWLEDGE),
+        AiThinkingMessage(code=THINKING_MESSAGES.ANALYZE_KNOWLEDGE),
         AiMessage(
             content="Of course! I'd be happy to help you with Python.",
         ),
+        HumanMessage(content="Please crash now"),
+        AiErrorMessage(content="An error occurred", code="unknown"),
     ]
     mock_handler.get_chat_messages.return_value = message_history
 
@@ -503,31 +508,59 @@ def test_get_messages_returns_chat_history(
     data = rsp.json()
 
     assert "messages" in data
-    assert len(data["messages"]) == 4
+    assert len(data["messages"]) == 11
 
     # Check first message (human)
     assert data["messages"][0]["content"] == "What's the weather like?"
-    assert data["messages"][0]["role"] == "human"
+    assert data["messages"][0]["type"] == "human"
     assert "id" in data["messages"][0]
 
-    # Check second message (AI)
+    # Check second message (chat title)
+    assert data["messages"][1]["content"] == "Weather Chat"
+    assert data["messages"][1]["type"] == "chat/title"
+
+    # Check third message (AI thinking)
+    assert data["messages"][2]["code"] == THINKING_MESSAGES.THINKING
+    assert data["messages"][2]["type"] == "ai/thinking"
+
+    # Check fourth message (AI thinking)
+    assert data["messages"][3]["code"] == THINKING_MESSAGES.ANSWERING
+    assert data["messages"][3]["type"] == "ai/thinking"
+
+    # Check fifth message (AI)
     assert (
-        data["messages"][1]["content"]
+        data["messages"][4]["content"]
         == "I don't have access to real-time weather data."
     )
-    assert data["messages"][1]["role"] == "ai"
-    assert data["messages"][1]["type"] == "ai/message"
+    assert data["messages"][4]["type"] == "ai/message"
 
-    # Check third message (human)
-    assert data["messages"][2]["content"] == "Can you help me with Python?"
-    assert data["messages"][2]["role"] == "human"
+    # Check sixth message (human)
+    assert data["messages"][5]["content"] == "Can you help me with Python?"
+    assert data["messages"][5]["type"] == "human"
 
-    # Check fourth message (AI)
+    # Check seventh message (AI thinking)
+    assert data["messages"][6]["code"] == THINKING_MESSAGES.RETRIEVE_KNOWLEDGE
+    assert data["messages"][6]["type"] == "ai/thinking"
+
+    # Check eighth message (AI thinking)
+    assert data["messages"][7]["code"] == THINKING_MESSAGES.ANALYZE_KNOWLEDGE
+    assert data["messages"][7]["type"] == "ai/thinking"
+
+    # Check nineth message (AI)
     assert (
-        data["messages"][3]["content"]
+        data["messages"][8]["content"]
         == "Of course! I'd be happy to help you with Python."
     )
-    assert data["messages"][3]["role"] == "ai"
+    assert data["messages"][8]["type"] == "ai/message"
+
+    # Check tenth message (human)
+    assert data["messages"][9]["content"] == "Please crash now"
+    assert data["messages"][9]["type"] == "human"
+
+    # Check eleventh message (AI error)
+    assert data["messages"][10]["content"] == "An error occurred"
+    assert data["messages"][10]["type"] == "ai/error"
+    assert data["messages"][10]["code"] == "unknown"
 
     # Verify handler was called correctly
     mock_handler.get_chat.assert_called_once_with(user, chat.uuid)

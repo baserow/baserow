@@ -1,11 +1,66 @@
-from typing import Generic
+from typing import Any, Generic, Literal, Tuple
+
+from django.contrib.auth.models import AbstractUser
 
 from asgiref.sync import sync_to_async
-from langchain_core.runnables.config import RunnableConfig
+from langchain_core.runnables import RunnableConfig
+from langchain_core.tools import BaseTool
+from langsmith import traceable
 
+from baserow.core.models import Workspace
 from baserow_enterprise.assistant.models import AssistantChat
 from baserow_enterprise.assistant.types import PartialStateType, StateType, UIContext
 from baserow_enterprise.assistant.utils.helpers import find_last_ui_context
+
+
+class AssistantBaseTool(BaseTool):
+    response_format: Literal["content_and_artifact"] = "content_and_artifact"
+    usage_instructions: str | None = None
+    """
+    Instructions on how and when to use this tool that will be injected in the prompt of
+    the LLM binding this tool.
+    """
+
+    _chat: AssistantChat
+    _user: AbstractUser
+    _workspace: Workspace
+
+    def _init_run(self, config: RunnableConfig) -> None:
+        """Initialize the tool with user and workspace from the config."""
+
+        configurable = config.get("configurable", {})
+        self._chat = configurable.get("chat")
+        self._user = configurable.get("user")
+        self._workspace = configurable.get("workspace")
+
+    def _run(self, *args, config: RunnableConfig, **kwargs) -> Tuple[str, Any]:
+        """
+        Returns the result of the tool run and a tool-specific artifact.
+        """
+
+        self._init_run(config)
+        return self._run_impl(*args, **kwargs)
+
+    async def _arun(self, *args, config: RunnableConfig, **kwargs) -> Tuple[str, Any]:
+        """
+        Returns the result of the tool run and a tool-specific artifact.
+        """
+
+        self._init_run(config)
+        return await sync_to_async(self._run_impl)(*args, **kwargs)
+
+    @traceable
+    def _run_impl(self, *args, **kwargs):
+        raise NotImplementedError()
+
+    def can_be_used(self, config: RunnableConfig) -> bool:
+        """
+        Returns whether the tool can be used in the current context. Override this
+        method to implement custom logic based on the user, workspace, or other
+        factors.
+        """
+
+        return True
 
 
 class AssistantNode(Generic[StateType, PartialStateType]):
@@ -14,14 +69,15 @@ class AssistantNode(Generic[StateType, PartialStateType]):
     asynchronous `arun` function to implement the logic of a given node in the assistant
     graph. A node receive the current state as input, perform some computation or
     side-effect, and return an updated state. They are interconnected via edges defined
-    in the AssistantGraph. Sometimes nodes can directly jump to other nodes in the graph
-    without going through the usual edges, via the `langgraph.types.Command` class.
+    in the AssistantGraphBuilder. Sometimes nodes can directly jump to other nodes in
+    the graph without going through the usual edges, via the `langgraph.types.Command`
+    class.
     """
 
     def __init__(self, chat: AssistantChat):
-        self.chat = chat
-        self.user = chat.user
-        self.workspace = chat.workspace
+        self._chat = chat
+        self._user = chat.user
+        self._workspace = chat.workspace
 
     def _get_ui_context(self, state: StateType) -> UIContext | None:
         """
@@ -32,6 +88,7 @@ class AssistantNode(Generic[StateType, PartialStateType]):
             return find_last_ui_context(state.messages)
         return None
 
+    @traceable
     async def __call__(
         self, state: StateType, config: RunnableConfig
     ) -> PartialStateType | None:
