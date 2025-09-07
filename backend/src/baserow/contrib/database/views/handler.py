@@ -3437,9 +3437,14 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         :return: A list of non-specific public view instances.
         """
 
-        return CachingPublicViewRowChecker(
-            table,
+        queryset = (
+            table.view_set.filter(public=True)
+            .prefetch_related("viewfilter_set", "filter_groups")
+            .all()
+        )
+        return CachingFilteredViewRowChecker(
             model,
+            queryset,
             only_include_views_which_want_realtime_events,
             updated_field_ids,
         )
@@ -3746,7 +3751,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
 
 
 @dataclass
-class PublicViewRows:
+class FilteredViewRows:
     """
     Keeps track of which rows are allowed to be sent as a public signal
     for a particular view.
@@ -3760,13 +3765,13 @@ class PublicViewRows:
     allowed_row_ids: Optional[Set[int]]
 
     def all_allowed(self):
-        return self.allowed_row_ids is PublicViewRows.ALL_ROWS_ALLOWED
+        return self.allowed_row_ids is FilteredViewRows.ALL_ROWS_ALLOWED
 
     def __iter__(self):
         return iter((self.view, self.allowed_row_ids))
 
 
-class CachingPublicViewRowChecker:
+class CachingFilteredViewRowChecker:
     """
     A helper class to check which public views a row is visible in. Will pre-calculate
     upfront for a specific table which public views are always visible, which public
@@ -3776,23 +3781,27 @@ class CachingPublicViewRowChecker:
 
     def __init__(
         self,
-        table: Table,
         model: GeneratedTableModel,
+        queryset: QuerySet,
         only_include_views_which_want_realtime_events: bool,
         updated_field_ids: Optional[Iterable[int]] = None,
     ):
-        self._public_views = (
-            table.view_set.filter(public=True)
-            .prefetch_related("viewfilter_set", "filter_groups")
-            .all()
-        )
+        """
+
+        :param model:
+        :param queryset:
+        :param only_include_views_which_want_realtime_events:
+        :param updated_field_ids:
+        """
+
+        self._filtered_views = queryset
         self._updated_field_ids = updated_field_ids
         self._views_with_filters = []
         self._always_visible_views = []
         self._view_row_check_cache = defaultdict(dict)
         handler = ViewHandler()
         for view in specific_iterator(
-            self._public_views,
+            self._filtered_views,
             per_content_type_queryset_hook=(
                 lambda model, queryset: view_type_registry.get_by_model(
                     model
@@ -3818,7 +3827,7 @@ class CachingPublicViewRowChecker:
                     )
                 )
 
-    def get_public_views_where_row_is_visible(self, row):
+    def get_filtered_views_where_row_is_visible(self, row):
         """
         WARNING: If you are reusing the same checker and calling this method with the
         same row multiple times you must have correctly set which fields in the row
@@ -3847,7 +3856,7 @@ class CachingPublicViewRowChecker:
 
         return views + self._always_visible_views
 
-    def get_public_views_where_rows_are_visible(self, rows) -> List[PublicViewRows]:
+    def get_filtered_views_where_rows_are_visible(self, rows) -> List[FilteredViewRows]:
         """
         WARNING: If you are reusing the same checker and calling this method with the
         same rows multiple times you must have correctly set which fields in the rows
@@ -3877,16 +3886,16 @@ class CachingPublicViewRowChecker:
                     visible_ids = row_ids
 
                 if len(visible_ids) > 0:
-                    visible_views_rows.append(PublicViewRows(view, visible_ids))
+                    visible_views_rows.append(FilteredViewRows(view, visible_ids))
 
             else:
                 visible_ids = set(self._check_rows_visible(filter_qs, rows))
                 if len(visible_ids) > 0:
-                    visible_views_rows.append(PublicViewRows(view, visible_ids))
+                    visible_views_rows.append(FilteredViewRows(view, visible_ids))
 
         for visible_view in self._always_visible_views:
             visible_views_rows.append(
-                PublicViewRows(visible_view, PublicViewRows.ALL_ROWS_ALLOWED)
+                FilteredViewRows(visible_view, FilteredViewRows.ALL_ROWS_ALLOWED)
             )
 
         return visible_views_rows

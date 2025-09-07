@@ -203,7 +203,7 @@ def broadcast_many_to_channel_group(
     Broadcasts a list of JSON payloads to all the users within the channel workspace
      having the provided name for each payload.
 
-    :param payload: A list of pairs: channel workspace and payload dictionary
+    :param payloads: A list of pairs: channel workspace and payload dictionary
         containing data that must be broadcast. Each pair can be sent to a different
         channel group.
     :param ignore_web_socket_id: The web socket id to which messages must not be
