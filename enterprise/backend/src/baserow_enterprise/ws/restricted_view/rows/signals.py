@@ -8,8 +8,9 @@ from opentelemetry import trace
 from baserow.contrib.database.api.rows.serializers import serialize_rows_for_response
 from baserow.contrib.database.rows import signals as row_signals
 from baserow.contrib.database.table.models import GeneratedTableModel
-from baserow.contrib.database.views.handler import FilteredViewRows, ViewHandler
+from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.registries import view_type_registry
+from baserow.contrib.database.views.row_checker import FilteredViewRows
 from baserow.contrib.database.ws.rows.signals import (
     RealtimeRowMessages,
     serialize_rows_values,
