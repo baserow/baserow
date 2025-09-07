@@ -8,7 +8,6 @@ from opentelemetry import trace
 from baserow.contrib.database.api.rows.serializers import serialize_rows_for_response
 from baserow.contrib.database.rows import signals as row_signals
 from baserow.contrib.database.table.models import GeneratedTableModel
-from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.registries import view_type_registry
 from baserow.contrib.database.views.row_checker import FilteredViewRows
 from baserow.contrib.database.ws.rows.signals import (
@@ -29,20 +28,16 @@ def _send_rows_created_event_to_views(
     restricted_views: List[FilteredViewRows],
 ):
     view_page_type = page_registry.get("restricted_view")
-    handler = ViewHandler()
 
     for restricted_view, visible_row_ids in restricted_views:
         view_type = view_type_registry.get_by_model(restricted_view.specific_class)
         if not view_type.can_filter:
             continue
 
-        restricted_serialized_rows = handler.restrict_rows_for_view(
-            restricted_view, serialized_rows, visible_row_ids
-        )
         view_page_type.broadcast(
             RealtimeRowMessages.rows_created(
                 table_id=restricted_view.table_id,
-                serialized_rows=restricted_serialized_rows,
+                serialized_rows=serialized_rows,
                 metadata={},
                 before=before,
             ),
@@ -56,19 +51,15 @@ def _send_rows_deleted_event_to_views(
     restricted_views: List[FilteredViewRows],
 ):
     view_page_type = page_registry.get("restricted_view")
-    handler = ViewHandler()
     for restricted_view, deleted_row_ids in restricted_views:
         view_type = view_type_registry.get_by_model(restricted_view.specific_class)
         if not view_type.can_filter:
             continue
 
-        restricted_serialized_deleted_rows = handler.restrict_rows_for_view(
-            restricted_view, serialized_deleted_rows, deleted_row_ids
-        )
         view_page_type.broadcast(
             RealtimeRowMessages.rows_deleted(
                 table_id=restricted_view.table_id,
-                serialized_rows=restricted_serialized_deleted_rows,
+                serialized_rows=serialized_deleted_rows,
             ),
             restricted_view_id=restricted_view.id,
         )
@@ -264,23 +255,16 @@ def restricted_view_rows_updated(
         )
 
         view_page_type = page_registry.get("restricted_view")
-        handler = ViewHandler()
 
         for (
             restricted_view,
             visible_row_ids,
         ) in restricted_views_where_rows_were_updated:
-            visible_fields_only_updated_rows = handler.restrict_rows_for_view(
-                restricted_view, serialized_updated_rows, visible_row_ids
-            )
-            visible_fields_only_old_rows = handler.restrict_rows_for_view(
-                restricted_view, serialized_old_rows, visible_row_ids
-            )
             view_page_type.broadcast(
                 RealtimeRowMessages.rows_updated(
                     table_id=restricted_view.table_id,
-                    serialized_rows_before_update=visible_fields_only_old_rows,
-                    serialized_rows=visible_fields_only_updated_rows,
+                    serialized_rows_before_update=serialized_old_rows,
+                    serialized_rows=serialized_updated_rows,
                     updated_field_ids=list(updated_field_ids),
                     metadata={},
                 ),
