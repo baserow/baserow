@@ -1062,6 +1062,16 @@ class DatabaseConfig(AppConfig):
         field_constraint_registry.register(RatingTypeUniqueWithEmptyConstraint())
         field_constraint_registry.register(UniqueWithEmptyConstraint())
 
+        from baserow.contrib.database.ws.public.rows.view_realtime_rows import (
+            PublicViewRealtimeRowsType,
+        )
+        from baserow.contrib.database.ws.views.rows.registries import (
+            view_realtime_rows_registry,
+        )
+
+        if not settings.DISABLE_ANONYMOUS_PUBLIC_VIEW_WS_CONNECTIONS:
+            view_realtime_rows_registry.register(PublicViewRealtimeRowsType())
+
         # The signals must always be imported last because they use the registries
         # which need to be filled first.
         import baserow.contrib.database.data_sync.signals  # noqa: F403, F401
