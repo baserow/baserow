@@ -326,14 +326,13 @@ class GridViewType(ViewType):
         view: GridView,
         field_ids_to_check: Optional[List[int]] = None,
     ) -> Set[int]:
-        if field_ids_to_check is None:
-            field_ids_to_check = view.table.field_set.values_list("id", flat=True)
-
         fields_with_options = view.gridviewfieldoptions_set.all()
         field_ids_with_options = {o.field_id for o in fields_with_options}
         hidden_field_ids = {o.field_id for o in fields_with_options if o.hidden}
         # Hide fields in shared views by default if they don't have field_options.
         if view.public:
+            if field_ids_to_check is None:
+                field_ids_to_check = [f.id for f in view.table.field_set.all()]
             additional_hidden_field_ids = {
                 f_id
                 for f_id in field_ids_to_check

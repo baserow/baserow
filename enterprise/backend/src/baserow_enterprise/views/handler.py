@@ -32,7 +32,8 @@ class EnterpriseViewHandler:
 
         queryset = (
             table.view_set.filter(ownership_type=RestrictedViewOwnershipType.type)
-            .prefetch_related("viewfilter_set", "filter_groups")
+            .select_related("table")
+            .prefetch_related("viewfilter_set", "filter_groups", "table__field_set")
             .all()
         )
         return FilteredViewRowChecker(
