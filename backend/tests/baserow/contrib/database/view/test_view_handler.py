@@ -2179,13 +2179,13 @@ def test_public_view_row_checker_runs_expected_queries_when_checking_rows(
         updated_field_ids=[filtered_field.id, unfiltered_field.id],
     )
     specific_another_view = another_public_grid_view.view_ptr.specific
-    with django_assert_num_queries(2):
+    with django_assert_num_queries(1):
         # Now should run two queries, one per public view
         assert row_checker.get_filtered_views_where_row_is_visible(visible_row) == [
             view_ptr_specific,
             specific_another_view,
         ]
-    with django_assert_num_queries(2):
+    with django_assert_num_queries(1):
         # Now should run two queries, one per public view
         assert row_checker.get_filtered_views_where_row_is_visible(invisible_row) == []
 
