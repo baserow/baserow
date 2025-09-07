@@ -297,6 +297,9 @@ from baserow_enterprise.teams.operations import (
     RestoreTeamOperationType,
     UpdateTeamOperationType,
 )
+from baserow_enterprise.views.operations import (
+    ListenToAllRestrictedViewEventsOperationType,
+)
 
 default_roles = {
     ADMIN_ROLE_UID: [],
@@ -355,7 +358,6 @@ default_roles[READ_ONLY_ROLE_UID].extend(
         ReadAdjacentRowDatabaseRowOperationType,
         ListRowNamesDatabaseTableOperationType,
         ReadViewFilterOperationType,
-        ListenToAllDatabaseTableEventsOperationType,
         ReadViewsOrderOperationType,
         ReadViewSortOperationType,
         ListViewGroupByOperationType,
@@ -372,6 +374,8 @@ default_roles[READ_ONLY_ROLE_UID].extend(
 default_roles[VIEWER_ROLE_UID].extend(
     default_roles[READ_ONLY_ROLE_UID]
     + [
+        ListenToAllRestrictedViewEventsOperationType,
+        ListenToAllDatabaseTableEventsOperationType,
         ReadMCPEndpointOperationType,
         CreateMCPEndpointOperationType,
         UpdateMCPEndpointOperationType,
