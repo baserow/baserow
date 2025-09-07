@@ -220,6 +220,11 @@ export default {
     }
     return data
   },
+  data() {
+    return {
+      realtimePage: null,
+    }
+  },
   head() {
     return {
       title: (this.view ? this.view.name + ' - ' : '') + this.table?.name || '',
@@ -247,12 +252,35 @@ export default {
   },
   mounted() {
     if (this.table) {
-      this.$realtime.subscribe('table', { table_id: this.table.id })
+      const realtimePage = {
+        page: 'table',
+        params: { table_id: this.table.id },
+      }
+      if (this.view) {
+        const viewOwnershipType = this.$registry.get(
+          'viewOwnershipType',
+          this.view.ownership_type
+        )
+        const { page, params } = viewOwnershipType.enhanceRealtimePagePayload(
+          this.database,
+          this.table,
+          this.view,
+          realtimePage
+        )
+        realtimePage.page = page
+        realtimePage.params = params
+      }
+      this.realtimePage = realtimePage
+      this.$realtime.subscribe(realtimePage.page, realtimePage.params)
     }
   },
   beforeDestroy() {
     if (this.table) {
-      this.$realtime.unsubscribe('table', { table_id: this.table.id })
+      this.$realtime.unsubscribe(
+        this.realtimePage.page,
+        this.realtimePage.params
+      )
+      this.realtimePage = null
     }
   },
   methods: {

@@ -85,6 +85,13 @@ export class ViewOwnershipType extends Registerable {
       workspaceId
     )
   }
+
+  /**
+   * @TODO docs
+   */
+  enhanceRealtimePagePayload(database, table, view, realtimePage) {
+    return realtimePage
+  }
 }
 
 export class CollaborativeViewOwnershipType extends ViewOwnershipType {

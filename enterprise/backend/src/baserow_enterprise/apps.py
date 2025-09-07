@@ -351,14 +351,23 @@ class BaserowEnterpriseConfig(AppConfig):
         assistant_tool_registry.register(ListWorkflowsToolType())
         assistant_tool_registry.register(WorkflowToolFactoryToolType())
 
+        from baserow_enterprise.views.operations import (
+            ListenToAllRestrictedViewEventsOperationType,
+        )
+
+        operation_type_registry.register(ListenToAllRestrictedViewEventsOperationType())
+
         from baserow.contrib.database.views.registries import (
             view_ownership_type_registry,
         )
         from baserow.core.feature_flags import feature_flag_is_enabled
+        from baserow.ws.registries import page_registry
         from baserow_enterprise.view_ownership_types import RestrictedViewOwnershipType
+        from baserow_enterprise.ws.pages import RestrictedViewPageType
 
         if feature_flag_is_enabled("view_permissions"):
             view_ownership_type_registry.register(RestrictedViewOwnershipType())
+            page_registry.register(RestrictedViewPageType())
 
         # The signals must always be imported last because they use the registries
         # which need to be filled first.
