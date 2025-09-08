@@ -617,17 +617,6 @@ class AnyDict(dict):
         return isinstance(other, dict)
 
 
-class AnyList(list):
-    """
-    A helper class that allows to compare lists, which may contain the same values,
-    but in various order. Note, this class uses sets internally, so values must be
-    hashable.
-    """
-
-    def __eq__(self, other):
-        return set(self) == set(other)
-
-
 def load_test_cases(name: str) -> Union[List, Dict]:
     """
     Load test data from the global cases directory. These cases are used to run the

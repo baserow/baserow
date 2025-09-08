@@ -6,7 +6,6 @@ from django.dispatch import receiver
 from baserow.contrib.database.field_rules import signals as field_rules_signals
 from baserow.contrib.database.field_rules.operations import ReadFieldRuleOperationType
 from baserow.contrib.database.table.object_scopes import DatabaseTableObjectScopeType
-from baserow.core.utils import generate_hash
 from baserow.ws.tasks import broadcast_to_permitted_users
 
 
@@ -26,8 +25,7 @@ def send_payload(message_type, table, rule, user):
             rule.table_id,
             {
                 "type": message_type,
-                # A user might also not have access to the database itself
-                "database_id": generate_hash(database.id),
+                "database_id": database.id,
                 "table_id": table.id,
                 "rule": payload,
             },

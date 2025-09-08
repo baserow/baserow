@@ -21,7 +21,6 @@ def date_dependency_recalculate_rows(rule_id, table_id):
     Runs table recalculation in the background for date dependency.
     """
 
-    # we can exit early if the rule is invalid
     table = TableHandler().get_table(table_id)
     field_rules_handler = FieldRuleHandler(table)
     rule = field_rules_handler.get_rule(rule_id)

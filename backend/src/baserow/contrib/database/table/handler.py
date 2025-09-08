@@ -258,9 +258,6 @@ class TableHandler(metaclass=baserow_trace_methods(tracer)):
 
         if base_queryset is None:
             base_queryset = Table.objects.all()
-        #
-        # for field_rule_type in field_rules_type_registry.get_all():
-        #     base_queryset = field_rule_type.enrich_table_queryset(base_queryset)
 
         return base_queryset.filter(
             trashed=False,

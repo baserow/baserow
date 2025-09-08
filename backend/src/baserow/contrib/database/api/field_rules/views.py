@@ -40,7 +40,6 @@ from baserow.contrib.database.table.exceptions import TableDoesNotExist
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.core.action.registries import action_type_registry
 from baserow.core.exceptions import InstanceTypeDoesNotExist, UserNotInWorkspace
-from baserow.core.feature_flags import FF_DATE_DEPENDENCY_V2, feature_flag_is_enabled
 from baserow.core.handler import CoreHandler
 
 from .errors import (
@@ -272,12 +271,12 @@ class FieldRuleView(APIView):
             data=request.data,
             context={"table": table, "user": request.user, "request": request},
         )
+
         try:
             serializer.is_valid(raise_exception=True)
 
             rule = action_type_registry.get(UpdateFieldRuleActionType.type).do(
                 request.user,
-                table=table,
                 rule=rule,
                 in_rule_data=serializer.validated_data,
             )
@@ -334,6 +333,8 @@ class FieldRuleView(APIView):
         """
 
         table = TableHandler().get_table(table_id)
+        field_rules_handler = FieldRuleHandler(table, request.user)
+        rule = field_rules_handler.get_rule(rule_id)
         workspace = table.database.workspace
         CoreHandler().check_permissions(
             request.user,
@@ -343,61 +344,57 @@ class FieldRuleView(APIView):
         )
 
         action_type_registry.get(DeleteFieldRuleActionType.type).do(
-            request.user, table=table, rule_id=rule_id
+            request.user, rule=rule
         )
         return Response(status=HTTP_204_NO_CONTENT)
 
 
-if feature_flag_is_enabled(FF_DATE_DEPENDENCY_V2):
+class InvalidRowsView(APIView):
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="table_id",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.INT,
+                description="The ID of the table to get a list of invalid row ids.",
+            ),
+        ],
+        tags=["Field rules"],
+        operation_id="get_invalid_rows",
+        description=("Get a list of invalid rows"),
+        responses={
+            200: get_example_pagination_serializer_class(InvalidRowSerializer),
+            400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
+            404: get_error_schema(["ERROR_TABLE_DOES_NOT_EXIST"]),
+        },
+    )
+    @map_exceptions(
+        {
+            TableDoesNotExist: ERROR_TABLE_DOES_NOT_EXIST,
+            UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
+        }
+    )
+    @transaction.atomic
+    def get(self, request: Request, table_id: int) -> Response:
+        """
+        Get a list of row ids that has been marked as invalid by any field rule
+        that was defined for the table.
+        """
 
-    class InvalidRowsView(APIView):
-        @extend_schema(
-            parameters=[
-                OpenApiParameter(
-                    name="table_id",
-                    location=OpenApiParameter.PATH,
-                    type=OpenApiTypes.INT,
-                    description="The ID of the table to get a list of invalid row ids.",
-                ),
-            ],
-            tags=["Field rules"],
-            operation_id="get_invalid_rows",
-            description=("Get a list of invalid rows"),
-            responses={
-                200: get_example_pagination_serializer_class(InvalidRowSerializer),
-                400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
-                404: get_error_schema(["ERROR_TABLE_DOES_NOT_EXIST"]),
-            },
+        table = TableHandler().get_table(table_id)
+        workspace = table.database.workspace
+        CoreHandler().check_permissions(
+            request.user,
+            ReadFieldRuleOperationType.type,
+            workspace=workspace,
+            context=table,
         )
-        @map_exceptions(
-            {
-                TableDoesNotExist: ERROR_TABLE_DOES_NOT_EXIST,
-                UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
-            }
-        )
-        @transaction.atomic
-        def get(self, request: Request, table_id: int) -> Response:
-            """
-            Get a list of row ids that has been marked as invalid by any field rule
-            that was defined for the table.
-            """
 
-            table = TableHandler().get_table(table_id)
-            workspace = table.database.workspace
-            CoreHandler().check_permissions(
-                request.user,
-                ReadFieldRuleOperationType.type,
-                workspace=workspace,
-                context=table,
-            )
+        handler = FieldRuleHandler(table, request.user)
+        invalid_rows_queryset = handler.get_invalid_rows()
 
-            handler = FieldRuleHandler(table, request.user)
-            invalid_rows_queryset = handler.get_invalid_rows()
+        paginator = PageNumberPagination(limit_page_size=settings.ROW_PAGE_SIZE_LIMIT)
+        page = paginator.paginate_queryset(invalid_rows_queryset, request, self)
+        serializer = InvalidRowSerializer(page, many=True)
 
-            paginator = PageNumberPagination(
-                limit_page_size=settings.ROW_PAGE_SIZE_LIMIT
-            )
-            page = paginator.paginate_queryset(invalid_rows_queryset, request, self)
-            serializer = InvalidRowSerializer(page, many=True)
-
-            return paginator.get_paginated_response(serializer.data)
+        return paginator.get_paginated_response(serializer.data)

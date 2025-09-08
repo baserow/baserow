@@ -30,6 +30,7 @@ from django.utils.encoding import force_str
 from celery.utils import chunks
 from opentelemetry import metrics, trace
 
+from baserow.contrib.database.field_rules.handlers import FieldRuleHandler
 from baserow.contrib.database.fields.dependencies.handler import FieldDependencyHandler
 from baserow.contrib.database.fields.dependencies.update_collector import (
     FieldUpdateCollector,
@@ -73,7 +74,6 @@ from baserow.core.trash.registries import trash_item_type_registry
 from baserow.core.types import PermissionCheck
 from baserow.core.utils import Progress, get_non_unique_values, grouper
 
-from ..field_rules.handlers import FieldRuleHandler
 from .constants import ROW_IMPORT_CREATION, ROW_IMPORT_VALIDATION
 from .error_report import RowErrorReport
 from .exceptions import InvalidRowLength, RowDoesNotExist, RowIdsNotUnique
@@ -2125,8 +2125,6 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                 updated_values = prepared_rows_values_by_id[row.id]
                 change = field_rules_handler.on_row_update(row, updated_values)
 
-                # we split detection of changed fields to a separate call for
-                # better granularity.
                 field_rules_handler.process_row_update(
                     updated_values, updated_field_ids, change
                 )

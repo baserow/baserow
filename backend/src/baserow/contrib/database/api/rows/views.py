@@ -149,6 +149,24 @@ from .serializers import (
 )
 
 
+def build_response_with_metadata(rows, request, model, serializer_class) -> Response:
+    """
+    Helper to build view's response with optional operation metadata structure.
+
+    If the request contains `include_metadata` flag, then the response should include
+    `metadata` field with information about the operation performed. At the moment,
+    this includes a list of fields that have been changed.
+    """
+
+    data = {"items": rows}
+    if str_to_bool(str(request.GET.get("include_metadata"))):
+        data["metadata"] = {
+            "updated_field_ids": [field.id for field in model.get_fields()]
+        }
+    response_serializer = serializer_class(data)
+    return Response(response_serializer.data)
+
+
 class RowsView(APIView):
     authentication_classes = APIView.authentication_classes + [TokenAuthentication]
     permission_classes = (IsAuthenticated,)
@@ -1279,11 +1297,12 @@ class BatchRowsView(APIView):
             response_row_serializer_class
         )
 
-        data = {"items": rows}
-        if str_to_bool(str(request.GET.get("include_metadata"))):
-            data["metadata"] = {"updated_field_ids": [f.id for f in model.get_fields()]}
-        response_serializer = response_serializer_class(data)
-        return Response(response_serializer.data)
+        return build_response_with_metadata(
+            rows=rows,
+            request=request,
+            model=model,
+            serializer_class=response_serializer_class,
+        )
 
     @extend_schema(
         parameters=[
@@ -1416,11 +1435,12 @@ class BatchRowsView(APIView):
         response_serializer_class = get_batch_row_serializer_class(
             response_row_serializer_class
         )
-        data = {"items": rows}
-        if str_to_bool(str(request.GET.get("include_metadata"))):
-            data["metadata"] = {"updated_field_ids": updated_data.updated_field_ids}
-        response_serializer = response_serializer_class(data)
-        return Response(response_serializer.data)
+        return build_response_with_metadata(
+            rows=rows,
+            request=request,
+            model=model,
+            serializer_class=response_serializer_class,
+        )
 
 
 class BatchDeleteRowsView(APIView):

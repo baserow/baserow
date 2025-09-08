@@ -215,8 +215,11 @@ class DateDependencyCalculator:
         if result == old_val:
             return
 
-        # more than two values are not set, so we can't calculate third
-        if len(result.get_values_fields()) < 2:
+        # More than two values are not set, so we can't calculate third
+        # Also, if all three values are provided with values, we don't recalculate.
+        if len(result.get_values_fields()) < 2 or (
+            len(changed_fields) == len(result.get_values_fields()) == 3
+        ):
             return result
 
         # keep a copy of original result,so we can return unmodified values in case of
@@ -226,12 +229,14 @@ class DateDependencyCalculator:
         none_in_result = result.get_none_fields()
         result_value_fields = result.get_values_fields()
 
-        # Negative duration set. This is invalid, so we don't recalculate.
+        # Negative duration, or duration set to hours.
+        # This is invalid, so we don't recalculate, but we should round the value to 0.
         if (
             DateDependencyField.DURATION in changed_fields
             and isinstance(result.duration, timedelta)
-            and result.duration < timedelta(days=0)
+            and result.duration < timedelta(days=1)
         ):
+            initial_result.duration = timedelta(days=0)
             return initial_result
 
         if none_in_result:
@@ -336,10 +341,10 @@ class DateDependencyCalculator:
 
         SECONDS_PER_DAY = 86400
 
-        try:
-            duration = in_values.duration - timedelta(days=1)
-        except (TypeError, ValueError):
+        if not isinstance(in_values.duration, timedelta):
             return in_values
+
+        duration = in_values.duration - timedelta(days=1)
 
         days = int(duration.total_seconds() / SECONDS_PER_DAY)
         duration = timedelta(days=days)
@@ -406,7 +411,7 @@ class DateDependencyFieldRuleType(FieldRuleType):
     request_serializer_mixins = [RequestDateDependencySerializer]
 
     if feature_flag_is_enabled(FF_DATE_DEPENDENCY_V2):
-        serializer_field_names = FieldRuleType.serializer_field_names + [
+        serializer_field_names = [
             "start_date_field_id",
             "end_date_field_id",
             "duration_field_id",
@@ -417,21 +422,19 @@ class DateDependencyFieldRuleType(FieldRuleType):
             "dependency_buffer",
             "include_weekends",
         ]
-        request_serializer_field_names = (
-            FieldRuleType.request_serializer_field_names
-            + [
-                "start_date_field_id",
-                "end_date_field_id",
-                "duration_field_id",
-                "dependency_linkrow_field_id",
-                "dependency_linkrow_role",
-                "dependency_connection_type",
-                "dependency_buffer_type",
-                "dependency_buffer",
-                "include_weekends",
-            ]
-        )
-        allowed_fields = FieldRuleType.allowed_fields + [
+        request_serializer_field_names = [
+            "start_date_field_id",
+            "end_date_field_id",
+            "duration_field_id",
+            "dependency_linkrow_field_id",
+            "dependency_linkrow_role",
+            "dependency_connection_type",
+            "dependency_buffer_type",
+            "dependency_buffer",
+            "include_weekends",
+        ]
+
+        allowed_fields = [
             "start_date_field_id",
             "end_date_field_id",
             "duration_field_id",
@@ -443,21 +446,18 @@ class DateDependencyFieldRuleType(FieldRuleType):
             "include_weekends",
         ]
     else:
-        serializer_field_names = FieldRuleType.serializer_field_names + [
+        serializer_field_names = [
             "start_date_field_id",
             "end_date_field_id",
             "duration_field_id",
         ]
-        request_serializer_field_names = (
-            FieldRuleType.request_serializer_field_names
-            + [
-                "start_date_field_id",
-                "end_date_field_id",
-                "duration_field_id",
-            ]
-        )
+        request_serializer_field_names = [
+            "start_date_field_id",
+            "end_date_field_id",
+            "duration_field_id",
+        ]
 
-        allowed_fields = FieldRuleType.allowed_fields + [
+        allowed_fields = [
             "start_date_field_id",
             "end_date_field_id",
             "duration_field_id",

@@ -1006,7 +1006,8 @@ def test_date_dependency_adjust_before_after(
             ),
             False,
         ),
-        # duration negative
+        # duration negative, or less than 1d
+        # if all 3 values are provided, result won't be changed.
         (
             (
                 NO_VALUE,
@@ -1022,6 +1023,60 @@ def test_date_dependency_adjust_before_after(
                 "2025-01-01",
                 "2025-01-10",
                 timedelta(days=-1),
+            ),
+            False,
+        ),
+        (
+            (
+                NO_VALUE,
+                NO_VALUE,
+                NO_VALUE,
+            ),
+            (
+                "2025-01-01",
+                "2025-01-10",
+                timedelta(hours=1),
+            ),
+            (
+                "2025-01-01",
+                "2025-01-10",
+                timedelta(hours=1),
+            ),
+            False,
+        ),
+        (
+            (
+                "2025-01-01",
+                "2025-01-10",
+                NO_VALUE,
+            ),
+            (
+                NO_VALUE,
+                "2025-01-10",
+                timedelta(hours=1),
+            ),
+            (
+                "2025-01-01",
+                "2025-01-10",
+                timedelta(days=0),
+            ),
+            False,
+        ),
+        (
+            (
+                "2025-01-01",
+                "2025-01-10",
+                NO_VALUE,
+            ),
+            (
+                NO_VALUE,
+                "2025-01-10",
+                timedelta(days=-1),
+            ),
+            (
+                "2025-01-01",
+                "2025-01-10",
+                timedelta(days=0),
             ),
             False,
         ),

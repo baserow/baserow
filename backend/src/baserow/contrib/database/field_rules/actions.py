@@ -7,7 +7,6 @@ from baserow.contrib.database.action.scopes import (
     TABLE_ACTION_CONTEXT,
     TableActionScopeType,
 )
-from baserow.contrib.database.field_rules.exceptions import FieldRuleTableMismatch
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.table.models import Table
 from baserow.core.action.models import Action
@@ -48,7 +47,19 @@ class CreateFieldRuleActionType(UndoableActionType):
     def do(
         cls, user: AbstractUser, table: Table, rule_type: str, in_rule_data: dict
     ) -> FieldRule:
-        """ """
+        """
+        Creates a field rule on a table based on the given rule_type.
+
+        A field rule may need various input values, which are passed as `in_rule_data`
+        dictionary. It's up to field rule type handler to validate and utilize
+        proper values.
+
+        :param user: The user on whose behalf the rule is created.
+        :param table: The table on which the rule is created.
+        :param rule_type: Requested rule type.
+        :param in_rule_data: Rule-type specific parameters.
+        :return: FieldRule subclass
+        """
 
         handler = FieldRuleHandler(table, user)
         rule = handler.create_rule(rule_type, in_rule_data)
@@ -118,22 +129,18 @@ class UpdateFieldRuleActionType(UndoableActionType):
         rule_after: dict
 
     @classmethod
-    def do(
-        cls, user: AbstractUser, table: Table, rule: FieldRule, in_rule_data: dict
-    ) -> FieldRule:
+    def do(cls, user: AbstractUser, rule: FieldRule, in_rule_data: dict) -> FieldRule:
         """
-        Updates the field permissions for a given field, setting the role and whether
-        the field is allowed in forms.
+        Updates a field rule.
 
-        :param user: The user on whose behalf the table is updated.
-        :param field: The field instance that needs to be updated.
-        :param role: The role to set for the field.
-        :param allow_in_forms: Whether the field is allowed in forms.
+        :param user: The user on whose behalf the rule is created.
+        :param rule: Specific field rule instance to be updated.
+        :param in_rule_data: Rule-type specific parameters.
+        :return: FieldRule subclass
         """
 
-        handler = FieldRuleHandler(table, user)
-        if rule.table != table:
-            raise FieldRuleTableMismatch()
+        table = rule.table
+        handler = FieldRuleHandler(rule.table, user)
         rule_before = rule.to_dict()
 
         updated = handler.update_rule(rule, in_rule_data)
@@ -200,19 +207,18 @@ class DeleteFieldRuleActionType(UndoableActionType):
         rule_before: dict
 
     @classmethod
-    def do(cls, user: AbstractUser, table: Table, rule_id: int) -> FieldRule:
+    def do(cls, user: AbstractUser, rule: FieldRule) -> FieldRule:
         """
-        Updates the field permissions for a given field, setting the role and whether
-        the field is allowed in forms.
+        Deletes a field rule.
 
-        :param user: The user on whose behalf the table is updated.
-        :param field: The field instance that needs to be updated.
-        :param role: The role to set for the field.
-        :param allow_in_forms: Whether the field is allowed in forms.
+        :param user: The user on whose behalf the rule is removed.
+        :param rule: The rule to be removed.
+        :returns: FieldRule subclass.
         """
 
+        table = rule.table
+        rule_id = rule.id
         handler = FieldRuleHandler(table, user)
-        rule = handler.get_rule(rule_id)
         rule_before = rule.to_dict()
         handler.delete_rule(rule)
 

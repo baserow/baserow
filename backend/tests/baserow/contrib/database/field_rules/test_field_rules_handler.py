@@ -138,3 +138,29 @@ def test_field_rules_handler_type_rule_export_import(
     assert isinstance(imported, FieldRule)
     assert imported.id == rule.id + 1
     assert imported.get_type() == rule.get_type()
+
+
+@pytest.mark.django_db
+def test_field_rules_handler_type_rule_export_import_with_extra_fields(
+    data_fixture, fake_field_rule_registry
+):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+
+    field_rules_handler = FieldRuleHandler(table, user)
+    rule = field_rules_handler.create_rule("dummy", {})
+    exported = field_rules_handler.export_rule(rule)
+    assert isinstance(exported, dict)
+    assert exported.get("id") == rule.id
+    assert exported.get("type") == rule.get_type().type
+    assert exported.get("is_active") == rule.is_active
+    assert exported.get("table_id") == table.id
+    exported["is_valid"] = False
+    exported["error_text"] = "THIS SHOULD NOT BE IMPORTED"
+
+    imported = field_rules_handler.import_rule(exported, {})
+    assert isinstance(imported, FieldRule)
+    assert imported.id == rule.id + 1
+    assert imported.get_type() == rule.get_type()
+    assert imported.is_valid
+    assert imported.error_text is None

@@ -45,7 +45,7 @@ class FieldRuleHandler:
 
         if not self.table.field_rules_validity_column_added:
             return False
-        return self._get_bare_rules_queryset().exists()
+        return bool(self.applicable_rules_with_types)
 
     def get_type_handler(self, rule_type_name: str) -> FieldRuleType:
         """
@@ -193,6 +193,11 @@ class FieldRuleHandler:
 
         rule_type = self.get_type_handler(rule_type_name)
         model_class = rule_type.model_class
+
+        # Those fields are set explicitly below, so we don't want them in
+        # rule payload.
+        for k in ("id", "table_id", "is_valid", "error_text"):
+            in_data.pop(k, None)
 
         rule_data = rule_type.prepare_values_for_create(self.table, in_data)
         rule_type.before_rule_created(self.table, rule_data)
@@ -474,9 +479,7 @@ class FieldRuleHandler:
         """
 
         rule_type: FieldRuleType = rule.get_type()
-        if not rule.is_active:
-            return False
-        if not rule.is_valid:
+        if not (rule.is_active and rule.is_valid):
             return False
 
         return rule_type.validate_rows(self.table, rule, queryset=queryset)
@@ -497,8 +500,6 @@ class FieldRuleHandler:
 
         rule_type_name = rule_data.pop("type")
         rule_type = self.get_type_handler(rule_type_name)
-        # remove values that are provided as defaults during rule creation
-        for k in ("id", "table_id", "is_valid", "error_text"):
-            rule_data.pop(k, None)
+
         prepared_values = rule_type.prepare_values_for_import(rule_data, id_mapping)
         return self.create_rule(rule_type_name, prepared_values)
