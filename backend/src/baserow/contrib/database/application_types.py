@@ -135,7 +135,9 @@ class DatabaseApplicationType(ApplicationType):
                 view = v.specific
                 view_type = view_type_registry.get_by_model(view)
                 serialized_views.append(
-                    view_type.export_serialized(view, table_cache, files_zip, storage)
+                    view_type.export_serialized(
+                        view, import_export_config, table_cache, files_zip, storage
+                    )
                 )
 
             serialized_rows = []
@@ -564,7 +566,9 @@ class DatabaseApplicationType(ApplicationType):
         # Now that the all tables and fields exist, we can create the views and create
         # the table schema in the database.
         for serialized_table in serialized_tables:
-            self._import_table_views(serialized_table, id_mapping, files_zip, progress)
+            self._import_table_views(
+                serialized_table, import_export_config, id_mapping, files_zip, progress
+            )
             self._create_table_schema(
                 serialized_table, already_created_through_table_names
             )
@@ -910,6 +914,7 @@ class DatabaseApplicationType(ApplicationType):
     def _import_table_views(
         self,
         serialized_table: Dict[str, Any],
+        import_export_config: ImportExportConfig,
         id_mapping: Dict[str, Any],
         files_zip: Optional[ZipFile] = None,
         progress: Optional[ChildProgressBuilder] = None,
@@ -929,7 +934,9 @@ class DatabaseApplicationType(ApplicationType):
         table_name = serialized_table["name"]
         for serialized_view in serialized_table["views"]:
             view_type = view_type_registry.get(serialized_view["type"])
-            view_type.import_serialized(table, serialized_view, id_mapping, files_zip)
+            view_type.import_serialized(
+                table, serialized_view, import_export_config, id_mapping, files_zip
+            )
             progress.increment(
                 state=f"{IMPORT_SERIALIZED_IMPORTING_TABLE_STRUCTURE}{table_name}"
             )

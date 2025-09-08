@@ -25,7 +25,11 @@ from baserow.contrib.database.fields.field_filters import OptionallyAnnotatedQ
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Workspace, WorkspaceUser
-from baserow.core.registries import OperationType
+from baserow.core.registries import (
+    ImportExportConfig,
+    OperationType,
+    serialization_processor_registry,
+)
 from baserow.core.registry import (
     APIUrlsInstanceMixin,
     APIUrlsRegistryMixin,
@@ -219,6 +223,7 @@ class ViewType(
     def export_serialized(
         self,
         view: "View",
+        import_export_config: ImportExportConfig,
         cache: Optional[Dict] = None,
         files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
@@ -228,6 +233,8 @@ class ViewType(
         `import_serialized` method. This dict is also JSON serializable.
 
         :param view: The view instance that must be exported.
+        :param import_export_config: @TODO docs
+        :param cache: @TODO docs
         :param files_zip: A zip file buffer where the files related to the export
             must be copied into.
         :param storage: The storage where the files can be loaded from.
@@ -298,12 +305,24 @@ class ViewType(
         if self.can_share:
             serialized["public"] = view.public
 
+        # It could be that there is no `table` related to the view when doing an
+        # Airtable export, for example. That means it's not part of a workspace, so we
+        # can't enhance the export with the `serialization_processor_registry`.
+        if view.table_id is not None:
+            for serialized_structure in serialization_processor_registry.get_all():
+                extra_data = serialized_structure.export_serialized(
+                    view.table.database.workspace, view, import_export_config
+                )
+                if extra_data is not None:
+                    serialized.update(**extra_data)
+
         return serialized
 
     def import_serialized(
         self,
         table: "Table",
         serialized_values: Dict[str, Any],
+        import_export_config: ImportExportConfig,
         id_mapping: Dict[str, Any],
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
@@ -316,6 +335,7 @@ class ViewType(
         :param table: The table where the view should be added to.
         :param serialized_values: The exported serialized view values that need to
             be imported.
+        :param import_export_config: @TODO docs
         :param id_mapping: The map of exported ids to newly created ids that must be
             updated when a new instance has been created.
         :param files_zip: A zip file buffer where files related to the export can be
@@ -399,7 +419,15 @@ class ViewType(
         decorations = (
             serialized_copy.pop("decorations", []) if self.can_decorate else []
         )
-        view = self.model_class.objects.create(table=table, **serialized_copy)
+
+        view = self.model_class(table=table)
+        # Only set the properties that are actually accepted by the view type's model
+        # class.
+        for key, value in serialized_copy.items():
+            if hasattr(view, key):
+                setattr(view, key, value)
+        view.save()
+
         id_mapping["database_views"][view_id] = view.id
 
         if self.can_filter:
@@ -492,6 +520,13 @@ class ViewType(
                 id_mapping["database_view_decorations"][
                     view_decoration_id
                 ] = view_decoration_object.id
+
+        for (
+            serialized_structure_processor
+        ) in serialization_processor_registry.get_all():
+            serialized_structure_processor.import_serialized(
+                table.database.workspace, view, serialized_copy, import_export_config
+            )
 
         return view
 

@@ -811,7 +811,7 @@ class AirtableViewType(Instance):
             config,
             import_report,
         )
-        serialized = view_type.export_serialized(view)
+        serialized = view_type.export_serialized(view, config)
 
         return serialized
 
