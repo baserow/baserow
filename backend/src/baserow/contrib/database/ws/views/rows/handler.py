@@ -1,8 +1,9 @@
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from django.db.models import BooleanField, Case, Q, Value, When
 
 from baserow.contrib.database.table.models import GeneratedTableModel, Table
+from baserow.contrib.database.views.models import View
 from baserow.contrib.database.views.row_checker import FilteredViewRowChecker
 
 from .registries import view_realtime_rows_registry
@@ -68,13 +69,13 @@ class ViewRealtimeRowsHandler:
             updated_field_ids,
         )
 
-    def broadcast_to_types(self, view, payload):
+    def broadcast_to_types(self, view: View, payload: Dict):
         """
-        @TODO docs
+        Helper method that broadcasts the provided payload using the ViewRealtimeRows
+        type, if the view matches the filter.
 
-        :param view:
-        :param payload:
-        :return:
+        :param view: The view object where to broadcast the payload to.
+        :param payload: The payload that must be broadcasted.
         """
 
         for t in view_realtime_rows_registry.get_all():
