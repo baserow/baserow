@@ -416,7 +416,6 @@ class CoreConsumer(AsyncJsonWebsocketConsumer):
         ignore_web_socket_id = event["ignore_web_socket_id"]
         exclude_user_ids = set(event.get("exclude_user_ids", None) or [])
         user_id = self.scope["user"].id
-        print(user_id)
 
         if user_id in exclude_user_ids:
             return

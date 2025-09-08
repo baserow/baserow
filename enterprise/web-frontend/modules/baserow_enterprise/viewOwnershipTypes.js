@@ -64,33 +64,5 @@ export class RestrictedViewOwnershipType extends ViewOwnershipType {
     payload.page = 'restricted_view'
     payload.params = { restricted_view_id: view.id }
     return payload
-
-    //
-    //
-    //
-    // payload['view_id'] = view.id
-    // return payload
-    // const canListenToTableEvents = this.app.$hasPermission(
-    //   'database.table.listen_to_all',
-    //   table,
-    //   database.workspace.id
-    // )
-    // const canListenToViewEvents = this.app.$hasPermission(
-    //   'database.table.view.listen_to_all',
-    //   view,
-    //   database.workspace.id
-    // )
-    // const canCreateFilters = this.app.$hasPermission(
-    //   'database.table.view.create_filter',
-    //   view,
-    //   database.workspace.id
-    // )
-    // //
-    // // if (canListenToTableEvents && canCreateFilters) {
-    // //   return super.enhanceRealtimePagePayload(database, table, view, payload)
-    // // } else {
-    // //   payload['view_id'] = view.id
-    // //   return payload
-    // // }
   }
 }

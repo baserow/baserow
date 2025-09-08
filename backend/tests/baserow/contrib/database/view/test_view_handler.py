@@ -43,11 +43,7 @@ from baserow.contrib.database.views.exceptions import (
     ViewTypeDoesNotExist,
 )
 from baserow.contrib.database.views.filters import AdHocFilters
-from baserow.contrib.database.views.handler import (
-    FilteredViewRows,
-    ViewHandler,
-    ViewIndexingHandler,
-)
+from baserow.contrib.database.views.handler import ViewHandler, ViewIndexingHandler
 from baserow.contrib.database.views.models import (
     DEFAULT_SORT_TYPE_KEY,
     OWNERSHIP_TYPE_COLLABORATIVE,
@@ -65,11 +61,13 @@ from baserow.contrib.database.views.registries import (
     view_filter_type_registry,
     view_type_registry,
 )
+from baserow.contrib.database.views.row_checker import FilteredViewRows
 from baserow.contrib.database.views.signals import view_loaded
 from baserow.contrib.database.views.view_ownership_types import (
     CollaborativeViewOwnershipType,
 )
 from baserow.contrib.database.views.view_types import GridViewType
+from baserow.contrib.database.ws.views.rows.handler import ViewRealtimeRowsHandler
 from baserow.core.db import get_collation_name
 from baserow.core.exceptions import PermissionDenied, UserNotInWorkspace
 from baserow.core.trash.handler import TrashHandler
@@ -1808,7 +1806,7 @@ def test_get_public_views_which_include_row(data_fixture, django_assert_num_quer
     )
 
     model = table.get_model()
-    checker = ViewHandler().get_public_views_row_checker(
+    checker = ViewRealtimeRowsHandler().get_views_row_checker(
         table, model, only_include_views_which_want_realtime_events=True
     )
     assert checker.get_filtered_views_where_row_is_visible(row) == [
@@ -1885,7 +1883,7 @@ def test_get_public_views_which_include_rows(data_fixture):
     )
 
     model = table.get_model()
-    checker = ViewHandler().get_public_views_row_checker(
+    checker = ViewRealtimeRowsHandler().get_views_row_checker(
         table, model, only_include_views_which_want_realtime_events=True
     )
 
@@ -1937,7 +1935,7 @@ def test_public_view_row_checker_caches_when_only_unfiltered_fields_updated(
             f"field_{unfiltered_field.id}": "any",
         }
     )
-    row_checker = ViewHandler().get_public_views_row_checker(
+    row_checker = ViewRealtimeRowsHandler().get_views_row_checker(
         table,
         model,
         only_include_views_which_want_realtime_events=True,
@@ -1987,7 +1985,7 @@ def test_public_view_row_checker_includes_public_views_with_no_filters_with_no_q
             f"field_{unfiltered_field.id}": "any",
         }
     )
-    row_checker = ViewHandler().get_public_views_row_checker(
+    row_checker = ViewRealtimeRowsHandler().get_views_row_checker(
         table,
         model,
         only_include_views_which_want_realtime_events=True,
@@ -2037,7 +2035,7 @@ def test_public_view_row_checker_does_not_cache_when_any_filtered_fields_updated
             f"field_{unfiltered_field.id}": "any",
         }
     )
-    row_checker = ViewHandler().get_public_views_row_checker(
+    row_checker = ViewRealtimeRowsHandler().get_views_row_checker(
         table,
         model,
         only_include_views_which_want_realtime_events=True,
@@ -2080,10 +2078,10 @@ def test_public_view_row_checker_runs_expected_queries_on_init(
         view=public_grid_view, field=filtered_field, type="equal", value="FilterValue"
     )
     model = table.get_model()
-    num_queries = 8
+    num_queries = 9
     with django_assert_num_queries(num_queries):
         # First query to get the public views, second query to get their filters.
-        ViewHandler().get_public_views_row_checker(
+        ViewRealtimeRowsHandler().get_views_row_checker(
             table,
             model,
             only_include_views_which_want_realtime_events=True,
@@ -2104,7 +2102,7 @@ def test_public_view_row_checker_runs_expected_queries_on_init(
     # Adding another view shouldn't result in more queries
     with django_assert_num_queries(num_queries):
         # First query to get the public views, second query to get their filters.
-        ViewHandler().get_public_views_row_checker(
+        ViewRealtimeRowsHandler().get_views_row_checker(
             table,
             model,
             only_include_views_which_want_realtime_events=True,
@@ -2143,7 +2141,7 @@ def test_public_view_row_checker_runs_expected_queries_when_checking_rows(
             f"field_{unfiltered_field.id}": "any",
         }
     )
-    row_checker = ViewHandler().get_public_views_row_checker(
+    row_checker = ViewRealtimeRowsHandler().get_views_row_checker(
         table,
         model,
         only_include_views_which_want_realtime_events=True,
@@ -2172,7 +2170,7 @@ def test_public_view_row_checker_runs_expected_queries_when_checking_rows(
         value="FilterValue",
     )
 
-    row_checker = ViewHandler().get_public_views_row_checker(
+    row_checker = ViewRealtimeRowsHandler().get_views_row_checker(
         table,
         model,
         only_include_views_which_want_realtime_events=True,

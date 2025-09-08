@@ -8,7 +8,9 @@ from pytest_unordered import unordered
 from baserow.contrib.database.api.constants import PUBLIC_PLACEHOLDER_ENTITY_ID
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.trash.models import TrashedRows
-from baserow.contrib.database.views.handler import FilteredViewRows, ViewHandler
+from baserow.contrib.database.views.handler import ViewHandler
+from baserow.contrib.database.views.row_checker import FilteredViewRows
+from baserow.contrib.database.ws.views.rows.handler import ViewRealtimeRowsHandler
 from baserow.core.trash.handler import TrashHandler
 
 
@@ -747,7 +749,7 @@ def test_given_row_not_visible_in_public_view_when_updated_to_be_visible_event_s
     )
 
     # Double check the row isn't visible in any views to begin with
-    row_checker = ViewHandler().get_public_views_row_checker(
+    row_checker = ViewRealtimeRowsHandler().get_views_row_checker(
         table, model, only_include_views_which_want_realtime_events=True
     )
     assert (
@@ -843,7 +845,7 @@ def test_batch_update_rows_not_visible_in_public_view_to_be_visible_event_sent(
     )
 
     # Double check the row isn't visible in any views to begin with
-    row_checker = ViewHandler().get_public_views_row_checker(
+    row_checker = ViewRealtimeRowsHandler().get_views_row_checker(
         table, model, only_include_views_which_want_realtime_events=True
     )
     assert (
@@ -957,7 +959,7 @@ def test_batch_update_rows_some_not_visible_in_public_view_to_be_visible_event_s
     )
 
     # Double check the row isn't visible in any views to begin with
-    row_checker = ViewHandler().get_public_views_row_checker(
+    row_checker = ViewRealtimeRowsHandler().get_views_row_checker(
         table, model, only_include_views_which_want_realtime_events=True
     )
     assert (
@@ -1088,7 +1090,7 @@ def test_batch_update_rows_visible_in_public_view_to_some_not_be_visible_event_s
     )
 
     # Double check the row isn't visible in any views to begin with
-    row_checker = ViewHandler().get_public_views_row_checker(
+    row_checker = ViewRealtimeRowsHandler().get_views_row_checker(
         table, model, only_include_views_which_want_realtime_events=True
     )
     assert row_checker.get_filtered_views_where_rows_are_visible(
@@ -1217,7 +1219,7 @@ def test_given_row_visible_in_public_view_when_updated_to_be_not_visible_event_s
     )
 
     # Double check the row is visible in the view to start with
-    row_checker = ViewHandler().get_public_views_row_checker(
+    row_checker = ViewRealtimeRowsHandler().get_views_row_checker(
         table, model, only_include_views_which_want_realtime_events=True
     )
     assert row_checker.get_filtered_views_where_row_is_visible(
@@ -1315,7 +1317,7 @@ def test_batch_update_rows_visible_in_public_view_to_be_not_visible_event_sent(
     )
 
     # Double check the row is visible in any views to begin with
-    row_checker = ViewHandler().get_public_views_row_checker(
+    row_checker = ViewRealtimeRowsHandler().get_views_row_checker(
         table, model, only_include_views_which_want_realtime_events=True
     )
     public_views = row_checker.get_filtered_views_where_rows_are_visible(
@@ -1424,7 +1426,7 @@ def test_given_row_visible_in_public_view_when_updated_to_still_be_visible_event
     )
 
     # Double check the row is visible in the view to start with
-    row_checker = ViewHandler().get_public_views_row_checker(
+    row_checker = ViewRealtimeRowsHandler().get_views_row_checker(
         table, model, only_include_views_which_want_realtime_events=True
     )
     assert row_checker.get_filtered_views_where_row_is_visible(
@@ -1528,7 +1530,7 @@ def test_batch_update_rows_visible_in_public_view_still_be_visible_event_sent(
     )
 
     # Double check the rows are visible in the view to start with
-    row_checker = ViewHandler().get_public_views_row_checker(
+    row_checker = ViewRealtimeRowsHandler().get_views_row_checker(
         table, model, only_include_views_which_want_realtime_events=True
     )
     public_views = row_checker.get_filtered_views_where_rows_are_visible(
@@ -1630,7 +1632,7 @@ def test_batch_update_subset_rows_visible_in_public_view_no_filters(
     )
 
     # Double check the rows are visible in the view to start with
-    row_checker = ViewHandler().get_public_views_row_checker(
+    row_checker = ViewRealtimeRowsHandler().get_views_row_checker(
         table, model, only_include_views_which_want_realtime_events=True
     )
     public_views = row_checker.get_filtered_views_where_rows_are_visible(
@@ -1997,7 +1999,7 @@ def test_given_row_visible_in_public_view_when_moved_row_updated_sent(
     )
 
     # Double check the row is visible in the view to start with
-    row_checker = ViewHandler().get_public_views_row_checker(
+    row_checker = ViewRealtimeRowsHandler().get_views_row_checker(
         table, model, only_include_views_which_want_realtime_events=True
     )
     assert row_checker.get_filtered_views_where_row_is_visible(visible_moving_row) == [
@@ -2097,7 +2099,7 @@ def test_given_row_invisible_in_public_view_when_moved_no_update_sent(
     )
 
     # Double check the row is visible in the view to start with
-    row_checker = ViewHandler().get_public_views_row_checker(
+    row_checker = ViewRealtimeRowsHandler().get_views_row_checker(
         table, model, only_include_views_which_want_realtime_events=True
     )
     assert (
