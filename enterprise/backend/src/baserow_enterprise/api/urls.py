@@ -1,5 +1,7 @@
 from django.urls import include, path
 
+from baserow.config.urls import urlpatterns as base_urlpatterns
+
 from .admin import urls as admin_urls
 from .ai_assistant import urls as ai_assistant_urls
 from .audit_log import urls as audit_log_urls
@@ -27,5 +29,9 @@ urlpatterns = [
         "custom_code/",
         include(custom_code_urls, namespace="custom_code"),
     ),
+]
+
+
+base_urlpatterns += [
     path("ai-assistant/", include(ai_assistant_urls, namespace="ai_assistant")),
 ]
