@@ -91,6 +91,8 @@ def get_rows_grouped_by_single_select_field(
     if adhoc_filters is None:
         adhoc_filters = AdHocFilters()
 
+    base_option_queryset = base_queryset
+
     # Check if the view ownership type is enforcing the filters to be applied. If
     # so, then regardless of what argument is provided, the filters are applied to
     # the queryset. This can be useful if the view restricts access to rows that
@@ -99,10 +101,12 @@ def get_rows_grouped_by_single_select_field(
     if not adhoc_filters.has_any_filters or view_ownership_type.enforce_apply_filters(
         user, view
     ):
-        base_option_queryset = ViewHandler().apply_filters(view, base_queryset)
+        base_option_queryset = ViewHandler().apply_filters(view, base_option_queryset)
 
     if adhoc_filters.has_any_filters:
-        base_option_queryset = adhoc_filters.apply_to_queryset(model, base_queryset)
+        base_option_queryset = adhoc_filters.apply_to_queryset(
+            model, base_option_queryset
+        )
 
     all_filters = Q()
     count_aggregates = {}

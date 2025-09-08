@@ -1,13 +1,30 @@
+from datetime import datetime
 from unittest.mock import ANY, call, patch
 
+from django.test.utils import override_settings
+from django.urls import reverse
+
 import pytest
+from baserow_premium.views.view_types import (
+    CalendarViewType,
+    KanbanViewType,
+    TimelineViewType,
+)
+from starlette.status import HTTP_200_OK
 
 from baserow.contrib.database.api.constants import PUBLIC_PLACEHOLDER_ENTITY_ID
+from baserow.contrib.database.fields.models import DateField
 from baserow.contrib.database.rows.handler import RowHandler
+from baserow.contrib.database.views.models import View
+from baserow.contrib.database.views.registries import view_type_registry
 from baserow.contrib.database.views.view_ownership_types import (
     CollaborativeViewOwnershipType,
 )
+from baserow.contrib.database.views.view_types import GalleryViewType, GridViewType
 from baserow.contrib.database.ws.views.rows.handler import ViewRealtimeRowsHandler
+from baserow.core.utils import get_value_at_path
+from baserow_enterprise.role.handler import RoleAssignmentHandler
+from baserow_enterprise.role.models import Role
 from baserow_enterprise.view_ownership_types import RestrictedViewOwnershipType
 
 
@@ -173,3 +190,240 @@ def test_when_row_created_restricted_views_receive_restricted_row_ws_event(
             ),
         ]
     )
+
+
+@pytest.mark.django_db(transaction=True)
+@override_settings(DEBUG=True)
+def test_filters_are_visible_for_builders_and_up(enterprise_data_fixture, api_client):
+    enterprise_data_fixture.enable_enterprise()
+
+    user, token = enterprise_data_fixture.create_user_and_token()
+    table = enterprise_data_fixture.create_database_table(user=user)
+    text_field = enterprise_data_fixture.create_text_field(table=table, primary=True)
+    restricted_view = enterprise_data_fixture.create_grid_view(
+        table=table, ownership_type=RestrictedViewOwnershipType.type
+    )
+    view_filter = enterprise_data_fixture.create_view_filter(
+        view=restricted_view, type="equal", field=text_field
+    )
+    enterprise_data_fixture.create_view_filter_group(view=restricted_view)
+
+    response = api_client.get(
+        reverse("api:database:views:list", kwargs={"table_id": table.id})
+        + "?include=filters",
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    response_json = response.json()
+    assert len(response_json)
+    assert len(response_json[0]["filters"]) == 1
+    assert len(response_json[0]["filter_groups"]) == 1
+
+
+@pytest.mark.django_db(transaction=True)
+@override_settings(DEBUG=True)
+def test_filters_are_invisible_for_editors_and_down(
+    enterprise_data_fixture, api_client
+):
+    enterprise_data_fixture.enable_enterprise()
+
+    user, token = enterprise_data_fixture.create_user_and_token()
+    user2, token2 = enterprise_data_fixture.create_user_and_token()
+    workspace = enterprise_data_fixture.create_workspace(user=user, members=[user2])
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
+    table = enterprise_data_fixture.create_database_table(database=database)
+    text_field = enterprise_data_fixture.create_text_field(table=table, primary=True)
+    restricted_view = enterprise_data_fixture.create_grid_view(
+        table=table, ownership_type=RestrictedViewOwnershipType.type
+    )
+    view_filter = enterprise_data_fixture.create_view_filter(
+        view=restricted_view, type="equal", field=text_field
+    )
+    enterprise_data_fixture.create_view_filter_group(view=restricted_view)
+
+    editor_role = Role.objects.get(uid="EDITOR")
+    no_access_role = Role.objects.get(uid="NO_ACCESS")
+    workspace = table.database.workspace
+    RoleAssignmentHandler().assign_role(
+        user2, workspace, role=no_access_role, scope=workspace
+    )
+    RoleAssignmentHandler().assign_role(
+        user2,
+        workspace,
+        role=editor_role,
+        scope=View.objects.get(id=restricted_view.id),
+    )
+
+    response = api_client.get(
+        reverse("api:database:views:list", kwargs={"table_id": table.id})
+        + "?include=filters",
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token2}",
+    )
+    assert response.status_code == HTTP_200_OK
+    response_json = response.json()
+    assert len(response_json)
+    assert len(response_json[0]["filters"]) == 0
+    assert len(response_json[0]["filter_groups"]) == 0
+
+
+view_type_url_mapping = {
+    GridViewType.type: ("api:database:views:grid:list", "create_grid_view", "results"),
+    GalleryViewType.type: (
+        "api:database:views:gallery:list",
+        "create_gallery_view",
+        "results",
+    ),
+    KanbanViewType.type: (
+        "api:database:views:kanban:list",
+        "create_kanban_view",
+        "rows.null.results",
+    ),
+    CalendarViewType.type: (
+        "api:database:views:calendar:list",
+        "create_calendar_view",
+        "rows.2021-01-01.results",
+    ),
+    TimelineViewType.type: (
+        "api:database:views:timeline:list",
+        "create_timeline_view",
+        "results",
+    ),
+}
+
+
+@pytest.mark.django_db(transaction=True)
+@override_settings(DEBUG=True)
+def test_filters_are_not_forcefully_applied_to_all_views_types_for_builders_and_up(
+    enterprise_data_fixture, premium_data_fixture, api_client
+):
+    enterprise_data_fixture.enable_enterprise()
+
+    user, token = enterprise_data_fixture.create_user_and_token()
+    table = enterprise_data_fixture.create_database_table(user=user)
+    text_field = enterprise_data_fixture.create_text_field(table=table, primary=True)
+
+    row_1 = RowHandler().create_row(user, table, values={f"field_{text_field.id}": "a"})
+    row_2 = RowHandler().create_row(user, table, values={f"field_{text_field.id}": "b"})
+
+    for view_type in view_type_registry.get_all():
+        if not view_type.can_filter:
+            continue
+
+        if view_type.type not in view_type_url_mapping:
+            assert False, f"{view_type.type} must be added to `view_type_url_mapping`"
+
+        view_path, fixture_create, response_path = view_type_url_mapping[view_type.type]
+
+        view = getattr(premium_data_fixture, fixture_create)(
+            table=table, ownership_type=RestrictedViewOwnershipType.type
+        )
+        enterprise_data_fixture.create_view_filter(
+            view=view, type="equal", value="a", field=text_field
+        )
+
+        for field in table.field_set.all():
+            if field.specific_class == DateField:
+                table.get_model().objects.all().update(
+                    **{f"field_{field.id}": datetime(2021, 1, 1)}
+                )
+
+        # Adding a filter to the query params should enable the adhoc filtering,
+        # if the user is builder or higher, which results in not applying the
+        # original view filters. We therefore expect both row_1 and row_2 in the
+        # response.
+        query_param = (
+            '?filters={"filter_type":"AND","filters":['
+            '{"type":"not_equal","field":' + str(text_field.id) + ',"value":"c"}'
+            '],"groups":[]}'
+            "&from_timestamp=2021-01-01"
+            "&to_timestamp=2021-02-01"
+        )
+        response = api_client.get(
+            reverse(view_path, kwargs={"view_id": view.id}) + query_param,
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        response_json = response.json()
+        assert response.status_code == HTTP_200_OK
+        # We expect both row_1 and row_2 when applying the query params.
+        assert len(get_value_at_path(response_json, response_path)) == 2, view_type.type
+
+
+@pytest.mark.django_db(transaction=True)
+@override_settings(DEBUG=True)
+def test_filters_are_forcefully_applied_to_all_views_types_for_editors_and_down(
+    enterprise_data_fixture,
+    premium_data_fixture,
+    api_client,
+):
+    enterprise_data_fixture.enable_enterprise()
+
+    user, token = enterprise_data_fixture.create_user_and_token()
+    user2, token2 = enterprise_data_fixture.create_user_and_token()
+    workspace = enterprise_data_fixture.create_workspace(user=user, members=[user2])
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
+    table = enterprise_data_fixture.create_database_table(database=database)
+    text_field = enterprise_data_fixture.create_text_field(table=table, primary=True)
+
+    editor_role = Role.objects.get(uid="EDITOR")
+    no_access_role = Role.objects.get(uid="NO_ACCESS")
+    workspace = table.database.workspace
+    RoleAssignmentHandler().assign_role(
+        user2, workspace, role=no_access_role, scope=workspace
+    )
+
+    row_1 = RowHandler().create_row(user, table, values={f"field_{text_field.id}": "a"})
+    row_2 = RowHandler().create_row(user, table, values={f"field_{text_field.id}": "b"})
+
+    for view_type in view_type_registry.get_all():
+        if not view_type.can_filter:
+            continue
+
+        if view_type.type not in view_type_url_mapping:
+            assert False, f"{view_type.type} must be added to `view_type_url_mapping`"
+
+        view_path, fixture_create, response_path = view_type_url_mapping[view_type.type]
+
+        view = getattr(premium_data_fixture, fixture_create)(
+            table=table, ownership_type=RestrictedViewOwnershipType.type
+        )
+        enterprise_data_fixture.create_view_filter(
+            view=view, type="equal", value="a", field=text_field
+        )
+
+        RoleAssignmentHandler().assign_role(
+            user2,
+            workspace,
+            role=editor_role,
+            scope=View.objects.get(id=view.id),
+        )
+
+        for field in table.field_set.all():
+            if field.specific_class == DateField:
+                table.get_model().objects.all().update(
+                    **{f"field_{field.id}": datetime(2021, 1, 1)}
+                )
+
+        # Adding a filter to the query params should not enable the adhoc filtering,
+        # if the user is editor or lower, so the view filters are forcefully applied.
+        # We therefore expect only row_1 in the response.
+        query_param = (
+            '?filters={"filter_type":"AND","filters":['
+            '{"type":"not_equal","field":' + str(text_field.id) + ',"value":"c"}'
+            '],"groups":[]}'
+            "&from_timestamp=2021-01-01"
+            "&to_timestamp=2021-02-01"
+        )
+        response = api_client.get(
+            reverse(view_path, kwargs={"view_id": view.id}) + query_param,
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token2}",
+        )
+        response_json = response.json()
+        assert response.status_code == HTTP_200_OK
+        # We expect only row_1 to be in there because user2 only has editor permissions
+        # to the view and should therefore not be able to see row 2 because it does not
+        # match the filters of the view.
+        assert len(get_value_at_path(response_json, response_path)) == 1, view_type.type
