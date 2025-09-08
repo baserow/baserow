@@ -28,6 +28,23 @@ class ViewSortOperationType(OperationType, abc.ABC):
     context_scope_name = DatabaseViewSortObjectScopeType.type
 
 
+class ViewRowOperationType(OperationType, abc.ABC):
+    # @TODO docs why same
+    context_scope_name = DatabaseViewObjectScopeType.type
+
+
+class CreateViewRowOperationType(ViewOperationType):
+    type = "database.table.view.create_row"
+
+
+class UpdateViewRowOperationType(ViewRowOperationType):
+    type = "database.table.view.update_row"
+
+
+class DeleteViewRowOperationType(ViewRowOperationType):
+    type = "database.table.view.delete_row"
+
+
 class CreateViewSortOperationType(ViewOperationType):
     type = "database.table.view.create_sort"
 
