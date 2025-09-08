@@ -17,6 +17,7 @@
         'modal__box--small': small,
         'modal__box--tiny': tiny,
         'modal__box--right': right,
+        'modal__box--no-padding': !boxPadding,
       }"
     >
       <template v-if="sidebar">
@@ -161,6 +162,11 @@ export default {
     collapsibleRightSidebar: {
       type: Boolean,
       default: false,
+      required: false,
+    },
+    boxPadding: {
+      type: Boolean,
+      default: true,
       required: false,
     },
     right: {

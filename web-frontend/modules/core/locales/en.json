@@ -3,6 +3,24 @@
     "page": "Page",
     "of": "of {pages}"
   },
+  "workspaceSearch": {
+    "title": "Search",
+    "searchEverything": "Search...",
+    "searching": "Searching...",
+    "noResults": "No results found",
+    "noResultsSubtitle": "We couldn't find anything matching \"{searchTerm}\"",
+    "welcome": "Search everything in your workspace",
+    "welcomeSubtitle": "Use the search box above to find applications, tables, fields, and more",
+    "navigate": "Navigate",
+    "select": "Select",
+    "close": "Close",
+    "types": {
+      "applications": "Applications",
+      "tables": "Tables", 
+      "fields": "Fields",
+      "rows": "Rows"
+    }
+  },
   "copied": {
     "label": "Copied!"
   },

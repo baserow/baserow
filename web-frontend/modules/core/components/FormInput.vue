@@ -51,6 +51,7 @@
         v-if="iconRight"
         class="form-input__icon form-input__icon-right"
         :class="iconRight"
+        @click="$emit('icon-right-click')"
       />
     </div>
 

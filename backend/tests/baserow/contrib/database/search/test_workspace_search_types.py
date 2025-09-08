@@ -1,0 +1,194 @@
+import pytest
+
+from baserow.contrib.database.search.handler import SearchHandler
+from baserow.contrib.database.search_types import (
+    DatabaseSearchType,
+    FieldDefinitionSearchType,
+    RowSearchType,
+)
+from baserow.core.search.data_types import SearchContext
+
+
+@pytest.mark.workspace_search
+@pytest.mark.django_db
+def test_database_search_type_basic_functionality(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(
+        workspace=workspace, name="Test Database"
+    )
+    table = data_fixture.create_database_table(database=database, name="Table")
+
+    search_type = DatabaseSearchType()
+
+    queryset = search_type.get_base_queryset(user, workspace)
+    assert database in queryset
+
+    search_context = SearchContext(query="Test", limit=10, offset=0)
+    search_results = search_type.get_search_queryset(user, workspace, search_context)
+    assert database in search_results
+
+    search_result = search_type.serialize_result(database, user, workspace)
+    assert search_result.id == database.id
+    assert search_result.title == "Test Database"
+    assert search_result.type == "database"
+
+
+@pytest.mark.workspace_search
+@pytest.mark.django_db
+def test_database_search_excludes_trashed_workspaces(data_fixture):
+    user = data_fixture.create_user()
+
+    workspace = data_fixture.create_workspace(user=user)
+    database1 = data_fixture.create_database_application(
+        workspace=workspace,
+        name="Normal Database",
+    )
+
+    database2 = data_fixture.create_database_application(
+        workspace=workspace, name="Trashed Database", trashed=True
+    )
+
+    context = SearchContext(query="Database", limit=10, offset=0)
+
+    search_type = DatabaseSearchType()
+    results = search_type.execute_search(user, workspace, context)
+
+    assert len(results) == 1
+    assert results[0].id == database1.id
+
+
+@pytest.mark.workspace_search
+@pytest.mark.django_db
+def test_database_search_with_permissions(data_fixture):
+    user1 = data_fixture.create_user()
+    user2 = data_fixture.create_user()
+
+    workspace = data_fixture.create_user_workspace(user=user1, permissions="MEMBER")
+
+    database = data_fixture.create_database_application(
+        workspace=workspace.workspace, name="Protected Database"
+    )
+
+    search_type = DatabaseSearchType()
+    context = SearchContext(query="Protected", limit=10, offset=0)
+
+    user1_results = search_type.execute_search(user1, workspace.workspace, context)
+    assert len(user1_results) == 1
+    assert user1_results[0].id == database.id
+
+    user2_results = search_type.execute_search(user2, workspace.workspace, context)
+    assert len(user2_results) == 0
+
+
+@pytest.mark.workspace_search
+@pytest.mark.django_db
+def test_field_definition_search_type_basic_functionality(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database, name="Test Table")
+    field = data_fixture.create_text_field(table=table, name="Test Field")
+    field2 = data_fixture.create_text_field(table=table, name="Test Field 2")
+
+    search_type = FieldDefinitionSearchType()
+
+    context = SearchContext(query="Test Field", limit=10, offset=0)
+
+    results = search_type.execute_search(user, workspace, context)
+
+    assert len(results) == 2
+    assert results[0].id == field.id
+    assert results[1].id == field2.id
+
+
+@pytest.mark.workspace_search
+@pytest.mark.django_db
+def test_field_definition_search_excludes_trashed_items(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database, name="Test Table")
+    field = data_fixture.create_text_field(table=table, name="Test Field")
+    field2 = data_fixture.create_text_field(table=table, name="Test Field 2")
+    field3 = data_fixture.create_text_field(
+        table=table, name="Test Field 3", trashed=True
+    )
+
+    search_type = FieldDefinitionSearchType()
+
+    context = SearchContext(query="Test Field", limit=10, offset=0)
+
+    results = search_type.execute_search(user, workspace, context)
+
+    assert len(results) == 2
+    assert results[0].id == field.id
+    assert results[1].id == field2.id
+
+
+@pytest.mark.workspace_search
+@pytest.mark.django_db(transaction=True)
+def test_row_search_type_basic_functionality(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database, name="Test Table")
+    text_field = data_fixture.create_text_field(table=table, name="Text Field")
+
+    model = table.get_model()
+    row1 = model.objects.create(**{f"field_{text_field.id}": "Test content"})
+    row2 = model.objects.create(**{f"field_{text_field.id}": "Other content"})
+
+    SearchHandler.initialize_missing_search_data(table)
+    SearchHandler.process_search_data_updates(table)
+
+    search_type = RowSearchType()
+
+    context = SearchContext(query="Test content", limit=10, offset=0)
+
+    results = search_type.execute_search(user, workspace, context)
+
+    assert len(results) >= 1
+    assert results[0].id == f"{table.id}_{row1.id}"
+    assert results[0].title == "row 1"
+    assert results[0].subtitle == f"{table.name} > Text Field"
+
+
+@pytest.mark.workspace_search
+@pytest.mark.django_db
+def test_row_search_multiple_fields(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+
+    text_field1 = data_fixture.create_text_field(table=table, name="Field 1")
+    text_field2 = data_fixture.create_text_field(table=table, name="Field 2")
+
+    model = table.get_model()
+    row1 = model.objects.create(
+        **{
+            f"field_{text_field1.id}": "Unique search term",
+            f"field_{text_field2.id}": "Other content",
+        }
+    )
+
+    row2 = model.objects.create(
+        **{
+            f"field_{text_field1.id}": "Different content",
+            f"field_{text_field2.id}": "Unique search term",
+        }
+    )
+
+    SearchHandler.initialize_missing_search_data(table)
+    SearchHandler.process_search_data_updates(table)
+
+    search_type = RowSearchType()
+
+    context = SearchContext(query="Unique search term", limit=10, offset=0)
+
+    results = search_type.execute_search(user, workspace, context)
+
+    assert len(results) >= 2
+    assert results[0].id == f"{table.id}_{row1.id}"
+    assert results[1].id == f"{table.id}_{row2.id}"

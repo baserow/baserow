@@ -52,6 +52,10 @@
     padding: 15px;
   }
 
+  &.modal__box--no-padding {
+    padding: 0;
+  }
+
   &.modal__box--right {
     margin-right: 20px;
 

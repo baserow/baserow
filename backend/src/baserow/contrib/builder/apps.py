@@ -337,3 +337,8 @@ class BuilderConfig(AppConfig):
         # which need to be filled first.
         import baserow.contrib.builder.signals  # noqa: F403, F401
         import baserow.contrib.builder.ws.signals  # noqa: F403, F401
+        from baserow.core.search.registries import workspace_search_registry
+
+        from .search_types import BuilderSearchType
+
+        workspace_search_registry.register(BuilderSearchType())
