@@ -23,12 +23,12 @@ from baserow_enterprise.assistant.types import (
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_cannot_list_assistant_chats_without_valid_workspace(
-    api_client, enterprise_data_fixture
+    api_client, enterprise_data_fixture, enable_enterprise
 ):
     _, token = enterprise_data_fixture.create_user_and_token()
 
     rsp = api_client.get(
-        reverse("api:enterprise:assistant:list"),  # missing workspace_id
+        reverse("assistant:list"),  # missing workspace_id
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
@@ -37,8 +37,7 @@ def test_cannot_list_assistant_chats_without_valid_workspace(
     assert rsp.json()["detail"]["workspace_id"][0]["code"] == "required"
 
     rsp = api_client.get(
-        reverse("api:enterprise:assistant:list")
-        + f"?workspace_id=0",  # non existing workspace
+        reverse("assistant:list") + f"?workspace_id=0",  # non existing workspace
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
@@ -48,7 +47,7 @@ def test_cannot_list_assistant_chats_without_valid_workspace(
     workspace = enterprise_data_fixture.create_workspace()
 
     rsp = api_client.get(
-        reverse("api:enterprise:assistant:list") + f"?workspace_id={workspace.id}",
+        reverse("assistant:list") + f"?workspace_id={workspace.id}",
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
@@ -65,7 +64,7 @@ def test_cannot_list_assistant_chats_without_license(
     workspace = enterprise_data_fixture.create_workspace(user=user)
 
     rsp = api_client.get(
-        reverse("api:enterprise:assistant:list") + f"?workspace_id={workspace.id}",
+        reverse("assistant:list") + f"?workspace_id={workspace.id}",
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
@@ -89,7 +88,7 @@ def test_list_assistant_chats(api_client, enterprise_data_fixture):
         AssistantChat.objects.bulk_create(chats)
 
     rsp = api_client.get(
-        reverse("api:enterprise:assistant:list") + f"?workspace_id={workspace.id}",
+        reverse("assistant:list") + f"?workspace_id={workspace.id}",
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
@@ -112,8 +111,7 @@ def test_list_assistant_chats(api_client, enterprise_data_fixture):
     assert data["next"] is None
 
     rsp = api_client.get(
-        reverse("api:enterprise:assistant:list")
-        + f"?workspace_id={workspace.id}&offset=2&limit=1",
+        reverse("assistant:list") + f"?workspace_id={workspace.id}&offset=2&limit=1",
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
@@ -148,7 +146,7 @@ def test_cannot_send_message_without_valid_workspace(
     # Test with non-existing workspace
     rsp = api_client.post(
         reverse(
-            "api:enterprise:assistant:chat_messages",
+            "assistant:chat_messages",
             kwargs={"chat_uuid": chat_uuid},
         ),
         data={
@@ -164,9 +162,7 @@ def test_cannot_send_message_without_valid_workspace(
     # Test with workspace user doesn't belong to
     workspace = enterprise_data_fixture.create_workspace()
     rsp = api_client.post(
-        reverse(
-            "api:enterprise:assistant:chat_messages", kwargs={"chat_uuid": chat_uuid}
-        ),
+        reverse("assistant:chat_messages", kwargs={"chat_uuid": chat_uuid}),
         data={
             "content": "Hello AI",
             "ui_context": {"workspace": {"id": workspace.id, "name": workspace.name}},
@@ -188,9 +184,7 @@ def test_cannot_send_message_without_license(api_client, enterprise_data_fixture
     chat_uuid = str(uuid4())
 
     rsp = api_client.post(
-        reverse(
-            "api:enterprise:assistant:chat_messages", kwargs={"chat_uuid": chat_uuid}
-        ),
+        reverse("assistant:chat_messages", kwargs={"chat_uuid": chat_uuid}),
         data={
             "content": "Hello AI",
             "ui_context": {"workspace": {"id": workspace.id, "name": workspace.name}},
@@ -238,9 +232,7 @@ def test_send_message_creates_chat_if_not_exists(
     mock_handler.get_assistant.return_value = mock_assistant
 
     rsp = api_client.post(
-        reverse(
-            "api:enterprise:assistant:chat_messages", kwargs={"chat_uuid": chat_uuid}
-        ),
+        reverse("assistant:chat_messages", kwargs={"chat_uuid": chat_uuid}),
         data={
             "content": "Hello AI",
             "ui_context": {"workspace": {"id": workspace.id, "name": workspace.name}},
@@ -316,9 +308,7 @@ def test_send_message_streams_response(
     mock_handler.get_assistant.return_value = mock_assistant
 
     rsp = api_client.post(
-        reverse(
-            "api:enterprise:assistant:chat_messages", kwargs={"chat_uuid": chat_uuid}
-        ),
+        reverse("assistant:chat_messages", kwargs={"chat_uuid": chat_uuid}),
         data={
             "content": "Tell me about AI",
             "ui_context": {"workspace": {"id": workspace.id, "name": workspace.name}},
@@ -370,9 +360,7 @@ def test_send_message_validates_request_body(api_client, enterprise_data_fixture
 
     # Test missing content
     rsp = api_client.post(
-        reverse(
-            "api:enterprise:assistant:chat_messages", kwargs={"chat_uuid": chat_uuid}
-        ),
+        reverse("assistant:chat_messages", kwargs={"chat_uuid": chat_uuid}),
         data={
             "ui_context": {"workspace": {"id": workspace.id, "name": workspace.name}},
         },
@@ -384,9 +372,7 @@ def test_send_message_validates_request_body(api_client, enterprise_data_fixture
 
     # Test missing ui_context
     rsp = api_client.post(
-        reverse(
-            "api:enterprise:assistant:chat_messages", kwargs={"chat_uuid": chat_uuid}
-        ),
+        reverse("assistant:chat_messages", kwargs={"chat_uuid": chat_uuid}),
         data={
             "content": "Hello",
         },
@@ -410,7 +396,7 @@ def test_cannot_get_messages_without_valid_chat(api_client, enterprise_data_fixt
 
     rsp = api_client.get(
         reverse(
-            "api:enterprise:assistant:chat_messages",
+            "assistant:chat_messages",
             kwargs={"chat_uuid": non_existent_uuid},
         ),
         HTTP_AUTHORIZATION=f"JWT {token}",
@@ -434,7 +420,7 @@ def test_cannot_get_messages_without_license(api_client, enterprise_data_fixture
 
     rsp = api_client.get(
         reverse(
-            "api:enterprise:assistant:chat_messages",
+            "assistant:chat_messages",
             kwargs={"chat_uuid": str(chat.uuid)},
         ),
         HTTP_AUTHORIZATION=f"JWT {token}",
@@ -463,7 +449,7 @@ def test_cannot_get_messages_from_another_users_chat(
     # Try to access it as user2
     rsp = api_client.get(
         reverse(
-            "api:enterprise:assistant:chat_messages",
+            "assistant:chat_messages",
             kwargs={"chat_uuid": str(chat.uuid)},
         ),
         HTTP_AUTHORIZATION=f"JWT {token2}",
@@ -521,7 +507,7 @@ def test_get_messages_returns_chat_history(
 
     rsp = api_client.get(
         reverse(
-            "api:enterprise:assistant:chat_messages",
+            "assistant:chat_messages",
             kwargs={"chat_uuid": str(chat.uuid)},
         ),
         HTTP_AUTHORIZATION=f"JWT {token}",
@@ -591,7 +577,7 @@ def test_get_messages_returns_empty_list_for_new_chat(
 
     rsp = api_client.get(
         reverse(
-            "api:enterprise:assistant:chat_messages",
+            "assistant:chat_messages",
             kwargs={"chat_uuid": str(chat.uuid)},
         ),
         HTTP_AUTHORIZATION=f"JWT {token}",
@@ -643,7 +629,7 @@ def test_get_messages_with_different_message_types(
 
     rsp = api_client.get(
         reverse(
-            "api:enterprise:assistant:chat_messages",
+            "assistant:chat_messages",
             kwargs={"chat_uuid": str(chat.uuid)},
         ),
         HTTP_AUTHORIZATION=f"JWT {token}",
