@@ -7,6 +7,7 @@ from .auth_provider import AuthProviderFixtures
 from .automation_history import AutomationHistoryFixtures
 from .automation_node import AutomationNodeFixtures
 from .automation_workflow import AutomationWorkflowFixtures
+from .automation_workflow_history import AutomationWorkflowHistoryFixtures
 from .dashboard_data_source import DashboardDataSourceFixtures
 from .data_source import DataSourceFixtures
 from .data_sync import DataSyncFixtures
@@ -46,6 +47,7 @@ class Fixtures(
     WorkspaceFixtures,
     ApplicationFixtures,
     AutomationWorkflowFixtures,
+    AutomationWorkflowHistoryFixtures,
     AutomationNodeFixtures,
     AutomationHistoryFixtures,
     TableFixtures,

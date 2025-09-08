@@ -6,14 +6,16 @@ from baserow.contrib.automation.models import (
     AutomationWorkflow,
     AutomationWorkflowHistory,
 )
-from baserow.contrib.automation.workflows.constants import ALLOW_TEST_RUN_MINUTES
+from baserow.contrib.automation.workflows.constants import (
+    ALLOW_TEST_RUN_MINUTES,
+    WorkflowState,
+)
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 
 
 class AutomationWorkflowSerializer(serializers.ModelSerializer):
     published_on = serializers.SerializerMethodField()
-    disabled = serializers.SerializerMethodField()
-    paused = serializers.SerializerMethodField()
+    state = serializers.SerializerMethodField()
 
     class Meta:
         model = AutomationWorkflow
@@ -24,14 +26,12 @@ class AutomationWorkflowSerializer(serializers.ModelSerializer):
             "automation_id",
             "allow_test_run_until",
             "published_on",
-            "disabled",
-            "paused",
+            "state",
         )
         extra_kwargs = {
             "id": {"read_only": True},
             "automation_id": {"read_only": True},
             "published_on": {"read_only": True},
-            "disabled": {"read_only": True},
             "order": {"help_text": "Lowest first."},
         }
 
@@ -40,15 +40,10 @@ class AutomationWorkflowSerializer(serializers.ModelSerializer):
         published_workflow = AutomationWorkflowHandler().get_published_workflow(obj)
         return str(published_workflow.created_on) if published_workflow else None
 
-    @extend_schema_field(OpenApiTypes.BOOL)
-    def get_disabled(self, obj):
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_state(self, obj):
         published_workflow = AutomationWorkflowHandler().get_published_workflow(obj)
-        return bool(published_workflow.disabled_on) if published_workflow else False
-
-    @extend_schema_field(OpenApiTypes.BOOL)
-    def get_paused(self, obj):
-        published_workflow = AutomationWorkflowHandler().get_published_workflow(obj)
-        return published_workflow.paused if published_workflow else False
+        return published_workflow.state if published_workflow else WorkflowState.DRAFT
 
 
 class CreateAutomationWorkflowSerializer(serializers.ModelSerializer):
@@ -65,14 +60,10 @@ class UpdateAutomationWorkflowSerializer(serializers.ModelSerializer):
             f"{ALLOW_TEST_RUN_MINUTES} minutes."
         ),
     )
-    paused = serializers.BooleanField(
-        required=False,
-        help_text="Whether the published workflow is currently paused.",
-    )
 
     class Meta:
         model = AutomationWorkflow
-        fields = ("name", "allow_test_run", "paused")
+        fields = ("name", "allow_test_run", "state")
         extra_kwargs = {
             "name": {"required": False},
         }

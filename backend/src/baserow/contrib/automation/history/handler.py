@@ -3,17 +3,12 @@ from typing import Optional
 
 from django.db.models import QuerySet
 
+from baserow.contrib.automation.history.constants import HistoryStatusChoices
 from baserow.contrib.automation.history.models import AutomationWorkflowHistory
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
 
 
 class AutomationHistoryHandler:
-    from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
-    from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
-
-    workflow_handler = AutomationWorkflowHandler()
-    node_handler = AutomationNodeHandler()
-
     def get_workflow_history(
         self, workflow: AutomationWorkflow, base_queryset: Optional[QuerySet] = None
     ) -> QuerySet[AutomationWorkflowHistory]:
@@ -38,4 +33,5 @@ class AutomationHistoryHandler:
             workflow=workflow,
             started_on=started_on,
             is_test_run=is_test_run,
+            status=HistoryStatusChoices.STARTED,
         )

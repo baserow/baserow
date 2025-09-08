@@ -9,6 +9,7 @@ from baserow.contrib.automation.automation_dispatch_context import (
 )
 from baserow.contrib.automation.nodes.node_types import AutomationNodeTriggerType
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
+from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.core.exceptions import InstanceTypeDoesNotExist
 from baserow.core.utils import MirrorDict
 
@@ -36,7 +37,7 @@ def test_automation_service_node_trigger_type_on_event(mock_run_workflow, data_f
         table=table,
     )
     original_workflow = data_fixture.create_automation_workflow()
-    workflow = data_fixture.create_automation_workflow(published=True)
+    workflow = data_fixture.create_automation_workflow(state=WorkflowState.LIVE)
     workflow.automation.published_from = original_workflow
     workflow.automation.save()
     node = data_fixture.create_local_baserow_rows_created_trigger_node(
@@ -264,3 +265,49 @@ def test_automation_node_migrates_its_previous_node_output_on_import(
         new_output_node.previous_node_output
         == id_mapping["automation_edge_outputs"][str(edge.uid)]
     )
+
+
+@pytest.mark.django_db
+@patch(
+    "baserow.contrib.automation.workflows.service.AutomationWorkflowHandler.run_workflow"
+)
+def test_on_event_excludes_disabled_workflows(mock_run_workflow, data_fixture):
+    """
+    Ensure that the AutomationNodeTriggerType::on_event() excludes any disabled
+    workflows.
+    """
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    service = data_fixture.create_local_baserow_rows_created_service(
+        table=table,
+    )
+
+    # Create a Node + workflow that is disabled
+    original_workflow = data_fixture.create_automation_workflow()
+    workflow = data_fixture.create_automation_workflow(
+        state=WorkflowState.DISABLED,
+    )
+    workflow.automation.published_from = original_workflow
+    workflow.automation.save()
+
+    node = data_fixture.create_local_baserow_rows_created_trigger_node(
+        workflow=workflow, service=service
+    )
+
+    service_queryset = service.get_type().model_class.objects.filter(table=table)
+    event_payload = [
+        {
+            "id": 1,
+            "order": "1.00000000000000000000",
+            f"field_1": "Community Engagement",
+        },
+        {
+            "id": 2,
+            "order": "2.00000000000000000000",
+            f"field_1": "Construction",
+        },
+    ]
+
+    node.get_type().on_event(service_queryset, event_payload, user=user)
+    mock_run_workflow.assert_not_called()

@@ -29,6 +29,7 @@ SAMPLE_WORKFLOW_IMPORT_REFERENCE = {
             "id": 1,
             "name": "Sample workflow",
             "order": 1,
+            "state": "draft",
             "nodes": [
                 {
                     "id": 1,
@@ -114,6 +115,7 @@ def test_automation_export_serialized(data_fixture):
                 "id": workflow.id,
                 "name": workflow.name,
                 "order": workflow.order,
+                "state": workflow.state,
                 "nodes": [
                     {
                         "id": trigger.id,

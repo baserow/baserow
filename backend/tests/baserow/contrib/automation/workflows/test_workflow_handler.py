@@ -1,16 +1,22 @@
 from unittest.mock import MagicMock, patch
 
 from django.db.utils import IntegrityError
+from django.test import override_settings
 from django.utils import timezone
 
 import pytest
+from freezegun import freeze_time
 
+from baserow.contrib.automation.history.constants import HistoryStatusChoices
 from baserow.contrib.automation.models import AutomationWorkflow
 from baserow.contrib.automation.nodes.types import AutomationNodeDict
+from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.contrib.automation.workflows.exceptions import (
     AutomationWorkflowDoesNotExist,
     AutomationWorkflowNameNotUnique,
     AutomationWorkflowNotInAutomation,
+    AutomationWorkflowRateLimited,
+    AutomationWorkflowTooManyErrors,
 )
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 from baserow.core.trash.handler import TrashHandler
@@ -263,6 +269,7 @@ def test_import_workflow_only(data_fixture):
         "name": "new workflow",
         "id": 1,
         "order": 88,
+        "state": "draft",
     }
 
     id_mapping = {}
@@ -284,7 +291,11 @@ def test_export_prepared_values(data_fixture):
 
     result = AutomationWorkflowHandler().export_prepared_values(workflow)
 
-    assert result == {"name": "test", "allow_test_run_until": None, "paused": False}
+    assert result == {
+        "name": "test",
+        "allow_test_run_until": None,
+        "state": WorkflowState.DRAFT,
+    }
 
 
 def test_sort_serialized_nodes_by_priority():
@@ -315,16 +326,16 @@ def test_publish_returns_published_workflow(data_fixture):
     published_workflow = AutomationWorkflowHandler().publish(workflow)
 
     workflow.refresh_from_db()
+
+    assert workflow.is_published is True
     # Existing workflow shouldn't be affected
-    assert workflow.published is False
-    assert workflow.paused is False
+    assert workflow.state == WorkflowState.DRAFT
 
     assert published_workflow.automation.workspace is None
     assert published_workflow.automation.published_from == workflow
 
-    assert published_workflow.published is True
-    assert published_workflow.paused is False
-    assert published_workflow.disabled_on is None
+    assert published_workflow.is_published is True
+    assert published_workflow.state == WorkflowState.LIVE
 
 
 @pytest.mark.django_db
@@ -342,10 +353,10 @@ def test_publish_cleans_up_old_workflows(data_fixture):
 
     # The 3rd workflow should exist but in a disabled state
     published_3.refresh_from_db()
-    assert published_3.published is False
+    assert published_3.is_published is False
 
     # The latest published workflow should be active
-    assert published_4.published is True
+    assert published_4.is_published is True
 
 
 @pytest.mark.django_db
@@ -381,7 +392,7 @@ def test_get_published_workflow_returns_none(data_fixture):
         automation=automation,
         name="foo",
     )
-    workflow_2 = data_fixture.create_automation_workflow(
+    data_fixture.create_automation_workflow(
         automation=automation,
         name="bar",
     )
@@ -400,7 +411,7 @@ def test_get_published_workflow_returns_workflow(data_fixture):
         automation=automation,
         name="foo",
     )
-    workflow_2 = data_fixture.create_automation_workflow(
+    data_fixture.create_automation_workflow(
         automation=automation,
         name="bar",
     )
@@ -424,34 +435,36 @@ def test_update_workflow_correctly_pauses_published_workflow(data_fixture):
     handler = AutomationWorkflowHandler()
     published_workflow = handler.publish(workflow)
 
-    assert published_workflow.paused is False
+    assert published_workflow.state == WorkflowState.LIVE
 
-    # Let's pause the workflow. Note that we're passing in the actual
+    # Let's pause the workflow. Note that we're passing in the original
     # workflow, not the published one. This is because the published
     # workflow is a backend-specific implementation detail.
-    updated = handler.update_workflow(workflow, paused=True)
+    updated = handler.update_workflow(workflow, state=WorkflowState.PAUSED)
 
     assert updated.workflow == workflow
     assert updated.original_values == {
         "name": "foo",
         "allow_test_run_until": None,
-        "paused": False,
+        "state": WorkflowState.DRAFT,
     }
     assert updated.new_values == {
         "name": "foo",
         "allow_test_run_until": None,
         # The original workflow should indeed be unaffected
-        "paused": False,
+        "state": WorkflowState.DRAFT,
     }
 
     published_workflow.refresh_from_db()
-    assert published_workflow.paused is True
+    assert published_workflow.state == WorkflowState.PAUSED
 
 
 @pytest.mark.django_db
 def test_get_original_workflow_returns_original_workflow(data_fixture):
     original_workflow = data_fixture.create_automation_workflow()
-    published_workflow = data_fixture.create_automation_workflow(published=True)
+    published_workflow = data_fixture.create_automation_workflow(
+        state=WorkflowState.LIVE
+    )
     published_workflow.automation.published_from = original_workflow
     published_workflow.automation.save()
 
@@ -463,9 +476,14 @@ def test_get_original_workflow_returns_original_workflow(data_fixture):
 @pytest.mark.django_db
 def test_get_original_workflow_returns_same_workflow_if_test_run(data_fixture):
     original_workflow = data_fixture.create_automation_workflow(
-        published=False,
+        state=WorkflowState.DRAFT,
         allow_test_run_until=timezone.now(),
     )
+    published_workflow = data_fixture.create_automation_workflow(
+        state=WorkflowState.LIVE
+    )
+    published_workflow.automation.published_from = original_workflow
+    published_workflow.automation.save()
 
     workflow = AutomationWorkflowHandler().get_original_workflow(original_workflow)
 
@@ -486,7 +504,9 @@ def test_is_test_run_returns_true_if_workflow_test_run(data_fixture):
 @pytest.mark.django_db
 def test_is_test_run_returns_false_if_workflow_not_test_run(data_fixture):
     original_workflow = data_fixture.create_automation_workflow()
-    published_workflow = data_fixture.create_automation_workflow(published=True)
+    published_workflow = data_fixture.create_automation_workflow(
+        state=WorkflowState.LIVE
+    )
     published_workflow.automation.published_from = original_workflow
     published_workflow.automation.save()
 
@@ -500,7 +520,7 @@ def test_trashing_workflow_deletes_published_workflow(data_fixture):
     user = data_fixture.create_user()
     original_workflow = data_fixture.create_automation_workflow(user=user)
     published_workflow = data_fixture.create_automation_workflow(
-        user=user, published=True
+        user=user, state=WorkflowState.LIVE
     )
     published_workflow.automation.published_from = original_workflow
     published_workflow.automation.save()
@@ -510,3 +530,181 @@ def test_trashing_workflow_deletes_published_workflow(data_fixture):
     original_workflow.refresh_from_db()
     assert original_workflow.trashed is True
     assert AutomationWorkflow.objects.filter(id=published_workflow.id).exists() is False
+
+
+@pytest.mark.parametrize("workflow_id", [10, 100, 200, 300])
+def test_get_rate_limit_cache_key(workflow_id):
+    result = AutomationWorkflowHandler().get_rate_limit_cache_key(workflow_id)
+    assert result == f"automation_workflow_{workflow_id}"
+
+
+def test_check_is_rate_limited_returns_none_if_empty_cache():
+    with freeze_time("2025-08-01 14:00:00"):
+        result = AutomationWorkflowHandler().check_is_rate_limited(100)
+        assert result is None
+
+
+@override_settings(
+    AUTOMATION_WORKFLOW_RATE_LIMIT_CACHE_EXPIRY_SECONDS=5,
+    AUTOMATION_WORKFLOW_RATE_LIMIT_MAX_RUNS=5,
+)
+def test_check_is_rate_limited_returns_none_if_below_limit():
+    with freeze_time("2025-08-01 14:00:00"):
+        for _ in range(4):
+            result = AutomationWorkflowHandler().check_is_rate_limited(100)
+            assert result is None
+
+        # This 5th attempt shouldn't be rate limited
+        result = AutomationWorkflowHandler().check_is_rate_limited(100)
+        assert result is None
+
+
+@override_settings(
+    AUTOMATION_WORKFLOW_RATE_LIMIT_CACHE_EXPIRY_SECONDS=5,
+    AUTOMATION_WORKFLOW_RATE_LIMIT_MAX_RUNS=5,
+)
+def test_check_is_rate_limited_returns_none_if_cache_expires():
+    with freeze_time("2025-08-01 14:00:00"):
+        for _ in range(5):
+            result = AutomationWorkflowHandler().check_is_rate_limited(100)
+            assert result is None
+
+    # 6 seconds after the first/initial cache entry
+    with freeze_time("2025-08-01 14:00:06"):
+        # The next 5 requests should not be rate limited
+        for _ in range(5):
+            result = AutomationWorkflowHandler().check_is_rate_limited(100)
+            assert result is None
+
+
+@override_settings(
+    AUTOMATION_WORKFLOW_RATE_LIMIT_CACHE_EXPIRY_SECONDS=5,
+    AUTOMATION_WORKFLOW_RATE_LIMIT_MAX_RUNS=5,
+)
+def test_check_is_rate_limited_raises_if_above_limit():
+    with freeze_time("2025-08-01 14:00:00"):
+        for _ in range(5):
+            result = AutomationWorkflowHandler().check_is_rate_limited(100)
+            assert result is None
+
+        # This 6th attempt should be rate limited
+        with pytest.raises(AutomationWorkflowRateLimited) as e:
+            AutomationWorkflowHandler().check_is_rate_limited(100)
+
+        assert (
+            str(e.value) == "The workflow was rate limited due to too many recent runs."
+        )
+
+
+@pytest.mark.django_db
+def test_disable_workflow_disables_original_workflow(data_fixture):
+    original_workflow = data_fixture.create_automation_workflow()
+
+    now_str = "2025-08-01 14:00:00+00:00"
+    with freeze_time(now_str):
+        AutomationWorkflowHandler().disable_workflow(original_workflow)
+
+    original_workflow.refresh_from_db()
+    assert original_workflow.state == WorkflowState.DISABLED
+
+
+@pytest.mark.django_db
+def test_disable_workflow_disables_published_workflow(data_fixture):
+    original_workflow = data_fixture.create_automation_workflow()
+    published_workflow = data_fixture.create_automation_workflow(
+        state=WorkflowState.LIVE
+    )
+    published_workflow.automation.published_from = original_workflow
+    published_workflow.automation.save()
+
+    now_str = "2025-08-01 14:00:00+00:00"
+    with freeze_time(now_str):
+        AutomationWorkflowHandler().disable_workflow(published_workflow)
+
+    published_workflow.refresh_from_db()
+    original_workflow.refresh_from_db()
+
+    # Ensure both published and original workflows are disabled
+    assert published_workflow.state == WorkflowState.DISABLED
+    assert original_workflow.state == WorkflowState.DISABLED
+
+
+@override_settings(AUTOMATION_WORKFLOW_MAX_CONSECUTIVE_ERRORS=5)
+@pytest.mark.django_db
+def test_check_too_many_errors_raises_if_above_limit(data_fixture):
+    original_workflow = data_fixture.create_automation_workflow()
+
+    for _ in range(4):
+        data_fixture.create_automation_workflow_history(
+            workflow=original_workflow,
+            status=HistoryStatusChoices.ERROR,
+        )
+
+    result = AutomationWorkflowHandler().check_too_many_errors(original_workflow)
+    assert result is None
+
+    # This 6th error should cause True to be returned
+    data_fixture.create_automation_workflow_history(
+        workflow=original_workflow,
+        status=HistoryStatusChoices.ERROR,
+    )
+
+    with pytest.raises(AutomationWorkflowTooManyErrors) as e:
+        AutomationWorkflowHandler().check_too_many_errors(original_workflow)
+
+    assert str(e.value) == (
+        f"The workflow {original_workflow.id} was disabled "
+        "due to too many consecutive errors."
+    )
+
+
+@override_settings(AUTOMATION_WORKFLOW_MAX_CONSECUTIVE_ERRORS=5)
+@pytest.mark.django_db
+def test_check_too_many_errors_returns_none_if_below_limit(data_fixture):
+    original_workflow = data_fixture.create_automation_workflow()
+
+    for _ in range(4):
+        data_fixture.create_automation_workflow_history(
+            workflow=original_workflow,
+            status=HistoryStatusChoices.ERROR,
+        )
+
+    result = AutomationWorkflowHandler().check_too_many_errors(original_workflow)
+    assert result is None
+
+    # The next history is not an error, which should break the
+    # consecutive count.
+    data_fixture.create_automation_workflow_history(
+        workflow=original_workflow,
+        status=HistoryStatusChoices.SUCCESS,
+    )
+
+    result = AutomationWorkflowHandler().check_too_many_errors(original_workflow)
+    assert result is None
+
+    # Create another 4 errors
+    for _ in range(4):
+        data_fixture.create_automation_workflow_history(
+            workflow=original_workflow,
+            status=HistoryStatusChoices.ERROR,
+        )
+
+    # This should still be False, because it is below the threshold of 5
+    result = AutomationWorkflowHandler().check_too_many_errors(original_workflow)
+    assert result is None
+
+
+@pytest.mark.django_db
+def test_before_run_calls_checks(data_fixture):
+    workflow = data_fixture.create_automation_workflow()
+
+    handler = AutomationWorkflowHandler()
+
+    handler.check_is_rate_limited = MagicMock()
+    handler.check_too_many_errors = MagicMock()
+
+    result = handler.before_run(workflow)
+
+    assert result is None
+    handler.check_is_rate_limited.assert_called_once_with(workflow.id)
+    handler.check_too_many_errors.assert_called_once_with(workflow)

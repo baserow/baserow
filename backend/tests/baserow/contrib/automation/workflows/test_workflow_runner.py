@@ -3,6 +3,7 @@ import pytest
 from baserow.contrib.automation.automation_dispatch_context import (
     AutomationDispatchContext,
 )
+from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.contrib.automation.workflows.runner import AutomationWorkflowRunner
 
 
@@ -95,7 +96,9 @@ def test_run_workflow_with_delete_row_action(data_fixture):
     action_table_row = action_table.get_model().objects.create(
         **{f"field_{action_table_field.id}": "Mouse"}
     )
-    workflow = data_fixture.create_automation_workflow(user=user, published=True)
+    workflow = data_fixture.create_automation_workflow(
+        user=user, state=WorkflowState.LIVE
+    )
     data_fixture.create_local_baserow_rows_created_trigger_node(
         workflow=workflow,
         service=data_fixture.create_local_baserow_rows_created_service(
@@ -128,7 +131,9 @@ def test_run_workflow_with_router_action(data_fixture):
     integration = data_fixture.create_local_baserow_integration(user=user)
     database = data_fixture.create_database_application(workspace=workspace)
     trigger_table = data_fixture.create_database_table(database=database)
-    workflow = data_fixture.create_automation_workflow(user=user, published=True)
+    workflow = data_fixture.create_automation_workflow(
+        user=user, state=WorkflowState.LIVE
+    )
     data_fixture.create_local_baserow_rows_created_trigger_node(
         workflow=workflow,
         service=data_fixture.create_local_baserow_rows_created_service(

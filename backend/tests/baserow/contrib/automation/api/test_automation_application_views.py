@@ -47,8 +47,7 @@ def test_get_automation_application(api_client, data_fixture):
                 "name": "test",
                 "order": 1,
                 "allow_test_run_until": None,
-                "disabled": False,
-                "paused": False,
+                "state": "draft",
                 "published_on": None,
             }
         ],
@@ -99,8 +98,7 @@ def test_list_automation_applications(api_client, data_fixture):
                     "name": "test",
                     "order": 1,
                     "allow_test_run_until": None,
-                    "disabled": False,
-                    "paused": False,
+                    "state": "draft",
                     "published_on": None,
                 }
             ],

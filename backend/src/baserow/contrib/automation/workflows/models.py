@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Optional
 from django.db import models
 
 from baserow.contrib.automation.constants import WORKFLOW_NAME_MAX_LEN
+from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.core.jobs.mixins import (
     JobWithUndoRedoIds,
     JobWithUserIpAddress,
@@ -53,18 +54,16 @@ class AutomationWorkflow(
     )
 
     name = models.CharField(max_length=WORKFLOW_NAME_MAX_LEN)
-
-    published = models.BooleanField(
-        default=False, help_text="Whether the workflow is published."
-    )
-    paused = models.BooleanField(
-        default=False, help_text="Whether the published workflow is paused."
+    state = models.CharField(
+        choices=WorkflowState.choices,
+        default=WorkflowState.DRAFT,
+        db_default=WorkflowState.DRAFT,
+        max_length=20,
     )
 
     order = models.PositiveIntegerField()
 
     allow_test_run_until = models.DateTimeField(null=True, blank=True)
-    disabled_on = models.DateTimeField(null=True, blank=True)
 
     objects = AutomationWorkflowTrashManager()
     objects_and_trash = models.Manager()
@@ -100,6 +99,20 @@ class AutomationWorkflow(
     def get_trigger(self, specific: bool = True) -> "AutomationTriggerNode":
         node = self.automation_workflow_nodes.get(previous_node_id=None)
         return node.specific if specific else node
+
+    @property
+    def is_published(self) -> bool:
+        from baserow.contrib.automation.workflows.handler import (
+            AutomationWorkflowHandler,
+        )
+
+        workflow = self
+        if published_workflow := AutomationWorkflowHandler().get_published_workflow(
+            self
+        ):
+            workflow = published_workflow
+
+        return workflow.state == WorkflowState.LIVE
 
 
 class DuplicateAutomationWorkflowJob(

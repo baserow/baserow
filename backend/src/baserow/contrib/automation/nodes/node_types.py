@@ -32,6 +32,7 @@ from baserow.contrib.automation.nodes.models import (
     LocalBaserowUpdateRowActionNode,
 )
 from baserow.contrib.automation.nodes.registries import AutomationNodeType
+from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.contrib.integrations.core.service_types import (
     CoreHTTPRequestServiceType,
     CoreRouterServiceType,
@@ -240,7 +241,7 @@ class AutomationNodeTriggerType(AutomationNodeType):
             )
             .filter(
                 Q(
-                    Q(workflow__published=True, workflow__paused=False)
+                    Q(workflow__state=WorkflowState.LIVE)
                     | Q(workflow__allow_test_run_until__gte=now)
                 ),
             )
