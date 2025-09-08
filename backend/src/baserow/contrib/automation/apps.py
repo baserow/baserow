@@ -213,3 +213,9 @@ class AutomationConfig(AppConfig):
             )
 
             connect_to_node_pre_delete_signal()
+
+        from baserow.core.search.registries import workspace_search_registry
+
+        from .search_types import AutomationSearchType
+
+        workspace_search_registry.register(AutomationSearchType())

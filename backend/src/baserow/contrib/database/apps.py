@@ -1052,6 +1052,20 @@ class DatabaseConfig(AppConfig):
         row_history_provider_registry.register(UpdateRowsHistoryProvider())
         row_history_provider_registry.register(RestoreFromTrashHistoryProvider())
 
+        from baserow.core.search.registries import workspace_search_registry
+
+        from .search_types import (
+            DatabaseSearchType,
+            FieldDefinitionSearchType,
+            RowSearchType,
+            TableSearchType,
+        )
+
+        workspace_search_registry.register(DatabaseSearchType())
+        workspace_search_registry.register(FieldDefinitionSearchType())
+        workspace_search_registry.register(RowSearchType())
+        workspace_search_registry.register(TableSearchType())
+
         from baserow.contrib.database.fields.field_constraints import (
             RatingTypeUniqueWithEmptyConstraint,
             TextTypeUniqueWithEmptyConstraint,

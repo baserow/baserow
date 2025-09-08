@@ -23,9 +23,14 @@
     height: 52px;
   }
 
-  &:active,
-  &:focus,
-  &:focus-within {
+  &.form-input--no-border {
+    border: none;
+    box-shadow: none;
+  }
+
+  &:active:not(.form-input--no-border),
+  &:focus:not(.form-input--no-border),
+  &:focus-within:not(.form-input--no-border) {
     &:not(.form-input--disabled):not(.form-input--error) {
       border-color: $palette-blue-500;
     }
@@ -160,9 +165,17 @@
     display: none;
   }
 
-  .form-input:active:not(.form-input--disabled):not(.form-input--error) &,
-  .form-input:focus:not(.form-input--disabled):not(.form-input--error) &,
-  .form-input:focus-within:not(.form-input--disabled):not(.form-input--error)
+  .form-input:active:not(.form-input--disabled):not(.form-input--error):not(
+      .form-input--no-border
+    )
+    &,
+  .form-input:focus:not(.form-input--disabled):not(.form-input--error):not(
+      .form-input--no-border
+    )
+    &,
+  .form-input:focus-within:not(.form-input--disabled):not(
+      .form-input--error
+    ):not(.form-input--no-border)
     & {
     color: $palette-blue-500;
   }

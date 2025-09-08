@@ -60,6 +60,7 @@
         v-show="!collapsed"
         v-if="hasSelectedWorkspace"
         :selected-workspace="selectedWorkspace"
+        @open-workspace-search="$emit('open-workspace-search')"
       ></SidebarMenu>
 
       <SidebarWithWorkspace
@@ -86,6 +87,7 @@
 <script>
 import { mapGetters } from 'vuex'
 
+import { FF_WORKSPACE_SEARCH } from '@baserow/modules/core/plugins/featureFlags'
 import SidebarUserContext from '@baserow/modules/core/components/sidebar/SidebarUserContext'
 import SidebarWithWorkspace from '@baserow/modules/core/components/sidebar/SidebarWithWorkspace'
 import SidebarWithoutWorkspace from '@baserow/modules/core/components/sidebar/SidebarWithoutWorkspace'
@@ -131,6 +133,7 @@ export default {
   data() {
     return {
       showAdmin: false,
+      FF_WORKSPACE_SEARCH,
     }
   },
 

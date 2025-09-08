@@ -1,6 +1,11 @@
 <template>
   <div class="sidebar__section" ph-autocapture="sidebar" data-highlight="menu">
     <ul class="tree">
+      <SidebarSearch
+        v-if="$featureFlagIsEnabled(FF_WORKSPACE_SEARCH)"
+        :selected-workspace="selectedWorkspace"
+        @open-workspace-search="openWorkspaceSearch"
+      />
       <nuxt-link
         v-slot="{ href, navigate, isExactActive }"
         :to="{
@@ -145,10 +150,12 @@
 <script>
 import { mapGetters } from 'vuex'
 
+import { FF_WORKSPACE_SEARCH } from '@baserow/modules/core/plugins/featureFlags'
 import TrashModal from '@baserow/modules/core/components/trash/TrashModal'
 import NotificationPanel from '@baserow/modules/core/components/NotificationPanel'
 import WorkspaceMemberInviteModal from '@baserow/modules/core/components/workspace/WorkspaceMemberInviteModal'
 import BadgeCounter from '@baserow/modules/core/components/BadgeCounter'
+import SidebarSearch from '@baserow/modules/core/components/sidebar/SidebarSearch'
 
 export default {
   name: 'SidebarMenu',
@@ -157,12 +164,18 @@ export default {
     NotificationPanel,
     WorkspaceMemberInviteModal,
     BadgeCounter,
+    SidebarSearch,
   },
   props: {
     selectedWorkspace: {
       type: Object,
       required: true,
     },
+  },
+  data() {
+    return {
+      FF_WORKSPACE_SEARCH,
+    }
   },
   computed: {
     sidebarWorkspaceComponents() {
@@ -177,6 +190,10 @@ export default {
     }),
   },
   methods: {
+    openWorkspaceSearch() {
+      this.$emit('open-workspace-search')
+    },
+
     handleInvite(event) {
       if (this.$route.name !== 'settings-invites') {
         this.$router.push({
