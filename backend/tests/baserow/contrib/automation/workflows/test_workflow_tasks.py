@@ -1,5 +1,7 @@
 from unittest.mock import patch
 
+from django.test import override_settings
+
 import pytest
 
 from baserow.contrib.automation.history.models import AutomationWorkflowHistory
@@ -121,11 +123,15 @@ def assert_history(workflow, expected_count, expected_status, expected_msg):
 
 
 @pytest.mark.django_db
+@override_settings(
+    AUTOMATION_WORKFLOW_MAX_CONSECUTIVE_ERRORS=3,
+    AUTOMATION_WORKFLOW_RATE_LIMIT_MAX_RUNS=10,
+)
 @patch(
     "baserow.contrib.automation.workflows.handler.AutomationWorkflowHandler.check_is_rate_limited"
 )
 @patch("baserow.contrib.automation.workflows.handler.AutomationWorkflowRunner.run")
-def test_run_workflow_disables_workflow_if_rate_limited(
+def test_run_workflow_disables_workflow_if_too_many_errors(
     mock_run, mock_is_rate_limited, data_fixture
 ):
     mock_is_rate_limited.side_effect = AutomationWorkflowRateLimited(
@@ -142,8 +148,8 @@ def test_run_workflow_disables_workflow_if_rate_limited(
         workflow=published_workflow
     )
 
-    # The first 5 runs should just be an error
-    for i in range(5):
+    # The first 3 runs should just be an error
+    for i in range(3):
         run_workflow(published_workflow.id, False, None)
         mock_run.assert_not_called()
         assert_history(original_workflow, i + 1, "error", "mock rate limited error")
@@ -152,12 +158,12 @@ def test_run_workflow_disables_workflow_if_rate_limited(
         assert original_workflow.state == WorkflowState.DRAFT
         assert published_workflow.state == WorkflowState.LIVE
 
-    # The sixth run should disable the workflow
+    # The fourth run should disable the workflow due to too many errors
     run_workflow(published_workflow.id, False, None)
     mock_run.assert_not_called()
     assert_history(
         original_workflow,
-        6,
+        4,
         "disabled",
         f"The workflow {original_workflow.id} was disabled due to too many consecutive errors.",
     )
