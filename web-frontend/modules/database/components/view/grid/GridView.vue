@@ -32,11 +32,16 @@
       :include-group-by="true"
       :read-only="
         readOnly ||
-        !$hasPermission(
+        (!$hasPermission(
           'database.table.update_row',
           table,
           database.workspace.id
-        )
+        ) &&
+          !$hasPermission(
+            'database.table.view.update_row',
+            view,
+            database.workspace.id
+          ))
       "
       :store-prefix="storePrefix"
       :style="{ width: leftWidth + 'px' }"
@@ -116,11 +121,16 @@
       :can-order-fields="true"
       :read-only="
         readOnly ||
-        !$hasPermission(
+        (!$hasPermission(
           'database.table.update_row',
           table,
           database.workspace.id
-        )
+        ) &&
+          !$hasPermission(
+            'database.table.view.update_row',
+            view,
+            database.workspace.id
+          ))
       "
       :store-prefix="storePrefix"
       :style="{ left: leftWidth + 'px' }"
@@ -192,11 +202,16 @@
           v-if="
             !readOnly &&
             (!table.data_sync || table.data_sync.two_way_sync) &&
-            $hasPermission(
+            ($hasPermission(
               'database.table.delete_row',
               table,
               database.workspace.id
-            )
+            ) ||
+              $hasPermission(
+                'database.table.view.delete_row',
+                view,
+                database.workspace.id
+              ))
           "
           class="context__menu-item"
         >
@@ -224,11 +239,16 @@
           v-if="
             !readOnly &&
             (!table.data_sync || table.data_sync.two_way_sync) &&
-            $hasPermission(
+            ($hasPermission(
               'database.table.create_row',
               table,
               database.workspace.id
-            )
+            ) ||
+              $hasPermission(
+                'database.table.view.create_row',
+                view,
+                database.workspace.id
+              ))
           "
           class="context__menu-item"
         >
@@ -244,11 +264,16 @@
           v-if="
             !readOnly &&
             (!table.data_sync || table.data_sync.two_way_sync) &&
-            $hasPermission(
+            ($hasPermission(
               'database.table.create_row',
               table,
               database.workspace.id
-            )
+            ) ||
+              $hasPermission(
+                'database.table.view.create_row',
+                view,
+                database.workspace.id
+              ))
           "
           class="context__menu-item"
         >
@@ -264,11 +289,16 @@
           v-if="
             !readOnly &&
             (!table.data_sync || table.data_sync.two_way_sync) &&
-            $hasPermission(
+            ($hasPermission(
               'database.table.create_row',
               table,
               database.workspace.id
-            )
+            ) ||
+              $hasPermission(
+                'database.table.view.create_row',
+                view,
+                database.workspace.id
+              ))
           "
           class="context__menu-item"
         >
@@ -305,11 +335,16 @@
           v-if="
             !readOnly &&
             (!table.data_sync || table.data_sync.two_way_sync) &&
-            $hasPermission(
+            ($hasPermission(
               'database.table.delete_row',
               table,
               database.workspace.id
-            )
+            ) ||
+              $hasPermission(
+                'database.table.view.delete_row',
+                view,
+                database.workspace.id
+              ))
           "
           class="context__menu-item context__menu-item--with-separator"
         >
@@ -333,19 +368,29 @@
       :can-modify-fields="true"
       :read-only="
         readOnly ||
-        !$hasPermission(
+        (!$hasPermission(
           'database.table.update_row',
           table,
           database.workspace.id
-        )
+        ) &&
+          !$hasPermission(
+            'database.table.view.update_row',
+            view,
+            database.workspace.id
+          ))
       "
       :enable-navigation="
         !readOnly &&
-        $hasPermission(
+        ($hasPermission(
           'database.table.update_row',
           table,
           database.workspace.id
-        )
+        ) ||
+          $hasPermission(
+            'database.table.view.update_row',
+            view,
+            database.workspace.id
+          ))
       "
       :show-hidden-fields="showHiddenFieldsInRowModal"
       @toggle-hidden-fields-visibility="
@@ -1518,11 +1563,16 @@ export default {
         textData.length === 0 ||
         textData[0].length === 0 ||
         this.readOnly ||
-        !this.$hasPermission(
+        (!this.$hasPermission(
           'database.table.update_row',
           this.table,
           this.database.workspace.id
-        )
+        ) &&
+          !this.$hasPermission(
+            'database.table.view.update_row',
+            this.view,
+            this.database.workspace.id
+          ))
       ) {
         return
       }
