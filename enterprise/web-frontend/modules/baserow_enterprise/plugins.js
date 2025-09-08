@@ -10,8 +10,8 @@ import EnterpriseSettingsOverrideDashboardHelp from '@baserow_enterprise/compone
 import EnterpriseLogo from '@baserow_enterprise/components/EnterpriseLogo'
 import { DatabaseApplicationType } from '@baserow/modules/database/applicationTypes'
 import ExportWorkspaceModalWarning from '@baserow_enterprise/components/ExportWorkspaceModalWarning'
-import AssistantSidebarItem from '@baserow_enterprise/components/aiAssistant/AssistantSidebarItem'
-import AssistantPanel from '@baserow_enterprise/components/aiAssistant/AssistantPanel'
+import AssistantSidebarItem from '@baserow_enterprise/components/assistant/AssistantSidebarItem'
+import AssistantPanel from '@baserow_enterprise/components/assistant/AssistantPanel'
 import { FF_ASSISTANT } from '@baserow/modules/core/plugins/featureFlags'
 
 export class EnterprisePlugin extends BaserowPlugin {

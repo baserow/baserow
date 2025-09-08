@@ -3,7 +3,7 @@
     <div class="assistant__header">
       <a
         v-if="messages.length"
-        :title="$t('aiAssistantPanel.back')"
+        :title="$t('assistantPanel.back')"
         class="assistant__header-icon"
         @click.prevent="clearChat"
       >
@@ -11,7 +11,7 @@
       </a>
       <div class="assistant__title">
         <i class="iconoir-sparks"></i>
-        <span v-if="!currentChatTitle">{{ $t('aiAssistantPanel.title') }}</span>
+        <span v-if="!currentChatTitle">{{ $t('assistantPanel.title') }}</span>
         <span v-else>{{ currentChatTitle }}</span>
       </div>
       <div class="assistant__header-actions">
@@ -24,14 +24,14 @@
         />
         <a
           ref="chatHistoryButton"
-          :title="$t('aiAssistantPanel.history')"
+          :title="$t('assistantPanel.history')"
           class="assistant__header-icon"
           @click.prevent="toggleChatHistoryContext"
           ><i class="iconoir-clock-rotate-right"></i
         ></a>
         <div class="assistant__header-separator"></div>
         <a
-          :title="$t('aiAssistantPanel.close')"
+          :title="$t('assistantPanel.close')"
           class="assistant__header-icon"
           @click.prevent="$bus.$emit('toggle-right-sidebar')"
           ><i class="iconoir-cancel"></i
@@ -60,9 +60,9 @@
 </template>
 
 <script>
-import AssistantWelcomeMessage from '@baserow_enterprise/components/aiAssistant/AssistantWelcomeMessage'
-import AssistantInputMessage from '@baserow_enterprise/components/aiAssistant/AssistantInputMessage'
-import AssistantMessageList from '@baserow_enterprise/components/aiAssistant/AssistantMessageList'
+import AssistantWelcomeMessage from '@baserow_enterprise/components/assistant/AssistantWelcomeMessage'
+import AssistantInputMessage from '@baserow_enterprise/components/assistant/AssistantInputMessage'
+import AssistantMessageList from '@baserow_enterprise/components/assistant/AssistantMessageList'
 import AssistantChatHistoryContext from './AssistantChatHistoryContext'
 import { mapGetters, mapActions } from 'vuex'
 
@@ -88,10 +88,10 @@ export default {
   computed: {
     ...mapGetters({
       user: 'auth/getUserObject',
-      messages: 'aiAssistant/messages',
-      currentChat: 'aiAssistant/currentChat',
-      chats: 'aiAssistant/chats',
-      isLoadingChats: 'aiAssistant/isLoadingChats',
+      messages: 'assistant/messages',
+      currentChat: 'assistant/currentChat',
+      chats: 'assistant/chats',
+      isLoadingChats: 'assistant/isLoadingChats',
     }),
     currentChatId() {
       return this.currentChat?.id
@@ -147,12 +147,12 @@ export default {
   },
   methods: {
     ...mapActions({
-      sendMessage: 'aiAssistant/sendMessage',
-      createChat: 'aiAssistant/createChat',
-      selectChat: 'aiAssistant/selectChat',
-      clearChat: 'aiAssistant/clearChat',
-      fetchChats: 'aiAssistant/fetchChats',
-      resetStore: 'aiAssistant/reset',
+      sendMessage: 'assistant/sendMessage',
+      createChat: 'assistant/createChat',
+      selectChat: 'assistant/selectChat',
+      clearChat: 'assistant/clearChat',
+      fetchChats: 'assistant/fetchChats',
+      resetStore: 'assistant/reset',
     }),
 
     async handleSendMessage(text) {

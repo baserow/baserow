@@ -56,7 +56,7 @@
       class="premium-features__feature"
     >
       <i class="iconoir-sparks premium-features__feature-icon"></i>
-      {{ $t('enterpriseFeatures.aiAssistant') }}
+      {{ $t('enterpriseFeatures.assistant') }}
     </li>
     <li
       v-if="!hiddenFeatures.includes(enterpriseFeatures.SUPPORT)"

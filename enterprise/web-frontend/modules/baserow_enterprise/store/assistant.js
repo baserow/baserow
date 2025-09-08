@@ -1,4 +1,4 @@
-import aiAssistant from '@baserow_enterprise/services/assistant'
+import assistant from '@baserow_enterprise/services/assistant'
 import { v4 as uuidv4 } from 'uuid'
 import Vue from 'vue'
 
@@ -106,7 +106,7 @@ export const actions = {
     commit('SET_CHAT_LOADING', { chat, value: true })
 
     try {
-      const { messages } = await aiAssistant(this.$client).fetchChatMessages(
+      const { messages } = await assistant(this.$client).fetchChatMessages(
         chat.id
       )
       commit('SET_CURRENT_CHAT_ID', chat.id)
@@ -125,7 +125,7 @@ export const actions = {
     commit('SET_CHATS_LOADING', true)
 
     try {
-      const { results: chats } = await aiAssistant(this.$client).fetchChats(
+      const { results: chats } = await assistant(this.$client).fetchChats(
         workspaceId
       )
       commit('SET_CHATS', chats)
@@ -188,7 +188,7 @@ export const actions = {
     const uiContext = { workspace: { id: workspace.id, name: workspace.name } }
 
     try {
-      await aiAssistant(this.$client).sendMessage(
+      await assistant(this.$client).sendMessage(
         state.currentChatId,
         message,
         uiContext,

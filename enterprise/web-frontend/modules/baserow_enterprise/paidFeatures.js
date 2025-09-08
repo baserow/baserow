@@ -170,7 +170,7 @@ export class AssistantPaidFeature extends PaidFeature {
   }
 
   getName() {
-    return this.app.i18n.t('enterpriseFeatures.aiAssistant')
+    return this.app.i18n.t('enterpriseFeatures.assistant')
   }
 
   getImage() {
@@ -178,7 +178,7 @@ export class AssistantPaidFeature extends PaidFeature {
   }
 
   getContent() {
-    return this.app.i18n.t('enterpriseFeatures.aiAssistantContent')
+    return this.app.i18n.t('enterpriseFeatures.assistantContent')
   }
 }
 

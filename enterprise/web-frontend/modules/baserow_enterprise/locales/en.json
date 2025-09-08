@@ -316,30 +316,30 @@
     "builderFileInputElementContent": "The file input element allows you to add a field to your application pages for uploading files. Give your users the ability to store important documents or images.",
     "builderCustomCode": "Custom code for applications",
     "builderCustomCodeContent": "You can add custom CSS/JavaScript code to further customize the look and behaviour of your application. For example, you can integrate external services like analytics or social media.",
-    "aiAssistant": "AI Assistant",
-    "aiAssistantContent": "Boost your productivity with AI. Use natural language to create, analyze, and visualize your data directly within Baserow."
+    "assistant": "AI Assistant",
+    "assistantContent": "Boost your productivity with AI. Use natural language to create, analyze, and visualize your data directly within Baserow."
   },
-  "aiAssistantSidebarItem": {
+  "assistantSidebarItem": {
     "title": "AI Assistant"
   },
-  "aiAssistantPanel": {
+  "assistantPanel": {
     "title": "AI Assistant",
     "close": "Close AI Assistant",
     "history": "Chat History",
     "back": "Back"
   },
-  "aiAssistantWelcomeMessage": {
+  "assistantWelcomeMessage": {
     "greet": "Hey {name}",
     "question": "how can I help?",
     "subtitle": "I'm here to support you in handling your data."
   },
-  "aiAssistantInputMessage": {
+  "assistantInputMessage": {
     "statusWaiting": "Assistant is waiting for your response",
     "statusRunning": "Running...",
     "placeholder": "Ask me anything...",
     "send": "Send message"
   },
-  "aiAssistantChatHistoryContext": {
+  "assistantChatHistoryContext": {
     "empty": "No chat history available",
     "loading": "Loading chat history..."
   },

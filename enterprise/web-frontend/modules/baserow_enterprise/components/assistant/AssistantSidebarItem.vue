@@ -13,7 +13,7 @@
         >
           <i class="tree__icon iconoir-lock"></i>
           <span class="tree__link-text">{{
-            $t('aiAssistantSidebarItem.title')
+            $t('assistantSidebarItem.title')
           }}</span>
         </a>
         <a
@@ -24,7 +24,7 @@
         >
           <i class="tree__icon iconoir-sparks"></i>
           <span class="tree__link-text">{{
-            $t('aiAssistantSidebarItem.title')
+            $t('assistantSidebarItem.title')
           }}</span>
         </a>
       </div>

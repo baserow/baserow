@@ -5,12 +5,12 @@
     </div>
     <h2 class="assistant__welcome-title">
       <span class="assistant__welcome-title-greeting">
-        {{ $t('aiAssistantWelcomeMessage.greet', { name }) }},
+        {{ $t('assistantWelcomeMessage.greet', { name }) }},
       </span>
-      {{ $t('aiAssistantWelcomeMessage.question') }}
+      {{ $t('assistantWelcomeMessage.question') }}
     </h2>
     <p class="assistant__welcome-subtitle">
-      {{ $t('aiAssistantWelcomeMessage.subtitle') }}
+      {{ $t('assistantWelcomeMessage.subtitle') }}
     </p>
   </div>
 </template>

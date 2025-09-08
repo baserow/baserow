@@ -5,7 +5,7 @@ import {
 } from '@baserow_enterprise/permissionManagerTypes'
 import { AuthProvidersType, AuditLogType } from '@baserow_enterprise/adminTypes'
 import authProviderAdminStore from '@baserow_enterprise/store/authProviderAdmin'
-import aiAssistantStore from '@baserow_enterprise/store/assistant'
+import assistantStore from '@baserow_enterprise/store/assistant'
 import { PasswordAuthProviderType as CorePasswordAuthProviderType } from '@baserow/modules/core/authProviderTypes'
 import { MadeWithBaserowBuilderPageDecoratorType } from '@baserow_enterprise/builderPageDecoratorTypes'
 import {
@@ -112,7 +112,7 @@ export default (context) => {
   )
 
   store.registerModule('authProviderAdmin', authProviderAdminStore)
-  store.registerModule('aiAssistant', aiAssistantStore)
+  store.registerModule('assistant', assistantStore)
 
   app.$registry.register('admin', new AuthProvidersType(context))
   app.$registry.unregister(

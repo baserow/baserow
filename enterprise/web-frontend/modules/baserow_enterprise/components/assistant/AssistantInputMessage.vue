@@ -3,10 +3,10 @@
     <div class="assistant__input-status" :class="{ 'is-running': running }">
       <i class="iconoir-sparks assistant__input-status-icon"></i>
       <span v-if="!running" class="assistant__status-waiting">
-        {{ $t('aiAssistantInputMessage.statusWaiting') }}
+        {{ $t('assistantInputMessage.statusWaiting') }}
       </span>
       <span v-else class="assistant__status-running">
-        {{ $t('aiAssistantInputMessage.statusRunning') }}
+        {{ $t('assistantInputMessage.statusRunning') }}
       </span>
     </div>
     <div class="assistant__input-section" :class="{ 'is-running': running }">
@@ -21,7 +21,7 @@
         <FormTextarea
           ref="messageInput"
           v-model="currentMessage"
-          :placeholder="$t('aiAssistantInputMessage.placeholder')"
+          :placeholder="$t('assistantInputMessage.placeholder')"
           :auto-expandable="true"
           :min-rows="2"
           :max-rows="6"
@@ -35,7 +35,7 @@
             'assistant__send-button--is-running': running,
           }"
           :disabled="!currentMessage.trim() || running"
-          :title="$t('aiAssistantInputMessage.send')"
+          :title="$t('assistantInputMessage.send')"
           @click="sendMessage"
         >
           <i v-if="!running" class="iconoir-arrow-up"></i>

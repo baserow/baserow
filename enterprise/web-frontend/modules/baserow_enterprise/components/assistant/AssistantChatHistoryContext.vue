@@ -7,7 +7,7 @@
       v-else-if="!chats.length"
       class="assistant__chat-history-spacer context__description"
     >
-      {{ $t('aiAssistantChatHistoryContext.empty') }}
+      {{ $t('assistantChatHistoryContext.empty') }}
     </div>
     <ul
       v-else
