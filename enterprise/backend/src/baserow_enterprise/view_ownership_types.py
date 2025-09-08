@@ -70,5 +70,6 @@ class RestrictedViewOwnershipType(ViewOwnershipType):
                 if not hasattr(view, "_prefetched_objects_cache"):
                     view._prefetched_objects_cache = {}
                 view._prefetched_objects_cache["viewfilter_set"] = []
+                view._prefetched_objects_cache["filter_groups"] = []
 
         return views
