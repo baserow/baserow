@@ -4,6 +4,7 @@ from django.contrib.contenttypes.models import ContentType
 
 from baserow_premium.license.handler import LicenseHandler
 
+from baserow.contrib.database.views.models import View
 from baserow.core.models import Application
 from baserow.core.registries import ImportExportConfig, SerializationProcessorType
 from baserow.core.types import SerializationProcessorScope
@@ -55,6 +56,11 @@ class RoleAssignmentSerializationProcessorType(SerializationProcessorType):
         if isinstance(scope, Application):
             scope = getattr(scope, "application_ptr", scope)
 
+        # View subclass scopes can't be passed to the role assignment handler because
+        # the permissions are stored on the `View` level.
+        if isinstance(scope, View):
+            scope = getattr(scope, "view_ptr", scope)
+
         serialized_role_assignments = serialized_scope.get("role_assignments", [])
 
         with atomic_if_not_already():
@@ -99,7 +105,13 @@ class RoleAssignmentSerializationProcessorType(SerializationProcessorType):
         if isinstance(scope, Application):
             scope = getattr(scope, "application_ptr", scope)
 
+        # View subclass scopes can't be passed to the role assignment handler because
+        # the permissions are stored on the `View` level.
+        if isinstance(scope, View):
+            scope = getattr(scope, "view_ptr", scope)
+
         serialized_role_assignments = []
+        print(workspace, scope)
         role_assignments = RoleAssignmentHandler().get_role_assignments(
             workspace, scope
         )

@@ -872,6 +872,7 @@ class RoleAssignmentHandler:
             return role_assignments
         else:
             qs = self._get_role_assignments_for_valid_subjects_qs()
+            print(workspace, scope.id, ContentType.objects.get_for_model(scope))
             role_assignments = qs.filter(
                 workspace=workspace,
                 scope_id=scope.id,

@@ -12,6 +12,7 @@ from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.views.models import GridView
 from baserow.contrib.database.views.registries import view_type_registry
 from baserow.core.constants import BASEROW_COLORS
+from baserow.core.registries import ImportExportConfig
 
 REPORT_TABLE_ID = "report"
 REPORT_TABLE_NAME = "Airtable import report"
@@ -99,7 +100,11 @@ class AirtableImportReport:
         grid_view.get_field_options = lambda *args, **kwargs: []
         grid_view_type = view_type_registry.get_by_model(grid_view)
         empty_serialized_grid_view = grid_view_type.export_serialized(
-            grid_view, None, None, None
+            grid_view,
+            ImportExportConfig(include_permission_data=False),
+            None,
+            None,
+            None,
         )
         empty_serialized_grid_view["id"] = 0
         exported_views = [empty_serialized_grid_view]
