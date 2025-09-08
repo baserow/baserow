@@ -370,7 +370,7 @@ def test_create_local_baserow_user_source_w_two_password_auth_source(
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
 
-    response.json()
+    response_json = response.json()
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json()["error"] == "ERROR_AUTH_PROVIDER_CANT_BE_CREATED"
 
@@ -1212,7 +1212,7 @@ def test_local_baserow_user_source_create_user_bad_configuration(
         user_source, email="test_create@baserow.io", name="user name"
     )
 
-    data["user_table"]
+    user_table = data["user_table"]
 
     # `is_configured` will be False if the name_field is None
     user_source.name_field = None

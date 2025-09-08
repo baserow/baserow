@@ -1,12 +1,14 @@
+from typing import AsyncGenerator
 from uuid import UUID
 
 from django.contrib.auth.models import AbstractUser
 
 from baserow.core.models import Workspace
-from baserow_enterprise.assistant.assistant import Assistant
-from baserow_enterprise.assistant.exceptions import AssistantChatDoesNotExist
-from baserow_enterprise.assistant.models import AssistantChat
-from baserow_enterprise.assistant.types import BaseMessage, HumanMessage
+
+from .assistant import Assistant
+from .exceptions import AssistantChatDoesNotExist
+from .models import AssistantChat
+from .types import BaseMessage, HumanMessage
 
 
 class AssistantHandler:
@@ -88,3 +90,20 @@ class AssistantHandler:
         """
 
         return Assistant(chat, new_message)
+
+    async def stream_assistant_messages(
+        self, chat: AssistantChat, new_message: HumanMessage
+    ) -> AsyncGenerator[BaseMessage, None]:
+        """
+        Stream messages from the assistant for the given chat and new message.
+
+        :param chat: The AI assistant chat to get the assistant for.
+        :param new_message: The new message to include in the assistant's context.
+        :return: An async generator yielding messages from the assistant.
+        :raises AssistantChatDoesNotExist: If the chat does not exist.
+        :raises AssistantChatLocked: If the chat is currently locked.
+        """
+
+        assistant = self.get_assistant(chat, new_message)
+        async for message in assistant.astream():
+            yield message

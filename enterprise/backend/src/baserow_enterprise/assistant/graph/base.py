@@ -25,14 +25,6 @@ class AssistantGraph:
         self.workspace = chat.workspace
         self.builder = StateGraph[AssistantState](AssistantState)
 
-    async def _get_checkpointer(self):
-        """
-        Get the default checkpointer. It also calls `checkpointer.setup()` the first
-        time it is accessed.
-        """
-
-        return await get_checkpointer()
-
     def add_nodes(self):
         """
         Setup the nodes for the assistant graph.
@@ -65,7 +57,11 @@ class AssistantGraph:
         self, checkpointer: BaseCheckpointSaver = None
     ) -> CompiledStateGraph[AssistantState]:
         """
-        Compile the full assistant graph setting the checkpointer to persist state.
+        Compile the full assistant graph setting the checkpointer to persist state. Once
+        all the nodes and edges have been added, this method compiles the graph into a
+        `CompiledStateGraph` that can be executed. It also sets up the checkpointer to
+        ensure that the state of the graph is saved and can be resumed in case of
+        failures or interruptions for human-like interactions.
 
         :param checkpointer: The checkpoint saver to use for persisting state.
         :return: The compiled state graph to use for the assistant.
@@ -73,6 +69,6 @@ class AssistantGraph:
 
         self.add_nodes()
         self.add_edges()
-        checkpointer = checkpointer or await self._get_checkpointer()
+        checkpointer = checkpointer or await get_checkpointer()
 
         return self.builder.compile(checkpointer=checkpointer)

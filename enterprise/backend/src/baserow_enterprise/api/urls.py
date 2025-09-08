@@ -1,9 +1,6 @@
 from django.urls import include, path
 
-from baserow.config.urls import urlpatterns as base_urlpatterns
-
 from .admin import urls as admin_urls
-from .assistant import urls as assistant_urls
 from .audit_log import urls as audit_log_urls
 from .builder.custom_code import urls as custom_code_urls
 from .data_sync import urls as data_sync_urls
@@ -29,9 +26,4 @@ urlpatterns = [
         "custom_code/",
         include(custom_code_urls, namespace="custom_code"),
     ),
-]
-
-
-base_urlpatterns += [
-    path("assistant/", include(assistant_urls, namespace="assistant")),
 ]

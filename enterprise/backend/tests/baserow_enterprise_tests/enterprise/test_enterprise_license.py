@@ -1649,7 +1649,7 @@ def test_user_summary_calculation_for_enterprise_doesnt_do_n_plus_one_queries(
 def test_can_query_for_summary_per_workspace(
     enterprise_data_fixture, data_fixture, synced_roles
 ):
-    enterprise_data_fixture.enable_enterprise()
+    license_object = enterprise_data_fixture.enable_enterprise()
     user1_paid_in_grp1 = data_fixture.create_user()
     user2_free_in_grp1_paid_grp2 = data_fixture.create_user()
     user3_free_both_grps = data_fixture.create_user()
@@ -1901,7 +1901,7 @@ def test_weird_workspace_user_permission_doesnt_break_usage_check(
 def test_weird_ras_for_wrong_workspace_not_counted_when_querying_for_single_workspace_usage(
     enterprise_data_fixture, data_fixture, synced_roles
 ):
-    enterprise_data_fixture.enable_enterprise()
+    license_object = enterprise_data_fixture.enable_enterprise()
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace()
     workspace2 = data_fixture.create_workspace()
@@ -2085,7 +2085,7 @@ def test_orphaned_paid_role_assignments_dont_get_counted(
 def test_can_restore_a_workspace_with_rbac_enabled(
     enterprise_data_fixture, data_fixture, synced_roles
 ):
-    enterprise_data_fixture.enable_enterprise()
+    license_object = enterprise_data_fixture.enable_enterprise()
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
 

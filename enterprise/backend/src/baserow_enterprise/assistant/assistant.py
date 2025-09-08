@@ -1,5 +1,4 @@
 from collections import defaultdict
-from contextlib import asynccontextmanager
 from typing import Any, AsyncGenerator, AsyncIterator, Optional
 
 from asgiref.sync import async_to_sync
@@ -9,9 +8,9 @@ from langgraph.errors import GraphRecursionError
 from langgraph.types import StreamMode
 from loguru import logger
 
-from baserow_enterprise.assistant.graph.base import AssistantGraph, Node
-from baserow_enterprise.assistant.models import AssistantChat
-from baserow_enterprise.assistant.types import (
+from .graph.base import AssistantGraph, Node
+from .models import AssistantChat
+from .types import (
     AiErrorMessage,
     AiErrorMessageCode,
     AiMessage,
@@ -152,9 +151,7 @@ class Assistant:
             self._chunks[node] += langchain_message
             return get_message_by_node(node, content=self._chunks[node].content)
 
-    async def astream(
-        self, stream_messages: bool = True
-    ) -> AsyncGenerator[AssistantMessageUnion, None]:
+    async def astream(self) -> AsyncGenerator[AssistantMessageUnion, None]:
         """
         Stream messages from the assistant.
 
@@ -166,48 +163,31 @@ class Assistant:
         config = self._get_config()
 
         stream_mode: list[StreamMode] = ["values", "updates", "messages"]
-        if stream_messages:
-            stream_mode.append("messages")
 
         graph = await self._get_graph()
         generator: AsyncIterator[Any] = graph.astream(
             self._state, config=config, stream_mode=stream_mode, subgraphs=True
         )
 
-        async with self._lock_chat():
-            try:
-                async for update in generator:
-                    if messages := self._process_update(update):
-                        for message in messages:
-                            yield message
-            except GraphRecursionError:
-                yield (
-                    AiErrorMessage(
-                        code=AiErrorMessageCode.RECURSION_LIMIT_EXCEEDED,
-                        content=(
-                            "The assistant has reached the maximum number of steps. "
-                            "You can explicitly ask to continue."
-                        ),
-                    ),
-                )
-            except Exception:
-                logger.exception("Error occurred while streaming updates")
-
-                yield AiErrorMessage(
-                    code=AiErrorMessageCode.UNKNOWN,
-                    content="The assistant has encountered an error. Please try again.",
-                )
-
-    @asynccontextmanager
-    async def _lock_chat(self):
-        """
-        Lock the chat for updates.
-        """
-
         try:
-            self.chat.status = AssistantChat.Status.IN_PROGRESS
-            await self.chat.asave(update_fields=["status", "updated_on"])
-            yield
-        finally:
-            self.chat.status = AssistantChat.Status.IDLE
-            await self.chat.asave(update_fields=["status", "updated_on"])
+            async for update in generator:
+                if messages := self._process_update(update):
+                    for message in messages:
+                        yield message
+        except GraphRecursionError:
+            yield (
+                AiErrorMessage(
+                    code=AiErrorMessageCode.RECURSION_LIMIT_EXCEEDED,
+                    content=(
+                        "The assistant has reached the maximum number of steps. "
+                        "You can explicitly ask to continue."
+                    ),
+                ),
+            )
+        except Exception:
+            logger.exception("Error occurred while streaming updates")
+
+            yield AiErrorMessage(
+                code=AiErrorMessageCode.UNKNOWN,
+                content="The assistant has encountered an error. Please try again.",
+            )

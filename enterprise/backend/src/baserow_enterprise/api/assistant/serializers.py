@@ -18,12 +18,19 @@ class UIContextWorkspaceSerializer(serializers.Serializer):
 
 class UIContextSerializer(serializers.Serializer):
     workspace = UIContextWorkspaceSerializer()
+    timezone = serializers.CharField(
+        required=False,
+        help_text="The timezone of the user, e.g. 'Europe/Amsterdam'.",
+        default="UTC",
+    )
 
 
 class AssistantMessageRequestSerializer(serializers.Serializer):
     content = serializers.CharField(help_text="The content of the message.")
     ui_context = UIContextSerializer(
-        help_text="The UI context when the message was sent."
+        help_text=(
+            "The UI context related to what the user was looking at when the message was sent."
+        )
     )
 
 
@@ -100,3 +107,7 @@ class AssistantMessageSerializer(serializers.Serializer):
         serializer = cls(data=data)
         serializer.is_valid(raise_exception=True)
         return serializer
+
+
+class AssistantChatMessageSerializer(serializers.Serializer):
+    messages = AssistantMessageSerializer(many=True)

@@ -760,7 +760,7 @@ def test_import_export_including_source_table(enterprise_data_fixture):
         synced_properties=["id", f"field_{text_field.id}"],
         source_table_id=source_table.id,
     )
-    data_sync.synced_properties.all().order_by("key")
+    properties = data_sync.synced_properties.all().order_by("key")
     handler.sync_data_sync_table(user=user, data_sync=data_sync)
 
     database_type = application_type_registry.get("database")
@@ -875,7 +875,7 @@ def test_import_export_excluding_source_table(enterprise_data_fixture):
         synced_properties=["id", f"field_{text_field.id}"],
         source_table_id=source_table.id,
     )
-    data_sync.synced_properties.all().order_by("key")
+    properties = data_sync.synced_properties.all().order_by("key")
     handler.sync_data_sync_table(user=user, data_sync=data_sync)
 
     database_type = application_type_registry.get("database")
@@ -962,7 +962,7 @@ def test_sync_data_sync_table_single_select_field(enterprise_data_fixture):
     handler.sync_data_sync_table(user=user, data_sync=data_sync)
 
     fields = specific_iterator(data_sync.table.field_set.all().order_by("id"))
-    fields[0]
+    row_id_field = fields[0]
     single_select_field = fields[1]
     options = single_select_field.select_options.all()
 
@@ -1054,7 +1054,7 @@ def test_sync_data_sync_table_single_select_field_and_making_changes(
     handler.sync_data_sync_table(user=user, data_sync=data_sync)
 
     fields = specific_iterator(data_sync.table.field_set.all().order_by("id"))
-    fields[0]
+    row_id_field = fields[0]
     single_select_field = fields[1]
     options = single_select_field.select_options.all()
 

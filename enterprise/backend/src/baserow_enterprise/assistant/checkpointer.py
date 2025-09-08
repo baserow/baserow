@@ -32,7 +32,17 @@ def get_pool() -> AsyncConnectionPool:
 
 async def get_checkpointer() -> AsyncPostgresSaver:
     """
-    Get the checkpointer for the database.
+    Get the checkpointer for the database. A checkpointer is responsible for saving and
+    loading the state of a graph to/from a persistent storage. In this case, we use
+    Postgres as the storage backend to persist the state of the graph. The state
+    contains the inputs, outputs and intermediate values of the nodes in the graph,
+    allowing us to resume execution from the last saved state in case of failures.
+
+    This function initializes the checkpointer if it hasn't been created yet, setting up
+    the connection pool and serializer. It ensures that the checkpointer is ready to use
+    for saving and loading graph states, by creating the necessary database tables if
+    they do not already exist, or migrating them if the schema has changed, via the
+    `setup` method.
     """
 
     global _checkpointer

@@ -1,5 +1,6 @@
 import aiAssistant from '@baserow_enterprise/services/assistant'
 import { v4 as uuidv4 } from 'uuid'
+import Vue from 'vue'
 
 const MESSAGE_TYPE = {
   MESSAGE: 'ai/message',
@@ -10,18 +11,23 @@ const MESSAGE_TYPE = {
 export const state = () => ({
   currentChatId: null,
   messages: [],
-  loadingMessage: false,
   chats: [],
-  loadingChats: false,
+  isLoadingChats: false,
 })
 
 export const mutations = {
   SET_CURRENT_CHAT_ID(state, id) {
     state.currentChatId = id
   },
+
   SET_CHAT_LOADING(state, { chat, value }) {
-    chat.loading = value
+    Vue.set(chat, 'loading', value)
   },
+
+  SET_ASSISTANT_RUNNING(state, { chat, value }) {
+    Vue.set(chat, 'running', value)
+  },
+
   SET_MESSAGES(state, messages) {
     state.messages = messages
   },
@@ -41,10 +47,6 @@ export const mutations = {
     }
   },
 
-  SET_LOADING_MESSAGE(state, loading) {
-    state.loadingMessage = loading
-  },
-
   CLEAR_MESSAGES(state) {
     state.messages = []
   },
@@ -57,11 +59,12 @@ export const mutations = {
       updatedAt: chat.updated_on,
       status: chat.status,
       loading: false,
+      running: false,
     }))
   },
 
   SET_CHATS_LOADING(state, loading) {
-    state.loadingChats = loading
+    state.isLoadingChats = loading
   },
 
   REMOVE_CHAT(state, chatId) {
@@ -84,6 +87,12 @@ export const mutations = {
 }
 
 export const actions = {
+  reset({ commit }) {
+    commit('CLEAR_MESSAGES')
+    commit('SET_CURRENT_CHAT_ID', null)
+    commit('SET_CHATS', [])
+  },
+
   createChat({ commit }) {
     const id = uuidv4()
     commit('ADD_CHAT', { id, title: '' })
@@ -96,7 +105,6 @@ export const actions = {
   async selectChat({ commit }, chat) {
     commit('SET_CHAT_LOADING', { chat, value: true })
 
-    commit('SET_LOADING_MESSAGE', false)
     try {
       const { messages } = await aiAssistant(this.$client).fetchChatMessages(
         chat.id
@@ -104,7 +112,6 @@ export const actions = {
       commit('SET_CURRENT_CHAT_ID', chat.id)
       commit('SET_MESSAGES', messages)
     } finally {
-      commit('SET_LOADING_MESSAGE', false)
       commit('SET_CHAT_LOADING', { chat, value: false })
     }
   },
@@ -160,6 +167,7 @@ export const actions = {
     if (!state.currentChatId) {
       await dispatch('createChat', workspace.id)
     }
+    const chat = state.chats.find((c) => c.id === state.currentChatId)
 
     const userMessage = {
       id: uuidv4(),
@@ -176,7 +184,7 @@ export const actions = {
       loading: true,
     }
     commit('ADD_MESSAGE', aiMessage)
-    commit('SET_LOADING_MESSAGE', true)
+    commit('SET_ASSISTANT_RUNNING', { chat, value: true })
     const uiContext = { workspace: { id: workspace.id, name: workspace.name } }
 
     try {
@@ -201,7 +209,7 @@ export const actions = {
       })
       throw error
     } finally {
-      commit('SET_LOADING_MESSAGE', false)
+      commit('SET_ASSISTANT_RUNNING', { chat, value: false })
     }
   },
 }
@@ -215,11 +223,9 @@ export const getters = {
 
   messages: (state) => state.messages,
 
-  isLoadingMessage: (state) => state.loadingMessage,
-
   chats: (state) => state.chats,
 
-  isLoadingChats: (state) => state.loadingChats,
+  isLoadingChats: (state) => state.isLoadingChats,
 }
 
 export default {

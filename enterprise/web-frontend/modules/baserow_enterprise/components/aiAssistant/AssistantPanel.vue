@@ -23,14 +23,13 @@
           @select-chat="selectAndCloseChat($event)"
         />
         <a
-          v-if="chats.length"
           ref="chatHistoryButton"
           :title="$t('aiAssistantPanel.history')"
           class="assistant__header-icon"
           @click.prevent="toggleChatHistoryContext"
           ><i class="iconoir-clock-rotate-right"></i
         ></a>
-        <div v-if="chats.length" class="assistant__header-separator"></div>
+        <div class="assistant__header-separator"></div>
         <a
           :title="$t('aiAssistantPanel.close')"
           class="assistant__header-icon"
@@ -53,7 +52,7 @@
     <div class="assistant__footer">
       <AssistantInputMessage
         :context-display="workspace.name"
-        :loading="isLoadingMessage"
+        :running="isAssistantRunning"
         @send-message="handleSendMessage"
       ></AssistantInputMessage>
     </div>
@@ -90,19 +89,24 @@ export default {
     ...mapGetters({
       user: 'auth/getUserObject',
       messages: 'aiAssistant/messages',
-      isLoadingMessage: 'aiAssistant/isLoadingMessage',
-      currentChatId: 'aiAssistant/currentChatId',
       currentChat: 'aiAssistant/currentChat',
       chats: 'aiAssistant/chats',
       isLoadingChats: 'aiAssistant/isLoadingChats',
     }),
+    currentChatId() {
+      return this.currentChat?.id
+    },
     currentChatTitle() {
       return this.currentChat?.title
+    },
+    isAssistantRunning() {
+      return Boolean(this.currentChat?.running)
     },
   },
   watch: {
     workspace: {
       handler(newWorkspace) {
+        this.resetStore()
         this.fetchChats(newWorkspace.id)
       },
       immediate: true,
@@ -148,20 +152,17 @@ export default {
       selectChat: 'aiAssistant/selectChat',
       clearChat: 'aiAssistant/clearChat',
       fetchChats: 'aiAssistant/fetchChats',
+      resetStore: 'aiAssistant/reset',
     }),
 
     async handleSendMessage(text) {
       const message = text
       if (!message || this.loading) return
 
-      try {
-        await this.sendMessage({
-          message,
-          workspace: this.workspace,
-        })
-      } catch (error) {
-        console.trace(error)
-      }
+      await this.sendMessage({
+        message,
+        workspace: this.workspace,
+      })
     },
 
     toggleChatHistoryContext() {

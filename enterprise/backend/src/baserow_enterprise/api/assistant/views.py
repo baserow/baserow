@@ -1,11 +1,10 @@
 import json
 from urllib.request import Request
 
-from django.db import transaction
 from django.http import StreamingHttpResponse
 
 from baserow_premium.license.handler import LicenseHandler
-from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.openapi import OpenApiParameter, OpenApiTypes
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -22,16 +21,15 @@ from baserow.api.serializers import get_example_pagination_serializer_class
 from baserow.core.exceptions import UserNotInWorkspace, WorkspaceDoesNotExist
 from baserow.core.feature_flags import FF_ASSISTANT, feature_flag_is_enabled
 from baserow.core.handler import CoreHandler
-from baserow.core.service import CoreService
 from baserow_enterprise.api.assistant.errors import ERROR_ASSISTANT_CHAT_DOES_NOT_EXIST
 from baserow_enterprise.assistant.exceptions import AssistantChatDoesNotExist
 from baserow_enterprise.assistant.handler import AssistantHandler
-from baserow_enterprise.assistant.models import AssistantChat
 from baserow_enterprise.assistant.operations import ChatAssistantChatOperationType
 from baserow_enterprise.assistant.types import BaseMessage, HumanMessage
 from baserow_enterprise.features import ASSISTANT
 
 from .serializers import (
+    AssistantChatMessageSerializer,
     AssistantChatSerializer,
     AssistantChatsRequestSerializer,
     AssistantMessageRequestSerializer,
@@ -47,6 +45,28 @@ class AssistantChatsView(APIView):
             "List all AI assistant chats for the current user in the specified workspace."
             "\n\nThis is a **advanced/enterprise** feature."
         ),
+        parameters=[
+            OpenApiParameter(
+                name="workspace_id",
+                type=OpenApiTypes.INT,
+                required=True,
+                description="The ID of the workspace.",
+            ),
+            OpenApiParameter(
+                name="limit",
+                type=OpenApiTypes.INT,
+                default=100,
+                required=False,
+                description="The number of results to return per page.",
+            ),
+            OpenApiParameter(
+                name="offset",
+                type=OpenApiTypes.INT,
+                default=0,
+                required=False,
+                description="The initial index from which to return the results.",
+            ),
+        ],
         request=AssistantChatsRequestSerializer,
         responses={
             200: get_example_pagination_serializer_class(AssistantChatSerializer),
@@ -64,7 +84,7 @@ class AssistantChatsView(APIView):
         feature_flag_is_enabled(FF_ASSISTANT, raise_if_disabled=True)
 
         workspace_id = query_params["workspace_id"]
-        workspace = CoreService().get_workspace(request.user, workspace_id)
+        workspace = CoreHandler().get_workspace(workspace_id)
 
         LicenseHandler.raise_if_user_doesnt_have_feature(
             ASSISTANT, request.user, workspace
@@ -77,9 +97,7 @@ class AssistantChatsView(APIView):
             context=workspace,
         )
 
-        chats = AssistantChat.objects.filter(
-            workspace=workspace, user=request.user
-        ).order_by("-updated_on", "id")
+        chats = AssistantHandler().list_chats(request.user, workspace_id)
 
         paginator = LimitOffsetPagination()
         page = paginator.paginate_queryset(chats, request, self)
@@ -115,13 +133,12 @@ class AssistantChatView(APIView):
             AssistantChatDoesNotExist: ERROR_ASSISTANT_CHAT_DOES_NOT_EXIST,
         }
     )
-    @transaction.atomic
     def post(self, request: Request, chat_uuid: str, data) -> StreamingHttpResponse:
         feature_flag_is_enabled(FF_ASSISTANT, raise_if_disabled=True)
 
         ui_context = data["ui_context"]
         workspace_id = ui_context["workspace"]["id"]
-        workspace = CoreService().get_workspace(request.user, workspace_id)
+        workspace = CoreHandler().get_workspace(workspace_id)
         LicenseHandler.raise_if_user_doesnt_have_feature(
             ASSISTANT, request.user, workspace
         )
@@ -135,22 +152,19 @@ class AssistantChatView(APIView):
         handler = AssistantHandler()
         chat, _ = handler.get_or_create_chat(request.user, workspace, chat_uuid)
 
-        async def stream_messages():
-            assistant = handler.get_assistant(chat, HumanMessage(**data))
-
-            async for msg in assistant.astream():
+        async def stream_assistant_messages():
+            async for msg in handler.stream_assistant_messages(
+                chat, HumanMessage(**data)
+            ):
                 yield self._stream_assistant_message(msg)
 
         return StreamingHttpResponse(
-            stream_messages(),
+            stream_assistant_messages(),
             content_type="text/event-stream",
         )
 
     def _stream_assistant_message(self, message: BaseMessage) -> str:
-        """Stream a message to the client."""
-
         message = AssistantMessageSerializer.from_assistant_message(message)
-
         return json.dumps(message.data) + "\n\n"
 
     @extend_schema(
@@ -162,7 +176,7 @@ class AssistantChatView(APIView):
         ),
         request=AssistantMessageRequestSerializer,
         responses={
-            200: None,  # TODO
+            200: AssistantChatMessageSerializer,
             400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
         },
     )
@@ -191,12 +205,14 @@ class AssistantChatView(APIView):
         )
 
         messages = handler.get_chat_messages(chat)
-
-        return Response(
-            {
+        serializer = AssistantChatMessageSerializer(
+            data={
                 "messages": [
                     AssistantMessageSerializer.from_assistant_message(msg).data
                     for msg in messages
                 ],
             }
         )
+        serializer.is_valid(raise_exception=True)
+
+        return Response(serializer.data)

@@ -6,7 +6,7 @@ Workspace → Database (1:N) → Tables (1:N) → Fields, Rows, Views (1:N each)
     Views → Filters, Sorts, GroupBy, ConditionalColors (1:N each)
 
 ### Key Relationships:
-- Fields define row schema; Views present table data
+- Fields define table schema; Views present table data
 - View configs (Filters/Sorts/GroupBy/Colors) reference Fields to transform row display
 - All rows conform to table's field schema
 - link_row fields create relationships between tables (requires target table)

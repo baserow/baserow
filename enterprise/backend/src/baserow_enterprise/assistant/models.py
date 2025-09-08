@@ -41,5 +41,10 @@ class AssistantChat(BigAutoFieldMixin, CreatedAndUpdatedOnMixin, models.Model):
         max_length=20, choices=Status.choices, default=Status.IDLE
     )
 
+    class Meta:
+        indexes = [
+            models.Index(fields=["user", "workspace", "-updated_on"]),
+        ]
+
     def __str__(self):
         return f"Chat: {self.title} ({self.user_id})"

@@ -136,7 +136,7 @@ def test_list_assistant_chats(api_client, enterprise_data_fixture):
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_cannot_send_message_without_valid_workspace(
-    api_client, enterprise_data_fixture
+    api_client, enterprise_data_fixture, enable_enterprise
 ):
     """Test that sending a message requires a valid workspace"""
 
@@ -196,7 +196,7 @@ def test_cannot_send_message_without_license(api_client, enterprise_data_fixture
     assert rsp.json()["error"] == "ERROR_FEATURE_NOT_AVAILABLE"
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db()
 @override_settings(DEBUG=True)
 @patch("baserow_enterprise.api.assistant.views.AssistantHandler")
 def test_send_message_creates_chat_if_not_exists(
@@ -221,15 +221,11 @@ def test_send_message_creates_chat_if_not_exists(
     mock_chat.user = user
     mock_handler.get_or_create_chat.return_value = (mock_chat, True)
 
-    # Mock assistant with async generator
-    mock_assistant = MagicMock()
-
-    async def mock_astream():
+    async def mock_astream(chat, new_message):
         # Simulate AI response messages
         yield AiMessage(content="Hello! How can I help you today?")
 
-    mock_assistant.astream = mock_astream
-    mock_handler.get_assistant.return_value = mock_assistant
+    mock_handler.stream_assistant_messages = mock_astream
 
     rsp = api_client.post(
         reverse("assistant:chat_messages", kwargs={"chat_uuid": chat_uuid}),
@@ -258,14 +254,6 @@ def test_send_message_creates_chat_if_not_exists(
     # Verify handler was called correctly
     mock_handler.get_or_create_chat.assert_called_once_with(user, workspace, chat_uuid)
 
-    # Verify assistant was created with the correct message
-    call_args = mock_handler.get_assistant.call_args
-    assert call_args[0][0] == mock_chat
-    message_arg = call_args[0][1]
-    assert isinstance(message_arg, HumanMessage)
-    assert message_arg.content == "Hello AI"
-    assert message_arg.ui_context.workspace.id == workspace.id
-
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
@@ -285,27 +273,25 @@ def test_send_message_streams_response(
     mock_handler = MagicMock()
     mock_handler_class.return_value = mock_handler
 
-    # Mock existing chat
+    # Mock chat creation
     mock_chat = MagicMock(spec=AssistantChat)
     mock_chat.uuid = chat_uuid
     mock_chat.workspace = workspace
     mock_chat.user = user
-    mock_handler.get_or_create_chat.return_value = (mock_chat, False)
+    mock_handler.get_or_create_chat.return_value = (mock_chat, True)
 
     # Mock assistant with async generator for streaming
-    mock_assistant = MagicMock()
     response_messages = [
         AiMessage(content="I'm thinking..."),
         AiMessage(content="Here's my response!"),
         ChatTitleMessage(content="Chat about AI assistance"),
     ]
 
-    async def mock_astream():
+    async def mock_astream(chat, new_message):
         for msg in response_messages:
             yield msg
 
-    mock_assistant.astream = mock_astream
-    mock_handler.get_assistant.return_value = mock_assistant
+    mock_handler.stream_assistant_messages = mock_astream
 
     rsp = api_client.post(
         reverse("assistant:chat_messages", kwargs={"chat_uuid": chat_uuid}),

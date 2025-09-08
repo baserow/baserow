@@ -196,7 +196,7 @@ def test_audit_log_export_filters_work_correctly(
         workspace_1 = CreateWorkspaceActionType.do(user, "workspace 1").workspace
 
     with freeze_time("2023-01-01 12:00:10"):
-        CreateWorkspaceActionType.do(user, "workspace 2").workspace
+        workspace_2 = CreateWorkspaceActionType.do(user, "workspace 2").workspace
 
     csv_settings = {
         "csv_column_separator": ",",

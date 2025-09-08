@@ -2,10 +2,7 @@
   <div v-if="hasPermission">
     <li
       class="tree__item"
-      :class="{
-        'tree__item--loading': loading,
-        'tree__action--deactivated': deactivated,
-      }"
+      :class="{ 'tree__action--deactivated': deactivated }"
     >
       <div class="tree__action">
         <a
@@ -52,11 +49,6 @@ export default {
       type: Object,
       required: true,
     },
-  },
-  data() {
-    return {
-      loading: false,
-    }
   },
   computed: {
     deactivated() {

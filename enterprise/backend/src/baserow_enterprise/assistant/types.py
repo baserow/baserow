@@ -23,6 +23,9 @@ class WorkspaceUIContext(BaseModel):
 
 class UIContext(BaseModel):
     workspace: WorkspaceUIContext
+    timezone: Optional[str] = Field(
+        default="UTC", description="The timezone of the user, e.g. 'Europe/Amsterdam'"
+    )
 
 
 class BaseMessage(BaseModel):

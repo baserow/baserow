@@ -18,7 +18,7 @@ from baserow_enterprise.assistant.utils.helpers import AiMessage, get_buffer_str
 class RootNode(AssistantNode):
     def run(self, state: AssistantState, config: RunnableConfig):
         ui_context = self._get_ui_context(state)
-        timezone = self.user.profile.timezone or "UTC"
+        timezone = ui_context.timezone if ui_context else "UTC"
         prompt = ChatPromptTemplate.from_messages(
             [
                 ("system", ROOT_SYSTEM_PROMPT),
