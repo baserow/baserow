@@ -7,7 +7,7 @@ if TYPE_CHECKING:
     from baserow.contrib.automation.models import Automation
     from baserow.contrib.builder.models import Builder
     from baserow.contrib.dashboard.models import Dashboard
-    from baserow.contrib.database.models import Database, Table
+    from baserow.contrib.database.models import Database, Table, View
 
 # A scope object needs to have a related registered ScopeObjectType
 ScopeObject = Any
@@ -24,7 +24,7 @@ Actor = Any
 
 # Objects which can be exported and imported in a `SerializationProcessorType`.
 SerializationProcessorScope = Union[
-    "Database", "Table", "Builder", "Dashboard", "Automation"
+    "Database", "Table", "View", "Builder", "Dashboard", "Automation"
 ]
 
 

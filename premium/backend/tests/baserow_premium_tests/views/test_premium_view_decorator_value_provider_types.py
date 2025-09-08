@@ -12,6 +12,7 @@ from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import ViewDecoration
 from baserow.contrib.database.views.registries import view_type_registry
+from baserow.core.registries import ImportExportConfig
 from baserow.test_utils.helpers import AnyStr
 
 
@@ -115,9 +116,16 @@ def test_import_export_grid_view_w_decorator(data_fixture):
     }
 
     grid_view_type = view_type_registry.get("grid")
-    serialized = grid_view_type.export_serialized(grid_view, None, None, None)
+    serialized = grid_view_type.export_serialized(
+        grid_view, ImportExportConfig(include_permission_data=False), None, None, None
+    )
     imported_grid_view = grid_view_type.import_serialized(
-        grid_view.table, serialized, id_mapping, None, None
+        grid_view.table,
+        serialized,
+        ImportExportConfig(include_permission_data=False),
+        id_mapping,
+        None,
+        None,
     )
 
     imported_view_decorations = imported_grid_view.viewdecoration_set.all()
