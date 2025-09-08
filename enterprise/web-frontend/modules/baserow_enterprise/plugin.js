@@ -5,7 +5,7 @@ import {
 } from '@baserow_enterprise/permissionManagerTypes'
 import { AuthProvidersType, AuditLogType } from '@baserow_enterprise/adminTypes'
 import authProviderAdminStore from '@baserow_enterprise/store/authProviderAdmin'
-import aiAssistantStore from '@baserow_enterprise/store/aiAssistant'
+import aiAssistantStore from '@baserow_enterprise/store/assistant'
 import { PasswordAuthProviderType as CorePasswordAuthProviderType } from '@baserow/modules/core/authProviderTypes'
 import { MadeWithBaserowBuilderPageDecoratorType } from '@baserow_enterprise/builderPageDecoratorTypes'
 import {
@@ -79,7 +79,7 @@ import {
   BuilderBrandingPaidFeature,
   BuilderCustomCodePaidFeature,
   BuilderFileInputElementPaidFeature,
-  AiAssistantPaidFeature,
+  AssistantPaidFeature,
 } from '@baserow_enterprise/paidFeatures'
 import { FieldPermissionsContextItemType } from '@baserow_enterprise/fieldContextItemTypes'
 import { CustomCodeBuilderSettingType } from '@baserow_enterprise/builderSettingTypes'
@@ -224,7 +224,7 @@ export default (context) => {
     'paidFeature',
     new FieldLevelPermissionsPaidFeature(context)
   )
-  app.$registry.register('paidFeature', new AiAssistantPaidFeature(context))
+  app.$registry.register('paidFeature', new AssistantPaidFeature(context))
   app.$registry.register('paidFeature', new SupportPaidFeature(context))
   app.$registry.register('paidFeature', new BuilderBrandingPaidFeature(context))
   app.$registry.register(

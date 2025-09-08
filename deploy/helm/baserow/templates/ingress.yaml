@@ -28,7 +28,7 @@ spec:
                 name: {{ include "baserow.global.fullname" . }}-baserow-backend-asgi
                 port:
                   number: 80
-          - path: /ai-assistant/
+          - path: /assistant/
             pathType: Prefix
             backend:
               service:

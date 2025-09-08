@@ -1,0 +1,2 @@
+class AssistantChatDoesNotExist(Exception):
+    pass

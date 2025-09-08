@@ -156,9 +156,9 @@ export class FieldLevelPermissionsPaidFeature extends PaidFeature {
   }
 }
 
-export class AiAssistantPaidFeature extends PaidFeature {
+export class AssistantPaidFeature extends PaidFeature {
   static getType() {
-    return 'ai_assistant'
+    return 'assistant'
   }
 
   getPlan() {
@@ -174,7 +174,7 @@ export class AiAssistantPaidFeature extends PaidFeature {
   }
 
   getImage() {
-    return '/img/features/ai_assistant.png'
+    return '/img/features/assistant.png'
   }
 
   getContent() {

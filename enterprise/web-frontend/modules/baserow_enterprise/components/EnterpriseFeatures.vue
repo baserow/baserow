@@ -52,7 +52,7 @@
       {{ $t('enterpriseFeatures.fieldLevelPermissions') }}
     </li>
     <li
-      v-if="!hiddenFeatures.includes(enterpriseFeatures.AI_ASSISTANT)"
+      v-if="!hiddenFeatures.includes(enterpriseFeatures.ASSISTANT)"
       class="premium-features__feature"
     >
       <i class="iconoir-sparks premium-features__feature-icon"></i>

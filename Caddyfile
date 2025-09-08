@@ -28,7 +28,7 @@
             reverse_proxy {$PRIVATE_BACKEND_URL:localhost:8000}
         }
 
-        handle /ai-assistant/* {
+        handle /assistant/* {
             reverse_proxy {$PRIVATE_BACKEND_URL:localhost:8000}
         }
 

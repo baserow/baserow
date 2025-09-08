@@ -10,9 +10,9 @@ import EnterpriseSettingsOverrideDashboardHelp from '@baserow_enterprise/compone
 import EnterpriseLogo from '@baserow_enterprise/components/EnterpriseLogo'
 import { DatabaseApplicationType } from '@baserow/modules/database/applicationTypes'
 import ExportWorkspaceModalWarning from '@baserow_enterprise/components/ExportWorkspaceModalWarning'
-import AiAssistantSidebarItem from '@baserow_enterprise/components/aiAssistant/AiAssistantSidebarItem'
-import AiAssistantPanel from '@baserow_enterprise/components/aiAssistant/AiAssistantPanel'
-import { FF_AI_ASSISTANT } from '@baserow/modules/core/plugins/featureFlags'
+import AssistantSidebarItem from '@baserow_enterprise/components/aiAssistant/AssistantSidebarItem'
+import AssistantPanel from '@baserow_enterprise/components/aiAssistant/AssistantPanel'
+import { FF_ASSISTANT } from '@baserow/modules/core/plugins/featureFlags'
 
 export class EnterprisePlugin extends BaserowPlugin {
   static getType() {
@@ -21,8 +21,8 @@ export class EnterprisePlugin extends BaserowPlugin {
 
   getSidebarWorkspaceComponents(workspace) {
     const sidebarItems = []
-    if (this.app.$featureFlagIsEnabled(FF_AI_ASSISTANT)) {
-      sidebarItems.push(AiAssistantSidebarItem)
+    if (this.app.$featureFlagIsEnabled(FF_ASSISTANT)) {
+      sidebarItems.push(AssistantSidebarItem)
     }
     if (!this.app.$config.BASEROW_DISABLE_SUPPORT) {
       sidebarItems.push(ChatwootSupportSidebarWorkspace)
@@ -49,8 +49,8 @@ export class EnterprisePlugin extends BaserowPlugin {
 
   getRightSidebarWorkspaceComponents(workspace) {
     const rightSidebarItems = []
-    if (this.app.$featureFlagIsEnabled(FF_AI_ASSISTANT)) {
-      rightSidebarItems.push(AiAssistantPanel)
+    if (this.app.$featureFlagIsEnabled(FF_ASSISTANT)) {
+      rightSidebarItems.push(AssistantPanel)
     }
     return rightSidebarItems
   }

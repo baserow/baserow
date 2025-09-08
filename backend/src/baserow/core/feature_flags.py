@@ -3,7 +3,7 @@ from django.conf import settings
 from baserow.core.exceptions import FeatureDisabledException
 
 FF_AUTOMATION = "automation"
-FF_AI_ASSISTANT = "ai_assistant"
+FF_ASSISTANT = "assistant"
 FF_ENABLE_ALL = "*"
 
 
