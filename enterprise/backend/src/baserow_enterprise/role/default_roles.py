@@ -157,12 +157,14 @@ from baserow.contrib.database.views.operations import (
     CreateViewFilterOperationType,
     CreateViewGroupByOperationType,
     CreateViewOperationType,
+    CreateViewRowOperationType,
     CreateViewSortOperationType,
     DeleteViewDecorationOperationType,
     DeleteViewFilterGroupOperationType,
     DeleteViewFilterOperationType,
     DeleteViewGroupByOperationType,
     DeleteViewOperationType,
+    DeleteViewRowOperationType,
     DeleteViewSortOperationType,
     DuplicateViewOperationType,
     ListAggregationsViewOperationType,
@@ -189,6 +191,7 @@ from baserow.contrib.database.views.operations import (
     UpdateViewGroupByOperationType,
     UpdateViewOperationType,
     UpdateViewPublicOperationType,
+    UpdateViewRowOperationType,
     UpdateViewSlugOperationType,
     UpdateViewSortOperationType,
 )
@@ -408,6 +411,9 @@ default_roles[EDITOR_ROLE_UID].extend(
         ListTeamSubjectsOperationType,
         ReadTeamSubjectOperationType,
         CanReceiveNotificationOnSubmitFormViewOperationType,
+        CreateViewRowOperationType,
+        UpdateViewRowOperationType,
+        DeleteViewRowOperationType,
     ]
 )
 default_roles[BUILDER_ROLE_UID].extend(
