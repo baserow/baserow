@@ -51,6 +51,7 @@ from baserow.core.services.types import DispatchResult, FormulaToResolve, Servic
 from baserow.version import VERSION as BASEROW_VERSION
 
 from ...automation.nodes.utils import get_periodic_trigger_payload
+from ...automation.workflows.constants import WorkflowState
 from .constants import (
     BODY_TYPE,
     HTTP_METHOD,
@@ -1301,12 +1302,7 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, ServiceType):
 
         periodic_services = (
             CorePeriodicService.objects.filter(query_conditions)
-            .filter(
-                Q(
-                    automation_workflow_node__workflow__published=True,
-                    automation_workflow_node__workflow__paused=False,
-                )
-            )
+            .filter(automation_workflow_node__workflow__state=WorkflowState.LIVE)
             .select_related(
                 "automation_workflow_node__workflow__automation__workspace",
                 "automation_workflow_node__workflow",

@@ -11,6 +11,7 @@ from pytest_unordered import unordered
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.node_types import CorePeriodicTriggerNodeType
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
+from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.contrib.integrations.core.constants import (
     PERIODIC_INTERVAL_DAY,
     PERIODIC_INTERVAL_HOUR,
@@ -29,9 +30,7 @@ def test_periodic_trigger_service_type_generate_schema(data_fixture):
     user = data_fixture.create_user()
     automation = data_fixture.create_automation_application(user=user)
     workflow = data_fixture.create_automation_workflow(
-        automation=automation,
-        published=True,
-        paused=False,
+        automation=automation, state=WorkflowState.LIVE
     )
     trigger_node = data_fixture.create_periodic_trigger_node(
         workflow=workflow,
@@ -53,9 +52,7 @@ def test_periodic_trigger_node_creation_and_property_updates(data_fixture):
     user = data_fixture.create_user()
     automation = data_fixture.create_automation_application(user=user)
     workflow = data_fixture.create_automation_workflow(
-        automation=automation,
-        published=True,
-        paused=False,
+        automation=automation, state=WorkflowState.LIVE
     )
 
     node_handler = AutomationNodeHandler()
@@ -106,9 +103,7 @@ def test_call_periodic_services_that_are_not_published(mock_run_workflow, data_f
     user = data_fixture.create_user()
     automation = data_fixture.create_automation_application(user=user)
     workflow = data_fixture.create_automation_workflow(
-        automation=automation,
-        published=False,
-        paused=False,
+        automation=automation, state=WorkflowState.DRAFT
     )
     data_fixture.create_periodic_trigger_node(
         workflow=workflow,
@@ -133,9 +128,7 @@ def test_call_periodic_services_that_are_paused(mock_run_workflow, data_fixture)
     user = data_fixture.create_user()
     automation = data_fixture.create_automation_application(user=user)
     workflow = data_fixture.create_automation_workflow(
-        automation=automation,
-        published=True,
-        paused=True,
+        automation=automation, state=WorkflowState.PAUSED
     )
     data_fixture.create_periodic_trigger_node(
         workflow=workflow,
@@ -160,9 +153,7 @@ def test_call_periodic_services_that_are_locked(mock_run_workflow, data_fixture)
     user = data_fixture.create_user()
     automation = data_fixture.create_automation_application(user=user)
     workflow = data_fixture.create_automation_workflow(
-        automation=automation,
-        published=True,
-        paused=False,
+        automation=automation, state=WorkflowState.LIVE
     )
     trigger = data_fixture.create_periodic_trigger_node(
         workflow=workflow,
@@ -192,9 +183,7 @@ def test_call_multiple_periodic_services_that_are_due(mock_run_workflow, data_fi
     user = data_fixture.create_user()
     automation = data_fixture.create_automation_application(user=user)
     workflow_1 = data_fixture.create_automation_workflow(
-        automation=automation,
-        published=True,
-        paused=False,
+        automation=automation, state=WorkflowState.LIVE
     )
     data_fixture.create_periodic_trigger_node(
         workflow=workflow_1,
@@ -204,9 +193,7 @@ def test_call_multiple_periodic_services_that_are_due(mock_run_workflow, data_fi
         },
     )
     workflow_2 = data_fixture.create_automation_workflow(
-        automation=automation,
-        published=True,
-        paused=False,
+        automation=automation, state=WorkflowState.LIVE
     )
     data_fixture.create_periodic_trigger_node(
         workflow=workflow_2,
@@ -594,9 +581,7 @@ def test_call_periodic_services_that_are_due(
     user = data_fixture.create_user()
     automation = data_fixture.create_automation_application(user=user)
     workflow = data_fixture.create_automation_workflow(
-        automation=automation,
-        published=True,
-        paused=False,
+        automation=automation, state=WorkflowState.LIVE
     )
     trigger = data_fixture.create_periodic_trigger_node(
         workflow=workflow,

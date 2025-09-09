@@ -4,6 +4,7 @@ from django.utils import timezone
 
 import pytest
 
+from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.contrib.automation.workflows.signals import automation_workflow_updated
 from baserow.contrib.integrations.core.constants import PERIODIC_INTERVAL_MINUTE
 from baserow.core.services.models import Service
@@ -31,8 +32,7 @@ def test_periodic_trigger_receiver_with_allow_test_run_until(
     automation = data_fixture.create_automation_application(user=user)
     workflow = data_fixture.create_automation_workflow(
         automation=automation,
-        published=False,
-        paused=True,
+        state=WorkflowState.PAUSED,
         allow_test_run_until=timezone.now() + timezone.timedelta(hours=1),
     )
     data_fixture.create_periodic_trigger_node(
