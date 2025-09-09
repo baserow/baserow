@@ -290,7 +290,7 @@ class AutomationNodeTriggerType(AutomationNodeType):
                 workflow.save(update_fields=["allow_test_run_until"])
                 save_sample_data = True
 
-            if workflow.simulate_until_node and not workflow.published:
+            if workflow.simulate_until_node and not workflow.is_published:
                 workflow.simulate_until_node = None
                 workflow.save(update_fields=["simulate_until_node"])
                 save_sample_data = True

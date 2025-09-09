@@ -358,7 +358,7 @@ def test_trigger_node_dispatch_returns_event_payload_if_not_simulated(data_fixtu
     service = data_fixture.create_local_baserow_rows_created_service(
         table=table,
     )
-    workflow = data_fixture.create_automation_workflow(published=True)
+    workflow = data_fixture.create_automation_workflow(state=WorkflowState.LIVE)
     node = data_fixture.create_local_baserow_rows_created_trigger_node(
         workflow=workflow, service=service
     )
@@ -379,7 +379,7 @@ def test_trigger_node_dispatch_returns_sample_data_if_simulated(data_fixture):
     )
     service.sample_data = {"foo": "bar"}
     service.save()
-    workflow = data_fixture.create_automation_workflow(published=True)
+    workflow = data_fixture.create_automation_workflow(state=WorkflowState.LIVE)
     node = data_fixture.create_local_baserow_rows_created_trigger_node(
         workflow=workflow, service=service
     )

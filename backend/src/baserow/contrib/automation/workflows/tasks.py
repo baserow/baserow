@@ -11,7 +11,10 @@ def run_workflow(
     workflow_id: int,
     is_test_run: bool,
     event_payload: Optional[Union[Dict, List[Dict]]],
+    simulate_until_node_id: Optional[int] = None,
 ):
     from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 
-    AutomationWorkflowHandler().start_workflow(workflow_id, is_test_run, event_payload)
+    AutomationWorkflowHandler().start_workflow(
+        workflow_id, is_test_run, event_payload, simulate_until_node_id
+    )
