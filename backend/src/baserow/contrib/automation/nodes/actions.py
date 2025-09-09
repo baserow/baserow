@@ -303,7 +303,8 @@ class DuplicateAutomationNodeActionType(UndoableActionType):
         automation_id: int
         automation_name: str
         workflow_id: int
-        source_node_id: int
+        node_id: int  # The source node id
+        node_type: str  # The source node type
         source_node_next_nodes_values: List[NextAutomationNodeValues]
         duplicated_node_id: int
         duplicated_node_next_nodes_values: List[NextAutomationNodeValues]
@@ -324,6 +325,7 @@ class DuplicateAutomationNodeActionType(UndoableActionType):
                 workflow.automation.name,
                 workflow.id,
                 source_node_id,
+                source_node.get_type().type,
                 duplication.source_node_next_nodes_values,
                 duplication.duplicated_node.id,
                 duplication.duplicated_node_next_nodes_values,
