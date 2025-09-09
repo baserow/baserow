@@ -16,14 +16,12 @@ def test_run_workflow_with_create_row_action(data_fixture):
     trigger_table = data_fixture.create_database_table(database=database)
     action_table = data_fixture.create_database_table(database=database)
     action_table_field = data_fixture.create_text_field(table=action_table)
-    workflow = data_fixture.create_automation_workflow(user=user)
-    data_fixture.create_local_baserow_rows_created_trigger_node(
-        workflow=workflow,
-        service=data_fixture.create_local_baserow_rows_created_service(
-            table=trigger_table,
-            integration=integration,
-        ),
-    )
+    workflow = data_fixture.create_automation_workflow(user)
+    trigger = workflow.get_trigger()
+    trigger_service = trigger.service.specific
+    trigger_service.table = trigger_table
+    trigger_service.integration = integration
+    trigger_service.save()
     action_node = data_fixture.create_local_baserow_create_row_action_node(
         workflow=workflow,
         service=data_fixture.create_local_baserow_upsert_row_service(
@@ -56,14 +54,12 @@ def test_run_workflow_with_update_row_action(data_fixture):
     action_table_row = action_table.get_model().objects.create(
         **{f"field_{action_table_field.id}": "Horse"}
     )
-    workflow = data_fixture.create_automation_workflow(user=user)
-    data_fixture.create_local_baserow_rows_created_trigger_node(
-        workflow=workflow,
-        service=data_fixture.create_local_baserow_rows_created_service(
-            table=trigger_table,
-            integration=integration,
-        ),
-    )
+    workflow = data_fixture.create_automation_workflow(user)
+    trigger = workflow.get_trigger()
+    trigger_service = trigger.service.specific
+    trigger_service.table = trigger_table
+    trigger_service.integration = integration
+    trigger_service.save()
     action_node = data_fixture.create_local_baserow_update_row_action_node(
         workflow=workflow,
         service=data_fixture.create_local_baserow_upsert_row_service(
@@ -99,13 +95,11 @@ def test_run_workflow_with_delete_row_action(data_fixture):
     workflow = data_fixture.create_automation_workflow(
         user=user, state=WorkflowState.LIVE
     )
-    data_fixture.create_local_baserow_rows_created_trigger_node(
-        workflow=workflow,
-        service=data_fixture.create_local_baserow_rows_created_service(
-            table=trigger_table,
-            integration=integration,
-        ),
-    )
+    trigger = workflow.get_trigger()
+    trigger_service = trigger.service.specific
+    trigger_service.table = trigger_table
+    trigger_service.integration = integration
+    trigger_service.save()
     action_node = data_fixture.create_local_baserow_delete_row_action_node(
         workflow=workflow,
         service=data_fixture.create_local_baserow_delete_row_service(
@@ -134,13 +128,11 @@ def test_run_workflow_with_router_action(data_fixture):
     workflow = data_fixture.create_automation_workflow(
         user=user, state=WorkflowState.LIVE
     )
-    data_fixture.create_local_baserow_rows_created_trigger_node(
-        workflow=workflow,
-        service=data_fixture.create_local_baserow_rows_created_service(
-            table=trigger_table,
-            integration=integration,
-        ),
-    )
+    trigger = workflow.get_trigger()
+    trigger_service = trigger.service.specific
+    trigger_service.table = trigger_table
+    trigger_service.integration = integration
+    trigger_service.save()
     router_service = data_fixture.create_core_router_service()
     router_node = data_fixture.create_core_router_action_node(
         workflow=workflow, service=router_service

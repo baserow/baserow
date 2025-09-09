@@ -81,15 +81,11 @@ SAMPLE_WORKFLOW_IMPORT_REFERENCE = {
 def test_automation_export_serialized(data_fixture):
     user = data_fixture.create_user(email="test@baserow.io")
     automation = data_fixture.create_automation_application(user=user)
-    integration = data_fixture.create_local_baserow_integration(
-        authorized_user=user, application=automation
-    )
-    workflow = data_fixture.create_automation_workflow(automation=automation)
-    trigger = data_fixture.create_local_baserow_rows_created_trigger_node(
-        workflow=workflow
-    )
+    workflow = data_fixture.create_automation_workflow(user, automation=automation)
+    trigger = workflow.get_trigger(specific=False)
+    integration = trigger.service.specific.integration
     first_action = data_fixture.create_local_baserow_create_row_action_node(
-        workflow=workflow, previous_node=trigger, previous_node_id=trigger.id
+        workflow=workflow
     )
     serialized = AutomationApplicationType().export_serialized(
         automation, ImportExportConfig(include_permission_data=True)
@@ -128,7 +124,7 @@ def test_automation_export_serialized(data_fixture):
                         "previous_node_output": trigger.previous_node_output,
                         "service": {
                             "id": trigger.service_id,
-                            "integration_id": trigger.service.specific.integration.id,
+                            "integration_id": trigger.service.specific.integration_id,
                             "type": "local_baserow_rows_created",
                             "table_id": trigger.service.specific.table_id,
                         },

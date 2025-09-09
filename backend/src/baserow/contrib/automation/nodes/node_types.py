@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from django.contrib.auth.models import AbstractUser
 from django.db.models import CharField, Q, QuerySet
@@ -48,6 +48,7 @@ from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowRowsUpdatedTriggerServiceType,
     LocalBaserowUpsertRowServiceType,
 )
+from baserow.core.db import specific_iterator
 from baserow.core.registry import Instance
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
@@ -129,22 +130,30 @@ class CoreRouterActionNodeType(AutomationNodeActionNodeType):
     service_type = CoreRouterServiceType.type
 
     def get_output_nodes(
-        self, node: CoreRouterActionNode
-    ) -> QuerySet[AutomationActionNode]:
+        self, node: CoreRouterActionNode, specific: bool = False
+    ) -> Union[List[AutomationActionNode], QuerySet[AutomationActionNode]]:
         """
         Given a router node, this method returns the output nodes that are
         along the edges of the router node.
         :param node: The router node instance.
-        :return: A QuerySet of output nodes that are connected to the
+        :param specific: Whether to return the specific node instances.
+        :return: An iterable of output nodes that are connected to the
             router node's edges.
         """
 
-        return node.workflow.automation_workflow_nodes.filter(
-            previous_node_id=node.id,
-            previous_node_output__in=node.service.specific.edges.values_list(
-                Cast("uid", output_field=CharField()), flat=True
-            ),
+        queryset = (
+            node.workflow.automation_workflow_nodes.select_related("content_type")
+            .filter(previous_node_id=node.id)
+            .filter(
+                Q(previous_node_output="")
+                | Q(
+                    previous_node_output__in=node.service.specific.edges.values_list(
+                        Cast("uid", output_field=CharField()), flat=True
+                    )
+                ),
+            )
         )
+        return specific_iterator(queryset) if specific else queryset
 
     def before_delete(self, node: CoreRouterActionNode):
         output_nodes_count = self.get_output_nodes(node).count()

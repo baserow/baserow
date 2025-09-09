@@ -14,6 +14,8 @@ from baserow.contrib.automation.nodes.node_types import AutomationNodeType
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.nodes.types import (
     AutomationNodeDict,
+    AutomationNodeDuplication,
+    NextAutomationNodeValues,
     UpdatedAutomationNode,
 )
 from baserow.core.cache import local_cache
@@ -151,6 +153,30 @@ class AutomationNodeHandler:
 
         AutomationNode.objects.filter(id__in=[n.id for n in nodes]).update(
             **update_kwargs
+        )
+
+    def update_next_nodes_values(
+        self,
+        next_node_values: List[NextAutomationNodeValues],
+    ):
+        """
+        Update the next nodes values for a list of nodes.
+
+        :param next_node_values: The new next node values.
+        """
+
+        next_node_updates = []
+        next_nodes = AutomationNode.objects.filter(
+            pk__in=[next_node_value["id"] for next_node_value in next_node_values]
+        )
+        next_nodes_grouped = {node.id: node for node in next_nodes}
+        for next_node_value in next_node_values:
+            next_node = next_nodes_grouped.get(next_node_value["id"])
+            next_node.previous_node_id = next_node_value["previous_node_id"]
+            next_node.previous_node_output = next_node_value["previous_node_output"]
+            next_node_updates.append(next_node)
+        AutomationNode.objects.bulk_update(
+            next_node_updates, ["previous_node_id", "previous_node_output"]
         )
 
     def create_node(
@@ -300,37 +326,66 @@ class AutomationNodeHandler:
 
         return full_order
 
-    def duplicate_node(self, node: AutomationNode) -> AutomationNode:
+    def duplicate_node(self, source_node: AutomationNode) -> AutomationNodeDuplication:
         """
         Duplicates an existing AutomationNode instance.
 
-        :param node: The AutomationNode that is being duplicated.
+        :param source_node: The AutomationNode that is being duplicated.
         :raises ValueError: When the provided node is not an instance of
             AutomationNode.
-        :return: The duplicated node
+        :return: The `AutomationNodeDuplication` dataclass containing the source
+            node, its next nodes values and the duplicated node.
         """
 
-        exported_node = self.export_node(node)
+        exported_node = self.export_node(source_node)
 
-        exported_node["order"] = AutomationNode.get_last_order(node.workflow)
+        # Does `node` have any next nodes with no output? If so, we need to ensure
+        # their `previous_node_id` are updated to the new duplicated node.
+        source_node_next_nodes = list(source_node.get_next_nodes(output_uid=""))
+        source_node_next_nodes_values = [
+            NextAutomationNodeValues(
+                id=nn.id,
+                previous_node_id=nn.previous_node_id,
+                previous_node_output=nn.previous_node_output,
+            )
+            for nn in source_node_next_nodes
+        ]
+
+        exported_node["order"] = AutomationNode.get_last_order(source_node.workflow)
         # The duplicated node can't have the same output as the source node.
         exported_node["previous_node_output"] = ""
-        # The duplicated node can't have the same `previous_node_id` as the source node,
-        # so we find the last node in the workflow and parent scope.
-        exported_node["previous_node_id"] = AutomationWorkflow.get_last_node_id(
-            node.workflow, node.parent_node_id
-        )
+        # The duplicated node will follow `node`.
+        exported_node["previous_node_id"] = source_node.id
 
         id_mapping = defaultdict(lambda: MirrorDict())
         id_mapping["automation_workflow_nodes"] = MirrorDict()
 
-        new_node_clone = self.import_node(
-            node.workflow,
+        duplicated_node = self.import_node(
+            source_node.workflow,
             exported_node,
             id_mapping=id_mapping,
         )
 
-        return new_node_clone
+        # Update the nodes that follow the original node to now follow the new clone.
+        self.update_previous_node(duplicated_node, source_node_next_nodes)
+
+        # Get the next nodes without outputs of the duplicated node.
+        duplicated_node_next_nodes = list(duplicated_node.get_next_nodes(output_uid=""))
+        duplicated_node_next_nodes_values = [
+            NextAutomationNodeValues(
+                id=nn.id,
+                previous_node_id=nn.previous_node_id,
+                previous_node_output=nn.previous_node_output,
+            )
+            for nn in duplicated_node_next_nodes
+        ]
+
+        return AutomationNodeDuplication(
+            source_node=source_node,
+            source_node_next_nodes_values=source_node_next_nodes_values,
+            duplicated_node=duplicated_node,
+            duplicated_node_next_nodes_values=duplicated_node_next_nodes_values,
+        )
 
     def export_node(
         self,

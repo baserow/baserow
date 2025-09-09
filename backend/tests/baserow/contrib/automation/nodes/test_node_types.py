@@ -7,6 +7,7 @@ import pytest
 from baserow.contrib.automation.automation_dispatch_context import (
     AutomationDispatchContext,
 )
+from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.node_types import AutomationNodeTriggerType
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.workflows.constants import WorkflowState
@@ -33,17 +34,17 @@ def test_automation_node_type_is_replaceable_with():
 def test_automation_service_node_trigger_type_on_event(mock_run_workflow, data_fixture):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
-    service = data_fixture.create_local_baserow_rows_created_service(
-        table=table,
+    original_workflow = data_fixture.create_automation_workflow(
+        user, trigger_service_kwargs={"table": table}
     )
-    original_workflow = data_fixture.create_automation_workflow()
-    workflow = data_fixture.create_automation_workflow(state=WorkflowState.LIVE)
+    workflow = data_fixture.create_automation_workflow(
+        user, state=WorkflowState.LIVE, trigger_service_kwargs={"table": table}
+    )
     workflow.automation.published_from = original_workflow
     workflow.automation.save()
-    node = data_fixture.create_local_baserow_rows_created_trigger_node(
-        workflow=workflow, service=service
-    )
+    trigger = workflow.get_trigger()
 
+    service = trigger.service.specific
     service_queryset = service.get_type().model_class.objects.filter(table=table)
     event_payload = [
         {
@@ -58,13 +59,13 @@ def test_automation_service_node_trigger_type_on_event(mock_run_workflow, data_f
         },
     ]
 
-    node.get_type().on_event(service_queryset, event_payload, user=user)
+    trigger.get_type().on_event(service_queryset, event_payload, user=user)
     mock_run_workflow.assert_called_once()
 
 
 @pytest.mark.django_db
 def test_automation_node_type_create_row_prepare_values_with_instance(data_fixture):
-    user, _ = data_fixture.create_user_and_token()
+    user = data_fixture.create_user()
     node = data_fixture.create_automation_node(user=user, type="create_row")
 
     values = {"service": {}}
@@ -74,7 +75,7 @@ def test_automation_node_type_create_row_prepare_values_with_instance(data_fixtu
 
 @pytest.mark.django_db
 def test_automation_node_type_create_row_prepare_values_without_instance(data_fixture):
-    user, _ = data_fixture.create_user_and_token()
+    user = data_fixture.create_user()
     node = data_fixture.create_automation_node(user=user, type="create_row")
 
     values = {"service": {}}
@@ -92,7 +93,7 @@ def test_automation_node_type_create_row_dispatch(mock_dispatch, data_fixture):
     mock_dispatch_result = MagicMock()
     mock_dispatch.return_value = mock_dispatch_result
 
-    user, _ = data_fixture.create_user_and_token()
+    user = data_fixture.create_user()
     node = data_fixture.create_automation_node(user=user, type="create_row")
 
     dispatch_context = AutomationDispatchContext(node.workflow, None)
@@ -104,7 +105,7 @@ def test_automation_node_type_create_row_dispatch(mock_dispatch, data_fixture):
 
 @pytest.mark.django_db
 def test_automation_node_type_rows_created_prepare_values_with_instance(data_fixture):
-    user, _ = data_fixture.create_user_and_token()
+    user = data_fixture.create_user()
     node = data_fixture.create_automation_node(user=user, type="rows_created")
 
     values = {"service": {}}
@@ -114,7 +115,7 @@ def test_automation_node_type_rows_created_prepare_values_with_instance(data_fix
 
 @pytest.mark.django_db
 def test_service_node_type_rows_created_prepare_values_without_instance(data_fixture):
-    user, _ = data_fixture.create_user_and_token()
+    user = data_fixture.create_user()
     node = data_fixture.create_automation_node(user=user, type="rows_created")
 
     values = {"service": {}}
@@ -155,7 +156,7 @@ def test_unregistering_signal_node_type_disconnects_from_signal(node_type):
 
 @pytest.mark.django_db
 def test_automation_node_type_update_row_prepare_values_with_instance(data_fixture):
-    user, _ = data_fixture.create_user_and_token()
+    user = data_fixture.create_user()
     node = data_fixture.create_automation_node(user=user, type="update_row")
 
     values = {"service": {}}
@@ -165,7 +166,7 @@ def test_automation_node_type_update_row_prepare_values_with_instance(data_fixtu
 
 @pytest.mark.django_db
 def test_automation_node_type_update_row_prepare_values_without_instance(data_fixture):
-    user, _ = data_fixture.create_user_and_token()
+    user = data_fixture.create_user()
     node = data_fixture.create_automation_node(user=user, type="update_row")
 
     values = {"service": {}}
@@ -183,7 +184,7 @@ def test_automation_node_type_update_row_dispatch(mock_dispatch, data_fixture):
     mock_dispatch_result = MagicMock()
     mock_dispatch.return_value = mock_dispatch_result
 
-    user, _ = data_fixture.create_user_and_token()
+    user = data_fixture.create_user()
     node = data_fixture.create_automation_node(user=user, type="update_row")
 
     dispatch_context = AutomationDispatchContext(node.workflow, None)
@@ -195,7 +196,7 @@ def test_automation_node_type_update_row_dispatch(mock_dispatch, data_fixture):
 
 @pytest.mark.django_db
 def test_automation_node_type_delete_row_prepare_values_with_instance(data_fixture):
-    user, _ = data_fixture.create_user_and_token()
+    user = data_fixture.create_user()
     node = data_fixture.create_automation_node(user=user, type="delete_row")
 
     values = {"service": {}}
@@ -205,7 +206,7 @@ def test_automation_node_type_delete_row_prepare_values_with_instance(data_fixtu
 
 @pytest.mark.django_db
 def test_automation_node_type_delete_row_prepare_values_without_instance(data_fixture):
-    user, _ = data_fixture.create_user_and_token()
+    user = data_fixture.create_user()
     node = data_fixture.create_automation_node(user=user, type="delete_row")
 
     values = {"service": {}}
@@ -224,7 +225,7 @@ def test_automation_node_type_delete_row_dispatch(mock_dispatch, data_fixture):
     mock_dispatch_result = MagicMock()
     mock_dispatch.return_value = mock_dispatch_result
 
-    user, _ = data_fixture.create_user_and_token()
+    user = data_fixture.create_user()
     node = data_fixture.create_automation_node(user=user, type="delete_row")
 
     dispatch_context = AutomationDispatchContext(node.workflow, None)
@@ -311,3 +312,39 @@ def test_on_event_excludes_disabled_workflows(mock_run_workflow, data_fixture):
 
     node.get_type().on_event(service_queryset, event_payload, user=user)
     mock_run_workflow.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_duplicating_router_node(data_fixture):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    core_router_with_edges = data_fixture.create_core_router_action_node_with_edges(
+        workflow=workflow,
+    )
+    router = core_router_with_edges.router
+    edge1_output = core_router_with_edges.edge1_output
+    edge2_output = core_router_with_edges.edge2_output
+    fallback_output_node = core_router_with_edges.fallback_output_node
+
+    router_type = router.get_type()
+    source_router_outputs = router_type.get_output_nodes(router, specific=True)
+    assert len(source_router_outputs) == 3
+    assert edge1_output in source_router_outputs
+    assert edge2_output in source_router_outputs
+    assert fallback_output_node in source_router_outputs
+
+    duplication = AutomationNodeHandler().duplicate_node(router)
+    duplicated_router = duplication.duplicated_node
+
+    assert duplicated_router.previous_node_id == router.id
+    assert duplicated_router.previous_node_output == ""
+
+    source_router_outputs = router_type.get_output_nodes(router, specific=True)
+    assert len(source_router_outputs) == 3
+    assert edge1_output in source_router_outputs
+    assert edge2_output in source_router_outputs
+    assert duplicated_router in source_router_outputs
+
+    fallback_output_node.refresh_from_db()
+    assert fallback_output_node not in source_router_outputs
+    assert fallback_output_node.previous_node_id == duplicated_router.id

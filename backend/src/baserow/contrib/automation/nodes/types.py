@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, NewType, TypedDict
+from typing import Any, List, NewType, TypedDict
 
 from baserow.contrib.automation.nodes.models import AutomationNode
 
@@ -18,6 +18,21 @@ class ReplacedAutomationNode:
     node: AutomationNode
     original_node_id: int
     original_node_type: str
+
+
+@dataclass
+class NextAutomationNodeValues:
+    id: int
+    previous_node_id: int
+    previous_node_output: str
+
+
+@dataclass
+class AutomationNodeDuplication:
+    source_node: AutomationNode
+    source_node_next_nodes_values: List[NextAutomationNodeValues]
+    duplicated_node: AutomationNode
+    duplicated_node_next_nodes_values: List[NextAutomationNodeValues]
 
 
 class AutomationNodeDict(TypedDict):

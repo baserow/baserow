@@ -14,14 +14,12 @@ from baserow.core.services.types import DispatchResult
 def test_previous_node_data_provider_get_data_chunk(data_fixture):
     user = data_fixture.create_user()
     workflow = data_fixture.create_automation_workflow(user=user)
-    trigger = data_fixture.create_local_baserow_rows_created_trigger_node(
-        workflow=workflow
-    )
+    trigger = workflow.get_trigger(specific=False)
     first_action = data_fixture.create_local_baserow_create_row_action_node(
-        workflow=workflow, previous_node=trigger
+        workflow=workflow,
     )
     data_fixture.create_local_baserow_create_row_action_node(
-        workflow=workflow, previous_node=trigger
+        workflow=workflow,
     )
     dispatch_context = AutomationDispatchContext(workflow, [{"field_1": "Horse"}])
     dispatch_context.after_dispatch(
