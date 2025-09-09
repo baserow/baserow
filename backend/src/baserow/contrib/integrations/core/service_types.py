@@ -376,12 +376,24 @@ class CoreHTTPRequestServiceType(ServiceType):
 
         properties = {}
 
+        if (allowed_fields is None or "body" in allowed_fields) and service.sample_data:
+            schema_builder = SchemaBuilder()
+            schema_builder.add_object(service.sample_data["body"])
+            schema = schema_builder.to_schema()
+
+            properties |= {
+                "body": schema
+                | {
+                    "title": "Body",
+                }
+            }
+
         if allowed_fields is None or "raw_body" in allowed_fields:
             properties.update(
                 **{
                     "raw_body": {
                         "type": "string",
-                        "title": "Body",
+                        "title": "Raw body",
                     },
                 },
             )
@@ -406,6 +418,7 @@ class CoreHTTPRequestServiceType(ServiceType):
                                 "a resource",
                             },
                         },
+                        "title": "Headers",
                     },
                 },
             )
@@ -419,15 +432,6 @@ class CoreHTTPRequestServiceType(ServiceType):
                     },
                 },
             )
-
-        schema_builder = SchemaBuilder()
-
-        if service.sample_data:
-            schema_builder.add_object({"body": service.sample_data["body"]})
-            schema = schema_builder.to_schema()
-
-            if schema_properties := schema.get("properties", None):
-                properties.update(**schema_properties)
 
         return {
             "title": self.get_schema_name(service),
@@ -570,20 +574,6 @@ class CoreHTTPRequestServiceType(ServiceType):
             "headers": response_headers,
             "status_code": response.status_code,
         }
-
-        service.sample_data = data
-        service.save()
-
-        schema = self.generate_schema(service)
-        schema_keys = schema["properties"].keys()
-
-        dynamic_data = {}
-        if isinstance(response_body, dict):
-            for key, value in response_body.items():
-                if key in schema_keys:
-                    dynamic_data[key] = value
-
-        data |= dynamic_data
 
         return {"data": data}
 
