@@ -230,6 +230,9 @@ class CoreRouterActionNodeType(AutomationNodeActionNodeType):
 
 
 class AutomationNodeTriggerType(AutomationNodeType):
+    # Triggers cannot be moved in the workflow to a new position.
+    is_fixed = True
+
     is_workflow_trigger = True
 
     def dispatch(

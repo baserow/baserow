@@ -10,7 +10,7 @@ from baserow.contrib.automation.action_scopes import (
 )
 from baserow.contrib.automation.actions import AUTOMATION_WORKFLOW_CONTEXT
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
-from baserow.contrib.automation.nodes.models import AutomationNode
+from baserow.contrib.automation.nodes.models import AutomationActionNode, AutomationNode
 from baserow.contrib.automation.nodes.node_types import AutomationNodeType
 from baserow.contrib.automation.nodes.registries import (
     ReplaceAutomationNodeTrashOperationType,
@@ -482,4 +482,114 @@ class ReplaceAutomationNodeActionType(UndoableActionType):
             restored_node=restored_node.specific,
             deleted_node=deleted_node,
             user=user,
+        )
+
+
+class MoveAutomationNodeActionType(UndoableActionType):
+    type = "move_automation_node"
+    description = ActionTypeDescription(
+        _("Moved automation node"),
+        _("Node (%(node_id)s) moved"),
+        NODE_ACTION_CONTEXT,
+    )
+
+    @dataclass
+    class Params:
+        automation_id: int
+        automation_name: str
+        workflow_id: int
+        node_id: int
+
+        origin_previous_node_id: int
+        origin_previous_node_output: str
+        origin_new_next_nodes_values: List[NextAutomationNodeValues]
+        origin_old_next_nodes_values: List[NextAutomationNodeValues]
+
+        destination_previous_node_id: int
+        destination_previous_node_output: str
+        destination_new_next_nodes_values: List[NextAutomationNodeValues]
+        destination_old_next_nodes_values: List[NextAutomationNodeValues]
+
+    @classmethod
+    def do(
+        cls,
+        user: AbstractUser,
+        node_id: int,
+        new_previous_node_id: int,
+    ) -> AutomationActionNode:
+        move = AutomationNodeService().move_node(user, node_id, new_previous_node_id)
+        workflow = move.node.workflow
+        cls.register_action(
+            user=user,
+            params=cls.Params(
+                workflow.automation_id,
+                workflow.automation.name,
+                workflow.id,
+                move.node.id,
+                move.origin_previous_node_id,
+                move.origin_previous_node_output,
+                move.origin_new_next_nodes_values,
+                move.origin_old_next_nodes_values,
+                move.destination_previous_node_id,
+                move.destination_previous_node_output,
+                move.destination_new_next_nodes_values,
+                move.destination_old_next_nodes_values,
+            ),
+            scope=cls.scope(workflow.id),
+            workspace=workflow.automation.workspace,
+        )
+        return move.node
+
+    @classmethod
+    def scope(cls, workflow_id):
+        return WorkflowActionScopeType.value(workflow_id)
+
+    @classmethod
+    def undo(
+        cls,
+        user: AbstractUser,
+        params: Params,
+        action_to_undo: Action,
+    ):
+        # Revert the node to its original position & output (if applicable).
+        AutomationNodeService().update_node(
+            user,
+            params.node_id,
+            previous_node_id=params.origin_previous_node_id,
+            previous_node_output=params.origin_previous_node_output,
+        )
+
+        # Revert the origin's next nodes back to their original position.
+        AutomationNodeHandler().update_next_nodes_values(
+            params.origin_old_next_nodes_values
+        )
+
+        # Revert the destination's next nodes back to their original position.
+        AutomationNodeHandler().update_next_nodes_values(
+            params.destination_old_next_nodes_values
+        )
+
+    @classmethod
+    def redo(
+        cls,
+        user: AbstractUser,
+        params: Params,
+        action_to_redo: Action,
+    ):
+        # Set the node to its new position & output (if applicable).
+        AutomationNodeService().update_node(
+            user,
+            params.node_id,
+            previous_node_id=params.destination_previous_node_id,
+            previous_node_output=params.destination_previous_node_output,
+        )
+
+        # Set the origin's next nodes to their new position.
+        AutomationNodeHandler().update_next_nodes_values(
+            params.origin_new_next_nodes_values
+        )
+
+        # Set the destination's next nodes to their new position.
+        AutomationNodeHandler().update_next_nodes_values(
+            params.destination_new_next_nodes_values
         )

@@ -5,10 +5,11 @@ from django.contrib.auth.models import AbstractUser
 from baserow.contrib.automation.models import AutomationWorkflow
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeBeforeInvalid,
+    AutomationNodeNotMovable,
     AutomationTriggerModificationDisallowed,
 )
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
-from baserow.contrib.automation.nodes.models import AutomationNode
+from baserow.contrib.automation.nodes.models import AutomationActionNode, AutomationNode
 from baserow.contrib.automation.nodes.node_types import AutomationNodeType
 from baserow.contrib.automation.nodes.operations import (
     CreateAutomationNodeOperationType,
@@ -27,11 +28,13 @@ from baserow.contrib.automation.nodes.signals import (
     automation_node_created,
     automation_node_deleted,
     automation_node_replaced,
+    automation_node_moved,
     automation_node_updated,
     automation_nodes_reordered,
 )
 from baserow.contrib.automation.nodes.types import (
     AutomationNodeDuplication,
+    AutomationNodeMove,
     ReplacedAutomationNode,
     UpdatedAutomationNode,
 )
@@ -405,3 +408,50 @@ class AutomationNodeService:
         )
 
         return self.handler.simulate_dispatch_node(node)
+
+    def move_node(
+        self,
+        user: AbstractUser,
+        node_id: int,
+        new_previous_node_id: int,
+        new_previous_output: str = "",
+        new_order: Optional[float] = None,
+    ) -> AutomationNodeMove:
+        """
+        Moves an existing automation node to a new position in the workflow.
+
+        :param user: The user trying to move the node.
+        :param node_id: The ID of the node to move.
+        :param new_previous_node_id: The ID of the node that will be the new previous node.
+        :param new_previous_output: If the destination is an output, the output uid.
+        :param new_order: The new order of the node. If not provided, it will be calculated
+            to be last of `new_previous_node_id`.
+        :return: The move operation details.
+        """
+
+        node = self.get_node(user, node_id)
+        node_type: AutomationNodeType = node.get_type()
+
+        CoreHandler().check_permissions(
+            user,
+            CreateAutomationNodeOperationType.type,
+            workspace=node.workflow.automation.workspace,
+            context=node.workflow,
+        )
+
+        # If a node type cannot move, raise an exception.
+        if node_type.is_fixed:
+            raise AutomationNodeNotMovable("This automation node cannot be moved.")
+
+        after_node = self.get_node(user, new_previous_node_id)
+        node_type.before_move(node, after_node)
+
+        move = self.handler.move_node(node, after_node, new_previous_output, new_order)
+
+        automation_node_moved.send(
+            self,
+            node=move.node,
+            user=user,
+        )
+
+        return move
