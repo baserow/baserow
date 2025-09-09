@@ -423,7 +423,7 @@ class CoreHTTPRequestServiceType(ServiceType):
         schema_builder = SchemaBuilder()
 
         if service.sample_data:
-            schema_builder.add_object(service.sample_data["body"])
+            schema_builder.add_object({"body": service.sample_data["body"]})
             schema = schema_builder.to_schema()
 
             if schema_properties := schema.get("properties", None):
