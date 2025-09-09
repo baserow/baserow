@@ -102,6 +102,7 @@ class FieldRuleHandler:
         return models.BooleanField(
             null=False,
             db_default=True,
+            default=True,
             db_index=True,
             help_text="Stores information if a field rules validity column is added",
         )
@@ -331,7 +332,12 @@ class FieldRuleHandler:
             .select_related()
         )
 
-        for field_rule in specific_iterator(queryset):
+        def per_content_type_queryset_hook(rule, queryset):
+            return self.registry.get_by_model(rule).enhance_queryset(queryset, rule)
+
+        for field_rule in specific_iterator(
+            queryset, per_content_type_queryset_hook=per_content_type_queryset_hook
+        ):
             out.append((field_rule.specific, field_rule.get_type()))
         return out
 

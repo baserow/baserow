@@ -10,6 +10,7 @@
             } else {
               $refs.dateDependencyModal.show()
             }
+            $emit('hide-context')
           }
         "
       >

@@ -879,6 +879,7 @@ class Table(
     )
     field_rules_validity_column_added = models.BooleanField(
         db_default=False,
+        default=False,
         null=True,
         help_text="Indicates whether the table has had the field_rules_are_valid column added.",
     )

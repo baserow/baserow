@@ -1,7 +1,6 @@
 import dataclasses
 from copy import copy
 from datetime import date, datetime, timedelta
-from enum import Enum
 from functools import partial
 
 from django.db.models import QuerySet
@@ -31,37 +30,25 @@ from baserow_enterprise.date_dependency.models import (
 from baserow_enterprise.date_dependency.types import DateDepenencyDict
 from baserow_enterprise.features import DATE_DEPENDENCY
 
+from .constants import NO_VALUE, DateDependencyFieldNames, NoValueSentinel
 from .serializers import (
     RequestDateDependencySerializer,
     ResponseDateDependencySerializer,
 )
 
 
-class Sentinel:
-    pass
-
-
-NO_VALUE = Sentinel()
-
-
-class DateDependencyField(str, Enum):
-    START_DATE = "start_date"
-    END_DATE = "end_date"
-    DURATION = "duration"
-
-
 @dataclasses.dataclass
 class DateValues:
     FIELDS = (
-        DateDependencyField.START_DATE,
-        DateDependencyField.END_DATE,
-        DateDependencyField.DURATION,
+        DateDependencyFieldNames.START_DATE,
+        DateDependencyFieldNames.END_DATE,
+        DateDependencyFieldNames.DURATION,
     )
 
     dependency: DateDependency
-    start_date: datetime | None | Sentinel
-    end_date: datetime | None | Sentinel
-    duration: timedelta | None | Sentinel
+    start_date: datetime | None | NoValueSentinel
+    end_date: datetime | None | NoValueSentinel
+    duration: timedelta | None | NoValueSentinel
 
     @classmethod
     def from_row(cls, row: GeneratedTableModel, rule: DateDependency) -> "DateValues":
@@ -130,7 +117,7 @@ class DateValues:
     def get_changed_fields(self) -> list[str]:
         return [fname for fname in self.FIELDS if self.get(fname) is not NO_VALUE]
 
-    def get(self, field_name: str) -> datetime | timedelta | None | Sentinel:
+    def get(self, field_name: str) -> datetime | timedelta | None | NoValueSentinel:
         if field_name in self.FIELDS:
             return getattr(self, field_name)
         raise ValueError(f"Invalid field name: {field_name}")
@@ -232,7 +219,7 @@ class DateDependencyCalculator:
         # Negative duration, or duration set to hours.
         # This is invalid, so we don't recalculate, but we should round the value to 0.
         if (
-            DateDependencyField.DURATION in changed_fields
+            DateDependencyFieldNames.DURATION in changed_fields
             and isinstance(result.duration, timedelta)
             and result.duration < timedelta(days=1)
         ):
@@ -248,9 +235,9 @@ class DateDependencyCalculator:
             else:
                 missing_field = none_in_result[0]
                 if (
-                    missing_field == DateDependencyField.START_DATE
-                    and DateDependencyField.START_DATE in changed_fields
-                    and DateDependencyField.END_DATE in result_value_fields
+                    missing_field == DateDependencyFieldNames.START_DATE
+                    and DateDependencyFieldNames.START_DATE in changed_fields
+                    and DateDependencyFieldNames.END_DATE in result_value_fields
                 ):
                     result.duration = None
 
@@ -266,8 +253,8 @@ class DateDependencyCalculator:
             if len(changed_fields) == 1 and changed_fields[0] in result_value_fields:
                 changed_field = changed_fields[0]
                 if (
-                    changed_field == DateDependencyField.START_DATE
-                    and DateDependencyField.DURATION in result_value_fields
+                    changed_field == DateDependencyFieldNames.START_DATE
+                    and DateDependencyFieldNames.DURATION in result_value_fields
                 ):
                     self.adjust_duration_before(result)
                     result.end_date = result.start_date + result.duration
@@ -275,14 +262,14 @@ class DateDependencyCalculator:
                     self.adjust_duration_after(result)
 
                 elif (
-                    changed_field == DateDependencyField.START_DATE
-                    and DateDependencyField.END_DATE in result_value_fields
+                    changed_field == DateDependencyFieldNames.START_DATE
+                    and DateDependencyFieldNames.END_DATE in result_value_fields
                 ):
                     result.duration = result.end_date - result.start_date
                     self.adjust_duration_after(result)
                 elif (
-                    changed_field == DateDependencyField.END_DATE
-                    and DateDependencyField.START_DATE in result_value_fields
+                    changed_field == DateDependencyFieldNames.END_DATE
+                    and DateDependencyFieldNames.START_DATE in result_value_fields
                 ):
                     # if end date is below start date, we shift the start date
                     if result.end_date - result.start_date < timedelta(days=0):
@@ -292,8 +279,8 @@ class DateDependencyCalculator:
                         result.duration = result.end_date - result.start_date
                     self.adjust_duration_after(result)
                 elif (
-                    changed_field == DateDependencyField.DURATION
-                    and DateDependencyField.START_DATE in result_value_fields
+                    changed_field == DateDependencyFieldNames.DURATION
+                    and DateDependencyFieldNames.START_DATE in result_value_fields
                 ):
                     self.adjust_duration_before(result)
                     result.end_date = result.start_date + result.duration
@@ -301,8 +288,8 @@ class DateDependencyCalculator:
                     self.adjust_duration_after(result)
 
                 elif (
-                    changed_field == DateDependencyField.DURATION
-                    and DateDependencyField.END_DATE in result_value_fields
+                    changed_field == DateDependencyFieldNames.DURATION
+                    and DateDependencyFieldNames.END_DATE in result_value_fields
                 ):
                     self.adjust_duration_before(result)
                     result.start_date = result.end_date - result.duration
@@ -311,9 +298,9 @@ class DateDependencyCalculator:
             # insert/paste values scenario - calculate duration only, if it's possible
             elif (
                 len(changed_fields) > 1
-                and DateDependencyField.DURATION in none_in_result
-                and DateDependencyField.START_DATE in result_value_fields
-                and DateDependencyField.END_DATE in result_value_fields
+                and DateDependencyFieldNames.DURATION in none_in_result
+                and DateDependencyFieldNames.START_DATE in result_value_fields
+                and DateDependencyFieldNames.END_DATE in result_value_fields
             ):
                 result.duration = result.end_date - result.start_date
                 self.adjust_end_date(result)
@@ -412,6 +399,7 @@ class DateDependencyFieldRuleType(FieldRuleType):
 
     if feature_flag_is_enabled(FF_DATE_DEPENDENCY_V2):
         serializer_field_names = [
+            "is_active",
             "start_date_field_id",
             "end_date_field_id",
             "duration_field_id",
@@ -423,6 +411,7 @@ class DateDependencyFieldRuleType(FieldRuleType):
             "include_weekends",
         ]
         request_serializer_field_names = [
+            "is_active",
             "start_date_field_id",
             "end_date_field_id",
             "duration_field_id",
@@ -447,11 +436,13 @@ class DateDependencyFieldRuleType(FieldRuleType):
         ]
     else:
         serializer_field_names = [
+            "is_active",
             "start_date_field_id",
             "end_date_field_id",
             "duration_field_id",
         ]
         request_serializer_field_names = [
+            "is_active",
             "start_date_field_id",
             "end_date_field_id",
             "duration_field_id",
@@ -496,12 +487,21 @@ class DateDependencyFieldRuleType(FieldRuleType):
             DATE_DEPENDENCY, table.database.workspace
         )
 
-    def enrich_table_queryset(self, queryset) -> QuerySet:
+    def enhance_table_queryset(self, queryset) -> QuerySet:
         """
         Allows to modify Table queryset with additional related models.
         """
 
         return queryset.prefetch_related("field_rules__datedependency")
+
+    def enhance_queryset(self, queryset, rule: FieldRule) -> QuerySet[FieldRule]:
+        return queryset.select_related(
+            "table__database__workspace",
+            "start_date_field__datefield",
+            "end_date_field__datefield",
+            "duration_field__durationfield",
+            "dependency_linkrow_field",
+        )
 
     def before_row_created(
         self, model: GeneratedTableModel, row_data: dict, rule: FieldRule

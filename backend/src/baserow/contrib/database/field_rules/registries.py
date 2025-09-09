@@ -71,9 +71,16 @@ class FieldRuleType(ModelInstanceMixin, CustomFieldsInstanceMixin, Instance, ABC
     ]
     request_serializer_field_names = ["is_active", "type"]
 
-    def enrich_table_queryset(self, queryset) -> QuerySet:
+    def enhance_table_queryset(self, queryset) -> QuerySet[Table]:
         """
         Allows to modify table queryset with additional related models
+        """
+
+        return queryset
+
+    def enhance_queryset(self, queryset, rule: FieldRule) -> QuerySet[FieldRule]:
+        """
+        Allows to modify FieldRule queryset with additional related models
         """
 
         return queryset

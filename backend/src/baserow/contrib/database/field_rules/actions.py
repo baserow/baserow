@@ -142,7 +142,6 @@ class UpdateFieldRuleActionType(UndoableActionType):
         table = rule.table
         handler = FieldRuleHandler(rule.table, user)
         rule_before = rule.to_dict()
-
         updated = handler.update_rule(rule, in_rule_data)
         params = cls.Params(
             table.id,

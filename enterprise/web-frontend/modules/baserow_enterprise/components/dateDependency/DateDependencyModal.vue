@@ -75,7 +75,7 @@
               v-if="v2Enabled"
               :value="dependency.dependency_linkrow_field_id"
               :fields="dependencyFields"
-              :error-message="getFieldError('dependency_linkrow_field_id')"
+              :error-message="errors.dependency_linkrow_field_id"
               icon="iconoir-ev-plug"
               :field-name="$t('dateDependencyModal.dependencyFieldLabel')"
               :helper-text="$t('dateDependencyModal.dependencyFieldHint')"
@@ -92,7 +92,7 @@
               ref="linkRowRoleControl"
               size="regular"
               :segments="dependencyLinkRowRoles"
-              :error-message="getFieldError('dependency_linkrow_role')"
+              :error-message="errors.dependency_linkrow_role"
               :initial-active-index="linkrowFieldRoleIdx"
               @update:activeIndex="linkRowFieldRoleChanged($event)"
             />
@@ -105,7 +105,7 @@
             <DateDependencyFieldPicker
               :value="dependency.dependency_buffer_type"
               :fields="dependencyBufferTypes"
-              :error-message="getFieldError('dependency_buffer_type')"
+              :error-message="errors.dependency_buffer_type"
               :required="dependency.dependency_linkrow_field_id !== null"
               :field-name="$t('dateDependencyModal.dependencyBufferTypeLabel')"
               @change="
@@ -116,11 +116,20 @@
         </div>
         <div v-if="v2Enabled" class="row">
           <div class="col col-6">
+            <!-- NOTE: this is a raw component, so we need to pass
+              a string to errorMessage -->
             <FormGroup
               :label="$t('dateDependencyModal.durationBufferLabel')"
               :small-label="true"
-              :required="dependency.dependency_linkrow_field_id !== null"
-              :error-message="getFieldError('dependency_buffer')"
+              :required="
+                dependency.dependency_linkrow_field_id !== null &&
+                dependency.dependency_buffer_type !== 'none'
+              "
+              :error-message="
+                errors.dependency_buffer
+                  ? errors.dependency_buffer.join('\n')
+                  : ''
+              "
               class="field-duration"
             >
               <FormInput
@@ -137,7 +146,7 @@
             <DateDependencyFieldPicker
               :value="dependency.dependency_connection_type"
               :fields="dependencyConnectionTypes"
-              :error-message="getFieldError('dependency_connection_type')"
+              :error-message="errors.dependency_connection_type"
               :required="dependency.dependency_linkrow_field_id !== null"
               :field-name="
                 $t('dateDependencyModal.dependencyConnectionTypeLabel')
@@ -153,7 +162,7 @@
           <div class="col">
             <Checkbox
               :checked="dependency.include_weekends"
-              :error-message="getFieldError('include_weekends')"
+              :error-message="errors.include_weekends"
               :title="$t('dateDependencyModal.advancedSettingsLabel')"
               @input="onDependencyFieldChange('include_weekends', $event)"
             >
@@ -273,6 +282,7 @@ export default {
         start_date_field_id: null,
         end_date_field_id: null,
         duration_field_id: null,
+        dependency_buffer: null,
       },
     }
   },

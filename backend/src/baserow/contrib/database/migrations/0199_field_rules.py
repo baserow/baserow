@@ -19,6 +19,7 @@ class Migration(migrations.Migration):
             name="field_rules_validity_column_added",
             field=models.BooleanField(
                 db_default=False,
+                default=False,
                 help_text="Indicates whether the table has had the field_rules_are_valid column added.",
                 null=True,
             ),

@@ -27,6 +27,8 @@
   </FormGroup>
 </template>
 <script>
+import _ from 'lodash'
+
 export default {
   name: 'DateDependencyFieldPicker',
   props: {
@@ -67,7 +69,10 @@ export default {
   },
   computed: {
     errorMessageStr() {
-      return (this.errorMessage || []).join('\n')
+      if (_.isArray(this.errorMessage)) {
+        return this.errorMessage.join('\n')
+      }
+      return this.errorMessage || ''
     },
     hasError() {
       return this.errors && this.errors.length > 0
