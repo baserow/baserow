@@ -151,7 +151,10 @@ const handleNodeChange = async ({
 
   // Handle service changes next
   if (serviceChanges) {
-    if (!formComponent.value?.isFormValid()) {
+    if (
+      formComponent.value?.isFormValid &&
+      !formComponent.value?.isFormValid()
+    ) {
       return
     }
     const serviceDifferences = Object.fromEntries(
