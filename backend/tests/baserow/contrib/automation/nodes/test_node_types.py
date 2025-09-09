@@ -37,10 +37,8 @@ def test_automation_service_node_trigger_type_on_event(mock_run_workflow, data_f
     original_workflow = data_fixture.create_automation_workflow(
         user, trigger_service_kwargs={"table": table}
     )
-    original_workflow = data_fixture.create_automation_workflow()
-    workflow = data_fixture.create_automation_workflow(state=WorkflowState.LIVE)
     workflow = data_fixture.create_automation_workflow(
-        user, published=True, trigger_service_kwargs={"table": table}
+        user, state=WorkflowState.LIVE, trigger_service_kwargs={"table": table}
     )
     workflow.automation.published_from = original_workflow
     workflow.automation.save()
