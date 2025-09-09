@@ -268,6 +268,7 @@ def test_automation_node_migrates_its_previous_node_output_on_import(
         == id_mapping["automation_edge_outputs"][str(edge.uid)]
     )
 
+
 @pytest.mark.django_db
 @patch(
     "baserow.contrib.automation.workflows.service.AutomationWorkflowHandler.run_workflow"
