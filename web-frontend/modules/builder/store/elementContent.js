@@ -289,7 +289,7 @@ const actions = {
           commit('CLEAR_CONTENT', { element })
         }
         // Let's stop all other queries
-        Object.values(queriesInProgress[element.id] | {}).forEach(
+        Object.values(queriesInProgress[element.id] || {}).forEach(
           (controller) => controller.abort()
         )
         queriesInProgress[element.id] = {}
