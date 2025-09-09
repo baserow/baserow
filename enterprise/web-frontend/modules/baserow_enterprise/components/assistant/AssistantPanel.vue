@@ -43,11 +43,7 @@
         v-if="!currentChatId"
         :name="user.first_name"
       ></AssistantWelcomeMessage>
-      <AssistantMessageList
-        v-else
-        :messages="messages"
-        @scroll-to-bottom="scrollToBottom"
-      ></AssistantMessageList>
+      <AssistantMessageList v-else :messages="messages"></AssistantMessageList>
     </div>
     <div class="assistant__footer">
       <AssistantInputMessage
@@ -177,12 +173,6 @@ export default {
     async selectAndCloseChat(chat) {
       await this.selectChat(chat)
       this.$refs.chatHistory.hide()
-    },
-    scrollToBottom() {
-      this.$nextTick(() => {
-        const el = this.$refs.scrollContainer
-        if (el) el.scrollTop = el.scrollHeight
-      })
     },
   },
 }

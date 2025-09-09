@@ -1,5 +1,5 @@
 <template>
-  <div ref="list" class="assistant__messages-list">
+  <div class="assistant__messages-list">
     <div
       v-for="message in messages"
       :key="message.id"
@@ -50,32 +50,6 @@ export default {
       type: Array,
       default: () => [],
     },
-  },
-  data() {
-    return {
-      observer: null,
-      mutationTimer: null,
-    }
-  },
-  mounted() {
-    this.observer = new MutationObserver(() => {
-      clearTimeout(this.mutationTimer)
-      this.mutationTimer = setTimeout(() => {
-        this.$emit('scroll-to-bottom')
-      }, 50)
-    })
-
-    this.observer.observe(this.$refs.list, {
-      childList: true, // nodes added/removed
-      subtree: true, // observe all descendants
-      characterData: true, // text changes
-    })
-  },
-  beforeDestroy() {
-    this.observer.disconnect()
-    this.observer = null
-    clearTimeout(this._mutationTimer)
-    this.mutationTimer = null
   },
   methods: {
     formatMessage(content) {
