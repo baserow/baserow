@@ -6,7 +6,7 @@
   flex-direction: column;
   background-color: $white;
   overflow: hidden;
-  border-left: 1px solid $color-neutral-200;
+  border-left: 1px solid $palette-neutral-400;
 }
 
 .assistant__header {
@@ -96,13 +96,13 @@
 .assistant__welcome-icon {
   width: 80px;
   height: 80px;
-  background: linear-gradient(135deg, $color-primary-500 0%, lighten($color-primary-500, 10%) 100%);
+  background: linear-gradient(135deg, $palette-blue-500 0%, lighten($palette-blue-500, 10%) 100%);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   margin-bottom: 24px;
-  box-shadow: 0 4px 12px rgba($color-primary-500, 0.2);
+  box-shadow: 0 4px 12px rgba($palette-blue-500, 0.2);
 
   i {
     font-size: 36px;
@@ -113,13 +113,13 @@
 .assistant__welcome-title {
   font-size: 20px;
   font-weight: 600;
-  color: $color-neutral-900;
+  color: $palette-neutral-1300;
   margin: 0 0 12px;
 }
 
 .assistant__welcome-subtitle {
   font-size: 13px;
-  color: $color-neutral-600;
+  color: $palette-neutral-1200;
   line-height: 1.5;
   margin: 0 0 32px;
 }
@@ -298,7 +298,7 @@
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background-color: $color-neutral-400;
+    background-color: $palette-neutral-800;
     animation: typing-bounce 1.4s infinite ease-in-out;
 
     &:nth-child(1) {
@@ -365,8 +365,8 @@
   display: block;
 
   .assistant__message--human & {
-    background-color: $color-neutral-100;
-    border-color: $color-neutral-100;
+    background-color: $palette-neutral-100;
+    border-color: $palette-neutral-100;
   }
 }
 
@@ -451,7 +451,7 @@
   }
 
   code {
-    background-color: $color-neutral-100;
+    background-color: $palette-neutral-100;
     padding: 2px 4px;
     border-radius: 3px;
     font-family: Monaco, 'Courier New', monospace;
@@ -459,7 +459,7 @@
   }
 
   pre {
-    background-color: $color-neutral-100;
+    background-color: $palette-neutral-100;
     padding: 12px;
     border-radius: 6px;
     overflow-x: auto;
@@ -473,14 +473,14 @@
   }
 
   blockquote {
-    border-left: 3px solid $color-primary-300;
+    border-left: 3px solid $palette-blue-200;
     padding-left: 12px;
     margin: 8px 0;
-    color: $color-neutral-600;
+    color: $palette-neutral-800;
   }
 
   a {
-    color: $color-primary-500;
+    color: $palette-blue-500;
     text-decoration: none;
 
     &:hover {
@@ -498,7 +498,7 @@
 
   hr {
     border: none;
-    border-top: 1px solid $color-neutral-200;
+    border-top: 1px solid $palette-neutral-400;
     margin: 12px 0;
   }
 
@@ -513,7 +513,7 @@
 
     th,
     td {
-      border: 1px solid $color-neutral-200;
+      border: 1px solid $palette-neutral-400;
       padding: 8px;
       text-align: left;
       min-width: 80px;
@@ -521,7 +521,7 @@
     }
 
     th {
-      background-color: $color-neutral-100;
+      background-color: $palette-neutral-100;
       font-weight: 600;
     }
   }

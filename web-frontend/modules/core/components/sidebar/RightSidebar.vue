@@ -23,9 +23,6 @@ export default {
       default: 400,
     },
   },
-  data() {
-    return {}
-  },
   computed: {
     sidebarWorkspaceComponents() {
       return Object.values(this.$registry.getAll('plugin'))
