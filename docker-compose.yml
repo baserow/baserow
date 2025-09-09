@@ -21,6 +21,8 @@
 #
 ########################################################################################
 
+# test comment 09/09/2025
+
 # See https://baserow.io/docs/installation%2Fconfiguration for more details on these
 # backend environment variables, their defaults if left blank etc.
 x-backend-variables:
