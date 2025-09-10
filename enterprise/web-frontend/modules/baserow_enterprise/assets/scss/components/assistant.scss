@@ -172,6 +172,7 @@
   background: $white;
   border: 1px solid $palette-neutral-500;
   transition: all 0.2s;
+  padding-bottom: 12px;
 
   @include rounded($rounded-md);
   @include elevation($elevation-low);
@@ -179,10 +180,10 @@
   &.has-context {
     padding-top: 36px;
   }
+}
 
-  textarea,
-  .form__textarea {
-    @extend %scrollbar-thin;
+.assistant__input-textarea {
+  @extend %scrollbar-thin;
 
     flex: 1;
     border: none;
@@ -190,11 +191,10 @@
     background: transparent;
     font-size: 13px;
     line-height: 20px;
-    min-height: 24px;
     max-height: 120px;
     outline: none;
     box-shadow: none;
-    padding: 8px 50px 16px 16px;
+    padding: 8px 50px 0 16px;
 
     &:focus {
       outline: none;
@@ -204,7 +204,6 @@
     &::placeholder {
       color: $palette-neutral-600;
     }
-  }
 }
 
 .assistant__context-badge {

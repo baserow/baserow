@@ -18,15 +18,16 @@
           <span class="assistant__context-text">{{ contextDisplay }}</span>
         </div>
 
-        <FormTextarea
-          ref="messageInput"
+        <textarea
+          ref="textarea"
           v-model="currentMessage"
+          class="assistant__input-textarea"
           :placeholder="$t('assistantInputMessage.placeholder')"
-          :auto-expandable="true"
-          :min-rows="1"
-          :max-rows="6"
+          :rows="minRows"
+          @input="adjustHeight"
           @keydown.enter="handleEnter"
-        />
+        ></textarea>
+
         <button
           class="assistant__send-button"
           :class="{
@@ -47,13 +48,8 @@
 </template>
 
 <script>
-import FormTextarea from '@baserow/modules/core/components/FormTextarea'
-
 export default {
   name: 'AssistantInputMessage',
-  components: {
-    FormTextarea,
-  },
   props: {
     contextDisplay: {
       type: String,
@@ -67,7 +63,13 @@ export default {
   data() {
     return {
       currentMessage: '',
+      minRows: 1,
+      maxRows: 6,
     }
+  },
+  mounted() {
+    this.calculateLineHeight()
+    this.adjustHeight()
   },
   methods: {
     handleEnter(event) {
@@ -82,7 +84,35 @@ export default {
       if (!message || this.running) return
 
       this.$emit('send-message', message)
+
+      this.clear()
+    },
+    calculateLineHeight() {
+      const textarea = this.$refs.textarea
+      const computedStyle = window.getComputedStyle(textarea)
+      this.lineHeight = parseInt(computedStyle.lineHeight) || 24
+    },
+    adjustHeight() {
+      const textarea = this.$refs.textarea
+      if (!textarea) return
+
+      // Reset height to auto to get the correct scrollHeight
+      textarea.style.height = 'auto'
+
+      // Calculate the number of lines
+      const scrollHeight = textarea.scrollHeight
+      const minHeight = this.lineHeight * this.minRows
+      const maxHeight = this.lineHeight * this.maxRows
+
+      // Set the height based on content, within min/max bounds
+      const newHeight = Math.max(minHeight, Math.min(scrollHeight, maxHeight))
+
+      textarea.style.height = newHeight + 'px'
+      textarea.style.overflowY = scrollHeight > maxHeight ? 'auto' : 'hidden'
+    },
+    clear() {
       this.currentMessage = ''
+      this.$nextTick(this.adjustHeight)
     },
   },
 }
