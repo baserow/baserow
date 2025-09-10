@@ -192,7 +192,7 @@ def test_when_row_created_restricted_views_receive_restricted_row_ws_event(
     )
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_filters_are_visible_for_builders_and_up(enterprise_data_fixture, api_client):
     enterprise_data_fixture.enable_enterprise()
@@ -221,7 +221,7 @@ def test_filters_are_visible_for_builders_and_up(enterprise_data_fixture, api_cl
     assert len(response_json[0]["filter_groups"]) == 1
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_filters_are_invisible_for_editors_and_down(
     enterprise_data_fixture, api_client
@@ -293,7 +293,7 @@ view_type_url_mapping = {
 }
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_filters_are_not_forcefully_applied_to_all_views_types_for_builders_and_up(
     enterprise_data_fixture, premium_data_fixture, api_client
@@ -351,7 +351,7 @@ def test_filters_are_not_forcefully_applied_to_all_views_types_for_builders_and_
         assert len(get_value_at_path(response_json, response_path)) == 2, view_type.type
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_filters_are_forcefully_applied_to_all_views_types_for_editors_and_down(
     enterprise_data_fixture,
