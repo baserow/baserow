@@ -110,7 +110,6 @@ from baserow.contrib.database.table.exceptions import TableDoesNotExist
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.table.operations import (
-    CreateRowDatabaseTableOperationType,
     ListRowNamesDatabaseTableOperationType,
     ListRowsDatabaseTableOperationType,
 )
@@ -137,12 +136,16 @@ from .example_serializers import example_pagination_row_serializer_class
 from .schemas import row_names_response_schema
 from .serializers import (
     BatchCreateRowsQueryParamsSerializer,
+    BatchDeleteRowsQueryParamsSerializer,
     BatchDeleteRowsSerializer,
+    BatchUpdateRowsQueryParamsSerializer,
     CreateRowQueryParamsSerializer,
+    DeleteRowQueryParamsSerializer,
     ListRowsQueryParamsSerializer,
     MoveRowQueryParamsSerializer,
     RowHistorySerializer,
     RowSerializer,
+    UpdateRowQueryParamsSerializer,
     get_batch_row_serializer_class,
     get_example_batch_rows_serializer_class,
     get_example_row_serializer_class,
@@ -482,6 +485,13 @@ class RowsView(APIView):
                 "positioned before the row with the provided id.",
             ),
             OpenApiParameter(
+                name="view",
+                location=OpenApiParameter.QUERY,
+                type=OpenApiTypes.INT,
+                description="Provide if the row is created in a view. This can result "
+                "in different permission checking and default values.",
+            ),
+            OpenApiParameter(
                 name="user_field_names",
                 location=OpenApiParameter.QUERY,
                 type=OpenApiTypes.BOOL,
@@ -547,6 +557,7 @@ class RowsView(APIView):
         {
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
             TableDoesNotExist: ERROR_TABLE_DOES_NOT_EXIST,
+            ViewDoesNotExist: ERROR_VIEW_DOES_NOT_EXIST,
             NoPermissionToTable: ERROR_NO_PERMISSION_TO_TABLE,
             RowDoesNotExist: ERROR_ROW_DOES_NOT_EXIST,
             CannotCreateRowsInTable: ERROR_CANNOT_CREATE_ROWS_IN_TABLE,
@@ -567,13 +578,6 @@ class RowsView(APIView):
 
         TokenHandler().check_table_permissions(request, "create", table, False)
 
-        CoreHandler().check_permissions(
-            request.user,
-            CreateRowDatabaseTableOperationType.type,
-            workspace=table.database.workspace,
-            context=table,
-        )
-
         user_field_names = extract_user_field_names_from_params(request.GET)
         send_webhook_events = extract_send_webhook_events_from_params(request.GET)
 
@@ -591,6 +595,9 @@ class RowsView(APIView):
             else None
         )
 
+        view_id = query_params.get("view")
+        view = ViewHandler().get_view(view_id) if view_id else None
+
         try:
             row = action_type_registry.get_by_type(CreateRowActionType).do(
                 request.user,
@@ -598,6 +605,7 @@ class RowsView(APIView):
                 data,
                 model=model,
                 before_row=before_row,
+                view=view,
                 user_field_names=user_field_names,
                 send_webhook_events=send_webhook_events,
             )
@@ -847,6 +855,13 @@ class RowView(APIView):
                 description="Updates the row related to the value.",
             ),
             OpenApiParameter(
+                name="view",
+                location=OpenApiParameter.QUERY,
+                type=OpenApiTypes.INT,
+                description="Provide if the row is updated in a view. This can result "
+                "in different permission checking and default values.",
+            ),
+            OpenApiParameter(
                 name="user_field_names",
                 location=OpenApiParameter.QUERY,
                 type=OpenApiTypes.BOOL,
@@ -917,7 +932,10 @@ class RowView(APIView):
     )
     @atomic_with_retry_on_deadlock()
     @require_request_data_type(dict)
-    def patch(self, request: Request, table_id: int, row_id: int) -> Response:
+    @validate_query_parameters(UpdateRowQueryParamsSerializer)
+    def patch(
+        self, request: Request, table_id: int, row_id: int, query_params
+    ) -> Response:
         """
         Updates the row with the given row_id for the table with the given
         table_id. Also the post data is validated according to the tables field types.
@@ -935,6 +953,10 @@ class RowView(APIView):
 
         user_field_names = extract_user_field_names_from_params(request.GET)
         send_webhook_events = extract_send_webhook_events_from_params(request.GET)
+
+        view_id = query_params.get("view")
+        view = ViewHandler().get_view(view_id) if view_id else None
+
         field_ids, field_names = None, None
 
         if user_field_names:
@@ -959,6 +981,7 @@ class RowView(APIView):
                     table,
                     [data],
                     model=model,
+                    view=view,
                     send_webhook_events=send_webhook_events,
                 )
                 .updated_rows[0]
@@ -979,6 +1002,13 @@ class RowView(APIView):
                 location=OpenApiParameter.PATH,
                 type=OpenApiTypes.INT,
                 description="Deletes the row in the table related to the value.",
+            ),
+            OpenApiParameter(
+                name="view",
+                location=OpenApiParameter.QUERY,
+                type=OpenApiTypes.INT,
+                description="Provide if the row is deleted in a view. This can result "
+                "in different permission checking and default values.",
             ),
             OpenApiParameter(
                 name="row_id",
@@ -1028,7 +1058,8 @@ class RowView(APIView):
         }
     )
     @atomic_with_retry_on_deadlock()
-    def delete(self, request, table_id, row_id):
+    @validate_query_parameters(DeleteRowQueryParamsSerializer)
+    def delete(self, request, table_id, row_id, query_params):
         """
         Deletes an existing row with the given row_id for table with the given
         table_id.
@@ -1039,8 +1070,15 @@ class RowView(APIView):
         table = TableHandler().get_table(table_id)
         TokenHandler().check_table_permissions(request, "delete", table, False)
 
+        view_id = query_params.get("view")
+        view = ViewHandler().get_view(view_id) if view_id else None
+
         action_type_registry.get_by_type(DeleteRowActionType).do(
-            request.user, table, row_id, send_webhook_events=send_webhook_events
+            request.user,
+            table,
+            row_id,
+            view=view,
+            send_webhook_events=send_webhook_events,
         )
 
         return Response(status=204)
@@ -1185,6 +1223,13 @@ class BatchRowsView(APIView):
                 "positioned before the row with the provided id.",
             ),
             OpenApiParameter(
+                name="view",
+                location=OpenApiParameter.QUERY,
+                type=OpenApiTypes.INT,
+                description="Provide if the rows are created in a view. This can result "
+                "in different permission checking and default values.",
+            ),
+            OpenApiParameter(
                 name="user_field_names",
                 location=OpenApiParameter.QUERY,
                 type=OpenApiTypes.BOOL,
@@ -1283,6 +1328,9 @@ class BatchRowsView(APIView):
             else None
         )
 
+        view_id = query_params.get("view")
+        view = ViewHandler().get_view(view_id) if view_id else None
+
         row_validation_serializer = get_row_serializer_class(
             model, user_field_names=user_field_names
         )
@@ -1299,6 +1347,7 @@ class BatchRowsView(APIView):
                 table,
                 data["items"],
                 before_row,
+                view=view,
                 model=model,
                 send_webhook_events=send_webhook_events,
             )
@@ -1326,6 +1375,13 @@ class BatchRowsView(APIView):
                 location=OpenApiParameter.PATH,
                 type=OpenApiTypes.INT,
                 description="Updates the rows in the table.",
+            ),
+            OpenApiParameter(
+                name="view",
+                location=OpenApiParameter.QUERY,
+                type=OpenApiTypes.INT,
+                description="Provide if the rows are updated in a view. This can "
+                "result in different permission checking and default values.",
             ),
             OpenApiParameter(
                 name="user_field_names",
@@ -1407,7 +1463,8 @@ class BatchRowsView(APIView):
         }
     )
     @atomic_with_retry_on_deadlock()
-    def patch(self, request, table_id):
+    @validate_query_parameters(BatchUpdateRowsQueryParamsSerializer)
+    def patch(self, request, table_id, query_params):
         """
         Updates all provided rows at once for the table with
         the given table_id.
@@ -1420,6 +1477,9 @@ class BatchRowsView(APIView):
 
         user_field_names = extract_user_field_names_from_params(request.GET)
         send_webhook_events = extract_send_webhook_events_from_params(request.GET)
+
+        view_id = query_params.get("view")
+        view = ViewHandler().get_view(view_id) if view_id else None
 
         row_validation_serializer = get_row_serializer_class(
             model,
@@ -1440,6 +1500,7 @@ class BatchRowsView(APIView):
                 table,
                 data["items"],
                 model=model,
+                view=view,
                 send_webhook_events=send_webhook_events,
             )
             rows = updated_data.updated_rows
@@ -1473,6 +1534,13 @@ class BatchDeleteRowsView(APIView):
                 location=OpenApiParameter.PATH,
                 type=OpenApiTypes.INT,
                 description="Deletes the rows in the table related to the value.",
+            ),
+            OpenApiParameter(
+                name="view",
+                location=OpenApiParameter.QUERY,
+                type=OpenApiTypes.INT,
+                description="Provide if the rows are deleted in a view. This can "
+                "result in different permission checking and default values.",
             ),
             OpenApiParameter(
                 name="send_webhook_events",
@@ -1524,7 +1592,10 @@ class BatchDeleteRowsView(APIView):
         }
     )
     @atomic_with_retry_on_deadlock()
-    def post(self, request: Request, table_id: int, data: Dict[str, Any]) -> Response:
+    @validate_query_parameters(BatchDeleteRowsQueryParamsSerializer)
+    def post(
+        self, request: Request, table_id: int, data: Dict[str, Any], query_params
+    ) -> Response:
         """
         Batch deletes existing rows based on provided row ids for the table with
         the given table_id.
@@ -1535,10 +1606,14 @@ class BatchDeleteRowsView(APIView):
 
         send_webhook_events = extract_send_webhook_events_from_params(request.GET)
 
+        view_id = query_params.get("view")
+        view = ViewHandler().get_view(view_id) if view_id else None
+
         action_type_registry.get_by_type(DeleteRowsActionType).do(
             request.user,
             table,
             row_ids=data["items"],
+            view=view,
             send_webhook_events=send_webhook_events,
         )
 

@@ -28,6 +28,7 @@ from baserow.contrib.database.table.models import (
     GeneratedTableModel,
     Table,
 )
+from baserow.contrib.database.views.models import View
 from baserow.core.action.models import Action
 from baserow.core.action.registries import (
     ActionScopeStr,
@@ -96,6 +97,8 @@ class CreateRowActionType(UndoableActionType):
         row_id: int
         fields_metadata: dict[str, Any]
         row_values: Dict[str, Any]
+        view_id: Optional[int] = None
+        view_name: Optional[str] = None
 
     @classmethod
     def do(
@@ -105,6 +108,7 @@ class CreateRowActionType(UndoableActionType):
         values: Optional[Dict[str, Any]] = None,
         model: Optional[Type[GeneratedTableModel]] = None,
         before_row: Optional[GeneratedTableModel] = None,
+        view: Optional[View] = None,
         user_field_names: bool = False,
         send_webhook_events: bool = True,
     ) -> GeneratedTableModel:
@@ -123,6 +127,8 @@ class CreateRowActionType(UndoableActionType):
             having to generate the model again.
         :param before_row: If provided the new row will be placed right before that row
             instance.
+        :param view: Optionally provide view, if the row was created in the view.
+            This can result in different permissions checks.
         :param user_field_names: Whether or not the values are keyed by the internal
             Baserow field name (field_1,field_2 etc) or by the user field names.
         :param send_webhook_events: If set the false then the webhooks will not be
@@ -141,6 +147,7 @@ class CreateRowActionType(UndoableActionType):
             values=values,
             model=model,
             before_row=before_row,
+            view=view,
             user_field_names=user_field_names,
             send_webhook_events=send_webhook_events,
         )
@@ -165,6 +172,8 @@ class CreateRowActionType(UndoableActionType):
             row.id,
             fields_metadata=fields_metadata,
             row_values=row_values,
+            view_id=view.id if view else None,
+            view_name=view.name if view else None,
         )
         cls.register_action(
             user, params, scope=cls.scope(table.id), workspace=workspace
@@ -210,6 +219,8 @@ class CreateRowsActionType(UndoableActionType):
         fields_metadata: dict[int, dict[str, Any]]
         rows_values: List[Dict[str, Any]]
         trashed_rows_entry_id: Optional[int] = None
+        view_id: Optional[int] = None
+        view_name: Optional[str] = None
 
     @classmethod
     def do(
@@ -218,6 +229,7 @@ class CreateRowsActionType(UndoableActionType):
         table: Table,
         rows_values: List[Dict[str, Any]],
         before_row: Optional[GeneratedTableModel] = None,
+        view: Optional[View] = None,
         model: Optional[Type[GeneratedTableModel]] = None,
         send_webhook_events: bool = True,
     ) -> List[GeneratedTableModel]:
@@ -233,6 +245,8 @@ class CreateRowsActionType(UndoableActionType):
         :param rows_values: List of rows values for rows that need to be created.
         :param before_row: If provided the new rows will be placed right before
             the row with this id.
+        :param view: Optionally provide view, if the rows were created in the view.
+            This can result in different permissions checks.
         :param model: If the correct model has already been generated it can be
             provided so that it does not have to be generated for a second time.
         :param send_webhook_events: If set the false then the webhooks will not be
@@ -250,6 +264,7 @@ class CreateRowsActionType(UndoableActionType):
             table,
             rows_values,
             before_row=before_row,
+            view=view,
             model=model,
             send_webhook_events=send_webhook_events,
         )
@@ -277,6 +292,8 @@ class CreateRowsActionType(UndoableActionType):
             row_ids=[row.id for row in rows],
             fields_metadata=fields_metadata,
             rows_values=values,
+            view_id=view.id if view else None,
+            view_name=view.name if view else None,
         )
         cls.register_action(
             user, params, scope=cls.scope(table.id), workspace=workspace
@@ -417,6 +434,8 @@ class DeleteRowActionType(UndoableActionType):
         row_id: int
         values: dict[str, Any]
         fields_metadata: dict[str, Any]
+        view_id: Optional[int] = None
+        view_name: Optional[str] = None
 
     @classmethod
     def do(
@@ -425,6 +444,7 @@ class DeleteRowActionType(UndoableActionType):
         table: Table,
         row_id: int,
         model: Optional[Type[GeneratedTableModel]] = None,
+        view: Optional[View] = None,
         send_webhook_events: bool = True,
     ):
         """
@@ -438,6 +458,8 @@ class DeleteRowActionType(UndoableActionType):
         :param row_id: The id of the row that must be deleted.
         :param model: If the correct model has already been generated, it can be
             provided so that it does not have to be generated for a second time.
+        :param view: Optionally provide view, if the row is deleted in the view.
+            This can result in different permissions checks.
         :param send_webhook_events: If set the false then the webhooks will not be
             triggered. Defaults to true.
         :raises RowDoesNotExist: When the row with the provided id does not exist.
@@ -450,7 +472,12 @@ class DeleteRowActionType(UndoableActionType):
 
         rh = RowHandler()
         row = rh.delete_row_by_id(
-            user, table, row_id, model=model, send_webhook_events=send_webhook_events
+            user,
+            table,
+            row_id,
+            model=model,
+            view=view,
+            send_webhook_events=send_webhook_events,
         )
 
         database = table.database
@@ -468,6 +495,8 @@ class DeleteRowActionType(UndoableActionType):
             row_id,
             values=get_row_values(row, fields),
             fields_metadata=fields_metadata,
+            view_id=view.id if view else None,
+            view_name=view.name if view else None,
         )
         cls.register_action(
             user, params, scope=cls.scope(table.id), workspace=database.workspace
@@ -512,6 +541,8 @@ class DeleteRowsActionType(UndoableActionType):
         trashed_rows_entry_id: int
         rows_values: list[dict[str, Any]]
         fields_metadata: dict[str, [dict[str, Any]]]
+        view_id: Optional[int] = None
+        view_name: Optional[str] = None
 
     @classmethod
     def do(
@@ -520,6 +551,7 @@ class DeleteRowsActionType(UndoableActionType):
         table: Table,
         row_ids: List[int],
         model: Optional[Type[GeneratedTableModel]] = None,
+        view: Optional[View] = None,
         send_webhook_events: bool = True,
     ):
         """
@@ -533,6 +565,8 @@ class DeleteRowsActionType(UndoableActionType):
         :param row_ids: The id of the row that must be deleted.
         :param model: If the correct model has already been generated, it can be
             provided so that it does not have to be generated for a second time.
+        :param view: Optionally provide view, if the row are deleted in the view.
+            This can result in different permissions checks.
         :param send_webhook_events: If set the false then the webhooks will not be
             triggered. Defaults to true.
         :raises RowDoesNotExist: When the row with the provided id does not exist.
@@ -545,7 +579,12 @@ class DeleteRowsActionType(UndoableActionType):
 
         rh = RowHandler()
         trashed_rows_entry = rh.delete_rows(
-            user, table, row_ids, model=model, send_webhook_events=send_webhook_events
+            user,
+            table,
+            row_ids,
+            model=model,
+            view=view,
+            send_webhook_events=send_webhook_events,
         )
 
         workspace = table.database.workspace
@@ -565,6 +604,8 @@ class DeleteRowsActionType(UndoableActionType):
             trashed_rows_entry_id=trashed_rows_entry.id,
             fields_metadata=fields_metadata,
             rows_values=rows_values,
+            view_id=view.id if view else None,
+            view_name=view.name if view else None,
         )
         cls.register_action(
             user, params, scope=cls.scope(table.id), workspace=workspace
@@ -795,6 +836,8 @@ class UpdateRowActionType(UndoableActionType):
         row_id: int
         row_values: Dict[str, Any]
         original_row_values: Dict[str, Any]
+        view_id: Optional[int] = None
+        view_name: Optional[str] = None
 
     @classmethod
     def do(
@@ -804,6 +847,7 @@ class UpdateRowActionType(UndoableActionType):
         row_id: int,
         values: Dict[str, Any],
         model: Optional[Type[GeneratedTableModel]] = None,
+        view: Optional["View"] = None,
         user_field_names: bool = False,
     ) -> GeneratedTableModelForUpdate:
         """
@@ -819,6 +863,8 @@ class UpdateRowActionType(UndoableActionType):
         :param values: The values that must be updated. The keys must be the field ids.
         :param model: If the correct model has already been generated it can be
             provided so that it does not have to be generated for a second time.
+        :param view: Optionally provide view, if the row is updated in the view.
+            This can result in different permissions checks.
         :param user_field_names: Whether or not the values are keyed by the internal
             Baserow field names (field_1,field_2 etc) or by the user field names.
         :raises RowDoesNotExist: When the row with the provided id does not exist.
@@ -841,7 +887,14 @@ class UpdateRowActionType(UndoableActionType):
         field_ids = set(row_handler.extract_field_ids_from_keys(values.keys()))
         original_row_values = row_handler.get_internal_values_for_fields(row, field_ids)
 
-        updated_row = row_handler.update_row(user, table, row, values, model=model)
+        updated_row = row_handler.update_row(
+            user,
+            table,
+            row,
+            values,
+            model=model,
+            view=view,
+        )
         row_values = row_handler.get_internal_values_for_fields(row, field_ids)
 
         workspace = table.database.workspace
@@ -853,6 +906,8 @@ class UpdateRowActionType(UndoableActionType):
             row.id,
             row_values,
             original_row_values,
+            view_id=view.id if view else None,
+            view_name=view.name if view else None,
         )
         cls.register_action(
             user, params, scope=cls.scope(table.id), workspace=workspace
@@ -902,6 +957,8 @@ class UpdateRowsActionType(UndoableActionType):
         row_values: List[Dict[str, Any]]
         original_rows_values_by_id: Dict[int, Dict[str, Any]]
         updated_fields_metadata_by_row_id: Dict[int, Dict[str, Any]]
+        view_id: Optional[int] = None
+        view_name: Optional[str] = None
 
     @classmethod
     def do(
@@ -910,6 +967,7 @@ class UpdateRowsActionType(UndoableActionType):
         table: Table,
         rows_values: List[Dict[str, Any]],
         model: Optional[Type[GeneratedTableModel]] = None,
+        view: Optional[View] = None,
         send_webhook_events: bool = True,
     ) -> UpdatedRowsData:
         """
@@ -925,6 +983,8 @@ class UpdateRowsActionType(UndoableActionType):
             field ids plus the id of the row.
         :param model: If the correct model has already been generated it can be
             provided so that it does not have to be generated for a second time.
+        :param view: Optionally provide view, if the rows are updated in the view.
+            This can result in different permissions checks.
         :param send_webhook_events: If set the false then the webhooks will not be
             triggered. Defaults to true.
         :return: The updated rows.
@@ -937,6 +997,7 @@ class UpdateRowsActionType(UndoableActionType):
             table,
             rows_values,
             model=model,
+            view=view,
             send_webhook_events=send_webhook_events,
         )
         updated_rows = result.updated_rows
@@ -951,6 +1012,8 @@ class UpdateRowsActionType(UndoableActionType):
             result.updated_rows_values,
             result.original_rows_values_by_id,
             result.updated_fields_metadata_by_row_id,
+            view_id=view.id if view else None,
+            view_name=view.name if view else None,
         )
         cls.register_action(user, params, cls.scope(table.id), workspace=workspace)
 

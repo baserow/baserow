@@ -73,3 +73,6 @@ class RestrictedViewOwnershipType(ViewOwnershipType):
                 view._prefetched_objects_cache["filter_groups"] = []
 
         return views
+
+    def can_modify_rows(self, view):
+        return True

@@ -29,7 +29,6 @@ class ViewSortOperationType(OperationType, abc.ABC):
 
 
 class ViewRowOperationType(OperationType, abc.ABC):
-    # @TODO docs why same
     context_scope_name = DatabaseViewObjectScopeType.type
 
 

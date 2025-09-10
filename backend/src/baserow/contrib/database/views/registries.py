@@ -1483,6 +1483,19 @@ class ViewOwnershipType(Instance):
 
         return views
 
+    def can_modify_rows(self, view: "View") -> bool:
+        """
+        Indicates whether it's possible to modify rows in the view, even if the user
+        does not have permissions to the table. The role that the user has on view
+        level must of course include the `CreateViewRowOperationType`,
+        `UpdateViewRowOperationType`, and `DeleteViewRowOperationType` operations.
+
+        :param view: The view where to check the permissions for.
+        :return: Returns true if it's possible to modify rows in the view.
+        """
+
+        return False
+
 
 class ViewOwnershipTypeRegistry(Registry):
     """
