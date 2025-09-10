@@ -401,6 +401,9 @@ class CoreHTTPRequestServiceType(ServiceType):
             )
 
         if allowed_fields is None or "headers" in allowed_fields:
+            schema_builder = SchemaBuilder()
+            schema_builder.add_object(service.sample_data["headers"])
+            schema = schema_builder.to_schema()
             properties.update(
                 **{
                     "headers": {
@@ -421,7 +424,8 @@ class CoreHTTPRequestServiceType(ServiceType):
                             },
                         },
                         "title": "Headers",
-                    },
+                    }
+                    | schema,
                 },
             )
 
