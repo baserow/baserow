@@ -2,7 +2,11 @@
   <div>
     <h2 class="box__title">{{ $t('twoFactorAuthSettings.title') }}</h2>
     <TwoFactorAuthEmpty v-if="state == 'empty'" @enable="enable" />
-    <EnableTwoFactorOptions v-if="state == 'pick_options'" @cancel="cancel" @continue="stepContinue" />
+    <EnableTwoFactorOptions
+      v-if="state == 'pick_options'"
+      @cancel="cancel"
+      @continue="stepContinue"
+    />
     <EnableWithQRCode v-if="state == 'qr_code'" />
   </div>
 </template>
@@ -17,7 +21,7 @@ export default {
   components: { TwoFactorAuthEmpty, EnableTwoFactorOptions, EnableWithQRCode },
   data() {
     return {
-      state: 'empty',
+      state: 'qr_code',
     }
   },
   methods: {
