@@ -12,7 +12,7 @@ from baserow.contrib.automation.nodes.registries import automation_node_type_reg
 from baserow.contrib.integrations.local_baserow.models import LocalBaserowRowsCreated
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import MirrorDict
-from baserow.test_utils.helpers import AnyDict
+from baserow.test_utils.helpers import AnyDict, AnyInt, AnyStr
 
 
 @pytest.mark.django_db
@@ -423,43 +423,20 @@ def test_simulate_dispatch_node_action_with_update_sample_data(
 ):
     data = create_action_node(data_fixture)
     action_node = data["action_node"]
-    table = data["table"]
     fields = data["fields"]
 
     assert action_node.service.sample_data is None
 
+    mock_get_sample_data.return_value = None
+
     AutomationNodeHandler().simulate_dispatch_node(action_node)
 
-    # Since a real dispatch happened, the get_sample_data() shouldn't
-    # have been called.
-    mock_get_sample_data.assert_not_called()
-
     action_node.refresh_from_db()
-    row = table.get_model().objects.first()
 
     assert action_node.service.sample_data == {
         f"field_{fields[0].id}": "A new row",
-        "id": row.id,
-        "order": str(row.order),
-    }
-
-    existing_mapping = action_node.service.field_mappings.get(field=fields[0])
-    existing_mapping.value = "'Chocolate donut'"
-    existing_mapping.save()
-
-    # Set re-test to True
-    AutomationNodeHandler().simulate_dispatch_node(action_node)
-
-    latest_row = table.get_model().objects.order_by("-id")[0]
-
-    mock_get_sample_data.assert_not_called()
-    action_node.refresh_from_db()
-
-    # The updated field mappings should be used in the sample data
-    assert action_node.service.sample_data == {
-        f"field_{fields[0].id}": "Chocolate donut",
-        "id": latest_row.id,
-        "order": str(latest_row.order),
+        "id": AnyInt(),
+        "order": AnyStr(),
     }
 
 

@@ -299,6 +299,7 @@ def test_get_nodes(api_client, data_fixture):
             "service": AnyDict(),
             "type": "rows_created",
             "workflow": workflow.id,
+            "simulate_until_node": False,
         },
         {
             "id": node.id,

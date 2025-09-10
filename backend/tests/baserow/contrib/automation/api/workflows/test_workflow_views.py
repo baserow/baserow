@@ -422,9 +422,7 @@ def test_run_workflow_in_test_mode(api_client, data_fixture):
         columns=[("Name", "text"), ("Color", "text")],
         rows=[["BMW", "Blue"]],
     )
-    workflow = data_fixture.create_automation_workflow(
-        user=user, trigger_service_kwargs={"table": table_1}
-    )
+    workflow = data_fixture.create_automation_workflow(user=user, create_trigger=False)
     workflow.automation.published_from = original_workflow
     workflow.automation.save()
 
