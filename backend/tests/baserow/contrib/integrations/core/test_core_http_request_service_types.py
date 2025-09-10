@@ -501,7 +501,9 @@ def test_core_http_request_generate_schema_with_sample_data():
 
     service_type = service.get_type()
 
-    assert service_type.generate_schema(service)["properties"]["fighters"] == {
+    assert service_type.generate_schema(service)["properties"]["body"]["properties"][
+        "fighters"
+    ] == {
         "properties": {
             "Blanka": {
                 "properties": {
