@@ -20,13 +20,17 @@
           Enter a 6-digit code shown by the app to confirm that you have set it
           up correctly.
         </div>
+        <AuthCodeInput />
       </div>
     </div>
   </div>
 </template>
 
 <script>
+import AuthCodeInput from '@baserow/modules/core/components/settings/twoFactorAuth/AuthCodeInput'
+
 export default {
   name: 'EnableWithQRCode',
+  components: { AuthCodeInput },
 }
 </script>
