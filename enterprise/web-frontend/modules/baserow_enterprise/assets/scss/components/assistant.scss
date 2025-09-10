@@ -39,7 +39,7 @@
   @extend %scrollbar-thin;
 
   flex: 1;
-  padding: 20px;
+  padding: 20px 11px 0 20px;
   overflow-y: auto;
   display: flex;
   scrollbar-gutter: stable;
@@ -129,7 +129,8 @@
 }
 
 .assistant__input {
-  padding: 24px;
+  padding: 20px;
+  padding-top: 8px;
   flex-shrink: 0;
 }
 
@@ -286,7 +287,6 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding-bottom: 20px;
 }
 
 .assistant__typing {
@@ -545,4 +545,3 @@
 .assistant__chat-history-spacer {
   width: 300px;
 }
-

@@ -67,7 +67,6 @@ class AssistantChatsView(APIView):
                 description="The initial index from which to return the results.",
             ),
         ],
-        request=AssistantChatsRequestSerializer,
         responses={
             200: get_example_pagination_serializer_class(AssistantChatSerializer),
             400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
@@ -174,7 +173,6 @@ class AssistantChatView(APIView):
             "List all messages in the specified AI assistant chat.\n\n"
             "This is an **advanced/enterprise** feature."
         ),
-        request=AssistantMessageRequestSerializer,
         responses={
             200: AssistantChatMessageSerializer,
             400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),

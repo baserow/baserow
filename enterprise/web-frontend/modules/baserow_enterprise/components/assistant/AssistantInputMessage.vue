@@ -23,7 +23,7 @@
           v-model="currentMessage"
           :placeholder="$t('assistantInputMessage.placeholder')"
           :auto-expandable="true"
-          :min-rows="2"
+          :min-rows="1"
           :max-rows="6"
           @keydown.enter="handleEnter"
         />

@@ -12,7 +12,7 @@
       <div class="assistant__message-content">
         <div class="assistant__message-bubble">
           <div
-            v-if="message.role === 'ai' && message.loading && !message.content"
+            v-if="waitingForAssistantResponse(message)"
             class="assistant__typing"
           >
             <span></span>
@@ -52,6 +52,9 @@ export default {
     },
   },
   methods: {
+    waitingForAssistantResponse(message) {
+      return message.role === 'ai' && message.loading && !message.content
+    },
     formatMessage(content) {
       if (!content) return ''
 

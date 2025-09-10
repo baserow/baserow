@@ -39,11 +39,14 @@
       </div>
     </div>
     <div ref="scrollContainer" class="assistant__content">
+      <AssistantMessageList
+        v-if="currentChatId"
+        :messages="messages"
+      ></AssistantMessageList>
       <AssistantWelcomeMessage
-        v-if="!currentChatId"
+        v-else
         :name="user.first_name"
       ></AssistantWelcomeMessage>
-      <AssistantMessageList v-else :messages="messages"></AssistantMessageList>
     </div>
     <div class="assistant__footer">
       <AssistantInputMessage
@@ -107,6 +110,15 @@ export default {
       },
       immediate: true,
     },
+    isAssistantRunning(newVal) {
+      if (newVal) {
+        // bring the new response into view
+        this.$nextTick(() => {
+          const container = this.$refs.scrollContainer
+          container.scrollTop = container.scrollHeight
+        })
+      }
+    },
   },
   mounted() {
     const container = this.$refs.scrollContainer
@@ -116,7 +128,7 @@ export default {
     container.addEventListener('scroll', () => {
       const atBottom =
         container.scrollHeight - container.scrollTop - container.clientHeight <
-        5
+        30
       isUserScrolling = !atBottom
     })
 

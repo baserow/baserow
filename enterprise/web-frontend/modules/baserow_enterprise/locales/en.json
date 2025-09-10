@@ -334,7 +334,7 @@
     "subtitle": "I'm here to support you in handling your data."
   },
   "assistantInputMessage": {
-    "statusWaiting": "Assistant is waiting for your response",
+    "statusWaiting": "Assistant is ready to help",
     "statusRunning": "Running...",
     "placeholder": "Ask me anything...",
     "send": "Send message"
