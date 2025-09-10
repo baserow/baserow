@@ -149,6 +149,7 @@ def test_export_import_upsert_row_workflow_action_type(data_fixture):
             "field_mappings": [
                 {"field_id": field.id, "value": field_mapping.value, "enabled": True}
             ],
+            "sample_data": None,
         },
     }
 

@@ -3368,6 +3368,7 @@ def test_grouped_aggregate_rows_service_export_serialized(
         "filters": [],
         "id": service.id,
         "integration_id": service.integration.id,
+        "sample_data": None,
         "service_aggregation_group_bys": [
             {"field_id": field_3.id},
         ],
