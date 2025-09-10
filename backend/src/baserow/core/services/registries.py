@@ -71,6 +71,8 @@ class ServiceType(
     parent_property_name = "integration"
     id_mapping_name = "services"
 
+    default_serializer_field_names = ["sample_data"]
+
     # Does this service return a list of record?
     returns_list = False
 

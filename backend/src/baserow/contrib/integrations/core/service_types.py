@@ -58,7 +58,7 @@ class CoreHTTPRequestServiceType(ServiceType):
         "timeout",
     ]
 
-    serializer_field_names = [
+    _serializer_field_names = [
         "http_method",
         "url",
         "headers",
@@ -67,7 +67,6 @@ class CoreHTTPRequestServiceType(ServiceType):
         "body_type",
         "body_content",
         "timeout",
-        "sample_data",
     ]
 
     request_serializer_field_names = [
@@ -90,9 +89,12 @@ class CoreHTTPRequestServiceType(ServiceType):
         body_type: str
         body_content: str
         timeout: int
-        sample_data: dict
 
     simple_formula_fields = ["body_content", "url"]
+
+    @property
+    def serializer_field_names(self):
+        return self._serializer_field_names + self.default_serializer_field_names
 
     @property
     def serializer_field_overrides(self):
