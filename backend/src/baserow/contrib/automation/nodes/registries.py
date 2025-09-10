@@ -53,6 +53,9 @@ class AutomationNodeType(
         ),
     }
 
+    # Does this node type get immediately dispatch on a test run?
+    immediate_dispatch: bool = False
+
     is_workflow_trigger = False
     is_workflow_action = False
 

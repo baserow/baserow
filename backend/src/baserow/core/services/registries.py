@@ -517,10 +517,26 @@ class TriggerServiceTypeMixin(ABC):
     dispatch_type = DispatchTypes.DISPATCH_TRIGGER
 
     @abstractmethod
-    def start_listening(self, on_event: Callable):
+    def start_listening(self, on_event: Callable) -> None:
+        """
+        Triggers, a type of service which respond to internal and external events and
+        trigger their own dispatch, need the ability to "start" listening to their
+        events. This method ensure that we only begin listening when we need to.
+
+        :param on_event: A callable function which should be called when
+            the internal or external event occurs.
+        """
+
         self.on_event = on_event
 
-    def stop_listening(self):
+    def stop_listening(self) -> None:
+        """
+        Triggers, a type of service which respond to internal and external events and
+        trigger their own dispatch, need the ability to "stop" listening to their
+        events. This method ensure that we can stop listening when we need to.
+        :return:
+        """
+
         ...
 
 

@@ -2,6 +2,8 @@ import json
 import uuid
 from unittest.mock import MagicMock, patch
 
+from django.utils import timezone
+
 import pytest
 
 from baserow.contrib.automation.automation_dispatch_context import (
@@ -313,6 +315,42 @@ def test_on_event_excludes_disabled_workflows(mock_run_workflow, data_fixture):
 
     node.get_type().on_event(service_queryset, event_payload, user=user)
     mock_run_workflow.assert_not_called()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "node_type",
+    [
+        node_type
+        for node_type in automation_node_type_registry.get_all()
+        if node_type.immediate_dispatch
+    ],
+)
+@patch("baserow.contrib.automation.nodes.registries.ServiceHandler.dispatch_service")
+def test_triggers_which_dispatch_immediately_on_test_run(
+    mock_dispatch_service, node_type, data_fixture
+):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(
+        user=user,
+        trigger_type=node_type,
+        allow_test_run_until=timezone.now() + timezone.timedelta(hours=1),
+    )
+    trigger = workflow.get_trigger()
+    from baserow.contrib.automation.workflows.signals import automation_workflow_updated
+
+    automation_workflow_updated.send(
+        None,
+        user=user,
+        workflow=workflow,
+    )
+    assert mock_dispatch_service
+
+    mock_dispatch_service.assert_called_once()
+    args = mock_dispatch_service.call_args[0]
+    assert args[0] == trigger.service.specific
+    dispatch_context = args[1]
+    assert dispatch_context.workflow == workflow
 
 
 @pytest.mark.django_db

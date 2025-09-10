@@ -115,9 +115,9 @@ class ServiceFixtures:
     def create_service(self, model_class, **kwargs):
         if "integration" not in kwargs:
             integration = None
+            integrations_args = kwargs.pop("integration_args", {})
             service_type = service_type_registry.get_by_model(model_class)
             if service_type.get_integration_type():
-                integrations_args = kwargs.pop("integration_args", {})
                 integration = self.create_integration(
                     service_type.get_integration_type().model_class, **integrations_args
                 )

@@ -8,6 +8,7 @@ from typing import Any, Callable, Dict, Generator, List, Optional, Tuple
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives, get_connection
 from django.db.models import Q
+from django.utils import timezone
 from django.utils.translation import gettext as _
 
 from advocate.connection import UnacceptableAddressException
@@ -18,6 +19,19 @@ from requests import exceptions as request_exceptions
 from rest_framework import serializers
 
 from baserow.config.celery import app as celery_app
+from baserow.contrib.automation.nodes.utils import get_periodic_trigger_payload
+from baserow.contrib.automation.workflows.constants import WorkflowState
+from baserow.contrib.integrations.core.constants import (
+    BODY_TYPE,
+    HTTP_METHOD,
+    PERIODIC_INTERVAL_CHOICES,
+    PERIODIC_INTERVAL_DAY,
+    PERIODIC_INTERVAL_HOUR,
+    PERIODIC_INTERVAL_MINUTE,
+    PERIODIC_INTERVAL_MONTH,
+    PERIODIC_INTERVAL_WEEK,
+)
+from baserow.contrib.integrations.core.integration_types import SMTPIntegrationType
 from baserow.contrib.integrations.core.models import (
     CoreHTTPRequestService,
     CorePeriodicService,
@@ -49,20 +63,6 @@ from baserow.core.services.registries import (
 )
 from baserow.core.services.types import DispatchResult, FormulaToResolve, ServiceDict
 from baserow.version import VERSION as BASEROW_VERSION
-
-from ...automation.nodes.utils import get_periodic_trigger_payload
-from ...automation.workflows.constants import WorkflowState
-from .constants import (
-    BODY_TYPE,
-    HTTP_METHOD,
-    PERIODIC_INTERVAL_CHOICES,
-    PERIODIC_INTERVAL_DAY,
-    PERIODIC_INTERVAL_HOUR,
-    PERIODIC_INTERVAL_MINUTE,
-    PERIODIC_INTERVAL_MONTH,
-    PERIODIC_INTERVAL_WEEK,
-)
-from .integration_types import SMTPIntegrationType
 
 
 class CoreHTTPRequestServiceType(ServiceType):
@@ -1240,6 +1240,42 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, ServiceType):
         super().stop_listening()
         self.signal.disconnect(self.handler)
 
+    def dispatch_all(self, services: List[CorePeriodicService]):
+        """
+        Responsible for dispatching all periodic services that we've identified as
+        being due to run. All services are then updated to have their
+        `last_periodic_run` set to the current time.
+
+        :param services: A list of CorePeriodicService instances that are due to run.
+        """
+
+        self.on_event(
+            services,
+            get_periodic_trigger_payload(timezone.now()),
+        )
+
+        for service in services:
+            service.last_periodic_run = timezone.now()
+        CorePeriodicService.objects.bulk_update(services, fields=["last_periodic_run"])
+
+    def dispatch_data(
+        self,
+        service: CorePeriodicService,
+        resolved_values: Dict[str, Any],
+        dispatch_context: DispatchContext,
+    ) -> None:
+        """
+        Responsible for dispatching a single periodic service. In practice we
+        dispatch all periodic services that are due in one go so this method just
+        calls `dispatch_all` with a list containing the single service.
+
+        :param service: The CorePeriodicService instance to dispatch.
+        :param resolved_values: The resolved values from the service's formulas.
+        :param dispatch_context: The context in which the service is being dispatched.
+        """
+
+        self.dispatch_all([service])
+
     def call_periodic_services_that_are_due(self, now: datetime):
         """
         Responsible for finding all periodic services that are due to run and
@@ -1315,16 +1351,7 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, ServiceType):
         )
 
         if periodic_services:
-            self.on_event(
-                periodic_services,
-                get_periodic_trigger_payload(now),
-            )
-
-            for service in periodic_services:
-                service.last_periodic_run = now
-            CorePeriodicService.objects.bulk_update(
-                periodic_services, fields=["last_periodic_run"]
-            )
+            self.dispatch_all(periodic_services)
 
     def get_schema_name(self, service: CorePeriodicService) -> str:
         return f"Periodic{service.id}Schema"

@@ -3,7 +3,7 @@
     <FormGroup
       :error="fieldHasErrors('interval')"
       :label="$t('periodicForm.intervalLabel')"
-      :helper-text="$t('periodicForm.intervalHelper')"
+      :helper-text="intervalText"
       required
       small-label
       class="margin-bottom-2"
@@ -98,21 +98,6 @@
           {{ v$.user.day_of_month.$errors[0].$message }}
         </template>
       </FormGroup>
-
-      <p class="control__helper-text">
-        <template v-if="values.interval === 'HOUR'">
-          {{ $t('periodicForm.hourHelper', { timezone }) }}
-        </template>
-        <template v-else-if="values.interval === 'DAY'">
-          {{ $t('periodicForm.dayHelper', { timezone }) }}
-        </template>
-        <template v-else-if="values.interval === 'WEEK'">
-          {{ $t('periodicForm.weekHelper', { timezone }) }}
-        </template>
-        <template v-else-if="values.interval === 'MONTH'">
-          {{ $t('periodicForm.monthHelper', { timezone }) }}
-        </template>
-      </p>
     </div>
     <slot></slot>
   </form>
@@ -162,6 +147,23 @@ export default {
     },
     showMinuteField() {
       return ['HOUR', 'DAY', 'WEEK', 'MONTH'].includes(this.values.interval)
+    },
+    intervalText() {
+      const context = { timezone: this.timezone }
+      switch (this.values.interval) {
+        case 'HOUR':
+          return this.$t('periodicForm.hourHelper', context)
+        case 'DAY':
+          return this.$t('periodicForm.dayHelper', context)
+        case 'WEEK':
+          return this.$t('periodicForm.weekHelper', context)
+        case 'MONTH':
+          return this.$t('periodicForm.monthHelper', context)
+        case null:
+          return this.$t('periodicForm.intervalHelper')
+        default:
+          return ''
+      }
     },
     daysOfWeek() {
       return {
