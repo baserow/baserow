@@ -8,7 +8,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from functools import partial
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, AsyncGenerator, Dict, List, Optional
 from unittest.mock import patch
 
 from django.conf import settings as django_settings
@@ -19,13 +19,14 @@ from django.db.migrations.executor import MigrationExecutor
 from django.test.utils import CaptureQueriesContext
 
 import pytest
+from asgiref.sync import async_to_sync
 from faker import Faker
 from loguru import logger
 from pygments import highlight
 from pygments.formatters import TerminalFormatter
 from pygments.lexers import PostgresLexer
 from pyinstrument import Profiler
-from rest_framework.test import APIRequestFactory
+from rest_framework.test import APIClient, APIRequestFactory
 from sqlparse import format
 
 from baserow.contrib.database.application_types import DatabaseApplicationType
@@ -83,11 +84,40 @@ def data_fixture(fake):
     return Fixtures(fake)
 
 
+class StreamingAPIClient(APIClient):
+    """Custom API client that properly handles streaming responses"""
+
+    async def _consume_async_generator(self, async_gen: AsyncGenerator) -> List:
+        """Helper to consume async generator"""
+        chunks = []
+        async for chunk in async_gen:
+            chunks.append(chunk)
+        return chunks
+
+    def request(self, **kwargs):
+        response = super().request(**kwargs)
+
+        # If it's a streaming response, don't consume it yet, but store the original
+        # streaming_content so we can consume it later if needed.
+        if hasattr(response, "streaming_content"):
+            response._streaming_content = response.streaming_content
+
+            def stream_chunks() -> list[str]:
+                content = response._streaming_content
+
+                if hasattr(content, "__aiter__"):
+                    return async_to_sync(self._consume_async_generator)(content)
+                else:
+                    return list(content)
+
+            response.stream_chunks = stream_chunks
+
+        return response
+
+
 @pytest.fixture()
 def api_client():
-    from rest_framework.test import APIClient
-
-    return APIClient()
+    return StreamingAPIClient()
 
 
 @pytest.fixture

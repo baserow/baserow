@@ -32,11 +32,10 @@ asgiref==3.8.1
     #   django
     #   django-cors-headers
     #   opentelemetry-instrumentation-asgi
-async-timeout==5.0.1
-    # via redis
 attrs==24.3.0
     # via
     #   jsonschema
+    #   referencing
     #   service-identity
     #   twisted
 autobahn==24.4.2
@@ -175,7 +174,7 @@ djangorestframework==3.15.1
     #   drf-spectacular
 djangorestframework-simplejwt==5.3.1
     # via -r base.in
-drf-spectacular==0.27.2
+drf-spectacular==0.28.0
     # via -r base.in
 elementpath==4.7.0
     # via xmlschema
@@ -214,8 +213,6 @@ googleapis-common-protos==1.66.0
     # via
     #   google-api-core
     #   opentelemetry-exporter-otlp-proto-http
-greenlet==3.1.1
-    # via sqlalchemy
 gunicorn==23.0.0
     # via -r base.in
 h11==0.16.0
@@ -231,6 +228,7 @@ httptools==0.6.4
 httpx==0.27.2
     # via
     #   anthropic
+    #   langgraph-sdk
     #   langsmith
     #   mcp
     #   mistralai
@@ -268,7 +266,9 @@ itsdangerous==2.2.0
 jira2markdown==0.3.7
     # via -r base.in
 jiter==0.8.2
-    # via anthropic
+    # via
+    #   anthropic
+    #   openai
 jmespath==1.0.1
     # via
     #   boto3
@@ -279,21 +279,40 @@ jsonpath-python==1.0.6
     # via mistralai
 jsonpointer==3.0.0
     # via jsonpatch
-jsonschema==4.17.3
-    # via
-    #   -r base.in
-    #   drf-spectacular
+jsonschema==4.25.0
+    # via drf-spectacular
+jsonschema-specifications==2025.4.1
+    # via jsonschema
 kombu==5.4.2
     # via celery
-langchain==0.3.21
+langchain==0.3.27
     # via -r base.in
-langchain-core==0.3.48
+langchain-core==0.3.72
     # via
     #   langchain
+    #   langchain-openai
     #   langchain-text-splitters
-langchain-text-splitters==0.3.7
+    #   langgraph
+    #   langgraph-checkpoint
+    #   langgraph-prebuilt
+langchain-openai==0.3.28
+    # via -r base.in
+langchain-text-splitters==0.3.9
     # via langchain
-langsmith==0.1.147
+langgraph==0.6.3
+    # via -r base.in
+langgraph-checkpoint==2.1.1
+    # via
+    #   langgraph
+    #   langgraph-checkpoint-postgres
+    #   langgraph-prebuilt
+langgraph-checkpoint-postgres==2.0.23
+    # via -r base.in
+langgraph-prebuilt==0.6.3
+    # via langgraph
+langgraph-sdk==0.2.0
+    # via langgraph
+langsmith==0.4.10
     # via
     #   langchain
     #   langchain-core
@@ -321,8 +340,10 @@ oauthlib==3.2.2
     # via requests-oauthlib
 ollama==0.1.9
     # via -r base.in
-openai==1.30.1
-    # via -r base.in
+openai==1.91.0
+    # via
+    #   -r base.in
+    #   langchain-openai
 openpyxl==3.1.5
     # via -r base.in
 opentelemetry-api==1.29.0
@@ -432,12 +453,18 @@ opentelemetry-util-http==0.50b0
     #   opentelemetry-instrumentation-requests
     #   opentelemetry-instrumentation-wsgi
 orjson==3.10.13
-    # via langsmith
+    # via
+    #   langgraph-checkpoint-postgres
+    #   langgraph-sdk
+    #   langsmith
+ormsgpack==1.10.0
+    # via langgraph-checkpoint
 packaging==23.2
     # via
     #   gunicorn
     #   huggingface-hub
     #   langchain-core
+    #   langsmith
     #   opentelemetry-instrumentation
 pillow==10.3.0
     # via -r base.in
@@ -459,6 +486,10 @@ protobuf==5.29.2
     #   proto-plus
 psutil==5.9.8
     # via -r base.in
+psycopg==3.2.9
+    # via langgraph-checkpoint-postgres
+psycopg-pool==3.2.6
+    # via langgraph-checkpoint-postgres
 psycopg2==2.9.10
     # via -r base.in
 pyasn1==0.6.1
@@ -479,6 +510,7 @@ pydantic==2.9.2
     #   anthropic
     #   langchain
     #   langchain-core
+    #   langgraph
     #   langsmith
     #   mcp
     #   mistralai
@@ -500,8 +532,6 @@ pyopenssl==24.3.0
     #   twisted
 pyparsing==3.2.1
     # via jira2markdown
-pyrsistent==0.20.0
-    # via jsonschema
 pysaml2==7.5.0
     # via -r base.in
 python-crontab==3.2.0
@@ -541,8 +571,14 @@ redis==5.0.4
     #   celery-singleton
     #   channels-redis
     #   django-redis
+referencing==0.36.2
+    # via
+    #   jsonschema
+    #   jsonschema-specifications
 regex==2024.4.28
-    # via -r base.in
+    # via
+    #   -r base.in
+    #   tiktoken
 requests==2.32.3
     # via
     #   -r base.in
@@ -558,12 +594,17 @@ requests==2.32.3
     #   pysaml2
     #   requests-oauthlib
     #   requests-toolbelt
+    #   tiktoken
 requests-oauthlib==2.0.0
     # via -r base.in
 requests-toolbelt==1.0.0
     # via langsmith
 rich==13.7.1
     # via -r base.in
+rpds-py==0.26.0
+    # via
+    #   jsonschema
+    #   referencing
 rsa==4.9
     # via google-auth
 s3transfer==0.10.4
@@ -600,6 +641,8 @@ tenacity==8.5.0
     # via
     #   celery-redbeat
     #   langchain-core
+tiktoken==0.9.0
+    # via langchain-openai
 tokenizers==0.21.0
     # via anthropic
 tornado==6.5
@@ -630,8 +673,11 @@ typing-extensions==4.11.0
     #   openai
     #   opentelemetry-sdk
     #   prosemirror
+    #   psycopg
+    #   psycopg-pool
     #   pydantic
     #   pydantic-core
+    #   referencing
     #   sqlalchemy
     #   twisted
     #   typing-inspect
@@ -684,6 +730,8 @@ wrapt==1.17.0
     #   opentelemetry-instrumentation-redis
 xmlschema==2.5.1
     # via pysaml2
+xxhash==3.5.0
+    # via langgraph
 zipp==3.18.1
     # via
     #   -r base.in
@@ -692,6 +740,8 @@ zipstream-ng==1.8.0
     # via -r base.in
 zope-interface==7.2
     # via twisted
+zstandard==0.23.0
+    # via langsmith
 
 # The following packages are considered to be unsafe in a requirements file:
 # setuptools

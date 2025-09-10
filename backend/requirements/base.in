@@ -11,7 +11,7 @@ websockets==12.0
 requests==2.32.3
 itsdangerous==2.2.0
 Pillow==10.3.0
-drf-spectacular==0.27.2
+drf-spectacular==0.28.0
 asgiref==3.8.1
 channels[daphne]==4.0.0
 channels-redis==4.1.0
@@ -70,11 +70,13 @@ tzdata==2024.1
 sentry-sdk==2.29.1
 typing_extensions==4.11.0
 ollama==0.1.9
-langchain==0.3.21
-openai==1.30.1
+langchain==0.3.27
+langchain-openai==0.3.28
+langgraph==0.6.3
+langgraph-checkpoint-postgres==2.0.23
+openai==1.91.0
 anthropic==0.37.1
 mistralai==1.1.0
-jsonschema==4.17.3 # pinned due to version conflict
 # referencing==0.31.1 # pinned because of version conflict
 # premium ical feed feature
 icalendar==5.0.12

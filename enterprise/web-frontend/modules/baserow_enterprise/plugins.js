@@ -9,7 +9,10 @@ import EnterpriseSettings from '@baserow_enterprise/components/EnterpriseSetting
 import EnterpriseSettingsOverrideDashboardHelp from '@baserow_enterprise/components/EnterpriseSettingsOverrideDashboardHelp'
 import EnterpriseLogo from '@baserow_enterprise/components/EnterpriseLogo'
 import { DatabaseApplicationType } from '@baserow/modules/database/applicationTypes'
-import ExportWorkspaceModalWarning from '@baserow_enterprise/components/ExportWorkspaceModalWarning.vue'
+import ExportWorkspaceModalWarning from '@baserow_enterprise/components/ExportWorkspaceModalWarning'
+import AssistantSidebarItem from '@baserow_enterprise/components/assistant/AssistantSidebarItem'
+import AssistantPanel from '@baserow_enterprise/components/assistant/AssistantPanel'
+import { FF_ASSISTANT } from '@baserow/modules/core/plugins/featureFlags'
 
 export class EnterprisePlugin extends BaserowPlugin {
   static getType() {
@@ -18,6 +21,9 @@ export class EnterprisePlugin extends BaserowPlugin {
 
   getSidebarWorkspaceComponents(workspace) {
     const sidebarItems = []
+    if (this.app.$featureFlagIsEnabled(FF_ASSISTANT)) {
+      sidebarItems.push(AssistantSidebarItem)
+    }
     if (!this.app.$config.BASEROW_DISABLE_SUPPORT) {
       sidebarItems.push(ChatwootSupportSidebarWorkspace)
     }
@@ -39,6 +45,14 @@ export class EnterprisePlugin extends BaserowPlugin {
       additionalComponents.push(MemberRolesDatabaseContextItem)
     }
     return additionalComponents
+  }
+
+  getRightSidebarWorkspaceComponents(workspace) {
+    const rightSidebarItems = []
+    if (this.app.$featureFlagIsEnabled(FF_ASSISTANT)) {
+      rightSidebarItems.push(AssistantPanel)
+    }
+    return rightSidebarItems
   }
 
   getAdditionalTableContextComponents(workspace, table) {
