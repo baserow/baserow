@@ -16,14 +16,14 @@
 
     <div>{{ $t('simulateDispatch.testNodeDescription') }}</div>
 
-    <div v-if="hasSampleData">
+    <div v-if="node.simulate_until_node && isTriggerNode">
+      {{ $t('simulateDispatch.triggerNodeAwaitingEvent') }}
+    </div>
+    <div v-else-if="hasSampleData">
       <div class="simulate-dispatch-node__sample-data-label">
         {{ $t('simulateDispatch.sampleDataLabel') }}:
       </div>
       <pre><code class="simulate-dispatch-node__sample-data-code">{{ node.service.sample_data }}</code></pre>
-    </div>
-    <div v-else-if="node.simulate_until_node">
-      {{ $t('simulateDispatch.triggerNodeAwaitingEvent') }}
     </div>
   </div>
 </template>
@@ -67,7 +67,7 @@ const nodeIsInError = computed(() => {
       return app.i18n.t('simulateDispatch.errorPreviousNodeNotConfigured')
     }
 
-    if (!node.service?.sample_data) {
+    if (!node.service?.sample_data || node.simulate_until_node) {
       return app.i18n.t('simulateDispatch.errorPreviousNodesNotTested')
     }
   }
@@ -75,11 +75,16 @@ const nodeIsInError = computed(() => {
   return ''
 })
 
+const isTriggerNode = computed(() => {
+  const nodeType = app.$registry.get('node', props.node.type)
+  return nodeType.isTrigger
+})
+
 const isDisabled = computed(() => {
   return (
     Boolean(nodeIsInError.value) ||
     isSimulatingDispatch.value ||
-    (props.node.simulate_until_node && props.node.service.sample_data === null)
+    props.node.simulate_until_node
   )
 })
 

@@ -29,7 +29,10 @@ class AutomationNodeSerializer(serializers.ModelSerializer):
 
     @extend_schema_field(OpenApiTypes.BOOL)
     def get_simulate_until_node(self, instance):
-        return bool(instance.workflow.simulate_until_node)
+        if not instance.workflow.simulate_until_node:
+            return False
+
+        return instance == instance.workflow.simulate_until_node.specific
 
     class Meta:
         model = AutomationNode

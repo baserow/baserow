@@ -514,10 +514,6 @@ class AutomationNodeHandler:
         if node.get_type().is_workflow_trigger:
             node.workflow.simulate_until_node = node
             node.workflow.save()
-
-            node.service.sample_data = None
-            node.service.save()
-
             return
 
         dispatch_context = AutomationDispatchContext(
