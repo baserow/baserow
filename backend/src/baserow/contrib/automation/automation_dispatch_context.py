@@ -72,10 +72,6 @@ class AutomationDispatchContext(DispatchContext):
         self.dispatch_history.append(node.id)
         self._register_node_result(node, dispatch_result.data)
 
-        if self.use_sample_data:
-            node.service.sample_data = dispatch_result.data
-            node.service.save()
-
     def range(self, service: Service):
         pass
 
