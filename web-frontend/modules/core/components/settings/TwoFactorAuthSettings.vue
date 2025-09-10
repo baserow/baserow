@@ -21,7 +21,7 @@ export default {
   components: { TwoFactorAuthEmpty, EnableTwoFactorOptions, EnableWithQRCode },
   data() {
     return {
-      state: 'qr_code',
+      state: 'pick_options',
     }
   },
   methods: {
