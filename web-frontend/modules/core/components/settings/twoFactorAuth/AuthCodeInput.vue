@@ -1,57 +1,57 @@
 <template>
   <div class="auth-code-input">
     <input
-      v-model="values.number1"
+      v-model="number1"
       type="text"
       maxlength="1"
       inputmode="numeric"
       class="auth-code-input__input"
-      :class="{ 'auth-code-input__input--filled': values.number1 }"
+      :class="{ 'auth-code-input__input--filled': number1 }"
       @keyup="handleKeyUp"
     />
     <input
-      v-model="values.number2"
+      v-model="number2"
       type="text"
       maxlength="1"
       inputmode="numeric"
       class="auth-code-input__input"
-      :class="{ 'auth-code-input__input--filled': values.number2 }"
+      :class="{ 'auth-code-input__input--filled': number2 }"
       @keyup="handleKeyUp"
     />
     <input
-      v-model="values.number3"
+      v-model="number3"
       type="text"
       maxlength="1"
       inputmode="numeric"
       class="auth-code-input__input"
-      :class="{ 'auth-code-input__input--filled': values.number3 }"
+      :class="{ 'auth-code-input__input--filled': number3 }"
       @keyup="handleKeyUp"
     />
     <input
-      v-model="values.number4"
+      v-model="number4"
       type="text"
       maxlength="1"
       inputmode="numeric"
       class="auth-code-input__input"
-      :class="{ 'auth-code-input__input--filled': values.number4 }"
+      :class="{ 'auth-code-input__input--filled': number4 }"
       @keyup="handleKeyUp"
     />
     <input
-      v-model="values.number5"
+      v-model="number5"
       type="text"
       maxlength="1"
       inputmode="numeric"
       class="auth-code-input__input"
-      :class="{ 'auth-code-input__input--filled': values.number5 }"
+      :class="{ 'auth-code-input__input--filled': number5 }"
       @keyup="handleKeyUp"
     />
     <input
-      v-model="values.number6"
+      v-model="number6"
       type="text"
       maxlength="1"
       inputmode="numeric"
       class="auth-code-input__input"
-      :class="{ 'auth-code-input__input--filled': values.number6 }"
+      :class="{ 'auth-code-input__input--filled': number6 }"
       @keyup="handleKeyUp"
     />
   </div>
@@ -72,10 +72,74 @@ export default {
       },
     }
   },
+  computed: {
+    number1: {
+      get() {
+        return this.values.number1
+      },
+      set(value) {
+        this.values.number1 = this.sanitizeInput(value)
+      },
+    },
+    number2: {
+      get() {
+        return this.values.number2
+      },
+      set(value) {
+        this.values.number2 = this.sanitizeInput(value)
+      },
+    },
+    number3: {
+      get() {
+        return this.values.number3
+      },
+      set(value) {
+        this.values.number3 = this.sanitizeInput(value)
+      },
+    },
+    number4: {
+      get() {
+        return this.values.number4
+      },
+      set(value) {
+        this.values.number4 = this.sanitizeInput(value)
+      },
+    },
+    number5: {
+      get() {
+        return this.values.number5
+      },
+      set(value) {
+        this.values.number5 = this.sanitizeInput(value)
+      },
+    },
+    number6: {
+      get() {
+        return this.values.number6
+      },
+      set(value) {
+        this.values.number6 = this.sanitizeInput(value)
+      },
+    },
+  },
   methods: {
+    sanitizeInput(value) {
+      const sanitized = value.replace(/\D/g, '').slice(0, 1)
+      return sanitized
+    },
     handleKeyUp(event) {
+      const input = event.target
+      const value = input.value
+      const isDigit = /\D/g.test(value)
 
-    }
-  }
+      // Auto-focus to next input when a digit is entered
+      if (isDigit) {
+        const nextInput = input.nextElementSibling
+        if (nextInput && nextInput.tagName === 'INPUT') {
+          nextInput.focus()
+        }
+      }
+    },
+  },
 }
 </script>
