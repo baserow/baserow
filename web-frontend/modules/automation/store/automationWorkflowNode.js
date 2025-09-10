@@ -344,17 +344,6 @@ const actions = {
       updateSampleData
     )
   },
-  async fetchNodesAndSelect({ dispatch, getters }, { workflow }) {
-    const currentSelectedNodeId = workflow.selectedNodeId
-    if (currentSelectedNodeId) {
-      await dispatch('fetch', { workflow })
-      workflow.value = { ...workflow.value }
-
-      // restore the selected node after refreshing the nodes
-      const node = getters.findById(workflow, currentSelectedNodeId)
-      await dispatch('select', { workflow, node })
-    }
-  },
 }
 
 const getters = {

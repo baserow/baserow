@@ -38,6 +38,7 @@ const { app } = useContext()
 const store = useStore()
 
 const workflow = inject('workflow')
+const isTestingTrigger = ref(false)
 
 const props = defineProps({
   node: {
@@ -77,14 +78,15 @@ const nodeIsInError = computed(() => {
 
 const isTriggerNode = computed(() => {
   const nodeType = app.$registry.get('node', props.node.type)
-  return nodeType.isTrigger
+  return Boolean(nodeType.isTrigger)
 })
 
 const isDisabled = computed(() => {
   return (
     Boolean(nodeIsInError.value) ||
     isSimulatingDispatch.value ||
-    props.node.simulate_until_node
+    props.node.simulate_until_node ||
+    (isTriggerNode.value && isTestingTrigger.value)
   )
 })
 
@@ -101,13 +103,14 @@ const buttonLabel = computed(() => {
 const simulateDispatchNode = async () => {
   isSimulatingDispatch.value = true
 
+  if (isTriggerNode.value) {
+    isTestingTrigger.value = true
+  }
+
   try {
     await store.dispatch('automationWorkflowNode/simulateDispatch', {
       nodeId: props.node.id,
       updateSampleData: true,
-    })
-    await store.dispatch('automationWorkflowNode/fetchNodesAndSelect', {
-      workflow: workflow.value,
     })
   } catch (error) {
     notifyIf(error, 'automationWorkflow')
