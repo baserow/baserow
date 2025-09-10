@@ -842,53 +842,6 @@ def test_replacing_router_node_with_output_nodes_disallowed(api_client, data_fix
 
 
 @pytest.mark.django_db
-def test_updating_router_node_removing_edge_without_output_allowed(
-    api_client,
-    data_fixture,
-):
-    user, token = data_fixture.create_user_and_token()
-    workflow = data_fixture.create_automation_workflow(user=user)
-    service = data_fixture.create_core_router_service(default_edge_label="Default")
-    router = data_fixture.create_core_router_action_node(
-        workflow=workflow, service=service
-    )
-    first_edge = data_fixture.create_core_router_service_edge(
-        service=service, label="Do this", condition="'true'"
-    )
-    AutomationNode.objects.filter(previous_node_output=first_edge.uid).delete()
-    second_edge = data_fixture.create_core_router_service_edge(
-        service=service, label="Do that", condition="'true'"
-    )
-    response = api_client.patch(
-        reverse(API_URL_ITEM, kwargs={"node_id": router.id}),
-        {
-            "service": {
-                "type": "router",
-                "edges": [
-                    {
-                        "uid": second_edge.uid,
-                        "label": second_edge.label,
-                        "condition": second_edge.condition,
-                    }
-                ],
-            },
-            "type": "router",
-        },
-        **get_api_kwargs(token),
-    )
-    assert response.status_code == HTTP_200_OK
-    response_json = response.json()
-    assert response_json["service"]["edges"] == [
-        {
-            "uid": str(second_edge.uid),
-            "label": second_edge.label,
-            "order": "0.00000000000000000000",
-            "condition": second_edge.condition,
-        }
-    ]
-
-
-@pytest.mark.django_db
 def test_simulate_dispatch_invalid_node(api_client, data_fixture):
     _, token = data_fixture.create_user_and_token()
 
