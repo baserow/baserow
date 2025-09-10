@@ -81,7 +81,7 @@ def test_core_http_request_basic(
         "body": {
             "raw_body": "body",
         },
-        "raw_body": "body",
+        "raw_body": '{"raw_body": "body"}',
         "headers": {"test": "header"},
         "status_code": 204,
     }
@@ -435,7 +435,7 @@ def test_core_http_request_generate_schema():
     assert service_type.generate_schema(service, ["raw_body"]) == {
         "title": schema_name,
         "type": "object",
-        "properties": {"raw_body": {"type": "string", "title": "Body"}},
+        "properties": {"raw_body": {"type": "string", "title": "Raw body"}},
     }
 
     assert service_type.generate_schema(
@@ -444,7 +444,7 @@ def test_core_http_request_generate_schema():
         "title": schema_name,
         "type": "object",
         "properties": {
-            "raw_body": {"type": "string", "title": "Body"},
+            "raw_body": {"type": "string", "title": "Raw body"},
             "headers": {
                 "properties": {
                     "Content-Length": {
@@ -461,6 +461,7 @@ def test_core_http_request_generate_schema():
                     },
                 },
                 "type": "object",
+                "title": "Headers",
             },
             "status_code": {"title": "Status code", "type": "number"},
         },
