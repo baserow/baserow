@@ -6,7 +6,7 @@
       </div>
       <h3>You have not yet enabled 2FA</h3>
       <p>Add an extra layer of security to your account.</p>
-      <Button>Enable 2FA</Button>
+      <Button @click="$emit('enable')">Enable 2FA</Button>
     </div>
   </div>
 </template>
