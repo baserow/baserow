@@ -232,7 +232,25 @@ class FieldRuleHandler:
         rule.is_active = in_data["is_active"]
         for k, v in rule_data.items():
             setattr(rule, k, v)
-        rule.save(update_fields=["is_active", *list(rule_data.keys())])
+
+        rule_valid = rule_type.validate_rule(rule)
+
+        # Note: this is a workaround to allow any recalculation for the rule
+        # after the change.
+        if rule_valid.is_valid:
+            rule.is_valid = True
+        else:
+            rule.is_valid = False
+            rule.error_text = rule_valid.error_text
+
+        rule.save(
+            update_fields=[
+                "is_active",
+                "is_valid",
+                "error_text",
+                *list(rule_data.keys()),
+            ]
+        )
         rule_type.after_rule_updated(rule)
         return rule
 

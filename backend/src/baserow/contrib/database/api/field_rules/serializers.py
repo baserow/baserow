@@ -14,7 +14,6 @@ class RequestFieldRuleSerializer(serializers.ModelSerializer):
             "type",
         )
 
-    # type = serializers.CharField(required=False, help_text="The type of the rule.")
     type = serializers.ChoiceField(
         choices=lazy(field_rules_type_registry.get_types, list)(),
         help_text="The type of the field rule that must be created.",

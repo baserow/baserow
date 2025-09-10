@@ -1,6 +1,4 @@
 function getUrl(tableId, ruleId = null) {
-  // /api/database/field_rules/{table_id}/
-  // /api/database/field_rules/{table_id}/rule/{rule_id}/
   if (ruleId === null) {
     return `/database/field_rules/${tableId}/`
   }

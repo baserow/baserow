@@ -149,7 +149,9 @@ from .serializers import (
 )
 
 
-def build_response_with_metadata(rows, request, model, serializer_class) -> Response:
+def build_response_with_metadata(
+    rows, request, model, serializer_class, updated_field_ids: list | None = None
+) -> Response:
     """
     Helper to build view's response with optional operation metadata structure.
 
@@ -161,7 +163,9 @@ def build_response_with_metadata(rows, request, model, serializer_class) -> Resp
     data = {"items": rows}
     if str_to_bool(str(request.GET.get("include_metadata"))):
         data["metadata"] = {
-            "updated_field_ids": [field.id for field in model.get_fields()]
+            "updated_field_ids": updated_field_ids
+            if updated_field_ids is not None
+            else [field.id for field in model.get_fields()]
         }
     response_serializer = serializer_class(data)
     return Response(response_serializer.data)
@@ -1440,6 +1444,7 @@ class BatchRowsView(APIView):
             request=request,
             model=model,
             serializer_class=response_serializer_class,
+            updated_field_ids=updated_data.updated_field_ids,
         )
 
 
