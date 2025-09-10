@@ -581,7 +581,6 @@ def test_core_http_request_dispatch_data_with_json(data_fixture, content_type):
     assert dispatch_data.data == {
         "body": {"fighters": {"Ryu": {"power": "Hadogen"}}},
         "raw_body": '{"fighters": {"Ryu": {"power": "Hadogen"}}}',
-        "fighters": {"Ryu": {"power": "Hadogen"}},
         "headers": headers,
         "status_code": 204,
     }
