@@ -2198,7 +2198,8 @@ export const actions = {
           table.id,
           rowsPrepared,
           before !== null ? before.id : null,
-          undoRedoActionGroupId
+          undoRedoActionGroupId,
+          getters.getLastGridId
         )
         data = resp.data
         const updatedFieldIds = data.metadata?.updated_field_ids || []
