@@ -130,7 +130,7 @@ export default {
     handleKeyUp(event) {
       const input = event.target
       const value = input.value
-      const isDigit = /\D/g.test(value)
+      const isDigit = /\d/g.test(value)
 
       // Auto-focus to next input when a digit is entered
       if (isDigit) {
