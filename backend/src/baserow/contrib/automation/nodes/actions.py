@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, List
+from typing import Any, List, Optional
 
 from django.contrib.auth.models import AbstractUser
 from django.utils.translation import gettext_lazy as _
@@ -516,8 +516,11 @@ class MoveAutomationNodeActionType(UndoableActionType):
         user: AbstractUser,
         node_id: int,
         new_previous_node_id: int,
+        new_previous_node_output: Optional[str] = None,
     ) -> AutomationActionNode:
-        move = AutomationNodeService().move_node(user, node_id, new_previous_node_id)
+        move = AutomationNodeService().move_node(
+            user, node_id, new_previous_node_id, new_previous_node_output
+        )
         workflow = move.node.workflow
         cls.register_action(
             user=user,

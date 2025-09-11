@@ -142,6 +142,9 @@ class CoreRouterActionNodeType(AutomationNodeActionNodeType):
     model_class = CoreRouterActionNode
     service_type = CoreRouterServiceType.type
 
+    # Routers cannot be moved in the workflow to a new position.
+    is_fixed = True
+
     def get_output_nodes(
         self, node: CoreRouterActionNode, specific: bool = False
     ) -> Union[List[AutomationActionNode], QuerySet[AutomationActionNode]]:

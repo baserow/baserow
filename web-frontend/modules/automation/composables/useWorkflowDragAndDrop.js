@@ -20,7 +20,7 @@ export function useWorkflowDragAndDrop(
   // === DRAG & DROP STATE ===
   const isNodeDragging = ref(false)
   const initialDragPosition = ref(null)
-  const draggedNodeId = ref(null)
+  const originNodeId = ref(null)
   const dropZoneActive = ref(null)
   const ghostNode = ref(null)
 
@@ -30,17 +30,10 @@ export function useWorkflowDragAndDrop(
   const initialMousePosition = ref(null)
 
   /**
-   * Checks if a node can be dragged based on its type
-   */
-  const isNodeDraggable = (nodeData, nodeType) => {
-    return nodeData.type !== 'router' && !nodeType.isTrigger
-  }
-
-  /**
    * Checks if a drop zone is valid (wouldn't result in same position)
    */
-  const isValidDropZone = (draggedNodeId, targetNodeId, targetNodeOutput) => {
-    const draggedNode = nodes.value.find((n) => n.id === draggedNodeId)
+  const isValidDropZone = (originNodeId, afterNodeId, afterNodeOutput) => {
+    const draggedNode = nodes.value.find((n) => n.id === originNodeId)
 
     if (!draggedNode) {
       return false
@@ -48,8 +41,8 @@ export function useWorkflowDragAndDrop(
 
     // A drop zone is invalid if the dragged node is already in that position.
     return !(
-      draggedNode.previous_node_id === targetNodeId &&
-      draggedNode.previous_node_output === targetNodeOutput
+      draggedNode.previous_node_id === afterNodeId &&
+      draggedNode.previous_node_output === afterNodeOutput
     )
   }
 
@@ -123,7 +116,7 @@ export function useWorkflowDragAndDrop(
     }
 
     isNodeDragging.value = true
-    draggedNodeId.value = nodeId
+    originNodeId.value = nodeId
     initialDragPosition.value = { ...nodePosition }
 
     nextTick(() => {
@@ -170,7 +163,7 @@ export function useWorkflowDragAndDrop(
     if (!originalNodeData) return
 
     const nodeType = app.$registry.get('node', originalNodeData.type)
-    if (!isNodeDraggable(originalNodeData, nodeType)) {
+    if (nodeType.isFixed) {
       return
     }
 
@@ -183,7 +176,7 @@ export function useWorkflowDragAndDrop(
   }
 
   const checkDropZoneHover = (dragPosition) => {
-    if (!isNodeDragging.value || !draggedNodeId.value) return
+    if (!isNodeDragging.value || !originNodeId.value) return
 
     let activeZone = null
 
@@ -220,9 +213,9 @@ export function useWorkflowDragAndDrop(
 
               // Apply the same logic as in displayNodes to determine if it's a valid drop zone
               let isValidDropZoneResult = false
-              if (draggedNodeId.value !== buttonNodeId) {
+              if (originNodeId.value !== buttonNodeId) {
                 isValidDropZoneResult = isValidDropZone(
-                  draggedNodeId.value,
+                  originNodeId.value,
                   buttonNodeId,
                   buttonPos.uid
                 )
@@ -247,7 +240,7 @@ export function useWorkflowDragAndDrop(
 
   const cleanupGhostState = () => {
     isNodeDragging.value = false
-    draggedNodeId.value = null
+    originNodeId.value = null
     ghostNode.value = null
     dropZoneActive.value = null
   }
@@ -257,13 +250,8 @@ export function useWorkflowDragAndDrop(
     if (node.id.startsWith('ghost-')) {
       const originalNodeId = parseInt(node.id.replace('ghost-', ''))
       const originalNodeData = nodes.value.find((n) => n.id === originalNodeId)
-      if (
-        originalNodeData &&
-        !isNodeDraggable(
-          originalNodeData,
-          app.$registry.get('node', originalNodeData.type)
-        )
-      ) {
+      const originalNodeType = app.$registry.get('node', originalNodeData.type)
+      if (originalNodeType.isFixed) {
         cleanupGhostState()
         return false // Don't allow dragging non-draggable nodes' ghosts
       }
@@ -296,16 +284,16 @@ export function useWorkflowDragAndDrop(
 
     const wasDroppedOnZone = dropZoneActive.value !== null
     const droppedZone = dropZoneActive.value
-    const originalNodeId = draggedNodeId.value
+    const originalNodeId = originNodeId.value
 
     cleanupGhostState()
 
     if (!workflowReadOnly.value && originalNodeId) {
       if (wasDroppedOnZone && droppedZone) {
-        emit('reorder-nodes', {
-          draggedNodeId: originalNodeId,
-          targetNodeId: droppedZone.nodeId,
-          targetNodeOutput: droppedZone.uid,
+        emit('move-node', {
+          originNodeId: originalNodeId,
+          afterNodeId: droppedZone.nodeId,
+          afterNodeOutput: droppedZone.uid,
         })
       }
     }
@@ -313,11 +301,10 @@ export function useWorkflowDragAndDrop(
 
   return {
     isNodeDragging,
-    draggedNodeId,
+    originNodeId,
     dropZoneActive,
     ghostNode,
     handlePrepareGhost,
-    isNodeDraggable,
     isValidDropZone,
     checkDropZoneHover,
   }

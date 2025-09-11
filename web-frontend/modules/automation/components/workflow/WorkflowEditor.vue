@@ -56,12 +56,7 @@ const props = defineProps({
 })
 
 const vueFlowEdges = []
-
-<<<<<<< HEAD
-const emit = defineEmits(['add-node', 'remove-node', 'input', 'replace-node'])
-=======
-const emit = defineEmits(['add-node', 'remove-node', 'input', 'reorder-nodes'])
->>>>>>> 5e6c3ef45c (add drag and drop nodes reordering)
+const emit = defineEmits(['add-node', 'remove-node', 'input', 'move-node'])
 
 const { onPaneClick } = useVueFlow()
 
@@ -89,7 +84,6 @@ const vueFlowNodes = computed(() => {
 
 const workflowDebug = inject('workflowDebug')
 const workflowReadOnly = inject('workflowReadOnly')
-const automation = inject('automation')
 
 const computedNodes = computed(() => {
   return props.nodes

@@ -408,7 +408,7 @@ class AutomationNodeHandler:
         self,
         node: AutomationActionNode,
         after_node: AutomationNode,
-        previous_node_output: str = "",
+        previous_node_output: Optional[str] = None,
         order: Optional[float] = None,
     ) -> AutomationNodeMove:
         """
@@ -469,7 +469,7 @@ class AutomationNodeHandler:
 
         # Set the new position.
         node.previous_node_id = after_node.id
-        node.previous_node_output = previous_node_output
+        node.previous_node_output = previous_node_output or ""
         node.order = order or AutomationNode.get_unique_order_before_node(
             after_node, after_node.parent_node
         )

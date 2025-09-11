@@ -1,7 +1,6 @@
 import { uuid } from '@baserow/modules/core/utils/string'
 import AutomationWorkflowNodeService from '@baserow/modules/automation/services/automationWorkflowNode'
 import { NodeEditorSidePanelType } from '@baserow/modules/automation/editorSidePanelTypes'
-import { topologicalSort } from '@baserow/modules/automation/utils/workflow'
 
 const state = {
   selectedNodeId: null,
@@ -346,18 +345,22 @@ const actions = {
     }
   },
   async replace({ commit, dispatch, getters }, { workflow, nodeId, newType }) {
-    const node = getters.findById(workflow, nodeId)
-    const nextNodes = getters.getNextNodes(workflow, node)
-    const nextNode = nextNodes.length > 0 ? nextNodes[0] : null
-
     const { data: newNode } = await AutomationWorkflowNodeService(
       this.$client
     ).replace(nodeId, {
       new_type: newType,
     })
+    // Update nodes that follow `nodeId` so that their
+    // `previous_node_id` point to the newly created node.
+    dispatch('updateNextNodesValues', {
+      workflow,
+      nodeId,
+      valuesToUpdate: { previous_node_id: newNode.id },
+    })
     commit('DELETE_ITEM', { workflow, nodeId })
     commit('ADD_ITEM', { workflow, node: newNode })
 
+<<<<<<< HEAD
     // If the node that we replaced had a node after it, we need to update
     // its `previous_node_id` to point to the new node ID.
     if (nextNode) {
@@ -369,71 +372,110 @@ const actions = {
     }
 
     dispatch('select', { workflow, node: newNode })
+=======
+    setTimeout(() => {
+      dispatch('select', { workflow, node: newNode })
+    })
+>>>>>>> f856e1b910 (Further backend changes, and tweaks to the frontend node store.)
   },
-  reorder({ commit, getters }, { workflow, reorderData }) {
-    const originalNodes = getters.getNodes(workflow).map((n) => ({ ...n }))
+  async move({ commit, dispatch, getters }, { workflow, moveData }) {
+    const { originNodeId, afterNodeId, afterNodeOutput } = moveData
+
+    const originNode = getters.findById(workflow, originNodeId)
+    const originSnapshot = { ...originNode }
+    const originNextNodesSnapshot = getters
+      .getNextNodes(workflow, originNode)
+      .map((n) => ({
+        id: n.id,
+        previous_node_id: n.previous_node_id,
+        previous_node_output: n.previous_node_output,
+      }))
+
+    const afterNode = getters.findById(workflow, afterNodeId)
+    const afterNextNodesSnapshot = getters
+      .getNextNodes(workflow, afterNode)
+      .map((n) => ({
+        id: n.id,
+        previous_node_id: n.previous_node_id,
+        previous_node_output: n.previous_node_output,
+      }))
 
     try {
-      const { draggedNodeId, targetNodeId, targetNodeOutput } = reorderData
-      const nodes = getters.getNodes(workflow)
-
-      // Create a mutable copy to work with
-      const nodesCopy = nodes.map((n) => ({ ...n }))
-
-      // Find the nodes involved in the operation
-      const draggedNode = nodesCopy.find((n) => n.id === draggedNodeId)
-      const oldNextNode = nodesCopy.find(
-        (n) => n.previous_node_id === draggedNodeId
-      )
-      const targetNextNode = nodesCopy.find(
-        (n) =>
-          n.previous_node_id === targetNodeId &&
-          n.previous_node_output === targetNodeOutput
-      )
-
-      // 1. Update the node that was after the dragged node
-      if (oldNextNode) {
-        oldNextNode.previous_node_id = draggedNode.previous_node_id
-        oldNextNode.previous_node_output = draggedNode.previous_node_output
-      }
-
-      // 2. Update the dragged node
-      draggedNode.previous_node_id = targetNodeId
-      draggedNode.previous_node_output = targetNodeOutput
-
-      // 3. Update the node that was after the target, to be after the dragged node
-      if (targetNextNode) {
-        targetNextNode.previous_node_id = draggedNode.id
-        targetNextNode.previous_node_output = '' // Default output
-      }
-
-      const finalOrder = topologicalSort(nodesCopy)
-      const orderedNodes = nodesCopy.sort(
-        (a, b) => finalOrder.indexOf(a.id) - finalOrder.indexOf(b.id)
-      )
-
-      orderedNodes.forEach((node, index) => {
-        node.order = index
-      })
-
-      // Apply changes atomically
-      commit('SET_ITEMS', {
+      // We start by moving the dragged node's next nodes, pre-move, so that
+      // they all go "up" a level, they will point to the dragged node's previous
+      // node id and output.
+      dispatch('updateNextNodesValues', {
         workflow,
-        nodes: orderedNodes,
+        nodeId: originNode.id,
+        valuesToUpdate: {
+          previous_node_id: originNode.previous_node_id,
+          previous_node_output: originNode.previous_node_output,
+        },
       })
 
-      // TODO: Call the backend API to persist the new node order.
-      // await AutomationWorkflowNodeService(this.$client).order(
-      //   workflow.id,
-      //   finalOrder
-      // )
+      // Next, we deal with the target node's next nodes, they need to point to
+      // the dragged node. We'll only update the `previous_node_output` to a
+      // blank string if we're moving the node to a specific output.
+      dispatch('updateNextNodesValues', {
+        workflow,
+        nodeId: afterNode.id,
+        valuesToUpdate: {
+          previous_node_id: originNode.id,
+          ...(afterNodeOutput ? { previous_node_output: '' } : {}),
+        },
+        outputUid: afterNodeOutput,
+      })
+
+      // Finally, we update the dragged node itself, to point to the target
+      // node and output.
+      commit('UPDATE_ITEM', {
+        workflow,
+        node: originNode,
+        values: {
+          previous_node_id: afterNodeId,
+          previous_node_output: afterNodeOutput,
+        },
+      })
+
+      // Perform the backend update.
+      await AutomationWorkflowNodeService(this.$client).move(originNodeId, {
+        previous_node_id: afterNodeId,
+        previous_node_output: afterNodeOutput,
+      })
     } catch (error) {
-      // If the API call fails, revert to the original state
-      commit('SET_ITEMS', {
-        workflow,
-        nodes: originalNodes,
+      // Something went wrong, revert our changes.
+      originNextNodesSnapshot.forEach((snap) => {
+        const snapNode = getters.findById(workflow, snap.id)
+        commit('UPDATE_ITEM', {
+          workflow,
+          node: snapNode,
+          values: {
+            previous_node_id: snap.previous_node_id,
+            previous_node_output: snap.previous_node_output,
+          },
+        })
       })
-      // Optional: re-throw the error to be handled in the component
+      afterNextNodesSnapshot.forEach((snap) => {
+        const snapNode = getters.findById(workflow, snap.id)
+        commit('UPDATE_ITEM', {
+          workflow,
+          node: snapNode,
+          values: {
+            previous_node_id: snap.previous_node_id,
+            previous_node_output: snap.previous_node_output,
+          },
+        })
+      })
+      // Move `originNode` back to its original position.
+      commit('UPDATE_ITEM', {
+        workflow,
+        node: originSnapshot,
+        values: {
+          previous_node_id: originSnapshot.previous_node_id,
+          previous_node_output: originSnapshot.previous_node_output,
+        },
+      })
+
       throw error
     }
   },
@@ -457,6 +499,7 @@ const actions = {
       { root: true }
     )
   },
+<<<<<<< HEAD
   async simulateDispatch(
     { commit, dispatch },
     { workflow, nodeId, updateSampleData }
@@ -473,6 +516,25 @@ const actions = {
         simulate_until_node: updatedNode.simulate_until_node,
         service: updatedNode.service,
       },
+=======
+  /**
+   * Updates all the next nodes of a given node with the provided values.
+   * This used when a node is replaced, or moved, as the next nodes need to
+   * be updated to reflect the new previous node id and output.
+   */
+  updateNextNodesValues(
+    { commit, getters },
+    { workflow, nodeId, valuesToUpdate, outputUid = null }
+  ) {
+    const node = getters.findById(workflow, nodeId)
+    const nextNodes = getters.getNextNodes(workflow, node, outputUid)
+    nextNodes.forEach((nextNode) => {
+      commit('UPDATE_ITEM', {
+        workflow,
+        node: nextNode,
+        values: valuesToUpdate,
+      })
+>>>>>>> f856e1b910 (Further backend changes, and tweaks to the frontend node store.)
     })
   },
 }

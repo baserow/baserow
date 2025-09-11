@@ -477,10 +477,13 @@ class MoveAutomationNodeView(APIView):
             AutomationNodeNotMovable: ERROR_AUTOMATION_NODE_NOT_MOVABLE,
         }
     )
-    @validate_body(ReplaceAutomationNodeSerializer)
+    @validate_body(MoveAutomationNodeSerializer)
     def post(self, request, data: Dict, node_id: int):
         moved_node = MoveAutomationNodeActionType.do(
-            request.user, node_id, data["previous_node_id"]
+            request.user,
+            node_id,
+            data["previous_node_id"],
+            data["previous_node_output"],
         )
         return Response(
             automation_node_type_registry.get_serializer(

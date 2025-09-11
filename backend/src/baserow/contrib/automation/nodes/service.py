@@ -9,7 +9,7 @@ from baserow.contrib.automation.nodes.exceptions import (
     AutomationTriggerModificationDisallowed,
 )
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
-from baserow.contrib.automation.nodes.models import AutomationActionNode, AutomationNode
+from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.node_types import AutomationNodeType
 from baserow.contrib.automation.nodes.operations import (
     CreateAutomationNodeOperationType,
@@ -414,7 +414,7 @@ class AutomationNodeService:
         user: AbstractUser,
         node_id: int,
         new_previous_node_id: int,
-        new_previous_output: str = "",
+        new_previous_output: Optional[str] = None,
         new_order: Optional[float] = None,
     ) -> AutomationNodeMove:
         """
@@ -422,10 +422,11 @@ class AutomationNodeService:
 
         :param user: The user trying to move the node.
         :param node_id: The ID of the node to move.
-        :param new_previous_node_id: The ID of the node that will be the new previous node.
+        :param new_previous_node_id: The ID of the node that
+            will be the new previous node.
         :param new_previous_output: If the destination is an output, the output uid.
-        :param new_order: The new order of the node. If not provided, it will be calculated
-            to be last of `new_previous_node_id`.
+        :param new_order: The new order of the node. If not provided, it will
+            be calculated to be last of `new_previous_node_id`.
         :return: The move operation details.
         """
 
