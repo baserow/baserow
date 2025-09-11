@@ -438,7 +438,7 @@ class AutomationNodeService:
             user,
             UpdateAutomationNodeOperationType.type,
             workspace=node.workflow.automation.workspace,
-            context=node.workflow,
+            context=node,
         )
 
         # If a node type cannot move, raise an exception.
