@@ -1,4 +1,4 @@
-from typing import Any, Dict, Iterable, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 from django.contrib.auth.models import AbstractUser
 from django.db.models import CharField, Q, QuerySet
@@ -33,7 +33,6 @@ from baserow.contrib.automation.nodes.models import (
     LocalBaserowUpdateRowActionNode,
 )
 from baserow.contrib.automation.nodes.registries import AutomationNodeType
-from baserow.contrib.automation.nodes.utils import get_periodic_trigger_payload
 from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.contrib.integrations.core.service_types import (
     CoreHTTPRequestServiceType,
@@ -59,11 +58,11 @@ from baserow.core.services.registries import service_type_registry
 from baserow.core.services.types import DispatchResult
 
 
-class DispatchableAutomationNodeTypeMixin:
+class ServiceDispatchableAutomationNodeTypeMixin:
     """
-    A mixin for automation node types that can be dispatched. This mixin provides a
-    default implementation of the `dispatch` method that uses the `ServiceHandler`
-    to dispatch the service associated with the node.
+    A mixin for automation node types that can be dispatched using the service.
+    This mixin provides a default implementation of the `dispatch` method that uses
+    the `ServiceHandler` to dispatch the service associated with the node.
     """
 
     def dispatch(
@@ -77,7 +76,7 @@ class DispatchableAutomationNodeTypeMixin:
 
 
 class AutomationNodeActionNodeType(
-    DispatchableAutomationNodeTypeMixin, AutomationNodeType
+    ServiceDispatchableAutomationNodeTypeMixin, AutomationNodeType
 ):
     is_workflow_action = True
 
@@ -253,6 +252,18 @@ class AutomationNodeTriggerType(AutomationNodeType):
         service_type_registry.get(self.service_type).stop_listening()
         return super().before_unregister()
 
+    def dispatch(
+        self,
+        node: AutomationNode,
+        dispatch_context: AutomationDispatchContext,
+    ) -> DispatchResult:
+        """
+        This dispatch return the event_payload as it supposed to as a trigger. This
+        method helps to keep things consistent between triggers node and action nodes.
+        """
+
+        return DispatchResult(data=dispatch_context.event_payload)
+
     def before_delete(self, node: AutomationTriggerNode):
         """
         Trigger nodes cannot be deleted.
@@ -267,7 +278,7 @@ class AutomationNodeTriggerType(AutomationNodeType):
 
     def on_event(
         self,
-        services: Iterable[Service],
+        services: QuerySet[Service],
         event_payload: Optional[List[Dict]] = None,
         user: Optional[AbstractUser] = None,
     ):
@@ -336,38 +347,34 @@ class LocalBaserowRowsDeletedNodeTriggerType(AutomationNodeTriggerType):
     service_type = LocalBaserowRowsDeletedServiceType.type
 
 
-class AutomationNodeImmediateTriggerType(
-    DispatchableAutomationNodeTypeMixin, AutomationNodeTriggerType
-):
+class AutomationNodeImmediateTriggerTypeMixin:
     # On a workflow test run, this node type will be immediately dispatched,
     # it does not wait for an initial internal or external event to occur.
     immediate_dispatch = True
 
-    @property
-    def immediate_dispatch_data(self) -> Dict[str, Any]:
+    def dispatch(
+        self,
+        automation_node: AutomationNode,
+        dispatch_context: AutomationDispatchContext,
+    ) -> DispatchResult:
         """
-        This method can be overridden to provide the data that should be used when
-        immediately dispatching a test run. By default, it returns an empty dict.
-
-        :return: A dict of data to use for the immediate test run dispatch.
+        Immediate nodes are generally able to generate their own payload so unless
+        the context has an event payload, we directly try to generate one from
+        the service.
         """
 
-        return {}
+        if dispatch_context.event_payload is not None:
+            return super().dispatch(automation_node, dispatch_context)
+
+        return ServiceHandler().dispatch_service(
+            automation_node.service.specific, dispatch_context
+        )
 
 
-class CorePeriodicTriggerNodeType(AutomationNodeImmediateTriggerType):
+class CorePeriodicTriggerNodeType(
+    AutomationNodeImmediateTriggerTypeMixin,
+    AutomationNodeTriggerType,
+):
     type = "periodic"
     model_class = CorePeriodicTriggerNode
     service_type = CorePeriodicServiceType.type
-
-    @property
-    def immediate_dispatch_data(self) -> Dict[str, str]:
-        """
-        When a workflow with a periodic trigger is test run, it will be
-        immediately dispatched. This property returns the payload that will be used
-        for the immediate dispatch.
-
-        :return: A dictionary representing the payload for the immediate dispatch.
-        """
-
-        return get_periodic_trigger_payload(timezone.now())

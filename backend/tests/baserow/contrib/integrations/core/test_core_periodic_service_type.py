@@ -588,9 +588,19 @@ def test_call_periodic_services_that_are_due(
         service_kwargs=service_kwargs,
     )
 
-    mock_on_event = MagicMock()
     service_type = service_type_registry.get(CorePeriodicServiceType.type)
-    service_type.on_event = mock_on_event
+    service_type.on_event = MagicMock()
+
+    target_date = datetime.fromisoformat(frozen_time).replace(tzinfo=timezone.utc)
+
+    def check_service_count(services, event_payload):
+        if should_be_called:
+            assert services.count() == 1
+            assert event_payload == {"triggered_at": target_date.isoformat()}
+        else:
+            assert services.count() == 0
+
+    service_type.on_event.side_effect = check_service_count
 
     with freeze_time(frozen_time):
         with transaction.atomic():
@@ -601,10 +611,4 @@ def test_call_periodic_services_that_are_due(
     service.refresh_from_db()
 
     if should_be_called:
-        assert mock_on_event.called
-        service_queryset = mock_on_event.call_args[0][0]
-        assert service_queryset.count() == 1
-        target_date = datetime.fromisoformat(frozen_time).replace(tzinfo=timezone.utc)
         assert service.last_periodic_run == target_date
-    else:
-        assert not mock_on_event.called

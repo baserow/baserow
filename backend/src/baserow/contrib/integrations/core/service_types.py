@@ -19,8 +19,6 @@ from requests import exceptions as request_exceptions
 from rest_framework import serializers
 
 from baserow.config.celery import app as celery_app
-from baserow.contrib.automation.nodes.utils import get_periodic_trigger_payload
-from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.contrib.integrations.core.constants import (
     BODY_TYPE,
     HTTP_METHOD,
@@ -1157,7 +1155,6 @@ class CoreRouterServiceType(ServiceType):
 class CorePeriodicServiceType(TriggerServiceTypeMixin, ServiceType):
     type = "periodic"
     model_class = CorePeriodicService
-    signal = celery_app.on_after_finalize
 
     allowed_fields = [
         "interval",
@@ -1210,6 +1207,10 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, ServiceType):
         ),
     }
 
+    def __init__(self):
+        super().__init__()
+        self._cancel_periodic_task = lambda: None
+
     class SerializedDict(ServiceDict):
         interval: str
         minute: int
@@ -1217,7 +1218,7 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, ServiceType):
         day_of_week: int
         day_of_month: int
 
-    def handler(self, sender, **kwargs):
+    def _setup_periodic_task(self, sender, **kwargs):
         """
         Responsible for adding the periodic task to call due periodic services.
 
@@ -1229,34 +1230,26 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, ServiceType):
         )
 
         sender.add_periodic_task(
-            timedelta(seconds=30), call_periodic_services_that_are_due.s()
+            timedelta(seconds=30),
+            call_periodic_services_that_are_due.s(),
+            name="periodic-service-type-task",
+        )
+
+        self._cancel_periodic_task = lambda: sender.control.revoke(
+            "periodic-service-type-task", terminate=True
         )
 
     def start_listening(self, on_event: Callable):
         super().start_listening(on_event)
-        self.signal.connect(self.handler)
+        celery_app.on_after_finalize.connect(self._setup_periodic_task)
 
     def stop_listening(self):
         super().stop_listening()
-        self.signal.disconnect(self.handler)
+        self._cancel_periodic_task()
 
-    def dispatch_all(self, services: List[CorePeriodicService]):
-        """
-        Responsible for dispatching all periodic services that we've identified as
-        being due to run. All services are then updated to have their
-        `last_periodic_run` set to the current time.
-
-        :param services: A list of CorePeriodicService instances that are due to run.
-        """
-
-        self.on_event(
-            services,
-            get_periodic_trigger_payload(timezone.now()),
-        )
-
-        for service in services:
-            service.last_periodic_run = timezone.now()
-        CorePeriodicService.objects.bulk_update(services, fields=["last_periodic_run"])
+    def _get_payload(self, now=None):
+        now = now if now else timezone.now()
+        return {"triggered_at": now.isoformat()}
 
     def dispatch_data(
         self,
@@ -1274,7 +1267,10 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, ServiceType):
         :param dispatch_context: The context in which the service is being dispatched.
         """
 
-        self.dispatch_all([service])
+        return self._get_payload()
+
+    def dispatch_transform(self, data):
+        return DispatchResult(data=data)
 
     def call_periodic_services_that_are_due(self, now: datetime):
         """
@@ -1336,22 +1332,16 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, ServiceType):
         )
         query_conditions |= month_condition
 
-        periodic_services = (
-            CorePeriodicService.objects.filter(query_conditions)
-            .filter(automation_workflow_node__workflow__state=WorkflowState.LIVE)
-            .select_related(
-                "automation_workflow_node__workflow__automation__workspace",
-                "automation_workflow_node__workflow",
-            )
-            .select_for_update(
-                of=("self",),
-                skip_locked=True,
-            )
-            .order_by("id")
+        periodic_services = CorePeriodicService.objects.filter(
+            query_conditions
+        ).order_by("id")
+
+        self.on_event(
+            periodic_services,
+            self._get_payload(now),
         )
 
-        if periodic_services:
-            self.dispatch_all(periodic_services)
+        periodic_services.update(last_periodic_run=now)
 
     def get_schema_name(self, service: CorePeriodicService) -> str:
         return f"Periodic{service.id}Schema"

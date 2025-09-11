@@ -2215,15 +2215,15 @@ class LocalBaserowRowsSignalServiceType(
 
     def start_listening(self, on_event: Callable):
         super().start_listening(on_event)
-        self.signal.connect(self.handler)
+        self.signal.connect(self._signal_receiver)
 
     def stop_listening(self):
-        self.signal.disconnect(self.handler)
+        self.signal.disconnect(self._signal_receiver)
 
-    def process_event(self, *args, **kwargs):
+    def _process_event(self, *args, **kwargs):
         return self.on_event(*args, **kwargs) if callable(self.on_event) else None
 
-    def handle_signal(
+    def _handle_signal(
         self,
         sender,
         user: AbstractUser,
@@ -2237,14 +2237,14 @@ class LocalBaserowRowsSignalServiceType(
             RowSerializer,
             is_response=True,
         )
-        self.process_event(
+        self._process_event(
             self.model_class.objects.filter(table=table),
             serializer(rows, many=True).data,
             user=user,
         )
 
-    def handler(self, *args, **kwargs):
-        transaction.on_commit(lambda: self.handle_signal(*args, **kwargs))
+    def _signal_receiver(self, *args, **kwargs):
+        transaction.on_commit(lambda: self._handle_signal(*args, **kwargs))
 
     def import_context_path(
         self, path: List[str], id_mapping: Dict[int, int], **kwargs
