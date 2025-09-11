@@ -47,6 +47,7 @@ class CreateTableActionType(UndoableActionType):
         name: str,
         data: Optional[List[List[Any]]] = None,
         first_row_header: bool = True,
+        fill_example: bool = True,
         progress: Optional[Progress] = None,
     ) -> Table:
         """
@@ -72,7 +73,7 @@ class CreateTableActionType(UndoableActionType):
             name,
             data=data,
             first_row_header=first_row_header,
-            fill_example=True,
+            fill_example=fill_example,
             progress=progress,
         )
 

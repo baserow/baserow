@@ -340,6 +340,7 @@
     "send": "Send message",
     "statusThinking": "Thinking...",
     "statusAnswering": "Answering...",
+    "statusArchitecting": "Designing your database...",
     "statusSearchingDocs": "Exploring the knowledge base..."
   },
   "assistantChatHistoryContext": {

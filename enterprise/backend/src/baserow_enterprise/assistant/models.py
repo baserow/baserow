@@ -23,6 +23,8 @@ class AssistantChat(BigAutoFieldMixin, CreatedAndUpdatedOnMixin, models.Model):
         IDLE = "idle", "Idle"
         IN_PROGRESS = "in_progress", "In progress"
         CANCELING = "canceling", "Canceling"
+        INTERRUPTED = "interrupted", "Interrupted"
+        ERROR = "error", "Error"
 
     uuid = models.UUIDField(
         default=uuid.uuid4,
@@ -189,9 +191,7 @@ class KnowledgeBaseDocument(CreatedAndUpdatedOnMixin, models.Model):
     content = models.TextField(
         help_text="The processed content of the document, ready for use by the AI assistant."
     )
-    status = models.CharField(
-        max_length=20, choices=Status.choices, default=Status.NEW
-    )
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.NEW)
     category = models.ForeignKey(
         KnowledgeBaseDocumentCategory,
         on_delete=models.CASCADE,

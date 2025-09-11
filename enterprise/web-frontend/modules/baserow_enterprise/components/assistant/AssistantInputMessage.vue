@@ -51,9 +51,11 @@
 import { THINKING_MESSAGES } from '@baserow_enterprise/store/assistant'
 
 const runningMessageCode = {
+  [THINKING_MESSAGES.RUNNING]: 'statusRunning',
   [THINKING_MESSAGES.THINKING]: 'statusThinking',
   [THINKING_MESSAGES.SEARCHING_DOCS]: 'statusSearchingDocs',
   [THINKING_MESSAGES.ANSWERING]: 'statusAnswering',
+  [THINKING_MESSAGES.ARCHITECTING]: 'statusArchitecting',
 }
 
 export default {
@@ -85,8 +87,9 @@ export default {
   },
   methods: {
     getRunningMessage() {
-      const key = runningMessageCode[this.runningMessage] || 'statusRunning'
-      return this.$t(`assistantInputMessage.${key}`)
+      const key =
+        runningMessageCode[this.runningMessage || THINKING_MESSAGES.RUNNING]
+      return key ? this.$t(`assistantInputMessage.${key}`) : this.runningMessage
     },
     handleEnter(event) {
       // If shift key is pressed, allow the default behavior (new line)

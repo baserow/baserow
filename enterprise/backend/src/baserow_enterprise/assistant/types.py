@@ -5,6 +5,8 @@ from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from baserow_enterprise.assistant.utils.helpers import generate_tool_call_id
+
 StateType = TypeVar("StateType", bound=BaseModel)
 PartialStateType = TypeVar("PartialStateType", bound=BaseModel)
 
@@ -35,6 +37,7 @@ class BaseMessage(BaseModel):
     )
     id: Optional[str] = Field(default_factory=uuid4_str)
     timestamp: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    artifact: Optional[Any] = None
 
 
 class HumanMessage(BaseMessage):
@@ -50,7 +53,10 @@ class ToolCall(BaseMessage):
         default="tool_call",
         description="`type` needed to conform to the OpenAI shape, which is expected by LangChain",
     )
-    id: str
+    id: str = Field(
+        default_factory=generate_tool_call_id,
+        description="Tool call ID in OpenAI format (e.g., 'call_ABC123...')",
+    )
     name: str
     args: dict[str, Any]
 
@@ -72,6 +78,8 @@ class THINKING_MESSAGES(StrEnum):
     THINKING = "thinking"
     SEARCHING_DOCS = "searching_docs"
     ANSWERING = "answering"
+    ARCHITECTING = "architecting"
+    CUSTOM = "custom"
 
 
 class AiThinkingMessage(BaseMessage):
@@ -79,6 +87,26 @@ class AiThinkingMessage(BaseMessage):
     content: str = Field(
         default="", description="Thinking content. Empty signals end of thinking."
     )
+
+
+class AiInterruptMessage(BaseMessage):
+    type: Literal["ai/interrupt"] = "ai/interrupt"
+    content: str = Field(description="The AI interrupt message content")
+
+
+class NavigateToTableArtifact(BaseModel):
+    type: Literal["table"] = "table"
+    database_id: int
+    table_id: int
+    table_name: str
+    view_id: Optional[int] = None
+    view_name: Optional[str] = None
+
+
+class AiNavigationMessage(BaseMessage):
+    type: Literal["ai/navigation"] = "ai/navigation"
+    content: str = Field(default="", description="Navigation content.")
+    artifact: NavigateToTableArtifact
 
 
 class AiMessageChunk(BaseModel):
@@ -139,11 +167,18 @@ def add_and_merge_messages(
     return merged
 
 
-class AssistantState(BaseModel):
+class _Shared(BaseModel):
+    database_architect_instructions: str | None = Field(
+        default=None,
+        description="The user's instructions for the database schema design.",
+    )
+
+
+class AssistantState(_Shared):
     messages: Annotated[
         Sequence[AssistantMessageUnion], add_and_merge_messages
     ] = Field(default=[])
 
 
-class PartialAssistantState(BaseModel):
+class PartialAssistantState(_Shared):
     messages: Sequence[AssistantMessageUnion] = Field(default=[])

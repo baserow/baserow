@@ -4,6 +4,7 @@ from rest_framework.exceptions import ValidationError
 from baserow_enterprise.assistant.graph.base import StrEnum
 from baserow_enterprise.assistant.models import AssistantChat
 from baserow_enterprise.assistant.types import AiMessage, BaseMessage, HumanMessage
+from pydantic import BaseModel
 
 
 class AssistantChatsRequestSerializer(serializers.Serializer):
@@ -59,13 +60,22 @@ class AssistantMessageType(StrEnum):
     """
     The chat message itself (default)
     """
-    ERROR = "ai/error"
-    """
-    Use to signal that the AI has failed to process the message
-    """
     THINKING = "ai/thinking"
     """
     Use to signal that the AI is currently processing the message
+    """
+    INTERRUPT = "ai/interrupt"
+    """
+    Use to signal that the AI has interrupted the message flow to show an important
+    message to the user.
+    """
+    NAVIGATION = "ai/navigation"
+    """
+    Use to signal that the AI wants to navigate the user to a specific part of the UI. 
+    """
+    ERROR = "ai/error"
+    """
+    Use to signal that the AI has failed to process the message
     """
     CHAT_TITLE = "chat/title"
     """
@@ -89,8 +99,10 @@ class AssistantMessageSerializer(serializers.Serializer):
     type = serializers.ChoiceField(
         choices=[
             (AssistantMessageType.MESSAGE, "Message"),
-            (AssistantMessageType.ERROR, "Error"),
             (AssistantMessageType.THINKING, "Thinking"),
+            (AssistantMessageType.INTERRUPT, "Interrupt"),
+            (AssistantMessageType.NAVIGATION, "Navigation"),
+            (AssistantMessageType.ERROR, "Error"),
             (AssistantMessageType.CHAT_TITLE, "Chat Title"),
         ],
         required=False,
@@ -98,6 +110,14 @@ class AssistantMessageSerializer(serializers.Serializer):
             "The type of the message content. Used to distinguish how the content "
             "of the message is used in the frontend."
         ),
+    )
+    artifact = serializers.DictField(
+        help_text=(
+            "Additional data associated with the message. Used for message types that "
+            "require extra information."
+        ),
+        required=False,
+        default=dict,
     )
 
     @classmethod
@@ -112,6 +132,12 @@ class AssistantMessageSerializer(serializers.Serializer):
         else:
             data["role"] = AssistantMessageRole.AI
             data["type"] = message.type
+            if message.artifact:
+                data["artifact"] = (
+                    message.artifact.model_dump()
+                    if isinstance(message.artifact, BaseModel)
+                    else message.artifact
+                )
 
         if isinstance(message, AiMessage) and message.tool_calls:
             raise ValidationError("Tool calls are not supported in this serializer.")

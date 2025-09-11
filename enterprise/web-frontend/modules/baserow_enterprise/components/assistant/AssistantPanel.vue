@@ -83,6 +83,7 @@ export default {
   data() {
     return {
       loading: false,
+      timeoutID: null,
     }
   },
   computed: {
@@ -92,6 +93,7 @@ export default {
       currentChat: 'assistant/currentChat',
       chats: 'assistant/chats',
       isLoadingChats: 'assistant/isLoadingChats',
+      navigation: 'assistant/navigation',
     }),
     currentChatId() {
       return this.currentChat?.id
@@ -122,6 +124,26 @@ export default {
           container.scrollTop = container.scrollHeight
         })
       }
+    },
+    navigation: {
+      handler(newNavigation) {
+        if (newNavigation?.table_id) {
+          if (this.timeoutID) {
+            clearTimeout(this.timeoutID)
+          }
+          this.timeoutID = setTimeout(() => {
+            this.$router.push({
+              name: 'database-table',
+              params: {
+                workspaceId: this.workspace.id,
+                databaseId: newNavigation.database_id,
+                tableId: newNavigation.table_id,
+                viewId: newNavigation.view_id,
+              },
+            })
+          }, 1000)
+        }
+      },
     },
   },
   mounted() {

@@ -1,31 +1,44 @@
 from datetime import datetime
+from typing import Literal
 from zoneinfo import ZoneInfo
 
 from langchain.chat_models import init_chat_model
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables.config import RunnableConfig
 
+from baserow_enterprise.assistant.graph.database_architect.tools import (
+    DatabaseArchitectTool,
+)
+from baserow_enterprise.assistant.graph.database_architect.types import (
+    DatabaseArchitectToolArgsSchema,
+)
 from baserow_enterprise.assistant.graph.doc_search.tools import DocSearchTool
 from baserow_enterprise.assistant.graph.node import AssistantNode
 from baserow_enterprise.assistant.graph.root.prompts import ROOT_SYSTEM_PROMPT
 
 from baserow_enterprise.assistant.types import (
     AssistantState,
+    HumanMessage,
     PartialAssistantState,
     ToolCall,
     ToolCallMessage,
+    AiMessage,
 )
-from baserow_enterprise.assistant.utils.helpers import AiMessage, get_buffer_string
+from baserow_enterprise.assistant.utils.helpers import (
+    find_last_message_of_type,
+    get_buffer_string,
+)
+from langgraph.types import Command
 
 
-def get_root_tools():
-    return [DocSearchTool()]
+def get_tools():
+    return [DocSearchTool(), DatabaseArchitectTool()]
 
 
 class RootNode(AssistantNode):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._root_tools = get_root_tools()
+        self._root_tools = get_tools()
 
     def run(self, state: AssistantState, config: RunnableConfig):
         ui_context = self._get_ui_context(state)
@@ -77,7 +90,7 @@ class RootNode(AssistantNode):
     @property
     def _model(self):
         return init_chat_model(
-            model="openai:gpt-4.1",
+            model="openai:gpt-4.1-mini",
             temperature=0.3,
             streaming=True,
             stream_usage=True,
@@ -87,14 +100,17 @@ class RootNode(AssistantNode):
 class RootToolsNode(AssistantNode):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._root_tools = get_root_tools()
+        self._root_tools = get_tools()
 
     async def arun(
         self, state: AssistantState, config: RunnableConfig
-    ) -> PartialAssistantState:
+    ) -> Command[Literal["database_architect", "root"]]:
         last_message = state.messages[-1]
         if not isinstance(last_message, AiMessage) or not last_message.tool_calls:
             return PartialAssistantState()
+
+        goto = "root"
+        update = PartialAssistantState()
 
         messages = []
         for tool_call in last_message.tool_calls:
@@ -106,6 +122,7 @@ class RootToolsNode(AssistantNode):
             result = await tool.arun(
                 tool_args, config=config, tool_call_id=tool_call.id
             )
+
             messages.append(
                 ToolCallMessage(
                     content=result.content,
@@ -113,5 +130,14 @@ class RootToolsNode(AssistantNode):
                     tool_call_id=tool_call.id,
                 )
             )
+            update.messages = messages
 
-        return PartialAssistantState(messages=messages)
+            if isinstance(result.artifact, DatabaseArchitectToolArgsSchema):
+                goto = "database_architect"
+                update.database_architect_instructions = result.artifact.instructions
+
+                last_human_msg = find_last_message_of_type(state.messages, HumanMessage)
+                if last_human_msg:
+                    update.database_architect_instructions = f"User request: {last_human_msg.content}\n\nIdea: {result.artifact.instructions}"
+
+        return Command(goto=goto, update=update)

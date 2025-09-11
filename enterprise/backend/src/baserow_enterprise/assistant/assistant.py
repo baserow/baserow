@@ -8,20 +8,24 @@ from langgraph.errors import GraphRecursionError
 from langgraph.types import StreamMode
 from loguru import logger
 
+from baserow.api.sessions import _set_user_websocket_id, set_untrusted_client_session_id
+
 from .graph.base import AssistantGraphBuilder, Node
 from .models import AssistantChat
 from .types import (
     AiErrorMessage,
     AiErrorMessageCode,
+    AiInterruptMessage,
     AiMessage,
     AssistantMessageUnion,
     AssistantState,
     ChatTitleMessage,
     HumanMessage,
 )
+from langgraph.types import Command
 
 
-def is_state_update(update: list[Any]):
+def is_state_update(update: list[Any]) -> bool:
     """
     Returns True if the update is an update of the assistant graph state.
     """
@@ -29,13 +33,43 @@ def is_state_update(update: list[Any]):
     return len(update) == 2 and update[0] == "values"
 
 
-def is_message_update(update: list[Any]):
+def is_message_update(update: list[Any]) -> bool:
     """
     Returns True if the update comes from a streaming update. This happens when the
     model defines streaming=True, so that every token is streamed as it is generated.
     """
 
     return len(update) == 2 and update[0] == "messages"
+
+
+def is_value_update(update: list[Any]) -> bool:
+    """
+    Transition between nodes.
+
+    Returns:
+        PartialAssistantState, Interrupt, or other LangGraph reserved dataclasses.
+    """
+    return len(update) == 2 and update[0] == "updates"
+
+
+def is_interrupt(update: list[Any]) -> bool:
+    """
+    Returns True if the update is an interrupt command.
+    """
+
+    return is_value_update(update) and "__interrupt__" in update[1]
+
+
+def process_interrupt(update: list[Any], chat: AssistantChat | None = None):
+    """
+    Process an interrupt command.
+
+    :param update: The update to process.
+    :param chat: The chat associated with the interrupt, if any.
+    """
+
+    interrupt_data = update[1]["__interrupt__"][0].value
+    return AiInterruptMessage(content=interrupt_data.get("message"))
 
 
 def validate_state_update(state_update: dict[Any, Any]) -> AssistantState:
@@ -64,11 +98,11 @@ def get_message_by_node(node: Node, **kwargs) -> AssistantMessageUnion | None:
 
 class Assistant:
     def __init__(self, chat: AssistantChat, new_message: HumanMessage | None = None):
-        self.chat = chat
-        self.user = chat.user
-        self.workspace = chat.workspace
+        self._chat = chat
+        self._user = chat.user
+        self._workspace = chat.workspace
         self._state = None
-        self._graph_builder = AssistantGraphBuilder(self.chat)
+        self._graph_builder = AssistantGraphBuilder(self._chat)
         self._graph = None
         self._last_message = new_message
         self._chunks = defaultdict(AIMessageChunk)
@@ -76,10 +110,10 @@ class Assistant:
     def _get_config(self) -> RunnableConfig:
         return {
             "configurable": {
-                "thread_id": self.chat.uuid,
-                "chat": self.chat,
-                "user": self.user,
-                "workspace": self.workspace,
+                "thread_id": self._chat.uuid,
+                "chat": self._chat,
+                "user": self._user,
+                "workspace": self._workspace,
             }
         }
 
@@ -104,15 +138,20 @@ class Assistant:
         Initialize the assistant state.
         """
 
+        if self._chat.status == self._chat.Status.INTERRUPTED:
+            return Command(resume=self._last_message.content)
+
         messages = []
         if self._last_message:
             messages.append(self._last_message)
         return AssistantState(messages=messages)
 
     def _process_custom_update(self, update: Any):
-        return [update]
+        return update
 
-    def _process_update(self, update: Any) -> Optional[list[AssistantMessageUnion]]:
+    async def _process_update(
+        self, update: Any
+    ) -> Optional[list[AssistantMessageUnion]]:
         """
         Process an update from the assistant graph. Considering the different stream
         modes, the update may contain different types of information. This function will
@@ -125,10 +164,19 @@ class Assistant:
 
         if update[1] == "custom":
             # Custom streams come from a tool call
-            return self._process_custom_update(update[2])
+            custom_update = self._process_custom_update(update[2])
+            return [custom_update] if custom_update else None
 
         # remove the first element, which is the node/subgraph node name
         update = update[1:]
+        if is_interrupt(update):
+            interrupt_message = process_interrupt(update)
+
+            # Set the chat to interrupted status
+            self._chat.status = self._chat.Status.INTERRUPTED
+            await self._chat.asave(update_fields=["status", "updated_on"])
+
+            return [interrupt_message]
         if is_state_update(update):
             _, new_state = update
             self._state = validate_state_update(new_state)
@@ -178,7 +226,7 @@ class Assistant:
 
         try:
             async for update in generator:
-                if messages := self._process_update(update):
+                if messages := await self._process_update(update):
                     for message in messages:
                         yield message
         except GraphRecursionError:

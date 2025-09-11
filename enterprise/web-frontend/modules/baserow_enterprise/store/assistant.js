@@ -5,14 +5,18 @@ import Vue from 'vue'
 const MESSAGE_TYPE = {
   MESSAGE: 'ai/message',
   THINKING: 'ai/thinking',
+  INTERRUPT: 'ai/interrupt',
+  NAVIGATION: 'ai/navigation',
   ERROR: 'ai/error',
   CHAT_TITLE: 'chat/title',
 }
 
 export const THINKING_MESSAGES = {
+  RUNNING: 'running',
   THINKING: 'thinking',
   SEARCHING_DOCS: 'searching_docs',
   ANSWERING: 'answering',
+  ARCHITECTING: 'architecting',
 }
 
 export const state = () => ({
@@ -20,6 +24,7 @@ export const state = () => ({
   messages: [],
   chats: [],
   isLoadingChats: false,
+  navigation: {},
 })
 
 export const mutations = {
@@ -41,6 +46,10 @@ export const mutations = {
 
   SET_MESSAGES(state, messages) {
     state.messages = messages
+  },
+
+  SET_NAVIGATION(state, navigation) {
+    state.navigation = navigation
   },
 
   ADD_MESSAGE(state, message) {
@@ -148,6 +157,7 @@ export const actions = {
   handleStreamingResponse({ commit, state }, { chat, id, update }) {
     switch (update.type) {
       case MESSAGE_TYPE.MESSAGE:
+      case MESSAGE_TYPE.INTERRUPT:
         commit('SET_ASSISTANT_RUNNING_MESSAGE', {
           chat,
           message: THINKING_MESSAGES.ANSWERING,
@@ -161,11 +171,13 @@ export const actions = {
         })
         break
       case MESSAGE_TYPE.THINKING:
-        console.log('THINKING', update.content)
         commit('SET_ASSISTANT_RUNNING_MESSAGE', {
           chat,
           message: update.content,
         })
+        break
+      case MESSAGE_TYPE.NAVIGATION:
+        commit('SET_NAVIGATION', update.artifact)
         break
       case MESSAGE_TYPE.CHAT_TITLE:
         commit('UPDATE_CHAT', {
@@ -253,6 +265,8 @@ export const getters = {
   chats: (state) => state.chats,
 
   isLoadingChats: (state) => state.isLoadingChats,
+
+  navigation: (state) => state.navigation,
 }
 
 export default {

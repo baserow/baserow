@@ -4,6 +4,9 @@ from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.graph.state import CompiledStateGraph, StateGraph, END
 
 from baserow_enterprise.assistant.checkpointer import get_checkpointer
+from baserow_enterprise.assistant.graph.database_architect.nodes import (
+    DatabaseArchitectNode,
+)
 from baserow_enterprise.assistant.graph.tool import tools_condition
 from baserow_enterprise.assistant.models import AssistantChat
 from .root.nodes import RootNode, RootToolsNode
@@ -18,9 +21,7 @@ class Node(StrEnum):
     TITLE_GENERATOR = "title_generator"
     ROOT = "root"
     ROOT_TOOLS = "root_tools"
-    TABLE_ARCHITECT_PLANNER = "table_architect_planner"
-    TABLE_ARCHITECT_EXECUTOR = "table_architect_executor"
-    TABLE_ARCHITECT_TOOLS = "table_architect_tools"
+    DATABASE_ARCHITECT = "database_architect"
 
 
 class AssistantGraphBuilder:
@@ -45,6 +46,9 @@ class AssistantGraphBuilder:
         root_tools_node = RootToolsNode(self._chat)
         self._builder.add_node(Node.ROOT_TOOLS, root_tools_node)
 
+        database_architect_node = DatabaseArchitectNode(self._chat)
+        self._builder.add_node(Node.DATABASE_ARCHITECT, database_architect_node)
+
         # Define the start node and all the edges
         self._builder.set_entry_point(Node.TITLE_GENERATOR)
         self._builder.add_edge(Node.TITLE_GENERATOR, Node.ROOT)
@@ -55,8 +59,7 @@ class AssistantGraphBuilder:
             tools_condition,
             {"tools": Node.ROOT_TOOLS, "__end__": END},
         )
-
-        self._builder.add_edge(Node.ROOT_TOOLS, Node.ROOT)
+        self._builder.add_edge(Node.DATABASE_ARCHITECT, Node.ROOT)
 
     async def compile_full_graph(
         self, checkpointer: BaseCheckpointSaver = None

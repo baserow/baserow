@@ -3,6 +3,7 @@ from urllib.request import Request
 
 from django.http import StreamingHttpResponse
 
+from baserow.api.sessions import _set_user_websocket_id, set_untrusted_client_session_id
 from baserow_premium.license.handler import LicenseHandler
 from drf_spectacular.openapi import OpenApiParameter, OpenApiTypes
 from drf_spectacular.utils import OpenApiResponse, extend_schema
@@ -151,6 +152,10 @@ class AssistantChatView(APIView):
 
         handler = AssistantHandler()
         chat, _ = handler.get_or_create_chat(request.user, workspace, chat_uuid)
+
+        # Make sure the user receives real time updates from the assistant
+        set_untrusted_client_session_id(request._user, chat.uuid)
+        _set_user_websocket_id(request._user, "")
 
         async def stream_assistant_messages():
             async for msg in handler.stream_assistant_messages(
