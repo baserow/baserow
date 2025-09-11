@@ -11,6 +11,7 @@ import ProgressBar from '@baserow/modules/core/components/ProgressBar'
 import Checkbox from '@baserow/modules/core/components/Checkbox'
 import Radio from '@baserow/modules/core/components/Radio'
 import RadioGroup from '@baserow/modules/core/components/RadioGroup'
+import RadioCard from '@baserow/modules/core/components/RadioCard'
 import Scrollbars from '@baserow/modules/core/components/Scrollbars'
 import Error from '@baserow/modules/core/components/Error'
 import SwitchInput from '@baserow/modules/core/components/SwitchInput'
@@ -74,6 +75,7 @@ function setupVue(Vue) {
   Vue.component('Checkbox', Checkbox)
   Vue.component('Radio', Radio)
   Vue.component('RadioGroup', RadioGroup)
+  Vue.component('RadioCard', RadioCard)
   Vue.component('Scrollbars', Scrollbars)
   Vue.component('Alert', Alert)
   Vue.component('Error', Error)
