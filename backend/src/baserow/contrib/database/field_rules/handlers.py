@@ -513,6 +513,10 @@ class FieldRuleHandler:
         Exports a rule.
         """
 
+        exportable = rule.is_active and rule.is_valid
+        if not exportable:
+            return None
+
         rule_type = rule.get_type()
         rule_data = rule.specific.to_dict()
         return rule_type.prepare_values_for_export(rule_data)
