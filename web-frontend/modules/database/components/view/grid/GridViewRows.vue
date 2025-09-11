@@ -22,7 +22,9 @@
       :include-group-by="includeGroupBy"
       :decorations-by-place="decorationsByPlace"
       :read-only="readOnly"
-      :can-drag="view.sortings.length === 0 && activeGroupBys.length === 0"
+      :can-drag="
+        canDrag && view.sortings.length === 0 && activeGroupBys.length === 0
+      "
       :store-prefix="storePrefix"
       :row-identifier-type="view.row_identifier_type"
       :count="index + rowsStartIndex + bufferStartIndex + 1"
@@ -104,6 +106,10 @@ export default {
     rowsAtEndOfGroups: {
       type: Set,
       required: true,
+    },
+    canDrag: {
+      type: Boolean,
+      default: false,
     },
   },
   computed: {

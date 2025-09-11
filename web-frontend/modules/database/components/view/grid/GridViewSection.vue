@@ -93,6 +93,13 @@
             :include-group-by="includeGroupBy"
             :rows-at-end-of-groups="rowsAtEndOfGroups"
             :read-only="readOnly"
+            :can-drag="
+              $hasPermission(
+                'database.table.create_row',
+                table,
+                database.workspace.id
+              )
+            "
             :store-prefix="storePrefix"
             v-on="$listeners"
           ></GridViewRows>
