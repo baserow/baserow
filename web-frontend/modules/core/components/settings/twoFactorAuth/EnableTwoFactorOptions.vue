@@ -1,6 +1,6 @@
 <template>
   <div>
-    <!-- <RadioGroup
+    <!-- TODO: refactor <RadioGroup
       v-model="values.twoFaChoice"
       :options="twoFaOptions"
       vertical-layout

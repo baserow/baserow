@@ -8,6 +8,7 @@
       @continue="stepContinue"
     />
     <EnableWithQRCode v-if="state == 'qr_code'" />
+    <SaveBackupCode v-if="state == 'save_code'" />
   </div>
 </template>
 
@@ -15,13 +16,19 @@
 import TwoFactorAuthEmpty from '@baserow/modules/core/components/settings/twoFactorAuth/TwoFactorAuthEmpty'
 import EnableTwoFactorOptions from '@baserow/modules/core/components/settings/twoFactorAuth/EnableTwoFactorOptions'
 import EnableWithQRCode from '@baserow/modules/core/components/settings/twoFactorAuth/EnableWithQRCode'
+import SaveBackupCode from '@baserow/modules/core/components/settings/twoFactorAuth/SaveBackupCode'
 
 export default {
   name: 'TwoFactorAuthSettings',
-  components: { TwoFactorAuthEmpty, EnableTwoFactorOptions, EnableWithQRCode },
+  components: {
+    TwoFactorAuthEmpty,
+    EnableTwoFactorOptions,
+    EnableWithQRCode,
+    SaveBackupCode,
+  },
   data() {
     return {
-      state: 'pick_options',
+      state: 'empty',
     }
   },
   methods: {

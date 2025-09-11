@@ -44,7 +44,6 @@ export default {
   computed: {
     classNames() {
       return {
-        'radio-card--active': this.modelValue === this.value,
         'radio-card--selected': this.modelValue === this.value,
       }
     },
@@ -57,7 +56,7 @@ export default {
   },
   methods: {
     select(value) {
-      if (this.disabled || this.selected || this.loading) {
+      if (this.disabled || this.selected) {
         return
       }
       this.$emit('input', value)
