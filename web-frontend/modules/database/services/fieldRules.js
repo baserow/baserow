@@ -1,8 +1,8 @@
 function getUrl(tableId, ruleId = null) {
   if (ruleId === null) {
-    return `/database/field_rules/${tableId}/`
+    return `/database/field-rules/${tableId}/`
   }
-  return `/database/field_rules/${tableId}/rule/${ruleId}/`
+  return `/database/field-rules/${tableId}/rule/${ruleId}/`
 }
 
 export default (client) => {

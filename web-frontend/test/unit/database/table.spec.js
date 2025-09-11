@@ -58,7 +58,7 @@ describe('Table Component Tests', () => {
     const { application, table, gridView } =
       await givenASingleSimpleTableInTheServer()
 
-    mockServer.mock.onGet(`/database/field_rules/${table.id}/`).reply(200, [])
+    mockServer.mock.onGet(`/database/field-rules/${table.id}/`).reply(200, [])
 
     const tableComponent = await testApp.mount(Table, {
       asyncDataParams: {
@@ -132,7 +132,7 @@ describe('Table Component Tests', () => {
 
   async function givenASingleSimpleTableInTheServer() {
     const table = mockServer.createTable()
-    mockServer.mock.onGet(`/database/field_rules/${table.id}/`).reply(200, [])
+    mockServer.mock.onGet(`/database/field-rules/${table.id}/`).reply(200, [])
 
     const { application } = await mockServer.createAppAndWorkspace(table)
     const gridView = mockServer.createGridView(application, table, {})

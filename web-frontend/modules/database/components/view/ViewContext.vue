@@ -101,7 +101,6 @@
         :workspace="database.workspace"
         :database="database"
         :table="table"
-        :view="view"
         @hide-context="$refs.context.hide()"
       />
       <li

@@ -5,7 +5,6 @@
     :small-label="true"
     :helper-text="helperText"
     :error="hasError"
-    :error-message="errorMessageStr"
   >
     <Dropdown
       :value="value"
@@ -14,7 +13,7 @@
       :disabled="disabled"
       :error="hasError"
       size="regular"
-      @change="$emit('change', $event)"
+      @change="$emit('input', $event)"
     >
       <DropdownItem
         v-for="r in fields"
@@ -24,6 +23,7 @@
         :icon="r.id ? icon : null"
       ></DropdownItem>
     </Dropdown>
+    <template #error>{{ errors[0].$message }}</template>
   </FormGroup>
 </template>
 <script>
@@ -60,8 +60,8 @@ export default {
       required: false,
       default: null,
     },
-    errorMessage: {
-      type: [String, Array],
+    errors: {
+      type: [Array, null],
       required: false,
       default: null,
     },
@@ -75,7 +75,7 @@ export default {
       return this.errorMessage || ''
     },
     hasError() {
-      return this.errors && this.errors.length > 0
+      return Boolean(this.errors?.length > 0)
     },
   },
 }

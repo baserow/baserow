@@ -23,5 +23,5 @@ urlpatterns = [
     path("export/", include(export_urls, namespace="export")),
     path("formula/", include(formula_urls, namespace="formula")),
     path("data-sync/", include(data_sync_urls, namespace="data_sync")),
-    path("field_rules/", include(field_rules_urls, namespace="field_rules")),
+    path("field-rules/", include(field_rules_urls, namespace="field_rules")),
 ]

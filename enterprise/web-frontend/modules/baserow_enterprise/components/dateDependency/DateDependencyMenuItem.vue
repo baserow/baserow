@@ -23,7 +23,8 @@
     </div>
     <DateDependencyModal
       ref="dateDependencyModal"
-      :table="tableObject"
+      :table="table"
+      :table-fields="fields"
       :workspace-id="database.workspace.id"
     >
     </DateDependencyModal>
@@ -41,15 +42,10 @@ import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
 import DateDependencyModal from '@baserow_enterprise/components/dateDependency/DateDependencyModal.vue'
 
 export default {
-  name: 'DateDependencyTableContextItem',
+  name: 'DateDependencyMenuItem',
   components: { DateDependencyModal, PaidFeaturesModal },
   props: {
     table: {
-      type: Object,
-      required: false,
-      default: null,
-    },
-    view: {
       type: Object,
       required: false,
       default: null,
@@ -63,6 +59,11 @@ export default {
       required: false,
       default: null,
     },
+    fields: {
+      type: [Array, null],
+      required: false,
+      default: null,
+    },
   },
   computed: {
     deactivated() {
@@ -70,9 +71,6 @@ export default {
         EnterpriseFeatures.DATE_DEPENDENCY,
         this.database.workspace.id
       )
-    },
-    tableObject() {
-      return this.table || this.view.table
     },
     showEntry() {
       if (!this.field) {
