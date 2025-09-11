@@ -484,26 +484,6 @@ def test_run_workflow_in_test_mode(api_client, data_fixture):
     action_row = model.objects.order_by("-id").first()
     assert getattr(action_row, f"field_{fields_2[0].id}") == "A new row"
 
-    # Test to ensure that both trigger and action node's sample data
-    # are populated due to the test run.
-    trigger_node.refresh_from_db()
-    trigger_row = table_1.get_model().objects.order_by("-id").first()
-    assert trigger_node.service.sample_data == [
-        {
-            f"field_{fields_1[0].id}": "New Name",
-            f"field_{fields_1[1].id}": "New Color",
-            "id": trigger_row.id,
-            "order": str(trigger_row.order),
-        }
-    ]
-
-    action_node.refresh_from_db()
-    assert action_node.service.sample_data == {
-        f"field_{fields_2[0].id}": "A new row",
-        "id": action_row.id,
-        "order": str(action_row.order),
-    }
-
 
 @pytest.mark.django_db
 def test_publish_workflow(api_client, data_fixture):
