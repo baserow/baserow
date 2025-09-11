@@ -7,6 +7,7 @@ from baserow.contrib.automation.nodes.actions import (
     CreateAutomationNodeActionType,
     DeleteAutomationNodeActionType,
     DuplicateAutomationNodeActionType,
+    MoveAutomationNodeActionType,
     ReplaceAutomationNodeActionType,
 )
 from baserow.contrib.automation.nodes.node_types import (
@@ -442,3 +443,82 @@ def test_duplicate_node_action_with_multiple_outputs(data_fixture):
     # The original fallback output node is now after our duplicated router, again.
     assert fallback_output_node.previous_node_id == duplicated_node.id
     assert fallback_output_node.previous_node_output == ""
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_move_node_action(data_fixture):
+    session_id = str(uuid.uuid4())
+    user = data_fixture.create_user(session_id=session_id)
+    workspace = data_fixture.create_workspace(user=user)
+    automation = data_fixture.create_automation_application(workspace=workspace)
+    workflow = data_fixture.create_automation_workflow(user, automation=automation)
+    after_node = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow,
+    )
+    previous_node = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow,
+    )
+    node = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow,
+    )
+
+    moved_node = MoveAutomationNodeActionType.do(user, node.id, after_node.id)
+
+    assert moved_node.previous_node_id == after_node.id
+    previous_node.refresh_from_db()
+    assert previous_node.previous_node_id == moved_node.id
+
+    ActionHandler.undo(user, [WorkflowActionScopeType.value(workflow.id)], session_id)
+
+    moved_node.refresh_from_db()
+    assert moved_node.previous_node_id == previous_node.id
+    previous_node.refresh_from_db()
+    assert previous_node.previous_node_id == after_node.id
+
+    ActionHandler.redo(user, [WorkflowActionScopeType.value(workflow.id)], session_id)
+
+    moved_node.refresh_from_db()
+    assert moved_node.previous_node_id == after_node.id
+    previous_node.refresh_from_db()
+    assert previous_node.previous_node_id == moved_node.id
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_move_node_action_to_output(data_fixture):
+    session_id = str(uuid.uuid4())
+    user = data_fixture.create_user(session_id=session_id)
+    workspace = data_fixture.create_workspace(user=user)
+    automation = data_fixture.create_automation_application(workspace=workspace)
+    workflow = data_fixture.create_automation_workflow(user, automation=automation)
+    core_router_with_edges = data_fixture.create_core_router_action_node_with_edges(
+        workflow=workflow,
+    )
+    router = core_router_with_edges.router
+    edge1 = core_router_with_edges.edge1
+    # <- to here
+    edge1_output = core_router_with_edges.edge1_output
+    edge2 = core_router_with_edges.edge2
+    edge2_output = core_router_with_edges.edge2_output  # <- from here
+
+    moved_node = MoveAutomationNodeActionType.do(
+        user, edge2_output.id, router.id, edge1_output.previous_node_output
+    )
+
+    # The node we're trying to move is `edge2_output`
+    assert moved_node == edge2_output
+    assert moved_node.previous_node_id == router.id
+    assert moved_node.previous_node_output == str(edge1.uid)
+
+    ActionHandler.undo(user, [WorkflowActionScopeType.value(workflow.id)], session_id)
+
+    moved_node.refresh_from_db()
+    assert moved_node.previous_node_id == router.id
+    assert moved_node.previous_node_output == str(edge2.uid)
+
+    ActionHandler.redo(user, [WorkflowActionScopeType.value(workflow.id)], session_id)
+
+    moved_node.refresh_from_db()
+    assert moved_node.previous_node_id == router.id
+    assert moved_node.previous_node_output == str(edge1.uid)
