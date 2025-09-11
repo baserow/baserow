@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.db.models.signals import post_delete
 from django.dispatch import receiver
 
@@ -13,13 +14,18 @@ from baserow.core.services.models import Service
 def on_workflow_updated_test_run_dispatch_immediate_triggers(
     sender, workflow: AutomationWorkflow, **kwargs
 ):
-    if workflow.allow_test_run_until:
-        trigger = workflow.get_trigger()
-        # A subset of triggers support immediate test run dispatching, if this
-        # `node_type` supports it, we'll immediately run the workflow with
-        # the pre-defined data.
-        if trigger.get_type().immediate_dispatch:
-            AutomationWorkflowHandler().run_workflow(workflow, None)
+    def run_workflow():
+        if workflow.allow_test_run_until:
+            trigger = workflow.get_trigger()
+            # A subset of triggers support immediate test run dispatching, if this
+            # `node_type` supports it, we'll immediately run the workflow with
+            # the pre-defined data.
+            if trigger.get_type().immediate_dispatch:
+                AutomationWorkflowHandler().run_workflow(workflow, None)
+
+    # We need to wait the commit otherwise the celery task workflow instance doesn't
+    # have the allow_test_run_until property saved
+    transaction.on_commit(run_workflow)
 
 
 def after_permanently_deleted(sender, instance, **kwargs):

@@ -311,11 +311,14 @@ def test_triggers_which_dispatch_immediately_on_test_run(
     trigger = workflow.get_trigger()
     from baserow.contrib.automation.workflows.signals import automation_workflow_updated
 
-    automation_workflow_updated.send(
-        None,
-        user=user,
-        workflow=workflow,
-    )
+    with patch("django.db.transaction.on_commit") as on_commit_mock:
+        # Immediately call the callback before the transaction is commit
+        on_commit_mock.side_effect = lambda callback: callback()
+        automation_workflow_updated.send(
+            None,
+            user=user,
+            workflow=workflow,
+        )
     assert mock_dispatch_service
 
     mock_dispatch_service.assert_called_once()

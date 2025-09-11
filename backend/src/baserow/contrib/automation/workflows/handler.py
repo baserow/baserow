@@ -715,6 +715,11 @@ class AutomationWorkflowHandler:
         Each check may raise a subclass of the AutomationWorkflowBeforeRunError error.
         """
 
+        # Make sure it won't run again in the meantime
+        if workflow.allow_test_run_until:
+            workflow.allow_test_run_until = None
+            workflow.save(update_fields=["allow_test_run_until"])
+
         self.check_too_many_errors(workflow)
         self.check_is_rate_limited(workflow.id)
 
