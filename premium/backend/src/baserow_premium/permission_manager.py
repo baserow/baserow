@@ -122,6 +122,9 @@ class ViewOwnershipPermissionManagerType(PermissionManagerType):
             CreateViewDecorationOperationType.type,
             UpdateViewDecorationOperationType.type,
             DeleteViewDecorationOperationType.type,
+            CreateViewRowOperationType.type,
+            UpdateViewRowOperationType.type,
+            DeleteViewRowOperationType.type,
         ]
         # This list controls operations that for personal views, should only be allowed
         # to be performed by the creator of the personal view BUT should only be
@@ -139,9 +142,6 @@ class ViewOwnershipPermissionManagerType(PermissionManagerType):
             ReadViewDecorationOperationType.type,
             UpdateViewDecorationOperationType.type,
             DeleteViewDecorationOperationType.type,
-            CreateViewRowOperationType.type,
-            UpdateViewRowOperationType.type,
-            DeleteViewRowOperationType.type,
         ]
         self.ops_checked_by_this_manager = (
             self.view_ops_allowed_on_own_accessible_personal_view
