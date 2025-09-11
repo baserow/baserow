@@ -54,6 +54,7 @@
           :option="option"
           :database="database"
           :table="table"
+          :view="view"
           :fields="fields"
           :single-select-field="singleSelectField"
           :store-prefix="storePrefix"
@@ -109,11 +110,16 @@
         <ButtonFloating
           v-if="
             !readOnly &&
-            $hasPermission(
+            ($hasPermission(
               'database.table.create_row',
               table,
               database.workspace.id
-            )
+            ) ||
+              $hasPermission(
+                'database.table.view.create_row',
+                view,
+                database.workspace.id
+              ))
           "
           type="primary"
           icon="iconoir-plus"
@@ -219,6 +225,11 @@ export default {
           this.table,
           this.database.workspace.id
         ) ||
+          this.$hasPermission(
+            'database.table.view.create_row',
+            this.view,
+            this.database.workspace.id
+          ) ||
           this.$hasPermission(
             'database.table.field.update',
             this.singleSelectField,

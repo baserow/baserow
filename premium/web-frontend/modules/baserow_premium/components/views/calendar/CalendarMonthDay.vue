@@ -11,11 +11,16 @@
     <a
       v-if="
         !readOnly &&
-        $hasPermission(
+        ($hasPermission(
           'database.table.create_row',
           table,
           database.workspace.id
-        )
+        ) ||
+          $hasPermission(
+            'database.table.view.create_row',
+            view,
+            database.workspace.id
+          ))
       "
       class="calendar-month-day__create-row-btn"
       @click="!readOnly && $emit('create-row', { day })"

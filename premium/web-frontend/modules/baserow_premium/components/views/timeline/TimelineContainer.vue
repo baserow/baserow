@@ -65,11 +65,16 @@
         :step="step"
         :read-only="
           readOnly ||
-          !$hasPermission(
+          (!$hasPermission(
             'database.table.update_row',
             table,
             database.workspace.id
-          )
+          ) &&
+            !$hasPermission(
+              'database.table.view.update_row',
+              view,
+              database.workspace.id
+            ))
         "
         :decorations-by-place="decorationsByPlace"
         :scroll-left="prevScrollLeft"
@@ -82,11 +87,16 @@
     <ButtonFloating
       v-if="
         !readOnly &&
-        $hasPermission(
+        ($hasPermission(
           'database.table.create_row',
           table,
           database.workspace.id
-        )
+        ) ||
+          $hasPermission(
+            'database.table.view.create_row',
+            view,
+            database.workspace.id
+          ))
       "
       icon="iconoir-plus"
       position="fixed"
@@ -106,11 +116,16 @@
       :rows="rows"
       :read-only="
         readOnly ||
-        !$hasPermission(
+        (!$hasPermission(
           'database.table.update_row',
           table,
           database.workspace.id
-        )
+        ) &&
+          !$hasPermission(
+            'database.table.view.update_row',
+            view,
+            database.workspace.id
+          ))
       "
       :show-hidden-fields="showHiddenFieldsInRowModal"
       @hidden="$emit('selected-row', undefined)"
@@ -132,11 +147,16 @@
     <RowCreateModal
       v-if="
         !readOnly &&
-        $hasPermission(
+        ($hasPermission(
           'database.table.create_row',
           table,
           database.workspace.id
-        )
+        ) ||
+          $hasPermission(
+            'database.table.view.create_row',
+            view,
+            database.workspace.id
+          ))
       "
       ref="rowCreateModal"
       :database="database"

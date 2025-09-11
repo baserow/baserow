@@ -709,7 +709,9 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
       commit('SET_CREATING', true)
       const { data } = await RowService(this.$client).create(
         table.id,
-        preparedRow
+        preparedRow,
+        null,
+        getters.getViewId
       )
       commit('SET_CREATING', false)
       return await dispatch('afterNewRowCreated', {
@@ -802,7 +804,9 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
           commit('SET_ROW_FETCHING', { row, value: true })
           const { data } = await RowService(this.$client).batchUpdate(
             table.id,
-            updateRowsData
+            updateRowsData,
+            null,
+            getters.getViewId
           )
 
           const updatedRows = []
