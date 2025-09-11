@@ -151,7 +151,14 @@
       :fields="draggingFields"
       :offset="draggingOffset"
       :container-width="width"
-      :read-only="readOnly"
+      :read-only="
+        readOnly ||
+        !$hasPermission(
+          'database.table.view.update_field_options',
+          view,
+          database.workspace.id
+        )
+      "
       :store-prefix="storePrefix"
       @scroll="$emit('scroll', $event)"
     ></GridViewFieldDragging>
