@@ -2560,7 +2560,9 @@ export const actions = {
         const updatedFieldIds =
           batchResponse.data.metadata?.updated_field_ids || []
 
-        const updatedFieldsChanged = updatedFieldIds !== [field.id]
+        const otherFieldsChangedInBackend = !_.isEqual(updatedFieldIds, [
+          field.id,
+        ])
 
         // Extract only the read-only values because we don't want to update the other
         // values that might have been updated in the meantime.
@@ -2576,7 +2578,7 @@ export const actions = {
         // If we can't optimistically update the row, refresh it to stop the loading
         // state, show proper messages, and update its position and state. Also, if the
         // backend changed other fields, we should refresh sorting/search/filtering.
-        if (!canUpdateOptimistically || updatedFieldsChanged) {
+        if (!canUpdateOptimistically || otherFieldsChangedInBackend) {
           const rowId = row.id
           commit('SET_ROW_LOADING', { row, value: false })
           setTimeout(() => {
