@@ -16,12 +16,14 @@ from baserow.contrib.database.views.operations import (
     CreateViewFilterGroupOperationType,
     CreateViewFilterOperationType,
     CreateViewGroupByOperationType,
+    CreateViewRowOperationType,
     CreateViewSortOperationType,
     DeleteViewDecorationOperationType,
     DeleteViewFilterGroupOperationType,
     DeleteViewFilterOperationType,
     DeleteViewGroupByOperationType,
     DeleteViewOperationType,
+    DeleteViewRowOperationType,
     DeleteViewSortOperationType,
     DuplicateViewOperationType,
     ListAggregationsViewOperationType,
@@ -46,6 +48,7 @@ from baserow.contrib.database.views.operations import (
     UpdateViewGroupByOperationType,
     UpdateViewOperationType,
     UpdateViewPublicOperationType,
+    UpdateViewRowOperationType,
     UpdateViewSlugOperationType,
     UpdateViewSortOperationType,
 )
@@ -136,6 +139,9 @@ class ViewOwnershipPermissionManagerType(PermissionManagerType):
             ReadViewDecorationOperationType.type,
             UpdateViewDecorationOperationType.type,
             DeleteViewDecorationOperationType.type,
+            CreateViewRowOperationType.type,
+            UpdateViewRowOperationType.type,
+            DeleteViewRowOperationType.type,
         ]
         self.ops_checked_by_this_manager = (
             self.view_ops_allowed_on_own_accessible_personal_view

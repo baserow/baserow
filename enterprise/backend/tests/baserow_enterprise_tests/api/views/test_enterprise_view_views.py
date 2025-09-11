@@ -362,6 +362,70 @@ def test_update_row_with_only_view_permissions(api_client, enterprise_data_fixtu
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
+def test_cannot_update_row_outside_of_restricted_view(
+    api_client, enterprise_data_fixture
+):
+    enterprise_data_fixture.enable_enterprise()
+
+    user, token = enterprise_data_fixture.create_user_and_token()
+    user2, token2 = enterprise_data_fixture.create_user_and_token()
+    workspace = enterprise_data_fixture.create_workspace(user=user, members=[user2])
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
+    table = enterprise_data_fixture.create_database_table(database=database)
+    text_field = enterprise_data_fixture.create_text_field(table=table, primary=True)
+    normal_view = enterprise_data_fixture.create_grid_view(table=table)
+    restricted_view = enterprise_data_fixture.create_grid_view(
+        table=table, ownership_type=RestrictedViewOwnershipType.type
+    )
+    enterprise_data_fixture.create_view_filter(
+        view=restricted_view, field=text_field, type="equal", value="ABC"
+    )
+
+    # Create a row to update
+    model = table.get_model()
+    # This row is visible in the view.
+    row1 = model.objects.create(**{f"field_{text_field.id}": "ABC"})
+    # This row is not visible in the view because it does not match the filters.
+    row2 = model.objects.create(**{f"field_{text_field.id}": "DEF"})
+
+    editor_role = Role.objects.get(uid="EDITOR")
+    no_access_role = Role.objects.get(uid="NO_ACCESS")
+    RoleAssignmentHandler().assign_role(
+        user2, workspace, role=no_access_role, scope=workspace
+    )
+    RoleAssignmentHandler().assign_role(
+        user2,
+        workspace,
+        role=editor_role,
+        scope=View.objects.get(id=restricted_view.id),
+    )
+
+    # Should succeed when using view parameter with restricted view
+    response = api_client.patch(
+        reverse(
+            "api:database:rows:item", kwargs={"table_id": table.id, "row_id": row1.id}
+        )
+        + f"?view={restricted_view.id}",
+        {f"field_{text_field.id}": "Updated Value"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token2}",
+    )
+    assert response.status_code == HTTP_200_OK
+
+    response = api_client.patch(
+        reverse(
+            "api:database:rows:item", kwargs={"table_id": table.id, "row_id": row2.id}
+        )
+        + f"?view={restricted_view.id}",
+        {f"field_{text_field.id}": "Updated Value"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token2}",
+    )
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
 def test_update_rows_with_only_view_permissions(api_client, enterprise_data_fixture):
     enterprise_data_fixture.enable_enterprise()
 
@@ -443,6 +507,72 @@ def test_update_rows_with_only_view_permissions(api_client, enterprise_data_fixt
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
+def test_cannot_update_rows_outside_of_restricted_view_filters(
+    api_client, enterprise_data_fixture
+):
+    enterprise_data_fixture.enable_enterprise()
+
+    user, token = enterprise_data_fixture.create_user_and_token()
+    user2, token2 = enterprise_data_fixture.create_user_and_token()
+    workspace = enterprise_data_fixture.create_workspace(user=user, members=[user2])
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
+    table = enterprise_data_fixture.create_database_table(database=database)
+    text_field = enterprise_data_fixture.create_text_field(table=table, primary=True)
+    restricted_view = enterprise_data_fixture.create_grid_view(
+        table=table, ownership_type=RestrictedViewOwnershipType.type
+    )
+    enterprise_data_fixture.create_view_filter(
+        view=restricted_view, field=text_field, type="equal", value="ABC"
+    )
+
+    # Create rows to update
+    model = table.get_model()
+    # This row is visible in the view.
+    row1 = model.objects.create(**{f"field_{text_field.id}": "ABC"})
+    # This row is not visible in the view because it does not match the filters.
+    row2 = model.objects.create(**{f"field_{text_field.id}": "DEF"})
+
+    editor_role = Role.objects.get(uid="EDITOR")
+    no_access_role = Role.objects.get(uid="NO_ACCESS")
+    RoleAssignmentHandler().assign_role(
+        user2, workspace, role=no_access_role, scope=workspace
+    )
+    RoleAssignmentHandler().assign_role(
+        user2,
+        workspace,
+        role=editor_role,
+        scope=View.objects.get(id=restricted_view.id),
+    )
+
+    url = reverse("api:database:rows:batch", kwargs={"table_id": table.id})
+
+    response = api_client.patch(
+        url + f"?view={restricted_view.id}",
+        {
+            "items": [
+                {"id": row1.id, f"field_{text_field.id}": "Updated 1"},
+            ]
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token2}",
+    )
+    assert response.status_code == HTTP_200_OK
+
+    response = api_client.patch(
+        url + f"?view={restricted_view.id}",
+        {
+            "items": [
+                {"id": row2.id, f"field_{text_field.id}": "Updated 2"},
+            ]
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token2}",
+    )
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
 def test_delete_row_with_only_view_permissions(api_client, enterprise_data_fixture):
     enterprise_data_fixture.enable_enterprise()
 
@@ -506,6 +636,65 @@ def test_delete_row_with_only_view_permissions(api_client, enterprise_data_fixtu
     # Verify row was soft deleted (trashed)
     row.refresh_from_db()
     assert getattr(row, "trashed") is True
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_cannot_delete_row_outside_of_restricted_view_filters(
+    api_client, enterprise_data_fixture
+):
+    enterprise_data_fixture.enable_enterprise()
+
+    user, token = enterprise_data_fixture.create_user_and_token()
+    user2, token2 = enterprise_data_fixture.create_user_and_token()
+    workspace = enterprise_data_fixture.create_workspace(user=user, members=[user2])
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
+    table = enterprise_data_fixture.create_database_table(database=database)
+    text_field = enterprise_data_fixture.create_text_field(table=table, primary=True)
+    restricted_view = enterprise_data_fixture.create_grid_view(
+        table=table, ownership_type=RestrictedViewOwnershipType.type
+    )
+    enterprise_data_fixture.create_view_filter(
+        view=restricted_view, field=text_field, type="equal", value="ABC"
+    )
+
+    # Create a row to delete
+    model = table.get_model()
+    # This row is visible in the view.
+    row1 = model.objects.create(**{f"field_{text_field.id}": "ABC"})
+    # This row is not visible in the view because it does not match the filters.
+    row2 = model.objects.create(**{f"field_{text_field.id}": "DEF"})
+
+    editor_role = Role.objects.get(uid="EDITOR")
+    no_access_role = Role.objects.get(uid="NO_ACCESS")
+    RoleAssignmentHandler().assign_role(
+        user2, workspace, role=no_access_role, scope=workspace
+    )
+    RoleAssignmentHandler().assign_role(
+        user2,
+        workspace,
+        role=editor_role,
+        scope=View.objects.get(id=restricted_view.id),
+    )
+
+    response = api_client.delete(
+        reverse(
+            "api:database:rows:item", kwargs={"table_id": table.id, "row_id": row1.id}
+        )
+        + f"?view={restricted_view.id}",
+        HTTP_AUTHORIZATION=f"JWT {token2}",
+    )
+    assert response.status_code == HTTP_204_NO_CONTENT
+
+    # Should succeed when using view parameter with restricted view
+    response = api_client.delete(
+        reverse(
+            "api:database:rows:item", kwargs={"table_id": table.id, "row_id": row2.id}
+        )
+        + f"?view={restricted_view.id}",
+        HTTP_AUTHORIZATION=f"JWT {token2}",
+    )
+    assert response.status_code == HTTP_401_UNAUTHORIZED
 
 
 @pytest.mark.django_db
@@ -579,3 +768,62 @@ def test_delete_rows_with_only_view_permissions(api_client, enterprise_data_fixt
     assert getattr(row1, "trashed") is True
     assert getattr(row2, "trashed") is True
     assert getattr(row3, "trashed") is False
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_cannot_delete_rows_outside_of_restricted_view_filters(
+    api_client, enterprise_data_fixture
+):
+    enterprise_data_fixture.enable_enterprise()
+
+    user, token = enterprise_data_fixture.create_user_and_token()
+    user2, token2 = enterprise_data_fixture.create_user_and_token()
+    workspace = enterprise_data_fixture.create_workspace(user=user, members=[user2])
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
+    table = enterprise_data_fixture.create_database_table(database=database)
+    text_field = enterprise_data_fixture.create_text_field(table=table, primary=True)
+    normal_view = enterprise_data_fixture.create_grid_view(table=table)
+    restricted_view = enterprise_data_fixture.create_grid_view(
+        table=table, ownership_type=RestrictedViewOwnershipType.type
+    )
+    enterprise_data_fixture.create_view_filter(
+        view=restricted_view, field=text_field, type="equal", value="ABC"
+    )
+
+    # Create rows to delete
+    model = table.get_model()
+    # This row is visible in the view.
+    row1 = model.objects.create(**{f"field_{text_field.id}": "ABC"})
+    # This row is not visible in the view because it does not match the filters.
+    row2 = model.objects.create(**{f"field_{text_field.id}": "DEF"})
+
+    editor_role = Role.objects.get(uid="EDITOR")
+    no_access_role = Role.objects.get(uid="NO_ACCESS")
+    RoleAssignmentHandler().assign_role(
+        user2, workspace, role=no_access_role, scope=workspace
+    )
+    RoleAssignmentHandler().assign_role(
+        user2,
+        workspace,
+        role=editor_role,
+        scope=View.objects.get(id=restricted_view.id),
+    )
+
+    url = reverse("api:database:rows:batch-delete", kwargs={"table_id": table.id})
+
+    response = api_client.post(
+        url + f"?view={restricted_view.id}",
+        {"items": [row1.id, row2.id]},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token2}",
+    )
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+
+    response = api_client.post(
+        url + f"?view={restricted_view.id}",
+        {"items": [row1.id]},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token2}",
+    )
+    assert response.status_code == HTTP_204_NO_CONTENT
