@@ -124,6 +124,7 @@ export default (client) => {
     },
     batchUpdate(tableId, items, undoRedoActionGroupId = null, viewId = null) {
       const config = getUndoRedoActionRequestConfig({ undoRedoActionGroupId })
+      config.params = {}
 
       if (viewId !== null) {
         config.params.view = viewId

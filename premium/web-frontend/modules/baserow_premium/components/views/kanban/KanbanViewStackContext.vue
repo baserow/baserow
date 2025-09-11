@@ -7,6 +7,11 @@
             'database.table.create_row',
             table,
             database.workspace.id
+          ) ||
+          $hasPermission(
+            'database.table.view.create_row',
+            view,
+            database.workspace.id
           )
         "
         class="context__menu-item"
@@ -118,6 +123,10 @@ export default {
       required: true,
     },
     table: {
+      type: Object,
+      required: true,
+    },
+    view: {
       type: Object,
       required: true,
     },

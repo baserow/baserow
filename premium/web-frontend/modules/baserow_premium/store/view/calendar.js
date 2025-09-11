@@ -558,7 +558,9 @@ export const actions = {
     commit('SET_CREATING', true)
     const { data } = await RowService(this.$client).create(
       table.id,
-      preparedRow
+      preparedRow,
+      null,
+      getters.getLastCalendarId
     )
     commit('SET_CREATING', false)
     return await dispatch('createdNewRow', {
@@ -640,7 +642,11 @@ export const actions = {
         fields,
         row,
       })
-      await RowService(this.$client).delete(table.id, row.id)
+      await RowService(this.$client).delete(
+        table.id,
+        row.id,
+        getters.getLastCalendarId
+      )
     } catch (error) {
       await dispatch('createdNewRow', {
         view,
@@ -818,7 +824,7 @@ export const actions = {
    * Updates the value of a row and make the changes to the store accordingly.
    */
   async updateRowValue(
-    { commit, dispatch },
+    { commit, dispatch, getters },
     { view, table, row, field, fields, value, oldValue }
   ) {
     const { newRowValues, oldRowValues, updateRequestValues } =
@@ -856,7 +862,8 @@ export const actions = {
         const { data } = await RowService(this.$client).update(
           table.id,
           row.id,
-          updateRequestValues
+          updateRequestValues,
+          getters.getLastCalendarId
         )
         const readOnlyData = extractRowReadOnlyValues(
           data,

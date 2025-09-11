@@ -708,7 +708,9 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
       commit('SET_CREATING', true)
       const { data } = await RowService(this.$client).create(
         table.id,
-        preparedRow
+        preparedRow,
+        null,
+        getters.getViewId
       )
       commit('SET_CREATING', false)
       return await dispatch('afterNewRowCreated', {
@@ -772,7 +774,7 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
      * are prepared by the `prepareNewOldAndUpdateRequestValues` function.
      */
     async updatePreparedRowValues(
-      { commit, dispatch },
+      { commit, dispatch, getters },
       { table, view, row, fields, values, oldValues, updateRequestValues }
     ) {
       await dispatch('afterExistingRowUpdated', {
@@ -798,7 +800,8 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
           const { data } = await RowService(this.$client).update(
             table.id,
             row.id,
-            updateRequestValues
+            updateRequestValues,
+            getters.getViewId
           )
           const readOnlyData = extractRowReadOnlyValues(
             data,

@@ -44,11 +44,16 @@
       :rows="allRows"
       :read-only="
         readOnly ||
-        !$hasPermission(
+        (!$hasPermission(
           'database.table.update_row',
           table,
           database.workspace.id
-        )
+        ) &&
+          !$hasPermission(
+            'database.table.view.update_row',
+            view,
+            database.workspace.id
+          ))
       "
       :show-hidden-fields="showHiddenFieldsInRowModal"
       @refresh-row="refreshRow"
@@ -81,11 +86,16 @@
         <li
           v-if="
             !readOnly &&
-            $hasPermission(
+            ($hasPermission(
               'database.table.delete_row',
               table,
               database.workspace.id
-            )
+            ) ||
+              $hasPermission(
+                'database.table.view.delete_row',
+                view,
+                database.workspace.id
+              ))
           "
           class="context__menu-item"
         >
