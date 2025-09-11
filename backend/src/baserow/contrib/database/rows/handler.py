@@ -712,6 +712,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         user: AbstractUser,
         table: Table,
         view: Optional["View"],
+        row_ids: Optional[List[int]] = None,
     ):
         """
         Checks if the user has permission to the provided table object. If not, it will
@@ -727,6 +728,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         :param table: The table where to check the permissions for.
         :param view: Optionally provide the view where to check permissions for as
             fallback.
+        :param row_ids: Optionally the row ids that are modified.
         :raises PermissionDenied: If the user does not have access to both the table
             and view.
         :return:
@@ -761,7 +763,8 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             and view is not None
             and view.table_id == table.id
             and view_ownership_type_registry.get(view.ownership_type).can_modify_rows(
-                view
+                view,
+                row_ids,
             )
             and check_results[view_check] is True
         ):
@@ -1088,6 +1091,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             user,
             table,
             view,
+            [row.id],
         )
 
         if model is None:
@@ -2496,6 +2500,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             user,
             table,
             view,
+            [row["id"] for row in rows_values],
         )
 
         if model is None:
@@ -2746,6 +2751,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             user,
             table,
             view,
+            [row.id],
         )
 
         if model is None:
@@ -2864,6 +2870,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             user,
             table,
             view,
+            row_ids,
         )
         return self.force_delete_rows(
             user,
