@@ -470,7 +470,11 @@ def test_simulate_dispatch_node_action(data_fixture):
     row = table.get_model().objects.first()
 
     assert action_node.service.sample_data == {
-        f"field_{fields[0].id}": "A new row",
-        "id": row.id,
-        "order": str(row.order),
+        "data": {
+            f"field_{fields[0].id}": "A new row",
+            "id": row.id,
+            "order": str(row.order),
+        },
+        "output_uid": "",
+        "status": 200,
     }

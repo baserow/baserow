@@ -124,6 +124,25 @@ class AutomationNode(
     def get_parent(self):
         return self.workflow
 
+    def get_previous_nodes(self):
+        """Return a list of all previous nodes."""
+
+        return (
+            [self.previous_node] + self.previous_node.get_previous_nodes()
+            if self.previous_node
+            else []
+        )
+
+    def get_previous_service_outputs(self):
+        return (
+            (
+                {self.previous_node.service.id: self.previous_node_output}
+                | self.previous_node.get_previous_service_outputs()
+            )
+            if self.previous_node
+            else {}
+        )
+
     def get_next_nodes(
         self, output_uid: str | None = None, specific: bool = False
     ) -> Iterable["AutomationNode"]:

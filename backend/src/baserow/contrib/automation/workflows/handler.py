@@ -832,8 +832,15 @@ class AutomationWorkflowHandler:
             else None
         )
 
+        force_outputs = None
+        if simulate_until_node:
+            force_outputs = simulate_until_node.get_previous_service_outputs()
+
         dispatch_context = AutomationDispatchContext(
-            workflow, event_payload, simulate_until_node=simulate_until_node
+            workflow,
+            event_payload,
+            simulate_until_node=simulate_until_node,
+            force_outputs=force_outputs,
         )
 
         start_time = timezone.now()

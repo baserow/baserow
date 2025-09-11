@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from dataclasses import fields
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type, TypeVar
 
@@ -344,9 +345,10 @@ class ServiceType(
                 dispatch_context.update_sample_data_for is None
                 or service not in dispatch_context.update_sample_data_for
             )
-            and service.sample_data is not None
+            and service.get_type().get_sample_data(service, dispatch_context)
+            is not None
         ):
-            return DispatchResult(data=self.get_sample_data(service))
+            return DispatchResult(**self.get_sample_data(service))
 
         data = self.dispatch_data(service, resolved_values, dispatch_context)
         serialized_data = self.dispatch_transform(data)
@@ -355,7 +357,16 @@ class ServiceType(
             dispatch_context.update_sample_data_for is None
             or service in dispatch_context.update_sample_data_for
         ):
-            service.sample_data = serialized_data.data
+            sample_data = {}
+            for field in fields(serialized_data):
+                value = getattr(serialized_data, field.name)
+                # Handle case where serializer.data can be a DRF ReturnDict
+                if hasattr(value, "serializer"):
+                    sample_data[field.name] = dict(value)
+                else:
+                    sample_data[field.name] = value
+
+            service.sample_data = sample_data
             service.save()
 
         return serialized_data

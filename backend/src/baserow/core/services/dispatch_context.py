@@ -12,6 +12,7 @@ class DispatchContext(RuntimeFormulaContext, ABC):
         "only_record_id",
         "update_sample_data_for",
         "use_sample_data",
+        "force_outputs",
     ]
 
     """
@@ -26,11 +27,13 @@ class DispatchContext(RuntimeFormulaContext, ABC):
         only_record_id=None,
         update_sample_data_for: Optional[List[Service]] = None,
         use_sample_data: bool = False,
+        force_outputs: Dict[int, str] = None,
     ):
         self.cache = {}  # can be used by data providers to save queries
         self.only_record_id = only_record_id
         self.update_sample_data_for = update_sample_data_for
         self.use_sample_data = use_sample_data
+        self.force_outputs = force_outputs
         super().__init__()
 
     @abstractmethod

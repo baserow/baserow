@@ -380,7 +380,7 @@ class CoreHTTPRequestServiceType(ServiceType):
 
         if (allowed_fields is None or "body" in allowed_fields) and service.sample_data:
             schema_builder = SchemaBuilder()
-            schema_builder.add_object(service.sample_data["body"])
+            schema_builder.add_object(service.sample_data["data"]["body"])
             schema = schema_builder.to_schema()
 
             properties |= {
@@ -404,7 +404,9 @@ class CoreHTTPRequestServiceType(ServiceType):
             schema = {}
             if service.sample_data:
                 schema_builder = SchemaBuilder()
-                schema_builder.add_object(service.sample_data.get("headers", {}))
+                schema_builder.add_object(
+                    service.sample_data.get("data", {}).get("headers", {})
+                )
                 schema = schema_builder.to_schema()
 
             properties.update(
@@ -1091,6 +1093,19 @@ class CoreRouterServiceType(ServiceType):
         :return: A dictionary containing the data of the first matching edge.
         """
 
+        if dispatch_context.force_outputs is not None:
+            if dispatch_context.force_outputs[service.id]:
+                edge = service.edges.get(uid=dispatch_context.force_outputs[service.id])
+                return {
+                    "output_uid": str(edge.uid),
+                    "data": {"edge": {"label": edge.label}},
+                }
+            else:
+                return {
+                    "output_uid": "",
+                    "data": {"edge": {"label": service.default_edge_label}},
+                }
+
         for edge in service.edges.all():
             condition_result = resolved_values[f"edge_{edge.uid}"]
             if condition_result:
@@ -1109,3 +1124,6 @@ class CoreRouterServiceType(ServiceType):
         data: Any,
     ) -> DispatchResult:
         return DispatchResult(output_uid=data["output_uid"], data=data["data"])
+
+    def get_sample_data(self, service):
+        return None

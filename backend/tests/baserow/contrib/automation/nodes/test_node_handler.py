@@ -410,9 +410,13 @@ def test_simulate_dispatch_node_action(data_fixture):
     row = table.get_model().objects.first()
 
     assert action_node.service.sample_data == {
-        f"field_{fields[0].id}": "A new row",
-        "id": row.id,
-        "order": str(row.order),
+        "data": {
+            f"field_{fields[0].id}": "A new row",
+            "id": row.id,
+            "order": str(row.order),
+        },
+        "output_uid": "",
+        "status": 200,
     }
 
 
@@ -434,9 +438,13 @@ def test_simulate_dispatch_node_action_with_update_sample_data(
     action_node.refresh_from_db()
 
     assert action_node.service.sample_data == {
-        f"field_{fields[0].id}": "A new row",
-        "id": AnyInt(),
-        "order": AnyStr(),
+        "data": {
+            f"field_{fields[0].id}": "A new row",
+            "id": AnyInt(),
+            "order": AnyStr(),
+        },
+        "output_uid": "",
+        "status": 200,
     }
 
 
@@ -467,9 +475,13 @@ def test_simulate_dispatch_node_action_with_simulate_until_node(data_fixture):
     action_node_1.refresh_from_db()
     row = table.get_model().objects.first()
     assert action_node_1.service.sample_data == {
-        f"field_{fields[0].id}": "A new row",
-        "id": row.id,
-        "order": str(row.order),
+        "data": {
+            f"field_{fields[0].id}": "A new row",
+            "id": row.id,
+            "order": str(row.order),
+        },
+        "output_uid": "",
+        "status": 200,
     }
 
     # Due to the simulate_until_node param in the dispatch context, the

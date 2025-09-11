@@ -997,7 +997,11 @@ def test_simulate_dispatch_action_node(api_client, data_fixture):
 
     # Having dispatched the action, the sample_data should be populated
     assert action_node.service.sample_data == {
-        f"field_{fields_2[0].id}": "A new row",
-        "id": row.id,
-        "order": AnyStr(),
+        "data": {
+            f"field_{fields_2[0].id}": "A new row",
+            "id": row.id,
+            "order": AnyStr(),
+        },
+        "output_uid": "",
+        "status": 200,
     }

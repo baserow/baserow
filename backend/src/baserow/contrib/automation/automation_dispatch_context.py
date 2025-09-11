@@ -19,6 +19,7 @@ class AutomationDispatchContext(DispatchContext):
         workflow: AutomationWorkflow,
         event_payload: Optional[Union[Dict, List[Dict]]] = None,
         simulate_until_node: Optional[AutomationActionNode] = None,
+        force_outputs: Dict[int, str] = None,
     ):
         """
         The `DispatchContext` implementation for automations. This context is provided
@@ -45,6 +46,7 @@ class AutomationDispatchContext(DispatchContext):
         super().__init__(
             update_sample_data_for=services,
             use_sample_data=bool(self.simulate_until_node),
+            force_outputs=force_outputs,
         )
 
     def clone(self, **kwargs):
