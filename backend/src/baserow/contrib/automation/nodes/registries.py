@@ -84,15 +84,6 @@ class AutomationNodeType(
             "service",
         ]
 
-    def before_move(self, node: AutomationNode, after_node: AutomationNode) -> None:
-        """
-        A hook called just before a node is moved. Can be
-        overridden by subclasses to implement specific logic.
-
-        :param node: The node instance to be moved.
-        :param after_node: The node instance that will be before the moved node.
-        """
-
     def before_delete(self, node: AutomationNode) -> None:
         """
         A hook called just before a node is deleted. Can be
