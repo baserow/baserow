@@ -96,7 +96,8 @@
     "moreEdit": "Edit",
     "moreReplace": "Replace",
     "nodeOptions": "Node options",
-    "displayLabelDebug": "ID: {id} | Prev: {previousNodeId} | {outputUid}"
+    "displayLabelDebug": "ID: {id} | Prev: {previousNodeId} | {outputUid}",
+    "moreDuplicate": "Duplicate"
   },
   "workflowAddNode": {
     "displayTitle": "Create automation node",

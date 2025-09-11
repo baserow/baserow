@@ -26,6 +26,7 @@
         :data="slotProps.data"
         @remove-node="handleRemoveNode"
         @replace-node="handleReplaceNode"
+        @duplicate-node="handleDuplicateNode"
       />
     </template>
 
@@ -96,7 +97,7 @@ const props = defineProps({
 const instance = getCurrentInstance()
 const refs = instance.proxy.$refs
 
-const emit = defineEmits(['add-node', 'remove-node', 'input'])
+const emit = defineEmits(['add-node', 'remove-node', 'input', 'duplicate-node'])
 
 const { addSelectedNodes, onMove, onNodeClick, onPaneClick } = useVueFlow()
 
@@ -474,5 +475,9 @@ const handleRemoveNode = (nodeId) => {
 
 const handleReplaceNode = (nodeId, nodeType) => {
   emit('replace-node', nodeId, nodeType)
+}
+
+const handleDuplicateNode = (nodeId) => {
+  emit('duplicate-node', nodeId)
 }
 </script>
