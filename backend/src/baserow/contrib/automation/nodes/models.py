@@ -136,7 +136,7 @@ class AutomationNode(
     def get_previous_service_outputs(self):
         return (
             (
-                {self.previous_node.service.id: self.previous_node_output}
+                {self.previous_node.service.id: str(self.previous_node_output)}
                 | self.previous_node.get_previous_service_outputs()
             )
             if self.previous_node

@@ -519,6 +519,7 @@ class AutomationNodeHandler:
         dispatch_context = AutomationDispatchContext(
             node.workflow,
             simulate_until_node=node.specific,
+            force_outputs=node.get_previous_service_outputs(),
         )
 
         try:

@@ -345,7 +345,7 @@ class ServiceType(
                 dispatch_context.update_sample_data_for is None
                 or service not in dispatch_context.update_sample_data_for
             )
-            and service.get_type().get_sample_data(service, dispatch_context)
+            and service.get_type().get_sample_data(service)
             is not None
         ):
             return DispatchResult(**self.get_sample_data(service))
