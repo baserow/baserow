@@ -7,7 +7,6 @@ from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeNotInWorkflow,
 )
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
-from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.models import LocalBaserowCreateRowActionNode
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.integrations.local_baserow.models import LocalBaserowRowsCreated
@@ -531,43 +530,60 @@ def test_simulate_dispatch_node_dispatches_correct_edge_node(data_fixture):
     )
 
     router_a = data_fixture.create_core_router_action_node(
-        workflow=workflow, previous_node=trigger_node
+        workflow=workflow, previous_node_id=trigger_node.id
     )
     router_a_edge_1 = data_fixture.create_core_router_service_edge(
-        service=router_a.service, label="Router A, Edge 1", condition="'true'", skip_output_node=True
+        service=router_a.service,
+        label="Router A, Edge 1",
+        condition="'true'",
+        skip_output_node=True,
     )
     router_a_edge_2 = data_fixture.create_core_router_service_edge(
-        service=router_a.service, label="Router A, Edge 2", condition="'false'", skip_output_node=True
+        service=router_a.service,
+        label="Router A, Edge 2",
+        condition="'false'",
+        skip_output_node=True,
     )
 
     router_b = data_fixture.create_core_router_action_node(
-        workflow=workflow, previous_node=router_a, previous_node_output=router_a_edge_1.uid
+        workflow=workflow,
+        previous_node_id=router_a.id,
+        previous_node_output=router_a_edge_1.uid,
     )
     router_b_edge_1 = data_fixture.create_core_router_service_edge(
-        service=router_b.service, label="Router B, Edge 1", condition="'false'", skip_output_node=True
+        service=router_b.service,
+        label="Router B, Edge 1",
+        condition="'false'",
+        skip_output_node=True,
     )
     router_b_edge_2 = data_fixture.create_core_router_service_edge(
-        service=router_b.service, label="Router B, Edge 2", condition="'true'", skip_output_node=True
+        service=router_b.service,
+        label="Router B, Edge 2",
+        condition="'true'",
+        skip_output_node=True,
     )
+
     node_b_service = create_action_node_service(
         data_fixture, user, workflow.automation, "apple"
     )
     node_b = data_fixture.create_local_baserow_create_row_action_node(
-        workflow=workflow, service=node_b_service, previous_node=router_a, previous_node_output=router_a_edge_2.uid
+        workflow=workflow, service=node_b_service, previous_node_id=router_a.id
     )
 
     node_c_1_service = create_action_node_service(
         data_fixture, user, workflow.automation, "banana"
     )
     node_c_1 = data_fixture.create_local_baserow_create_row_action_node(
-        workflow=workflow, service=node_c_1_service, previous_node=router_b, previous_node_output=router_b_edge_1.uid
+        workflow=workflow, service=node_c_1_service, previous_node_id=router_b.id
     )
     node_c_2_service = create_action_node_service(
         data_fixture, user, workflow.automation, "cherry"
     )
     node_c_2 = data_fixture.create_local_baserow_create_row_action_node(
-        workflow=workflow, service=node_c_2_service,
-        previous_node=router_b, previous_node_output=router_b_edge_2.uid
+        workflow=workflow,
+        service=node_c_2_service,
+        previous_node_id=router_b.id,
+        previous_node_output=router_b_edge_2.uid,
     )
 
     nodes = [trigger_node, router_a, router_b, node_b, node_c_1, node_c_2]
@@ -576,6 +592,16 @@ def test_simulate_dispatch_node_dispatches_correct_edge_node(data_fixture):
 
     AutomationNodeHandler().simulate_dispatch_node(node_c_2)
 
+    # node_c_2 is intentionally excluded. here
+    nodes = [trigger_node, router_a, router_b, node_b, node_c_1]
+    for node in nodes:
+        node.service.refresh_from_db()
+        assert node.service.sample_data is None
+
     node_c_2.refresh_from_db()
     node_c_2.service.refresh_from_db()
-    assert node_c_2.service.sample_data is not None
+    assert node_c_2.service.sample_data == {
+        "data": {"field_3": "cherry", "id": AnyInt(), "order": AnyStr()},
+        "output_uid": "",
+        "status": 200,
+    }
