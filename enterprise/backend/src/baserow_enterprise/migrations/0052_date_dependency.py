@@ -8,7 +8,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("baserow_enterprise", "0050_periodicdatasyncinterval_deactivation_reason"),
+        ("baserow_enterprise", "0051_assistantchat"),
         ("database", "0199_field_rules"),
     ]
 
