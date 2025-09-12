@@ -27,11 +27,10 @@ def test_date_dependency_handler_create_rule_serializer(
     serializer_cls = rule_type.get_serializer_class(request_serializer=True)
     serializer = serializer_cls(context={"table": table}, data={})
     assert not serializer.is_valid(raise_exception=False)
-    assert set(serializer.errors.keys()) == set(
-        ["start_date_field_id", "end_date_field_id", "duration_field_id"]
-    )
+    assert set(serializer.errors.keys()) == set(["is_active"])
 
     invalid_fields_payload = {
+        "is_active": True,
         "start_date_field_id": 100,
         "end_date_field_id": 200,
         "duration_field_id": 300,
@@ -53,6 +52,7 @@ def test_date_dependency_handler_create_rule_serializer(
 
     text_field = data_fixture.create_text_field(table=table, name="text_field")
     invalid_payload = {
+        "is_active": True,
         "start_date_field_id": text_field.id,
         "end_date_field_id": end_date_field.id,
         "duration_field_id": duration_field.id,
@@ -64,6 +64,7 @@ def test_date_dependency_handler_create_rule_serializer(
     assert set(serializer.errors.keys()) == set(["start_date_field_id"])
 
     valid_payload = {
+        "is_active": True,
         "start_date_field_id": start_date_field.id,
         "end_date_field_id": end_date_field.id,
         "duration_field_id": duration_field.id,
@@ -88,6 +89,7 @@ def test_date_dependency_handler_create_rule_no_license(data_fixture):
     )
 
     valid_payload = {
+        "is_active": True,
         "start_date_field_id": start_date_field.id,
         "end_date_field_id": end_date_field.id,
         "duration_field_id": duration_field.id,
@@ -115,6 +117,7 @@ def test_date_dependency_handler_create_rule_no_duplicate(
     )
 
     valid_payload = {
+        "is_active": True,
         "start_date_field_id": start_date_field.id,
         "end_date_field_id": end_date_field.id,
         "duration_field_id": duration_field.id,
@@ -152,6 +155,7 @@ def test_date_dependency_handler_create_rule(data_fixture, enable_enterprise):
     )
 
     valid_payload = {
+        "is_active": True,
         "start_date_field_id": start_date_field.id,
         "end_date_field_id": end_date_field.id,
         "duration_field_id": duration_field.id,
@@ -186,6 +190,7 @@ def test_date_dependency_handler_validate_rule_after_field_change(
     )
 
     valid_payload = {
+        "is_active": True,
         "start_date_field_id": start_date_field.id,
         "end_date_field_id": end_date_field.id,
         "duration_field_id": duration_field.id,
@@ -229,6 +234,7 @@ def test_date_dependency_handler_validate_rule_after_field_removed(
     )
 
     valid_payload = {
+        "is_active": True,
         "start_date_field_id": start_date_field.id,
         "end_date_field_id": end_date_field.id,
         "duration_field_id": duration_field.id,
@@ -432,6 +438,7 @@ def test_date_dependency_handler_create_rule_and_populate_rows(
     assert len(rows_inserted) == len(data) == len(expected.keys())
 
     valid_payload = {
+        "is_active": True,
         "start_date_field_id": start_date_field.id,
         "end_date_field_id": end_date_field.id,
         "duration_field_id": duration_field.id,
