@@ -297,7 +297,6 @@ def broadcast_to_group(self, workspace_id, payload, ignore_web_socket_id=None):
             "user_id"
         )
     ]
-
     if len(user_ids) == 0:
         return
 

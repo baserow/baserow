@@ -168,6 +168,7 @@ class AirtableImportReport:
             views=exported_views,
             rows=exported_rows,
             data_sync=None,
+            field_rules=[],
         )
 
         return exported_table

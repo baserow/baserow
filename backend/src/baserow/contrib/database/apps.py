@@ -1062,6 +1062,22 @@ class DatabaseConfig(AppConfig):
         field_constraint_registry.register(RatingTypeUniqueWithEmptyConstraint())
         field_constraint_registry.register(UniqueWithEmptyConstraint())
 
+        from baserow.contrib.database.field_rules.actions import (
+            CreateFieldRuleActionType,
+            DeleteFieldRuleActionType,
+            UpdateFieldRuleActionType,
+        )
+        from baserow.contrib.database.field_rules.operations import (
+            ReadFieldRuleOperationType,
+            SetFieldRuleOperationType,
+        )
+
+        operation_type_registry.register(SetFieldRuleOperationType())
+        operation_type_registry.register(ReadFieldRuleOperationType())
+        action_type_registry.register(CreateFieldRuleActionType())
+        action_type_registry.register(UpdateFieldRuleActionType())
+        action_type_registry.register(DeleteFieldRuleActionType())
+
         # The signals must always be imported last because they use the registries
         # which need to be filled first.
         import baserow.contrib.database.data_sync.signals  # noqa: F403, F401
@@ -1070,6 +1086,8 @@ class DatabaseConfig(AppConfig):
         post_migrate.connect(safely_update_formula_versions, sender=self)
         pre_migrate.connect(clear_generated_model_cache_receiver, sender=self)
 
+        import baserow.contrib.database.field_rules.receivers  # noqa: F401
+        import baserow.contrib.database.field_rules.signals  # noqa: F401
         import baserow.contrib.database.fields.receivers  # noqa: F401
         import baserow.contrib.database.fields.tasks  # noqa: F401
         import baserow.contrib.database.rows.history  # noqa: F401

@@ -47,6 +47,7 @@
           }}</span>
         </slot>
       </template>
+
       <i class="dropdown__toggle-icon iconoir-nav-arrow-down"></i>
     </a>
     <div

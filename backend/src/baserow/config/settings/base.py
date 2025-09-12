@@ -786,6 +786,9 @@ BATCH_ROWS_SIZE_LIMIT = int(
     os.getenv("BATCH_ROWS_SIZE_LIMIT", 200)
 )  # How many rows can be modified at once.
 
+# Maximum count of records considered as a 'small table' during field rule operations.
+FIELD_RULE_ROWS_LIMIT = int(os.getenv("FIELD_RULE_ROWS_LIMIT", BATCH_ROWS_SIZE_LIMIT))
+
 # Maximum count of records returned by local baserow data source
 INTEGRATION_LOCAL_BASEROW_PAGE_SIZE_LIMIT = int(
     os.getenv("BASEROW_INTEGRATION_LOCAL_BASEROW_PAGE_SIZE_LIMIT", 200)

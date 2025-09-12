@@ -179,6 +179,7 @@ import rowModal from '@baserow/modules/database/store/rowModal'
 import publicStore from '@baserow/modules/database/store/view/public'
 import rowModalNavigationStore from '@baserow/modules/database/store/rowModalNavigation'
 import rowHistoryStore from '@baserow/modules/database/store/rowHistory'
+import fieldRulesStore from '@baserow/modules/database/store/fieldRules'
 
 import { registerRealtimeEvents } from '@baserow/modules/database/realtime'
 import { CSVTableExporterType } from '@baserow/modules/database/exporterTypes'
@@ -385,6 +386,7 @@ export default (context) => {
   store.registerModule('rowModal', rowModal)
   store.registerModule('rowModalNavigation', rowModalNavigationStore)
   store.registerModule('rowHistory', rowHistoryStore)
+  store.registerModule('fieldRules', fieldRulesStore)
   store.registerModule('page/view/grid', gridStore)
   store.registerModule('page/view/gallery', galleryStore)
   store.registerModule('page/view/form', formStore)

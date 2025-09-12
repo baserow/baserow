@@ -132,6 +132,14 @@ class BaserowEnterpriseConfig(AppConfig):
         operation_type_registry.register(ReadFieldPermissionsOperationType())
         operation_type_registry.register(ChatAssistantChatOperationType())
 
+        from baserow.contrib.database.field_rules.registries import (
+            field_rules_type_registry,
+        )
+
+        from .date_dependency.field_rule_types import DateDependencyFieldRuleType
+
+        field_rules_type_registry.register(DateDependencyFieldRuleType())
+
         from baserow.core.registries import subject_type_registry
 
         subject_type_registry.register(TeamSubjectType())

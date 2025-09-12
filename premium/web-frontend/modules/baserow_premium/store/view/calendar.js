@@ -6,11 +6,11 @@ import { GroupTaskQueue } from '@baserow/modules/core/utils/queue'
 import ViewService from '@baserow/modules/database/services/view'
 import CalendarService from '@baserow_premium/services/views/calendar'
 import {
+  calculateSingleRowSearchMatches,
   extractRowMetadata,
+  getFilters,
   getRowSortFunction,
   matchSearchFilters,
-  calculateSingleRowSearchMatches,
-  getFilters,
 } from '@baserow/modules/database/utils/view'
 import RowService from '@baserow/modules/database/services/row'
 import {
@@ -18,11 +18,11 @@ import {
   getUserTimeZone,
 } from '@baserow/modules/core/utils/date'
 import {
-  extractRowReadOnlyValues,
+  extractChangedFields,
+  getRowMetadata,
   prepareNewOldAndUpdateRequestValues,
   prepareRowForRequest,
   updateRowMetadataType,
-  getRowMetadata,
 } from '@baserow/modules/database/utils/row'
 import { getDefaultSearchModeFromEnv } from '@baserow/modules/database/utils/search'
 import { DEFAULT_SORT_TYPE_KEY } from '@baserow/modules/database/constants'
@@ -818,7 +818,7 @@ export const actions = {
    * Updates the value of a row and make the changes to the store accordingly.
    */
   async updateRowValue(
-    { commit, dispatch },
+    { commit, dispatch, getters, state },
     { view, table, row, field, fields, value, oldValue }
   ) {
     const { newRowValues, oldRowValues, updateRequestValues } =
@@ -853,17 +853,36 @@ export const actions = {
       // will never be updated concurrency, and so that the value won't be
       // updated if the row hasn't been created yet.
       await updateRowQueue.add(async () => {
-        const { data } = await RowService(this.$client).update(
+        const updateRowsData = [
+          Object.assign({ id: row.id }, updateRequestValues),
+        ]
+        const { data } = await RowService(this.$client).batchUpdate(
           table.id,
-          row.id,
-          updateRequestValues
+          updateRowsData
         )
-        const readOnlyData = extractRowReadOnlyValues(
-          data,
+        const updatedFieldIds = data.metadata?.updated_field_ids || []
+
+        const readOnlyData = extractChangedFields(
+          data.items[0],
           fields,
+          updatedFieldIds,
           this.$registry
         )
-        commit('UPDATE_ROW', { row, values: readOnlyData })
+
+        // One of fields updated is our date field, so the row should be checked if
+        // it should be moved to another date.
+        const dateFieldId = state.dateFieldId
+
+        if (updatedFieldIds.includes(dateFieldId)) {
+          await dispatch('updatedExistingRow', {
+            view,
+            row,
+            values: readOnlyData,
+            fields,
+          })
+        } else {
+          commit('UPDATE_ROW', { row, values: readOnlyData })
+        }
       }, row.id)
     } catch (error) {
       await dispatch('updatedExistingRow', {

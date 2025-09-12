@@ -28,12 +28,39 @@ class RowSerializer(serializers.ModelSerializer):
         extra_kwargs = {"id": {"read_only": True}, "order": {"read_only": True}}
 
 
-def serialize_rows_for_response(rows, model, user_field_names=False, many=True):
+class BatchOperationMetadataSerializer(serializers.Serializer):
+    updated_field_ids = serializers.ListField(
+        child=serializers.IntegerField(required=True),
+        allow_empty=False,
+        allow_null=False,
+        read_only=True,
+        required=False,
+        help_text="A list of field ids that has been changed during the operation",
+    )
+
+
+class BatchUpdateRowsSerializer(serializers.Serializer):
+    items = serializers.ListField(
+        child=RowSerializer(),
+        min_length=1,
+        max_length=settings.BATCH_ROWS_SIZE_LIMIT,
+    )
+    metadata = BatchOperationMetadataSerializer(
+        required=False,
+        help_text="An optional object containing metadata "
+        "information about the operation",
+    )
+
+
+def serialize_rows_for_response(
+    rows, model, user_field_names=False, many=True, field_ids=None
+):
     return get_row_serializer_class(
         model,
         RowSerializer,
         is_response=True,
         user_field_names=user_field_names,
+        field_ids=field_ids,
     )(rows, many=many).data
 
 
@@ -176,6 +203,11 @@ def get_batch_row_serializer_class(row_serializer_class):
             max_length=settings.BATCH_ROWS_SIZE_LIMIT,
         ),
         "validate": validate,
+        "metadata": BatchOperationMetadataSerializer(
+            required=False,
+            help_text="An optional object containing metadata "
+            "information about the operation",
+        ),
     }
 
     class_object = type(class_name, (serializers.Serializer,), fields)
@@ -424,14 +456,6 @@ class ListRowsQueryParamsSerializer(
     view_id = serializers.IntegerField(required=False)
 
 
-class BatchUpdateRowsSerializer(serializers.Serializer):
-    items = serializers.ListField(
-        child=RowSerializer(),
-        min_length=1,
-        max_length=settings.BATCH_ROWS_SIZE_LIMIT,
-    )
-
-
 def get_example_batch_rows_serializer_class(example_type="get", user_field_names=False):
     config = {
         "get": {
@@ -457,7 +481,12 @@ def get_example_batch_rows_serializer_class(example_type="get", user_field_names
             )(),
             min_length=1,
             max_length=settings.BATCH_ROWS_SIZE_LIMIT,
-        )
+        ),
+        "metadata": BatchOperationMetadataSerializer(
+            required=False,
+            help_text="An optional object containing metadata "
+            "information about the operation",
+        ),
     }
     class_object = type(class_name, (serializers.Serializer,), fields)
     get_example_batch_rows_serializer_class.cache[class_name] = class_object

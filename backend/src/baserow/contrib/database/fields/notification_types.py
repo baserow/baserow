@@ -232,6 +232,7 @@ class UserMentionInRichTextFieldNotificationType(
 
         model = rows[0]._meta.model
         table = model.baserow_table
+
         workspace_user_ids = set(
             table.database.workspace.users.values_list("id", flat=True)
         )

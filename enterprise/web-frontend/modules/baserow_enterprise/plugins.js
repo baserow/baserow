@@ -12,6 +12,8 @@ import { DatabaseApplicationType } from '@baserow/modules/database/applicationTy
 import ExportWorkspaceModalWarning from '@baserow_enterprise/components/ExportWorkspaceModalWarning'
 import AssistantSidebarItem from '@baserow_enterprise/components/assistant/AssistantSidebarItem'
 import AssistantPanel from '@baserow_enterprise/components/assistant/AssistantPanel'
+import DateDependencyMenuItem from '@baserow_enterprise/components/dateDependency/DateDependencyMenuItem'
+import DateDependencyFieldTypeIcon from '@baserow_enterprise/components/dateDependency/DateDependencyFieldTypeIcon'
 import { FF_ASSISTANT } from '@baserow/modules/core/plugins/featureFlags'
 
 export class EnterprisePlugin extends BaserowPlugin {
@@ -56,13 +58,24 @@ export class EnterprisePlugin extends BaserowPlugin {
   }
 
   getAdditionalTableContextComponents(workspace, table) {
+    const out = []
     if (
       this.app.$hasPermission('database.table.read_role', table, workspace.id)
     ) {
-      return [MemberRolesTableContextItem]
-    } else {
-      return []
+      out.push(MemberRolesTableContextItem)
     }
+    out.push(DateDependencyMenuItem)
+    return out
+  }
+
+  getAdditionalViewContextComponents(workspace, view) {
+    return [DateDependencyMenuItem]
+  }
+
+  getGridViewFieldTypeIconsBefore(workspace, view, field) {
+    const out = []
+    out.push(DateDependencyFieldTypeIcon)
+    return out
   }
 
   getExtraSnapshotModalComponents(workspace) {

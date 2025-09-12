@@ -9,6 +9,7 @@ from django.test.utils import CaptureQueriesContext
 
 import pytest
 from freezegun import freeze_time
+from pytest_unordered import unordered
 from rest_framework.status import (
     HTTP_200_OK,
     HTTP_204_NO_CONTENT,
@@ -227,9 +228,10 @@ def test_cannot_batch_create_rows_with_data_sync(api_client, data_fixture):
     assert response.json()["error"] == "ERROR_CANNOT_CREATE_ROWS_IN_TABLE"
 
 
+@pytest.mark.parametrize("include_metadata", [True, False])
 @pytest.mark.django_db
 @pytest.mark.api_rows
-def test_batch_create_rows(api_client, data_fixture):
+def test_batch_create_rows(api_client, data_fixture, include_metadata):
     user, jwt_token = data_fixture.create_user_and_token()
     table = data_fixture.create_database_table(user=user)
     text_field = data_fixture.create_text_field(
@@ -289,6 +291,17 @@ def test_batch_create_rows(api_client, data_fixture):
             },
         ]
     }
+    if include_metadata:
+        expected_response_body["metadata"] = {
+            "updated_field_ids": [
+                text_field.id,
+                number_field.id,
+                number_field_2.id,
+                boolean_field.id,
+                boolean_field_2.id,
+            ]
+        }
+        url = f"{url}?include_metadata=true"
 
     response = api_client.post(
         url,
@@ -341,6 +354,17 @@ def test_batch_create_rows(api_client, data_fixture):
             },
         ]
     }
+
+    if include_metadata:
+        expected_response_body_empty["metadata"] = {
+            "updated_field_ids": [
+                text_field.id,
+                number_field.id,
+                number_field_2.id,
+                boolean_field.id,
+                boolean_field_2.id,
+            ]
+        }
 
     response = api_client.post(
         url,
@@ -1277,9 +1301,10 @@ def test_batch_update_rows_with_read_only_field(api_client, data_fixture):
     )
 
 
+@pytest.mark.parametrize("include_metadata", [True, False])
 @pytest.mark.django_db
 @pytest.mark.api_rows
-def test_batch_update_rows(api_client, data_fixture):
+def test_batch_update_rows(api_client, data_fixture, include_metadata):
     user, jwt_token = data_fixture.create_user_and_token()
     table = data_fixture.create_database_table(user=user)
     text_field = data_fixture.create_text_field(
@@ -1329,6 +1354,13 @@ def test_batch_update_rows(api_client, data_fixture):
             },
         ]
     }
+    if include_metadata:
+        expected_response_body["metadata"] = {
+            "updated_field_ids": unordered(
+                [text_field.id, number_field.id, boolean_field.id]
+            )
+        }
+        url = f"{url}?include_metadata=true"
 
     response = api_client.patch(
         url,
@@ -1343,6 +1375,83 @@ def test_batch_update_rows(api_client, data_fixture):
     row_2.refresh_from_db()
     assert getattr(row_1, f"field_{text_field.id}") == "green"
     assert getattr(row_2, f"field_{text_field.id}") == "yellow"
+    assert getattr(row_1, f"field_{boolean_field.id}") is True
+    assert getattr(row_2, f"field_{boolean_field.id}") is False
+
+
+@pytest.mark.parametrize("include_metadata", [True, False])
+@pytest.mark.django_db
+@pytest.mark.api_rows
+def test_batch_update_rows_with_different_fields(
+    api_client, data_fixture, include_metadata
+):
+    user, jwt_token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(
+        table=table, order=0, name="Color", text_default="white"
+    )
+    number_field = data_fixture.create_number_field(
+        table=table, order=1, name="Horsepower"
+    )
+    boolean_field = data_fixture.create_boolean_field(
+        table=table, order=2, name="For sale"
+    )
+    model = table.get_model()
+    row_1 = model.objects.create()
+    row_2 = model.objects.create()
+    url = reverse("api:database:rows:batch", kwargs={"table_id": table.id})
+    request_body = {
+        "items": [
+            {
+                f"id": row_1.id,
+                f"field_{text_field.id}": "green",
+                f"field_{boolean_field.id}": True,
+            },
+            {
+                f"id": row_2.id,
+                f"field_{number_field.id}": 240,
+            },
+        ]
+    }
+    expected_response_body = {
+        "items": [
+            {
+                f"id": row_1.id,
+                f"field_{text_field.id}": "green",
+                f"field_{number_field.id}": None,
+                f"field_{boolean_field.id}": True,
+                "order": "1.00000000000000000000",
+            },
+            {
+                f"id": row_2.id,
+                f"field_{text_field.id}": "white",
+                f"field_{number_field.id}": "240",
+                f"field_{boolean_field.id}": False,
+                "order": "1.00000000000000000000",
+            },
+        ]
+    }
+    if include_metadata:
+        expected_response_body["metadata"] = {
+            "updated_field_ids": unordered(
+                [text_field.id, number_field.id, boolean_field.id]
+            )
+        }
+        url = f"{url}?include_metadata=true"
+
+    response = api_client.patch(
+        url,
+        request_body,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json() == expected_response_body
+    row_1.refresh_from_db()
+    row_2.refresh_from_db()
+    assert getattr(row_1, f"field_{text_field.id}") == "green"
+    assert getattr(row_2, f"field_{text_field.id}") == "white"  # default val
     assert getattr(row_1, f"field_{boolean_field.id}") is True
     assert getattr(row_2, f"field_{boolean_field.id}") is False
 

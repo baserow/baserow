@@ -105,6 +105,10 @@ from baserow.contrib.database.data_sync.operations import (
     SyncTableOperationType,
 )
 from baserow.contrib.database.export.operations import ExportTableOperationType
+from baserow.contrib.database.field_rules.operations import (
+    ReadFieldRuleOperationType,
+    SetFieldRuleOperationType,
+)
 from baserow.contrib.database.fields.operations import (
     CreateFieldOperationType,
     DeleteFieldOperationType,
@@ -361,6 +365,7 @@ default_roles[VIEWER_ROLE_UID].extend(
         UpdateMCPEndpointOperationType,
         DeleteMCPEndpointOperationType,
         ChatAssistantChatOperationType,
+        ReadFieldRuleOperationType,
     ]
 )
 default_roles[COMMENTER_ROLE_UID].extend(
@@ -527,6 +532,7 @@ default_roles[BUILDER_ROLE_UID].extend(
         OrderAutomationNodeOperationType,
         RestoreAutomationNodeOperationType,
         DuplicateAutomationNodeOperationType,
+        SetFieldRuleOperationType,
     ]
 )
 default_roles[ADMIN_ROLE_UID].extend(
