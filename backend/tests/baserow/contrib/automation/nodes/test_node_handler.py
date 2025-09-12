@@ -600,8 +600,9 @@ def test_simulate_dispatch_node_dispatches_correct_edge_node(data_fixture):
 
     node_c_2.refresh_from_db()
     node_c_2.service.refresh_from_db()
+    field_id = node_c_2.service.specific.table.field_set.all()[0].id
     assert node_c_2.service.sample_data == {
-        "data": {"field_3": "cherry", "id": AnyInt(), "order": AnyStr()},
-        "output_uid": "",
+        "data": {f"field_{field_id}": "cherry", "id": AnyInt(), "order": AnyStr()},
+        "output_uid": AnyStr(),
         "status": 200,
     }

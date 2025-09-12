@@ -497,7 +497,7 @@ def test_core_http_request_generate_schema_with_sample_data():
         form_data=[{"key": "key", "value": "'value3'"}],
     )
 
-    service.sample_data = {"body": json.loads(api_response)}
+    service.sample_data = {"data": {"body": json.loads(api_response)}}
     service.save()
 
     service_type = service.get_type()

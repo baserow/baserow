@@ -149,7 +149,7 @@ def test_dispatch_returns_sample_data_when_simulated():
 
     mock_service = MagicMock()
     type(mock_service).id = PropertyMock(return_value=100)
-    mock_service.sample_data = {"foo": "bar"}
+    mock_service.sample_data = {"data": {"foo": "bar"}}
     mock_dispatch_context = MagicMock()
 
     mock_dispatch_context.is_simulated = True

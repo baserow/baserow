@@ -380,7 +380,9 @@ class CoreHTTPRequestServiceType(ServiceType):
 
         if (allowed_fields is None or "body" in allowed_fields) and service.sample_data:
             schema_builder = SchemaBuilder()
-            schema_builder.add_object(service.sample_data["data"]["body"])
+            schema_builder.add_object(
+                service.sample_data.get("data", {}).get("body", {})
+            )
             schema = schema_builder.to_schema()
 
             properties |= {
