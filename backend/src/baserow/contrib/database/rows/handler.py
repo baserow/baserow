@@ -748,6 +748,9 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         if view is not None:
             checks.append(view_check)
 
+        # Check multiple permissions regardless because we if a view is provided,
+        # we don't want to execute multiple queries in order to check if the
+        # permission check should fall back on the view.
         check_results = CoreHandler().check_multiple_permissions(
             checks,
             workspace=table.database.workspace,
@@ -760,7 +763,14 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         if (
             check_results[table_check] is not True
             and view is not None
+            # Because the user wants to change rows in a specific table, we must make
+            # sure that the provided view belongs to that table. Otherwise, it would
+            # result in a security bug.
             and view.table_id == table.id
+            # The view ownership type should also allow modifying rows directly in
+            # the view. The rows are provided because some additional permission
+            # checks might need to be done in order to make sure that the user is
+            # allowed to modify the provided rows.
             and view_ownership_type_registry.get(view.ownership_type).can_modify_rows(
                 view,
                 row_ids,

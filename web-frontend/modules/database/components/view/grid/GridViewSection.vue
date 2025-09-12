@@ -95,7 +95,7 @@
             :read-only="readOnly"
             :can-drag="
               $hasPermission(
-                'database.table.create_row',
+                'database.table.update_row',
                 table,
                 database.workspace.id
               )
