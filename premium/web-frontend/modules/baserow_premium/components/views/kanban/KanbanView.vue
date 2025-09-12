@@ -159,17 +159,17 @@
       <ul class="context__menu">
         <li
           v-if="
-            (!readOnly &&
-              $hasPermission(
-                'database.table.delete_row',
-                table,
-                database.workspace.id
-              )) ||
-            $hasPermission(
-              'database.table.view.delete_row',
-              view,
+            !readOnly &&
+            ($hasPermission(
+              'database.table.delete_row',
+              table,
               database.workspace.id
-            )
+            ) ||
+              $hasPermission(
+                'database.table.view.delete_row',
+                view,
+                database.workspace.id
+              ))
           "
           class="context__menu-item"
         >
