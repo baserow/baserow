@@ -124,15 +124,6 @@ class AutomationNode(
     def get_parent(self):
         return self.workflow
 
-    def get_previous_nodes(self):
-        """Return a list of all previous nodes."""
-
-        return (
-            [self.previous_node] + self.previous_node.get_previous_nodes()
-            if self.previous_node
-            else []
-        )
-
     def get_previous_service_outputs(self):
         return (
             (
