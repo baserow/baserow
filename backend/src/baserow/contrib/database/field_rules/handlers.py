@@ -228,29 +228,35 @@ class FieldRuleHandler:
         """
 
         rule_type: FieldRuleType = rule.get_type()
-        rule_data = rule_type.prepare_values_for_update(rule, in_data)
-        rule.is_active = in_data["is_active"]
-        for k, v in rule_data.items():
-            setattr(rule, k, v)
+        is_active = in_data["is_active"]
+        if is_active:
+            rule.is_active = True
+            rule_data = rule_type.prepare_values_for_update(rule, in_data)
+            for k, v in rule_data.items():
+                setattr(rule, k, v)
 
-        rule_valid = rule_type.validate_rule(rule)
+            rule_valid = rule_type.validate_rule(rule)
 
-        # Note: this is a workaround to allow any recalculation for the rule
-        # after the change.
-        if rule_valid.is_valid:
-            rule.is_valid = True
-        else:
-            rule.is_valid = False
-            rule.error_text = rule_valid.error_text
+            # Note: this is a workaround to allow any recalculation for the rule
+            # after the change.
+            if rule_valid.is_valid:
+                rule.is_valid = True
+            else:
+                rule.is_valid = False
+                rule.error_text = rule_valid.error_text
 
-        rule.save(
-            update_fields=[
-                "is_active",
-                "is_valid",
-                "error_text",
-                *list(rule_data.keys()),
-            ]
-        )
+            rule.save(
+                update_fields=[
+                    "is_active",
+                    "is_valid",
+                    "error_text",
+                    *list(rule_data.keys()),
+                ]
+            )
+        elif rule.is_active:  # deactivating the rule
+            rule.is_active = False
+            rule.save(update_fields=["is_active"])
+
         rule_type.after_rule_updated(rule)
         return rule
 

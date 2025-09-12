@@ -20,7 +20,6 @@ from baserow.contrib.database.field_rules.registries import (
     RowRuleValidity,
 )
 from baserow.contrib.database.table.models import GeneratedTableModel, Table
-from baserow.core.feature_flags import FF_DATE_DEPENDENCY_V2, feature_flag_is_enabled
 from baserow_enterprise.date_dependency.models import (
     DateDependency,
     DependencyBufferType,
@@ -397,84 +396,41 @@ class DateDependencyFieldRuleType(FieldRuleType):
     serializer_mixins = [ResponseDateDependencySerializer]
     request_serializer_mixins = [RequestDateDependencySerializer]
 
-    if feature_flag_is_enabled(FF_DATE_DEPENDENCY_V2):
-        serializer_field_names = [
-            "is_active",
-            "start_date_field_id",
-            "end_date_field_id",
-            "duration_field_id",
-            "dependency_linkrow_field_id",
-            "dependency_linkrow_role",
-            "dependency_connection_type",
-            "dependency_buffer_type",
-            "dependency_buffer",
-            "include_weekends",
-        ]
-        request_serializer_field_names = [
-            "is_active",
-            "start_date_field_id",
-            "end_date_field_id",
-            "duration_field_id",
-            "dependency_linkrow_field_id",
-            "dependency_linkrow_role",
-            "dependency_connection_type",
-            "dependency_buffer_type",
-            "dependency_buffer",
-            "include_weekends",
-        ]
+    serializer_field_names = [
+        "is_active",
+        "start_date_field_id",
+        "end_date_field_id",
+        "duration_field_id",
+    ]
+    request_serializer_field_names = [
+        "is_active",
+        "start_date_field_id",
+        "end_date_field_id",
+        "duration_field_id",
+    ]
 
-        allowed_fields = [
-            "start_date_field_id",
-            "end_date_field_id",
-            "duration_field_id",
-            "dependency_linkrow_field_id",
-            "dependency_linkrow_role",
-            "dependency_connection_type",
-            "dependency_buffer_type",
-            "dependency_buffer",
-            "include_weekends",
-        ]
-    else:
-        serializer_field_names = [
-            "is_active",
-            "start_date_field_id",
-            "end_date_field_id",
-            "duration_field_id",
-        ]
-        request_serializer_field_names = [
-            "is_active",
-            "start_date_field_id",
-            "end_date_field_id",
-            "duration_field_id",
-        ]
-
-        allowed_fields = [
-            "start_date_field_id",
-            "end_date_field_id",
-            "duration_field_id",
-        ]
+    allowed_fields = [
+        "is_active",
+        "start_date_field_id",
+        "end_date_field_id",
+        "duration_field_id",
+    ]
 
     serializer_field_overrides = dict(
+        is_active=serializers.BooleanField(
+            help_text=(
+                "Whether the date dependency is active or not. "
+                "If set to false, all other values in the payload will be ignored."
+            )
+        ),
         start_date_field_id=serializers.IntegerField(
-            required=True, help_text="Start date field id"
+            required=False, help_text="Start date field id"
         ),
         end_date_field_id=serializers.IntegerField(
-            required=True, help_text="End date field id"
+            required=False, help_text="End date field id"
         ),
         duration_field_id=serializers.IntegerField(
-            required=True, help_text="Duration field id"
-        ),
-    )
-
-    request_serializer_field_overrides = dict(
-        start_date_field_id=serializers.IntegerField(
-            required=True, help_text="Start date field id"
-        ),
-        end_date_field_id=serializers.IntegerField(
-            required=True, help_text="End date field id"
-        ),
-        duration_field_id=serializers.IntegerField(
-            required=True, help_text="Duration field id"
+            required=False, help_text="Duration field id"
         ),
     )
 
@@ -754,8 +710,10 @@ class DateDependencyFieldRuleType(FieldRuleType):
         pass
 
     def after_rule_updated(self, rule):
-        model = rule.table.get_model()
-        return self.recalculate_rows(rule, model)
+        should_recalculate = rule.is_active and rule.is_valid
+        if should_recalculate:
+            model = rule.table.get_model()
+            return self.recalculate_rows(rule, model)
 
     def prepare_values_for_import(self, rule_data: dict, id_mapping: dict) -> dict:
         updated = {**rule_data}

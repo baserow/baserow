@@ -1,7 +1,7 @@
 import FieldRulesService from '@baserow/modules/database/services/fieldRules'
 import _ from 'lodash'
 
-export const state = () => ({ tables: {}, current: null })
+export const state = () => ({ tables: {} })
 
 export const actions = {
   async fetchInitial({ commit, dispatch, getters }, { tableId }) {
@@ -69,12 +69,6 @@ export const actions = {
       commit('SET_LOADING', { tableId, value: false })
     }
   },
-  setCurrent({ commit, dispatch, getters }, { tableId, ruleId }) {
-    commit('SET_CURRENT', { tableId, ruleId })
-  },
-  unsetCurrent({ commit, dispatch, getters }) {
-    commit('UNSET_CURRENT')
-  },
 }
 
 export const mutations = {
@@ -117,12 +111,6 @@ export const mutations = {
     }
     Object.assign(existing, rule)
   },
-  UNSET_CURRENT(state) {
-    state.current = null
-  },
-  SET_CURRENT(state, { tableId, ruleId }) {
-    state.current = { tableId, ruleId }
-  },
 }
 
 export const getters = {
@@ -152,11 +140,6 @@ export const getters = {
         return null
       }
       return rule
-    }
-  },
-  getCurrentOpen(state) {
-    return () => {
-      return state.current
     }
   },
   getRulesByType(state) {

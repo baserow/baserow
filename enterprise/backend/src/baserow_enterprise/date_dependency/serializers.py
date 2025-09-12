@@ -1,5 +1,4 @@
 from collections import defaultdict
-from datetime import timedelta
 from typing import Callable
 
 from rest_framework import serializers
@@ -7,18 +6,8 @@ from rest_framework.exceptions import ValidationError
 
 from baserow.contrib.database.fields.exceptions import FieldDoesNotExist
 from baserow.contrib.database.fields.handler import FieldHandler
-from baserow.contrib.database.fields.models import (
-    DateField,
-    DurationField,
-    LinkRowField,
-)
+from baserow.contrib.database.fields.models import DateField, DurationField
 from baserow.contrib.database.fields.registries import field_type_registry
-from baserow.core.feature_flags import FF_DATE_DEPENDENCY_V2, feature_flag_is_enabled
-from baserow_enterprise.date_dependency.models import (
-    DependencyBufferType,
-    DependencyConnectionType,
-    DependencyLinkrowType,
-)
 
 
 def _valid_duration_format(field: DurationField):
@@ -33,65 +22,18 @@ def _valid_date_field(field: DateField):
     return field
 
 
-def _check_self_reference(field: LinkRowField):
-    if not field.is_self_referencing:
-        raise ValidationError("Field should reference self")
-    return
-
-
 class RequestDateDependencySerializer:
-    start_date_field_id = serializers.IntegerField(
-        required=True, help_text="Start date field id"
-    )
-    end_date_field_id = serializers.IntegerField(
-        required=True, help_text="End date field id"
-    )
-    duration_field_id = serializers.IntegerField(
-        required=True, help_text="Duration field id"
-    )
-    if feature_flag_is_enabled(FF_DATE_DEPENDENCY_V2):
-        dependency_linkrow_field_id = serializers.IntegerField(
-            required=False,
-            allow_null=True,
-            help_text="Linkrow field id to be used for dependent rows. This should point to the same table.",
-        )
-        dependency_linkrow_role = serializers.ChoiceField(
-            required=False,
-            choices=DependencyLinkrowType,
-            help_text="Tells if linked rows are predecessors or successors of a row.",
-        )
-        dependency_connection_type = serializers.ChoiceField(
-            required=False,
-            choices=DependencyConnectionType,
-            help_text="Describes which field from one row should affect which field in linked rows.",
-        )
-        dependency_buffer_type = serializers.ChoiceField(
-            required=False,
-            choices=DependencyBufferType,
-            help_text="Describes how the buffer should behave: whether it should be flexible, keep its length, or be ignored.",
-        )
-        dependency_buffer = serializers.DurationField(
-            required=False,
-            allow_null=True,
-            min_value=timedelta(seconds=0),
-            max_value=timedelta(days=3652058),
-            help_text="Time buffer to be injected between dependent rows.",
-        )
-        include_weekends = serializers.BooleanField(
-            required=False,
-            allow_null=False,
-            default=True,
-            help_text="If not set and the end date is on weekend, the end date will be moved to the closest business day.",
-        )
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.initial_data and self.initial_data.get("is_active"):
+            self.fields["start_date_field_id"].required = True
+            self.fields["end_date_field_id"].required = True
+            self.fields["duration_field_id"].required = True
 
     def _validate_field(
         self, value: int, expected_type: str, *extra_checks: Callable
     ) -> int:
         table = self.context["table"]
-        # This is a hack to avoid field validation if the whole rule is
-        # disabled
-        if self.initial_data.get("is_active") is False:
-            return value
         try:
             field_cls = field_type_registry.get(expected_type).model_class
             field = (
@@ -102,7 +44,6 @@ class RequestDateDependencySerializer:
                     base_queryset=field_cls.objects.select_related(
                         "table__database__workspace",
                         "content_type",
-                        "field_ptr__content_type",
                     ),
                 )
                 .specific
@@ -130,13 +71,6 @@ class RequestDateDependencySerializer:
 
     def validate_duration_field_id(self, value):
         return self._validate_field(value, "duration", _valid_duration_format)
-
-    def validate_dependency_linkrow_field_id(self, value):
-        if value is None:
-            return
-
-        val = self._validate_field(value, "link_row", _check_self_reference)
-        return val
 
     def validate(self, attrs):
         error_dict = defaultdict(list)
@@ -174,36 +108,3 @@ class ResponseDateDependencySerializer:
     duration_field_id = serializers.IntegerField(
         required=True, help_text="Duration field id"
     )
-    if feature_flag_is_enabled(FF_DATE_DEPENDENCY_V2):
-        dependency_linkrow_field_id = serializers.IntegerField(
-            required=False,
-            allow_null=True,
-            help_text="Linkrow field id to be used for dependent rows. This should point to the same table.",
-        )
-        dependency_linkrow_role = serializers.ChoiceField(
-            required=False,
-            choices=DependencyLinkrowType,
-            help_text="Tells if linked rows are predecessors or successors of a row.",
-        )
-        dependency_connection_type = serializers.ChoiceField(
-            required=False,
-            choices=DependencyConnectionType,
-            help_text="Describes which field from one row should affect which field in linked rows.",
-        )
-        dependency_buffer_type = serializers.ChoiceField(
-            required=False,
-            choices=DependencyBufferType,
-            help_text="Describes how the buffer should behave: whether it should be flexible, keep its length, or be ignored.",
-        )
-        dependency_buffer = serializers.DurationField(
-            required=False,
-            allow_null=True,
-            min_value=timedelta(seconds=0),
-            help_text="Time buffer to be injected between dependent rows.",
-        )
-        include_weekends = serializers.BooleanField(
-            required=False,
-            allow_null=False,
-            default=True,
-            help_text="If not set and the end date is on weekend, the end date will be moved to the closest business day.",
-        )

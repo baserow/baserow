@@ -8,9 +8,6 @@ from rest_framework.status import (
     HTTP_409_CONFLICT,
 )
 
-from baserow.contrib.database.field_rules.handlers import FieldRuleHandler
-from baserow.contrib.database.rows.handler import RowHandler
-from baserow.core.feature_flags import FF_DATE_DEPENDENCY_V2, feature_flag_is_enabled
 from baserow.test_utils.helpers import AnyInt
 
 
@@ -257,57 +254,3 @@ def test_field_rule_delete(data_fixture, api_client, fake_field_rule_registry):
     )
     assert response.status_code == HTTP_204_NO_CONTENT
     assert table.field_rules.all().count() == 0
-
-
-if feature_flag_is_enabled(FF_DATE_DEPENDENCY_V2):
-
-    @pytest.mark.django_db
-    def test_field_rule_list_invalid(
-        data_fixture, api_client, fake_field_rule_registry
-    ):
-        user, token = data_fixture.create_user_and_token()
-        table = data_fixture.create_database_table(user)
-        text_field = data_fixture.create_text_field(user, table=table)
-
-        model = table.get_model()
-        fid = text_field.db_column
-        field_rules_handler = FieldRuleHandler(table, user)
-        rule = field_rules_handler.create_rule("dummy", {"is_active": True})
-
-        insert_rows = [
-            {fid: "a"},
-            {fid: "b"},
-            {fid: "c"},
-            {fid: "d"},
-            {fid: "e"},
-            {fid: "f"},
-        ]
-        # rows = data_fixture.create_rows_in_table(table, insert_rows)
-
-        rows = (
-            RowHandler()
-            .create_rows(
-                user=user,
-                table=table,
-                rows_values=insert_rows,
-                send_realtime_update=False,
-                send_webhook_events=False,
-            )
-            .created_rows
-        )
-
-        assert len(rows) == model.objects.all().count() == len(insert_rows)
-        updated_rows = list(model.objects.filter(**{f"{fid}__in": ["a", "b", "c"]}))
-        assert len(updated_rows) == 3
-
-        model.objects.filter(**{f"{fid}__in": ["a", "b", "c"]}).update(
-            field_rules_are_valid=False
-        )
-
-        url = reverse(
-            "api:database:field_rules:invalid_rows", kwargs={"table_id": table.id}
-        )
-        response = api_client.get(url, format="json", HTTP_AUTHORIZATION=f"JWT {token}")
-        assert response.status_code == HTTP_200_OK
-        response_json = response.json()
-        assert response_json["results"] == [{"id": r.id} for r in updated_rows]

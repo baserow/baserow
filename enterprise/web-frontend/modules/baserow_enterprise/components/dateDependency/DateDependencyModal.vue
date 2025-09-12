@@ -5,7 +5,7 @@
     :small="true"
     :content-padding="false"
     @show="init()"
-    @hide="onModalClose()"
+    @hidden="ready = false"
   >
     <h2 class="box__title">
       {{ $t('dateDependencyModal.title', { tableName: table.name }) }}
@@ -14,9 +14,9 @@
       {{ $t('dateDependencyModal.description') }}
     </p>
 
-    <div v-if="!fieldsLoaded" class="loading"></div>
+    <div v-if="!ready" class="loading"></div>
     <form v-else @submit.prevent="submit">
-      <div class="row">
+      <div v-if="dependency.id" class="row">
         <div class="col">
           <SwitchInput
             v-model="v$.dependency.is_active.$model"
@@ -128,6 +128,7 @@ export default {
       },
       loading: false,
       fields: [],
+      ready: false,
     }
   },
   validations() {
@@ -153,9 +154,6 @@ export default {
     }
   },
   computed: {
-    fieldsLoaded() {
-      return this.fields.length > 0
-    },
     isAllowed() {
       return this.$hasPermission(
         'database.table.field_rules.set_field_rules',
@@ -213,30 +211,40 @@ export default {
       try {
         this.fields = await this.fetchFields(this.table.id)
 
-        const hasRule = this.$store.getters['fieldRules/hasRules']({
+        await this.$store.dispatch('fieldRules/fetchInitial', {
           tableId: this.table.id,
         })
-        if (!hasRule) {
-          await this.$store.dispatch('fieldRules/fetchInitial', {
-            tableId: this.table.id,
-          })
-        }
         const dateDependencyRules = this.$store.getters[
           'fieldRules/getRulesByType'
         ]({
           tableId: this.table.id,
           ruleType: 'date_dependency',
         })
-        if (dateDependencyRules.length > 0) {
-          this.dependency = this.parseRule(dateDependencyRules[0])
+        const rule =
+          dateDependencyRules.length > 0 ? dateDependencyRules[0] : null
+        if (rule) {
+          this.dependency = this.parseRule(rule)
         }
+
+        this.ready = true
       } catch (err) {
         await this.$store.dispatch('toast/error', err)
       }
-      this.$store.dispatch('fieldRules/setCurrent', {
-        tableId: this.dependency.table_id,
-        ruleId: this.dependency.id,
-      })
+    },
+
+    preparePayload() {
+      const payload = {
+        id: this.dependency.id,
+        table_id: this.table.id,
+        type: this.dependency.type,
+        is_active: this.dependency.is_active,
+      }
+      if (this.dependency.is_active) {
+        payload.start_date_field_id = this.dependency.start_date_field_id
+        payload.end_date_field_id = this.dependency.end_date_field_id
+        payload.duration_field_id = this.dependency.duration_field_id
+      }
+      return payload
     },
 
     parseRule(rule) {
@@ -269,7 +277,7 @@ export default {
       }
 
       try {
-        const payload = Object.assign({}, this.dependency)
+        const payload = this.preparePayload()
 
         let rule = null
         try {
@@ -302,10 +310,6 @@ export default {
       } catch (error) {
         return this.handleError(error)
       }
-    },
-
-    onModalClose() {
-      this.$store.dispatch('fieldRules/unsetCurrent')
     },
 
     handleError(error) {
