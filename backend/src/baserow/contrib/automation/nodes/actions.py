@@ -499,12 +499,11 @@ class MoveAutomationNodeActionType(UndoableActionType):
         automation_name: str
         workflow_id: int
         node_id: int
-
+        node_type: str
         origin_previous_node_id: int
         origin_previous_node_output: str
         origin_new_next_nodes_values: List[NextAutomationNodeValues]
         origin_old_next_nodes_values: List[NextAutomationNodeValues]
-
         destination_previous_node_id: int
         destination_previous_node_output: str
         destination_new_next_nodes_values: List[NextAutomationNodeValues]
@@ -529,6 +528,7 @@ class MoveAutomationNodeActionType(UndoableActionType):
                 workflow.automation.name,
                 workflow.id,
                 move.node.id,
+                move.node.get_type().type,
                 move.origin_previous_node_id,
                 move.origin_previous_node_output,
                 move.origin_new_next_nodes_values,
