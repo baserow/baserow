@@ -827,3 +827,53 @@ def test_cannot_delete_rows_outside_of_restricted_view_filters(
         HTTP_AUTHORIZATION=f"JWT {token2}",
     )
     assert response.status_code == HTTP_204_NO_CONTENT
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_cannot_update_rows_in_table_using_unrelated_view(
+    api_client, enterprise_data_fixture
+):
+    enterprise_data_fixture.enable_enterprise()
+
+    user, token = enterprise_data_fixture.create_user_and_token()
+    user2, token2 = enterprise_data_fixture.create_user_and_token()
+    workspace = enterprise_data_fixture.create_workspace(user=user, members=[user2])
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
+    table = enterprise_data_fixture.create_database_table(database=database)
+    table2 = enterprise_data_fixture.create_database_table(database=database)
+    text_field = enterprise_data_fixture.create_text_field(table=table, primary=True)
+    restricted_view = enterprise_data_fixture.create_grid_view(
+        table=table2, ownership_type=RestrictedViewOwnershipType.type
+    )
+
+    model = table.get_model()
+    row1 = model.objects.create(**{f"field_{text_field.id}": "ABC"})
+
+    editor_role = Role.objects.get(uid="EDITOR")
+    no_access_role = Role.objects.get(uid="NO_ACCESS")
+    RoleAssignmentHandler().assign_role(
+        user2, workspace, role=no_access_role, scope=workspace
+    )
+    RoleAssignmentHandler().assign_role(
+        user2,
+        workspace,
+        role=editor_role,
+        scope=View.objects.get(id=restricted_view.id),
+    )
+
+    url = reverse("api:database:rows:batch", kwargs={"table_id": table.id})
+
+    # The user does have access to the view, but the view does not belong to the
+    # table, so it should result in an unauthorized error.
+    response = api_client.patch(
+        url + f"?view={restricted_view.id}",
+        {
+            "items": [
+                {"id": row1.id, f"field_{text_field.id}": "Updated 1"},
+            ]
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token2}",
+    )
+    assert response.status_code == HTTP_401_UNAUTHORIZED
