@@ -524,7 +524,7 @@ def test_simulate_dispatch_node_dispatches_correct_edge_node(data_fixture):
     """
 
     user, _ = data_fixture.create_user_and_token()
-    workflow = data_fixture.create_automation_workflow(user=user)
+    workflow = data_fixture.create_automation_workflow(user=user, create_trigger=False)
     trigger_node = data_fixture.create_local_baserow_rows_created_trigger_node(
         workflow=workflow
     )

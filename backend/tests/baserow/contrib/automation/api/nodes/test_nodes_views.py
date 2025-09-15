@@ -285,6 +285,10 @@ def test_get_nodes(api_client, data_fixture):
     trigger = workflow.get_trigger(specific=False)
     node = data_fixture.create_automation_node(workflow=workflow)
 
+    # Simulate one node
+    workflow.simulate_until_node = node
+    workflow.save()
+
     url = reverse(API_URL_LIST, kwargs={"workflow_id": node.workflow.id})
     response = api_client.get(url, **get_api_kwargs(token))
 
@@ -310,7 +314,7 @@ def test_get_nodes(api_client, data_fixture):
             "service": AnyDict(),
             "type": "create_row",
             "workflow": node.workflow.id,
-            "simulate_until_node": False,
+            "simulate_until_node": True,
         },
     ]
 
