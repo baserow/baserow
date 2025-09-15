@@ -63,10 +63,20 @@ from baserow.core.services.types import DispatchResult, FormulaToResolve, Servic
 from baserow.version import VERSION as BASEROW_VERSION
 
 
-class CoreHTTPRequestServiceType(ServiceType):
+class CoreServiceType(ServiceType):
+    """
+    The base class for all core service types. Currently only used
+    as a way to differentiate core and non-core service types.
+    """
+
+
+class CoreHTTPRequestServiceType(CoreServiceType):
     type = "http_request"
     model_class = CoreHTTPRequestService
-    dispatch_type = DispatchTypes.DISPATCH_WORKFLOW_ACTION
+    dispatch_types = [
+        DispatchTypes.DISPATCH_TRIGGER,
+        DispatchTypes.DISPATCH_WORKFLOW_ACTION,
+    ]
 
     allowed_fields = [
         "http_method",
@@ -615,10 +625,13 @@ class CoreHTTPRequestServiceType(ServiceType):
         return DispatchResult(data=data["data"])
 
 
-class CoreSMTPEmailServiceType(ServiceType):
+class CoreSMTPEmailServiceType(CoreServiceType):
     type = "smtp_email"
     model_class = CoreSMTPEmailService
-    dispatch_type = DispatchTypes.DISPATCH_WORKFLOW_ACTION
+    dispatch_types = [
+        DispatchTypes.DISPATCH_TRIGGER,
+        DispatchTypes.DISPATCH_WORKFLOW_ACTION,
+    ]
     integration_type = SMTPIntegrationType.type
 
     allowed_fields = [
@@ -877,11 +890,11 @@ class CoreSMTPEmailServiceType(ServiceType):
         return values
 
 
-class CoreRouterServiceType(ServiceType):
+class CoreRouterServiceType(CoreServiceType):
     type = "router"
     model_class = CoreRouterService
     allowed_fields = ["default_edge_label"]
-    dispatch_type = DispatchTypes.DISPATCH_TRIGGER
+    dispatch_types = [DispatchTypes.DISPATCH_TRIGGER]
     serializer_field_names = ["default_edge_label", "edges"]
 
     class SerializedDict(ServiceDict):

@@ -1,0 +1,26 @@
+from baserow.contrib.integrations.core.service_types import (
+    CoreHTTPRequestServiceType,
+    CoreRouterServiceType,
+    CoreServiceType,
+    CoreSMTPEmailServiceType,
+)
+from baserow.core.services.registries import DispatchTypes, service_type_registry
+
+
+def test_core_service_type_dispatch_types():
+    core_dispatch_types = {
+        service_type.type: service_type.dispatch_types
+        for service_type in service_type_registry.get_all()
+        if isinstance(service_type, CoreServiceType)
+    }
+    assert core_dispatch_types == {
+        CoreHTTPRequestServiceType.type: [
+            DispatchTypes.DISPATCH_TRIGGER,
+            DispatchTypes.DISPATCH_WORKFLOW_ACTION,
+        ],
+        CoreSMTPEmailServiceType.type: [
+            DispatchTypes.DISPATCH_TRIGGER,
+            DispatchTypes.DISPATCH_WORKFLOW_ACTION,
+        ],
+        CoreRouterServiceType.type: [DispatchTypes.DISPATCH_TRIGGER],
+    }

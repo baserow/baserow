@@ -3,6 +3,9 @@ from unittest.mock import Mock
 from django.db import transaction
 
 import pytest
+from baserow_premium.integrations.local_baserow.service_types import (
+    LocalBaserowGroupedAggregateRowsUserServiceType,
+)
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from baserow.contrib.database.api.fields.serializers import FieldSerializer
@@ -11,6 +14,8 @@ from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.integrations.local_baserow.service_types import (
+    LocalBaserowAggregateRowsUserServiceType,
+    LocalBaserowDeleteRowServiceType,
     LocalBaserowGetRowUserServiceType,
     LocalBaserowListRowsUserServiceType,
     LocalBaserowRowsCreatedServiceType,
@@ -18,14 +23,57 @@ from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowRowsUpdatedServiceType,
     LocalBaserowServiceType,
     LocalBaserowTableServiceType,
+    LocalBaserowUpsertRowServiceType,
     LocalBaserowViewServiceType,
 )
 from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
 )
-from baserow.core.services.registries import service_type_registry
+from baserow.core.services.registries import DispatchTypes, service_type_registry
 from baserow.test_utils.helpers import setup_interesting_test_table
 from baserow.test_utils.pytest_conftest import FakeDispatchContext
+
+
+def test_local_baserow_service_type_dispatch_types():
+    local_baserow_dispatch_types = {
+        service_type.type: service_type.dispatch_types
+        for service_type in service_type_registry.get_all()
+        if isinstance(service_type, LocalBaserowServiceType)
+    }
+    assert local_baserow_dispatch_types == {
+        LocalBaserowGetRowUserServiceType.type: [
+            DispatchTypes.DISPATCH_TRIGGER,
+            DispatchTypes.DISPATCH_DATA_SOURCE,
+        ],
+        LocalBaserowListRowsUserServiceType.type: [
+            DispatchTypes.DISPATCH_TRIGGER,
+            DispatchTypes.DISPATCH_DATA_SOURCE,
+        ],
+        LocalBaserowAggregateRowsUserServiceType.type: [
+            DispatchTypes.DISPATCH_TRIGGER,
+            DispatchTypes.DISPATCH_DATA_SOURCE,
+        ],
+        LocalBaserowUpsertRowServiceType.type: [
+            DispatchTypes.DISPATCH_TRIGGER,
+            DispatchTypes.DISPATCH_WORKFLOW_ACTION,
+        ],
+        LocalBaserowDeleteRowServiceType.type: [
+            DispatchTypes.DISPATCH_TRIGGER,
+            DispatchTypes.DISPATCH_WORKFLOW_ACTION,
+        ],
+        LocalBaserowRowsCreatedTriggerServiceType.type: [
+            DispatchTypes.DISPATCH_TRIGGER
+        ],
+        LocalBaserowRowsUpdatedTriggerServiceType.type: [
+            DispatchTypes.DISPATCH_TRIGGER
+        ],
+        LocalBaserowRowsDeletedTriggerServiceType.type: [
+            DispatchTypes.DISPATCH_TRIGGER
+        ],
+        LocalBaserowGroupedAggregateRowsUserServiceType.type: [
+            DispatchTypes.DISPATCH_DATA_SOURCE
+        ],
+    }
 
 
 @pytest.mark.django_db
