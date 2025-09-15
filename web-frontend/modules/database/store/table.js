@@ -211,15 +211,13 @@ export const actions = {
     if (getters.getSelectedId === table.id) {
       return { database, table }
     }
+
     let error = null
-    await axios
-      .all([
-        dispatch('view/fetchAll', table, { root: true }),
-        dispatch('field/fetchAll', table, { root: true }),
-      ])
-      .catch((err) => {
-        error = err
-      })
+    try {
+      await dispatch('view/fetchAll', table, { root: true })
+    } catch (err) {
+      error = err
+    }
     await dispatch('application/clearChildrenSelected', null, { root: true })
     await dispatch('forceSelect', { database, table })
     return { database, table, error }

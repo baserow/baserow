@@ -169,6 +169,7 @@ from baserow.contrib.database.views.operations import (
     DuplicateViewOperationType,
     ListAggregationsViewOperationType,
     ListViewDecorationOperationType,
+    ListViewFeldsOperationType,
     ListViewFilterOperationType,
     ListViewGroupByOperationType,
     ListViewsOperationType,
@@ -348,14 +349,12 @@ default_roles[READ_ONLY_ROLE_UID].extend(
         ListRowsDatabaseTableOperationType,
         ReadDatabaseRowOperationType,
         ReadViewOperationType,
-        ReadFieldOperationType,
         ListViewSortOperationType,
         ReadViewFieldOptionsOperationType,
         ReadViewDecorationOperationType,
         ListViewDecorationOperationType,
         ListViewFilterOperationType,
         ListViewsOperationType,
-        ListFieldsOperationType,
         ListAggregationsViewOperationType,
         ReadAggregationsViewOperationType,
         ReadAdjacentRowDatabaseRowOperationType,
@@ -377,6 +376,8 @@ default_roles[READ_ONLY_ROLE_UID].extend(
 default_roles[VIEWER_ROLE_UID].extend(
     default_roles[READ_ONLY_ROLE_UID]
     + [
+        ListFieldsOperationType,
+        ReadFieldOperationType,
         ListenToAllRestrictedViewEventsOperationType,
         ListenToAllDatabaseTableEventsOperationType,
         ReadMCPEndpointOperationType,
@@ -384,6 +385,7 @@ default_roles[VIEWER_ROLE_UID].extend(
         UpdateMCPEndpointOperationType,
         DeleteMCPEndpointOperationType,
         DispatchDashboardDataSourceOperationType,
+        ListViewFeldsOperationType,
     ]
 )
 default_roles[COMMENTER_ROLE_UID].extend(

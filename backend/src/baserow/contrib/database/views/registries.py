@@ -17,6 +17,7 @@ from zipfile import ZipFile
 from django.contrib.auth.models import AbstractUser
 from django.core.files.storage import Storage
 from django.db import models as django_models
+from django.db.models import QuerySet
 
 from rest_framework.fields import CharField
 from rest_framework.serializers import Serializer
@@ -1493,6 +1494,22 @@ class ViewOwnershipType(Instance):
         """
 
         return False
+
+    def enhance_field_queryset(
+        self, user: AbstractUser, view: "View", queryset: QuerySet
+    ) -> QuerySet:
+        """
+        Hook to change the queryset that is used when listing all the fields. This can
+        for example be used to limit the returned fields, if needed.
+
+        :param user: The user on whose behalf the fields are requested.
+        :param view: The view that is provided when listing the fields.
+        :param queryset: The queryset to fetch the fields. Note that this will be
+            converted into a specific queryset.
+        :return: The enhanced queryset.
+        """
+
+        return queryset
 
 
 class ViewOwnershipTypeRegistry(Registry):

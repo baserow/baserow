@@ -65,4 +65,8 @@ export class RestrictedViewOwnershipType extends ViewOwnershipType {
     payload.params = { restricted_view_id: view.id }
     return payload
   }
+
+  fetchingFieldsRequiresViewId(view) {
+    return true
+  }
 }

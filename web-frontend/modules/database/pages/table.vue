@@ -159,10 +159,6 @@ export default {
       return data
     }
 
-    // After selecting the table the fields become available which need to be added to
-    // the data.
-    data.fields = store.getters['field/getAll']
-
     // Without a viewId, redirect the user to the default or the first available view.
     if (viewId === null) {
       const rowId = params.rowId ? parseInt(params.rowId) : null
@@ -177,6 +173,25 @@ export default {
           query,
         })
       }
+    }
+
+    // @TODO docs.
+    const view = store.getters['view/get'](viewId)
+    const ownershipType = app.$registry.get(
+      'viewOwnershipType',
+      view.ownership_type
+    )
+    const fieldCheckViewId = ownershipType.fetchingFieldsRequiresViewId(view)
+      ? viewId
+      : null
+    if (!store.getters['field/isLoadedFor'](data.table.id, fieldCheckViewId)) {
+      console.log('fetching')
+      data.fields = await store.dispatch('field/fetchAll', {
+        table: data.table,
+        viewId: fieldCheckViewId,
+      })
+    } else {
+      data.fields = store.getters['field/getAll']
     }
 
     // If a view id is provided and the table is selected we can select the view. The
