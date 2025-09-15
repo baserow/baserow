@@ -3,9 +3,6 @@ from unittest.mock import Mock
 from django.db import transaction
 
 import pytest
-from baserow_premium.integrations.local_baserow.service_types import (
-    LocalBaserowGroupedAggregateRowsUserServiceType,
-)
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from baserow.contrib.database.api.fields.serializers import FieldSerializer
@@ -70,9 +67,7 @@ def test_local_baserow_service_type_dispatch_types():
         LocalBaserowRowsDeletedTriggerServiceType.type: [
             DispatchTypes.DISPATCH_TRIGGER
         ],
-        LocalBaserowGroupedAggregateRowsUserServiceType.type: [
-            DispatchTypes.DISPATCH_DATA_SOURCE
-        ],
+        "local_baserow_grouped_aggregate_rows": [DispatchTypes.DISPATCH_DATA_SOURCE],
     }
 
 

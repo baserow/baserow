@@ -96,7 +96,7 @@ class ServiceType(
         Returns whether this service can be dispatched by the given dispatch type.
 
         :param dispatch_type: The dispatch type to check.
-        :return: True if the service can be dispatched by the given type, False otherwise.
+        :return: If the service can be dispatched by the given type.
         """
 
         return dispatch_type in self.dispatch_types
