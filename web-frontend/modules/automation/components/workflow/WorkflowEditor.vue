@@ -26,6 +26,7 @@
         :data="slotProps.data"
         @remove-node="handleRemoveNode"
         @replace-node="handleReplaceNode"
+        @prepare-ghost="handlePrepareGhost"
       />
     </template>
 
@@ -39,6 +40,8 @@
         :dragging="slotProps.dragging"
         :position="slotProps.position"
         @addNode="toggleCreateContext(slotProps.id)"
+        @mousedown="disablePanning"
+        @mouseup="enablePanning"
       />
       <WorkflowNodeContext
         :ref="`nodeContext-${slotProps.id}`"
@@ -47,16 +50,6 @@
         "
       ></WorkflowNodeContext>
     </template>
-
-    <template #edge-workflow-edge="slotProps">
-      <WorkflowEdge
-        :id="slotProps.id"
-        :source-x="slotProps.sourceX"
-        :source-y="slotProps.sourceY"
-        :target-x="slotProps.targetX"
-        :target-y="slotProps.targetY"
-      />
-    </template>
   </VueFlow>
 </template>
 
@@ -64,7 +57,7 @@
 import { VueFlow, useVueFlow } from '@vue2-flow/core'
 import { Background } from '@vue2-flow/background'
 import { Controls } from '@vue2-flow/controls'
-import { ref, computed, watch, toRefs, onMounted } from 'vue'
+import { ref, computed, watch, toRefs, toRef, onMounted } from 'vue'
 import {
   inject,
   useContext,
@@ -75,8 +68,18 @@ import {
 import _ from 'lodash'
 import WorkflowNode from '@baserow/modules/automation/components/workflow/WorkflowNode'
 import WorkflowAddBtnNode from '@baserow/modules/automation/components/workflow/WorkflowAddBtnNode'
-import WorkflowEdge from '@baserow/modules/automation/components/workflow/WorkflowEdge'
 import WorkflowNodeContext from '@baserow/modules/automation/components/workflow/WorkflowNodeContext'
+import { useWorkflowDragAndDrop } from '@baserow/modules/automation/composables/useWorkflowDragAndDrop'
+import {
+  DATA_NODE_HEIGHT,
+  DATA_NODE_WIDTH,
+  DATA_NODE_MIDDLE,
+  NODE_PADDING,
+  ADD_BUTTON_MIDDLE,
+  EDGE_HEIGHT,
+  EDGE_WITHOUT_OUTPUT_NODE_WIDTH,
+  EDGE_WITHOUT_OUTPUT_NODE_INPUT,
+} from '@baserow/modules/automation/utils/constants'
 
 const props = defineProps({
   nodes: {
@@ -96,14 +99,16 @@ const props = defineProps({
 const instance = getCurrentInstance()
 const refs = instance.proxy.$refs
 
-const emit = defineEmits(['add-node', 'remove-node', 'input'])
+const emit = defineEmits(['add-node', 'remove-node', 'input', 'reorder-nodes'])
 
-const { addSelectedNodes, onMove, onNodeClick, onPaneClick } = useVueFlow()
+const { addSelectedNodes, onMove, onNodeClick, onPaneClick, panOnDrag } =
+  useVueFlow()
 
 const { value: selectedNodeId } = toRefs(props)
 
 const { app } = useContext()
 
+// === WORKFLOW STATE ===
 const nodesDraggable = ref(true)
 const zoomOnScroll = ref(false)
 const panOnScroll = ref(true)
@@ -111,28 +116,10 @@ const zoomOnDoubleClick = ref(false)
 
 const workflowDebug = inject('workflowDebug')
 const workflowReadOnly = inject('workflowReadOnly')
+const automation = inject('automation')
 
-// Constants for dimensions and positioning
-const DATA_NODE_HEIGHT = 72 // How tall is a node?
-const DATA_NODE_WIDTH = 412 // How wide is a node?
-const DATA_NODE_MIDDLE = DATA_NODE_WIDTH / 2 // The middle of a node.
-
-const NODE_PADDING = 30 // Padding between node edges
-
-const ADD_BUTTON_WIDTH = 32 // The width of the add button
-const ADD_BUTTON_MIDDLE = ADD_BUTTON_WIDTH / 2 // The middle of the add button
-
-const EDGE_HEIGHT = 100 // The height an edge occupies
-const EDGE_WITHOUT_OUTPUT_NODE_WIDTH = 100 // The width of an edge when there is no output node
-const EDGE_WITHOUT_OUTPUT_NODE_INPUT = EDGE_WITHOUT_OUTPUT_NODE_WIDTH / 2 // The height of an edge when there is no output node
-
-watch(
-  selectedNodeId,
-  (newId) => {
-    if (newId) addSelectedNodes([{ id: newId.toString() }])
-  },
-  { immediate: true }
-)
+const store = useStore()
+const workflow = inject('workflow')
 
 /**
  * Recursively calculates the dimensions of a node and its edges. An object is
@@ -307,7 +294,7 @@ const calculatePositions = (dimensions, node, { x = 0, y = 0 } = {}) => {
           currentEdgeX -
           ADD_BUTTON_MIDDLE +
           dimensions[node.id].edges[edge.uid].input,
-        y: y + (oneEdge ? 90 : 130),
+        y: y + (oneEdge ? 120 : 140),
       })
 
       const noNodeOnEdge = nextNodesAlongEdge.length === 0
@@ -336,7 +323,9 @@ const calculatePositions = (dimensions, node, { x = 0, y = 0 } = {}) => {
 
           // The next X is the input position of the next node
           const nextX = currentX + dimensions[nextNode.id].input
-          const nextY = y + dimensions[node.id].height
+          // Add extra spacing for the first nodes in multiple branches
+          const extraSpacing = !oneEdge ? 30 : 0
+          const nextY = y + dimensions[node.id].height + extraSpacing
           currentX += dimensions[nextNode.id].width + NODE_PADDING // Moving to next node
 
           return calculatePositions(dimensions, nextNode, {
@@ -359,6 +348,51 @@ const calculatePositions = (dimensions, node, { x = 0, y = 0 } = {}) => {
   }
 }
 
+const positions = computed(() => {
+  // Safety check: ensure we have nodes and can find a trigger
+  if (!props.nodes || props.nodes.length === 0) {
+    return {}
+  }
+
+  const trigger = props.nodes.find((node) => node.previous_node_id === null)
+  if (!trigger) {
+    return {}
+  }
+
+  try {
+    const dimensions = calculateNodeDimensions(trigger)
+    return calculatePositions(dimensions, trigger)
+  } catch (error) {
+    console.error('Error calculating workflow positions:', error)
+    return {}
+  }
+})
+
+const {
+  isNodeDragging,
+  draggedNodeId,
+  dropZoneActive,
+  ghostNode,
+  handlePrepareGhost,
+  isNodeDraggable,
+  isValidDropZone,
+} = useWorkflowDragAndDrop(
+  toRef(props, 'nodes'),
+  positions,
+  workflowReadOnly,
+  automation,
+  app,
+  emit
+)
+
+watch(
+  selectedNodeId,
+  (newId) => {
+    if (newId) addSelectedNodes([{ id: newId.toString() }])
+  },
+  { immediate: true }
+)
+
 /**
  * When the component is mounted, we emit the first node's ID. This is
  * to ensure that the first node (the trigger) is selected by default.
@@ -367,16 +401,8 @@ onMounted(() => {
   emit('input', props.nodes[0].id)
 })
 
-const automation = inject('automation')
-
-const positions = computed(() => {
-  const trigger = props.nodes.find((node) => node.previous_node_id === null)
-  const dimensions = calculateNodeDimensions(trigger)
-  return calculatePositions(dimensions, trigger)
-})
-
 const displayNodes = computed(() => {
-  return props.nodes
+  const pwet = props.nodes
     .map((dataNode) => {
       const nodeType = app.$registry.get('node', dataNode.type)
       const nodeNode = {
@@ -387,36 +413,69 @@ const displayNodes = computed(() => {
         }),
         id: dataNode.id.toString(),
         position: positions.value[dataNode.id],
+        draggable: isNodeDraggable(dataNode, nodeType),
         data: {
           nodeId: dataNode.id,
           isTrigger: nodeType.isTrigger,
           readOnly: workflowReadOnly.value,
           debug: workflowDebug.value,
           outputUid: dataNode.previous_node_output,
+          isOriginalDuringDrag:
+            isNodeDragging.value && draggedNodeId.value === dataNode.id,
+          isGhost: false, // Explicitly set to false for original nodes
         },
       }
 
-      const addButtonsNodes = positions.value[
-        dataNode.id
-      ].addButtonPositions.map((addButtonPosition) => ({
-        id: addButtonPosition.key,
-        type: 'workflow-add-button-node',
-        position: addButtonPosition,
-        data: {
-          nodeId: dataNode.id,
-          outputUid: addButtonPosition.uid,
-          debug: workflowDebug.value,
-          disabled: props.isAddingNode || workflowReadOnly.value,
-        },
-      }))
+      const nodePositions = positions.value[dataNode.id]
+
+      // Safety check: if positions are not calculated yet, skip add buttons
+      if (!nodePositions || !nodePositions.addButtonPositions) {
+        return [nodeNode]
+      }
+
+      const addButtonsNodes = nodePositions.addButtonPositions.map(
+        (addButtonPosition) => {
+          // Determine if this button should be a drop zone
+          let isDropZone = false
+          if (isNodeDragging.value && draggedNodeId.value !== dataNode.id) {
+            isDropZone = isValidDropZone(
+              draggedNodeId.value,
+              dataNode.id,
+              addButtonPosition.uid
+            )
+          }
+          const isActiveDropZone =
+            dropZoneActive.value?.key === addButtonPosition.key
+
+          return {
+            id: addButtonPosition.key,
+            type: 'workflow-add-button-node',
+            position: addButtonPosition,
+            draggable: false,
+            data: {
+              nodeId: dataNode.id,
+              outputUid: addButtonPosition.uid,
+              debug: workflowDebug.value,
+              disabled: props.isAddingNode || workflowReadOnly.value,
+              isNodeDragging: isNodeDragging.value,
+              isDropZone,
+              isActiveDropZone,
+            },
+          }
+        }
+      )
 
       return [nodeNode, ...addButtonsNodes]
     })
     .flat()
-})
 
-const store = useStore()
-const workflow = inject('workflow')
+  // Add ghost node if dragging
+  if (ghostNode.value) {
+    pwet.push(ghostNode.value)
+  }
+
+  return pwet
+})
 
 const computedEdges = computed(() => {
   return Object.values(positions.value)
@@ -474,5 +533,13 @@ const handleRemoveNode = (nodeId) => {
 
 const handleReplaceNode = (nodeId, nodeType) => {
   emit('replace-node', nodeId, nodeType)
+}
+
+const disablePanning = () => {
+  panOnDrag.value = false
+}
+
+const enablePanning = () => {
+  panOnDrag.value = true
 }
 </script>

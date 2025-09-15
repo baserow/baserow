@@ -1,8 +1,17 @@
 <template>
   <div
     class="workflow-editor__node"
-    :title="label"
+    :class="{
+      'workflow-editor__node--dashed':
+        props.data.isDraggingOtherNode &&
+        !props.dragging &&
+        !props.data.isTrigger,
+      'workflow-editor__node--original-during-drag':
+        props.data.isOriginalDuringDrag,
+      'workflow-editor__node--ghost': props.data.isGhost,
+    }"
     :data-before-label="getDataBeforeLabel"
+    @mousedown="handleMouseDown"
   >
     <div class="workflow-editor__node-icon">
       <i
@@ -30,6 +39,7 @@
         role="button"
         :title="$t('workflowNode.nodeOptions')"
         class="workflow-editor__node-more-icon"
+        data-nodrag
         @click="openEditContext()"
       >
         <i class="baserow-icon-more-vertical"></i>
@@ -40,6 +50,7 @@
       ref="editNodeContext"
       overflow-scroll
       max-height-if-outside-viewport
+      data-nodrag
     >
       <div class="context__menu-title">
         {{ nodeType.getDefaultLabel({ automation, node }) }} ({{ data.nodeId }})
@@ -76,6 +87,7 @@
     <WorkflowNodeContext
       ref="replaceNodeContext"
       :node="node"
+      data-nodrag
       @change="handleReplaceNode"
     ></WorkflowNodeContext>
   </div>
@@ -113,7 +125,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['remove-node', 'replace-node'])
+const emit = defineEmits(['remove-node', 'replace-node', 'prepare-ghost'])
 
 /**
  * When the pane is moved, if we have an active node context (whether it is
@@ -159,6 +171,12 @@ const { app } = useContext()
 const workflow = inject('workflow')
 const automation = inject('automation')
 const node = computed(() => {
+  // For ghost nodes, use the node data passed directly in props
+  if (props.data.isGhost && props.data.node) {
+    return props.data.node
+  }
+
+  // For regular nodes, get from store
   return store.getters['automationWorkflowNode/findById'](
     workflow.value,
     props.id
@@ -168,9 +186,11 @@ const nodeType = computed(() => {
   return app.$registry.get('node', node.value.type)
 })
 const loading = computed(() => {
+  if (props.data.isGhost) return false
   return store.getters['automationWorkflowNode/getLoading'](node.value)
 })
 const isInError = computed(() => {
+  if (!nodeType.value || props.data.isGhost) return false
   return nodeType.value.isInError({ service: node.value.service })
 })
 
@@ -193,13 +213,14 @@ const isInteractionReady = computed(() => {
  * @type {string} - The label to display for the node.
  */
 const displayLabel = computed(() => {
-  return props.data.debug
-    ? app.i18n.t('workflowNode.displayLabelDebug', {
-        id: node.value.id,
-        previousNodeId: node.value.previous_node_id || 'none',
-        outputUid: props.data.outputUid || 'none',
-      })
-    : props.label
+  if (props.data.debug && node.value) {
+    return app.i18n.t('workflowNode.displayLabelDebug', {
+      id: node.value.id,
+      previousNodeId: node.value.previous_node_id || 'none',
+      outputUid: props.data.outputUid || 'none',
+    })
+  }
+  return props.label
 })
 
 /**
@@ -209,6 +230,7 @@ const displayLabel = computed(() => {
  * @type {string} - A human-friendly error message.
  */
 const getReplaceErrorMessage = computed(() => {
+  if (!nodeType.value || props.data.isGhost) return null
   return nodeType.value.getReplaceErrorMessage({
     workflow: workflow.value,
     node: node.value,
@@ -221,6 +243,7 @@ const getReplaceErrorMessage = computed(() => {
  * @type {string} - A human-friendly error message.
  */
 const getDeleteErrorMessage = computed(() => {
+  if (!nodeType.value || props.data.isGhost) return null
   return nodeType.value.getDeleteErrorMessage({
     workflow: workflow.value,
     node: node.value,
@@ -236,13 +259,18 @@ const getDeleteErrorMessage = computed(() => {
  * @returns {string} - The label to display before the node label.
  */
 const getDataBeforeLabel = computed(() => {
+  // Safety check for ghost nodes or missing data
+  if (props.data.isGhost) {
+    return ''
+  }
+
   const previousNode = store.getters['automationWorkflowNode/getPreviousNode'](
     workflow.value,
     node.value
   )
   const previousNodeIsRouter =
     previousNode?.type === CoreRouterNodeType.getType()
-  const isOutputNode = node.value.previous_node_output.length > 0
+  const isOutputNode = node.value.previous_node_output?.length > 0
   switch (true) {
     case props.data.isTrigger:
       return app.i18n.t('workflowNode.beforeLabelTrigger')
@@ -257,5 +285,29 @@ const getDataBeforeLabel = computed(() => {
 
 const handleReplaceNode = (newType) => {
   emit('replace-node', props.id, newType)
+}
+
+/**
+ * Handles mouse down events to intercept drag attempts on draggable nodes
+ */
+const handleMouseDown = (event) => {
+  // Early exits for non-draggable cases
+  if (props.data.isGhost || props.data.readOnly) return
+  if (node.value && (node.value.type === 'router' || props.data.isTrigger))
+    return
+
+  // Don't intercept clicks on interactive elements
+  const target = event.target
+  if (target.closest('button, a, input, select, textarea, [data-nodrag]')) {
+    event.stopPropagation()
+    return
+  }
+
+  // Intercept the mouse down to start ghost drag system
+  event.preventDefault()
+  event.stopPropagation()
+  emit('prepare-ghost', props.id, event)
+
+  return false
 }
 </script>
