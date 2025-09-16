@@ -23,7 +23,10 @@ from rest_framework.fields import (
 )
 from rest_framework.serializers import ListSerializer, Serializer
 
-from baserow.contrib.database.api.fields.serializers import FileFieldRequestSerializer
+from baserow.contrib.database.api.fields.serializers import (
+    FileFieldRequestSerializer,
+    LinkRowRequestSerializer,
+)
 from baserow.contrib.integrations.local_baserow.utils import (
     guess_cast_function_from_response_serializer_field,
     guess_json_type_from_response_serializer_field,
@@ -31,6 +34,7 @@ from baserow.contrib.integrations.local_baserow.utils import (
 )
 from baserow.core.formula.validator import (
     ensure_array,
+    ensure_array_cast_integers,
     ensure_boolean,
     ensure_date,
     ensure_datetime,
@@ -130,6 +134,7 @@ def test_guess_type_for_response_serialize_field_permutations():
         (ListSerializer(child=Serializer()), ensure_array),
         (ListField(child=IntegerField()), ensure_array),
         (ListField(), ensure_array),
+        (LinkRowRequestSerializer(), ensure_array_cast_integers),
         ("unknown", None),
         (None, None),
     ],
@@ -169,6 +174,33 @@ def test_guess_cast_function_for_filefieldserializer(data_fixture, fake):
             "uploaded_at": AnyStr(),
         },
     ]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "value,expected",
+    [
+        ("1", [1]),
+        (1, [1]),
+        (["1"], [1]),
+        ([1], [1]),
+        (["foo", "1", "bar"], ["foo", 1, "bar"]),
+        (["foo", 1, "bar"], ["foo", 1, "bar"]),
+        ("foo", ["foo"]),
+    ],
+)
+def test_guess_cast_function_for_linkrowrequestserializer(
+    data_fixture, value, expected
+):
+    user = data_fixture.create_user()
+    service = MagicMock()
+    service.integration = MagicMock()
+    service.integration.authorized_user = user
+    prepare = guess_cast_function_from_response_serializer_field(
+        LinkRowRequestSerializer(), service
+    )
+
+    assert prepare(value) == expected
 
 
 @pytest.mark.parametrize(

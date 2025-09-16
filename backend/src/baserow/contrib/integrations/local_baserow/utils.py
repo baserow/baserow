@@ -26,6 +26,7 @@ from baserow.contrib.database.api.fields.serializers import DurationFieldSeriali
 from baserow.contrib.integrations.local_baserow.models import LocalBaserowUpsertRow
 from baserow.core.formula.validator import (
     ensure_array,
+    ensure_array_cast_integers,
     ensure_boolean,
     ensure_date,
     ensure_datetime,
@@ -207,6 +208,7 @@ def guess_cast_function_from_response_serializer_field(
 
     from baserow.contrib.database.api.fields.serializers import (
         FileFieldRequestSerializer,
+        LinkRowRequestSerializer,
     )
 
     if isinstance(serializer_field, FileFieldRequestSerializer):
@@ -216,6 +218,9 @@ def guess_cast_function_from_response_serializer_field(
         return lambda value: prepare_files_for_db(
             value, service.integration.authorized_user
         )
+
+    if isinstance(serializer_field, LinkRowRequestSerializer):
+        return ensure_array_cast_integers
 
     json_type = guess_json_type_from_response_serializer_field(serializer_field)
 
