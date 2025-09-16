@@ -59,18 +59,24 @@ const nodeIsInError = computed(() => {
     return app.i18n.t('simulateDispatch.errorNodeNotConfigured')
   }
 
-  for (const node of workflow.value.orderedNodes) {
-    const nodeType = app.$registry.get('node', node.type)
+  let currentNode = workflow.value.orderedNodes.find(
+    (node) => node.id === props.node.previous_node
+  )
 
-    if (node.order >= props.node.order) continue
+  while (currentNode) {
+    const nodeType = app.$registry.get('node', currentNode.type)
 
-    if (nodeType.isInError({ service: node.service })) {
+    if (nodeType.isInError({ service: currentNode.service })) {
       return app.i18n.t('simulateDispatch.errorPreviousNodeNotConfigured')
     }
 
-    if (!node.service?.sample_data || node.simulate_until_node) {
+    if (!currentNode.service?.sample_data || currentNode.simulate_until_node) {
       return app.i18n.t('simulateDispatch.errorPreviousNodesNotTested')
     }
+
+    currentNode = workflow.value.orderedNodes.find(
+      (node) => node.id === currentNode.previous_node
+    )
   }
 
   return ''
