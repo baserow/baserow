@@ -1,5 +1,5 @@
 import os
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from django.core.exceptions import ValidationError
 from django.db import connection
@@ -24,9 +24,288 @@ from baserow.contrib.database.fields.models import (
 from baserow.contrib.database.fields.registries import FieldType, field_type_registry
 from baserow.contrib.database.fields.utils import DeferredForeignKeyUpdater
 from baserow.contrib.database.rows.handler import RowHandler
-from baserow.contrib.database.views.registries import view_filter_type_registry
 from baserow.core.registries import ImportExportConfig
 from baserow.test_utils.helpers import setup_interesting_test_table
+
+# Note: this is not a definitive list, just the ones
+# that originate from `setup_interesting_test_table`.
+COMPATIBLE_FIELD_TYPE_VIEW_FILTER_TYPES = {
+    "text": [
+        "equal",
+        "not_equal",
+        "contains",
+        "contains_not",
+        "contains_word",
+        "doesnt_contain_word",
+        "length_is_lower_than",
+        "empty",
+        "not_empty",
+    ],
+    "long_text": [
+        "equal",
+        "not_equal",
+        "contains",
+        "contains_not",
+        "contains_word",
+        "doesnt_contain_word",
+        "length_is_lower_than",
+        "empty",
+        "not_empty",
+    ],
+    "url": [
+        "equal",
+        "not_equal",
+        "contains",
+        "contains_not",
+        "contains_word",
+        "doesnt_contain_word",
+        "length_is_lower_than",
+        "empty",
+        "not_empty",
+    ],
+    "email": [
+        "equal",
+        "not_equal",
+        "contains",
+        "contains_not",
+        "contains_word",
+        "doesnt_contain_word",
+        "length_is_lower_than",
+        "empty",
+        "not_empty",
+    ],
+    "number": [
+        "equal",
+        "not_equal",
+        "contains",
+        "contains_not",
+        "higher_than",
+        "higher_than_or_equal",
+        "lower_than",
+        "lower_than_or_equal",
+        "is_even_and_whole",
+        "empty",
+        "not_empty",
+    ],
+    "rating": [
+        "equal",
+        "not_equal",
+        "higher_than",
+        "higher_than_or_equal",
+        "lower_than",
+        "lower_than_or_equal",
+        "empty",
+        "not_empty",
+    ],
+    "boolean": ["equal", "not_equal", "boolean", "empty", "not_empty"],
+    "date": [
+        "contains",
+        "contains_not",
+        "date_equal",
+        "date_before",
+        "date_before_or_equal",
+        "date_after_days_ago",
+        "date_after",
+        "date_after_or_equal",
+        "date_not_equal",
+        "date_equals_today",
+        "date_before_today",
+        "date_after_today",
+        "date_within_days",
+        "date_within_weeks",
+        "date_within_months",
+        "date_equals_days_ago",
+        "date_equals_months_ago",
+        "date_equals_years_ago",
+        "date_equals_week",
+        "date_equals_month",
+        "date_equals_day_of_month",
+        "date_equals_year",
+        "date_is",
+        "date_is_not",
+        "date_is_before",
+        "date_is_on_or_before",
+        "date_is_after",
+        "date_is_on_or_after",
+        "date_is_within",
+        "empty",
+        "not_empty",
+    ],
+    "last_modified": [
+        "contains",
+        "contains_not",
+        "date_equal",
+        "date_before",
+        "date_before_or_equal",
+        "date_after_days_ago",
+        "date_after",
+        "date_after_or_equal",
+        "date_not_equal",
+        "date_equals_today",
+        "date_before_today",
+        "date_after_today",
+        "date_within_days",
+        "date_within_weeks",
+        "date_within_months",
+        "date_equals_days_ago",
+        "date_equals_months_ago",
+        "date_equals_years_ago",
+        "date_equals_week",
+        "date_equals_month",
+        "date_equals_day_of_month",
+        "date_equals_year",
+        "date_is",
+        "date_is_not",
+        "date_is_before",
+        "date_is_on_or_before",
+        "date_is_after",
+        "date_is_on_or_after",
+        "date_is_within",
+        "empty",
+        "not_empty",
+    ],
+    "created_on": [
+        "contains",
+        "contains_not",
+        "date_equal",
+        "date_before",
+        "date_before_or_equal",
+        "date_after_days_ago",
+        "date_after",
+        "date_after_or_equal",
+        "date_not_equal",
+        "date_equals_today",
+        "date_before_today",
+        "date_after_today",
+        "date_within_days",
+        "date_within_weeks",
+        "date_within_months",
+        "date_equals_days_ago",
+        "date_equals_months_ago",
+        "date_equals_years_ago",
+        "date_equals_week",
+        "date_equals_month",
+        "date_equals_day_of_month",
+        "date_equals_year",
+        "date_is",
+        "date_is_not",
+        "date_is_before",
+        "date_is_on_or_before",
+        "date_is_after",
+        "date_is_on_or_after",
+        "date_is_within",
+        "empty",
+        "not_empty",
+    ],
+    "last_modified_by": ["user_is", "user_is_not"],
+    "created_by": ["user_is", "user_is_not"],
+    "duration": [
+        "equal",
+        "not_equal",
+        "higher_than",
+        "higher_than_or_equal",
+        "lower_than",
+        "lower_than_or_equal",
+        "empty",
+        "not_empty",
+    ],
+    "link_row": [
+        "link_row_has",
+        "link_row_has_not",
+        "link_row_contains",
+        "link_row_not_contains",
+        "empty",
+        "not_empty",
+    ],
+    "file": [
+        "filename_contains",
+        "files_lower_than",
+        "has_file_type",
+        "empty",
+        "not_empty",
+    ],
+    "single_select": [
+        "contains",
+        "contains_not",
+        "contains_word",
+        "doesnt_contain_word",
+        "single_select_equal",
+        "single_select_not_equal",
+        "single_select_is_any_of",
+        "single_select_is_none_of",
+        "empty",
+        "not_empty",
+    ],
+    "multiple_select": [
+        "contains",
+        "contains_not",
+        "contains_word",
+        "doesnt_contain_word",
+        "empty",
+        "not_empty",
+        "multiple_select_has",
+        "multiple_select_has_not",
+    ],
+    "multiple_collaborators": [
+        "empty",
+        "not_empty",
+        "multiple_collaborators_has",
+        "multiple_collaborators_has_not",
+    ],
+    "phone_number": [
+        "equal",
+        "not_equal",
+        "contains",
+        "contains_not",
+        "length_is_lower_than",
+        "empty",
+        "not_empty",
+    ],
+    "formula": [
+        "empty",
+        "not_empty",
+        "multiple_collaborators_has",
+        "multiple_collaborators_has_not",
+    ],
+    "count": [
+        "equal",
+        "not_equal",
+        "contains",
+        "contains_not",
+        "higher_than",
+        "higher_than_or_equal",
+        "lower_than",
+        "lower_than_or_equal",
+        "is_even_and_whole",
+        "empty",
+        "not_empty",
+    ],
+    "rollup": [
+        "equal",
+        "not_equal",
+        "higher_than",
+        "higher_than_or_equal",
+        "lower_than",
+        "lower_than_or_equal",
+        "empty",
+        "not_empty",
+    ],
+    "lookup": ["empty", "not_empty"],
+    "uuid": ["equal", "not_equal"],
+    "autonumber": [
+        "equal",
+        "not_equal",
+        "contains",
+        "contains_not",
+        "higher_than",
+        "higher_than_or_equal",
+        "lower_than",
+        "lower_than_or_equal",
+        "is_even_and_whole",
+    ],
+    "password": ["empty", "not_empty"],
+    "ai": [],
+}
 
 
 @pytest.mark.django_db
@@ -938,13 +1217,16 @@ def test_field_type_prepare_db_value_with_invalid_values(data_fixture):
 
 
 @pytest.mark.parametrize("field_type", field_type_registry.get_all())
-def test_field_type_check_can_filter_by(field_type):
-    compatible_view_filters = [
-        vft
-        for vft in view_filter_type_registry.get_all()
-        if field_type.type in vft.compatible_field_types
-    ]
-    assert field_type.check_can_filter_by(Mock()) == (len(compatible_view_filters) > 0)
+@patch("baserow.contrib.database.fields.registries.FieldTypeRegistry.get_by_model")
+def test_field_type_check_can_filter_by(mock_get_by_model, field_type):
+    mock_get_by_model.return_value = field_type
+    has_compatible_view_filters = (
+        len(COMPATIBLE_FIELD_TYPE_VIEW_FILTER_TYPES[field_type.type]) > 0
+    )
+    assert (
+        field_type.check_can_filter_by(Mock(type=field_type.type))
+        == has_compatible_view_filters
+    )
 
 
 @pytest.mark.django_db
