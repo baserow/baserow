@@ -75,6 +75,7 @@ from baserow.contrib.database.api.views.errors import (
     ERROR_VIEW_FILTER_TYPE_UNSUPPORTED_FIELD,
 )
 from baserow.contrib.database.api.views.utils import serialize_single_row_metadata
+from baserow.contrib.database.field_rules.collector import CascadeUpdatedRows
 from baserow.contrib.database.fields.exceptions import (
     FieldDataConstraintException,
     FieldDoesNotExist,
@@ -150,7 +151,12 @@ from .serializers import (
 
 
 def build_response_with_metadata(
-    rows, request, model, serializer_class, updated_field_ids: list | None = None
+    rows,
+    request,
+    model,
+    serializer_class,
+    updated_field_ids: list | None = None,
+    cascade_update: CascadeUpdatedRows | None = None,
 ) -> Response:
     """
     Helper to build view's response with optional operation metadata structure.
@@ -167,6 +173,11 @@ def build_response_with_metadata(
             if updated_field_ids is not None
             else [field.id for field in model.get_fields()]
         }
+        if cascade_update:
+            data["metadata"]["cascade_update"] = {
+                "rows": cascade_update.updated_rows,
+                "field_ids": cascade_update.field_ids,
+            }
     response_serializer = serializer_class(data)
     return Response(response_serializer.data)
 
@@ -1218,11 +1229,11 @@ class BatchRowsView(APIView):
             "\n\n **WARNING:** This endpoint doesn't yet work with row created webhooks."
         ),
         request=get_example_batch_rows_serializer_class(
-            example_type="post", user_field_names=True
+            example_type="post", user_field_names=True, request_serializer=True
         ),
         responses={
             200: get_example_batch_rows_serializer_class(
-                example_type="get", user_field_names=True
+                example_type="post", user_field_names=True, request_serializer=False
             ),
             400: get_error_schema(
                 [
@@ -1362,11 +1373,13 @@ class BatchRowsView(APIView):
             "\n\n **WARNING:** This endpoint doesn't yet work with row updated webhooks."
         ),
         request=get_example_batch_rows_serializer_class(
-            example_type="patch_batch", user_field_names=True
+            example_type="patch_batch", user_field_names=True, request_serializer=True
         ),
         responses={
             200: get_example_batch_rows_serializer_class(
-                example_type="patch_batch", user_field_names=True
+                example_type="patch_batch",
+                user_field_names=True,
+                request_serializer=False,
             ),
             400: get_error_schema(
                 [
@@ -1445,6 +1458,7 @@ class BatchRowsView(APIView):
             model=model,
             serializer_class=response_serializer_class,
             updated_field_ids=updated_data.updated_field_ids,
+            cascade_update=updated_data.cascade_update,
         )
 
 

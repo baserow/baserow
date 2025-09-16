@@ -5,11 +5,16 @@ from django.utils.dateparse import parse_date
 
 import pytest
 
-from baserow_enterprise.date_dependency.field_rule_types import (
-    NO_VALUE,
-    DateDependencyCalculator,
+from baserow_enterprise.date_dependency.calculations import (
+    DateCalculator,
     DateValues,
+    adjust_child,
+    adjust_parent,
+    calculate_date_dependency_end,
+    calculate_date_dependency_start,
 )
+from baserow_enterprise.date_dependency.constants import NO_VALUE
+from baserow_enterprise.date_dependency.models import DateDependency
 
 
 def prep_values(args):
@@ -33,6 +38,10 @@ class FakeDateDependency:
     start_date_field = FakeField("start_date")
     end_date_field = FakeField("end_date")
     duration_field = FakeField("duration")
+    include_weekends: bool = True
+
+    def __init__(self, include_weekends=True):
+        self.include_weekends = include_weekends
 
     def __eq__(self, other):
         return self is other
@@ -75,7 +84,7 @@ def test_date_values_fields_api():
     assert dv.get_none_fields() == []
     assert dv.get_no_values_fields() == []
     assert dv.get_values_fields() == ["start_date", "end_date", "duration"]
-    assert dv.get_changed_fields() == ["start_date", "end_date", "duration"]
+    assert dv.get_set_fields() == ["start_date", "end_date", "duration"]
 
     assert dv.get("start_date") == date(2025, 1, 1)
     assert dv.get("end_date") == date(2025, 1, 3)
@@ -93,7 +102,7 @@ def test_date_values_fields_api():
     assert dv4.get_none_fields() == ["start_date"]
     assert dv4.get_no_values_fields() == ["end_date"]
     assert dv4.get_values_fields() == ["duration"]
-    assert dv4.get_changed_fields() == ["start_date", "duration"]
+    assert dv4.get_set_fields() == ["start_date", "duration"]
 
     assert not dv5.is_valid()
     assert dv5.has_valid_value_types()
@@ -224,14 +233,14 @@ def test_date_dependency_calculator_field_changed(
     old_values, new_values, expected_result
 ):
     """
-    Test if DateDependencyCalculator.field_changed() detects field value
+    Test if DateCalculator.field_changed() detects field value
     changes correctly.
     """
 
     old_values = DateValues(dep, *prep_values(old_values))
     new_values = DateValues(dep, *prep_values(new_values))
 
-    calc = DateDependencyCalculator(old_values, new_values, False)
+    calc = DateCalculator(old_values, new_values, False)
     out = []
     for fname in DateValues.FIELDS:
         changed = calc.field_changed(old_values.get(fname), new_values.get(fname))
@@ -241,10 +250,10 @@ def test_date_dependency_calculator_field_changed(
 
 def test_date_dependency_calculator_field_value():
     """
-    Test if DateDependencyCalculator.field_value() returns correctly new or old value.
+    Test if DateCalculator.field_value() returns correctly new or old value.
     """
 
-    calc = DateDependencyCalculator(None, None, False)
+    calc = DateCalculator(None, None, False)
 
     assert calc.field_value(NO_VALUE, NO_VALUE) == NO_VALUE
     assert calc.field_value(None, NO_VALUE) is None
@@ -252,123 +261,6 @@ def test_date_dependency_calculator_field_value():
     assert calc.field_value("old", None) is None
     assert calc.field_value("old", NO_VALUE) == "old"
     assert calc.field_value("old", "new") == "new"
-
-
-@pytest.mark.parametrize(
-    "test_value,include_weekends,expected_result",
-    [
-        # 2025-01-01 - Wednesday
-        # 2025-01-03 - Wednesday
-        # 2025-01-04 - Saturday
-        # 2025-01-05 - Sunday
-        # 2025-01-06 - Monday
-        (
-            ["2025-01-01", "2025-01-04", timedelta(days=3)],
-            True,
-            ["2025-01-01", "2025-01-04", timedelta(days=3)],
-        ),
-        (
-            ["2025-01-01", "2025-01-03", timedelta(days=2)],
-            True,
-            ["2025-01-01", "2025-01-03", timedelta(days=2)],
-        ),
-        (
-            ["2025-01-01", "2025-01-04", timedelta(days=3)],
-            False,
-            ["2025-01-01", "2025-01-06", timedelta(days=5)],
-        ),
-        (
-            ["2025-01-01", "2025-01-03", timedelta(days=2)],
-            False,
-            ["2025-01-01", "2025-01-03", timedelta(days=2)],
-        ),
-        (
-            ["2025-01-01", None, timedelta(days=4)],
-            False,
-            ["2025-01-01", None, timedelta(days=4)],
-        ),
-        (
-            ["2025-01-01", None, timedelta(days=4)],
-            True,
-            ["2025-01-01", None, timedelta(days=4)],
-        ),
-    ],
-)
-def test_date_dependency_adjust_end_date(test_value, include_weekends, expected_result):
-    """
-    Test if DaeDependencyCalculator will correctly shift end date and duration if
-    include_weekends flag is set and end date is on weekend.
-    """
-
-    calc = DateDependencyCalculator(None, None, include_weekends)
-
-    input_value = DateValues(dep, *prep_values(test_value))
-    expected = DateValues(dep, *prep_values(expected_result))
-    calc.adjust_end_date(input_value)
-    assert input_value.to_dict() == expected.to_dict()
-
-
-@pytest.mark.parametrize(
-    "test_value,expected_before,expected_after",
-    [
-        # this case is the only one correct, because duration matches dates + 1 day
-        (
-            ["2025-01-01", "2025-01-03", timedelta(days=3)],
-            timedelta(days=2),
-            timedelta(days=3),
-        ),
-        # below 1d
-        (
-            ["2025-01-01", "2025-01-03", timedelta(hours=3)],
-            timedelta(days=0),
-            timedelta(days=0),
-        ),
-        # duration not aligned to days
-        (
-            ["2025-01-01", "2025-01-03", timedelta(hours=3, days=2)],
-            timedelta(days=1),
-            timedelta(days=1),
-        ),
-        # * duration doesn't match to dates
-        # * adjust_duration_before will decrease by one blindly
-        # * adjust_duration_after will not increase, because the duration
-        #   doesn't match dates anyway.
-        (
-            ["2025-01-01", "2025-01-03", timedelta(days=2)],
-            timedelta(days=1),
-            timedelta(days=1),
-        ),
-        # mind that duration doesn't match time span, so it's invalid anyway
-        # so we don't change it
-        (
-            ["2025-01-01", "2025-01-03", timedelta(days=1)],
-            timedelta(days=0),
-            timedelta(days=0),
-        ),
-        (
-            [None, None, None],
-            None,
-            None,
-        ),
-        (["aaa", "bbb", "ccc"], "ccc", "ccc"),
-    ],
-)
-def test_date_dependency_adjust_before_after(
-    test_value, expected_before, expected_after
-):
-    """
-    Test if DateDependencyCalculator will correctly shift duration value before and
-    after calculations.
-    """
-
-    calc = DateDependencyCalculator(None, None, False)
-
-    input_value = DateValues(dep, *prep_values(test_value))
-    before = calc.adjust_duration_before(input_value)
-
-    assert before.duration == expected_before
-    after = calc.adjust_duration_after(input_value)
-    assert after.duration == expected_after
 
 
 @pytest.mark.parametrize(
@@ -389,26 +281,7 @@ def test_date_dependency_adjust_before_after(
             None,
             False,
         ),
-        # duration is not set at all
-        (
-            (
-                NO_VALUE,
-                NO_VALUE,
-                NO_VALUE,
-            ),
-            (
-                "2020-01-01",
-                "2020-01-10",
-                NO_VALUE,
-            ),
-            (
-                "2020-01-01",
-                "2020-01-10",
-                NO_VALUE,
-            ),
-            False,
-        ),
-        # set values, recalcualte all
+        # duration not recaclulated, because all three values are changed
         (
             (
                 NO_VALUE,
@@ -419,6 +292,62 @@ def test_date_dependency_adjust_before_after(
                 "2020-01-01",
                 "2020-01-10",
                 None,
+            ),
+            (
+                "2020-01-01",
+                "2020-01-10",
+                None,
+            ),
+            False,
+        ),
+        (
+            (
+                NO_VALUE,
+                NO_VALUE,
+                NO_VALUE,
+            ),
+            (
+                "2020-01-01",
+                "2020-01-10",
+                None,
+            ),
+            (
+                "2020-01-01",
+                "2020-01-10",
+                None,
+            ),
+            True,
+        ),
+        # Duration is not set at all, so it will be recalculated.
+        (
+            (
+                NO_VALUE,
+                NO_VALUE,
+                NO_VALUE,
+            ),
+            (
+                "2020-01-01",
+                "2020-01-10",
+                NO_VALUE,
+            ),
+            (
+                "2020-01-01",
+                "2020-01-10",
+                timedelta(days=8),
+            ),
+            False,
+        ),
+        # include weekend in dzays
+        (
+            (
+                NO_VALUE,
+                NO_VALUE,
+                NO_VALUE,
+            ),
+            (
+                "2020-01-01",
+                "2020-01-10",
+                NO_VALUE,
             ),
             (
                 "2020-01-01",
@@ -427,6 +356,7 @@ def test_date_dependency_adjust_before_after(
             ),
             True,
         ),
+        # exclude weekends in days
         (
             (
                 NO_VALUE,
@@ -436,15 +366,16 @@ def test_date_dependency_adjust_before_after(
             (
                 "2025-01-01",
                 "2025-01-05",
-                None,
+                NO_VALUE,
             ),
             (
                 "2025-01-01",
-                "2025-01-06",
-                timedelta(days=6),
+                "2025-01-05",  # Sunday
+                timedelta(days=3),
             ),
             False,
         ),
+        #
         (
             (
                 NO_VALUE,
@@ -454,7 +385,7 @@ def test_date_dependency_adjust_before_after(
             (
                 "2025-01-01",
                 "2025-01-05",
-                None,
+                NO_VALUE,
             ),
             (
                 "2025-01-01",
@@ -472,7 +403,7 @@ def test_date_dependency_adjust_before_after(
             (
                 "2020-01-01",
                 "2020-01-10",
-                None,
+                NO_VALUE,
             ),
             (
                 "2020-01-01",
@@ -481,7 +412,54 @@ def test_date_dependency_adjust_before_after(
             ),
             True,
         ),
-        # recalculate duration when it's empty
+        # start/duration provided, end calculated
+        (
+            (
+                None,
+                None,
+                None,
+            ),
+            ("2020-01-01", NO_VALUE, timedelta(days=10)),
+            (
+                "2020-01-01",
+                "2020-01-10",
+                timedelta(days=10),
+            ),
+            True,
+        ),
+        (
+            (
+                None,
+                None,
+                None,
+            ),
+            ("2020-01-01", NO_VALUE, timedelta(days=10)),
+            (
+                "2020-01-01",
+                "2020-01-13",
+                timedelta(days=10),
+            ),
+            False,
+        ),
+        # No recalculation if all three values are set
+        (
+            (
+                "2020-01-01",
+                "2020-01-02",
+                None,
+            ),
+            (
+                "2025-01-01",
+                "2025-01-05",
+                None,
+            ),
+            (
+                "2025-01-01",
+                "2025-01-05",
+                None,
+            ),
+            True,
+        ),
         (
             (
                 "2020-01-01",
@@ -496,28 +474,11 @@ def test_date_dependency_adjust_before_after(
             (
                 "2025-01-01",
                 "2025-01-05",
-                timedelta(days=5),
-            ),
-            True,
-        ),
-        (
-            (
-                "2020-01-01",
-                "2020-01-05",
                 None,
-            ),
-            (
-                "2025-01-01",
-                "2025-01-05",
-                None,
-            ),
-            (
-                "2025-01-01",
-                "2025-01-06",
-                timedelta(days=6),
             ),
             False,
         ),
+        # start with invalid dates, but no recalculation, as we set all values
         (
             (
                 "2025-01-01",
@@ -532,10 +493,11 @@ def test_date_dependency_adjust_before_after(
             (
                 "2025-01-01",
                 "2025-01-05",
-                timedelta(days=5),
+                None,
             ),
             True,
         ),
+        # start with invalid dates, but no recalculation, as we set all values
         (
             (
                 "2025-01-01",
@@ -549,8 +511,8 @@ def test_date_dependency_adjust_before_after(
             ),
             (
                 "2025-01-01",
-                "2025-01-06",
-                timedelta(days=6),
+                "2025-01-05",
+                None,
             ),
             False,
         ),
@@ -755,12 +717,12 @@ def test_date_dependency_adjust_before_after(
             ),
             (
                 "2025-01-03",
-                "2025-01-04",
-                timedelta(days=2),
+                "2025-01-04",  # Saturday
+                timedelta(days=1),
             ),
             False,
         ),
-        # recalculate duration even if it's set
+        # duration set to None explicitly
         (
             (
                 "2025-01-01",
@@ -775,7 +737,7 @@ def test_date_dependency_adjust_before_after(
             (
                 "2025-01-01",
                 "2025-01-05",
-                timedelta(days=5),
+                None,
             ),
             True,
         ),
@@ -787,13 +749,13 @@ def test_date_dependency_adjust_before_after(
             ),
             (
                 "2025-01-01",
-                "2025-01-05",
+                "2025-01-06",
                 None,
             ),
             (
                 "2025-01-01",
                 "2025-01-06",
-                timedelta(days=6),
+                None,
             ),
             False,
         ),
@@ -842,13 +804,13 @@ def test_date_dependency_adjust_before_after(
                 timedelta(days=2),
             ),
             (
-                "2025-01-02",
+                "2025-01-06",
                 NO_VALUE,
                 NO_VALUE,
             ),
             (
-                "2025-01-02",
-                "2025-01-03",
+                "2025-01-06",
+                "2025-01-07",
                 timedelta(days=2),
             ),
             True,
@@ -860,13 +822,13 @@ def test_date_dependency_adjust_before_after(
                 timedelta(days=2),
             ),
             (
-                "2025-01-02",
+                "2025-01-06",
                 NO_VALUE,
                 NO_VALUE,
             ),
             (
-                "2025-01-02",
-                "2025-01-03",
+                "2025-01-06",
+                "2025-01-07",
                 timedelta(days=2),
             ),
             False,
@@ -904,7 +866,7 @@ def test_date_dependency_adjust_before_after(
             (
                 "2025-01-01",
                 "2025-01-04",
-                timedelta(days=4),
+                timedelta(days=3),
             ),
             False,
         ),
@@ -925,7 +887,7 @@ def test_date_dependency_adjust_before_after(
             (
                 "2025-01-01",
                 "2025-01-04",
-                timedelta(days=4),
+                timedelta(days=3),
             ),
             False,
         ),
@@ -1092,6 +1054,8 @@ def test_date_dependency_calculations(
     not updated by API should be marked with NO_VALUE.
     """
 
+    dep = FakeDateDependency(include_weekends=include_weekends)
+
     old_val = DateValues(dep, *prep_values(old_values))
     new_val = DateValues(dep, *prep_values(new_values))
     if expected_result:
@@ -1099,5 +1063,387 @@ def test_date_dependency_calculations(
     else:
         expected = expected_result
 
-    calc = DateDependencyCalculator(old_val, new_val, include_weekends)
-    assert calc._calculate() == expected
+    calc = DateCalculator(old_val, new_val, include_weekends)
+    result = calc._calculate()
+    assert result == expected
+
+
+# calendar:
+# 2024-12-29 - Sunday *
+# 2024-12-30 - Monday
+# 2024-12-31 - Tuesday
+# 2025-01-01 - Wednesday
+# 2025-01-02 - Thursday
+# 2025-01-03 - Friday
+# 2025-01-04 - Saturday *
+# 2025-01-05 - Sunday *
+# 2025-01-06 - Monday
+# ..
+# 2025-01-10 - Saturday
+# 2025-01-11 - Sunday
+# ..
+# 2025-01-17 - Saturday
+# 2025-01-18 - Sunday
+# ..
+# duration includes extra day
+@pytest.mark.parametrize(
+    "end_date,duration,expected_start_date,include_weekends",
+    [
+        (
+            "2025-01-05",
+            timedelta(days=0),
+            "2025-01-05",
+            False,
+        ),
+        (
+            "2025-01-05",
+            timedelta(days=0),
+            None,
+            True,
+        ),
+        (
+            "2025-01-05",
+            timedelta(days=1),
+            "2025-01-03",
+            False,
+        ),
+        (
+            "2025-01-05",
+            timedelta(days=1),
+            "2025-01-05",
+            True,
+        ),
+        (
+            "2025-01-13",
+            timedelta(days=9),
+            "2025-01-05",
+            True,
+        ),
+        (
+            "2025-01-13",
+            timedelta(days=8),
+            "2025-01-03",
+            False,
+        ),
+    ],
+)
+def test_calculate_start_date(
+    end_date, duration, expected_start_date, include_weekends
+):
+    class FakeDependency:
+        def __init__(self, include_weekends):
+            self.include_weekends = include_weekends
+
+    dep = FakeDependency(include_weekends)
+
+    input_val = DateValues(
+        dep, start_date=None, end_date=parse_date(end_date), duration=duration
+    )
+    output = calculate_date_dependency_start(input_val)
+    if expected_start_date:
+        expected_start_date = parse_date(expected_start_date)
+    assert output.start_date == expected_start_date
+
+
+@pytest.mark.parametrize(
+    "start_date,duration,expected_end_date,include_weekends",
+    [
+        (
+            "2025-01-05",
+            timedelta(days=0),
+            "2025-01-05",
+            False,
+        ),
+        (
+            "2025-01-05",
+            timedelta(days=0),
+            None,
+            True,
+        ),
+        (
+            "2025-01-04",
+            timedelta(days=1),
+            "2025-01-06",
+            False,
+        ),
+        (
+            "2025-01-05",
+            timedelta(days=1),
+            "2025-01-05",
+            True,
+        ),
+        (
+            "2025-01-05",
+            timedelta(days=8),
+            "2025-01-15",
+            False,
+        ),
+        (
+            "2025-01-05",
+            timedelta(days=8),
+            "2025-01-12",
+            True,
+        ),
+        (
+            "2025-01-10",
+            timedelta(days=8),
+            "2025-01-20",
+            False,
+        ),
+        (
+            "2025-01-10",
+            timedelta(days=8),
+            "2025-01-17",
+            True,
+        ),
+        (
+            "2025-01-11",
+            timedelta(days=6),
+            "2025-01-20",
+            False,
+        ),
+        (
+            "2020-01-02",
+            timedelta(days=10),
+            "2020-01-13",
+            False,
+        ),
+    ],
+)
+def test_calculate_end_date(start_date, duration, expected_end_date, include_weekends):
+    class FakeDependency:
+        def __init__(self, include_weekends):
+            self.include_weekends = include_weekends
+
+    dep = FakeDependency(include_weekends)
+
+    input_val = DateValues(
+        dep, end_date=None, start_date=parse_date(start_date), duration=duration
+    )
+    output = calculate_date_dependency_end(input_val)
+    if expected_end_date:
+        expected_end_date = parse_date(expected_end_date)
+    assert output.end_date == expected_end_date
+
+
+@pytest.mark.parametrize(
+    "parent_data,child_data,expected_adjusted,expected_parent_data",
+    [
+        # simple shift before start of a child
+        (
+            (
+                date(2025, 1, 15),
+                date(2025, 1, 20),
+                timedelta(days=6),
+            ),
+            (
+                date(2025, 1, 11),
+                date(2025, 1, 25),
+                timedelta(days=10),
+            ),
+            True,
+            (date(2025, 1, 5), date(2025, 1, 10), timedelta(days=6)),
+        ),
+        # missing start value, but this will be recalculated
+        (
+            (
+                None,
+                date(2025, 1, 20),
+                timedelta(days=6),
+            ),
+            (
+                date(2025, 1, 11),
+                date(2025, 1, 25),
+                timedelta(days=10),
+            ),
+            True,
+            (date(2025, 1, 5), date(2025, 1, 10), timedelta(days=6)),
+        ),
+        # invalid values, no adjustment
+        (
+            (None, None, timedelta(days=1)),
+            (
+                date(2025, 1, 10),
+                date(2025, 1, 25),
+                timedelta(days=10),
+            ),
+            False,
+            (None, None, timedelta(days=1)),
+        ),
+        # invalid values, no adjustment
+        (
+            (
+                date(2025, 1, 10),
+                date(2025, 1, 25),
+                timedelta(days=10),
+            ),
+            (None, None, timedelta(days=1)),
+            False,
+            (
+                date(2025, 1, 10),
+                date(2025, 1, 25),
+                timedelta(days=10),
+            ),
+        ),
+        # missing end date, no adjustment
+        (
+            (date(2025, 1, 10), None, timedelta(days=1)),
+            (
+                date(2025, 1, 10),
+                date(2025, 1, 25),
+                timedelta(days=10),
+            ),
+            False,
+            (date(2025, 1, 10), None, timedelta(days=1)),
+        ),
+        # no overlap, no change
+        (
+            (
+                date(2025, 1, 1),
+                date(2025, 1, 5),
+                timedelta(days=5),
+            ),
+            (
+                date(2025, 1, 10),
+                date(2025, 1, 25),
+                timedelta(days=10),
+            ),
+            False,
+            (date(2025, 1, 1), date(2025, 1, 5), timedelta(days=5)),
+        ),
+    ],
+)
+def test_calculate_parent(
+    parent_data, child_data, expected_adjusted, expected_parent_data
+):
+    dep = DateDependency()
+    dep.include_weekends = True
+    parent = DateValues(dep, *parent_data)
+    child = DateValues(dep, *child_data)
+    expected_parent = DateValues(dep, *expected_parent_data)
+    adjusted = adjust_parent(parent, child, dep)
+    assert adjusted == expected_adjusted
+    assert parent == expected_parent
+
+
+@pytest.mark.parametrize(
+    "parent_data,child_data,expected_adjusted,expected_child_data",
+    [
+        # simple shift before start of a child
+        (
+            (
+                date(2025, 1, 10),
+                date(2025, 1, 20),
+                timedelta(days=10),
+            ),
+            (
+                date(2025, 1, 10),
+                date(2025, 1, 15),
+                timedelta(days=6),
+            ),
+            True,
+            (date(2025, 1, 21), date(2025, 1, 26), timedelta(days=6)),
+        ),
+        # child missing start date, not calculable
+        (
+            (
+                date(2025, 1, 10),
+                date(2025, 1, 20),
+                timedelta(days=10),
+            ),
+            (
+                None,
+                date(2025, 1, 15),
+                timedelta(days=5),
+            ),
+            False,
+            (None, date(2025, 1, 15), timedelta(days=5)),
+        ),
+        # missing start value, but we can recalculate
+        (
+            (
+                None,
+                date(2025, 1, 20),
+                timedelta(days=5),
+            ),
+            (
+                date(2025, 1, 10),
+                date(2025, 1, 25),
+                timedelta(days=10),
+            ),
+            True,
+            (
+                date(2025, 1, 21),
+                date(2025, 1, 30),
+                timedelta(days=10),
+            ),
+        ),
+        # invalid values, no adjustment
+        (
+            (None, None, timedelta(days=1)),
+            (
+                date(2025, 1, 10),
+                date(2025, 1, 25),
+                timedelta(days=10),
+            ),
+            False,
+            (
+                date(2025, 1, 10),
+                date(2025, 1, 25),
+                timedelta(days=10),
+            ),
+        ),
+        # invalid values, no adjustment
+        (
+            (
+                date(2025, 1, 10),
+                date(2025, 1, 25),
+                timedelta(days=10),
+            ),
+            (None, None, timedelta(days=1)),
+            False,
+            (None, None, timedelta(days=1)),
+        ),
+        # missing end date, no adjustment
+        (
+            (date(2025, 1, 10), None, timedelta(days=1)),
+            (
+                date(2025, 1, 10),
+                date(2025, 1, 25),
+                timedelta(days=10),
+            ),
+            False,
+            (date(2025, 1, 10), date(2025, 1, 25), timedelta(days=10)),
+        ),
+        # no overlap, no change
+        (
+            (
+                date(2025, 1, 1),
+                date(2025, 1, 5),
+                timedelta(days=5),
+            ),
+            (
+                date(2025, 1, 10),
+                date(2025, 1, 25),
+                timedelta(days=10),
+            ),
+            False,
+            (
+                date(2025, 1, 10),
+                date(2025, 1, 25),
+                timedelta(days=10),
+            ),
+        ),
+    ],
+)
+def test_calculate_child(
+    parent_data, child_data, expected_adjusted, expected_child_data
+):
+    dep = DateDependency()
+    dep.include_weekends = True
+    parent = DateValues(dep, *parent_data)
+    child = DateValues(dep, *child_data)
+    expected_child = DateValues(dep, *expected_child_data)
+    adjusted = adjust_child(parent, child, dep)
+    assert adjusted == expected_adjusted
+    assert child == expected_child

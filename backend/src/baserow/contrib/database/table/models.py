@@ -649,6 +649,12 @@ class GeneratedTableModel(HierarchicalModelMixin, models.Model):
     class Meta:
         abstract = True
 
+    def get_primary_field_value(self):
+        primary_field = self.get_primary_field()
+        if primary_field is None:
+            return
+        return getattr(self, primary_field.db_column, None)
+
 
 class GeneratedModelAppsProxy:
     """
@@ -1174,9 +1180,8 @@ class Table(
     def _add_field_rules_valid(self, field_attrs, indexes):
         from baserow.contrib.database.field_rules.handlers import FieldRuleHandler
 
-        field_rules_handler = FieldRuleHandler(self, None)
-        column = field_rules_handler.get_state_column()
-        field_attrs[field_rules_handler.STATE_COLUMN_NAME] = column
+        column = FieldRuleHandler.get_state_column()
+        field_attrs[FieldRuleHandler.STATE_COLUMN_NAME] = column
         return field_attrs
 
     @baserow_trace(tracer)
