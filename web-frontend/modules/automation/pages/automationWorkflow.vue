@@ -186,11 +186,11 @@ export default defineComponent({
       }
     }
 
-    const handleReplaceNode = async (nodeId, newType) => {
+    const handleReplaceNode = async ({ node, type }) => {
       await store.dispatch('automationWorkflowNode/replace', {
         workflow: workflow.value,
-        nodeId: parseInt(nodeId),
-        newType,
+        nodeId: parseInt(node.id),
+        newType: type,
       })
     }
 
