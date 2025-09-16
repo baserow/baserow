@@ -66,6 +66,23 @@
               :helper-text="$t('dateDependencyModal.durationFieldHint')"
             />
           </div>
+
+          <div v-if="v2Enabled" class="col col-6">
+            <DateDependencyFieldPicker
+              ref="dependency_linkrow_field_id"
+              v-model="v$.dependency.dependency_linkrow_field_id.$model"
+              :fields="dependencyFields"
+              :required="false"
+              :errors="v$.dependency.dependency_linkrow_field_id.$errors"
+              icon="iconoir-clock-rotate-right"
+              :field-name="
+                $t('dateDependencyModal.dependencyLinkrowFieldLabel')
+              "
+              :helper-text="
+                $t('dateDependencyModal.dependencyLinkrowFieldHint')
+              "
+            />
+          </div>
         </div>
       </template>
       <div class="row context__form-footer-actions--align-right">
@@ -89,6 +106,7 @@ import { required, requiredIf } from '@vuelidate/validators'
 import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandler'
 import FieldService from '@baserow/modules/database/services/field'
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import { FF_DATE_DEPENDENCY_V2 } from '@baserow/modules/core/plugins/featureFlags'
 
 export default {
   name: 'DateDependencyModal',
@@ -125,6 +143,7 @@ export default {
         start_date_field_id: null,
         end_date_field_id: null,
         duration_field_id: null,
+        dependency_linkrow_field_id: null,
       },
       loading: false,
       fields: [],
@@ -150,6 +169,11 @@ export default {
             return this.dependency.is_active
           }),
         },
+        dependency_linkrow_field_id: {
+          requiredIfIsActive: requiredIf(() => {
+            return this.dependency.is_active
+          }),
+        },
       },
     }
   },
@@ -160,6 +184,9 @@ export default {
         this.table,
         this.workspaceId
       )
+    },
+    v2Enabled() {
+      return this.$featureFlagIsEnabled(FF_DATE_DEPENDENCY_V2)
     },
     endDateFields() {
       // we want to exclude field that is used in start date field
@@ -178,6 +205,12 @@ export default {
     durationFields() {
       return this.getFieldsForType(this.fields, 'duration', (f) => {
         return f.duration_format === 'd h'
+      })
+    },
+    dependencyFields() {
+      const tableId = this.table.id
+      return this.getFieldsForType(this.fields, 'link_row', (x) => {
+        return x.link_row_table_id === tableId
       })
     },
   },
@@ -243,6 +276,8 @@ export default {
         payload.start_date_field_id = this.dependency.start_date_field_id
         payload.end_date_field_id = this.dependency.end_date_field_id
         payload.duration_field_id = this.dependency.duration_field_id
+        payload.dependency_linkrow_field_id =
+          this.dependency.dependency_linkrow_field_id
       }
       return payload
     },
@@ -259,6 +294,9 @@ export default {
       const durationFieldId = this.durationFields.find(
         (f) => f.id === rule.duration_field_id
       )?.id
+      const dependencyLinkrowFieldId = this.dependencyFields.find(
+        (f) => f.id === rule.dependency_linkrow_field_id
+      )?.id
 
       return {
         ...this.dependency,
@@ -267,6 +305,7 @@ export default {
         start_date_field_id: startFieldId || null,
         end_date_field_id: endFieldId || null,
         duration_field_id: durationFieldId || null,
+        dependency_linkrow_field_id: dependencyLinkrowFieldId || null,
       }
     },
 

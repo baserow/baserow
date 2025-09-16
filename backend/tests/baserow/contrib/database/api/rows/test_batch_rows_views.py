@@ -1356,9 +1356,10 @@ def test_batch_update_rows(api_client, data_fixture, include_metadata):
     }
     if include_metadata:
         expected_response_body["metadata"] = {
+            "cascade_update": {"field_ids": [], "rows": []},
             "updated_field_ids": unordered(
                 [text_field.id, number_field.id, boolean_field.id]
-            )
+            ),
         }
         url = f"{url}?include_metadata=true"
 
@@ -1433,9 +1434,10 @@ def test_batch_update_rows_with_different_fields(
     }
     if include_metadata:
         expected_response_body["metadata"] = {
+            "cascade_update": {"field_ids": [], "rows": []},
             "updated_field_ids": unordered(
                 [text_field.id, number_field.id, boolean_field.id]
-            )
+            ),
         }
         url = f"{url}?include_metadata=true"
 

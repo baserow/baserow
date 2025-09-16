@@ -1,0 +1,954 @@
+import dataclasses
+from copy import copy
+from datetime import date, datetime, timedelta
+
+from django.db.models import ForeignKey
+
+from loguru import logger
+
+from baserow.contrib.database.fields.models import LinkRowField
+from baserow.contrib.database.table.models import GeneratedTableModel
+from baserow.core.psycopg import sql
+from baserow_enterprise.date_dependency.models import DateDependency
+
+from .constants import NO_VALUE, DateDependencyFieldNames, NoValueSentinel
+
+
+@dataclasses.dataclass
+class DateValues:
+    FIELDS = (
+        DateDependencyFieldNames.START_DATE,
+        DateDependencyFieldNames.END_DATE,
+        DateDependencyFieldNames.DURATION,
+    )
+
+    dependency: DateDependency
+    start_date: datetime | None | NoValueSentinel
+    end_date: datetime | None | NoValueSentinel
+    duration: timedelta | None | NoValueSentinel
+
+    @classmethod
+    def from_row(cls, row: GeneratedTableModel, rule: DateDependency) -> "DateValues":
+        start_date_col = rule.start_date_field.db_column
+        end_date_col = rule.end_date_field.db_column
+        duration_col = rule.duration_field.db_column
+
+        start_date_before = getattr(row, start_date_col, NO_VALUE)
+        end_date_before = getattr(row, end_date_col, NO_VALUE)
+        duration_before = getattr(row, duration_col, NO_VALUE)
+        return cls(rule, start_date_before, end_date_before, duration_before)
+
+    @classmethod
+    def from_dict(cls, row: dict, rule: DateDependency) -> "DateValues":
+        start_date_col = rule.start_date_field.db_column
+        end_date_col = rule.end_date_field.db_column
+        duration_col = rule.duration_field.db_column
+
+        start_date_before = row.get(start_date_col, NO_VALUE)
+        end_date_before = row.get(end_date_col, NO_VALUE)
+        duration_before = row.get(duration_col, NO_VALUE)
+        return cls(rule, start_date_before, end_date_before, duration_before)
+
+    def has_valid_value_types(self):
+        return (
+            isinstance(self.end_date, date)
+            and isinstance(self.start_date, date)
+            and isinstance(self.duration, timedelta)
+        )
+
+    def has_valid_duration(self):
+        try:
+            return (
+                # start/end dates match the duration + 1 day
+                self.end_date == (self.start_date + (self.duration - timedelta(1)))
+                # duration is positive
+                and self.duration.total_seconds() > 0
+                # duration is aligned to days
+                and int(self.duration.total_seconds() / self.duration.days)
+                * self.duration.days
+                == self.duration.total_seconds()
+            )
+        except (TypeError, ValueError, OverflowError):
+            return False
+
+    def is_valid(self):
+        if len(self.get_values_fields()) != 3:
+            return False
+        if not self.has_valid_value_types():
+            return False
+        return self.has_valid_duration()
+
+    def get_no_values_fields(self) -> list[str]:
+        return [fname for fname in self.FIELDS if self.get(fname) is NO_VALUE]
+
+    def get_values_fields(self) -> list[str]:
+        return [
+            fname
+            for fname in self.FIELDS
+            if self.get(fname) is not NO_VALUE and self.get(fname) is not None
+        ]
+
+    def get_none_fields(self) -> list[str]:
+        """
+        Returns a list of fields with None values
+        """
+
+        return [fname for fname in self.FIELDS if self.get(fname) is None]
+
+    def get_set_fields(self) -> list[str]:
+        """
+        Returns a list of fields that have a value set
+        """
+
+        return [fname for fname in self.FIELDS if self.get(fname) is not NO_VALUE]
+
+    def get_changed_fields(self, old_val: "DateValues") -> list[str]:
+        """
+        Returns a list of fields that are different from old value
+        """
+
+        return [
+            fname
+            for fname in self.FIELDS
+            if self.get(fname) is not NO_VALUE and self.get(fname) != old_val.get(fname)
+        ]
+
+    def get(self, field_name: str) -> datetime | timedelta | None | NoValueSentinel:
+        if field_name in self.FIELDS:
+            return getattr(self, field_name)
+        raise ValueError(f"Invalid field name: {field_name}")
+
+    def to_dict(self) -> dict:
+        out = {
+            self.dependency.start_date_field.db_column: self.start_date,
+            self.dependency.end_date_field.db_column: self.end_date,
+            self.dependency.duration_field.db_column: self.duration,
+        }
+        return out
+
+    def __eq__(self, other):
+        if not isinstance(other, self.__class__):
+            return False
+        return (
+            self.dependency == other.dependency
+            and self.start_date == other.start_date
+            and self.end_date == other.end_date
+            and self.duration == other.duration
+        )
+
+
+class DateCalculator:
+    def __init__(
+        self, old_values: DateValues, new_values: DateValues, include_weekends: bool
+    ):
+        """
+
+        :param old_values:
+        :param new_values:
+        """
+
+        self.old_values = old_values
+        self.new_values = new_values
+        self.include_weekends = include_weekends
+
+    def field_changed(self, old_val, new_val) -> bool:
+        changed = old_val != new_val and new_val is not NO_VALUE
+        return changed
+
+    def field_value(self, old_val, new_val) -> datetime | timedelta | None:
+        """
+        Return resulting field value based on old/new values.
+
+        :param old_val: initial field value
+        :param new_val: updated field value, can be None (to reset the value)
+            or NO_VALUE to indicate that there's no update.
+        :return: resulting field value
+        """
+
+        # no update, we return old one
+        if new_val is NO_VALUE:
+            return old_val
+        return new_val
+
+    def calculate(self) -> dict:
+        if result := self._calculate():
+            return result.to_dict()
+        return {}
+
+    def _calculate(self) -> DateValues | None:
+        old_val = self.old_values
+        new_val = self.new_values
+
+        # no change
+        if old_val == new_val:
+            return
+        if not (changed_fields := new_val.get_set_fields()):
+            return
+
+        dep = new_val.dependency
+
+        result_values = {
+            fname: self.field_value(old_val.get(fname), new_val.get(fname))
+            for fname in DateValues.FIELDS
+        }
+
+        result = DateValues(dep, **result_values)
+
+        # no change
+        if result == old_val:
+            return
+
+        # More than two values are not set, so we can't calculate third
+        # Also, if all three values are provided with values, we don't recalculate.
+        if len(result.get_values_fields()) < 2 or (
+            len(changed_fields) == len(result.get_values_fields()) == 3
+        ):
+            return result
+
+        # keep a copy of original result,so we can return unmodified values in case of
+        # faulty calculations
+        initial_result = copy(result)
+
+        none_in_result = result.get_none_fields()
+        result_value_fields = result.get_values_fields()
+
+        # Negative duration, or duration set to hours.
+        # This is invalid, so we don't recalculate, but we should round the value to 0.
+        if (
+            DateDependencyFieldNames.DURATION in changed_fields
+            and isinstance(result.duration, timedelta)
+            and result.duration < timedelta(days=1)
+        ):
+            initial_result.duration = timedelta(days=0)
+            return initial_result
+
+        if none_in_result:
+            # 2 or more fields set to None, so we can't calculate
+            if len(none_in_result) > 1:
+                return result
+
+            # if start_date is removed from a row, we also clear duration
+            else:
+                missing_field = none_in_result[0]
+                if (
+                    missing_field == DateDependencyFieldNames.START_DATE
+                    and DateDependencyFieldNames.START_DATE in changed_fields
+                    and DateDependencyFieldNames.END_DATE in result_value_fields
+                ):
+                    result.duration = None
+
+        # refresh, as this could be changed
+        result_value_fields = result.get_values_fields()
+
+        try:
+            # NOTE on duration calculation: the feature specifies that
+            # duration = start_date + end_date + 1 day.
+            # one field update scenario
+            if len(changed_fields) == 1 and changed_fields[0] in result_value_fields:
+                changed_field = changed_fields[0]
+                if (
+                    changed_field == DateDependencyFieldNames.START_DATE
+                    and DateDependencyFieldNames.DURATION in result_value_fields
+                ):
+                    result = calculate_date_dependency_end(result)
+                elif (
+                    changed_field == DateDependencyFieldNames.START_DATE
+                    and DateDependencyFieldNames.END_DATE in result_value_fields
+                ):
+                    result = calculate_date_dependency_duration(result)
+                elif (
+                    changed_field == DateDependencyFieldNames.END_DATE
+                    and DateDependencyFieldNames.START_DATE in result_value_fields
+                ):
+                    # if end date is below start date, we shift the start date
+                    if result.end_date - result.start_date < timedelta(days=0):
+                        result = calculate_date_dependency_start(result)
+                    else:
+                        result = calculate_date_dependency_duration(result)
+                elif (
+                    changed_field == DateDependencyFieldNames.DURATION
+                    and DateDependencyFieldNames.START_DATE in result_value_fields
+                ):
+                    result = calculate_date_dependency_end(result)
+                elif (
+                    changed_field == DateDependencyFieldNames.DURATION
+                    and DateDependencyFieldNames.END_DATE in result_value_fields
+                ):
+                    result = calculate_date_dependency_start(result)
+            elif (
+                # We also do recalculation, when we know that duration didn't change,
+                # but other fields are present and at least one of them was changed.
+                # This excludes a situation, when duration is cleared by the user
+                # explicitly, but if it was changed from None to None, it should be
+                # recalculated.
+                DateDependencyFieldNames.DURATION not in changed_fields
+                and DateDependencyFieldNames.START_DATE in result_value_fields
+                and DateDependencyFieldNames.END_DATE in result_value_fields
+                and (
+                    DateDependencyFieldNames.START_DATE in changed_fields
+                    or DateDependencyFieldNames.END_DATE in changed_fields
+                )
+            ):
+                result = calculate_date_dependency_duration(result)
+            elif (
+                DateDependencyFieldNames.START_DATE not in changed_fields
+                and DateDependencyFieldNames.DURATION in result_value_fields
+                and DateDependencyFieldNames.END_DATE in result_value_fields
+                and (
+                    DateDependencyFieldNames.DURATION in changed_fields
+                    or DateDependencyFieldNames.END_DATE in changed_fields
+                )
+            ):
+                result = calculate_date_dependency_start(result)
+            elif (
+                DateDependencyFieldNames.END_DATE not in changed_fields
+                and DateDependencyFieldNames.DURATION in result_value_fields
+                and DateDependencyFieldNames.START_DATE in result_value_fields
+                and (
+                    DateDependencyFieldNames.DURATION in changed_fields
+                    or DateDependencyFieldNames.START_DATE in changed_fields
+                )
+            ):
+                result = calculate_date_dependency_end(result)
+
+        except (
+            TypeError,
+            ValueError,
+            OverflowError,
+        ) as err:
+            logger.info(f"Error when calculating date dependency: {err}", exc_info=True)
+            return initial_result
+        return result
+
+
+class DateDependencyCalculator:
+    """
+    Calculates values in dependent rows.
+
+    Date dependency allows to pick a linkrow field to represent predecessors (parents)
+    of a row. Rows can be organized into hierarchies, where start/end dates should not
+    overlap, and linkrow field will describe a connection between specific rows.
+
+    This class receives a starting row and date dependency rule, and will caclulate
+    full graph of dependent rows in both directions (predecessors and successors). Then,
+    it will walk up and down the graph, and check if start/end dates between two rows
+    connected don't overlap (according to date dependency parameters). If there's an
+    overlap, the other end of connection will be adjusted accordingly.
+    """
+
+    def __init__(
+        self,
+        row: GeneratedTableModel,
+        rule: DateDependency,
+        previsited: set | None = None,
+    ):
+        """
+        Creates an instance.
+
+        :param row: Starting row to calculate the graph.
+        :param rule: Rule with dependency parameters.
+        :param previsited: Optional list of visited row ids, useful if multiple rules
+            may affect the same row. If a row id is present in the visited list, it
+            should not be processed. What's more, the processing of a chain should
+            also be stopped, if it hits a row that was previously visited.
+        """
+
+        self.row = row
+        self.rule = rule
+        self.cache = {row.id: row}
+        self.dependency_map = {}
+        self.visited = set().union(previsited or set())
+        self.modified = []
+        self.graph_paths = []
+
+    def get_linkrow_from_to_fields(
+        self, linkrow_field: LinkRowField
+    ) -> tuple[ForeignKey, ForeignKey]:
+        """
+        Extracts from/to fields in relation table for the linkrow.
+
+        Linkrow field values are stored in a separate `database_relation_XXX` table,
+        where pairs of from row/to row are stored. This allows to model complex graph
+        of dependent rows.
+
+        This method returns a tuple of fields, where one represents `from` row, and the
+        other represents `to` row.
+
+        :param linkrow_field:
+        :return: A tuple with Child/parent fields
+        """
+
+        table = linkrow_field.table
+        model = table.get_model()
+        through = getattr(model, linkrow_field.db_column).through
+        parent_field = None
+        child_field = None
+
+        for field in through._meta.get_fields():
+            if type(field) is not ForeignKey:
+                continue
+            field_name = field.get_attname_column()[1]
+            if field_name.startswith("from_"):
+                child_field = field
+            elif field_name.startswith("to_"):
+                parent_field = field
+        if not (parent_field and child_field):
+            raise ValueError("Parent/child fields not found!")
+        return (
+            child_field,
+            parent_field,
+        )
+
+    def populate_dependency_graph(self):
+        """
+        Populates dependency graph for the starting row, and cache for rows.
+
+        This queries the table with linkrow relations for user data table, and builds
+        a graph of dependent rows for the starting row. Based on results, it populates
+        `.graph_paths` and  `.cache` with rows.
+        """
+
+        row = self.rule
+        if not (
+            row.duration_field
+            and row.start_date_field
+            and row.end_date_field
+            and row.dependency_linkrow_field
+        ):
+            logger.warning(f"Field Rule doesn't have all fields: {row.to_dict()}")
+            return
+        table_name = sql.Identifier(self.row.__class__._meta.db_table)
+        start_date_field = sql.Identifier(self.rule.start_date_field.db_column)
+        end_date_field = sql.Identifier(self.rule.end_date_field.db_column)
+        duration_field = sql.Identifier(self.rule.duration_field.db_column)
+
+        relation_table_name = sql.Identifier(
+            self.rule.dependency_linkrow_field.through_table_name
+        )
+        from_field, to_field = self.get_linkrow_from_to_fields(
+            self.rule.dependency_linkrow_field
+        )
+        from_field_name = sql.Identifier(from_field.column)
+        to_field_name = sql.Identifier(to_field.column)
+
+        row_id = self.row.pk
+
+        params = {
+            "value": sql.Literal(row_id),
+            "to_field_name": to_field_name,
+            "from_field_name": from_field_name,
+            "relation_table_name": relation_table_name,
+            "table_name": table_name,
+            "start_date_field": start_date_field,
+            "end_date_field": end_date_field,
+            "duration_field": duration_field,
+        }
+
+        # The query builds a list of rows belonging to the graph. Each row contains
+        # its path from the root, depth level and a shortcut information if it's a root,
+        # intermediate node or a leaf (ending) of a path. Also, each row contains
+        # start/end dates and duration to be able to be able to calculate.
+        # Note: One row can belong to multiple paths, and there may be multiple paths
+        # in the graph (one row can have multiple parents and one parent can have
+        # multiple children).
+        query = sql.SQL(
+            """
+            WITH RECURSIVE
+                updated AS
+                    (SELECT unnest(ARRAY[{value}]) AS updated_id),
+                ancestors AS (
+                    select u.updated_id AS id,
+                        u.updated_id AS original_id,
+                        0 AS level,
+                        ARRAY[u.updated_id] AS path
+                        FROM updated u
+                    UNION ALL
+                -- Recursively find parents
+                    SELECT
+                        ip.{to_field_name} AS parent_id
+                        , a.original_id
+                        , a.level - 1 AS level
+                        , ip.{to_field_name} || a.path AS path
+                    FROM ancestors a
+                    JOIN {relation_table_name} ip ON ip.{from_field_name} = a.id
+                    WHERE NOT (ip.{to_field_name} = ANY(a.path))  -- Prevent cycles
+                    ),
+
+                roots AS (
+                    SELECT DISTINCT ON (original_id)
+                        id as root_id,
+                        id,
+                        original_id
+                    FROM ancestors
+                    ORDER BY original_id, level ASC
+                ),
+                -- Find all descendants starting from roots
+                descendants AS (
+                    -- Start with root nodes
+                    SELECT
+                        r.root_id,
+                        r.root_id AS  id,
+                        r.original_id,
+                        0 AS  level,
+                        ARRAY[r.root_id] AS  path
+                    FROM roots r
+                    UNION ALL
+                    -- Recursively find children
+                    SELECT
+                        d.root_id,
+                        ip.{from_field_name} AS  id,
+                        d.original_id,
+                        d.level + 1 AS  level,
+                        d.path || ip.{from_field_name} AS  path
+                    FROM descendants d
+                    JOIN {relation_table_name} ip ON ip.{to_field_name} = d.id
+                    WHERE NOT (ip.{from_field_name} = ANY(d.path))  -- Prevent cycles
+                ),
+        -- Combine all nodes in the dependency trees
+        complete_tree AS (
+            SELECT DISTINCT
+                d.id,
+                d.original_id,
+                r.root_id,
+                d.level,
+                d.path
+            FROM descendants d
+            JOIN roots r ON r.root_id = d.root_id
+        )
+        -- Final result with item details
+        SELECT
+            ct.id,
+            i.{start_date_field},
+            i.{end_date_field},
+            i.{duration_field},
+            ct.root_id,
+            ct.level,
+            ct.path,
+            ct.original_id AS triggered_by_update_of,
+            CASE
+                WHEN ct.id = ct.root_id THEN 'ROOT'
+                WHEN NOT EXISTS (SELECT 1 FROM {relation_table_name} WHERE {to_field_name} = ct.id) THEN 'LEAF'
+                ELSE 'INTERMEDIATE'
+            END AS  node_type
+
+        FROM complete_tree ct
+        JOIN {table_name} i ON i.id = ct.id
+        WHERE NOT i.trashed
+        ORDER BY ct.original_id, ct.level desc, ct.id;
+        """
+        ).format(
+            **params
+        )  # noqa STR100
+
+        affected_rows = list(self.row.__class__.objects.raw(query))
+        # populate graph and cache
+        for row in affected_rows:
+            if row.node_type == "LEAF":
+                self.graph_paths.append(row.path)
+            if row.id in self.cache:
+                continue
+            self.cache[row.id] = row
+
+    def _get_row(self, row_id):
+        try:
+            return self.cache[row_id]
+        except KeyError:
+            row = self.row.__class__.objects.get(pk=row_id)
+            self.cache[row_id] = row
+            return row
+
+    def calculate(self):
+        self.modified.clear()
+        self.visited.clear()
+
+        self.populate_dependency_graph()
+        if not (self.graph_paths):
+            logger.debug(f"No dependencies found for {self.row}")
+            return
+        self.adjust_predecessors()
+        self.adjust_successors()
+
+    def adjust_predecessors(self):
+        """
+        Find all paths that will end up in root elements and change values, if dates
+        are overlapping.
+        """
+
+        paths = self.graph_paths
+
+        visited = self.visited
+        modified = self.modified
+
+        for path in paths:
+            # walk from child to parent, so we need to revert the path
+            walk_items = list(reversed(path))
+            child = DateValues.from_row(self.row, self.rule)
+            # we can walk when we get past current row
+            can_walk = False
+            local_visited = set()
+
+            for item_id in walk_items:
+                if item_id == self.row.id:
+                    can_walk = True
+                    continue
+                if not can_walk:
+                    continue
+
+                # If visited just for this path, then we bail, as this may be a loop.
+                if item_id in local_visited:
+                    break
+                local_visited.add(item_id)
+
+                # Row may have been processed globally already, so we move to the
+                # next one. However, any subsequent row should use this one as a
+                # previous row.
+                parent_row = self._get_row(item_id)
+                parent = DateValues.from_row(parent_row, self.rule)
+                if item_id in visited:
+                    child = parent
+                    continue
+
+                visited.add(item_id)
+
+                # parent may be invalid (invalid values, but it
+                if not parent.has_valid_value_types():
+                    logger.debug(
+                        "Breaking from adjust_predecessors because parent "
+                        f" {item_id} has invalid values: {parent.to_dict()}"
+                    )
+                    break
+                adjusted = adjust_parent(parent, child, self.rule)
+                if not adjusted:
+                    break
+                modified.append(
+                    (
+                        item_id,
+                        parent,
+                    )
+                )
+                child = parent
+
+    def adjust_successors(self):
+        """
+        Adjust start/end date values for all successors (children) of the initial row.
+
+        This will walk through all paths and update rows after the initial row. If a
+        child row is invalid, or was already processed by another rule, this, and
+        subsequent items won't be processed.
+        """
+
+        paths = self.graph_paths
+
+        visited = self.visited
+        modified = self.modified
+
+        for path in paths:
+            walk_items = copy(path)
+            can_walk = False
+            local_visited = set()
+            parent = DateValues.from_row(self.row, self.rule)
+            for item_id in walk_items:
+                if item_id == self.row.id:
+                    can_walk = True
+                    continue
+                if not can_walk:
+                    continue
+
+                if item_id in local_visited:
+                    break
+                local_visited.add(item_id)
+
+                # Row may have been processed globally already, so we move to the
+                # next one. However, any subsequent row should use this one as a
+                # previous row.
+                child_row = self._get_row(item_id)
+                child = DateValues.from_row(child_row, self.rule)
+                if item_id in visited:
+                    parent = child
+                    continue
+                visited.add(item_id)
+
+                if not child.is_valid():
+                    logger.warning(
+                        "Breaking from adjust_successors because child "
+                        f" {item_id} has invalid values: {child.to_dict()}"
+                    )
+                    break
+                adjusted = adjust_child(parent, child, self.rule)
+                if not adjusted:
+                    break
+                modified.append(
+                    (
+                        item_id,
+                        child,
+                    )
+                )
+                parent = child
+
+
+def adjust_parent(parent: DateValues, child: DateValues, rule: DateDependency) -> bool:
+    """
+    Move parent back one day before child's start date, if its end date overlaps with
+    child's start date. This will change values in place, and return True, if they
+    were modified.
+    """
+
+    if rule.buffer_is_none:
+        return False
+    if rule.buffer_is_fixed:
+        if not (
+            isinstance(child.start_date, date)
+            and isinstance(parent.end_date, date)
+            and isinstance(parent.duration, timedelta)
+        ):
+            return False
+
+        if child.start_date <= parent.end_date:
+            parent.end_date = child.start_date - timedelta(days=1)
+            new_parent = calculate_date_dependency_start(parent)
+            parent.start_date = new_parent.start_date
+            return True
+    elif rule.buffer_is_flexible:
+        if not (
+            isinstance(child.start_date, date)
+            and isinstance(parent.end_date, date)
+            and isinstance(parent.duration, timedelta)
+        ):
+            return False
+
+        if child.start_date <= parent.end_date or (
+            rule.dependency_buffer
+            and (child.start_date - parent.end_date) < rule.dependency_buffer
+        ):
+            parent.end_date = (
+                child.start_date - rule.dependency_buffer - timedelta(days=1)
+            )
+            new_parent = calculate_date_dependency_start(parent)
+            parent.start_date = new_parent.start_date
+            return True
+    return False
+
+
+def adjust_child(parent: DateValues, child: DateValues, rule: DateDependency) -> bool:
+    """
+    Move child forward one day after parent's end date, if its start date overlaps
+    with parent's end date. This will change values in place, and return True, if
+    they were modified.
+    """
+
+    if rule.buffer_is_none:
+        return False
+    if rule.buffer_is_fixed:
+        if not (
+            isinstance(child.start_date, date)
+            and isinstance(parent.end_date, date)
+            and isinstance(child.duration, timedelta)
+        ):
+            return False
+
+        if child.start_date <= parent.end_date:
+            child.start_date = parent.end_date + timedelta(days=1)
+            new_child = calculate_date_dependency_end(child)
+            child.end_date = new_child.end_date
+            return True
+    elif rule.buffer_is_flexible:
+        if not (
+            isinstance(child.start_date, date)
+            and isinstance(parent.end_date, date)
+            and isinstance(child.duration, timedelta)
+        ):
+            return False
+
+        if child.start_date <= parent.end_date or (
+            rule.dependency_buffer
+            and (child.start_date - parent.end_date) < rule.dependency_buffer
+        ):
+            child.start_date = (
+                parent.end_date + rule.dependency_buffer + timedelta(days=1)
+            )
+            new_child = calculate_date_dependency_end(child)
+            child.end_date = new_child.end_date
+
+            return True
+    return False
+
+
+def calculate_date_dependency_start(in_data: DateValues) -> DateValues:
+    """
+    Calculates start date for end date and duration in days and returns updated values.
+
+    If we calculate including weekends, then we take the number of days (+1 day to
+    include start day).
+
+    Start date calculation when weekends should be excluded, is more complicated. We
+    need to count
+    """
+
+    # don't calculate start date if we include weekends. Duration is invalid in this
+    # case.
+    if in_data.dependency.include_weekends and in_data.duration < timedelta(days=1):
+        return in_data
+
+    end_date = in_data.end_date
+    end_weekday = end_date.weekday()
+    end_weekday_is_weekend = end_weekday > 4
+    days = in_data.duration.days
+
+    result = DateValues(
+        in_data.dependency,
+        start_date=None,
+        end_date=end_date,
+        duration=in_data.duration,
+    )
+    if in_data.dependency.include_weekends:
+        result.start_date = end_date - timedelta(days=(days - 1))
+        return result
+
+    # Special case: we omit weekends, end date is on weekend, and duration is 0, so
+    # start date is the same as end date. But it's still invalid, because it's weekend.
+    if days == 0 and end_weekday_is_weekend:
+        result.start_date = end_date
+        return result
+
+    if end_weekday_is_weekend:
+        # Reset to Friday, if we're on weekend.
+        end_date = end_date - timedelta(days=7 - end_weekday)
+
+    weeks, single_days = divmod(days - 1, 5)
+
+    # Note: this won't calculate in any holiday
+    start_date = end_date - timedelta(days=7 * weeks) - timedelta(days=single_days)
+    # Adjust start date if it's on weekend, move to last Friday
+    start_date_weekday = start_date.weekday()
+
+    if start_date_weekday > 4:
+        start_date = start_date - timedelta(days=start_date_weekday - 4)
+    result.start_date = start_date
+
+    return result
+
+
+def calculate_date_dependency_end(in_data: DateValues) -> DateValues:
+    """
+    Calculates end date for start date and duration in days, and returns updated values.
+
+    If we calculate including weekends, then we take the number of days (+1 day to
+    include start day).
+
+    Date calculation when weekends should be excluded, is more complicated. We
+    need to count just regular workdays, so we may not add start/end date day.
+    """
+
+    # don't calculate start date if we include weekends. Duration is invalid in this
+    # case.
+    if in_data.dependency.include_weekends and in_data.duration < timedelta(days=1):
+        return in_data
+
+    start_date = in_data.start_date
+    start_weekday = start_date.weekday()
+    start_weekday_is_weekend = start_weekday > 4
+    days = in_data.duration.days
+
+    result = DateValues(
+        in_data.dependency,
+        end_date=None,
+        start_date=start_date,
+        duration=in_data.duration,
+    )
+    if in_data.dependency.include_weekends:
+        result.end_date = start_date + timedelta(days=days - 1)
+        return result
+
+    # Special case: we omit weekends, end date is on weekend, and duration is 0, so
+    # start date is the same as end date. But it's still invalid, because it's weekend.
+    if days == 0 and start_weekday_is_weekend:
+        result.end_date = start_date
+        return result
+
+    if start_weekday_is_weekend:
+        # Reset to Monday, if we're on weekend.
+        start_date = start_date + timedelta(days=7 - start_weekday)
+
+    # need to adjust for 1 extra day in this calculation
+    weeks, single_days = divmod(days - 1, 5)
+    # Note: this won't calculate in any holiday
+    end_date = start_date + timedelta(days=7 * weeks) + timedelta(days=single_days)
+
+    # Adjust end date if it's on weekend, set it to the nearest next Monday
+    end_date_weekday = end_date.weekday()
+    if end_date_weekday > 4:
+        end_date = end_date + timedelta(days=7 - end_date_weekday)
+    result.end_date = end_date
+
+    return result
+
+
+def calculate_date_dependency_duration(in_data: DateValues) -> DateValues:
+    """
+    Calculates duration for start date and end date in days, and returns updated values.
+
+    If we calculate including weekends, then we take the number of days (+1 day to
+    include start day).
+
+    Date calculation when weekends should be excluded, is more complicated. We
+    need to count just regular workdays, so we may not add start/end date day.
+    """
+
+    # no valid start/end dates
+    if not (
+        isinstance(in_data.start_date, date)
+        and isinstance(in_data.end_date, date)
+        # start == end will work in some cases, so we can't exclude it yet
+        and in_data.start_date <= in_data.end_date
+    ):
+        return in_data
+
+    start_date, end_date = in_data.start_date, in_data.end_date
+
+    result = DateValues(
+        in_data.dependency,
+        end_date=end_date,
+        start_date=start_date,
+        duration=None,
+    )
+
+    if in_data.dependency.include_weekends:
+        result.duration = in_data.end_date - in_data.start_date + timedelta(days=1)
+        return result
+
+    start_weekday, end_weekday = start_date.weekday(), end_date.weekday()
+    start_weekday_is_weekend = start_weekday > 4
+    end_weekday_is_weekend = end_weekday > 4
+
+    # this is a special case
+    if start_weekday_is_weekend and start_date == end_date:
+        result.duration = timedelta(days=0)
+        return result
+
+    if start_weekday_is_weekend:
+        # move to the nearest Monday
+        start_date = start_date + timedelta(days=7 - start_weekday)
+        if start_date.weekday() != 0:
+            raise ValueError(f"Unexpected dow for start date: {start_date.weekday()}")
+
+    if end_weekday_is_weekend:
+        # move to the nearest Friday
+        end_date = end_date - timedelta(days=end_weekday - 4)
+        if end_date.weekday() != 4:
+            raise ValueError(f"Unexpected dow for end date: {end_date.weekday()}")
+
+    total_duration = end_date - start_date
+    total_weeks = total_duration.days // 7
+    remaining_days = total_duration.days % 7
+
+    if total_weeks == 0 and remaining_days > 0:
+        if end_weekday < start_weekday:
+            # over weekend
+            remaining_days = remaining_days - 2
+
+    # cut Saturdays off
+    if remaining_days > 5:
+        remaining_days = 5
+
+    result.duration = timedelta(days=((total_weeks * 5) + 1 + remaining_days))
+    return result
