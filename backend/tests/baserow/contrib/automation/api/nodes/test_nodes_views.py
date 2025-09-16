@@ -942,13 +942,15 @@ def test_simulate_dispatch_trigger_node(api_client, data_fixture):
     trigger_node.refresh_from_db()
     assert trigger_node.workflow.simulate_until_node is None
     # Having dispatched the trigger, the sample_data should be populated
-    assert trigger_node.service.sample_data == [
-        {
-            f"field_{fields[0].id}": "Blueberry Muffin",
-            "id": row.id,
-            "order": str(row.order),
-        }
-    ]
+    assert trigger_node.service.sample_data == {
+        "data": [
+            {
+                f"field_{fields[0].id}": "Blueberry Muffin",
+                "id": row.id,
+                "order": str(row.order),
+            }
+        ]
+    }
 
 
 @pytest.mark.django_db
