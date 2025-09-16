@@ -23,7 +23,7 @@
       <div class="simulate-dispatch-node__sample-data-label">
         {{ $t('simulateDispatch.sampleDataLabel') }}:
       </div>
-      <pre><code class="simulate-dispatch-node__sample-data-code">{{ node.service.sample_data }}</code></pre>
+      <pre><code class="simulate-dispatch-node__sample-data-code">{{ sampleData }}</code></pre>
     </div>
   </div>
 </template>
@@ -98,6 +98,14 @@ const buttonLabel = computed(() => {
   return hasSampleData.value
     ? app.i18n.t('simulateDispatch.buttonLabelTestAgain')
     : app.i18n.t('simulateDispatch.buttonLabelTest')
+})
+
+const sampleData = computed(() => {
+  if (props.node.service.sample_data?.data?.body) {
+    return props.node.service.sample_data.data.body
+  }
+
+  return props.node.service.sample_data
 })
 
 const simulateDispatchNode = async () => {
