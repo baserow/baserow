@@ -19,7 +19,6 @@ class AutomationDispatchContext(DispatchContext):
         workflow: AutomationWorkflow,
         event_payload: Optional[Union[Dict, List[Dict]]] = None,
         simulate_until_node: Optional[AutomationActionNode] = None,
-        force_outputs: Dict[int, str] = None,
     ):
         """
         The `DispatchContext` implementation for automations. This context is provided
@@ -30,7 +29,8 @@ class AutomationDispatchContext(DispatchContext):
         :param event_payload: The event data from the trigger node, if any was
             provided, as this is optional.
         :param simulate_until_node: The last node to simulate the dispatch of.
-        :param force_outputs: Whether the simulation should be forced for specific services.
+        :param force_outputs: Whether the simulation should be forced for
+            specific services.
         """
 
         self.workflow = workflow
@@ -44,6 +44,12 @@ class AutomationDispatchContext(DispatchContext):
             if self.simulate_until_node
             else None
         )
+        force_outputs = (
+            simulate_until_node.get_previous_service_outputs()
+            if simulate_until_node
+            else None
+        )
+
         super().__init__(
             update_sample_data_for=services,
             use_sample_data=bool(self.simulate_until_node),

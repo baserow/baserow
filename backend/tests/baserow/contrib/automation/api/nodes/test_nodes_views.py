@@ -1006,6 +1006,7 @@ def test_simulate_dispatch_action_node(api_client, data_fixture):
     assert response.json()["id"] == action_node.id
     assert response.json()["workflow"] == workflow.id
     field_id = action_service.field_mappings.all()[0].field.id
+
     assert response.json()["service"]["sample_data"] == {
         "data": {
             f"field_{field_id}": "A new row",
