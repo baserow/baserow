@@ -502,19 +502,19 @@ class AutomationNodeHandler:
 
         return node_instance
 
-    def simulate_dispatch_node(self, node: AutomationNode) -> None:
+    def simulate_dispatch_node(self, node: AutomationNode) -> AutomationNode:
         """
         Simulates a dispatch of the provided node. This will cause the node's
         `service.sample_data` to be populated.
 
         :param node: The node to simulate the dispatch for.
-        :return: None.
+        :return: The updated node.
         """
 
         if node.get_type().is_workflow_trigger:
             node.workflow.simulate_until_node = node
             node.workflow.save()
-            return
+            return node
 
         dispatch_context = AutomationDispatchContext(
             node.workflow,
@@ -529,3 +529,7 @@ class AutomationNodeHandler:
             UnexpectedDispatchException,
         ) as e:
             raise AutomationNodeSimulateDispatchError(str(e))
+
+        node.refresh_from_db()
+
+        return node

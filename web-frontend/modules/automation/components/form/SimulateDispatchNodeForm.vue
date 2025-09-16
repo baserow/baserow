@@ -117,6 +117,7 @@ const simulateDispatchNode = async () => {
 
   try {
     await store.dispatch('automationWorkflowNode/simulateDispatch', {
+      workflow: workflow.value,
       nodeId: props.node.id,
       updateSampleData: true,
     })

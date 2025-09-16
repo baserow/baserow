@@ -338,11 +338,23 @@ const actions = {
       { root: true }
     )
   },
-  async simulateDispatch({ dispatch }, { nodeId, updateSampleData }) {
-    await AutomationWorkflowNodeService(this.$client).simulateDispatch(
-      nodeId,
-      updateSampleData
-    )
+  async simulateDispatch(
+    { commit, dispatch },
+    { workflow, nodeId, updateSampleData }
+  ) {
+    const result = await AutomationWorkflowNodeService(
+      this.$client
+    ).simulateDispatch(nodeId, updateSampleData)
+    const updatedNode = result.data
+
+    commit('UPDATE_ITEM', {
+      workflow,
+      node: updatedNode,
+      values: {
+        simulate_until_node: updatedNode.simulate_until_node,
+        service: updatedNode.service,
+      },
+    })
   },
 }
 

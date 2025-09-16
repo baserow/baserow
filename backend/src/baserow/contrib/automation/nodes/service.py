@@ -348,13 +348,15 @@ class AutomationNodeService:
             original_node_type=node_type.type,
         )
 
-    def simulate_dispatch_node(self, user: AbstractUser, node_id: int) -> None:
+    def simulate_dispatch_node(
+        self, user: AbstractUser, node_id: int
+    ) -> AutomationNode:
         """
         Simulates the dispatch of an automation node.
 
         :param user: The user trying to simulate the node dispatch.
         :param node_id: The ID of the node to dispatch.
-        :return: None.
+        :return: The updated node.
         """
 
         node = self.get_node(user, node_id)
@@ -366,4 +368,4 @@ class AutomationNodeService:
             context=node,
         )
 
-        self.handler.simulate_dispatch_node(node)
+        return self.handler.simulate_dispatch_node(node)

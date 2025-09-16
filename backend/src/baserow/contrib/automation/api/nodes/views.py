@@ -415,7 +415,9 @@ class SimulateDispatchAutomationNodeView(APIView):
         operation_id="simulate_dispatch_automation_node",
         description="Simulate a dispatch for a node.",
         responses={
-            204: None,
+            200: DiscriminatorCustomFieldsMappingSerializer(
+                automation_node_type_registry, AutomationNodeSerializer
+            ),
             400: get_error_schema(["ERROR_AUTOMATION_NODE_SIMULATE_DISPATCH"]),
             404: get_error_schema(["ERROR_AUTOMATION_NODE_DOES_NOT_EXIST"]),
         },
@@ -428,6 +430,12 @@ class SimulateDispatchAutomationNodeView(APIView):
         }
     )
     def post(self, request, node_id: int):
-        AutomationNodeService().simulate_dispatch_node(request.user, node_id)
+        updated_node = AutomationNodeService().simulate_dispatch_node(
+            request.user, node_id
+        )
 
-        return Response(status=204)
+        serializer = automation_node_type_registry.get_serializer(
+            updated_node, AutomationNodeSerializer
+        )
+
+        return Response(serializer.data)

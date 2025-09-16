@@ -909,7 +909,13 @@ def test_simulate_dispatch_trigger_node(api_client, data_fixture):
     url = reverse(API_URL_SIMULATE_DISPATCH, kwargs={"node_id": trigger_node.id})
     response = api_client.post(url, **api_kwargs)
 
-    assert response.status_code == HTTP_204_NO_CONTENT
+    assert response.status_code == HTTP_200_OK
+    # Simulating a trigger is async. Until the trigger is actually executed,
+    # this should remain True.
+    assert response.json()["simulate_until_node"] is True
+    assert response.json()["id"] == trigger_node.id
+    assert response.json()["workflow"] == workflow.id
+    assert response.json()["service"]["sample_data"] is None
 
     workflow.refresh_from_db()
     assert workflow.simulate_until_node.id == trigger_node.id
@@ -994,7 +1000,21 @@ def test_simulate_dispatch_action_node(api_client, data_fixture):
     url = reverse(API_URL_SIMULATE_DISPATCH, kwargs={"node_id": action_node.id})
     response = api_client.post(url, **api_kwargs)
 
-    assert response.status_code == HTTP_204_NO_CONTENT
+    assert response.status_code == HTTP_200_OK
+    # Since the node has already been simulated, this should be False
+    assert response.json()["simulate_until_node"] is False
+    assert response.json()["id"] == action_node.id
+    assert response.json()["workflow"] == workflow.id
+    field_id = action_service.field_mappings.all()[0].field.id
+    assert response.json()["service"]["sample_data"] == {
+        "data": {
+            f"field_{field_id}": "A new row",
+            "id": AnyInt(),
+            "order": AnyStr(),
+        },
+        "output_uid": "",
+        "status": 200,
+    }
 
     action_node.refresh_from_db()
     row = table_2.get_model().objects.first()
