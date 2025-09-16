@@ -228,7 +228,7 @@ class AutomationNodeTriggerType(AutomationNodeType):
             if sample_data := node.service.get_type().get_sample_data(
                 node.service.specific
             ):
-                return DispatchResult(data=sample_data)
+                return DispatchResult(**sample_data)
 
         return DispatchResult(data=dispatch_context.event_payload)
 
