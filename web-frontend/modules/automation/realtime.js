@@ -79,7 +79,6 @@ export const registerRealtimeEvents = (realtime) => {
     }
   )
   realtime.registerEvent('automation_node_created', ({ store }, data) => {
-    console.log('data', data)
     const workflow = store.getters['automationWorkflow/getSelected']
     if (workflow && workflow.id === data.node.workflow) {
       store.dispatch('automationWorkflowNode/forceCreate', {
