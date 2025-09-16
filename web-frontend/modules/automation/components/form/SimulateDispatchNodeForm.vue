@@ -101,8 +101,13 @@ const buttonLabel = computed(() => {
 })
 
 const sampleData = computed(() => {
-  if (props.node.service.sample_data?.data?.body) {
-    return props.node.service.sample_data.data.body
+  const data = props.node.service.sample_data?.data
+  if (data) {
+    if (data?.body) {
+      return props.node.service.sample_data.data.body
+    } else {
+      return props.node.service.sample_data.data
+    }
   }
 
   return props.node.service.sample_data

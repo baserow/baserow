@@ -296,7 +296,7 @@ class AutomationNodeTriggerType(AutomationNodeType):
                 save_sample_data = True
 
             if save_sample_data:
-                trigger.service.sample_data = event_payload
+                trigger.service.sample_data = {"data": event_payload}
                 trigger.service.save()
 
     def after_register(self):
