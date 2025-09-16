@@ -990,7 +990,7 @@ class CoreRouterServiceType(ServiceType):
             FormulaToResolve(
                 f"edge_{edge.uid}",
                 edge.condition,
-                ensure_boolean,
+                lambda x: ensure_boolean(x, True),
                 f'edge "{edge.label}" condition',
             )
             for edge in service.edges.all()
@@ -1095,7 +1095,10 @@ class CoreRouterServiceType(ServiceType):
         :return: A dictionary containing the data of the first matching edge.
         """
 
-        if dispatch_context.force_outputs is not None:
+        if (
+            dispatch_context.force_outputs is not None
+            and service.id in dispatch_context.force_outputs
+        ):
             if dispatch_context.force_outputs[service.id]:
                 edge = service.edges.get(uid=dispatch_context.force_outputs[service.id])
                 return {
