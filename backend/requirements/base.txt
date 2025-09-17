@@ -276,8 +276,6 @@ jmespath==1.0.1
     #   botocore
 jsonpatch==1.33
     # via langchain-core
-jsonpath-ng==1.7.0
-    # via redisvl
 jsonpath-python==1.0.6
     # via mistralai
 jsonpointer==3.0.0
@@ -329,8 +327,6 @@ mdurl==0.1.2
     # via markdown-it-py
 mistralai==1.1.0
     # via -r base.in
-ml-dtypes==0.5.3
-    # via redisvl
 monotonic==1.6
     # via posthog
 msgpack==1.1.0
@@ -342,9 +338,7 @@ ndg-httpsclient==0.5.1
 netifaces==0.11.0
     # via advocate
 numpy==2.3.3
-    # via
-    #   ml-dtypes
-    #   redisvl
+    # via pgvector
 oauthlib==3.2.2
     # via requests-oauthlib
 ollama==0.1.9
@@ -476,10 +470,10 @@ packaging==23.2
     #   langchain-core
     #   langsmith
     #   opentelemetry-instrumentation
+pgvector==0.4.1
+    # via -r base.in
 pillow==10.3.0
     # via -r base.in
-ply==3.11
-    # via jsonpath-ng
 posthog==3.5.0
     # via -r base.in
 prometheus-client==0.21.1
@@ -528,7 +522,6 @@ pydantic==2.9.2
     #   mistralai
     #   openai
     #   pydantic-settings
-    #   redisvl
 pydantic-core==2.23.4
     # via pydantic
 pydantic-settings==2.8.1
@@ -577,7 +570,6 @@ pyyaml==6.0.2
     #   huggingface-hub
     #   langchain
     #   langchain-core
-    #   redisvl
     #   uvicorn
 redis==5.2.1
     # via
@@ -587,9 +579,6 @@ redis==5.2.1
     #   channels-redis
     #   django-redis
     #   kombu
-    #   redisvl
-redisvl==0.8.2
-    # via -r base.in
 referencing==0.36.2
     # via
     #   jsonschema
@@ -660,7 +649,6 @@ tenacity==8.5.0
     # via
     #   celery-redbeat
     #   langchain-core
-    #   redisvl
 tiktoken==0.9.0
     # via langchain-openai
 tokenizers==0.21.0

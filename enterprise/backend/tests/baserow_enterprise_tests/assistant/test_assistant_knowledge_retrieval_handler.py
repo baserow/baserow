@@ -1,15 +1,15 @@
-import io
-import json
+from io import BytesIO
 from unittest.mock import patch
+
+from django.db.models import Q
 
 import numpy as np
 import pytest
 
-from baserow_enterprise.assistant.capabilities.knowledge_retrieval.constants import (
-    EMBEDDING_DIMENSIONS,
-)
+from baserow.core.pgvector import EMBEDDING_DIMENSIONS
 from baserow_enterprise.assistant.capabilities.knowledge_retrieval.handler import (
     KnowledgeBaseHandler,
+    VectorHandler,
 )
 from baserow_enterprise.assistant.models import (
     KnowledgeBaseCategory,
@@ -17,17 +17,50 @@ from baserow_enterprise.assistant.models import (
     KnowledgeBaseDocument,
 )
 
-from .utils import TestVectorStore
+
+class MockEmbeddings:
+    """Mock vectorizer for testing that returns deterministic embeddings"""
+
+    def __init__(self):
+        # Map query strings to mock embeddings
+        self.query_embeddings = {
+            "database fundamentals": [1.0] + [0.0] * 1535,
+            "database query": [0.8] + [0.0] * 1535,
+            "database": [0.9] + [0.0] * 1535,
+            "application": [0.0, 1.0] + [0.0] * 1534,
+        }
+
+    def embed_documents(self, texts):
+        """Mock embedding for documents"""
+
+        embeddings = []
+        for text in texts:
+            # Create deterministic embeddings based on text content
+            if "database" in text.lower():
+                embeddings.append([1.0] + [0.0] * 1535)
+            elif "application" in text.lower():
+                embeddings.append([0.0, 1.0] + [0.0] * 1534)
+            else:
+                embeddings.append([0.0] * 1536)
+        return embeddings
+
+    def embed_query(self, text):
+        """Mock embedding for a single query"""
+
+        return self.query_embeddings.get(text.lower(), [0.0] * 1536)
 
 
 @pytest.mark.django_db
 class TestKnowledgeHandler:
+    @pytest.fixture(autouse=True)
+    def init_vector_field(self):
+        KnowledgeBaseChunk.try_init_vector_field()
+
     @pytest.fixture
     def knowledge_handler(self):
         """Create handler with test vector store"""
 
-        test_vector_store = TestVectorStore()
-        return KnowledgeBaseHandler(vector_store=test_vector_store)
+        return KnowledgeBaseHandler(vector_handler=VectorHandler(MockEmbeddings()))
 
     @pytest.fixture
     def sample_categories(self):
@@ -87,7 +120,7 @@ class TestKnowledgeHandler:
     def test_retrieve_knowledge_chunks_empty_store(self, knowledge_handler):
         """Test knowledge retrieval when vector store is empty"""
 
-        results = knowledge_handler.retrieve_knowledge_chunks("database query")
+        results = knowledge_handler.search("database query")
         assert results == []
 
     def test_retrieve_knowledge_chunks_with_data(
@@ -97,13 +130,10 @@ class TestKnowledgeHandler:
 
         documents, chunks = sample_documents_with_chunks
 
-        # Sync the chunks to the vector store
-        knowledge_handler.vector_store.sync_vectors(chunks)
+        # The chunks are already in the database and available for search
 
         # Query for database-related content
-        results = knowledge_handler.retrieve_knowledge_chunks(
-            "database fundamentals", num_results=5
-        )
+        results = knowledge_handler.search("database fundamentals", num_results=5)
 
         assert len(results) > 0
         assert any(
@@ -130,11 +160,124 @@ class TestKnowledgeHandler:
             chunk.save()
             chunks.append(chunk)
 
-        knowledge_handler.vector_store.sync_vectors(chunks)
+        # The chunks are already in the database and available for search
 
-        results = knowledge_handler.retrieve_knowledge_chunks("database", num_results=3)
+        results = knowledge_handler.search("database", num_results=3)
 
         assert len(results) <= 3
+
+    def test_search_orders_by_l2_distance(self, knowledge_handler):
+        """Test that search results are ordered by L2 distance (closest first)"""
+
+        # Create a category for our test documents
+        category = KnowledgeBaseCategory.objects.create(
+            name="Distance Test Category",
+            description="For testing L2 distance ordering",
+        )
+
+        # Create a document
+        doc = KnowledgeBaseDocument.objects.create(
+            title="Distance Test Document",
+            slug="distance-test-doc",
+            raw_content="Test document for distance ordering",
+            content="Test document for distance ordering",
+            category=category,
+            status=KnowledgeBaseDocument.Status.READY,
+        )
+
+        # Create chunks with specific embeddings to control distances
+        # Query embedding will be [1.0, 0.0, 0.0, ...]
+        # These embeddings will have known L2 distances from the query
+
+        # Closest match: embedding [1.0, 0.0, 0.0, ...] -> distance = 0
+        closest_chunk = KnowledgeBaseChunk.objects.create(
+            source_document=doc,
+            content="Closest content to query",
+            embedding=[1.0] + [0.0] * (EMBEDDING_DIMENSIONS - 1),
+            index=0,
+            metadata={"distance_test": "closest"},
+        )
+
+        # Medium match: embedding [0.5, 0.0, 0.0, ...] -> distance = 0.5
+        medium_chunk = KnowledgeBaseChunk.objects.create(
+            source_document=doc,
+            content="Medium distance content",
+            embedding=[0.5] + [0.0] * (EMBEDDING_DIMENSIONS - 1),
+            index=1,
+            metadata={"distance_test": "medium"},
+        )
+
+        # Farthest match: embedding [0.0, 0.0, 0.0, ...] -> distance = 1.0
+        farthest_chunk = KnowledgeBaseChunk.objects.create(
+            source_document=doc,
+            content="Farthest content from query",
+            embedding=[0.0] * EMBEDDING_DIMENSIONS,
+            index=2,
+            metadata={"distance_test": "farthest"},
+        )
+
+        # Search with a query that will be embedded as [1.0, 0.0, 0.0, ...]
+        # (our MockEmbeddings returns this for "database" queries)
+        results = knowledge_handler.search("database", num_results=3)
+
+        # Results should be ordered by distance (closest first)
+        assert len(results) == 3
+        assert "Closest content to query" == results[0]
+        assert "Medium distance content" == results[1]
+        assert "Farthest content from query" == results[2]
+
+    def test_search_l2_distance_with_different_vectors(self, knowledge_handler):
+        """Test L2 distance ordering with more complex vectors"""
+
+        # Create a category and document
+        category = KnowledgeBaseCategory.objects.create(
+            name="Vector Test Category",
+            description="For testing vector distance calculations",
+        )
+
+        doc = KnowledgeBaseDocument.objects.create(
+            title="Vector Test Document",
+            slug="vector-test-doc",
+            raw_content="Test document for vector distances",
+            content="Test document for vector distances",
+            category=category,
+            status=KnowledgeBaseDocument.Status.READY,
+        )
+
+        # Query will be embedded as [1.0, 0.0, 0.0, 0.0, ...] for "database"
+        # Create chunks with known L2 distances:
+
+        # Distance = sqrt((1-1)² + (0-0)² + (0-0)² + ...) = 0
+        chunk_distance_0 = KnowledgeBaseChunk.objects.create(
+            source_document=doc,
+            content="Perfect match",
+            embedding=[1.0, 0.0, 0.0] + [0.0] * (EMBEDDING_DIMENSIONS - 3),
+            index=0,
+        )
+
+        # Distance = sqrt((1-0)² + (0-1)² + (0-0)² + ...) = sqrt(2) ≈ 1.414
+        chunk_distance_sqrt2 = KnowledgeBaseChunk.objects.create(
+            source_document=doc,
+            content="Distance sqrt(2)",
+            embedding=[0.0, 1.0, 0.0] + [0.0] * (EMBEDDING_DIMENSIONS - 3),
+            index=1,
+        )
+
+        # Distance = sqrt((1-0.5)² + (0-0.5)² + (0-0)² + ...) = sqrt(0.5) ≈ 0.707
+        chunk_distance_sqrt05 = KnowledgeBaseChunk.objects.create(
+            source_document=doc,
+            content="Distance sqrt(0.5)",
+            embedding=[0.5, 0.5, 0.0] + [0.0] * (EMBEDDING_DIMENSIONS - 3),
+            index=2,
+        )
+
+        results = knowledge_handler.search("database", num_results=3)
+
+        # Should be ordered: distance 0, sqrt(0.5), sqrt(2)
+        assert len(results) == 3
+        assert "Perfect match" == results[0]  # distance 0
+        assert "Distance sqrt(0.5)" == results[1]  # distance ~0.707
+        assert "Distance sqrt(2)" == results[2]  # distance ~1.414
 
     def test_load_categories_creates_hierarchy(self, knowledge_handler):
         """Test category loading with parent-child relationships"""
@@ -210,52 +353,48 @@ class TestKnowledgeHandler:
         assert child_cat.parent is None  # Parent wasn't found
         assert valid_cat.parent is None
 
-    def test_dump_knowledge_base_json_format(
+    def test_dump_knowledge_base_to_buffer(
         self, knowledge_handler, sample_documents_with_chunks
     ):
-        """Test dumping knowledge base to JSON format"""
+        """Test dumping knowledge base to a buffer"""
 
         documents, chunks = sample_documents_with_chunks
 
-        result = knowledge_handler.dump_knowledge_base(
-            documents=documents, format="json"
-        )
+        buffer = BytesIO()
 
-        assert result is not None
+        # Dump to buffer - should return document count
+        doc_count = knowledge_handler.dump_knowledge_base(buffer)
 
-        # Parse JSON to verify structure
-        data = json.loads(result)
-        assert isinstance(data, list)
-        assert len(data) > 0
+        assert doc_count == 2  # We have 2 documents
+        assert buffer.tell() > 0  # Buffer should have data
 
-        # Should contain categories, documents, and chunks
-        model_types = {item["model"] for item in data}
-        expected_models = {
-            "baserow_enterprise.knowledgebasecategory",
-            "baserow_enterprise.knowledgebasedocument",
-            "baserow_enterprise.knowledgebasechunk",
-        }
-        assert expected_models.issubset(model_types)
-
-    def test_dump_knowledge_base_to_stream(
+    def test_dump_knowledge_base_to_file(
         self, knowledge_handler, sample_documents_with_chunks
     ):
-        """Test dumping knowledge base to a stream"""
+        """Test dumping knowledge base to a file"""
 
         documents, chunks = sample_documents_with_chunks
-        stream = io.StringIO()
 
-        result = knowledge_handler.dump_knowledge_base(
-            documents=documents, format="json", stream=stream
-        )
+        import tempfile
 
-        # Stream should contain the serialized data
-        stream_content = stream.getvalue()
-        assert len(stream_content) > 0
+        with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as f:
+            temp_file = f.name
 
-        # Should be valid JSON
-        data = json.loads(stream_content)
-        assert isinstance(data, list)
+        try:
+            # Dump to file - should return document count
+            doc_count = knowledge_handler.dump_knowledge_base(temp_file)
+            assert doc_count == 2
+
+            # File should exist and have content
+            import os
+
+            assert os.path.exists(temp_file)
+            assert os.path.getsize(temp_file) > 0
+        finally:
+            import os
+
+            if os.path.exists(temp_file):
+                os.unlink(temp_file)
 
     def test_dump_knowledge_base_all_documents(
         self, knowledge_handler, sample_documents_with_chunks
@@ -264,59 +403,52 @@ class TestKnowledgeHandler:
 
         documents, chunks = sample_documents_with_chunks
 
-        result = knowledge_handler.dump_knowledge_base(format="json")
+        buffer = BytesIO()
 
-        assert result is not None
-        data = json.loads(result)
+        # Dump all documents (no filter)
+        doc_count = knowledge_handler.dump_knowledge_base(buffer)
 
         # Should include all documents in the database
-        document_items = [
-            item
-            for item in data
-            if item["model"] == "baserow_enterprise.knowledgebasedocument"
-        ]
-        assert len(document_items) >= len(documents)
+        assert doc_count >= len(documents)
 
-    def test_dump_knowledge_base_different_formats(
+    def test_dump_knowledge_base_with_filters(
         self, knowledge_handler, sample_documents_with_chunks
     ):
-        """Test dumping in different serialization formats"""
+        """Test dumping with document filters"""
 
         documents, chunks = sample_documents_with_chunks
 
-        # Test XML format
-        xml_result = knowledge_handler.dump_knowledge_base(
-            documents=documents, format="xml"
-        )
-        assert xml_result is not None
-        assert xml_result.startswith("<?xml")
+        buffer = BytesIO()
 
-        # Test YAML format (if supported)
-        yaml_result = knowledge_handler.dump_knowledge_base(
-            documents=documents, format="yaml"
+        # Filter to only include documents with "Database" in title
+        doc_filter = Q(title__icontains="Database")
+        doc_count = knowledge_handler.dump_knowledge_base(
+            buffer, document_filters=doc_filter
         )
-        assert yaml_result is not None
 
-    def test_load_knowledge_base_from_string(
+        # Should only include 1 document ("Database Guide")
+        assert doc_count == 1
+
+    def test_dump_and_load_knowledge_base(
         self, knowledge_handler, sample_documents_with_chunks
     ):
-        """Test loading knowledge base from serialized string"""
+        """Test dumping and then loading knowledge base"""
 
         documents, chunks = sample_documents_with_chunks
+
+        buffer = BytesIO()
 
         # First dump the knowledge base
-        serialized_data = knowledge_handler.dump_knowledge_base(
-            documents=documents, format="json"
-        )
+        doc_count = knowledge_handler.dump_knowledge_base(buffer)
+        assert doc_count == 2
+        buffer.seek(0)
 
         # Clear existing data
         KnowledgeBaseDocument.objects.all().delete()
         KnowledgeBaseCategory.objects.all().delete()
 
         # Load it back
-        loaded_docs = knowledge_handler.load_knowledge_base(
-            serialized_data, format="json"
-        )
+        loaded_docs = knowledge_handler.load_knowledge_base(buffer)
 
         assert len(loaded_docs) == 2
         assert KnowledgeBaseDocument.objects.count() == 2
@@ -327,174 +459,17 @@ class TestKnowledgeHandler:
         expected_titles = {doc.title for doc in documents}
         assert doc_titles == expected_titles
 
-    def test_load_knowledge_base_from_stream(
-        self, knowledge_handler, sample_documents_with_chunks
-    ):
-        """Test loading knowledge base from stream"""
-
-        documents, chunks = sample_documents_with_chunks
-
-        # Create serialized data in stream
-        stream = io.StringIO()
-        knowledge_handler.dump_knowledge_base(
-            documents=documents, format="json", stream=stream
-        )
-
-        # Reset stream position for reading
-        stream.seek(0)
-
-        # Clear existing data
-        KnowledgeBaseDocument.objects.all().delete()
-        KnowledgeBaseCategory.objects.all().delete()
-
-        # Load from stream
-        loaded_docs = knowledge_handler.load_knowledge_base(stream, format="json")
-
-        assert len(loaded_docs) == 2
-        assert KnowledgeBaseDocument.objects.count() == 2
-
-    def test_load_knowledge_base_replaces_existing_documents(self, knowledge_handler):
-        """Test that loading replaces existing documents with same slug"""
-
-        # Create existing document
-        category = KnowledgeBaseCategory.objects.create(
-            name="Test Category", description="Test category description"
-        )
-        existing_doc = KnowledgeBaseDocument.objects.create(
-            title="Original Title",
-            slug="test-document",
-            raw_content="Original content",
-            content="Original content",
-            category=category,
-        )
-
-        # Create chunk for existing document
-        KnowledgeBaseChunk.objects.create(
-            source_document=existing_doc,
-            content="Original chunk content",
-            index=0,
-            metadata={},
-        )
-
-        assert KnowledgeBaseDocument.objects.count() == 1
-        assert KnowledgeBaseChunk.objects.count() == 1
-
-        serialized_data = json.dumps(
-            [
-                {
-                    "model": "baserow_enterprise.knowledgebasedocument",
-                    "fields": {
-                        "title": "Updated Title",
-                        "slug": "test-document",  # Same slug as existing
-                        "raw_content": "Updated content",
-                        "content": "Updated content",
-                        "category": ["Test Category"],
-                        "status": KnowledgeBaseDocument.Status.READY,
-                    },
-                },
-                {
-                    "model": "baserow_enterprise.knowledgebasechunk",
-                    "fields": {
-                        "source_document": ["test-document"],
-                        "content": "Updated chunk content",
-                        "embedding": [0, 1],
-                        "index": 0,
-                        "metadata": {},
-                    },
-                },
-            ]
-        )
-
-        # Load it
-        loaded_docs = knowledge_handler.load_knowledge_base(
-            serialized_data, format="json"
-        )
-
-        # Should have replaced the existing document (still only 1)
-        assert KnowledgeBaseDocument.objects.count() == 1
-        assert KnowledgeBaseChunk.objects.count() == 1
-
-        updated_doc = KnowledgeBaseDocument.objects.get(slug="test-document")
-        assert updated_doc.title == "Updated Title"
-        assert updated_doc.content == "Updated content"
-
-        # Chunk should also be replaced
-        updated_chunk = KnowledgeBaseChunk.objects.get(source_document=updated_doc)
-        assert updated_chunk.content == "Updated chunk content"
-
-    def test_load_knowledge_base_syncs_vector_store(
-        self, knowledge_handler, sample_documents_with_chunks
-    ):
-        """Test that loading knowledge base syncs the vector store"""
-
-        documents, chunks = sample_documents_with_chunks
-
-        # Serialize the data
-        serialized_data = knowledge_handler.dump_knowledge_base(
-            documents=documents, format="json"
-        )
-
-        # Clear the vector store
-        knowledge_handler.vector_store.vectors.clear()
-        knowledge_handler.vector_store.embeddings.clear()
-        knowledge_handler.vector_store.index_created = False
-
-        # Load the knowledge base
-        knowledge_handler.load_knowledge_base(serialized_data, format="json")
-
-        # Vector store should have been synced
-        assert knowledge_handler.vector_store.index_created is True
-
-    def test_load_knowledge_base_handles_empty_data(self, knowledge_handler):
-        """Test loading empty knowledge base data"""
-
-        empty_data = "[]"
-
-        loaded_docs = knowledge_handler.load_knowledge_base(empty_data, format="json")
-
-        assert loaded_docs == []
-        assert KnowledgeBaseDocument.objects.count() == 0
-
-    def test_load_knowledge_base_different_formats(
-        self, knowledge_handler, sample_documents_with_chunks
-    ):
-        """Test loading knowledge base from different formats"""
-
-        documents, chunks = sample_documents_with_chunks
-
-        # Test with XML format
-        xml_data = knowledge_handler.dump_knowledge_base(
-            documents=documents, format="xml"
-        )
-
-        # Clear data
-        KnowledgeBaseDocument.objects.all().delete()
-        KnowledgeBaseCategory.objects.all().delete()
-
-        loaded_docs = knowledge_handler.load_knowledge_base(xml_data, format="xml")
-
-        assert len(loaded_docs) == 2
-        assert KnowledgeBaseDocument.objects.count() == 2
-
     def test_handler_with_default_vector_store(self):
         """Test handler creation with default vector store"""
 
         with patch(
-            "baserow_enterprise.assistant.capabilities.knowledge_retrieval.handler.VectorStore"
-        ) as mock_vector_store:
+            "baserow_enterprise.assistant.capabilities.knowledge_retrieval.handler.VectorHandler"
+        ) as mock_vector_handler:
             handler = KnowledgeBaseHandler()
 
-            # Should have created a VectorStore instance
-            mock_vector_store.assert_called_once()
-            assert handler.vector_store is not None
-
-    def test_handler_with_custom_vector_store(self):
-        """Test handler creation with custom vector store"""
-
-        custom_store = TestVectorStore()
-        handler = KnowledgeBaseHandler(vector_store=custom_store)
-
-        assert handler.vector_store is custom_store
+            # Should have created a VectorHandler instance
+            mock_vector_handler.assert_called_once()
+            assert handler.vector_handler is not None
 
     def test_complex_category_hierarchy_load(self, knowledge_handler):
         """Test loading a complex category hierarchy with multiple levels"""

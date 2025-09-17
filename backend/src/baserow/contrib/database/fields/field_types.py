@@ -5258,21 +5258,16 @@ class MultipleSelectFieldType(
     def get_formula_reference_to_model_field(
         self, model_field, db_column, already_in_subquery
     ):
+        agg_expr = JSONBAgg(
+            get_select_option_extractor(db_column, model_field),
+            filter=Q(**{f"{db_column}__isnull": False}),
+            ordering=(f"{db_column}__order", f"{db_column}__id"),
+        )
         if already_in_subquery:
-            return Coalesce(
-                JSONBAgg(
-                    get_select_option_extractor(db_column, model_field),
-                    filter=Q(**{f"{db_column}__isnull": False}),
-                ),
-                Value([], output_field=JSONField()),
-            )
+            return Coalesce(agg_expr, Value([], output_field=JSONField()))
         else:
             return Coalesce(
-                wrap_in_subquery(
-                    JSONBAgg(get_select_option_extractor(db_column, model_field)),
-                    db_column,
-                    model_field.model,
-                ),
+                wrap_in_subquery(agg_expr, db_column, model_field.model),
                 Value([], output_field=JSONField()),
             )
 
