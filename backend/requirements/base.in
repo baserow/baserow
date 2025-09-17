@@ -36,7 +36,7 @@ django-health-check==3.18.2
 psutil==5.9.8
 dj-database-url==2.1.0
 redis==5.2.1
-redisvl==0.8.2
+pgvector==0.4.1
 pysaml2==7.5.0
 validators==0.28.1
 requests-oauthlib==2.0.0

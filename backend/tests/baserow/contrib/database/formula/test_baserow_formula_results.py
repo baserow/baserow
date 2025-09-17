@@ -748,7 +748,7 @@ def test_can_use_has_option_on_multiple_select_fields(data_fixture):
         ),
         (
             'totext(field("%s"))',
-            ["b", "", "", "a", "a, b", "b, a"],
+            ["b", "", "", "a", "a, b", "a, b"],
         ),
     ],
 )

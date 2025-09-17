@@ -3,15 +3,13 @@ from typing import Iterable, NamedTuple
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.contrib.postgres.fields import ArrayField
 from django.db import models
-from django.db.models.signals import post_migrate, pre_delete
+from django.db.models.signals import post_migrate
 from django.dispatch import receiver
-
-from loguru import logger
 
 from baserow.core.mixins import BigAutoFieldMixin, CreatedAndUpdatedOnMixin
 from baserow.core.models import Workspace
+from baserow.core.pgvector import EmbeddingMixin
 
 User = get_user_model()
 
@@ -254,26 +252,17 @@ class KnowledgeBaseDocument(CreatedAndUpdatedOnMixin, models.Model):
         return (self.slug,)
 
 
-class KnowledgeBaseChunk(CreatedAndUpdatedOnMixin, models.Model):
+class KnowledgeBaseChunkManager(models.Manager):
+    def get_by_natural_key(self, document_slug, index):
+        return self.get(source_document__slug=document_slug, index=index)
+
+
+class KnowledgeBaseChunk(CreatedAndUpdatedOnMixin, EmbeddingMixin):
     source_document = models.ForeignKey(
         KnowledgeBaseDocument,
-        null=True,  # Needed for serializers.deserialize
         on_delete=models.CASCADE,
         related_name="chunks",
         help_text="The document this chunk belongs to.",
-    )
-    vector_id = models.CharField(
-        null=True,
-        max_length=255,
-        help_text="The vector ID used in the vector store of the chunk.",
-    )
-    embedding = ArrayField(
-        models.FloatField(),
-        help_text=(
-            "The embedding vector for the chunk. This won't be used to retrieve the chunk. "
-            "It's only a backup copy of the one used in the vector store, in case redis is cleared."
-        ),
-        default=list,
     )
     index = models.PositiveIntegerField(
         help_text="The chunk index within the document."
@@ -282,46 +271,20 @@ class KnowledgeBaseChunk(CreatedAndUpdatedOnMixin, models.Model):
     metadata = models.JSONField(
         help_text="Additional metadata about the chunk.", default=dict
     )
+    # The embedding VectorField will be dynamically added if pgvector is available.
+
+    objects = KnowledgeBaseChunkManager()
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(
-                fields=["vector_id"],
-                condition=(models.Q(vector_id__isnull=False)),
-                name="unique_vector_id_constraint",
-            ),
             models.UniqueConstraint(
                 fields=["source_document", "index"],
                 name="unique_document_index_constraint",
             ),
         ]
 
-
-@receiver(pre_delete, sender=KnowledgeBaseDocument)
-def cleanup_document_vector_chunks(sender, instance: "KnowledgeBaseDocument", **kwargs):
-    """
-    Before deleting a KnowledgeBaseDocument, clean up all related vector chunks
-    from the RedisVectorStore to prevent orphaned vectors.
-    """
-
-    from baserow_enterprise.assistant.capabilities.knowledge_retrieval.handler import (
-        VectorStore,
-    )
-
-    try:
-        chunks_with_vectors = instance.chunks.filter(vector_id__isnull=False)
-        vector_ids = [
-            chunk.vector_id for chunk in chunks_with_vectors if chunk.vector_id
-        ]
-
-        if vector_ids:
-            VectorStore().delete_many(vector_ids)
-
-    except Exception as e:
-        logger.error(
-            f"Failed to cleanup vector chunks for document {instance.id}: {e}",
-            exc_info=True,
-        )
+    def natural_key(self):
+        return (self.source_document.slug, self.index)
 
 
 @receiver(post_migrate)

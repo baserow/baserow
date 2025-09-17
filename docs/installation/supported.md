@@ -8,7 +8,7 @@ Software versions are divided into the following groups:
   before the release.
 * `Recommended`: Recommended software for the best experience.  
 
-## Baserow 1.24
+## Baserow 1.35.1
 
 
 | Dependency     | Supported versions | Tested versions | Recommended versions | 
@@ -20,6 +20,6 @@ Software versions are divided into the following groups:
 | Node.js        | >= 24.0.0          | 24.0.0          | >= 24.0.0            |
 | Docker         | >= 19.03           | Latest          | Latest               |
 | docker-compose | >= 1.19.0          | Latest          | Latest               |
-| PostgreSQL     | >= 12              | 12.18           | 15+                  |
+| PostgreSQL     | >= 15              | 15.0            | 15+                  |
+| pgvector       | >= 0.8.1           | 0.8.1           | Latest               |
 | Redis          | >= 6.2.7           | 6.2.7           | Latest               |
-

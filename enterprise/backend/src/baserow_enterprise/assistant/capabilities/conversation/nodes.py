@@ -27,7 +27,8 @@ from baserow_enterprise.assistant.utils.helpers import get_message_buffer
 from .prompts import ROOT_SYSTEM_PROMPT
 
 
-async def get_root_tools(config: RunnableConfig) -> list[AssistantBaseTool]:
+@sync_to_async
+def get_root_tools(config: RunnableConfig) -> list[AssistantBaseTool]:
     """
     Get the root tools available for the assistant.
 
@@ -37,12 +38,7 @@ async def get_root_tools(config: RunnableConfig) -> list[AssistantBaseTool]:
     """
 
     tools = [RetrieveKnowledgeTool()]
-
-    @sync_to_async
-    def _filter_tools():
-        return [tool for tool in tools if tool.can_be_used(config)]
-
-    return await _filter_tools()
+    return [tool for tool in tools if tool.can_be_used(config)]
 
 
 def root_tools_condition(
@@ -141,7 +137,7 @@ class RootNode(AssistantNode):
     def _model(self):
         return init_chat_model(
             model="openai:gpt-4.1-mini",
-            temperature=0.2,
+            temperature=0.3,
             streaming=True,
         )
 
