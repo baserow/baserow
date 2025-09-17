@@ -60,7 +60,7 @@ const nodeIsInError = computed(() => {
   }
 
   let currentNode = workflow.value.orderedNodes.find(
-    (node) => node.id === props.node.previous_node
+    (node) => node.id === props.node.previous_node_id
   )
 
   while (currentNode) {
@@ -75,7 +75,7 @@ const nodeIsInError = computed(() => {
     }
 
     currentNode = workflow.value.orderedNodes.find(
-      (node) => node.id === currentNode.previous_node
+      (node) => node.id === currentNode.previous_node_id
     )
   }
 
