@@ -10,7 +10,7 @@
     :node-drag-threshold="2000"
     :zoom-on-double-click="zoomOnDoubleClick"
     fit-view-on-init
-    :max-zoom="1.5"
+    :max-zoom="1"
     :min-zoom="0.5"
   >
     <Controls :show-interactive="false" />
@@ -78,7 +78,6 @@ const vueFlowNodes = computed(() => {
       id: '1',
       type: 'workflow-node',
       selectable: false,
-      draggable: false,
       position: { x: 0, y: 0 },
     },
   ]

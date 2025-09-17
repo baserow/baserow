@@ -19,7 +19,7 @@
       <div
         v-for="edge in nodeEdges"
         :ref="`edge-${edge.uid}`"
-        :key="edge.id"
+        :key="edge.uid"
         class="workflow-node__edge"
       >
         <WorkflowEdge

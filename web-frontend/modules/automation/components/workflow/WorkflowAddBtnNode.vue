@@ -7,6 +7,7 @@
       :disabled="props.disabled"
       :title="$t('workflowAddNode.displayTitle')"
       @click="toggleCreateContext"
+      @mousedown.stop
     />
     <WorkflowNodeContext ref="context" @change="emit('add-node', $event)" />
   </div>

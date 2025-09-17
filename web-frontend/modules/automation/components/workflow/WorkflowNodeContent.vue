@@ -1,9 +1,6 @@
 <template>
   <div
     class="workflow-node-content__wrapper"
-    :class="{
-      'workflow-node-content__wrapper--container': nodeType.isContainer,
-    }"
     :title="displayLabel"
     :data-before-label="getDataBeforeLabel"
     @click="emit('select-node', node)"
