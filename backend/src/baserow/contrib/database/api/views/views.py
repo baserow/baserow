@@ -1043,16 +1043,16 @@ class ViewFilterGroupView(APIView):
     @extend_schema(
         parameters=[
             OpenApiParameter(
-                name="view_filter_group_id",
+                name="filter_group_id",
                 location=OpenApiParameter.PATH,
                 type=OpenApiTypes.INT,
-                description="Teh ID of the view filter group to return.",
+                description="The ID of the view filter group to return.",
             )
         ],
         tags=["Database table view filters"],
         operation_id="get_database_table_view_filter_group",
         description=(
-            "Returns the existing view filter group with the given `view_filter_group_id`."
+            "Returns the existing view filter group with the given `filter_group_id`."
         ),
         responses={
             200: ViewFilterGroupSerializer(),
@@ -1076,7 +1076,7 @@ class ViewFilterGroupView(APIView):
     @extend_schema(
         parameters=[
             OpenApiParameter(
-                name="view_filter_group_id",
+                name="filter_group_id",
                 location=OpenApiParameter.PATH,
                 type=OpenApiTypes.INT,
                 description="The ID of the view filter group to update.",
@@ -1087,7 +1087,7 @@ class ViewFilterGroupView(APIView):
         tags=["Database table view filters"],
         operation_id="update_database_table_view_filter_group",
         description=(
-            "Updates the existing filter group with the given `view_filter_group_id`."
+            "Updates the existing filter group with the given `filter_group_id`."
         ),
         request=UpdateViewFilterGroupSerializer(),
         responses={
@@ -1126,7 +1126,7 @@ class ViewFilterGroupView(APIView):
     @extend_schema(
         parameters=[
             OpenApiParameter(
-                name="view_filter_group_id",
+                name="filter_group_id",
                 location=OpenApiParameter.PATH,
                 type=OpenApiTypes.INT,
                 description="The ID of the view filter group to delete.",
@@ -1137,7 +1137,7 @@ class ViewFilterGroupView(APIView):
         tags=["Database table view filters"],
         operation_id="delete_database_table_view_filter_group",
         description=(
-            "Deletes the existing filter group with the given `view_filter_group_id`."
+            "Deletes the existing filter group with the given `filter_group_id`."
         ),
         responses={
             204: None,
