@@ -1,7 +1,7 @@
 <template>
   <div class="simulate-dispatch-node">
     <Button
-      :loading="isSimulatingDispatch"
+      :loading="isSimulatingDispatch || isAwaitingTriggerEvent"
       :disabled="isDisabled"
       class="simulate-dispatch-node__button"
       type="secondary"
