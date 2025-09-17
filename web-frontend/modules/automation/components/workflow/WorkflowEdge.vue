@@ -1,5 +1,5 @@
 <template>
-  <div class="workflow-edge" w>
+  <div class="workflow-edge">
     <div v-if="hasSiblings" class="workflow-edge__label">{{ edge.label }}</div>
     <WorkflowAddBtnNode
       class="workflow-edge__add-button"

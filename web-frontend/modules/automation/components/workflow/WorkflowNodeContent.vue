@@ -1,8 +1,6 @@
 <template>
   <div
     class="workflow-node-content__wrapper"
-    :title="displayLabel"
-    :data-before-label="getDataBeforeLabel"
     @click="emit('select-node', node)"
   >
     <div
@@ -10,6 +8,8 @@
       :class="{
         'workflow-node-content--selected': selected,
       }"
+      :title="displayLabel"
+      :data-before-label="getDataBeforeLabel"
     >
       <div class="workflow-node-content__icon">
         <i
@@ -40,7 +40,7 @@
           ref="editNodeContextToggle"
           role="button"
           :title="$t('workflowNode.nodeOptions')"
-          class="workflow-node-content-more-icon"
+          class="workflow-node-content__more-icon"
           @click="openEditContext()"
         >
           <i class="baserow-icon-more-vertical"></i>
@@ -250,11 +250,12 @@ const getDataBeforeLabel = computed(() => {
     workflow.value,
     props.node
   )
+  // TODO use a generic way to handle that not specific to router node
   const previousNodeIsRouter =
     previousNode?.type === CoreRouterNodeType.getType()
   const isOutputNode = props.node.previous_node_output.length > 0
   switch (true) {
-    case nodeType.isTrigger:
+    case nodeType.value.isTrigger:
       return app.i18n.t('workflowNode.beforeLabelTrigger')
     case isOutputNode:
       return app.i18n.t('workflowNode.beforeLabelCondition')
