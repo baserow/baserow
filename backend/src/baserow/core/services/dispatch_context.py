@@ -29,6 +29,18 @@ class DispatchContext(RuntimeFormulaContext, ABC):
         use_sample_data: bool = False,
         force_outputs: Dict[int, str] = None,
     ):
+        """
+        This abstract base class provides context needed by specific
+        services when they are dispatched during service execution.
+
+        :param only_record_id: Filters a queryset by a specific ID.
+        :param update_sample_data_for: Updates the sample_data for only the
+            provided services. Used in conjunction with use_sample_data.
+        :param use_sample_data: Whether to use or update the sample_data.
+        :param force_outputs: Mapping of service IDs and previous service
+            outputs. Can be used to force a specific service to be dispatched.
+        """
+
         self.cache = {}  # can be used by data providers to save queries
         self.only_record_id = only_record_id
         self.update_sample_data_for = update_sample_data_for

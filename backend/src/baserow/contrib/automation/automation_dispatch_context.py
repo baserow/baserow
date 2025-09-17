@@ -28,9 +28,8 @@ class AutomationDispatchContext(DispatchContext):
         :param workflow: The workflow that this dispatch context is associated with.
         :param event_payload: The event data from the trigger node, if any was
             provided, as this is optional.
-        :param simulate_until_node: The last node to simulate the dispatch of.
-        :param force_outputs: Whether the simulation should be forced for
-            specific services.
+        :param simulate_until_node: Stop simulating the dispatch once this node
+            is reached.
         """
 
         self.workflow = workflow
