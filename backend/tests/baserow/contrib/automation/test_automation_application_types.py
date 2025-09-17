@@ -127,6 +127,7 @@ def test_automation_export_serialized(data_fixture):
                             "integration_id": trigger.service.specific.integration_id,
                             "type": "local_baserow_rows_created",
                             "table_id": trigger.service.specific.table_id,
+                            "sample_data": None,
                         },
                     },
                     {
@@ -145,6 +146,7 @@ def test_automation_export_serialized(data_fixture):
                             "table_id": first_action.service.specific.table_id,
                             "row_id": "",
                             "field_mappings": [],
+                            "sample_data": None,
                         },
                     },
                 ],

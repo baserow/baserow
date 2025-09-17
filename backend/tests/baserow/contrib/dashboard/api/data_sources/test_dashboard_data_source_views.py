@@ -54,6 +54,7 @@ def test_get_dashboard_data_sources(api_client, data_fixture):
         "table_id": None,
         "type": "local_baserow_aggregate_rows",
         "view_id": None,
+        "sample_data": None,
     }
     assert response_json[1] == {
         "context_data": None,
@@ -72,6 +73,7 @@ def test_get_dashboard_data_sources(api_client, data_fixture):
         "table_id": None,
         "type": "local_baserow_list_rows",
         "view_id": None,
+        "sample_data": None,
     }
 
 

@@ -64,6 +64,7 @@ class AutomationWorkflowHandler:
         self,
         workflow: AutomationWorkflow,
         event_payload: Optional[List[Dict]] = None,
+        simulate_until_node_id: Optional[int] = None,
     ) -> None:
         """
         Runs the provided workflow.
@@ -72,7 +73,12 @@ class AutomationWorkflowHandler:
         :param event_payload: The payload from the action.
         """
 
-        run_workflow.delay(workflow.id, self.is_test_run(workflow), event_payload)
+        run_workflow.delay(
+            workflow.id,
+            self.is_test_run(workflow),
+            event_payload,
+            simulate_until_node_id,
+        )
 
     def get_workflow(
         self,
@@ -613,7 +619,9 @@ class AutomationWorkflowHandler:
     def clean_up_previously_published_automations(
         self, workflow: AutomationWorkflow
     ) -> None:
-        published_automations = list(Automation.objects.filter(published_from=workflow))
+        published_automations = list(
+            Automation.objects.filter(published_from=workflow).order_by("id")
+        )
         if not published_automations:
             return
 
@@ -808,23 +816,38 @@ class AutomationWorkflowHandler:
         workflow_id: int,
         is_test_run: bool,
         event_payload: Optional[Union[Dict, List[Dict]]],
+        simulate_until_node_id: Optional[int] = None,
     ) -> None:
         """Start the workflow run."""
 
+        from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
+
         workflow = self.get_workflow(workflow_id)
-        original_workflow = self.get_original_workflow(
-            workflow, is_test_run=is_test_run
+        original_workflow = (
+            self.get_original_workflow(workflow, is_test_run=is_test_run) or workflow
+        )
+        simulate_until_node = (
+            AutomationNodeHandler().get_node(simulate_until_node_id)
+            if simulate_until_node_id
+            else None
         )
 
-        dispatch_context = AutomationDispatchContext(workflow, event_payload)
+        dispatch_context = AutomationDispatchContext(
+            workflow,
+            event_payload,
+            simulate_until_node=simulate_until_node,
+        )
 
         start_time = timezone.now()
 
-        history = AutomationHistoryHandler().create_workflow_history(
-            workflow if is_test_run else original_workflow,
-            started_on=start_time,
-            is_test_run=is_test_run,
-        )
+        history_handler = AutomationHistoryHandler()
+
+        if not simulate_until_node:
+            history = history_handler.create_workflow_history(
+                workflow if is_test_run else original_workflow,
+                started_on=start_time,
+                is_test_run=is_test_run,
+            )
 
         try:
             self.before_run(original_workflow)
@@ -847,9 +870,10 @@ class AutomationWorkflowHandler:
             history_message = ""
             history_status = HistoryStatusChoices.SUCCESS
         finally:
-            history.completed_on = timezone.now()
-            history.message = history_message
-            history.status = history_status
-            history.save()
+            if not simulate_until_node:
+                history.completed_on = timezone.now()
+                history.message = history_message
+                history.status = history_status
+                history.save()
 
         self.after_run(original_workflow)

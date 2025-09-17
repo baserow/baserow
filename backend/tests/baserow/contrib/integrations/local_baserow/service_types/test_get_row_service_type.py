@@ -101,6 +101,7 @@ def test_export_import_local_baserow_get_row_service(data_fixture):
         "integration_id": service.integration_id,
         "search_query": service.search_query,
         "filter_type": "Or",
+        "sample_data": None,
         "filters": [
             {
                 "field_id": service_filter.field_id,

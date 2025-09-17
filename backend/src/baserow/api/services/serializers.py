@@ -48,6 +48,7 @@ class ServiceSerializer(serializers.ModelSerializer):
             "schema",
             "context_data",
             "context_data_schema",
+            "sample_data",
         )
         extra_kwargs = {
             "id": {"read_only": True},
@@ -56,6 +57,7 @@ class ServiceSerializer(serializers.ModelSerializer):
             "schema": {"read_only": True},
             "context_data": {"read_only": True},
             "context_data_schema": {"read_only": True},
+            "sample_data": {"read_only": True},
         }
 
 

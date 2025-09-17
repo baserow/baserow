@@ -4,10 +4,15 @@ from typing import Any, Dict, Iterable, List, Optional, Union
 from django.core.files.storage import Storage
 from django.db.models import QuerySet
 
+from baserow.contrib.automation.automation_dispatch_context import (
+    AutomationDispatchContext,
+)
 from baserow.contrib.automation.models import AutomationWorkflow
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeDoesNotExist,
+    AutomationNodeError,
     AutomationNodeNotInWorkflow,
+    AutomationNodeSimulateDispatchError,
 )
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.node_types import AutomationNodeType
@@ -18,9 +23,11 @@ from baserow.contrib.automation.nodes.types import (
     NextAutomationNodeValues,
     UpdatedAutomationNode,
 )
+from baserow.contrib.automation.workflows.runner import AutomationWorkflowRunner
 from baserow.core.cache import local_cache
 from baserow.core.db import specific_iterator
 from baserow.core.exceptions import IdDoesNotExist
+from baserow.core.services.exceptions import UnexpectedDispatchException
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
 from baserow.core.storage import ExportZipFile
@@ -494,3 +501,34 @@ class AutomationNodeHandler:
         )
 
         return node_instance
+
+    def simulate_dispatch_node(self, node: AutomationNode) -> AutomationNode:
+        """
+        Simulates a dispatch of the provided node. This will cause the node's
+        `service.sample_data` to be populated.
+
+        :param node: The node to simulate the dispatch for.
+        :return: The updated node.
+        """
+
+        if node.get_type().is_workflow_trigger:
+            node.workflow.simulate_until_node = node
+            node.workflow.save()
+            return node
+
+        dispatch_context = AutomationDispatchContext(
+            node.workflow,
+            simulate_until_node=node.specific,
+        )
+
+        try:
+            AutomationWorkflowRunner().run(node.workflow, dispatch_context)
+        except (
+            AutomationNodeError,
+            UnexpectedDispatchException,
+        ) as e:
+            raise AutomationNodeSimulateDispatchError(str(e))
+
+        node.refresh_from_db()
+
+        return node

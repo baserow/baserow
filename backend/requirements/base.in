@@ -88,3 +88,4 @@ django-cte==1.3.3
 tornado==6.5.0 # Pinned to address vulnerability.
 certifi==2025.4.26 # Pinned to address vulnerability.
 httpcore==1.0.9 # Pinned to address vulnerability.
+genson==1.3.0

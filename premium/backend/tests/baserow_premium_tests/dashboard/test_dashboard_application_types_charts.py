@@ -97,6 +97,7 @@ def test_dashboard_export_serialized_with_chart_widget(premium_data_fixture):
                     "filter_type": "AND",
                     "filters": [],
                     "id": service.id,
+                    "sample_data": None,
                     "integration_id": service.integration.id,
                     "service_aggregation_group_bys": [
                         {"field_id": None},
@@ -346,6 +347,7 @@ def test_dashboard_export_serialized_with_chart_widget_config(premium_data_fixtu
                     "filter_type": "AND",
                     "filters": [],
                     "id": service.id,
+                    "sample_data": None,
                     "integration_id": service.integration.id,
                     "service_aggregation_group_bys": [],
                     "service_aggregation_sorts": [],
@@ -577,6 +579,7 @@ def test_dashboard_export_serialized_with_default_chart_type(premium_data_fixtur
                     "filter_type": "AND",
                     "filters": [],
                     "id": service.id,
+                    "sample_data": None,
                     "integration_id": service.integration.id,
                     "service_aggregation_group_bys": [],
                     "service_aggregation_series": [],

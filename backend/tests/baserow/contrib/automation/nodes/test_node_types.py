@@ -12,6 +12,7 @@ from baserow.contrib.automation.nodes.node_types import AutomationNodeTriggerTyp
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.core.exceptions import InstanceTypeDoesNotExist
+from baserow.core.services.types import DispatchResult
 from baserow.core.utils import MirrorDict
 
 
@@ -348,3 +349,43 @@ def test_duplicating_router_node(data_fixture):
     fallback_output_node.refresh_from_db()
     assert fallback_output_node not in source_router_outputs
     assert fallback_output_node.previous_node_id == duplicated_router.id
+
+
+@pytest.mark.django_db
+def test_trigger_node_dispatch_returns_event_payload_if_not_simulated(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    service = data_fixture.create_local_baserow_rows_created_service(
+        table=table,
+    )
+    workflow = data_fixture.create_automation_workflow(state=WorkflowState.LIVE)
+    node = data_fixture.create_local_baserow_rows_created_trigger_node(
+        workflow=workflow, service=service
+    )
+    dispatch_context = AutomationDispatchContext(workflow)
+    dispatch_context.event_payload = "foo"
+
+    result = node.get_type().dispatch(node, dispatch_context)
+
+    assert result == DispatchResult(data="foo", status=200, output_uid="")
+
+
+@pytest.mark.django_db
+def test_trigger_node_dispatch_returns_sample_data_if_simulated(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    service = data_fixture.create_local_baserow_rows_created_service(
+        table=table,
+    )
+    service.sample_data = {"data": {"foo": "bar"}}
+    service.save()
+    workflow = data_fixture.create_automation_workflow(state=WorkflowState.LIVE)
+    node = data_fixture.create_local_baserow_rows_created_trigger_node(
+        workflow=workflow, service=service
+    )
+
+    dispatch_context = AutomationDispatchContext(workflow, simulate_until_node=node)
+
+    result = node.get_type().dispatch(node, dispatch_context)
+
+    assert result == DispatchResult(data={"foo": "bar"}, status=200, output_uid="")

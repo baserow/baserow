@@ -14,11 +14,12 @@ from baserow.contrib.database.fields.constants import (
 from baserow.core.datetime import FormattedDate, FormattedDateTime
 
 
-def ensure_boolean(value: Any) -> bool:
+def ensure_boolean(value: Any, strict=True) -> bool:
     """
     Ensures that the value is a boolean or converts it.
 
     :param value: The value to ensure as a boolean.
+    :param strict: If not strict, an attempt is made to cast the value to a bool.
     :return: The value as a boolean.
     :raises ValidationError: if the value is not a valid boolean or convertible to a
         boolean.
@@ -28,6 +29,9 @@ def ensure_boolean(value: Any) -> bool:
         return True
     elif value in BASEROW_BOOLEAN_FIELD_FALSE_VALUES:
         return False
+
+    if not strict:
+        return bool(value)
 
     raise ValidationError("Value is not a valid boolean or convertible to a boolean.")
 

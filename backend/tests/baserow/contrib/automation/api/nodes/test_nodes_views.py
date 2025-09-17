@@ -1,4 +1,7 @@
+from datetime import timedelta
+
 from django.urls import reverse
+from django.utils import timezone
 
 import pytest
 from rest_framework.status import (
@@ -10,6 +13,7 @@ from rest_framework.status import (
 
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
+from baserow.contrib.database.rows.signals import rows_created
 from baserow.test_utils.helpers import AnyDict, AnyInt, AnyStr
 from tests.baserow.contrib.automation.api.utils import get_api_kwargs
 
@@ -19,6 +23,7 @@ API_URL_ITEM = f"{API_URL_BASE}:item"
 API_URL_ORDER = f"{API_URL_BASE}:order"
 API_URL_DUPLICATE = f"{API_URL_BASE}:duplicate"
 API_URL_REPLACE = f"{API_URL_BASE}:replace"
+API_URL_SIMULATE_DISPATCH = f"{API_URL_BASE}:simulate_dispatch"
 API_URL_UNDO = "api:user:undo"
 API_URL_REDO = "api:user:redo"
 
@@ -44,6 +49,7 @@ def test_create_node(api_client, data_fixture):
         "service": AnyDict(),
         "type": "create_row",
         "workflow": AnyInt(),
+        "simulate_until_node": False,
     }
 
 
@@ -73,6 +79,7 @@ def test_create_node_before(api_client, data_fixture):
         "service": AnyDict(),
         "type": "create_row",
         "workflow": workflow.id,
+        "simulate_until_node": False,
     }
 
     new_node = AutomationNode.objects.get(id=response.json()["id"])
@@ -278,6 +285,10 @@ def test_get_nodes(api_client, data_fixture):
     trigger = workflow.get_trigger(specific=False)
     node = data_fixture.create_automation_node(workflow=workflow)
 
+    # Simulate one node
+    workflow.simulate_until_node = node
+    workflow.save()
+
     url = reverse(API_URL_LIST, kwargs={"workflow_id": node.workflow.id})
     response = api_client.get(url, **get_api_kwargs(token))
 
@@ -292,6 +303,7 @@ def test_get_nodes(api_client, data_fixture):
             "service": AnyDict(),
             "type": "rows_created",
             "workflow": workflow.id,
+            "simulate_until_node": False,
         },
         {
             "id": node.id,
@@ -301,7 +313,8 @@ def test_get_nodes(api_client, data_fixture):
             "previous_node_output": "",
             "service": AnyDict(),
             "type": "create_row",
-            "workflow": workflow.id,
+            "workflow": node.workflow.id,
+            "simulate_until_node": True,
         },
     ]
 
@@ -537,6 +550,7 @@ def test_update_node(api_client, data_fixture):
         "previous_node_output": "foo",
         "type": "create_row",
         "workflow": workflow.id,
+        "simulate_until_node": False,
     }
 
 
@@ -644,6 +658,7 @@ def test_replace_node_type_with_replaceable_type(
         "order": AnyStr(),
         "service": AnyDict(),
         "previous_node_output": "",
+        "simulate_until_node": False,
     }
 
 
@@ -667,6 +682,7 @@ def test_create_router_node(api_client, data_fixture):
         "previous_node_id": trigger.id,
         "previous_node_output": "",
         "service": {
+            "sample_data": None,
             "context_data": None,
             "context_data_schema": None,
             "default_edge_label": "",
@@ -700,6 +716,7 @@ def test_create_router_node(api_client, data_fixture):
             "type": "router",
         },
         "type": "router",
+        "simulate_until_node": False,
         "workflow": workflow.id,
     }
 
@@ -826,4 +843,192 @@ def test_replacing_router_node_with_output_nodes_disallowed(api_client, data_fix
         "error": "ERROR_AUTOMATION_NODE_NOT_REPLACEABLE",
         "detail": "Router nodes cannot be replaced if they "
         "have one or more output nodes associated with them.",
+    }
+
+
+@pytest.mark.django_db
+def test_simulate_dispatch_invalid_node(api_client, data_fixture):
+    _, token = data_fixture.create_user_and_token()
+
+    api_kwargs = get_api_kwargs(token)
+    url = reverse(API_URL_SIMULATE_DISPATCH, kwargs={"node_id": 100})
+    payload = {"update_sample_data": False}
+    response = api_client.post(url, payload, **api_kwargs)
+
+    assert response.status_code == HTTP_404_NOT_FOUND
+    assert response.json() == {
+        "detail": "The requested node does not exist.",
+        "error": "ERROR_AUTOMATION_NODE_DOES_NOT_EXIST",
+    }
+
+
+@pytest.mark.django_db
+def test_simulate_dispatch_error_service_not_configured(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    _ = data_fixture.create_local_baserow_rows_created_trigger_node(user=user)
+    node = data_fixture.create_local_baserow_create_row_action_node(
+        user=user, workflow=_.workflow
+    )
+
+    api_kwargs = get_api_kwargs(token)
+    url = reverse(API_URL_SIMULATE_DISPATCH, kwargs={"node_id": node.id})
+    response = api_client.post(url, **api_kwargs)
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "detail": f"Failed to simulate dispatch: The node {node.id} has a misconfigured service.",
+        "error": "ERROR_AUTOMATION_NODE_SIMULATE_DISPATCH",
+    }
+
+
+@pytest.mark.django_db(transaction=True)
+def test_simulate_dispatch_trigger_node(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user=user)
+
+    # Create a trigger node with service
+    table, fields, _ = data_fixture.build_table(
+        user=user,
+        columns=[("Name", "text")],
+        rows=[["Blueberry Muffin"]],
+    )
+
+    trigger_service = data_fixture.create_local_baserow_rows_created_service(
+        table=table,
+        integration=data_fixture.create_local_baserow_integration(user=user),
+    )
+    trigger_node = data_fixture.create_automation_node(
+        user=user, workflow=workflow, type="rows_created", service=trigger_service
+    )
+
+    # Initially, the sample_data should be empty
+    assert trigger_node.service.sample_data is None
+    assert trigger_node.workflow.simulate_until_node is None
+
+    api_kwargs = get_api_kwargs(token)
+    url = reverse(API_URL_SIMULATE_DISPATCH, kwargs={"node_id": trigger_node.id})
+    response = api_client.post(url, **api_kwargs)
+
+    assert response.status_code == HTTP_200_OK
+    # Simulating a trigger is async. Until the trigger is actually executed,
+    # this should remain True.
+    assert response.json()["simulate_until_node"] is True
+    assert response.json()["id"] == trigger_node.id
+    assert response.json()["workflow"] == workflow.id
+    assert response.json()["service"]["sample_data"] is None
+
+    workflow.refresh_from_db()
+    assert workflow.simulate_until_node.id == trigger_node.id
+
+    trigger_node.refresh_from_db()
+    # Sample data should still be empty, since the trigger hasn't fired yet.
+    assert trigger_node.service.sample_data is None
+
+    workflow.allow_test_run_until = timezone.now() + timedelta(seconds=10)
+    workflow.save()
+
+    row = table.get_model().objects.first()
+    rows_created.send(
+        None,
+        rows=[row],
+        table=table,
+        model=table.get_model(),
+        before=None,
+        user=None,
+        fields=[],
+        dependant_fields=[],
+    )
+
+    trigger_node.refresh_from_db()
+    assert trigger_node.workflow.simulate_until_node is None
+    # Having dispatched the trigger, the sample_data should be populated
+    assert trigger_node.service.sample_data == {
+        "data": [
+            {
+                f"field_{fields[0].id}": "Blueberry Muffin",
+                "id": row.id,
+                "order": str(row.order),
+            }
+        ]
+    }
+
+
+@pytest.mark.django_db
+def test_simulate_dispatch_action_node(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user=user)
+
+    # Create a trigger node with service
+    table_1, _, _ = data_fixture.build_table(
+        user=user,
+        columns=[("Name", "text")],
+        rows=[["Pumpkin pie"]],
+    )
+
+    trigger_service = data_fixture.create_local_baserow_rows_created_service(
+        table=table_1,
+        integration=data_fixture.create_local_baserow_integration(user=user),
+    )
+    data_fixture.create_automation_node(
+        user=user, workflow=workflow, type="rows_created", service=trigger_service
+    )
+
+    # Create an action node with service
+    table_2, fields_2, _ = data_fixture.build_table(
+        user=user,
+        columns=[("Name", "text")],
+        rows=[],
+    )
+
+    action_service = data_fixture.create_local_baserow_upsert_row_service(
+        table=table_2,
+        integration=data_fixture.create_local_baserow_integration(user=user),
+    )
+    action_service.field_mappings.create(
+        field=fields_2[0],
+        value="'A new row'",
+    )
+    action_node = data_fixture.create_automation_node(
+        user=user,
+        workflow=workflow,
+        type="create_row",
+        service=action_service,
+    )
+
+    # Initially, the sample_data should be empty
+    assert action_node.service.sample_data is None
+
+    api_kwargs = get_api_kwargs(token)
+    url = reverse(API_URL_SIMULATE_DISPATCH, kwargs={"node_id": action_node.id})
+    response = api_client.post(url, **api_kwargs)
+
+    assert response.status_code == HTTP_200_OK
+    # Since the node has already been simulated, this should be False
+    assert response.json()["simulate_until_node"] is False
+    assert response.json()["id"] == action_node.id
+    assert response.json()["workflow"] == workflow.id
+    field_id = action_service.field_mappings.all()[0].field.id
+
+    assert response.json()["service"]["sample_data"] == {
+        "data": {
+            f"field_{field_id}": "A new row",
+            "id": AnyInt(),
+            "order": AnyStr(),
+        },
+        "output_uid": "",
+        "status": 200,
+    }
+
+    action_node.refresh_from_db()
+    row = table_2.get_model().objects.first()
+
+    # Having dispatched the action, the sample_data should be populated
+    assert action_node.service.sample_data == {
+        "data": {
+            f"field_{fields_2[0].id}": "A new row",
+            "id": row.id,
+            "order": AnyStr(),
+        },
+        "output_uid": "",
+        "status": 200,
     }

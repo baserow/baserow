@@ -19,10 +19,20 @@ class AutomationNodeSerializer(serializers.ModelSerializer):
     service = PolymorphicServiceSerializer(
         help_text="The service associated with this automation node."
     )
+    simulate_until_node = serializers.SerializerMethodField(
+        help_text="Whether to simulate the dispatching of the node."
+    )
 
     @extend_schema_field(OpenApiTypes.STR)
     def get_type(self, instance):
         return automation_node_type_registry.get_by_model(instance.specific_class).type
+
+    @extend_schema_field(OpenApiTypes.BOOL)
+    def get_simulate_until_node(self, instance):
+        if not instance.workflow.simulate_until_node:
+            return False
+
+        return instance == instance.workflow.simulate_until_node.specific
 
     class Meta:
         model = AutomationNode
@@ -35,6 +45,7 @@ class AutomationNodeSerializer(serializers.ModelSerializer):
             "type",
             "previous_node_id",
             "previous_node_output",
+            "simulate_until_node",
         )
 
         extra_kwargs = {
@@ -43,6 +54,7 @@ class AutomationNodeSerializer(serializers.ModelSerializer):
             "type": {"read_only": True},
             "previous_node_id": {"read_only": True},
             "order": {"read_only": True, "help_text": "Lowest first."},
+            "simulate_until_node": {"read_only": True},
         }
 
 

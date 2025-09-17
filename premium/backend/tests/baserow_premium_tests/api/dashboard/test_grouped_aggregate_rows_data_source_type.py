@@ -128,6 +128,7 @@ def test_grouped_aggregate_rows_get_dashboard_data_sources(
         "table_id": table.id,
         "type": "local_baserow_grouped_aggregate_rows",
         "view_id": None,
+        "sample_data": None,
     }
     assert response_json[1] == {
         "context_data": None,
@@ -146,6 +147,7 @@ def test_grouped_aggregate_rows_get_dashboard_data_sources(
         "table_id": None,
         "type": "local_baserow_list_rows",
         "view_id": None,
+        "sample_data": None,
     }
 
 

@@ -401,3 +401,80 @@ def test_replace_node_in_last(data_fixture):
         .type
         == "update_row"
     )
+
+
+@pytest.mark.django_db
+def test_simulate_dispatch_node_permission_error(data_fixture):
+    user, _ = data_fixture.create_user_and_token()
+    another_user, _ = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    node = data_fixture.create_automation_node(user=user, workflow=workflow)
+
+    with pytest.raises(UserNotInWorkspace) as e:
+        AutomationNodeService().simulate_dispatch_node(another_user, node.id)
+
+    assert str(e.value) == (
+        f"User {another_user.email} doesn't belong to "
+        f"workspace {workflow.automation.workspace}."
+    )
+
+
+@pytest.mark.django_db
+def test_simulate_dispatch_node_trigger(data_fixture):
+    user, _ = data_fixture.create_user_and_token()
+    trigger_node = data_fixture.create_local_baserow_rows_created_trigger_node(
+        user=user
+    )
+
+    assert trigger_node.service.sample_data is None
+    assert trigger_node.workflow.simulate_until_node is None
+
+    AutomationNodeService().simulate_dispatch_node(user, trigger_node.id)
+
+    trigger_node.refresh_from_db()
+
+    assert trigger_node.service.sample_data is None
+    assert trigger_node.workflow.simulate_until_node.id == trigger_node.id
+
+
+@pytest.mark.django_db
+def test_simulate_dispatch_node_action(data_fixture):
+    user, _ = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user=user)
+
+    table, fields, _ = data_fixture.build_table(
+        user=user,
+        columns=[("Name", "text")],
+        rows=[],
+    )
+    action_service = data_fixture.create_local_baserow_upsert_row_service(
+        table=table,
+        integration=data_fixture.create_local_baserow_integration(user=user),
+    )
+    action_service.field_mappings.create(
+        field=fields[0],
+        value="'A new row'",
+    )
+    action_node = data_fixture.create_automation_node(
+        user=user,
+        workflow=workflow,
+        type="create_row",
+        service=action_service,
+    )
+
+    assert action_node.service.sample_data is None
+
+    AutomationNodeService().simulate_dispatch_node(user, action_node.id)
+
+    action_node.refresh_from_db()
+    row = table.get_model().objects.first()
+
+    assert action_node.service.sample_data == {
+        "data": {
+            f"field_{fields[0].id}": "A new row",
+            "id": row.id,
+            "order": str(row.order),
+        },
+        "output_uid": "",
+        "status": 200,
+    }

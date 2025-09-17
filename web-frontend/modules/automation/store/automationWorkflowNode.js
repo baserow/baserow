@@ -315,9 +315,8 @@ const actions = {
         values: { previous_node_id: newNode.id },
       })
     }
-    setTimeout(() => {
-      dispatch('select', { workflow, node: newNode })
-    })
+
+    dispatch('select', { workflow, node: newNode })
   },
   async order({ commit }, { workflow, order, oldOrder }) {
     commit('ORDER_ITEMS', { workflow, order })
@@ -338,6 +337,24 @@ const actions = {
       node ? NodeEditorSidePanelType.getType() : null,
       { root: true }
     )
+  },
+  async simulateDispatch(
+    { commit, dispatch },
+    { workflow, nodeId, updateSampleData }
+  ) {
+    const result = await AutomationWorkflowNodeService(
+      this.$client
+    ).simulateDispatch(nodeId, updateSampleData)
+    const updatedNode = result.data
+
+    commit('UPDATE_ITEM', {
+      workflow,
+      node: updatedNode,
+      values: {
+        simulate_until_node: updatedNode.simulate_until_node,
+        service: updatedNode.service,
+      },
+    })
   },
 }
 

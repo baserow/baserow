@@ -392,6 +392,7 @@ def test_serialized_export_import(data_fixture):
     expected_serialized = {
         "id": AnyInt(),
         "integration_id": smtp_integration.id,
+        "sample_data": None,
         "type": "smtp_email",
         "from_email": "'sender@example.com'",
         "from_name": "'Test Sender'",

@@ -422,11 +422,17 @@ def test_run_workflow_in_test_mode(api_client, data_fixture):
         columns=[("Name", "text"), ("Color", "text")],
         rows=[["BMW", "Blue"]],
     )
-    workflow = data_fixture.create_automation_workflow(
-        user=user, trigger_service_kwargs={"table": table_1}
-    )
+    workflow = data_fixture.create_automation_workflow(user=user, create_trigger=False)
     workflow.automation.published_from = original_workflow
     workflow.automation.save()
+
+    trigger_service = data_fixture.create_local_baserow_rows_created_service(
+        table=table_1,
+        integration=data_fixture.create_local_baserow_integration(user=user),
+    )
+    trigger_node = data_fixture.create_automation_node(
+        user=user, workflow=workflow, type="rows_created", service=trigger_service
+    )
 
     # Next create an action node
     table_2, fields_2, _ = data_fixture.build_table(
@@ -442,7 +448,7 @@ def test_run_workflow_in_test_mode(api_client, data_fixture):
         field=fields_2[0],
         value="'A new row'",
     )
-    data_fixture.create_automation_node(
+    action_node = data_fixture.create_automation_node(
         user=user,
         workflow=workflow,
         type="create_row",
@@ -458,6 +464,9 @@ def test_run_workflow_in_test_mode(api_client, data_fixture):
     assert workflow.allow_test_run_until is not None
     assert workflow.is_published is False
 
+    assert trigger_node.service.sample_data is None
+    assert action_node.service.sample_data is None
+
     # Insert a row to cause the trigger node to run
     row_handler = RowHandler()
     row_handler.create_row(
@@ -472,8 +481,8 @@ def test_run_workflow_in_test_mode(api_client, data_fixture):
     # Now the 2nd table should have a new row entry
     model = table_2.get_model()
     assert model.objects.count() == 1
-    row = model.objects.order_by("-id").first()
-    assert getattr(row, f"field_{fields_2[0].id}") == "A new row"
+    action_row = model.objects.order_by("-id").first()
+    assert getattr(action_row, f"field_{fields_2[0].id}") == "A new row"
 
 
 @pytest.mark.django_db
