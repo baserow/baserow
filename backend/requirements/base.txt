@@ -498,6 +498,8 @@ pyopenssl==24.3.0
     #   ndg-httpsclient
     #   pysaml2
     #   twisted
+pyotp==2.9.0
+    # via -r base.in
 pyparsing==3.2.1
     # via jira2markdown
 pyrsistent==0.20.0
