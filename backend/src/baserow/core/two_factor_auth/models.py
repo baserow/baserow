@@ -1,0 +1,40 @@
+from django.contrib.contenttypes.models import ContentType
+from django.db import models
+
+from baserow.core.mixins import (
+    CreatedAndUpdatedOnMixin,
+    PolymorphicContentTypeMixin,
+    WithRegistry,
+)
+
+
+class TwoFactorAuthProviderModel(
+    CreatedAndUpdatedOnMixin, PolymorphicContentTypeMixin, WithRegistry, models.Model
+):
+    """
+    Base model for two factor auth.
+    """
+
+    content_type = models.ForeignKey(
+        ContentType,
+        verbose_name="content type",
+        related_name="two_factor_auth_providers",
+        on_delete=models.CASCADE,
+    )
+    user = models.ForeignKey(
+        "auth.User",
+        on_delete=models.CASCADE,
+        related_name="two_factor_auth_providers",
+        help_text="User that setup 2fa with this provider",
+    )
+
+    @staticmethod
+    def get_type_registry():
+        from baserow.core.two_factor_auth.registries import two_factor_auth_type_registry
+
+        return two_factor_auth_type_registry
+
+
+class TOTPAuthProviderModel(TwoFactorAuthProviderModel):
+    ...
+
