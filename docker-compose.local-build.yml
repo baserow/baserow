@@ -314,7 +314,7 @@ services:
       local:
 
   db:
-    image: postgres:15
+    image: pgvector/pgvector:pg15
     restart: unless-stopped
     environment:
       - POSTGRES_USER=${DATABASE_USER:-baserow}
@@ -335,7 +335,7 @@ services:
       - pgdata:/var/lib/postgresql/data
 
   redis:
-    image: redis:8.2.1
+    image: redis:6
     restart: unless-stopped
     command: redis-server --requirepass ${REDIS_PASSWORD:?}
     healthcheck:
