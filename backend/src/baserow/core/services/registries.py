@@ -359,11 +359,7 @@ class ServiceType(
             sample_data = {}
             for field in fields(serialized_data):
                 value = getattr(serialized_data, field.name)
-                # Handle case where serializer.data can be a DRF ReturnDict
-                if hasattr(value, "serializer"):
-                    sample_data[field.name] = dict(value)
-                else:
-                    sample_data[field.name] = value
+                sample_data[field.name] = value
 
             service.sample_data = sample_data
             service.save()

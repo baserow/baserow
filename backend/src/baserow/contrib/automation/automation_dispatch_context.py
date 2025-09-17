@@ -82,7 +82,7 @@ class AutomationDispatchContext(DispatchContext):
         self._register_node_result(node, dispatch_result.data)
 
     def range(self, service: Service):
-        pass
+        return [0, None]
 
     def sortings(self) -> Optional[str]:
         return None
