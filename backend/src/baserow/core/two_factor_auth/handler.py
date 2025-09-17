@@ -53,10 +53,7 @@ class TwoFactorAuthHandler:
 
         return cast(
             TwoFactorProviderForUpdate,
-            self.get_provider(
-                user,
-                base_queryset=queryset,
-            ),
+            provider,
         )
 
     def configure_provider(
