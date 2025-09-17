@@ -14,7 +14,9 @@
       {{ nodeIsInError }}
     </div>
 
-    <div v-if="showTestNodeDescription">{{ $t('simulateDispatch.testNodeDescription') }}</div>
+    <div v-if="showTestNodeDescription">
+      {{ $t('simulateDispatch.testNodeDescription') }}
+    </div>
 
     <div v-if="isAwaitingTriggerEvent">
       {{ $t('simulateDispatch.triggerNodeAwaitingEvent') }}
@@ -124,7 +126,11 @@ const isAwaitingTriggerEvent = computed(() => {
 })
 
 const showTestNodeDescription = computed(() => {
-  if (Boolean(nodeIsInError.value) || isAwaitingTriggerEvent.value || hasSampleData.value) {
+  if (
+    Boolean(nodeIsInError.value) ||
+    isAwaitingTriggerEvent.value ||
+    hasSampleData.value
+  ) {
     return false
   }
 
