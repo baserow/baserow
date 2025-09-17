@@ -14,9 +14,9 @@
       {{ nodeIsInError }}
     </div>
 
-    <div>{{ $t('simulateDispatch.testNodeDescription') }}</div>
+    <div v-if="showTestNodeDescription">{{ $t('simulateDispatch.testNodeDescription') }}</div>
 
-    <div v-if="node.simulate_until_node && isTriggerNode">
+    <div v-if="isAwaitingTriggerEvent">
       {{ $t('simulateDispatch.triggerNodeAwaitingEvent') }}
     </div>
     <div v-else-if="hasSampleData">
@@ -117,6 +117,18 @@ const sampleData = computed(() => {
   }
 
   return props.node.service.sample_data
+})
+
+const isAwaitingTriggerEvent = computed(() => {
+  return props.node.simulate_until_node && isTriggerNode.value
+})
+
+const showTestNodeDescription = computed(() => {
+  if (Boolean(nodeIsInError.value) || isAwaitingTriggerEvent.value || hasSampleData.value) {
+    return false
+  }
+
+  return true
 })
 
 const simulateDispatchNode = async () => {
