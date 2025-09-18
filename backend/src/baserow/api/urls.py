@@ -25,6 +25,7 @@ from .user import urls as user_urls
 from .user_files import urls as user_files_urls
 from .user_sources import urls as user_source_urls
 from .workspaces import urls as workspace_urls
+from .two_factor_auth import urls as two_factor_urls
 
 app_name = "baserow.api"
 
@@ -39,6 +40,7 @@ urlpatterns = (
         ),
         path("settings/", include(settings_urls, namespace="settings")),
         path("auth-provider/", include(auth_provider_urls, namespace="auth_provider")),
+        path("two-factor-auth/", include(two_factor_urls, namespace="two_factor_auth")),
         path("user/", include(user_urls, namespace="user")),
         path("user-files/", include(user_files_urls, namespace="user_files")),
         path("workspaces/", include(workspace_urls, namespace="workspaces")),

@@ -36,5 +36,7 @@ class TwoFactorAuthProviderModel(
 
 
 class TOTPAuthProviderModel(TwoFactorAuthProviderModel):
-    ...
+    enabled = models.BooleanField(default=False)
+    secret = models.CharField(max_length=32, help_text="base32 secret")
+    provisioning_url = models.CharField(max_length=255)
 

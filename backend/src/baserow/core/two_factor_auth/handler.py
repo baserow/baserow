@@ -4,7 +4,7 @@ from django.db.models import QuerySet
 
 from baserow.core.two_factor_auth.registries import TwoFactorAuthProviderType
 from baserow.core.utils import extract_allowed
-
+from .registries import two_factor_auth_type_registry
 from .models import TwoFactorAuthProviderModel
 from .types import TwoFactorProviderForUpdate
 from django.contrib.auth.models import AbstractUser
@@ -58,7 +58,7 @@ class TwoFactorAuthHandler:
 
     def configure_provider(
         self,
-        provider_type: TwoFactorAuthProviderType,
+        provider_type_str: str,
         user: AbstractUser,
         **kwargs,
     ) -> TwoFactorAuthProviderModel:
@@ -71,16 +71,21 @@ class TwoFactorAuthHandler:
         :return: The created two-factor auth provider model.
         """
 
-        # TODO:
-        allowed_values = extract_allowed(kwargs, provider_type.allowed_fields)
-        allowed_values["user"] = user
+        provider_type: TwoFactorAuthProviderType = two_factor_auth_type_registry.get(
+            provider_type_str
+        )
+
+        # allowed_values = {}  # TODO: extract_allowed(kwargs, provider_type.allowed_fields)
+        # allowed_values["user"] = user
 
         # allowed_values = provider_type.prepare_value_for_db(allowed_values)
 
-        model_class = cast(TwoFactorAuthProviderModel, provider_type.model_class)
-        provider = model_class(**allowed_values)
-        provider._ensure_content_type_is_set()
-        provider.full_clean()
+        # model_class = cast(TwoFactorAuthProviderModel, provider_type.model_class)
+        # provider = provider_type.model_class(**allowed_values)
+        # provider._ensure_content_type_is_set()
+        # provider.full_clean()
+
+        provider = provider_type.configure(user)
         provider.save()
 
         return provider
