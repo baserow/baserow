@@ -88,7 +88,7 @@ export default {
       }
 
       try {
-        await this.writeToClipboard(tsvData, htmlData)
+        this.writeToClipboard(tsvData, htmlData)
       } catch (e) {
         if (!document.hasFocus()) {
           window.addEventListener(
@@ -101,7 +101,7 @@ export default {
         }
       }
     },
-    async writeToClipboard(tsvData, htmlData) {
+    writeToClipboard(tsvData, htmlData) {
       if (typeof ClipboardItem !== 'undefined') {
         const clipboardConfig = {
           'text/plain': new Blob([tsvData], { type: 'text/plain' }),
@@ -111,9 +111,9 @@ export default {
             type: 'text/html',
           })
         }
-        await navigator.clipboard.write([new ClipboardItem(clipboardConfig)])
+        navigator.clipboard.write([new ClipboardItem(clipboardConfig)])
       } else if (typeof navigator.clipboard?.writeText !== 'undefined') {
-        await navigator.clipboard.writeText(tsvData)
+        navigator.clipboard.writeText(tsvData)
       } else {
         const richClipboardConfig = { 'text/plain': tsvData }
         if (htmlData) {
