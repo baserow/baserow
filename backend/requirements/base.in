@@ -87,3 +87,4 @@ tornado==6.5.0 # Pinned to address vulnerability.
 certifi==2025.4.26 # Pinned to address vulnerability.
 httpcore==1.0.9 # Pinned to address vulnerability.
 pyotp==2.9.0
+qrcode==8.2

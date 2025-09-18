@@ -535,6 +535,8 @@ pyyaml==6.0.2
     #   langchain
     #   langchain-core
     #   uvicorn
+qrcode==8.2
+    # via -r base.in
 redis==5.0.4
     # via
     #   -r base.in
