@@ -24,7 +24,7 @@ def forwards_fill_state(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("automation", "0017_automationworkflow_simulate_until_node"),
+        ("automation", "0016_corerouteractionnode"),
     ]
 
     operations = [
