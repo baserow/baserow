@@ -1,0 +1,8 @@
+{
+  "type": "bug",
+  "message": "Fix copy/paste on Safari 18.6+",
+  "domain": "database",
+  "issue_number": 3830,
+  "bullet_points": [],
+  "created_at": "2025-09-18"
+}
