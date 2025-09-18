@@ -71,10 +71,11 @@ export default {
 
     const v$ = useVuelidate(rules, { values }, { $lazy: true })
 
-    return { values, v$, loading: false }
+    return { values, v$ }
   },
   data() {
     return {
+      loading: false,
       allowedValues: ['password'],
     }
   },
@@ -89,9 +90,6 @@ export default {
     })
   },
   methods: {
-    clearInput() {
-      this.values.password = ''
-    },
     async authorizeView() {
       this.hideError()
       this.loading = true
