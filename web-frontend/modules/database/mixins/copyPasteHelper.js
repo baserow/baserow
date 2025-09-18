@@ -71,29 +71,45 @@ export default {
         { root: true }
       )
     },
-    async copySelectionToClipboard(selectionPromise, includeHeader = false) {
-      const { textData, jsonData } = await selectionPromise.then(
-        ([fields, rows]) =>
-          this.prepareValuesForCopy(fields, rows, includeHeader)
-      )
-      const tsvData = this.$papa.unparse(textData, PAPA_CONFIG)
-      const htmlData = this.prepareHTMLData(textData, includeHeader)
-      try {
-        localStorage.setItem(
-          LOCAL_STORAGE_CLIPBOARD_KEY,
-          JSON.stringify({ text: tsvData, json: jsonData })
-        )
-      } catch (e) {
-        this.showCopyClipboardError()
+    copySelectionToClipboard(
+      selectionPromise,
+      includeHeader = false,
+      showLoadingState = null
+    ) {
+      if (showLoadingState) {
+        showLoadingState(true)
       }
+      const dataPromise = selectionPromise
+        .then(([fields, rows]) =>
+          this.prepareValuesForCopy(fields, rows, includeHeader)
+        )
+        .then(({ textData, jsonData }) => {
+          const tsvData = this.$papa.unparse(textData, PAPA_CONFIG)
+          const htmlData = this.prepareHTMLData(textData, includeHeader)
+          try {
+            localStorage.setItem(
+              LOCAL_STORAGE_CLIPBOARD_KEY,
+              JSON.stringify({ text: tsvData, json: jsonData })
+            )
+          } catch (e) {
+            this.showCopyClipboardError()
+            throw e
+          } finally {
+            if (showLoadingState) {
+              showLoadingState(false)
+            }
+          }
+          return { tsvData, htmlData }
+        })
+        .catch((e) => {})
 
       try {
-        this.writeToClipboard(tsvData, htmlData)
+        this.writeToClipboard(dataPromise)
       } catch (e) {
         if (!document.hasFocus()) {
           window.addEventListener(
             'focus',
-            () => this.writeToClipboard(tsvData, htmlData),
+            () => this.writeToClipboard(dataPromise),
             { once: true }
           )
         } else {
@@ -101,23 +117,26 @@ export default {
         }
       }
     },
-    writeToClipboard(tsvData, htmlData) {
+    writeToClipboard(dataPromise) {
       if (typeof ClipboardItem !== 'undefined') {
         const clipboardConfig = {
-          'text/plain': new Blob([tsvData], { type: 'text/plain' }),
+          'text/plain': dataPromise.then(({ tsvData }) =>
+            tsvData ? new Blob([tsvData], { type: 'text/plain' }) : null
+          ),
+          'text/html': dataPromise.then(({ htmlData }) =>
+            htmlData ? new Blob([htmlData], { type: 'text/html' }) : null
+          ),
         }
-        if (htmlData) {
-          clipboardConfig['text/html'] = new Blob([htmlData], {
-            type: 'text/html',
-          })
-        }
+
         navigator.clipboard.write([new ClipboardItem(clipboardConfig)])
       } else if (typeof navigator.clipboard?.writeText !== 'undefined') {
-        navigator.clipboard.writeText(tsvData)
+        navigator.clipboard.writeText(
+          dataPromise.then(({ tsvData }) => tsvData)
+        )
       } else {
-        const richClipboardConfig = { 'text/plain': tsvData }
-        if (htmlData) {
-          richClipboardConfig['text/html'] = htmlData
+        const richClipboardConfig = {
+          'text/plain': dataPromise.then(({ tsvData }) => tsvData || null),
+          'text/html': dataPromise.then(({ htmlData }) => htmlData || null),
         }
         setRichClipboard(richClipboardConfig)
       }

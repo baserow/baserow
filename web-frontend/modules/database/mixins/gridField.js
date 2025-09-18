@@ -165,14 +165,16 @@ export default {
         keyDownEventListener
       )
 
-      const copyEventListener = async (event) => {
+      const copyEventListener = (event) => {
         if (!this.canKeyDown(event) || !this.canKeyboardShortcut(event)) return
 
-        await this.copySelectionToClipboard(
-          Promise.resolve([
-            [this.field],
-            [{ [`field_${this.field.id}`]: this.value }],
-          ])
+        this.copySelectionToClipboard(
+          new Promise((resolve) => {
+            resolve([
+              [this.field],
+              [{ [`field_${this.field.id}`]: this.value }],
+            ])
+          })
         )
         // prevent Safari from beeping since the window.getSelection() is empty
         event.preventDefault()

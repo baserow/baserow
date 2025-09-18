@@ -1460,27 +1460,25 @@ export default {
      * Prepare and copy the multi-select cells into the clipboard,
      * formatted as TSV
      */
-    async copySelection(event, includeHeader = false) {
+    copySelection(event, includeHeader = false) {
       const gridStore = this.storePrefix + 'view/grid'
       if (!this.$store.getters[`${gridStore}/isMultiSelectActive`]) {
         return
       }
 
-      try {
-        this.$store.dispatch('toast/setCopying', true)
-        await this.copySelectionToClipboard(
-          this.$store.dispatch(`${gridStore}/getCurrentSelection`, {
-            fields: this.allVisibleFields,
-          }),
-          includeHeader
-        )
-      } catch (error) {
-        notifyIf(error, 'view')
-      } finally {
-        this.$store.dispatch('toast/setCopying', false)
-        // prevent Safari from beeping since window.getSelection() is empty
-        event.preventDefault()
-      }
+      const showLoadingState = (loading) =>
+        this.$store.dispatch('toast/setCopying', loading)
+
+      this.copySelectionToClipboard(
+        this.$store.dispatch(`${gridStore}/getCurrentSelection`, {
+          fields: this.allVisibleFields,
+        }),
+        includeHeader,
+        showLoadingState
+      )
+
+      // prevent Safari from beeping since window.getSelection() is empty
+      event.preventDefault()
     },
     /**
      * Called when the @paste event is triggered from the `GridViewSection` component.
