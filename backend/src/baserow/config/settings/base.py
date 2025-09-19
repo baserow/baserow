@@ -19,13 +19,13 @@ from sentry_sdk.scrubber import DEFAULT_DENYLIST, EventScrubber
 
 from baserow.config.settings.utils import (
     Setting,
+    crontab,
     get_crontab_from_env,
     read_file,
     set_settings_from_env_if_present,
     str_to_bool,
     try_float,
     try_int,
-    crontab,
 )
 from baserow.core.feature_flags import FF_AUTOMATION
 from baserow.core.telemetry.utils import otel_is_enabled
