@@ -1438,6 +1438,22 @@ class CoreHTTPWebhookServiceType(ServiceType, TriggerServiceTypeMixin):
     ) -> Optional[Dict[str, Any]]:
         properties = {}
 
+        if (
+            allowed_fields is None or "query_params" in allowed_fields
+        ) and service.sample_data:
+            schema_builder = SchemaBuilder()
+            schema_builder.add_object(
+                service.sample_data.get("data", {}).get("query_params", {})
+            )
+            schema = schema_builder.to_schema()
+
+            properties |= {
+                "query_params": schema
+                | {
+                    "title": "Query parameters",
+                }
+            }
+
         if (allowed_fields is None or "body" in allowed_fields) and service.sample_data:
             schema_builder = SchemaBuilder()
             schema_builder.add_object(
