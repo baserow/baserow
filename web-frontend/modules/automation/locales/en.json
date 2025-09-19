@@ -85,6 +85,10 @@
     "routerWithOutputNodesReplaceError": "Cannot be replaced until its {outputCount} output nodes are removed.",
     "periodicTriggerLabel": "Periodic trigger"
   },
+  "serviceType": {
+    "coreHTTPWebhook": "HTTP Webhook",
+    "coreHTTPWebhookDescription": "Receive HTTP requests to trigger workflows"
+  },
   "workflowNode": {
     "actionDelete": "Delete",
     "actionReplace": "Replace",

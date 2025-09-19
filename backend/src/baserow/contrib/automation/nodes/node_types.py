@@ -262,6 +262,15 @@ class AutomationNodeTriggerType(AutomationNodeType):
             .select_related("workflow__automation__workspace")
         )
 
+        is_test = (
+            ensure_boolean(
+                event_payload.get("query_params", {}).get("baserow_test"),
+                strict=False,
+            )
+            if isinstance(event_payload, dict)
+            else False
+        )
+
         for trigger in triggers:
             workflow = trigger.workflow
 
@@ -300,7 +309,7 @@ class CorePeriodicTriggerNodeType(
     service_type = CorePeriodicServiceType.type
 
 
-class CoreHTTPTriggerNodeTriggerType(AutomationNodeTriggerType):
-    type = "http_webhook"
+class CoreHTTPTriggerType(AutomationNodeTriggerType):
+    type = "http_trigger"
     model_class = CoreHTTPTriggerNode
     service_type = CoreHTTPWebhookServiceType.type

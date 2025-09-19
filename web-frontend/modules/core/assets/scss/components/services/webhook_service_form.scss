@@ -1,0 +1,19 @@
+.webhook-service-form__copy-url {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-size: 12px;
+}
+
+.webhook-service-form__webhook-url {
+  display: block;
+  width: 100%;
+  padding: 6px;
+  font-size: 12px;
+  background-color: $color-neutral-100;
+  line-height: 140%;
+  white-space: pre-wrap;
+  word-break: break-word;
+
+  @include rounded($rounded);
+}
