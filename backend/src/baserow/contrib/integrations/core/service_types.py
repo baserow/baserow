@@ -31,6 +31,9 @@ from baserow.contrib.integrations.core.constants import (
     PERIODIC_INTERVAL_WEEK,
 )
 from baserow.contrib.integrations.core.integration_types import SMTPIntegrationType
+from baserow.contrib.integrations.core.exceptions import (
+    CoreHTTPWebhookServiceDoesNotExist,
+)
 from baserow.contrib.integrations.core.models import (
     CoreHTTPRequestService,
     CorePeriodicService,
@@ -1418,8 +1421,10 @@ class CoreHTTPWebhookServiceType(ServiceType, TriggerServiceTypeMixin):
         self.on_event = None
 
     def process_webhook_request(self, webhook_uid: uuid.uuid4, request_data: dict):
-        services = self.model_class.objects.filter(uid=webhook_uid)
-        self.on_event(services, request_data)
+        if services := self.model_class.objects.filter(uid=webhook_uid):
+            self.on_event(services, request_data)
+        else:
+            raise CoreHTTPWebhookServiceDoesNotExist(uid=webhook_uid)
 
     def get_sample_data(
         self, service: CoreHTTPWebhookService
