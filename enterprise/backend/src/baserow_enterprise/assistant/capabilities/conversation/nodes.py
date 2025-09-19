@@ -106,7 +106,7 @@ class RootNode(AssistantNode):
         chain = prompt | self._model.bind_tools(tools)
 
         ui_context = self._get_ui_context(state)
-        timezone = ui_context.timezone or "UTC"
+        timezone = ui_context.timezone if ui_context else "UTC"
         tools_usage_instructions = "\n".join(
             [
                 f"<{tool.name}>\n{tool.usage_instructions}\n</{tool.name}>"
@@ -118,10 +118,8 @@ class RootNode(AssistantNode):
         message: LCAIMessage = await chain.ainvoke(
             {
                 "tools_usage_instructions": tools_usage_instructions,
-                "ui_context": ui_context,
-                "user_id": self._user.id,
-                "user_name": self._user.first_name,
-                "user_email": self._user.email,
+                "ui_context": str(ui_context) if ui_context else "",
+                "user": self._user,
                 "current_date": datetime.now(tz=ZoneInfo(timezone)).isoformat(),
                 "timezone": timezone,
             },

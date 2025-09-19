@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from enum import StrEnum
-from typing import Annotated, Any, Literal, Optional, Sequence, TypeVar
+from typing import Annotated, Any, Dict, Literal, Optional, Sequence, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -15,11 +15,81 @@ class WorkspaceUIContext(BaseModel):
     name: str
 
 
+class ApplicationUIContext(BaseModel):
+    id: str
+    name: str
+    type: str
+
+
+class TableUIContext(BaseModel):
+    id: int
+    name: str
+
+
+class ViewUIContext(BaseModel):
+    id: int
+    name: str
+    type: str
+
+
 class UIContext(BaseModel):
     workspace: WorkspaceUIContext
+    application: Optional[ApplicationUIContext] = None
+    table: Optional[TableUIContext] = None
+    view: Optional[ViewUIContext] = None
     timezone: Optional[str] = Field(
         default="UTC", description="The timezone of the user, e.g. 'Europe/Amsterdam'"
     )
+
+    def _format_ui_context(self) -> str:
+        workspace = self.workspace
+
+        parts = [
+            self._format_ui_context_section(
+                "workspace", id=str(workspace.id), name=workspace.name
+            )
+        ]
+        if self.application is not None:
+            parts.append(
+                self._format_ui_context_section(
+                    "application",
+                    id=str(self.application.id),
+                    name=self.application.name,
+                    type=self.application.type,
+                )
+            )
+        if self.table is not None:
+            parts.append(
+                self._format_ui_context_section(
+                    "table",
+                    id=str(self.table.id),
+                    name=self.table.name,
+                )
+            )
+        if self.view is not None:
+            parts.append(
+                self._format_ui_context_section(
+                    "view",
+                    id=str(self.view.id),
+                    name=self.view.name,
+                    type=self.view.type,
+                )
+            )
+
+        return "\n\n".join(parts)
+
+    def _format_ui_context_section(self, title: str, **content: Dict[str, str]) -> str:
+        if not content:
+            return ""
+
+        sections = [f"<{title.lower()}>"]
+        for key, value in content.items():
+            sections.append(f"• {key.capitalize()}: {value}")
+        sections.append(f"</{title.lower()}>")
+        return "\n".join(sections)
+
+    def __str__(self) -> str:
+        return self._format_ui_context()
 
 
 class BaseMessage(BaseModel):

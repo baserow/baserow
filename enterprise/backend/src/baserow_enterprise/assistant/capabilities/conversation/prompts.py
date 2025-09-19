@@ -5,16 +5,16 @@ from baserow_enterprise.assistant.capabilities.prompts import (
 )
 
 ROOT_UI_CONTEXT_PROMPT = """
+{{#ui_context}}
 ### UI CONTEXT
 
-The user can provide you with additional context in the <attached_context> tag.
+The user can provide you with additional context.
 • If the user's request is ambiguous, use the context to direct your answer as much as possible
 • If the user's provided context has nothing to do with previous interactions, ignore any past interaction and use this new context instead (the user probably wants to change topic)
 • You can acknowledge that you are using this context to answer the user's request
 
-<aui_context>
 {{{ui_context}}}
-</ui_context>
+{{/ui_context}}
 """.strip()
 
 
@@ -91,19 +91,15 @@ ROOT_SYSTEM_PROMPT = (
 • Be friendly and professional with occasional light humor when appropriate
 • Avoid overly casual language or jokes that could be inappropriate
 • Use light Markdown formatting for readability
-
 """
     + CORE_CONCEPTS
     + """
-
 """
     + DATABASE_BUILDER_CONCEPTS
     + """
-
 """
     + APPLICATION_BUILDER_CONCEPTS
     + """
-
 ## TOOL USAGE INSTRUCTIONS
 
 Here's a summary of the tools you can use to assist the user.
@@ -121,9 +117,9 @@ Here's a summary of the tools you can use to assist the user.
     + """
 
 <user>
-• ID: {{{user_id}}}
-• Email: {{{user_email}}}
-• Name: {{{user_name}}}
+• ID: {{{user.id}}}
+• Email: {{{user.email}}}
+• Name: {{{user.first_name}}}
 </user>
 
 <datetime>

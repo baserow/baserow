@@ -14,6 +14,23 @@ class AssistantChatsRequestSerializer(serializers.Serializer):
     limit = serializers.IntegerField(default=100, max_value=100, min_value=1)
 
 
+class UIContextApplicationSerializer(serializers.Serializer):
+    id = serializers.CharField(help_text="The unique ID of the application.")
+    name = serializers.CharField(help_text="The name of the application.")
+    type = serializers.CharField(help_text="The type of the application.")
+
+
+class UIContextTableSerializer(serializers.Serializer):
+    id = serializers.IntegerField(help_text="The ID of the table.")
+    name = serializers.CharField(help_text="The name of the table.")
+
+
+class UIContextViewSerializer(serializers.Serializer):
+    id = serializers.IntegerField(help_text="The ID of the view.")
+    name = serializers.CharField(help_text="The name of the view.")
+    type = serializers.CharField(help_text="The type of the view.")
+
+
 class UIContextWorkspaceSerializer(serializers.Serializer):
     id = serializers.IntegerField(help_text="The ID of the workspace.")
     name = serializers.CharField(help_text="The name of the workspace.")
@@ -21,6 +38,18 @@ class UIContextWorkspaceSerializer(serializers.Serializer):
 
 class UIContextSerializer(serializers.Serializer):
     workspace = UIContextWorkspaceSerializer()
+    application = UIContextApplicationSerializer(
+        required=False,
+        help_text="The application the user is currently in, e.g. 'spreadsheet'.",
+    )
+    table = UIContextTableSerializer(
+        required=False,
+        help_text="The table the user is currently viewing, if any.",
+    )
+    view = UIContextViewSerializer(
+        required=False,
+        help_text="The view the user is currently viewing, if any.",
+    )
     timezone = serializers.CharField(
         required=False,
         help_text="The timezone of the user, e.g. 'Europe/Amsterdam'.",

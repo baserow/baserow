@@ -202,7 +202,10 @@ export const actions = {
     }
   },
 
-  async sendMessage({ commit, state, dispatch }, { message, workspace }) {
+  async sendMessage(
+    { commit, state, dispatch, getters },
+    { message, workspace }
+  ) {
     if (!state.currentChatId) {
       await dispatch('createChat', workspace.id)
     }
@@ -228,7 +231,7 @@ export const actions = {
       chat,
       code: THINKING_MESSAGES.THINKING,
     })
-    const uiContext = { workspace: { id: workspace.id, name: workspace.name } }
+    const uiContext = getters.uiContext
 
     try {
       await assistant(this.$client).sendMessage(
@@ -270,6 +273,43 @@ export const getters = {
   chats: (state) => state.chats,
 
   isLoadingChats: (state) => state.isLoadingChats,
+
+  uiContext: (state, getters, rootState, rootGetters) => {
+    const scope = rootGetters['undoRedo/getCurrentScope']
+    const workspace = rootGetters['workspace/get'](scope.workspace)
+
+    const application = scope.application
+      ? rootGetters['application/get'](scope.application)
+      : null
+
+    const table =
+      application && scope.table
+        ? application.tables?.find((t) => t.id === scope.table)
+        : null
+
+    const view =
+      table && scope.view ? rootGetters['view/get'](scope.view) : null
+
+    const uiContext = {
+      workspace: { id: workspace.id, name: workspace.name },
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    }
+
+    if (application) {
+      uiContext.application = {
+        id: application.id,
+        name: application.name,
+        type: application.type,
+      }
+    }
+    if (table) {
+      uiContext.table = { id: table.id, name: table.name }
+    }
+    if (view) {
+      uiContext.view = { id: view.id, name: view.name, type: view.type }
+    }
+    return uiContext
+  },
 }
 
 export default {
