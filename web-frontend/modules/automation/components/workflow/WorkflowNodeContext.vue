@@ -9,7 +9,8 @@
         <a
           class="context__menu-item-link context__menu-item-link--with-desc"
           @click="onChange(nodeType.getType())"
-          ><span class="context__menu-item-title" :title="nodeType.name">
+        >
+          <span class="context__menu-item-title" :title="nodeType.name">
             <i
               v-if="!nodeType.image"
               class="context__menu-item-icon"
@@ -25,8 +26,8 @@
           </span>
           <div class="context__menu-item-description">
             {{ nodeType.description }}
-          </div></a
-        >
+          </div>
+        </a>
       </li>
     </ul>
   </Context>
