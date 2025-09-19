@@ -54,8 +54,6 @@ class AutomationDispatchContext(DispatchContext):
             use_sample_data=bool(self.simulate_until_node),
             force_outputs=force_outputs,
         )
-        self.event_payload = event_payload
-        super().__init__()
 
     def clone(self, **kwargs):
         new_context = super().clone(**kwargs)

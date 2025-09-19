@@ -12,8 +12,8 @@ from django.utils import timezone
 from django.utils.translation import gettext as _
 
 from advocate.connection import UnacceptableAddressException
-from genson import SchemaBuilder
 from dateutil.relativedelta import relativedelta
+from genson import SchemaBuilder
 from loguru import logger
 from requests import exceptions as request_exceptions
 from rest_framework import serializers
@@ -1332,9 +1332,14 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, ServiceType):
         )
         query_conditions |= month_condition
 
-        periodic_services = CorePeriodicService.objects.filter(
-            query_conditions
-        ).order_by("id")
+        periodic_services = (
+            CorePeriodicService.objects.filter(query_conditions)
+            .select_for_update(
+                of=("self",),
+                skip_locked=True,
+            )
+            .order_by("id")
+        )
 
         self.on_event(
             periodic_services,

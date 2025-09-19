@@ -6,7 +6,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("automation", "0017_remove_automationworkflow_disabled_on_and_more"),
+        ("automation", "0018_automationworkflow_simulate_until_node"),
     ]
 
     operations = [

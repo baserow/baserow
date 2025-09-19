@@ -211,8 +211,18 @@ def test_call_multiple_periodic_services_that_are_due(mock_run_workflow, data_fi
 
     assert list(mock_run_workflow.delay.call_args_list) == unordered(
         [
-            call(workflow_1.id, False, {"triggered_at": "2025-02-15T10:30:45+00:00"}),
-            call(workflow_2.id, False, {"triggered_at": "2025-02-15T10:30:45+00:00"}),
+            call(
+                workflow_1.id,
+                False,
+                {"triggered_at": "2025-02-15T10:30:45+00:00"},
+                None,
+            ),
+            call(
+                workflow_2.id,
+                False,
+                {"triggered_at": "2025-02-15T10:30:45+00:00"},
+                None,
+            ),
         ]
     )
 

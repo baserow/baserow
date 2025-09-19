@@ -24,8 +24,6 @@ from baserow.contrib.automation.nodes.types import (
     UpdatedAutomationNode,
 )
 from baserow.contrib.automation.workflows.runner import AutomationWorkflowRunner
-from baserow.contrib.automation.nodes.utils import get_periodic_trigger_payload
-from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 from baserow.core.cache import local_cache
 from baserow.core.db import specific_iterator
 from baserow.core.exceptions import IdDoesNotExist
@@ -503,3 +501,34 @@ class AutomationNodeHandler:
         )
 
         return node_instance
+
+    def simulate_dispatch_node(self, node: AutomationNode) -> AutomationNode:
+        """
+        Simulates a dispatch of the provided node. This will cause the node's
+        `service.sample_data` to be populated.
+
+        :param node: The node to simulate the dispatch for.
+        :return: The updated node.
+        """
+
+        if node.get_type().is_workflow_trigger:
+            node.workflow.simulate_until_node = node
+            node.workflow.save()
+            return node
+
+        dispatch_context = AutomationDispatchContext(
+            node.workflow,
+            simulate_until_node=node.specific,
+        )
+
+        try:
+            AutomationWorkflowRunner().run(node.workflow, dispatch_context)
+        except (
+            AutomationNodeError,
+            UnexpectedDispatchException,
+        ) as e:
+            raise AutomationNodeSimulateDispatchError(str(e))
+
+        node.refresh_from_db()
+
+        return node

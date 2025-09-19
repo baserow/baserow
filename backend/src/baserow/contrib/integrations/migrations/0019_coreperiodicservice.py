@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
     dependencies = [
         ("core", "0101_trashentry_additional_restoration_data"),
-        ("integrations", "0017_corerouterservice_corerouterserviceedge"),
+        ("integrations", "0018_remove_corehttprequestservice_response_sample"),
     ]
 
     operations = [

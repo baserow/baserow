@@ -12,7 +12,6 @@ from baserow.contrib.automation.automation_dispatch_context import (
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.workflows.constants import WorkflowState
-from baserow.core.exceptions import InstanceTypeDoesNotExist
 from baserow.core.services.types import DispatchResult
 from baserow.core.utils import MirrorDict
 

@@ -252,18 +252,6 @@ class AutomationNodeTriggerType(AutomationNodeType):
         service_type_registry.get(self.service_type).stop_listening()
         return super().before_unregister()
 
-    def dispatch(
-        self,
-        node: AutomationNode,
-        dispatch_context: AutomationDispatchContext,
-    ) -> DispatchResult:
-        """
-        This dispatch return the event_payload as it supposed to as a trigger. This
-        method helps to keep things consistent between triggers node and action nodes.
-        """
-
-        return DispatchResult(data=dispatch_context.event_payload)
-
     def before_delete(self, node: AutomationTriggerNode):
         """
         Trigger nodes cannot be deleted.
