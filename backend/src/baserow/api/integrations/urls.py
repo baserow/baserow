@@ -1,4 +1,4 @@
-from django.urls import re_path
+from django.urls import include, path, re_path
 
 from baserow.api.integrations.views import (
     IntegrationsView,
@@ -24,4 +24,5 @@ urlpatterns = [
         MoveIntegrationView.as_view(),
         name="move",
     ),
+    path("", include("baserow.contrib.integrations.api.core.urls", namespace="core")),
 ]

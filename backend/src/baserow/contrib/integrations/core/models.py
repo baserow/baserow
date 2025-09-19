@@ -4,6 +4,7 @@ from django.contrib.auth import get_user_model
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
+from baserow.contrib.integrations.core.constants import BODY_TYPE, HTTP_METHOD
 from baserow.core.formula.field import FormulaField
 from baserow.core.integrations.models import Integration
 from baserow.core.services.models import Service
@@ -219,4 +220,15 @@ class CorePeriodicService(Service):
         default=1,
         help_text="The day of the month when to run (1-31). Required for monthly "
         "intervals.",
+    )
+
+
+class CoreHTTPWebhookService(Service):
+    """
+    A service for handling HTTP webhook requests.
+    """
+
+    uid = models.UUIDField(
+        default=uuid.uuid4,
+        help_text="The service identifier for the webhook.",
     )

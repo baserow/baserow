@@ -34,6 +34,7 @@ from baserow.contrib.integrations.core.integration_types import SMTPIntegrationT
 from baserow.contrib.integrations.core.models import (
     CoreHTTPRequestService,
     CorePeriodicService,
+    CoreHTTPWebhookService,
     CoreRouterService,
     CoreRouterServiceEdge,
     CoreSMTPEmailService,
@@ -1394,4 +1395,94 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
                     "title": _("Triggered at"),
                 },
             },
+        }
+
+
+class CoreHTTPWebhookServiceType(ServiceType, TriggerServiceTypeMixin):
+    type = "http_webhook"
+    model_class = CoreHTTPWebhookService
+    dispatch_type = DispatchTypes.DISPATCH_TRIGGER
+    on_event = None
+
+    allowed_fields = ["uid"]
+    serializer_field_names = ["uid"]
+    request_serializer_field_names = ["uid"]
+
+    class SerializedDict(ServiceDict):
+        uid: str
+
+    def start_listening(self, on_event: Callable):
+        self.on_event = on_event
+
+    def stop_listening(self):
+        self.on_event = None
+
+    def process_webhook_request(self, webhook_uid: uuid.uuid4, request_data: dict):
+        services = self.model_class.objects.filter(uid=webhook_uid)
+        self.on_event(services, request_data)
+
+    def get_sample_data(
+        self, service: CoreHTTPWebhookService
+    ) -> Optional[Dict[str, Any]]:
+        return service.sample_data
+
+    def generate_schema(
+        self,
+        service: CoreHTTPWebhookService,
+        allowed_fields: Optional[List[str]] = None,
+    ) -> Optional[Dict[str, Any]]:
+        properties = {}
+
+        if (allowed_fields is None or "body" in allowed_fields) and service.sample_data:
+            schema_builder = SchemaBuilder()
+            schema_builder.add_object(
+                service.sample_data.get("data", {}).get("body", {})
+            )
+            schema = schema_builder.to_schema()
+
+            properties |= {
+                "body": schema
+                | {
+                    "title": "Body",
+                }
+            }
+
+        if allowed_fields is None or "headers" in allowed_fields:
+            schema = {}
+            if service.sample_data:
+                schema_builder = SchemaBuilder()
+                schema_builder.add_object(
+                    service.sample_data.get("data", {}).get("headers", {})
+                )
+                schema = schema_builder.to_schema()
+
+            properties.update(
+                **{
+                    "headers": {
+                        "type": "object",
+                        "properties": {
+                            "Content-Type": {
+                                "type": "string",
+                                "description": "The MIME type of the request body",
+                            },
+                            "Content-Length": {
+                                "type": "number",
+                                "description": "The length of the request body in octets (8-bit bytes)",
+                            },
+                            "ETag": {
+                                "type": "string",
+                                "description": "An identifier for a specific version of "
+                                "a resource",
+                            },
+                        },
+                        "title": "Headers",
+                    }
+                    | schema,
+                },
+            )
+
+        return {
+            "title": self.get_schema_name(service),
+            "type": "object",
+            "properties": properties,
         }
