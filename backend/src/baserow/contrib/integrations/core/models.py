@@ -202,12 +202,12 @@ class CorePeriodicService(Service):
     )
     minute = models.PositiveSmallIntegerField(
         default=0,
-        help_text="The minute of the hour when to run (0-59). Required for hourly,"
+        help_text="The minute of the hour when to run (0-59). Required for hourly, "
         "daily, weekly, monthly intervals.",
     )
     hour = models.PositiveSmallIntegerField(
         default=0,
-        help_text="The hour of the day when to run (0-23). Required for daily,"
+        help_text="The hour of the day when to run (0-23). Required for daily, "
         "weekly, monthly intervals.",
     )
     day_of_week = models.PositiveSmallIntegerField(

@@ -52,14 +52,14 @@ class Migration(migrations.Migration):
                     "minute",
                     models.PositiveSmallIntegerField(
                         default=0,
-                        help_text="The minute of the hour when to run (0-59). Required for hourly,daily, weekly, monthly intervals.",
+                        help_text="The minute of the hour when to run (0-59). Required for hourly, daily, weekly, monthly intervals.",
                     ),
                 ),
                 (
                     "hour",
                     models.PositiveSmallIntegerField(
                         default=0,
-                        help_text="The hour of the day when to run (0-23). Required for daily,weekly, monthly intervals.",
+                        help_text="The hour of the day when to run (0-23). Required for daily, weekly, monthly intervals.",
                     ),
                 ),
                 (

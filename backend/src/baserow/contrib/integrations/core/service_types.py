@@ -1230,7 +1230,7 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, ServiceType):
         )
 
         sender.add_periodic_task(
-            timedelta(seconds=30),
+            settings.INTEGRATIONS_PERIODIC_TASK_CRONTAB,
             call_periodic_services_that_are_due.s(),
             name="periodic-service-type-task",
         )

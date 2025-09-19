@@ -25,6 +25,7 @@ from baserow.config.settings.utils import (
     str_to_bool,
     try_float,
     try_int,
+    crontab,
 )
 from baserow.core.feature_flags import FF_AUTOMATION
 from baserow.core.telemetry.utils import otel_is_enabled
@@ -847,9 +848,9 @@ STALE_MENTIONS_CLEANUP_INTERVAL_MINUTES = int(
 # of hours.
 BASEROW_UPDATE_WORKSPACE_STORAGE_USAGE_HOURS = 24
 
-ONE_AM_CRONTRAB_STR = "0 1 * * *"
+ONE_AM_CRONTAB_STR = "0 1 * * *"
 BASEROW_SEAT_USAGE_JOB_CRONTAB = get_crontab_from_env(
-    "BASEROW_SEAT_USAGE_JOB_CRONTAB", default_crontab=ONE_AM_CRONTRAB_STR
+    "BASEROW_SEAT_USAGE_JOB_CRONTAB", default_crontab=ONE_AM_CRONTAB_STR
 )
 
 EMAIL_BACKEND = "djcelery_email.backends.CeleryEmailBackend"
@@ -1043,6 +1044,7 @@ BASEROW_WEBHOOK_ROWS_ENTER_VIEW_BATCH_SIZE = int(
 INTEGRATIONS_ALLOW_PRIVATE_ADDRESS = bool(
     os.getenv("BASEROW_INTEGRATIONS_ALLOW_PRIVATE_ADDRESS", False)
 )
+INTEGRATIONS_PERIODIC_TASK_CRONTAB = crontab(minute="*")
 
 # ======== WARNING ========
 # Please read and understand everything at:
