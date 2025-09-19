@@ -18,6 +18,7 @@ from baserow.contrib.automation.nodes.models import (
     AutomationTriggerNode,
     CoreHTTPRequestActionNode,
     CorePeriodicTriggerNode,
+    CoreHTTPTriggerNode,
     CoreRouterActionNode,
     CoreSMTPEmailActionNode,
     LocalBaserowAggregateRowsActionNode,
@@ -35,6 +36,7 @@ from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.contrib.integrations.core.service_types import (
     CoreHTTPRequestServiceType,
     CorePeriodicServiceType,
+    CoreHTTPWebhookServiceType,
     CoreRouterServiceType,
     CoreSMTPEmailServiceType,
 )
@@ -49,6 +51,7 @@ from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowUpsertRowServiceType,
 )
 from baserow.core.db import specific_iterator
+from baserow.core.formula.validator import ensure_boolean
 from baserow.core.registry import Instance
 from baserow.core.services.models import Service
 from baserow.core.services.registries import service_type_registry
@@ -295,3 +298,9 @@ class CorePeriodicTriggerNodeType(
     type = "periodic"
     model_class = CorePeriodicTriggerNode
     service_type = CorePeriodicServiceType.type
+
+
+class CoreHTTPTriggerNodeTriggerType(AutomationNodeTriggerType):
+    type = "http_webhook"
+    model_class = CoreHTTPTriggerNode
+    service_type = CoreHTTPWebhookServiceType.type

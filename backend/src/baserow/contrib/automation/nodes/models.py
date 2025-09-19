@@ -265,3 +265,7 @@ class CoreSMTPEmailActionNode(AutomationActionNode):
 
 class CoreRouterActionNode(AutomationActionNode):
     ...
+
+
+class CoreHTTPTriggerNode(AutomationTriggerNode):
+    ...
