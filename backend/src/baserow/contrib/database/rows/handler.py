@@ -2289,6 +2289,8 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                             [],
                         )
                     raise FieldDataConstraintException()
+                else:
+                    raise exc
 
             rows_updated_counter.add(len(rows_to_update))
 
