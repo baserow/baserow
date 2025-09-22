@@ -185,7 +185,6 @@ export default {
       ? viewId
       : null
     if (!store.getters['field/isLoadedFor'](data.table.id, fieldCheckViewId)) {
-      console.log('fetching')
       data.fields = await store.dispatch('field/fetchAll', {
         table: data.table,
         viewId: fieldCheckViewId,

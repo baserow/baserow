@@ -3001,6 +3001,14 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
                 raise_permission_exceptions=True,
             )
 
+            # If the view ownership type indicates that the filters are forcefully
+            # applied, then that must be enforced here as well. This is is to make
+            # sure that if the user only has access to the view, that no data is
+            # accidentally exposed.
+            view_ownership_type = view_ownership_type_registry.get(view.ownership_type)
+            if view_ownership_type.enforce_apply_filters(user, view):
+                combine_filters = True
+
         view_type = view_type_registry.get_by_model(view.specific_class)
         # Check if view supports field aggregation
         if not view_type.can_aggregate_field:

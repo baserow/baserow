@@ -690,6 +690,11 @@ def test_field_aggregation(api_client, data_fixture):
     )
     grid = data_fixture.create_grid_view(table=table)
     grid_2 = data_fixture.create_grid_view()
+    data_fixture.create_grid_view_field_option(
+        grid,
+        text_field,
+        hidden=False,
+    )
 
     table2 = data_fixture.create_database_table(user=user)
     text_field2 = data_fixture.create_text_field(
@@ -730,8 +735,8 @@ def test_field_aggregation(api_client, data_fixture):
         **{"HTTP_AUTHORIZATION": f"JWT {token}"},
     )
 
-    assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json()["error"] == "ERROR_USER_NOT_IN_GROUP"
+    assert response.status_code == HTTP_404_NOT_FOUND
+    assert response.json()["error"] == "ERROR_FIELD_DOES_NOT_EXIST"
 
     # Test field not in table
     url = reverse(
@@ -743,8 +748,8 @@ def test_field_aggregation(api_client, data_fixture):
         **{"HTTP_AUTHORIZATION": f"JWT {token}"},
     )
 
-    assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json()["error"] == "ERROR_FIELD_NOT_IN_TABLE"
+    assert response.status_code == HTTP_404_NOT_FOUND
+    assert response.json()["error"] == "ERROR_FIELD_DOES_NOT_EXIST"
 
     # Test missing auth token
     url = reverse(

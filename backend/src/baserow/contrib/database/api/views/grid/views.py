@@ -73,6 +73,7 @@ from baserow.contrib.database.fields.exceptions import (
     OrderByFieldNotPossible,
 )
 from baserow.contrib.database.fields.handler import FieldHandler
+from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.fields.utils import get_field_id_from_field_key
 from baserow.contrib.database.table.operations import ListRowsDatabaseTableOperationType
 from baserow.contrib.database.views.exceptions import (
@@ -662,7 +663,15 @@ class GridViewFieldAggregationView(APIView):
         view_handler = ViewHandler()
         view = view_handler.get_view(view_id, GridView)
 
-        field_instance = FieldHandler().get_field(field_id)
+        visible_fields_options = (
+            view_type_registry.get_by_model(view.specific_class)
+            .get_visible_field_options_in_order(view)
+            .values_list("field__id", flat=True)
+        )
+
+        field_instance = FieldHandler().get_field(
+            field_id, base_queryset=Field.objects.filter(id__in=visible_fields_options)
+        )
 
         aggregation_type = request.GET.get("type")
 
