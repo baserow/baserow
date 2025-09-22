@@ -841,6 +841,7 @@ class DatabaseConfig(AppConfig):
             DuplicateViewOperationType,
             ListAggregationsViewOperationType,
             ListViewDecorationOperationType,
+            ListViewFeldsOperationType,
             ListViewFilterOperationType,
             ListViewGroupByOperationType,
             ListViewsOperationType,
@@ -875,6 +876,7 @@ class DatabaseConfig(AppConfig):
             UpdateWebhookOperationType,
         )
 
+        operation_type_registry.register(ListViewFeldsOperationType())
         operation_type_registry.register(CreateViewRowOperationType())
         operation_type_registry.register(UpdateViewRowOperationType())
         operation_type_registry.register(DeleteViewRowOperationType())

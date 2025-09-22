@@ -587,3 +587,7 @@ class PasswordFieldAuthenticationResponseSerializer(serializers.Serializer):
     is_correct = serializers.BooleanField(
         help_text="Indicates whether the provided password is correct.",
     )
+
+
+class ListFieldsQueryParamsSerializer(serializers.Serializer):
+    view = serializers.IntegerField(required=False)

@@ -10,7 +10,7 @@ from baserow_premium.views.view_types import (
     KanbanViewType,
     TimelineViewType,
 )
-from starlette.status import HTTP_200_OK
+from starlette.status import HTTP_200_OK, HTTP_401_UNAUTHORIZED, HTTP_404_NOT_FOUND
 
 from baserow.contrib.database.api.constants import PUBLIC_PLACEHOLDER_ENTITY_ID
 from baserow.contrib.database.fields.models import DateField
@@ -427,3 +427,415 @@ def test_filters_are_forcefully_applied_to_all_views_types_for_editors_and_down(
         # to the view and should therefore not be able to see row 2 because it does not
         # match the filters of the view.
         assert len(get_value_at_path(response_json, response_path)) == 1, view_type.type
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_fetching_restricted_view_fields(
+    enterprise_data_fixture,
+    premium_data_fixture,
+    api_client,
+):
+    enterprise_data_fixture.enable_enterprise()
+
+    user, token = enterprise_data_fixture.create_user_and_token()
+    user2, token2 = enterprise_data_fixture.create_user_and_token()
+    workspace = enterprise_data_fixture.create_workspace(user=user, members=[user2])
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
+    table = enterprise_data_fixture.create_database_table(database=database)
+    visible_field = enterprise_data_fixture.create_text_field(table=table, primary=True)
+    hidden_field = enterprise_data_fixture.create_text_field(table=table, primary=False)
+
+    grid = enterprise_data_fixture.create_grid_view(
+        table=table,
+        user=user,
+        create_options=False,
+        ownership_type=RestrictedViewOwnershipType.type,
+    )
+    enterprise_data_fixture.create_grid_view_field_option(
+        grid, visible_field, hidden=False
+    )
+    enterprise_data_fixture.create_grid_view_field_option(
+        grid, hidden_field, hidden=True
+    )
+
+    editor_role = Role.objects.get(uid="EDITOR")
+    no_access_role = Role.objects.get(uid="NO_ACCESS")
+    workspace = table.database.workspace
+    RoleAssignmentHandler().assign_role(
+        user2, workspace, role=no_access_role, scope=workspace
+    )
+    RoleAssignmentHandler().assign_role(
+        user2, workspace, role=editor_role, scope=View.objects.get(pk=grid.id)
+    )
+
+    url = reverse("api:database:fields:list", kwargs={"table_id": table.id})
+    response = api_client.get(
+        url,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token2}",
+    )
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+
+    url = reverse("api:database:fields:list", kwargs={"table_id": table.id})
+    response = api_client.get(
+        url + f"?view={grid.id}",
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token2}",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_200_OK
+    assert len(response_json) == 1
+    assert response_json[0]["id"] == visible_field.id
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_fetching_restricted_view_fields_as_admin(
+    enterprise_data_fixture,
+    premium_data_fixture,
+    api_client,
+):
+    enterprise_data_fixture.enable_enterprise()
+
+    user, token = enterprise_data_fixture.create_user_and_token()
+    user2, token2 = enterprise_data_fixture.create_user_and_token()
+    workspace = enterprise_data_fixture.create_workspace(user=user, members=[user2])
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
+    table = enterprise_data_fixture.create_database_table(database=database)
+    visible_field = enterprise_data_fixture.create_text_field(table=table, primary=True)
+    hidden_field = enterprise_data_fixture.create_text_field(table=table, primary=False)
+
+    grid = enterprise_data_fixture.create_grid_view(
+        table=table,
+        user=user,
+        create_options=False,
+        ownership_type=RestrictedViewOwnershipType.type,
+    )
+    enterprise_data_fixture.create_grid_view_field_option(
+        grid, visible_field, hidden=False
+    )
+    enterprise_data_fixture.create_grid_view_field_option(
+        grid, hidden_field, hidden=True
+    )
+
+    admin_role = Role.objects.get(uid="ADMIN")
+    no_access_role = Role.objects.get(uid="NO_ACCESS")
+    workspace = table.database.workspace
+    RoleAssignmentHandler().assign_role(
+        user2, workspace, role=no_access_role, scope=workspace
+    )
+    RoleAssignmentHandler().assign_role(user2, workspace, role=admin_role, scope=table)
+
+    url = reverse("api:database:fields:list", kwargs={"table_id": table.id})
+    response = api_client.get(
+        url + f"?view={grid.id}",
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token2}",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_200_OK
+    assert len(response_json) == 2
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_fetchin_restricted_view_fields_view_does_not_belong_to_table(
+    enterprise_data_fixture,
+    premium_data_fixture,
+    api_client,
+):
+    enterprise_data_fixture.enable_enterprise()
+
+    user, token = enterprise_data_fixture.create_user_and_token()
+    user2, token2 = enterprise_data_fixture.create_user_and_token()
+    workspace = enterprise_data_fixture.create_workspace(user=user, members=[user2])
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
+    table = enterprise_data_fixture.create_database_table(database=database)
+    table2 = enterprise_data_fixture.create_database_table(database=database)
+    visible_field = enterprise_data_fixture.create_text_field(table=table, primary=True)
+
+    grid = enterprise_data_fixture.create_grid_view(
+        table=table2,
+        user=user,
+        create_options=False,
+        ownership_type=RestrictedViewOwnershipType.type,
+    )
+    enterprise_data_fixture.create_grid_view_field_option(
+        grid, visible_field, hidden=False
+    )
+
+    editor_role = Role.objects.get(uid="EDITOR")
+    no_access_role = Role.objects.get(uid="NO_ACCESS")
+    workspace = table.database.workspace
+    RoleAssignmentHandler().assign_role(
+        user2, workspace, role=no_access_role, scope=workspace
+    )
+    RoleAssignmentHandler().assign_role(
+        user2, workspace, role=editor_role, scope=View.objects.get(pk=grid.id)
+    )
+
+    url = reverse("api:database:fields:list", kwargs={"table_id": table.id})
+    response = api_client.get(
+        url + f"?view={grid.id}",
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token2}",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_404_NOT_FOUND
+    assert response_json["error"] == "ERROR_VIEW_DOES_NOT_EXIST"
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_fetching_restricted_view_fields_no_permissions_to_view(
+    enterprise_data_fixture,
+    premium_data_fixture,
+    api_client,
+):
+    enterprise_data_fixture.enable_enterprise()
+
+    user, token = enterprise_data_fixture.create_user_and_token()
+    user2, token2 = enterprise_data_fixture.create_user_and_token()
+    workspace = enterprise_data_fixture.create_workspace(user=user, members=[user2])
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
+    table = enterprise_data_fixture.create_database_table(database=database)
+    visible_field = enterprise_data_fixture.create_text_field(table=table, primary=True)
+    hidden_field = enterprise_data_fixture.create_text_field(table=table, primary=False)
+
+    grid = enterprise_data_fixture.create_grid_view(
+        table=table,
+        user=user,
+        create_options=False,
+        ownership_type=RestrictedViewOwnershipType.type,
+    )
+    enterprise_data_fixture.create_grid_view_field_option(
+        grid, visible_field, hidden=False
+    )
+
+    no_access_role = Role.objects.get(uid="NO_ACCESS")
+    workspace = table.database.workspace
+    RoleAssignmentHandler().assign_role(
+        user2, workspace, role=no_access_role, scope=workspace
+    )
+    RoleAssignmentHandler().assign_role(
+        user2, workspace, role=no_access_role, scope=View.objects.get(pk=grid.id)
+    )
+
+    url = reverse("api:database:fields:list", kwargs={"table_id": table.id})
+    response = api_client.get(
+        url + f"?view={grid.id}",
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token2}",
+    )
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_get_aggregations_applied_filters(
+    enterprise_data_fixture,
+    premium_data_fixture,
+    api_client,
+):
+    enterprise_data_fixture.enable_enterprise()
+
+    user, token = enterprise_data_fixture.create_user_and_token()
+    user2, token2 = enterprise_data_fixture.create_user_and_token()
+    workspace = enterprise_data_fixture.create_workspace(user=user, members=[user2])
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
+    table = enterprise_data_fixture.create_database_table(database=database)
+    visible_field = enterprise_data_fixture.create_text_field(table=table, primary=True)
+    hidden_field = enterprise_data_fixture.create_text_field(table=table, primary=False)
+    grid = enterprise_data_fixture.create_grid_view(
+        table=table,
+        user=user,
+        create_options=False,
+        ownership_type=RestrictedViewOwnershipType.type,
+    )
+    enterprise_data_fixture.create_grid_view_field_option(
+        grid,
+        visible_field,
+        hidden=False,
+    )
+    enterprise_data_fixture.create_grid_view_field_option(
+        grid,
+        hidden_field,
+        hidden=True,
+    )
+    view_filter = enterprise_data_fixture.create_view_filter(
+        view=grid, type="equal", field=visible_field, value="Visible"
+    )
+
+    row = RowHandler().create_row(
+        user=user,
+        table=table,
+        values={
+            f"field_{visible_field.id}": "Visible",
+        },
+    )
+    row2 = RowHandler().create_row(
+        user=user,
+        table=table,
+        values={
+            f"field_{visible_field.id}": "Not Visible",
+        },
+    )
+
+    no_access_role = Role.objects.get(uid="NO_ACCESS")
+    workspace = table.database.workspace
+    RoleAssignmentHandler().assign_role(
+        user2, workspace, role=no_access_role, scope=workspace
+    )
+    RoleAssignmentHandler().assign_role(
+        user2, workspace, role=no_access_role, scope=View.objects.get(pk=grid.id)
+    )
+
+    url = reverse(
+        "api:database:views:grid:field-aggregation",
+        kwargs={"view_id": grid.id, "field_id": visible_field.id},
+    )
+    response = api_client.get(
+        url + f"?type=not_empty_count",
+        **{"HTTP_AUTHORIZATION": f"JWT {token}"},
+    )
+    assert response.status_code == HTTP_200_OK
+    # Expect only one row to be included because the filter is automatically applied.
+    assert response.json()["value"] == 1
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_get_aggregations_applied_filters_hidden_field(
+    enterprise_data_fixture,
+    premium_data_fixture,
+    api_client,
+):
+    enterprise_data_fixture.enable_enterprise()
+
+    user, token = enterprise_data_fixture.create_user_and_token()
+    user2, token2 = enterprise_data_fixture.create_user_and_token()
+    workspace = enterprise_data_fixture.create_workspace(user=user, members=[user2])
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
+    table = enterprise_data_fixture.create_database_table(database=database)
+    visible_field = enterprise_data_fixture.create_text_field(table=table, primary=True)
+    hidden_field = enterprise_data_fixture.create_text_field(table=table, primary=False)
+    grid = enterprise_data_fixture.create_grid_view(
+        table=table,
+        user=user,
+        create_options=False,
+        ownership_type=RestrictedViewOwnershipType.type,
+    )
+    enterprise_data_fixture.create_grid_view_field_option(
+        grid,
+        visible_field,
+        hidden=False,
+        aggregation_type="whatever",
+        aggregation_raw_type="not_empty_count",
+    )
+    enterprise_data_fixture.create_grid_view_field_option(
+        grid,
+        hidden_field,
+        hidden=True,
+        aggregation_type="whatever",
+        aggregation_raw_type="not_empty_count",
+    )
+    view_filter = enterprise_data_fixture.create_view_filter(
+        view=grid, type="equal", field=visible_field, value="Visible"
+    )
+
+    no_access_role = Role.objects.get(uid="NO_ACCESS")
+    workspace = table.database.workspace
+    RoleAssignmentHandler().assign_role(
+        user2, workspace, role=no_access_role, scope=workspace
+    )
+    RoleAssignmentHandler().assign_role(
+        user2, workspace, role=no_access_role, scope=View.objects.get(pk=grid.id)
+    )
+
+    url = reverse(
+        "api:database:views:grid:field-aggregation",
+        kwargs={"view_id": grid.id, "field_id": hidden_field.id},
+    )
+    response = api_client.get(
+        url + f"?type=not_empty_count",
+        **{"HTTP_AUTHORIZATION": f"JWT {token}"},
+    )
+    assert response.status_code == HTTP_404_NOT_FOUND
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_list_aggregations_applied_filters(
+    enterprise_data_fixture,
+    premium_data_fixture,
+    api_client,
+):
+    enterprise_data_fixture.enable_enterprise()
+
+    user, token = enterprise_data_fixture.create_user_and_token()
+    user2, token2 = enterprise_data_fixture.create_user_and_token()
+    workspace = enterprise_data_fixture.create_workspace(user=user, members=[user2])
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
+    table = enterprise_data_fixture.create_database_table(database=database)
+    visible_field = enterprise_data_fixture.create_text_field(table=table, primary=True)
+    hidden_field = enterprise_data_fixture.create_text_field(table=table, primary=False)
+    grid = enterprise_data_fixture.create_grid_view(
+        table=table,
+        user=user,
+        create_options=False,
+        ownership_type=RestrictedViewOwnershipType.type,
+    )
+    enterprise_data_fixture.create_grid_view_field_option(
+        grid,
+        visible_field,
+        hidden=False,
+        aggregation_type="whatever",
+        aggregation_raw_type="not_empty_count",
+    )
+    enterprise_data_fixture.create_grid_view_field_option(
+        grid,
+        hidden_field,
+        hidden=True,
+        aggregation_type="whatever",
+        aggregation_raw_type="not_empty_count",
+    )
+    view_filter = enterprise_data_fixture.create_view_filter(
+        view=grid, type="equal", field=visible_field, value="Visible"
+    )
+
+    row = RowHandler().create_row(
+        user=user,
+        table=table,
+        values={
+            f"field_{visible_field.id}": "Visible",
+        },
+    )
+    row2 = RowHandler().create_row(
+        user=user,
+        table=table,
+        values={
+            f"field_{visible_field.id}": "Not Visible",
+        },
+    )
+
+    no_access_role = Role.objects.get(uid="NO_ACCESS")
+    workspace = table.database.workspace
+    RoleAssignmentHandler().assign_role(
+        user2, workspace, role=no_access_role, scope=workspace
+    )
+    RoleAssignmentHandler().assign_role(
+        user2, workspace, role=no_access_role, scope=View.objects.get(pk=grid.id)
+    )
+
+    url = reverse(
+        "api:database:views:grid:field-aggregations",
+        kwargs={"view_id": grid.id},
+    )
+    response = api_client.get(
+        url,
+        **{"HTTP_AUTHORIZATION": f"JWT {token}"},
+    )
+    assert response.status_code == HTTP_200_OK
+    # Expect only one row to be included because the filter is automatically applied.
+    assert response.json() == {f"field_{visible_field.id}": 1}

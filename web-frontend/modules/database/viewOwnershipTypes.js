@@ -94,6 +94,15 @@ export class ViewOwnershipType extends Registerable {
   enhanceRealtimePagePayload(database, table, view, realtimePage) {
     return realtimePage
   }
+
+  /**
+   * If `True`, the the `view` parameter is added when listing fields. This can be
+   * needed if the view ownership type has restrictions in which fields are visible,
+   * for example.
+   */
+  fetchingFieldsRequiresViewId(view) {
+    return false
+  }
 }
 
 export class CollaborativeViewOwnershipType extends ViewOwnershipType {

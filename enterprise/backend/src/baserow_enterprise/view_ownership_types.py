@@ -4,8 +4,14 @@ from baserow_premium.license.handler import LicenseHandler
 
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import View
-from baserow.contrib.database.views.operations import CreateViewFilterOperationType
-from baserow.contrib.database.views.registries import ViewOwnershipType
+from baserow.contrib.database.views.operations import (
+    CreateViewFilterOperationType,
+    UpdateViewFieldOptionsOperationType,
+)
+from baserow.contrib.database.views.registries import (
+    ViewOwnershipType,
+    view_type_registry,
+)
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Workspace
@@ -90,3 +96,24 @@ class RestrictedViewOwnershipType(ViewOwnershipType):
             .exclude(id__in=missing_exists)
             .exists()
         )
+
+    def enhance_field_queryset(self, user, view, queryset):
+        # @TODO docs.
+        if CoreHandler().check_permissions(
+            user,
+            UpdateViewFieldOptionsOperationType.type,
+            workspace=view.table.database.workspace,
+            context=view,
+            raise_permission_exceptions=False,
+        ):
+            return queryset
+
+        specific_view = view.specific
+        specific_view.table = view.table
+        view_type = view_type_registry.get_by_model(view.specific_class)
+        visible_field_options = view_type.get_visible_field_options_in_order(
+            specific_view
+        )
+        visible_field_ids = {o.field_id for o in visible_field_options}
+        queryset = queryset.filter(id__in=visible_field_ids)
+        return queryset
