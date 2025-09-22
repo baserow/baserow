@@ -150,11 +150,10 @@ class AssistantChatView(APIView):
 
         handler = AssistantHandler()
         chat, _ = handler.get_or_create_chat(request.user, workspace, chat_uuid)
+        assistant = handler.get_assistant(chat, HumanMessage(**data))
 
         async def stream_assistant_messages():
-            async for msg in handler.stream_assistant_messages(
-                chat, HumanMessage(**data)
-            ):
+            async for msg in assistant.astream():
                 yield self._stream_assistant_message(msg)
 
         response = StreamingHttpResponse(

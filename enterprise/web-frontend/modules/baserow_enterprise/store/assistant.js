@@ -7,12 +7,14 @@ const MESSAGE_TYPE = {
   THINKING: 'ai/thinking',
   ERROR: 'ai/error',
   CHAT_TITLE: 'chat/title',
+  INTERRUPT: 'ai/interrupt',
 }
 
 export const THINKING_MESSAGES = {
   THINKING: 'thinking',
   RUNNING: 'running',
   ANSWERING: 'answering',
+  INTERRUPT: 'interrupt',
   // Tool related messages
   RETRIEVE_KNOWLEDGE: 'retrieve_knowledge',
   ANALYZE_KNOWLEDGE: 'analyze_knowledge',
@@ -167,6 +169,21 @@ export const actions = {
         commit('SET_ASSISTANT_RUNNING_MESSAGE', {
           chat,
           code: THINKING_MESSAGES.ANSWERING,
+        })
+        commit('UPDATE_MESSAGE', {
+          id,
+          updates: {
+            content: update.content,
+            sources: update.sources,
+            loading: false,
+          },
+        })
+        break
+      case MESSAGE_TYPE.INTERRUPT:
+        commit('SET_ASSISTANT_RUNNING_MESSAGE', {
+          chat,
+          code: THINKING_MESSAGES.INTERRUPT,
+          message: update.content,
         })
         commit('UPDATE_MESSAGE', {
           id,

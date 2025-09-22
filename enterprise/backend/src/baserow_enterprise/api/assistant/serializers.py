@@ -5,7 +5,7 @@ from drf_spectacular.plumbing import force_instance
 from rest_framework import serializers
 
 from baserow_enterprise.assistant.models import AssistantChat
-from baserow_enterprise.assistant.types import AssistantMessageType, BaseMessage
+from baserow_enterprise.assistant.types import ASSISTANT_MESSAGE_TYPE, BaseMessage
 
 
 class AssistantChatsRequestSerializer(serializers.Serializer):
@@ -80,16 +80,11 @@ class AssistantChatSerializer(serializers.ModelSerializer):
         )
 
 
-class AssistantMessageRole(StrEnum):
-    HUMAN = "human"
-    AI = "ai"
-
-
 class AiMessageSerializer(serializers.Serializer):
     id = serializers.CharField(
         help_text="The unique UUID of the message.", required=False
     )
-    type = serializers.CharField(default=AssistantMessageType.AI_MESSAGE)
+    type = serializers.CharField(default=ASSISTANT_MESSAGE_TYPE.AI_MESSAGE)
     content = serializers.CharField(help_text="The content of the AI message.")
     sources = serializers.ListField(
         child=serializers.CharField(),
@@ -101,7 +96,7 @@ class AiMessageSerializer(serializers.Serializer):
 
 
 class AiThinkingSerializer(serializers.Serializer):
-    type = serializers.CharField(default=AssistantMessageType.AI_THINKING)
+    type = serializers.CharField(default=ASSISTANT_MESSAGE_TYPE.AI_THINKING)
     code = serializers.CharField(
         help_text=(
             "Thinking code. If empty, signals end of thinking. This is used to provide recurring "
@@ -119,7 +114,7 @@ class AiThinkingSerializer(serializers.Serializer):
 
 
 class AiErrorMessageSerializer(serializers.Serializer):
-    type = serializers.CharField(default=AssistantMessageType.AI_ERROR)
+    type = serializers.CharField(default=ASSISTANT_MESSAGE_TYPE.AI_ERROR)
     code = serializers.CharField(
         help_text="A short error code that can be used to identify the error."
     )
@@ -127,22 +122,28 @@ class AiErrorMessageSerializer(serializers.Serializer):
 
 
 class ChatTitleMessageSerializer(serializers.Serializer):
-    type = serializers.CharField(default=AssistantMessageType.CHAT_TITLE)
+    type = serializers.CharField(default=ASSISTANT_MESSAGE_TYPE.CHAT_TITLE)
     content = serializers.CharField(help_text="The chat title message content.")
 
 
 class HumanMessageSerializer(serializers.Serializer):
     id = serializers.CharField(help_text="The unique UUID of the message.")
-    type = serializers.CharField(default=AssistantMessageType.HUMAN)
+    type = serializers.CharField(default=ASSISTANT_MESSAGE_TYPE.HUMAN)
     content = serializers.CharField(help_text="The content of the human message.")
 
 
+class AiInterruptMessageSerializer(serializers.Serializer):
+    type = serializers.CharField(default=ASSISTANT_MESSAGE_TYPE.AI_INTERRUPT)
+    content = serializers.CharField(help_text="The content of the interrupt message.")
+
+
 TYPE_SERIALIZER_MAP = {
-    AssistantMessageType.CHAT_TITLE: ChatTitleMessageSerializer,
-    AssistantMessageType.HUMAN: HumanMessageSerializer,
-    AssistantMessageType.AI_MESSAGE: AiMessageSerializer,
-    AssistantMessageType.AI_THINKING: AiThinkingSerializer,
-    AssistantMessageType.AI_ERROR: AiErrorMessageSerializer,
+    ASSISTANT_MESSAGE_TYPE.CHAT_TITLE: ChatTitleMessageSerializer,
+    ASSISTANT_MESSAGE_TYPE.HUMAN: HumanMessageSerializer,
+    ASSISTANT_MESSAGE_TYPE.AI_MESSAGE: AiMessageSerializer,
+    ASSISTANT_MESSAGE_TYPE.AI_THINKING: AiThinkingSerializer,
+    ASSISTANT_MESSAGE_TYPE.AI_ERROR: AiErrorMessageSerializer,
+    ASSISTANT_MESSAGE_TYPE.AI_INTERRUPT: AiInterruptMessageSerializer,
 }
 
 

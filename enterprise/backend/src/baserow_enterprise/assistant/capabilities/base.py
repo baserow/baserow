@@ -1,4 +1,4 @@
-from typing import Any, Generic, Literal, Tuple
+from typing import Annotated, Any, Generic, Literal, Tuple
 
 from django.contrib.auth.models import AbstractUser
 
@@ -9,29 +9,31 @@ from langsmith import traceable
 
 from baserow.core.models import Workspace
 from baserow_enterprise.assistant.models import AssistantChat
-from baserow_enterprise.assistant.types import PartialStateType, StateType, UIContext
+from baserow_enterprise.assistant.types import (
+    AssistantExecutionContext,
+    PartialStateType,
+    StateType,
+    UIContext,
+)
 from baserow_enterprise.assistant.utils.helpers import find_last_ui_context
 
 
 class AssistantBaseTool(BaseTool):
-    response_format: Literal["content_and_artifact"] = "content_and_artifact"
     usage_instructions: str | None = None
     """
     Instructions on how and when to use this tool that will be injected in the prompt of
     the LLM binding this tool.
     """
 
-    _chat: AssistantChat
-    _user: AbstractUser
-    _workspace: Workspace
+    _context: AssistantExecutionContext
 
     def _init_run(self, config: RunnableConfig) -> None:
         """Initialize the tool with user and workspace from the config."""
 
         configurable = config.get("configurable", {})
-        self._chat = configurable.get("chat")
-        self._user = configurable.get("user")
-        self._workspace = configurable.get("workspace")
+        self._context = configurable.get("context")
+        if self._context is None:
+            self._chat = self._context.get("chat")
 
     def _run(self, *args, config: RunnableConfig, **kwargs) -> Tuple[str, Any]:
         """
@@ -53,11 +55,9 @@ class AssistantBaseTool(BaseTool):
     def _run_impl(self, *args, **kwargs):
         raise NotImplementedError()
 
-    def can_be_used(self, config: RunnableConfig) -> bool:
+    def can_be_used(self) -> bool:
         """
-        Returns whether the tool can be used in the current context. Override this
-        method to implement custom logic based on the user, workspace, or other
-        factors.
+        Returns whether the tool can be used in the current context.
         """
 
         return True
@@ -74,10 +74,8 @@ class AssistantNode(Generic[StateType, PartialStateType]):
     class.
     """
 
-    def __init__(self, chat: AssistantChat):
-        self._chat = chat
-        self._user = chat.user
-        self._workspace = chat.workspace
+    def __init__(self, context: AssistantExecutionContext):
+        self._context = context
 
     def _get_ui_context(self, state: StateType) -> UIContext | None:
         """

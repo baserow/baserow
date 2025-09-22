@@ -1,4 +1,4 @@
-from baserow_enterprise.assistant.capabilities.prompts import (
+from baserow_enterprise.assistant.prompts import (
     APPLICATION_BUILDER_CONCEPTS,
     CORE_CONCEPTS,
     DATABASE_BUILDER_CONCEPTS,

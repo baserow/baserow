@@ -17,7 +17,7 @@ EMBEDDING_DIMENSIONS = 1536
 VECTOR_FIELDS_INITIALIZED = False
 
 
-class EmbeddingSchemaOperationType(StrEnum):
+class EMBEDDING_SCHEMA_OPERATION_TYPE(StrEnum):
     ADD_EMBEDDING_FIELD = "add_embedding_field"
     MIGRATE_EMBEDDING_DATA = "migrate_embedding_data"
 
@@ -141,7 +141,7 @@ class EmbeddingMixin(models.Model):
 
         SchemaOperation.objects.create(
             table_name=cls._meta.db_table,
-            operation=EmbeddingSchemaOperationType.ADD_EMBEDDING_FIELD.value,
+            operation=EMBEDDING_SCHEMA_OPERATION_TYPE.ADD_EMBEDDING_FIELD.value,
         )
 
     @classmethod
@@ -229,7 +229,7 @@ class EmbeddingMixin(models.Model):
             [
                 SchemaOperation(
                     table_name=cls._meta.db_table,
-                    operation=EmbeddingSchemaOperationType.MIGRATE_EMBEDDING_DATA.value,
+                    operation=EMBEDDING_SCHEMA_OPERATION_TYPE.MIGRATE_EMBEDDING_DATA.value,
                 )
             ],
             ignore_conflicts=True,
@@ -249,7 +249,7 @@ class EmbeddingMixin(models.Model):
             is_pgvector_enabled()
             and SchemaOperation.objects.filter(
                 table_name=cls._meta.db_table,
-                operation=EmbeddingSchemaOperationType.MIGRATE_EMBEDDING_DATA.value,
+                operation=EMBEDDING_SCHEMA_OPERATION_TYPE.MIGRATE_EMBEDDING_DATA.value,
             ).exists()
         )
 
@@ -264,7 +264,7 @@ class EmbeddingMixin(models.Model):
 
         data_migrated_done = SchemaOperation.objects.filter(
             table_name=cls._meta.db_table,
-            operation=EmbeddingSchemaOperationType.MIGRATE_EMBEDDING_DATA.value,
+            operation=EMBEDDING_SCHEMA_OPERATION_TYPE.MIGRATE_EMBEDDING_DATA.value,
         ).exists()
 
         if data_migrated_done:
@@ -272,7 +272,7 @@ class EmbeddingMixin(models.Model):
 
         vector_field_created = SchemaOperation.objects.filter(
             table_name=cls._meta.db_table,
-            operation=EmbeddingSchemaOperationType.ADD_EMBEDDING_FIELD.value,
+            operation=EMBEDDING_SCHEMA_OPERATION_TYPE.ADD_EMBEDDING_FIELD.value,
         ).exists()
 
         try:
@@ -297,8 +297,8 @@ def reset_vector_schema_operations() -> None:
 
     SchemaOperation.objects.filter(
         operation__in=[
-            EmbeddingSchemaOperationType.ADD_EMBEDDING_FIELD.value,
-            EmbeddingSchemaOperationType.MIGRATE_EMBEDDING_DATA.value,
+            EMBEDDING_SCHEMA_OPERATION_TYPE.ADD_EMBEDDING_FIELD.value,
+            EMBEDDING_SCHEMA_OPERATION_TYPE.MIGRATE_EMBEDDING_DATA.value,
         ]
     ).delete()
 

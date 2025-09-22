@@ -1,7 +1,10 @@
+from typing import Annotated
 from pydantic import BaseModel, Field
 
+from baserow_enterprise.assistant.types import BaseToolArgsSchema
 
-class RetrieveKnowledgeToolArgsSchema(BaseModel):
+
+class RetrieveKnowledgeToolArgsSchema(BaseToolArgsSchema):
     query: str = Field(
         description=(
             "A reformulated English version of the user's question that incorporates "

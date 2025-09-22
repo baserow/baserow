@@ -1,28 +1,25 @@
-from enum import StrEnum
-
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.graph.state import END, CompiledStateGraph, StateGraph
+from baserow_enterprise.assistant.capabilities.conversation.nodes import (
+    RootNode,
+    RootToolNode,
+    root_tools_condition,
+)
 
-from baserow_enterprise.assistant.checkpointer import get_checkpointer
-from baserow_enterprise.assistant.models import AssistantChat
-from baserow_enterprise.assistant.types import AssistantState
+from baserow_enterprise.assistant.capabilities.title_generator.nodes import (
+    TitleGeneratorNode,
+)
 
-from .conversation.nodes import RootNode, RootToolsNode, root_tools_condition
-from .title_generator.nodes import TitleGeneratorNode
+from .checkpointer import get_checkpointer
 
-
-class Node(StrEnum):
-    TITLE_GENERATOR = "title_generator"
-    ROOT = "root"
-    ROOT_TOOLS = "root_tools"
+from .types import AssistantExecutionContext, AssistantState, ASSISTANT_GRAPH_NODE
 
 
 class AssistantGraphBuilder:
-    def __init__(self, chat: AssistantChat):
-        self._chat = chat
-        self._user = chat.user
-        self._workspace = chat.workspace
+    def __init__(self, context: AssistantExecutionContext):
+        self._context = context
         self._builder = StateGraph[AssistantState](AssistantState)
+        self.build()
 
     def build(self):
         """
@@ -30,27 +27,29 @@ class AssistantGraphBuilder:
         """
 
         # Add nodes
-        title_generator_node = TitleGeneratorNode(self._chat)
-        self._builder.add_node(Node.TITLE_GENERATOR, title_generator_node)
-
-        root_node = RootNode(self._chat)
-        self._builder.add_node(Node.ROOT, root_node)
-
-        root_tools_node = RootToolsNode(self._chat)
-        self._builder.add_node(Node.ROOT_TOOLS, root_tools_node)
-
-        # Define the start node and all the edges
-        self._builder.set_entry_point(Node.TITLE_GENERATOR)
-        self._builder.add_edge(Node.TITLE_GENERATOR, Node.ROOT)
-
-        # General purpose agent: root <--> root tools
-        self._builder.add_conditional_edges(
-            Node.ROOT,
-            root_tools_condition,
-            {"tools": Node.ROOT_TOOLS, "__end__": END},
+        title_generator_node = TitleGeneratorNode(self._context)
+        self._builder.add_node(
+            ASSISTANT_GRAPH_NODE.TITLE_GENERATOR, title_generator_node
         )
 
-        self._builder.add_edge(Node.ROOT_TOOLS, Node.ROOT)
+        root_node = RootNode(self._context)
+        self._builder.add_node(ASSISTANT_GRAPH_NODE.ROOT, root_node)
+
+        root_tools_node = RootToolNode(self._context, tools=root_node.tools)
+        self._builder.add_node(ASSISTANT_GRAPH_NODE.ROOT_TOOLS, root_tools_node)
+
+        # Define the start node and all the edges
+        self._builder.set_entry_point(ASSISTANT_GRAPH_NODE.TITLE_GENERATOR)
+        self._builder.add_edge(
+            ASSISTANT_GRAPH_NODE.TITLE_GENERATOR, ASSISTANT_GRAPH_NODE.ROOT
+        )
+
+        # General purpose react agent: root <--> root tools
+        self._builder.add_conditional_edges(
+            ASSISTANT_GRAPH_NODE.ROOT,
+            root_tools_condition,
+            {"tools": ASSISTANT_GRAPH_NODE.ROOT_TOOLS, "__end__": END},
+        )
 
     async def compile_full_graph(
         self, checkpointer: BaseCheckpointSaver = None
@@ -66,7 +65,6 @@ class AssistantGraphBuilder:
         :return: The compiled state graph to use for the assistant.
         """
 
-        self.build()
         checkpointer = checkpointer or await get_checkpointer()
 
         return self._builder.compile(checkpointer=checkpointer)

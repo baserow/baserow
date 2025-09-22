@@ -1,10 +1,25 @@
 from datetime import datetime, timezone
 from enum import StrEnum
-from typing import Annotated, Any, Dict, Literal, Optional, Sequence, TypeVar
+from operator import add
+from typing import (
+    Annotated,
+    Any,
+    Dict,
+    List,
+    Literal,
+    NamedTuple,
+    Optional,
+    Sequence,
+    TypeVar,
+)
+from langchain_core.tools import InjectedToolCallId
+from langgraph.prebuilt import InjectedState
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from baserow.core.models import Workspace
 from baserow_enterprise.assistant.utils.helpers import generate_tool_call_id, uuid4_str
+from .models import AssistantChat as AssistantChatModel
 
 StateType = TypeVar("StateType", bound=BaseModel)
 PartialStateType = TypeVar("PartialStateType", bound=BaseModel)
@@ -99,10 +114,20 @@ class BaseMessage(BaseModel):
     id: str | None = Field(default=None, description="The unique UUID of the message")
     timestamp: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
 
+    def should_show_in_ui(self) -> bool:
+        """
+        Determines if the message should be shown in the UI.
 
-class AssistantMessageType(StrEnum):
+        :return: True if the message should be shown in the UI, False otherwise.
+        """
+
+        return True
+
+
+class ASSISTANT_MESSAGE_TYPE(StrEnum):
     HUMAN = "human"
     AI_MESSAGE = "ai/message"
+    AI_INTERRUPT = "ai/interrupt"
     AI_THINKING = "ai/thinking"
     AI_ERROR = "ai/error"
     TOOL_CALL = "tool_call"
@@ -115,7 +140,7 @@ class HumanMessage(BaseMessage):
         default_factory=uuid4_str,
         description="The unique UUID of the message",
     )
-    type: Literal["human"] = AssistantMessageType.HUMAN.value
+    type: Literal["human"] = ASSISTANT_MESSAGE_TYPE.HUMAN.value
     content: str
     ui_context: Optional[UIContext] = Field(
         default=None, description="The UI context when the message was sent"
@@ -128,7 +153,7 @@ class ToolCall(BaseMessage):
         description="The unique UUID of the message",
     )
     type: Literal["tool_call"] = Field(
-        default=AssistantMessageType.TOOL_CALL.value,
+        default=ASSISTANT_MESSAGE_TYPE.TOOL_CALL.value,
         description="`type` needed to conform to the OpenAI shape, which is expected by LangChain",
     )
     name: str
@@ -140,7 +165,7 @@ class ToolCallMessage(BaseMessage):
         default_factory=uuid4_str,
         description="The unique UUID of the message",
     )
-    type: Literal["tool"] = AssistantMessageType.TOOL.value
+    type: Literal["tool"] = ASSISTANT_MESSAGE_TYPE.TOOL.value
     content: str
     tool_call_id: str
     artifact: Optional[Any] = None
@@ -151,11 +176,18 @@ class AiMessage(BaseMessage):
         default_factory=uuid4_str,
         description="The unique UUID of the message",
     )
-    type: Literal["ai/message"] = AssistantMessageType.AI_MESSAGE.value
+    type: Literal["ai/message"] = ASSISTANT_MESSAGE_TYPE.AI_MESSAGE.value
     content: str = Field(default="", description="The AI message content")
     tool_calls: Optional[list[ToolCall]] = Field(
         default_factory=list,
         description="The list of tool calls made by the AI in this message.",
+    )
+    show_in_ui: bool = Field(
+        default=True,
+        description=(
+            "Whether the message should be shown in the UI. If False, the message is "
+            "only used for tool calls and not displayed to the user."
+        ),
     )
 
     sources: Optional[list[str]] = Field(
@@ -163,20 +195,51 @@ class AiMessage(BaseMessage):
         description="The list of relevant source URLs referenced in the message.",
     )
 
+    def should_show_in_ui(self) -> bool:
+        # Don't show tool call only messages in the UI
+        return not bool(self.tool_calls)
+
+
+class AiInterruptMessage(BaseMessage):
+    id: str = Field(
+        default_factory=uuid4_str,
+        description="The unique UUID of the message",
+    )
+    type: Literal["interrupt"] = "ai/interrupt"
+    content: str = Field(
+        description=(
+            "The content of the interrupt message, e.g. an approval or clarification. "
+            "This is typically used in human-in-the-loop scenarios."
+        ),
+    )
+    tool_call_id: str | None = Field(
+        default=None,
+        description=(
+            "The tool call ID this interrupt is associated with, if any. This can be used "
+            "to correlate the interrupt with a specific tool call in the conversation."
+        ),
+    )
+
 
 class THINKING_MESSAGES(StrEnum):
     THINKING = "thinking"
+    RUNNING = "running"
     ANSWERING = "answering"
-    # Tool-specific
+    # Knowledge retrieval
     RETRIEVE_KNOWLEDGE = "retrieve_knowledge"
     ANALYZE_KNOWLEDGE = "analyze_knowledge"
+    # Database architect
+    DESIGN_SCHEMA = "design_schema"
+    IMPLEMENT_SCHEMA = "implement_schema"
+    # Human in the loop
+    WAITING_FOR_INTERRUPT = "waiting_for_human_in_the_loop"
 
     # For dynamic messages that don't have a translation in the frontend
     CUSTOM = "custom"
 
 
 class AiThinkingMessage(BaseMessage):
-    type: Literal["ai/thinking"] = AssistantMessageType.AI_THINKING.value
+    type: Literal["ai/thinking"] = ASSISTANT_MESSAGE_TYPE.AI_THINKING.value
     code: str = Field(
         default=THINKING_MESSAGES.CUSTOM,
         description="Thinking content. If empty, signals end of thinking.",
@@ -196,24 +259,32 @@ class AiMessageChunk(BaseModel):
 
 
 class ChatTitleMessage(BaseMessage):
-    type: Literal["chat/title"] = AssistantMessageType.CHAT_TITLE.value
+    type: Literal["chat/title"] = ASSISTANT_MESSAGE_TYPE.CHAT_TITLE.value
     content: str = Field(description="The chat title")
 
 
-class AiErrorMessageCode(StrEnum):
+class AI_ERROR_MESSAGE_CODE(StrEnum):
     RECURSION_LIMIT_EXCEEDED = "recursion_limit_exceeded"
     TIMEOUT = "timeout"
     UNKNOWN = "unknown"
 
 
 class AiErrorMessage(BaseMessage):
-    type: Literal["ai/error"] = AssistantMessageType.AI_ERROR.value
-    code: AiErrorMessageCode = Field(description="The type of error that occurred")
+    type: Literal["ai/error"] = ASSISTANT_MESSAGE_TYPE.AI_ERROR.value
+    code: AI_ERROR_MESSAGE_CODE = Field(description="The type of error that occurred")
     content: str = Field(description="Error message content")
 
 
-AIMessageUnion = AiMessage | ToolCall | ToolCallMessage | ChatTitleMessage
-AssistantMessageUnion = HumanMessage | AIMessageUnion | AiErrorMessage
+AIMessageUnion = (
+    AiMessage
+    | ToolCall
+    | ToolCallMessage
+    | ChatTitleMessage
+    | AiErrorMessage
+    | AiThinkingMessage
+    | AiInterruptMessage
+)
+AssistantMessageUnion = HumanMessage | AIMessageUnion
 
 
 def add_and_merge_messages(
@@ -249,19 +320,321 @@ def add_and_merge_messages(
 
 def add_and_merge_sources(
     left: Optional[list[str]], right: Optional[list[str]]
-) -> Optional[list[str]]:
+) -> list[str]:
     """
     Adds two sets of sources together, returning an empty set if either is explicitly
     set to None.
+
+    :param left: The base list of sources.
+    :param right: The list of sources to add to the base list.
+    :return: A new list of sources with the sources from `right` added to `left`.
+        If either `left` or `right` is None, an empty list is returned.
     """
 
-    # By default these are empty sets, if explicitly None, we want to reset it
     if left is None or right is None:
         return []
 
-    left_set = set(left)
+    all_items = set()
+    result = []
+    for item in left + right:
+        if item is not None and item not in all_items:
+            all_items.add(item)
+            result.append(item)
 
-    return list(left) + [s for s in right if s not in left_set]
+    return result
+
+
+class ASSISTANT_GRAPH_NODE(StrEnum):
+    TITLE_GENERATOR = "title_generator"
+    ROOT = "root"
+    ROOT_TOOLS = "root_tools"
+    INTERRUPT = "interrupt"
+    END = "__end__"
+
+
+class User(BaseModel):
+    id: int
+    username: str
+    email: str
+
+
+class Workspace(BaseModel):
+    id: int
+    name: str
+
+
+class AssistantChat(BaseModel):
+    id: int
+    uuid: str
+    title: Optional[str] = None
+    user: User
+    workspace: Workspace
+    status: str
+
+    @classmethod
+    def from_orm(cls, chat: AssistantChatModel) -> "AssistantChat":
+        return cls(
+            id=chat.id,
+            uuid=str(chat.uuid),
+            title=chat.title,
+            user=User(
+                id=chat.user.id,
+                username=chat.user.username,
+                email=chat.user.email,
+            ),
+            workspace=Workspace(
+                id=chat.workspace.id,
+                name=chat.workspace.name,
+            ),
+            status=chat.status,
+        )
+
+
+class AssistantExecutionContext(BaseModel):
+    chat: AssistantChat
+
+    @classmethod
+    def from_orm(cls, chat: AssistantChatModel) -> "AssistantExecutionContext":
+        return cls(chat=AssistantChat.from_orm(chat))
+
+
+# Database architect specific types
+OperationType = Literal["create_table", "create_field", "create_rows"]
+
+FieldType = Literal[
+    "text",
+    "long_text",
+    "number",
+    "date",
+    "boolean",
+    "link_to_table",
+    "single_select",
+    "multiple_select",
+]
+
+Color = Literal[
+    "blue",
+    "green",
+    "cyan",
+    "orange",
+    "yellow",
+    "red",
+    "brown",
+    "purple",
+    "pink",
+    "gray",
+]
+
+
+class BaseFieldType(BaseModel):
+    name: str
+    type: str
+
+
+class TextFieldType(BaseFieldType):
+    type: Literal["text"] = "text"
+
+
+class LongTextFieldType(BaseFieldType):
+    type: Literal["long_text"] = "long_text"
+
+
+class EmailFieldType(BaseFieldType):
+    type: Literal["email"] = "email"
+
+
+class URLFieldType(BaseFieldType):
+    type: Literal["url"] = "url"
+
+
+class NumberFieldType(BaseFieldType):
+    type: Literal["number"] = "number"
+
+
+class RatingFieldType(BaseFieldType):
+    type: Literal["rating"] = "rating"
+    max_rating: int = 5
+
+
+class DateFieldType(BaseFieldType):
+    type: Literal["date"] = "date"
+    include_time: bool = False
+
+
+class BooleanFieldType(BaseFieldType):
+    type: Literal["boolean"] = "boolean"
+
+
+class LinkRowFieldType(BaseFieldType):
+    type: Literal["link_to_table"] = "link_to_table"
+    linked_table_name: str = Field(
+        description=(
+            "The name of the table being linked to. Only link already created tables. "
+            "A reverse link will be created automatically."
+        )
+    )
+    multiple: bool = False
+
+
+class SelectOptions(BaseModel):
+    value: str
+    color: Color
+
+
+class SingleSelectFieldType(BaseFieldType):
+    type: Literal["single_select"] = "single_select"
+    options: list[str] = []
+
+
+class MultipleSelectFieldType(BaseFieldType):
+    type: Literal["multiple_select"] = "multiple_select"
+    options: list[str] = []
+
+
+class MultipleCollaboratorsFieldType(BaseFieldType):
+    type: Literal["multiple_collaborators"] = "multiple_collaborators"
+
+
+AnyFieldType = (
+    TextFieldType
+    | LongTextFieldType
+    | EmailFieldType
+    | URLFieldType
+    | NumberFieldType
+    | RatingFieldType
+    | DateFieldType
+    | BooleanFieldType
+    | LinkRowFieldType
+    | SingleSelectFieldType
+    | MultipleSelectFieldType
+    | MultipleCollaboratorsFieldType
+)
+
+
+class TableSchema(BaseModel):
+    name: str
+    primary_field: TextFieldType
+    fields: list[AnyFieldType]
+
+
+class DatabaseSchema(BaseModel):
+    name: str
+    tables: list[TableSchema]
+
+
+class CreateTableOperation(BaseModel):
+    type: Literal["create_table"] = "create_table"
+    name: str
+    primary_field_name: str
+
+
+class UpdateTableOperation(BaseModel):
+    type: Literal["update_table"] = "update_table"
+    table_name: str
+    name: Optional[str] = None
+
+
+class DeleteTableOperation(BaseModel):
+    type: Literal["delete_table"] = "delete_table"
+    table_name: str
+
+
+class CreateFieldOperation(BaseModel):
+    type: Literal["create_field"] = "create_field"
+    table_name: str
+    field: AnyFieldType
+
+
+class UpdateFieldOperation(BaseModel):
+    type: Literal["update_field"] = "update_field"
+    table_name: str
+    field_name: str
+    field: AnyFieldType
+
+
+class DeleteFieldOperation(BaseModel):
+    type: Literal["delete_field"] = "delete_field"
+    table_name: str
+    field_name: str
+
+
+class CreateRowsOperation(BaseModel):
+    type: Literal["create_rows"] = "create_rows"
+    table_name: str
+
+
+class UpdateRowsOperation(BaseModel):
+    type: Literal["update_rows"] = "update_rows"
+    table_name: str
+    row_ids: List[int]
+
+
+class DeleteRowsOperation(BaseModel):
+    type: Literal["delete_rows"] = "delete_rows"
+    table_name: str
+    row_ids: List[int]
+
+
+AnySchemaOperation = (
+    CreateTableOperation
+    | UpdateTableOperation
+    | DeleteTableOperation
+    | CreateFieldOperation
+    | UpdateFieldOperation
+    | DeleteFieldOperation
+)
+
+AnyDataOperation = CreateRowsOperation | UpdateRowsOperation | DeleteRowsOperation
+
+
+class ExecutionPlan(BaseModel):
+    schema_operations: list[AnySchemaOperation]
+    data_operations: list[AnyDataOperation]
+
+
+class Clarification(NamedTuple):
+    question: str
+    answer: str
+
+
+# State
+class _SharedDatabaseArchitectState(BaseModel):
+    dba_question: str | None = Field(
+        default=None,
+        description=(
+            "An optional follow-up question for refining or clarifying the current plan. "
+            "If the user's request is unclear, this should contain a clarification question and "
+            "needs_clarification should be set to true. "
+            "If the request is already clear, use it to suggest iterative improvements to the plan."
+        ),
+    )
+    dba_needs_clarification: bool = Field(
+        default=False,
+        description="Whether the assistant needs an answer to a clarification question before proceeding.",
+    )
+    dba_current_schema: Optional[DatabaseSchema] = Field(
+        default=None,
+        description="The current database schema, including tables and fields. None if starting from scratch.",
+    )
+    dba_schema_operations_plan: Optional[List[AnySchemaOperation]] = Field(
+        default=None,
+        description="The list of operations needed to fulfill the user's request, starting from the current schema.",
+    )
+    dba_markdown_plan_description: str | None = Field(
+        default=None,
+        description="A markdown formatted super-concise description of the plan to share with the user.",
+    )
+
+
+class DatabaseArchitectState(_SharedDatabaseArchitectState):
+    dba_instructions: Optional[str] = Field(
+        default=None,
+        description="If set, contains the instructions for the database architect.",
+    )
+
+
+class PartialDatabaseArchitectState(_SharedDatabaseArchitectState):
+    pass
 
 
 class _SharedState(BaseModel):
@@ -269,17 +642,28 @@ class _SharedState(BaseModel):
         extra="forbid",
     )
 
-    sources: Annotated[Optional[list[str]], add_and_merge_sources] = Field(
+
+class AssistantState(_SharedState, DatabaseArchitectState):
+    messages: Annotated[
+        Sequence[AssistantMessageUnion], add_and_merge_messages
+    ] = Field(default=[])
+    sources: Annotated[list[str], add_and_merge_sources] = Field(
         default_factory=list,
         description="The list of relevant source URLs referenced in the last user message.",
     )
 
 
-class AssistantState(_SharedState):
-    messages: Annotated[
-        Sequence[AssistantMessageUnion], add_and_merge_messages
-    ] = Field(default=[])
-
-
-class PartialAssistantState(_SharedState):
+class PartialAssistantState(_SharedState, PartialDatabaseArchitectState):
     messages: Sequence[AssistantMessageUnion] = Field(default=[])
+    sources: Optional[list[str]] = Field(
+        default_factory=list,
+        description=(
+            "The list of relevant source URLs referenced in the last user message. "
+            "Explicitly setting this to None will clear the sources in the state."
+        ),
+    )
+
+
+class BaseToolArgsSchema(BaseModel):
+    tool_call_id: Annotated[str, InjectedToolCallId]
+    state: Annotated[AssistantState, InjectedState]
