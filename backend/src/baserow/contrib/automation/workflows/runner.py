@@ -38,13 +38,20 @@ class AutomationWorkflowRunner:
             dispatch_result = node_type.dispatch(node, dispatch_context)
             dispatch_context.after_dispatch(node, dispatch_result)
 
+            # Return early if this is a simulated dispatch
+            if until_node := dispatch_context.simulate_until_node:
+                if until_node.id == node.id:
+                    return
+
             next_nodes = node.get_next_nodes(dispatch_result.output_uid)
 
             for next_node in next_nodes:
                 self.dispatch_node(next_node, dispatch_context)
 
         except ServiceImproperlyConfiguredDispatchException as e:
-            raise AutomationNodeMisconfiguredService(node.id) from e
+            raise AutomationNodeMisconfiguredService(
+                f"The node {node.id} has a misconfigured service."
+            ) from e
 
     def run(
         self,
@@ -61,5 +68,4 @@ class AutomationWorkflowRunner:
             which contains the event payload and other relevant data.
         """
 
-        for node in workflow.get_trigger().get_next_nodes():
-            self.dispatch_node(node, dispatch_context)
+        self.dispatch_node(workflow.get_trigger(), dispatch_context)

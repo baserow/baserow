@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from dataclasses import fields
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type, TypeVar
 
@@ -70,6 +71,8 @@ class ServiceType(
     SerializedDict: Type[ServiceDictSubClass]
     parent_property_name = "integration"
     id_mapping_name = "services"
+
+    default_serializer_field_names = ["sample_data"]
 
     # Does this service return a list of record?
     returns_list = False
@@ -218,6 +221,11 @@ class ServiceType(
 
         return None
 
+    def get_sample_data(self, service: ServiceSubClass) -> Optional[Dict[Any, Any]]:
+        """Return the sample data for this service."""
+
+        return service.sample_data
+
     def get_context_data_schema(self, service: ServiceSubClass):
         """Return the schema for the context data."""
 
@@ -329,8 +337,34 @@ class ServiceType(
         """
 
         resolved_values = self.resolve_service_formulas(service, dispatch_context)
+
+        # If simulated, try to return existing sample data
+        if (
+            dispatch_context.use_sample_data
+            and (
+                dispatch_context.update_sample_data_for is None
+                or service not in dispatch_context.update_sample_data_for
+            )
+            and service.get_type().get_sample_data(service) is not None
+        ):
+            return DispatchResult(**self.get_sample_data(service))
+
         data = self.dispatch_data(service, resolved_values, dispatch_context)
-        return self.dispatch_transform(data)
+        serialized_data = self.dispatch_transform(data)
+
+        if dispatch_context.use_sample_data and (
+            dispatch_context.update_sample_data_for is None
+            or service in dispatch_context.update_sample_data_for
+        ):
+            sample_data = {}
+            for field in fields(serialized_data):
+                value = getattr(serialized_data, field.name)
+                sample_data[field.name] = value
+
+            service.sample_data = sample_data
+            service.save()
+
+        return serialized_data
 
     def get_schema_name(self, service: Service) -> str:
         """

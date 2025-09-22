@@ -578,6 +578,15 @@ export class GridViewType extends ViewType {
       storePrefix + 'view/grid/updateActiveGroupBys',
       clone(view.group_bys)
     )
+
+    if (
+      !isPublic &&
+      !store.getters['fieldRules/hasRules']({ tableId: view.table_id })
+    ) {
+      await store.dispatch('fieldRules/fetchInitial', {
+        tableId: view.table_id,
+      })
+    }
   }
 
   async refresh(

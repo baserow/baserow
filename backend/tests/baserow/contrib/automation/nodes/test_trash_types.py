@@ -9,9 +9,7 @@ from baserow.core.trash.handler import TrashHandler
 def test_trashing_and_restoring_node_updates_next_node_values(data_fixture):
     user = data_fixture.create_user()
     workflow = data_fixture.create_automation_workflow(user=user)
-    trigger = data_fixture.create_local_baserow_rows_created_trigger_node(
-        workflow=workflow
-    )
+    trigger = workflow.get_trigger()
     initial_router_service = data_fixture.create_core_router_service()
     initial_router = data_fixture.create_core_router_action_node(
         workflow=workflow, service=initial_router_service

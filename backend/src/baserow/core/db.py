@@ -37,6 +37,17 @@ from .utils import find_intermediate_order
 ModelInstance = TypeVar("ModelInstance", bound=object)
 
 
+def get_database_dsn() -> str:
+    """
+    Constructs the database DSN from the default database settings.
+
+    :return: The database DSN as a string.
+    """
+
+    db = settings.DATABASES["default"]
+    return f"postgres://{db['USER']}:{db['PASSWORD']}@{db['HOST']}:{db['PORT']}/{db['NAME']}"
+
+
 class LockedAtomicTransaction(Atomic):
     """
     Does a atomic transaction, but also locks the entire table for any transactions,

@@ -72,6 +72,8 @@
         <component
           :is="updateFieldContextComponent"
           :field="field"
+          :view="view"
+          :table="table"
           :database="database"
           @hide-context="$refs.context.hide()"
         ></component>

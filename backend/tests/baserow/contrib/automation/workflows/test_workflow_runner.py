@@ -16,14 +16,17 @@ def test_run_workflow_with_create_row_action(data_fixture):
     trigger_table = data_fixture.create_database_table(database=database)
     action_table = data_fixture.create_database_table(database=database)
     action_table_field = data_fixture.create_text_field(table=action_table)
-    workflow = data_fixture.create_automation_workflow(user=user)
-    data_fixture.create_local_baserow_rows_created_trigger_node(
+
+    workflow = data_fixture.create_automation_workflow(user=user, create_trigger=False)
+
+    trigger_node = data_fixture.create_local_baserow_rows_created_trigger_node(
         workflow=workflow,
         service=data_fixture.create_local_baserow_rows_created_service(
             table=trigger_table,
             integration=integration,
         ),
     )
+
     action_node = data_fixture.create_local_baserow_create_row_action_node(
         workflow=workflow,
         service=data_fixture.create_local_baserow_upsert_row_service(
@@ -41,7 +44,7 @@ def test_run_workflow_with_create_row_action(data_fixture):
 
     row = action_table_model.objects.first()
     assert getattr(row, action_table_field.db_column) == "Horse"
-    assert dispatch_context.dispatch_history == [action_node.id]
+    assert dispatch_context.dispatch_history == [trigger_node.id, action_node.id]
 
 
 @pytest.mark.django_db
@@ -56,8 +59,9 @@ def test_run_workflow_with_update_row_action(data_fixture):
     action_table_row = action_table.get_model().objects.create(
         **{f"field_{action_table_field.id}": "Horse"}
     )
-    workflow = data_fixture.create_automation_workflow(user=user)
-    data_fixture.create_local_baserow_rows_created_trigger_node(
+    workflow = data_fixture.create_automation_workflow(user=user, create_trigger=False)
+
+    trigger_node = data_fixture.create_local_baserow_rows_created_trigger_node(
         workflow=workflow,
         service=data_fixture.create_local_baserow_rows_created_service(
             table=trigger_table,
@@ -81,7 +85,7 @@ def test_run_workflow_with_update_row_action(data_fixture):
 
     action_table_row.refresh_from_db()
     assert getattr(action_table_row, action_table_field.db_column) == "Badger"
-    assert dispatch_context.dispatch_history == [action_node.id]
+    assert dispatch_context.dispatch_history == [trigger_node.id, action_node.id]
 
 
 @pytest.mark.django_db
@@ -97,15 +101,17 @@ def test_run_workflow_with_delete_row_action(data_fixture):
         **{f"field_{action_table_field.id}": "Mouse"}
     )
     workflow = data_fixture.create_automation_workflow(
-        user=user, state=WorkflowState.LIVE
+        user=user, state=WorkflowState.LIVE, create_trigger=False
     )
-    data_fixture.create_local_baserow_rows_created_trigger_node(
+
+    trigger_node = data_fixture.create_local_baserow_rows_created_trigger_node(
         workflow=workflow,
         service=data_fixture.create_local_baserow_rows_created_service(
             table=trigger_table,
             integration=integration,
         ),
     )
+
     action_node = data_fixture.create_local_baserow_delete_row_action_node(
         workflow=workflow,
         service=data_fixture.create_local_baserow_delete_row_service(
@@ -121,7 +127,7 @@ def test_run_workflow_with_delete_row_action(data_fixture):
     AutomationWorkflowRunner().run(workflow, dispatch_context)
 
     assert action_table.get_model().objects.all().count() == 0
-    assert dispatch_context.dispatch_history == [action_node.id]
+    assert dispatch_context.dispatch_history == [trigger_node.id, action_node.id]
 
 
 @pytest.mark.django_db
@@ -132,15 +138,17 @@ def test_run_workflow_with_router_action(data_fixture):
     database = data_fixture.create_database_application(workspace=workspace)
     trigger_table = data_fixture.create_database_table(database=database)
     workflow = data_fixture.create_automation_workflow(
-        user=user, state=WorkflowState.LIVE
+        user=user, state=WorkflowState.LIVE, create_trigger=False
     )
-    data_fixture.create_local_baserow_rows_created_trigger_node(
+
+    trigger_node = data_fixture.create_local_baserow_rows_created_trigger_node(
         workflow=workflow,
         service=data_fixture.create_local_baserow_rows_created_service(
             table=trigger_table,
             integration=integration,
         ),
     )
+
     router_service = data_fixture.create_core_router_service()
     router_node = data_fixture.create_core_router_action_node(
         workflow=workflow, service=router_service
@@ -180,4 +188,8 @@ def test_run_workflow_with_router_action(data_fixture):
 
     action_table_row.refresh_from_db()
     assert getattr(action_table_row, action_table_field.db_column) == "Badger"
-    assert dispatch_context.dispatch_history == [router_node.id, edge2_output_node.id]
+    assert dispatch_context.dispatch_history == [
+        trigger_node.id,
+        router_node.id,
+        edge2_output_node.id,
+    ]

@@ -24,9 +24,9 @@ import { RefreshCancelledError } from '@baserow/modules/core/errors'
 import {
   prepareRowForRequest,
   prepareNewOldAndUpdateRequestValues,
-  extractRowReadOnlyValues,
   updateRowMetadataType,
   getRowMetadata,
+  extractChangedFields,
 } from '@baserow/modules/database/utils/row'
 import { getDefaultSearchModeFromEnv } from '@baserow/modules/database/utils/search'
 import { fieldValuesAreEqualInObjects } from '@baserow/modules/database/utils/groupBy'
@@ -2201,10 +2201,12 @@ export const actions = {
           undoRedoActionGroupId
         )
         data = resp.data
-
+        const updatedFieldIds = data.metadata?.updated_field_ids || []
         const fieldsToFinalize = fields
-          .filter((field) =>
-            this.$registry.get('field', field.type).isReadOnlyField(field)
+          .filter(
+            (field) =>
+              this.$registry.get('field', field.type).isReadOnlyField(field) ||
+              updatedFieldIds.includes(field.id)
           )
           .map((field) => `field_${field.id}`)
         commit('FINALIZE_ROWS_IN_BUFFER', {
@@ -2549,23 +2551,34 @@ export const actions = {
       // will never be updated concurrency, and so that the value won't be
       // updated if the row hasn't been created yet.
       await createAndUpdateRowQueue.add(async () => {
-        const updatedRow = await RowService(this.$client).update(
+        const batchResponse = await RowService(this.$client).batchUpdate(
           table.id,
-          row.id,
-          updateRequestValues
+          [updateRequestValues]
         )
+
+        const updatedRowData = batchResponse.data.items[0]
+        const updatedFieldIds =
+          batchResponse.data.metadata?.updated_field_ids || []
+
+        const otherFieldsChangedInBackend = !_.isEqual(updatedFieldIds, [
+          field.id,
+        ])
+
         // Extract only the read-only values because we don't want to update the other
         // values that might have been updated in the meantime.
-        const readOnlyData = extractRowReadOnlyValues(
-          updatedRow.data,
+        const rowData = extractChangedFields(
+          updatedRowData,
           fields,
+          updatedFieldIds,
           this.$registry
         )
         // Update the remaining values like formula, which depend on the backend.
-        await updateValues(readOnlyData, true)
+        await updateValues(rowData, true)
+
         // If we can't optimistically update the row, refresh it to stop the loading
-        // state, show proper messages, and update its position and state.
-        if (!canUpdateOptimistically) {
+        // state, show proper messages, and update its position and state. Also, if the
+        // backend changed other fields, we should refresh sorting/search/filtering.
+        if (!canUpdateOptimistically || otherFieldsChangedInBackend) {
           const rowId = row.id
           commit('SET_ROW_LOADING', { row, value: false })
           setTimeout(() => {

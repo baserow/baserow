@@ -210,6 +210,7 @@ def test_builder_application_export(data_fixture):
                 "order": "1.00000000000000000000",
                 "service": {
                     "id": datasource2.service.id,
+                    "sample_data": None,
                     "integration_id": integration.id,
                     "filter_type": "AND",
                     "filters": [],
@@ -226,6 +227,7 @@ def test_builder_application_export(data_fixture):
                 "order": "2.00000000000000000000",
                 "service": {
                     "id": datasource3.service.id,
+                    "sample_data": None,
                     "integration_id": integration.id,
                     "default_result_count": 20,
                     "filters": [],
@@ -365,6 +367,7 @@ def test_builder_application_export(data_fixture):
                         "order": "1.00000000000000000000",
                         "service": {
                             "id": shared_datasource.service.id,
+                            "sample_data": None,
                             "integration_id": integration.id,
                             "filter_type": "AND",
                             "filters": [],
@@ -408,6 +411,7 @@ def test_builder_application_export(data_fixture):
                         "order": "1.00000000000000000000",
                         "service": {
                             "id": datasource1.service.id,
+                            "sample_data": None,
                             "integration_id": integration.id,
                             "filter_type": "AND",
                             "filters": [],

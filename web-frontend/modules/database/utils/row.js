@@ -55,7 +55,7 @@ export function prepareNewOldAndUpdateRequestValues(
     id: row.id,
     [`field_${field.id}`]: oldValue,
   }
-  const updateRequestValues = {}
+  const updateRequestValues = { id: row.id }
 
   // Loop over all fields except the one that we're going to update, to figure out
   // if the `onRowChange` return value of the field has changed. If so, we want to
@@ -105,6 +105,27 @@ export function extractRowReadOnlyValues(row, allFields, registry) {
     }
   })
   return readOnlyValues
+}
+
+export function extractChangedFields(
+  row,
+  allFields,
+  updatedFieldIds,
+  registry
+) {
+  const rowValues = { id: row.id }
+  allFields.forEach((field) => {
+    const fieldType = registry.get('field', field.type)
+    const fieldKey = `field_${field.id}`
+    if (
+      (fieldType.isReadOnlyField(field) &&
+        Object.prototype.hasOwnProperty.call(row, fieldKey)) ||
+      updatedFieldIds.includes(field.id)
+    ) {
+      rowValues[fieldKey] = row[fieldKey]
+    }
+  })
+  return rowValues
 }
 
 /**

@@ -7,12 +7,14 @@ from baserow_premium.license.registries import LicenseType, SeatUsageSummary
 from baserow.core.models import Workspace
 from baserow_enterprise.features import (
     ADVANCED_WEBHOOKS,
+    ASSISTANT,
     AUDIT_LOG,
     BUILDER_CUSTOM_CODE,
     BUILDER_FILE_INPUT,
     BUILDER_NO_BRANDING,
     BUILDER_SSO,
     DATA_SYNC,
+    DATE_DEPENDENCY,
     ENTERPRISE_SETTINGS,
     FIELD_LEVEL_PERMISSIONS,
     RBAC,
@@ -31,10 +33,12 @@ COMMON_ADVANCED_FEATURES = [
     RBAC,
     TEAMS,
     AUDIT_LOG,
+    ASSISTANT,
     # database
     DATA_SYNC,
     ADVANCED_WEBHOOKS,
     FIELD_LEVEL_PERMISSIONS,
+    DATE_DEPENDENCY,
     # application builder
     BUILDER_SSO,
     BUILDER_NO_BRANDING,

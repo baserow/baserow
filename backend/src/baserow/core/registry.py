@@ -920,6 +920,21 @@ class ModelRegistryMixin(Generic[DjangoModel, InstanceSubClass]):
 
         return all_matching_non_abstract_types
 
+    def get_model_names(self) -> list[tuple[str, str]]:
+        """
+        Returns a list of app_name, model_name pairs of models
+        available in the registry.
+        """
+
+        all_model_names = []
+        for value in self.registry.values():
+            model_name = (
+                value.model_class._meta.app_label,
+                value.model_class._meta.model_name,
+            )
+            all_model_names.append(model_name)
+        return all_model_names
+
 
 class CustomFieldsRegistryMixin(Generic[DjangoModel]):
     def get_serializer(

@@ -106,5 +106,15 @@
     "searchPlaceholderTrigger": "Search for a trigger...",
     "searchPlaceholderActions": "Search for actions...",
     "noResults": "No results found"
+  },
+  "simulateDispatch": {
+    "sampleDataLabel": "Sample Data",
+    "triggerNodeAwaitingEvent": "This trigger node is waiting for an event.",
+    "errorNodeNotConfigured": "The Node must be configured before it can be tested.",
+    "errorPreviousNodeNotConfigured": "All previous nodes must be configured.",
+    "errorPreviousNodesNotTested": "All previous nodes must be tested.",
+    "buttonLabelTest": "Test event",
+    "buttonLabelTestAgain": "Test event again",
+    "testNodeDescription": "Test this event to confirm the configuration is correct. Data from this test can be used in later steps."
   }
 }

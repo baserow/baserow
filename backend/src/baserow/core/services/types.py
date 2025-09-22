@@ -10,6 +10,7 @@ class ServiceDict(TypedDict):
     id: int
     integration_id: int
     type: str
+    sample_data: dict
 
 
 class ServiceFilterDict(TypedDict):

@@ -94,6 +94,15 @@
           {{ $t('viewContext.renameView') }}
         </a>
       </li>
+      <component
+        :is="component"
+        v-for="(component, i) in getAdditionalMenuItems()"
+        :key="i"
+        :workspace="database.workspace"
+        :database="database"
+        :table="table"
+        @hide-context="$refs.context.hide()"
+      />
       <li
         v-if="
           $hasPermission(
@@ -236,6 +245,21 @@ export default {
     openWebhookModal() {
       this.$refs.context.hide()
       this.$refs.webhookModal.show()
+    },
+
+    getAdditionalMenuItems() {
+      const opts = Object.values(this.$registry.getAll('plugin'))
+        .reduce((components, plugin) => {
+          components = components.concat(
+            plugin.getAdditionalViewContextComponents(
+              this.database.workspace,
+              this.view
+            )
+          )
+          return components
+        }, [])
+        .filter((component) => component !== null)
+      return opts
     },
   },
 }

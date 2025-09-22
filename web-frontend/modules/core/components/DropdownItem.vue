@@ -30,7 +30,12 @@
             :class="icon"
           />
           <img v-if="image" class="select__item-image" :src="image" />
-          <span class="select__item-name-text" :title="name">{{ name }}</span>
+          <span
+            class="select__item-name-text"
+            :class="{ 'select__item-name-text--forced-height': !name }"
+            :title="name"
+            >{{ name }}</span
+          >
         </slot>
       </div>
       <div v-if="description !== null" class="select__item-description">

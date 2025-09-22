@@ -360,6 +360,20 @@ class WithRegistry(Generic[T]):
         return self.get_type_registry().get_by_model(self.specific_class)
 
 
+class BigAutoFieldMixin(models.Model):
+    """
+    This mixin introduces a BigAutoField as the primary key for the model.
+    It is useful for models that require a large number of unique IDs.
+    """
+
+    id = models.BigAutoField(
+        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+    )
+
+    class Meta:
+        abstract = True
+
+
 class CreatedAndUpdatedOnMixin(models.Model):
     """
     This mixin introduces two new fields that store the created on and updated on

@@ -995,7 +995,7 @@ class ViewFilterType(Instance):
             return ""
         return value
 
-    def field_is_compatible(self, field):
+    def field_is_compatible(self, field: "Field") -> bool:
         """
         Given a particular instance of a field returns a list of Type[FieldType] which
         are compatible with this particular field type.

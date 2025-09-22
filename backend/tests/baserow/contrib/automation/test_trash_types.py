@@ -14,9 +14,11 @@ def test_trashing_automation_deletes_published_automations(data_fixture):
 
     user = data_fixture.create_user()
     automation = data_fixture.create_automation_application(user=user)
-    original_workflow = data_fixture.create_automation_workflow(automation=automation)
+    original_workflow = data_fixture.create_automation_workflow(
+        user, automation=automation
+    )
     published_workflow = data_fixture.create_automation_workflow(
-        user=user, state=WorkflowState.LIVE
+        user, state=WorkflowState.LIVE
     )
     published_workflow.automation.published_from = original_workflow
     published_workflow.automation.save()

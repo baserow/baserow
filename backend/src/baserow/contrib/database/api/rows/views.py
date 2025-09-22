@@ -34,6 +34,12 @@ from baserow.api.schemas import (
 from baserow.api.serializers import get_example_pagination_serializer_class
 from baserow.api.trash.errors import ERROR_CANNOT_DELETE_ALREADY_DELETED_ITEM
 from baserow.api.utils import validate_data
+from baserow.config.settings.utils import str_to_bool
+from baserow.contrib.database.api.constants import (
+    ADHOC_FILTERS_API_PARAMS,
+    INCLUDE_OPERATION_METADATA,
+    SEARCH_MODE_API_PARAM,
+)
 from baserow.contrib.database.api.fields.errors import (
     ERROR_FIELD_DATA_CONSTRAINT,
     ERROR_FIELD_DOES_NOT_EXIST,
@@ -126,7 +132,6 @@ from baserow.core.exceptions import DeadlockException, UserNotInWorkspace
 from baserow.core.handler import CoreHandler
 from baserow.core.trash.exceptions import CannotDeleteAlreadyDeletedItem
 
-from ..constants import ADHOC_FILTERS_API_PARAMS, SEARCH_MODE_API_PARAM
 from .example_serializers import example_pagination_row_serializer_class
 from .schemas import row_names_response_schema
 from .serializers import (
@@ -142,6 +147,28 @@ from .serializers import (
     get_example_row_serializer_class,
     get_row_serializer_class,
 )
+
+
+def build_response_with_metadata(
+    rows, request, model, serializer_class, updated_field_ids: list | None = None
+) -> Response:
+    """
+    Helper to build view's response with optional operation metadata structure.
+
+    If the request contains `include_metadata` flag, then the response should include
+    `metadata` field with information about the operation performed. At the moment,
+    this includes a list of fields that have been changed.
+    """
+
+    data = {"items": rows}
+    if str_to_bool(str(request.GET.get("include_metadata"))):
+        data["metadata"] = {
+            "updated_field_ids": updated_field_ids
+            if updated_field_ids is not None
+            else [field.id for field in model.get_fields()]
+        }
+    response_serializer = serializer_class(data)
+    return Response(response_serializer.data)
 
 
 class RowsView(APIView):
@@ -914,13 +941,17 @@ class RowView(APIView):
         data = validate_data(validation_serializer, request_data, return_validated=True)
         try:
             data["id"] = int(row_id)
-            row = action_type_registry.get_by_type(UpdateRowsActionType).do(
-                request.user,
-                table,
-                [data],
-                model=model,
-                send_webhook_events=send_webhook_events,
-            )[0]
+            row = (
+                action_type_registry.get_by_type(UpdateRowsActionType)
+                .do(
+                    request.user,
+                    table,
+                    [data],
+                    model=model,
+                    send_webhook_events=send_webhook_events,
+                )
+                .updated_rows[0]
+            )
         except ValidationError as exc:
             raise RequestBodyValidationException(detail=exc.message) from exc
 
@@ -1166,6 +1197,7 @@ class BatchRowsView(APIView):
             ),
             CLIENT_SESSION_ID_SCHEMA_PARAMETER,
             CLIENT_UNDO_REDO_ACTION_GROUP_ID_SCHEMA_PARAMETER,
+            INCLUDE_OPERATION_METADATA,
         ],
         tags=["Database table rows"],
         operation_id="batch_create_database_table_rows",
@@ -1268,8 +1300,13 @@ class BatchRowsView(APIView):
         response_serializer_class = get_batch_row_serializer_class(
             response_row_serializer_class
         )
-        response_serializer = response_serializer_class({"items": rows})
-        return Response(response_serializer.data)
+
+        return build_response_with_metadata(
+            rows=rows,
+            request=request,
+            model=model,
+            serializer_class=response_serializer_class,
+        )
 
     @extend_schema(
         parameters=[
@@ -1303,6 +1340,7 @@ class BatchRowsView(APIView):
             ),
             CLIENT_SESSION_ID_SCHEMA_PARAMETER,
             CLIENT_UNDO_REDO_ACTION_GROUP_ID_SCHEMA_PARAMETER,
+            INCLUDE_OPERATION_METADATA,
         ],
         tags=["Database table rows"],
         operation_id="batch_update_database_table_rows",
@@ -1328,7 +1366,7 @@ class BatchRowsView(APIView):
         ),
         responses={
             200: get_example_batch_rows_serializer_class(
-                example_type="get", user_field_names=True
+                example_type="patch_batch", user_field_names=True
             ),
             400: get_error_schema(
                 [
@@ -1384,13 +1422,14 @@ class BatchRowsView(APIView):
         )
 
         try:
-            rows = action_type_registry.get_by_type(UpdateRowsActionType).do(
+            updated_data = action_type_registry.get_by_type(UpdateRowsActionType).do(
                 request.user,
                 table,
                 data["items"],
                 model=model,
                 send_webhook_events=send_webhook_events,
             )
+            rows = updated_data.updated_rows
         except ValidationError as e:
             raise RequestBodyValidationException(detail=e.message)
 
@@ -1400,8 +1439,13 @@ class BatchRowsView(APIView):
         response_serializer_class = get_batch_row_serializer_class(
             response_row_serializer_class
         )
-        response_serializer = response_serializer_class({"items": rows})
-        return Response(response_serializer.data)
+        return build_response_with_metadata(
+            rows=rows,
+            request=request,
+            model=model,
+            serializer_class=response_serializer_class,
+            updated_field_ids=updated_data.updated_field_ids,
+        )
 
 
 class BatchDeleteRowsView(APIView):

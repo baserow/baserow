@@ -37,11 +37,13 @@ class UpdatedRowsData(NamedTuple):
     original_rows_values_by_id: dict[RowId, RowValues]
     updated_fields_metadata_by_row_id: dict[RowId, FieldsMetadata]
     errors: dict[int, dict[str, Any]] | None = None
+    updated_field_ids: list[int] | None = None
 
 
 class CreatedRowsData(NamedTuple):
     created_rows: list[GeneratedTableModel]
     errors: dict[int, dict[str, Any]] | None = None
+    updated_field_ids: list[int] | None = None
 
 
 FieldName = NewType("FieldName", str)

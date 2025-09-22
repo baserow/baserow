@@ -3,6 +3,7 @@ from typing import Iterable, List
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 
+from baserow.contrib.database.field_rules.operations import ReadFieldRuleOperationType
 from baserow.core.cache import local_cache
 from baserow.core.handler import CoreHandler
 from baserow.core.integrations.operations import (
@@ -113,6 +114,7 @@ class AllowIfTemplatePermissionManagerType(PermissionManagerType):
         ListIntegrationsApplicationOperationType.type,
         ListUserSourcesApplicationOperationType.type,
         LoginUserSourceOperationType.type,
+        ReadFieldRuleOperationType.type,
     ]
 
     def check_multiple_permissions(self, checks, workspace=None, include_trash=False):

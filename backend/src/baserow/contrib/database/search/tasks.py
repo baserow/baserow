@@ -121,8 +121,9 @@ def schedule_update_search_data(
     queue="export",
     base=Singleton,
     unique_on="table_id",
-    lock_expiry=settings.AUTO_INDEX_LOCK_EXPIRY,
-    raise_on_duplicate=True,
+    raise_on_duplicate=False,
+    lock_expiry=settings.CELERY_SEARCH_UPDATE_HARD_TIME_LIMIT,
+    soft_time_limit=settings.CELERY_SEARCH_UPDATE_HARD_TIME_LIMIT,
     time_limit=settings.CELERY_SEARCH_UPDATE_HARD_TIME_LIMIT,
 )
 def update_search_data(table_id: int):

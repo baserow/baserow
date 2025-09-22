@@ -1,52 +1,42 @@
 <template>
-  <ButtonFloating
-    icon="iconoir-plus"
-    size="small"
-    :disabled="props.data.disabled"
-    :title="displayTitle"
-    @click="handleClick"
-  ></ButtonFloating>
+  <div>
+    <ButtonFloating
+      ref="btn"
+      icon="iconoir-plus"
+      size="small"
+      :disabled="props.disabled"
+      :title="$t('workflowAddNode.displayTitle')"
+      @click="toggleCreateContext"
+      @mousedown.stop
+    />
+    <WorkflowNodeContext ref="context" @change="emit('add-node', $event)" />
+  </div>
 </template>
 
 <script setup>
-import { computed, useContext } from '@nuxtjs/composition-api'
-const { app } = useContext()
+import WorkflowNodeContext from '@baserow/modules/automation/components/workflow/WorkflowNodeContext'
+import { ref } from '@nuxtjs/composition-api'
+import { useVueFlow } from '@vue2-flow/core'
 
 const props = defineProps({
-  id: {
-    type: String,
-    default: null,
-  },
-  position: {
-    type: Object,
-    default: () => ({ x: 0, y: 0 }),
-  },
-  data: {
-    type: Object,
-    default: () => ({ nodeId: null }),
+  disabled: {
+    type: Boolean,
+    default: false,
   },
 })
 
-const emit = defineEmits(['addNode'])
+const emit = defineEmits(['add-node'])
 
-/**
- * Computed property to determine the display title of the button.
- * If `data.debug` is true, it shows a debug message with the node ID and
- * output UID (if available). Otherwise, it shows a standard title.
- * @type {string} - The title to display on the button.
- */
-const displayTitle = computed(() => {
-  return props.data.debug
-    ? app.i18n.t('workflowAddNode.displayTitleDebug', {
-        id: props.id,
-        outputUid: props.data.outputUid || 'none',
-      })
-    : app.i18n.t('workflowAddNode.displayTitle')
+const context = ref()
+const btn = ref()
+
+// Hide context on pan
+const { onMove } = useVueFlow()
+onMove(() => {
+  context.value.hide()
 })
 
-const handleClick = () => {
-  if (!props.data.disabled) {
-    emit('addNode', props.data.nodeId)
-  }
+const toggleCreateContext = (nodeId) => {
+  context.value.show(btn.value.$el, 'bottom', 'left', 10, -225)
 }
 </script>

@@ -9,6 +9,7 @@ from django.core.mail import EmailMultiAlternatives, get_connection
 from django.utils.translation import gettext as _
 
 from advocate.connection import UnacceptableAddressException
+from genson import SchemaBuilder
 from loguru import logger
 from requests import exceptions as request_exceptions
 from rest_framework import serializers
@@ -57,7 +58,7 @@ class CoreHTTPRequestServiceType(ServiceType):
         "timeout",
     ]
 
-    serializer_field_names = [
+    _serializer_field_names = [
         "http_method",
         "url",
         "headers",
@@ -66,7 +67,6 @@ class CoreHTTPRequestServiceType(ServiceType):
         "body_type",
         "body_content",
         "timeout",
-        "response_sample",
     ]
 
     request_serializer_field_names = [
@@ -89,9 +89,12 @@ class CoreHTTPRequestServiceType(ServiceType):
         body_type: str
         body_content: str
         timeout: int
-        response_sample: dict
 
     simple_formula_fields = ["body_content", "url"]
+
+    @property
+    def serializer_field_names(self):
+        return self._serializer_field_names + self.default_serializer_field_names
 
     @property
     def serializer_field_overrides(self):
@@ -375,17 +378,39 @@ class CoreHTTPRequestServiceType(ServiceType):
 
         properties = {}
 
+        if (allowed_fields is None or "body" in allowed_fields) and service.sample_data:
+            schema_builder = SchemaBuilder()
+            schema_builder.add_object(
+                service.sample_data.get("data", {}).get("body", {})
+            )
+            schema = schema_builder.to_schema()
+
+            properties |= {
+                "body": schema
+                | {
+                    "title": "Body",
+                }
+            }
+
         if allowed_fields is None or "raw_body" in allowed_fields:
             properties.update(
                 **{
                     "raw_body": {
                         "type": "string",
-                        "title": "Body",
+                        "title": "Raw body",
                     },
                 },
             )
 
         if allowed_fields is None or "headers" in allowed_fields:
+            schema = {}
+            if service.sample_data:
+                schema_builder = SchemaBuilder()
+                schema_builder.add_object(
+                    service.sample_data.get("data", {}).get("headers", {})
+                )
+                schema = schema_builder.to_schema()
+
             properties.update(
                 **{
                     "headers": {
@@ -405,7 +430,9 @@ class CoreHTTPRequestServiceType(ServiceType):
                                 "a resource",
                             },
                         },
-                    },
+                        "title": "Headers",
+                    }
+                    | schema,
                 },
             )
 
@@ -543,23 +570,25 @@ class CoreHTTPRequestServiceType(ServiceType):
             logger.exception("Error while dispatching HTTP request")
             raise UnexpectedDispatchException(f"Unknown error: {str(e)}") from e
 
-        response_body = (
-            response.json()
-            if response.headers.get("Content-Type") == "application/json"
-            else response.text
-        )
+        try:
+            # Try to parse as JSON regardless of Content-Type. A misconfigured
+            # API may return JSON but forget to set the content-type.
+            response_body = response.json()
+        except request_exceptions.JSONDecodeError:
+            # Otherwise, fall back to text
+            response_body = response.text
 
         # Extract the response headers
         response_headers = {key: value for key, value in response.headers.items()}
 
-        return {
-            "data": {
-                # For now we always convert the body to a string
-                "raw_body": ensure_string(response_body, allow_empty=True),
-                "headers": response_headers,
-                "status_code": response.status_code,
-            },
+        data = {
+            "raw_body": ensure_string(response_body, allow_empty=True),
+            "body": response_body,
+            "headers": response_headers,
+            "status_code": response.status_code,
         }
+
+        return {"data": data}
 
     def dispatch_transform(
         self,
@@ -961,7 +990,7 @@ class CoreRouterServiceType(ServiceType):
             FormulaToResolve(
                 f"edge_{edge.uid}",
                 edge.condition,
-                ensure_boolean,
+                lambda x: ensure_boolean(x, True),
                 f'edge "{edge.label}" condition',
             )
             for edge in service.edges.all()
@@ -1066,6 +1095,22 @@ class CoreRouterServiceType(ServiceType):
         :return: A dictionary containing the data of the first matching edge.
         """
 
+        if (
+            dispatch_context.force_outputs is not None
+            and service.id in dispatch_context.force_outputs
+        ):
+            if dispatch_context.force_outputs[service.id]:
+                edge = service.edges.get(uid=dispatch_context.force_outputs[service.id])
+                return {
+                    "output_uid": str(edge.uid),
+                    "data": {"edge": {"label": edge.label}},
+                }
+            else:
+                return {
+                    "output_uid": "",
+                    "data": {"edge": {"label": service.default_edge_label}},
+                }
+
         for edge in service.edges.all():
             condition_result = resolved_values[f"edge_{edge.uid}"]
             if condition_result:
@@ -1084,3 +1129,6 @@ class CoreRouterServiceType(ServiceType):
         data: Any,
     ) -> DispatchResult:
         return DispatchResult(output_uid=data["output_uid"], data=data["data"])
+
+    def get_sample_data(self, service):
+        return None

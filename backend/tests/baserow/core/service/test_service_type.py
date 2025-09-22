@@ -102,6 +102,7 @@ def test_dispatch_passes_field_names(field_names, expected_field_names):
     mock_dispatch_context = MagicMock()
 
     mock_dispatch_context.public_allowed_properties = field_names
+    mock_dispatch_context.use_sample_data = False
 
     service_type.dispatch(mock_service, mock_dispatch_context)
 
@@ -117,3 +118,46 @@ def test_extract_properties():
 
     result = service_type.extract_properties(["foo"])
     assert result == []
+
+
+def test_get_sample_data():
+    service_type_cls = ServiceType
+    service_type_cls.model_class = MagicMock()
+    service_type = service_type_cls()
+    service = MagicMock()
+    service.sample_data = {"foo": "bar"}
+
+    result = service_type.get_sample_data(service)
+
+    assert result == {"foo": "bar"}
+
+
+def test_dispatch_returns_sample_data_when_simulated():
+    """
+    Ensure that when dispatch_context.is_simulated is True, the cached sample
+    data is returned.
+    """
+
+    service_type_cls = ServiceType
+    service_type_cls.model_class = MagicMock()
+    service_type = service_type_cls()
+
+    service_type.resolve_service_formulas = MagicMock()
+    mock_data = MagicMock()
+    service_type.dispatch_data = MagicMock(return_value=mock_data)
+    service_type.dispatch_transform = MagicMock()
+
+    mock_service = MagicMock()
+    type(mock_service).id = PropertyMock(return_value=100)
+    mock_service.sample_data = {"data": {"foo": "bar"}}
+    mock_dispatch_context = MagicMock()
+
+    mock_dispatch_context.is_simulated = True
+    mock_dispatch_context.force = False
+
+    result = service_type.dispatch(mock_service, mock_dispatch_context)
+
+    service_type.dispatch_data.assert_not_called()
+    service_type.dispatch_transform.assert_not_called()
+
+    assert result.data == {"foo": "bar"}

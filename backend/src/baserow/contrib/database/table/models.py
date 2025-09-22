@@ -877,6 +877,12 @@ class Table(
         null=True,
         help_text="Indicates whether the table has had the created_by column added.",
     )
+    field_rules_validity_column_added = models.BooleanField(
+        db_default=False,
+        default=False,
+        null=True,
+        help_text="Indicates whether the table has had the field_rules_are_valid column added.",
+    )
 
     class Meta:
         ordering = ("order",)
@@ -1112,6 +1118,9 @@ class Table(
         if self.last_modified_by_column_added:
             self._add_last_modified_by(field_attrs, indexes)
 
+        if self.field_rules_validity_column_added:
+            self._add_field_rules_valid(field_attrs, indexes)
+
         attrs.update(**field_attrs)
 
         # Create the model class.
@@ -1161,6 +1170,14 @@ class Table(
             on_delete=models.DO_NOTHING,
             help_text="Stores information about the user that modified the row last.",
         )
+
+    def _add_field_rules_valid(self, field_attrs, indexes):
+        from baserow.contrib.database.field_rules.handlers import FieldRuleHandler
+
+        field_rules_handler = FieldRuleHandler(self, None)
+        column = field_rules_handler.get_state_column()
+        field_attrs[field_rules_handler.STATE_COLUMN_NAME] = column
+        return field_attrs
 
     @baserow_trace(tracer)
     def _after_model_generation(self, attrs, model):

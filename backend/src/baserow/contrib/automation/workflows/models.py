@@ -52,6 +52,17 @@ class AutomationWorkflow(
     automation = models.ForeignKey(
         "automation.Automation", on_delete=models.CASCADE, related_name="workflows"
     )
+    simulate_until_node = models.ForeignKey(
+        "automation.AutomationNode",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        help_text=(
+            "When set, upon the next workflow run, simulates the dispatch of "
+            "the workflow until this node and updates the sample_data of the "
+            "node's service."
+        ),
+    )
 
     name = models.CharField(max_length=WORKFLOW_NAME_MAX_LEN)
     state = models.CharField(

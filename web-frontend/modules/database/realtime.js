@@ -615,4 +615,26 @@ export const registerRealtimeEvents = (realtime) => {
       tableId: store.getters['table/getSelectedId'],
     })
   })
+
+  realtime.registerEvent('field_rule_added', ({ store, app }, data) => {
+    store.commit('fieldRules/ADD_RULE', {
+      tableId: data.rule.table_id,
+      rule: data.rule,
+    })
+  })
+
+  realtime.registerEvent('field_rule_updated', ({ store, app }, data) => {
+    store.dispatch('fieldRules/ruleChanged', {
+      tableId: data.rule.table_id,
+      ruleId: data.rule.id,
+      rule: data.rule,
+    })
+  })
+
+  realtime.registerEvent('field_rule_deleted', ({ store, app }, data) => {
+    store.commit('fieldRules/DELETE_RULE', {
+      tableId: data.rule.table_id,
+      ruleId: data.rule.id,
+    })
+  })
 }

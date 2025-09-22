@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from django.contrib.auth.models import AbstractUser
 from django.db.models import CharField, Q, QuerySet
@@ -48,6 +48,7 @@ from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowRowsUpdatedTriggerServiceType,
     LocalBaserowUpsertRowServiceType,
 )
+from baserow.core.db import specific_iterator
 from baserow.core.registry import Instance
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
@@ -129,22 +130,30 @@ class CoreRouterActionNodeType(AutomationNodeActionNodeType):
     service_type = CoreRouterServiceType.type
 
     def get_output_nodes(
-        self, node: CoreRouterActionNode
-    ) -> QuerySet[AutomationActionNode]:
+        self, node: CoreRouterActionNode, specific: bool = False
+    ) -> Union[List[AutomationActionNode], QuerySet[AutomationActionNode]]:
         """
         Given a router node, this method returns the output nodes that are
         along the edges of the router node.
         :param node: The router node instance.
-        :return: A QuerySet of output nodes that are connected to the
+        :param specific: Whether to return the specific node instances.
+        :return: An iterable of output nodes that are connected to the
             router node's edges.
         """
 
-        return node.workflow.automation_workflow_nodes.filter(
-            previous_node_id=node.id,
-            previous_node_output__in=node.service.specific.edges.values_list(
-                Cast("uid", output_field=CharField()), flat=True
-            ),
+        queryset = (
+            node.workflow.automation_workflow_nodes.select_related("content_type")
+            .filter(previous_node_id=node.id)
+            .filter(
+                Q(previous_node_output="")
+                | Q(
+                    previous_node_output__in=node.service.specific.edges.values_list(
+                        Cast("uid", output_field=CharField()), flat=True
+                    )
+                ),
+            )
         )
+        return specific_iterator(queryset) if specific else queryset
 
     def before_delete(self, node: CoreRouterActionNode):
         output_nodes_count = self.get_output_nodes(node).count()
@@ -210,6 +219,19 @@ class CoreRouterActionNodeType(AutomationNodeActionNodeType):
 class AutomationNodeTriggerType(AutomationNodeType):
     is_workflow_trigger = True
 
+    def dispatch(
+        self,
+        node: AutomationNode,
+        dispatch_context: AutomationDispatchContext,
+    ) -> DispatchResult:
+        if dispatch_context.use_sample_data:
+            if sample_data := node.service.get_type().get_sample_data(
+                node.service.specific
+            ):
+                return DispatchResult(**sample_data)
+
+        return DispatchResult(data=dispatch_context.event_payload)
+
     def before_delete(self, node: AutomationTriggerNode):
         """
         Trigger nodes cannot be deleted.
@@ -243,6 +265,7 @@ class AutomationNodeTriggerType(AutomationNodeType):
                 Q(
                     Q(workflow__state=WorkflowState.LIVE)
                     | Q(workflow__allow_test_run_until__gte=now)
+                    | Q(workflow__simulate_until_node__isnull=False)
                 ),
             )
             .select_related("workflow__automation__workspace")
@@ -250,13 +273,31 @@ class AutomationNodeTriggerType(AutomationNodeType):
 
         for trigger in triggers:
             workflow = trigger.workflow
+            simulate_until_node_id = (
+                trigger.workflow.simulate_until_node.id
+                if trigger.workflow.simulate_until_node
+                else None
+            )
             workflow_handler.run_workflow(
                 workflow,
                 event_payload,
+                simulate_until_node_id,
             )
+
+            save_sample_data = False
             if workflow.allow_test_run_until:
                 workflow.allow_test_run_until = None
                 workflow.save(update_fields=["allow_test_run_until"])
+                save_sample_data = True
+
+            if workflow.simulate_until_node and not workflow.is_published:
+                workflow.simulate_until_node = None
+                workflow.save(update_fields=["simulate_until_node"])
+                save_sample_data = True
+
+            if save_sample_data:
+                trigger.service.sample_data = {"data": event_payload}
+                trigger.service.save()
 
     def after_register(self):
         service_type_registry.get(self.service_type).start_listening(self.on_event)

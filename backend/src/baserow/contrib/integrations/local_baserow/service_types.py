@@ -453,8 +453,6 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
         Extracts the properties from the table model fields.
 
         :param service: A `LocalBaserowTableService` subclass.
-        :param allowed_fields: The properties which are allowed to be included in the
-            properties.
         :return: A schema dictionary, or None if no `Table` has been applied.
         """
 
@@ -2031,7 +2029,7 @@ class LocalBaserowUpsertRowServiceType(
                     table,
                     rows_values=[{**row_values, "id": row_id}],
                     model=model,
-                )
+                ).updated_rows
             except RowDoesNotExist as exc:
                 raise ServiceImproperlyConfiguredDispatchException(
                     f"The row with id {row_id} does not exist."

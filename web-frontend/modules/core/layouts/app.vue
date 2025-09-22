@@ -13,8 +13,21 @@
           @set-col1-width="col1Width = $event"
         ></Sidebar>
       </div>
-      <div class="layout__col-2" :style="{ left: col1Width + 'px' }">
+      <div
+        class="layout__col-2"
+        :style="{
+          left: col1Width + 'px',
+          right: col3Visible ? col3Width + 'px' : 0,
+        }"
+      >
         <nuxt />
+      </div>
+      <div
+        v-if="col3Visible"
+        class="layout__col-3"
+        :style="{ width: col3Width + 'px', right: 0 }"
+      >
+        <RightSidebar :workspace="selectedWorkspace"></RightSidebar>
       </div>
       <HorizontalResize
         class="layout__resize"
@@ -38,6 +51,7 @@ import { mapGetters, mapState } from 'vuex'
 
 import Toasts from '@baserow/modules/core/components/toasts/Toasts'
 import Sidebar from '@baserow/modules/core/components/sidebar/Sidebar'
+import RightSidebar from '@baserow/modules/core/components/sidebar/RightSidebar'
 import undoRedo from '@baserow/modules/core/mixins/undoRedo'
 import HorizontalResize from '@baserow/modules/core/components/HorizontalResize'
 import GuidedTour from '@baserow/modules/core/components/guidedTour/GuidedTour'
@@ -51,6 +65,7 @@ export default {
   components: {
     Toasts,
     Sidebar,
+    RightSidebar,
     HorizontalResize,
     GuidedTour,
   },
@@ -64,6 +79,8 @@ export default {
   data() {
     return {
       col1Width: 240,
+      col3Width: 400,
+      col3Visible: false,
     }
   },
   computed: {
@@ -118,6 +135,7 @@ export default {
       CORE_ACTION_SCOPES.root()
     )
     this.$store.dispatch('job/initializePoller')
+    this.$bus.$on('toggle-right-sidebar', this.toggleRightSidebar)
   },
   beforeDestroy() {
     this.$realtime.disconnect()
@@ -126,6 +144,7 @@ export default {
       'undoRedo/updateCurrentScopeSet',
       CORE_ACTION_SCOPES.root(false)
     )
+    this.$bus.$off('toggle-right-sidebar', this.toggleRightSidebar)
   },
   methods: {
     keyDown(event) {
@@ -150,6 +169,10 @@ export default {
     },
     resizeCol1(event) {
       this.col1Width = event
+    },
+    toggleRightSidebar() {
+      this.col3Visible = !this.col3Visible
+      localStorage.setItem('baserow.rightSidebarOpen', this.col3Visible)
     },
   },
 }

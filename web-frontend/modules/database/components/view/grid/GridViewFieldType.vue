@@ -48,6 +48,17 @@
         <i v-tooltip="field.error" class="iconoir-warning-triangle"></i>
       </div>
       <span class="grid-view__description-options">
+        <component
+          :is="component"
+          v-for="(component, i) in getIconsBefore()"
+          :key="i"
+          :workspace="database.workspace"
+          :database="database"
+          :table="table"
+          :view="view"
+          :field="field"
+        />
+
         <HelpIcon
           v-if="field.description"
           :tooltip="field.description || ''"
@@ -514,6 +525,22 @@ export default {
     },
     getCanSortInView(field) {
       return this.$registry.get('field', field.type).getCanSortInView(field)
+    },
+
+    getIconsBefore() {
+      const opts = Object.values(this.$registry.getAll('plugin'))
+        .reduce((components, plugin) => {
+          components = components.concat(
+            plugin.getGridViewFieldTypeIconsBefore(
+              this.database.workspace,
+              this.view,
+              this.field
+            )
+          )
+          return components
+        }, [])
+        .filter((component) => component !== null)
+      return opts
     },
   },
 }

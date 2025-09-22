@@ -248,20 +248,18 @@ def test_two_way_sync_is_notified_after_retries(
     assert len(all_notifications) == 1
     recipient_ids = [r.id for r in all_notifications[0].recipients.all()]
     assert recipient_ids == [user.id]
-    assert all_notifications[0].type == TwoWaySyncUpdateFailedNotificationType.type
-    assert all_notifications[0].broadcast is False
-    assert all_notifications[0].workspace_id == data_sync.table.database.workspace_id
-    assert all_notifications[0].sender is None
-    assert all_notifications[0].data == {
-        "data_sync_id": data_sync.id,
-        "table_name": data_sync.table.name,
-        "table_id": data_sync.table.id,
-        "database_id": data_sync.table.database_id,
-        "error": """Database error: relation "public.test_table" does not exist
-LINE 1: INSERT INTO "public"."test_table" ("text_col") VALUES ('text...
-                    ^
-""",
-    }
+    notification = all_notifications[0]
+    assert notification.type == TwoWaySyncUpdateFailedNotificationType.type
+    assert notification.broadcast is False
+    assert notification.workspace_id == data_sync.table.database.workspace_id
+    assert notification.sender is None
+    assert notification.data["data_sync_id"] == data_sync.id
+    assert notification.data["table_name"] == data_sync.table.name
+    assert notification.data["table_id"] == data_sync.table.id
+    assert notification.data["database_id"] == data_sync.table.database_id
+    assert notification.data["error"].startswith(
+        """Database error: relation "public.test_table" does not exist"""
+    )
 
     mock_task_context.retry.assert_not_called()
 

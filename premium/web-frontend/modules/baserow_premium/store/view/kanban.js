@@ -6,19 +6,19 @@ import ViewService from '@baserow/modules/database/services/view'
 import KanbanService from '@baserow_premium/services/views/kanban'
 import {
   extractRowMetadata,
+  getFilters,
   getRowSortFunction,
   matchSearchFilters,
-  getFilters,
 } from '@baserow/modules/database/utils/view'
 import RowService from '@baserow/modules/database/services/row'
 import FieldService from '@baserow/modules/database/services/field'
 import { SingleSelectFieldType } from '@baserow/modules/database/fieldTypes'
 import {
-  extractRowReadOnlyValues,
+  extractChangedFields,
+  getRowMetadata,
   prepareNewOldAndUpdateRequestValues,
   prepareRowForRequest,
   updateRowMetadataType,
-  getRowMetadata,
 } from '@baserow/modules/database/utils/row'
 
 export function populateRow(row, metadata = {}, fullyLoaded = true) {
@@ -903,14 +903,19 @@ export const actions = {
       // will never be updated concurrency, and so that the value won't be
       // updated if the row hasn't been created yet.
       await updateRowQueue.add(async () => {
-        const { data } = await RowService(this.$client).update(
+        const updateRowsData = [
+          Object.assign({ id: row.id }, updateRequestValues),
+        ]
+        const { data } = await RowService(this.$client).batchUpdate(
           table.id,
-          row.id,
-          updateRequestValues
+          updateRowsData
         )
-        const readOnlyData = extractRowReadOnlyValues(
-          data,
+        const updatedFieldIds = data.metadata?.updated_field_ids || []
+
+        const readOnlyData = extractChangedFields(
+          data.items[0],
           fields,
+          updatedFieldIds,
           this.$registry
         )
         commit('UPDATE_ROW', { row, values: readOnlyData })

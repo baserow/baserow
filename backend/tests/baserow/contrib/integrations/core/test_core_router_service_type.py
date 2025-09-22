@@ -134,6 +134,7 @@ def test_core_router_service_type_import_export(data_fixture):
         "id": service.id,
         "integration_id": None,
         "type": "router",
+        "sample_data": None,
         "edges": [
             {
                 "label": edge1.label,

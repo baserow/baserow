@@ -47,6 +47,8 @@ from .constants import (
 from .data_sync.registries import data_sync_type_registry
 from .db.atomic import read_repeatable_single_database_atomic_transaction
 from .export_serialized import DatabaseExportSerializedStructure
+from .field_rules.handlers import FieldRuleHandler
+from .field_rules.models import FieldRule
 from .fields.utils import DeferredFieldImporter, DeferredForeignKeyUpdater
 from .search.handler import SearchHandler
 from .table.models import GeneratedTableModel, Table
@@ -173,10 +175,21 @@ class DatabaseApplicationType(ApplicationType):
                 progress.increment()
 
             serialized_data_sync = None
+            serialized_field_rules = []
             if hasattr(table, "data_sync"):
                 data_sync = table.data_sync.specific
                 data_sync_type = data_sync_type_registry.get_by_model(data_sync)
                 serialized_data_sync = data_sync_type.export_serialized(data_sync)
+
+            if hasattr(table, "field_rules"):
+                field_rules_handler = FieldRuleHandler(table)
+
+                for (
+                    rule,
+                    rule_type,
+                ) in field_rules_handler.applicable_rules_with_types:
+                    exported_field_rule = field_rules_handler.export_rule(rule)
+                    serialized_field_rules.append(exported_field_rule)
 
             structure = DatabaseExportSerializedStructure.table(
                 id=table.id,
@@ -186,6 +199,7 @@ class DatabaseApplicationType(ApplicationType):
                 views=serialized_views,
                 rows=serialized_rows,
                 data_sync=serialized_data_sync,
+                field_rules=serialized_field_rules,
             )
 
             for serialized_structure in serialization_processor_registry.get_all():
@@ -229,6 +243,9 @@ class DatabaseApplicationType(ApplicationType):
                 "view_set__viewgroupby_set",
                 "view_set__viewdecoration_set",
                 "data_sync__synced_properties",
+                Prefetch(
+                    "field_rules", queryset=specific_queryset(FieldRule.objects.all())
+                ),
             )
         )
 
@@ -575,6 +592,8 @@ class DatabaseApplicationType(ApplicationType):
 
         self._import_data_sync(serialized_tables, id_mapping, import_export_config)
 
+        self._import_field_rules(serialized_tables, id_mapping, import_export_config)
+
         return imported_tables
 
     def _import_extra_metadata(
@@ -602,6 +621,18 @@ class DatabaseApplicationType(ApplicationType):
             data_sync_type.import_serialized(
                 table, serialized_data_sync, id_mapping, import_export_config
             )
+
+    def _import_field_rules(self, serialized_tables, id_mapping, import_export_config):
+        for serialized_table in serialized_tables:
+            if not serialized_table.get("field_rules", None):
+                continue
+            table = serialized_table["_object"]
+            field_rules_handler = FieldRuleHandler(table)
+            serialized_rules = serialized_table["field_rules"]
+            for serialized_rule in serialized_rules:
+                field_rules_handler.import_rule(
+                    serialized_rule, id_mapping["database_fields"]
+                )
 
     def _import_table_rows(
         self,

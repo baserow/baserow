@@ -156,6 +156,32 @@ export class FieldLevelPermissionsPaidFeature extends PaidFeature {
   }
 }
 
+export class AssistantPaidFeature extends PaidFeature {
+  static getType() {
+    return 'assistant'
+  }
+
+  getPlan() {
+    return 'Advanced'
+  }
+
+  getIconClass() {
+    return 'iconoir-sparks'
+  }
+
+  getName() {
+    return this.app.i18n.t('enterpriseFeatures.assistant')
+  }
+
+  getImage() {
+    return '/img/features/assistant.png'
+  }
+
+  getContent() {
+    return this.app.i18n.t('enterpriseFeatures.assistantContent')
+  }
+}
+
 export class CoBrandingPaidFeature extends PaidFeature {
   static getType() {
     return 'co_branding'
@@ -283,5 +309,31 @@ export class BuilderCustomCodePaidFeature extends PaidFeature {
 
   getContent() {
     return this.app.i18n.t('enterpriseFeatures.builderCustomCodeContent')
+  }
+}
+
+export class DateDependencyPaidFeature extends PaidFeature {
+  static getType() {
+    return 'date_dependency'
+  }
+
+  getPlan() {
+    return 'Advanced'
+  }
+
+  getIconClass() {
+    return 'baserow-icon-dependency'
+  }
+
+  getName() {
+    return this.app.i18n.t('enterpriseFeatures.dateDependency')
+  }
+
+  getImage() {
+    return '/img/features/date_dependency.png'
+  }
+
+  getContent() {
+    return this.app.i18n.t('enterpriseFeatures.dateDependencyContent')
   }
 }

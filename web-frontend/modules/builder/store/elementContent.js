@@ -289,14 +289,21 @@ const actions = {
           commit('CLEAR_CONTENT', { element })
         }
         // Let's stop all other queries
-        Object.values(queriesInProgress[element.id] | {}).forEach(
+        Object.values(queriesInProgress[element.id] || {}).forEach(
           (controller) => controller.abort()
         )
         queriesInProgress[element.id] = {}
         throw e
       }
     } finally {
-      if (!Object.keys(queriesInProgress[element.id]).length) {
+      // If this element has no active queries in progress, then
+      // we can set loading to false. The variable will be a blank
+      // object if there was an early return and no HTTP request
+      // was made.
+      if (
+        queriesInProgress[element.id] &&
+        !Object.keys(queriesInProgress[element.id]).length
+      ) {
         commit('SET_LOADING', { element, value: false })
       }
     }

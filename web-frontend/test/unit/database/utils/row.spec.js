@@ -181,6 +181,7 @@ describe('Row utilities', () => {
     })
     expect(updateRequestValues).toEqual({
       field_1: 1,
+      id: row.id,
     })
   })
 

@@ -453,3 +453,90 @@ def test_rows_enter_view_event_type_paginate_data(
             {"id": 3, "order": "3.00000000000000000000", "text": "c"},
         ],
     }
+
+
+@pytest.mark.django_db(transaction=True)
+@override_settings(DEBUG=True)
+@responses.activate
+@patch("baserow.contrib.database.webhooks.registries.call_webhook")
+def test_rows_enter_view_webhook_does_not_trigger_for_events_before_creation(
+    mock_call_webhook, enterprise_data_fixture, synced_roles, enable_enterprise
+):
+    user = enterprise_data_fixture.create_user()
+    table = enterprise_data_fixture.create_database_table(user=user)
+    text_field = enterprise_data_fixture.create_text_field(table=table, name="Fruit")
+
+    banana_view = enterprise_data_fixture.create_grid_view(table=table)
+    enterprise_data_fixture.create_view_filter(
+        view=banana_view, field=text_field, type="equal", value="Banana"
+    )
+
+    # Create some rows
+    rows = (
+        RowHandler()
+        .force_create_rows(
+            user=user,
+            table=table,
+            rows_values=[
+                {f"field_{text_field.id}": "Apple"},
+                {f"field_{text_field.id}": "Banana"},  # in banana_view
+                {f"field_{text_field.id}": "Carrot"},
+                {f"field_{text_field.id}": "Banana"},
+                {f"field_{text_field.id}": "Mango"},
+            ],
+        )
+        .created_rows
+    )
+
+    with transaction.atomic():
+        webhook_1 = WebhookHandler().create_table_webhook(
+            user=user,
+            table=table,
+            url="http://localhost/webhook_1",
+            include_all_events=False,
+            events=["view.rows_entered"],
+            event_config=[
+                {"event_type": "view.rows_entered", "views": [banana_view.id]}
+            ],
+        )
+
+    # The webhook should not trigger the first time
+    assert mock_call_webhook.delay.call_count == 0
+
+    # Now let's remove the webhook, update some rows and re-create the webhook.
+    # Also the new one, should not trigger the first time
+    WebhookHandler().delete_table_webhook(user, webhook_1)
+
+    with transaction.atomic():
+        RowHandler().force_update_rows(
+            user=user,
+            table=table,
+            rows_values=[
+                {"id": rows[0].id, f"field_{text_field.id}": "Banana"},
+            ],
+        )
+    with transaction.atomic():
+        webhook_2 = WebhookHandler().create_table_webhook(
+            user=user,
+            table=table,
+            url="http://localhost/webhook_2",
+            include_all_events=False,
+            events=["view.rows_entered"],
+            event_config=[
+                {"event_type": "view.rows_entered", "views": [banana_view.id]}
+            ],
+        )
+
+    assert mock_call_webhook.delay.call_count == 0
+
+    with transaction.atomic():
+        RowHandler().force_update_rows(
+            user=user,
+            table=table,
+            rows_values=[
+                {"id": rows[2].id, f"field_{text_field.id}": "Banana"},
+            ],
+        )
+
+    assert mock_call_webhook.delay.call_count == 1
+    assert mock_call_webhook.delay.call_args[1]["event_type"] == "view.rows_entered"

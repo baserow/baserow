@@ -73,12 +73,6 @@ class CoreHTTPRequestService(Service):
         ],
         help_text="The timeout for the HTTP request in seconds.",
     )
-    response_sample = models.JSONField(
-        default=None,
-        blank=True,
-        null=True,
-        help_text="Response got from test.",
-    )
 
 
 class CoreSMTPEmailService(Service):

@@ -62,3 +62,7 @@ class AutomationNodeNotReplaceable(AutomationNodeError):
     the node's type dictates that it cannot be replaced, or if a trigger
     is being replaced with an action, or vice versa.
     """
+
+
+class AutomationNodeSimulateDispatchError(AutomationNodeError):
+    """Raised when there is an error while simulating a dispatch of a node."""

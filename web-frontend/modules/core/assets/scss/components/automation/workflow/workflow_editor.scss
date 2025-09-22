@@ -1,20 +1,94 @@
-.workflow-editor__node {
+.workflow-node__edges {
+  display: flex;
+  gap: 15px;
+  margin-top: 40px;
+}
+
+.workflow-node__edge {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 200px;
+}
+
+.workflow-edge {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.workflow-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  pointer-events: none;
+}
+
+.workflow-edge__add-button--with-next::after {
+  content: '';
+  display: block;
+  margin-left: 50%;
+  height: 40px;
+  border-left: 2px solid $palette-neutral-400;
+}
+
+.workflow-edge__label {
+  position: relative;
+  padding: 6px 10px;
+  margin-bottom: 10px;
+  border-radius: 25px;
+  background-color: $palette-neutral-200;
+  border: 1px solid $palette-neutral-400;
+  color: $palette-neutral-700;
+  display: block;
+
+  @include elevation($elevation-low);
+
+  &::after {
+    content: '';
+    position: absolute;
+    display: block;
+    left: 50%;
+    bottom: -12px;
+    height: 10px;
+    border-left: 2px solid $palette-neutral-400;
+  }
+}
+
+.workflow-edge__add-button {
+  pointer-events: initial;
+}
+
+.workflow-connector {
+  color: $palette-neutral-400;
+}
+
+.workflow-node-content {
+  position: relative;
+  pointer-events: initial;
   display: inline-flex;
   height: 72px;
   padding: 16px;
   align-items: center;
   gap: 16px;
   flex-shrink: 0;
-  width: 412px;
+  width: 400px;
   border: 1.5px solid $palette-neutral-200;
   background: $white;
   cursor: pointer;
 
   @include elevation($elevation-low);
   @include rounded($rounded-xl);
+
+  &.workflow-node-content--selected {
+    border: 1.5px solid $palette-blue-500;
+  }
 }
 
-.workflow-editor__node::before {
+.workflow-node-content::before {
   content: attr(data-before-label);
   position: absolute;
   top: -25px;
@@ -23,14 +97,14 @@
   font-weight: 500;
 }
 
-.workflow-editor__node-more--wrapper {
+.workflow-node-content__more--wrapper {
   display: flex;
   margin-left: auto;
   flex-direction: column;
   gap: 4px;
 }
 
-.workflow-editor__node-more-icon {
+.workflow-node-content__more-icon {
   color: $palette-neutral-800;
   font-size: 20px;
   width: 25px;
@@ -58,17 +132,9 @@
     border: none;
     border-right: 1px solid #eee;
   }
-
-  .vue-flow__node-workflow-node {
-    &.selected {
-      .workflow-editor__node {
-        border: 1.5px solid $palette-blue-500;
-      }
-    }
-  }
 }
 
-.workflow-editor__node-icon {
+.workflow-node-content__icon {
   display: flex;
   height: 40px;
   padding: 12px;
@@ -81,7 +147,7 @@
   @include rounded($rounded-md);
 }
 
-.workflow-editor__node-title {
+.workflow-node-content__title {
   font-size: 16px;
   font-weight: 500;
   color: $palette-neutral-1200;

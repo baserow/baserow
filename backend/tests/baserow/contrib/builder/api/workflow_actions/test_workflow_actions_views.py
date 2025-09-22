@@ -366,6 +366,7 @@ def test_create_create_row_workflow_action(api_client, data_fixture):
         "field_mappings": [],
         "context_data": None,
         "context_data_schema": None,
+        "sample_data": None,
     }
 
 
@@ -459,6 +460,7 @@ def test_create_update_row_workflow_action(api_client, data_fixture):
         "field_mappings": [],
         "context_data": None,
         "context_data_schema": None,
+        "sample_data": None,
     }
 
 
@@ -1038,6 +1040,7 @@ def test_create_delete_row_workflow_action(api_client, data_fixture):
         "table_id": None,
         "context_data": None,
         "context_data_schema": None,
+        "sample_data": None,
     }
 
 
