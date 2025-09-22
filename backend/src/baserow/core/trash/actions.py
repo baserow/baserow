@@ -11,6 +11,7 @@ from baserow.core.action.scopes import (
 )
 from baserow.core.exceptions import ApplicationDoesNotExist, WorkspaceDoesNotExist
 from baserow.core.models import Application, Workspace
+from baserow.core.trash.exceptions import TrashItemRestorationDisallowed
 from baserow.core.trash.handler import TrashHandler
 
 
@@ -119,6 +120,13 @@ class RestoreFromTrashActionType(ActionType):
         trash_entry = TrashHandler.get_trash_entry(
             trash_item_type, trash_item_id, parent_trash_item_id
         )
+
+        # Managed trashed entries cannot be manually restored.
+        if trash_entry.managed:
+            raise TrashItemRestorationDisallowed(
+                "This trash entry is managed internally and cannot be restored manually."
+            )
+
         workspace = trash_entry.workspace
         TrashHandler.restore_item(
             user, trash_item_type, trash_item_id, parent_trash_item_id

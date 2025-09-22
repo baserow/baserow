@@ -339,8 +339,10 @@ class AutomationNodeService:
         # After the node creation, the replaced node has changed
         node.refresh_from_db()
 
+        # Trash the old node, marking it as managed so that it cannot
+        # be manually restored by users in the trash list.
         automation = node.workflow.automation
-        TrashHandler.trash(user, automation.workspace, automation, node)
+        TrashHandler.trash(user, automation.workspace, automation, node, managed=True)
 
         return ReplacedAutomationNode(
             node=new_node,
