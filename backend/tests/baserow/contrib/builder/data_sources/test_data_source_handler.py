@@ -599,3 +599,51 @@ def test_dispatch_data_source_doesnt_return_formula_field_names(
             },
         ],
     }
+
+
+@pytest.mark.django_db
+def test_query_data_sources_excludes_trashed_service(data_fixture):
+    user = data_fixture.create_user()
+    table, fields, rows = data_fixture.build_table(
+        user=user,
+        columns=[("Name", "text"), ("Color", "text")],
+        rows=[["Apple", "Red"], ["Banana", "Yellow"]],
+    )
+    view = data_fixture.create_grid_view(user, table=table)
+    
+    builder = data_fixture.create_builder_application(user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        application=builder, user=user
+    )
+    page = data_fixture.create_builder_page(builder=builder)
+    
+    # Create two data sources
+    service_1 = data_fixture.create_local_baserow_list_rows_service(
+        integration=integration, table=table, view=view
+    )
+    data_fixture.create_builder_local_baserow_list_rows_data_source(
+        page=page, service=service_1
+    )
+    
+    service_2 = data_fixture.create_local_baserow_list_rows_service(
+        integration=integration, table=table, view=view
+    )
+    data_fixture.create_builder_local_baserow_list_rows_data_source(
+        page=page, service=service_2
+    )
+
+    # Should return 2 data sources, since neither are trashed
+    data_sources = DataSourceHandler()._query_data_sources(
+        DataSource.objects.filter(page=page), specific=True
+    )
+    assert len(data_sources) == 2
+    
+    # Trash the first service
+    service_1.trashed = True
+    service_1.save()
+
+    # There should only be one data source now
+    data_sources = DataSourceHandler()._query_data_sources(
+        DataSource.objects.filter(page=page), specific=True
+    )
+    assert len(data_sources) == 1
