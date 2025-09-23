@@ -610,13 +610,13 @@ def test_query_data_sources_excludes_trashed_service(data_fixture):
         rows=[["Apple", "Red"], ["Banana", "Yellow"]],
     )
     view = data_fixture.create_grid_view(user, table=table)
-    
+
     builder = data_fixture.create_builder_application(user=user)
     integration = data_fixture.create_local_baserow_integration(
         application=builder, user=user
     )
     page = data_fixture.create_builder_page(builder=builder)
-    
+
     # Create two data sources
     service_1 = data_fixture.create_local_baserow_list_rows_service(
         integration=integration, table=table, view=view
@@ -624,7 +624,7 @@ def test_query_data_sources_excludes_trashed_service(data_fixture):
     data_fixture.create_builder_local_baserow_list_rows_data_source(
         page=page, service=service_1
     )
-    
+
     service_2 = data_fixture.create_local_baserow_list_rows_service(
         integration=integration, table=table, view=view
     )
@@ -637,7 +637,7 @@ def test_query_data_sources_excludes_trashed_service(data_fixture):
         DataSource.objects.filter(page=page), specific=True
     )
     assert len(data_sources) == 2
-    
+
     # Trash the first service
     service_1.trashed = True
     service_1.save()
