@@ -1,3 +1,4 @@
+import json
 from typing import Annotated, Any
 from collections import defaultdict
 
@@ -12,16 +13,25 @@ from langgraph.types import Command
 from langgraph.config import get_stream_writer
 from django.db import transaction
 
+from baserow.contrib.database.api.rows.serializers import (
+    RowSerializer,
+    get_batch_row_serializer_class,
+    get_row_serializer_class,
+)
+from baserow.contrib.database.api.rows.views import build_response_with_metadata
 from baserow.contrib.database.models import Database, Table
 from baserow.contrib.database.rows.handler import RowHandler
+from baserow.contrib.database.table.handler import TableHandler
 from baserow.core.models import User, Workspace
 from baserow_enterprise.assistant.capabilities.base import AssistantBaseTool
+
 from .row_model_generator import (
-    create_partial_row_model_from_schema,
     get_dynamic_components_for_table,
 )
-from baserow_enterprise.assistant.capabilities.database_architect.tools import (
-    format_current_schema,
+from baserow_enterprise.assistant.capabilities.database_architect.utils import (
+    get_database_schema,
+    get_table_schema,
+    get_workspace_schema,
 )
 from baserow_enterprise.assistant.utils.helpers import (
     find_last_message_of_type,
@@ -29,8 +39,10 @@ from baserow_enterprise.assistant.utils.helpers import (
 )
 
 from .types import (
+    BaseToolArgsSchema,
     DataManagerToolArgsSchema,
-    DataManagerToolOutputSchema,
+    GetDatabaseSchemaToolArgsSchema,
+    GetWorkspaceSchemaToolArgsSchema,
 )
 from .prompts import (
     DATA_MANAGER_SYSTEM_PROMPT,
@@ -48,10 +60,6 @@ from baserow_enterprise.assistant.types import (
     HumanMessage,
     PartialAssistantState,
     ToolCallMessage,
-    UIContext,
-    CreateRowsOperation,
-    UpdateRowsOperation,
-    DeleteRowsOperation,
 )
 
 
@@ -92,6 +100,7 @@ class DataManagerTool(AssistantBaseTool):
         instructions: str,
         tool_call_id: Annotated[str, InjectedToolCallId],
         state: Annotated[AssistantState, InjectedState],
+        table_id: int | None = None,
     ) -> Any:
         stream_writer = get_stream_writer()
         stream_writer(
@@ -105,11 +114,11 @@ class DataManagerTool(AssistantBaseTool):
 
         # Get UI context for current database/table information
         ui_context = find_last_ui_context(state.messages)
-        if ui_context and ui_context.table:
-            table = Table.objects.get(id=ui_context.table.id)
-            schema = format_current_schema(ui_context)
-            table_schema = schema["tables"].get(ui_context.table.name)
-        else:
+
+        if not table_id and ui_context and ui_context.table:
+            table_id = ui_context.table.id
+
+        if not table_id:
             return Command(
                 goto=ASSISTANT_GRAPH_NODE.INTERRUPT,
                 update=PartialAssistantState(
@@ -117,7 +126,7 @@ class DataManagerTool(AssistantBaseTool):
                         ToolCallMessage(
                             tool_call_id=tool_call_id,
                             content=(
-                                "Please navigate to a specific table to perform data operations."
+                                "Please provide a valid table ID to operate on, or navigate to a table in the UI."
                             ),
                             artifact=result,
                         ),
@@ -131,9 +140,24 @@ class DataManagerTool(AssistantBaseTool):
                 ),
             )
 
+        table = Table.objects.get(id=table_id)
+        table_schema = get_table_schema(table)
+
         # Get all dynamic components for this table
         dynamic_components = get_dynamic_components_for_table(table_schema)
         DynamicOutputSchema = dynamic_components["output_schema"]
+
+        table_model = table.get_model()
+        response_row_serializer_class = get_row_serializer_class(
+            table_model, RowSerializer, is_response=True, user_field_names=True
+        )
+        response_serializer_class = get_batch_row_serializer_class(
+            response_row_serializer_class
+        )
+
+        example_rows = response_serializer_class(
+            {"items": table_model.objects.all()[:10]}
+        ).data
 
         # Initialize the model with the dynamic schema
         model = init_chat_model(
@@ -171,6 +195,7 @@ class DataManagerTool(AssistantBaseTool):
         result = chain.invoke(
             {
                 "instructions": instructions,
+                "example_rows": example_rows,
             }
         )
 
@@ -207,7 +232,7 @@ class DataManagerTool(AssistantBaseTool):
         # Return success response
         success_message = result.markdown_description
         if rows_affected:
-            success_message += f"\n\n**Rows affected**: {rows_affected}"
+            success_message += f"\n\n**Done!**: {rows_affected} rows affected."
 
         return Command(
             update=PartialAssistantState(
@@ -220,5 +245,101 @@ class DataManagerTool(AssistantBaseTool):
                 ],
                 dma_data_operations_plan=None,
                 dma_needs_clarification=False,
+            ),
+        )
+
+
+class GetDatabaseSchemaTool(AssistantBaseTool):
+    name: str = "get_database_schema"
+    description: str = "Get the schema of a database, including tables and fields."
+    usage_instructions: str = """
+Use this tool to retrieve the schema of a specific database. 
+If the database name is not provided, the tool will use the database from the current UI context if available.
+You can also choose to only include tables and fields that are part of relationships by setting relations_only to true. 
+This is useful for understanding table names and how they are linked together.
+If the database cannot be found, the tool will return an error message instead of the schema.
+"""
+    args_schema: type[BaseModel] = GetDatabaseSchemaToolArgsSchema
+
+    def _run_impl(
+        self,
+        tool_call_id: Annotated[str, InjectedToolCallId],
+        state: Annotated[AssistantState, InjectedState],
+        database_name: str | None = None,
+        relations_only: bool = False,
+    ) -> Command:
+        user = User.objects.get(id=self._context.chat.user.id)
+        workspace_id = self._context.chat.workspace.id
+
+        if database_name is None:
+            ui_context = find_last_ui_context(state.messages)
+            if (
+                ui_context
+                and ui_context.application
+                and ui_context.application.type == "database"
+            ):
+                database_name = ui_context.application.name
+
+        database = Database.objects.filter(
+            name=database_name, workspace_id=workspace_id
+        ).first()
+
+        if not database:
+            return Command(
+                update=PartialAssistantState(
+                    messages=[
+                        ToolCallMessage(
+                            tool_call_id=tool_call_id,
+                            content=f"ERROR: Database with name '{database_name}' not found.",
+                        )
+                    ],
+                ),
+            )
+
+        database_schema = get_database_schema(database, relations_only=relations_only)
+
+        return Command(
+            update=PartialAssistantState(
+                messages=[
+                    ToolCallMessage(
+                        tool_call_id=tool_call_id,
+                        content=database_schema.model_dump_json(indent=2),
+                        artifact=database_schema,
+                    )
+                ],
+            ),
+        )
+
+
+class GetWorkspaceSchemaTool(AssistantBaseTool):
+    name: str = "get_workspace_schema"
+    description: str = (
+        "Get the schema of a workspace, including databases and their tables."
+    )
+    usage_instructions: str = """
+Use this tool to retrieve the schema of a specific workspace. 
+The tool will return the names of databases in the workspace.
+"""
+    args_schema: type[BaseModel] = GetWorkspaceSchemaToolArgsSchema
+
+    def _run_impl(
+        self,
+        tool_call_id: Annotated[str, InjectedToolCallId],
+        state: Annotated[AssistantState, InjectedState],
+    ) -> Command:
+        user = User.objects.get(id=self._context.chat.user.id)
+
+        workspace = Workspace.objects.get(id=self._context.chat.workspace.id)
+        workspace_schema = get_workspace_schema(workspace)
+
+        return Command(
+            update=PartialAssistantState(
+                messages=[
+                    ToolCallMessage(
+                        tool_call_id=tool_call_id,
+                        content=workspace_schema.model_dump_json(indent=2),
+                        artifact=workspace_schema,
+                    )
+                ],
             ),
         )

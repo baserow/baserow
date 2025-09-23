@@ -98,6 +98,8 @@ Response:
 - **markdown_description**: "Adding 1 new customer record to the **Customers** table."
 - **need_clarification**: false
 
+## Existing rows, as reference for realistic example data:
+{{{example_rows}}}
 
 ## User Request
 {{{instructions}}}
@@ -147,6 +149,7 @@ You don't need to know the table structure or field details - just pass the user
 **DO NOT use for:**
 - Creating new tables or fields (use database_architect instead)
 - Schema modifications or database structure changes
+- Don't provide a table_id unless you are absolutely sure
 
 **Key point:** The caller doesn't need any knowledge about tables, fields, or data structure. Just pass the user's request and let the tool handle the rest.
 """

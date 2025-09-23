@@ -16,6 +16,9 @@ from langchain_core.messages import HumanMessage as LCHumanMessage
 from django.db import transaction
 from baserow.core.models import User, Workspace
 
+from baserow_enterprise.assistant.capabilities.database_architect.utils import (
+    get_database_schema,
+)
 from baserow_enterprise.assistant.utils.helpers import (
     find_last_message_of_type,
     find_last_ui_context,
@@ -30,7 +33,6 @@ from .prompts import (
     DATABASE_ARCHITECT_TOOL_DESCRIPTION,
     DATABASE_ARCHITECT_TOOL_USAGE_INSTRUCTIONS,
     PLANNER_SYSTEM_PROMPT,
-    format_current_schema,
 )
 
 from baserow_enterprise.assistant.types import (
@@ -146,11 +148,12 @@ class DatabaseArchitectTool(AssistantBaseTool):
             and ui_context.application
             and ui_context.application.type == "database"
         ):
+            database = Database.objects.filter(id=ui_context.application.id).first()
             conversation_messages.append(
                 LCAIMessage(
                     content=(
                         "## Current database schema:\n\n"
-                        f"{format_current_schema(ui_context)}\n\n"
+                        f"{get_database_schema(database)}\n\n"
                     )
                 )
             )

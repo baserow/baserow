@@ -20,6 +20,8 @@ from baserow_enterprise.assistant.capabilities.knowledge_retrieval.tools import 
 )
 from baserow_enterprise.assistant.capabilities.data_manager.tools import (
     DataManagerTool,
+    GetDatabaseSchemaTool,
+    GetWorkspaceSchemaTool,
 )
 from baserow_enterprise.assistant.types import (
     AiInterruptMessage,
@@ -35,7 +37,7 @@ from baserow_enterprise.assistant.utils.helpers import (
     generate_tool_call_id,
     get_message_buffer,
 )
-from .prompts import ROOT_SYSTEM_PROMPT
+from .prompts import CONTEXT_PROMPT, ROOT_SYSTEM_PROMPT
 
 from langgraph.types import Command, interrupt
 from langgraph.prebuilt import ToolNode
@@ -60,6 +62,8 @@ def get_root_tools() -> list[AssistantBaseTool]:
             RetrieveKnowledgeTool(),
             DatabaseArchitectTool(),
             DataManagerTool(),
+            GetDatabaseSchemaTool(),
+            GetWorkspaceSchemaTool(),
         ]
         ROOT_TOOLS = [tool for tool in tools if tool.can_be_used()]
 
@@ -140,10 +144,12 @@ class RootNode(AssistantNode):
         )
 
     async def arun(self, state: AssistantState, config: RunnableConfig):
+        message_history = get_message_buffer(state.messages, limit_human_messages=30)
         prompt = ChatPromptTemplate.from_messages(
             [
                 ("system", ROOT_SYSTEM_PROMPT),
-                *get_message_buffer(state.messages, limit_human_messages=30),
+                ("system", CONTEXT_PROMPT),
+                *message_history,
             ],
             template_format="mustache",
         )

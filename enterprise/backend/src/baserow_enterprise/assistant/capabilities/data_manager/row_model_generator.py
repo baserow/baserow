@@ -118,15 +118,10 @@ def get_field_python_type(field: AnyFieldType) -> tuple[type, Any]:
         )
 
     elif isinstance(field, LinkRowFieldType):
-        if getattr(field, "multiple", False):
-            return List[int], Field(
-                description=f"List of linked row IDs from {field.linked_table_name}: {field.name}",
-                default_factory=list,
-            )
-        else:
-            return Optional[int], Field(
-                description=f"Linked row ID from {field.linked_table_name}: {field.name}"
-            )
+        return List[int], Field(
+            description=f"List of linked row IDs from {field.linked_table_name}: {field.name}",
+            default_factory=list,
+        )
 
     elif isinstance(field, FileFieldType):
         # TODO

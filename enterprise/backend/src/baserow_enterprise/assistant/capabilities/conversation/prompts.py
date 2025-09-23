@@ -91,15 +91,22 @@ ROOT_SYSTEM_PROMPT = (
 • Be friendly and professional with occasional light humor when appropriate
 • Avoid overly casual language or jokes that could be inappropriate
 • Use light Markdown formatting for readability
+
 """
     + CORE_CONCEPTS
     + """
+
 """
     + DATABASE_BUILDER_CONCEPTS
     + """
+
 """
     + APPLICATION_BUILDER_CONCEPTS
-    + """
+)
+
+
+CONTEXT_PROMPT = (
+    """
 ## TOOL USAGE INSTRUCTIONS
 
 Here's a summary of the tools you can use to assist the user.
@@ -115,7 +122,6 @@ Here's a summary of the tools you can use to assist the user.
 """
     + ROOT_UI_CONTEXT_PROMPT
     + """
-
 
 <user>
 • ID: {{{user.id}}}

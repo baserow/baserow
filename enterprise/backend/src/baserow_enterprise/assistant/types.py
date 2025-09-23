@@ -674,14 +674,27 @@ field_registry: Dict[str, BaseFieldType] = {
 
 
 class TableSchema(BaseModel):
+    id: int
     name: str
     primary_field: TextFieldType
-    fields: list[AnyFieldType]
+    fields: list[AnyFieldType] = Field(default_factory=list)
+    relationships: list[str] = Field(
+        default_factory=list, description="Names of linked tables"
+    )
 
 
 class DatabaseSchema(BaseModel):
+    id: int
     name: str
-    tables: list[TableSchema]
+    tables: dict[str, TableSchema]
+
+
+class WorkspaceSchema(BaseModel):
+    id: int
+    name: str
+    databases: list[str] = Field(
+        default_factory=list, description="Database names in the workspace"
+    )
 
 
 class SchemaExecutableOperation(BaseModel):
@@ -804,8 +817,23 @@ class UpdateFieldOperation(SchemaExecutableOperation):
     field: AnyFieldType
 
     def execute(self, user, resource_mapping) -> None:
-        table = resource_mapping["table"][self.table_name]
-        field = resource_mapping[f"field_{table.id}"].pop(self.field_name)
+        database = list(resource_mapping["database"].values())[0]
+        table = resource_mapping["table"].get(self.table_name)
+        if table is None:
+            table = Table.objects.filter(
+                name=self.table_name, database=database
+            ).first()
+            if table is None:
+                return
+            resource_mapping["table"][self.table_name] = table
+
+        field = resource_mapping[f"field_{table.id}"].pop(self.field_name, None)
+        if field is None:
+            # Try to fetch from the database
+            field = table.field_set.filter(name=self.field_name).first()
+            if field is None:
+                return
+
         with transaction.atomic():
             field = UpdateFieldActionType.do(
                 user,

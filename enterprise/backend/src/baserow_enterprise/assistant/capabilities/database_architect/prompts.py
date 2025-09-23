@@ -1,5 +1,14 @@
 from itertools import groupby
-from baserow_enterprise.assistant.types import TableSchema, UIContext, field_registry
+
+from distro import name
+from baserow.contrib.database.models import Database
+from baserow.contrib.database.table.models import Table
+from baserow_enterprise.assistant.types import (
+    DatabaseSchema,
+    TableSchema,
+    UIContext,
+    field_registry,
+)
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.fields.registries import field_type_registry
 
@@ -301,39 +310,6 @@ Create operations that EXACTLY address the user's specific request, then apply s
 - Include essential fields that make the system functional
 - Questions help understand specific requirements and customization needs
 """
-
-
-def format_current_schema(ui_context: UIContext) -> str:
-    current_application = ui_context.application
-    current_table = ui_context.table
-    fields = (
-        Field.objects.filter(table__database_id=current_application.id)
-        .select_related("table__database", "content_type")
-        .order_by("table_id", "-primary", "order", "id")
-    )
-    field_type = lambda f: field_registry.get(
-        field_type_registry.get_for_class(f.specific_class).type
-    )
-
-    tables = {}
-    for table_id, _table_fields in groupby(fields, lambda f: f.table):
-        table_fields = list(_table_fields)
-        table = TableSchema(
-            name=table_id.name,
-            primary_field=field_type(table_fields[0]).from_orm(table_fields[0]),
-            fields=[],
-        )
-        for field in table_fields[1:]:
-            f = field_type(field)
-            if f:
-                table.fields.append(f.from_orm(field))
-        tables[table.name] = table
-
-    return {
-        "name": current_application.name,
-        "tables": tables,
-        "current_table": current_table.name if current_table else None,
-    }
 
 
 DATABASE_ARCHITECT_TOOL_DESCRIPTION = """
