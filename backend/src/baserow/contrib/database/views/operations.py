@@ -36,6 +36,10 @@ class ListViewFeldsOperationType(ViewOperationType):
     type = "database.table.view.list_fields"
 
 
+class ListViewRowsOperationType(ViewOperationType):
+    type = "database.table.view.list_rows"
+
+
 class CreateViewRowOperationType(ViewOperationType):
     type = "database.table.view.create_row"
 

@@ -194,7 +194,7 @@ from baserow.contrib.database.views.operations import (
     UpdateViewPublicOperationType,
     UpdateViewRowOperationType,
     UpdateViewSlugOperationType,
-    UpdateViewSortOperationType,
+    UpdateViewSortOperationType, ListViewRowsOperationType,
 )
 from baserow.contrib.database.webhooks.operations import (
     CreateWebhookOperationType,
@@ -346,7 +346,6 @@ default_roles[READ_ONLY_ROLE_UID].extend(
         ListTablesDatabaseTableOperationType,
         ReadApplicationOperationType,
         ReadDatabaseTableOperationType,
-        ListRowsDatabaseTableOperationType,
         ReadDatabaseRowOperationType,
         ReadViewOperationType,
         ListViewSortOperationType,
@@ -386,6 +385,8 @@ default_roles[VIEWER_ROLE_UID].extend(
         DeleteMCPEndpointOperationType,
         DispatchDashboardDataSourceOperationType,
         ListViewFeldsOperationType,
+        ListRowsDatabaseTableOperationType,
+        ListViewRowsOperationType,
     ]
 )
 default_roles[COMMENTER_ROLE_UID].extend(
