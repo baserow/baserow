@@ -74,18 +74,22 @@ def test_get_data_sources(data_fixture, specific):
 
     data_sources = DataSourceHandler().get_data_sources(page, specific=specific)
 
-    assert [e.id for e in data_sources] == [
+    expected_ids = [
         data_source1.id,
         data_source2.id,
         data_source3.id,
-        data_source4.id,
     ]
+    if not specific:
+        expected_ids.append(data_source4.id)
+
+    assert [e.id for e in data_sources] == expected_ids
 
     if specific:
         assert isinstance(data_sources[0].service, LocalBaserowGetRow)
         assert isinstance(data_sources[2].service, LocalBaserowListRows)
-
-    assert data_sources[3].service is None
+        assert list(data_sources)[-1].service is not None
+    else:
+        assert list(data_sources)[-1].service is None
 
 
 @pytest.mark.django_db
@@ -95,15 +99,19 @@ def test_get_data_sources_with_shared(data_fixture):
     data_source1 = data_fixture.create_builder_local_baserow_get_row_data_source(
         page=page
     )
-    data_source2 = data_fixture.create_builder_local_baserow_get_row_data_source(
+    data_source2 = data_fixture.create_builder_local_baserow_list_rows_data_source(
         page=page
     )
     data_source3 = data_fixture.create_builder_local_baserow_list_rows_data_source(
         page=page
     )
-    data_source4 = data_fixture.create_builder_data_source(page=page)
+    data_source4 = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        page=page
+    )
 
-    shared_data_source = data_fixture.create_builder_data_source(page=shared_page)
+    shared_data_source = data_fixture.create_builder_local_baserow_get_row_data_source(
+        page=shared_page
+    )
     shared_data_source2 = (
         data_fixture.create_builder_local_baserow_list_rows_data_source(
             page=shared_page
@@ -122,8 +130,7 @@ def test_get_data_sources_with_shared(data_fixture):
     ]
 
     assert isinstance(data_sources[2].service, LocalBaserowGetRow)
-    assert isinstance(data_sources[4].service, LocalBaserowListRows)
-    assert data_sources[5].service is None
+    assert isinstance(data_sources[3].service, LocalBaserowListRows)
 
 
 @pytest.mark.django_db
