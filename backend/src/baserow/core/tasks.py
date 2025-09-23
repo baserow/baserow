@@ -1,5 +1,7 @@
 from django.conf import settings
 
+from celery_singleton import Singleton
+
 from baserow.config.celery import app
 
 from .action.tasks import cleanup_old_actions, setup_periodic_action_tasks
@@ -18,9 +20,12 @@ from .user.tasks import (
 
 
 @app.task(
+    base=Singleton,
+    raise_on_duplicate=False,
     bind=True,
     queue="export",
     time_limit=settings.BASEROW_SYNC_TEMPLATES_TIME_LIMIT,
+    lock_expiry=settings.BASEROW_SYNC_TEMPLATES_TIME_LIMIT,
 )
 def sync_templates_task(self):
     from baserow.core.handler import CoreHandler
