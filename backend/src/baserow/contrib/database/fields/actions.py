@@ -92,6 +92,8 @@ class UpdateFieldActionType(UndoableActionCustomCleanupMixin, UndoableActionType
             as the second tuple value.
         """
 
+        field = field.specific  # Make sure we have the most specific field instance
+
         from_field_type = field_type_registry.get_by_model(field)
         from_field_type_name = from_field_type.type
 

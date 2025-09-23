@@ -116,6 +116,7 @@ Here's a summary of the tools you can use to assist the user.
     + ROOT_UI_CONTEXT_PROMPT
     + """
 
+
 <user>
 • ID: {{{user.id}}}
 • Email: {{{user.email}}}

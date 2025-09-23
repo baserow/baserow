@@ -343,7 +343,9 @@
     "statusThinking": "Thinking...",
     "statusAnswering": "Answering...",
     "statusRetrievingKnowledge": "Exploring the knowledge base...",
-    "statusAnalyzingKnowledge": "Analyzing sources..."
+    "statusAnalyzingKnowledge": "Analyzing sources...",
+    "statusDesigningSchema": "Designing schema...",
+    "statusImplementingSchema": "Implementing schema..."
   },
   "assistantChatHistoryContext": {
     "empty": "No chat history available",

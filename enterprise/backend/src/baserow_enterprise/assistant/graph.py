@@ -4,6 +4,7 @@ from baserow_enterprise.assistant.capabilities.conversation.nodes import (
     RootNode,
     RootToolNode,
     root_tools_condition,
+    InterruptNode,
 )
 
 from baserow_enterprise.assistant.capabilities.title_generator.nodes import (
@@ -50,6 +51,9 @@ class AssistantGraphBuilder:
             root_tools_condition,
             {"tools": ASSISTANT_GRAPH_NODE.ROOT_TOOLS, "__end__": END},
         )
+
+        interrupt_node = InterruptNode(self._context)
+        self._builder.add_node(ASSISTANT_GRAPH_NODE.INTERRUPT, interrupt_node)
 
     async def compile_full_graph(
         self, checkpointer: BaseCheckpointSaver = None

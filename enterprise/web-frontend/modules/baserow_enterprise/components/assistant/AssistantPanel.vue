@@ -65,6 +65,7 @@ import AssistantInputMessage from '@baserow_enterprise/components/assistant/Assi
 import AssistantMessageList from '@baserow_enterprise/components/assistant/AssistantMessageList'
 import AssistantChatHistoryContext from './AssistantChatHistoryContext'
 import { mapGetters, mapActions } from 'vuex'
+import { waitFor } from '@baserow/modules/core/utils/queue'
 
 export default {
   name: 'AssistantPanel',
@@ -93,6 +94,7 @@ export default {
       chats: 'assistant/chats',
       isLoadingChats: 'assistant/isLoadingChats',
       uiContext: 'assistant/uiContext',
+      uiNavigation: 'assistant/uiNavigation',
     }),
     currentChatId() {
       return this.currentChat?.id
@@ -123,6 +125,35 @@ export default {
           container.scrollTop = container.scrollHeight
         })
       }
+    },
+    uiNavigation: {
+      handler(newNavigation) {
+        if (newNavigation?.table_id) {
+          const router = this.$router
+          const store = this.$store
+          waitFor(() => {
+            const database = store.getters['application/get'](
+              newNavigation.database_id
+            )
+            return (
+              database &&
+              database.tables.find(
+                (table) => table.id === newNavigation.table_id
+              )
+            )
+          }).then(() => {
+            router.push({
+              name: 'database-table',
+              params: {
+                workspaceId: this.workspace.id,
+                databaseId: newNavigation.database_id,
+                tableId: newNavigation.table_id,
+                viewId: newNavigation.view_id,
+              },
+            })
+          })
+        }
+      },
     },
   },
   mounted() {

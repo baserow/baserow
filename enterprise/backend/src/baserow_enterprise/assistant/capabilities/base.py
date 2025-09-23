@@ -82,9 +82,7 @@ class AssistantNode(Generic[StateType, PartialStateType]):
         Extracts the UI context from the latest human message.
         """
 
-        if hasattr(state, "messages"):
-            return find_last_ui_context(state.messages)
-        return None
+        return find_last_ui_context(state.messages)
 
     @traceable
     async def __call__(

@@ -8,6 +8,7 @@ const MESSAGE_TYPE = {
   ERROR: 'ai/error',
   CHAT_TITLE: 'chat/title',
   INTERRUPT: 'ai/interrupt',
+  UI_NAVIGATION: 'ui/navigation',
 }
 
 export const THINKING_MESSAGES = {
@@ -18,6 +19,8 @@ export const THINKING_MESSAGES = {
   // Tool related messages
   RETRIEVE_KNOWLEDGE: 'retrieve_knowledge',
   ANALYZE_KNOWLEDGE: 'analyze_knowledge',
+  DESIGN_SCHEMA: 'design_schema',
+  IMPLEMENT_SCHEMA: 'implement_schema',
 
   CUSTOM: 'custom', // Messages without a predefined translation
 }
@@ -27,6 +30,7 @@ export const state = () => ({
   messages: [],
   chats: [],
   isLoadingChats: false,
+  uiNavigation: null,
 })
 
 export const mutations = {
@@ -105,6 +109,10 @@ export const mutations = {
     if (chat) {
       Object.assign(chat, updates)
     }
+  },
+
+  SET_UI_NAVIGATION(state, navigation) {
+    state.uiNavigation = navigation || null
   },
 }
 
@@ -216,6 +224,9 @@ export const actions = {
           },
         })
         break
+      case MESSAGE_TYPE.UI_NAVIGATION:
+        commit('SET_UI_NAVIGATION', update.args)
+        break
     }
   },
 
@@ -326,6 +337,10 @@ export const getters = {
       uiContext.view = { id: view.id, name: view.name, type: view.type }
     }
     return uiContext
+  },
+
+  uiNavigation: (state) => {
+    return state.uiNavigation
   },
 }
 

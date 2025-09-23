@@ -27,6 +27,13 @@ class DatabaseArchitectToolOutputSchema(BaseModel):
     schema_operations_plan: list[AnySchemaOperation] = Field(
         description="The list of operations needed to transform the starting schema into the final schema.",
     )
+    new_database_name: Optional[str] = Field(
+        default=None,
+        description=(
+            "If a new database needs to be created, the name of the new database. "
+            "Otherwise, null."
+        ),
+    )
     markdown_description: str = Field(
         description="A markdown formatted super-concise description of the plan to share with the user.",
     )

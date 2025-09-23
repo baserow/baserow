@@ -253,8 +253,11 @@ class InterruptNode(AssistantNode):
                     and msg.tool_calls
                     and (
                         tool_call := next(
-                            lambda tc: tc.id == last_message.tool_call_id,
-                            msg.tool_calls,
+                            (
+                                tc
+                                for tc in msg.tool_calls
+                                if tc.id == last_message.tool_call_id
+                            ),
                             None,
                         )
                     )

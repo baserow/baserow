@@ -137,6 +137,18 @@ class AiInterruptMessageSerializer(serializers.Serializer):
     content = serializers.CharField(help_text="The content of the interrupt message.")
 
 
+class UiNavigationMessageSerializer(serializers.Serializer):
+    type = serializers.CharField(default=ASSISTANT_MESSAGE_TYPE.UI_NAVIGATION)
+    content = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        help_text="The content of the navigation message.",
+    )
+    args = serializers.DictField(
+        help_text="The arguments for the navigation action.",
+    )
+
+
 TYPE_SERIALIZER_MAP = {
     ASSISTANT_MESSAGE_TYPE.CHAT_TITLE: ChatTitleMessageSerializer,
     ASSISTANT_MESSAGE_TYPE.HUMAN: HumanMessageSerializer,
@@ -144,6 +156,7 @@ TYPE_SERIALIZER_MAP = {
     ASSISTANT_MESSAGE_TYPE.AI_THINKING: AiThinkingSerializer,
     ASSISTANT_MESSAGE_TYPE.AI_ERROR: AiErrorMessageSerializer,
     ASSISTANT_MESSAGE_TYPE.AI_INTERRUPT: AiInterruptMessageSerializer,
+    ASSISTANT_MESSAGE_TYPE.UI_NAVIGATION: UiNavigationMessageSerializer,
 }
 
 

@@ -53,6 +53,8 @@ const runningMessageCode = {
   // Tool related messages
   [THINKING_MESSAGES.RETRIEVE_KNOWLEDGE]: 'statusRetrievingKnowledge',
   [THINKING_MESSAGES.ANALYZE_KNOWLEDGE]: 'statusAnalyzingKnowledge',
+  [THINKING_MESSAGES.DESIGN_SCHEMA]: 'statusDesigningSchema',
+  [THINKING_MESSAGES.IMPLEMENT_SCHEMA]: 'statusImplementingSchema',
 }
 
 export default {

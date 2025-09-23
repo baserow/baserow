@@ -14,12 +14,25 @@ from typing import (
 )
 from langchain_core.tools import InjectedToolCallId
 from langgraph.prebuilt import InjectedState
+from django.db import transaction
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from baserow.contrib.database.fields.actions import (
+    CreateFieldActionType,
+    DeleteFieldActionType,
+    UpdateFieldActionType,
+)
+from baserow.contrib.database.table.actions import (
+    CreateTableActionType,
+    DeleteTableActionType,
+    UpdateTableActionType,
+)
 from baserow.core.models import Workspace
 from baserow_enterprise.assistant.utils.helpers import generate_tool_call_id, uuid4_str
 from .models import AssistantChat as AssistantChatModel
+
+from baserow.contrib.database.models import Table
 
 StateType = TypeVar("StateType", bound=BaseModel)
 PartialStateType = TypeVar("PartialStateType", bound=BaseModel)
@@ -31,7 +44,7 @@ class WorkspaceUIContext(BaseModel):
 
 
 class ApplicationUIContext(BaseModel):
-    id: str
+    id: int
     name: str
     type: str
 
@@ -67,10 +80,9 @@ class UIContext(BaseModel):
         if self.application is not None:
             parts.append(
                 self._format_ui_context_section(
-                    "application",
+                    self.application.type,
                     id=str(self.application.id),
                     name=self.application.name,
-                    type=self.application.type,
                 )
             )
         if self.table is not None:
@@ -84,10 +96,9 @@ class UIContext(BaseModel):
         if self.view is not None:
             parts.append(
                 self._format_ui_context_section(
-                    "view",
+                    f"{self.view.type} view",
                     id=str(self.view.id),
                     name=self.view.name,
-                    type=self.view.type,
                 )
             )
 
@@ -133,6 +144,7 @@ class ASSISTANT_MESSAGE_TYPE(StrEnum):
     TOOL_CALL = "tool_call"
     TOOL = "tool"
     CHAT_TITLE = "chat/title"
+    UI_NAVIGATION = "ui/navigation"
 
 
 class HumanMessage(BaseMessage):
@@ -251,6 +263,21 @@ class AiThinkingMessage(BaseMessage):
             "provide a dynamic message that don't have a translation in the frontend."
         ),
     )
+
+
+class NavigateToTableArgs(BaseModel):
+    type: Literal["table"] = "table"
+    database_id: int
+    table_id: int
+    table_name: str
+    view_id: Optional[int] = None
+    view_name: Optional[str] = None
+
+
+class UiNavigationMessage(BaseMessage):
+    type: Literal["ui/navigation"] = "ui/navigation"
+    content: str = Field(default="", description="Navigation content.")
+    args: NavigateToTableArgs
 
 
 class AiMessageChunk(BaseModel):
@@ -399,19 +426,6 @@ class AssistantExecutionContext(BaseModel):
 
 
 # Database architect specific types
-OperationType = Literal["create_table", "create_field", "create_rows"]
-
-FieldType = Literal[
-    "text",
-    "long_text",
-    "number",
-    "date",
-    "boolean",
-    "link_to_table",
-    "single_select",
-    "multiple_select",
-]
-
 Color = Literal[
     "blue",
     "green",
@@ -427,8 +441,13 @@ Color = Literal[
 
 
 class BaseFieldType(BaseModel):
-    name: str
+    name: str = Field(
+        description="The capitalized name of the field. Shorter is better. Use spaces, not underscores. Capitalize the first letter."
+    )
     type: str
+
+    def to_orm(self, resource_mapping) -> Dict[str, Any]:
+        return {}
 
 
 class TextFieldType(BaseFieldType):
@@ -449,16 +468,34 @@ class URLFieldType(BaseFieldType):
 
 class NumberFieldType(BaseFieldType):
     type: Literal["number"] = "number"
+    decimal_places: int = 2
+    negative: bool = False
+
+    def to_orm(self, resource_mapping) -> Dict[str, Any]:
+        return {
+            "number_decimal_places": self.decimal_places,
+            "number_negative": self.negative,
+        }
 
 
 class RatingFieldType(BaseFieldType):
     type: Literal["rating"] = "rating"
     max_rating: int = 5
 
+    def to_orm(self, resource_mapping) -> Dict[str, Any]:
+        return {
+            "rating_max": self.max_rating,
+        }
+
 
 class DateFieldType(BaseFieldType):
     type: Literal["date"] = "date"
     include_time: bool = False
+
+    def to_orm(self, resource_mapping) -> Dict[str, Any]:
+        return {
+            "date_include_time": self.include_time,
+        }
 
 
 class BooleanFieldType(BaseFieldType):
@@ -466,7 +503,7 @@ class BooleanFieldType(BaseFieldType):
 
 
 class LinkRowFieldType(BaseFieldType):
-    type: Literal["link_to_table"] = "link_to_table"
+    type: Literal["link_row"] = "link_row"
     linked_table_name: str = Field(
         description=(
             "The name of the table being linked to. Only link already created tables. "
@@ -474,6 +511,13 @@ class LinkRowFieldType(BaseFieldType):
         )
     )
     multiple: bool = False
+
+    def to_orm(self, resource_mapping) -> Dict[str, Any]:
+        linked_table = resource_mapping["table"].get(self.linked_table_name)
+        return {
+            "link_row_table": linked_table,
+            "link_row_multiple_relationships": self.multiple,
+        }
 
 
 class SelectOptions(BaseModel):
@@ -483,12 +527,36 @@ class SelectOptions(BaseModel):
 
 class SingleSelectFieldType(BaseFieldType):
     type: Literal["single_select"] = "single_select"
-    options: list[str] = []
+    options: list[SelectOptions] = Field(
+        default_factory=list,
+        description="The list of options for the field. Try to find appropriate colors for each option.",
+    )
+
+    def to_orm(self, resource_mapping) -> Dict[str, Any]:
+        # TODO: Handle existing options and IDs
+        return {
+            "select_options": [
+                {"id": -i, "value": option.value, "color": option.color}
+                for (i, option) in enumerate(self.options, start=1)
+            ],
+        }
 
 
 class MultipleSelectFieldType(BaseFieldType):
     type: Literal["multiple_select"] = "multiple_select"
-    options: list[str] = []
+    options: list[SelectOptions] = Field(
+        default_factory=list,
+        description="The list of options for the field. Try to find appropriate colors for each option.",
+    )
+
+    def to_orm(self, resource_mapping) -> Dict[str, Any]:
+        # TODO: Handle existing options and IDs
+        return {
+            "select_options": [
+                {"id": -i, "value": option.value, "color": option.color}
+                for (i, option) in enumerate(self.options, start=1)
+            ],
+        }
 
 
 class MultipleCollaboratorsFieldType(BaseFieldType):
@@ -522,54 +590,163 @@ class DatabaseSchema(BaseModel):
     tables: list[TableSchema]
 
 
-class CreateTableOperation(BaseModel):
+class ExecutableOperation(BaseModel):
+    type: str
+
+    def execute(self, user, resource_mapping) -> Any:
+        pass
+
+
+class TableOperation:
+    pass
+
+
+class StreamableOperation(ExecutableOperation):
+    def get_streaming_message(self) -> str:
+        return f"Executing operation: {self.type}"
+
+
+class NavigateToOperation:
+    def get_navigation_args(self, resource_mapping) -> Dict[str, Any]:
+        raise NotImplementedError()
+
+
+class CreateTableOperation(StreamableOperation, NavigateToOperation, TableOperation):
     type: Literal["create_table"] = "create_table"
-    name: str
+    name: str = Field(description="The name of the new table. Max 20 chars.")
     primary_field_name: str
 
+    def execute(self, user, resource_mapping) -> Table:
+        database = list(resource_mapping["database"].values())[0]
+        with transaction.atomic():
+            table, _ = CreateTableActionType.do(
+                user=user,
+                database=database,
+                name=self.name,
+                fill_example=False,
+            )
+            resource_mapping["table"][self.name] = table
 
-class UpdateTableOperation(BaseModel):
+            primary_field = table.get_primary_field().specific
+            UpdateFieldActionType.do(
+                user,
+                primary_field,
+                name=self.primary_field_name,
+            )
+            resource_mapping[f"fields_{table.id}"][
+                self.primary_field_name
+            ] = primary_field
+
+        return table
+
+    def get_streaming_message(self) -> str:
+        return f"Creating table: {self.name}"
+
+    def get_navigation_args(self, resource_mapping) -> Any:
+        table = resource_mapping["table"][self.name]
+        return NavigateToTableArgs(
+            database_id=table.database_id,
+            table_id=table.id,
+            table_name=table.name,
+        )
+
+
+class UpdateTableOperation(ExecutableOperation, TableOperation):
     type: Literal["update_table"] = "update_table"
     table_name: str
-    name: Optional[str] = None
+    new_name: str = Field(description="The new name of the table. Max 20 chars.")
+
+    def execute(self, user, resource_mapping) -> Table:
+        table = resource_mapping["table"].pop(self.table_name)
+        with transaction.atomic():
+            table, _ = UpdateTableActionType.do(user, table, name=self.new_name)
+            resource_mapping["table"][self.new_name] = table
 
 
-class DeleteTableOperation(BaseModel):
+class DeleteTableOperation(ExecutableOperation, TableOperation):
     type: Literal["delete_table"] = "delete_table"
     table_name: str
 
+    def execute(self, user, resource_mapping) -> None:
+        table = resource_mapping["table"].pop(self.table_name)
 
-class CreateFieldOperation(BaseModel):
+        # TODO: remove all link row fields pointing to this table from resource_mapping
+        # or maybe just regenerate it from the database schema each time?
+        with transaction.atomic():
+            DeleteTableActionType.do(user, table)
+
+
+class CreateFieldOperation(StreamableOperation):
     type: Literal["create_field"] = "create_field"
     table_name: str
     field: AnyFieldType
 
+    def execute(self, user, resource_mapping) -> None:
+        table = resource_mapping["table"][self.table_name]
+        with transaction.atomic():
+            field = CreateFieldActionType.do(
+                user,
+                table,
+                self.field.type,
+                name=self.field.name,
+                **self.field.to_orm(resource_mapping),
+            )
+            resource_mapping[f"field_{table.id}"][self.field.name] = field
+        return field
 
-class UpdateFieldOperation(BaseModel):
+    def get_streaming_message(self) -> str:
+        return f"Creating field: {self.field.name}"
+
+
+class UpdateFieldOperation(ExecutableOperation):
     type: Literal["update_field"] = "update_field"
     table_name: str
     field_name: str
     field: AnyFieldType
 
+    def execute(self, user, resource_mapping) -> None:
+        table = resource_mapping["table"][self.table_name]
+        field = resource_mapping[f"field_{table.id}"].pop(self.field_name)
+        with transaction.atomic():
+            field = UpdateFieldActionType.do(
+                user,
+                field,
+                new_type_name=self.field.type,
+                name=self.field.name,
+                **self.field.to_orm(resource_mapping),
+            )
+            resource_mapping[f"field_{table.id}"][self.field.name] = field
+        return field
 
-class DeleteFieldOperation(BaseModel):
+
+class DeleteFieldOperation(ExecutableOperation):
     type: Literal["delete_field"] = "delete_field"
     table_name: str
     field_name: str
 
+    def execute(self, user, resource_mapping) -> None:
+        table = resource_mapping["table"][self.table_name]
+        field = resource_mapping[f"field_{table.id}"].pop(self.field_name)
 
-class CreateRowsOperation(BaseModel):
+        if field.primary:
+            return  # Can't delete primary field
+
+        with transaction.atomic():
+            DeleteFieldActionType.do(user, field)
+
+
+class CreateRowsOperation(ExecutableOperation):
     type: Literal["create_rows"] = "create_rows"
     table_name: str
 
 
-class UpdateRowsOperation(BaseModel):
+class UpdateRowsOperation(ExecutableOperation):
     type: Literal["update_rows"] = "update_rows"
     table_name: str
     row_ids: List[int]
 
 
-class DeleteRowsOperation(BaseModel):
+class DeleteRowsOperation(ExecutableOperation):
     type: Literal["delete_rows"] = "delete_rows"
     table_name: str
     row_ids: List[int]
@@ -611,10 +788,6 @@ class _SharedDatabaseArchitectState(BaseModel):
     dba_needs_clarification: bool = Field(
         default=False,
         description="Whether the assistant needs an answer to a clarification question before proceeding.",
-    )
-    dba_current_schema: Optional[DatabaseSchema] = Field(
-        default=None,
-        description="The current database schema, including tables and fields. None if starting from scratch.",
     )
     dba_schema_operations_plan: Optional[List[AnySchemaOperation]] = Field(
         default=None,
