@@ -1,5 +1,5 @@
 from itertools import groupby
-from baserow_enterprise.assistant.types import UIContext
+from baserow_enterprise.assistant.types import TableSchema, UIContext, field_registry
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.fields.registries import field_type_registry
 
@@ -311,27 +311,23 @@ def format_current_schema(ui_context: UIContext) -> str:
         .select_related("table__database", "content_type")
         .order_by("table_id", "-primary", "order", "id")
     )
-    field_type = lambda f: field_type_registry.get_for_class(f.specific_class).type
+    field_type = lambda f: field_registry.get(
+        field_type_registry.get_for_class(f.specific_class).type
+    )
 
-    tables = []
+    tables = {}
     for table_id, _table_fields in groupby(fields, lambda f: f.table):
         table_fields = list(_table_fields)
-        table = {
-            "name": table_id.name,
-            "fields": [],
-            "primary_field": {
-                "name": table_fields[0].name,
-                "type": field_type(table_fields[0]),
-            },
-        }
+        table = TableSchema(
+            name=table_id.name,
+            primary_field=field_type(table_fields[0]).from_orm(table_fields[0]),
+            fields=[],
+        )
         for field in table_fields[1:]:
-            table["fields"].append(
-                {
-                    "name": field.name,
-                    "type": field_type(field),
-                }
-            )
-        tables.append(table)
+            f = field_type(field)
+            if f:
+                table.fields.append(f.from_orm(field))
+        tables[table.name] = table
 
     return {
         "name": current_application.name,
@@ -354,8 +350,8 @@ It helps to create or modify database schemas based on user instructions.
    - "dropdown" → "single_select"
    - "checkbox" → "boolean"
    - "relation" → "link_to_table"
-2. **Suggestions**: If a user request is very generic, add some sensible tables and fields that can potentially address their needs,
- while keeping it simple and asking clarifying questions.
+2. **Suggestions**: If a user request is too vague, pass it as is and let the tool make follow up questions. 
+   If the request is somewhat generic but the goal is clear, add some sensible tables and fields that can potentially address their needs, while keeping it simple and asking clarifying questions.
 3. If the intent to proceed is explicit from previous messages, make sure to include it in your instructions.
 4. Summarize the previous in clear and effective instructions for the tool.
 """

@@ -237,7 +237,11 @@ class Assistant:
             next_input = self._state
 
         generator: AsyncIterator[Any] = self._graph.astream(
-            next_input, config=config, stream_mode=stream_mode, subgraphs=True
+            next_input,
+            config=config,
+            stream_mode=stream_mode,
+            subgraphs=True,
+            durability="async",
         )
 
         try:

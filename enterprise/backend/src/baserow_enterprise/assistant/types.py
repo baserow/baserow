@@ -18,11 +18,17 @@ from django.db import transaction
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from baserow.api.utils import validate_data
+from baserow.contrib.database.api.rows.serializers import (
+    get_batch_row_serializer_class,
+    get_row_serializer_class,
+)
 from baserow.contrib.database.fields.actions import (
     CreateFieldActionType,
     DeleteFieldActionType,
     UpdateFieldActionType,
 )
+from baserow.contrib.database.rows.actions import CreateRowsActionType
 from baserow.contrib.database.table.actions import (
     CreateTableActionType,
     DeleteTableActionType,
@@ -427,6 +433,16 @@ class AssistantExecutionContext(BaseModel):
 
 # Database architect specific types
 Color = Literal[
+    "light-blue",
+    "light-green",
+    "light-cyan",
+    "light-orange",
+    "light-yellow",
+    "light-red",
+    "light-brown",
+    "light-purple",
+    "light-pink",
+    "light-gray",
     "blue",
     "green",
     "cyan",
@@ -437,6 +453,28 @@ Color = Literal[
     "purple",
     "pink",
     "gray",
+    "dark-blue",
+    "dark-green",
+    "dark-cyan",
+    "dark-orange",
+    "dark-yellow",
+    "dark-red",
+    "dark-brown",
+    "dark-purple",
+    "dark-pink",
+    "dark-gray",
+    "darker-blue",
+    "darker-green",
+    "darker-cyan",
+    "darker-orange",
+    "darker-yellow",
+    "darker-red",
+    "darker-brown",
+    "darker-purple",
+    "darker-pink",
+    "darker-gray",
+    "deep-dark-green",
+    "deep-dark-orange",
 ]
 
 
@@ -448,6 +486,10 @@ class BaseFieldType(BaseModel):
 
     def to_orm(self, resource_mapping) -> Dict[str, Any]:
         return {}
+
+    @classmethod
+    def from_orm(cls, orm_field) -> Dict[str, Any]:
+        return cls(name=orm_field.name)
 
 
 class TextFieldType(BaseFieldType):
@@ -519,15 +561,24 @@ class LinkRowFieldType(BaseFieldType):
             "link_row_multiple_relationships": self.multiple,
         }
 
+    @classmethod
+    def from_orm(cls, orm_field) -> Dict[str, Any]:
+        field = orm_field.specific
+        return cls(
+            name=field.name,
+            linked_table_name=field.link_row_table.name,
+            multiple=field.link_row_multiple_relationships,
+        )
 
-class SelectOptions(BaseModel):
+
+class SelectOption(BaseModel):
     value: str
     color: Color
 
 
 class SingleSelectFieldType(BaseFieldType):
     type: Literal["single_select"] = "single_select"
-    options: list[SelectOptions] = Field(
+    options: list[SelectOption] = Field(
         default_factory=list,
         description="The list of options for the field. Try to find appropriate colors for each option.",
     )
@@ -540,11 +591,22 @@ class SingleSelectFieldType(BaseFieldType):
                 for (i, option) in enumerate(self.options, start=1)
             ],
         }
+
+    @classmethod
+    def from_orm(cls, orm_field) -> Dict[str, Any]:
+        field = orm_field.specific
+        return cls(
+            name=field.name,
+            options=[
+                SelectOption(value=opt.value, color=opt.color)
+                for opt in field.select_options.all()
+            ],
+        )
 
 
 class MultipleSelectFieldType(BaseFieldType):
     type: Literal["multiple_select"] = "multiple_select"
-    options: list[SelectOptions] = Field(
+    options: list[SelectOption] = Field(
         default_factory=list,
         description="The list of options for the field. Try to find appropriate colors for each option.",
     )
@@ -558,9 +620,24 @@ class MultipleSelectFieldType(BaseFieldType):
             ],
         }
 
+    @classmethod
+    def from_orm(cls, orm_field) -> Dict[str, Any]:
+        field = orm_field.specific
+        return cls(
+            name=field.name,
+            options=[
+                SelectOption(value=opt.value, color=opt.color)
+                for opt in field.select_options.all()
+            ],
+        )
+
 
 class MultipleCollaboratorsFieldType(BaseFieldType):
     type: Literal["multiple_collaborators"] = "multiple_collaborators"
+
+
+class FileFieldType(BaseFieldType):
+    type: Literal["file"] = "file"
 
 
 AnyFieldType = (
@@ -576,7 +653,24 @@ AnyFieldType = (
     | SingleSelectFieldType
     | MultipleSelectFieldType
     | MultipleCollaboratorsFieldType
+    | FileFieldType
 )
+
+field_registry: Dict[str, BaseFieldType] = {
+    "text": TextFieldType,
+    "long_text": LongTextFieldType,
+    "email": EmailFieldType,
+    "url": URLFieldType,
+    "number": NumberFieldType,
+    "rating": RatingFieldType,
+    "date": DateFieldType,
+    "boolean": BooleanFieldType,
+    "link_row": LinkRowFieldType,
+    "single_select": SingleSelectFieldType,
+    "multiple_select": MultipleSelectFieldType,
+    "multiple_collaborators": MultipleCollaboratorsFieldType,
+    "file": FileFieldType,
+}
 
 
 class TableSchema(BaseModel):
@@ -590,7 +684,7 @@ class DatabaseSchema(BaseModel):
     tables: list[TableSchema]
 
 
-class ExecutableOperation(BaseModel):
+class SchemaExecutableOperation(BaseModel):
     type: str
 
     def execute(self, user, resource_mapping) -> Any:
@@ -601,7 +695,7 @@ class TableOperation:
     pass
 
 
-class StreamableOperation(ExecutableOperation):
+class StreamableOperation(SchemaExecutableOperation):
     def get_streaming_message(self) -> str:
         return f"Executing operation: {self.type}"
 
@@ -651,7 +745,7 @@ class CreateTableOperation(StreamableOperation, NavigateToOperation, TableOperat
         )
 
 
-class UpdateTableOperation(ExecutableOperation, TableOperation):
+class UpdateTableOperation(SchemaExecutableOperation, TableOperation):
     type: Literal["update_table"] = "update_table"
     table_name: str
     new_name: str = Field(description="The new name of the table. Max 20 chars.")
@@ -663,7 +757,7 @@ class UpdateTableOperation(ExecutableOperation, TableOperation):
             resource_mapping["table"][self.new_name] = table
 
 
-class DeleteTableOperation(ExecutableOperation, TableOperation):
+class DeleteTableOperation(SchemaExecutableOperation, TableOperation):
     type: Literal["delete_table"] = "delete_table"
     table_name: str
 
@@ -683,6 +777,11 @@ class CreateFieldOperation(StreamableOperation):
 
     def execute(self, user, resource_mapping) -> None:
         table = resource_mapping["table"][self.table_name]
+
+        if resource_mapping[f"field_{table.id}"].get(self.field.name):
+            # Field already exists, skip
+            return
+
         with transaction.atomic():
             field = CreateFieldActionType.do(
                 user,
@@ -698,7 +797,7 @@ class CreateFieldOperation(StreamableOperation):
         return f"Creating field: {self.field.name}"
 
 
-class UpdateFieldOperation(ExecutableOperation):
+class UpdateFieldOperation(SchemaExecutableOperation):
     type: Literal["update_field"] = "update_field"
     table_name: str
     field_name: str
@@ -719,7 +818,7 @@ class UpdateFieldOperation(ExecutableOperation):
         return field
 
 
-class DeleteFieldOperation(ExecutableOperation):
+class DeleteFieldOperation(SchemaExecutableOperation):
     type: Literal["delete_field"] = "delete_field"
     table_name: str
     field_name: str
@@ -735,20 +834,46 @@ class DeleteFieldOperation(ExecutableOperation):
             DeleteFieldActionType.do(user, field)
 
 
-class CreateRowsOperation(ExecutableOperation):
+class DataExecutableOperation(BaseModel):
+    type: str
+
+    def execute(self, user, table) -> int:
+        return 0
+
+
+class CreateRowsOperation(DataExecutableOperation):
     type: Literal["create_rows"] = "create_rows"
-    table_name: str
+
+    def execute(self, user, table) -> None:
+        rows_values = getattr(self, "rows_values", None)  # Added dynamically
+        if not rows_values:
+            return 0
+
+        with transaction.atomic():
+            model = table.get_model()
+            row_validation_serializer = get_row_serializer_class(
+                model, user_field_names=True
+            )
+            validation_serializer = get_batch_row_serializer_class(
+                row_validation_serializer
+            )
+            data = validate_data(
+                validation_serializer,
+                {"items": [row.model_dump() for row in rows_values]},
+                partial=True,
+                return_validated=True,
+            )
+            rows = CreateRowsActionType.do(user, table, data["items"], model=model)
+            return len(rows)
 
 
-class UpdateRowsOperation(ExecutableOperation):
+class UpdateRowsOperation(DataExecutableOperation):
     type: Literal["update_rows"] = "update_rows"
-    table_name: str
     row_ids: List[int]
 
 
-class DeleteRowsOperation(ExecutableOperation):
+class DeleteRowsOperation(DataExecutableOperation):
     type: Literal["delete_rows"] = "delete_rows"
-    table_name: str
     row_ids: List[int]
 
 
@@ -785,8 +910,8 @@ class _SharedDatabaseArchitectState(BaseModel):
             "If the request is already clear, use it to suggest iterative improvements to the plan."
         ),
     )
-    dba_needs_clarification: bool = Field(
-        default=False,
+    dba_needs_clarification: bool | None = Field(
+        default=None,
         description="Whether the assistant needs an answer to a clarification question before proceeding.",
     )
     dba_schema_operations_plan: Optional[List[AnySchemaOperation]] = Field(
@@ -810,13 +935,35 @@ class PartialDatabaseArchitectState(_SharedDatabaseArchitectState):
     pass
 
 
+class _SharedDataManagerState(BaseModel):
+    dma_needs_clarification: bool | None = Field(
+        default=None,
+        description="Whether the data manager needs clarification before proceeding.",
+    )
+    dma_data_operations_plan: Optional[List[AnyDataOperation]] = Field(
+        default=None,
+        description="The list of data operations to be executed.",
+    )
+
+
+class DataManagerState(_SharedDataManagerState):
+    dma_instructions: Optional[str] = Field(
+        default=None,
+        description="If set, contains the instructions for the data manager.",
+    )
+
+
+class PartialDataManagerState(_SharedDataManagerState):
+    pass
+
+
 class _SharedState(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
 
 
-class AssistantState(_SharedState, DatabaseArchitectState):
+class AssistantState(_SharedState, DatabaseArchitectState, DataManagerState):
     messages: Annotated[
         Sequence[AssistantMessageUnion], add_and_merge_messages
     ] = Field(default=[])
@@ -826,7 +973,9 @@ class AssistantState(_SharedState, DatabaseArchitectState):
     )
 
 
-class PartialAssistantState(_SharedState, PartialDatabaseArchitectState):
+class PartialAssistantState(
+    _SharedState, PartialDatabaseArchitectState, PartialDataManagerState
+):
     messages: Sequence[AssistantMessageUnion] = Field(default=[])
     sources: Optional[list[str]] = Field(
         default_factory=list,

@@ -18,6 +18,9 @@ from baserow_enterprise.assistant.capabilities.database_architect.tools import (
 from baserow_enterprise.assistant.capabilities.knowledge_retrieval.tools import (
     RetrieveKnowledgeTool,
 )
+from baserow_enterprise.assistant.capabilities.data_manager.tools import (
+    DataManagerTool,
+)
 from baserow_enterprise.assistant.types import (
     AiInterruptMessage,
     AiMessage,
@@ -56,6 +59,7 @@ def get_root_tools() -> list[AssistantBaseTool]:
         tools: list[AssistantBaseTool] = [
             RetrieveKnowledgeTool(),
             DatabaseArchitectTool(),
+            DataManagerTool(),
         ]
         ROOT_TOOLS = [tool for tool in tools if tool.can_be_used()]
 

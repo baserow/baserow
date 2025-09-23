@@ -17,6 +17,7 @@ CORE_CONCEPTS = """
 • Single sign-on (SSO) with SAML2, OIDC, and OAuth2 (advanced/enterprise)
 • Model Context Protocol (MCP) to connect AI tools to Baserow data
 • API specification: https://api.baserow.io/api/schema.json
+* You cannot create new workspaces. You're forced to use the workspace in the UI context, but you can create new databases within it.
 """
 
 DATABASE_BUILDER_CONCEPTS = """

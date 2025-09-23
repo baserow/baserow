@@ -196,7 +196,8 @@ class DatabaseArchitectTool(AssistantBaseTool):
             }
         )
 
-        if result.need_clarification:
+        # Don't keep asking for clarification if we already did
+        if result.need_clarification and not state.dba_needs_clarification:
             return Command(
                 goto=ASSISTANT_GRAPH_NODE.INTERRUPT,
                 update=PartialAssistantState(
@@ -234,6 +235,6 @@ class DatabaseArchitectTool(AssistantBaseTool):
                     )
                 ],
                 dba_schema_operations_plan=None,
-                dba_needs_clarification=False,
+                dba_needs_clarification=None,
             ),
         )
