@@ -2,19 +2,15 @@
   <Context ref="context" overflow-scroll max-height-if-outside-viewport>
     <div class="context__menu-title">{{ view.name }} ({{ view.id }})</div>
     <ul class="context__menu">
-      <li
-        v-for="(component, index) in additionalContextComponents"
-        :key="index"
-        class="context__menu-item"
-        @click="$refs.context.hide()"
-      >
-        <component
-          :is="component"
-          :table="table"
-          :view="view"
-          :database="database"
-        ></component>
-      </li>
+      <component
+        :is="component"
+        v-for="(component, i) in getAdditionalMenuItems()"
+        :key="i"
+        :workspace="database.workspace"
+        :database="database"
+        :table="table"
+        @hide-context="$refs.context.hide()"
+      />
       <li
         v-if="
           hasValidExporter &&
@@ -107,15 +103,6 @@
           {{ $t('viewContext.renameView') }}
         </a>
       </li>
-      <component
-        :is="component"
-        v-for="(component, i) in getAdditionalMenuItems()"
-        :key="i"
-        :workspace="database.workspace"
-        :database="database"
-        :table="table"
-        @hide-context="$refs.context.hide()"
-      />
       <li
         v-if="
           $hasPermission(
@@ -281,6 +268,7 @@ export default {
           components = components.concat(
             plugin.getAdditionalViewContextComponents(
               this.database.workspace,
+              this.table,
               this.view
             )
           )

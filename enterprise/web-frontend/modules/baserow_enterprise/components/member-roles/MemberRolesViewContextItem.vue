@@ -1,25 +1,23 @@
 <template>
-  <div>
-    <div class="context__menu-item">
-      <a
-        class="context__menu-item-link"
-        @click="
-          () => {
-            if (deactivated) {
-              $refs.paidFeaturesModal.show()
-            } else {
-              $refs.memberRolesModal.show()
-            }
+  <li class="context__menu-item">
+    <a
+      class="context__menu-item-link"
+      @click="
+        () => {
+          if (deactivated) {
+            $refs.paidFeaturesModal.show()
+          } else {
+            $refs.memberRolesModal.show()
           }
-        "
-      >
-        <i class="context__menu-item-icon iconoir-community"></i>
-        {{ $t('memberRolesDatabaseContexItem.label') }}
-        <div v-if="deactivated" class="deactivated-label">
-          <i class="iconoir-lock"></i>
-        </div>
-      </a>
-    </div>
+        }
+      "
+    >
+      <i class="context__menu-item-icon iconoir-community"></i>
+      {{ $t('memberRolesDatabaseContexItem.label') }}
+      <div v-if="deactivated" class="deactivated-label">
+        <i class="iconoir-lock"></i>
+      </div>
+    </a>
     <MemberRolesModal
       ref="memberRolesModal"
       :database="database"
@@ -31,7 +29,7 @@
       initial-selected-type="rbac"
       :workspace="database.workspace"
     ></PaidFeaturesModal>
-  </div>
+  </li>
 </template>
 
 <script>

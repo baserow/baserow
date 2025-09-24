@@ -160,7 +160,7 @@ export class BaserowPlugin extends Registerable {
    * view context menu displayed at the top bar (three dots menu) in the View view.
    * @returns {*[]}
    */
-  getAdditionalViewContextComponents(workspace, view) {
+  getAdditionalViewContextComponents(workspace, table, view) {
     return []
   }
 
