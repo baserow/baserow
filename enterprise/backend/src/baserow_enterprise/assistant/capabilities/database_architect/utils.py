@@ -10,6 +10,7 @@ from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.core.db import specific_iterator
 from baserow.core.models import Workspace
 from baserow_enterprise.assistant.types import (
+    BaseDatabaseSchema,
     WorkspaceSchema,
     field_registry,
     DatabaseSchema,
@@ -88,9 +89,8 @@ def get_workspace_schema(workspace: Workspace) -> WorkspaceSchema:
     Returns the schema of the given workspace.
     """
 
-    database_names = Database.objects.filter(workspace=workspace).values_list(
-        "name", flat=True
-    )
-    return WorkspaceSchema(
-        id=workspace.id, name=workspace.name, databases=database_names
-    )
+    database = [
+        BaseDatabaseSchema(**db)
+        for db in Database.objects.filter(workspace=workspace).values("id", "name")
+    ]
+    return WorkspaceSchema(id=workspace.id, name=workspace.name, databases=database)

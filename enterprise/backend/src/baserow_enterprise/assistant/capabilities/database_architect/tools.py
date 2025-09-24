@@ -63,7 +63,7 @@ class DatabaseArchitectTool(AssistantBaseTool):
         plan: list[AnySchemaOperation],
         ui_context: UIContext | None = None,
         new_database_name: str | None = None,
-    ) -> None:
+    ) -> Database:
         """
         Placeholder for executing the schema operations plan.
         In a real implementation, this would interact with Baserow's backend to
@@ -101,8 +101,9 @@ class DatabaseArchitectTool(AssistantBaseTool):
         table_operations = []
         field_operations = []
 
-        def _reorder_plan():
+        def _validate_and_reorder_plan():
             for operation in plan:
+                operation.validate_operation(resource_mapping)
                 if isinstance(operation, TableOperation):
                     table_operations.append(operation)
                 else:
@@ -110,7 +111,7 @@ class DatabaseArchitectTool(AssistantBaseTool):
             return table_operations + field_operations
 
         navigate_args = None
-        for operation in _reorder_plan():
+        for operation in _validate_and_reorder_plan():
             if isinstance(operation, StreamableOperation):
                 message = operation.get_streaming_message()
                 stream_writer(
@@ -123,6 +124,8 @@ class DatabaseArchitectTool(AssistantBaseTool):
         if navigate_args:
             stream_writer(UiNavigationMessage(args=navigate_args))
 
+        return database
+
     def _run_impl(
         self,
         instructions: str,
@@ -133,8 +136,12 @@ class DatabaseArchitectTool(AssistantBaseTool):
         stream_writer(AiThinkingMessage(code=THINKING_MESSAGES.DESIGN_SCHEMA))
 
         model = init_chat_model(
-            "openai:gpt-4.1-mini",
-            temperature=0.3,
+            "openai:gpt-5-mini",
+            # temperature=0.3,
+            reasoning={
+                "effort": "low",  # 'low', 'medium', or 'high'
+                # "summary": "auto",  # 'detailed', 'auto', or None
+            },
         )
         model = model.bind_tools(
             [{"type": "web_search_preview"}]
@@ -200,7 +207,7 @@ class DatabaseArchitectTool(AssistantBaseTool):
         )
 
         # Don't keep asking for clarification if we already did
-        if result.need_clarification and not state.dba_needs_clarification:
+        if result.need_clarification and result.question:
             return Command(
                 goto=ASSISTANT_GRAPH_NODE.INTERRUPT,
                 update=PartialAssistantState(
@@ -224,12 +231,15 @@ class DatabaseArchitectTool(AssistantBaseTool):
             )
 
         # No clarification needed, let's execute the plan
-        self._execute_plan(
+        database = self._execute_plan(
             result.schema_operations_plan, ui_context, result.new_database_name
         )
 
         return Command(
             update=PartialAssistantState(
+                ui_context=UIContext.from_database(
+                    database, ui_context.timezone if ui_context else "UTC"
+                ),
                 messages=[
                     ToolCallMessage(
                         tool_call_id=tool_call_id,

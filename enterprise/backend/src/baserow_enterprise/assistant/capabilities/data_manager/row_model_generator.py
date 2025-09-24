@@ -46,12 +46,12 @@ def get_field_python_type(field: AnyFieldType) -> tuple[type, Any]:
         return str, Field(default="", description=f"Long text field: {field.name}")
 
     elif isinstance(field, EmailFieldType):
-        return Optional[EmailStr], Field(
+        return Optional[str], Field(
             default=None, description=f"Email field: {field.name}"
         )
 
     elif isinstance(field, URLFieldType):
-        return Optional[HttpUrl], Field(
+        return Optional[str], Field(
             default=None, description=f"URL field: {field.name}"
         )
 
@@ -62,7 +62,7 @@ def get_field_python_type(field: AnyFieldType) -> tuple[type, Any]:
 
     elif isinstance(field, RatingFieldType):
         max_rating = getattr(field, "max_rating", 5)
-        return Optional[conint(ge=0, le=max_rating)], Field(
+        return Optional[int], Field(
             default=None, description=f"Rating field (0-{max_rating}): {field.name}"
         )
 

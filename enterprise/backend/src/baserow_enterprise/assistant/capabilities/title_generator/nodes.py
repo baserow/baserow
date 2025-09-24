@@ -66,7 +66,11 @@ class TitleGeneratorNode(AssistantNode):
     @property
     def _model(self):
         return init_chat_model(
-            model="openai:gpt-4.1-nano",
-            temperature=0.7,
+            model="openai:gpt-5-nano",
+            reasoning={
+                "effort": "low",  # 'low', 'medium', or 'high'
+                # "summary": "concise",  # 'detailed', 'auto', or None
+            },
+            # temperature=0.7,
             max_completion_tokens=100,
         )

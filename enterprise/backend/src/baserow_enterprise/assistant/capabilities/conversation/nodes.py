@@ -21,7 +21,9 @@ from baserow_enterprise.assistant.capabilities.knowledge_retrieval.tools import 
 from baserow_enterprise.assistant.capabilities.data_manager.tools import (
     DataManagerTool,
     GetDatabaseSchemaTool,
-    GetWorkspaceSchemaTool,
+)
+from baserow_enterprise.assistant.capabilities.planner.tools import (
+    TaskPlannerTool,
 )
 from baserow_enterprise.assistant.types import (
     AiInterruptMessage,
@@ -29,11 +31,13 @@ from baserow_enterprise.assistant.types import (
     AssistantState,
     HumanMessage,
     PartialAssistantState,
+    TaskPlan,
     ToolCall,
     ToolCallMessage,
     ASSISTANT_GRAPH_NODE,
 )
 from baserow_enterprise.assistant.utils.helpers import (
+    LCHumanMessage,
     generate_tool_call_id,
     get_message_buffer,
 )
@@ -63,7 +67,7 @@ def get_root_tools() -> list[AssistantBaseTool]:
             DatabaseArchitectTool(),
             DataManagerTool(),
             GetDatabaseSchemaTool(),
-            GetWorkspaceSchemaTool(),
+            TaskPlannerTool(),
         ]
         ROOT_TOOLS = [tool for tool in tools if tool.can_be_used()]
 
@@ -85,30 +89,29 @@ class RootNode(AssistantNode):
         return get_root_tools()
 
     def _handle_tool_calls(
-        self, message: LCAIMessage, state: AssistantState
+        self, message: LCAIMessage, state: AssistantState, update: PartialAssistantState
     ) -> PartialAssistantState:
         """
         Handles the tool calls returned by the AI message.
         It won't be shown to the user in the chat interface.
         """
 
-        return PartialAssistantState(
-            messages=[
-                AiMessage(
-                    tool_calls=[
-                        ToolCall(
-                            id=tool_call["id"],
-                            name=tool_call["name"],
-                            args=tool_call["args"],
-                        )
-                        for tool_call in message.tool_calls
-                    ],
-                )
-            ]
+        update.messages.append(
+            AiMessage(
+                tool_calls=[
+                    ToolCall(
+                        id=tool_call["id"],
+                        name=tool_call["name"],
+                        args=tool_call["args"],
+                    )
+                    for tool_call in message.tool_calls
+                ],
+            )
         )
+        return update
 
     def _handle_ai_response(
-        self, message: LCAIMessage, state: AssistantState
+        self, message: LCAIMessage, state: AssistantState, update: PartialAssistantState
     ) -> PartialAssistantState:
         """
         Handles a final AI message response without tool calls. This message will be
@@ -116,15 +119,39 @@ class RootNode(AssistantNode):
         conversation will be attached to the message and reset in the state.
         """
 
-        return PartialAssistantState(
-            sources=None,
-            messages=[
-                AiMessage(
-                    content=str(message.content),
-                    sources=state.sources,
-                )
-            ],
+        update.sources = None
+        update.messages.append(
+            AiMessage(
+                content=str(message.content),
+                sources=state.sources,
+            )
         )
+        return update
+
+    def _get_next_plan_task(self, task_plan: list[TaskPlan]) -> TaskPlan | None:
+        """Get the next task to execute from the plan."""
+        for task in task_plan:
+            # Skip completed or failed tasks
+            if task.status in ["completed", "failed"]:
+                continue
+
+            # Check if all dependencies are completed
+            dependencies_met = True
+            for dep_id in task.dependencies:
+                dep_task = next((t for t in task_plan if t.id == dep_id), None)
+                if not dep_task or dep_task.status != "completed":
+                    dependencies_met = False
+                    break
+
+            # If this task is pending and dependencies are met, return it
+            if task.status == "pending" and dependencies_met:
+                return task
+
+            # If this task is in progress, return it (resume execution)
+            if task.status == "in_progress":
+                return task
+
+        return None
 
     def _format_tool_usage_instructions(self, tools: list[AssistantBaseTool]) -> str:
         """
@@ -144,20 +171,45 @@ class RootNode(AssistantNode):
         )
 
     async def arun(self, state: AssistantState, config: RunnableConfig):
+        # Check if we have an active plan to execute
         message_history = get_message_buffer(state.messages, limit_human_messages=30)
+        tools = self.tools
+
+        update = PartialAssistantState()
+
+        if (
+            state.plan_mode_active
+            and state.task_plan
+            and (next_task := self._get_next_plan_task(state.task_plan))
+        ):
+            # Update task status to in_progress
+            next_task.status = "in_progress"
+            update.task_plan = state.task_plan
+
+            message_history.append(
+                LCHumanMessage(content=f"Task: {next_task.description}")
+            )
+
+            # Remove the planner tool to avoid re-planning
+            tools = [t for t in self.tools if not isinstance(t, TaskPlannerTool)]
+
+        # Build the prompt
+        prompt_messages = [
+            ("system", ROOT_SYSTEM_PROMPT),
+            ("system", CONTEXT_PROMPT),
+        ]
+
+        prompt_messages.extend(message_history)
+
         prompt = ChatPromptTemplate.from_messages(
-            [
-                ("system", ROOT_SYSTEM_PROMPT),
-                ("system", CONTEXT_PROMPT),
-                *message_history,
-            ],
+            prompt_messages,
             template_format="mustache",
         )
 
         model = self._model
-        if self.tools:
-            model = model.bind_tools(self.tools)
-            tools_usage_instructions = self._format_tool_usage_instructions(self.tools)
+        if tools:
+            model = model.bind_tools(tools)
+            tools_usage_instructions = self._format_tool_usage_instructions(tools)
         else:
             tools_usage_instructions = ""
 
@@ -178,15 +230,19 @@ class RootNode(AssistantNode):
         )
 
         if message.tool_calls:
-            return self._handle_tool_calls(message, state)
+            return self._handle_tool_calls(message, state, update)
         else:
-            return self._handle_ai_response(message, state)
+            return self._handle_ai_response(message, state, update)
 
     @property
     def _model(self):
         return init_chat_model(
-            model="openai:gpt-4.1-mini",
-            temperature=0.3,
+            model="openai:gpt-5",
+            # temperature=0,
+            reasoning={
+                "effort": "low",  # 'low', 'medium', or 'high'
+                # "summary": "auto",  # 'detailed', 'auto', or None
+            },
             streaming=True,
         )
 
@@ -203,43 +259,76 @@ class RootToolNode(AssistantNode):
         if not isinstance(last_message, AiMessage) or not last_message.tool_calls:
             return None
 
-        result = Command(goto=ASSISTANT_GRAPH_NODE.ROOT, update=PartialAssistantState())
+        update = PartialAssistantState()
+        result = Command(goto=ASSISTANT_GRAPH_NODE.ROOT, update=update)
+
+        # Check if we're executing a plan task
+        current_plan_task = None
+        if state.plan_mode_active and state.task_plan:
+            # Find the in-progress task
+            current_plan_task = next(
+                (t for t in state.task_plan if t.status == "in_progress"), None
+            )
+
         for tool_call in last_message.tool_calls:
             tool = next((t for t in self._tools if t.name == tool_call.name), None)
             if tool is None:
+                # If this is a plan task, mark it as failed
+                if current_plan_task:
+                    current_plan_task.status = "failed"
+                    update.task_plan = state.task_plan
                 raise ValueError(f"Tool {tool_call.name} not found")
 
             tool_args = tool_call.args
-            tool_result = await tool.arun(
-                {**tool_args, "state": state},
-                tool_call_id=tool_call.id,
-                config=config,
-            )
 
-            if isinstance(tool_result, Command):
-                if not tool_result.goto:
-                    tool_result = replace(tool_result, goto=ASSISTANT_GRAPH_NODE.ROOT)
-
-                return tool_result
-
-            elif isinstance(tool_result, (list, tuple)) and len(tool_result) == 2:
-                # The tool returned a tuple of (str, artifact)
-                tool_msg = ToolCallMessage(
+            try:
+                tool_result = await tool.arun(
+                    {**tool_args, "state": state},
                     tool_call_id=tool_call.id,
-                    content=tool_result[0],
-                    artifact=tool_result[1],
+                    config=config,
                 )
 
-            elif isinstance(tool_result, str):
-                tool_msg = ToolCallMessage(
-                    tool_call_id=tool_call.id,
-                    content=tool_result,
-                )
+                # If this is a plan task and it succeeded, mark it as completed
+                if current_plan_task:
+                    current_plan_task.status = "completed"
+                    current_plan_task.result = "Done"
+                    update.task_plan = state.task_plan
 
-            else:
-                raise ValueError(f"Invalid result type {type(tool_result)}")
+                if isinstance(tool_result, Command):
+                    if not tool_result.goto:
+                        tool_result = replace(
+                            tool_result, goto=ASSISTANT_GRAPH_NODE.ROOT
+                        )
 
-            result.update.messages.append(tool_msg)
+                    return tool_result
+
+                elif isinstance(tool_result, (list, tuple)) and len(tool_result) == 2:
+                    # The tool returned a tuple of (str, artifact)
+                    tool_msg = ToolCallMessage(
+                        tool_call_id=tool_call.id,
+                        content=tool_result[0],
+                        artifact=tool_result[1],
+                    )
+
+                elif isinstance(tool_result, str):
+                    tool_msg = ToolCallMessage(
+                        tool_call_id=tool_call.id,
+                        content=tool_result,
+                    )
+
+                else:
+                    raise ValueError(f"Invalid result type {type(tool_result)}")
+
+                update.messages.append(tool_msg)
+
+            except Exception as e:
+                # If this is a plan task and it failed, mark it as failed
+                if current_plan_task:
+                    current_plan_task.status = "failed"
+                    current_plan_task.result = str(e)
+                    update.task_plan = state.task_plan
+                    update.plan_mode_active = False  # Exit plan mode on failure
+                raise
 
         return result
 

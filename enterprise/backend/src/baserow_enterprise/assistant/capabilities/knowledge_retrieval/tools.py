@@ -71,7 +71,13 @@ class RetrieveKnowledgeTool(AssistantBaseTool):
         )
 
     def _get_model(self):
-        return init_chat_model("openai:gpt-4.1-mini")
+        return init_chat_model(
+            "openai:gpt-5-mini",
+            reasoning={
+                "effort": "low",  # 'low', 'medium', or 'high'
+                # "summary": "auto",  # 'detailed', 'auto', or None
+            },
+        )
 
     def can_be_used(self) -> bool:
         return KnowledgeBaseHandler().can_search()

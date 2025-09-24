@@ -52,6 +52,10 @@ class AssistantGraphBuilder:
             {"tools": ASSISTANT_GRAPH_NODE.ROOT_TOOLS, "__end__": END},
         )
 
+        # Task executor can loop back to itself or return to root
+        # The TaskExecutorNode handles this internally via Command returns
+        # No additional edges needed here since TaskExecutorNode returns Commands with goto
+
         interrupt_node = InterruptNode(self._context)
         self._builder.add_node(ASSISTANT_GRAPH_NODE.INTERRUPT, interrupt_node)
 

@@ -11,12 +11,8 @@ class DataManagerToolArgsSchema(BaseToolArgsSchema):
     instructions: str = Field(
         description="The user's instructions for data operations (create, update, or delete rows)."
     )
-    table_id: Optional[int] = Field(
-        default=None,
-        description=(
-            "The ID of the table to operate on. If not provided, the tool will use "
-            "the table from the current UI context if available, or ask for clarification."
-        ),
+    table_id: int = Field(
+        description=("The ID of the table to operate on. "),
     )
 
 
@@ -46,14 +42,6 @@ class DataManagerToolOutputSchema(BaseModel):
 
 
 class GetDatabaseSchemaToolArgsSchema(BaseToolArgsSchema):
-    database_id: Optional[int] = Field(
-        default=None,
-        description=(
-            "The ID of the database to retrieve the schema for. If not provided, "
-            "the tool will use the database from the current UI context if available, "
-            "or ask for clarification."
-        ),
-    )
     relations_only: bool = Field(
         default=False,
         description=(
@@ -61,7 +49,3 @@ class GetDatabaseSchemaToolArgsSchema(BaseToolArgsSchema):
             "Useful for understanding table names and how they are linked together."
         ),
     )
-
-
-class GetWorkspaceSchemaToolArgsSchema(BaseToolArgsSchema):
-    pass

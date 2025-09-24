@@ -16,6 +16,7 @@ from langchain_core.tools import InjectedToolCallId
 from langgraph.prebuilt import InjectedState
 from django.db import transaction
 
+from loguru import logger
 from pydantic import BaseModel, ConfigDict, Field
 
 from baserow.api.utils import validate_data
@@ -28,6 +29,7 @@ from baserow.contrib.database.fields.actions import (
     DeleteFieldActionType,
     UpdateFieldActionType,
 )
+from baserow.contrib.database.fields.exceptions import FieldWithSameNameAlreadyExists
 from baserow.contrib.database.rows.actions import CreateRowsActionType
 from baserow.contrib.database.table.actions import (
     CreateTableActionType,
@@ -38,7 +40,7 @@ from baserow.core.models import Workspace
 from baserow_enterprise.assistant.utils.helpers import generate_tool_call_id, uuid4_str
 from .models import AssistantChat as AssistantChatModel
 
-from baserow.contrib.database.models import Table
+from baserow.contrib.database.models import Database, Table
 
 StateType = TypeVar("StateType", bound=BaseModel)
 PartialStateType = TypeVar("PartialStateType", bound=BaseModel)
@@ -74,6 +76,19 @@ class UIContext(BaseModel):
     timezone: Optional[str] = Field(
         default="UTC", description="The timezone of the user, e.g. 'Europe/Amsterdam'"
     )
+
+    @classmethod
+    def from_database(cls, database: Database, timezone: str) -> "UIContext":
+        workspace = database.workspace
+        return cls(
+            workspace=WorkspaceUIContext(id=workspace.id, name=workspace.name),
+            application=ApplicationUIContext(
+                id=database.id, name=database.name, type="database"
+            ),
+            table=None,
+            view=None,
+            timezone=timezone,
+        )
 
     def _format_ui_context(self) -> str:
         workspace = self.workspace
@@ -177,6 +192,10 @@ class ToolCall(BaseMessage):
     name: str
     args: dict[str, Any]
 
+    def should_show_in_ui(self) -> bool:
+        # Don't show tool call only messages in the UI
+        return False
+
 
 class ToolCallMessage(BaseMessage):
     id: str = Field(
@@ -187,6 +206,10 @@ class ToolCallMessage(BaseMessage):
     content: str
     tool_call_id: str
     artifact: Optional[Any] = None
+
+    def should_show_in_ui(self) -> bool:
+        # Don't show tool call only messages in the UI
+        return False
 
 
 class AiMessage(BaseMessage):
@@ -199,13 +222,6 @@ class AiMessage(BaseMessage):
     tool_calls: Optional[list[ToolCall]] = Field(
         default_factory=list,
         description="The list of tool calls made by the AI in this message.",
-    )
-    show_in_ui: bool = Field(
-        default=True,
-        description=(
-            "Whether the message should be shown in the UI. If False, the message is "
-            "only used for tool calls and not displayed to the user."
-        ),
     )
 
     sources: Optional[list[str]] = Field(
@@ -519,6 +535,15 @@ class NumberFieldType(BaseFieldType):
             "number_negative": self.negative,
         }
 
+    @classmethod
+    def from_orm(cls, orm_field) -> Dict[str, Any]:
+        field = orm_field.specific
+        return cls(
+            name=field.name,
+            decimal_places=field.number_decimal_places,
+            negative=field.number_negative,
+        )
+
 
 class RatingFieldType(BaseFieldType):
     type: Literal["rating"] = "rating"
@@ -529,6 +554,14 @@ class RatingFieldType(BaseFieldType):
             "rating_max": self.max_rating,
         }
 
+    @classmethod
+    def from_orm(cls, orm_field) -> Dict[str, Any]:
+        field = orm_field.specific
+        return cls(
+            name=field.name,
+            max_rating=field.rating_max,
+        )
+
 
 class DateFieldType(BaseFieldType):
     type: Literal["date"] = "date"
@@ -538,6 +571,14 @@ class DateFieldType(BaseFieldType):
         return {
             "date_include_time": self.include_time,
         }
+
+    @classmethod
+    def from_orm(cls, orm_field) -> Dict[str, Any]:
+        field = orm_field.specific
+        return cls(
+            name=field.name,
+            include_time=field.date_include_time,
+        )
 
 
 class BooleanFieldType(BaseFieldType):
@@ -555,7 +596,11 @@ class LinkRowFieldType(BaseFieldType):
     multiple: bool = False
 
     def to_orm(self, resource_mapping) -> Dict[str, Any]:
-        linked_table = resource_mapping["table"].get(self.linked_table_name)
+        linked_table_name = (
+            self.linked_table_name.strip().capitalize().replace("_", " ")
+        )
+
+        linked_table = resource_mapping["table"].get(linked_table_name)
         return {
             "link_row_table": linked_table,
             "link_row_multiple_relationships": self.multiple,
@@ -683,17 +728,23 @@ class TableSchema(BaseModel):
     )
 
 
-class DatabaseSchema(BaseModel):
+class BaseDatabaseSchema(BaseModel):
     id: int
     name: str
+
+
+class DatabaseSchema(BaseDatabaseSchema):
     tables: dict[str, TableSchema]
 
 
 class WorkspaceSchema(BaseModel):
     id: int
     name: str
-    databases: list[str] = Field(
-        default_factory=list, description="Database names in the workspace"
+    databases: list[BaseDatabaseSchema] = Field(
+        default_factory=list, description="Database IDs and names in the workspace"
+    )
+    current_database: Optional[DatabaseSchema] = Field(
+        default=None, description="The currently active database in the workspace"
     )
 
 
@@ -701,6 +752,9 @@ class SchemaExecutableOperation(BaseModel):
     type: str
 
     def execute(self, user, resource_mapping) -> Any:
+        pass
+
+    def validate_operation(self, resource_mapping) -> None:
         pass
 
 
@@ -722,6 +776,12 @@ class CreateTableOperation(StreamableOperation, NavigateToOperation, TableOperat
     type: Literal["create_table"] = "create_table"
     name: str = Field(description="The name of the new table. Max 20 chars.")
     primary_field_name: str
+
+    def validate_operation(self, resource_mapping) -> None:
+        self.name = self.name.strip().capitalize().replace("_", " ")
+        self.primary_field_name = (
+            self.primary_field_name.strip().capitalize().replace("_", " ")
+        )
 
     def execute(self, user, resource_mapping) -> Table:
         database = list(resource_mapping["database"].values())[0]
@@ -763,6 +823,10 @@ class UpdateTableOperation(SchemaExecutableOperation, TableOperation):
     table_name: str
     new_name: str = Field(description="The new name of the table. Max 20 chars.")
 
+    def validate_operation(self, resource_mapping) -> None:
+        self.name = self.name.strip().capitalize()
+        self.primary_field_name = self.primary_field_name.strip().capitalize()
+
     def execute(self, user, resource_mapping) -> Table:
         table = resource_mapping["table"].pop(self.table_name)
         with transaction.atomic():
@@ -788,22 +852,33 @@ class CreateFieldOperation(StreamableOperation):
     table_name: str
     field: AnyFieldType
 
+    def validate_operation(self, resource_mapping) -> None:
+        self.table_name = self.table_name.strip().capitalize().replace("_", " ")
+        self.field.name = self.field.name.strip().capitalize().replace("_", " ")
+
     def execute(self, user, resource_mapping) -> None:
         table = resource_mapping["table"][self.table_name]
 
-        if resource_mapping[f"field_{table.id}"].get(self.field.name):
+        if resource_mapping[f"fields_{table.id}"].get(self.field.name):
             # Field already exists, skip
             return
 
         with transaction.atomic():
-            field = CreateFieldActionType.do(
-                user,
-                table,
-                self.field.type,
-                name=self.field.name,
-                **self.field.to_orm(resource_mapping),
-            )
-            resource_mapping[f"field_{table.id}"][self.field.name] = field
+            try:
+                field = CreateFieldActionType.do(
+                    user,
+                    table,
+                    self.field.type,
+                    name=self.field.name,
+                    **self.field.to_orm(resource_mapping),
+                )
+                resource_mapping[f"fields_{table.id}"][self.field.name] = field
+            except FieldWithSameNameAlreadyExists:
+                logger.exception(
+                    "Creating field failed: ", resource_mapping[f"fields_{table.id}"]
+                )
+                # Field already exists, skip
+                return
         return field
 
     def get_streaming_message(self) -> str:
@@ -816,6 +891,9 @@ class UpdateFieldOperation(SchemaExecutableOperation):
     field_name: str
     field: AnyFieldType
 
+    def validate_operation(self, resource_mapping) -> None:
+        self.field.name = self.field.name.strip().capitalize()
+
     def execute(self, user, resource_mapping) -> None:
         database = list(resource_mapping["database"].values())[0]
         table = resource_mapping["table"].get(self.table_name)
@@ -827,7 +905,7 @@ class UpdateFieldOperation(SchemaExecutableOperation):
                 return
             resource_mapping["table"][self.table_name] = table
 
-        field = resource_mapping[f"field_{table.id}"].pop(self.field_name, None)
+        field = resource_mapping[f"fields_{table.id}"].pop(self.field_name, None)
         if field is None:
             # Try to fetch from the database
             field = table.field_set.filter(name=self.field_name).first()
@@ -842,7 +920,7 @@ class UpdateFieldOperation(SchemaExecutableOperation):
                 name=self.field.name,
                 **self.field.to_orm(resource_mapping),
             )
-            resource_mapping[f"field_{table.id}"][self.field.name] = field
+            resource_mapping[f"fields_{table.id}"][self.field.name] = field
         return field
 
 
@@ -853,7 +931,7 @@ class DeleteFieldOperation(SchemaExecutableOperation):
 
     def execute(self, user, resource_mapping) -> None:
         table = resource_mapping["table"][self.table_name]
-        field = resource_mapping[f"field_{table.id}"].pop(self.field_name)
+        field = resource_mapping[f"fields_{table.id}"].pop(self.field_name)
 
         if field.primary:
             return  # Can't delete primary field
@@ -985,13 +1063,81 @@ class PartialDataManagerState(_SharedDataManagerState):
     pass
 
 
+class TaskPlan(BaseModel):
+    id: str = Field(description="Unique identifier for this task")
+    description: str = Field(
+        description="Human-readable description of what this task does"
+    )
+    status: Literal["pending", "in_progress", "completed", "failed"] = Field(
+        default="pending", description="Current status of this task"
+    )
+    dependencies: List[str] = Field(
+        default_factory=list,
+        description="IDs of tasks that must complete before this one",
+    )
+    result: Optional[str] = Field(
+        default=None, description="Result from task execution"
+    )
+
+
+def merge_task_plans(existing: List[TaskPlan], new: List[TaskPlan]) -> List[TaskPlan]:
+    """Merge task plans, updating existing tasks with new status."""
+    if not new:
+        return existing
+    if not existing:
+        return new
+
+    # Create a mapping of existing tasks
+    existing_map = {task.id: task for task in existing}
+
+    # Update or add tasks
+    for task in new:
+        if task.id in existing_map:
+            # Update existing task
+            existing_map[task.id] = task
+        else:
+            # Add new task
+            existing_map[task.id] = task
+
+    return list(existing_map.values())
+
+
+class _SharedPlannerState(BaseModel):
+    task_plan: Optional[List[TaskPlan]] = Field(
+        default=None, description="List of tasks to be executed in sequence"
+    )
+    current_task_id: Optional[str] = Field(
+        default=None, description="ID of the currently executing task"
+    )
+    plan_mode_active: bool | None = Field(
+        default=None, description="Whether the assistant is in planning mode"
+    )
+
+
+class PlannerState(_SharedPlannerState):
+    task_plan: Annotated[List[TaskPlan], merge_task_plans] = Field(
+        default_factory=list, description="List of tasks to be executed in sequence"
+    )
+
+
+class PartialPlannerState(_SharedPlannerState):
+    pass
+
+
 class _SharedState(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
 
+    ui_context: Optional[UIContext] = Field(
+        default=None,
+        description="The UI context the assistant is operating in.",
+    )
 
-class AssistantState(_SharedState, DatabaseArchitectState, DataManagerState):
+
+class AssistantState(
+    _SharedState, DatabaseArchitectState, DataManagerState, PlannerState
+):
     messages: Annotated[
         Sequence[AssistantMessageUnion], add_and_merge_messages
     ] = Field(default=[])
@@ -1002,7 +1148,10 @@ class AssistantState(_SharedState, DatabaseArchitectState, DataManagerState):
 
 
 class PartialAssistantState(
-    _SharedState, PartialDatabaseArchitectState, PartialDataManagerState
+    _SharedState,
+    PartialDatabaseArchitectState,
+    PartialDataManagerState,
+    PartialPlannerState,
 ):
     messages: Sequence[AssistantMessageUnion] = Field(default=[])
     sources: Optional[list[str]] = Field(

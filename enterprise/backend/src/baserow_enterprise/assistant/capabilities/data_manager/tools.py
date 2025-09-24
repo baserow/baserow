@@ -39,10 +39,8 @@ from baserow_enterprise.assistant.utils.helpers import (
 )
 
 from .types import (
-    BaseToolArgsSchema,
     DataManagerToolArgsSchema,
     GetDatabaseSchemaToolArgsSchema,
-    GetWorkspaceSchemaToolArgsSchema,
 )
 from .prompts import (
     DATA_MANAGER_SYSTEM_PROMPT,
@@ -98,9 +96,9 @@ class DataManagerTool(AssistantBaseTool):
     def _run_impl(
         self,
         instructions: str,
+        table_id: int,
         tool_call_id: Annotated[str, InjectedToolCallId],
         state: Annotated[AssistantState, InjectedState],
-        table_id: int | None = None,
     ) -> Any:
         stream_writer = get_stream_writer()
         stream_writer(
@@ -112,33 +110,8 @@ class DataManagerTool(AssistantBaseTool):
 
         conversation_messages = []
 
-        # Get UI context for current database/table information
-        ui_context = find_last_ui_context(state.messages)
-
-        if not table_id and ui_context and ui_context.table:
-            table_id = ui_context.table.id
-
         if not table_id:
-            return Command(
-                goto=ASSISTANT_GRAPH_NODE.INTERRUPT,
-                update=PartialAssistantState(
-                    messages=[
-                        ToolCallMessage(
-                            tool_call_id=tool_call_id,
-                            content=(
-                                "Please provide a valid table ID to operate on, or navigate to a table in the UI."
-                            ),
-                            artifact=result,
-                        ),
-                        AiInterruptMessage(
-                            content=result.question,
-                            tool_call_id=tool_call_id,
-                        ),
-                    ],
-                    dma_needs_clarification=True,
-                    dma_data_operations_plan=result.data_operations_plan,
-                ),
-            )
+            raise ValueError("Table ID must be provided or available in UI context.")
 
         table = Table.objects.get(id=table_id)
         table_schema = get_table_schema(table)
@@ -161,8 +134,12 @@ class DataManagerTool(AssistantBaseTool):
 
         # Initialize the model with the dynamic schema
         model = init_chat_model(
-            "openai:gpt-4.1-mini",
-            temperature=0.2,
+            "openai:gpt-5-mini",
+            # temperature=0.2,
+            reasoning={
+                "effort": "low",  # 'low', 'medium', or 'high'
+                # "summary": "auto",  # 'detailed', 'auto', or None
+            },
         )
         model = model.bind_tools(
             [{"type": "web_search_preview"}]
@@ -200,7 +177,7 @@ class DataManagerTool(AssistantBaseTool):
         )
 
         # If clarification is needed, interrupt for user input
-        if result.need_clarification and not state.dma_needs_clarification:
+        if result.need_clarification and result.question:
             return Command(
                 goto=ASSISTANT_GRAPH_NODE.INTERRUPT,
                 update=PartialAssistantState(
@@ -251,13 +228,14 @@ class DataManagerTool(AssistantBaseTool):
 
 class GetDatabaseSchemaTool(AssistantBaseTool):
     name: str = "get_database_schema"
-    description: str = "Get the schema of a database, including tables and fields."
+    description: str = (
+        "Get the schema of a database, including IDs and names of tables and fields."
+    )
     usage_instructions: str = """
-Use this tool to retrieve the schema of a specific database. 
-If the database name is not provided, the tool will use the database from the current UI context if available.
-You can also choose to only include tables and fields that are part of relationships by setting relations_only to true. 
-This is useful for understanding table names and how they are linked together.
-If the database cannot be found, the tool will return an error message instead of the schema.
+Use this tool to retrieve the schema of a specific database, including IDs and names of tables and fields.
+
+Make sure to have a valid database ID from the current workspace before calling this tool.
+You can get the database ID by using the get_workspace_schema tool.
 """
     args_schema: type[BaseModel] = GetDatabaseSchemaToolArgsSchema
 
@@ -265,72 +243,29 @@ If the database cannot be found, the tool will return an error message instead o
         self,
         tool_call_id: Annotated[str, InjectedToolCallId],
         state: Annotated[AssistantState, InjectedState],
-        database_name: str | None = None,
         relations_only: bool = False,
     ) -> Command:
         user = User.objects.get(id=self._context.chat.user.id)
         workspace_id = self._context.chat.workspace.id
-
-        if database_name is None:
-            ui_context = find_last_ui_context(state.messages)
-            if (
-                ui_context
-                and ui_context.application
-                and ui_context.application.type == "database"
-            ):
-                database_name = ui_context.application.name
-
-        database = Database.objects.filter(
-            name=database_name, workspace_id=workspace_id
-        ).first()
-
-        if not database:
-            return Command(
-                update=PartialAssistantState(
-                    messages=[
-                        ToolCallMessage(
-                            tool_call_id=tool_call_id,
-                            content=f"ERROR: Database with name '{database_name}' not found.",
-                        )
-                    ],
-                ),
-            )
-
-        database_schema = get_database_schema(database, relations_only=relations_only)
-
-        return Command(
-            update=PartialAssistantState(
-                messages=[
-                    ToolCallMessage(
-                        tool_call_id=tool_call_id,
-                        content=database_schema.model_dump_json(indent=2),
-                        artifact=database_schema,
-                    )
-                ],
-            ),
-        )
-
-
-class GetWorkspaceSchemaTool(AssistantBaseTool):
-    name: str = "get_workspace_schema"
-    description: str = (
-        "Get the schema of a workspace, including databases and their tables."
-    )
-    usage_instructions: str = """
-Use this tool to retrieve the schema of a specific workspace. 
-The tool will return the names of databases in the workspace.
-"""
-    args_schema: type[BaseModel] = GetWorkspaceSchemaToolArgsSchema
-
-    def _run_impl(
-        self,
-        tool_call_id: Annotated[str, InjectedToolCallId],
-        state: Annotated[AssistantState, InjectedState],
-    ) -> Command:
-        user = User.objects.get(id=self._context.chat.user.id)
-
         workspace = Workspace.objects.get(id=self._context.chat.workspace.id)
         workspace_schema = get_workspace_schema(workspace)
+
+        ui_context = state.ui_context or find_last_ui_context(state.messages)
+        if (
+            ui_context
+            and ui_context.application
+            and ui_context.application.type == "database"
+        ):
+            database_id = ui_context.application.id
+
+            database = Database.objects.filter(
+                id=database_id, workspace_id=workspace_id
+            ).first()
+            if database:
+                database_schema = get_database_schema(
+                    database, relations_only=relations_only
+                )
+                workspace_schema.current_database = database_schema
 
         return Command(
             update=PartialAssistantState(

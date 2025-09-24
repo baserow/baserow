@@ -185,6 +185,7 @@ Would you like to proceed with this schema and iterate later, or refine it based
 
 3. **Table Creation Rules**:
    - If user specifies a primary field name, use that exactly when creating the table
+   - Avoid using ID as primary field name
 
 4. **Field Creation Guidelines**:
    - Use appropriate field types based on the data: text, email, url, number, date, boolean
@@ -200,6 +201,7 @@ Would you like to proceed with this schema and iterate later, or refine it based
    - Always reference tables by name (table_name)
    - Always reference fields by name (field_name)
    - This allows referencing tables that will be created in the same execution
+   - Don't use underscores in names unless specified. Use spaces and capitalize appropriately instead.
 
 ## Examples
 
@@ -309,6 +311,7 @@ Create operations that EXACTLY address the user's specific request, then apply s
 - Create practical, immediately useful solutions
 - Include essential fields that make the system functional
 - Questions help understand specific requirements and customization needs
+- Don't set need_clarification to true unless the request is too vague to act on
 """
 
 
