@@ -65,10 +65,6 @@ export class EnterprisePlugin extends BaserowPlugin {
     return out
   }
 
-  getAdditionalViewContextComponents(workspace, view) {
-    return [DateDependencyMenuItem]
-  }
-
   getGridViewFieldTypeIconsBefore(workspace, view, field) {
     const out = []
     out.push(DateDependencyFieldTypeIcon)
@@ -76,6 +72,7 @@ export class EnterprisePlugin extends BaserowPlugin {
   }
 
   getAdditionalViewContextComponents(workspace, table, view) {
+    const components = []
     if (
       this.app.$hasPermission(
         'database.table.view.read_role',
@@ -86,10 +83,11 @@ export class EnterprisePlugin extends BaserowPlugin {
       // the restricted view. So we're only showing the modal there.
       view.ownership_type === RestrictedViewOwnershipType.getType()
     ) {
-      return [MemberRolesViewContextItem]
-    } else {
-      return []
+      console.log('adddd')
+      components.push(MemberRolesViewContextItem)
     }
+    components.push(DateDependencyMenuItem)
+    return components
   }
 
   getExtraSnapshotModalComponents(workspace) {
