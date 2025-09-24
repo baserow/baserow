@@ -2,6 +2,7 @@ from django.db import transaction
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from baserow.core.two_factor_auth.handler import TwoFactorAuthHandler
 from baserow.core.two_factor_auth.registries import two_factor_auth_type_registry
 from baserow.api.decorators import map_exceptions, validate_body_custom_fields
 from baserow.api.schemas import get_error_schema
@@ -81,4 +82,11 @@ class ConfigureTwoFactorAuthView(APIView):
         Returns two-factor configuration for the authenticated user.
         """
 
-        pass
+        provider = TwoFactorAuthHandler().get_provider(request.user)
+        if provider is None:
+            return Response(status=204)
+
+        serializer = two_factor_auth_type_registry.get_serializer(
+            provider, TwoFactorAuthSerializer
+        )
+        return Response(serializer.data)
