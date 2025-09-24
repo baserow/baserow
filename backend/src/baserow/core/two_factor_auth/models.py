@@ -21,6 +21,7 @@ class TwoFactorAuthProviderModel(
         related_name="two_factor_auth_providers",
         on_delete=models.CASCADE,
     )
+    # TODO: user should be unique
     user = models.ForeignKey(
         "auth.User",
         on_delete=models.CASCADE,
@@ -39,4 +40,5 @@ class TOTPAuthProviderModel(TwoFactorAuthProviderModel):
     enabled = models.BooleanField(default=False)
     secret = models.CharField(max_length=32, help_text="base32 secret")
     provisioning_url = models.CharField(max_length=255)
+    provisioning_qr_code = models.TextField(blank=True)
 

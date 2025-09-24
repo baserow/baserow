@@ -15,6 +15,9 @@ from baserow.core.two_factor_auth.models import (
 )
 from django.contrib.auth.models import AbstractUser
 from rest_framework import serializers
+from io import BytesIO
+import qrcode
+from base64 import b64encode
 
 
 class TwoFactorAuthProviderType(
@@ -33,8 +36,12 @@ class TwoFactorAuthProviderType(
 class TOTPAuthProviderType(TwoFactorAuthProviderType):
     type = "totp"
     model_class = TOTPAuthProviderModel
-    serializer_field_names = ["enabled", "provisioning_url"]
-    # serializer_field_overrides = {"provisioning_url": serializers.CharField()}
+    serializer_field_names = ["enabled", "provisioning_url", "provisioning_qr_code"]
+    serializer_field_overrides = {
+        "enabled": serializers.BooleanField(),
+        "provisioning_url": serializers.CharField(),
+        "provisioning_qr_code": serializers.CharField(),
+    }
     request_serializer_field_names = []
     request_serializer_field_overrides = {}
 
@@ -44,25 +51,22 @@ class TOTPAuthProviderType(TwoFactorAuthProviderType):
             name=user.email,
             issuer_name="Baserow",  # FIXME:
         )
-        provider = TOTPAuthProviderModel(
-            user=user, enabled=False, secret=secret, provisioning_url=provisioning_url
+
+        qr = qrcode.QRCode(version=1, box_size=10, border=5)
+        qr.add_data(provisioning_url)
+        qr.make(fit=True)
+        img = qr.make_image(fill_color="black", back_color="white")
+        buffered = BytesIO()
+        img.save(buffered)
+        qr_code_base64 = b64encode(buffered.getvalue()).decode("utf-8")
+
+        return TOTPAuthProviderModel(
+            user=user,
+            enabled=False,
+            secret=secret,
+            provisioning_url=provisioning_url,
+            provisioning_qr_code=f"data:image/png;base64,{qr_code_base64}",
         )
-
-        print(provider)
-
-        return provider
-
-        # from io import BytesIO
-        # import qrcode
-        # from base64 import b64encode
-
-        # qr = qrcode.QRCode(version=1, box_size=10, border=5)
-        # qr.add_data(provisioning_url)
-        # qr.make(fit=True)
-        # img = qr.make_image(fill_color="black", back_color="white")
-        # buffered = BytesIO()
-        # img.save(buffered)
-        # encoded_qr_code = b64encode(buffered.getvalue()).decode("utf-8")
 
 
 class TwoFactorAuthTypeRegistry(

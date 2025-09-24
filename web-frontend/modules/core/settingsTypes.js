@@ -142,7 +142,7 @@ export class TwoFactorAuthSettingsType extends SettingsType {
   }
 
   getIconClass() {
-    return 'password-check'
+    return 'baserow-icon-password-check'
   }
 
   getName() {

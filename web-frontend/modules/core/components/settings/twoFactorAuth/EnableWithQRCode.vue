@@ -8,6 +8,7 @@
           Scan the code with an app like Google Authenticator, Authy or
           Microsoft Authenticator, or click here to copy the code.
         </div>
+        <img v-if="qr_code" :src="qr_code" alt="TOTP QR Code" class="enable-with-qr-code__step-qr-code" />
       </div>
     </div>
     <div class="enable-with-qr-code__step">
@@ -36,6 +37,7 @@ export default {
   data() {
     return {
       loading: false,
+      qr_code: null,
     }
   },
   mounted() {
@@ -52,6 +54,7 @@ export default {
           true
         )
         console.log({ data })
+        this.qr_code = data.provisioning_qr_code
       } catch (error) {
         this.handleError(error)
       } finally {
