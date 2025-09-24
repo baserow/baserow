@@ -121,6 +121,19 @@ export default {
         this.values.number6 = this.sanitizeInput(value)
       },
     },
+    code() {
+      return (
+        this.values.number1 +
+        this.values.number2 +
+        this.values.number3 +
+        this.values.number4 +
+        this.values.number5 +
+        this.values.number6
+      )
+    },
+    allFilled() {
+      return this.code.length === 6
+    },
   },
   methods: {
     sanitizeInput(value) {
@@ -137,6 +150,8 @@ export default {
         const nextInput = input.nextElementSibling
         if (nextInput && nextInput.tagName === 'INPUT') {
           nextInput.focus()
+        } else if (this.allFilled) {
+          this.$emit('all-filled', this.code)
         }
       }
     },

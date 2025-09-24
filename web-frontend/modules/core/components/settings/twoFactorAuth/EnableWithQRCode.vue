@@ -8,7 +8,12 @@
           Scan the code with an app like Google Authenticator, Authy or
           Microsoft Authenticator, or click here to copy the code.
         </div>
-        <img v-if="qr_code" :src="qr_code" alt="TOTP QR Code" class="enable-with-qr-code__step-qr-code" />
+        <img
+          v-if="qr_code"
+          :src="qr_code"
+          alt="TOTP QR Code"
+          class="enable-with-qr-code__step-qr-code"
+        />
       </div>
     </div>
     <div class="enable-with-qr-code__step">
@@ -21,7 +26,7 @@
           Enter a 6-digit code shown by the app to confirm that you have set it
           up correctly.
         </div>
-        <AuthCodeInput />
+        <AuthCodeInput @all-filled="checkCode" />
       </div>
     </div>
   </div>
@@ -50,8 +55,7 @@ export default {
 
       try {
         const { data } = await TwoFactorAuthService(this.$client).configure(
-          'totp',
-          true
+          'totp'
         )
         console.log({ data })
         this.qr_code = data.provisioning_qr_code
@@ -59,6 +63,22 @@ export default {
         this.handleError(error)
       } finally {
         this.loading = false
+      }
+    },
+    async checkCode(code) {
+      console.log('checkCode: ' + code)
+      // TODO: loading, error
+      try {
+        const params = { code }
+        const { data } = await TwoFactorAuthService(this.$client).configure(
+          'totp',
+          params
+        )
+        console.log({ data })
+      } catch (error) {
+        this.handleError(error)
+      } finally {
+        // this.loading = false
       }
     },
   },

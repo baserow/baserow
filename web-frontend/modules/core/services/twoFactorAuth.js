@@ -1,7 +1,7 @@
 export default (client) => {
   return {
-    configure(type, enabled) {
-      return client.post('/two-factor-auth/configuration/', { type, enabled })
+    configure(type, params) {
+      return client.post('/two-factor-auth/configuration/', { type, ...params })
     },
     getConfiguration() {
       return client.get('/two-factor-auth/configuration/')
