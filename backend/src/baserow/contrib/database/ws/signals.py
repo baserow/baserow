@@ -41,9 +41,6 @@ else:
     # isort: on
 
     PUBLIC_SIGNALS = [
-        "public_rows_created",
-        "public_rows_deleted",
-        "public_rows_updated",
         "public_view_filter_updated",
         "public_view_filter_deleted",
         "public_view_filter_created",
