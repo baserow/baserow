@@ -87,6 +87,7 @@ const view = {
     selected: true,
     loading: false,
   },
+  ownership_type: 'collaborative',
 }
 
 describe('ViewFilterForm match snapshots', () => {

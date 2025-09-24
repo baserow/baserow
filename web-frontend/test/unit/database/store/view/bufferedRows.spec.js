@@ -372,6 +372,7 @@ describe('Buffered rows view store helper', () => {
       filter_type: 'AND',
       filters: [],
       sortings: [],
+      ownership_type: 'collaborative',
     }
     const fields = [
       {
@@ -475,6 +476,7 @@ describe('Buffered rows view store helper', () => {
       filter_type: 'AND',
       filters: [],
       sortings: [],
+      ownership_type: 'collaborative',
     }
     const fields = [
       {
@@ -569,6 +571,7 @@ describe('Buffered rows view store helper', () => {
       filter_type: 'AND',
       filters: [],
       sortings: [],
+      ownership_type: 'collaborative',
     }
     const fields = [
       {
@@ -695,6 +698,7 @@ describe('Buffered rows view store helper', () => {
       filter_type: 'AND',
       filters: [],
       sortings: [],
+      ownership_type: 'collaborative',
     }
     const fields = [
       {
@@ -819,6 +823,7 @@ describe('Buffered rows view store helper', () => {
         },
       ],
       sortings: [],
+      ownership_type: 'collaborative',
     }
     const fields = [
       {
@@ -883,6 +888,7 @@ describe('Buffered rows view store helper', () => {
       filter_type: 'AND',
       filters: [],
       sortings: [],
+      ownership_type: 'collaborative',
     }
     const fields = [
       {
@@ -1110,6 +1116,7 @@ describe('Buffered rows view store helper', () => {
         },
       ],
       sortings: [],
+      ownership_type: 'collaborative',
     }
     const fields = [
       {
@@ -1179,6 +1186,7 @@ describe('Buffered rows view store helper', () => {
       filter_type: 'AND',
       filters: [],
       sortings: [],
+      ownership_type: 'collaborative',
     }
     const fields = [
       {
@@ -1344,6 +1352,7 @@ describe('Buffered rows view store helper', () => {
         },
       ],
       sortings: [],
+      ownership_type: 'collaborative',
     }
     const fields = [
       {
@@ -1505,6 +1514,7 @@ describe('Buffered rows view store helper', () => {
           type: 'default',
         },
       ],
+      ownership_type: 'collaborative',
     }
     const fields = [
       {
@@ -1673,6 +1683,7 @@ describe('Buffered rows view store helper', () => {
           type: 'default',
         },
       ],
+      ownership_type: 'collaborative',
     }
     const fields = [
       {
@@ -1739,6 +1750,7 @@ describe('Buffered rows view store helper', () => {
       filter_type: 'AND',
       filters: [],
       sortings: [],
+      ownership_type: 'collaborative',
     }
     const fields = [
       {
@@ -1891,6 +1903,7 @@ describe('Buffered rows view store helper', () => {
         },
       ],
       sortings: [],
+      ownership_type: 'collaborative',
     }
     const fields = [
       {
