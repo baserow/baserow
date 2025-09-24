@@ -123,8 +123,13 @@ class TrashHandler(metaclass=baserow_trace_methods(tracer)):
 
     @classmethod
     def restore_item(
-        cls, user, trash_item_type, trash_item_id, parent_trash_item_id=None
-    ):
+        cls,
+        user,
+        trash_item_type,
+        trash_item_id,
+        parent_trash_item_id=None,
+        send_signal: bool = True,
+    ) -> Any:
         """
         Restores an item from the trash re-instating it back in Baserow exactly how it
         was before it was trashed.
@@ -132,6 +137,7 @@ class TrashHandler(metaclass=baserow_trace_methods(tracer)):
         :param trash_item_type: The trashable item type of the item to restore.
         :param parent_trash_item_id: The parent id of the item to restore.
         :param trash_item_id: The trash item id of the item to restore.
+        :param send_signal: Whether to send the restoration signal or not.
         :raises CannotRestoreChildBeforeParent: Raised if the item being restored has
             any parent, or parent of a parent etc which is trashed as that item should
             be restored first.
@@ -170,7 +176,9 @@ class TrashHandler(metaclass=baserow_trace_methods(tracer)):
             trash_entry.delete()
 
             restore_type = trash_item_type_registry.get_by_model(trash_item)
-            restore_type.restore(trash_item, trash_entry)
+            restore_type.restore(trash_item, trash_entry, send_signal=send_signal)
+
+        return trash_item
 
     @staticmethod
     def get_trash_structure(user: User) -> Dict[str, Any]:

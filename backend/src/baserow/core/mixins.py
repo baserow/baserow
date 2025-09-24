@@ -447,7 +447,7 @@ ParentWorkspaceTrashableModelMixin = make_trashable_mixin("workspace")
 class TrashableModelMixin(models.Model):
     """
     This mixin allows this model to be trashed and restored from the trash by adding
-    new columns recording it's trash status.
+    new columns recording its trash status.
     """
 
     trashed = models.BooleanField(default=False, db_index=True)

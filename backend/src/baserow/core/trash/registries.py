@@ -78,7 +78,7 @@ class TrashableItemType(ModelInstanceMixin, Instance, ABC):
         pass
 
     @abstractmethod
-    def restore(self, trashed_item: Any, trash_entry):
+    def restore(self, trashed_item: Any, trash_entry, send_signal: bool = True):
         """
         Called when a trashed item should be restored. Will set trashed to true and
         save. Should be overridden if additional actions such as restoring related
@@ -86,6 +86,7 @@ class TrashableItemType(ModelInstanceMixin, Instance, ABC):
 
         :param trash_entry: The trash entry that was restored from.
         :param trashed_item: The item that to be restored.
+        :param send_signal: Whether to send a signal after restoring the item.
         """
 
         trashed_item.trashed = False

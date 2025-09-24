@@ -94,7 +94,7 @@ class TableTrashableItemType(TrashableItemType):
 
             yield field
 
-    def restore(self, trashed_item: Table, trash_entry: TrashEntry):
+    def restore(self, trashed_item: Table, trash_entry: TrashEntry, **kwargs):
         super().restore(trashed_item, trash_entry)
 
         field_cache = FieldCache()
@@ -220,7 +220,7 @@ class FieldTrashableItemType(TrashableItemType):
     def get_name(self, trashed_item: Field) -> str:
         return trashed_item.name
 
-    def restore(self, trashed_item: Field, trash_entry: TrashEntry):
+    def restore(self, trashed_item: Field, trash_entry: TrashEntry, **kwargs):
         FieldHandler().restore_field(trashed_item.specific)
 
     def permanently_delete_item(
@@ -295,7 +295,7 @@ class RowTrashableItemType(TrashableItemType):
     def get_names(self, trashed_item: Any) -> str:
         return [str(trashed_item) or f"unnamed row {trashed_item.id}"]
 
-    def restore(self, trashed_item, trash_entry: TrashEntry):
+    def restore(self, trashed_item, trash_entry: TrashEntry, **kwargs):
         try:
             super().restore(trashed_item, trash_entry)
         except Exception:
@@ -419,7 +419,7 @@ class RowsTrashableItemType(TrashableItemType):
             )
         return [str(row) or f"unnamed row {row.id}" for row in rows]
 
-    def restore(self, trashed_item, trash_entry: TrashEntry):
+    def restore(self, trashed_item, trash_entry: TrashEntry, **kwargs):
         table = self._get_table(trashed_item.table_id)
         model = self._get_table_model(trashed_item.table_id)
         rows_to_restore_queryset = model.objects_and_trash.filter(
@@ -517,7 +517,7 @@ class ViewTrashableItemType(TrashableItemType):
     def get_parent(self, trashed_item: View) -> Optional[Any]:
         return trashed_item.table
 
-    def restore(self, trashed_item: View, trash_entry):
+    def restore(self, trashed_item: View, trash_entry, **kwargs):
         super().restore(trashed_item, trash_entry)
 
         type_name = view_type_registry.get_by_model(trashed_item.specific_class).type

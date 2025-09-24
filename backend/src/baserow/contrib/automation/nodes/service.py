@@ -23,6 +23,7 @@ from baserow.contrib.automation.nodes.registries import automation_node_type_reg
 from baserow.contrib.automation.nodes.signals import (
     automation_node_created,
     automation_node_deleted,
+    automation_node_replaced,
     automation_node_updated,
     automation_nodes_reordered,
 )
@@ -331,6 +332,7 @@ class AutomationNodeService:
             workflow=node.workflow,
             before=node,
             order=node.order,
+            previous_node_id=node.previous_node_id,
             previous_node_output=node.previous_node_output,
             **prepared_values,
         )
@@ -341,6 +343,14 @@ class AutomationNodeService:
 
         automation = node.workflow.automation
         TrashHandler.trash(user, automation.workspace, automation, node)
+
+        automation_node_replaced.send(
+            self,
+            workflow=new_node.workflow,
+            restored_node=new_node,
+            deleted_node=node,
+            user=user,
+        )
 
         return ReplacedAutomationNode(
             node=new_node,

@@ -23,7 +23,7 @@ class WidgetTrashableItemType(TrashableItemType):
         widget_type.before_trashed(item_to_trash.specific)
         super().trash(item_to_trash, requesting_user, trash_entry)
 
-    def restore(self, trashed_item: Widget, trash_entry: TrashEntry):
+    def restore(self, trashed_item: Widget, trash_entry: TrashEntry, **kwargs):
         widget_type = widget_type_registry.get_by_model(trashed_item.specific)
         widget_type.before_restore(trashed_item.specific)
         super().restore(trashed_item, trash_entry)

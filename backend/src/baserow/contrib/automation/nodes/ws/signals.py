@@ -11,10 +11,12 @@ from baserow.contrib.automation.nodes.object_scopes import AutomationNodeObjectS
 from baserow.contrib.automation.nodes.operations import (
     ListAutomationNodeOperationType,
     ReadAutomationNodeOperationType,
+    UpdateAutomationNodeOperationType,
 )
 from baserow.contrib.automation.nodes.signals import (
     automation_node_created,
     automation_node_deleted,
+    automation_node_replaced,
     automation_node_updated,
     automation_nodes_reordered,
 )
@@ -94,6 +96,32 @@ def nodes_reordered(
                 # A user might also not have access to the automation itself
                 "workflow_id": generate_hash(workflow.id),
                 "order": order,
+            },
+            getattr(user, "web_socket_id", None),
+        )
+    )
+
+
+@receiver(automation_node_replaced)
+def node_replaced(
+    sender,
+    workflow: AutomationWorkflow,
+    deleted_node: AutomationNode,
+    restored_node: AutomationNode,
+    user: AbstractUser,
+    **kwargs,
+):
+    transaction.on_commit(
+        lambda: broadcast_to_permitted_users.delay(
+            workflow.automation.workspace_id,
+            UpdateAutomationNodeOperationType.type,
+            AutomationWorkflowObjectScopeType.type,
+            workflow.id,
+            {
+                "type": "automation_node_replaced",
+                "workflow_id": workflow.id,
+                "deleted_node": AutomationNodeSerializer(deleted_node).data,
+                "restored_node": AutomationNodeSerializer(restored_node).data,
             },
             getattr(user, "web_socket_id", None),
         )

@@ -13,6 +13,10 @@ from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.node_types import AutomationNodeType
 from baserow.contrib.automation.nodes.service import AutomationNodeService
+from baserow.contrib.automation.nodes.signals import (
+    automation_node_created,
+    automation_node_replaced,
+)
 from baserow.contrib.automation.nodes.trash_types import AutomationNodeTrashableItemType
 from baserow.contrib.automation.nodes.types import NextAutomationNodeValues
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
@@ -432,12 +436,21 @@ class ReplaceAutomationNodeActionType(UndoableActionType):
         action_to_undo: Action,
     ):
         # Restore the node to its original type.
-        TrashHandler.restore_item(
+        restored_node = TrashHandler.restore_item(
             user,
             AutomationNodeTrashableItemType.type,
             params.original_node_id,
         )
-        AutomationNodeService().delete_node(user, params.node_id)
+        # Trash the node of the new type, and flag its trash
+        # entry as managed to prevent users from restoring it.
+        deleted_node = AutomationNodeService().delete_node(user, params.node_id)
+        automation_node_replaced.send(
+            cls,
+            workflow=restored_node.workflow,
+            deleted_node=deleted_node,
+            restored_node=restored_node.specific,
+            user=user,
+        )
 
     @classmethod
     def redo(
@@ -447,9 +460,20 @@ class ReplaceAutomationNodeActionType(UndoableActionType):
         action_to_redo: Action,
     ):
         # Restore the node to its new type again.
-        TrashHandler.restore_item(
+        restored_node = TrashHandler.restore_item(
             user,
             AutomationNodeTrashableItemType.type,
             params.node_id,
         )
-        AutomationNodeService().delete_node(user, params.original_node_id)
+        # Trash the node of the original type, and flag its trash
+        # entry as managed to prevent users from restoring it.
+        deleted_node = AutomationNodeService().delete_node(
+            user, params.original_node_id
+        )
+        automation_node_replaced.send(
+            cls,
+            workflow=restored_node.workflow,
+            restored_node=restored_node.specific,
+            deleted_node=deleted_node,
+            user=user,
+        )
