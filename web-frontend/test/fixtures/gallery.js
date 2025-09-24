@@ -25,6 +25,7 @@ export function createGalleryView(
     },
     filter_type: 'AND',
     filters_disabled: false,
+    ownership_type: 'collaborative',
     filters,
     sortings,
     decorations,

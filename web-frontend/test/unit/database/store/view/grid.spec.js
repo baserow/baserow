@@ -108,6 +108,7 @@ describe('Grid view store', () => {
     const view = {
       filters: [],
       sortings: [],
+      ownership_type: 'collaborative',
     }
     const fields = []
     const getScrollTop = () => 0
@@ -188,6 +189,7 @@ describe('Grid view store', () => {
           },
         ],
         sortings: [],
+        ownership_type: 'collaborative',
       },
       fields: [
         {
@@ -245,6 +247,7 @@ describe('Grid view store', () => {
         },
       ],
       sortings: [],
+      ownership_type: 'collaborative',
     }
     const fields = [
       {
@@ -654,6 +657,7 @@ describe('Grid view store', () => {
     const view = {
       filters: [],
       sortings: [],
+      ownership_type: 'collaborative',
     }
     const fields = []
     const getScrollTop = () => 0
@@ -725,6 +729,7 @@ describe('Grid view store', () => {
           },
         ],
         sortings: [],
+        ownership_type: 'collaborative',
       },
       fields: [
         {
@@ -761,6 +766,7 @@ describe('Grid view store', () => {
       id: 1,
       filters: [],
       sortings: [],
+      ownership_type: 'collaborative',
     }
     const fields = []
     const getScrollTop = () => 0
@@ -1224,6 +1230,7 @@ describe('Grid view store', () => {
       filter_type: 'AND',
       filters: [],
       sortings: [],
+      ownership_type: 'collaborative',
     }
     const fields = [
       {
@@ -1388,6 +1395,7 @@ describe('Grid view store', () => {
       filter_type: 'AND',
       filters: [],
       sortings: [],
+      ownership_type: 'collaborative',
     }
     const fields = [
       {
@@ -1522,6 +1530,7 @@ describe('Grid view store', () => {
       filter_type: 'AND',
       filters: [],
       sortings: [],
+      ownership_type: 'collaborative',
     }
     const fields = [
       {
@@ -1660,6 +1669,7 @@ describe('Grid view store', () => {
       filter_type: 'AND',
       filters: [],
       sortings: [],
+      ownership_type: 'collaborative',
     }
     const fields = [
       {
