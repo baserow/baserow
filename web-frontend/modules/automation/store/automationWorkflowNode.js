@@ -4,6 +4,7 @@ import { NodeEditorSidePanelType } from '@baserow/modules/automation/editorSideP
 
 const state = {
   selectedNodeId: null,
+  draggingNodeId: null,
 }
 
 const updateContext = {
@@ -75,6 +76,9 @@ const mutations = {
   },
   SET_LOADING(state, { node, value }) {
     node._.loading = value
+  },
+  SET_DRAGGING_NODE_ID(state, nodeId) {
+    state.draggingNodeId = nodeId
   },
 }
 
@@ -360,23 +364,9 @@ const actions = {
     commit('DELETE_ITEM', { workflow, nodeId })
     commit('ADD_ITEM', { workflow, node: newNode })
 
-<<<<<<< HEAD
-    // If the node that we replaced had a node after it, we need to update
-    // its `previous_node_id` to point to the new node ID.
-    if (nextNode) {
-      commit('UPDATE_ITEM', {
-        workflow,
-        node: nextNode,
-        values: { previous_node_id: newNode.id },
-      })
-    }
-
-    dispatch('select', { workflow, node: newNode })
-=======
     setTimeout(() => {
       dispatch('select', { workflow, node: newNode })
     })
->>>>>>> f856e1b910 (Further backend changes, and tweaks to the frontend node store.)
   },
   async move({ commit, dispatch, getters }, { workflow, moveData }) {
     const { originNodeId, afterNodeId, afterNodeOutput } = moveData
@@ -499,7 +489,9 @@ const actions = {
       { root: true }
     )
   },
-<<<<<<< HEAD
+  setDraggingNodeId({ commit }, nodeId) {
+    commit('SET_DRAGGING_NODE_ID', nodeId)
+  },
   async simulateDispatch(
     { commit, dispatch },
     { workflow, nodeId, updateSampleData }
@@ -516,7 +508,8 @@ const actions = {
         simulate_until_node: updatedNode.simulate_until_node,
         service: updatedNode.service,
       },
-=======
+    })
+  },
   /**
    * Updates all the next nodes of a given node with the provided values.
    * This used when a node is replaced, or moved, as the next nodes need to
@@ -534,7 +527,6 @@ const actions = {
         node: nextNode,
         values: valuesToUpdate,
       })
->>>>>>> f856e1b910 (Further backend changes, and tweaks to the frontend node store.)
     })
   },
 }
@@ -560,6 +552,9 @@ const getters = {
   },
   getLoading: (state) => (node) => {
     return node._.loading
+  },
+  getDraggingNodeId(state) {
+    return state.draggingNodeId
   },
   getNextNodes:
     (state, getters) =>

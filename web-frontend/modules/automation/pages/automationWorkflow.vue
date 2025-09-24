@@ -200,32 +200,9 @@ export default {
         nodeId: parseInt(node.id),
         newType: type,
       })
-<<<<<<< HEAD
     },
     onRouteChange(_, from, next) {
       const automation = this.$store.getters['application/get'](
-=======
-    }
-
-    /**
-     * Handles moving workflow nodes
-     */
-    const handleMoveNode = async (moveData) => {
-      await store.dispatch('automationWorkflowNode/move', {
-        workflow: workflow.value,
-        moveData,
-      })
-    }
-
-    /**
-     * When the route changes (i.e. leave, such as going to the dashboard, or update,
-     * such as changing workflows), we need to ensure that we unselect the current
-     * workflow and reset the selected node.
-     */
-    const onRouteChange = (_, from, next) => {
-      store.dispatch('automationWorkflow/unselect')
-      const automation = store.getters['application/get'](
->>>>>>> fb64c0bef2 (Further backend changes, and tweaks to the frontend node store.)
         parseInt(from.params.automationId)
       )
       if (automation) {
@@ -245,55 +222,22 @@ export default {
         }
       }
       next()
-<<<<<<< HEAD
     },
-=======
-    }
-
-    const activeSidePanel = computed(() => {
-      return store.getters['automationWorkflow/getActiveSidePanel']
-    })
-
-    const selectedNodeId = computed({
-      get() {
-        return workflow.value.selectedNodeId
-      },
-      set(nodeId) {
-        let nodeToSelect = null
-        if (nodeId) {
-          nodeToSelect = store.getters['automationWorkflowNode/findById'](
-            workflow.value,
-            nodeId
-          )
-        }
-        store.dispatch('automationWorkflowNode/select', {
-          workflow: workflow.value,
-          node: nodeToSelect,
-        })
-      },
-    })
-
-    return {
-      workspace,
-      automation,
-      workflow,
-      workflowLoading,
-      sidePanelWidth,
-      workflowReadOnly,
-      workflowNodes,
-      activeSidePanel,
-      handleReadOnlyToggle,
-      handleDebugToggle,
-      handleAddNode,
-      handleRemoveNode,
-      handleReplaceNode,
-      selectedNodeId,
-      workflowId,
-      isAddingNode,
-      onRouteChange,
-      handleMoveNode,
-    }
->>>>>>> fb64c0bef2 (Further backend changes, and tweaks to the frontend node store.)
+    async handleMoveNode(moveData) {
+      const originNodeId =
+        this.$store.getters['automationWorkflowNode/getDraggingNodeId']
+      this.$store.dispatch('automationWorkflowNode/setDraggingNodeId', null)
+      if (!originNodeId) {
+        return
+      }
+      await this.$store.dispatch('automationWorkflowNode/move', {
+        workflow: this.workflow,
+        moveData: {
+          originNodeId,
+          ...moveData,
+        },
+      })
+    },
   },
 }
 </script>

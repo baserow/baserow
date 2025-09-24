@@ -31,7 +31,7 @@
   content: '';
   display: block;
   margin-left: 50%;
-  height: 40px;
+  height: 80px;
   border-left: 2px solid $palette-neutral-400;
 }
 
@@ -81,6 +81,7 @@
   border: 1.5px solid $palette-neutral-200;
   background: $white;
   cursor: pointer;
+  background-size: 50px 57px;
 
   @include elevation($elevation-low);
   @include rounded($rounded-xl);
@@ -100,6 +101,16 @@
   }
 }
 
+.workflow-node-content__drag-handle {
+  position: absolute;
+  left: 4px;
+  top: 5px;
+  width: 7px;
+  height: 58px;
+  background: url('@baserow/modules/core/assets/images/node_drag_bg.png');
+  cursor: grab;
+}
+
 .workflow-node-content::before {
   content: attr(data-before-label);
   position: absolute;
@@ -108,8 +119,8 @@
   color: $palette-neutral-900;
   font-weight: 500;
 
-  .vue-flow__node.dragging & {
-    visibility: hidden;
+  .workflow-node-content__wrapper--dragging & {
+    display: none;
   }
 }
 
@@ -178,91 +189,49 @@
   @extend %ellipsis;
 }
 
-// Workflow Add Button Drop Zone Styles
-.workflow-add-button-container {
+.workflow-node-content__wrapper--dragging {
+  opacity: 0.5;
+}
+
+.workflow-node__dropzone-wrapper {
   position: relative;
-  display: inline-block;
-
-  &--drop-zone {
-    /* Target any button inside this container */
-    .workflow-add-button-floating {
-      transform: scale(1.3) !important;
-      transition: all 0.2s ease !important;
-      background: $palette-blue-100 !important;
-      border: 2px solid $palette-blue-400 !important;
-    }
-
-    /* Container styling for drop zone */
-    &::after {
-      content: '';
-      position: absolute;
-      inset: -8px;
-      border: 2px dashed $palette-blue-400;
-      border-radius: 50%;
-      opacity: 0.7;
-      background: rgba(59, 130, 246, 0.1);
-      pointer-events: none;
-    }
-  }
-
-  &--active-drop-zone {
-    .workflow-add-button-floating {
-      transform: scale(1.5) !important;
-      background: $palette-green-200 !important;
-      border: 3px solid $palette-green-500 !important;
-
-      i {
-        color: $palette-green-700;
-      }
-    }
-
-    &::after {
-      border-color: $palette-green-500 !important;
-      background: rgba(72, 246, 59, 0.2) !important;
-      opacity: 1 !important;
-      border-style: dashed;
-      animation: pulse-drop-zone 1s infinite !important;
-    }
-  }
+  width: 400px;
+  height: 100%;
 }
 
-// Animation for active drop zones
-@keyframes pulse-drop-zone {
-  0%,
-  100% {
-    transform: scale(1);
-    opacity: 0.7;
-  }
-
-  50% {
-    transform: scale(1.05);
-    opacity: 1;
-  }
-}
-
-.workflow-add-button-drop-zone {
+.workflow-node__add-button {
   position: absolute;
-  top: 50%;
+  top: 0;
   left: 50%;
-  transform: translate(-50%, -50%);
-  background: transparent;
-  color: $white;
-  border-radius: 6px;
-  font-size: 12px;
-  white-space: nowrap;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.2s ease;
+  transform: translateX(-50%);
+}
 
-  &--active {
-    opacity: 1;
+.workflow-node__dropzone {
+  position: absolute;
+  top: -18px;
+  left: 0;
+  width: 100%;
+  z-index: 1;
+  height: 70px;
+
+  @include rounded($rounded-xl);
+}
+
+.workflow-node__dropzone--hover {
+  border: 2px dashed $palette-blue-500;
+}
+
+.workflow-node__add-button--hover {
+  background: $palette-green-200 !important;
+  border: 1px solid $palette-green-500 !important;
+
+  i {
+    color: $palette-green-700;
   }
 }
 
-.workflow-add-button-placeholder {
-  width: 412px;
-  height: 72px;
-  border: 2px dashed $palette-blue-400;
-
-  @include rounded($rounded-lg);
+.workflow-node__add-button--active {
+  transition: all 0.2s ease;
+  background: $palette-blue-100;
+  border: 1px dashed $palette-blue-400;
 }

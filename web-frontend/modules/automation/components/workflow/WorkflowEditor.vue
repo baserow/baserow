@@ -5,6 +5,7 @@
     :edges="vueFlowEdges"
     :zoom-on-scroll="false"
     :nodes-draggable="false"
+    :pan-on-drag="panOnDrag"
     :zoom-on-drag="zoomOnScroll"
     :pan-on-scroll="panOnScroll"
     :node-drag-threshold="2000"
@@ -27,6 +28,8 @@
         @remove-node="emit('remove-node', $event)"
         @replace-node="emit('replace-node', $event)"
         @select-node="emit('input', $event.id)"
+        @move-node="emit('move-node', $event)"
+        @toggle-pan="handleTogglePan"
       />
     </template>
   </VueFlow>
@@ -58,7 +61,7 @@ const props = defineProps({
 const vueFlowEdges = []
 const emit = defineEmits(['add-node', 'remove-node', 'input', 'move-node'])
 
-const { onPaneClick } = useVueFlow()
+const { onPaneClick, panOnDrag } = useVueFlow()
 
 const { value: selectedNodeId } = toRefs(props)
 
@@ -88,6 +91,10 @@ const workflowReadOnly = inject('workflowReadOnly')
 const computedNodes = computed(() => {
   return props.nodes
 })
+
+const handleTogglePan = (value) => {
+  panOnDrag.value = value
+}
 
 /**
  * This watcher is used to force the update the workflow graph when nodes are updated.
