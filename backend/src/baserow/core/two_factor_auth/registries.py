@@ -30,7 +30,9 @@ class TwoFactorAuthProviderType(
     ABC,
 ):
     @abstractmethod
-    def configure(self, user: AbstractUser) -> TwoFactorAuthProviderModel: ...
+    def configure(
+        self, user: AbstractUser, provider, **kwargs
+    ) -> TwoFactorAuthProviderModel: ...
 
 
 class TOTPAuthProviderType(TwoFactorAuthProviderType):
@@ -42,31 +44,46 @@ class TOTPAuthProviderType(TwoFactorAuthProviderType):
         "provisioning_url": serializers.CharField(),
         "provisioning_qr_code": serializers.CharField(),
     }
-    request_serializer_field_names = []
-    request_serializer_field_overrides = {}
+    request_serializer_field_names = ["code"]
+    request_serializer_field_overrides = {"code": serializers.CharField(required=False)}
 
-    def configure(self, user: AbstractUser) -> TOTPAuthProviderModel:
-        secret = pyotp.random_base32()
-        provisioning_url = pyotp.totp.TOTP(secret).provisioning_uri(
-            name=user.email,
-            issuer_name="Baserow",  # FIXME:
-        )
+    def configure(
+        self, user: AbstractUser, provider, **kwargs
+    ) -> TOTPAuthProviderModel:
+        if provider:
+            code = kwargs.get("code")
+            totp = pyotp.TOTP(provider.secret)
 
-        qr = qrcode.QRCode(version=1, box_size=10, border=5)
-        qr.add_data(provisioning_url)
-        qr.make(fit=True)
-        img = qr.make_image(fill_color="black", back_color="white")
-        buffered = BytesIO()
-        img.save(buffered)
-        qr_code_base64 = b64encode(buffered.getvalue()).decode("utf-8")
+            if totp.verify(code):
+                provider.enabled = True
+                provider.provisioning_url = ""
+                provider.provisioning_qr_code = ""
+            else:
+                # raise error
+                ...
+            return provider
+        else:
+            secret = pyotp.random_base32()
+            provisioning_url = pyotp.totp.TOTP(secret).provisioning_uri(
+                name=user.email,
+                issuer_name="Baserow",  # FIXME:
+            )
 
-        return TOTPAuthProviderModel(
-            user=user,
-            enabled=False,
-            secret=secret,
-            provisioning_url=provisioning_url,
-            provisioning_qr_code=f"data:image/png;base64,{qr_code_base64}",
-        )
+            qr = qrcode.QRCode(version=1, box_size=10, border=5)
+            qr.add_data(provisioning_url)
+            qr.make(fit=True)
+            img = qr.make_image(fill_color="black", back_color="white")
+            buffered = BytesIO()
+            img.save(buffered)
+            qr_code_base64 = b64encode(buffered.getvalue()).decode("utf-8")
+
+            return TOTPAuthProviderModel(
+                user=user,
+                enabled=False,
+                secret=secret,
+                provisioning_url=provisioning_url,
+                provisioning_qr_code=f"data:image/png;base64,{qr_code_base64}",
+            )
 
 
 class TwoFactorAuthTypeRegistry(

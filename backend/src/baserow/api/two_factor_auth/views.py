@@ -47,7 +47,9 @@ class ConfigureTwoFactorAuthView(APIView):
         """
 
         provider_type = data.pop("type")
-        provider = ConfigureTwoFactorAuthActionType.do(request.user, provider_type)
+        provider = ConfigureTwoFactorAuthActionType.do(
+            request.user, provider_type, **data
+        )
 
         serializer = two_factor_auth_type_registry.get_serializer(
             provider, TwoFactorAuthSerializer

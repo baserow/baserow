@@ -85,7 +85,8 @@ class TwoFactorAuthHandler:
         # provider._ensure_content_type_is_set()
         # provider.full_clean()
 
-        provider = provider_type.configure(user)
+        provider = self.get_provider_for_update(user)
+        provider = provider_type.configure(user, provider, **kwargs)
         provider.save()
 
         return provider

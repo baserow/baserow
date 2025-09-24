@@ -33,16 +33,21 @@ class ConfigureTwoFactorAuthActionType(ActionType):
         provider_type: str
 
     @classmethod
-    def do(cls, user: AbstractUser, provider_type: str) -> TwoFactorAuthProviderModel:
+    def do(
+        cls, user: AbstractUser, provider_type: str, **kwargs
+    ) -> TwoFactorAuthProviderModel:
         """
         Configure two-factor auth for a user.
 
         :param user: The user the two-factor configuration is for.
         :param provider_type: The provider type the configuration is for.
+        :param kwargs: Additional arguments for the provider.
         :return: The updated provider.
         """
 
-        provider = TwoFactorAuthHandler().configure_provider(provider_type, user)
+        provider = TwoFactorAuthHandler().configure_provider(
+            provider_type, user, **kwargs
+        )
 
         cls.register_action(
             user=user,
