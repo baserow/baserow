@@ -190,7 +190,6 @@ export const registerRealtimeEvents = (realtime) => {
 
   realtime.registerEvent('rows_updated', async (context, data) => {
     const { app, store } = context
-    console.log('rows updated', { data })
     for (const viewType of Object.values(app.$registry.getAll('view'))) {
       for (let i = 0; i < data.rows.length; i++) {
         const row = data.rows[i]
