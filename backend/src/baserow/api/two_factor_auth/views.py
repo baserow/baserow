@@ -6,7 +6,10 @@ from baserow.core.two_factor_auth.registries import two_factor_auth_type_registr
 from baserow.api.decorators import map_exceptions, validate_body_custom_fields
 from baserow.api.schemas import get_error_schema
 from baserow.api.two_factor_auth.errors import ERROR_TWO_FACTOR_AUTH_TYPE_DOES_NOT_EXIST
-from baserow.api.two_factor_auth.serializers import TwoFactorAuthSerializer
+from baserow.api.two_factor_auth.serializers import (
+    CreateTwoFactorAuthSerializer,
+    TwoFactorAuthSerializer,
+)
 from baserow.core.two_factor_auth.actions import ConfigureTwoFactorAuthActionType
 from baserow.core.two_factor_auth.exceptions import TwoFactorAuthTypeDoesNotExist
 from drf_spectacular.utils import extend_schema
@@ -34,7 +37,8 @@ class ConfigureTwoFactorAuthView(APIView):
         }
     )
     @validate_body_custom_fields(
-        two_factor_auth_type_registry, base_serializer_class=TwoFactorAuthSerializer
+        two_factor_auth_type_registry,
+        base_serializer_class=CreateTwoFactorAuthSerializer,
     )
     @transaction.atomic
     def post(self, request, data: dict):

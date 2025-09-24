@@ -28,9 +28,36 @@
 
 <script>
 import AuthCodeInput from '@baserow/modules/core/components/settings/twoFactorAuth/AuthCodeInput'
+import TwoFactorAuthService from '@baserow/modules/core/services/twoFactorAuth'
 
 export default {
   name: 'EnableWithQRCode',
   components: { AuthCodeInput },
+  data() {
+    return {
+      loading: false,
+    }
+  },
+  mounted() {
+    this.configureTOTP()
+  },
+  methods: {
+    async configureTOTP() {
+      // TODO: loading, error
+      this.loading = true
+
+      try {
+        const { data } = await TwoFactorAuthService(this.$client).configure(
+          'totp',
+          true
+        )
+        console.log({ data })
+      } catch (error) {
+        this.handleError(error)
+      } finally {
+        this.loading = false
+      }
+    },
+  },
 }
 </script>

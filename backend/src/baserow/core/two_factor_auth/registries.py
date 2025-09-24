@@ -44,9 +44,13 @@ class TOTPAuthProviderType(TwoFactorAuthProviderType):
             name=user.email,
             issuer_name="Baserow",  # FIXME:
         )
-        return TOTPAuthProviderModel(
+        provider = TOTPAuthProviderModel(
             user=user, enabled=False, secret=secret, provisioning_url=provisioning_url
         )
+
+        print(provider)
+
+        return provider
 
         # from io import BytesIO
         # import qrcode
