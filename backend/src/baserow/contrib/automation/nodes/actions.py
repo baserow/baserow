@@ -13,10 +13,7 @@ from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.node_types import AutomationNodeType
 from baserow.contrib.automation.nodes.service import AutomationNodeService
-from baserow.contrib.automation.nodes.signals import (
-    automation_node_created,
-    automation_node_replaced,
-)
+from baserow.contrib.automation.nodes.signals import automation_node_replaced
 from baserow.contrib.automation.nodes.trash_types import AutomationNodeTrashableItemType
 from baserow.contrib.automation.nodes.types import NextAutomationNodeValues
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
