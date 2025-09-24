@@ -88,7 +88,6 @@ export class EnterprisePlugin extends BaserowPlugin {
       // the restricted view. So we're only showing the modal there.
       view.ownership_type === RestrictedViewOwnershipType.getType()
     ) {
-      console.log('adddd')
       components.push(MemberRolesViewContextItem)
     }
     components.push(DateDependencyMenuItem)
