@@ -4,11 +4,15 @@ from baserow.core.registry import (
     CustomFieldsInstanceMixin,
     CustomFieldsRegistryMixin,
     Instance,
+    MapAPIExceptionsInstanceMixin,
     ModelInstanceMixin,
     ModelRegistryMixin,
     Registry,
 )
-from baserow.core.two_factor_auth.exceptions import TwoFactorAuthTypeDoesNotExist
+from baserow.core.two_factor_auth.exceptions import (
+    TwoFactorAuthTypeDoesNotExist,
+    VerificationFailed,
+)
 from baserow.core.two_factor_auth.models import (
     TOTPAuthProviderModel,
     TwoFactorAuthProviderModel,
@@ -58,10 +62,9 @@ class TOTPAuthProviderType(TwoFactorAuthProviderType):
                 provider.enabled = True
                 provider.provisioning_url = ""
                 provider.provisioning_qr_code = ""
+                return provider
             else:
-                # raise error
-                ...
-            return provider
+                raise VerificationFailed
         else:
             secret = pyotp.random_base32()
             provisioning_url = pyotp.totp.TOTP(secret).provisioning_uri(

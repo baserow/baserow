@@ -66,7 +66,6 @@ export default {
       }
     },
     async checkCode(code) {
-      console.log('checkCode: ' + code)
       // TODO: loading, error
       try {
         const params = { code }
@@ -74,9 +73,13 @@ export default {
           'totp',
           params
         )
-        console.log({ data })
+        const title = 'Successfully enabled two-factor authentication'
+        this.$store.dispatch('toast/success', { title })
+        this.$emit('verified')
       } catch (error) {
-        this.handleError(error)
+        // TODO: diff type of error?
+        const title = 'Verification failed' // this.$t('generalSettings.cantUpdateApplicationTitle')
+        this.$store.dispatch('toast/error', { title })
       } finally {
         // this.loading = false
       }

@@ -150,7 +150,9 @@ export default {
         const nextInput = input.nextElementSibling
         if (nextInput && nextInput.tagName === 'INPUT') {
           nextInput.focus()
-        } else if (this.allFilled) {
+        }
+
+        if (this.allFilled) {
           this.$emit('all-filled', this.code)
         }
       }

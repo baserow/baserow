@@ -7,7 +7,7 @@
       @cancel="cancel"
       @continue="stepContinue"
     />
-    <EnableWithQRCode v-if="state == 'qr_code'" />
+    <EnableWithQRCode v-if="state == 'qr_code'" @verified="stepVerified" />
     <SaveBackupCode v-if="state == 'save_code'" />
   </div>
 </template>
@@ -37,6 +37,9 @@ export default {
     },
     stepContinue() {
       this.state = 'qr_code'
+    },
+    stepVerified() {
+      this.state = 'save_code'
     },
     cancel() {
       this.state = 'empty'

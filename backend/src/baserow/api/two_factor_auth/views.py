@@ -5,13 +5,19 @@ from rest_framework.response import Response
 from baserow.core.two_factor_auth.registries import two_factor_auth_type_registry
 from baserow.api.decorators import map_exceptions, validate_body_custom_fields
 from baserow.api.schemas import get_error_schema
-from baserow.api.two_factor_auth.errors import ERROR_TWO_FACTOR_AUTH_TYPE_DOES_NOT_EXIST
+from baserow.api.two_factor_auth.errors import (
+    ERROR_TWO_FACTOR_AUTH_TYPE_DOES_NOT_EXIST,
+    ERROR_TWO_FACTOR_AUTH_VERIFICATION_FAILED,
+)
 from baserow.api.two_factor_auth.serializers import (
     CreateTwoFactorAuthSerializer,
     TwoFactorAuthSerializer,
 )
 from baserow.core.two_factor_auth.actions import ConfigureTwoFactorAuthActionType
-from baserow.core.two_factor_auth.exceptions import TwoFactorAuthTypeDoesNotExist
+from baserow.core.two_factor_auth.exceptions import (
+    TwoFactorAuthTypeDoesNotExist,
+    VerificationFailed,
+)
 from drf_spectacular.utils import extend_schema
 
 
@@ -28,12 +34,14 @@ class ConfigureTwoFactorAuthView(APIView):
         responses={
             200: TwoFactorAuthSerializer,  # FIXME:
             400: get_error_schema([]),
+            401: get_error_schema(["ERROR_TWO_FACTOR_AUTH_VERIFICATION_FAILED"]),
             404: get_error_schema(["ERROR_TWO_FACTOR_AUTH_TYPE_DOES_NOT_EXIST"]),
         },
     )
     @map_exceptions(
         {
             TwoFactorAuthTypeDoesNotExist: ERROR_TWO_FACTOR_AUTH_TYPE_DOES_NOT_EXIST,
+            VerificationFailed: ERROR_TWO_FACTOR_AUTH_VERIFICATION_FAILED,
         }
     )
     @validate_body_custom_fields(
@@ -64,7 +72,7 @@ class ConfigureTwoFactorAuthView(APIView):
         ),
         request=None,
         responses={
-            200: TwoFactorAuthSerializer,
+            200: TwoFactorAuthSerializer,  # TODO:
         },
     )
     @transaction.atomic
