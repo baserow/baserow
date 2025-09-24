@@ -2,7 +2,9 @@ import { uuid } from '@baserow/modules/core/utils/string'
 import AutomationWorkflowNodeService from '@baserow/modules/automation/services/automationWorkflowNode'
 import { NodeEditorSidePanelType } from '@baserow/modules/automation/editorSidePanelTypes'
 
-const state = {}
+const state = {
+  selectedNodeId: null,
+}
 
 const updateContext = {
   updateTimeout: null,
@@ -77,6 +79,28 @@ const mutations = {
 }
 
 const actions = {
+  forceCreate({ commit, getters, dispatch }, { workflow, node }) {
+    if (!workflow) return
+
+    const previousNode = getters.findById(workflow, node.previous_node_id)
+    const nextNodes = getters.getNextNodes(
+      workflow,
+      previousNode,
+      node.previous_node_output
+    )
+
+    const beforeNode = nextNodes.length > 0 ? nextNodes[0] : null
+    // Add the new node into the workflow
+    commit('ADD_ITEM', { workflow, node })
+
+    if (beforeNode) {
+      commit('UPDATE_ITEM', {
+        workflow,
+        node: beforeNode,
+        values: { previous_node_id: node.id, previous_node_output: '' },
+      })
+    }
+  },
   async fetch({ commit }, { workflow }) {
     if (!workflow) return []
 
@@ -260,6 +284,31 @@ const actions = {
       updateContext.updateTimeout = setTimeout(fire, 500)
       updateContext.promiseResolve = resolve
     })
+  },
+  forceDelete({ commit, dispatch, getters }, { workflow, nodeId }) {
+    const node = getters.findById(workflow, nodeId)
+    if (!node) return
+
+    const nextNodes = getters.getNextNodes(workflow, node)
+    const nextNode = nextNodes.length > 0 ? nextNodes[0] : null
+
+    if (getters.getSelected(workflow)?.id === nodeId) {
+      dispatch('select', { workflow, node: null })
+    }
+
+    if (nextNode) {
+      commit('UPDATE_ITEM', {
+        workflow,
+        node: nextNode,
+        values: {
+          previous_node_id: node.previous_node_id,
+          previous_node_output: node.previous_node_output,
+        },
+      })
+      dispatch('select', { workflow, node: nextNode })
+    }
+
+    commit('DELETE_ITEM', { workflow, nodeId })
   },
   async delete({ commit, dispatch, getters }, { workflow, nodeId }) {
     const node = getters.findById(workflow, nodeId)

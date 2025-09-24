@@ -57,7 +57,7 @@ const props = defineProps({
 
 const vueFlowEdges = []
 
-const emit = defineEmits(['add-node', 'remove-node', 'input'])
+const emit = defineEmits(['add-node', 'remove-node', 'input', 'replace-node'])
 
 const { onPaneClick } = useVueFlow()
 
