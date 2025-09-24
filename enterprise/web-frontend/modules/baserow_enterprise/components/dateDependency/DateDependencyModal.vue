@@ -71,7 +71,7 @@
             <DateDependencyFieldPicker
               ref="dependency_linkrow_field_id"
               v-model="v$.dependency.dependency_linkrow_field_id.$model"
-              :fields="dependencyFields"
+              :fields="linkrowFields"
               :required="false"
               :errors="v$.dependency.dependency_linkrow_field_id.$errors"
               icon="iconoir-clock-rotate-right"
@@ -169,11 +169,7 @@ export default {
             return this.dependency.is_active
           }),
         },
-        dependency_linkrow_field_id: {
-          requiredIfIsActive: requiredIf(() => {
-            return this.dependency.is_active
-          }),
-        },
+        dependency_linkrow_field_id: {},
       },
     }
   },
@@ -207,7 +203,7 @@ export default {
         return f.duration_format === 'd h'
       })
     },
-    dependencyFields() {
+    linkrowFields() {
       const tableId = this.table.id
       return this.getFieldsForType(this.fields, 'link_row', (x) => {
         return x.link_row_table_id === tableId
@@ -294,7 +290,7 @@ export default {
       const durationFieldId = this.durationFields.find(
         (f) => f.id === rule.duration_field_id
       )?.id
-      const dependencyLinkrowFieldId = this.dependencyFields.find(
+      const dependencyLinkrowFieldId = this.linkrowFields.find(
         (f) => f.id === rule.dependency_linkrow_field_id
       )?.id
 
