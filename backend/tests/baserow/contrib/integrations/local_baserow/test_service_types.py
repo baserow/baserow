@@ -56,9 +56,9 @@ def test_local_baserow_service_type_dispatch_types():
         LocalBaserowDeleteRowServiceType.type: [
             DispatchTypes.ACTION,
         ],
-        LocalBaserowRowsCreatedTriggerServiceType.type: [DispatchTypes.EVENT],
-        LocalBaserowRowsUpdatedTriggerServiceType.type: [DispatchTypes.EVENT],
-        LocalBaserowRowsDeletedTriggerServiceType.type: [DispatchTypes.EVENT],
+        LocalBaserowRowsCreatedServiceType.type: [DispatchTypes.EVENT],
+        LocalBaserowRowsUpdatedServiceType.type: [DispatchTypes.EVENT],
+        LocalBaserowRowsDeletedServiceType.type: [DispatchTypes.EVENT],
         "local_baserow_grouped_aggregate_rows": [DispatchTypes.DATA],
     }
 
