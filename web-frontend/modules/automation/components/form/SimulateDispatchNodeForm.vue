@@ -31,7 +31,7 @@
     </div>
 
     <Button
-      v-if="sampleData"
+      v-if="sampleData && !isAwaitingTriggerEvent && !isSimulatingDispatch"
       class="simulate-dispatch-node__button"
       type="secondary"
       icon="iconoir-code-brackets simulate-dispatch-node__button-icon"
