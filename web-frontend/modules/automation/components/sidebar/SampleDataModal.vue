@@ -1,7 +1,7 @@
 <template>
   <Modal class="sample-data-modal">
     <h2 class="box__title">{{ title }}</h2>
-    <div class="sample-data-modal__sub-title">JSON payload</div>
+    <div class="sample-data-modal__sub-title">{{ $t('simulateDispatch.sampleDataModalSubTitle') }}</div>
     <div class="sample-data-modal__code">
       <Button
         class="sample-data-modal__copy-button"
@@ -31,11 +31,6 @@ export default {
     title: {
       type: String,
       required: true,
-    },
-  },
-  computed: {
-    subTitle() {
-      return this.$t(`simulateDispatch.sampleDataModalSubTitle`)
     },
   },
   methods: {
