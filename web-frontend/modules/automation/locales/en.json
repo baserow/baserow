@@ -108,13 +108,18 @@
     "noResults": "No results found"
   },
   "simulateDispatch": {
-    "sampleDataLabel": "Sample Data",
+    "sampleDataLabel": "Output",
     "triggerNodeAwaitingEvent": "This trigger node is waiting for an event.",
     "errorNodeNotConfigured": "The Node must be configured before it can be tested.",
     "errorPreviousNodeNotConfigured": "All previous nodes must be configured.",
     "errorPreviousNodesNotTested": "All previous nodes must be tested.",
+    "buttonLabelShowPayload": "Show payload",
     "buttonLabelTest": "Test event",
     "buttonLabelTestAgain": "Test event again",
-    "testNodeDescription": "Test this event to confirm the configuration is correct. Data from this test can be used in later steps."
+    "testNodeDescription": "Test this event to confirm the configuration is correct. Data from this test can be used in later steps.",
+    "sampleDataModalTitle": "Payload for {nodeLabel}",
+    "sampleDataModalSubTitle": "JSON payload",
+    "sampleDataCopy": "Copy",
+    "sampleDataCopied": "Payload copied to clipboard"
   }
 }

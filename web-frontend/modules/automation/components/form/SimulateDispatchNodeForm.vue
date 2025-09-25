@@ -23,10 +23,28 @@
     </div>
     <div v-else-if="hasSampleData">
       <div class="simulate-dispatch-node__sample-data-label">
-        {{ $t('simulateDispatch.sampleDataLabel') }}:
+        {{ $t('simulateDispatch.sampleDataLabel') }}
       </div>
-      <pre><code class="simulate-dispatch-node__sample-data-code">{{ sampleData }}</code></pre>
+      <div class="simulate-dispatch-node__sample-data-code">
+        <pre><code>{{ sampleData }}</code></pre>
+      </div>
     </div>
+
+    <Button
+      v-if="sampleData && !isAwaitingTriggerEvent && !isSimulatingDispatch"
+      class="simulate-dispatch-node__button"
+      type="secondary"
+      icon="iconoir-code-brackets simulate-dispatch-node__button-icon"
+      @click="showSampleDataModal"
+    >
+      {{ $t('simulateDispatch.buttonLabelShowPayload') }}
+    </Button>
+
+    <SampleDataModal
+      ref="sampleDataModalRef"
+      :sample-data="sampleData || {}"
+      :title="sampleDataModalTitle"
+    />
   </div>
 </template>
 
@@ -35,15 +53,21 @@ import { computed, ref } from 'vue'
 
 import { inject, useContext, useStore } from '@nuxtjs/composition-api'
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import SampleDataModal from '@baserow/modules/automation/components/sidebar/SampleDataModal'
 
 const { app } = useContext()
 const store = useStore()
 
 const workflow = inject('workflow')
 const isTestingTrigger = ref(false)
+const sampleDataModalRef = ref(null)
 
 const props = defineProps({
   node: {
+    type: Object,
+    required: true,
+  },
+  automation: {
     type: Object,
     required: true,
   },
@@ -57,6 +81,7 @@ const isSimulatingDispatch = ref(false)
  */
 const nodeIsInError = computed(() => {
   const nodeType = app.$registry.get('node', props.node.type)
+
   if (nodeType.isInError({ service: props.node.service })) {
     return app.i18n.t('simulateDispatch.errorNodeNotConfigured')
   }
@@ -82,6 +107,16 @@ const nodeIsInError = computed(() => {
   }
 
   return ''
+})
+
+const sampleDataModalTitle = computed(() => {
+  const nodeType = app.$registry.get('node', props.node.type)
+  return app.i18n.t('simulateDispatch.sampleDataModalTitle', {
+    nodeLabel: nodeType.getLabel({
+      automation: props.automation,
+      node: props.node,
+    }),
+  })
 })
 
 const isTriggerNode = computed(() => {
@@ -155,5 +190,9 @@ const simulateDispatchNode = async () => {
   }
 
   isSimulatingDispatch.value = false
+}
+
+const showSampleDataModal = () => {
+  sampleDataModalRef.value.show()
 }
 </script>
