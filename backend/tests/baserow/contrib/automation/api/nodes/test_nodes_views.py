@@ -1027,6 +1027,8 @@ def test_simulate_dispatch_action_node(api_client, data_fixture):
         "output_uid": "",
         "status": 200,
     }
+
+
 @pytest.mark.parametrize(
     "node_type",
     [

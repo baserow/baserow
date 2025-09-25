@@ -401,7 +401,7 @@ class ReplaceAutomationNodeView(APIView):
             ).data
         )
 
-   
+
 class SimulateDispatchAutomationNodeView(APIView):
     permission_classes = (IsAuthenticated,)
 

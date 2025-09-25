@@ -512,6 +512,10 @@ def test_simulate_dispatch_node_action(data_fixture):
         "status": 200,
     }
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> 2451963ec (pleased backend linter)
 def test_move_fixed_node_throws_exception(data_fixture):
     user = data_fixture.create_user()
     workflow = data_fixture.create_automation_workflow(user)
