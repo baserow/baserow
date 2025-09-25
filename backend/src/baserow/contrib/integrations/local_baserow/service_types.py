@@ -831,8 +831,8 @@ class LocalBaserowListRowsUserServiceType(
     type = "local_baserow_list_rows"
     model_class = LocalBaserowListRows
     dispatch_types = [
-        DispatchTypes.DISPATCH_TRIGGER,
-        DispatchTypes.DISPATCH_DATA_SOURCE,
+        DispatchTypes.DATA,
+        DispatchTypes.ACTION,
     ]
     serializer_mixins = (
         LocalBaserowTableServiceFilterableMixin.mixin_serializer_mixins
@@ -1111,8 +1111,8 @@ class LocalBaserowAggregateRowsUserServiceType(
     type = "local_baserow_aggregate_rows"
     model_class = LocalBaserowAggregateRows
     dispatch_types = [
-        DispatchTypes.DISPATCH_TRIGGER,
-        DispatchTypes.DISPATCH_DATA_SOURCE,
+        DispatchTypes.DATA,
+        DispatchTypes.ACTION,
     ]
     serializer_mixins = LocalBaserowTableServiceFilterableMixin.mixin_serializer_mixins
 
@@ -1478,8 +1478,8 @@ class LocalBaserowGetRowUserServiceType(
     type = "local_baserow_get_row"
     model_class = LocalBaserowGetRow
     dispatch_types = [
-        DispatchTypes.DISPATCH_TRIGGER,
-        DispatchTypes.DISPATCH_DATA_SOURCE,
+        DispatchTypes.DATA,
+        DispatchTypes.ACTION,
     ]
     serializer_mixins = (
         LocalBaserowTableServiceFilterableMixin.mixin_serializer_mixins
@@ -1654,10 +1654,7 @@ class LocalBaserowUpsertRowServiceType(
 
     type = "local_baserow_upsert_row"
     model_class = LocalBaserowUpsertRow
-    dispatch_types = [
-        DispatchTypes.DISPATCH_TRIGGER,
-        DispatchTypes.DISPATCH_WORKFLOW_ACTION,
-    ]
+    dispatch_types = [DispatchTypes.ACTION]
 
     @property
     def allowed_fields(self):
@@ -2127,10 +2124,7 @@ class LocalBaserowDeleteRowServiceType(
 ):
     type = "local_baserow_delete_row"
     model_class = LocalBaserowDeleteRow
-    dispatch_types = [
-        DispatchTypes.DISPATCH_TRIGGER,
-        DispatchTypes.DISPATCH_WORKFLOW_ACTION,
-    ]
+    dispatch_types = [DispatchTypes.ACTION]
 
     @property
     def simple_formula_fields(self):

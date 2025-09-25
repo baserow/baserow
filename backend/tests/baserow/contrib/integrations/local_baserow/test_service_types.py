@@ -39,35 +39,27 @@ def test_local_baserow_service_type_dispatch_types():
     }
     assert local_baserow_dispatch_types == {
         LocalBaserowGetRowUserServiceType.type: [
-            DispatchTypes.DISPATCH_TRIGGER,
-            DispatchTypes.DISPATCH_DATA_SOURCE,
+            DispatchTypes.DATA,
+            DispatchTypes.ACTION,
         ],
         LocalBaserowListRowsUserServiceType.type: [
-            DispatchTypes.DISPATCH_TRIGGER,
-            DispatchTypes.DISPATCH_DATA_SOURCE,
+            DispatchTypes.DATA,
+            DispatchTypes.ACTION,
         ],
         LocalBaserowAggregateRowsUserServiceType.type: [
-            DispatchTypes.DISPATCH_TRIGGER,
-            DispatchTypes.DISPATCH_DATA_SOURCE,
+            DispatchTypes.DATA,
+            DispatchTypes.ACTION,
         ],
         LocalBaserowUpsertRowServiceType.type: [
-            DispatchTypes.DISPATCH_TRIGGER,
-            DispatchTypes.DISPATCH_WORKFLOW_ACTION,
+            DispatchTypes.ACTION,
         ],
         LocalBaserowDeleteRowServiceType.type: [
-            DispatchTypes.DISPATCH_TRIGGER,
-            DispatchTypes.DISPATCH_WORKFLOW_ACTION,
+            DispatchTypes.ACTION,
         ],
-        LocalBaserowRowsCreatedTriggerServiceType.type: [
-            DispatchTypes.DISPATCH_TRIGGER
-        ],
-        LocalBaserowRowsUpdatedTriggerServiceType.type: [
-            DispatchTypes.DISPATCH_TRIGGER
-        ],
-        LocalBaserowRowsDeletedTriggerServiceType.type: [
-            DispatchTypes.DISPATCH_TRIGGER
-        ],
-        "local_baserow_grouped_aggregate_rows": [DispatchTypes.DISPATCH_DATA_SOURCE],
+        LocalBaserowRowsCreatedTriggerServiceType.type: [DispatchTypes.EVENT],
+        LocalBaserowRowsUpdatedTriggerServiceType.type: [DispatchTypes.EVENT],
+        LocalBaserowRowsDeletedTriggerServiceType.type: [DispatchTypes.EVENT],
+        "local_baserow_grouped_aggregate_rows": [DispatchTypes.DATA],
     }
 
 

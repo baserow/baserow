@@ -45,12 +45,12 @@ from .types import ServiceDictSubClass, ServiceSubClass
 
 
 class DispatchTypes(str, Enum):
-    # A `ServiceType` which is used by a `WorkflowAction`.
-    DISPATCH_WORKFLOW_ACTION = "dispatch-action"
-    # A `ServiceType` which is used by a `DataSource`.
-    DISPATCH_DATA_SOURCE = "dispatch-data-source"
-    # A `ServiceType` which is used by an `AutomationTriggerNode`.
-    DISPATCH_TRIGGER = "dispatch-trigger"
+    # A `ServiceType` which performs an action.
+    ACTION = "action"
+    # A `ServiceType` which fetches data.
+    DATA = "data"
+    # A `ServiceType` which responds to events.
+    EVENT = "event"
 
 
 class ServiceType(
@@ -81,8 +81,8 @@ class ServiceType(
     is_trigger: bool = False
 
     # What parent object is responsible for dispatching this `ServiceType`?
-    # It could be via a `DataSource`, in which case `DISPATCH_DATA_SOURCE` should be
-    # chosen, or via a `WorkflowAction`, in which case `DISPATCH_WORKFLOW_ACTION`
+    # It could be via a `DataSource`, in which case `DATA` should be
+    # chosen, or via a `WorkflowAction`, in which case `ACTION`
     # should be chosen. Multiple dispatch types can be selected if the service is
     # used across modules.
     dispatch_types: List[DispatchTypes] = []
@@ -91,12 +91,12 @@ class ServiceType(
     public_serializer_field_names = []
     public_serializer_field_overrides = {}
 
-    def can_be_dispatched_by(self, dispatch_type: DispatchTypes) -> bool:
+    def can_be_dispatched_as(self, dispatch_type: DispatchTypes) -> bool:
         """
-        Returns whether this service can be dispatched by the given dispatch type.
+        Returns whether this service can be dispatched as the given dispatch type.
 
         :param dispatch_type: The dispatch type to check.
-        :return: If the service can be dispatched by the given type.
+        :return: If the service can be dispatched as the given type.
         """
 
         return dispatch_type in self.dispatch_types

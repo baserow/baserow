@@ -146,10 +146,8 @@ class DataSourceService:
             raise DataSourceNotInSamePage()
 
         if service_type:
-            # Verify the `service_type` is dispatch-able by DISPATCH_DATA_SOURCE.
-            if not service_type.can_be_dispatched_by(
-                DispatchTypes.DISPATCH_DATA_SOURCE
-            ):
+            # Verify the `service_type` is dispatch-able as DATA.
+            if not service_type.can_be_dispatched_as(DispatchTypes.DATA):
                 raise InvalidServiceTypeDispatchSource()
             prepared_values = service_type.prepare_values(kwargs, user)
         else:
@@ -231,10 +229,8 @@ class DataSourceService:
 
         new_service_type: ServiceType = kwargs.get("new_service_type", None)
         if new_service_type:
-            # Verify the new `service_type` is dispatch-able by DISPATCH_DATA_SOURCE.
-            if not new_service_type.can_be_dispatched_by(
-                DispatchTypes.DISPATCH_DATA_SOURCE
-            ):
+            # Verify the new `service_type` is dispatch-able as DATA.
+            if not new_service_type.can_be_dispatched_as(DispatchTypes.DATA):
                 raise InvalidServiceTypeDispatchSource()
             # If we're changing service types, we need to prepare the values with
             # the new one, instead of the old one.

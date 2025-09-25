@@ -14,13 +14,7 @@ def test_core_service_type_dispatch_types():
         if isinstance(service_type, CoreServiceType)
     }
     assert core_dispatch_types == {
-        CoreHTTPRequestServiceType.type: [
-            DispatchTypes.DISPATCH_TRIGGER,
-            DispatchTypes.DISPATCH_WORKFLOW_ACTION,
-        ],
-        CoreSMTPEmailServiceType.type: [
-            DispatchTypes.DISPATCH_TRIGGER,
-            DispatchTypes.DISPATCH_WORKFLOW_ACTION,
-        ],
-        CoreRouterServiceType.type: [DispatchTypes.DISPATCH_TRIGGER],
+        CoreHTTPRequestServiceType.type: [DispatchTypes.ACTION],
+        CoreSMTPEmailServiceType.type: [DispatchTypes.ACTION],
+        CoreRouterServiceType.type: [DispatchTypes.ACTION],
     }
