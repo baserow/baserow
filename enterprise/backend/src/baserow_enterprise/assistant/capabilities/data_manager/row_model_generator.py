@@ -4,7 +4,7 @@ Creates validation models based on TableSchema definitions.
 """
 
 from enum import Enum, StrEnum
-from typing import Any, List, Optional, Type, Union
+from typing import Any, List, Literal, Optional, Type, Union
 from datetime import date, datetime
 from django.db.models import Q
 from pydantic import BaseModel, ConfigDict, Field, create_model, field_validator
@@ -32,15 +32,6 @@ from baserow_enterprise.assistant.types import (
 )
 
 
-def create_select_field_model(field_name: str, options: list[str]) -> Type[StrEnum]:
-    """Create a dynamic enum for use in Pydantic models"""
-    enum_name = f"{field_name.title()}Enum"
-    return StrEnum(
-        enum_name,
-        {opt.replace(" ", "_").upper(): opt for opt in options if isinstance(opt, str)},
-    )
-
-
 def get_field_python_type(
     field: AnyFieldType,
     relations: dict[str, GeneratedTableModel] = {},
@@ -52,59 +43,73 @@ def get_field_python_type(
     """
 
     if isinstance(field, TextFieldType):
-        return str, Field(description=f"Text field: {field.name}")
+        return str, Field(description=f"Text field: {field.name}", title=field.name)
 
     elif isinstance(field, LongTextFieldType):
-        return str, Field(description=f"Long text field: {field.name}")
+        return str, Field(
+            description=f"Long text field: {field.name}", title=field.name
+        )
 
     elif isinstance(field, EmailFieldType):
-        return Optional[str], Field(description=f"Email field: {field.name}")
+        return Optional[str], Field(
+            description=f"Email field: {field.name}", title=field.name
+        )
 
     elif isinstance(field, URLFieldType):
-        return Optional[str], Field(description=f"URL field: {field.name}")
+        return Optional[str], Field(
+            description=f"URL field: {field.name}", title=field.name
+        )
 
     elif isinstance(field, NumberFieldType):
-        return Union[int, float, None], Field(description=f"Number field: {field.name}")
+        return Union[int, float, None], Field(
+            description=f"Number field: {field.name}", title=field.name
+        )
 
     elif isinstance(field, RatingFieldType):
         max_rating = getattr(field, "max_rating", 5)
         return Optional[int], Field(
-            description=f"Rating field (0-{max_rating}): {field.name}"
+            description=f"Rating field (0-{max_rating}): {field.name}", title=field.name
         )
 
     elif isinstance(field, DateFieldType):
         if getattr(field, "include_time", False):
             return Optional[datetime], Field(
-                description=f"DateTime field: {field.name}"
+                description=f"ISO 8601 date-time string: {field.name}", title=field.name
             )
         else:
-            return Optional[date], Field(description=f"Date field: {field.name}")
+            return Optional[date], Field(
+                description=f"ISO 8601 date string: {field.name}", title=field.name
+            )
 
     elif isinstance(field, BooleanFieldType):
-        return Optional[bool], Field(description=f"Boolean field: {field.name}")
+        return Optional[bool], Field(
+            description=f"Boolean field: {field.name}", title=field.name
+        )
 
     elif isinstance(field, SingleSelectFieldType):
         # For single select, just use Optional[str] with validation
         # Enums cause issues with validators in dynamic models
         options = field.options
-        option_values = ", ".join(
-            opt.value if hasattr(opt, "value") else opt for opt in options
-        )
-        return Optional[str], Field(
+        option_values = [opt.value if hasattr(opt, "value") else opt for opt in options]
+        OptionEnum = Literal[*tuple(option_values)]
+        return Optional[OptionEnum], Field(
             description=f"Single select from. Must be one of {option_values}",
+            title=field.name,
         )
 
     elif isinstance(field, MultipleSelectFieldType):
         options = field.options
-        option_values = ", ".join(
-            opt.value if hasattr(opt, "value") else opt for opt in options
-        )
-        return List[str], Field(
+        option_values = [opt.value if hasattr(opt, "value") else opt for opt in options]
+        OptionEnum = Literal[*tuple(option_values)]
+        return List[OptionEnum], Field(
             description=f"Multiple select from: {option_values}",
+            title=field.name,
         )
 
     elif isinstance(field, MultipleCollaboratorsFieldType):
-        return List[int], Field(description=f"List of user IDs: {field.name}")
+        return List[int], Field(
+            description=f"List of user IDs: {field.name}", title=field.name
+        )
 
     elif isinstance(field, LinkRowFieldType):
         if field.name in relations:
@@ -116,20 +121,17 @@ def get_field_python_type(
                 ).values_list(column, flat=True)[:20]
             )
 
-            CustomEnum = create_select_field_model(field.name, values)
+            if not values:
+                return None, None  # No existing values to reference
 
-            if field.multiple:
-                description = (
-                    f"List of one of values from table {field.linked_table_name}"
-                )
-            else:
-                description = (
-                    f"One of these values from table {field.linked_table_name}"
-                )
+            CustomEnum = Literal[*tuple(values)]
 
-            return List[CustomEnum], Field(description=description)
+            return List[CustomEnum], Field(
+                description=f"List of one of values from table {field.linked_table_name}",
+                title=field.name,
+            )
         else:
-            return List[str], Field(description=f"An empty list")
+            return List[str], Field(description=f"An empty list", title=field.name)
 
     elif isinstance(field, FileFieldType):
         # TODO
@@ -219,50 +221,12 @@ def create_row_model_from_schema(
         ),
     )
 
-    # Add validators if needed
-    if include_validators:
-        validator_methods = {}
-
-        # Check primary field for select validation
-        if isinstance(
-            table_schema.primary_field, (SingleSelectFieldType, MultipleSelectFieldType)
-        ):
-            options = getattr(table_schema.primary_field, "options", [])
-            if options:
-                option_values = [
-                    opt.value if hasattr(opt, "value") else opt for opt in options
-                ]
-                validator_func = create_validator_for_select_field(
-                    table_schema.primary_field.name, option_values
-                )
-                validator_methods[
-                    f"validate_{table_schema.primary_field.name}"
-                ] = field_validator(table_schema.primary_field.name)(validator_func)
-
-        # Add validators for other select fields
-        for field in table_schema.fields:
-            if isinstance(field, (SingleSelectFieldType, MultipleSelectFieldType)):
-                options = getattr(field, "options", [])
-                if options:
-                    option_values = [
-                        opt.value if hasattr(opt, "value") else opt for opt in options
-                    ]
-                    validator_func = create_validator_for_select_field(
-                        field.name, option_values
-                    )
-                    validator_methods[f"validate_{field.name}"] = field_validator(
-                        field.name
-                    )(validator_func)
-
-        # If we have validators, create a new model class that includes them
-        if validator_methods:
-            DynamicRowModel = type(model_name, (DynamicRowModel,), validator_methods)
-
     return DynamicRowModel
 
 
 def create_dynamic_operations_from_schema(
     table_schema: TableSchema,
+    relations: dict[str, GeneratedTableModel] = {},
 ) -> tuple[Type[BaseModel], Type[BaseModel], Type[BaseModel]]:
     """
     Create dynamic operation classes that use the generated row model.
@@ -272,7 +236,9 @@ def create_dynamic_operations_from_schema(
     """
 
     # Create the row model for this table
-    RowModel = create_row_model_from_schema(table_schema, include_validators=True)
+    RowModel = create_row_model_from_schema(
+        table_schema, include_validators=True, relations=relations
+    )
 
     table_name = table_schema.name.replace(" ", "")
 
@@ -323,6 +289,7 @@ def create_dynamic_operations_from_schema(
 
 def create_dynamic_tool_output_schema(
     table_schema: TableSchema,
+    relations: dict[str, GeneratedTableModel] = {},
 ) -> Type[BaseModel]:
     """
     Create a dynamic DataManagerToolOutputSchema that includes the table-specific operations.
@@ -339,7 +306,7 @@ def create_dynamic_tool_output_schema(
         DynamicCreateRowsOp,
         DynamicUpdateRowsOp,
         DynamicDeleteRowsOp,
-    ) = create_dynamic_operations_from_schema(table_schema)
+    ) = create_dynamic_operations_from_schema(table_schema, relations=relations)
 
     table_name = table_schema.name.replace(" ", "")
 
@@ -392,9 +359,9 @@ def get_dynamic_components_for_table(
     )
 
     create_op, update_op, delete_op = create_dynamic_operations_from_schema(
-        table_schema
+        table_schema, relations=relations
     )
-    output_schema = create_dynamic_tool_output_schema(table_schema)
+    output_schema = create_dynamic_tool_output_schema(table_schema, relations=relations)
 
     return {
         "row_model": row_model,

@@ -493,8 +493,13 @@ Color = Literal[
     "deep-dark-orange",
 ]
 
+from baserow.contrib.database.fields.registries import field_type_registry
+
 
 class BaseFieldType(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
     name: str = Field(
         description="The capitalized name of the field. Shorter is better. Use spaces, not underscores. Capitalize the first letter."
     )
@@ -505,34 +510,36 @@ class BaseFieldType(BaseModel):
 
     @classmethod
     def from_orm(cls, orm_field) -> Dict[str, Any]:
-        return cls(name=orm_field.name)
+        return cls(
+            name=orm_field.name, type=field_type_registry.get_by_model(orm_field).type
+        )
 
 
 class TextFieldType(BaseFieldType):
-    type: Literal["text"] = "text"
+    type: Literal["text"]
 
 
 class LongTextFieldType(BaseFieldType):
-    type: Literal["long_text"] = "long_text"
+    type: Literal["long_text"]
 
 
 class EmailFieldType(BaseFieldType):
-    type: Literal["email"] = "email"
+    type: Literal["email"]
 
 
 class URLFieldType(BaseFieldType):
-    type: Literal["url"] = "url"
+    type: Literal["url"]
 
 
 class NumberFieldType(BaseFieldType):
-    type: Literal["number"] = "number"
-    decimal_places: int = 2
-    negative: bool = False
+    type: Literal["number"]
+    decimal_places: int = Field(
+        description="The number of decimal places to use. Default is 2."
+    )
 
     def to_orm(self, resource_mapping) -> Dict[str, Any]:
         return {
             "number_decimal_places": self.decimal_places,
-            "number_negative": self.negative,
         }
 
     @classmethod
@@ -540,14 +547,16 @@ class NumberFieldType(BaseFieldType):
         field = orm_field.specific
         return cls(
             name=field.name,
+            type="number",
             decimal_places=field.number_decimal_places,
-            negative=field.number_negative,
         )
 
 
 class RatingFieldType(BaseFieldType):
-    type: Literal["rating"] = "rating"
-    max_rating: int = 5
+    type: Literal["rating"]
+    max_rating: int = Field(
+        description="The maximum rating value. Default is 5.",
+    )
 
     def to_orm(self, resource_mapping) -> Dict[str, Any]:
         return {
@@ -559,13 +568,14 @@ class RatingFieldType(BaseFieldType):
         field = orm_field.specific
         return cls(
             name=field.name,
+            type="rating",
             max_rating=field.max_value,
         )
 
 
 class DateFieldType(BaseFieldType):
-    type: Literal["date"] = "date"
-    include_time: bool = False
+    type: Literal["date"]
+    include_time: bool
 
     def to_orm(self, resource_mapping) -> Dict[str, Any]:
         return {
@@ -577,23 +587,23 @@ class DateFieldType(BaseFieldType):
         field = orm_field.specific
         return cls(
             name=field.name,
+            type="date",
             include_time=field.date_include_time,
         )
 
 
 class BooleanFieldType(BaseFieldType):
-    type: Literal["boolean"] = "boolean"
+    type: Literal["boolean"]
 
 
 class LinkRowFieldType(BaseFieldType):
-    type: Literal["link_row"] = "link_row"
+    type: Literal["link_row"]
     linked_table_name: str = Field(
         description=(
             "The name of the table being linked to. Only link already created tables. "
             "A reverse link will be created automatically."
         )
     )
-    multiple: bool = False
 
     def to_orm(self, resource_mapping) -> Dict[str, Any]:
         linked_table_name = (
@@ -611,20 +621,22 @@ class LinkRowFieldType(BaseFieldType):
         field = orm_field.specific
         return cls(
             name=field.name,
+            type="link_row",
             linked_table_name=field.link_row_table.name,
-            multiple=field.link_row_multiple_relationships,
         )
 
 
 class SelectOption(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
     value: str
     color: Color
 
 
 class SingleSelectFieldType(BaseFieldType):
-    type: Literal["single_select"] = "single_select"
+    type: Literal["single_select"]
     options: list[SelectOption] = Field(
-        default_factory=list,
         description="The list of options for the field. Try to find appropriate colors for each option.",
     )
 
@@ -642,6 +654,7 @@ class SingleSelectFieldType(BaseFieldType):
         field = orm_field.specific
         return cls(
             name=field.name,
+            type="single_select",
             options=[
                 SelectOption(value=opt.value, color=opt.color)
                 for opt in field.select_options.all()
@@ -650,9 +663,8 @@ class SingleSelectFieldType(BaseFieldType):
 
 
 class MultipleSelectFieldType(BaseFieldType):
-    type: Literal["multiple_select"] = "multiple_select"
+    type: Literal["multiple_select"]
     options: list[SelectOption] = Field(
-        default_factory=list,
         description="The list of options for the field. Try to find appropriate colors for each option.",
     )
 
@@ -670,6 +682,7 @@ class MultipleSelectFieldType(BaseFieldType):
         field = orm_field.specific
         return cls(
             name=field.name,
+            type="multiple_select",
             options=[
                 SelectOption(value=opt.value, color=opt.color)
                 for opt in field.select_options.all()
@@ -678,11 +691,11 @@ class MultipleSelectFieldType(BaseFieldType):
 
 
 class MultipleCollaboratorsFieldType(BaseFieldType):
-    type: Literal["multiple_collaborators"] = "multiple_collaborators"
+    type: Literal["multiple_collaborators"]
 
 
 class FileFieldType(BaseFieldType):
-    type: Literal["file"] = "file"
+    type: Literal["file"]
 
 
 AnyFieldType = (

@@ -27,13 +27,7 @@ class DatabaseArchitectToolOutputSchema(BaseModel):
     question: str = Field(
         description=(
             "An optional follow-up question for refining or clarifying the current plan. "
-            "If the user's request is unclear, this should contain a clarification question and "
-            "needs_clarification should be set to true. "
-            "If the request is already clear, use it to suggest iterative improvements to the plan."
         ),
-    )
-    need_clarification: bool = Field(
-        description="Whether a clarification is strictly needed before proceeding.",
     )
     schema_operations_plan: list[AnySchemaOperation] = Field(
         description="The list of operations needed to transform the starting schema into the final schema.",

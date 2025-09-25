@@ -62,6 +62,28 @@ from baserow_enterprise.assistant.types import (
 )
 
 
+def get_table_relations(table: Table) -> dict[int, Table]:
+    """
+    Get all tables that are linked to the given table via LinkRow fields.
+    Returns a mapping of table ID to Table object.
+    """
+
+    link_row_fields = LinkRowField.objects.filter(table_id=table.id).values_list(
+        "name", "link_row_table_id"
+    )
+    relations = {}
+    if link_row_fields:
+        _, linked_table_ids = zip(*link_row_fields)
+        tables = {t.id: t for t in Table.objects.filter(id__in=linked_table_ids)}
+        for name, linked_table_id in link_row_fields:
+            t = tables.get(linked_table_id)
+            if not t:
+                continue
+            primary_field = t.get_primary_field()
+            relations[name] = (primary_field.specific, t.get_model())
+    return relations
+
+
 class DataManagerTool(AssistantBaseTool):
     name: str = "data_manager"
     description: str = DATA_MANAGER_TOOL_DESCRIPTION
@@ -115,23 +137,13 @@ class DataManagerTool(AssistantBaseTool):
             raise ValueError("Table ID must be provided or available in UI context.")
 
         table = Table.objects.get(id=table_id)
-        link_row_fields = LinkRowField.objects.filter(table_id=table.id).values_list(
-            "name", "link_row_table_id"
-        )
-        _, linked_table_ids = zip(*link_row_fields)
-        relations = {}
-        tables = {t.id: t for t in Table.objects.filter(id__in=linked_table_ids)}
-        for name, linked_table_id in link_row_fields:
-            t = tables.get(linked_table_id)
-            if not t:
-                continue
-            primary_field = t.get_primary_field()
-            relations[name] = (primary_field.specific, t.get_model())
-
         table_schema = get_table_schema(table)
+        table_relations = get_table_relations(table)
 
         # Get all dynamic components for this table
-        dynamic_components = get_dynamic_components_for_table(table_schema, relations)
+        dynamic_components = get_dynamic_components_for_table(
+            table_schema, table_relations
+        )
         DynamicOutputSchema = dynamic_components["output_schema"]
 
         table_model = table.get_model()
@@ -271,9 +283,7 @@ You can get the database ID by using the get_workspace_schema tool.
                 id=database_id, workspace_id=workspace_id
             ).first()
             if database:
-                database_schema = get_database_schema(
-                    database, relations_only=relations_only
-                )
+                database_schema = get_database_schema(database, relations_only=True)
                 workspace_schema.current_database = database_schema
 
         return Command(

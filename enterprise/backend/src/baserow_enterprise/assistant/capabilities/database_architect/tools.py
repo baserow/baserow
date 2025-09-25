@@ -201,32 +201,32 @@ class DatabaseArchitectTool(AssistantBaseTool):
             }
         )
 
-        # Don't keep asking for clarification if we already did
-        if result.need_clarification and result.question:
-            return Command(
-                goto=ASSISTANT_GRAPH_NODE.INTERRUPT,
-                update=PartialAssistantState(
-                    messages=[
-                        ToolCallMessage(
-                            tool_call_id=tool_call_id,
-                            content=(
-                                "A clarification is needed before proceeding:\n"
-                                f"{result.question}"
-                            ),
-                            artifact=result,
-                        ),
-                        AiInterruptMessage(
-                            content=(
-                                f"{result.markdown_description}\n\n"
-                                f"{result.question}"
-                            ),
-                            tool_call_id=tool_call_id,
-                        ),
-                    ],
-                    dba_needs_clarification=True,
-                    dba_schema_operations_plan=result.schema_operations_plan,
-                ),
-            )
+        # # Don't keep asking for clarification if we already did
+        # if result.need_clarification and result.question:
+        #     return Command(
+        #         goto=ASSISTANT_GRAPH_NODE.INTERRUPT,
+        #         update=PartialAssistantState(
+        #             messages=[
+        #                 ToolCallMessage(
+        #                     tool_call_id=tool_call_id,
+        #                     content=(
+        #                         "A clarification is needed before proceeding:\n"
+        #                         f"{result.question}"
+        #                     ),
+        #                     artifact=result,
+        #                 ),
+        #                 AiInterruptMessage(
+        #                     content=(
+        #                         f"{result.markdown_description}\n\n"
+        #                         f"{result.question}"
+        #                     ),
+        #                     tool_call_id=tool_call_id,
+        #                 ),
+        #             ],
+        #             dba_needs_clarification=True,
+        #             dba_schema_operations_plan=result.schema_operations_plan,
+        #         ),
+        #     )
 
         # No clarification needed, let's execute the plan
         database = self._execute_plan(
