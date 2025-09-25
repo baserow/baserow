@@ -487,6 +487,7 @@ class DataSourceHandler:
         for data_source in data_sources:
             if (
                 dispatch_context.public_allowed_properties is not None
+                and data_source.service is not None
                 and data_source.service_id
                 not in dispatch_context.public_allowed_properties["all"]
             ):
