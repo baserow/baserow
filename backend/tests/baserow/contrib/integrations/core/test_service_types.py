@@ -1,5 +1,6 @@
 from baserow.contrib.integrations.core.service_types import (
     CoreHTTPRequestServiceType,
+    CorePeriodicServiceType,
     CoreRouterServiceType,
     CoreServiceType,
     CoreSMTPEmailServiceType,
@@ -17,4 +18,5 @@ def test_core_service_type_dispatch_types():
         CoreHTTPRequestServiceType.type: [DispatchTypes.ACTION],
         CoreSMTPEmailServiceType.type: [DispatchTypes.ACTION],
         CoreRouterServiceType.type: [DispatchTypes.ACTION],
+        CorePeriodicServiceType.type: [DispatchTypes.EVENT],
     }

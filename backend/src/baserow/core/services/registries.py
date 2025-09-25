@@ -524,8 +524,8 @@ class TriggerServiceTypeMixin(ABC):
     # The callable function which should be called when the event occurs.
     on_event: Callable = lambda *args: None
 
-    # The service is always dispatched by a trigger.
-    dispatch_type = DispatchTypes.DISPATCH_TRIGGER
+    # The service is always dispatched by an event.
+    dispatch_types = [DispatchTypes.EVENT]
 
     @abstractmethod
     def start_listening(self, on_event: Callable) -> None:

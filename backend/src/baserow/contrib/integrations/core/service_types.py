@@ -1159,7 +1159,7 @@ class CoreRouterServiceType(CoreServiceType):
         return None
 
 
-class CorePeriodicServiceType(TriggerServiceTypeMixin, ServiceType):
+class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
     type = "periodic"
     model_class = CorePeriodicService
 
