@@ -75,7 +75,7 @@ export default {
         )
         const title = 'Successfully enabled two-factor authentication'
         this.$store.dispatch('toast/success', { title })
-        this.$emit('verified')
+        this.$emit('verified', data.backup_codes)
       } catch (error) {
         // TODO: diff type of error?
         const title = 'Verification failed' // this.$t('generalSettings.cantUpdateApplicationTitle')

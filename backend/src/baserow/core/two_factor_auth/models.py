@@ -42,3 +42,18 @@ class TOTPAuthProviderModel(TwoFactorAuthProviderModel):
     provisioning_url = models.CharField(max_length=255)
     provisioning_qr_code = models.TextField(blank=True)
 
+    @property
+    def backup_codes(self):
+        return getattr(self, "_backup_codes", [])
+
+
+class TwoFactorAuthRecoveryCode(models.Model):
+    user = models.ForeignKey(
+        "auth.User",
+        on_delete=models.CASCADE,
+        related_name="two_factor_recovery_codes",
+        help_text="User that setup 2fa with recovery codes",
+    )
+    code = models.CharField(
+        max_length=64, help_text="SHA-256 hash of the recovery code"
+    )

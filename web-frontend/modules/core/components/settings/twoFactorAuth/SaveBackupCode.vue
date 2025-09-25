@@ -8,8 +8,22 @@
     </p>
     <div class="save-backup-code__subtitle">Backup code</div>
     <div class="save-backup-code__code">
-      HdBdKcvyLXuB7eSgSQo9LhEtRN0YLo3HvW9tg3iT8Nm1ReV3k2F21fXUUDm7HsFRsKTGYmjsMe0aTHxLlduaXwrZtgWAsPGjfom9b3de3eCjj5K7q336ANtH4JcQg5HxWS4h9s4I3Mk08piIfk4zIY
+      <div v-for="code in backupCodes" :key="code">
+        {{ code }}
+      </div>
     </div>
     <Button type="secondary" icon="iconoir-copy">Copy</Button>
   </div>
 </template>
+
+<script>
+export default {
+  name: 'SaveBackupCode',
+  props: {
+    backupCodes: {
+      type: Array,
+      required: true,
+    },
+  },
+}
+</script>

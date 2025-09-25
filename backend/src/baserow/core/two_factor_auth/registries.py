@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+import hashlib
 import pyotp
 from baserow.core.registry import (
     CustomFieldsInstanceMixin,
@@ -16,12 +17,15 @@ from baserow.core.two_factor_auth.exceptions import (
 from baserow.core.two_factor_auth.models import (
     TOTPAuthProviderModel,
     TwoFactorAuthProviderModel,
+    TwoFactorAuthRecoveryCode,
 )
 from django.contrib.auth.models import AbstractUser
 from rest_framework import serializers
 from io import BytesIO
 import qrcode
 from base64 import b64encode
+import secrets
+import string
 
 
 class TwoFactorAuthProviderType(
@@ -42,11 +46,17 @@ class TwoFactorAuthProviderType(
 class TOTPAuthProviderType(TwoFactorAuthProviderType):
     type = "totp"
     model_class = TOTPAuthProviderModel
-    serializer_field_names = ["enabled", "provisioning_url", "provisioning_qr_code"]
+    serializer_field_names = [
+        "enabled",
+        "provisioning_url",
+        "provisioning_qr_code",
+        "backup_codes",
+    ]
     serializer_field_overrides = {
         "enabled": serializers.BooleanField(),
         "provisioning_url": serializers.CharField(),
         "provisioning_qr_code": serializers.CharField(),
+        "backup_codes": serializers.CharField(),
     }
     request_serializer_field_names = ["code"]
     request_serializer_field_overrides = {"code": serializers.CharField(required=False)}
@@ -62,6 +72,11 @@ class TOTPAuthProviderType(TwoFactorAuthProviderType):
                 provider.enabled = True
                 provider.provisioning_url = ""
                 provider.provisioning_qr_code = ""
+
+                backup_codes_plaintext = self.generate_backup_codes()
+                self.store_backup_codes(provider, backup_codes_plaintext)
+
+                provider._backup_codes = backup_codes_plaintext
                 return provider
             else:
                 raise VerificationFailed
@@ -87,6 +102,28 @@ class TOTPAuthProviderType(TwoFactorAuthProviderType):
                 provisioning_url=provisioning_url,
                 provisioning_qr_code=f"data:image/png;base64,{qr_code_base64}",
             )
+
+    def store_backup_codes(self, provider, codes_plaintext):
+        recovery_codes = [
+            TwoFactorAuthRecoveryCode(
+                user=provider.user,
+                code=hashlib.sha256(code.encode("utf-8")).hexdigest(),
+            )
+            for code in codes_plaintext
+        ]
+        TwoFactorAuthRecoveryCode.objects.bulk_create(recovery_codes)
+
+    def generate_backup_codes(self):
+        codes = []
+        for _ in range(8):
+            alphabet = string.ascii_lowercase + string.digits
+            alphabet = (
+                alphabet.replace("0", "").replace("o", "").replace("1", "").replace("i")
+            )
+            code = "".join(secrets.choice(alphabet) for _ in range(10))
+            formatted_code = f"{code[:5]}-{code[5:]}"
+            codes.append(formatted_code)
+        return codes
 
 
 class TwoFactorAuthTypeRegistry(

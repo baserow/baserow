@@ -9,7 +9,7 @@
         @continue="stepContinue"
       />
       <EnableWithQRCode v-if="state == 'qr_code'" @verified="stepVerified" />
-      <SaveBackupCode v-if="state == 'save_code'" />
+      <SaveBackupCode v-if="state == 'save_code'" :backup-codes="backupCodes" />
     </div>
   </div>
 </template>
@@ -33,13 +33,16 @@ export default {
     return {
       loading: true,
       state: 'empty',
+      backupCodes: [],
     }
   },
   async mounted() {
     // TODO: loading, error
     this.loading = true
     try {
-      const { data } = await TwoFactorAuthService(this.$client).getConfiguration()
+      const { data } = await TwoFactorAuthService(
+        this.$client
+      ).getConfiguration()
       console.log({ data })
 
       if (data.type === 'totp') {
@@ -62,8 +65,9 @@ export default {
     stepContinue() {
       this.state = 'qr_code'
     },
-    stepVerified() {
+    stepVerified(backupCodes) {
       this.state = 'save_code'
+      this.backupCodes = backupCodes
     },
     cancel() {
       this.state = 'empty'
