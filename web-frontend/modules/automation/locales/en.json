@@ -58,7 +58,7 @@
   "historySidePanel": {
     "title": "History",
     "noRunsTitle": "No runs yet",
-    "noRunsDescription": "When this automation has run, the results will be shown here.",
+    "noRunsDescription": "When this workflow has run, the results will be shown here.",
     "statusSuccess": "Ran successfully",
     "statusError": "Failed to run",
     "statusDisabled": "Disabled by Baserow",
@@ -82,7 +82,8 @@
     "routerLabel": "Follow 1 of {edgeCount} branches",
     "routerDefaultEdgeLabelFallback": "Default",
     "routerWithOutputNodesDeleteError": "Cannot be deleted until its {outputCount} output nodes are removed.",
-    "routerWithOutputNodesReplaceError": "Cannot be replaced until its {outputCount} output nodes are removed."
+    "routerWithOutputNodesReplaceError": "Cannot be replaced until its {outputCount} output nodes are removed.",
+    "periodicTriggerLabel": "Periodic trigger"
   },
   "workflowNode": {
     "actionDelete": "Delete",
@@ -106,6 +107,35 @@
     "searchPlaceholderTrigger": "Search for a trigger...",
     "searchPlaceholderActions": "Search for actions...",
     "noResults": "No results found"
+  },
+  "serviceType": {
+    "periodicTrigger": "Periodic trigger",
+    "periodicTriggerDescription": "Triggers the workflow on a periodic basis at specified intervals",
+    "periodicTriggerTriggeredAt": "Triggered at",
+    "errorIntervalMissing": "An interval is required."
+  },
+  "periodicTriggerServiceForm": {
+    "intervalLabel": "Interval",
+    "intervalHelper": "Choose how frequently you want this workflow to run",
+    "everyMinute": "Every minute",
+    "everyHour": "Every hour",
+    "everyDay": "Every day",
+    "everyWeek": "Every week",
+    "everyMonth": "Every month",
+    "hour": "Hour",
+    "minute": "Minute",
+    "dayOfWeek": "Day of week",
+    "dayOfMonth": "Day of month",
+    "hourPlaceholder": "0-23",
+    "minutePlaceholder": "0-59",
+    "dayOfMonthPlaceholder": "1-31",
+    "minuteHelper": "This workflow will run every minute",
+    "hourHelper": "This workflow will run every hour at the specified minute in your local timezone ({timezone})",
+    "dayHelper": "This workflow will run every day at the specified time in your local timezone ({timezone})",
+    "weekHelper": "This workflow will run every week on the specified day and time in your local timezone ({timezone})",
+    "monthHelper": "This workflow will run every month on the specified day and time in your local timezone ({timezone})",
+    "deactivatedTitle": "Periodic trigger deactivated",
+    "deactivatedText": "This periodic trigger has been automatically deactivated due to consecutive failures."
   },
   "simulateDispatch": {
     "sampleDataLabel": "Output",

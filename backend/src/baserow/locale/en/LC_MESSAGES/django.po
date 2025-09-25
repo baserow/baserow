@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-08-06 19:37+0000\n"
+"POT-Creation-Date: 2025-09-03 15:33+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -105,7 +105,7 @@ msgid ""
 "%(node_type)s"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/node_types.py:167
+#: src/baserow/contrib/automation/nodes/node_types.py:174
 msgid "Branch"
 msgstr ""
 
@@ -200,14 +200,18 @@ msgstr ""
 msgid "Widget \"%(widget_title)s\" (%(widget_id)s) deleted"
 msgstr ""
 
-#: src/baserow/contrib/integrations/core/service_types.py:1028
+#: src/baserow/contrib/integrations/core/service_types.py:1029
 msgid "Branch taken"
 msgstr ""
 
-#: src/baserow/contrib/integrations/core/service_types.py:1033
+#: src/baserow/contrib/integrations/core/service_types.py:1034
 msgid "Label"
 msgstr ""
 
-#: src/baserow/contrib/integrations/core/service_types.py:1035
+#: src/baserow/contrib/integrations/core/service_types.py:1036
 msgid "The label of the branch that matched the condition."
+msgstr ""
+
+#: src/baserow/contrib/integrations/core/service_types.py:1167
+msgid "Triggered at"
 msgstr ""

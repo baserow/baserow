@@ -227,6 +227,10 @@ class LocalBaserowRowsDeletedTriggerNode(AutomationTriggerNode):
     ...
 
 
+class CorePeriodicTriggerNode(AutomationTriggerNode):
+    ...
+
+
 class LocalBaserowCreateRowActionNode(AutomationActionNode):
     ...
 

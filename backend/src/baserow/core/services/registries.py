@@ -77,6 +77,9 @@ class ServiceType(
     # Does this service return a list of record?
     returns_list = False
 
+    # Is this a service that triggers events?
+    is_trigger: bool = False
+
     # What parent object is responsible for dispatching this `ServiceType`?
     # It could be via a `DataSource`, in which case `DISPATCH_DATA_SOURCE`
     # should be chosen, or via a `WorkflowAction`, in which case
@@ -462,18 +465,6 @@ class ServiceType(
         return property_name
 
 
-class TriggerServiceTypeMixin:
-    service_type = DispatchTypes.DISPATCH_TRIGGER
-
-    @abstractmethod
-    def start_listening(self, on_event: Callable):
-        ...
-
-    @abstractmethod
-    def stop_listening(self, on_event: Callable):
-        ...
-
-
 ServiceTypeSubClass = TypeVar("ServiceTypeSubClass", bound=ServiceType)
 
 
@@ -513,6 +504,40 @@ class ListServiceTypeMixin:
         The default number of records this service will return,
         unless instructed otherwise by a user.
         """
+
+
+class TriggerServiceTypeMixin(ABC):
+    # Is this a service that triggers events?
+    is_trigger: bool = True
+
+    # The callable function which should be called when the event occurs.
+    on_event: Callable = lambda *args: None
+
+    # The service is always dispatched by a trigger.
+    dispatch_type = DispatchTypes.DISPATCH_TRIGGER
+
+    @abstractmethod
+    def start_listening(self, on_event: Callable) -> None:
+        """
+        Triggers, a type of service which respond to internal and external events and
+        trigger their own dispatch, need the ability to "start" listening to their
+        events. This method ensure that we only begin listening when we need to.
+
+        :param on_event: A callable function which should be called when
+            the internal or external event occurs.
+        """
+
+        self.on_event = on_event
+
+    def stop_listening(self) -> None:
+        """
+        Triggers, a type of service which respond to internal and external events and
+        trigger their own dispatch, need the ability to "stop" listening to their
+        events. This method ensure that we can stop listening when we need to.
+        :return:
+        """
+
+        ...
 
 
 class ServiceTypeRegistry(

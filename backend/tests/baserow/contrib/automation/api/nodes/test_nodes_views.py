@@ -956,21 +956,14 @@ def test_simulate_dispatch_trigger_node(api_client, data_fixture):
 @pytest.mark.django_db
 def test_simulate_dispatch_action_node(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
-    workflow = data_fixture.create_automation_workflow(user=user)
-
     # Create a trigger node with service
     table_1, _, _ = data_fixture.build_table(
         user=user,
         columns=[("Name", "text")],
         rows=[["Pumpkin pie"]],
     )
-
-    trigger_service = data_fixture.create_local_baserow_rows_created_service(
-        table=table_1,
-        integration=data_fixture.create_local_baserow_integration(user=user),
-    )
-    data_fixture.create_automation_node(
-        user=user, workflow=workflow, type="rows_created", service=trigger_service
+    workflow = data_fixture.create_automation_workflow(
+        user=user, trigger_service_kwargs={"table": table_1}
     )
 
     # Create an action node with service

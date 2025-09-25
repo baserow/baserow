@@ -21,6 +21,7 @@ class AutomationConfig(AppConfig):
         )
         from baserow.contrib.automation.nodes.node_types import (
             CoreHttpRequestNodeType,
+            CorePeriodicTriggerNodeType,
             CoreRouterActionNodeType,
             CoreSMTPEmailNodeType,
             LocalBaserowAggregateRowsNodeType,
@@ -84,6 +85,9 @@ class AutomationConfig(AppConfig):
         from baserow.contrib.automation.workflows.trash_types import (
             AutomationWorkflowTrashableItemType,
         )
+        from baserow.contrib.integrations.core.service_types import (
+            CorePeriodicServiceType,
+        )
         from baserow.core.action.registries import (
             action_scope_registry,
             action_type_registry,
@@ -94,6 +98,7 @@ class AutomationConfig(AppConfig):
             object_scope_type_registry,
             operation_type_registry,
         )
+        from baserow.core.services.registries import service_type_registry
         from baserow.core.trash.registries import trash_item_type_registry
 
         if feature_flag_is_enabled(FF_AUTOMATION):
@@ -142,6 +147,8 @@ class AutomationConfig(AppConfig):
 
             action_scope_registry.register(WorkflowActionScopeType())
 
+            service_type_registry.register(CorePeriodicServiceType())
+
             automation_node_type_registry.register(LocalBaserowCreateRowNodeType())
             automation_node_type_registry.register(LocalBaserowUpdateRowNodeType())
             automation_node_type_registry.register(LocalBaserowDeleteRowNodeType())
@@ -160,6 +167,7 @@ class AutomationConfig(AppConfig):
             automation_node_type_registry.register(
                 LocalBaserowRowsDeletedNodeTriggerType()
             )
+            automation_node_type_registry.register(CorePeriodicTriggerNodeType())
 
             from baserow.contrib.automation.data_providers.data_provider_types import (
                 PreviousNodeProviderType,
@@ -188,6 +196,7 @@ class AutomationConfig(AppConfig):
             import baserow.contrib.automation.nodes.ws.signals  # noqa: F403, F401
             import baserow.contrib.automation.workflows.signals  # noqa: F403, F401
             import baserow.contrib.automation.workflows.ws.signals  # noqa: F403, F401
+            import baserow.contrib.integrations.tasks  # noqa: F403, F401
             from baserow.contrib.automation.nodes.receivers import (
                 connect_to_node_pre_delete_signal,
             )
