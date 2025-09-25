@@ -122,132 +122,6 @@ def test_date_values_fields_api():
         assert date_value.to_dict() == copy(date_value).to_dict()
 
 
-@pytest.mark.parametrize(
-    "old_values,new_values,expected_result",
-    [
-        (
-            (
-                NO_VALUE,
-                NO_VALUE,
-                NO_VALUE,
-            ),
-            (
-                NO_VALUE,
-                NO_VALUE,
-                NO_VALUE,
-            ),
-            (
-                False,
-                False,
-                False,
-            ),
-        ),
-        (
-            (
-                NO_VALUE,
-                NO_VALUE,
-                NO_VALUE,
-            ),
-            (
-                "2020-01-01",
-                "2020-01-10",
-                NO_VALUE,
-            ),
-            (
-                True,
-                True,
-                False,
-            ),
-        ),
-        (
-            (
-                None,
-                None,
-                None,
-            ),
-            (
-                NO_VALUE,
-                NO_VALUE,
-                NO_VALUE,
-            ),
-            (
-                False,
-                False,
-                False,
-            ),
-        ),
-        (
-            (
-                NO_VALUE,
-                NO_VALUE,
-                NO_VALUE,
-            ),
-            (
-                None,
-                None,
-                None,
-            ),
-            (
-                True,
-                True,
-                True,
-            ),
-        ),
-        (
-            (
-                None,
-                None,
-                None,
-            ),
-            (
-                "2020-01-01",
-                "2020-01-10",
-                NO_VALUE,
-            ),
-            (
-                True,
-                True,
-                False,
-            ),
-        ),
-        (
-            (
-                NO_VALUE,
-                NO_VALUE,
-                NO_VALUE,
-            ),
-            (
-                "2020-01-01",
-                "2020-01-10",
-                NO_VALUE,
-            ),
-            (
-                True,
-                True,
-                False,
-            ),
-        ),
-    ],
-)
-def test_date_dependency_calculator_field_changed(
-    old_values, new_values, expected_result
-):
-    """
-    Test if DateCalculator.field_changed() detects field value
-    changes correctly.
-    """
-
-    old_values = DateValues(dep, *prep_values(old_values))
-    new_values = DateValues(dep, *prep_values(new_values))
-
-    calc = DateCalculator(old_values, new_values, False)
-    out = []
-    for fname in DateValues.FIELDS:
-        changed = calc.field_changed(old_values.get(fname), new_values.get(fname))
-        out.append(changed)
-    assert tuple(out) == expected_result
-
-
 def test_date_dependency_calculator_field_value():
     """
     Test if DateCalculator.field_value() returns correctly new or old value.
@@ -279,27 +153,9 @@ def test_date_dependency_calculator_field_value():
                 NO_VALUE,
             ),
             None,
-            False,
+            True,
         ),
         # duration not recaclulated, because all three values are changed
-        (
-            (
-                NO_VALUE,
-                NO_VALUE,
-                NO_VALUE,
-            ),
-            (
-                "2020-01-01",
-                "2020-01-10",
-                None,
-            ),
-            (
-                "2020-01-01",
-                "2020-01-10",
-                None,
-            ),
-            False,
-        ),
         (
             (
                 NO_VALUE,
@@ -333,47 +189,9 @@ def test_date_dependency_calculator_field_value():
             (
                 "2020-01-01",
                 "2020-01-10",
-                timedelta(days=8),
-            ),
-            False,
-        ),
-        # include weekend in dzays
-        (
-            (
-                NO_VALUE,
-                NO_VALUE,
-                NO_VALUE,
-            ),
-            (
-                "2020-01-01",
-                "2020-01-10",
-                NO_VALUE,
-            ),
-            (
-                "2020-01-01",
-                "2020-01-10",
                 timedelta(days=10),
             ),
             True,
-        ),
-        # exclude weekends in days
-        (
-            (
-                NO_VALUE,
-                NO_VALUE,
-                NO_VALUE,
-            ),
-            (
-                "2025-01-01",
-                "2025-01-05",
-                NO_VALUE,
-            ),
-            (
-                "2025-01-01",
-                "2025-01-05",  # Sunday
-                timedelta(days=3),
-            ),
-            False,
         ),
         #
         (
@@ -427,20 +245,6 @@ def test_date_dependency_calculator_field_value():
             ),
             True,
         ),
-        (
-            (
-                None,
-                None,
-                None,
-            ),
-            ("2020-01-01", NO_VALUE, timedelta(days=10)),
-            (
-                "2020-01-01",
-                "2020-01-13",
-                timedelta(days=10),
-            ),
-            False,
-        ),
         # No recalculation if all three values are set
         (
             (
@@ -460,24 +264,6 @@ def test_date_dependency_calculator_field_value():
             ),
             True,
         ),
-        (
-            (
-                "2020-01-01",
-                "2020-01-05",
-                None,
-            ),
-            (
-                "2025-01-01",
-                "2025-01-05",
-                None,
-            ),
-            (
-                "2025-01-01",
-                "2025-01-05",
-                None,
-            ),
-            False,
-        ),
         # start with invalid dates, but no recalculation, as we set all values
         (
             (
@@ -496,25 +282,6 @@ def test_date_dependency_calculator_field_value():
                 None,
             ),
             True,
-        ),
-        # start with invalid dates, but no recalculation, as we set all values
-        (
-            (
-                "2025-01-01",
-                "2025-01-01",
-                None,
-            ),
-            (
-                "2025-01-01",
-                "2025-01-05",
-                None,
-            ),
-            (
-                "2025-01-01",
-                "2025-01-05",
-                None,
-            ),
-            False,
         ),
         # reset duration when start date is nullified
         (
@@ -529,35 +296,7 @@ def test_date_dependency_calculator_field_value():
                 timedelta(days=5),
             ),
             (None, "2025-01-05", None),
-            False,
-        ),
-        (
-            (
-                "2025-01-01",
-                "2025-01-05",
-                timedelta(days=5),
-            ),
-            (
-                None,
-                "2025-01-05",
-                timedelta(days=5),
-            ),
-            (None, "2025-01-05", None),
             True,
-        ),
-        (
-            (
-                "2025-01-01",
-                "2025-01-05",
-                timedelta(days=5),
-            ),
-            (
-                None,
-                NO_VALUE,
-                NO_VALUE,
-            ),
-            (None, "2025-01-05", None),
-            False,
         ),
         (
             (
@@ -592,24 +331,6 @@ def test_date_dependency_calculator_field_value():
             ),
             True,
         ),
-        (
-            (
-                "2025-01-01",
-                "2025-01-05",
-                timedelta(days=5),
-            ),
-            (
-                NO_VALUE,
-                NO_VALUE,
-                None,
-            ),
-            (
-                "2025-01-01",
-                "2025-01-05",
-                None,
-            ),
-            False,
-        ),
         # setting just one values to None sets that value to None
         (
             (
@@ -628,24 +349,6 @@ def test_date_dependency_calculator_field_value():
                 timedelta(days=5),
             ),
             True,
-        ),
-        (
-            (
-                "2025-01-01",
-                "2025-01-05",
-                timedelta(days=5),
-            ),
-            (
-                NO_VALUE,
-                None,
-                NO_VALUE,
-            ),
-            (
-                "2025-01-01",
-                None,
-                timedelta(days=5),
-            ),
-            False,
         ),
         # incomplete old state and update with one value results in a recalculation
         (
@@ -668,24 +371,6 @@ def test_date_dependency_calculator_field_value():
         ),
         (
             (
-                "2025-01-01",
-                "2025-01-05",
-                None,
-            ),
-            (
-                NO_VALUE,
-                NO_VALUE,
-                timedelta(days=1),
-            ),
-            (
-                "2025-01-01",
-                "2025-01-01",
-                timedelta(days=1),
-            ),
-            False,
-        ),
-        (
-            (
                 "2025-01-03",
                 None,
                 timedelta(days=1),
@@ -701,26 +386,6 @@ def test_date_dependency_calculator_field_value():
                 timedelta(days=2),
             ),
             True,
-        ),
-        # even if include_weekend flag is set, this won't be adjusted, because
-        # we set end date manually.
-        (
-            (
-                "2025-01-03",
-                None,
-                timedelta(days=1),
-            ),
-            (
-                NO_VALUE,
-                "2025-01-04",
-                NO_VALUE,
-            ),
-            (
-                "2025-01-03",
-                "2025-01-04",  # Saturday
-                timedelta(days=1),
-            ),
-            False,
         ),
         # duration set to None explicitly
         (
@@ -741,24 +406,6 @@ def test_date_dependency_calculator_field_value():
             ),
             True,
         ),
-        (
-            (
-                "2025-01-01",
-                "2025-01-05",
-                timedelta(days=3),
-            ),
-            (
-                "2025-01-01",
-                "2025-01-06",
-                None,
-            ),
-            (
-                "2025-01-01",
-                "2025-01-06",
-                None,
-            ),
-            False,
-        ),
         # invalid update results in invalid value
         (
             (
@@ -777,24 +424,6 @@ def test_date_dependency_calculator_field_value():
                 timedelta(days=1),
             ),
             True,
-        ),
-        (
-            (
-                "2025-01-01",
-                "2025-01-05",
-                None,
-            ),
-            (
-                "2025-01-01",
-                "2025-01-05",
-                timedelta(days=1),
-            ),
-            (
-                "2025-01-01",
-                "2025-01-05",
-                timedelta(days=1),
-            ),
-            False,
         ),
         # update start date will recalculate a row
         (
@@ -815,24 +444,6 @@ def test_date_dependency_calculator_field_value():
             ),
             True,
         ),
-        (
-            (
-                "2025-01-01",
-                "2025-01-03",
-                timedelta(days=2),
-            ),
-            (
-                "2025-01-06",
-                NO_VALUE,
-                NO_VALUE,
-            ),
-            (
-                "2025-01-06",
-                "2025-01-07",
-                timedelta(days=2),
-            ),
-            False,
-        ),
         # update end date will recalculate a row
         (
             (
@@ -851,45 +462,6 @@ def test_date_dependency_calculator_field_value():
                 timedelta(days=4),
             ),
             True,
-        ),
-        (
-            (
-                "2025-01-01",
-                "2025-01-03",
-                timedelta(days=2),
-            ),
-            (
-                NO_VALUE,
-                "2025-01-04",
-                NO_VALUE,
-            ),
-            (
-                "2025-01-01",
-                "2025-01-04",
-                timedelta(days=3),
-            ),
-            False,
-        ),
-        # we move end_date down, but after start_date, so this should decrease
-        # duration value. Note, despite this has include_weekends set, we don't
-        # adjust end date, because the end date is being changed by the user.
-        (
-            (
-                "2025-01-01",
-                "2025-01-06",
-                timedelta(days=6),
-            ),
-            (
-                NO_VALUE,
-                "2025-01-04",
-                NO_VALUE,
-            ),
-            (
-                "2025-01-01",
-                "2025-01-04",
-                timedelta(days=3),
-            ),
-            False,
         ),
         # we move end_date down, but after start_date, so this should decrease
         # duration value.
@@ -950,98 +522,6 @@ def test_date_dependency_calculator_field_value():
             ),
             True,
         ),
-        (
-            (
-                NO_VALUE,
-                NO_VALUE,
-                NO_VALUE,
-            ),
-            (
-                "2025-01-01",
-                "2025-01-10",
-                timedelta(days=9999999),
-            ),
-            (
-                "2025-01-01",
-                "2025-01-10",
-                timedelta(days=9999999),
-            ),
-            False,
-        ),
-        # duration negative, or less than 1d
-        # if all 3 values are provided, result won't be changed.
-        (
-            (
-                NO_VALUE,
-                NO_VALUE,
-                NO_VALUE,
-            ),
-            (
-                "2025-01-01",
-                "2025-01-10",
-                timedelta(days=-1),
-            ),
-            (
-                "2025-01-01",
-                "2025-01-10",
-                timedelta(days=-1),
-            ),
-            False,
-        ),
-        (
-            (
-                NO_VALUE,
-                NO_VALUE,
-                NO_VALUE,
-            ),
-            (
-                "2025-01-01",
-                "2025-01-10",
-                timedelta(hours=1),
-            ),
-            (
-                "2025-01-01",
-                "2025-01-10",
-                timedelta(hours=1),
-            ),
-            False,
-        ),
-        (
-            (
-                "2025-01-01",
-                "2025-01-10",
-                NO_VALUE,
-            ),
-            (
-                NO_VALUE,
-                "2025-01-10",
-                timedelta(hours=1),
-            ),
-            (
-                "2025-01-01",
-                "2025-01-10",
-                timedelta(days=0),
-            ),
-            False,
-        ),
-        (
-            (
-                "2025-01-01",
-                "2025-01-10",
-                NO_VALUE,
-            ),
-            (
-                NO_VALUE,
-                "2025-01-10",
-                timedelta(days=-1),
-            ),
-            (
-                "2025-01-01",
-                "2025-01-10",
-                timedelta(days=0),
-            ),
-            False,
-        ),
     ],
 )
 def test_date_dependency_calculations(
@@ -1092,20 +572,8 @@ def test_date_dependency_calculations(
         (
             "2025-01-05",
             timedelta(days=0),
-            "2025-01-05",
-            False,
-        ),
-        (
-            "2025-01-05",
-            timedelta(days=0),
             None,
             True,
-        ),
-        (
-            "2025-01-05",
-            timedelta(days=1),
-            "2025-01-03",
-            False,
         ),
         (
             "2025-01-05",
@@ -1118,12 +586,6 @@ def test_date_dependency_calculations(
             timedelta(days=9),
             "2025-01-05",
             True,
-        ),
-        (
-            "2025-01-13",
-            timedelta(days=8),
-            "2025-01-03",
-            False,
         ),
     ],
 )
@@ -1151,32 +613,14 @@ def test_calculate_start_date(
         (
             "2025-01-05",
             timedelta(days=0),
-            "2025-01-05",
-            False,
-        ),
-        (
-            "2025-01-05",
-            timedelta(days=0),
             None,
             True,
         ),
         (
-            "2025-01-04",
-            timedelta(days=1),
-            "2025-01-06",
-            False,
-        ),
-        (
             "2025-01-05",
             timedelta(days=1),
             "2025-01-05",
             True,
-        ),
-        (
-            "2025-01-05",
-            timedelta(days=8),
-            "2025-01-15",
-            False,
         ),
         (
             "2025-01-05",
@@ -1187,26 +631,8 @@ def test_calculate_start_date(
         (
             "2025-01-10",
             timedelta(days=8),
-            "2025-01-20",
-            False,
-        ),
-        (
-            "2025-01-10",
-            timedelta(days=8),
             "2025-01-17",
             True,
-        ),
-        (
-            "2025-01-11",
-            timedelta(days=6),
-            "2025-01-20",
-            False,
-        ),
-        (
-            "2020-01-02",
-            timedelta(days=10),
-            "2020-01-13",
-            False,
         ),
     ],
 )

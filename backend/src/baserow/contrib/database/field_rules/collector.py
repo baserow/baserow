@@ -1,14 +1,15 @@
 import typing
 from collections.abc import Iterable
-from typing import NamedTuple
+from dataclasses import dataclass
 
 if typing.TYPE_CHECKING:
     from baserow.contrib.database.field_rules.registries import RowRuleChanges
     from baserow.contrib.database.table.models import GeneratedTableModel
 
 
-class CascadeUpdatedRows(NamedTuple):
-    updated_rows: "Iterable[GeneratedTableModel]"
+@dataclass
+class CascadeUpdatedRows:
+    updated_rows: "list[GeneratedTableModel]"
     field_ids: Iterable[int]
     row_ids: list[int]
 
@@ -34,7 +35,7 @@ class FieldRuleCollector:
     rows_cache: set
     processed_rows_updated_fields_ids: set
 
-    def __init__(self, for_model):
+    def __init__(self, for_model: "GeneratedTableModel"):
         self.for_model = for_model
         self.reset()
 
@@ -46,25 +47,11 @@ class FieldRuleCollector:
         self.starting_rows.extend(rows)
         self.starting_rows_ids.update([r.id for r in rows])
 
-    def get_row(self, row_id: int):
-        return self.rows_cache.get(row_id)
-
-    def is_starting_row(self, row):
-        return row in self.starting_rows
-
-    def is_processed_row(self, row):
-        return row.id in self.rows_cache
-        # return row in self.processed_rows
-
-    def is_row_processed(self, row: "GeneratedTableModel"):
-        return row.id in self.processed_rows_ids
-
     def is_starting_row_processed(self, row: "GeneratedTableModel"):
         return row.id in self.starting_rows_processed_ids
 
     def add_changes(self, changes: "list[RowRuleChanges]"):
         for change in changes:
-            # empty row_id means the row hasn't been created yet
             if change.row_id in self.starting_rows_ids or change.row_id is None:
                 if change.row_id not in self.starting_rows_processed_ids:
                     self.starting_rows_changed.append(change)
@@ -77,13 +64,6 @@ class FieldRuleCollector:
                 self.processed_rows_ids.add(change.row_id)
                 self.processed_rows_updated_fields_ids.update(change.updated_field_ids)
 
-    def get_changed_field_ids(self) -> set[int]:
-        """
-        Returns a list of field ids, which have been changed in initial rows
-        """
-
-        return self.starting_rows_updated_field_ids
-
     def get_processed_rows(self) -> CascadeUpdatedRows:
         """
         Returns information about rows that were processed during cascade update.
@@ -95,9 +75,6 @@ class FieldRuleCollector:
         field_ids = self.processed_rows_updated_fields_ids
         row_ids = list(self.processed_rows_ids)
         return CascadeUpdatedRows(rows, field_ids, row_ids)
-
-    def get_processed_rows_updated_field_ids(self) -> Iterable[int]:
-        return self.processed_rows_updated_fields_ids
 
     @property
     def visited(self):

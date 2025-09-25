@@ -886,8 +886,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                 .enhance_by_fields()
                 .filter(id__in=list(cascade_update.row_ids))
             )
-            cascade_update.updated_rows.clear()
-            cascade_update.updated_rows.extend(updated_rows)
+            cascade_update.updated_rows = updated_rows
 
         rows_created.send(
             self,
@@ -1341,8 +1340,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                 .enhance_by_fields()
                 .filter(id__in=list(cascade_updated.row_ids))
             )
-            cascade_updated.updated_rows.clear()
-            cascade_updated.updated_rows.extend(updated_rows)
+            cascade_updated.updated_rows = updated_rows
 
         rows_to_return = inserted_rows
         rows_values_refreshed_from_db = False
@@ -2361,8 +2359,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             cascade_updated.field_ids.update(updated_field_ids)
 
             # replace updated rows with fresh versions with formula values
-            cascade_updated.updated_rows.clear()
-            cascade_updated.updated_rows.extend(cascade_updated_rows)
+            cascade_updated.updated_rows = cascade_updated_rows
 
         rows_updated.send(
             self,

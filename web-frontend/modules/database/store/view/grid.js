@@ -2576,32 +2576,28 @@ export const actions = {
             updatedFieldIds,
             this.$registry
           )
-          // Update the remaining values like formula, which depend on the backend.
+
+          // The backend may update rows that are not in the current buffer.
+          // In that case, the row will be `undefined`, and we don't need to
+          // update it.
           const existing = getters.getRow(rowData.id)
           if (existing === undefined) {
             continue
           }
+          // Update the remaining values like formula, which depend on the backend.
           await updateValues(existing, rowData, true)
 
           // If we can't optimistically update the row, refresh it to stop the loading
           // state, show proper messages, and update its position and state. Also, if the
           // backend changed other fields, we should refresh sorting/search/filtering.
-          console.log(
-            'update',
-            updatedRowData,
-            canUpdateOptimistically,
-            otherFieldsChangedInBackend
-          )
           if (!canUpdateOptimistically || otherFieldsChangedInBackend) {
-            const rowId = updatedRowData.id
-            const row = getters.getRow(rowId)
-            commit('SET_ROW_LOADING', { row, value: false })
+            commit('SET_ROW_LOADING', { row: existing, value: false })
             setTimeout(() => {
               // Get the latest row so that updated `readOnlyData` values are included,
               // and any other changes that might have been made in the meantime. This is
               // needed to pass the correct row into the `refreshRow` that shows/hide the
               // row.
-              const row = getters.getRow(rowId)
+              const row = getters.getRow(existing.id)
               if (row && !row._.selected) {
                 dispatch('refreshRow', {
                   grid: view,

@@ -6,6 +6,8 @@ from django.db.models import Q
 from django.dispatch import Signal
 from django.utils.functional import cached_property
 
+from loguru import logger
+
 from baserow.contrib.database.field_rules.registries import (
     FieldRulesTypeRegistry,
     RowRuleChanges,
@@ -34,7 +36,7 @@ class FieldRuleHandler:
         self.user = user
         self.collector = FieldRuleCollector(table.get_model())
 
-    def emit_signal(self, signal: Signal, rule):
+    def emit_signal(self, signal: Signal, rule: FieldRule):
         """
         Shortcut method that emits a field rules-specific signal after
         a field rule operation.
@@ -495,12 +497,14 @@ class FieldRuleHandler:
                 ),
                 None,
             )
-            if updated_row_values is None:
-                raise ValueError(f"No updated values for initially changed row: {row}")
-
-            updated_values.update(updated_row_values)
-
-            collector.add_changes(updated_rows)
+            if updated_row_values:
+                updated_values.update(updated_row_values)
+                collector.add_changes(updated_rows)
+            else:
+                logger.error(
+                    f"Expected a change for {row} with {rule} rule, "
+                    f"but no change found in {updated_rows}."
+                )
             out.extend(updated_rows)
         return out
 

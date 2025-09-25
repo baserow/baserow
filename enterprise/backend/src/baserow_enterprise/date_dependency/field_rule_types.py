@@ -158,7 +158,9 @@ class DateDependencyFieldRuleType(FieldRuleType):
             collector.add_changes([ret])
             if feature_flag_is_enabled(FF_DATE_DEPENDENCY_V2):
                 row_updated = model(id=-1, **new_values)
-                deps_calc = DateDependencyCalculator(row_updated, rule)
+                deps_calc = DateDependencyCalculator(
+                    row_updated, rule, collector.visited
+                )
                 deps_calc.calculate()
                 for row_id, row_data_values in deps_calc.modified:
                     out.append(
@@ -218,7 +220,9 @@ class DateDependencyFieldRuleType(FieldRuleType):
             collector.add_starting_rows([row_updated])
             collector.add_changes(out)
             if feature_flag_is_enabled(FF_DATE_DEPENDENCY_V2):
-                deps_calc = DateDependencyCalculator(row_updated, rule)
+                deps_calc = DateDependencyCalculator(
+                    row_updated, rule, collector.visited
+                )
                 deps_calc.calculate()
                 for row_id, row_data_values in deps_calc.modified:
                     out.append(

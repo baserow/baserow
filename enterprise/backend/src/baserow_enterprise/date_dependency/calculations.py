@@ -11,15 +11,22 @@ from baserow.contrib.database.table.models import GeneratedTableModel
 from baserow.core.psycopg import sql
 from baserow_enterprise.date_dependency.models import DateDependency
 
-from .constants import NO_VALUE, DateDependencyFieldNames, NoValueSentinel
+from .constants import (
+    DURATION_FIELD,
+    END_DATE_FIELD,
+    NO_VALUE,
+    ROW_DEPENDENCY_GRAPH_QUERY,
+    START_DATE_FIELD,
+    NoValueSentinel,
+)
 
 
 @dataclasses.dataclass
 class DateValues:
     FIELDS = (
-        DateDependencyFieldNames.START_DATE,
-        DateDependencyFieldNames.END_DATE,
-        DateDependencyFieldNames.DURATION,
+        START_DATE_FIELD,
+        END_DATE_FIELD,
+        DURATION_FIELD,
     )
 
     dependency: DateDependency
@@ -151,10 +158,6 @@ class DateCalculator:
         self.new_values = new_values
         self.include_weekends = include_weekends
 
-    def field_changed(self, old_val, new_val) -> bool:
-        changed = old_val != new_val and new_val is not NO_VALUE
-        return changed
-
     def field_value(self, old_val, new_val) -> datetime | timedelta | None:
         """
         Return resulting field value based on old/new values.
@@ -198,7 +201,7 @@ class DateCalculator:
         if result == old_val:
             return
 
-        # More than two values are not set, so we can't calculate third
+        # At least two fields have no value, so we can't calculate anything.
         # Also, if all three values are provided with values, we don't recalculate.
         if len(result.get_values_fields()) < 2 or (
             len(changed_fields) == len(result.get_values_fields()) == 3
@@ -215,7 +218,7 @@ class DateCalculator:
         # Negative duration, or duration set to hours.
         # This is invalid, so we don't recalculate, but we should round the value to 0.
         if (
-            DateDependencyFieldNames.DURATION in changed_fields
+            DURATION_FIELD in changed_fields
             and isinstance(result.duration, timedelta)
             and result.duration < timedelta(days=1)
         ):
@@ -231,9 +234,9 @@ class DateCalculator:
             else:
                 missing_field = none_in_result[0]
                 if (
-                    missing_field == DateDependencyFieldNames.START_DATE
-                    and DateDependencyFieldNames.START_DATE in changed_fields
-                    and DateDependencyFieldNames.END_DATE in result_value_fields
+                    missing_field == START_DATE_FIELD
+                    and START_DATE_FIELD in changed_fields
+                    and END_DATE_FIELD in result_value_fields
                 ):
                     result.duration = None
 
@@ -247,18 +250,18 @@ class DateCalculator:
             if len(changed_fields) == 1 and changed_fields[0] in result_value_fields:
                 changed_field = changed_fields[0]
                 if (
-                    changed_field == DateDependencyFieldNames.START_DATE
-                    and DateDependencyFieldNames.DURATION in result_value_fields
+                    changed_field == START_DATE_FIELD
+                    and DURATION_FIELD in result_value_fields
                 ):
                     result = calculate_date_dependency_end(result)
                 elif (
-                    changed_field == DateDependencyFieldNames.START_DATE
-                    and DateDependencyFieldNames.END_DATE in result_value_fields
+                    changed_field == START_DATE_FIELD
+                    and END_DATE_FIELD in result_value_fields
                 ):
                     result = calculate_date_dependency_duration(result)
                 elif (
-                    changed_field == DateDependencyFieldNames.END_DATE
-                    and DateDependencyFieldNames.START_DATE in result_value_fields
+                    changed_field == END_DATE_FIELD
+                    and START_DATE_FIELD in result_value_fields
                 ):
                     # if end date is below start date, we shift the start date
                     if result.end_date - result.start_date < timedelta(days=0):
@@ -266,13 +269,13 @@ class DateCalculator:
                     else:
                         result = calculate_date_dependency_duration(result)
                 elif (
-                    changed_field == DateDependencyFieldNames.DURATION
-                    and DateDependencyFieldNames.START_DATE in result_value_fields
+                    changed_field == DURATION_FIELD
+                    and START_DATE_FIELD in result_value_fields
                 ):
                     result = calculate_date_dependency_end(result)
                 elif (
-                    changed_field == DateDependencyFieldNames.DURATION
-                    and DateDependencyFieldNames.END_DATE in result_value_fields
+                    changed_field == DURATION_FIELD
+                    and END_DATE_FIELD in result_value_fields
                 ):
                     result = calculate_date_dependency_start(result)
             elif (
@@ -281,32 +284,31 @@ class DateCalculator:
                 # This excludes a situation, when duration is cleared by the user
                 # explicitly, but if it was changed from None to None, it should be
                 # recalculated.
-                DateDependencyFieldNames.DURATION not in changed_fields
-                and DateDependencyFieldNames.START_DATE in result_value_fields
-                and DateDependencyFieldNames.END_DATE in result_value_fields
+                DURATION_FIELD not in changed_fields
+                and START_DATE_FIELD in result_value_fields
+                and END_DATE_FIELD in result_value_fields
                 and (
-                    DateDependencyFieldNames.START_DATE in changed_fields
-                    or DateDependencyFieldNames.END_DATE in changed_fields
+                    START_DATE_FIELD in changed_fields
+                    or END_DATE_FIELD in changed_fields
                 )
             ):
                 result = calculate_date_dependency_duration(result)
             elif (
-                DateDependencyFieldNames.START_DATE not in changed_fields
-                and DateDependencyFieldNames.DURATION in result_value_fields
-                and DateDependencyFieldNames.END_DATE in result_value_fields
+                START_DATE_FIELD not in changed_fields
+                and DURATION_FIELD in result_value_fields
+                and END_DATE_FIELD in result_value_fields
                 and (
-                    DateDependencyFieldNames.DURATION in changed_fields
-                    or DateDependencyFieldNames.END_DATE in changed_fields
+                    DURATION_FIELD in changed_fields or END_DATE_FIELD in changed_fields
                 )
             ):
                 result = calculate_date_dependency_start(result)
             elif (
-                DateDependencyFieldNames.END_DATE not in changed_fields
-                and DateDependencyFieldNames.DURATION in result_value_fields
-                and DateDependencyFieldNames.START_DATE in result_value_fields
+                END_DATE_FIELD not in changed_fields
+                and DURATION_FIELD in result_value_fields
+                and START_DATE_FIELD in result_value_fields
                 and (
-                    DateDependencyFieldNames.DURATION in changed_fields
-                    or DateDependencyFieldNames.START_DATE in changed_fields
+                    DURATION_FIELD in changed_fields
+                    or START_DATE_FIELD in changed_fields
                 )
             ):
                 result = calculate_date_dependency_end(result)
@@ -316,7 +318,9 @@ class DateCalculator:
             ValueError,
             OverflowError,
         ) as err:
-            logger.info(f"Error when calculating date dependency: {err}", exc_info=True)
+            logger.opt(exception=err).error(
+                f"Error when calculating date dependency: {err}"
+            )
             return initial_result
         return result
 
@@ -408,14 +412,14 @@ class DateDependencyCalculator:
         `.graph_paths` and  `.cache` with rows.
         """
 
-        row = self.rule
+        rule = self.rule
         if not (
-            row.duration_field
-            and row.start_date_field
-            and row.end_date_field
-            and row.dependency_linkrow_field
+            rule.duration_field
+            and rule.start_date_field
+            and rule.end_date_field
+            and rule.dependency_linkrow_field
         ):
-            logger.warning(f"Field Rule doesn't have all fields: {row.to_dict()}")
+            logger.warning(f"Field Rule doesn't have all fields: {rule.to_dict()}")
             return
         table_name = sql.Identifier(self.row.__class__._meta.db_table)
         start_date_field = sql.Identifier(self.rule.start_date_field.db_column)
@@ -444,110 +448,16 @@ class DateDependencyCalculator:
             "duration_field": duration_field,
         }
 
-        # The query builds a list of rows belonging to the graph. Each row contains
-        # its path from the root, depth level and a shortcut information if it's a root,
-        # intermediate node or a leaf (ending) of a path. Also, each row contains
-        # start/end dates and duration to be able to be able to calculate.
-        # Note: One row can belong to multiple paths, and there may be multiple paths
-        # in the graph (one row can have multiple parents and one parent can have
-        # multiple children).
-        query = sql.SQL(
-            """
-            WITH RECURSIVE
-                updated AS
-                    (SELECT unnest(ARRAY[{value}]) AS updated_id),
-                ancestors AS (
-                    select u.updated_id AS id,
-                        u.updated_id AS original_id,
-                        0 AS level,
-                        ARRAY[u.updated_id] AS path
-                        FROM updated u
-                    UNION ALL
-                -- Recursively find parents
-                    SELECT
-                        ip.{to_field_name} AS parent_id
-                        , a.original_id
-                        , a.level - 1 AS level
-                        , ip.{to_field_name} || a.path AS path
-                    FROM ancestors a
-                    JOIN {relation_table_name} ip ON ip.{from_field_name} = a.id
-                    WHERE NOT (ip.{to_field_name} = ANY(a.path))  -- Prevent cycles
-                    ),
-
-                roots AS (
-                    SELECT DISTINCT ON (original_id)
-                        id as root_id,
-                        id,
-                        original_id
-                    FROM ancestors
-                    ORDER BY original_id, level ASC
-                ),
-                -- Find all descendants starting from roots
-                descendants AS (
-                    -- Start with root nodes
-                    SELECT
-                        r.root_id,
-                        r.root_id AS  id,
-                        r.original_id,
-                        0 AS  level,
-                        ARRAY[r.root_id] AS  path
-                    FROM roots r
-                    UNION ALL
-                    -- Recursively find children
-                    SELECT
-                        d.root_id,
-                        ip.{from_field_name} AS  id,
-                        d.original_id,
-                        d.level + 1 AS  level,
-                        d.path || ip.{from_field_name} AS  path
-                    FROM descendants d
-                    JOIN {relation_table_name} ip ON ip.{to_field_name} = d.id
-                    WHERE NOT (ip.{from_field_name} = ANY(d.path))  -- Prevent cycles
-                ),
-        -- Combine all nodes in the dependency trees
-        complete_tree AS (
-            SELECT DISTINCT
-                d.id,
-                d.original_id,
-                r.root_id,
-                d.level,
-                d.path
-            FROM descendants d
-            JOIN roots r ON r.root_id = d.root_id
-        )
-        -- Final result with item details
-        SELECT
-            ct.id,
-            i.{start_date_field},
-            i.{end_date_field},
-            i.{duration_field},
-            ct.root_id,
-            ct.level,
-            ct.path,
-            ct.original_id AS triggered_by_update_of,
-            CASE
-                WHEN ct.id = ct.root_id THEN 'ROOT'
-                WHEN NOT EXISTS (SELECT 1 FROM {relation_table_name} WHERE {to_field_name} = ct.id) THEN 'LEAF'
-                ELSE 'INTERMEDIATE'
-            END AS  node_type
-
-        FROM complete_tree ct
-        JOIN {table_name} i ON i.id = ct.id
-        WHERE NOT i.trashed
-        ORDER BY ct.original_id, ct.level desc, ct.id;
-        """
-        ).format(
-            **params
-        )  # noqa STR100
+        query = ROW_DEPENDENCY_GRAPH_QUERY.format(**params)
 
         affected_rows = list(self.row.__class__.objects.raw(query))
-        # populate graph and cache
-        for row in affected_rows:
-            if row.node_type == "LEAF":
-                self.graph_paths.append(row.path)
-            if row.id in self.cache:
+
+        for rule in affected_rows:
+            if rule.node_type == "LEAF":
+                self.graph_paths.append(rule.path)
+            if rule.id in self.cache:
                 continue
-            self.cache[row.id] = row
+            self.cache[rule.id] = rule
 
     def _get_row(self, row_id):
         try:
@@ -559,7 +469,6 @@ class DateDependencyCalculator:
 
     def calculate(self):
         self.modified.clear()
-        self.visited.clear()
 
         self.populate_dependency_graph()
         if not (self.graph_paths):
@@ -784,14 +693,13 @@ def calculate_date_dependency_start(in_data: DateValues) -> DateValues:
     need to count
     """
 
-    # don't calculate start date if we include weekends. Duration is invalid in this
-    # case.
+    # we can't calculate start, if duration is below 1 day. Duration includes 1 extra
+    # day to include start date Such a case is considered
+    # invalid.
     if in_data.dependency.include_weekends and in_data.duration < timedelta(days=1):
         return in_data
 
     end_date = in_data.end_date
-    end_weekday = end_date.weekday()
-    end_weekday_is_weekend = end_weekday > 4
     days = in_data.duration.days
 
     result = DateValues(
@@ -800,31 +708,8 @@ def calculate_date_dependency_start(in_data: DateValues) -> DateValues:
         end_date=end_date,
         duration=in_data.duration,
     )
-    if in_data.dependency.include_weekends:
-        result.start_date = end_date - timedelta(days=(days - 1))
-        return result
 
-    # Special case: we omit weekends, end date is on weekend, and duration is 0, so
-    # start date is the same as end date. But it's still invalid, because it's weekend.
-    if days == 0 and end_weekday_is_weekend:
-        result.start_date = end_date
-        return result
-
-    if end_weekday_is_weekend:
-        # Reset to Friday, if we're on weekend.
-        end_date = end_date - timedelta(days=7 - end_weekday)
-
-    weeks, single_days = divmod(days - 1, 5)
-
-    # Note: this won't calculate in any holiday
-    start_date = end_date - timedelta(days=7 * weeks) - timedelta(days=single_days)
-    # Adjust start date if it's on weekend, move to last Friday
-    start_date_weekday = start_date.weekday()
-
-    if start_date_weekday > 4:
-        start_date = start_date - timedelta(days=start_date_weekday - 4)
-    result.start_date = start_date
-
+    result.start_date = end_date - timedelta(days=(days - 1))
     return result
 
 
@@ -845,8 +730,6 @@ def calculate_date_dependency_end(in_data: DateValues) -> DateValues:
         return in_data
 
     start_date = in_data.start_date
-    start_weekday = start_date.weekday()
-    start_weekday_is_weekend = start_weekday > 4
     days = in_data.duration.days
 
     result = DateValues(
@@ -855,31 +738,7 @@ def calculate_date_dependency_end(in_data: DateValues) -> DateValues:
         start_date=start_date,
         duration=in_data.duration,
     )
-    if in_data.dependency.include_weekends:
-        result.end_date = start_date + timedelta(days=days - 1)
-        return result
-
-    # Special case: we omit weekends, end date is on weekend, and duration is 0, so
-    # start date is the same as end date. But it's still invalid, because it's weekend.
-    if days == 0 and start_weekday_is_weekend:
-        result.end_date = start_date
-        return result
-
-    if start_weekday_is_weekend:
-        # Reset to Monday, if we're on weekend.
-        start_date = start_date + timedelta(days=7 - start_weekday)
-
-    # need to adjust for 1 extra day in this calculation
-    weeks, single_days = divmod(days - 1, 5)
-    # Note: this won't calculate in any holiday
-    end_date = start_date + timedelta(days=7 * weeks) + timedelta(days=single_days)
-
-    # Adjust end date if it's on weekend, set it to the nearest next Monday
-    end_date_weekday = end_date.weekday()
-    if end_date_weekday > 4:
-        end_date = end_date + timedelta(days=7 - end_date_weekday)
-    result.end_date = end_date
-
+    result.end_date = start_date + timedelta(days=days - 1)
     return result
 
 
@@ -912,43 +771,5 @@ def calculate_date_dependency_duration(in_data: DateValues) -> DateValues:
         duration=None,
     )
 
-    if in_data.dependency.include_weekends:
-        result.duration = in_data.end_date - in_data.start_date + timedelta(days=1)
-        return result
-
-    start_weekday, end_weekday = start_date.weekday(), end_date.weekday()
-    start_weekday_is_weekend = start_weekday > 4
-    end_weekday_is_weekend = end_weekday > 4
-
-    # this is a special case
-    if start_weekday_is_weekend and start_date == end_date:
-        result.duration = timedelta(days=0)
-        return result
-
-    if start_weekday_is_weekend:
-        # move to the nearest Monday
-        start_date = start_date + timedelta(days=7 - start_weekday)
-        if start_date.weekday() != 0:
-            raise ValueError(f"Unexpected dow for start date: {start_date.weekday()}")
-
-    if end_weekday_is_weekend:
-        # move to the nearest Friday
-        end_date = end_date - timedelta(days=end_weekday - 4)
-        if end_date.weekday() != 4:
-            raise ValueError(f"Unexpected dow for end date: {end_date.weekday()}")
-
-    total_duration = end_date - start_date
-    total_weeks = total_duration.days // 7
-    remaining_days = total_duration.days % 7
-
-    if total_weeks == 0 and remaining_days > 0:
-        if end_weekday < start_weekday:
-            # over weekend
-            remaining_days = remaining_days - 2
-
-    # cut Saturdays off
-    if remaining_days > 5:
-        remaining_days = 5
-
-    result.duration = timedelta(days=((total_weeks * 5) + 1 + remaining_days))
+    result.duration = in_data.end_date - in_data.start_date + timedelta(days=1)
     return result

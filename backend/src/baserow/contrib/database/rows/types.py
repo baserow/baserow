@@ -42,7 +42,7 @@ class UpdatedRowsData(NamedTuple):
     updated_field_ids: Iterable[int] | None = None
 
     # use cascade update fields to propagate rows that weren't requested
-    # by the user to be updated, but were updated by various automations in the
+    # by the user to be updated, but were updated by various operations in the
     # code (i.e. field rules).
     cascade_update: CascadeUpdatedRows | None = None
 

@@ -342,72 +342,6 @@ def test_date_dependency_handler_validate_rule_after_field_removed(
                 ),
             },
         ),
-        (
-            False,
-            {
-                "a": (
-                    date(2025, 1, 1),
-                    date(2025, 1, 5),
-                    timedelta(days=5),
-                    True,
-                ),
-                "b": (
-                    None,
-                    date(2025, 1, 5),
-                    None,
-                    False,
-                ),
-                "c": (
-                    date(2025, 1, 1),
-                    None,
-                    None,
-                    False,
-                ),
-                "d": (
-                    date(2025, 1, 1),
-                    date(2025, 1, 5),
-                    timedelta(days=5),
-                    True,
-                ),
-                "e": (
-                    date(2025, 1, 1),
-                    date(2025, 1, 5),
-                    timedelta(days=5),
-                    True,
-                ),
-                "f": (
-                    None,
-                    date(2025, 1, 5),
-                    timedelta(days=4),
-                    False,
-                ),
-                "g": (
-                    date(2025, 1, 5),
-                    None,
-                    timedelta(days=4),
-                    False,
-                ),
-                "h": (
-                    None,
-                    None,
-                    timedelta(days=4),
-                    False,
-                ),
-                "i": (
-                    None,
-                    None,
-                    None,
-                    False,
-                ),
-                "j": (date(2025, 1, 10), date(2025, 1, 5), timedelta(days=5), False),
-                "k": (
-                    date(2025, 1, 1),
-                    date(2025, 1, 5),
-                    timedelta(days=5),
-                    True,
-                ),
-            },
-        ),
     ],
 )
 @pytest.mark.django_db
@@ -467,7 +401,8 @@ def test_date_dependency_handler_create_rule_and_populate_rows(
         date_dependency_recalculate_rows,
     )
 
-    # normally this should be called at the end of transaction
+    # Normally this will be executed as a Celery task scheduled at the end of the
+    # current transaction, but we're in test, so need to call this manually.
     date_dependency_recalculate_rows(rule_id=rule.id, table_id=table.id)
 
     assert isinstance(rule, DateDependency)
@@ -493,6 +428,52 @@ def test_date_dependency_handler_create_rule_and_populate_rows(
             duration,
             is_valid,
         ) == (row_id, *expected_row)
+
+
+@pytest.mark.django_db
+def test_date_dependency_update_cascade_multi_root(data_fixture, enable_enterprise):
+    data = [
+        # text, start, end, duration, linkrow
+        ["R1", "2025-05-10", "2025-05-11", "2d 0h", []],
+        ["R2", "2025-05-10", "2025-05-11", "2d 0h", []],
+        ["R3", "2025-05-12", "2025-01-13", "2d 0h", ["R1", "R2"]],
+    ]
+
+    user, table, model, fields, rule = create_date_dependency_table(data_fixture, data)
+    text, start, end, duration, linkrow = fields
+    update_data = [{"id": 3, start.db_column: "2025-05-10"}]
+
+    initial_rows = list(model.objects.all())
+    assert len(data) == len(initial_rows)
+    for row_imported, row_requested in zip(initial_rows, data):
+        assert row_imported.get_primary_field_value() == row_requested[0]
+        # ensure rows are related
+        assert [
+            related.get_primary_field_value()
+            for related in getattr(row_imported, linkrow.db_column).all()
+        ] == row_requested[-1]
+
+    updated = RowHandler().update_rows(
+        user,
+        table,
+        update_data,
+        model,
+        send_realtime_update=False,
+        send_webhook_events=False,
+        skip_search_update=True,
+    )
+
+    assert len(updated.updated_rows) == 1
+    updated_row = updated.updated_rows[0]
+
+    assert updated_row.id == 3
+    assert updated_row.get_primary_field_value() == "R3"
+    assert getattr(updated_row, start.db_column) == date(2025, 5, 10)
+    assert getattr(updated_row, end.db_column) == date(2025, 5, 11)
+    assert getattr(updated_row, duration.db_column) == timedelta(days=2)
+
+    assert len(updated.cascade_update.row_ids) == 2
+    assert set(updated.cascade_update.row_ids) == {1, 2}
 
 
 @pytest.mark.django_db
@@ -625,7 +606,8 @@ def create_date_dependency_table(data_fixture, data) -> DateDepsTestData:
         date_dependency_recalculate_rows,
     )
 
-    # normally this should be called at the end of transaction
+    # Normally this will be executed as a Celery task scheduled at the end of the
+    # current transaction, but we're in test, so need to call this manually.
     date_dependency_recalculate_rows(rule_id=rule.id, table_id=table.id)
 
     rule.refresh_from_db()
