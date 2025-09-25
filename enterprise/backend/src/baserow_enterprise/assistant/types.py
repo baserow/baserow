@@ -551,7 +551,7 @@ class RatingFieldType(BaseFieldType):
 
     def to_orm(self, resource_mapping) -> Dict[str, Any]:
         return {
-            "rating_max": self.max_rating,
+            "max_value": self.max_rating,
         }
 
     @classmethod
@@ -559,7 +559,7 @@ class RatingFieldType(BaseFieldType):
         field = orm_field.specific
         return cls(
             name=field.name,
-            max_rating=field.rating_max,
+            max_rating=field.max_value,
         )
 
 
@@ -749,6 +749,10 @@ class WorkspaceSchema(BaseModel):
 
 
 class SchemaExecutableOperation(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+
     type: str
 
     def execute(self, user, resource_mapping) -> Any:
@@ -857,7 +861,9 @@ class CreateFieldOperation(StreamableOperation):
         self.field.name = self.field.name.strip().capitalize().replace("_", " ")
 
     def execute(self, user, resource_mapping) -> None:
-        table = resource_mapping["table"][self.table_name]
+        table = resource_mapping["table"].get(self.table_name)
+        if table is None:
+            return  # Table must exist
 
         if resource_mapping[f"fields_{table.id}"].get(self.field.name):
             # Field already exists, skip

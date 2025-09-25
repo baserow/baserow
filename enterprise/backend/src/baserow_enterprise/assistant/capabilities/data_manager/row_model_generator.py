@@ -285,6 +285,9 @@ def create_dynamic_operations_from_schema(
             Field(description=f"List of {table_name} rows to create"),
         ),
         __module__=__name__,
+        __config__=ConfigDict(
+            extra="forbid",
+        ),
     )
 
     # Create dynamic UpdateRowsOperation
@@ -296,6 +299,9 @@ def create_dynamic_operations_from_schema(
             Field(description=f"List of {table_name} row updates"),
         ),
         __module__=__name__,
+        __config__=ConfigDict(
+            extra="forbid",
+        ),
     )
 
     # DeleteRowsOperation doesn't need data, so we can reuse the base class
@@ -303,6 +309,9 @@ def create_dynamic_operations_from_schema(
         f"Dynamic{table_name}DeleteRowsOperation",
         __base__=DeleteRowsOperation,
         __module__=__name__,
+        __config__=ConfigDict(
+            extra="forbid",
+        ),
     )
 
     return (
@@ -351,6 +360,9 @@ def create_dynamic_tool_output_schema(
                     f"Can include create, update, or delete operations with properly typed data."
                 ),
             ),
+        ),
+        __config__=ConfigDict(
+            extra="forbid",
         ),
     )
 
