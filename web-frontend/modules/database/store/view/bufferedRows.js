@@ -816,6 +816,9 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
 
           for (const updatedRowData of updatedRows) {
             const rowToUpdate = getters.getRow(updatedRowData.id)
+            // The backend may update rows that are not in the current buffer.
+            // In that case, the row will be `undefined`, and we don't need to
+            // update it.
             if (rowToUpdate === undefined) {
               continue
             }
