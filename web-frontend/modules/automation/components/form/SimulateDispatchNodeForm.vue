@@ -67,6 +67,10 @@ const props = defineProps({
     type: Object,
     required: true,
   },
+  automation: {
+    type: Object,
+    required: true,
+  },
 })
 
 const isSimulatingDispatch = ref(false)
@@ -108,7 +112,10 @@ const nodeIsInError = computed(() => {
 const sampleDataModalTitle = computed(() => {
   const nodeType = app.$registry.get('node', props.node.type)
   return app.i18n.t('simulateDispatch.sampleDataModalTitle', {
-    nodeType: nodeType.name,
+    nodeLabel: nodeType.getLabel({
+      automation: props.automation,
+      node: props.node,
+    }),
   })
 })
 

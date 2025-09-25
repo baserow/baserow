@@ -117,7 +117,7 @@
     "buttonLabelTest": "Test event",
     "buttonLabelTestAgain": "Test event again",
     "testNodeDescription": "Test this event to confirm the configuration is correct. Data from this test can be used in later steps.",
-    "sampleDataModalTitle": "Payload for {nodeType}",
+    "sampleDataModalTitle": "Payload for {nodeLabel}",
     "sampleDataModalSubTitle": "JSON payload",
     "sampleDataCopy": "Copy",
     "sampleDataCopied": "Payload copied to clipboard"
