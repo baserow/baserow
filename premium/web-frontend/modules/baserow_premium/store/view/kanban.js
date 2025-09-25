@@ -915,7 +915,7 @@ export const actions = {
         ]
         const { data } = await RowService(this.$client).batchUpdate(
           table.id,
-          updateRequestValues,
+          updateRowsData,
           null,
           getters.getLastKanbanId
         )
