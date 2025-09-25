@@ -4,7 +4,6 @@ import re
 import traceback
 from collections import defaultdict, namedtuple
 from copy import deepcopy
-from dataclasses import dataclass
 from hashlib import shake_128
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Type, Union
 
@@ -607,7 +606,9 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             views,
             table.database.workspace,
         )
-        views = views.select_related("content_type", "table")
+        views = views.select_related(
+            "content_type", "table", "table__database__workspace"
+        )
 
         if _type:
             view_type = view_type_registry.get(_type)
@@ -637,6 +638,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
                 ).enhance_queryset(queryset)
             ),
         )
+
         return views
 
     def before_field_type_change(self, field: Field):
@@ -2776,6 +2778,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
 
     def get_queryset(
         self,
+        user: Optional[AbstractUser],
         view: View,
         search: Optional[str] = None,
         model: Optional[GeneratedTableModel] = None,
@@ -2789,6 +2792,8 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         Returns a queryset for the provided view which is appropriately sorted,
         filtered and searched according to the view type and its settings.
 
+        :param user: The user on whose behalf the queryset is requested. This is needed
+            for permission checks.
         :param search: A search term to apply to the resulting queryset.
         :param model: The model for this views table to generate the queryset from, if
             not specified then the model will be generated automatically.
@@ -2819,6 +2824,14 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             raise ViewDoesNotSupportListingRows(
                 f"The view type {view_type.type} does not support listing rows."
             )
+
+        # Check if the view ownership type is enforcing the filters to be applied. If
+        # so, then regardless of what argument is provided, the filters are applied to
+        # the queryset. This can be useful if the view restricts access to rows that
+        # don't match the filters.
+        view_ownership_type = view_ownership_type_registry.get(view.ownership_type)
+        if view_ownership_type.enforce_apply_filters(user, view):
+            apply_filters = True
 
         if view_type.can_filter and apply_filters:
             queryset = self.apply_filters(view, queryset)
@@ -3396,40 +3409,6 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         )
         return created_row
 
-    def get_public_views_row_checker(
-        self,
-        table,
-        model,
-        only_include_views_which_want_realtime_events,
-        updated_field_ids=None,
-    ):
-        """
-        Returns a CachingPublicViewRowChecker object which will have precalculated
-        information about the public views in the provided table to aid with quickly
-        checking which views a row in that table is visible in. If you will be updating
-        the row and reusing the checker you must provide an iterable of the field ids
-        that you will be updating in the row, otherwise the checker will cache the
-        first check per view/row.
-
-        :param table: The table the row is in.
-        :param model: The model of the table including all fields.
-        :param only_include_views_which_want_realtime_events: If True will only look
-            for public views where
-            ViewType.when_shared_publicly_requires_realtime_events is True.
-        :param updated_field_ids: An optional iterable of field ids which will be
-            updated on rows passed to the checker. If the checker is used on the same
-            row multiple times and that row has been updated it will return invalid
-            results unless you have correctly populated this argument.
-        :return: A list of non-specific public view instances.
-        """
-
-        return CachingPublicViewRowChecker(
-            table,
-            model,
-            only_include_views_which_want_realtime_events,
-            updated_field_ids,
-        )
-
     def restrict_row_for_view(
         self, view: View, serialized_row: Dict[str, Any]
     ) -> Dict[Any, Any]:
@@ -3729,178 +3708,6 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             for key, value in view_type.export_prepared_values(view).items()
             if key in changed_allowed_keys
         }
-
-
-@dataclass
-class PublicViewRows:
-    """
-    Keeps track of which rows are allowed to be sent as a public signal
-    for a particular view.
-
-    When no row ids are set it is assumed that any row id is allowed.
-    """
-
-    ALL_ROWS_ALLOWED = None
-
-    view: View
-    allowed_row_ids: Optional[Set[int]]
-
-    def all_allowed(self):
-        return self.allowed_row_ids is PublicViewRows.ALL_ROWS_ALLOWED
-
-    def __iter__(self):
-        return iter((self.view, self.allowed_row_ids))
-
-
-class CachingPublicViewRowChecker:
-    """
-    A helper class to check which public views a row is visible in. Will pre-calculate
-    upfront for a specific table which public views are always visible, which public
-    views can have row check results cached for and finally will pre-construct and
-    reuse querysets for performance reasons.
-    """
-
-    def __init__(
-        self,
-        table: Table,
-        model: GeneratedTableModel,
-        only_include_views_which_want_realtime_events: bool,
-        updated_field_ids: Optional[Iterable[int]] = None,
-    ):
-        self._public_views = (
-            table.view_set.filter(public=True)
-            .prefetch_related("viewfilter_set", "filter_groups")
-            .all()
-        )
-        self._updated_field_ids = updated_field_ids
-        self._views_with_filters = []
-        self._always_visible_views = []
-        self._view_row_check_cache = defaultdict(dict)
-        handler = ViewHandler()
-        for view in specific_iterator(
-            self._public_views,
-            per_content_type_queryset_hook=(
-                lambda model, queryset: view_type_registry.get_by_model(
-                    model
-                ).enhance_queryset(queryset)
-            ),
-        ):
-            if only_include_views_which_want_realtime_events:
-                view_type = view_type_registry.get_by_model(view.specific_class)
-                if not view_type.when_shared_publicly_requires_realtime_events:
-                    continue
-
-            if len(view.viewfilter_set.all()) == 0:
-                # If there are no view filters for this view then any row must always
-                # be visible in this view
-                self._always_visible_views.append(view)
-            else:
-                filter_qs = handler.apply_filters(view, model.objects)
-                self._views_with_filters.append(
-                    (
-                        view,
-                        filter_qs,
-                        self._view_row_checks_can_be_cached(view),
-                    )
-                )
-
-    def get_public_views_where_row_is_visible(self, row):
-        """
-        WARNING: If you are reusing the same checker and calling this method with the
-        same row multiple times you must have correctly set which fields in the row
-        might be updated in the checkers initials `updated_field_ids` attribute. This
-        is because for a given view, if we know none of the fields it filters on
-        will be updated we can cache the first check of if that row exists as any
-        further changes to the row wont be affecting filtered fields. Hence
-        `updated_field_ids` needs to be set if you are ever changing the row and
-        reusing the same CachingPublicViewRowChecker instance.
-
-        :param row: A row in the checkers table.
-        :return: A list of views where the row is visible for this checkers table.
-        """
-
-        views = []
-        for view, filter_qs, can_use_cache in self._views_with_filters:
-            if can_use_cache:
-                if row.id not in self._view_row_check_cache[view.id]:
-                    self._view_row_check_cache[view.id][
-                        row.id
-                    ] = self._check_row_visible(filter_qs, row)
-                if self._view_row_check_cache[view.id][row.id]:
-                    views.append(view)
-            elif self._check_row_visible(filter_qs, row):
-                views.append(view)
-
-        return views + self._always_visible_views
-
-    def get_public_views_where_rows_are_visible(self, rows) -> List[PublicViewRows]:
-        """
-        WARNING: If you are reusing the same checker and calling this method with the
-        same rows multiple times you must have correctly set which fields in the rows
-        might be updated in the checkers initials `updated_field_ids` attribute. This
-        is because for a given view, if we know none of the fields it filters on
-        will be updated we can cache the first check of if that rows exist as any
-        further changes to the rows wont be affecting filtered fields. Hence
-        `updated_field_ids` needs to be set if you are ever changing the rows and
-        reusing the same CachingPublicViewRowChecker instance.
-
-        :param rows: Rows in the checkers table.
-        :return: A list of PublicViewRows with view and a list of row ids where the rows
-            are visible for this checkers table.
-        """
-
-        visible_views_rows = []
-        row_ids = {row.id for row in rows}
-        for view, filter_qs, can_use_cache in self._views_with_filters:
-            if can_use_cache:
-                for id in row_ids:
-                    if id not in self._view_row_check_cache[view.id]:
-                        visible_ids = set(self._check_rows_visible(filter_qs, rows))
-                        for visible_id in visible_ids:
-                            self._view_row_check_cache[view.id][visible_id] = True
-                        break
-                else:
-                    visible_ids = row_ids
-
-                if len(visible_ids) > 0:
-                    visible_views_rows.append(PublicViewRows(view, visible_ids))
-
-            else:
-                visible_ids = set(self._check_rows_visible(filter_qs, rows))
-                if len(visible_ids) > 0:
-                    visible_views_rows.append(PublicViewRows(view, visible_ids))
-
-        for visible_view in self._always_visible_views:
-            visible_views_rows.append(
-                PublicViewRows(visible_view, PublicViewRows.ALL_ROWS_ALLOWED)
-            )
-
-        return visible_views_rows
-
-    # noinspection PyMethodMayBeStatic
-    def _check_row_visible(self, filter_qs, row):
-        return filter_qs.filter(id=row.id).exists()
-
-    # noinspection PyMethodMayBeStatic
-    def _check_rows_visible(self, filter_qs, rows):
-        return filter_qs.filter(id__in=[row.id for row in rows]).values_list(
-            "id", flat=True
-        )
-
-    def _view_row_checks_can_be_cached(self, view):
-        if self._updated_field_ids is None:
-            return True
-        for view_filter in view.viewfilter_set.all():
-            if view_filter.field_id in self._updated_field_ids:
-                # We found a view filter for a field which will be updated hence we
-                # need to check both before and after a row update occurs
-                return False
-        # Every single updated field does not have a filter on it, hence
-        # we only need to check if a given row is visible in the view once
-        # as any changes to the fields in said row wont be for fields with
-        # filters and so the result of the first check will be still
-        # valid for any subsequent checks.
-        return True
 
 
 class ViewSubscriptionHandler:

@@ -147,10 +147,10 @@ def date_dependency_recalculate_rows(rule_id, table_id):
                 before_values.append(old_row)
                 after_values.append(new_row)
             cursor.execute(validation_query)
-        from baserow.contrib.database.ws.public.rows.signals import (
-            public_before_rows_update,
-        )
         from baserow.contrib.database.ws.rows.signals import serialize_rows_values
+        from baserow.contrib.database.ws.views.rows.signals import (
+            views_before_rows_update,
+        )
 
         before_return_values = {
             serialize_rows_values: serialize_rows_values(
@@ -162,7 +162,7 @@ def date_dependency_recalculate_rows(rule_id, table_id):
                 [rule.duration_field.id],
                 serialize_only_updated_fields=True,
             ),
-            public_before_rows_update: public_before_rows_update(
+            views_before_rows_update: views_before_rows_update(
                 None,
                 before_values,
                 None,

@@ -85,6 +85,15 @@ export class ViewOwnershipType extends Registerable {
       workspaceId
     )
   }
+
+  /**
+   * Hook that can be used to change the realtime page payload before subscribing to
+   * the page. This can be used to subscribe to a different page with different
+   * real-time events, if needed.
+   */
+  enhanceRealtimePagePayload(database, table, view, realtimePage) {
+    return realtimePage
+  }
 }
 
 export class CollaborativeViewOwnershipType extends ViewOwnershipType {

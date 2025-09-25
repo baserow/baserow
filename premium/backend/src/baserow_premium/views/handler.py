@@ -3,6 +3,7 @@ from datetime import date, datetime, timedelta, timezone
 from typing import Dict, List, Optional, Tuple, Union
 from zoneinfo import ZoneInfo
 
+from django.contrib.auth.models import AbstractUser
 from django.db.models import Count, Q, QuerySet
 
 from baserow_premium.views.exceptions import CalendarViewHasNoDateField
@@ -21,10 +22,14 @@ from baserow.contrib.database.table.models import GeneratedTableModel
 from baserow.contrib.database.views.filters import AdHocFilters
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import View
-from baserow.contrib.database.views.registries import view_type_registry
+from baserow.contrib.database.views.registries import (
+    view_ownership_type_registry,
+    view_type_registry,
+)
 
 
 def get_rows_grouped_by_single_select_field(
+    user: Optional[AbstractUser],
     view: View,
     single_select_field: SingleSelectField,
     option_settings: Dict[str, Dict[str, int]] = None,
@@ -51,6 +56,8 @@ def get_rows_grouped_by_single_select_field(
         }
     )
 
+    :param user: The user on whose behalf the view is requested. Can be used for
+        permission checks.
     :param view: The view where to fetch the fields from.
     :param single_select_field: The single select field where the rows must be
         grouped by.
@@ -84,10 +91,22 @@ def get_rows_grouped_by_single_select_field(
     if adhoc_filters is None:
         adhoc_filters = AdHocFilters()
 
+    base_option_queryset = base_queryset
+
+    # Check if the view ownership type is enforcing the filters to be applied. If
+    # so, then regardless of what argument is provided, the filters are applied to
+    # the queryset. This can be useful if the view restricts access to rows that
+    # don't match the filters.
+    view_ownership_type = view_ownership_type_registry.get(view.ownership_type)
+    if not adhoc_filters.has_any_filters or view_ownership_type.enforce_apply_filters(
+        user, view
+    ):
+        base_option_queryset = ViewHandler().apply_filters(view, base_option_queryset)
+
     if adhoc_filters.has_any_filters:
-        base_option_queryset = adhoc_filters.apply_to_queryset(model, base_queryset)
-    else:
-        base_option_queryset = ViewHandler().apply_filters(view, base_queryset)
+        base_option_queryset = adhoc_filters.apply_to_queryset(
+            model, base_option_queryset
+        )
 
     all_filters = Q()
     count_aggregates = {}
@@ -154,6 +173,7 @@ def get_rows_grouped_by_single_select_field(
 
 
 def get_rows_grouped_by_date_field(
+    user: Optional[AbstractUser],
     view: View,
     date_field: Field,
     from_timestamp: datetime,
@@ -173,6 +193,8 @@ def get_rows_grouped_by_date_field(
     in the provided date_field. Rows which don't have a cell value in the date_field
     field within the from_timestamp and to_timestamp range will be excluded.
 
+    :param user: The user on whose behalf the rows are request. Can be used for
+        permission checking.
     :param view: The view where to fetch the fields from.
     :param date_field: The date field that rows will be grouped into day buckets for
     :param from_timestamp: Only rows with a date_field cell value >= to this value
@@ -215,6 +237,14 @@ def get_rows_grouped_by_date_field(
         )
     if search is not None:
         base_queryset = base_queryset.search_all_fields(search, search_mode=search_mode)
+
+    # Check if the view ownership type is enforcing the filters to be applied. If
+    # so, then regardless of what argument is provided, the filters are applied to
+    # the queryset. This can be useful if the view restricts access to rows that
+    # don't match the filters.
+    view_ownership_type = view_ownership_type_registry.get(view.ownership_type)
+    if view_ownership_type.enforce_apply_filters(user, view):
+        combine_filters = True
 
     if combine_filters:
         base_option_queryset = ViewHandler().apply_filters(view, base_queryset)
@@ -292,6 +322,7 @@ def get_rows_grouped_by_date_field(
 
 
 def get_timeline_view_filtered_queryset(
+    user: AbstractUser,
     view: TimelineView,
     adhoc_filters: Optional[AdHocFilters] = None,
     order_by: Optional[str] = None,
@@ -301,6 +332,8 @@ def get_timeline_view_filtered_queryset(
     Checks if the provided timeline view has a valid date field and raises an exception
     if it doesn't. If the date fields are valid, then the filtered queryset is returned.
 
+    :param user: The user on whose behalf the queryset is filtered.  This is needed for
+        permission checks.
     :param view: The timeline view where to fetch the fields from.
     :param adhoc_filters: The optional ad hoc filters if they should be used
         instead of view filters.
@@ -312,7 +345,7 @@ def get_timeline_view_filtered_queryset(
     timeline_view_type: TimelineViewType = view_type_registry.get_by_model(view)
     timeline_view_type.raise_if_invalid_date_settings(view)
 
-    return get_view_filtered_queryset(view, adhoc_filters, order_by, query_params)
+    return get_view_filtered_queryset(user, view, adhoc_filters, order_by, query_params)
 
 
 def get_public_timeline_view_filtered_queryset(

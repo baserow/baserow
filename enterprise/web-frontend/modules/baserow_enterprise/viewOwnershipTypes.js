@@ -45,4 +45,24 @@ export class RestrictedViewOwnershipType extends ViewOwnershipType {
   getListViewTypeSort() {
     return 30
   }
+
+  enhanceRealtimePagePayload(database, table, view, payload) {
+    const canListenToTableEvents = this.app.$hasPermission(
+      'database.table.listen_to_all',
+      table,
+      database.workspace.id
+    )
+    const canCreateFilters = this.app.$hasPermission(
+      'database.table.view.create_filter',
+      view,
+      database.workspace.id
+    )
+    if (canListenToTableEvents && canCreateFilters) {
+      return super.enhanceRealtimePagePayload(database, table, view, payload)
+    }
+
+    payload.page = 'restricted_view'
+    payload.params = { restricted_view_id: view.id }
+    return payload
+  }
 }

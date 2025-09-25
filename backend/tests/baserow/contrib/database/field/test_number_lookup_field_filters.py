@@ -92,7 +92,7 @@ def number_lookup_filter_proc(
 
     t.row_handler.create_rows(user=t.user, table=t.table, rows_values=rows)
 
-    clean_query = t.view_handler.get_queryset(t.grid_view)
+    clean_query = t.view_handler.get_queryset(t.user, t.grid_view)
 
     t.view_handler.create_filter(
         t.user,
@@ -102,7 +102,7 @@ def number_lookup_filter_proc(
         value=test_value,
     )
 
-    q = t.view_handler.get_queryset(t.grid_view)
+    q = t.view_handler.get_queryset(t.user, t.grid_view)
     print(f"filter {filter_type_name} with value: {(test_value,)}")
     print(f"expected: {expected_rows}")
     print(f"filtered: {[getattr(item, row_name) for item in q]}")

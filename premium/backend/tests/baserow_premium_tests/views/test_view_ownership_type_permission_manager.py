@@ -6,6 +6,9 @@ from baserow_enterprise.role.operations import (
     ReadRoleViewOperationType,
     UpdateRoleViewOperationType,
 )
+from baserow_enterprise.views.operations import (
+    ListenToAllRestrictedViewEventsOperationType,
+)
 
 
 @pytest.mark.view_ownership
@@ -39,6 +42,7 @@ def test_all_operations_allowed_for_personal_views_have_been_checked_by_a_dev():
         [
             # The read and update role operation types are not related to the
             # personal views, so they don't have to be included.
+            ListenToAllRestrictedViewEventsOperationType.type,
             ReadRoleViewOperationType.type,
             UpdateRoleViewOperationType.type,
         ]

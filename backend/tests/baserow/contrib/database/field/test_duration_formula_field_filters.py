@@ -87,7 +87,7 @@ def duration_formula_filter_proc(
         send_realtime_update=False,
     )
 
-    q = t.view_handler.get_queryset(t.grid_view)
+    q = t.view_handler.get_queryset(t.user, t.grid_view)
     actual_names = [getattr(r, refname) for r in q]
     actual_duration_values = [getattr(r, t.data_source_field.db_column) for r in q]
     actual_formula_values = [getattr(r, t.formula_field.db_column) for r in q]

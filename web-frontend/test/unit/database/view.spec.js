@@ -640,6 +640,7 @@ describe('View Tests', () => {
       sortings: [],
       group_bys: [],
       decorations: [],
+      ownership_type: 'collaborative',
     }
 
     const rawFields = [

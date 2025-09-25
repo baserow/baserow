@@ -1364,7 +1364,7 @@ class ViewOwnershipType(Instance):
 
     def should_broadcast_signal_to(
         self, view: "View"
-    ) -> Tuple[Literal["table", "users", ""], Optional[List[int]]]:
+    ) -> Tuple[Literal["table", "users", "refresh", ""], Optional[List[int]]]:
         """
         Returns a tuple that represent the kind of signaling that must be done for the
         given view.
@@ -1372,7 +1372,8 @@ class ViewOwnershipType(Instance):
         :param view: the view we want to send the signal for.
         :return: The first element of the tuple must be "" if no signaling is needed,
             "users" if signal has to be send to a list of users and "table" if the
-            signal can be send to all the users of the view table.
+            signal can be send to all the users of the view table. "refresh" if the
+            view and table data must be refreshed.
             The second member of the tuple can be any object necessary for the signal
             depending of the type.
             If the signal type is "users", it must be a list of user ids.
@@ -1447,6 +1448,35 @@ class ViewOwnershipType(Instance):
         :param workspace: The workspace where the view was created in.
         """
 
+    def enforce_apply_filters(self, user: Optional[AbstractUser], view: "View") -> bool:
+        """
+        A hook that if it returns `True`, enforces the filters of the view to be
+        applied, regardless any other settings like adhoc filters. This can be used to
+        ensure that unfiltered rows are never exposed.
+
+        :param user: The user on whose behalf the rows are requested.
+        :param view: The related view.
+        :return: Boolean indicating whether the apply filters should be enforced.
+        """
+
+        return False
+
+    def enhance_view_objects(
+        self, user: Optional[AbstractUser], views: List["View"]
+    ) -> List["View"]:
+        """
+        A hook that can be used to make changes to the provided view objects `views` if
+        needed for the view ownership type. Only views of the related type are provided
+        here. This can be used to add or remove properties from the object if needed.
+
+        :param user: The user on whose behalf the view objects are enhanced. Can be
+            used for permission checking. Note that it's not always provided.
+        :param views: The views to enhance.
+        :return: The enhanced views.
+        """
+
+        return views
+
 
 class ViewOwnershipTypeRegistry(Registry):
     """
@@ -1455,6 +1485,38 @@ class ViewOwnershipTypeRegistry(Registry):
 
     name = "view_ownership_type"
     does_not_exist_exception_class = ViewOwnershipTypeDoesNotExist
+
+    def enhance_view_objects_of_different_types(
+        self, user: AbstractUser, views: List["View"]
+    ) -> List["View"]:
+        """
+        Loops over the provided views and per ownership type, calls the
+        `enhance_view_objects` method.
+
+        :param user: The user on whose behalf the views are requested. Can be used for
+            permission checks.
+        :param views: The views that must be enhanced.
+        :return: The enhanced views.
+        """
+
+        for view_ownership_type in self.get_all():
+            views_of_type = [
+                view
+                for view in views
+                if view.ownership_type == view_ownership_type.type
+            ]
+            views_of_type = view_ownership_type.enhance_view_objects(
+                user, views_of_type
+            )
+            # Put the enhanced view back into the original list at the right index so
+            # that the order is not changed.
+            for view_of_type in views_of_type:
+                for index, view in enumerate(views):
+                    if view.id == view_of_type.id:
+                        views[index] = view_of_type
+                        break
+
+        return views
 
 
 # A default view type registry is created here, this is the one that is used

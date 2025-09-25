@@ -43,11 +43,7 @@ from baserow.contrib.database.views.exceptions import (
     ViewTypeDoesNotExist,
 )
 from baserow.contrib.database.views.filters import AdHocFilters
-from baserow.contrib.database.views.handler import (
-    PublicViewRows,
-    ViewHandler,
-    ViewIndexingHandler,
-)
+from baserow.contrib.database.views.handler import ViewHandler, ViewIndexingHandler
 from baserow.contrib.database.views.models import (
     DEFAULT_SORT_TYPE_KEY,
     OWNERSHIP_TYPE_COLLABORATIVE,
@@ -65,11 +61,13 @@ from baserow.contrib.database.views.registries import (
     view_filter_type_registry,
     view_type_registry,
 )
+from baserow.contrib.database.views.row_checker import FilteredViewRows
 from baserow.contrib.database.views.signals import view_loaded
 from baserow.contrib.database.views.view_ownership_types import (
     CollaborativeViewOwnershipType,
 )
 from baserow.contrib.database.views.view_types import GridViewType
+from baserow.contrib.database.ws.views.rows.handler import ViewRealtimeRowsHandler
 from baserow.core.db import get_collation_name
 from baserow.core.exceptions import PermissionDenied, UserNotInWorkspace
 from baserow.core.trash.handler import TrashHandler
@@ -1808,14 +1806,14 @@ def test_get_public_views_which_include_row(data_fixture, django_assert_num_quer
     )
 
     model = table.get_model()
-    checker = ViewHandler().get_public_views_row_checker(
+    checker = ViewRealtimeRowsHandler().get_views_row_checker(
         table, model, only_include_views_which_want_realtime_events=True
     )
-    assert checker.get_public_views_where_row_is_visible(row) == [
+    assert checker.get_filtered_views_where_row_is_visible(row) == [
         public_view1.view_ptr.specific,
         public_view3.view_ptr.specific,
     ]
-    assert checker.get_public_views_where_row_is_visible(row2) == [
+    assert checker.get_filtered_views_where_row_is_visible(row2) == [
         public_view2.view_ptr.specific,
         public_view3.view_ptr.specific,
     ]
@@ -1885,22 +1883,22 @@ def test_get_public_views_which_include_rows(data_fixture):
     )
 
     model = table.get_model()
-    checker = ViewHandler().get_public_views_row_checker(
+    checker = ViewRealtimeRowsHandler().get_views_row_checker(
         table, model, only_include_views_which_want_realtime_events=True
     )
 
-    assert checker.get_public_views_where_rows_are_visible([row, row2]) == [
-        PublicViewRows(
+    assert checker.get_filtered_views_where_rows_are_visible([row, row2]) == [
+        FilteredViewRows(
             view=ViewHandler().get_view_as_user(user, public_view1.id).specific,
             allowed_row_ids={1},
         ),
-        PublicViewRows(
+        FilteredViewRows(
             view=ViewHandler().get_view_as_user(user, public_view2.id).specific,
             allowed_row_ids={2},
         ),
-        PublicViewRows(
+        FilteredViewRows(
             view=ViewHandler().get_view_as_user(user, public_view3.id).specific,
-            allowed_row_ids=PublicViewRows.ALL_ROWS_ALLOWED,
+            allowed_row_ids=FilteredViewRows.ALL_ROWS_ALLOWED,
         ),
     ]
 
@@ -1937,25 +1935,25 @@ def test_public_view_row_checker_caches_when_only_unfiltered_fields_updated(
             f"field_{unfiltered_field.id}": "any",
         }
     )
-    row_checker = ViewHandler().get_public_views_row_checker(
+    row_checker = ViewRealtimeRowsHandler().get_views_row_checker(
         table,
         model,
         only_include_views_which_want_realtime_events=True,
         updated_field_ids=[unfiltered_field.id],
     )
 
-    assert row_checker.get_public_views_where_row_is_visible(visible_row) == [
+    assert row_checker.get_filtered_views_where_row_is_visible(visible_row) == [
         public_grid_view.view_ptr.specific
     ]
-    assert row_checker.get_public_views_where_row_is_visible(invisible_row) == []
+    assert row_checker.get_filtered_views_where_row_is_visible(invisible_row) == []
 
     # Because we've already checked these rows and we've told the checker we'll only
     # be changing unfiltered_field it knows it can cache the results
     with django_assert_num_queries(0):
-        assert row_checker.get_public_views_where_row_is_visible(visible_row) == [
+        assert row_checker.get_filtered_views_where_row_is_visible(visible_row) == [
             public_grid_view.view_ptr.specific
         ]
-        assert row_checker.get_public_views_where_row_is_visible(invisible_row) == []
+        assert row_checker.get_filtered_views_where_row_is_visible(invisible_row) == []
 
 
 @pytest.mark.django_db
@@ -1987,7 +1985,7 @@ def test_public_view_row_checker_includes_public_views_with_no_filters_with_no_q
             f"field_{unfiltered_field.id}": "any",
         }
     )
-    row_checker = ViewHandler().get_public_views_row_checker(
+    row_checker = ViewRealtimeRowsHandler().get_views_row_checker(
         table,
         model,
         only_include_views_which_want_realtime_events=True,
@@ -1997,10 +1995,10 @@ def test_public_view_row_checker_includes_public_views_with_no_filters_with_no_q
     view_ptr_specific = public_grid_view.view_ptr.specific
     # It should precalculate that this view is always visible.
     with django_assert_num_queries(0):
-        assert row_checker.get_public_views_where_row_is_visible(visible_row) == [
+        assert row_checker.get_filtered_views_where_row_is_visible(visible_row) == [
             view_ptr_specific
         ]
-        assert row_checker.get_public_views_where_row_is_visible(other_row) == [
+        assert row_checker.get_filtered_views_where_row_is_visible(other_row) == [
             view_ptr_specific
         ]
 
@@ -2037,17 +2035,17 @@ def test_public_view_row_checker_does_not_cache_when_any_filtered_fields_updated
             f"field_{unfiltered_field.id}": "any",
         }
     )
-    row_checker = ViewHandler().get_public_views_row_checker(
+    row_checker = ViewRealtimeRowsHandler().get_views_row_checker(
         table,
         model,
         only_include_views_which_want_realtime_events=True,
         updated_field_ids=[filtered_field.id, unfiltered_field.id],
     )
 
-    assert row_checker.get_public_views_where_row_is_visible(visible_row) == [
+    assert row_checker.get_filtered_views_where_row_is_visible(visible_row) == [
         public_grid_view.view_ptr.specific
     ]
-    assert row_checker.get_public_views_where_row_is_visible(invisible_row) == []
+    assert row_checker.get_filtered_views_where_row_is_visible(invisible_row) == []
 
     # Now update the rows so they swap and the invisible one becomes visible and vice
     # versa
@@ -2056,10 +2054,10 @@ def test_public_view_row_checker_does_not_cache_when_any_filtered_fields_updated
     setattr(visible_row, f"field_{filtered_field.id}", "NotFilterValue")
     visible_row.save()
 
-    assert row_checker.get_public_views_where_row_is_visible(invisible_row) == [
+    assert row_checker.get_filtered_views_where_row_is_visible(invisible_row) == [
         public_grid_view.view_ptr.specific
     ]
-    assert row_checker.get_public_views_where_row_is_visible(visible_row) == []
+    assert row_checker.get_filtered_views_where_row_is_visible(visible_row) == []
 
 
 @pytest.mark.django_db
@@ -2080,10 +2078,10 @@ def test_public_view_row_checker_runs_expected_queries_on_init(
         view=public_grid_view, field=filtered_field, type="equal", value="FilterValue"
     )
     model = table.get_model()
-    num_queries = 8
+    num_queries = 9
     with django_assert_num_queries(num_queries):
         # First query to get the public views, second query to get their filters.
-        ViewHandler().get_public_views_row_checker(
+        ViewRealtimeRowsHandler().get_views_row_checker(
             table,
             model,
             only_include_views_which_want_realtime_events=True,
@@ -2104,7 +2102,7 @@ def test_public_view_row_checker_runs_expected_queries_on_init(
     # Adding another view shouldn't result in more queries
     with django_assert_num_queries(num_queries):
         # First query to get the public views, second query to get their filters.
-        ViewHandler().get_public_views_row_checker(
+        ViewRealtimeRowsHandler().get_views_row_checker(
             table,
             model,
             only_include_views_which_want_realtime_events=True,
@@ -2143,7 +2141,7 @@ def test_public_view_row_checker_runs_expected_queries_when_checking_rows(
             f"field_{unfiltered_field.id}": "any",
         }
     )
-    row_checker = ViewHandler().get_public_views_row_checker(
+    row_checker = ViewRealtimeRowsHandler().get_views_row_checker(
         table,
         model,
         only_include_views_which_want_realtime_events=True,
@@ -2154,13 +2152,13 @@ def test_public_view_row_checker_runs_expected_queries_when_checking_rows(
     with django_assert_num_queries(1):
         # Only should run a single exists query to check if the row is in the single
         # public view
-        assert row_checker.get_public_views_where_row_is_visible(visible_row) == [
+        assert row_checker.get_filtered_views_where_row_is_visible(visible_row) == [
             view_ptr_specific
         ]
     with django_assert_num_queries(1):
         # Only should run a single exists query to check if the row is in the single
         # public view
-        assert row_checker.get_public_views_where_row_is_visible(invisible_row) == []
+        assert row_checker.get_filtered_views_where_row_is_visible(invisible_row) == []
 
     another_public_grid_view = data_fixture.create_grid_view(
         user, table=table, public=True, order=1
@@ -2172,22 +2170,22 @@ def test_public_view_row_checker_runs_expected_queries_when_checking_rows(
         value="FilterValue",
     )
 
-    row_checker = ViewHandler().get_public_views_row_checker(
+    row_checker = ViewRealtimeRowsHandler().get_views_row_checker(
         table,
         model,
         only_include_views_which_want_realtime_events=True,
         updated_field_ids=[filtered_field.id, unfiltered_field.id],
     )
     specific_another_view = another_public_grid_view.view_ptr.specific
-    with django_assert_num_queries(2):
+    with django_assert_num_queries(1):
         # Now should run two queries, one per public view
-        assert row_checker.get_public_views_where_row_is_visible(visible_row) == [
+        assert row_checker.get_filtered_views_where_row_is_visible(visible_row) == [
             view_ptr_specific,
             specific_another_view,
         ]
-    with django_assert_num_queries(2):
+    with django_assert_num_queries(1):
         # Now should run two queries, one per public view
-        assert row_checker.get_public_views_where_row_is_visible(invisible_row) == []
+        assert row_checker.get_filtered_views_where_row_is_visible(invisible_row) == []
 
 
 @pytest.mark.django_db
@@ -2423,14 +2421,15 @@ def test_get_public_rows_raises_with_form_view(data_fixture):
 
 @pytest.mark.django_db
 def test_get_rows_raises_with_form_view(data_fixture):
-    form_view = data_fixture.create_form_view(public=True)
+    user = data_fixture.create_user()
+    form_view = data_fixture.create_form_view(public=True, user=user)
     field = data_fixture.create_number_field(table=form_view.table)
 
     model = form_view.table.get_model()
     model.objects.create(**{f"field_{field.id}": 1})
 
     with pytest.raises(ViewDoesNotSupportListingRows):
-        ViewHandler().get_queryset(form_view)
+        ViewHandler().get_queryset(user, form_view)
 
 
 @pytest.mark.django_db
@@ -4403,13 +4402,13 @@ def test_get_queryset_apply_sorts(data_fixture):
     )
 
     # Don't apply view sorting
-    rows = view_handler.get_queryset(grid_view, apply_sorts=False)
+    rows = view_handler.get_queryset(user, grid_view, apply_sorts=False)
 
     row_ids = [row.id for row in rows]
     assert row_ids == [row_1.id, row_2.id, row_3.id]
 
     # Apply view sorting
-    rows = view_handler.get_queryset(grid_view, apply_sorts=True)
+    rows = view_handler.get_queryset(user, grid_view, apply_sorts=True)
 
     row_ids = [row.id for row in rows]
     assert row_ids == [row_3.id, row_2.id, row_1.id]
@@ -4442,14 +4441,14 @@ def test_can_duplicate_views_with_multiple_collaborator_has_filter(data_fixture)
         .created_rows
     )
 
-    results = ViewHandler().get_queryset(grid)
+    results = ViewHandler().get_queryset(user_1, grid)
     assert len(results) == 1
     assert list(getattr(results[0], field.db_column).values_list("id", flat=True)) == [
         user_1.id
     ]
 
     new_grid = ViewHandler().duplicate_view(user_1, grid)
-    new_results = ViewHandler().get_queryset(new_grid)
+    new_results = ViewHandler().get_queryset(user_1, new_grid)
     assert len(new_results) == 1
     assert list(
         getattr(new_results[0], field.db_column).values_list("id", flat=True)

@@ -219,6 +219,7 @@ class GalleryViewView(APIView):
 
         model = view.table.get_model()
         queryset = view_handler.get_queryset(
+            request.user,
             view,
             search,
             model,

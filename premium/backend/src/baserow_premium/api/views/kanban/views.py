@@ -205,6 +205,7 @@ class KanbanViewView(APIView):
             model, RowSerializer, is_response=True, extra_kwargs=serializer_extra_kwargs
         )
         rows = get_rows_grouped_by_single_select_field(
+            user=request.user,
             view=view,
             adhoc_filters=adhoc_filters,
             single_select_field=single_select_option_field,
@@ -387,6 +388,7 @@ class PublicKanbanViewView(APIView):
             extra_kwargs=serializer_extra_kwargs,
         )
         rows = get_rows_grouped_by_single_select_field(
+            None,
             view=view,
             single_select_field=single_select_option_field,
             option_settings=included_select_options,
