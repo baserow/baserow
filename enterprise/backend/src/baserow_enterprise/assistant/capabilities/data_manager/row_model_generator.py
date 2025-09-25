@@ -3,13 +3,13 @@ Dynamic Pydantic model generator for Baserow table rows.
 Creates validation models based on TableSchema definitions.
 """
 
+from enum import Enum, StrEnum
 from typing import Any, List, Optional, Type, Union
 from datetime import date, datetime
-from enum import Enum
+from django.db.models import Q
+from pydantic import BaseModel, Field, create_model, field_validator
 
-from pydantic import BaseModel, Field, create_model, EmailStr, HttpUrl, field_validator
-from pydantic.types import conint
-
+from baserow.contrib.database.table.models import GeneratedTableModel
 from baserow_enterprise.assistant.types import (
     TableSchema,
     AnyFieldType,
@@ -32,7 +32,19 @@ from baserow_enterprise.assistant.types import (
 )
 
 
-def get_field_python_type(field: AnyFieldType) -> tuple[type, Any]:
+def create_select_field_model(field_name: str, options: list[str]) -> Type[StrEnum]:
+    """Create a dynamic enum for use in Pydantic models"""
+    enum_name = f"{field_name.title()}Enum"
+    return StrEnum(
+        enum_name,
+        {opt.replace(" ", "_").upper(): opt for opt in options if isinstance(opt, str)},
+    )
+
+
+def get_field_python_type(
+    field: AnyFieldType,
+    relations: dict[str, GeneratedTableModel] = {},
+) -> tuple[type, Any]:
     """
     Map a Baserow field type to Python type and field definition.
 
@@ -40,88 +52,84 @@ def get_field_python_type(field: AnyFieldType) -> tuple[type, Any]:
     """
 
     if isinstance(field, TextFieldType):
-        return str, Field(default="", description=f"Text field: {field.name}")
+        return str, Field(description=f"Text field: {field.name}")
 
     elif isinstance(field, LongTextFieldType):
-        return str, Field(default="", description=f"Long text field: {field.name}")
+        return str, Field(description=f"Long text field: {field.name}")
 
     elif isinstance(field, EmailFieldType):
-        return Optional[str], Field(
-            default=None, description=f"Email field: {field.name}"
-        )
+        return Optional[str], Field(description=f"Email field: {field.name}")
 
     elif isinstance(field, URLFieldType):
-        return Optional[str], Field(
-            default=None, description=f"URL field: {field.name}"
-        )
+        return Optional[str], Field(description=f"URL field: {field.name}")
 
     elif isinstance(field, NumberFieldType):
-        return Union[int, float, None], Field(
-            default=None, description=f"Number field: {field.name}"
-        )
+        return Union[int, float, None], Field(description=f"Number field: {field.name}")
 
     elif isinstance(field, RatingFieldType):
         max_rating = getattr(field, "max_rating", 5)
         return Optional[int], Field(
-            default=None, description=f"Rating field (0-{max_rating}): {field.name}"
+            description=f"Rating field (0-{max_rating}): {field.name}"
         )
 
     elif isinstance(field, DateFieldType):
         if getattr(field, "include_time", False):
             return Optional[datetime], Field(
-                default=None, description=f"DateTime field: {field.name}"
+                description=f"DateTime field: {field.name}"
             )
         else:
-            return Optional[date], Field(
-                default=None, description=f"Date field: {field.name}"
-            )
+            return Optional[date], Field(description=f"Date field: {field.name}")
 
     elif isinstance(field, BooleanFieldType):
-        return Optional[bool], Field(
-            default=None, description=f"Boolean field: {field.name}"
-        )
+        return Optional[bool], Field(description=f"Boolean field: {field.name}")
 
     elif isinstance(field, SingleSelectFieldType):
         # For single select, just use Optional[str] with validation
         # Enums cause issues with validators in dynamic models
-        options = getattr(field, "options", [])
-        if options:
-            option_values = [
-                opt.value if hasattr(opt, "value") else opt for opt in options
-            ]
-            return Optional[str], Field(
-                default=None, description=f"Single select from: {option_values}"
-            )
-        else:
-            return Optional[str], Field(
-                default=None, description=f"Single select field: {field.name}"
-            )
+        options = field.options
+        option_values = ", ".join(
+            opt.value if hasattr(opt, "value") else opt for opt in options
+        )
+        return Optional[str], Field(
+            description=f"Single select from. Must be one of {option_values}",
+        )
 
     elif isinstance(field, MultipleSelectFieldType):
-        options = getattr(field, "options", [])
-        if options:
-            option_values = [
-                opt.value if hasattr(opt, "value") else opt for opt in options
-            ]
-            return List[str], Field(
-                description=f"Multiple select from: {option_values}",
-                default_factory=list,
-            )
-        else:
-            return List[str], Field(
-                description=f"Multiple select field: {field.name}", default_factory=list
-            )
+        options = field.options
+        option_values = ", ".join(
+            opt.value if hasattr(opt, "value") else opt for opt in options
+        )
+        return List[str], Field(
+            description=f"Multiple select from: {option_values}",
+        )
 
     elif isinstance(field, MultipleCollaboratorsFieldType):
-        return List[int], Field(
-            description=f"List of user IDs: {field.name}", default_factory=list
-        )
+        return List[int], Field(description=f"List of user IDs: {field.name}")
 
     elif isinstance(field, LinkRowFieldType):
-        return List[int], Field(
-            description=f"List of linked row IDs from {field.linked_table_name}: {field.name}",
-            default_factory=list,
-        )
+        if field.name in relations:
+            related_primary_field, related_model = relations[field.name]
+            column = related_primary_field.db_column
+            values = list(
+                related_model.objects.filter(
+                    Q(**{f"{column}__isnull": False}), ~Q(**{f"{column}": ""})
+                ).values_list(column, flat=True)[:20]
+            )
+
+            CustomEnum = create_select_field_model(field.name, values)
+
+            if field.multiple:
+                description = (
+                    f"List of one of values from table {field.linked_table_name}"
+                )
+            else:
+                description = (
+                    f"One of these values from table {field.linked_table_name}"
+                )
+
+            return List[CustomEnum], Field(description=description)
+        else:
+            return List[str], Field(description=f"An empty list")
 
     elif isinstance(field, FileFieldType):
         # TODO
@@ -168,6 +176,7 @@ def create_row_model_from_schema(
     table_schema: TableSchema,
     model_name: Optional[str] = None,
     include_validators: bool = True,
+    relations: dict[str, GeneratedTableModel] = {},
 ) -> Type[BaseModel]:
     """
     Create a dynamic Pydantic model from a TableSchema.
@@ -194,7 +203,7 @@ def create_row_model_from_schema(
 
     # Add other fields
     for field in table_schema.fields:
-        field_type, field_def = get_field_python_type(field)
+        field_type, field_def = get_field_python_type(field, relations=relations)
         if field_type is None:
             continue  # Skip unsupported field types
 
@@ -249,60 +258,6 @@ def create_row_model_from_schema(
     return DynamicRowModel
 
 
-def create_partial_row_model_from_schema(
-    table_schema: TableSchema, model_name: Optional[str] = None
-) -> Type[BaseModel]:
-    """
-    Create a partial row model where all fields are optional.
-    Useful for update operations where only some fields are provided.
-
-    Args:
-        table_schema: The table schema to create a model from
-        model_name: Optional name for the model (defaults to "{table_name}PartialRow")
-
-    Returns:
-        A Pydantic model class with all optional fields
-    """
-
-    # Generate model name if not provided
-    if model_name is None:
-        model_name = f"{table_schema.name.replace(' ', '')}PartialRow"
-
-    # Build field definitions with all fields as optional
-    field_definitions = {}
-
-    # Add primary field as optional
-    primary_type, primary_def = get_field_python_type(table_schema.primary_field)
-    field_definitions[table_schema.primary_field.name] = (
-        Optional[primary_type],
-        primary_def,
-    )
-
-    # Add other fields as optional
-    for field in table_schema.fields:
-        field_type, field_def = get_field_python_type(field)
-        if field_type is None:
-            continue  # Skip unsupported field types
-
-        # Make the field optional if it isn't already
-        # Check if it's already Optional by looking at the origin
-        if hasattr(field_type, "__origin__") and field_type.__origin__ is Union:
-            # Already a Union (likely Optional), keep as is
-            field_definitions[field.name] = (field_type, field_def)
-        else:
-            # Make it optional
-            field_definitions[field.name] = (Optional[field_type], field_def)
-
-    # Create the model
-    PartialRowModel = create_model(
-        model_name,
-        **field_definitions,
-        __module__=__name__,
-    )
-
-    return PartialRowModel
-
-
 def create_dynamic_operations_from_schema(
     table_schema: TableSchema,
 ) -> tuple[Type[BaseModel], Type[BaseModel], Type[BaseModel]]:
@@ -315,7 +270,6 @@ def create_dynamic_operations_from_schema(
 
     # Create the row model for this table
     RowModel = create_row_model_from_schema(table_schema, include_validators=True)
-    PartialRowModel = create_partial_row_model_from_schema(table_schema)
 
     table_name = table_schema.name.replace(" ", "")
 
@@ -335,8 +289,8 @@ def create_dynamic_operations_from_schema(
         f"Dynamic{table_name}UpdateRowsOperation",
         __base__=UpdateRowsOperation,
         rows_values=(
-            List[PartialRowModel],
-            Field(description=f"List of partial {table_name} row updates"),
+            List[RowModel],
+            Field(description=f"List of {table_name} row updates"),
         ),
         __module__=__name__,
     )
@@ -385,26 +339,8 @@ def create_dynamic_tool_output_schema(
     # Create the dynamic output schema
     DynamicToolOutputSchema = create_model(
         f"Dynamic{table_name}ManagerToolOutputSchema",
-        question=(
-            Optional[str],
-            Field(
-                default=None,
-                description=(
-                    "An optional follow-up question for refining or clarifying the data operation. "
-                    "If the user's request is unclear (e.g., ambiguous field names), "
-                    "this should contain a clarification question and needs_clarification should be set to true."
-                ),
-            ),
-        ),
-        need_clarification=(
-            bool,
-            Field(
-                default=False,
-                description="Whether a clarification is strictly needed before proceeding with the data operations.",
-            ),
-        ),
         data_operations_plan=(
-            List[DynamicDataOperation],
+            List[DynamicCreateRowsOp],
             Field(
                 default_factory=list,
                 description=(
@@ -413,13 +349,6 @@ def create_dynamic_tool_output_schema(
                 ),
             ),
         ),
-        markdown_description=(
-            str,
-            Field(
-                description="A markdown formatted description of the data operations to share with the user.",
-            ),
-        ),
-        __module__=__name__,
     )
 
     return DynamicToolOutputSchema
@@ -427,6 +356,7 @@ def create_dynamic_tool_output_schema(
 
 def get_dynamic_components_for_table(
     table_schema: TableSchema,
+    relations: dict[str, GeneratedTableModel] = {},
 ) -> dict:
     """
     Get all dynamic components needed for a table's data operations.
@@ -442,8 +372,9 @@ def get_dynamic_components_for_table(
     """
 
     # Create all components
-    row_model = create_row_model_from_schema(table_schema, include_validators=True)
-    partial_row_model = create_partial_row_model_from_schema(table_schema)
+    row_model = create_row_model_from_schema(
+        table_schema, include_validators=True, relations=relations
+    )
 
     create_op, update_op, delete_op = create_dynamic_operations_from_schema(
         table_schema
@@ -452,7 +383,6 @@ def get_dynamic_components_for_table(
 
     return {
         "row_model": row_model,
-        "partial_row_model": partial_row_model,
         "create_operation": create_op,
         "update_operation": update_op,
         "delete_operation": delete_op,

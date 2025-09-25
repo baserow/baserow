@@ -61,8 +61,9 @@ class DatabaseArchitectTool(AssistantBaseTool):
     def _execute_plan(
         self,
         plan: list[AnySchemaOperation],
-        ui_context: UIContext | None = None,
+        database_id: int | None = None,
         new_database_name: str | None = None,
+        ui_context: UIContext | None = None,
     ) -> Database:
         """
         Placeholder for executing the schema operations plan.
@@ -77,13 +78,8 @@ class DatabaseArchitectTool(AssistantBaseTool):
         workspace = Workspace.objects.get(id=self._context.chat.workspace.id)
 
         database = None
-        if (
-            not new_database_name
-            and ui_context
-            and ui_context.application
-            and ui_context.application.type == "database"
-        ):
-            database = Database.objects.filter(id=ui_context.application.id).first()
+        if database_id:
+            database = Database.objects.filter(id=database_id).first()
 
         if not database:
             with transaction.atomic():
@@ -129,6 +125,8 @@ class DatabaseArchitectTool(AssistantBaseTool):
     def _run_impl(
         self,
         instructions: str,
+        database_id: int | None,
+        new_database_name: str | None,
         tool_call_id: Annotated[str, InjectedToolCallId],
         state: Annotated[AssistantState, InjectedState],
     ) -> Any:
@@ -136,16 +134,13 @@ class DatabaseArchitectTool(AssistantBaseTool):
         stream_writer(AiThinkingMessage(code=THINKING_MESSAGES.DESIGN_SCHEMA))
 
         model = init_chat_model(
-            "openai:gpt-5-mini",
-            # temperature=0.3,
-            reasoning={
-                "effort": "low",  # 'low', 'medium', or 'high'
-                # "summary": "auto",  # 'detailed', 'auto', or None
-            },
+            "groq:openai/gpt-oss-120b",
+            temperature=0,
+            max_retries=3,
         )
-        model = model.bind_tools(
-            [{"type": "web_search_preview"}]
-        ).with_structured_output(DatabaseArchitectToolOutputSchema)
+        model = model.with_structured_output(
+            DatabaseArchitectToolOutputSchema, method="json_schema"
+        )
 
         conversation_messages = []
 
@@ -221,7 +216,10 @@ class DatabaseArchitectTool(AssistantBaseTool):
                             artifact=result,
                         ),
                         AiInterruptMessage(
-                            content=result.question,
+                            content=(
+                                f"{result.markdown_description}\n\n"
+                                f"{result.question}"
+                            ),
                             tool_call_id=tool_call_id,
                         ),
                     ],
@@ -232,7 +230,10 @@ class DatabaseArchitectTool(AssistantBaseTool):
 
         # No clarification needed, let's execute the plan
         database = self._execute_plan(
-            result.schema_operations_plan, ui_context, result.new_database_name
+            result.schema_operations_plan,
+            database_id=database_id,
+            new_database_name=new_database_name,
+            ui_context=ui_context,
         )
 
         return Command(

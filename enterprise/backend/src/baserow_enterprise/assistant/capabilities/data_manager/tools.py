@@ -19,6 +19,7 @@ from baserow.contrib.database.api.rows.serializers import (
     get_row_serializer_class,
 )
 from baserow.contrib.database.api.rows.views import build_response_with_metadata
+from baserow.contrib.database.fields.models import LinkRowField
 from baserow.contrib.database.models import Database, Table
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.handler import TableHandler
@@ -114,10 +115,23 @@ class DataManagerTool(AssistantBaseTool):
             raise ValueError("Table ID must be provided or available in UI context.")
 
         table = Table.objects.get(id=table_id)
+        link_row_fields = LinkRowField.objects.filter(table_id=table.id).values_list(
+            "name", "link_row_table_id"
+        )
+        _, linked_table_ids = zip(*link_row_fields)
+        relations = {}
+        tables = {t.id: t for t in Table.objects.filter(id__in=linked_table_ids)}
+        for name, linked_table_id in link_row_fields:
+            t = tables.get(linked_table_id)
+            if not t:
+                continue
+            primary_field = t.get_primary_field()
+            relations[name] = (primary_field.specific, t.get_model())
+
         table_schema = get_table_schema(table)
 
         # Get all dynamic components for this table
-        dynamic_components = get_dynamic_components_for_table(table_schema)
+        dynamic_components = get_dynamic_components_for_table(table_schema, relations)
         DynamicOutputSchema = dynamic_components["output_schema"]
 
         table_model = table.get_model()
@@ -134,16 +148,11 @@ class DataManagerTool(AssistantBaseTool):
 
         # Initialize the model with the dynamic schema
         model = init_chat_model(
-            "openai:gpt-5-mini",
-            # temperature=0.2,
-            reasoning={
-                "effort": "low",  # 'low', 'medium', or 'high'
-                # "summary": "auto",  # 'detailed', 'auto', or None
-            },
+            "groq:openai/gpt-oss-120b",
+            temperature=0,
+            max_retries=3,
         )
-        model = model.bind_tools(
-            [{"type": "web_search_preview"}]
-        ).with_structured_output(DynamicOutputSchema)
+        model = model.with_structured_output(DynamicOutputSchema, method="json_schema")
 
         # Check if this is a clarification response
         if state.dma_needs_clarification:
@@ -176,28 +185,28 @@ class DataManagerTool(AssistantBaseTool):
             }
         )
 
-        # If clarification is needed, interrupt for user input
-        if result.need_clarification and result.question:
-            return Command(
-                goto=ASSISTANT_GRAPH_NODE.INTERRUPT,
-                update=PartialAssistantState(
-                    messages=[
-                        ToolCallMessage(
-                            tool_call_id=tool_call_id,
-                            content=(
-                                "A clarification is needed:\n" f"{result.question}"
-                            ),
-                            artifact=result,
-                        ),
-                        AiInterruptMessage(
-                            content=result.question,
-                            tool_call_id=tool_call_id,
-                        ),
-                    ],
-                    dma_needs_clarification=True,
-                    dma_data_operations_plan=result.data_operations_plan,
-                ),
-            )
+        # # If clarification is needed, interrupt for user input
+        # if result.need_clarification and result.question:
+        #     return Command(
+        #         goto=ASSISTANT_GRAPH_NODE.INTERRUPT,
+        #         update=PartialAssistantState(
+        #             messages=[
+        #                 ToolCallMessage(
+        #                     tool_call_id=tool_call_id,
+        #                     content=(
+        #                         "A clarification is needed:\n" f"{result.question}"
+        #                     ),
+        #                     artifact=result,
+        #                 ),
+        #                 AiInterruptMessage(
+        #                     content=result.question,
+        #                     tool_call_id=tool_call_id,
+        #                 ),
+        #             ],
+        #             dma_needs_clarification=True,
+        #             dma_data_operations_plan=result.data_operations_plan,
+        #         ),
+        #     )
 
         # Execute the data operations
         rows_affected = 0
@@ -207,9 +216,9 @@ class DataManagerTool(AssistantBaseTool):
             )
 
         # Return success response
-        success_message = result.markdown_description
+        # success_message = result.markdown_description
         if rows_affected:
-            success_message += f"\n\n**Done!**: {rows_affected} rows affected."
+            success_message = f"**Done!**: {rows_affected} rows created."
 
         return Command(
             update=PartialAssistantState(

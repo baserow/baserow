@@ -1,5 +1,6 @@
 from dataclasses import replace
 from datetime import datetime
+import os
 from typing import List, Literal, Optional
 from zoneinfo import ZoneInfo
 
@@ -45,6 +46,7 @@ from .prompts import CONTEXT_PROMPT, ROOT_SYSTEM_PROMPT
 
 from langgraph.types import Command, interrupt
 from langgraph.prebuilt import ToolNode
+from langchain_groq import ChatGroq
 
 
 ROOT_TOOLS = None
@@ -236,13 +238,19 @@ class RootNode(AssistantNode):
 
     @property
     def _model(self):
+        # from langchain_openai import ChatOpenAI
+
+        # return ChatOpenAI(
+        #     model_name="openai.gpt-oss-120b-1:0",
+        #     temperature=0,
+        #     streaming=True,
+        #     api_key=os.environ["BEDROCK_API_KEY"],
+        #     base_url="https://bedrock-runtime.eu-west-1.amazonaws.com/openai/v1",
+        #     # output_version="responses/v1",
+        # )
         return init_chat_model(
-            model="openai:gpt-5",
-            # temperature=0,
-            reasoning={
-                "effort": "low",  # 'low', 'medium', or 'high'
-                # "summary": "auto",  # 'detailed', 'auto', or None
-            },
+            model="groq:openai/gpt-oss-120b",
+            temperature=0,
             streaming=True,
         )
 

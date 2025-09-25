@@ -1,3 +1,4 @@
+import os
 from typing import Annotated, Any
 
 from langchain.chat_models import init_chat_model
@@ -48,7 +49,9 @@ class RetrieveKnowledgeTool(AssistantBaseTool):
             ],
             template_format="mustache",
         )
-        llm = self._get_model().with_structured_output(RetrieveKnowledgeToolArtifact)
+        llm = self._get_model().with_structured_output(
+            RetrieveKnowledgeToolArtifact, method="json_schema"
+        )
         chain = prompt | llm
         result: RetrieveKnowledgeToolArtifact = chain.invoke(
             {
@@ -71,12 +74,20 @@ class RetrieveKnowledgeTool(AssistantBaseTool):
         )
 
     def _get_model(self):
+        # from langchain_openai import ChatOpenAI
+
+        # return ChatOpenAI(
+        #     model_name="openai.gpt-oss-120b-1:0",
+        #     temperature=0,
+        #     streaming=True,
+        #     api_key=os.environ["BEDROCK_API_KEY"],
+        #     base_url="https://bedrock-runtime.eu-west-1.amazonaws.com/openai/v1",
+        #     # output_version="responses/v1",
+        # )
         return init_chat_model(
-            "openai:gpt-5-mini",
-            reasoning={
-                "effort": "low",  # 'low', 'medium', or 'high'
-                # "summary": "auto",  # 'detailed', 'auto', or None
-            },
+            "groq:openai/gpt-oss-120b",
+            temperature=0,
+            max_retries=3,
         )
 
     def can_be_used(self) -> bool:

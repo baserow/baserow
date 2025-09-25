@@ -11,10 +11,7 @@ class TaskPlannerToolArgsSchema(BaseToolArgsSchema):
 
 
 class TaskPlannerToolOutputSchema(BaseModel):
-    needs_planning: bool = Field(
-        description="Whether this request needs task planning (true for multi-step operations)"
-    )
     task_plan: List[TaskPlan] = Field(
-        default_factory=list, description="List of tasks to execute in sequence"
+        description="List of tasks to execute in sequence"
     )
     summary: str = Field(description="Brief summary of what the plan will accomplish")

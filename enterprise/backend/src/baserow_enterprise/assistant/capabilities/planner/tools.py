@@ -55,14 +55,13 @@ class TaskPlannerTool(AssistantBaseTool):
 
         # Initialize the model for planning
         model = init_chat_model(
-            "openai:gpt-5-mini",
-            # temperature=0.2,
-            reasoning={
-                "effort": "low",  # 'low', 'medium', or 'high'
-                #  "summary": "auto",  # 'detailed', 'auto', or None
-            },
+            "groq:openai/gpt-oss-120b",
+            temperature=0,
+            max_retries=3,
         )
-        model = model.with_structured_output(TaskPlannerToolOutputSchema)
+        model = model.with_structured_output(
+            TaskPlannerToolOutputSchema, method="json_schema"
+        )
 
         # Create the prompt
         prompt = ChatPromptTemplate.from_messages(
@@ -80,21 +79,6 @@ class TaskPlannerTool(AssistantBaseTool):
                 "instructions": instructions,
             }
         )
-
-        # If planning is not needed, return immediately
-        if not result.needs_planning:
-            return Command(
-                update=PartialAssistantState(
-                    messages=[
-                        ToolCallMessage(
-                            tool_call_id=tool_call_id,
-                            content="This request doesn't require task planning. It can be executed directly.",
-                            artifact=result,
-                        )
-                    ],
-                    plan_mode_active=False,
-                ),
-            )
 
         # Activate plan mode and set the task plan
         stream_writer(

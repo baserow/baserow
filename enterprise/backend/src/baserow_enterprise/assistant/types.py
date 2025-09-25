@@ -600,10 +600,10 @@ class LinkRowFieldType(BaseFieldType):
             self.linked_table_name.strip().capitalize().replace("_", " ")
         )
 
-        linked_table = resource_mapping["table"].get(linked_table_name)
+        linked_table = resource_mapping["table"][linked_table_name]
         return {
             "link_row_table": linked_table,
-            "link_row_multiple_relationships": self.multiple,
+            # "link_row_multiple_relationships": self.multiple,
         }
 
     @classmethod
@@ -688,8 +688,8 @@ class FileFieldType(BaseFieldType):
 AnyFieldType = (
     TextFieldType
     | LongTextFieldType
-    | EmailFieldType
-    | URLFieldType
+    #    | EmailFieldType
+    #    | URLFieldType
     | NumberFieldType
     | RatingFieldType
     | DateFieldType
@@ -697,7 +697,7 @@ AnyFieldType = (
     | LinkRowFieldType
     | SingleSelectFieldType
     | MultipleSelectFieldType
-    | MultipleCollaboratorsFieldType
+    #    | MultipleCollaboratorsFieldType
     | FileFieldType
 )
 
@@ -985,11 +985,11 @@ class DeleteRowsOperation(DataExecutableOperation):
 
 AnySchemaOperation = (
     CreateTableOperation
-    | UpdateTableOperation
-    | DeleteTableOperation
+    #     | UpdateTableOperation
+    #     | DeleteTableOperation
     | CreateFieldOperation
-    | UpdateFieldOperation
-    | DeleteFieldOperation
+    #     | UpdateFieldOperation
+    #     | DeleteFieldOperation
 )
 
 AnyDataOperation = CreateRowsOperation | UpdateRowsOperation | DeleteRowsOperation
