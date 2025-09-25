@@ -299,7 +299,7 @@ class RootToolNode(AssistantNode):
                 # If this is a plan task and it succeeded, mark it as completed
                 if current_plan_task:
                     current_plan_task.status = "completed"
-                    current_plan_task.result = "Done"
+                    # current_plan_task.result = "Done"
                     update.task_plan = state.task_plan
 
                 if isinstance(tool_result, Command):
@@ -333,7 +333,7 @@ class RootToolNode(AssistantNode):
                 # If this is a plan task and it failed, mark it as failed
                 if current_plan_task:
                     current_plan_task.status = "failed"
-                    current_plan_task.result = str(e)
+                    # current_plan_task.result = str(e)
                     update.task_plan = state.task_plan
                     update.plan_mode_active = False  # Exit plan mode on failure
                 raise

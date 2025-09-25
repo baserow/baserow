@@ -1064,20 +1064,21 @@ class PartialDataManagerState(_SharedDataManagerState):
 
 
 class TaskPlan(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+
     id: str = Field(description="Unique identifier for this task")
     description: str = Field(
         description="Human-readable description of what this task does"
     )
     status: Literal["pending", "in_progress", "completed", "failed"] = Field(
-        default="pending", description="Current status of this task"
+        description="Current status of this task. Default is 'pending'.",
     )
     dependencies: List[str] = Field(
-        default_factory=list,
         description="IDs of tasks that must complete before this one",
     )
-    result: Optional[str] = Field(
-        default=None, description="Result from task execution"
-    )
+    # result: Optional[str] = Field(description="Result from task execution")
 
 
 def merge_task_plans(existing: List[TaskPlan], new: List[TaskPlan]) -> List[TaskPlan]:

@@ -7,7 +7,7 @@ from enum import Enum, StrEnum
 from typing import Any, List, Optional, Type, Union
 from datetime import date, datetime
 from django.db.models import Q
-from pydantic import BaseModel, Field, create_model, field_validator
+from pydantic import BaseModel, ConfigDict, Field, create_model, field_validator
 
 from baserow.contrib.database.table.models import GeneratedTableModel
 from baserow_enterprise.assistant.types import (
@@ -214,6 +214,9 @@ def create_row_model_from_schema(
         model_name,
         **field_definitions,
         __module__=__name__,
+        __config__=ConfigDict(
+            extra="forbid",
+        ),
     )
 
     # Add validators if needed

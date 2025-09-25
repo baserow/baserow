@@ -1,11 +1,14 @@
 from typing import Annotated, List, NamedTuple, Optional, Literal, Sequence
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from operator import add
 
 from baserow_enterprise.assistant.types import BaseToolArgsSchema, AnySchemaOperation
 
 
 class DatabaseArchitectToolArgsSchema(BaseToolArgsSchema):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
     instructions: str = Field(
         description="The user's instructions for the database schema design."
     )
@@ -18,6 +21,9 @@ class DatabaseArchitectToolArgsSchema(BaseToolArgsSchema):
 
 
 class DatabaseArchitectToolOutputSchema(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
     question: str = Field(
         description=(
             "An optional follow-up question for refining or clarifying the current plan. "
