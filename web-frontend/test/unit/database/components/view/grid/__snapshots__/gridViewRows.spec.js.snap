@@ -128,7 +128,7 @@ exports[`GridViewRows component With row details 1`] = `
         class="grid-view__row-info"
       >
         <div
-          class="grid-view__row-count grid-view__row-count--hide-on-hover"
+          class="grid-view__row-count"
           title="2"
         >
           <div
@@ -140,9 +140,7 @@ exports[`GridViewRows component With row details 1`] = `
           </div>
         </div>
          
-        <div
-          class="grid-view__row-drag"
-        />
+        <!---->
          
         <a
           class="grid-view__row-more"
@@ -197,7 +195,7 @@ exports[`GridViewRows component With row details 1`] = `
         class="grid-view__row-info"
       >
         <div
-          class="grid-view__row-count grid-view__row-count--hide-on-hover"
+          class="grid-view__row-count"
           title="4"
         >
           <div
@@ -209,9 +207,7 @@ exports[`GridViewRows component With row details 1`] = `
           </div>
         </div>
          
-        <div
-          class="grid-view__row-drag"
-        />
+        <!---->
          
         <a
           class="grid-view__row-more"
@@ -266,7 +262,7 @@ exports[`GridViewRows component With row details 1`] = `
         class="grid-view__row-info"
       >
         <div
-          class="grid-view__row-count grid-view__row-count--hide-on-hover"
+          class="grid-view__row-count"
           title="3"
         >
           <div
@@ -278,9 +274,7 @@ exports[`GridViewRows component With row details 1`] = `
           </div>
         </div>
          
-        <div
-          class="grid-view__row-drag"
-        />
+        <!---->
          
         <a
           class="grid-view__row-more"
