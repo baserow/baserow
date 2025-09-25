@@ -4,11 +4,12 @@
     <ul class="context__menu">
       <component
         :is="component"
-        v-for="(component, i) in getAdditionalMenuItems()"
+        v-for="(component, i) in additionalContextComponents"
         :key="i"
         :workspace="database.workspace"
         :database="database"
         :table="table"
+        :view="view"
         @hide-context="$refs.context.hide()"
       />
       <li
@@ -260,22 +261,6 @@ export default {
     openWebhookModal() {
       this.$refs.context.hide()
       this.$refs.webhookModal.show()
-    },
-
-    getAdditionalMenuItems() {
-      const opts = Object.values(this.$registry.getAll('plugin'))
-        .reduce((components, plugin) => {
-          components = components.concat(
-            plugin.getAdditionalViewContextComponents(
-              this.database.workspace,
-              this.table,
-              this.view
-            )
-          )
-          return components
-        }, [])
-        .filter((component) => component !== null)
-      return opts
     },
   },
 }
