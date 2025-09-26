@@ -1434,10 +1434,19 @@ class CoreHTTPWebhookServiceType(
         self.on_event = None
 
     def process_webhook_request(self, webhook_uid: uuid.uuid4, request_data: dict):
-        if services := self.model_class.objects.filter(uid=webhook_uid):
-            self.on_event(services, request_data)
-        else:
+        service = self.model_class.objects.filter(uid=webhook_uid).first()
+        if not service:
             raise CoreHTTPWebhookServiceDoesNotExist(uid=webhook_uid)
+
+        self.on_event([service], request_data)
+
+        is_test = request_data["query_params"].get("baserow_test", "").lower() == "true"
+        workflow = service.automation_workflow_node.workflow
+        if is_test and workflow.simulate_until_node:
+            service.sample_data = {"data": request_data}
+            service.save()
+            workflow.simulate_until_node = None
+            workflow.save()
 
     def get_sample_data(
         self, service: CoreHTTPWebhookService

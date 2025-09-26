@@ -51,7 +51,6 @@ from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowUpsertRowServiceType,
 )
 from baserow.core.db import specific_iterator
-from baserow.core.formula.validator import ensure_boolean
 from baserow.core.registry import Instance
 from baserow.core.services.models import Service
 from baserow.core.services.registries import service_type_registry
@@ -260,15 +259,6 @@ class AutomationNodeTriggerType(AutomationNodeType):
                 ),
             )
             .select_related("workflow__automation__workspace")
-        )
-
-        is_test = (
-            ensure_boolean(
-                event_payload.get("query_params", {}).get("baserow_test"),
-                strict=False,
-            )
-            if isinstance(event_payload, dict)
-            else False
         )
 
         for trigger in triggers:
