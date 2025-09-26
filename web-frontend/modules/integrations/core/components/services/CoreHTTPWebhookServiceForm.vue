@@ -23,20 +23,45 @@
     </div>
 
     <p>{{ $t('coreHTTPWebhookServiceForm.description') }}</p>
+
+    <FormGroup
+      small-label
+      required
+      :label="$t('coreHTTPWebhookServiceForm.methodsOptionLabel')"
+    >
+      <Dropdown
+        v-model="values.exclude_get"
+        :show-search="false"
+        @input="values.exclude_get = $event"
+      >
+        <DropdownItem
+          v-for="option in methodOptions"
+          :key="option.label"
+          :name="option.label"
+          :value="option.value"
+        >
+        </DropdownItem>
+      </Dropdown>
+
+      <p>{{ $t('coreHTTPWebhookServiceForm.methodsOptionDescription') }}</p>
+    </FormGroup>
   </FormGroup>
 </template>
 
 <script>
 import form from '@baserow/modules/core/mixins/form'
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import { WEBHOOK_EXCLUDE_METHOD_OPTIONS } from '@baserow/modules/integrations/core/enums'
 
 export default {
   name: 'CoreHTTPWebhookServiceForm',
   mixins: [form],
   data() {
     return {
-      allowedValues: [],
-      values: {},
+      allowedValues: ['exclude_get'],
+      values: {
+        exclude_get: this.defaultValues.exclude_get,
+      },
       isPublishedUrl: true,
       urlVersions: [
         {
@@ -61,6 +86,18 @@ export default {
         }
       }
       return null
+    },
+    methodOptions() {
+      return [
+        {
+          label: this.$t('coreHTTPWebhookServiceForm.methodsOptionAll'),
+          value: WEBHOOK_EXCLUDE_METHOD_OPTIONS.ALL,
+        },
+        {
+          label: this.$t('coreHTTPWebhookServiceForm.methodsOptionExcludeGet'),
+          value: WEBHOOK_EXCLUDE_METHOD_OPTIONS.EXCLUDE_GET,
+        },
+      ]
     },
   },
   methods: {

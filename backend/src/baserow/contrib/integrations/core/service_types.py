@@ -34,6 +34,7 @@ from baserow.contrib.integrations.core.constants import (
 )
 from baserow.contrib.integrations.core.exceptions import (
     CoreHTTPWebhookServiceDoesNotExist,
+    CoreHTTPWebhookServiceMethodNotAllowed,
 )
 from baserow.contrib.integrations.core.integration_types import SMTPIntegrationType
 from baserow.contrib.integrations.core.models import (
@@ -1411,9 +1412,9 @@ class CoreHTTPWebhookServiceType(
     dispatch_type = DispatchTypes.DISPATCH_TRIGGER
     on_event = None
 
-    allowed_fields = ["uid"]
-    serializer_field_names = ["uid"]
-    request_serializer_field_names = ["uid"]
+    allowed_fields = ["uid", "exclude_get"]
+    serializer_field_names = ["uid", "exclude_get"]
+    request_serializer_field_names = ["uid", "exclude_get"]
 
     class SerializedDict(ServiceDict):
         uid: str
@@ -1437,6 +1438,9 @@ class CoreHTTPWebhookServiceType(
         service = self.model_class.objects.filter(uid=webhook_uid).first()
         if not service:
             raise CoreHTTPWebhookServiceDoesNotExist(uid=webhook_uid)
+
+        if request_data["method"] == "GET" and service.exclude_get:
+            raise CoreHTTPWebhookServiceMethodNotAllowed()
 
         self.on_event([service], request_data)
 

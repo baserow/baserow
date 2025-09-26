@@ -11,3 +11,9 @@ class CoreHTTPWebhookServiceDoesNotExist(Exception):
             *args,
             **kwargs,
         )
+
+
+class CoreHTTPWebhookServiceMethodNotAllowed(Exception):
+    """When the specified method isn't allowed for the service."""
+
+    pass

@@ -10,9 +10,11 @@ from baserow.api.decorators import map_exceptions
 from baserow.api.schemas import get_error_schema
 from baserow.contrib.integrations.core.api.webhooks.errors import (
     ERROR_CORE_HTTP_WEBHOOK_SERVICE_DOES_NOT_EXIST,
+    ERROR_CORE_HTTP_WEBHOOK_SERVICE_METHOD_NOT_ALLOWED,
 )
 from baserow.contrib.integrations.core.exceptions import (
     CoreHTTPWebhookServiceDoesNotExist,
+    CoreHTTPWebhookServiceMethodNotAllowed,
 )
 from baserow.core.services.registries import service_type_registry
 
@@ -72,6 +74,7 @@ class CoreHTTPWebhookView(APIView):
     @map_exceptions(
         {
             CoreHTTPWebhookServiceDoesNotExist: ERROR_CORE_HTTP_WEBHOOK_SERVICE_DOES_NOT_EXIST,
+            CoreHTTPWebhookServiceMethodNotAllowed: ERROR_CORE_HTTP_WEBHOOK_SERVICE_METHOD_NOT_ALLOWED,
         }
     )
     def handle_request(self, request, webhook_uid, *args, **kwargs):
