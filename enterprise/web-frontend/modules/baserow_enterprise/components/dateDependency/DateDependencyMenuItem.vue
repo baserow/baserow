@@ -78,7 +78,10 @@ export default {
       }
       return (
         (this.field.type === 'date' && !this.field.date_include_time) ||
-        (this.field.type === 'duration' && this.field.duration_format === 'd h')
+        (this.field.type === 'duration' &&
+          this.field.duration_format === 'd h') ||
+        (this.field.type === 'link_row' &&
+          this.field.link_row_table_id === this.table.id)
       )
     },
   },

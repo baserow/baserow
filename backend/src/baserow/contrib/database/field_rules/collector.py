@@ -1,5 +1,4 @@
 import typing
-from collections.abc import Iterable
 from dataclasses import dataclass
 
 if typing.TYPE_CHECKING:
@@ -10,7 +9,7 @@ if typing.TYPE_CHECKING:
 @dataclass
 class CascadeUpdatedRows:
     updated_rows: "list[GeneratedTableModel]"
-    field_ids: Iterable[int]
+    field_ids: set[int]
     row_ids: list[int]
 
 

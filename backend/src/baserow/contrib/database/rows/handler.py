@@ -880,7 +880,6 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         )
 
         if cascade_update.row_ids:
-            cascade_update.field_ids.update()
             updated_rows = list(
                 model.objects.all()
                 .enhance_by_fields()
