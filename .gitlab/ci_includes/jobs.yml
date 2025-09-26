@@ -153,7 +153,6 @@
         --tag $CI_IMAGE_PATH \
         -f $DOCKERFILE_PATH .;
 
-
 # Builds a non-dev (no docker build target provided) and fully labelled final image
 # and tags and pushes the non-dev and dev images using $TESTED_IMAGE_PREFIX to mark
 # them as being successfully tested for the publishing jobs to use.
@@ -367,7 +366,6 @@
         docker push $TARGET_DEV_IMAGE_PATH
       fi
 
-
 # A simple docker based test job which does not run for a TAG pipeline and does not
 # check out git.
 .docker-image-test-stage:
@@ -509,8 +507,11 @@
           COMMIT_HASH=$1
           JOB_NAME=$2
           URL="https://gitlab.com/api/v4/projects/$CI_PROJECT_ID/repository/commits/$COMMIT_HASH/statuses?name=$JOB_NAME"
-          COMMIT_GITLAB_JOBS=$(curl --header "PRIVATE-TOKEN: $PROJECT_READ_ONLY_API_TOKEN" $URL)
-
+          COMMIT_GITLAB_JOBS=$(curl --header "JOB-TOKEN: $CI_JOB_TOKEN" $URL)
+          echo "PROJECT_READ_ONLY_API_TOKEN length: ${#PROJECT_READ_ONLY_API_TOKEN}"
+          echo "PROJECT_READ_ONLY_API_TOKEN set: ${PROJECT_READ_ONLY_API_TOKEN:+yes}"
+          echo "CI_JOB_TOKEN length: ${#CI_JOB_TOKEN}"
+          echo $URL
           if [[ "$COMMIT_GITLAB_JOBS" ]]; then
             echo -e "\e[0Ksection_start:`date +%s`:$COMMIT_HASH$JOB_NAME[collapsed=true]\r\e[0KRaw job status download for $JOB_NAME and $COMMIT_HASH"
             echo "Got these job statuses: $COMMIT_GITLAB_JOBS"
@@ -523,7 +524,7 @@
               if [[ -n "$DOWNLOAD_AND_UNPACK_ARTIFACTS_ON_SKIP" ]] ; then
                 exit_code=0
                 curl --fail --location --output artifacts.zip \
-                  --header "PRIVATE-TOKEN: $PROJECT_READ_ONLY_API_TOKEN" \
+                  --header "JOB-TOKEN: $CI_JOB_TOKEN" \
                   "https://gitlab.com/api/v4/projects/$CI_PROJECT_ID/jobs/$JOB_ID/artifacts" \
                   || exit_code=$?;
 
@@ -597,7 +598,6 @@
       fi
 
       echo -e "$GREEN ================================ $CLEAR"
-
 
 .requires-lint:
   needs:
