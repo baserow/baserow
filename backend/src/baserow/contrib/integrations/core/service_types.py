@@ -1476,6 +1476,14 @@ class CoreHTTPWebhookServiceType(
                 }
             }
 
+        if allowed_fields is None or "raw_body" in allowed_fields:
+            properties |= {
+                "raw_body": {
+                    "type": "string",
+                    "title": "Raw body",
+                },
+            }
+
         if (allowed_fields is None or "body" in allowed_fields) and service.sample_data:
             schema_builder = SchemaBuilder()
             schema_builder.add_object(

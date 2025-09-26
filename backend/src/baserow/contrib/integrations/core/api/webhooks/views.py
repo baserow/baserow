@@ -51,12 +51,14 @@ class CoreHTTPWebhookView(APIView):
         headers = {key: value for key, value in request.headers.items()}
         query_params = dict(request.GET.items())
         body = request.data if hasattr(request, "data") else {}
+        raw_body = request.body.decode("utf-8") if request.body else ""
 
         return {
             "method": request.method,
             "headers": headers,
             "query_params": query_params,
             "body": body,
+            "raw_body": raw_body,
             "remote_addr": request.META.get("REMOTE_ADDR", ""),
             "user_agent": request.META.get("HTTP_USER_AGENT", ""),
         }
