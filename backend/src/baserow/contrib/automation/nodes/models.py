@@ -231,6 +231,10 @@ class CorePeriodicTriggerNode(AutomationTriggerNode):
     ...
 
 
+class CoreHTTPTriggerNode(AutomationTriggerNode):
+    ...
+
+
 class LocalBaserowCreateRowActionNode(AutomationActionNode):
     ...
 
@@ -264,8 +268,4 @@ class CoreSMTPEmailActionNode(AutomationActionNode):
 
 
 class CoreRouterActionNode(AutomationActionNode):
-    ...
-
-
-class CoreHTTPTriggerNode(AutomationTriggerNode):
     ...
