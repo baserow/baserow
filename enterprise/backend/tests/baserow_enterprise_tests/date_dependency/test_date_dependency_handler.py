@@ -431,7 +431,9 @@ def test_date_dependency_handler_create_rule_and_populate_rows(
 
 
 @pytest.mark.django_db
-def test_date_dependency_update_cascade_multi_root(data_fixture, enable_enterprise):
+def test_date_dependency_update_cascade_multi_root(
+    data_fixture, enable_enterprise, django_capture_on_commit_callbacks
+):
     data = [
         # text, start, end, duration, linkrow
         ["R1", "2025-05-10", "2025-05-11", "2d 0h", []],
@@ -439,7 +441,9 @@ def test_date_dependency_update_cascade_multi_root(data_fixture, enable_enterpri
         ["R3", "2025-05-12", "2025-01-13", "2d 0h", ["R1", "R2"]],
     ]
 
-    user, table, model, fields, rule = create_date_dependency_table(data_fixture, data)
+    user, table, model, fields, rule = create_date_dependency_table(
+        data_fixture, data, django_capture_on_commit_callbacks
+    )
     text, start, end, duration, linkrow = fields
     update_data = [{"id": 3, start.db_column: "2025-05-10"}]
 
@@ -477,7 +481,9 @@ def test_date_dependency_update_cascade_multi_root(data_fixture, enable_enterpri
 
 
 @pytest.mark.django_db
-def test_date_dependency_update_cascade(data_fixture, enable_enterprise):
+def test_date_dependency_update_cascade(
+    data_fixture, enable_enterprise, django_capture_on_commit_callbacks
+):
     data = [
         # text, start, end, duration, linkrow
         ["root", "2025-01-01", "2025-01-05", None, []],
@@ -492,7 +498,9 @@ def test_date_dependency_update_cascade(data_fixture, enable_enterprise):
         ["a6-updated", "2025-01-20", "2025-01-25", "4d 0h", ["a3-cascade-updated"]],
     ]
 
-    user, table, model, fields, rule = create_date_dependency_table(data_fixture, data)
+    user, table, model, fields, rule = create_date_dependency_table(
+        data_fixture, data, django_capture_on_commit_callbacks
+    )
     text, start, end, duration, linkrow = fields
     update_data = [
         {"id": 3, start.db_column: "2025-01-09", end.db_column: "2025-01-16"}
@@ -532,7 +540,9 @@ def test_date_dependency_update_cascade(data_fixture, enable_enterprise):
     assert set(updated.cascade_update.row_ids) == {1, 2, 4, 7}
 
 
-def create_date_dependency_table(data_fixture, data) -> DateDepsTestData:
+def create_date_dependency_table(
+    data_fixture, data, django_capture_on_commit_callbacks
+) -> DateDepsTestData:
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
     field_rules_handler = FieldRuleHandler(table, user)
@@ -596,19 +606,9 @@ def create_date_dependency_table(data_fixture, data) -> DateDepsTestData:
         "duration_field_id": duration_field.id,
         "dependency_linkrow_field_id": linkrow_field.id,
     }
-    with mock.patch(
-        "baserow_enterprise.date_dependency.field_rule_types.DateDependencyFieldRuleType.schedule_recalculate"
-    ) as mocked_task:
+
+    with django_capture_on_commit_callbacks(execute=True):
         rule = field_rules_handler.create_rule("date_dependency", valid_payload)
-        mocked_task.assert_called_once()
-
-    from baserow_enterprise.date_dependency.tasks import (
-        date_dependency_recalculate_rows,
-    )
-
-    # Normally this will be executed as a Celery task scheduled at the end of the
-    # current transaction, but we're in test, so need to call this manually.
-    date_dependency_recalculate_rows(rule_id=rule.id, table_id=table.id)
 
     rule.refresh_from_db()
     assert rule.is_active

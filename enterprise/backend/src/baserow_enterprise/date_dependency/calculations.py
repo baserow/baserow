@@ -333,7 +333,7 @@ class DateDependencyCalculator:
     of a row. Rows can be organized into hierarchies, where start/end dates should not
     overlap, and linkrow field will describe a connection between specific rows.
 
-    This class receives a starting row and date dependency rule, and will caclulate
+    This class receives a starting row and date dependency rule, and will calculate
     full graph of dependent rows in both directions (predecessors and successors). Then,
     it will walk up and down the graph, and check if start/end dates between two rows
     connected don't overlap (according to date dependency parameters). If there's an
@@ -693,9 +693,13 @@ def calculate_date_dependency_start(in_data: DateValues) -> DateValues:
     need to count
     """
 
+    if not (
+        isinstance(in_data.duration, timedelta) and isinstance(in_data.end_date, date)
+    ):
+        return in_data
+
     # we can't calculate start, if duration is below 1 day. Duration includes 1 extra
-    # day to include start date Such a case is considered
-    # invalid.
+    # day to include start date Such a case is considered invalid.
     if in_data.dependency.include_weekends and in_data.duration < timedelta(days=1):
         return in_data
 
@@ -723,6 +727,11 @@ def calculate_date_dependency_end(in_data: DateValues) -> DateValues:
     Date calculation when weekends should be excluded, is more complicated. We
     need to count just regular workdays, so we may not add start/end date day.
     """
+
+    if not (
+        isinstance(in_data.duration, timedelta) and isinstance(in_data.start_date, date)
+    ):
+        return in_data
 
     # don't calculate start date if we include weekends. Duration is invalid in this
     # case.
@@ -753,13 +762,13 @@ def calculate_date_dependency_duration(in_data: DateValues) -> DateValues:
     need to count just regular workdays, so we may not add start/end date day.
     """
 
-    # no valid start/end dates
     if not (
-        isinstance(in_data.start_date, date)
-        and isinstance(in_data.end_date, date)
-        # start == end will work in some cases, so we can't exclude it yet
-        and in_data.start_date <= in_data.end_date
+        isinstance(in_data.start_date, date) and isinstance(in_data.end_date, date)
     ):
+        return in_data
+
+    # start date is after end date, so invalid
+    if in_data.start_date > in_data.end_date:
         return in_data
 
     start_date, end_date = in_data.start_date, in_data.end_date
