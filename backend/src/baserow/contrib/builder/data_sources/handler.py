@@ -172,7 +172,14 @@ class DataSourceHandler:
             for data_source in data_sources:
                 service_id = data_source.service_id
                 if service_id is not None and service_id in specific_services_map:
-                    data_source.service = specific_services_map[service_id]
+                    service = specific_services_map[service_id]
+                    # Only attach the service if it's not trashed
+                    data_source.service = service if not service.trashed else None
+                else:
+                    # Clear the service since it's likely trashed
+                    data_source.service = None
+
+            data_sources = [d for d in data_sources if d.service is not None]
 
         else:
             data_source_queryset.select_related(
