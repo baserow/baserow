@@ -45,6 +45,7 @@ class CoreHTTPWebhookView(APIView):
     """
 
     permission_classes = (AllowAny,)
+    http_method_names = ["get", "post", "put", "patch", "delete"]
 
     def handle_request_data(self, request):
         headers = {key: value for key, value in request.headers.items()}
@@ -65,9 +66,6 @@ class CoreHTTPWebhookView(APIView):
     @webhook_schema("PUT")
     @webhook_schema("PATCH")
     @webhook_schema("DELETE")
-    @webhook_schema("HEAD")
-    @webhook_schema("OPTIONS")
-    @webhook_schema("TRACE")
     @transaction.atomic
     @map_exceptions(
         {
@@ -81,4 +79,4 @@ class CoreHTTPWebhookView(APIView):
         )
         return Response(status=HTTP_204_NO_CONTENT)
 
-    get = post = put = patch = delete = head = options = trace = handle_request
+    get = post = put = patch = delete = handle_request
