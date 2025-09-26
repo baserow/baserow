@@ -31,6 +31,7 @@ from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.registries import view_type_registry
 from baserow.core.action.handler import ActionHandler
 from baserow.core.action.registries import action_type_registry
+from baserow.core.registries import ImportExportConfig
 from baserow.test_utils.helpers import (
     assert_undo_redo_actions_are_valid,
     setup_interesting_test_table,
@@ -122,7 +123,10 @@ def test_calendar_view_import_export(premium_data_fixture, tmpdir):
     files_buffer = BytesIO()
     with ZipFile(files_buffer, "a", ZIP_DEFLATED, False) as files_zip:
         serialized = calendar_view_type.export_serialized(
-            calendar_view, files_zip=files_zip, storage=storage
+            calendar_view,
+            ImportExportConfig(include_permission_data=False),
+            files_zip=files_zip,
+            storage=storage,
         )
 
     assert serialized["id"] == calendar_view.id
@@ -146,7 +150,12 @@ def test_calendar_view_import_export(premium_data_fixture, tmpdir):
 
     with ZipFile(files_buffer, "a", ZIP_DEFLATED, False) as files_zip:
         imported_calendar_view = calendar_view_type.import_serialized(
-            calendar_view.table, serialized, id_mapping, files_zip, storage
+            calendar_view.table,
+            serialized,
+            ImportExportConfig(include_permission_data=False),
+            id_mapping,
+            files_zip,
+            storage,
         )
 
     assert calendar_view.id != imported_calendar_view.id

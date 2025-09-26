@@ -1,11 +1,18 @@
 import { Registerable } from '@baserow/modules/core/registry'
-import ViewOwnershipRadioVue from './components/view/ViewOwnershipRadio.vue'
 
 export class ViewOwnershipType extends Registerable {
   /**
    * A human readable name of the view ownership type.
    */
   getName() {
+    return null
+  }
+
+  /**
+   * A short human readable description of the view ownership type that will be
+   * shown to the user when creating the view.
+   */
+  getDescription() {
     return null
   }
 
@@ -21,13 +28,6 @@ export class ViewOwnershipType extends Registerable {
    */
   getIconClass() {
     return null
-  }
-
-  /*
-   * Radio component used in view ownership forms.
-   */
-  getRadioComponent() {
-    return ViewOwnershipRadioVue
   }
 
   /**
@@ -69,8 +69,21 @@ export class ViewOwnershipType extends Registerable {
     }
   }
 
+  /**
+   * A component that's added to the context menu of the view that can be used to,
+   * for example, change the ownership type of the view. By default, it doesn't
+   * register a component.
+   */
+  getChangeOwnershipTypeMenuItemComponent() {
+    return null
+  }
+
   userCanTryCreate(table, workspaceId) {
-    return false
+    return this.app.$hasPermission(
+      'database.table.create_view',
+      table,
+      workspaceId
+    )
   }
 }
 
@@ -84,28 +97,12 @@ export class CollaborativeViewOwnershipType extends ViewOwnershipType {
     return i18n.t('viewOwnershipType.collaborative')
   }
 
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('viewOwnershipType.collaborativeDescription')
+  }
+
   getIconClass() {
-    return 'iconoir-community'
-  }
-
-  isDeactivated(workspaceId) {
-    return false
-  }
-
-  /**
-   * This should return nothing, because collaborative views should know nothing
-   * about other ownership types and if you're in a collaborative view, you
-   * should not be able to switch to a different view type.
-   */
-  getChangeOwnershipTypeMenuItemComponent() {
-    return null
-  }
-
-  userCanTryCreate(table, workspaceId) {
-    return this.app.$hasPermission(
-      'database.table.create_view',
-      table,
-      workspaceId
-    )
+    return 'iconoir-group'
   }
 }

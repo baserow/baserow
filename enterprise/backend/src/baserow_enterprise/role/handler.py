@@ -561,11 +561,9 @@ class RoleAssignmentHandler:
         """
         Returns the computed roles for the given actor on the given context.
 
-        :param workspace: The workspace in which we want the roles for.
-        :param actor: The actor for whom we want the roles for.
+        :param roles_per_scopes: The roles that the user has per scope object.
         :param context: The context on which we want to now the role.
-        :param include_trash: If true then also checks even if given workspace has been
-            trashed instead of raising a DoesNotExist exception.
+        :param cache: A cache dict to temporarily store reusable values in.
         :return: A list of roles that applies on this context.
         """
 

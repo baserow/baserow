@@ -142,11 +142,9 @@ export default {
       )
     },
     activeViewOwnershipTypes() {
-      return Object.values(this.viewOwnershipTypes)
-        .filter(
-          (type) => type.isDeactivated(this.database.workspace.id) === false
-        )
-        .sort((a, b) => a.getListViewTypeSort() - b.getListViewTypeSort())
+      return Object.values(this.viewOwnershipTypes).sort(
+        (a, b) => a.getListViewTypeSort() - b.getListViewTypeSort()
+      )
     },
   },
   methods: {

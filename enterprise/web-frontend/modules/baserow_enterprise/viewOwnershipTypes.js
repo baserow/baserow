@@ -1,0 +1,48 @@
+import { ViewOwnershipType } from '@baserow/modules/database/viewOwnershipTypes'
+import EnterpriseFeatures from '@baserow_enterprise/features'
+import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
+import { RBACPaidFeature } from '@baserow_enterprise/paidFeatures'
+
+export class RestrictedViewOwnershipType extends ViewOwnershipType {
+  static getType() {
+    return 'restricted'
+  }
+
+  getName() {
+    const { i18n } = this.app
+    return i18n.t('viewOwnershipType.restricted')
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('viewOwnershipType.restrictedDescription')
+  }
+
+  getFeatureName() {
+    const { i18n } = this.app
+    return i18n.t('enterpriseFeatures.restrictedViews')
+  }
+
+  getIconClass() {
+    return 'iconoir-shield-check'
+  }
+
+  isDeactivated(workspaceId) {
+    return !this.app.$hasFeature(EnterpriseFeatures.RBAC, workspaceId)
+  }
+
+  getDeactivatedText() {
+    return this.app.i18n.t('enterprise.deactivated')
+  }
+
+  getDeactivatedModal() {
+    return [
+      PaidFeaturesModal,
+      { 'initial-selected-type': RBACPaidFeature.getType() },
+    ]
+  }
+
+  getListViewTypeSort() {
+    return 30
+  }
+}

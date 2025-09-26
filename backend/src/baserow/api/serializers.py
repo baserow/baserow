@@ -85,7 +85,7 @@ class NaturalKeyRelatedField(serializers.ListField):
 
         natural_key = super().to_internal_value(data)
         try:
-            return self._model.objects.get_by_natural_key(*natural_key)
+            return self.get_queryset().get_by_natural_key(*natural_key)
         except self._model.DoesNotExist as e:
             if self._custom_does_not_exist_exception_class:
                 raise self._custom_does_not_exist_exception_class(
@@ -93,6 +93,9 @@ class NaturalKeyRelatedField(serializers.ListField):
                 )
             else:
                 raise e
+
+    def get_queryset(self):
+        return self._model.objects
 
 
 class CommaSeparatedIntegerValuesField(serializers.Field):

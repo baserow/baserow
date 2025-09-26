@@ -13,6 +13,7 @@ from baserow_premium.views.models import KanbanViewFieldOptions
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.registries import view_type_registry
+from baserow.core.registries import ImportExportConfig
 
 
 @pytest.mark.django_db
@@ -90,7 +91,10 @@ def test_import_export_kanban_view(premium_data_fixture, tmpdir):
 
     with ZipFile(files_buffer, "a", ZIP_DEFLATED, False) as files_zip:
         serialized = kanban_field_type.export_serialized(
-            kanban_view, files_zip=files_zip, storage=storage
+            kanban_view,
+            ImportExportConfig(include_permission_data=False),
+            files_zip=files_zip,
+            storage=storage,
         )
 
     assert serialized["id"] == kanban_view.id
@@ -119,7 +123,12 @@ def test_import_export_kanban_view(premium_data_fixture, tmpdir):
 
     with ZipFile(files_buffer, "a", ZIP_DEFLATED, False) as files_zip:
         imported_kanban_view = kanban_field_type.import_serialized(
-            kanban_view.table, serialized, id_mapping, files_zip, storage
+            kanban_view.table,
+            serialized,
+            ImportExportConfig(include_permission_data=False),
+            id_mapping,
+            files_zip,
+            storage,
         )
 
     assert kanban_view.id != imported_kanban_view.id

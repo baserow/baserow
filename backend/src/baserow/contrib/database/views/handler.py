@@ -88,6 +88,7 @@ from baserow.core.db import specific_iterator, sql, transaction_atomic
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Workspace
+from baserow.core.registries import ImportExportConfig
 from baserow.core.telemetry.utils import baserow_trace_methods
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import (
@@ -898,6 +899,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             )
 
         view_type.view_created(view=instance)
+        view_ownership_type.view_created(user=user, view=instance, workspace=workspace)
         view_created.send(self, view=instance, user=user, type_name=type_name)
 
         return instance
@@ -938,12 +940,18 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
 
         view_type = view_type_registry.get_by_model(original_view)
 
+        config = ImportExportConfig(
+            include_permission_data=True,
+            reduce_disk_space_usage=False,
+            is_duplicate=True,
+        )
+
         cache = {
             "workspace_id": workspace.id,
         }
 
         # Use export/import to duplicate the view easily
-        serialized = view_type.export_serialized(original_view, cache)
+        serialized = view_type.export_serialized(original_view, config, cache)
 
         # Change the name of the view
         serialized["name"] = self.find_unused_view_name(
@@ -967,7 +975,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             "database_field_select_options": MirrorDict(),
         }
         duplicated_view = view_type.import_serialized(
-            original_view.table, serialized, id_mapping
+            original_view.table, serialized, config, id_mapping
         )
 
         if duplicated_view is None:

@@ -2,6 +2,16 @@
   <Context ref="context" overflow-scroll max-height-if-outside-viewport>
     <div class="context__menu-title">{{ view.name }} ({{ view.id }})</div>
     <ul class="context__menu">
+      <component
+        :is="component"
+        v-for="(component, i) in additionalContextComponents"
+        :key="i"
+        :workspace="database.workspace"
+        :database="database"
+        :table="table"
+        :view="view"
+        @hide-context="$refs.context.hide()"
+      />
       <li
         v-if="
           hasValidExporter &&
@@ -94,15 +104,6 @@
           {{ $t('viewContext.renameView') }}
         </a>
       </li>
-      <component
-        :is="component"
-        v-for="(component, i) in getAdditionalMenuItems()"
-        :key="i"
-        :workspace="database.workspace"
-        :database="database"
-        :table="table"
-        @hide-context="$refs.context.hide()"
-      />
       <li
         v-if="
           $hasPermission(
@@ -194,6 +195,21 @@ export default {
         })
         .filter((component) => component !== null)
     },
+    additionalContextComponents() {
+      return Object.values(this.$registry.getAll('plugin'))
+        .reduce(
+          (components, plugin) =>
+            components.concat(
+              plugin.getAdditionalViewContextComponents(
+                this.database.workspace,
+                this.table,
+                this.view
+              )
+            ),
+          []
+        )
+        .filter((component) => component !== null)
+    },
   },
   methods: {
     enableRename() {
@@ -245,21 +261,6 @@ export default {
     openWebhookModal() {
       this.$refs.context.hide()
       this.$refs.webhookModal.show()
-    },
-
-    getAdditionalMenuItems() {
-      const opts = Object.values(this.$registry.getAll('plugin'))
-        .reduce((components, plugin) => {
-          components = components.concat(
-            plugin.getAdditionalViewContextComponents(
-              this.database.workspace,
-              this.view
-            )
-          )
-          return components
-        }, [])
-        .filter((component) => component !== null)
-      return opts
     },
   },
 }

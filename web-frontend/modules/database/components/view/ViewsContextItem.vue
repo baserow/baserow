@@ -17,7 +17,10 @@
         <span class="select__item-name-text"
           ><EditableViewName ref="rename" :view="view"></EditableViewName
         ></span>
-        <div v-if="deactivated" class="deactivated-label">
+        <div
+          v-if="deactivated || viewOwnershipDeactivated"
+          class="deactivated-label"
+        >
           <i class="iconoir-lock"></i>
         </div>
       </div>
@@ -86,8 +89,8 @@ export default {
     viewType() {
       return this.$registry.get('view', this.view.type)
     },
-    deactivatedText() {
-      return this.viewType.getDeactivatedText({ view: this.view })
+    viewOwnershipType() {
+      return this.$registry.get('viewOwnershipType', this.view.ownership_type)
     },
     deactivated() {
       return (
@@ -95,8 +98,26 @@ export default {
         this.viewType.isDeactivated(this.database.workspace.id)
       )
     },
+    viewOwnershipDeactivated() {
+      return this.viewOwnershipType.isDeactivated(this.database.workspace.id)
+    },
+    deactivatedText() {
+      if (this.deactivated) {
+        return this.viewType.getDeactivatedText({ view: this.view })
+      }
+      if (this.viewOwnershipDeactivated) {
+        return this.viewOwnershipType.getDeactivatedText()
+      }
+      return null
+    },
     deactivatedClickModal() {
-      return this.deactivated ? this.viewType.getDeactivatedClickModal() : null
+      if (this.deactivated) {
+        return this.viewType.getDeactivatedClickModal()
+      }
+      if (this.viewOwnershipDeactivated) {
+        return this.viewOwnershipType.getDeactivatedModal()
+      }
+      return null
     },
     showViewContext() {
       return (
@@ -138,7 +159,7 @@ export default {
       this.$refs.rename.edit()
     },
     select(view) {
-      if (this.deactivated) {
+      if (this.deactivated || this.viewOwnershipDeactivated) {
         this.$refs.deactivatedClickModal.show()
         return
       }

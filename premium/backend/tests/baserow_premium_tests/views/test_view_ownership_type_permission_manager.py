@@ -2,6 +2,10 @@ import pytest
 from baserow_premium.permission_manager import ViewOwnershipPermissionManagerType
 
 from baserow.core.registries import object_scope_type_registry, operation_type_registry
+from baserow_enterprise.role.operations import (
+    ReadRoleViewOperationType,
+    UpdateRoleViewOperationType,
+)
 
 
 @pytest.mark.view_ownership
@@ -29,9 +33,13 @@ def test_all_operations_allowed_for_personal_views_have_been_checked_by_a_dev():
         "if this new operation should be allowed for any viewer/commenter/editor on "
         "their own personal views or not."
     )
-    assert (
-        expected_ops_checked_by_manager.difference(
-            set(ViewOwnershipPermissionManagerType().ops_checked_by_this_manager)
-        )
-        == set()
+    assert expected_ops_checked_by_manager.difference(
+        set(ViewOwnershipPermissionManagerType().ops_checked_by_this_manager)
+    ) == set(
+        [
+            # The read and update role operation types are not related to the
+            # personal views, so they don't have to be included.
+            ReadRoleViewOperationType.type,
+            UpdateRoleViewOperationType.type,
+        ]
     )

@@ -97,7 +97,7 @@ export class KanbanViewType extends PremiumViewType {
     return KanbanView
   }
 
-  async fetch({ store }, database, view, fields, storePrefix = '') {
+  async fetch({ store }, database, table, view, fields, storePrefix = '') {
     const isPublic = store.getters[storePrefix + 'view/public/getIsPublic']
     const adhocFiltering = isAdhocFiltering(
       this.app,
@@ -328,7 +328,7 @@ export class CalendarViewType extends PremiumViewType {
     return CalendarView
   }
 
-  async fetch({ store }, database, view, fields, storePrefix = '') {
+  async fetch({ store }, database, table, view, fields, storePrefix = '') {
     const isPublic = store.getters[storePrefix + 'view/public/getIsPublic']
     const adhocFiltering = isAdhocFiltering(
       this.app,

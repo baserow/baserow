@@ -42,6 +42,7 @@ from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.views.models import View
 from baserow.contrib.database.views.registries import ViewType
+from baserow.core.registries import ImportExportConfig
 
 from .exceptions import (
     KanbanViewFieldDoesNotBelongToSameTable,
@@ -137,6 +138,7 @@ class KanbanViewType(ViewType):
     def export_serialized(
         self,
         kanban: View,
+        import_export_config: ImportExportConfig,
         cache: Optional[Dict] = None,
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
@@ -145,7 +147,9 @@ class KanbanViewType(ViewType):
         Adds the serialized kanban view options to the exported dict.
         """
 
-        serialized = super().export_serialized(kanban, cache, files_zip, storage)
+        serialized = super().export_serialized(
+            kanban, import_export_config, cache, files_zip, storage
+        )
         if kanban.single_select_field_id:
             serialized["single_select_field_id"] = kanban.single_select_field_id
 
@@ -170,6 +174,7 @@ class KanbanViewType(ViewType):
         self,
         table: Table,
         serialized_values: Dict[str, Any],
+        import_export_config: ImportExportConfig,
         id_mapping: Dict[str, Any],
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
@@ -191,7 +196,7 @@ class KanbanViewType(ViewType):
 
         field_options = serialized_copy.pop("field_options")
         kanban_view = super().import_serialized(
-            table, serialized_copy, id_mapping, files_zip, storage
+            table, serialized_copy, import_export_config, id_mapping, files_zip, storage
         )
 
         if kanban_view is not None:
@@ -390,6 +395,7 @@ class CalendarViewType(ViewType):
     def export_serialized(
         self,
         calendar: View,
+        import_export_config: ImportExportConfig,
         cache: Optional[Dict] = None,
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
@@ -398,7 +404,9 @@ class CalendarViewType(ViewType):
         Adds the serialized calendar view options to the exported dict.
         """
 
-        serialized = super().export_serialized(calendar, cache, files_zip, storage)
+        serialized = super().export_serialized(
+            calendar, import_export_config, cache, files_zip, storage
+        )
         if calendar.date_field_id:
             serialized["date_field_id"] = calendar.date_field_id
 
@@ -420,6 +428,7 @@ class CalendarViewType(ViewType):
         self,
         table: Table,
         serialized_values: Dict[str, Any],
+        import_export_config: ImportExportConfig,
         id_mapping: Dict[str, Any],
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
@@ -437,7 +446,7 @@ class CalendarViewType(ViewType):
 
         field_options = serialized_copy.pop("field_options")
         calendar_view = super().import_serialized(
-            table, serialized_copy, id_mapping, files_zip, storage
+            table, serialized_copy, import_export_config, id_mapping, files_zip, storage
         )
 
         if calendar_view is not None:
@@ -706,6 +715,7 @@ class TimelineViewType(ViewType):
     def export_serialized(
         self,
         timeline: View,
+        import_export_config: ImportExportConfig,
         cache: Optional[Dict] = None,
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
@@ -714,7 +724,9 @@ class TimelineViewType(ViewType):
         Adds the serialized timeline view options to the exported dict.
         """
 
-        serialized = super().export_serialized(timeline, cache, files_zip, storage)
+        serialized = super().export_serialized(
+            timeline, import_export_config, cache, files_zip, storage
+        )
         if timeline.start_date_field_id:
             serialized["start_date_field_id"] = timeline.start_date_field_id
         if timeline.end_date_field_id:
@@ -738,6 +750,7 @@ class TimelineViewType(ViewType):
         self,
         table: Table,
         serialized_values: Dict[str, Any],
+        import_export_config: ImportExportConfig,
         id_mapping: Dict[str, Any],
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
@@ -758,7 +771,7 @@ class TimelineViewType(ViewType):
 
         field_options = serialized_copy.pop("field_options")
         timeline_view = super().import_serialized(
-            table, serialized_copy, id_mapping, files_zip, storage
+            table, serialized_copy, import_export_config, id_mapping, files_zip, storage
         )
 
         if "database_timeline_view_field_options" not in id_mapping:

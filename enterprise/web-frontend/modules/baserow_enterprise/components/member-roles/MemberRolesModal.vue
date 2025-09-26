@@ -34,6 +34,22 @@
           @role-updated="updateRole(tableRoleAssignments, ...arguments)"
         />
       </Tab>
+      <Tab
+        v-if="view && canManageView"
+        :title="$t('memberRolesModal.memberRolesViewTabTitle')"
+      >
+        <MemberRolesTab
+          :loading="loading"
+          :workspace="workspace"
+          :scope="view"
+          :role-assignments="viewRoleAssignments"
+          :teams="teams"
+          scope-type="database_view"
+          @invite-members="inviteViewMembers"
+          @invite-teams="inviteViewTeams"
+          @role-updated="updateRole(viewRoleAssignments, ...arguments)"
+        />
+      </Tab>
     </Tabs>
   </Modal>
 </template>
@@ -61,11 +77,17 @@ export default {
       required: false,
       default: null,
     },
+    view: {
+      type: Object,
+      required: false,
+      default: null,
+    },
   },
   data() {
     return {
       databaseRoleAssignments: [],
       tableRoleAssignments: [],
+      viewRoleAssignments: [],
       selectedTabIndex: 0,
       teams: [],
       loading: false,
@@ -92,11 +114,23 @@ export default {
         )
       )
     },
+    canManageView() {
+      return (
+        this.view &&
+        this.$hasPermission(
+          'database.table.view.read_role',
+          this.view,
+          this.workspace.id
+        )
+      )
+    },
   },
   methods: {
     async onShow() {
-      if (this.table && this.canManageTable) {
-        this.selectedTabIndex = this.canManageDatabase ? 1 : 0
+      if (this.view) {
+        this.selectedTabIndex = 2
+      } else if (this.table) {
+        this.selectedTabIndex = 1
       }
 
       this.loading = true
@@ -128,9 +162,17 @@ export default {
           )
           this.tableRoleAssignments = tableRoleAssignments
         }
+
+        if (this.canManageView) {
+          const { data: viewRoleAssignments } = await RoleAssignmentsService(
+            this.$client
+          ).getRoleAssignments(this.workspace.id, this.view.id, 'database_view')
+          this.viewRoleAssignments = viewRoleAssignments
+        }
       } catch (error) {
         this.databaseRoleAssignments = []
         this.tableRoleAssignments = []
+        this.viewRoleAssignments = []
         this.showError(
           this.$t('memberRolesModal.error.title'),
           this.$t('memberRolesModal.error.description')
@@ -194,6 +236,28 @@ export default {
       )
       this.tableRoleAssignments =
         this.tableRoleAssignments.concat(roleAssignments)
+    },
+    async inviteViewMembers(members, role) {
+      const roleAssignments = await this.invite(
+        members,
+        'auth.User',
+        role,
+        'database_view',
+        this.view.id
+      )
+      this.viewRoleAssignments =
+        this.viewRoleAssignments.concat(roleAssignments)
+    },
+    async inviteViewTeams(teams, role) {
+      const roleAssignments = await this.invite(
+        teams,
+        'baserow_enterprise.Team',
+        role,
+        'database_view',
+        this.view.id
+      )
+      this.viewRoleAssignments =
+        this.viewRoleAssignments.concat(roleAssignments)
     },
     async invite(subjects, subjectType, role, scopeType, scopeId) {
       this.loading = true

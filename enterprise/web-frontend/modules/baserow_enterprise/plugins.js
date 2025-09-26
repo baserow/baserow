@@ -3,18 +3,20 @@ import ChatwootSupportSidebarWorkspace from '@baserow_enterprise/components/Chat
 import AuditLogSidebarWorkspace from '@baserow_enterprise/components/AuditLogSidebarWorkspace'
 import MemberRolesDatabaseContextItem from '@baserow_enterprise/components/member-roles/MemberRolesDatabaseContextItem'
 import MemberRolesTableContextItem from '@baserow_enterprise/components/member-roles/MemberRolesTableContextItem'
+import MemberRolesViewContextItem from '@baserow_enterprise/components/member-roles/MemberRolesViewContextItem'
 import EnterpriseFeatures from '@baserow_enterprise/features'
 import SnapshotModalWarning from '@baserow_enterprise/components/SnapshotModalWarning'
 import EnterpriseSettings from '@baserow_enterprise/components/EnterpriseSettings'
 import EnterpriseSettingsOverrideDashboardHelp from '@baserow_enterprise/components/EnterpriseSettingsOverrideDashboardHelp'
 import EnterpriseLogo from '@baserow_enterprise/components/EnterpriseLogo'
 import { DatabaseApplicationType } from '@baserow/modules/database/applicationTypes'
-import ExportWorkspaceModalWarning from '@baserow_enterprise/components/ExportWorkspaceModalWarning'
 import AssistantSidebarItem from '@baserow_enterprise/components/assistant/AssistantSidebarItem'
 import AssistantPanel from '@baserow_enterprise/components/assistant/AssistantPanel'
 import DateDependencyMenuItem from '@baserow_enterprise/components/dateDependency/DateDependencyMenuItem'
 import DateDependencyFieldTypeIcon from '@baserow_enterprise/components/dateDependency/DateDependencyFieldTypeIcon'
 import { FF_ASSISTANT } from '@baserow/modules/core/plugins/featureFlags'
+import ExportWorkspaceModalWarning from '@baserow_enterprise/components/ExportWorkspaceModalWarning'
+import { RestrictedViewOwnershipType } from '@baserow_enterprise/viewOwnershipTypes'
 
 export class EnterprisePlugin extends BaserowPlugin {
   static getType() {
@@ -68,14 +70,29 @@ export class EnterprisePlugin extends BaserowPlugin {
     return out
   }
 
-  getAdditionalViewContextComponents(workspace, view) {
-    return [DateDependencyMenuItem]
-  }
-
   getGridViewFieldTypeIconsBefore(workspace, view, field) {
     const out = []
     out.push(DateDependencyFieldTypeIcon)
     return out
+  }
+
+  getAdditionalViewContextComponents(workspace, table, view) {
+    const components = []
+    if (
+      this.app.$hasPermission(
+        'database.table.view.read_role',
+        view,
+        workspace.id
+      ) &&
+      // Assigning a role to a user on view level only actually does something for
+      // the restricted view. So we're only showing the modal there.
+      view.ownership_type === RestrictedViewOwnershipType.getType()
+    ) {
+      console.log('adding')
+      components.push(MemberRolesViewContextItem)
+    }
+    components.push(DateDependencyMenuItem)
+    return components
   }
 
   getExtraSnapshotModalComponents(workspace) {

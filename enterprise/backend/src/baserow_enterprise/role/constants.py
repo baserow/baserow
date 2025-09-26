@@ -13,6 +13,10 @@ DEFAULT_ROLE_ASSIGNABLE_OBJECT_MAP = {
         "READ": "database.table.read_role",
         "UPDATE": "database.table.update_role",
     },
+    "database_view": {
+        "READ": "database.table.view.read_role",
+        "UPDATE": "database.table.view.update_role",
+    },
 }
 
 ADMIN_ROLE_UID = "ADMIN"
@@ -21,7 +25,7 @@ EDITOR_ROLE_UID = "EDITOR"
 COMMENTER_ROLE_UID = "COMMENTER"
 VIEWER_ROLE_UID = "VIEWER"
 NO_ACCESS_ROLE_UID = getattr(settings, "NO_ACCESS_ROLE_UID", "NO_ACCESS")
-READ_ONLY_ROLE_UID = getattr(settings, "READ_ONLY_ROLE_UID", "VIEWER")
+READ_ONLY_ROLE_UID = getattr(settings, "READ_ONLY_ROLE_UID", "READ_ONLY")
 NO_ROLE_LOW_PRIORITY_ROLE_UID = getattr(
     settings, "NO_ROLE_LOW_PRIORITY_UID", "NO_ROLE_LOW_PRIORITY"
 )

@@ -61,9 +61,16 @@ def test_import_export_grid_view(data_fixture):
     id_mapping = {"database_fields": {field.id: imported_field.id}}
 
     grid_view_type = view_type_registry.get("grid")
-    serialized = grid_view_type.export_serialized(grid_view, None, None, None)
+    serialized = grid_view_type.export_serialized(
+        grid_view, ImportExportConfig(include_permission_data=False), None, None, None
+    )
     imported_grid_view = grid_view_type.import_serialized(
-        grid_view.table, serialized, id_mapping, None, None
+        grid_view.table,
+        serialized,
+        ImportExportConfig(include_permission_data=False),
+        id_mapping,
+        None,
+        None,
     )
 
     assert grid_view.id != imported_grid_view.id
@@ -182,7 +189,11 @@ def test_import_export_gallery_view(data_fixture, tmpdir):
 
     with ZipFile(files_buffer, "a", ZIP_DEFLATED, False) as files_zip:
         serialized = gallery_view_type.export_serialized(
-            gallery_view, None, files_zip=files_zip, storage=storage
+            gallery_view,
+            ImportExportConfig(include_permission_data=False),
+            None,
+            files_zip=files_zip,
+            storage=storage,
         )
 
     assert serialized["id"] == gallery_view.id
@@ -207,7 +218,12 @@ def test_import_export_gallery_view(data_fixture, tmpdir):
 
     with ZipFile(files_buffer, "a", ZIP_DEFLATED, False) as files_zip:
         imported_gallery_view = gallery_view_type.import_serialized(
-            gallery_view.table, serialized, id_mapping, files_zip, storage
+            gallery_view.table,
+            serialized,
+            ImportExportConfig(include_permission_data=False),
+            id_mapping,
+            files_zip,
+            storage,
         )
 
     assert gallery_view.id != imported_gallery_view.id
@@ -347,7 +363,11 @@ def test_import_export_form_view(data_fixture, tmpdir):
     )
 
     serialized = form_view_type.export_serialized(
-        form_view, None, files_zip=zip_file, storage=storage
+        form_view,
+        ImportExportConfig(include_permission_data=False),
+        None,
+        files_zip=zip_file,
+        storage=storage,
     )
 
     for chunk in zip_file:
@@ -409,7 +429,12 @@ def test_import_export_form_view(data_fixture, tmpdir):
 
     with ZipFile(files_buffer, "a", ZIP_DEFLATED, False) as files_zip:
         imported_form_view = form_view_type.import_serialized(
-            form_view.table, serialized, id_mapping, files_zip, storage
+            form_view.table,
+            serialized,
+            ImportExportConfig(include_permission_data=False),
+            id_mapping,
+            files_zip,
+            storage,
         )
 
     assert form_view.id != imported_form_view.id
@@ -572,7 +597,11 @@ def test_import_export_form_view_with_grouped_conditions(data_fixture, tmpdir):
     )
 
     serialized = form_view_type.export_serialized(
-        form_view, None, files_zip=zip_file, storage=storage
+        form_view,
+        ImportExportConfig(include_permission_data=False),
+        None,
+        files_zip=zip_file,
+        storage=storage,
     )
 
     for chunk in zip_file:
@@ -694,7 +723,12 @@ def test_import_export_form_view_with_grouped_conditions(data_fixture, tmpdir):
 
     with ZipFile(files_buffer, "a", ZIP_DEFLATED, False) as files_zip:
         imported_form_view = form_view_type.import_serialized(
-            form_view.table, serialized, id_mapping, files_zip, storage
+            form_view.table,
+            serialized,
+            ImportExportConfig(include_permission_data=False),
+            id_mapping,
+            files_zip,
+            storage,
         )
 
     form_expected = {
@@ -905,9 +939,16 @@ def test_import_export_view_ownership_type(data_fixture):
     grid_view.save()
     grid_view_type = view_type_registry.get("grid")
 
-    serialized = grid_view_type.export_serialized(grid_view, None, None)
+    serialized = grid_view_type.export_serialized(
+        grid_view, ImportExportConfig(include_permission_data=False), None, None
+    )
     imported_grid_view = grid_view_type.import_serialized(
-        grid_view.table, serialized, {}, None, None
+        grid_view.table,
+        serialized,
+        ImportExportConfig(include_permission_data=False),
+        {},
+        None,
+        None,
     )
 
     assert grid_view.id != imported_grid_view.id
@@ -919,7 +960,12 @@ def test_import_export_view_ownership_type(data_fixture):
     WorkspaceUser.objects.filter(user=user2).delete()
 
     imported_grid_view = grid_view_type.import_serialized(
-        grid_view.table, serialized, {}, None, None
+        grid_view.table,
+        serialized,
+        ImportExportConfig(include_permission_data=False),
+        {},
+        None,
+        None,
     )
 
     assert imported_grid_view is None
@@ -929,9 +975,16 @@ def test_import_export_view_ownership_type(data_fixture):
     grid_view.ownership_type = "collaborative"
     grid_view.save()
 
-    serialized = grid_view_type.export_serialized(grid_view, None, None)
+    serialized = grid_view_type.export_serialized(
+        grid_view, ImportExportConfig(include_permission_data=False), None, None
+    )
     imported_grid_view = grid_view_type.import_serialized(
-        grid_view.table, serialized, {}, None, None
+        grid_view.table,
+        serialized,
+        ImportExportConfig(include_permission_data=False),
+        {},
+        None,
+        None,
     )
 
     assert grid_view.id != imported_grid_view.id
@@ -949,14 +1002,21 @@ def test_import_export_view_ownership_type_created_by_backward_compatible(data_f
     grid_view = data_fixture.create_grid_view(table=table, owned_by=user2)
 
     grid_view_type = view_type_registry.get("grid")
-    serialized = grid_view_type.export_serialized(grid_view, None, None)
+    serialized = grid_view_type.export_serialized(
+        grid_view, ImportExportConfig(include_permission_data=False), None, None
+    )
 
     # Owned by was called created_by before, so test if everything still works
     # when importing the old name:
     serialized["created_by"] = serialized.pop("owned_by")
 
     imported_grid_view = grid_view_type.import_serialized(
-        grid_view.table, serialized, {}, None, None
+        grid_view.table,
+        serialized,
+        ImportExportConfig(include_permission_data=False),
+        {},
+        None,
+        None,
     )
 
     assert grid_view.owned_by == imported_grid_view.owned_by
@@ -982,14 +1042,21 @@ def test_import_export_view_ownership_type_not_in_registry(data_fixture):
     grid_view.owned_by = user2
     grid_view.save()
     grid_view_type = view_type_registry.get("grid")
-    serialized = grid_view_type.export_serialized(grid_view, None, None)
+    serialized = grid_view_type.export_serialized(
+        grid_view, ImportExportConfig(include_permission_data=False), None, None
+    )
 
     with patch(
         "baserow.contrib.database.views.registries.view_ownership_type_registry.registry",
         ownership_types,
     ):
         imported_grid_view = grid_view_type.import_serialized(
-            grid_view.table, serialized, {}, None, None
+            grid_view.table,
+            serialized,
+            ImportExportConfig(include_permission_data=False),
+            {},
+            None,
+            None,
         )
 
         assert imported_grid_view is None

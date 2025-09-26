@@ -194,7 +194,8 @@
   },
   "memberRolesModal": {
     "memberRolesDatabaseTabTitle": "Database",
-    "memberRolesTableTabTitle": "Current Table",
+    "memberRolesTableTabTitle": "Table",
+    "memberRolesViewTabTitle": "View",
     "error": {
       "title": "Could not fetch data",
       "description": "An error occurred while fetching the member data."
@@ -297,7 +298,7 @@
     "sso": "Single Sign On",
     "ssoContent": "Enable secure and seamless logins with SAML, Google, Facebook, GitHub, GitLab, or OpenID Connect. Supports multiple providers at once. Note that both Baserow as a tool, and the application builder authentication system support SSO.",
     "rbac": "Role-based access control",
-    "rbacContent": "Manage permissions with precision. Assign roles like admin, builder,  editor, commenter, or viewer at the workspace, database, or table level. You can also manage access by team.",
+    "rbacContent": "Manage permissions with precision. Assign roles like admin, builder,  editor, commenter, or viewer at the workspace, database, table and view level. You can also manage access by team.",
     "auditLogs": "Audit logs",
     "auditLogsContent": "Track everything that happens. View a full history of actions across your instance or workspace, filterable by user, action, and more.",
     "dataSync": "Data sync",
@@ -650,5 +651,9 @@
     "includeWeekendsLabel": "Include weekends when calculating durations",
     "dependencyFieldForReaderTooltip": "This field is included in date dependency field rule",
     "fieldInvalidTitle": "Date dependency field error"
+  },
+  "viewOwnershipType": {
+    "restricted": "Restricted",
+    "restrictedDescription": "Editors and lower can only see the filtered data and visible fields. It’s possible to manage the members."
   }
 }

@@ -147,6 +147,7 @@ export default {
           await type.fetch(
             { store: this.$store, app: this },
             this.database,
+            this.table,
             view,
             this.fields,
             'template/'
