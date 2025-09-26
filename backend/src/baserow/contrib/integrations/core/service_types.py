@@ -7,6 +7,7 @@ from typing import Any, Callable, Dict, Generator, List, Optional, Tuple
 
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives, get_connection
+from django.db import router
 from django.db.models import Q
 from django.utils import timezone
 from django.utils.translation import gettext as _
@@ -1345,6 +1346,7 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
                 of=("self",),
                 skip_locked=True,
             )
+            .using(router.db_for_write(CorePeriodicService))
             .order_by("id")
         )
 
