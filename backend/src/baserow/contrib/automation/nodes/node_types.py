@@ -1,6 +1,7 @@
 from typing import Any, Dict, List, Optional, Union
 
 from django.contrib.auth.models import AbstractUser
+from django.db import router
 from django.db.models import CharField, Q, QuerySet
 from django.db.models.functions import Cast
 from django.utils import timezone
@@ -278,6 +279,7 @@ class AutomationNodeTriggerType(AutomationNodeType):
             self.model_class.objects.filter(
                 service__in=services,
             )
+            .using(router.db_for_write(self.model_class))
             .filter(
                 Q(
                     Q(workflow__state=WorkflowState.LIVE)
