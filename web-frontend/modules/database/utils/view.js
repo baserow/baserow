@@ -222,8 +222,15 @@ export const TreeGroupNode = class {
    * @returns {boolean} - True if the row matches, false otherwise.
    */
   matches($registry, fields, rowValues) {
+    this.hasValidFilter = false
+
     for (const child of this.children) {
       const matches = child.matches($registry, fields, rowValues)
+
+      if (child.hasValidFilter) {
+        this.hasValidFilter = true
+      }
+
       if (this.filterType === 'AND' && !matches) {
         return false
       } else if (this.filterType === 'OR' && matches) {
@@ -231,7 +238,7 @@ export const TreeGroupNode = class {
       }
     }
     const filterType = this.filterType
-    let hasValidFilter = false
+
     for (const filter of this.filters) {
       const filterValue = String(filter.value ?? '')
       const field = fields.find((f) => f.id === filter.field)
@@ -249,7 +256,7 @@ export const TreeGroupNode = class {
         continue
       }
 
-      hasValidFilter = true
+      this.hasValidFilter = true
 
       if (filterType === 'AND' && !matches) {
         // With an `AND` filter type, the row must match all the filters, so if
@@ -268,7 +275,7 @@ export const TreeGroupNode = class {
     } else if (filterType === 'OR') {
       // If no valid filters were found, return true (no filtering should be applied).
       // If there were valid filters but none matched, return false.
-      return !hasValidFilter
+      return !this.hasValidFilter
     }
   }
 }
