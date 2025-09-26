@@ -4,12 +4,14 @@ from django.contrib.auth import get_user_model
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
-from baserow.contrib.integrations.core.constants import BODY_TYPE, HTTP_METHOD
+from baserow.contrib.integrations.core.constants import (
+    BODY_TYPE,
+    HTTP_METHOD,
+    PERIODIC_INTERVAL_CHOICES,
+)
 from baserow.core.formula.field import FormulaField
 from baserow.core.integrations.models import Integration
 from baserow.core.services.models import Service
-
-from .constants import BODY_TYPE, HTTP_METHOD, PERIODIC_INTERVAL_CHOICES
 
 User = get_user_model()
 

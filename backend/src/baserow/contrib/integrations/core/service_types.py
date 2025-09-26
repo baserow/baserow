@@ -30,14 +30,14 @@ from baserow.contrib.integrations.core.constants import (
     PERIODIC_INTERVAL_MONTH,
     PERIODIC_INTERVAL_WEEK,
 )
-from baserow.contrib.integrations.core.integration_types import SMTPIntegrationType
 from baserow.contrib.integrations.core.exceptions import (
     CoreHTTPWebhookServiceDoesNotExist,
 )
+from baserow.contrib.integrations.core.integration_types import SMTPIntegrationType
 from baserow.contrib.integrations.core.models import (
     CoreHTTPRequestService,
-    CorePeriodicService,
     CoreHTTPWebhookService,
+    CorePeriodicService,
     CoreRouterService,
     CoreRouterServiceEdge,
     CoreSMTPEmailService,
