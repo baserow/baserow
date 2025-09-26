@@ -10,7 +10,9 @@ from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.models import LocalBaserowCreateRowActionNode
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.nodes.service import AutomationNodeService
+from baserow.contrib.automation.nodes.trash_types import AutomationNodeTrashableItemType
 from baserow.core.exceptions import UserNotInWorkspace
+from baserow.core.trash.handler import TrashHandler
 
 SERVICE_PATH = "baserow.contrib.automation.nodes.service"
 
@@ -193,6 +195,29 @@ def test_delete_node(mocked_signal, data_fixture):
     mocked_signal.send.assert_called_once_with(
         service, workflow=node.workflow, node_id=node.id, user=user
     )
+
+    trash_entry = TrashHandler.get_trash_entry(
+        AutomationNodeTrashableItemType.type,
+        node.id,
+    )
+    assert not trash_entry.managed
+
+
+@pytest.mark.django_db
+def test_delete_node_with_managed_trash_entry(data_fixture):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user)
+    node = data_fixture.create_automation_node(user=user, workflow=workflow)
+
+    AutomationNodeService().delete_node(user, node.id, managed=True)
+    node.refresh_from_db()
+    assert node.trashed
+
+    trash_entry = TrashHandler.get_trash_entry(
+        AutomationNodeTrashableItemType.type,
+        node.id,
+    )
+    assert trash_entry.managed
 
 
 @pytest.mark.django_db

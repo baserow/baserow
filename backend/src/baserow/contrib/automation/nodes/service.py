@@ -186,12 +186,16 @@ class AutomationNodeService:
 
         return updated_node
 
-    def delete_node(self, user: AbstractUser, node_id: int) -> AutomationNode:
+    def delete_node(
+        self, user: AbstractUser, node_id: int, managed: bool = False
+    ) -> AutomationNode:
         """
         Deletes the specified automation node.
 
         :param user: The user trying to delete the node.
         :param node_id: The ID of the node to delete.
+        :param managed: If True, the node is being deleted as part of a management
+            operation and should not be restorable by users.
         :raises AutomationTriggerModificationDisallowed: If the node is a trigger.
         """
 
@@ -205,7 +209,9 @@ class AutomationNodeService:
         )
 
         automation = node.workflow.automation
-        TrashHandler.trash(user, automation.workspace, automation, node)
+        TrashHandler.trash(
+            user, automation.workspace, automation, node, managed=managed
+        )
 
         automation_node_deleted.send(
             self,
@@ -339,8 +345,10 @@ class AutomationNodeService:
         # After the node creation, the replaced node has changed
         node.refresh_from_db()
 
+        # Trash the old node, marking it as managed so that it cannot
+        # be manually restored by users in the trash list.
         automation = node.workflow.automation
-        TrashHandler.trash(user, automation.workspace, automation, node)
+        TrashHandler.trash(user, automation.workspace, automation, node, managed=True)
 
         return ReplacedAutomationNode(
             node=new_node,

@@ -572,6 +572,14 @@ class TrashEntry(models.Model):
     # restored with a specific state.
     additional_restoration_data = models.JSONField(default=dict, null=True)
 
+    # Indicates whether this trash entry is internally managed or not. An internally
+    # managed trash entry prevents users from interacting with it.
+    managed = models.BooleanField(
+        default=False,
+        help_text="Whether this trash entry is internally managed or not. "
+        "An internally managed trash entry is one users cannot interact with.",
+    )
+
     class Meta:
         constraints = [
             UniqueConstraint(

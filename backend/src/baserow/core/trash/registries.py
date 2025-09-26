@@ -12,6 +12,8 @@ from baserow.core.registry import (
 if TYPE_CHECKING:
     from django.contrib.auth.models import AbstractUser
 
+    from baserow.core.models import TrashEntry
+
 
 class TrashableItemType(ModelInstanceMixin, Instance, ABC):
     """
@@ -113,7 +115,12 @@ class TrashableItemType(ModelInstanceMixin, Instance, ABC):
 
         pass
 
-    def trash(self, item_to_trash: Any, requesting_user, trash_entry):
+    def trash(
+        self,
+        item_to_trash: Any,
+        requesting_user: "AbstractUser",
+        trash_entry: "TrashEntry",
+    ):
         """
         Saves trashed=True on the provided item and should be overridden to
         perform any other cleanup and trashing other items related to

@@ -431,12 +431,15 @@ class ReplaceAutomationNodeActionType(UndoableActionType):
         params: Params,
         action_to_undo: Action,
     ):
+        # Restore the node to its original type.
         TrashHandler.restore_item(
             user,
             AutomationNodeTrashableItemType.type,
             params.original_node_id,
         )
-        AutomationNodeService().delete_node(user, params.node_id)
+        # Trash the node of the new type, and flag its trash
+        # entry as managed to prevent users from restoring it.
+        AutomationNodeService().delete_node(user, params.node_id, managed=True)
 
     @classmethod
     def redo(
@@ -445,9 +448,12 @@ class ReplaceAutomationNodeActionType(UndoableActionType):
         params: Params,
         action_to_redo: Action,
     ):
+        # Restore the node to its new type again.
         TrashHandler.restore_item(
             user,
             AutomationNodeTrashableItemType.type,
             params.node_id,
         )
-        AutomationNodeService().delete_node(user, params.original_node_id)
+        # Trash the node of the original type, and flag its trash
+        # entry as managed to prevent users from restoring it.
+        AutomationNodeService().delete_node(user, params.original_node_id, managed=True)
