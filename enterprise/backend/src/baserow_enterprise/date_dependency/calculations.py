@@ -327,7 +327,7 @@ class DateCalculator:
 
 class DateDependencyCalculator:
     """
-    Calculates values in dependent rows.
+    Calculates values for dependent rows.
 
     Date dependency allows to pick a linkrow field to represent predecessors (parents)
     of a row. Rows can be organized into hierarchies, where start/end dates should not
@@ -519,7 +519,6 @@ class DateDependencyCalculator:
 
                 visited.add(item_id)
 
-                # parent may be invalid (invalid values, but it
                 if not parent.has_valid_value_types():
                     logger.debug(
                         "Breaking from adjust_predecessors because parent "
