@@ -9,6 +9,7 @@ from django.conf import settings
 from django.core.mail import EmailMultiAlternatives, get_connection
 from django.db import router
 from django.db.models import Q
+from django.urls import path
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
@@ -20,6 +21,7 @@ from requests import exceptions as request_exceptions
 from rest_framework import serializers
 
 from baserow.config.celery import app as celery_app
+from baserow.contrib.integrations.core.api.webhooks.views import CoreHTTPWebhookView
 from baserow.contrib.integrations.core.constants import (
     BODY_TYPE,
     HTTP_METHOD,
@@ -51,7 +53,7 @@ from baserow.core.formula.validator import (
     ensure_email,
     ensure_string,
 )
-from baserow.core.registry import Instance
+from baserow.core.registry import APIUrlsInstanceMixin, Instance
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.exceptions import (
     InvalidContextContentDispatchException,
@@ -1401,7 +1403,9 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
         }
 
 
-class CoreHTTPWebhookServiceType(ServiceType, TriggerServiceTypeMixin):
+class CoreHTTPWebhookServiceType(
+    ServiceType, TriggerServiceTypeMixin, APIUrlsInstanceMixin
+):
     type = "http_webhook"
     model_class = CoreHTTPWebhookService
     dispatch_type = DispatchTypes.DISPATCH_TRIGGER
@@ -1413,6 +1417,15 @@ class CoreHTTPWebhookServiceType(ServiceType, TriggerServiceTypeMixin):
 
     class SerializedDict(ServiceDict):
         uid: str
+
+    def get_api_urls(self) -> List[path]:
+        return [
+            path(
+                r"webhooks/<uuid:webhook_uid>/",
+                CoreHTTPWebhookView.as_view(),
+                name="http_webhook",
+            ),
+        ]
 
     def start_listening(self, on_event: Callable):
         self.on_event = on_event

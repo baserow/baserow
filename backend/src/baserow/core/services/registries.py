@@ -5,6 +5,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Type, TypeVar
 
 from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError
+from django.urls import path
 
 from loguru import logger
 from rest_framework.exceptions import ValidationError as DRFValidationError
@@ -19,6 +20,8 @@ from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.integrations.exceptions import IntegrationDoesNotExist
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.registry import (
+    APIUrlsInstanceMixin,
+    APIUrlsRegistryMixin,
     CustomFieldsInstanceMixin,
     CustomFieldsRegistryMixin,
     EasyImportExportMixin,
@@ -577,6 +580,7 @@ class TriggerServiceTypeMixin(ABC):
 
 
 class ServiceTypeRegistry(
+    APIUrlsRegistryMixin,
     ModelRegistryMixin[ServiceSubClass, ServiceTypeSubClass],
     Registry[ServiceTypeSubClass],
     CustomFieldsRegistryMixin,
@@ -587,6 +591,21 @@ class ServiceTypeRegistry(
 
     name = "integration_service"
     does_not_exist_exception_class = ServiceTypeDoesNotExist
+
+    @property
+    def api_urls(self) -> List[path]:
+        """
+        Returns a list of URL paths for service types that inherit from
+        APIUrlsInstanceMixin, otherwise returns an empty list.
+        """
+
+        api_urls = []
+
+        for instance in self.registry.values():
+            if isinstance(instance, APIUrlsInstanceMixin):
+                api_urls.extend(instance.get_api_urls())
+
+        return api_urls
 
 
 service_type_registry: ServiceTypeRegistry = ServiceTypeRegistry()
