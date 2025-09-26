@@ -1043,7 +1043,7 @@ class ViewFilterGroupView(APIView):
     @extend_schema(
         parameters=[
             OpenApiParameter(
-                name="filter_group_id",
+                name="view_filter_group_id",
                 location=OpenApiParameter.PATH,
                 type=OpenApiTypes.INT,
                 description="The ID of the view filter group to return.",
@@ -1052,7 +1052,7 @@ class ViewFilterGroupView(APIView):
         tags=["Database table view filters"],
         operation_id="get_database_table_view_filter_group",
         description=(
-            "Returns the existing view filter group with the given `filter_group_id`."
+            "Returns the existing view filter group with the given `view_filter_group_id`."
         ),
         responses={
             200: ViewFilterGroupSerializer(),
@@ -1066,17 +1066,19 @@ class ViewFilterGroupView(APIView):
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
         }
     )
-    def get(self, request, filter_group_id):
+    def get(self, request, view_filter_group_id):
         """Selects a single filter group and responds with a serialized version."""
 
-        filter_group = ViewHandler().get_filter_group(request.user, filter_group_id)
+        filter_group = ViewHandler().get_filter_group(
+            request.user, view_filter_group_id
+        )
         serializer = ViewFilterGroupSerializer(filter_group)
         return Response(serializer.data)
 
     @extend_schema(
         parameters=[
             OpenApiParameter(
-                name="filter_group_id",
+                name="view_filter_group_id",
                 location=OpenApiParameter.PATH,
                 type=OpenApiTypes.INT,
                 description="The ID of the view filter group to update.",
@@ -1087,7 +1089,7 @@ class ViewFilterGroupView(APIView):
         tags=["Database table view filters"],
         operation_id="update_database_table_view_filter_group",
         description=(
-            "Updates the existing filter group with the given `filter_group_id`."
+            "Updates the existing filter group with the given `view_filter_group_id`."
         ),
         request=UpdateViewFilterGroupSerializer(),
         responses={
@@ -1106,13 +1108,13 @@ class ViewFilterGroupView(APIView):
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
         }
     )
-    def patch(self, request, data, filter_group_id):
+    def patch(self, request, data, view_filter_group_id):
         """Updates the view filter group."""
 
         handler = ViewHandler()
         view_filter_group = handler.get_filter_group(
             request.user,
-            filter_group_id,
+            view_filter_group_id,
             base_queryset=ViewFilterGroup.objects.select_for_update(of=("self",)),
         )
 
@@ -1126,7 +1128,7 @@ class ViewFilterGroupView(APIView):
     @extend_schema(
         parameters=[
             OpenApiParameter(
-                name="filter_group_id",
+                name="view_filter_group_id",
                 location=OpenApiParameter.PATH,
                 type=OpenApiTypes.INT,
                 description="The ID of the view filter group to delete.",
@@ -1137,7 +1139,7 @@ class ViewFilterGroupView(APIView):
         tags=["Database table view filters"],
         operation_id="delete_database_table_view_filter_group",
         description=(
-            "Deletes the existing filter group with the given `filter_group_id`."
+            "Deletes the existing filter group with the given `view_filter_group_id`."
         ),
         responses={
             204: None,
@@ -1152,11 +1154,11 @@ class ViewFilterGroupView(APIView):
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
         }
     )
-    def delete(self, request, filter_group_id):
+    def delete(self, request, view_filter_group_id):
         """Deletes an existing filter group."""
 
         view_filter_group = ViewHandler().get_filter_group(
-            request.user, filter_group_id
+            request.user, view_filter_group_id
         )
 
         action_type_registry.get_by_type(DeleteViewFilterGroupActionType).do(
