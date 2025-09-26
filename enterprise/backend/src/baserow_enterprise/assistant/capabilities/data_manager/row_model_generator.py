@@ -3,11 +3,11 @@ Dynamic Pydantic model generator for Baserow table rows.
 Creates validation models based on TableSchema definitions.
 """
 
-from enum import Enum, StrEnum
+import re
 from typing import Any, List, Literal, Optional, Type, Union
 from datetime import date, datetime
 from django.db.models import Q
-from pydantic import BaseModel, ConfigDict, Field, create_model, field_validator
+from pydantic import BaseModel, ConfigDict, Field, create_model
 
 from baserow.contrib.database.table.models import GeneratedTableModel
 from baserow_enterprise.assistant.types import (
@@ -73,18 +73,16 @@ def get_field_python_type(
 
     elif isinstance(field, DateFieldType):
         if getattr(field, "include_time", False):
-            return Optional[datetime], Field(
+            return Optional[str], Field(
                 description=f"ISO 8601 date-time string: {field.name}", title=field.name
             )
         else:
-            return Optional[date], Field(
+            return Optional[str], Field(
                 description=f"ISO 8601 date string: {field.name}", title=field.name
             )
 
     elif isinstance(field, BooleanFieldType):
-        return Optional[bool], Field(
-            description=f"Boolean field: {field.name}", title=field.name
-        )
+        return bool, Field(description=f"Boolean field: {field.name}", title=field.name)
 
     elif isinstance(field, SingleSelectFieldType):
         # For single select, just use Optional[str] with validation
@@ -177,7 +175,6 @@ def create_validator_for_select_field(field_name: str, options: List[str]):
 def create_row_model_from_schema(
     table_schema: TableSchema,
     model_name: Optional[str] = None,
-    include_validators: bool = True,
     relations: dict[str, GeneratedTableModel] = {},
 ) -> Type[BaseModel]:
     """
@@ -186,7 +183,6 @@ def create_row_model_from_schema(
     Args:
         table_schema: The table schema to create a model from
         model_name: Optional name for the model (defaults to "{table_name}Row")
-        include_validators: Whether to include field validators
 
     Returns:
         A Pydantic model class for validating row data
@@ -194,7 +190,10 @@ def create_row_model_from_schema(
 
     # Generate model name if not provided
     if model_name is None:
-        model_name = f"{table_schema.name.replace(' ', '')}Row"
+        model_name = f"Table{table_schema.id}Row"
+
+    # Make sure name is compliant with json schema (alphanumeric, _, -)
+    model_name = re.sub(r"[^a-zA-Z0-9_-]", "", model_name)
 
     # Build field definitions
     field_definitions = {}
@@ -204,12 +203,29 @@ def create_row_model_from_schema(
     field_definitions[table_schema.primary_field.name] = (primary_type, primary_def)
 
     # Add other fields
+    date_fields = []
     for field in table_schema.fields:
         field_type, field_def = get_field_python_type(field, relations=relations)
         if field_type is None:
             continue  # Skip unsupported field types
+        elif field.type == "date":
+            date_fields.append(field)  # Remember first date field for sorting
 
         field_definitions[field.name] = (field_type, field_def)
+
+    # examples = []
+    # for date_field in date_fields or []:
+    #     examples.append(
+    #         {
+    #             date_field.name: datetime.now().isoformat()
+    #             if date_field.include_time
+    #             else date.today().isoformat()
+    #         }
+    #     )
+
+    # json_schema_extra = {}
+    # if examples:
+    #     json_schema_extra["examples"] = examples
 
     # Create the base model first
     DynamicRowModel = create_model(
@@ -218,6 +234,9 @@ def create_row_model_from_schema(
         __module__=__name__,
         __config__=ConfigDict(
             extra="forbid",
+            #
+            # str_to_date=True,
+            # json_schema_extra=json_schema_extra,
         ),
     )
 
@@ -236,9 +255,7 @@ def create_dynamic_operations_from_schema(
     """
 
     # Create the row model for this table
-    RowModel = create_row_model_from_schema(
-        table_schema, include_validators=True, relations=relations
-    )
+    RowModel = create_row_model_from_schema(table_schema, relations=relations)
 
     table_name = table_schema.name.replace(" ", "")
 
@@ -354,9 +371,7 @@ def get_dynamic_components_for_table(
     """
 
     # Create all components
-    row_model = create_row_model_from_schema(
-        table_schema, include_validators=True, relations=relations
-    )
+    row_model = create_row_model_from_schema(table_schema, relations=relations)
 
     create_op, update_op, delete_op = create_dynamic_operations_from_schema(
         table_schema, relations=relations
@@ -370,64 +385,3 @@ def get_dynamic_components_for_table(
         "delete_operation": delete_op,
         "output_schema": output_schema,
     }
-
-
-# Usage example:
-"""
-from baserow_enterprise.assistant.types import TableSchema, TextFieldType, NumberFieldType, SingleSelectFieldType
-
-# Example schema
-table_schema = TableSchema(
-    name="Products",
-    primary_field=TextFieldType(name="name", type="text"),
-    fields=[
-        NumberFieldType(name="price", type="number"),
-        SingleSelectFieldType(
-            name="category",
-            type="single_select",
-            options=[{"value": "Electronics"}, {"value": "Clothing"}]
-        )
-    ]
-)
-
-# Method 1: Create individual components
-ProductRow = create_row_model_from_schema(table_schema)
-DynamicCreateOp, DynamicUpdateOp, DynamicDeleteOp = create_dynamic_operations_from_schema(table_schema)
-DynamicOutputSchema = create_dynamic_tool_output_schema(table_schema)
-
-# Method 2: Get all components at once
-components = get_dynamic_components_for_table(table_schema)
-ProductRow = components['row_model']
-DynamicOutputSchema = components['output_schema']
-
-# Now you can use the LLM with the dynamic schema
-model = model.with_structured_output(DynamicOutputSchema)
-
-# Example usage of the row model
-try:
-    product = ProductRow(
-        name="iPhone",
-        price=999.99,
-        category="Electronics"
-    )
-    validated_data = product.model_dump()
-except ValidationError as e:
-    print(f"Validation error: {e}")
-
-# Example LLM output structure
-llm_response = DynamicOutputSchema(
-    question=None,
-    need_clarification=False,
-    data_operations_plan=[
-        DynamicCreateOp(
-            type="create_rows",
-            table_name="Products",
-            data=[
-                ProductRow(name="iPhone 15", price=999.99, category="Electronics"),
-                ProductRow(name="MacBook Pro", price=1999.99, category="Electronics")
-            ]
-        )
-    ],
-    markdown_description="Creating 2 new products in the Products table."
-)
-"""

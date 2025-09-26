@@ -9,6 +9,7 @@ from langgraph.config import get_stream_writer
 
 from baserow_enterprise.assistant.capabilities.base import AssistantBaseTool
 from baserow_enterprise.assistant.utils.helpers import find_last_ui_context
+from baserow_enterprise.assistant.utils.retry_utils import invoke_with_retry
 
 from .types import (
     TaskPlannerToolArgsSchema,
@@ -74,10 +75,14 @@ class TaskPlannerTool(AssistantBaseTool):
 
         # Get the plan from the LLM
         chain = prompt | model
-        result: TaskPlannerToolOutputSchema = chain.invoke(
-            {
-                "instructions": instructions,
-            }
+
+        # Use retry logic for robust parsing
+        result: TaskPlannerToolOutputSchema = invoke_with_retry(
+            lambda: chain.invoke(
+                {
+                    "instructions": instructions,
+                }
+            )
         )
 
         # Activate plan mode and set the task plan

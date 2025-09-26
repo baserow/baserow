@@ -11,6 +11,7 @@ from typing import (
     Optional,
     Sequence,
     TypeVar,
+    Union,
 )
 from langchain_core.tools import InjectedToolCallId
 from langgraph.prebuilt import InjectedState
@@ -449,16 +450,6 @@ class AssistantExecutionContext(BaseModel):
 
 # Database architect specific types
 Color = Literal[
-    "light-blue",
-    "light-green",
-    "light-cyan",
-    "light-orange",
-    "light-yellow",
-    "light-red",
-    "light-brown",
-    "light-purple",
-    "light-pink",
-    "light-gray",
     "blue",
     "green",
     "cyan",
@@ -469,28 +460,6 @@ Color = Literal[
     "purple",
     "pink",
     "gray",
-    "dark-blue",
-    "dark-green",
-    "dark-cyan",
-    "dark-orange",
-    "dark-yellow",
-    "dark-red",
-    "dark-brown",
-    "dark-purple",
-    "dark-pink",
-    "dark-gray",
-    "darker-blue",
-    "darker-green",
-    "darker-cyan",
-    "darker-orange",
-    "darker-yellow",
-    "darker-red",
-    "darker-brown",
-    "darker-purple",
-    "darker-pink",
-    "darker-gray",
-    "deep-dark-green",
-    "deep-dark-orange",
 ]
 
 from baserow.contrib.database.fields.registries import field_type_registry
@@ -656,7 +625,10 @@ class SingleSelectFieldType(BaseFieldType):
             name=field.name,
             type="single_select",
             options=[
-                SelectOption(value=opt.value, color=opt.color)
+                SelectOption(
+                    value=opt.value,
+                    color=opt.color,
+                )
                 for opt in field.select_options.all()
             ],
         )
@@ -1002,14 +974,17 @@ class DeleteRowsOperation(DataExecutableOperation):
     row_ids: List[int]
 
 
-AnySchemaOperation = (
-    CreateTableOperation
-    #     | UpdateTableOperation
-    #     | DeleteTableOperation
-    | CreateFieldOperation
-    #     | UpdateFieldOperation
-    #     | DeleteFieldOperation
-)
+AnySchemaOperation = Annotated[
+    Union[
+        CreateTableOperation
+        #     | UpdateTableOperation
+        #     | DeleteTableOperation
+        | CreateFieldOperation
+        #     | UpdateFieldOperation
+        #     | DeleteFieldOperation
+    ],
+    Field(discriminator="type"),
+]
 
 AnyDataOperation = CreateRowsOperation | UpdateRowsOperation | DeleteRowsOperation
 

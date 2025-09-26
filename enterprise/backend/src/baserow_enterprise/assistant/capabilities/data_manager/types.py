@@ -41,10 +41,4 @@ class DataManagerToolOutputSchema(BaseModel):
 
 
 class GetDatabaseSchemaToolArgsSchema(BaseToolArgsSchema):
-    relations_only: bool = Field(
-        default=True,
-        description=(
-            "If true, only include tables and fields that are part of relationships. "
-            "Useful for understanding table names and how they are linked together."
-        ),
-    )
+    pass

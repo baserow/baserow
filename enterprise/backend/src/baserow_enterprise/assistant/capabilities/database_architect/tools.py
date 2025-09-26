@@ -23,6 +23,7 @@ from baserow_enterprise.assistant.utils.helpers import (
     find_last_message_of_type,
     find_last_ui_context,
 )
+from baserow_enterprise.assistant.utils.retry_utils import invoke_with_retry
 
 from .types import (
     AnySchemaOperation,
@@ -195,10 +196,13 @@ class DatabaseArchitectTool(AssistantBaseTool):
         )
         chain = prompt | model
 
-        result: DatabaseArchitectToolOutputSchema = chain.invoke(
-            {
-                "instructions": instructions,
-            }
+        # Use retry logic for robust parsing
+        result: DatabaseArchitectToolOutputSchema = invoke_with_retry(
+            lambda: chain.invoke(
+                {
+                    "instructions": instructions,
+                }
+            )
         )
 
         # # Don't keep asking for clarification if we already did

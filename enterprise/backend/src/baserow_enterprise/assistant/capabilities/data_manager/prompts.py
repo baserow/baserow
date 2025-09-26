@@ -53,6 +53,7 @@ Always provide a practical data_operations_plan that creates new rows:
 **CRITICAL**: Return a single JSON object that adheres to the schema above. Always be proactive and provide complete row data.
 If an Enum is defined for a field, use one of the enum values. Never make up a value that is not in the enum.
 If the type is a list, you're allowed to leave it empty if you can't think of a good value.
+**MODEL_NAME**: If generating a model_name field, it must match the pattern ^[a-zA-Z0-9_-]+$ (only letters, numbers, underscores, and hyphens).
 """
 
 

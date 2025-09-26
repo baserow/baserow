@@ -5,7 +5,11 @@ from drf_spectacular.plumbing import force_instance
 from rest_framework import serializers
 
 from baserow_enterprise.assistant.models import AssistantChat
-from baserow_enterprise.assistant.types import ASSISTANT_MESSAGE_TYPE, BaseMessage
+from baserow_enterprise.assistant.types import (
+    ASSISTANT_MESSAGE_TYPE,
+    AiMessageChunk,
+    BaseMessage,
+)
 
 
 class AssistantChatsRequestSerializer(serializers.Serializer):
@@ -194,6 +198,9 @@ class AssistantMessageSerializer(serializers.Serializer):
 
     @classmethod
     def can_serialize(cls, message: BaseMessage) -> bool:
+        if not isinstance(message, (AiMessageChunk, BaseMessage)):
+            return False
+
         # ToolCall messages are not returned to the frontend
         if getattr(message, "tool_calls", None):
             return False

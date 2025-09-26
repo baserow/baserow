@@ -38,6 +38,7 @@ from baserow_enterprise.assistant.utils.helpers import (
     find_last_message_of_type,
     find_last_ui_context,
 )
+from baserow_enterprise.assistant.utils.retry_utils import invoke_with_retry
 
 from .types import (
     DataManagerToolArgsSchema,
@@ -190,11 +191,15 @@ class DataManagerTool(AssistantBaseTool):
 
         # Create and invoke the chain
         chain = prompt | model
-        result = chain.invoke(
-            {
-                "instructions": instructions,
-                "example_rows": example_rows,
-            }
+
+        # Use retry logic for robust parsing
+        result = invoke_with_retry(
+            lambda: chain.invoke(
+                {
+                    "instructions": instructions,
+                    "example_rows": example_rows,
+                }
+            )
         )
 
         # # If clarification is needed, interrupt for user input
@@ -255,8 +260,7 @@ class GetDatabaseSchemaTool(AssistantBaseTool):
     usage_instructions: str = """
 Use this tool to retrieve the schema of a specific database, including IDs and names of tables and fields.
 
-Make sure to have a valid database ID from the current workspace before calling this tool.
-You can get the database ID by using the get_workspace_schema tool.
+Make sure to have a valid database ID before calling this tool.
 """
     args_schema: type[BaseModel] = GetDatabaseSchemaToolArgsSchema
 
@@ -264,7 +268,6 @@ You can get the database ID by using the get_workspace_schema tool.
         self,
         tool_call_id: Annotated[str, InjectedToolCallId],
         state: Annotated[AssistantState, InjectedState],
-        relations_only: bool = False,
     ) -> Command:
         user = User.objects.get(id=self._context.chat.user.id)
         workspace_id = self._context.chat.workspace.id
@@ -283,7 +286,7 @@ You can get the database ID by using the get_workspace_schema tool.
                 id=database_id, workspace_id=workspace_id
             ).first()
             if database:
-                database_schema = get_database_schema(database, relations_only=True)
+                database_schema = get_database_schema(database)
                 workspace_schema.current_database = database_schema
 
         return Command(

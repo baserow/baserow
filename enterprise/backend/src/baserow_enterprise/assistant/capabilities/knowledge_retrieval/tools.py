@@ -14,6 +14,7 @@ from baserow_enterprise.assistant.types import (
     PartialAssistantState,
     ToolCallMessage,
 )
+from baserow_enterprise.assistant.utils.retry_utils import invoke_with_retry
 from langchain_core.tools import InjectedToolCallId
 from .handler import KnowledgeBaseHandler
 from .prompts import (
@@ -53,11 +54,15 @@ class RetrieveKnowledgeTool(AssistantBaseTool):
             RetrieveKnowledgeToolArtifact, method="json_schema"
         )
         chain = prompt | llm
-        result: RetrieveKnowledgeToolArtifact = chain.invoke(
-            {
-                "user_question": query,
-                "relevant_knowledge_chunks": "\n\n".join(relevant_chunks),
-            }
+
+        # Use retry logic for robust parsing
+        result: RetrieveKnowledgeToolArtifact = invoke_with_retry(
+            lambda: chain.invoke(
+                {
+                    "user_question": query,
+                    "relevant_knowledge_chunks": "\n\n".join(relevant_chunks),
+                }
+            )
         )
 
         return Command(
