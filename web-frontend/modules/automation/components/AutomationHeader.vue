@@ -191,23 +191,20 @@ export default defineComponent({
     }
 
     const toggleStatusSwitch = async () => {
-      const oldValue = workflow.value.state
       const newValue =
-        oldValue === WORKFLOW_STATES.PAUSED
+        workflow.value.state === WORKFLOW_STATES.PAUSED
           ? WORKFLOW_STATES.LIVE
           : WORKFLOW_STATES.PAUSED
-      workflow.value.state = newValue
 
       try {
         await store.dispatch('automationWorkflow/update', {
           automation: props.automation,
           workflow: workflow.value,
           values: {
-            state: workflow.value.state,
+            state: newValue,
           },
         })
       } catch (error) {
-        workflow.value.state = oldValue
         notifyIf(error, 'automationWorkflow')
       }
     }
@@ -230,15 +227,12 @@ export default defineComponent({
 
     const publishWorkflow = async () => {
       isPublishing.value = true
-      const originalState = workflow.value.state
 
       try {
         await store.dispatch('automationWorkflow/publishWorkflow', {
           workflow: workflow.value,
         })
-        workflow.value.state = WORKFLOW_STATES.LIVE
       } catch (error) {
-        workflow.value.state = originalState
         notifyIf(error, 'automationWorkflow')
       }
       isPublishing.value = false
