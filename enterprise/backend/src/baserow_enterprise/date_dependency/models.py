@@ -52,7 +52,7 @@ class DateDependency(FieldRule):
     )
 
     dependency_linkrow_field = models.ForeignKey(
-        "database.LinkRowField", null=True, on_delete=models.CASCADE, related_name="+"
+        "database.Field", null=True, on_delete=models.CASCADE, related_name="+"
     )
     dependency_linkrow_role = models.CharField(
         choices=DependencyLinkrowType,

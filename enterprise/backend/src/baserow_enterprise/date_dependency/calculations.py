@@ -133,6 +133,12 @@ class DateValues:
         }
         return out
 
+    def to_row(self, row: GeneratedTableModel) -> GeneratedTableModel:
+        changes = self.to_dict()
+        for field_name, value in changes.items():
+            setattr(row, field_name, value)
+        return row
+
     def __eq__(self, other):
         if not isinstance(other, self.__class__):
             return False
@@ -421,17 +427,14 @@ class DateDependencyCalculator:
         ):
             logger.warning(f"Field Rule doesn't have all fields: {rule.to_dict()}")
             return
+        linkrow_field = self.rule.dependency_linkrow_field.specific
         table_name = sql.Identifier(self.row.__class__._meta.db_table)
         start_date_field = sql.Identifier(self.rule.start_date_field.db_column)
         end_date_field = sql.Identifier(self.rule.end_date_field.db_column)
         duration_field = sql.Identifier(self.rule.duration_field.db_column)
 
-        relation_table_name = sql.Identifier(
-            self.rule.dependency_linkrow_field.through_table_name
-        )
-        from_field, to_field = self.get_linkrow_from_to_fields(
-            self.rule.dependency_linkrow_field
-        )
+        relation_table_name = sql.Identifier(linkrow_field.through_table_name)
+        from_field, to_field = self.get_linkrow_from_to_fields(linkrow_field)
         from_field_name = sql.Identifier(from_field.column)
         to_field_name = sql.Identifier(to_field.column)
 
@@ -459,13 +462,17 @@ class DateDependencyCalculator:
                 continue
             self.cache[rule.id] = rule
 
-    def _get_row(self, row_id):
+    def _get_row(self, row_id) -> GeneratedTableModel:
         try:
             return self.cache[row_id]
         except KeyError:
             row = self.row.__class__.objects.get(pk=row_id)
             self.cache[row_id] = row
             return row
+
+    def _set_row(self, row: GeneratedTableModel) -> GeneratedTableModel:
+        self.cache[row.id] = row
+        return row
 
     def calculate(self):
         self.modified.clear()
@@ -528,6 +535,7 @@ class DateDependencyCalculator:
                 adjusted = adjust_parent(parent, child, self.rule)
                 if not adjusted:
                     break
+                self._set_row(parent.to_row(parent_row))
                 modified.append(
                     (
                         item_id,
@@ -585,6 +593,7 @@ class DateDependencyCalculator:
                 adjusted = adjust_child(parent, child, self.rule)
                 if not adjusted:
                     break
+                self._set_row(child.to_row(child_row))
                 modified.append(
                     (
                         item_id,
