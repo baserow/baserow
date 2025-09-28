@@ -5,11 +5,16 @@
         !readOnly &&
         // Can't create rows in a table data sync table.
         (!table.data_sync || table.data_sync.two_way_sync) &&
-        $hasPermission(
+        ($hasPermission(
           'database.table.create_row',
           table,
           database.workspace.id
-        )
+        ) ||
+          $hasPermission(
+            'database.table.view.create_row',
+            view,
+            database.workspace.id
+          ))
       "
       icon="iconoir-plus"
       position="fixed"
@@ -75,11 +80,16 @@
     <RowCreateModal
       v-if="
         !readOnly &&
-        $hasPermission(
+        ($hasPermission(
           'database.table.create_row',
           table,
           database.workspace.id
-        )
+        ) ||
+          $hasPermission(
+            'database.table.view.create_row',
+            view,
+            database.workspace.id
+          ))
       "
       ref="rowCreateModal"
       :database="database"
@@ -112,11 +122,16 @@
       :rows="allRows"
       :read-only="
         readOnly ||
-        !$hasPermission(
+        (!$hasPermission(
           'database.table.update_row',
           table,
           database.workspace.id
-        )
+        ) &&
+          !$hasPermission(
+            'database.table.view.create_row',
+            view,
+            database.workspace.id
+          ))
       "
       :show-hidden-fields="showHiddenFieldsInRowModal"
       @hidden="$emit('selected-row', undefined)"

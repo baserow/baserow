@@ -2198,7 +2198,8 @@ export const actions = {
           table.id,
           rowsPrepared,
           before !== null ? before.id : null,
-          undoRedoActionGroupId
+          undoRedoActionGroupId,
+          getters.getLastGridId
         )
         data = resp.data
         const updatedFieldIds = data.metadata?.updated_field_ids || []
@@ -2553,7 +2554,9 @@ export const actions = {
       await createAndUpdateRowQueue.add(async () => {
         const batchResponse = await RowService(this.$client).batchUpdate(
           table.id,
-          [updateRequestValues]
+          [updateRequestValues],
+          null,
+          getters.getLastGridId
         )
 
         const updatedRowData = batchResponse.data.items[0]
@@ -2841,7 +2844,8 @@ export const actions = {
     const { data: responseData } = await RowService(this.$client).batchUpdate(
       table.id,
       valuesForUpdate,
-      undoRedoActionGroupId
+      undoRedoActionGroupId,
+      getters.getLastGridId
     )
     const updatedRows = responseData.items
     // Create extra missing rows
@@ -3075,7 +3079,11 @@ export const actions = {
     commit('SET_ROW_LOADING', { row, value: true })
 
     try {
-      await RowService(this.$client).delete(table.id, row.id)
+      await RowService(this.$client).delete(
+        table.id,
+        row.id,
+        getters.getLastGridId
+      )
       await dispatch('deletedExistingRow', {
         view,
         fields,
@@ -3123,7 +3131,11 @@ export const actions = {
     }
 
     const rowIdsToDelete = rowsToDelete.map((r) => r.id)
-    await RowService(this.$client).batchDelete(table.id, rowIdsToDelete)
+    await RowService(this.$client).batchDelete(
+      table.id,
+      rowIdsToDelete,
+      getters.getLastGridId
+    )
 
     for (const row of rowsToDelete) {
       await dispatch('deletedExistingRow', {

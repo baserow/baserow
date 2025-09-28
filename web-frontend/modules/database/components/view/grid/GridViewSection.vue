@@ -93,6 +93,13 @@
             :include-group-by="includeGroupBy"
             :rows-at-end-of-groups="rowsAtEndOfGroups"
             :read-only="readOnly"
+            :can-drag="
+              $hasPermission(
+                'database.table.update_row',
+                table,
+                database.workspace.id
+              )
+            "
             :store-prefix="storePrefix"
             v-on="$listeners"
           ></GridViewRows>
@@ -101,11 +108,16 @@
               !readOnly &&
               (!table.data_sync || table.data_sync.two_way_sync) &&
               (includeRowDetails || visibleFields.length > 0) &&
-              $hasPermission(
+              ($hasPermission(
                 'database.table.create_row',
                 table,
                 database.workspace.id
-              )
+              ) ||
+                $hasPermission(
+                  'database.table.view.create_row',
+                  view,
+                  database.workspace.id
+                ))
             "
             :visible-fields="visibleFields"
             :include-row-details="includeRowDetails"
@@ -139,7 +151,14 @@
       :fields="draggingFields"
       :offset="draggingOffset"
       :container-width="width"
-      :read-only="readOnly"
+      :read-only="
+        readOnly ||
+        !$hasPermission(
+          'database.table.view.update_field_options',
+          view,
+          database.workspace.id
+        )
+      "
       :store-prefix="storePrefix"
       @scroll="$emit('scroll', $event)"
     ></GridViewFieldDragging>

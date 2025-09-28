@@ -558,7 +558,9 @@ export const actions = {
     commit('SET_CREATING', true)
     const { data } = await RowService(this.$client).create(
       table.id,
-      preparedRow
+      preparedRow,
+      null,
+      getters.getLastCalendarId
     )
     commit('SET_CREATING', false)
     return await dispatch('createdNewRow', {
@@ -640,7 +642,11 @@ export const actions = {
         fields,
         row,
       })
-      await RowService(this.$client).delete(table.id, row.id)
+      await RowService(this.$client).delete(
+        table.id,
+        row.id,
+        getters.getLastCalendarId
+      )
     } catch (error) {
       await dispatch('createdNewRow', {
         view,
@@ -858,7 +864,9 @@ export const actions = {
         ]
         const { data } = await RowService(this.$client).batchUpdate(
           table.id,
-          updateRowsData
+          updateRowsData,
+          null,
+          getters.getLastCalendarId
         )
         const updatedFieldIds = data.metadata?.updated_field_ids || []
 

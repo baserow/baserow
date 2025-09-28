@@ -16,12 +16,14 @@ from baserow.contrib.database.views.operations import (
     CreateViewFilterGroupOperationType,
     CreateViewFilterOperationType,
     CreateViewGroupByOperationType,
+    CreateViewRowOperationType,
     CreateViewSortOperationType,
     DeleteViewDecorationOperationType,
     DeleteViewFilterGroupOperationType,
     DeleteViewFilterOperationType,
     DeleteViewGroupByOperationType,
     DeleteViewOperationType,
+    DeleteViewRowOperationType,
     DeleteViewSortOperationType,
     DuplicateViewOperationType,
     ListAggregationsViewOperationType,
@@ -46,6 +48,7 @@ from baserow.contrib.database.views.operations import (
     UpdateViewGroupByOperationType,
     UpdateViewOperationType,
     UpdateViewPublicOperationType,
+    UpdateViewRowOperationType,
     UpdateViewSlugOperationType,
     UpdateViewSortOperationType,
 )
@@ -119,6 +122,9 @@ class ViewOwnershipPermissionManagerType(PermissionManagerType):
             CreateViewDecorationOperationType.type,
             UpdateViewDecorationOperationType.type,
             DeleteViewDecorationOperationType.type,
+            CreateViewRowOperationType.type,
+            UpdateViewRowOperationType.type,
+            DeleteViewRowOperationType.type,
         ]
         # This list controls operations that for personal views, should only be allowed
         # to be performed by the creator of the personal view BUT should only be

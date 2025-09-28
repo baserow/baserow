@@ -425,7 +425,9 @@ export const actions = {
     commit('SET_CREATING', true)
     const { data } = await RowService(this.$client).create(
       table.id,
-      preparedRow
+      preparedRow,
+      null,
+      getters.getLastKanbanId
     )
     commit('SET_CREATING', false)
     return await dispatch('createdNewRow', {
@@ -499,7 +501,11 @@ export const actions = {
         fields,
         row,
       })
-      await RowService(this.$client).delete(table.id, row.id)
+      await RowService(this.$client).delete(
+        table.id,
+        row.id,
+        getters.getLastKanbanId
+      )
     } catch (error) {
       await dispatch('createdNewRow', {
         view,
@@ -764,7 +770,8 @@ export const actions = {
         const { data } = await RowService(this.$client).update(
           table.id,
           row.id,
-          newValuesForUpdate
+          newValuesForUpdate,
+          getters.getLastKanbanId
         )
         commit('UPDATE_ROW', { row, values: data })
       } catch (error) {
@@ -870,7 +877,7 @@ export const actions = {
    * Updates the value of a row and make the changes to the store accordingly.
    */
   async updateRowValue(
-    { commit, dispatch },
+    { commit, dispatch, getters },
     { view, table, row, field, fields, value, oldValue }
   ) {
     const { newRowValues, oldRowValues, updateRequestValues } =
@@ -908,7 +915,9 @@ export const actions = {
         ]
         const { data } = await RowService(this.$client).batchUpdate(
           table.id,
-          updateRowsData
+          updateRowsData,
+          null,
+          getters.getLastKanbanId
         )
         const updatedFieldIds = data.metadata?.updated_field_ids || []
 

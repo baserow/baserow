@@ -2,6 +2,7 @@ from django.contrib.auth.models import AbstractUser
 
 from baserow_premium.license.handler import LicenseHandler
 
+from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import View
 from baserow.contrib.database.views.operations import CreateViewFilterOperationType
 from baserow.contrib.database.views.registries import ViewOwnershipType
@@ -73,3 +74,19 @@ class RestrictedViewOwnershipType(ViewOwnershipType):
                 view._prefetched_objects_cache["filter_groups"] = []
 
         return views
+
+    def can_modify_rows(self, view, row_ids=None):
+        if not row_ids:
+            return True
+
+        # Check if all the provided row_ids actually exist in the filtered queryset.
+        # We don't want to allow modifying rows that are outside the filters because
+        # that is not where the user has access to.
+        model = view.table.get_model()
+        filter_qs = ViewHandler().apply_filters(view, model.objects)
+        missing_exists = filter_qs.filter(id__in=row_ids).values("id")
+        return (
+            not model.objects.filter(id__in=row_ids)
+            .exclude(id__in=missing_exists)
+            .exists()
+        )
