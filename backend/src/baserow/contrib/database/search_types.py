@@ -341,12 +341,13 @@ class RowSearchType(SearchableItemType):
             matching_search_data[context.offset : context.offset + context.limit]
         )
 
-        # Gather candidates and group by table
+        # Gather candidates and group by table, keeping only first field per row
         candidates = []
         table_to_rows = {}
         table_to_fields = {}
         needed_table_ids = set()
         needed_field_ids = set()
+        seen_row = set()
         for item in paginated_data:
             field_id = item.field_id
             row_id = item.row_id
@@ -354,6 +355,10 @@ class RowSearchType(SearchableItemType):
             if info is None:
                 continue
             table_id = info["table_id"]
+            row_key = (table_id, row_id)
+            if row_key in seen_row:
+                continue
+            seen_row.add(row_key)
             candidates.append((table_id, field_id, row_id, item))
             needed_table_ids.add(table_id)
             needed_field_ids.add(field_id)
@@ -379,8 +384,9 @@ class RowSearchType(SearchableItemType):
             )
         }
 
-        # Compute snippets only for the needed tables/fields/rows
+        # Build UNION ALL of needed rows/fields values and compute snippets in one query
         snippets = {}
+        union_qs = None
         for table_id in needed_table_ids:
             table = tables_by_id.get(table_id)
             if table is None:
@@ -392,7 +398,6 @@ class RowSearchType(SearchableItemType):
             if not row_ids:
                 continue
 
-            # Limit generated model to just the needed fields for performance
             model = table.get_model(field_ids=field_ids)
             base_qs = model.objects.filter(id__in=row_ids)
 
@@ -404,24 +409,31 @@ class RowSearchType(SearchableItemType):
                 text_expr = specific_field.get_type().get_search_expression(
                     specific_field, field_qs
                 )
-                annotated = field_qs.annotate(
-                    snippet=SearchHeadline(
-                        text_expr,
-                        search_query,
-                        config=SearchHandler.search_config(),
-                        start_sel="[[H]]",
-                        stop_sel="[[/H]]",
-                        max_fragments=1,
-                        max_words=8,
-                        min_words=3,
-                        short_word=1,
-                        fragment_delimiter=" … ",
-                    )
-                ).values("id", "snippet")
+                qs = (
+                    field_qs.annotate(
+                        table_id_ann=Value(table_id, output_field=IntegerField()),
+                        field_id_ann=Value(field_id, output_field=IntegerField()),
+                        value_ann=text_expr,
+                        snippet=SearchHeadline(
+                            text_expr,
+                            search_query,
+                            config=SearchHandler.search_config(),
+                            start_sel="[[H]]",
+                            stop_sel="[[/H]]",
+                            max_fragments=1,
+                            max_words=8,
+                            min_words=3,
+                            short_word=1,
+                            fragment_delimiter=" … ",
+                        ),
+                    ).values("table_id_ann", "id", "field_id_ann", "snippet")
+                )
+                union_qs = qs if union_qs is None else union_qs.union(qs, all=True)
 
-                for row in annotated:
-                    key = (table_id, row["id"], field_id)
-                    snippets[key] = row["snippet"]
+        if union_qs is not None:
+            for row in union_qs:
+                key = (row["table_id_ann"], row["id"], row["field_id_ann"])
+                snippets[key] = row["snippet"]
 
         # Build final results
         results = []

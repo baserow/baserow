@@ -297,7 +297,7 @@ export default {
         const result = await this.$store.dispatch('workspaceSearch/search', {
           workspaceId: this.currentWorkspace.id,
           searchTerm,
-          limit: 10,
+          limit: 5,
           offset: 0,
           append: false,
         })
