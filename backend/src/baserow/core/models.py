@@ -843,8 +843,10 @@ class SchemaOperation(CreatedAndUpdatedOnMixin, models.Model):
     other similar use cases in the future.
     """
 
-    table_name = models.TextField(
-        help_text="The name of the database table the operation was applied to.",
+    content_type = models.ForeignKey(
+        ContentType,
+        on_delete=models.CASCADE,
+        help_text="The content type of the model that the operation was applied to.",
     )
     operation = models.CharField(
         max_length=64,
@@ -852,4 +854,4 @@ class SchemaOperation(CreatedAndUpdatedOnMixin, models.Model):
     )
 
     class Meta:
-        unique_together = [["table_name", "operation"]]
+        unique_together = [["content_type_id", "operation"]]

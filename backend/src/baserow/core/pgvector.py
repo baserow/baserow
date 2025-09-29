@@ -2,6 +2,7 @@ from enum import StrEnum
 from functools import lru_cache
 
 from django.apps import apps
+from django.contrib.contenttypes.models import ContentType
 from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import FieldDoesNotExist
 from django.db import connection, models, transaction
@@ -137,7 +138,7 @@ class EmbeddingMixin(models.Model):
             schema_editor.add_field(cls, field)
 
         SchemaOperation.objects.create(
-            table_name=cls._meta.db_table,
+            content_type=ContentType.objects.get_for_model(cls),
             operation=EmbeddingSchemaOperationType.ADD_EMBEDDING_FIELD.value,
         )
 
@@ -225,7 +226,7 @@ class EmbeddingMixin(models.Model):
         SchemaOperation.objects.bulk_create(
             [
                 SchemaOperation(
-                    table_name=cls._meta.db_table,
+                    content_type=ContentType.objects.get_for_model(cls),
                     operation=EmbeddingSchemaOperationType.MIGRATE_EMBEDDING_DATA.value,
                 )
             ],
@@ -245,7 +246,7 @@ class EmbeddingMixin(models.Model):
         return (
             is_pgvector_enabled()
             and SchemaOperation.objects.filter(
-                table_name=cls._meta.db_table,
+                content_type=ContentType.objects.get_for_model(cls),
                 operation=EmbeddingSchemaOperationType.MIGRATE_EMBEDDING_DATA.value,
             ).exists()
         )
@@ -260,7 +261,7 @@ class EmbeddingMixin(models.Model):
         """
 
         data_migrated_done = SchemaOperation.objects.filter(
-            table_name=cls._meta.db_table,
+            content_type=ContentType.objects.get_for_model(cls),
             operation=EmbeddingSchemaOperationType.MIGRATE_EMBEDDING_DATA.value,
         ).exists()
 
@@ -268,7 +269,7 @@ class EmbeddingMixin(models.Model):
             return
 
         vector_field_created = SchemaOperation.objects.filter(
-            table_name=cls._meta.db_table,
+            content_type=ContentType.objects.get_for_model(cls),
             operation=EmbeddingSchemaOperationType.ADD_EMBEDDING_FIELD.value,
         ).exists()
 
