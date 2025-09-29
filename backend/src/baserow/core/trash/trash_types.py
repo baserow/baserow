@@ -25,7 +25,6 @@ class ApplicationTrashableItemType(TrashableItemType):
         self,
         trashed_item: Application,
         trash_entry: TrashEntry,
-        **kwargs,
     ):
         super().restore(trashed_item, trash_entry)
         application_created.send(
@@ -63,7 +62,7 @@ class WorkspaceTrashableItemType(TrashableItemType):
     def get_name(self, trashed_item: Workspace) -> str:
         return trashed_item.name
 
-    def restore(self, trashed_item: Workspace, trash_entry: TrashEntry, **kwargs):
+    def restore(self, trashed_item: Workspace, trash_entry: TrashEntry):
         """
         Informs any clients that the workspace exists again.
         """

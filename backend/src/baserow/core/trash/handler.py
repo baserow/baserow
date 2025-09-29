@@ -33,7 +33,11 @@ from baserow.core.trash.operations import (
     ReadApplicationTrashOperationType,
     ReadWorkspaceTrashOperationType,
 )
-from baserow.core.trash.registries import TrashableItemType, trash_item_type_registry
+from baserow.core.trash.registries import (
+    TrashableItemType,
+    trash_item_type_registry,
+    trash_operation_type_registry,
+)
 from baserow.core.trash.signals import before_permanently_deleted, permanently_deleted
 
 User = get_user_model()
@@ -49,6 +53,7 @@ class TrashHandler(metaclass=baserow_trace_methods(tracer)):
         application: Optional[Application],
         trash_item,
         existing_trash_entry: Optional[TrashEntry] = None,
+        trash_operation_type: Optional[str] = None,
     ) -> TrashEntry:
         """
         Marks the provided trashable item as trashed meaning it will no longer be
@@ -64,6 +69,9 @@ class TrashHandler(metaclass=baserow_trace_methods(tracer)):
         :param existing_trash_entry: An optional TrashEntry that the handler can
             pass to the trash system to track cascading deletions in a single
             trash entry.
+        :param trash_operation_type: An optional `TrashOperationType.type` that is
+            performing the trashing. Used to provide additional restoration steps
+            when the `restore` method is called.
         :return: A newly created entry in the TrashEntry table for this item.
         """
 
@@ -73,6 +81,12 @@ class TrashHandler(metaclass=baserow_trace_methods(tracer)):
         # we don't then want to
         with transaction.atomic():
             trash_item_type = trash_item_type_registry.get_by_model(trash_item)
+
+            trash_operation_type = (
+                trash_operation_type_registry.get(trash_operation_type)
+                if trash_operation_type
+                else None
+            )
 
             if existing_trash_entry is None:
                 parent = trash_item_type.get_parent(trash_item)
@@ -101,6 +115,9 @@ class TrashHandler(metaclass=baserow_trace_methods(tracer)):
                         additional_restoration_data=trash_item_type.get_additional_restoration_data(
                             trash_item
                         ),
+                        operation_type=trash_operation_type.type
+                        if trash_operation_type
+                        else None,
                     )
                 except IntegrityError as e:
                     if "unique constraint" in e.args[0]:
@@ -128,7 +145,6 @@ class TrashHandler(metaclass=baserow_trace_methods(tracer)):
         trash_item_type,
         trash_item_id,
         parent_trash_item_id=None,
-        send_signal: bool = True,
     ) -> Any:
         """
         Restores an item from the trash re-instating it back in Baserow exactly how it
@@ -137,7 +153,6 @@ class TrashHandler(metaclass=baserow_trace_methods(tracer)):
         :param trash_item_type: The trashable item type of the item to restore.
         :param parent_trash_item_id: The parent id of the item to restore.
         :param trash_item_id: The trash item id of the item to restore.
-        :param send_signal: Whether to send the restoration signal or not.
         :raises CannotRestoreChildBeforeParent: Raised if the item being restored has
             any parent, or parent of a parent etc which is trashed as that item should
             be restored first.
@@ -176,7 +191,7 @@ class TrashHandler(metaclass=baserow_trace_methods(tracer)):
             trash_entry.delete()
 
             restore_type = trash_item_type_registry.get_by_model(trash_item)
-            restore_type.restore(trash_item, trash_entry, send_signal=send_signal)
+            restore_type.restore(trash_item, trash_entry)
 
         return trash_item
 
@@ -437,6 +452,7 @@ class TrashHandler(metaclass=baserow_trace_methods(tracer)):
         user: User,
         workspace_id: int,
         application_id: Optional[int],
+        exclude_managed: bool = True,
     ) -> QuerySet:
         """
         Looks up the trash contents for a particular workspace optionally filtered by
@@ -445,6 +461,9 @@ class TrashHandler(metaclass=baserow_trace_methods(tracer)):
         :param workspace_id: The workspace to lookup trash contents inside of.
         :param application_id: The optional application to filter down the trash
             contents to only this workspace.
+        :param exclude_managed: Whether to exclude managed items from the results.
+            Managed trash entries are those created by the system rather than a user,
+            so restoration is unavailable to them.
         :raises WorkspaceDoesNotExist: If the workspace_id is for a non-existent
             workspace.
         :raises ApplicationDoesNotExist: If the application_id is for a non-existent
@@ -482,6 +501,16 @@ class TrashHandler(metaclass=baserow_trace_methods(tracer)):
         trash_contents = TrashEntry.objects.filter(
             workspace=workspace, should_be_permanently_deleted=False
         ).filter(Q(trash_item_owner=user) | Q(trash_item_owner__isnull=True))
+
+        if exclude_managed:
+            managed_trash_operation_types = [
+                tot.type
+                for tot in trash_operation_type_registry.get_all()
+                if tot.managed
+            ]
+            trash_contents = trash_contents.exclude(
+                operation_type__in=managed_trash_operation_types
+            )
 
         if application:
             trash_contents = trash_contents.filter(application=application)

@@ -18,7 +18,7 @@ class DomainTrashableItemType(TrashableItemType):
     def get_name(self, trashed_item: Domain) -> str:
         return trashed_item.domain_name
 
-    def restore(self, trashed_item: Domain, trash_entry: TrashEntry, **kwargs):
+    def restore(self, trashed_item: Domain, trash_entry: TrashEntry):
         super().restore(trashed_item, trash_entry)
         domain_created.send(
             self,

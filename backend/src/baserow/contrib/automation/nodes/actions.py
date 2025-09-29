@@ -12,6 +12,9 @@ from baserow.contrib.automation.actions import AUTOMATION_WORKFLOW_CONTEXT
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.node_types import AutomationNodeType
+from baserow.contrib.automation.nodes.registries import (
+    ReplaceAutomationNodeTrashOperationType,
+)
 from baserow.contrib.automation.nodes.service import AutomationNodeService
 from baserow.contrib.automation.nodes.signals import automation_node_replaced
 from baserow.contrib.automation.nodes.trash_types import AutomationNodeTrashableItemType
@@ -438,9 +441,13 @@ class ReplaceAutomationNodeActionType(UndoableActionType):
             AutomationNodeTrashableItemType.type,
             params.original_node_id,
         )
-        # Trash the node of the new type, and flag its trash
-        # entry as managed to prevent users from restoring it.
-        deleted_node = AutomationNodeService().delete_node(user, params.node_id)
+        # Trash the node of the new type, and pass its operation type so that its
+        # trash entry is flagged as managed to prevent users from restoring it.
+        deleted_node = AutomationNodeService().delete_node(
+            user,
+            params.node_id,
+            trash_operation_type=ReplaceAutomationNodeTrashOperationType.type,
+        )
         automation_node_replaced.send(
             cls,
             workflow=restored_node.workflow,
@@ -462,10 +469,12 @@ class ReplaceAutomationNodeActionType(UndoableActionType):
             AutomationNodeTrashableItemType.type,
             params.node_id,
         )
-        # Trash the node of the original type, and flag its trash
-        # entry as managed to prevent users from restoring it.
+        # Trash the node of the original type, and pass its operation type so that its
+        # trash entry is flagged as managed to prevent users from restoring it.
         deleted_node = AutomationNodeService().delete_node(
-            user, params.original_node_id
+            user,
+            params.original_node_id,
+            trash_operation_type=ReplaceAutomationNodeTrashOperationType.type,
         )
         automation_node_replaced.send(
             cls,

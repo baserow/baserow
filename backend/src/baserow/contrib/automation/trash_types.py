@@ -34,7 +34,6 @@ class AutomationTrashableItemType(TrashableItemType):
         self,
         trashed_item: Automation,
         trash_entry: TrashEntry,
-        **kwargs,
     ):
         super().restore(trashed_item, trash_entry)
         application_created.send(self, application=trashed_item, user=None)

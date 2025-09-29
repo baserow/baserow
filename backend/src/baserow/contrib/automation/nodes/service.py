@@ -19,7 +19,10 @@ from baserow.contrib.automation.nodes.operations import (
     ReadAutomationNodeOperationType,
     UpdateAutomationNodeOperationType,
 )
-from baserow.contrib.automation.nodes.registries import automation_node_type_registry
+from baserow.contrib.automation.nodes.registries import (
+    ReplaceAutomationNodeTrashOperationType,
+    automation_node_type_registry,
+)
 from baserow.contrib.automation.nodes.signals import (
     automation_node_created,
     automation_node_deleted,
@@ -187,12 +190,20 @@ class AutomationNodeService:
 
         return updated_node
 
-    def delete_node(self, user: AbstractUser, node_id: int) -> AutomationNode:
+    def delete_node(
+        self,
+        user: AbstractUser,
+        node_id: int,
+        trash_operation_type: Optional[str] = None,
+    ) -> AutomationNode:
         """
         Deletes the specified automation node.
 
         :param user: The user trying to delete the node.
         :param node_id: The ID of the node to delete.
+        :param trash_operation_type: The trash operation type to use when trashing
+            the node.
+        :return: The deleted node.
         :raises AutomationTriggerModificationDisallowed: If the node is a trigger.
         """
 
@@ -206,14 +217,21 @@ class AutomationNodeService:
         )
 
         automation = node.workflow.automation
-        TrashHandler.trash(user, automation.workspace, automation, node)
-
-        automation_node_deleted.send(
-            self,
-            workflow=node.workflow,
-            node_id=node.id,
-            user=user,
+        trash_entry = TrashHandler.trash(
+            user,
+            automation.workspace,
+            automation,
+            node,
+            trash_operation_type=trash_operation_type,
         )
+
+        if trash_entry.get_operation_type().send_post_trash_deleted_signal:
+            automation_node_deleted.send(
+                self,
+                workflow=node.workflow,
+                node_id=node.id,
+                user=user,
+            )
 
         return node
 
@@ -341,8 +359,16 @@ class AutomationNodeService:
         # After the node creation, the replaced node has changed
         node.refresh_from_db()
 
+        # Trash the old node, assigning it a specific trash operation
+        # type so that we know it was replaced when restoring it.
         automation = node.workflow.automation
-        TrashHandler.trash(user, automation.workspace, automation, node)
+        TrashHandler.trash(
+            user,
+            automation.workspace,
+            automation,
+            node,
+            trash_operation_type=ReplaceAutomationNodeTrashOperationType.type,
+        )
 
         automation_node_replaced.send(
             self,

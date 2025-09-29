@@ -52,7 +52,6 @@ class AutomationNodeTrashableItemType(TrashableItemType):
         self,
         trashed_item: AutomationActionNode,
         trash_entry: TrashEntry,
-        send_signal: bool = True,
     ):
         workflow = trashed_item.workflow
         next_nodes = list(
@@ -101,7 +100,7 @@ class AutomationNodeTrashableItemType(TrashableItemType):
                 updates.append(next_node)
             AutomationNode.objects.bulk_update(updates, ["previous_node_output"])
 
-        if send_signal:
+        if trash_entry.get_operation_type().send_post_restore_created_signal:
             automation_node_created.send(self, node=trashed_item, user=None)
 
     def permanently_delete_item(

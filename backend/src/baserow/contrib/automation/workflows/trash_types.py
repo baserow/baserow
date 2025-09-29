@@ -38,7 +38,6 @@ class AutomationWorkflowTrashableItemType(TrashableItemType):
         self,
         trashed_item: AutomationWorkflow,
         trash_entry: TrashEntry,
-        **kwargs,
     ):
         super().restore(trashed_item, trash_entry)
         automation_workflow_created.send(self, workflow=trashed_item, user=None)

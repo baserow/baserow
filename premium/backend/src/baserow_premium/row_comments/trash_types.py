@@ -46,7 +46,7 @@ class RowCommentTrashableItemType(TrashableItemType):
             # comment itself no longer exits.
             raise TrashItemDoesNotExist()
 
-    def restore(self, trashed_item: RowComment, trash_entry, **kwargs):
+    def restore(self, trashed_item: RowComment, trash_entry):
         trashed_item.trashed = False
         trashed_item.save(update_fields=["trashed"])
 

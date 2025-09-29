@@ -18,7 +18,7 @@ class TeamTrashableItemType(TrashableItemType):
     def get_name(self, trashed_item: Team) -> str:
         return trashed_item.name
 
-    def restore(self, trashed_item: Team, trash_entry: TrashEntry, **kwargs):
+    def restore(self, trashed_item: Team, trash_entry: TrashEntry):
         super().restore(trashed_item, trash_entry)
         team_restored.send(self, team_id=trashed_item.id, team=trashed_item, user=None)
 
