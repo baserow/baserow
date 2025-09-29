@@ -66,7 +66,7 @@ class EmbeddingMixinManager(models.Manager):
         """
 
         self.model.try_init_vector_field()
-        return super().get_queryset().select_related()
+        return super().get_queryset()
 
 
 class EmbeddingMixin(models.Model):
@@ -114,8 +114,7 @@ class EmbeddingMixin(models.Model):
 
     @classmethod
     def can_search_vectors(cls) -> bool:
-        if cls._can_search_vectors is None:
-            cls._init_vector_field()
+        cls.try_init_vector_field()
         return cls._can_search_vectors
 
     class Meta:
@@ -303,10 +302,11 @@ def reset_vector_schema_operations() -> None:
 
 def try_migrate_vector_fields(sender, **kwargs):
     """
-    Verify if the pgvector extension is enabled or not.
+    Verify if the pgvector extension is enabled or not. This is called during the
+    migration process, typically executed with the `locked_migrate` management command.
 
-    If it is enabled, ensure that the embedding field exists and that the existing
-    data has been migrated to the pgvector field, so that vector search can be used.
+    If it is enabled, ensure that the embedding field exists and that the existing data
+    has been migrated to the pgvector field, so that vector search can be used.
 
     If we just enabled pgvector, we also make sure to reset the state if it was
     previously disabled, so that the field and index can be created later.
@@ -315,12 +315,22 @@ def try_migrate_vector_fields(sender, **kwargs):
     was_enabled = is_pgvector_enabled()
     pgvector_enabled = try_enable_pgvector()
 
+    print("Checking pgvector extension:", end=" ")
+
     if not pgvector_enabled:  # nothing to do
+        print("not available. It will be retried on next migration.")
         return
     elif not was_enabled:  # we just enabled it
+        print("enabled now.", end=" ")
         # Make sure we start from a clean state
         reset_vector_schema_operations()
+    else:
+        print("available.", end=" ")
+
+    print("Ensuring vector fields are ready...", end=" ")
 
     for model in apps.get_models():
         if issubclass(model, EmbeddingMixin):
             model.migrate_to_vector_field_if_needed()
+
+    print("done.")
