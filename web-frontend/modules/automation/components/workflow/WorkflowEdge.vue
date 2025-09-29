@@ -1,26 +1,39 @@
 <template>
   <div class="workflow-edge">
     <div v-if="hasSiblings" class="workflow-edge__label">{{ edge.label }}</div>
-    <WorkflowAddBtnNode
-      class="workflow-edge__add-button"
+    <div
+      class="workflow-node__dropzone-wrapper workflow-edge__add-button"
       :class="{
         'workflow-edge__add-button--with-next': nextNodesOnEdge.length,
       }"
-      :disabled="readOnly"
-      :debug="debug"
-      :disabled-drop="isDropZoneDisabled"
-      @add-node="
-        emit('add-node', {
-          type: $event,
-          previousNodeId: node.id,
-          previousNodeOutput: edge.uid,
-        })
-      "
-      @move-node="
-        emit('move-node', { afterNodeId: node.id, afterNodeOutput: edge.uid })
-      "
-      @toggle-pan="emit('toggle-pan', $event)"
-    />
+    >
+      <div
+        :class="{
+          'workflow-node__dropzone': draggingNodeId && !isDropZoneDisabled,
+          'workflow-node__dropzone--hover': isDragOver,
+        }"
+        @dragover.prevent
+        @dragenter="handleDragEnter"
+        @dragleave="handleDragLeave"
+        @drop="handleDrop"
+      ></div>
+      <WorkflowAddBtnNode
+        :btn-class="{
+          'workflow-node__add-button--hover': isDragOver,
+          'workflow-node__add-button--active':
+            draggingNodeId && !isDropZoneDisabled,
+        }"
+        :disabled="readOnly"
+        :debug="debug"
+        @add-node="
+          emit('add-node', {
+            type: $event,
+            previousNodeId: node.id,
+            previousNodeOutput: edge.uid,
+          })
+        "
+      />
+    </div>
 
     <WorkflowNode
       v-for="nextNode in nextNodesOnEdge"
@@ -33,14 +46,13 @@
       @select-node="emit('select-node', $event)"
       @remove-node="emit('remove-node', $event)"
       @replace-node="emit('replace-node', $event)"
-      @toggle-pan="emit('toggle-pan', $event)"
       @move-node="emit('move-node', $event)"
     />
   </div>
 </template>
 
 <script setup>
-import { useStore, inject, computed } from '@nuxtjs/composition-api'
+import { useStore, inject, computed, ref } from '@nuxtjs/composition-api'
 import WorkflowNode from '@baserow/modules/automation/components/workflow/WorkflowNode'
 
 import WorkflowAddBtnNode from '@baserow/modules/automation/components/workflow/WorkflowAddBtnNode'
@@ -77,6 +89,7 @@ const emit = defineEmits(['add-node', 'select-node', 'move-node'])
 
 const store = useStore()
 const workflow = inject('workflow')
+const isDragOver = ref(false)
 
 const draggingNodeId = computed(
   () => store.getters['automationWorkflowNode/getDraggingNodeId']
@@ -113,6 +126,25 @@ const isDropZoneDisabled = computed(() => {
 
   return false
 })
+
+const handleDragEnter = () => {
+  if (draggingNodeId.value && !isDropZoneDisabled.value) {
+    isDragOver.value = true
+  }
+}
+const handleDragLeave = () => {
+  isDragOver.value = false
+}
+const handleDrop = () => {
+  if (isDropZoneDisabled.value) {
+    return
+  }
+  isDragOver.value = false
+  emit('move-node', {
+    afterNodeId: props.node.id,
+    afterNodeOutput: props.edge.uid,
+  })
+}
 
 const nextNodesOnEdge = store.getters['automationWorkflowNode/getNextNodes'](
   workflow.value,

@@ -7,8 +7,7 @@
     :draggable="isDraggable"
     @dragstart="handleDragStart"
     @dragend="handleDragEnd"
-    @mousedown="handleMouseDown"
-    @mouseup="handleMouseUp"
+    @mousedown.stop
     @click="emit('select-node', node)"
   >
     <div
@@ -135,12 +134,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits([
-  'remove-node',
-  'replace-node',
-  'select-node',
-  'toggle-pan',
-])
+const emit = defineEmits(['remove-node', 'replace-node', 'select-node'])
 
 const isDragging = ref(false)
 
@@ -196,18 +190,6 @@ const isDraggable = computed(() => {
   return !nodeType.value.isFixed
 })
 
-const handleMouseDown = () => {
-  if (isDraggable.value) {
-    emit('toggle-pan', false)
-  }
-}
-
-const handleMouseUp = () => {
-  if (isDraggable.value) {
-    emit('toggle-pan', true)
-  }
-}
-
 const handleDragStart = (event) => {
   isDragging.value = true
   store.dispatch('automationWorkflowNode/setDraggingNodeId', props.node.id)
@@ -215,7 +197,6 @@ const handleDragStart = (event) => {
 
 const handleDragEnd = () => {
   isDragging.value = false
-  emit('toggle-pan', true)
   store.dispatch('automationWorkflowNode/setDraggingNodeId', null)
 }
 

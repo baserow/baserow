@@ -103,12 +103,25 @@
 
 .workflow-node-content__drag-handle {
   position: absolute;
-  left: 4px;
-  top: 5px;
-  width: 7px;
-  height: 58px;
-  background: url('@baserow/modules/core/assets/images/node_drag_bg.png');
+  left: 0;
+  top: 4px;
+  width: 14px;
+  height: 62px;
   cursor: grab;
+  background-image: radial-gradient(
+      circle,
+      $palette-neutral-400 1px,
+      transparent 1px
+    ),
+    radial-gradient(circle, $palette-neutral-400 1px, transparent 1px);
+  background-repeat: repeat-y;
+  background-position: 3px center, 0 center;
+  background-size: auto 4px;
+  display: none;
+
+  .workflow-node-content:hover & {
+    display: block;
+  }
 }
 
 .workflow-node-content::before {

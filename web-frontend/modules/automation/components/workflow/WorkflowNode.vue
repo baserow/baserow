@@ -9,7 +9,6 @@
       @select-node="emit('select-node', $event)"
       @remove-node="emit('remove-node', $event)"
       @replace-node="emit('replace-node', $event)"
-      @toggle-pan="emit('toggle-pan', $event)"
     />
     <WorkflowConnector
       v-for="coords in coordsPerEdge"
@@ -35,7 +34,6 @@
           @remove-node="emit('remove-node', $event)"
           @replace-node="emit('replace-node', $event)"
           @move-node="emit('move-node', $event)"
-          @toggle-pan="emit('toggle-pan', $event)"
         />
       </div>
     </div>
@@ -79,7 +77,6 @@ const emit = defineEmits([
   'remove-node',
   'replace-node',
   'move-node',
-  'toggle-pan',
 ])
 
 const { app } = useContext()

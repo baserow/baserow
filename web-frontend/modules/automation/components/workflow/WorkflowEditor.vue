@@ -29,7 +29,6 @@
         @replace-node="emit('replace-node', $event)"
         @select-node="emit('input', $event.id)"
         @move-node="emit('move-node', $event)"
-        @toggle-pan="handleTogglePan"
       />
     </template>
   </VueFlow>
@@ -91,10 +90,6 @@ const workflowReadOnly = inject('workflowReadOnly')
 const computedNodes = computed(() => {
   return props.nodes
 })
-
-const handleTogglePan = (value) => {
-  panOnDrag.value = value
-}
 
 /**
  * This watcher is used to force the update the workflow graph when nodes are updated.
