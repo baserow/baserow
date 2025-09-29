@@ -1,5 +1,8 @@
 <template>
-  <div v-if="showEntry && featureFlagEnabled" class="context__menu-item">
+  <div
+    v-if="showEntry && featureEnabled && hasPermission && featureFlagEnabled"
+    class="context__menu-item"
+  >
     <div>
       <a
         class="context__menu-item-link"
@@ -75,6 +78,13 @@ export default {
     },
     featureFlagEnabled() {
       return this.$featureFlagIsEnabled(FF_DATE_DEPENDENCY)
+    },
+    hasPermission() {
+      return this.$hasPermission(
+        'database.table.field_rules.set_field_rules',
+        this.table,
+        this.database.workspace.id
+      )
     },
     showEntry() {
       if (!this.field) {
