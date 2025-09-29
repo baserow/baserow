@@ -232,6 +232,115 @@ def test_update_row_in_postgresql_table(
 
 @pytest.mark.django_db(transaction=True)
 @override_settings(DEBUG=True)
+def test_update_row_in_postgresql_table_with_multiple_primary_keys(
+    enterprise_data_fixture,
+    create_postgresql_test_table,
+):
+    enterprise_data_fixture.enable_enterprise()
+    default_database = settings.DATABASES["default"]
+    user = enterprise_data_fixture.create_user()
+
+    table_name = "test_table_multi_pk"
+    create_table_sql = f"""
+    CREATE TABLE {table_name} (
+        id INTEGER NOT NULL,
+        pk2 TEXT NOT NULL,
+        text_col TEXT,
+        PRIMARY KEY (id, pk2)
+    )
+    """
+    insert_sql = f"""
+    INSERT INTO {table_name} (id, pk2, text_col)
+    VALUES (%s, %s, %s)
+    """
+
+    with connection.cursor() as cursor:
+        cursor.execute(create_table_sql)
+        cursor.execute(insert_sql, (1, "A", "original"))
+    transaction.commit()
+
+    try:
+        database = enterprise_data_fixture.create_database_application(user=user)
+        handler = DataSyncHandler()
+
+        data_sync = handler.create_data_sync_table(
+            user=user,
+            database=database,
+            table_name="Test",
+            type_name="postgresql",
+            two_way_sync=True,
+            synced_properties=[
+                "id",
+                "pk2",
+                "text_col",
+            ],
+            postgresql_host=default_database["HOST"],
+            postgresql_username=default_database["USER"],
+            postgresql_password=default_database["PASSWORD"],
+            postgresql_port=default_database["PORT"],
+            postgresql_database=default_database["NAME"],
+            postgresql_table=table_name,
+            postgresql_sslmode=default_database["OPTIONS"].get("sslmode", "prefer"),
+        )
+
+        handler.sync_data_sync_table(user=user, data_sync=data_sync)
+
+        fields = specific_iterator(data_sync.table.field_set.all().order_by("id"))
+        id_field = fields[0]
+        pk2_field = fields[1]
+        text_field = fields[2]
+
+        model = data_sync.table.get_model()
+        rows = model.objects.all()
+
+        row_handler = RowHandler()
+
+        with transaction.atomic():
+            rows = row_handler.update_rows(
+                user=user,
+                table=data_sync.table,
+                rows_values=[
+                    {
+                        "id": rows[0].id,
+                        f"field_{text_field.id}": "updated",
+                    }
+                ],
+                signal_params={"skip_two_way_sync": True},
+            )[0]
+
+        serialized_rows = serialize_rows_for_response(rows, model)
+        data_sync_type = data_sync_type_registry.get_by_model(data_sync)
+        two_way_sync_strategy = two_way_sync_strategy_type_registry.get(
+            data_sync_type.two_way_sync_strategy_type
+        )
+
+        two_way_sync_strategy.rows_updated(
+            Task(),
+            serialized_rows,
+            data_sync,
+            updated_field_ids=[text_field.id],
+        )
+
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f"""
+                SELECT id, pk2, text_col
+                FROM {table_name}
+                ORDER BY id
+                """
+            )
+            results = cursor.fetchall()
+            assert results[0][2] == "updated"
+
+    finally:
+        # Clean up dynamically created table
+        with connection.cursor() as cursor:
+            cursor.execute(f"DROP TABLE IF EXISTS {table_name}")
+        transaction.commit()
+
+
+@pytest.mark.django_db(transaction=True)
+@override_settings(DEBUG=True)
 def test_skip_update_row_in_postgresql_table_if_unique_primary_is_empty(
     enterprise_data_fixture,
     create_postgresql_test_table,
