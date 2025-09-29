@@ -57,8 +57,8 @@ class AutomationApplicationType(ApplicationType):
 
     def init_application(self, user: AbstractUser, application: Automation) -> None:
         """
-        Responsible for creating default workflows in the newly created
-        Automation application.
+        Responsible for creating an initial workflow, and Local Baserow integration,
+        in the newly created Automation application.
 
         :param user: The user that is creating a new automation application.
         :param application: The newly created automation application.
@@ -67,6 +67,7 @@ class AutomationApplicationType(ApplicationType):
 
         automation_init = AutomationApplicationTypeInitApplication(user, application)
         automation_init.create_workflow(automation_init.workflow_name)
+        automation_init.create_local_baserow_integration()
 
     def export_serialized(
         self,
