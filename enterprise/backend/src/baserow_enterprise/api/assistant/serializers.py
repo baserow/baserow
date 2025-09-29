@@ -5,7 +5,10 @@ from drf_spectacular.plumbing import force_instance
 from rest_framework import serializers
 
 from baserow_enterprise.assistant.models import AssistantChat
-from baserow_enterprise.assistant.types import AssistantMessageType, BaseMessage
+from baserow_enterprise.assistant.types import (
+    AssistantMessageType,
+    AssistantMessageUnion,
+)
 
 
 class AssistantChatsRequestSerializer(serializers.Serializer):
@@ -150,15 +153,13 @@ class AssistantMessageSerializer(serializers.Serializer):
         return {"type": msg_type}
 
     @classmethod
-    def can_serialize(cls, message: BaseMessage) -> bool:
-        # ToolCall messages are not returned to the frontend
-        if getattr(message, "tool_calls", None):
-            return False
-
+    def can_serialize(cls, message: AssistantMessageUnion) -> bool:
         return message.type in TYPE_SERIALIZER_MAP
 
     @classmethod
-    def from_assistant_message(cls, message: BaseMessage):
+    def from_assistant_message(
+        cls, message: AssistantMessageUnion
+    ) -> "AssistantMessageSerializer":
         if message.type not in TYPE_SERIALIZER_MAP:
             raise ValueError(
                 f"Unknown message type {message.type}. Cannot serialize. "
@@ -185,8 +186,7 @@ class AssistantChatMessagesSerializer(serializers.Serializer):
         serializable_messages = [
             msg
             for msg in messages
-            if not isinstance(msg, BaseMessage)
-            or AssistantMessageSerializer.can_serialize(msg)
+            if hasattr(msg, "type") and AssistantMessageSerializer.can_serialize(msg)
         ]
 
         return {

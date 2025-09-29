@@ -4,8 +4,7 @@ from zipfile import ZIP_DEFLATED, ZipFile
 from django.core import serializers
 from django.db.models import Q
 
-from langchain_core.embeddings import Embeddings
-from langchain_openai import OpenAIEmbeddings
+import dspy
 from pgvector.django import L2Distance
 
 from baserow_enterprise.assistant.models import (
@@ -14,18 +13,18 @@ from baserow_enterprise.assistant.models import (
     KnowledgeBaseDocument,
 )
 
-EMBEDDING_MODEL = "text-embedding-3-small"
+EMBEDDER_MODEL = "text-embedding-3-small"
 
 
 class VectorHandler:
-    def __init__(self, embeddings: Embeddings | None = None):
-        self._embeddings = embeddings
+    def __init__(self, embedder: dspy.Embedder | None = None):
+        self._embedder = embedder
 
     @property
-    def embeddings(self) -> Embeddings:
-        if self._embeddings is None:
-            self._embeddings = OpenAIEmbeddings(model=EMBEDDING_MODEL)
-        return self._embeddings
+    def embedder(self) -> dspy.Embedder:
+        if self._embedder is None:
+            self._embedder = dspy.Embedder(EMBEDDER_MODEL)
+        return self._embedder
 
     def embed_texts(self, texts: list[str]) -> list[list[float]]:
         """
@@ -38,7 +37,12 @@ class VectorHandler:
         if not texts:
             return []
 
-        return self.embeddings.embed_documents(texts)
+        embedder = self.embedder
+        # Support both dspy.Embedder (callable) and LangChain-style embedders
+        if callable(embedder):
+            return embedder(texts)
+        else:
+            return embedder.embed_documents(texts)
 
     def embed_knowledge_chunks(
         self, chunks: list[KnowledgeBaseChunk]
@@ -93,6 +97,16 @@ class VectorHandler:
 class KnowledgeBaseHandler:
     def __init__(self, vector_handler: VectorHandler | None = None):
         self.vector_handler = vector_handler or VectorHandler()
+        self._try_init_vectors()
+
+    def _try_init_vectors(self):
+        """
+        Ensures that the vector field is initialized if the pgvector extension is
+        available, adding the necessary field to the model so it can be queried and
+        used.
+        """
+
+        KnowledgeBaseChunk.try_init_vector_field()
 
     def can_search(self) -> bool:
         """

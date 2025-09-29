@@ -1,207 +1,312 @@
-from collections import defaultdict
-from typing import Any, AsyncGenerator, AsyncIterator, Optional
+from typing import Any, AsyncGenerator, TypedDict
 
-from asgiref.sync import async_to_sync
-from langchain_core.messages import AIMessageChunk
-from langchain_core.runnables.config import RunnableConfig
-from langgraph.errors import GraphRecursionError
-from langgraph.types import StreamMode
-from loguru import logger
+from django.conf import settings
 
-from baserow_enterprise.assistant.capabilities.graph import AssistantGraphBuilder, Node
+import dspy
+from dspy.primitives.prediction import Prediction
+from dspy.streaming import StreamListener, StreamResponse
+from dspy.utils.callback import BaseCallback
 
-from .models import AssistantChat
+from baserow_enterprise.assistant.tools.registries import assistant_tool_registry
+
+from .models import AssistantChat, AssistantChatMessage
+from .prompts import ASSISTANT_SYSTEM_PROMPT
 from .types import (
-    AiErrorMessage,
-    AiErrorMessageCode,
     AiMessage,
     AiMessageChunk,
+    AiThinkingMessage,
     AssistantMessageUnion,
-    AssistantState,
     ChatTitleMessage,
     HumanMessage,
+    UIContext,
 )
 
-
-def is_state_update(update: list[Any]):
-    """
-    Returns True if the update is an update of the assistant graph state.
-    """
-
-    return len(update) == 2 and update[0] == "values"
+DEFAULT_LM_NAME = "groq/openai/gpt-oss-120b"
 
 
-def is_message_update(update: list[Any]):
-    """
-    Returns True if the update comes from a streaming update. This happens when the
-    model defines streaming=True, so that every token is streamed as it is generated.
-    """
-
-    return len(update) == 2 and update[0] == "messages"
+class ChatSignature(dspy.Signature):
+    question: str = dspy.InputField()
+    history: dspy.History = dspy.InputField()
+    answer: str = dspy.OutputField()
 
 
-def validate_state_update(state_update: dict[Any, Any]) -> AssistantState:
-    """
-    Validate the state update against the AssistantState model.
-    """
-
-    return AssistantState.model_validate(state_update)
+class AssistantMessagePair(TypedDict):
+    question: str
+    answer: str
 
 
-def get_message_by_node(node: Node, **kwargs) -> AssistantMessageUnion | None:
-    """
-    Returns the message associated with a specific node in the assistant graph.
+class AssistantCallbacks(BaseCallback):
+    def __init__(self):
+        self.tool_calls = {}
+        self.sources = []
 
-    :param node: The node to get the message for.
-    :param kwargs: Additional keyword arguments to pass to the message constructor.
-    :return: The message associated with the specified node, or None if the node is not
-        recognized.
-    """
+    def extend_sources(self, sources: list[str]) -> None:
+        """
+        Extends the current list of sources with new ones, avoiding duplicates.
 
-    if node == Node.ROOT:
-        return AiMessageChunk(content=kwargs.get("content", ""))
-    elif node == Node.TITLE_GENERATOR:
-        return ChatTitleMessage(content=kwargs.get("content", ""))
+        :param sources: The list of new source URLs to add.
+        :return: None
+        """
+
+        self.sources.extend([s for s in sources if s not in self.sources])
+
+    def on_tool_start(
+        self,
+        call_id: str,
+        instance: Any,
+        inputs: dict[str, Any],
+    ) -> None:
+        """
+        Called when a tool starts. It records the tool call and invokes the
+        corresponding tool's on_tool_start method if it exists.
+
+        :param call_id: The unique identifier of the tool call.
+        :param instance: The instance of the tool being called.
+        :param inputs: The inputs provided to the tool.
+        """
+
+        try:
+            assistant_tool_registry.get(instance.name).on_tool_start(
+                call_id, instance, inputs
+            )
+            self.tool_calls[call_id] = (instance, inputs)
+        except assistant_tool_registry.does_not_exist_exception_class:
+            pass
+
+    def on_tool_end(
+        self,
+        call_id: str,
+        outputs: dict[str, Any] | None,
+        exception: Exception | None = None,
+    ) -> None:
+        """
+        Called when a tool ends. It invokes the corresponding tool's on_tool_end
+        method if it exists and updates the sources if the tool produced any.
+
+        :param call_id: The unique identifier of the tool call.
+        :param outputs: The outputs returned by the tool, or None if there was an
+            exception.
+        :param exception: The exception raised by the tool, or None if it was
+            successful.
+        """
+
+        if call_id not in self.tool_calls:
+            return
+
+        instance, inputs = self.tool_calls.pop(call_id)
+        assistant_tool_registry.get(instance.name).on_tool_end(
+            call_id, instance, inputs, outputs, exception
+        )
+
+        if isinstance(outputs, dict) and "sources" in outputs:
+            self.extend_sources(outputs["sources"])
 
 
 class Assistant:
-    def __init__(self, chat: AssistantChat, new_message: HumanMessage | None = None):
-        self.chat = chat
-        self.user = chat.user
-        self.workspace = chat.workspace
-        self._state = None
-        self._graph_builder = AssistantGraphBuilder(self.chat)
-        self._graph = None
-        self._last_message = new_message
-        self._chunks = defaultdict(AIMessageChunk)
+    def __init__(self, chat: AssistantChat):
+        self._chat = chat
+        self._user = chat.user
+        self._workspace = chat.workspace
 
-    def _get_config(self) -> RunnableConfig:
-        return {
-            "configurable": {
-                "thread_id": self.chat.uuid,
-                "chat": self.chat,
-                "user": self.user,
-                "workspace": self.workspace,
-            }
-        }
+        Signature = self._get_chat_signature()
+        self._assistant = dspy.ReAct(
+            Signature,
+            tools=assistant_tool_registry.list_all_usable_tools(
+                self._user, self._workspace
+            ),
+        )
+        self.history = None
 
-    async def _get_graph(self):
-        if self._graph is None:
-            self._graph = await self._graph_builder.compile_full_graph()
-        return self._graph
-
-    @async_to_sync
-    async def get_messages(self):
+    def _get_chat_signature(self) -> dspy.Signature:
         """
-        Fetch all messages from the state, saved by the checkpointer.
+        Returns the appropriate signature for the chat based on whether it has a title.
+
+        :return: the dspy.Signature for the chat, with the chat_title field included if
+            the chat does not yet have a title, otherwise with only the question,
+            history, and answer fields.
         """
 
-        config = self._get_config()
-        graph = await self._get_graph()
-        snapshot = await graph.aget_state(config)
-        return snapshot.values["messages"]
+        if self._chat.title:  # only inject our base system prompt
+            return ChatSignature.with_instructions(
+                "\n".join(
+                    [
+                        ASSISTANT_SYSTEM_PROMPT,
+                        "Given the fields `question`, `history`, produce the fields `answer`.",
+                    ]
+                )
+            )
+        else:  # the chat also needs a title
+            return dspy.Signature(
+                {
+                    **ChatSignature.fields,
+                    "chat_title": dspy.OutputField(
+                        max_length=20,
+                        description=(
+                            "Capture the core intent of the conversation in ≤ 8 words for the chat title. "
+                            "Use clear, action-oriented language (gerund verbs up front where possible)."
+                        ),
+                    ),
+                },
+                instructions="\n".join(
+                    [
+                        ASSISTANT_SYSTEM_PROMPT,
+                        "Given the fields `question`, `history`, produce the fields `answer`, `chat_title`.",
+                    ]
+                ),
+            )
 
-    def _init_state(self) -> AssistantState:
+    async def acreate_chat_message(
+        self,
+        role: AssistantChatMessage.Role,
+        content: str,
+        artifacts: dict[str, Any] | None = None,
+    ) -> AssistantChatMessage:
         """
-        Initialize the assistant state.
+        Creates and saves a new chat message.
+
+        :param role: The role of the message (human or AI).
+        :param content: The content of the message.
+        :param artifacts: Optional artifacts associated with the message.
+        :return: The created AssistantChatMessage instance.
+        """
+
+        message = AssistantChatMessage(
+            chat=self._chat,
+            role=role,
+            content=content,
+        )
+        if artifacts:
+            message.artifacts = artifacts
+        return await message.asave()
+
+    def list_chat_messages(self, offset=0, limit=1000) -> list[AssistantChatMessage]:
+        """
+        Lists all chat messages in chronological order.
+
+        :param offset: The number of messages to skip from the start.
+        :param limit: The maximum number of messages to return.
+        :return: A list of AssistantChatMessage instances.
         """
 
         messages = []
-        if self._last_message:
-            messages.append(self._last_message)
-        return AssistantState(messages=messages)
+        for msg in self._chat.messages.order_by("-created_on")[offset:limit]:
+            if msg.role == AssistantChatMessage.Role.HUMAN:
+                messages.append(
+                    HumanMessage(
+                        content=msg.content, id=str(msg.id), timestamp=msg.created_on
+                    )
+                )
+            else:
+                messages.append(
+                    AiMessage(
+                        content=msg.content, id=str(msg.id), timestamp=msg.created_on
+                    )
+                )
+        return list(reversed(messages))
 
-    def _process_custom_update(self, update: Any):
-        return [update]
-
-    def _process_update(self, update: Any) -> Optional[list[AssistantMessageUnion]]:
+    async def aload_chat_history(self, limit=20):
         """
-        Process an update from the assistant graph. Considering the different stream
-        modes, the update may contain different types of information. This function will
-        handle different types of updates accordingly.
+        Loads the chat history into a dspy.History object. It only loads complete
+        message pairs (human + AI). The history will be in chronological order and must
+        respect the module signature (question, answer).
 
-        :param update: The update to process.
-        :return: A list of messages generated from the update to stream to the user, if
-            any.
-        """
-
-        if update[1] == "custom":
-            # Custom streams come from a tool call
-            return self._process_custom_update(update[2])
-
-        # remove the first element, which is the node/subgraph node name
-        update = update[1:]
-        if is_state_update(update):
-            prev_state = self._state
-            _, new_state = update
-            self._state = validate_state_update(new_state)
-            if len(self._state.messages) > len(prev_state.messages):
-                new_message = self._state.messages[-1]
-                if isinstance(new_message, AiMessage) and not new_message.tool_calls:
-                    return [new_message]
-        elif is_message_update(update) and (
-            new_message := self._process_message_update(update)
-        ):
-            return [new_message]
-        return None
-
-    def _process_message_update(self, update) -> Optional[AssistantMessageUnion]:
-        """
-        Process a message update from the assistant graph.
-
-        :param update: The update to process.
-        :return: The processed message, if any.
+        :param limit: The maximum number of message pairs to load.
+        :return: None
         """
 
-        langchain_message, langchain_state = update[1]
-        if not isinstance(langchain_message, AIMessageChunk):
-            return None
+        last_saved_messages: list[AssistantChatMessage] = [
+            msg async for msg in self._chat.messages.order_by("-created_on")[:limit]
+        ]
 
-        node = langchain_state.get("langgraph_node")
-        if not langchain_message.content:
-            self._chunks[node] = langchain_message
-            return None
-        else:
-            self._chunks[node] += langchain_message
-            return get_message_by_node(node, content=self._chunks[node].content)
+        messages = []
+        while len(last_saved_messages) >= 2:
+            first_message = last_saved_messages.pop()
+            next_message = last_saved_messages[-1]
+            if (
+                first_message.role != AssistantChatMessage.Role.HUMAN
+                or next_message.role != AssistantChatMessage.Role.AI
+            ):
+                continue
 
-    async def astream(self) -> AsyncGenerator[AssistantMessageUnion, None]:
-        """
-        Stream messages from the assistant.
-
-        :param stream_messages: Whether to stream token messages as they are generated.
-        :return: An async generator yielding messages.
-        """
-
-        self._state = self._init_state()
-        config = self._get_config()
-
-        stream_mode: list[StreamMode] = ["values", "updates", "messages", "custom"]
-
-        graph = await self._get_graph()
-        generator: AsyncIterator[Any] = graph.astream(
-            self._state, config=config, stream_mode=stream_mode, subgraphs=True
-        )
-
-        try:
-            async for update in generator:
-                if messages := self._process_update(update):
-                    for message in messages:
-                        yield message
-        except GraphRecursionError:
-            yield (
-                AiErrorMessage(
-                    code=AiErrorMessageCode.RECURSION_LIMIT_EXCEEDED,
-                    content=(
-                        "The assistant has reached the maximum number of steps. "
-                        "You can explicitly ask to continue."
-                    ),
-                ),
+            human_question = first_message
+            ai_answer = last_saved_messages.pop()
+            messages.append(
+                AssistantMessagePair(
+                    question=human_question.content,
+                    answer=ai_answer.content,
+                )
             )
-        except Exception:
-            logger.exception("Error occurred while streaming updates")
 
-            yield AiErrorMessage(
-                code=AiErrorMessageCode.UNKNOWN,
-                content="The assistant has encountered an error. Please try again.",
+        self.history = dspy.History(messages=messages)
+
+    async def astream_messages(
+        self, user_message: str, ui_context: UIContext
+    ) -> AsyncGenerator[AssistantMessageUnion, None]:
+        """
+        Streams the response to a user message.
+
+        :param user_message: The message from the user.
+        :param ui_context: The UI context where the message was sent.
+        :return: An async generator that yields the response messages.
+        """
+
+        lm = dspy.LM(DEFAULT_LM_NAME, cache=not settings.DEBUG)
+
+        callback_manager = AssistantCallbacks()
+        with dspy.context(lm=lm, callbacks=[callback_manager]):
+            if self.history is None:
+                await self.aload_chat_history()
+
+            # Follow the stream of all output fields
+            stream_listeners = [
+                StreamListener(signature_field_name="answer"),
+            ]
+            if not self._chat.title:
+                stream_listeners.append(
+                    StreamListener(signature_field_name="chat_title")
+                )
+
+            stream_predict = dspy.streamify(
+                self._assistant,
+                stream_listeners=stream_listeners,
             )
+            output_stream = stream_predict(question=user_message, history=self.history)
+
+            await self.acreate_chat_message(
+                AssistantChatMessage.Role.HUMAN, user_message
+            )
+
+            chat_title, answer = "", ""
+            async for stream_chunk in output_stream:
+                if isinstance(stream_chunk, StreamResponse):
+                    # signature_field_name contains which field this chunk is for e.g.
+                    # "answer" or "chat_title", while stream_chunk.chunk contains the
+                    # actual new content. We accumulate the chunks for each field so we
+                    # can send the full content each time, and easily replace the last
+                    # message on the frontend if needed.
+                    match stream_chunk.signature_field_name:
+                        case "answer":
+                            answer += stream_chunk.chunk
+                            yield AiMessageChunk(
+                                content=answer, sources=callback_manager.sources
+                            )
+                        case "chat_title":
+                            chat_title += stream_chunk.chunk
+                            yield ChatTitleMessage(content=chat_title)
+                elif isinstance(stream_chunk, Prediction):
+                    # The prediction contains the final output once streaming is done
+                    # Since we've already streamed the answer and chat_title, we can
+                    # just save them to the database here.
+                    await self.acreate_chat_message(
+                        AssistantChatMessage.Role.AI,
+                        answer,
+                        artifacts={"sources": callback_manager.sources},
+                    )
+
+                    if chat_title and not self._chat.title:
+                        self._chat.title = chat_title
+                        await self._chat.asave(update_fields=["title", "updated_on"])
+                elif isinstance(stream_chunk, AiThinkingMessage):
+                    # If any tool stream a thinking message, we just forward it to the
+                    # user
+                    yield stream_chunk

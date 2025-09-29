@@ -50,7 +50,7 @@ const md = new MarkdownIt({
   html: false, // Disable HTML tags for security
   linkify: true, // Auto-convert URLs to links
   typographer: true, // Enable smart quotes and other typography
-  breaks: true, // Convert line breaks to <br>
+  breaks: false, // Convert line breaks to <br>
 })
 
 export default {
