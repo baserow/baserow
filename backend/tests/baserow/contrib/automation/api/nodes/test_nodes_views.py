@@ -1029,6 +1029,7 @@ def test_simulate_dispatch_action_node(api_client, data_fixture):
     }
 
 
+@pytest.mark.django_db
 @pytest.mark.parametrize(
     "node_type",
     [
@@ -1063,6 +1064,7 @@ def test_move_movable_node(node_type, api_client, data_fixture):
         "service": AnyDict(),
         "type": node_type.type,
         "workflow": workflow.id,
+        "simulate_until_node": False,
     }
     before_node.refresh_from_db()
     assert before_node.previous_node_id == node.id
