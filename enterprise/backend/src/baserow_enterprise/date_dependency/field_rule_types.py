@@ -19,7 +19,6 @@ from baserow.contrib.database.field_rules.registries import (
     RowRuleValidity,
 )
 from baserow.contrib.database.table.models import GeneratedTableModel, Table
-from baserow.core.feature_flags import FF_DATE_DEPENDENCY_V2, feature_flag_is_enabled
 from baserow_enterprise.date_dependency.models import (
     DateDependency,
     DependencyBufferType,
@@ -156,20 +155,17 @@ class DateDependencyFieldRuleType(FieldRuleType):
             )
             out.append(ret)
             collector.add_changes([ret])
-            if feature_flag_is_enabled(FF_DATE_DEPENDENCY_V2):
-                row_updated = model(id=-1, **new_values)
-                deps_calc = DateDependencyCalculator(
-                    row_updated, rule, collector.visited
-                )
-                deps_calc.calculate()
-                for row_id, row_data_values in deps_calc.modified:
-                    out.append(
-                        RowRuleChanges(
-                            row_id=row_id,
-                            updated_values=row_data_values.to_dict(),
-                            updated_field_ids=changed_column_ids,
-                        )
+            row_updated = model(id=-1, **new_values)
+            deps_calc = DateDependencyCalculator(row_updated, rule, collector.visited)
+            deps_calc.calculate()
+            for row_id, row_data_values in deps_calc.modified:
+                out.append(
+                    RowRuleChanges(
+                        row_id=row_id,
+                        updated_values=row_data_values.to_dict(),
+                        updated_field_ids=changed_column_ids,
                     )
+                )
 
         return out
 
@@ -219,19 +215,16 @@ class DateDependencyFieldRuleType(FieldRuleType):
             row_updated = row.__class__(id=row.id, **new_values)
             collector.add_starting_rows([row_updated])
             collector.add_changes(out)
-            if feature_flag_is_enabled(FF_DATE_DEPENDENCY_V2):
-                deps_calc = DateDependencyCalculator(
-                    row_updated, rule, collector.visited
-                )
-                deps_calc.calculate()
-                for row_id, row_data_values in deps_calc.modified:
-                    out.append(
-                        RowRuleChanges(
-                            row_id=row_id,
-                            updated_values=row_data_values.to_dict(),
-                            updated_field_ids=changed_column_ids,
-                        )
+            deps_calc = DateDependencyCalculator(row_updated, rule, collector.visited)
+            deps_calc.calculate()
+            for row_id, row_data_values in deps_calc.modified:
+                out.append(
+                    RowRuleChanges(
+                        row_id=row_id,
+                        updated_values=row_data_values.to_dict(),
+                        updated_field_ids=changed_column_ids,
                     )
+                )
         return out
 
     def validate_row(

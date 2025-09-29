@@ -67,7 +67,7 @@
             />
           </div>
 
-          <div v-if="v2Enabled" class="col col-6">
+          <div class="col col-6">
             <DateDependencyFieldPicker
               ref="dependency_linkrow_field_id"
               v-model="v$.dependency.dependency_linkrow_field_id.$model"
@@ -106,7 +106,6 @@ import { required, requiredIf } from '@vuelidate/validators'
 import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandler'
 import FieldService from '@baserow/modules/database/services/field'
 import { notifyIf } from '@baserow/modules/core/utils/error'
-import { FF_DATE_DEPENDENCY_V2 } from '@baserow/modules/core/plugins/featureFlags'
 
 export default {
   name: 'DateDependencyModal',
@@ -180,9 +179,6 @@ export default {
         this.table,
         this.workspaceId
       )
-    },
-    v2Enabled() {
-      return this.$featureFlagIsEnabled(FF_DATE_DEPENDENCY_V2)
     },
     endDateFields() {
       // we want to exclude field that is used in start date field
