@@ -9,7 +9,7 @@ import baserow.core.fields
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("baserow_enterprise", "0052_date_dependency"),
+        ("baserow_enterprise", "0053_date_dependency_update"),
     ]
 
     operations = [
