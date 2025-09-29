@@ -8,15 +8,19 @@ argh==0.31.2
     # via -r dev.in
 asgiref==3.8.1
     # via
-    #   -c base.txt
+    #   -c /baserow/backend/requirements/base.txt
     #   django
 asttokens==3.0.0
     # via
     #   snoop
     #   stack-data
+async-timeout==5.0.1
+    # via
+    #   -c /baserow/backend/requirements/base.txt
+    #   redis
 attrs==24.3.0
     # via
-    #   -c base.txt
+    #   -c /baserow/backend/requirements/base.txt
     #   jsonschema
     #   referencing
 autopep8==2.1.0
@@ -35,17 +39,17 @@ build==1.2.2.post1
     #   pip-tools
 certifi==2025.4.26
     # via
-    #   -c base.txt
+    #   -c /baserow/backend/requirements/base.txt
     #   requests
 charset-normalizer==3.4.1
     # via
-    #   -c base.txt
+    #   -c /baserow/backend/requirements/base.txt
     #   requests
 cheap-repr==0.5.2
     # via snoop
 click==8.1.8
     # via
-    #   -c base.txt
+    #   -c /baserow/backend/requirements/base.txt
     #   black
     #   pip-tools
 coverage[toml]==7.5.1
@@ -59,9 +63,9 @@ decorator==5.1.1
     # via
     #   ipdb
     #   ipython
-django==5.0.13
+django==5.0.14
     # via
-    #   -c base.txt
+    #   -c /baserow/backend/requirements/base.txt
     #   django-extensions
     #   django-silk
     #   django-stubs
@@ -98,7 +102,7 @@ icdiff==2.0.7
     # via pytest-icdiff
 idna==3.10
     # via
-    #   -c base.txt
+    #   -c /baserow/backend/requirements/base.txt
     #   requests
 iniconfig==2.0.0
     # via pytest
@@ -116,14 +120,14 @@ jinja2==3.1.5
     # via pytest-html
 jsonschema==4.25.0
     # via
-    #   -c base.txt
+    #   -c /baserow/backend/requirements/base.txt
     #   openapi-schema-validator
     #   openapi-spec-validator
 jsonschema-path==0.3.4
     # via openapi-spec-validator
 jsonschema-specifications==2025.4.1
     # via
-    #   -c base.txt
+    #   -c /baserow/backend/requirements/base.txt
     #   jsonschema
     #   openapi-schema-validator
 lazy-object-proxy==1.10.0
@@ -132,7 +136,7 @@ lupa==2.2
     # via fakeredis
 markdown-it-py==3.0.0
     # via
-    #   -c base.txt
+    #   -c /baserow/backend/requirements/base.txt
     #   rich
 markupsafe==3.0.2
     # via jinja2
@@ -142,7 +146,7 @@ mccabe==0.7.0
     # via flake8
 mdurl==0.1.2
     # via
-    #   -c base.txt
+    #   -c /baserow/backend/requirements/base.txt
     #   markdown-it-py
 mypy==1.10.0
     # via
@@ -150,7 +154,7 @@ mypy==1.10.0
     #   django-stubs
 mypy-extensions==1.0.0
     # via
-    #   -c base.txt
+    #   -c /baserow/backend/requirements/base.txt
     #   -r dev.in
     #   black
     #   mypy
@@ -160,7 +164,7 @@ openapi-spec-validator==0.7.2
     # via -r dev.in
 packaging==23.2
     # via
-    #   -c base.txt
+    #   -c /baserow/backend/requirements/base.txt
     #   black
     #   build
     #   pytest
@@ -184,7 +188,7 @@ pprintpp==0.4.0
     # via pytest-icdiff
 prompt-toolkit==3.0.48
     # via
-    #   -c base.txt
+    #   -c /baserow/backend/requirements/base.txt
     #   ipython
 ptyprocess==0.7.0
     # via pexpect
@@ -200,7 +204,7 @@ pyflakes==3.2.0
     # via flake8
 pygments==2.19.1
     # via
-    #   -c base.txt
+    #   -c /baserow/backend/requirements/base.txt
     #   ipython
     #   rich
     #   snoop
@@ -257,27 +261,27 @@ pytest-xdist==3.6.1
     # via -r dev.in
 python-dateutil==2.8.2
     # via
-    #   -c base.txt
+    #   -c /baserow/backend/requirements/base.txt
     #   freezegun
 pyyaml==6.0.2
     # via
-    #   -c base.txt
+    #   -c /baserow/backend/requirements/base.txt
     #   bandit
     #   jsonschema-path
     #   responses
 redis==5.0.4
     # via
-    #   -c base.txt
+    #   -c /baserow/backend/requirements/base.txt
     #   fakeredis
 referencing==0.36.2
     # via
-    #   -c base.txt
+    #   -c /baserow/backend/requirements/base.txt
     #   jsonschema
     #   jsonschema-path
     #   jsonschema-specifications
-requests==2.32.3
+requests==2.32.5
     # via
-    #   -c base.txt
+    #   -c /baserow/backend/requirements/base.txt
     #   jsonschema-path
     #   responses
 responses==0.25.0
@@ -286,16 +290,16 @@ rfc3339-validator==0.1.4
     # via openapi-schema-validator
 rich==13.7.1
     # via
-    #   -c base.txt
+    #   -c /baserow/backend/requirements/base.txt
     #   bandit
 rpds-py==0.26.0
     # via
-    #   -c base.txt
+    #   -c /baserow/backend/requirements/base.txt
     #   jsonschema
     #   referencing
 six==1.17.0
     # via
-    #   -c base.txt
+    #   -c /baserow/backend/requirements/base.txt
     #   python-dateutil
     #   rfc3339-validator
     #   snoop
@@ -305,7 +309,7 @@ sortedcontainers==2.4.0
     # via fakeredis
 sqlparse==0.5.3
     # via
-    #   -c base.txt
+    #   -c /baserow/backend/requirements/base.txt
     #   django
     #   django-silk
 stack-data==0.6.3
@@ -324,7 +328,7 @@ types-pyyaml==6.0.12.20241230
     # via django-stubs
 typing-extensions==4.11.0
     # via
-    #   -c base.txt
+    #   -c /baserow/backend/requirements/base.txt
     #   django-stubs
     #   django-stubs-ext
     #   ipython
@@ -332,14 +336,14 @@ typing-extensions==4.11.0
     #   referencing
 urllib3==1.26.20
     # via
-    #   -c base.txt
+    #   -c /baserow/backend/requirements/base.txt
     #   requests
     #   responses
 watchdog==4.0.0
     # via -r dev.in
 wcwidth==0.2.13
     # via
-    #   -c base.txt
+    #   -c /baserow/backend/requirements/base.txt
     #   prompt-toolkit
 wheel==0.45.1
     # via pip-tools
