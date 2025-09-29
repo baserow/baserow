@@ -445,9 +445,9 @@ def test_date_dependency_update_cascade_multi_root_and_leaf(
     data = [
         # text, start, end, duration, linkrow
         ["A1", "2025-05-10", "2025-05-11", "2d 0h", []],
-        ["A2", "2025-05-10", "2025-05-11", "2d 0h", ["A1"]],
-        ["A3", "2025-05-10", "2025-05-11", "2d 0h", ["A2"]],
         ["B1", "2025-05-10", "2025-05-11", "2d 0h", []],
+        ["A2", "2025-05-10", "2025-05-11", "2d 0h", ["A1", "B1"]],
+        ["A3", "2025-05-10", "2025-05-11", "2d 0h", ["A2"]],
         ["B2", "2025-05-10", "2025-05-11", "2d 0h", ["A2"]],
     ]
 
@@ -489,8 +489,8 @@ def test_date_dependency_update_cascade_multi_root_and_leaf(
     assert len(updated.cascade_update.row_ids) == 3
 
     expected_updated_rows = {
-        2: {"start_date": date(2025, 5, 14), "end_date": date(2025, 5, 15)},
-        3: {"start_date": date(2025, 5, 16), "end_date": date(2025, 5, 17)},
+        3: {"start_date": date(2025, 5, 14), "end_date": date(2025, 5, 15)},
+        4: {"start_date": date(2025, 5, 16), "end_date": date(2025, 5, 17)},
         5: {"start_date": date(2025, 5, 16), "end_date": date(2025, 5, 17)},
     }
 
