@@ -1,6 +1,6 @@
 <template>
   <div
-    v-if="showEntry && featureEnabled && hasPermission && featureFlagEnabled"
+    v-if="showEntry && featureFlagEnabled && (hasPermission || !featureEnabled)"
     class="context__menu-item"
   >
     <div>
