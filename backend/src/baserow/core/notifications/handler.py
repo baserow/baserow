@@ -430,7 +430,7 @@ class NotificationHandler:
 
         return Notification(
             type=notification_type,
-            sender=sender,
+            sender=sender if sender and sender.is_authenticated else None,
             data=data or {},
             workspace=workspace,
             **kwargs,

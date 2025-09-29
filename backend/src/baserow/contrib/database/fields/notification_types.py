@@ -52,7 +52,9 @@ class CollaboratorAddedToRowNotificationType(
         return _(
             "%(sender)s assigned you to %(field_name)s in row %(row_name)s in %(table_name)s."
         ) % {
-            "sender": notification.sender.first_name,
+            "sender": notification.sender.first_name
+            if notification.sender
+            else _("An unknown user"),
             "field_name": notification.data["field_name"],
             "row_name": notification.data.get("row_name", notification.data["row_id"]),
             "table_name": notification.data["table_name"],

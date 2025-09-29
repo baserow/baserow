@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-09-03 15:33+0000\n"
+"POT-Creation-Date: 2025-09-29 14:05+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -35,77 +35,77 @@ msgstr ""
 #: src/baserow/contrib/automation/action_scopes.py:14
 #, python-format
 msgid ""
-"of type (%(node_type)s) in automation "
-"\"%(automation_name)s\" (%(automation_id)s)."
+"of type (%(node_type)s) in automation \"%(automation_name)s\" "
+"(%(automation_id)s)."
 msgstr ""
 
 #: src/baserow/contrib/automation/actions.py:8
 #, python-format
 msgid ""
-"in workflow (%(workflow_id)s) in automation "
-"\"%(automation_name)s\" (%(automation_id)s)."
+"in workflow (%(workflow_id)s) in automation \"%(automation_name)s\" "
+"(%(automation_id)s)."
 msgstr ""
 
 #: src/baserow/contrib/automation/automation_init_application.py:24
 msgid "Workflow"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/actions.py:27
+#: src/baserow/contrib/automation/nodes/actions.py:28
 msgid "Create automation node"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/actions.py:28
+#: src/baserow/contrib/automation/nodes/actions.py:29
 #, python-format
 msgid "Node (%(node_id)s) created"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/actions.py:99
+#: src/baserow/contrib/automation/nodes/actions.py:100
 msgid "Update automation node"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/actions.py:100
+#: src/baserow/contrib/automation/nodes/actions.py:101
 #, python-format
 msgid "Node (%(node_id)s) updated"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/actions.py:168
+#: src/baserow/contrib/automation/nodes/actions.py:169
 msgid "Delete automation node"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/actions.py:169
+#: src/baserow/contrib/automation/nodes/actions.py:170
 #, python-format
 msgid "Node (%(node_id)s) deleted"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/actions.py:226
+#: src/baserow/contrib/automation/nodes/actions.py:227
 msgid "Order nodes"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/actions.py:227
+#: src/baserow/contrib/automation/nodes/actions.py:228
 msgid "Node order changed"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/actions.py:295
+#: src/baserow/contrib/automation/nodes/actions.py:296
 msgid "Duplicate automation node"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/actions.py:296
+#: src/baserow/contrib/automation/nodes/actions.py:297
 #, python-format
 msgid "Node (%(node_id)s) duplicated"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/actions.py:363
+#: src/baserow/contrib/automation/nodes/actions.py:380
 msgid "Replace automation node"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/actions.py:365
+#: src/baserow/contrib/automation/nodes/actions.py:382
 #, python-format
 msgid ""
 "Node (%(node_id)s) changed from a type of %(original_node_type)s to "
 "%(node_type)s"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/node_types.py:174
+#: src/baserow/contrib/automation/nodes/node_types.py:195
 msgid "Branch"
 msgstr ""
 
@@ -200,18 +200,18 @@ msgstr ""
 msgid "Widget \"%(widget_title)s\" (%(widget_id)s) deleted"
 msgstr ""
 
-#: src/baserow/contrib/integrations/core/service_types.py:1029
+#: src/baserow/contrib/integrations/core/service_types.py:1083
 msgid "Branch taken"
 msgstr ""
 
-#: src/baserow/contrib/integrations/core/service_types.py:1034
+#: src/baserow/contrib/integrations/core/service_types.py:1088
 msgid "Label"
 msgstr ""
 
-#: src/baserow/contrib/integrations/core/service_types.py:1036
+#: src/baserow/contrib/integrations/core/service_types.py:1090
 msgid "The label of the branch that matched the condition."
 msgstr ""
 
-#: src/baserow/contrib/integrations/core/service_types.py:1167
+#: src/baserow/contrib/integrations/core/service_types.py:1374
 msgid "Triggered at"
 msgstr ""
