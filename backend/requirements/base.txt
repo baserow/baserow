@@ -32,6 +32,8 @@ asgiref==3.8.1
     #   django
     #   django-cors-headers
     #   opentelemetry-instrumentation-asgi
+async-timeout==5.0.1
+    # via redis
 attrs==24.3.0
     # via
     #   jsonschema
@@ -52,9 +54,9 @@ backoff==2.2.1
     # via posthog
 billiard==4.2.1
     # via celery
-boto3==1.34.162
+boto3==1.40.40
     # via -r base.in
-botocore==1.34.162
+botocore==1.40.40
     # via
     #   boto3
     #   s3transfer
@@ -119,18 +121,13 @@ daphne==4.1.2
     # via channels
 defusedxml==0.7.1
     # via pysaml2
-deprecated==1.2.15
-    # via
-    #   opentelemetry-api
-    #   opentelemetry-exporter-otlp-proto-http
-    #   opentelemetry-semantic-conventions
 distro==1.9.0
     # via
     #   anthropic
     #   openai
 dj-database-url==2.1.0
     # via -r base.in
-django==5.0.13
+django==5.0.14
     # via
     #   -r base.in
     #   channels
@@ -215,6 +212,8 @@ googleapis-common-protos==1.66.0
     # via
     #   google-api-core
     #   opentelemetry-exporter-otlp-proto-http
+greenlet==3.2.4
+    # via sqlalchemy
 gunicorn==23.0.0
     # via -r base.in
 h11==0.16.0
@@ -322,7 +321,7 @@ loguru==0.7.2
     # via -r base.in
 markdown-it-py==3.0.0
     # via rich
-mcp==1.6.0
+mcp==1.9.4
     # via -r base.in
 mdurl==0.1.2
     # via markdown-it-py
@@ -348,7 +347,7 @@ openai==1.91.0
     #   langchain-openai
 openpyxl==3.1.5
     # via -r base.in
-opentelemetry-api==1.29.0
+opentelemetry-api==1.37.0
     # via
     #   -r base.in
     #   opentelemetry-exporter-otlp-proto-http
@@ -369,11 +368,11 @@ opentelemetry-api==1.29.0
     #   opentelemetry-propagator-aws-xray
     #   opentelemetry-sdk
     #   opentelemetry-semantic-conventions
-opentelemetry-exporter-otlp-proto-common==1.29.0
+opentelemetry-exporter-otlp-proto-common==1.37.0
     # via opentelemetry-exporter-otlp-proto-http
-opentelemetry-exporter-otlp-proto-http==1.29.0
+opentelemetry-exporter-otlp-proto-http==1.37.0
     # via -r base.in
-opentelemetry-instrumentation==0.50b0
+opentelemetry-instrumentation==0.58b0
     # via
     #   -r base.in
     #   opentelemetry-instrumentation-aiohttp-client
@@ -389,49 +388,49 @@ opentelemetry-instrumentation==0.50b0
     #   opentelemetry-instrumentation-redis
     #   opentelemetry-instrumentation-requests
     #   opentelemetry-instrumentation-wsgi
-opentelemetry-instrumentation-aiohttp-client==0.50b0
+opentelemetry-instrumentation-aiohttp-client==0.58b0
     # via -r base.in
-opentelemetry-instrumentation-asgi==0.50b0
+opentelemetry-instrumentation-asgi==0.58b0
     # via -r base.in
-opentelemetry-instrumentation-botocore==0.50b0
+opentelemetry-instrumentation-botocore==0.58b0
     # via -r base.in
-opentelemetry-instrumentation-celery==0.50b0
+opentelemetry-instrumentation-celery==0.58b0
     # via -r base.in
-opentelemetry-instrumentation-dbapi==0.50b0
+opentelemetry-instrumentation-dbapi==0.58b0
     # via
     #   -r base.in
     #   opentelemetry-instrumentation-psycopg
     #   opentelemetry-instrumentation-psycopg2
-opentelemetry-instrumentation-django==0.50b0
+opentelemetry-instrumentation-django==0.58b0
     # via -r base.in
-opentelemetry-instrumentation-grpc==0.50b0
+opentelemetry-instrumentation-grpc==0.58b0
     # via -r base.in
-opentelemetry-instrumentation-logging==0.50b0
+opentelemetry-instrumentation-logging==0.58b0
     # via -r base.in
-opentelemetry-instrumentation-psycopg==0.50b0
+opentelemetry-instrumentation-psycopg==0.58b0
     # via -r base.in
-opentelemetry-instrumentation-psycopg2==0.50b0
+opentelemetry-instrumentation-psycopg2==0.58b0
     # via -r base.in
-opentelemetry-instrumentation-redis==0.50b0
+opentelemetry-instrumentation-redis==0.58b0
     # via -r base.in
-opentelemetry-instrumentation-requests==0.50b0
+opentelemetry-instrumentation-requests==0.58b0
     # via -r base.in
-opentelemetry-instrumentation-wsgi==0.50b0
+opentelemetry-instrumentation-wsgi==0.58b0
     # via
     #   -r base.in
     #   opentelemetry-instrumentation-django
 opentelemetry-propagator-aws-xray==1.0.2
     # via opentelemetry-instrumentation-botocore
-opentelemetry-proto==1.29.0
+opentelemetry-proto==1.37.0
     # via
     #   -r base.in
     #   opentelemetry-exporter-otlp-proto-common
     #   opentelemetry-exporter-otlp-proto-http
-opentelemetry-sdk==1.29.0
+opentelemetry-sdk==1.37.0
     # via
     #   -r base.in
     #   opentelemetry-exporter-otlp-proto-http
-opentelemetry-semantic-conventions==0.50b0
+opentelemetry-semantic-conventions==0.58b0
     # via
     #   -r base.in
     #   opentelemetry-instrumentation
@@ -446,7 +445,7 @@ opentelemetry-semantic-conventions==0.50b0
     #   opentelemetry-instrumentation-requests
     #   opentelemetry-instrumentation-wsgi
     #   opentelemetry-sdk
-opentelemetry-util-http==0.50b0
+opentelemetry-util-http==0.58b0
     # via
     #   -r base.in
     #   opentelemetry-instrumentation-aiohttp-client
@@ -480,7 +479,7 @@ prosemirror @ https://github.com/fellowapp/prosemirror-py/archive/refs/tags/v0.3
     # via -r base.in
 proto-plus==1.25.0
     # via google-api-core
-protobuf==5.29.2
+protobuf==5.29.5
     # via
     #   google-api-core
     #   googleapis-common-protos
@@ -553,6 +552,8 @@ python-dotenv==1.0.1
     # via
     #   pydantic-settings
     #   uvicorn
+python-multipart==0.0.20
+    # via mcp
 pytz==2024.2
     # via
     #   flower
@@ -581,7 +582,7 @@ regex==2024.4.28
     # via
     #   -r base.in
     #   tiktoken
-requests==2.32.3
+requests==2.32.5
     # via
     #   -r base.in
     #   advocate
@@ -609,7 +610,7 @@ rpds-py==0.26.0
     #   referencing
 rsa==4.9
     # via google-auth
-s3transfer==0.10.4
+s3transfer==0.14.0
     # via boto3
 sentry-sdk==2.29.1
     # via -r base.in
@@ -673,7 +674,10 @@ typing-extensions==4.11.0
     #   huggingface-hub
     #   langchain-core
     #   openai
+    #   opentelemetry-api
+    #   opentelemetry-exporter-otlp-proto-http
     #   opentelemetry-sdk
+    #   opentelemetry-semantic-conventions
     #   prosemirror
     #   psycopg
     #   psycopg-pool
@@ -724,7 +728,6 @@ websockets==12.0
     #   uvicorn
 wrapt==1.17.0
     # via
-    #   deprecated
     #   opentelemetry-instrumentation
     #   opentelemetry-instrumentation-aiohttp-client
     #   opentelemetry-instrumentation-dbapi

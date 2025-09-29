@@ -1337,6 +1337,9 @@ def test_single_select_field_type_get_order_collate(data_fixture):
     for char in queryset:
         result += getattr(char, f"field_{single_select_field.id}").value
 
+    print(result)
+    print(sorted_chars)
+
     assert result == sorted_chars
 
 
