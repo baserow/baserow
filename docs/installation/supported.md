@@ -20,6 +20,6 @@ Software versions are divided into the following groups:
 | Node.js        | >= 24.0.0          | 24.0.0          | >= 24.0.0            |
 | Docker         | >= 19.03           | Latest          | Latest               |
 | docker-compose | >= 1.19.0          | Latest          | Latest               |
-| PostgreSQL     | >= 12              | 12.18           | 15+                  |
+| PostgreSQL     | >= 13              | 13.22           | 15+                  |
 | Redis          | >= 6.2.7           | 6.2.7           | Latest               |
 
