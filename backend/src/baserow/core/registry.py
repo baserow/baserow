@@ -662,7 +662,8 @@ class EasyImportExportMixin(Generic[T], ABC):
         self,
         parent: Any,
         serialized_values: Dict[str, Any],
-        id_mapping: Dict[str, Dict[int, int]],
+        import_export_config: Optional[Any] = None,
+        id_mapping: Dict[str, Dict[int, int]] = None,
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
         cache: Optional[Dict[str, any]] = None,
@@ -684,6 +685,7 @@ class EasyImportExportMixin(Generic[T], ABC):
         :return: The created instance.
         """
 
+        id_mapping = id_mapping or {}
         if self.id_mapping_name and self.id_mapping_name not in id_mapping:
             id_mapping[self.id_mapping_name] = {}
 

@@ -234,6 +234,7 @@ class AutomationNodeType(
         self,
         parent: Any,
         serialized_values: Dict[str, Any],
+        import_export_config,
         id_mapping: Dict[str, Dict[str, Any]],
         **kwargs,
     ):
@@ -243,6 +244,7 @@ class AutomationNodeType(
         return super().import_serialized(
             parent,
             serialized_values,
+            import_export_config,
             id_mapping,
             **kwargs,
         )

@@ -95,6 +95,8 @@ class ImportExportConfig:
     The data then doesn't leave the instance.
     """
 
+    is_publishing: bool = False
+
     only_structure: bool = False
     """
     Whether or not the export should include the user data

@@ -97,14 +97,15 @@ class CoreHTTPWebhookView(APIView):
         }
     )
     def handle_request(self, request, webhook_uid, *args, **kwargs):
+        request_data = self.handle_request_data(request)
+        simulate = request.GET.get("test", "").lower() == "true"
+
         cache_key = get_error_cache_key(webhook_uid)
         self.handle_error(cache_key, webhook_uid)
 
         service_type = service_type_registry.get("http_webhook")
         try:
-            service_type.process_webhook_request(
-                webhook_uid, self.handle_request_data(request)
-            )
+            service_type.process_webhook_request(webhook_uid, request_data, simulate)
         except (
             CoreHTTPWebhookServiceDoesNotExist,
             CoreHTTPWebhookServiceMethodNotAllowed,

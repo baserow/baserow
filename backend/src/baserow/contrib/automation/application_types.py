@@ -104,6 +104,7 @@ class AutomationApplicationType(ApplicationType):
         serialized_workflows = [
             handler.export_workflow(
                 w,
+                import_export_config,
                 files_zip=files_zip,
                 storage=storage,
                 cache=self.cache,
@@ -127,6 +128,7 @@ class AutomationApplicationType(ApplicationType):
         self,
         automation: Automation,
         serialized_integrations: List[Dict[str, Any]],
+        import_export_config,
         id_mapping: Dict[str, Any],
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
@@ -156,6 +158,7 @@ class AutomationApplicationType(ApplicationType):
             integration = IntegrationHandler().import_integration(
                 automation,
                 serialized_integration,
+                import_export_config,
                 id_mapping,
                 cache=self.cache,
                 files_zip=files_zip,
@@ -214,6 +217,7 @@ class AutomationApplicationType(ApplicationType):
             self.import_integrations_serialized(
                 automation,
                 serialized_integrations,
+                import_export_config,
                 id_mapping,
                 files_zip,
                 storage,
@@ -226,6 +230,7 @@ class AutomationApplicationType(ApplicationType):
             AutomationWorkflowHandler().import_workflows(
                 automation,
                 serialized_workflows,
+                import_export_config,
                 id_mapping,
                 files_zip,
                 storage,

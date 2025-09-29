@@ -25,9 +25,8 @@ from baserow.contrib.automation.nodes.signals import (
 from baserow.contrib.automation.workflows.object_scopes import (
     AutomationWorkflowObjectScopeType,
 )
-from baserow.contrib.integrations.core.api.webhooks.views import get_error_cache_key
 from baserow.contrib.integrations.core.service_types import CoreHTTPWebhookServiceType
-from baserow.core.cache import global_cache
+from baserow.contrib.integrations.core.signals import core_http_webhook_service_updated
 from baserow.core.utils import generate_hash
 from baserow.ws.tasks import broadcast_to_group, broadcast_to_permitted_users
 
@@ -175,5 +174,4 @@ def clear_http_trigger_node_errors(
     if not isinstance(node.service.get_type(), CoreHTTPWebhookServiceType):
         return
 
-    cache_key = get_error_cache_key(node.service.uid)
-    global_cache.invalidate(cache_key)
+    core_http_webhook_service_updated.send(sender, service=node.service.specific)

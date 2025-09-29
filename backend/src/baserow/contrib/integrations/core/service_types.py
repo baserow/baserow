@@ -1434,23 +1434,22 @@ class CoreHTTPWebhookServiceType(
     def stop_listening(self):
         self.on_event = None
 
-    def process_webhook_request(self, webhook_uid: uuid.uuid4, request_data: dict):
-        service = self.model_class.objects.filter(uid=webhook_uid).first()
+    def process_webhook_request(
+        self, webhook_uid: uuid.uuid4, request_data: dict, simulate: bool
+    ):
+        service = (
+            self.model_class.objects.filter(uid=webhook_uid, is_published=not simulate)
+            .order_by("-id")
+            .first()
+        )
+
         if not service:
             raise CoreHTTPWebhookServiceDoesNotExist(uid=webhook_uid)
 
         if request_data["method"] == "GET" and service.exclude_get:
             raise CoreHTTPWebhookServiceMethodNotAllowed()
 
-        self.on_event([service], request_data)
-
-        is_test = request_data["query_params"].get("baserow_test", "").lower() == "true"
-        workflow = service.automation_workflow_node.workflow
-        if is_test and workflow.simulate_until_node:
-            service.sample_data = {"data": request_data}
-            service.save()
-            workflow.simulate_until_node = None
-            workflow.save()
+        self.on_event([service], request_data, simulate=simulate)
 
     def get_sample_data(
         self, service: CoreHTTPWebhookService

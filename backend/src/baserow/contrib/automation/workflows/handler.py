@@ -358,6 +358,7 @@ class AutomationWorkflowHandler:
     def export_workflow(
         self,
         workflow: AutomationWorkflow,
+        import_export_config: ImportExportConfig,
         files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
         cache: Optional[Dict[str, any]] = None,
@@ -417,6 +418,7 @@ class AutomationWorkflowHandler:
         self,
         workflow: AutomationWorkflow,
         serialized_nodes: List[AutomationNodeDict],
+        import_export_config: ImportExportConfig,
         id_mapping: Dict[str, Dict[int, int]],
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
@@ -457,6 +459,7 @@ class AutomationWorkflowHandler:
                     imported_node = AutomationNodeHandler().import_node(
                         workflow,
                         serialized_node,
+                        import_export_config,
                         id_mapping,
                         files_zip=files_zip,
                         storage=storage,
@@ -475,6 +478,7 @@ class AutomationWorkflowHandler:
         self,
         automation: Automation,
         serialized_workflows: List[AutomationWorkflowDict],
+        import_export_config: ImportExportConfig,
         id_mapping: Dict[str, Dict[int, int]],
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
@@ -509,6 +513,7 @@ class AutomationWorkflowHandler:
             workflow_instance = self.import_workflow_only(
                 automation,
                 serialized_workflow,
+                import_export_config,
                 id_mapping,
                 files_zip=files_zip,
                 storage=storage,
@@ -521,6 +526,7 @@ class AutomationWorkflowHandler:
             self.import_nodes(
                 workflow_instance,
                 serialized_workflow["nodes"],
+                import_export_config,
                 id_mapping,
                 files_zip=files_zip,
                 storage=storage,
@@ -571,6 +577,7 @@ class AutomationWorkflowHandler:
         self,
         automation: Automation,
         serialized_workflow: Dict[str, Any],
+        import_export_config: ImportExportConfig,
         id_mapping: Dict[str, Dict[int, int]],
         progress: Optional[ChildProgressBuilder] = None,
         *args: Any,
@@ -643,6 +650,7 @@ class AutomationWorkflowHandler:
             include_permission_data=True,
             reduce_disk_space_usage=False,
             exclude_sensitive_data=False,
+            is_publishing=True,
         )
         default_storage = get_default_storage()
         application_type = workflow.automation.get_type()
