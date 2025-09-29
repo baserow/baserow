@@ -1,14 +1,14 @@
 <template>
-  <div v-if="showEntry" class="context__menu-item">
+  <div v-if="showEntry && featureFlagEnabled" class="context__menu-item">
     <div>
       <a
         class="context__menu-item-link"
         @click="
           () => {
-            if (deactivated) {
-              $refs.paidFeaturesModal.show()
-            } else {
+            if (featureEnabled) {
               $refs.dateDependencyModal.show()
+            } else {
+              $refs.paidFeaturesModal.show()
             }
             $emit('hide-context')
           }
@@ -40,6 +40,7 @@
 import EnterpriseFeatures from '@baserow_enterprise/features'
 import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
 import DateDependencyModal from '@baserow_enterprise/components/dateDependency/DateDependencyModal.vue'
+import { FF_DATE_DEPENDENCY } from '@baserow/modules/core/plugins/featureFlags'
 
 export default {
   name: 'DateDependencyMenuItem',
@@ -66,11 +67,14 @@ export default {
     },
   },
   computed: {
-    deactivated() {
-      return !this.$hasFeature(
+    featureEnabled() {
+      return this.$hasFeature(
         EnterpriseFeatures.DATE_DEPENDENCY,
         this.database.workspace.id
       )
+    },
+    featureFlagEnabled() {
+      return this.$featureFlagIsEnabled(FF_DATE_DEPENDENCY)
     },
     showEntry() {
       if (!this.field) {
