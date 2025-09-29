@@ -408,25 +408,27 @@ export default {
      * This method is called when a row is resized or moved.
      */
     updateRow(row, { startOffset, endOffset }) {
-      let field, start, end
+      const startField = this.startDateField
+      const newStartDate = this.getRowDateValue(row, startField).clone()
+
       if (startOffset !== 0) {
         const numberOfUnits = Math.round(startOffset / this.stepPx)
-        field = this.startDateField
-        const fieldType = this.$registry.get('field', field.type)
-        const newDate = this.getRowDateValue(row, field)
-          .clone()
-          .add(numberOfUnits, this.step)
-        start = fieldType.formatValue(field, newDate)
+        newStartDate.add(numberOfUnits, this.step)
       }
+      const start = this.$registry
+        .get('field', startField.type)
+        .formatValue(startField, newStartDate)
+
+      const endField = this.endDateField
+      const newEndDate = this.getRowDateValue(row, endField).clone()
       if (endOffset !== 0) {
         const numberOfUnits = Math.round(endOffset / this.stepPx)
-        field = this.endDateField
-        const fieldType = this.$registry.get('field', field.type)
-        const newDate = this.getRowDateValue(row, field)
-          .clone()
-          .add(numberOfUnits, this.step)
-        end = fieldType.formatValue(field, newDate)
+        newEndDate.add(numberOfUnits, this.step)
       }
+      const end = this.$registry
+        .get('field', endField.type)
+        .formatValue(endField, newEndDate)
+
       this.$emit('update-row', { row, start, end })
     },
     /*
