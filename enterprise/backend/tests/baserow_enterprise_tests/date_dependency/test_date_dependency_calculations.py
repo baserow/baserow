@@ -1,4 +1,4 @@
-from copy import copy
+from copy import copy, deepcopy
 from datetime import date, timedelta
 
 from django.utils.dateparse import parse_date
@@ -7,6 +7,7 @@ import pytest
 
 from baserow_enterprise.date_dependency.calculations import (
     DateCalculator,
+    DateDependencyCalculator,
     DateValues,
     adjust_child,
     adjust_parent,
@@ -38,10 +39,15 @@ class FakeDateDependency:
     start_date_field = FakeField("start_date")
     end_date_field = FakeField("end_date")
     duration_field = FakeField("duration")
+    dependency_linrow_field = FakeField("linkrow_field")
     include_weekends: bool = True
 
     def __init__(self, include_weekends=True):
         self.include_weekends = include_weekends
+        self.buffer_is_none = False
+        self.buffer_is_flexible = True
+        self.buffer_is_fixed = False
+        self.dependency_buffer = timedelta(0)
 
     def __eq__(self, other):
         return self is other
@@ -873,3 +879,71 @@ def test_calculate_child(
     adjusted = adjust_child(parent, child, dep)
     assert adjusted == expected_adjusted
     assert child == expected_child
+
+
+def test_date_dependency_calc_cache():
+    """
+    Tests if row cache is used properly during deps calculations
+    :return:
+    """
+
+    class FakeRow:
+        def __init__(self, **kwargs):
+            for k, v in kwargs.items():
+                setattr(self, k, v)
+
+        def __eq__(self, other):
+            return self.__dict__ == other.__dict__
+
+        def __repr__(self):
+            return f"FakeRow({self.__dict__})"
+
+    dep = FakeDateDependency()
+
+    test_data = [
+        (1, date(2025, 5, 1), date(2025, 5, 2), timedelta(days=2), []),
+        (2, date(2025, 5, 1), date(2025, 5, 2), timedelta(days=2), [1]),
+        (3, date(2025, 5, 1), date(2025, 5, 2), timedelta(days=2), [2]),
+        (4, date(2025, 5, 1), date(2025, 5, 2), timedelta(days=2), [2]),
+    ]
+    expected_test_data = [
+        (1, date(2025, 5, 1), date(2025, 5, 2), timedelta(days=2), []),
+        (2, date(2025, 5, 3), date(2025, 5, 4), timedelta(days=2), [1]),
+        (3, date(2025, 5, 5), date(2025, 5, 6), timedelta(days=2), [2]),
+        (4, date(2025, 5, 5), date(2025, 5, 6), timedelta(days=2), [2]),
+    ]
+
+    rows_cache = {}
+    expected_rows_cache = {}
+    graph_paths = [[1, 2, 3], [1, 2, 4]]
+    for row_id, start_date, end_date, duration, linked in test_data:
+        row_obj = FakeRow(
+            id=row_id,
+            start_date=start_date,
+            end_date=end_date,
+            duration=duration,
+            linkrow_field=[rows_cache.get(linked_id) for linked_id in linked],
+        )
+        rows_cache[row_id] = row_obj
+
+    for row_id, start_date, end_date, duration, linked in expected_test_data:
+        row_obj = FakeRow(
+            id=row_id,
+            start_date=start_date,
+            end_date=end_date,
+            duration=duration,
+            linkrow_field=[expected_rows_cache.get(linked_id) for linked_id in linked],
+        )
+        expected_rows_cache[row_id] = row_obj
+
+    deps_calculator = DateDependencyCalculator(row=rows_cache[1], rule=dep)
+    deps_calculator.cache = deepcopy(rows_cache)
+    deps_calculator.graph_paths = deepcopy(graph_paths)
+    deps_calculator.populate_dependency_graph = lambda *args, **kwargs: None
+    deps_calculator.calculate()
+    assert deps_calculator.graph_paths == graph_paths
+    assert set(deps_calculator.cache.keys()) == set(expected_rows_cache.keys())
+
+    for row_id, row_obj in expected_rows_cache.items():
+        assert deps_calculator.cache[row_id] == row_obj
+    assert deps_calculator.visited == {2, 3, 4}

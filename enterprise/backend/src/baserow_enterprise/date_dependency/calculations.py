@@ -67,7 +67,7 @@ class DateValues:
         try:
             return (
                 # start/end dates match the duration + 1 day
-                self.end_date == (self.start_date + (self.duration - timedelta(1)))
+                (self.end_date - self.start_date == self.duration - timedelta(1))
                 # duration is positive
                 and self.duration.total_seconds() > 0
                 # duration is aligned to days
