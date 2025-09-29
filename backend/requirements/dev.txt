@@ -6,7 +6,7 @@
 #
 argh==0.31.2
     # via -r dev.in
-asgiref==3.8.1
+asgiref==3.9.2
     # via
     #   -c base.txt
     #   django
@@ -59,7 +59,7 @@ decorator==5.1.1
     # via
     #   ipdb
     #   ipython
-django==5.0.13
+django==5.1.12
     # via
     #   -c base.txt
     #   django-extensions
@@ -275,7 +275,7 @@ referencing==0.36.2
     #   jsonschema
     #   jsonschema-path
     #   jsonschema-specifications
-requests==2.32.3
+requests==2.32.5
     # via
     #   -c base.txt
     #   jsonschema-path
