@@ -1179,5 +1179,11 @@
         "fieldId": "De veld-ID waarop het wachtwoord moet worden gecontroleerd.",
         "rowId": "De rij-ID waarvoor het wachtwoord moet worden gecontroleerd.",
         "password": "Het wachtwoord waarvan gecontroleerd moet worden of het correct is."
+    },
+    "fieldRules": {
+        "errorTitle": "Fout tijdens verwerking veldregel",
+        "ruleDoesNotExist": "Regel bestaat niet",
+        "ruleTypeDoesNotExist": "Regeltype bestaat niet",
+        "ruleAlreadyExists": "Regel bestaat al"
     }
 }
