@@ -2,17 +2,16 @@
 
 Software versions are divided into the following groups:
 
-* `Supported`: Baserow should run with this software without any issues, submit bug
-  reports if it is not the case.
-* `Tested`: The specific Baserow version was tested on this version 
-  before the release.
-* `Recommended`: Recommended software for the best experience.  
+-   `Supported`: Baserow should run with this software without any issues, submit bug
+    reports if it is not the case.
+-   `Tested`: The specific Baserow version was tested on this version
+    before the release.
+-   `Recommended`: Recommended software for the best experience.
 
 ## Baserow 1.35.1
 
-
-| Dependency     | Supported versions | Tested versions | Recommended versions | 
-|----------------|--------------------|-----------------|----------------------|
+| Dependency     | Supported versions | Tested versions | Recommended versions |
+| -------------- | ------------------ | --------------- | -------------------- |
 | Firefox        | Latest             | Latest          | Latest               |
 | Chrome         | Latest             | Latest          | Latest               |
 | Edge           | Latest             | Latest          | Latest               |
