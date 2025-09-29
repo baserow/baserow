@@ -585,7 +585,6 @@
 
 .assistant__sources-chevron {
   font-size: 12px;
-  transition: transform 0.2s ease;
 
   &--expanded {
     transform: rotate(180deg);
@@ -594,12 +593,7 @@
 
 .assistant__sources-list {
   overflow: hidden;
-  transition: all 0.3s ease;
   margin-top: 8px;
-
-  &--expanded {
-    animation: slide-down 0.3s ease;
-  }
 }
 
 @keyframes slide-down {
@@ -633,7 +627,6 @@
   text-decoration: none;
   color: $palette-neutral-900;
   font-size: 12px;
-  transition: all 0.2s ease;
 
   &:hover {
     background-color: $palette-neutral-200;
