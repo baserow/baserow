@@ -6,10 +6,8 @@ from django.db.models import Q
 
 from loguru import logger
 
-from baserow_enterprise.assistant.capabilities.knowledge_retrieval.handler import (
-    KnowledgeBaseHandler,
-)
 from baserow_enterprise.assistant.models import KnowledgeBaseDocument
+from baserow_enterprise.assistant.tools.search_docs.handler import KnowledgeBaseHandler
 
 
 class Command(BaseCommand):

@@ -8,7 +8,7 @@ from baserow.core.models import Workspace
 from .assistant import Assistant
 from .exceptions import AssistantChatDoesNotExist
 from .models import AssistantChat
-from .types import BaseMessage, HumanMessage
+from .types import AiMessage, AssistantMessageUnion, HumanMessage, UIContext
 
 
 class AssistantHandler:
@@ -66,7 +66,7 @@ class AssistantHandler:
             workspace_id=workspace_id, user=user
         ).order_by("-updated_on", "id")
 
-    def get_chat_messages(self, chat: AssistantChat) -> list[BaseMessage]:
+    def list_chat_messages(self, chat: AssistantChat) -> list[AiMessage | HumanMessage]:
         """
         Get all messages from the AI assistant chat.
 
@@ -75,35 +75,35 @@ class AssistantHandler:
         """
 
         assistant = self.get_assistant(chat)
-        return assistant.get_messages()
+        return assistant.list_chat_messages()
 
-    def get_assistant(
-        self, chat: AssistantChat, new_message: HumanMessage | None = None
-    ) -> Assistant:
+    def get_assistant(self, chat: AssistantChat) -> Assistant:
         """
         Get the assistant for the given chat.
 
         :param chat: The AI assistant chat to get the assistant for.
-        :param new_message: An optional new message to include in the assistant's
-            context.
         :return: The assistant for the given chat.
         """
 
-        return Assistant(chat, new_message)
+        return Assistant(chat)
 
-    async def stream_assistant_messages(
-        self, chat: AssistantChat, new_message: HumanMessage
-    ) -> AsyncGenerator[BaseMessage, None]:
+    async def astream_assistant_messages(
+        self,
+        chat: AssistantChat,
+        human_message: str,
+        ui_context: UIContext | None = None,
+    ) -> AsyncGenerator[AssistantMessageUnion, None]:
         """
         Stream messages from the assistant for the given chat and new message.
 
         :param chat: The AI assistant chat to get the assistant for.
-        :param new_message: The new message to include in the assistant's context.
+        :param human_message: The new message from the user.
+        :param ui_ontext: The UI context where the message was sent.
         :return: An async generator yielding messages from the assistant.
-        :raises AssistantChatDoesNotExist: If the chat does not exist.
-        :raises AssistantChatLocked: If the chat is currently locked.
         """
 
-        assistant = self.get_assistant(chat, new_message)
-        async for message in assistant.astream():
+        assistant = self.get_assistant(chat)
+        async for message in assistant.astream_messages(
+            human_message, ui_context=ui_context
+        ):
             yield message

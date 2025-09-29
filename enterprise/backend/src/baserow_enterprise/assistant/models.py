@@ -55,6 +55,38 @@ class AssistantChat(BigAutoFieldMixin, CreatedAndUpdatedOnMixin, models.Model):
         return f"Chat: {self.title} ({self.user_id})"
 
 
+class AssistantChatMessage(BigAutoFieldMixin, CreatedAndUpdatedOnMixin, models.Model):
+    """
+    Model representing a message in an assistant chat.
+    """
+
+    class Role(models.TextChoices):
+        HUMAN = "human", "Human"
+        AI = "ai", "AI"
+
+    chat = models.ForeignKey(
+        AssistantChat,
+        on_delete=models.CASCADE,
+        related_name="messages",
+        help_text="The chat this message belongs to.",
+    )
+    role = models.CharField(max_length=10, choices=Role.choices)
+    content = models.TextField(help_text="The content of the message.")
+    artifacts = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text=(
+            "A JSON field to store any additional artifacts related to the message, "
+            "such as metadata or processing results."
+        ),
+    )
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["chat", "created_on"]),
+        ]
+
+
 class DocumentCategory(NamedTuple):
     name: str
     parent: str
@@ -294,7 +326,7 @@ def create_default_knowledge_base_categories(sender, **kwargs):
     document type importers rely on them.
     """
 
-    from baserow_enterprise.assistant.capabilities.knowledge_retrieval.handler import (
+    from baserow_enterprise.assistant.tools.search_docs.handler import (
         KnowledgeBaseHandler,
     )
 

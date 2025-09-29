@@ -55,8 +55,7 @@ const runningMessageCode = {
   [THINKING_MESSAGES.RUNNING]: 'statusRunning',
   [THINKING_MESSAGES.ANSWERING]: 'statusAnswering',
   // Tool related messages
-  [THINKING_MESSAGES.RETRIEVE_KNOWLEDGE]: 'statusRetrievingKnowledge',
-  [THINKING_MESSAGES.ANALYZE_KNOWLEDGE]: 'statusAnalyzingKnowledge',
+  [THINKING_MESSAGES.SEARCH_DOCS]: 'statusSearchDocs',
 }
 
 export default {

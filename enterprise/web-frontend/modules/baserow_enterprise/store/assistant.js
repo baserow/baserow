@@ -14,8 +14,7 @@ export const THINKING_MESSAGES = {
   RUNNING: 'running',
   ANSWERING: 'answering',
   // Tool related messages
-  RETRIEVE_KNOWLEDGE: 'retrieve_knowledge',
-  ANALYZE_KNOWLEDGE: 'analyze_knowledge',
+  SEARCH_DOCS: 'search_docs',
 
   CUSTOM: 'custom', // Messages without a predefined translation
 }

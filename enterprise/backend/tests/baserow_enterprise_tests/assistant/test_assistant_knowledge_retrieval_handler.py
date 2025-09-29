@@ -7,14 +7,14 @@ import numpy as np
 import pytest
 
 from baserow.core.pgvector import EMBEDDING_DIMENSIONS
-from baserow_enterprise.assistant.capabilities.knowledge_retrieval.handler import (
-    KnowledgeBaseHandler,
-    VectorHandler,
-)
 from baserow_enterprise.assistant.models import (
     KnowledgeBaseCategory,
     KnowledgeBaseChunk,
     KnowledgeBaseDocument,
+)
+from baserow_enterprise.assistant.tools.search_docs.handler import (
+    KnowledgeBaseHandler,
+    VectorHandler,
 )
 
 
@@ -463,7 +463,7 @@ class TestKnowledgeHandler:
         """Test handler creation with default vector store"""
 
         with patch(
-            "baserow_enterprise.assistant.capabilities.knowledge_retrieval.handler.VectorHandler"
+            "baserow_enterprise.assistant.tools.search_docs.handler.VectorHandler"
         ) as mock_vector_handler:
             handler = KnowledgeBaseHandler()
 

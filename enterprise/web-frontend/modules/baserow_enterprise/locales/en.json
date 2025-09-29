@@ -342,7 +342,7 @@
     "send": "Send message",
     "statusThinking": "Thinking...",
     "statusAnswering": "Answering...",
-    "statusRetrievingKnowledge": "Exploring the knowledge base...",
+    "statusSearchDocs": "Exploring the knowledge base...",
     "statusAnalyzingKnowledge": "Analyzing sources..."
   },
   "assistantChatHistoryContext": {
