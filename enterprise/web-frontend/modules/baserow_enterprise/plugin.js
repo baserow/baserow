@@ -86,6 +86,7 @@ import { FieldPermissionsContextItemType } from '@baserow_enterprise/fieldContex
 import { DateDepencencyContextItemType } from '@baserow_enterprise/dateDependencyContextItemTypes'
 import { CustomCodeBuilderSettingType } from '@baserow_enterprise/builderSettingTypes'
 import { RealtimePushTwoWaySyncStrategyType } from '@baserow_enterprise/twoWaySyncStrategyTypes'
+import { FF_DATE_DEPENDENCY } from '@baserow/modules/core/plugins/featureFlags'
 
 export default (context) => {
   const { app, isDev, store } = context
@@ -238,7 +239,12 @@ export default (context) => {
     new BuilderFileInputElementPaidFeature(context)
   )
 
-  app.$registry.register('paidFeature', new DateDependencyPaidFeature(context))
+  if (app.$featureFlagIsEnabled(FF_DATE_DEPENDENCY)) {
+    app.$registry.register(
+      'paidFeature',
+      new DateDependencyPaidFeature(context)
+    )
+  }
   app.$registry.register(
     'fieldContextItem',
     new DateDepencencyContextItemType(context)

@@ -4,6 +4,7 @@ from typing import Any, NamedTuple
 from django.contrib.auth import get_user_model
 from django.db.models import QuerySet
 
+from baserow.contrib.database.field_rules.collector import FieldRuleCollector
 from baserow.contrib.database.field_rules.models import FieldRule
 from baserow.contrib.database.table.models import GeneratedTableModel, Table
 from baserow.core.registry import (
@@ -86,16 +87,24 @@ class FieldRuleType(ModelInstanceMixin, CustomFieldsInstanceMixin, Instance, ABC
         return queryset
 
     def before_row_updated(
-        self, row: GeneratedTableModel, rule: FieldRule, updated_values: dict
-    ) -> RowRuleChanges | None:
+        self,
+        row: GeneratedTableModel,
+        rule: FieldRule,
+        updated_values: dict,
+        collector: FieldRuleCollector,
+    ) -> list[RowRuleChanges] | None:
         """
         Called during row update, before a row is updated. This will update any
         recalculable fields in the row.
         """
 
     def before_row_created(
-        self, model: type[GeneratedTableModel], row_data: dict, rule: FieldRule
-    ) -> RowRuleChanges | None:
+        self,
+        model: type[GeneratedTableModel],
+        row_data: dict,
+        rule: FieldRule,
+        collector: FieldRuleCollector,
+    ) -> list[RowRuleChanges] | None:
         """
         Called before a row is inserted. This will receive new values only.
         """
