@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-08-06 12:24+0000\n"
+"POT-Creation-Date: 2025-09-29 14:05+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -108,8 +108,8 @@ msgstr ""
 #, python-format
 msgid ""
 "Application \"%(application_name)s\" (%(application_id)s) of type "
-"%(application_type)s duplicated from "
-"\"%(original_application_name)s\" (%(original_application_id)s)"
+"%(application_type)s duplicated from \"%(original_application_name)s\" "
+"(%(original_application_id)s)"
 msgstr ""
 
 #: src/baserow/core/actions.py:709
@@ -130,8 +130,8 @@ msgstr ""
 #: src/baserow/core/actions.py:796
 #, python-format
 msgid ""
-"Group invitation created for \"%(email)s\" to join "
-"\"%(group_name)s\" (%(group_id)s) as %(permissions)s."
+"Group invitation created for \"%(email)s\" to join \"%(group_name)s\" "
+"(%(group_id)s) as %(permissions)s."
 msgstr ""
 
 #: src/baserow/core/actions.py:851
@@ -242,7 +242,7 @@ msgstr ""
 msgid "Decimal number"
 msgstr ""
 
-#: src/baserow/core/handler.py:2183 src/baserow/core/user/handler.py:267
+#: src/baserow/core/handler.py:2185 src/baserow/core/user/handler.py:267
 #, python-format
 msgid "%(name)s's workspace"
 msgstr ""
@@ -440,29 +440,29 @@ msgstr ""
 msgid "Accept invitation"
 msgstr ""
 
-#: src/baserow/core/trash/actions.py:20
+#: src/baserow/core/trash/actions.py:21
 msgid "Empty trash"
 msgstr ""
 
-#: src/baserow/core/trash/actions.py:22
+#: src/baserow/core/trash/actions.py:23
 #, python-format
 msgid ""
 "Trash for application \"%(application_name)s\" (%(application_id)s) has been "
 "emptied"
 msgstr ""
 
-#: src/baserow/core/trash/actions.py:83
+#: src/baserow/core/trash/actions.py:84
 #, python-format
 msgid ""
 "Trash for workspace \"%(workspace_name)s\" (%(workspace_id)s) has been "
 "emptied."
 msgstr ""
 
-#: src/baserow/core/trash/actions.py:94
+#: src/baserow/core/trash/actions.py:95
 msgid "Restore from trash"
 msgstr ""
 
-#: src/baserow/core/trash/actions.py:95
+#: src/baserow/core/trash/actions.py:96
 #, python-format
 msgid ""
 "Item of type \"%(item_type)s\" (%(item_id)s) has been restored from trash"
@@ -475,9 +475,8 @@ msgstr ""
 #: src/baserow/core/user/actions.py:27
 #, python-format
 msgid ""
-"User \"%(user_email)s\" (%(user_id)s) created via "
-"\"%(auth_provider_type)s\" (%(auth_provider_id)s) auth provider (invitation: "
-"%(with_invitation_token)s)"
+"User \"%(user_email)s\" (%(user_id)s) created via \"%(auth_provider_type)s\" "
+"(%(auth_provider_id)s) auth provider (invitation: %(with_invitation_token)s)"
 msgstr ""
 
 #: src/baserow/core/user/actions.py:119
