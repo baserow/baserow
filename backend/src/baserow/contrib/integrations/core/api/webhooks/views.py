@@ -1,3 +1,5 @@
+from uuid import uuid4
+
 from django.db import transaction
 
 from drf_spectacular.utils import extend_schema
@@ -16,6 +18,7 @@ from baserow.contrib.integrations.core.exceptions import (
     CoreHTTPWebhookServiceDoesNotExist,
     CoreHTTPWebhookServiceMethodNotAllowed,
 )
+from baserow.core.cache import global_cache
 from baserow.core.services.registries import service_type_registry
 
 CORE_WEBHOOKS_TAG = "Core webhooks"
@@ -39,6 +42,10 @@ def webhook_schema(method):
             404: get_error_schema(["ERROR_CORE_HTTP_WEBHOOK_SERVICE_DOES_NOT_EXIST"]),
         },
     )
+
+
+def get_error_cache_key(uid: uuid4) -> str:
+    return f"http_webhook_error_{uid}"
 
 
 class CoreHTTPWebhookView(APIView):
@@ -65,6 +72,18 @@ class CoreHTTPWebhookView(APIView):
             "user_agent": request.META.get("HTTP_USER_AGENT", ""),
         }
 
+    def handle_error(self, cache_key: str, webhook_uid: uuid4) -> None:
+        """
+        Checks the cache to see if the error exists. If so, raises the appropriate
+        exception.
+        """
+
+        if error := global_cache.get(cache_key, default=None, timeout=0):
+            if error == "CoreHTTPWebhookServiceDoesNotExist":
+                raise CoreHTTPWebhookServiceDoesNotExist(uid=webhook_uid)
+            elif error == "CoreHTTPWebhookServiceMethodNotAllowed":
+                raise CoreHTTPWebhookServiceMethodNotAllowed()
+
     @webhook_schema("GET")
     @webhook_schema("POST")
     @webhook_schema("PUT")
@@ -78,10 +97,21 @@ class CoreHTTPWebhookView(APIView):
         }
     )
     def handle_request(self, request, webhook_uid, *args, **kwargs):
+        cache_key = get_error_cache_key(webhook_uid)
+        self.handle_error(cache_key, webhook_uid)
+
         service_type = service_type_registry.get("http_webhook")
-        service_type.process_webhook_request(
-            webhook_uid, self.handle_request_data(request)
-        )
+        try:
+            service_type.process_webhook_request(
+                webhook_uid, self.handle_request_data(request)
+            )
+        except (
+            CoreHTTPWebhookServiceDoesNotExist,
+            CoreHTTPWebhookServiceMethodNotAllowed,
+        ) as e:
+            global_cache.get(cache_key, e.__class__.__name__, timeout=300)
+            raise
+
         return Response(status=HTTP_204_NO_CONTENT)
 
     get = post = put = patch = delete = handle_request
