@@ -21,7 +21,7 @@ exports[`GalleryView component with decoration Default component with first_cell
     >
       <div
         class="card gallery-view__card"
-        style="width: -60px; transform: translateX(30px) translateY(30px);"
+        style="transform: translateX(30px) translateY(30px);"
       >
         <div>
           fake_decoration: fake_value
@@ -132,7 +132,7 @@ exports[`GalleryView component with decoration Default component with row wrappe
     >
       <div
         class="card gallery-view__card"
-        style="width: -60px; transform: translateX(30px) translateY(30px);"
+        style="transform: translateX(30px) translateY(30px);"
       >
          
         <div
@@ -167,7 +167,7 @@ exports[`GalleryView component with decoration Default component with unavailabl
     >
       <div
         class="card gallery-view__card"
-        style="width: -60px; transform: translateX(30px) translateY(30px);"
+        style="transform: translateX(30px) translateY(30px);"
       >
          
         <!---->

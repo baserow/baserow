@@ -3,7 +3,7 @@
 exports[`Field footer component Change type 1`] = `
 <div
   class="context visibility-hidden"
-  style="top: 10px; left: 0px;"
+  style="top: 10px; right: auto; bottom: auto; left: 0px;"
 >
   <ul
     class="select__items"
