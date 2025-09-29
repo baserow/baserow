@@ -32,7 +32,7 @@ boto3==1.40.40
 django-storages==1.14.3
 django-storages[azure]==1.14.3
 django-storages[google]==1.14.3
-django-health-check==3.18.2
+django-health-check==3.20.0
 psutil==5.9.8
 dj-database-url==2.1.0
 redis==5.0.4

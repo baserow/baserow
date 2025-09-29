@@ -32,8 +32,6 @@ asgiref==3.9.2
     #   django
     #   django-cors-headers
     #   opentelemetry-instrumentation-asgi
-async-timeout==5.0.1
-    # via redis
 attrs==24.3.0
     # via
     #   jsonschema
@@ -156,7 +154,7 @@ django-cors-headers==4.3.1
     # via -r base.in
 django-cte==1.3.3
     # via -r base.in
-django-health-check==3.18.2
+django-health-check==3.20.0
     # via -r base.in
 django-redis==5.4.0
     # via -r base.in
@@ -212,8 +210,6 @@ googleapis-common-protos==1.66.0
     # via
     #   google-api-core
     #   opentelemetry-exporter-otlp-proto-http
-greenlet==3.2.4
-    # via sqlalchemy
 gunicorn==23.0.0
     # via -r base.in
 h11==0.16.0
