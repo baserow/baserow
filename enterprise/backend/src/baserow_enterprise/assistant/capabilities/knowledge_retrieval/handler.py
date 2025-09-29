@@ -232,7 +232,7 @@ class KnowledgeBaseHandler:
         don't exist yet. Once the knowledge base is loaded, the vector store index will
         be synced.
 
-        :param stream_or_string: The stream or string containing the serialized
+        :param buffer_or_filename: The stream or string containing the serialized
             knowledge base data.
         :return: The list of loaded KnowledgeBaseDocument instances
         """
