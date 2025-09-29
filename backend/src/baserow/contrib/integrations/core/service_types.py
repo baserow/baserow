@@ -1409,7 +1409,7 @@ class CoreHTTPWebhookServiceType(
 ):
     type = "http_webhook"
     model_class = CoreHTTPWebhookService
-    dispatch_type = DispatchTypes.DISPATCH_TRIGGER
+    dispatch_type = DispatchTypes.EVENT
     on_event = None
 
     allowed_fields = ["uid", "exclude_get"]
