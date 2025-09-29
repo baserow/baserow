@@ -282,7 +282,11 @@
         "builderFileInputElement": "Bestandsinvoerelement",
         "builderFileInputElementContent": "Met het bestandsinvoerelement kun je een veld toevoegen aan je applicatiepagina's om bestanden te uploaden. Geef je gebruikers de mogelijkheid om belangrijke documenten of afbeeldingen op te slaan.",
         "builderCustomCode": "Aangepaste code voor applicaties",
-        "builderCustomCodeContent": "Je kunt aangepaste CSS/JavaScript-code toevoegen om het uiterlijk en het gedrag van je applicatie verder aan te passen. Je kunt bijvoorbeeld externe services zoals analytics of sociale media integreren."
+        "builderCustomCodeContent": "Je kunt aangepaste CSS/JavaScript-code toevoegen om het uiterlijk en het gedrag van je applicatie verder aan te passen. Je kunt bijvoorbeeld externe services zoals analytics of sociale media integreren.",
+        "assistant": "AI-assistent",
+        "assistantContent": "Verhoog je productiviteit met AI. Gebruik natuurlijke taal om je gegevens direct in Baserow te creëren, analyseren en visualiseren.",
+        "dateDependency": "Datum afhankelijkheid",
+        "dateDependencyContent": "Je kunt een afhankelijkheid definiëren tussen twee datums en een duur als begin/einddatum en duur. Met datumafhankelijkheid worden andere waarden aangepast als een waarde verandert."
     },
     "chatwootSupportSidebarWorkspace": {
         "directSupport": "Directe ondersteuning"
@@ -620,5 +624,51 @@
     },
     "enterpriseTwoWaySyncStrategyType": {
         "realtimePushDescription": "Hiermee kunnen de celwaarden direct in Baserow worden bewerkt en in realtime naar de gegevenssynchronisatiebron worden gepusht. Merk op dat de wijzigingen niet in real-time worden opgehaald omdat ze afhankelijk zijn van de (periodieke) synchronisatie actie om te voltooien. Het wordt sterk aangeraden om back-ups te maken van de PostgreSQL database om onbedoelde wijzigingen te voorkomen."
+    },
+    "assistantSidebarItem": {
+        "title": "AI-assistent"
+    },
+    "assistantPanel": {
+        "title": "AI-assistent",
+        "close": "AI-assistent sluiten",
+        "history": "Chatgeschiedenis",
+        "back": "Terug"
+    },
+    "assistantWelcomeMessage": {
+        "greet": "Hé {name}",
+        "question": "hoe kan ik helpen?",
+        "subtitle": "Ik ben er om je te ondersteunen bij het omgaan met je gegevens."
+    },
+    "assistantInputMessage": {
+        "statusWaiting": "Assistent staat klaar om te helpen",
+        "statusRunning": "Uitvoeren...",
+        "placeholder": "Vraag me alles...",
+        "send": "Verstuur bericht"
+    },
+    "assistantChatHistoryContext": {
+        "empty": "Geen chatgeschiedenis beschikbaar",
+        "loading": "Chatgeschiedenis wordt geladen..."
+    },
+    "dateDependencyModal": {
+        "errorTitle": "Datum afhankelijkheid",
+        "dependencyFieldTooltip": "Datumafhankelijkheden configureren",
+        "dependencyFieldTooltipError": "Een veldregel bevat een fout",
+        "contextMenuItemLabel": "Datumafhankelijkheden configureren",
+        "title": "Datumafhankelijkheid voor {tableName}",
+        "description": "Geef aan welke rijen afhankelijk zijn van andere. Wanneer een rij opnieuw wordt gepland, worden de rijen die ervan afhankelijk zijn automatisch aangepast.",
+        "enableDateDependency": "Datumafhankelijkheden inschakelen voor projecten",
+        "startDateFieldLabel": "Startdatum",
+        "endDateFieldLabel": "Einddatum",
+        "durationFieldLabel": "Duur",
+        "durationFieldHint": "Dit veld moet het formaat \"d h\" gebruiken.",
+        "dependencyLinkrowFieldLabel": "Voorgangers",
+        "dependencyLinkrowFieldHint": "Gebruik een Link naar tabelveld om een rij te verbinden met zijn voorgangers.",
+        "dependencyBufferTypeLabel": "Logica voor herschikking",
+        "durationBufferLabel": "Tijdbuffer",
+        "dependencyConnectionTypeLabel": "Type",
+        "advancedSettingsLabel": "Geavanceerde instellingen",
+        "includeWeekendsLabel": "Houd rekening met weekenden bij het berekenen van looptijden",
+        "dependencyFieldForReaderTooltip": "Dit veld is opgenomen in de regel voor datumafhankelijke velden",
+        "fieldInvalidTitle": "Fout in datumafhankelijkheidsveld"
     }
 }
