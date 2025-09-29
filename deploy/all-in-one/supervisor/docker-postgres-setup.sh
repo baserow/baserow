@@ -58,7 +58,7 @@ docker_setup_db() {
 			create user :"user" with encrypted password :'pass';
 			grant all privileges on database :"db" to :"user";
 			alter database :"db" OWNER TO :"user";
-      CREATE EXTENSION IF NOT EXISTS vector;
+			CREATE EXTENSION IF NOT EXISTS vector;
 		EOSQL
 	fi
 }
@@ -125,7 +125,7 @@ _main() {
         echo "Setting up pgvector extension..."
         docker_temp_server_start "$@"
         docker_process_sql --dbname "$POSTGRES_DB" <<-'EOSQL'
-				CREATE EXTENSION IF NOT EXISTS vector;
+					CREATE EXTENSION IF NOT EXISTS vector;
 				EOSQL
 
         touch "$PGVECTOR_EXTENSION_SETUP_FILE"
