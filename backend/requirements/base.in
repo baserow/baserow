@@ -22,7 +22,7 @@ advocate==1.0.0
 zipp==3.19.1
 unicodecsv==0.14.1
 django-celery-beat==2.8.1
-celery-redbeat==2.2.0
+celery-redbeat==2.3.3
 flower==2.0.1
 service-identity==24.1.0
 regex==2024.4.28
