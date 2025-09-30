@@ -49,7 +49,6 @@ class TrashHandler(metaclass=baserow_trace_methods(tracer)):
         application: Optional[Application],
         trash_item,
         existing_trash_entry: Optional[TrashEntry] = None,
-        managed: bool = False,
     ) -> TrashEntry:
         """
         Marks the provided trashable item as trashed meaning it will no longer be
@@ -65,8 +64,6 @@ class TrashHandler(metaclass=baserow_trace_methods(tracer)):
         :param existing_trash_entry: An optional TrashEntry that the handler can
             pass to the trash system to track cascading deletions in a single
             trash entry.
-        :param managed: Whether the trash entry is managed by the system rather
-            than a user. Managed trash entries cannot be restored by users.
         :return: A newly created entry in the TrashEntry table for this item.
         """
 
@@ -104,7 +101,6 @@ class TrashHandler(metaclass=baserow_trace_methods(tracer)):
                         additional_restoration_data=trash_item_type.get_additional_restoration_data(
                             trash_item
                         ),
-                        managed=managed,
                     )
                 except IntegrityError as e:
                     if "unique constraint" in e.args[0]:
@@ -433,7 +429,6 @@ class TrashHandler(metaclass=baserow_trace_methods(tracer)):
         user: User,
         workspace_id: int,
         application_id: Optional[int],
-        exclude_managed: bool = True,
     ) -> QuerySet:
         """
         Looks up the trash contents for a particular workspace optionally filtered by
@@ -442,9 +437,6 @@ class TrashHandler(metaclass=baserow_trace_methods(tracer)):
         :param workspace_id: The workspace to lookup trash contents inside of.
         :param application_id: The optional application to filter down the trash
             contents to only this workspace.
-        :param exclude_managed: Whether to exclude managed items from the results.
-            Managed trash entries are those created by the system rather than a user,
-            so restoration is unavailable to them.
         :raises WorkspaceDoesNotExist: If the workspace_id is for a non-existent
             workspace.
         :raises ApplicationDoesNotExist: If the application_id is for a non-existent
@@ -482,9 +474,6 @@ class TrashHandler(metaclass=baserow_trace_methods(tracer)):
         trash_contents = TrashEntry.objects.filter(
             workspace=workspace, should_be_permanently_deleted=False
         ).filter(Q(trash_item_owner=user) | Q(trash_item_owner__isnull=True))
-
-        if exclude_managed:
-            trash_contents = trash_contents.exclude(managed=True)
 
         if application:
             trash_contents = trash_contents.filter(application=application)
