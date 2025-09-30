@@ -3,6 +3,8 @@ from django.conf import settings
 from baserow.core.exceptions import FeatureDisabledException
 
 FF_AUTOMATION = "automation"
+FF_ASSISTANT = "assistant"
+FF_DATE_DEPENDENCY = "date_dependency"
 FF_ENABLE_ALL = "*"
 
 

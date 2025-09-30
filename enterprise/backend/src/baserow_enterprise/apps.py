@@ -31,6 +31,9 @@ class BaserowEnterpriseConfig(AppConfig):
         from baserow_enterprise.api.member_data_types import (
             EnterpriseMemberTeamsDataType,
         )
+        from baserow_enterprise.assistant.operations import (
+            ChatAssistantChatOperationType,
+        )
         from baserow_enterprise.role.actions import BatchAssignRoleActionType
         from baserow_enterprise.scopes import TeamsActionScopeType
         from baserow_enterprise.teams.actions import (
@@ -127,6 +130,15 @@ class BaserowEnterpriseConfig(AppConfig):
         operation_type_registry.register(ListWorkspaceAuditLogEntriesOperationType())
         operation_type_registry.register(UpdateFieldPermissionsOperationType())
         operation_type_registry.register(ReadFieldPermissionsOperationType())
+        operation_type_registry.register(ChatAssistantChatOperationType())
+
+        from baserow.contrib.database.field_rules.registries import (
+            field_rules_type_registry,
+        )
+
+        from .date_dependency.field_rule_types import DateDependencyFieldRuleType
+
+        field_rules_type_registry.register(DateDependencyFieldRuleType())
 
         from baserow.core.registries import subject_type_registry
 

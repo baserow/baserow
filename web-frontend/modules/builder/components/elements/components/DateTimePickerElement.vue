@@ -19,10 +19,13 @@
 
 <script>
 import formElement from '@baserow/modules/builder/mixins/formElement'
-import { ensureString } from '@baserow/modules/core/utils/validator'
 import ABDateTimePicker from '@baserow/modules/builder/components/elements/baseComponents/ABDateTimePicker.vue'
 import { DATE_FORMATS, TIME_FORMATS } from '@baserow/modules/builder/enums'
-import { FormattedDate, FormattedDateTime } from '@baserow/modules/builder/date'
+import {
+  ensureDateTime,
+  ensureDate,
+  ensureString,
+} from '@baserow/modules/core/utils/validator'
 
 export default {
   name: 'DateTimePickerElement',
@@ -51,27 +54,26 @@ export default {
     },
     resolvedDefaultValue() {
       const resolvedFormula = this.resolveFormula(this.element.default_value)
+
       if (!resolvedFormula) {
         return null
       }
-      const FormattedDateOrDateTimeClass = this.element.include_time
-        ? FormattedDateTime
-        : FormattedDate
 
-      // Try to parse the date/datetime initially as an ISO string
-      let value = new FormattedDateOrDateTimeClass(resolvedFormula)
+      try {
+        const result = this.element.include_time
+          ? ensureDateTime(resolvedFormula)
+          : ensureDate(resolvedFormula)
 
-      // If the previous fails, try again with the element current format
-      if (!value.isValid()) {
-        const dateFormat = DATE_FORMATS[this.element.date_format].format
-        const timeFormat = TIME_FORMATS[this.element.time_format].format
-        const format = this.element.include_time
-          ? `${dateFormat} ${timeFormat}`
-          : dateFormat
-        value = new FormattedDateOrDateTimeClass(resolvedFormula, format)
+        if (result && !isNaN(result)) {
+          // We convert to an iso string here because date objects are not serialized
+          // properly during SSR
+          return result.toJSON()
+        } else {
+          return result
+        }
+      } catch (e) {
+        return null
       }
-
-      return value
     },
     resolvedLabel() {
       return ensureString(this.resolveFormula(this.element.label))
@@ -80,7 +82,7 @@ export default {
   watch: {
     resolvedDefaultValue: {
       handler(value) {
-        this.inputValue = value
+        this.setFormData(value)
       },
       immediate: true,
     },

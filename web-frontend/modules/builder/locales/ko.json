@@ -455,7 +455,10 @@
         "backgroundColor": "배경색",
         "widthLabel": "너비",
         "backgroundImage": "이미지",
-        "backgroundImageMode": "채우기 모드"
+        "backgroundImageMode": "채우기 모드",
+        "cssClasses": "CSS 클래스",
+        "cssClassesHelp": "생성된 HTML에 나타날 이 요소에 대한 클래스 목록을 공백으로 구분하여 설정합니다.",
+        "cssClassesPlaceholder": "CSS 클래스를 소개합니다..."
     },
     "styleBoxForm": {
         "borderColor": "테두리 색상",

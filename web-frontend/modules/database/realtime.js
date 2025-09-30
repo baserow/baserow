@@ -193,7 +193,11 @@ export const registerRealtimeEvents = (realtime) => {
     for (const viewType of Object.values(app.$registry.getAll('view'))) {
       for (let i = 0; i < data.rows.length; i++) {
         const row = data.rows[i]
-        const rowBeforeUpdate = data.rows_before_update[i]
+
+        // A row may be updated by the backend, while it wasn't requested by the user,
+        // causing rows before update and rows updated sets asymmetry. In that case,
+        // we just want a skeleton of a row.
+        const rowBeforeUpdate = data.rows_before_update[i] || { id: row.id }
 
         await viewType.rowUpdated(
           context,
@@ -613,6 +617,28 @@ export const registerRealtimeEvents = (realtime) => {
   realtime.registerEvent('user_permanently_deleted', ({ store, app }, data) => {
     app.$bus.$emit('table-refresh', {
       tableId: store.getters['table/getSelectedId'],
+    })
+  })
+
+  realtime.registerEvent('field_rule_added', ({ store, app }, data) => {
+    store.commit('fieldRules/ADD_RULE', {
+      tableId: data.rule.table_id,
+      rule: data.rule,
+    })
+  })
+
+  realtime.registerEvent('field_rule_updated', ({ store, app }, data) => {
+    store.dispatch('fieldRules/ruleChanged', {
+      tableId: data.rule.table_id,
+      ruleId: data.rule.id,
+      rule: data.rule,
+    })
+  })
+
+  realtime.registerEvent('field_rule_deleted', ({ store, app }, data) => {
+    store.commit('fieldRules/DELETE_RULE', {
+      tableId: data.rule.table_id,
+      ruleId: data.rule.id,
     })
   })
 }

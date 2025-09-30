@@ -47,7 +47,7 @@ test.describe("Automation node test suite", () => {
     await nodeDiv.click();
 
     const nodeMenuButton = page
-      .locator(".selected")
+      .locator(".workflow-node-content--selected")
       .getByRole("button", { name: "Node options" });
     await nodeMenuButton.click();
 

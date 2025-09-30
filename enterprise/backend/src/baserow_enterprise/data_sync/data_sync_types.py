@@ -143,17 +143,19 @@ class PostgreSQLDataSyncType(BaserowPostgreSQLDataSyncType):
                 pk_vals = self._get_pk_tuple(row, unique_primaries)
                 value = row[f"field_{field_id}"]
 
-                when_clause = sql.SQL(" WHEN ({}) THEN %s").format(
-                    sql.SQL(", ").join(sql.Placeholder() for _ in pk_vals)
+                conditions = sql.SQL(" AND ").join(
+                    sql.SQL("{} = {}").format(sql.Identifier(p.key), sql.Placeholder())
+                    for p in unique_primaries
+                )
+                when_clause = sql.SQL(" WHEN {} THEN {}").format(
+                    conditions, sql.Placeholder()
                 )
                 cases.append((when_clause, list(pk_vals) + [value]))
 
             if not cases:
                 continue
 
-            case_expr = sql.SQL("CASE ({}) ").format(
-                sql.SQL(", ").join(sql.Identifier(p.key) for p in unique_primaries)
-            )
+            case_expr = sql.SQL("CASE")
             for when_sql, values in cases:
                 case_expr += when_sql
                 params.extend(values)

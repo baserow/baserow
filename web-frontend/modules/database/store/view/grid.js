@@ -24,9 +24,9 @@ import { RefreshCancelledError } from '@baserow/modules/core/errors'
 import {
   prepareRowForRequest,
   prepareNewOldAndUpdateRequestValues,
-  extractRowReadOnlyValues,
   updateRowMetadataType,
   getRowMetadata,
+  extractChangedFields,
 } from '@baserow/modules/database/utils/row'
 import { getDefaultSearchModeFromEnv } from '@baserow/modules/database/utils/search'
 import { fieldValuesAreEqualInObjects } from '@baserow/modules/database/utils/groupBy'
@@ -2201,10 +2201,12 @@ export const actions = {
           undoRedoActionGroupId
         )
         data = resp.data
-
+        const updatedFieldIds = data.metadata?.updated_field_ids || []
         const fieldsToFinalize = fields
-          .filter((field) =>
-            this.$registry.get('field', field.type).isReadOnlyField(field)
+          .filter(
+            (field) =>
+              this.$registry.get('field', field.type).isReadOnlyField(field) ||
+              updatedFieldIds.includes(field.id)
           )
           .map((field) => `field_${field.id}`)
         commit('FINALIZE_ROWS_IN_BUFFER', {
@@ -2468,7 +2470,7 @@ export const actions = {
      * This helper function will make sure that the values of the related row are
      * updated the right way.
      */
-    const updateValues = async (values, optimisticUpdate) => {
+    const updateValues = async (row, values, optimisticUpdate) => {
       const rowExistsInBuffer = getters.getRow(row.id) !== undefined
 
       if (rowExistsInBuffer) {
@@ -2542,47 +2544,70 @@ export const actions = {
     // it feel instant for the user. If we can't safely do it in the frontend, then
     // we have to show a loading state and update the row after the request has been
     // made.
-    await updateValues(newRowValues, canUpdateOptimistically)
+    await updateValues(row, newRowValues, canUpdateOptimistically)
 
     try {
       // Add the update actual update function to the queue so that the same row
       // will never be updated concurrency, and so that the value won't be
       // updated if the row hasn't been created yet.
       await createAndUpdateRowQueue.add(async () => {
-        const updatedRow = await RowService(this.$client).update(
+        const batchResponse = await RowService(this.$client).batchUpdate(
           table.id,
-          row.id,
-          updateRequestValues
+          [updateRequestValues]
         )
-        // Extract only the read-only values because we don't want to update the other
-        // values that might have been updated in the meantime.
-        const readOnlyData = extractRowReadOnlyValues(
-          updatedRow.data,
-          fields,
-          this.$registry
-        )
-        // Update the remaining values like formula, which depend on the backend.
-        await updateValues(readOnlyData, true)
-        // If we can't optimistically update the row, refresh it to stop the loading
-        // state, show proper messages, and update its position and state.
-        if (!canUpdateOptimistically) {
-          const rowId = row.id
-          commit('SET_ROW_LOADING', { row, value: false })
-          setTimeout(() => {
-            // Get the latest row so that updated `readOnlyData` values are included,
-            // and any other changes that might have been made in the meantime. This is
-            // needed to pass the correct row into the `refreshRow` that shows/hide the
-            // row.
-            const row = getters.getRow(rowId)
-            if (row && !row._.selected) {
-              dispatch('refreshRow', {
-                grid: view,
-                row,
-                fields,
-                isRowOpenedInModal,
-              })
-            }
-          }, REFRESH_ROW_DELAY)
+
+        const updatedRows = []
+          .concat(batchResponse.data.items)
+          .concat(batchResponse.data.metadata?.cascade_update?.rows || [])
+
+        const updatedFieldIds =
+          batchResponse.data.metadata?.updated_field_ids || []
+
+        const otherFieldsChangedInBackend = !_.isEqual(updatedFieldIds, [
+          field.id,
+        ])
+
+        for (const updatedRowData of updatedRows) {
+          // Extract only the read-only values because we don't want to update the other
+          // values that might have been updated in the meantime.
+          const rowData = extractChangedFields(
+            updatedRowData,
+            fields,
+            updatedFieldIds,
+            this.$registry
+          )
+
+          // The backend may update rows that are not in the current buffer.
+          // In that case, the row will be `undefined`, and we don't need to
+          // update it.
+          const existing = getters.getRow(rowData.id)
+          if (existing === undefined) {
+            continue
+          }
+          // Update the remaining values like formula, which depend on the backend.
+          await updateValues(existing, rowData, true)
+
+          // If we can't optimistically update the row, refresh it to stop the loading
+          // state, show proper messages, and update its position and state. Also, if the
+          // backend changed other fields, we should refresh sorting/search/filtering.
+          if (!canUpdateOptimistically || otherFieldsChangedInBackend) {
+            commit('SET_ROW_LOADING', { row: existing, value: false })
+            setTimeout(() => {
+              // Get the latest row so that updated `readOnlyData` values are included,
+              // and any other changes that might have been made in the meantime. This is
+              // needed to pass the correct row into the `refreshRow` that shows/hide the
+              // row.
+              const row = getters.getRow(existing.id)
+              if (row && !row._.selected) {
+                dispatch('refreshRow', {
+                  grid: view,
+                  row,
+                  fields,
+                  isRowOpenedInModal,
+                })
+              }
+            }, REFRESH_ROW_DELAY)
+          }
         }
         dispatch('fetchAllFieldAggregationData', {
           view,
@@ -2592,7 +2617,7 @@ export const actions = {
       if (!canUpdateOptimistically) {
         commit('SET_ROW_LOADING', { row, value: false })
       }
-      await updateValues(oldRowValues, true)
+      await updateValues(row, oldRowValues, true)
       throw error
     }
   },

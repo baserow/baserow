@@ -95,6 +95,9 @@ x-backend-variables:
   BASEROW_UNIQUE_ROW_VALUES_SIZE_LIMIT:
 
   BASEROW_AUTOMATION_HISTORY_PAGE_SIZE_LIMIT:
+  BASEROW_AUTOMATION_WORKFLOW_RATE_LIMIT_MAX_RUNS:
+  BASEROW_AUTOMATION_WORKFLOW_RATE_LIMIT_CACHE_EXPIRY_SECONDS:
+  BASEROW_AUTOMATION_WORKFLOW_MAX_CONSECUTIVE_ERRORS:
 
   BASEROW_EXTRA_ALLOWED_HOSTS:
   ADDITIONAL_APPS:
@@ -192,6 +195,7 @@ x-backend-variables:
   BASEROW_BUILDER_DOMAINS:
   SENTRY_DSN:
   SENTRY_BACKEND_DSN:
+  OPENAI_API_KEY:
   BASEROW_OPENAI_API_KEY:
   BASEROW_OPENAI_ORGANIZATION:
   BASEROW_OPENAI_MODELS:
@@ -252,7 +256,7 @@ services:
       local:
 
   backend:
-    image: baserow/backend:1.35.1
+    image: baserow/backend:1.35.2
     restart: unless-stopped
 
     environment:
@@ -266,7 +270,7 @@ services:
       local:
 
   web-frontend:
-    image: baserow/web-frontend:1.35.1
+    image: baserow/web-frontend:1.35.2
     restart: unless-stopped
     environment:
       BASEROW_PUBLIC_URL: ${BASEROW_PUBLIC_URL-http://localhost}
@@ -301,13 +305,16 @@ services:
       BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_SERIES:
       BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS:
       BASEROW_AUTOMATION_HISTORY_PAGE_SIZE_LIMIT:
+      BASEROW_AUTOMATION_WORKFLOW_RATE_LIMIT_MAX_RUNS:
+      BASEROW_AUTOMATION_WORKFLOW_RATE_LIMIT_CACHE_EXPIRY_SECONDS:
+      BASEROW_AUTOMATION_WORKFLOW_MAX_CONSECUTIVE_ERRORS:
     depends_on:
       - backend
     networks:
       local:
 
   celery:
-    image: baserow/backend:1.35.1
+    image: baserow/backend:1.35.2
     restart: unless-stopped
     environment:
       <<: *backend-variables
@@ -328,7 +335,7 @@ services:
       local:
 
   celery-export-worker:
-    image: baserow/backend:1.35.1
+    image: baserow/backend:1.35.2
     restart: unless-stopped
     command: celery-exportworker
     environment:
@@ -349,7 +356,7 @@ services:
       local:
 
   celery-beat-worker:
-    image: baserow/backend:1.35.1
+    image: baserow/backend:1.35.2
     restart: unless-stopped
     command: celery-beat
     environment:

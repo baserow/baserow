@@ -15,7 +15,14 @@
         "or": "또는",
         "and": "그리고",
         "optional": "선택적",
-        "alpha": "알파"
+        "alpha": "알파",
+        "monday": "월요일",
+        "tuesday": "화요일",
+        "wednesday": "수요일",
+        "thursday": "목요일",
+        "friday": "금요일",
+        "saturday": "토요일",
+        "sunday": "일요일"
     },
     "action": {
         "close": "닫기",
@@ -623,7 +630,8 @@
         "errorGenericData": "기존 데이터 충돌로 인해 필드 제약 조건을 적용할 수 없습니다.",
         "errorUniqueOrEmpty": "이 필드의 일부 값이 중복되었습니다. 이 제약 조건을 적용하기 전에 중복된 값을 제거하거나 편집하세요.",
         "errorInvalidConstraint": "이 필드 제약조건은 이 필드 유형에 지원되지 않습니다.",
-        "errorDoesNotSupportDefaultValue": "기본값이 설정되어 있으면 이 제약 조건을 설정할 수 없습니다."
+        "errorDoesNotSupportDefaultValue": "기본값이 설정되어 있으면 이 제약 조건을 설정할 수 없습니다.",
+        "noConstraintsCompatibleWithDefaultValue": "기본값이 활성화되면 호환되는 제약 조건이 없습니다."
     },
     "fieldConstraintParametersText": {
         "placeholder": "제약 조건 값을 입력하세요"

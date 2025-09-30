@@ -4,6 +4,7 @@ from django.contrib.auth.models import AbstractUser
 
 from baserow.contrib.automation.handler import AutomationHandler
 from baserow.contrib.automation.models import Automation, AutomationWorkflow
+from baserow.contrib.automation.nodes.node_types import CorePeriodicTriggerNodeType
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.operations import OrderAutomationWorkflowsOperationType
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
@@ -102,14 +103,12 @@ class AutomationWorkflowService:
         if auto_create_trigger:
             from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 
-            first_trigger_type = [
-                t
-                for t in automation_node_type_registry.get_all()
-                if t.is_workflow_trigger
-            ][0]
-            prepared_values = first_trigger_type.prepare_values({}, user)
+            trigger_type = automation_node_type_registry.get(
+                CorePeriodicTriggerNodeType.type
+            )
+            prepared_values = trigger_type.prepare_values({}, user)
             AutomationNodeHandler().create_node(
-                first_trigger_type, workflow, **prepared_values
+                trigger_type, workflow, **prepared_values
             )
 
         automation_workflow_created.send(self, workflow=workflow, user=user)

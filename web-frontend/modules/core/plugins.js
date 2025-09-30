@@ -46,6 +46,14 @@ export class BaserowPlugin extends Registerable {
   }
 
   /**
+   * Every registered plugin can display an additional item in the right sidebar within
+   * the workspace context.
+   */
+  getRightSidebarWorkspaceComponents(workspace) {
+    return null
+  }
+
+  /**
    * Every registered plugin can display additional items in the user context menu.
    */
   getUserContextComponents() {
@@ -144,6 +152,28 @@ export class BaserowPlugin extends Registerable {
    * @returns {*[]}
    */
   getAdditionalTableContextComponents(workspace, table) {
+    return []
+  }
+
+  /**
+   * Every registered plugin can display multiple additional context menu items in the
+   * view context menu displayed at the top bar (three dots menu) in the View view.
+   * @returns {*[]}
+   */
+  getAdditionalViewContextComponents(workspace, view) {
+    return []
+  }
+
+  /**
+   * Provides additional icons before 'standard' icons in the field header in a
+   * grid view.
+   *
+   * @param workspace
+   * @param view
+   * @param field
+   * @returns {*[]}
+   */
+  getGridViewFieldTypeIconsBefore(workspace, view, field) {
     return []
   }
 

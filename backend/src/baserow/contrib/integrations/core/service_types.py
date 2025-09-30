@@ -1,20 +1,39 @@
 import json
 import socket
 import uuid
+from datetime import datetime, timedelta
 from smtplib import SMTPAuthenticationError, SMTPConnectError, SMTPNotSupportedError
-from typing import Any, Dict, Generator, List, Optional, Tuple
+from typing import Any, Callable, Dict, Generator, List, Optional, Tuple
 
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives, get_connection
+from django.db import router
+from django.db.models import Q
+from django.utils import timezone
 from django.utils.translation import gettext as _
 
 from advocate.connection import UnacceptableAddressException
+from dateutil.relativedelta import relativedelta
+from genson import SchemaBuilder
 from loguru import logger
 from requests import exceptions as request_exceptions
 from rest_framework import serializers
 
+from baserow.config.celery import app as celery_app
+from baserow.contrib.integrations.core.constants import (
+    BODY_TYPE,
+    HTTP_METHOD,
+    PERIODIC_INTERVAL_CHOICES,
+    PERIODIC_INTERVAL_DAY,
+    PERIODIC_INTERVAL_HOUR,
+    PERIODIC_INTERVAL_MINUTE,
+    PERIODIC_INTERVAL_MONTH,
+    PERIODIC_INTERVAL_WEEK,
+)
+from baserow.contrib.integrations.core.integration_types import SMTPIntegrationType
 from baserow.contrib.integrations.core.models import (
     CoreHTTPRequestService,
+    CorePeriodicService,
     CoreRouterService,
     CoreRouterServiceEdge,
     CoreSMTPEmailService,
@@ -36,18 +55,26 @@ from baserow.core.services.exceptions import (
     UnexpectedDispatchException,
 )
 from baserow.core.services.models import Service
-from baserow.core.services.registries import DispatchTypes, ServiceType
+from baserow.core.services.registries import (
+    DispatchTypes,
+    ServiceType,
+    TriggerServiceTypeMixin,
+)
 from baserow.core.services.types import DispatchResult, FormulaToResolve, ServiceDict
 from baserow.version import VERSION as BASEROW_VERSION
 
-from .constants import BODY_TYPE, HTTP_METHOD
-from .integration_types import SMTPIntegrationType
+
+class CoreServiceType(ServiceType):
+    """
+    The base class for all core service types. Currently only used
+    as a way to differentiate core and non-core service types.
+    """
 
 
-class CoreHTTPRequestServiceType(ServiceType):
+class CoreHTTPRequestServiceType(CoreServiceType):
     type = "http_request"
     model_class = CoreHTTPRequestService
-    dispatch_type = DispatchTypes.DISPATCH_WORKFLOW_ACTION
+    dispatch_types = [DispatchTypes.ACTION]
 
     allowed_fields = [
         "http_method",
@@ -57,7 +84,7 @@ class CoreHTTPRequestServiceType(ServiceType):
         "timeout",
     ]
 
-    serializer_field_names = [
+    _serializer_field_names = [
         "http_method",
         "url",
         "headers",
@@ -66,7 +93,6 @@ class CoreHTTPRequestServiceType(ServiceType):
         "body_type",
         "body_content",
         "timeout",
-        "response_sample",
     ]
 
     request_serializer_field_names = [
@@ -89,9 +115,12 @@ class CoreHTTPRequestServiceType(ServiceType):
         body_type: str
         body_content: str
         timeout: int
-        response_sample: dict
 
     simple_formula_fields = ["body_content", "url"]
+
+    @property
+    def serializer_field_names(self):
+        return self._serializer_field_names + self.default_serializer_field_names
 
     @property
     def serializer_field_overrides(self):
@@ -375,17 +404,39 @@ class CoreHTTPRequestServiceType(ServiceType):
 
         properties = {}
 
+        if (allowed_fields is None or "body" in allowed_fields) and service.sample_data:
+            schema_builder = SchemaBuilder()
+            schema_builder.add_object(
+                service.sample_data.get("data", {}).get("body", {})
+            )
+            schema = schema_builder.to_schema()
+
+            properties |= {
+                "body": schema
+                | {
+                    "title": "Body",
+                }
+            }
+
         if allowed_fields is None or "raw_body" in allowed_fields:
             properties.update(
                 **{
                     "raw_body": {
                         "type": "string",
-                        "title": "Body",
+                        "title": "Raw body",
                     },
                 },
             )
 
         if allowed_fields is None or "headers" in allowed_fields:
+            schema = {}
+            if service.sample_data:
+                schema_builder = SchemaBuilder()
+                schema_builder.add_object(
+                    service.sample_data.get("data", {}).get("headers", {})
+                )
+                schema = schema_builder.to_schema()
+
             properties.update(
                 **{
                     "headers": {
@@ -405,7 +456,9 @@ class CoreHTTPRequestServiceType(ServiceType):
                                 "a resource",
                             },
                         },
-                    },
+                        "title": "Headers",
+                    }
+                    | schema,
                 },
             )
 
@@ -543,23 +596,25 @@ class CoreHTTPRequestServiceType(ServiceType):
             logger.exception("Error while dispatching HTTP request")
             raise UnexpectedDispatchException(f"Unknown error: {str(e)}") from e
 
-        response_body = (
-            response.json()
-            if response.headers.get("Content-Type") == "application/json"
-            else response.text
-        )
+        try:
+            # Try to parse as JSON regardless of Content-Type. A misconfigured
+            # API may return JSON but forget to set the content-type.
+            response_body = response.json()
+        except request_exceptions.JSONDecodeError:
+            # Otherwise, fall back to text
+            response_body = response.text
 
         # Extract the response headers
         response_headers = {key: value for key, value in response.headers.items()}
 
-        return {
-            "data": {
-                # For now we always convert the body to a string
-                "raw_body": ensure_string(response_body, allow_empty=True),
-                "headers": response_headers,
-                "status_code": response.status_code,
-            },
+        data = {
+            "raw_body": ensure_string(response_body, allow_empty=True),
+            "body": response_body,
+            "headers": response_headers,
+            "status_code": response.status_code,
         }
+
+        return {"data": data}
 
     def dispatch_transform(
         self,
@@ -568,10 +623,10 @@ class CoreHTTPRequestServiceType(ServiceType):
         return DispatchResult(data=data["data"])
 
 
-class CoreSMTPEmailServiceType(ServiceType):
+class CoreSMTPEmailServiceType(CoreServiceType):
     type = "smtp_email"
     model_class = CoreSMTPEmailService
-    dispatch_type = DispatchTypes.DISPATCH_WORKFLOW_ACTION
+    dispatch_types = [DispatchTypes.ACTION]
     integration_type = SMTPIntegrationType.type
 
     allowed_fields = [
@@ -830,11 +885,11 @@ class CoreSMTPEmailServiceType(ServiceType):
         return values
 
 
-class CoreRouterServiceType(ServiceType):
+class CoreRouterServiceType(CoreServiceType):
     type = "router"
     model_class = CoreRouterService
     allowed_fields = ["default_edge_label"]
-    dispatch_type = DispatchTypes.DISPATCH_TRIGGER
+    dispatch_types = [DispatchTypes.ACTION]
     serializer_field_names = ["default_edge_label", "edges"]
 
     class SerializedDict(ServiceDict):
@@ -961,7 +1016,7 @@ class CoreRouterServiceType(ServiceType):
             FormulaToResolve(
                 f"edge_{edge.uid}",
                 edge.condition,
-                ensure_boolean,
+                lambda x: ensure_boolean(x, True),
                 f'edge "{edge.label}" condition',
             )
             for edge in service.edges.all()
@@ -1066,6 +1121,22 @@ class CoreRouterServiceType(ServiceType):
         :return: A dictionary containing the data of the first matching edge.
         """
 
+        if (
+            dispatch_context.force_outputs is not None
+            and service.id in dispatch_context.force_outputs
+        ):
+            if dispatch_context.force_outputs[service.id]:
+                edge = service.edges.get(uid=dispatch_context.force_outputs[service.id])
+                return {
+                    "output_uid": str(edge.uid),
+                    "data": {"edge": {"label": edge.label}},
+                }
+            else:
+                return {
+                    "output_uid": "",
+                    "data": {"edge": {"label": service.default_edge_label}},
+                }
+
         for edge in service.edges.all():
             condition_result = resolved_values[f"edge_{edge.uid}"]
             if condition_result:
@@ -1084,3 +1155,223 @@ class CoreRouterServiceType(ServiceType):
         data: Any,
     ) -> DispatchResult:
         return DispatchResult(output_uid=data["output_uid"], data=data["data"])
+
+    def get_sample_data(self, service):
+        return None
+
+
+class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
+    type = "periodic"
+    model_class = CorePeriodicService
+
+    allowed_fields = [
+        "interval",
+        "minute",
+        "hour",
+        "day_of_week",
+        "day_of_month",
+    ]
+
+    serializer_field_names = [
+        "interval",
+        "minute",
+        "hour",
+        "day_of_week",
+        "day_of_month",
+    ]
+
+    serializer_field_overrides = {
+        "interval": serializers.ChoiceField(
+            choices=PERIODIC_INTERVAL_CHOICES,
+            help_text=CorePeriodicService._meta.get_field("interval").help_text,
+        ),
+        "minute": serializers.IntegerField(
+            min_value=0,
+            max_value=59,
+            required=False,
+            allow_null=True,
+            help_text=CorePeriodicService._meta.get_field("minute").help_text,
+        ),
+        "hour": serializers.IntegerField(
+            min_value=0,
+            max_value=23,
+            required=False,
+            allow_null=True,
+            help_text=CorePeriodicService._meta.get_field("hour").help_text,
+        ),
+        "day_of_week": serializers.IntegerField(
+            min_value=0,
+            max_value=6,
+            required=False,
+            allow_null=True,
+            help_text=CorePeriodicService._meta.get_field("day_of_week").help_text,
+        ),
+        "day_of_month": serializers.IntegerField(
+            min_value=1,
+            max_value=31,
+            required=False,
+            allow_null=True,
+            help_text=CorePeriodicService._meta.get_field("day_of_month").help_text,
+        ),
+    }
+
+    def __init__(self):
+        super().__init__()
+        self._cancel_periodic_task = lambda: None
+
+    class SerializedDict(ServiceDict):
+        interval: str
+        minute: int
+        hour: int
+        day_of_week: int
+        day_of_month: int
+
+    def _setup_periodic_task(self, sender, **kwargs):
+        """
+        Responsible for adding the periodic task to call due periodic services.
+
+        :param sender: The sender of the signal.
+        """
+
+        from baserow.contrib.integrations.tasks import (
+            call_periodic_services_that_are_due,
+        )
+
+        sender.add_periodic_task(
+            settings.INTEGRATIONS_PERIODIC_TASK_CRONTAB,
+            call_periodic_services_that_are_due.s(),
+            name="periodic-service-type-task",
+        )
+
+        self._cancel_periodic_task = lambda: sender.control.revoke(
+            "periodic-service-type-task", terminate=True
+        )
+
+    def start_listening(self, on_event: Callable):
+        super().start_listening(on_event)
+        celery_app.on_after_finalize.connect(self._setup_periodic_task)
+
+    def stop_listening(self):
+        super().stop_listening()
+        self._cancel_periodic_task()
+
+    def _get_payload(self, now=None):
+        now = now if now else timezone.now()
+        return {"triggered_at": now.isoformat()}
+
+    def dispatch_data(
+        self,
+        service: CorePeriodicService,
+        resolved_values: Dict[str, Any],
+        dispatch_context: DispatchContext,
+    ) -> None:
+        """
+        Responsible for dispatching a single periodic service. In practice we
+        dispatch all periodic services that are due in one go so this method just
+        calls `dispatch_all` with a list containing the single service.
+
+        :param service: The CorePeriodicService instance to dispatch.
+        :param resolved_values: The resolved values from the service's formulas.
+        :param dispatch_context: The context in which the service is being dispatched.
+        """
+
+        return self._get_payload()
+
+    def dispatch_transform(self, data):
+        return DispatchResult(data=data)
+
+    def call_periodic_services_that_are_due(self, now: datetime):
+        """
+        Responsible for finding all periodic services that are due to run and
+        calling the `on_event` callback with them.
+
+        :param now: The current datetime.
+        """
+
+        query_conditions = Q()
+        is_null = Q(last_periodic_run__isnull=True)
+
+        # MINUTE
+        minute_ago = now - timedelta(minutes=1)
+        minute_condition = Q(
+            is_null | Q(last_periodic_run__lt=minute_ago),
+            interval=PERIODIC_INTERVAL_MINUTE,
+        )
+        query_conditions |= minute_condition
+
+        # HOUR
+        hour_ago = now - timedelta(hours=1)
+        hour_condition = Q(
+            is_null | Q(last_periodic_run__lt=hour_ago),
+            interval=PERIODIC_INTERVAL_HOUR,
+            minute__lte=now.minute,
+        )
+        query_conditions |= hour_condition
+
+        # DAY
+        day_ago = now - timedelta(days=1)
+        day_condition = Q(
+            is_null | Q(last_periodic_run__lt=day_ago),
+            interval=PERIODIC_INTERVAL_DAY,
+            hour__lte=now.hour,
+            minute__lte=now.minute,
+        )
+        query_conditions |= day_condition
+
+        # WEEK
+        week_ago = now - timedelta(weeks=1)
+        week_condition = Q(
+            is_null | Q(last_periodic_run__lt=week_ago),
+            interval=PERIODIC_INTERVAL_WEEK,
+            day_of_week=now.weekday(),
+            hour__lte=now.hour,
+            minute__lte=now.minute,
+        )
+        query_conditions |= week_condition
+
+        # MONTH
+        month_ago = now - relativedelta(months=1)
+        month_condition = Q(
+            is_null | Q(last_periodic_run__lt=month_ago),
+            interval=PERIODIC_INTERVAL_MONTH,
+            day_of_month=now.day,
+            hour__lte=now.hour,
+            minute__lte=now.minute,
+        )
+        query_conditions |= month_condition
+
+        periodic_services = (
+            CorePeriodicService.objects.filter(query_conditions)
+            .select_for_update(
+                of=("self",),
+                skip_locked=True,
+            )
+            .using(router.db_for_write(CorePeriodicService))
+            .order_by("id")
+        )
+
+        self.on_event(
+            periodic_services,
+            self._get_payload(now),
+        )
+
+        periodic_services.update(last_periodic_run=now)
+
+    def get_schema_name(self, service: CorePeriodicService) -> str:
+        return f"Periodic{service.id}Schema"
+
+    def generate_schema(
+        self,
+        service: CorePeriodicService,
+        allowed_fields: Optional[List[str]] = None,
+    ) -> Optional[Dict[str, Any]]:
+        return {
+            "title": self.get_schema_name(service),
+            "type": "object",
+            "properties": {
+                "triggered_at": {
+                    "type": "string",
+                    "title": _("Triggered at"),
+                },
+            },
+        }

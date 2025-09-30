@@ -44,6 +44,13 @@ class Service(
         on_delete=models.SET(get_default_service_service),
     )
 
+    sample_data = models.JSONField(
+        default=None,
+        blank=True,
+        null=True,
+        help_text="Store the sample data used for generating a schema.",
+    )
+
     class Meta:
         ordering = ("id",)
 

@@ -31,6 +31,7 @@ export const EMAIL_NOTIFICATIONS_FREQUENCY_OPTIONS = {
 export const DATA_TYPE_TO_ICON_MAP = {
   string: 'iconoir-text',
   number: 'baserow-icon-hashtag',
+  integer: 'baserow-icon-hashtag',
   boolean: 'baserow-icon-circle-checked',
   date: 'iconoir-calendar',
   datetime: 'iconoir-calendar',

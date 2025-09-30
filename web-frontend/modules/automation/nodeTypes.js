@@ -330,6 +330,46 @@ export class LocalBaserowRowsDeletedTriggerNodeType extends TriggerNodeTypeMixin
   }
 }
 
+export class CorePeriodicTriggerNodeType extends TriggerNodeTypeMixin(
+  NodeType
+) {
+  static getType() {
+    return 'periodic'
+  }
+
+  getOrder() {
+    return 4
+  }
+
+  get iconClass() {
+    return 'iconoir-timer'
+  }
+
+  get name() {
+    return this.app.i18n.t('nodeType.periodicTriggerLabel')
+  }
+
+  get serviceType() {
+    return this.app.$registry.get('service', 'periodic')
+  }
+
+  getDefaultLabel({ node }) {
+    if (!node.service) {
+      return this.name
+    }
+
+    const intervalLabels = {
+      MINUTE: this.app.i18n.t('periodicForm.everyMinute'),
+      HOUR: this.app.i18n.t('periodicForm.everyHour'),
+      DAY: this.app.i18n.t('periodicForm.everyDay'),
+      WEEK: this.app.i18n.t('periodicForm.everyWeek'),
+      MONTH: this.app.i18n.t('periodicForm.everyMonth'),
+    }
+
+    return intervalLabels[node.service.interval] || this.name
+  }
+}
+
 export class LocalBaserowCreateRowActionNodeType extends ActionNodeTypeMixin(
   LocalBaserowNodeType
 ) {

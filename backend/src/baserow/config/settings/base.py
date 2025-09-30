@@ -19,6 +19,7 @@ from sentry_sdk.scrubber import DEFAULT_DENYLIST, EventScrubber
 
 from baserow.config.settings.utils import (
     Setting,
+    crontab,
     get_crontab_from_env,
     read_file,
     set_settings_from_env_if_present,
@@ -457,7 +458,7 @@ SPECTACULAR_SETTINGS = {
         "name": "MIT",
         "url": "https://gitlab.com/baserow/baserow/-/blob/master/LICENSE",
     },
-    "VERSION": "1.35.1",
+    "VERSION": "1.35.2",
     "SERVE_INCLUDE_SCHEMA": False,
     "TAGS": [
         {"name": "Settings"},
@@ -786,6 +787,9 @@ BATCH_ROWS_SIZE_LIMIT = int(
     os.getenv("BATCH_ROWS_SIZE_LIMIT", 200)
 )  # How many rows can be modified at once.
 
+# Maximum count of records considered as a 'small table' during field rule operations.
+FIELD_RULE_ROWS_LIMIT = int(os.getenv("FIELD_RULE_ROWS_LIMIT", BATCH_ROWS_SIZE_LIMIT))
+
 # Maximum count of records returned by local baserow data source
 INTEGRATION_LOCAL_BASEROW_PAGE_SIZE_LIMIT = int(
     os.getenv("BASEROW_INTEGRATION_LOCAL_BASEROW_PAGE_SIZE_LIMIT", 200)
@@ -793,6 +797,15 @@ INTEGRATION_LOCAL_BASEROW_PAGE_SIZE_LIMIT = int(
 
 AUTOMATION_HISTORY_PAGE_SIZE_LIMIT = int(
     os.getenv("BASEROW_AUTOMATION_HISTORY_PAGE_SIZE_LIMIT", 100)
+)
+AUTOMATION_WORKFLOW_RATE_LIMIT_MAX_RUNS = int(
+    os.getenv("BASEROW_AUTOMATION_WORKFLOW_RATE_LIMIT_MAX_RUNS", 10)
+)
+AUTOMATION_WORKFLOW_RATE_LIMIT_CACHE_EXPIRY_SECONDS = int(
+    os.getenv("BASEROW_AUTOMATION_WORKFLOW_RATE_LIMIT_CACHE_EXPIRY_SECONDS", 5)
+)
+AUTOMATION_WORKFLOW_MAX_CONSECUTIVE_ERRORS = int(
+    os.getenv("BASEROW_AUTOMATION_WORKFLOW_MAX_CONSECUTIVE_ERRORS", 5)
 )
 
 TRASH_PAGE_SIZE_LIMIT = 200  # How many trash entries can be requested at once.
@@ -835,9 +848,9 @@ STALE_MENTIONS_CLEANUP_INTERVAL_MINUTES = int(
 # of hours.
 BASEROW_UPDATE_WORKSPACE_STORAGE_USAGE_HOURS = 24
 
-ONE_AM_CRONTRAB_STR = "0 1 * * *"
+ONE_AM_CRONTAB_STR = "0 1 * * *"
 BASEROW_SEAT_USAGE_JOB_CRONTAB = get_crontab_from_env(
-    "BASEROW_SEAT_USAGE_JOB_CRONTAB", default_crontab=ONE_AM_CRONTRAB_STR
+    "BASEROW_SEAT_USAGE_JOB_CRONTAB", default_crontab=ONE_AM_CRONTAB_STR
 )
 
 EMAIL_BACKEND = "djcelery_email.backends.CeleryEmailBackend"
@@ -1031,6 +1044,7 @@ BASEROW_WEBHOOK_ROWS_ENTER_VIEW_BATCH_SIZE = int(
 INTEGRATIONS_ALLOW_PRIVATE_ADDRESS = bool(
     os.getenv("BASEROW_INTEGRATIONS_ALLOW_PRIVATE_ADDRESS", False)
 )
+INTEGRATIONS_PERIODIC_TASK_CRONTAB = crontab(minute="*")
 
 # ======== WARNING ========
 # Please read and understand everything at:

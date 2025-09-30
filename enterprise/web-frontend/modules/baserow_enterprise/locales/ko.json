@@ -303,7 +303,7 @@
         "rbacContent": "정밀하게 권한을 관리하세요. 작업공간, 데이터베이스, 또는 테이블 수준에서 관리자, 빌더, 편집자, 댓글 작성자, 보기 전용 사용자와 같은 역할을 지정할 수 있습니다. 팀 단위로 접근 권한을 관리하는 것도 가능합니다.",
         "advancedWebhooksContent": "행이 특정 보기에 들어올 때 웹훅을 트리거하세요. 필터 조건을 기반으로 워크플로를 자동화하는 데 유용합니다.",
         "auditLogsContent": "무슨 일이 일어났는지 모두 추적할 수 있어요. 인스턴스나 워크스페이스에서 이루어진 모든 작업 기록을 확인하고, 사용자나 작업 유형 등으로 손쉽게 필터링할 수 있습니다.",
-        "dataSyncContent": "다른 Baserow 테이블이나 Jira, GitHub, GitLab, HubSpot과 같은 외부 소스와 동기화하여 테이블을 자동으로 최신 상태로 유지하세요.",
+        "dataSyncContent": "다른 Baserow 테이블이나 Jira, GitHub, GitLab, HubSpot 등의 외부 소스와 동기화하여 테이블을 자동으로 최신 상태로 유지합니다. 또한, 주기적인 동기화를 지원하고, 지원되는 데이터 동기화 유형에 대한 양방향 데이터 동기화를 지원합니다.",
         "coBrandingContent": "Baserow 인터페이스에 사용자 지정 로고를 설정해보세요. 단, \"powered by Baserow\" 문구는 함께 표시됩니다.",
         "supportContent": "도움이 필요할 때 언제든지 지원을 받아보세요. 플랫폼 내에서 직접 Baserow 팀에 문의할 수 있습니다.",
         "fieldLevelPermissions": "필드 수준 권한",
@@ -313,7 +313,11 @@
         "builderFileInputElement": "파일 입력 요소",
         "builderFileInputElementContent": "파일 입력 요소를 사용하면 애플리케이션 페이지에 파일을 업로드할 수 있는 필드를 추가할 수 있습니다. 사용자에게 중요한 문서나 이미지를 저장할 수 있는 기능을 제공하세요.",
         "builderCustomCode": "애플리케이션을 위한 사용자 정의 코드",
-        "builderCustomCodeContent": "사용자 정의 CSS/JavaScript 코드를 추가하여 애플리케이션의 디자인과 동작을 더욱 세부적으로 맞춤 설정할 수 있습니다. 예를 들어 분석이나 소셜 미디어와 같은 외부 서비스를 통합할 수 있습니다."
+        "builderCustomCodeContent": "사용자 정의 CSS/JavaScript 코드를 추가하여 애플리케이션의 디자인과 동작을 더욱 세부적으로 맞춤 설정할 수 있습니다. 예를 들어 분석이나 소셜 미디어와 같은 외부 서비스를 통합할 수 있습니다.",
+        "assistant": "AI 어시스턴트",
+        "assistantContent": "AI로 생산성을 높이세요. Baserow에서 자연어를 사용하여 데이터를 직접 생성, 분석 및 시각화하세요.",
+        "dateDependency": "날짜 종속성",
+        "dateDependencyContent": "두 날짜와 기간 간의 종속성을 시작/종료 날짜와 기간으로 정의할 수 있습니다. 날짜 종속성을 사용하면 한 값이 변경되면 다른 값도 그에 따라 조정됩니다."
     },
     "chatwootSupportSidebarWorkspace": {
         "directSupport": "직접지원"
@@ -489,7 +493,9 @@
         "notSelected": "선택되지 않음"
     },
     "periodicDataSyncDeactivatedNotification": {
-        "body": "{name}의 주기적 데이터 동기화가 연속적으로 너무 많이 실패하여 비활성화되었습니다."
+        "body": "{name}의 주기적 데이터 동기화가 연속적으로 너무 많이 실패하여 비활성화되었습니다.",
+        "failure": "{name}의 주기적 데이터 동기화가 연속적으로 너무 많이 실패하여 비활성화되었습니다.",
+        "licenseUnavailable": "{name}의 정기적 데이터 동기화가 작업 공간에 더 이상 유효한 라이선스가 없으므로 비활성화되었습니다. 자동 동기화를 복원하려면 라이선스를 업데이트하세요."
     },
     "webhookForm": {
         "helpTriggerWhenRowsEnterView": "행이 뷰에 진입할 때 옵션이 선택된 경우에만 작동되며, 필터 조건을 만족하는 행이 새롭게 뷰에 포함될 때 실행됩니다.",
@@ -506,7 +512,10 @@
         "deleteSeries": "시리즈 삭제",
         "lineChart": "선",
         "barChart": "막대",
-        "chartType": "차트 유형"
+        "chartType": "차트 유형",
+        "pieChart": "파이",
+        "doughnutChart": "도넛",
+        "polarAreaChart": "극영역"
     },
     "aggregationGroupByForm": {
         "groupByFieldLabel": "그룹별로",
@@ -597,5 +606,66 @@
     "elementType": {
         "errorUserSourceHasNoLoginOption": "선택된 사용자 소스에 로그인 옵션이 없습니다",
         "errorUserSourceMissing": "사용자 소스가 선택되지 않았습니다"
+    },
+    "pieChartWidget": {
+        "name": "파이 차트",
+        "pie": "파이 차트",
+        "doughnut": "도넛 차트",
+        "polarArea": "극영역 차트"
+    },
+    "twoWaySyncUpdateFailed": {
+        "title": "{name} 양방향 동기화 업데이트에 실패했습니다: {error}"
+    },
+    "twoWaySyncDeactivated": {
+        "title": "{name}의 양방향 동기화가 업데이트가 연속으로 너무 많이 실패하여 비활성화되었습니다. 수동으로 동기화하고 문제가 해결되면 다시 활성화하세요."
+    },
+    "enterpriseTwoWaySyncStrategyType": {
+        "realtimePushDescription": "Baserow에서 셀 값을 직접 편집하고 실시간으로 데이터 동기화 소스에 푸시합니다. 변경 사항은 (주기적인) 동기화 작업에 의존하기 때문에 실시간으로 가져오지 않습니다. 실수로 변경되는 것을 방지하려면 PostgreSQL 데이터베이스 백업을 생성하는 것이 좋습니다."
+    },
+    "assistantSidebarItem": {
+        "title": "AI 어시스턴트"
+    },
+    "assistantPanel": {
+        "title": "AI 어시스턴트",
+        "close": "AI 어시스턴트 닫기",
+        "history": "채팅 기록",
+        "back": "뒤로"
+    },
+    "assistantWelcomeMessage": {
+        "greet": "안녕 {name}",
+        "question": "어떻게 도와드릴까요?",
+        "subtitle": "저는 귀하의 데이터 처리를 지원하기 위해 여기에 있습니다."
+    },
+    "assistantInputMessage": {
+        "statusWaiting": "어시스턴트가 도와드릴 준비가 되었습니다",
+        "statusRunning": "실행중...",
+        "placeholder": "무엇이든 물어보세요...",
+        "send": "메시지 보내기"
+    },
+    "assistantChatHistoryContext": {
+        "empty": "채팅 기록이 없습니다",
+        "loading": "채팅 기록을 로딩 중입니다..."
+    },
+    "dateDependencyModal": {
+        "errorTitle": "날짜 종속성",
+        "dependencyFieldTooltip": "날짜 종속성 구성",
+        "dependencyFieldTooltipError": "필드 규칙에 오류가 있습니다",
+        "contextMenuItemLabel": "날짜 종속성 구성",
+        "title": "{tableName}에 대한 날짜 종속성",
+        "description": "어떤 행이 다른 행에 종속되는지 지정합니다. 행의 일정이 변경되면 종속된 행도 자동으로 조정됩니다.",
+        "enableDateDependency": "프로젝트에 대한 날짜 종속성 활성화",
+        "startDateFieldLabel": "시작 날짜",
+        "endDateFieldLabel": "종료일",
+        "durationFieldLabel": "지속",
+        "durationFieldHint": "이 필드는 \"d h\" 형식을 사용해야 합니다.",
+        "dependencyLinkrowFieldLabel": "선행작업",
+        "dependencyLinkrowFieldHint": "행을 이전 행에 연결하려면 테이블 필드로의 연결을 사용합니다.",
+        "dependencyBufferTypeLabel": "재조정 방식",
+        "durationBufferLabel": "시간 버퍼",
+        "dependencyConnectionTypeLabel": "유형",
+        "advancedSettingsLabel": "고급 설정",
+        "includeWeekendsLabel": "기간을 계산할 때 주말을 포함",
+        "dependencyFieldForReaderTooltip": "이 필드는 날짜 종속성 필드 규칙에 포함됩니다",
+        "fieldInvalidTitle": "날짜 종속성 필드 오류"
     }
 }

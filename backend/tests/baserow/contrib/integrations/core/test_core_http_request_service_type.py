@@ -3,6 +3,7 @@ from contextlib import contextmanager
 from unittest.mock import Mock, patch
 
 import pytest
+from requests import exceptions as request_exceptions
 
 from baserow.contrib.integrations.core.models import BODY_TYPE, HTTP_METHOD
 from baserow.contrib.integrations.core.service_types import CoreHTTPRequestServiceType
@@ -22,13 +23,17 @@ def mock_advocate_request(
 
     # Create a mock response
     mock_response = Mock()
-    if body:
+    if body is not None:
         if isinstance(body, str):
-            mock_response.text.return_value = body
-            headers = {"Content-Type": "text/plain"} | headers
+            mock_response.text = body
+            mock_response.json.side_effect = request_exceptions.JSONDecodeError(
+                "mocked json error", "", 0
+            )
+            headers = headers or {"Content-Type": "text/plain"}
         else:
+            mock_response.text = str(body)
             mock_response.json.return_value = body
-            headers = headers | {"Content-Type": "application/json"}
+            headers = headers or {"Content-Type": "application/json"}
 
     mock_response.headers = headers
     mock_response.status_code = status_code
@@ -58,7 +63,7 @@ def test_core_http_request_basic(
 
     # Use the patch context manager to mock `advocate.request`
     with mock_advocate_request(
-        {"test": "body"}, status_code=204, headers={"test": "header"}
+        {"raw_body": "body"}, status_code=204, headers={"test": "header"}
     ) as mock_request:
         dispatch_data = service_type.dispatch(service, dispatch_context)
 
@@ -73,8 +78,11 @@ def test_core_http_request_basic(
         )
 
     assert dispatch_data.data == {
-        "raw_body": '{"test": "body"}',
-        "headers": {"Content-Type": "application/json", "test": "header"},
+        "body": {
+            "raw_body": "body",
+        },
+        "raw_body": '{"raw_body": "body"}',
+        "headers": {"test": "header"},
         "status_code": 204,
     }
 
@@ -112,7 +120,7 @@ def test_core_http_request_basic_body_raw(
     dispatch_context = FakeDispatchContext()
 
     # Use the patch context manager to mock `advocate.request`
-    with mock_advocate_request() as mock_request:
+    with mock_advocate_request({"foo": "bar"}) as mock_request:
         service_type.dispatch(service, dispatch_context)
 
         mock_request.assert_called_once_with(
@@ -141,7 +149,7 @@ def test_core_http_request_basic_body_json(
     dispatch_context = FakeDispatchContext()
 
     # Use the patch context manager to mock `advocate.request`
-    with mock_advocate_request() as mock_request:
+    with mock_advocate_request({"foo": "bar"}) as mock_request:
         service_type.dispatch(service, dispatch_context)
 
         mock_request.assert_called_once_with(
@@ -171,7 +179,7 @@ def test_core_http_request_with_formulas(
     dispatch_context = FakeDispatchContext(context=formula_context)
 
     # Use the patch context manager to mock `advocate.request`
-    with mock_advocate_request() as mock_request:
+    with mock_advocate_request({"foo": "bar"}) as mock_request:
         service_type.dispatch(service, dispatch_context)
 
         mock_request.assert_called_once_with(
@@ -204,7 +212,7 @@ def test_core_http_request_with_headers(
     dispatch_context = FakeDispatchContext(context=formula_context)
 
     # Use the patch context manager to mock `advocate.request`
-    with mock_advocate_request() as mock_request:
+    with mock_advocate_request({"foo": "bar"}) as mock_request:
         service_type.dispatch(service, dispatch_context)
 
         mock_request.assert_called_once_with(
@@ -240,7 +248,7 @@ def test_core_http_request_with_query_params(
     dispatch_context = FakeDispatchContext(context=formula_context)
 
     # Use the patch context manager to mock `advocate.request`
-    with mock_advocate_request() as mock_request:
+    with mock_advocate_request({"foo": "bar"}) as mock_request:
         service_type.dispatch(service, dispatch_context)
 
         mock_request.assert_called_once_with(
@@ -272,7 +280,7 @@ def test_core_http_request_with_form_data(
     dispatch_context = FakeDispatchContext(context=formula_context)
 
     # Use the patch context manager to mock `advocate.request`
-    with mock_advocate_request() as mock_request:
+    with mock_advocate_request({"foo": "bar"}) as mock_request:
         service_type.dispatch(service, dispatch_context)
 
         mock_request.assert_called_once_with(
@@ -393,7 +401,7 @@ def test_core_http_request_export_import():
         "body_type": "none",
         "body_content": "'body'",
         "timeout": 30,
-        "response_sample": None,
+        "sample_data": None,
     }
 
     new_service = service_type.import_serialized(None, serialized, {}, lambda x, d: x)
@@ -427,7 +435,7 @@ def test_core_http_request_generate_schema():
     assert service_type.generate_schema(service, ["raw_body"]) == {
         "title": schema_name,
         "type": "object",
-        "properties": {"raw_body": {"type": "string", "title": "Body"}},
+        "properties": {"raw_body": {"type": "string", "title": "Raw body"}},
     }
 
     assert service_type.generate_schema(
@@ -436,7 +444,7 @@ def test_core_http_request_generate_schema():
         "title": schema_name,
         "type": "object",
         "properties": {
-            "raw_body": {"type": "string", "title": "Body"},
+            "raw_body": {"type": "string", "title": "Raw body"},
             "headers": {
                 "properties": {
                     "Content-Length": {
@@ -453,6 +461,7 @@ def test_core_http_request_generate_schema():
                     },
                 },
                 "type": "object",
+                "title": "Headers",
             },
             "status_code": {"title": "Status code", "type": "number"},
         },
@@ -460,3 +469,175 @@ def test_core_http_request_generate_schema():
     assert service_type.generate_schema(
         service, ["raw_body", "headers", "status_code"]
     ) == service_type.generate_schema(service, None)
+
+
+def get_raw_sample_data():
+    sample_data = {
+        "fighters": {
+            "Ryu": {
+                "power": "Hadogen",
+                "country": "Japan",
+            },
+            "Guile": {"power": "Sonic boom", "country": "United States"},
+            "Blanka": {"power": "Electric thunder", "country": "Brazil"},
+        }
+    }
+    return json.dumps(sample_data)
+
+
+@pytest.mark.django_db
+def test_core_http_request_generate_schema_with_sample_data():
+    api_response = get_raw_sample_data()
+    service = ServiceHandler().create_service(
+        CoreHTTPRequestServiceType(),
+        url="'http://example.com'",
+        body_content=api_response,
+        headers=[{"key": "key", "value": "'value1'"}],
+        query_params=[{"key": "key", "value": "'value2'"}],
+        form_data=[{"key": "key", "value": "'value3'"}],
+    )
+
+    service.sample_data = {"data": {"body": json.loads(api_response)}}
+    service.save()
+
+    service_type = service.get_type()
+
+    assert service_type.generate_schema(service)["properties"]["body"]["properties"][
+        "fighters"
+    ] == {
+        "properties": {
+            "Blanka": {
+                "properties": {
+                    "country": {"type": "string"},
+                    "power": {"type": "string"},
+                },
+                "required": ["country", "power"],
+                "type": "object",
+            },
+            "Guile": {
+                "properties": {
+                    "country": {"type": "string"},
+                    "power": {"type": "string"},
+                },
+                "required": ["country", "power"],
+                "type": "object",
+            },
+            "Ryu": {
+                "properties": {
+                    "country": {"type": "string"},
+                    "power": {"type": "string"},
+                },
+                "required": ["country", "power"],
+                "type": "object",
+            },
+        },
+        "required": ["Blanka", "Guile", "Ryu"],
+        "type": "object",
+    }
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "content_type",
+    [
+        "application/json",
+        "text/html",
+        "text/html; charset=UTF-8",
+        "",
+    ],
+)
+def test_core_http_request_dispatch_data_with_json(data_fixture, content_type):
+    """
+    If the response contains valid JSON, prefer to return the JSON instead of
+    assuming it is a string.
+    """
+
+    service = data_fixture.create_core_http_request_service(
+        url="'http://example.notexist/'", timeout=15, http_method=HTTP_METHOD.POST
+    )
+
+    service_type = service.get_type()
+    dispatch_context = FakeDispatchContext()
+
+    headers = {}
+    if content_type is not None:
+        headers["Content-Type"] = content_type
+
+    # Use the patch context manager to mock `advocate.request`
+    with mock_advocate_request(
+        {"fighters": {"Ryu": {"power": "Hadogen"}}},
+        status_code=204,
+        headers=headers,
+    ) as mock_request:
+        dispatch_data = service_type.dispatch(service, dispatch_context)
+
+        mock_request.assert_called_once_with(
+            **{
+                "headers": {"user-agent": AnyStr()},
+                "method": HTTP_METHOD.POST,
+                "params": {},
+                "timeout": 15,
+                "url": "http://example.notexist/",
+            }
+        )
+
+    assert dispatch_data.data == {
+        "body": {"fighters": {"Ryu": {"power": "Hadogen"}}},
+        "raw_body": '{"fighters": {"Ryu": {"power": "Hadogen"}}}',
+        "headers": headers,
+        "status_code": 204,
+    }
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "content_type",
+    [
+        "text/html",
+        "text/html; charset=UTF-8",
+        "",
+    ],
+)
+def test_core_http_request_dispatch_data_with_text(data_fixture, content_type):
+    """
+    If the response isn't valid JSON, ensure we return the raw response
+    string instead.
+    """
+
+    service = data_fixture.create_core_http_request_service(
+        url="'http://example.notexist/'", timeout=15, http_method=HTTP_METHOD.POST
+    )
+    service.sample_data = {"raw_body": "Hello world!"}
+    service.save()
+
+    service_type = service.get_type()
+    dispatch_context = FakeDispatchContext()
+
+    headers = {}
+    if content_type is not None:
+        headers["Content-Type"] = content_type
+
+    # Use the patch context manager to mock `advocate.request`
+    with mock_advocate_request(
+        "Hello world!",
+        status_code=204,
+        headers=headers,
+    ) as mock_request:
+        dispatch_data = service_type.dispatch(service, dispatch_context)
+
+        mock_request.assert_called_once_with(
+            **{
+                "headers": {"user-agent": AnyStr()},
+                "method": HTTP_METHOD.POST,
+                "params": {},
+                "timeout": 15,
+                "url": "http://example.notexist/",
+            }
+        )
+
+    assert dispatch_data.data == {
+        "body": "Hello world!",
+        "raw_body": "Hello world!",
+        "headers": headers,
+        "status_code": 204,
+    }

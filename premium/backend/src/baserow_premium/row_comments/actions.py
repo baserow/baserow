@@ -9,15 +9,13 @@ from baserow.contrib.database.action.scopes import (
     TableActionScopeType,
 )
 from baserow.contrib.database.table.handler import TableHandler
-from baserow.core.action.models import Action
-from baserow.core.action.registries import ActionTypeDescription, UndoableActionType
-from baserow.core.trash.handler import TrashHandler
+from baserow.core.action.registries import ActionType, ActionTypeDescription
 
 from .handler import RowCommentHandler
 from .models import RowComment
 
 
-class CreateRowCommentActionType(UndoableActionType):
+class CreateRowCommentActionType(ActionType):
     type = "create_row_comment"
     description = ActionTypeDescription(
         _("Create row comment"),
@@ -85,24 +83,11 @@ class CreateRowCommentActionType(UndoableActionType):
         return row_comment
 
     @classmethod
-    def undo(cls, user: AbstractUser, params: Params, action_being_undone: Action):
-        row_comment = RowCommentHandler.get_comment_by_id(
-            user, params.table_id, params.comment_id
-        )
-        RowCommentHandler.delete_comment(user, row_comment)
-
-    @classmethod
-    def redo(cls, user: AbstractUser, params: Params, action_being_redone: Action):
-        TrashHandler.restore_item(
-            user, "row_comment", params.comment_id, parent_trash_item_id=None
-        )
-
-    @classmethod
     def scope(cls, table_id: int):
         return TableActionScopeType.value(table_id)
 
 
-class UpdateRowCommentActionType(UndoableActionType):
+class UpdateRowCommentActionType(ActionType):
     type = "update_row_comment"
     description = ActionTypeDescription(
         _("Update row comment"),
@@ -179,25 +164,11 @@ class UpdateRowCommentActionType(UndoableActionType):
         return row_comment
 
     @classmethod
-    def undo(cls, user: AbstractUser, params: Params, action_being_undone: Action):
-        row_comment = RowCommentHandler.get_comment_by_id(
-            user, params.table_id, params.comment_id
-        )
-        RowCommentHandler.update_comment(user, row_comment, params.original_message)
-
-    @classmethod
-    def redo(cls, user: AbstractUser, params: Params, action_being_redone: Action):
-        row_comment = RowCommentHandler.get_comment_by_id(
-            user, params.table_id, params.comment_id
-        )
-        RowCommentHandler.update_comment(user, row_comment, params.message)
-
-    @classmethod
     def scope(cls, table_id: int):
         return TableActionScopeType.value(table_id)
 
 
-class DeleteRowCommentActionType(UndoableActionType):
+class DeleteRowCommentActionType(ActionType):
     type = "delete_row_comment"
     description = ActionTypeDescription(
         _("Delete row comment"),
@@ -260,19 +231,6 @@ class DeleteRowCommentActionType(UndoableActionType):
             workspace,
         )
         return row_comment
-
-    @classmethod
-    def undo(cls, user: AbstractUser, params: Params, action_being_undone: Action):
-        TrashHandler.restore_item(
-            user, "row_comment", params.comment_id, parent_trash_item_id=None
-        )
-
-    @classmethod
-    def redo(cls, user: AbstractUser, params: Params, action_being_redone: Action):
-        row_comment = RowCommentHandler.get_comment_by_id(
-            user, params.table_id, params.comment_id
-        )
-        RowCommentHandler.delete_comment(user, row_comment)
 
     @classmethod
     def scope(cls, table_id: int):

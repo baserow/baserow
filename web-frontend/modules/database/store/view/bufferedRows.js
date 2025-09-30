@@ -1,5 +1,6 @@
 import Vue from 'vue'
 import axios from 'axios'
+import _ from 'lodash'
 import { RefreshCancelledError } from '@baserow/modules/core/errors'
 import { clone } from '@baserow/modules/core/utils/object'
 import { GroupTaskQueue } from '@baserow/modules/core/utils/queue'
@@ -14,11 +15,11 @@ import {
 import ViewService from '@baserow/modules/database/services/view'
 import RowService from '@baserow/modules/database/services/row'
 import {
-  extractRowReadOnlyValues,
+  extractChangedFields,
+  getRowMetadata,
   prepareNewOldAndUpdateRequestValues,
   prepareRowForRequest,
   updateRowMetadataType,
-  getRowMetadata,
 } from '@baserow/modules/database/utils/row'
 import { getDefaultSearchModeFromEnv } from '@baserow/modules/database/utils/search'
 import fieldOptionsStoreFactory from '@baserow/modules/database/store/view/fieldOptions'
@@ -772,7 +773,7 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
      * are prepared by the `prepareNewOldAndUpdateRequestValues` function.
      */
     async updatePreparedRowValues(
-      { commit, dispatch },
+      { commit, dispatch, getters },
       { table, view, row, fields, values, oldValues, updateRequestValues }
     ) {
       await dispatch('afterExistingRowUpdated', {
@@ -795,17 +796,41 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
         // will never be updated concurrency, and so that the value won't be
         // updated if the row hasn't been created yet.
         await updateRowQueue.add(async () => {
-          const { data } = await RowService(this.$client).update(
+          const updateRowsData = [
+            Object.assign({ id: row.id }, updateRequestValues),
+          ]
+          const { data } = await RowService(this.$client).batchUpdate(
             table.id,
-            row.id,
-            updateRequestValues
+            updateRowsData
           )
-          const readOnlyData = extractRowReadOnlyValues(
-            data,
-            fields,
-            this.$registry
+
+          const updatedRows = []
+            .concat(data.items)
+            .concat(data.metadata?.cascade_update?.rows || [])
+
+          const updatedFieldIds = _.uniq(
+            []
+              .concat(data.metadata?.updated_field_ids || [])
+              .concat(data.metadata?.cascade_update?.field_ids || [])
           )
-          commit('UPDATE_ROW', { row, values: readOnlyData })
+
+          for (const updatedRowData of updatedRows) {
+            const rowToUpdate = getters.getRow(updatedRowData.id)
+            // The backend may update rows that are not in the current buffer.
+            // In that case, the row will be `undefined`, and we don't need to
+            // update it.
+            if (rowToUpdate === undefined) {
+              continue
+            }
+
+            const updateValues = extractChangedFields(
+              updatedRowData,
+              fields,
+              updatedFieldIds,
+              this.$registry
+            )
+            commit('UPDATE_ROW', { row: rowToUpdate, values: updateValues })
+          }
         }, row.id)
       } catch (error) {
         dispatch('afterExistingRowUpdated', {

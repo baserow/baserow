@@ -61,3 +61,9 @@
   z-index: $z-index-layout-col-3-2;
   inset: 51px 0 0;
 }
+
+.layout__col-3 {
+  position: absolute;
+  z-index: $z-index-layout-col-3;
+  height: 100%;
+}

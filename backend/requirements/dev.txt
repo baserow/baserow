@@ -22,6 +22,7 @@ attrs==24.3.0
     # via
     #   -c base.txt
     #   jsonschema
+    #   referencing
 autopep8==2.1.0
     # via
     #   -r dev.in
@@ -62,7 +63,7 @@ decorator==5.1.1
     # via
     #   ipdb
     #   ipython
-django==5.0.13
+django==5.0.14
     # via
     #   -c base.txt
     #   django-extensions
@@ -117,14 +118,18 @@ jedi==0.19.2
     # via ipython
 jinja2==3.1.5
     # via pytest-html
-jsonschema==4.17.3
+jsonschema==4.25.0
     # via
     #   -c base.txt
-    #   jsonschema-spec
     #   openapi-schema-validator
     #   openapi-spec-validator
-jsonschema-spec==0.1.6
+jsonschema-path==0.3.4
     # via openapi-spec-validator
+jsonschema-specifications==2025.4.1
+    # via
+    #   -c base.txt
+    #   jsonschema
+    #   openapi-schema-validator
 lazy-object-proxy==1.10.0
     # via openapi-spec-validator
 lupa==2.2
@@ -153,9 +158,9 @@ mypy-extensions==1.0.0
     #   -r dev.in
     #   black
     #   mypy
-openapi-schema-validator==0.4.4
+openapi-schema-validator==0.6.3
     # via openapi-spec-validator
-openapi-spec-validator==0.5.6
+openapi-spec-validator==0.7.2
     # via -r dev.in
 packaging==23.2
     # via
@@ -166,7 +171,7 @@ packaging==23.2
 parso==0.8.4
     # via jedi
 pathable==0.4.3
-    # via jsonschema-spec
+    # via jsonschema-path
 pathspec==0.12.1
     # via black
 pbr==6.1.0
@@ -209,10 +214,6 @@ pyproject-hooks==1.2.0
     # via
     #   build
     #   pip-tools
-pyrsistent==0.20.0
-    # via
-    #   -c base.txt
-    #   jsonschema
 pytest==8.2.0
     # via
     #   -r dev.in
@@ -266,16 +267,22 @@ pyyaml==6.0.2
     # via
     #   -c base.txt
     #   bandit
-    #   jsonschema-spec
+    #   jsonschema-path
     #   responses
 redis==5.0.4
     # via
     #   -c base.txt
     #   fakeredis
-requests==2.32.3
+referencing==0.36.2
     # via
     #   -c base.txt
-    #   jsonschema-spec
+    #   jsonschema
+    #   jsonschema-path
+    #   jsonschema-specifications
+requests==2.32.5
+    # via
+    #   -c base.txt
+    #   jsonschema-path
     #   responses
 responses==0.25.0
     # via -r dev.in
@@ -285,6 +292,11 @@ rich==13.7.1
     # via
     #   -c base.txt
     #   bandit
+rpds-py==0.26.0
+    # via
+    #   -c base.txt
+    #   jsonschema
+    #   referencing
 six==1.17.0
     # via
     #   -c base.txt
@@ -321,6 +333,7 @@ typing-extensions==4.11.0
     #   django-stubs-ext
     #   ipython
     #   mypy
+    #   referencing
 urllib3==1.26.20
     # via
     #   -c base.txt

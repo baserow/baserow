@@ -1,0 +1,8 @@
+{
+    "type": "bug",
+    "message": "Do not fire for past entries on new webhook",
+    "domain": "database",
+    "issue_number": 3811,
+    "bullet_points": [],
+    "created_at": "2025-09-03"
+}

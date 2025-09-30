@@ -110,6 +110,7 @@ def test_export_import_local_baserow_list_rows_service(data_fixture):
         "search_query": service.search_query,
         "filter_type": "OR",
         "default_result_count": 50,
+        "sample_data": None,
         "filters": [
             {
                 "field_id": service_filter.field_id,

@@ -51,8 +51,7 @@ def test_create_workflow(api_client, data_fixture):
         "id": AnyInt(),
         "name": name,
         "order": AnyInt(),
-        "disabled": False,
-        "paused": False,
+        "state": "draft",
         "published_on": None,
     }
 
@@ -138,8 +137,7 @@ def test_read_workflow(api_client, data_fixture):
         "name": workflow.name,
         "automation_id": automation.id,
         "allow_test_run_until": None,
-        "disabled": False,
-        "paused": False,
+        "state": "draft",
         "published_on": None,
     }
 
@@ -147,10 +145,7 @@ def test_read_workflow(api_client, data_fixture):
 @pytest.mark.django_db
 def test_update_workflow(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
-    automation = data_fixture.create_automation_application(user=user)
-    workflow = data_fixture.create_automation_workflow(
-        automation=automation, name="test"
-    )
+    workflow = data_fixture.create_automation_workflow(user, name="test")
 
     url = reverse(API_URL_WORKFLOW_ITEM, kwargs={"workflow_id": workflow.id})
     response = api_client.patch(
@@ -179,10 +174,10 @@ def test_update_workflow_duplicate_name(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     automation = data_fixture.create_automation_application(user=user)
     workflow = data_fixture.create_automation_workflow(
-        automation=automation, name="test"
+        user, automation=automation, name="test"
     )
     workflow_2 = data_fixture.create_automation_workflow(
-        automation=automation, name="test2"
+        user, automation=automation, name="test2"
     )
 
     url = reverse(API_URL_WORKFLOW_ITEM, kwargs={"workflow_id": workflow_2.id})
@@ -202,10 +197,10 @@ def test_order_workflows(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     automation = data_fixture.create_automation_application(user=user)
     workflow_1 = data_fixture.create_automation_workflow(
-        automation=automation, name="test1", order=1
+        user, automation=automation, name="test1", order=1
     )
     workflow_2 = data_fixture.create_automation_workflow(
-        automation=automation, name="test2", order=2
+        user, automation=automation, name="test2", order=2
     )
 
     url = reverse(API_URL_ORDER, kwargs={"automation_id": automation.id})
@@ -222,13 +217,10 @@ def test_order_workflows(api_client, data_fixture):
 @pytest.mark.django_db
 def test_order_workflows_user_not_in_workspace(api_client, data_fixture):
     _, token = data_fixture.create_user_and_token()
-    automation = data_fixture.create_automation_application()
-    workflow_1 = data_fixture.create_automation_workflow(
-        automation=automation, name="test1", order=1
-    )
-    workflow_2 = data_fixture.create_automation_workflow(
-        automation=automation, name="test2", order=2
-    )
+    user = data_fixture.create_user()
+    automation = data_fixture.create_automation_application(user=user)
+    workflow_1 = data_fixture.create_automation_workflow(user, automation=automation)
+    workflow_2 = data_fixture.create_automation_workflow(user, automation=automation)
 
     url = reverse(API_URL_ORDER, kwargs={"automation_id": automation.id})
     response = api_client.post(
@@ -247,9 +239,9 @@ def test_order_workflows_workflow_not_in_automation(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     automation = data_fixture.create_automation_application(user)
     workflow_1 = data_fixture.create_automation_workflow(
-        automation=automation, name="test1", order=1
+        user, automation=automation, name="test1", order=1
     )
-    workflow_2 = data_fixture.create_automation_workflow(name="test2", order=2)
+    workflow_2 = data_fixture.create_automation_workflow(user, name="test2", order=2)
 
     url = reverse(API_URL_ORDER, kwargs={"automation_id": automation.id})
     response = api_client.post(
@@ -268,10 +260,10 @@ def test_order_workflows_automation_does_not_exist(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     automation = data_fixture.create_automation_application(user)
     workflow_1 = data_fixture.create_automation_workflow(
-        automation=automation, name="test1", order=1
+        user, automation=automation, name="test1", order=1
     )
     workflow_2 = data_fixture.create_automation_workflow(
-        automation=automation, name="test2", order=2
+        user, automation=automation, name="test2", order=2
     )
 
     url = reverse(API_URL_ORDER, kwargs={"automation_id": 1234})
@@ -291,7 +283,7 @@ def test_delete_workflow(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     automation = data_fixture.create_automation_application(user)
     workflow = data_fixture.create_automation_workflow(
-        automation=automation, name="test"
+        user, automation=automation, name="test"
     )
 
     url = reverse(API_URL_WORKFLOW_ITEM, kwargs={"workflow_id": workflow.id})
@@ -306,10 +298,11 @@ def test_delete_workflow(api_client, data_fixture):
 
 @pytest.mark.django_db
 def test_delete_workflow_user_not_in_workspace(api_client, data_fixture):
+    user = data_fixture.create_user()
     _, token = data_fixture.create_user_and_token()
-    automation = data_fixture.create_automation_application()
+    automation = data_fixture.create_automation_application(user=user)
     workflow = data_fixture.create_automation_workflow(
-        automation=automation, name="test"
+        user, automation=automation, name="test"
     )
 
     url = reverse(API_URL_WORKFLOW_ITEM, kwargs={"workflow_id": workflow.id})
@@ -341,10 +334,9 @@ def test_delete_workflow_does_not_exist(api_client, data_fixture):
 @pytest.mark.django_db
 def test_duplicate_workflow(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
-    workspace = data_fixture.create_workspace(user=user)
-    automation = data_fixture.create_automation_application(workspace=workspace)
+    automation = data_fixture.create_automation_application(user=user)
     workflow = data_fixture.create_automation_workflow(
-        automation=automation, name="test"
+        user, automation=automation, name="test"
     )
 
     url = reverse(API_URL_WORKFLOW_DUPLICATE, kwargs={"workflow_id": workflow.id})
@@ -361,8 +353,7 @@ def test_duplicate_workflow(api_client, data_fixture):
             "id": workflow.id,
             "name": "test",
             "order": AnyInt(),
-            "disabled": False,
-            "paused": False,
+            "state": "draft",
             "published_on": None,
         },
         "progress_percentage": 0,
@@ -376,10 +367,7 @@ def test_enable_workflow_test_run(api_client, data_fixture):
     frozen_time = "2025-06-04 11:00"
     with freeze_time(frozen_time):
         user, token = data_fixture.create_user_and_token()
-        automation = data_fixture.create_automation_application(user=user)
-        workflow = data_fixture.create_automation_workflow(
-            automation=automation, name="test"
-        )
+        workflow = data_fixture.create_automation_workflow(user, name="test")
 
     assert workflow.allow_test_run_until is None
     url = reverse(API_URL_WORKFLOW_ITEM, kwargs={"workflow_id": workflow.id})
@@ -408,7 +396,7 @@ def test_disable_workflow_test_run(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     automation = data_fixture.create_automation_application(user=user)
     workflow = data_fixture.create_automation_workflow(
-        automation=automation, name="test"
+        user, automation=automation, name="test"
     )
     workflow.allow_test_run_until = timezone.now()
     workflow.save()
@@ -429,22 +417,20 @@ def test_run_workflow_in_test_mode(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
 
     original_workflow = data_fixture.create_automation_workflow(user=user)
-    workflow = data_fixture.create_automation_workflow(user=user)
-    workflow.automation.published_from = original_workflow
-    workflow.automation.save()
-
-    # First create a trigger node
     table_1, fields_1, _ = data_fixture.build_table(
         user=user,
         columns=[("Name", "text"), ("Color", "text")],
         rows=[["BMW", "Blue"]],
     )
+    workflow = data_fixture.create_automation_workflow(user=user, create_trigger=False)
+    workflow.automation.published_from = original_workflow
+    workflow.automation.save()
 
     trigger_service = data_fixture.create_local_baserow_rows_created_service(
         table=table_1,
         integration=data_fixture.create_local_baserow_integration(user=user),
     )
-    data_fixture.create_automation_node(
+    trigger_node = data_fixture.create_automation_node(
         user=user, workflow=workflow, type="rows_created", service=trigger_service
     )
 
@@ -454,7 +440,6 @@ def test_run_workflow_in_test_mode(api_client, data_fixture):
         columns=[("Name", "text")],
         rows=[],
     )
-
     action_service = data_fixture.create_local_baserow_upsert_row_service(
         table=table_2,
         integration=data_fixture.create_local_baserow_integration(user=user),
@@ -463,7 +448,7 @@ def test_run_workflow_in_test_mode(api_client, data_fixture):
         field=fields_2[0],
         value="'A new row'",
     )
-    data_fixture.create_automation_node(
+    action_node = data_fixture.create_automation_node(
         user=user,
         workflow=workflow,
         type="create_row",
@@ -477,7 +462,10 @@ def test_run_workflow_in_test_mode(api_client, data_fixture):
     )
     workflow.refresh_from_db()
     assert workflow.allow_test_run_until is not None
-    assert workflow.published is False
+    assert workflow.is_published is False
+
+    assert trigger_node.service.sample_data is None
+    assert action_node.service.sample_data is None
 
     # Insert a row to cause the trigger node to run
     row_handler = RowHandler()
@@ -493,8 +481,8 @@ def test_run_workflow_in_test_mode(api_client, data_fixture):
     # Now the 2nd table should have a new row entry
     model = table_2.get_model()
     assert model.objects.count() == 1
-    row = model.objects.order_by("-id").first()
-    assert getattr(row, f"field_{fields_2[0].id}") == "A new row"
+    action_row = model.objects.order_by("-id").first()
+    assert getattr(action_row, f"field_{fields_2[0].id}") == "A new row"
 
 
 @pytest.mark.django_db
@@ -502,7 +490,7 @@ def test_publish_workflow(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     automation = data_fixture.create_automation_application(user)
     workflow = data_fixture.create_automation_workflow(
-        automation=automation, name="test"
+        user, automation=automation, name="test"
     )
 
     url = reverse(API_URL_WORKFLOW_PUBLISH, kwargs={"workflow_id": workflow.id})

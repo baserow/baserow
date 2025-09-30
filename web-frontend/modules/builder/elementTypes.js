@@ -19,11 +19,11 @@ import {
   ensurePositiveInteger,
   ensureString,
   ensureStringOrInteger,
+  ensureDate,
+  ensureDateTime,
 } from '@baserow/modules/core/utils/validator'
 import {
   CHOICE_OPTION_TYPES,
-  DATE_FORMATS,
-  TIME_FORMATS,
   IMAGE_SOURCE_TYPES,
   IFRAME_SOURCE_TYPES,
   DIRECTIONS,
@@ -64,7 +64,7 @@ import {
   MultiPageElementTypeMixin,
 } from '@baserow/modules/builder/elementTypeMixins'
 import { isNumeric, isValidEmail } from '@baserow/modules/core/utils/string'
-import { FormattedDate, FormattedDateTime } from '@baserow/modules/builder/date'
+
 import RatingElementForm from '@baserow/modules/builder/components/elements/components/forms/general/RatingElementForm'
 import RatingElement from '@baserow/modules/builder/components/elements/components/RatingElement.vue'
 import RatingInputElement from '@baserow/modules/builder/components/elements/components/RatingInputElement.vue'
@@ -2077,50 +2077,30 @@ export class DateTimePickerElementType extends FormElementType {
     return element.include_time ? 'datetime' : 'date'
   }
 
-  /**
-   * Parse a date and time string value based on the element settings.
-   * It uses element's `date_format` and `time_format` properties to parse the
-   * date. It will only parse the time if `include_time` is on.
-   *
-   * @param element {Object} - The element that contains the formatting options.
-   * @param value {string} - The date and time string to be parsed.
-   * @returns {FormattedDate|FormattedDateTime} - The date or datetimme object.
-   */
-  parseElementDateTime(element, value) {
-    const FormattedDateOrDateTimeClass = element.include_time
-      ? FormattedDateTime
-      : FormattedDate
-
-    // Try to parse the date/datetime initially as an ISO string
-    let parsedValue = new FormattedDateOrDateTimeClass(value)
-
-    // If the previous fails, try again with the element current format
-    if (!parsedValue.isValid()) {
-      const dateFormat = DATE_FORMATS[element.date_format].format
-      const timeFormat = TIME_FORMATS[element.time_format].format
-      const format = element.include_time
-        ? `${dateFormat} ${timeFormat}`
-        : dateFormat
-      parsedValue = new FormattedDateOrDateTimeClass(value, format)
-    }
-    return parsedValue
-  }
-
   getInitialFormDataValue(element, applicationContext) {
     const resolvedDefaultValue = this.resolveFormula(element.default_value, {
       element,
       ...applicationContext,
     })
-    return resolvedDefaultValue
-      ? this.parseElementDateTime(element, resolvedDefaultValue)
-      : null
+
+    try {
+      // We try to convert it to a date and if it works we return it.
+      const result = element.include_time
+        ? ensureDateTime(resolvedDefaultValue)
+        : ensureDate(resolvedDefaultValue)
+
+      return result
+    } catch (e) {
+      return null
+    }
   }
 
   isValid(element, value) {
     if (!value) {
       return !element.required
     }
-    return this.parseElementDateTime(element, value).isValid()
+
+    return value instanceof Date && !isNaN(value)
   }
 }
 

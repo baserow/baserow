@@ -153,6 +153,7 @@ def test_dashboard_export_serialized_with_pie_chart_widget_config(premium_data_f
                     "filter_type": "AND",
                     "filters": [],
                     "id": service.id,
+                    "sample_data": None,
                     "integration_id": service.integration.id,
                     "service_aggregation_group_bys": [],
                     "service_aggregation_sorts": [],

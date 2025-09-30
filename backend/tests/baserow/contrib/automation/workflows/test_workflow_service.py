@@ -3,6 +3,7 @@ from unittest.mock import patch
 import pytest
 
 from baserow.contrib.automation.models import Automation, AutomationWorkflow
+from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.contrib.automation.workflows.exceptions import (
     AutomationWorkflowDoesNotExist,
     AutomationWorkflowNotInAutomation,
@@ -258,17 +259,14 @@ def test_publish_workflow(mock_signal, data_fixture):
     service.publish(user, workflow, Progress(0))
 
     workflow.refresh_from_db()
-    assert workflow.published is False
-    assert workflow.paused is False
+    assert workflow.state == WorkflowState.DRAFT
 
     published_automation = Automation.objects.get(published_from=workflow)
     assert published_automation.automation.workspace is None
     assert published_automation.workflows.count() == 1
 
     published_workflow = published_automation.workflows.first()
-    assert published_workflow.published is True
-    assert published_workflow.paused is False
-    assert published_workflow.disabled_on is None
+    assert published_workflow.state == WorkflowState.LIVE
 
     mock_signal.send.assert_called_once_with(
         service, user=user, workflow=published_workflow

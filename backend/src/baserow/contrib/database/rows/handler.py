@@ -2,6 +2,7 @@ from collections import defaultdict
 from copy import deepcopy
 from decimal import Decimal
 from functools import cached_property
+from itertools import chain
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -30,6 +31,7 @@ from django.utils.encoding import force_str
 from celery.utils import chunks
 from opentelemetry import metrics, trace
 
+from baserow.contrib.database.field_rules.handlers import FieldRuleHandler
 from baserow.contrib.database.fields.dependencies.handler import FieldDependencyHandler
 from baserow.contrib.database.fields.dependencies.update_collector import (
     FieldUpdateCollector,
@@ -824,8 +826,14 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                 user if user and user.id else None
             )
 
+        field_rules_handler = FieldRuleHandler(table, user)
+
+        field_rules_handler.on_rows_create([row_values])
+        instance = model(**row_values)
+        field_rules_handler.validate_row(instance)
+
         try:
-            instance = model.objects.create(**row_values)
+            instance.save(force_insert=True)
             rows_created_counter.add(1)
         except Exception as exc:
             if is_unique_violation_error(exc):
@@ -846,8 +854,17 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             )
             getattr(instance, field_name).through.objects.bulk_create(m2m_objects)
 
+        cascade_update = field_rules_handler.collector.get_processed_rows()
+
         fields, dependant_fields = self.update_dependencies_of_rows_created(
             model, [instance]
+        )
+
+        self.update_dependencies_of_rows_updated(
+            table=table,
+            model=model,
+            updated_rows=cascade_update.updated_rows,
+            updated_field_ids=cascade_update.field_ids,
         )
 
         if model.fields_requiring_refresh_after_insert():
@@ -858,7 +875,17 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         from baserow.contrib.database.views.handler import ViewHandler
 
         ViewHandler().field_value_updated(fields + dependant_fields)
-        SearchHandler.schedule_update_search_data(table, row_ids=[instance.id])
+        SearchHandler.schedule_update_search_data(
+            table, row_ids=[instance.id] + cascade_update.row_ids
+        )
+
+        if cascade_update.row_ids:
+            updated_rows = list(
+                model.objects.all()
+                .enhance_by_fields()
+                .filter(id__in=list(cascade_update.row_ids))
+            )
+            cascade_update.updated_rows = updated_rows
 
         rows_created.send(
             self,
@@ -1210,6 +1237,9 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             self, user=user, table=table, model=model
         )
 
+        field_rules_handler = FieldRuleHandler(table, user)
+        field_rules_handler.on_rows_create(prepared_rows_values)
+
         rows_relationships = []
         for index, row in enumerate(
             prepared_rows_values, start=-len(prepared_rows_values)
@@ -1224,6 +1254,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                 row_values[LAST_MODIFIED_BY_COLUMN_NAME] = user if user_id else None
 
             instance = model(**row_values)
+            field_rules_handler.validate_row(instance)
 
             relations = {
                 field_name: value
@@ -1237,6 +1268,8 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             # when saving the row, before the many to many relationships are
             # saved.
             instance._m2m_values = relations
+
+        cascade_updated = field_rules_handler.collector.get_processed_rows()
 
         rows = [row for (row, _) in rows_relationships]
 
@@ -1289,11 +1322,24 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         from baserow.contrib.database.views.handler import ViewHandler
 
         updated_fields = [o["field"] for o in model._field_objects.values()]
+        updated_field_ids = [f.id for f in updated_fields]
+
         ViewHandler().field_value_updated(updated_fields + dependant_fields)
         if not skip_search_update:
             SearchHandler.schedule_update_search_data(
-                table, fields=updated_fields, row_ids=[r.id for r in inserted_rows]
+                table,
+                fields=updated_fields,
+                row_ids=[r.id for r in inserted_rows] + list(cascade_updated.row_ids),
             )
+
+        if cascade_updated.row_ids:
+            cascade_updated.field_ids.update(updated_field_ids)
+            updated_rows = list(
+                model.objects.all()
+                .enhance_by_fields()
+                .filter(id__in=list(cascade_updated.row_ids))
+            )
+            cascade_updated.updated_rows = updated_rows
 
         rows_to_return = inserted_rows
         rows_values_refreshed_from_db = False
@@ -1329,7 +1375,9 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                 **signal_params,
             )
 
-        return CreatedRowsData(rows_to_return, report)
+        return CreatedRowsData(
+            rows_to_return, report, updated_field_ids, cascade_updated
+        )
 
     def create_rows(
         self,
@@ -1588,7 +1636,12 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         all_created_rows = []
         for count, chunk in enumerate(grouper(BATCH_SIZE, rows_values)):
             row_start_index = count * BATCH_SIZE
-            created_rows, creation_report = self.force_create_rows(
+            (
+                created_rows,
+                creation_report,
+                field_ids,
+                cascade_update,
+            ) = self.force_create_rows(
                 user=user,
                 table=table,
                 model=model,
@@ -2084,7 +2137,13 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             table=table,
             model=model,
             updated_field_ids=updated_field_ids,
+            updated_rows_values=prepared_rows_values_by_id,
         )
+
+        from baserow.contrib.database.field_rules.handlers import FieldRuleHandler
+
+        field_rules_handler = FieldRuleHandler(table, user)
+        field_rules_handler.on_rows_updated(rows_to_update, prepared_rows_values_by_id)
 
         field_objects_to_always_update = model.get_field_objects_to_always_update()
         rows_relationships = []
@@ -2130,6 +2189,8 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                     field_name,
                     model._meta.get_field(field_name).pre_save(obj, add=False),
                 )
+
+            field_rules_handler.validate_row(obj)
 
         m2m_values_to_add = defaultdict(list)
         m2m_values_to_delete = {}
@@ -2199,6 +2260,11 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             through.objects.bulk_create(m2m_to_add)
 
         bulk_update_fields = ["updated_on"]
+        if field_rules_handler.has_field_rules():
+            bulk_update_fields.append(FieldRuleHandler.STATE_COLUMN_NAME)
+        updated_field_ids.update(
+            field_rules_handler.collector.starting_rows_updated_field_ids
+        )
 
         # Add always update fields to update also fields that are trashed
         for field_object in field_objects_to_always_update:
@@ -2239,13 +2305,29 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                             original_row_values_by_id,
                             fields_metadata_by_row_id,
                             report,
+                            [],
                         )
                     raise FieldDataConstraintException()
+                else:
+                    raise exc
 
             rows_updated_counter.add(len(rows_to_update))
 
+        cascade_updated = field_rules_handler.collector.get_processed_rows()
+
+        cascade_fields = [
+            f.db_column for f in model.get_fields() if f.id in cascade_updated.field_ids
+        ]
+
+        if cascade_updated.updated_rows:
+            model.objects.bulk_update(cascade_updated.updated_rows, cascade_fields)
+
         dependant_fields = self.update_dependencies_of_rows_updated(
-            table, rows_to_update, model, updated_field_ids, m2m_change_tracker
+            table,
+            list(rows_to_update) + cascade_updated.updated_rows,
+            model,
+            updated_field_ids.union(cascade_updated.field_ids),
+            m2m_change_tracker,
         )
 
         from baserow.contrib.database.views.handler import ViewHandler
@@ -2255,13 +2337,28 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             SearchHandler.schedule_update_search_data(
                 table,
                 fields=[f for f in updated_fields if f.id in updated_field_ids],
-                row_ids=row_ids,
+                row_ids=row_ids + list(cascade_updated.row_ids),
             )
 
         # Reload rows from the database to get the updated values for formulas
-        updated_rows_to_return = list(
-            model.objects.all().enhance_by_fields().filter(id__in=row_ids)
-        )
+        updated_rows_to_return = []
+        cascade_updated_rows = []
+
+        for row in (
+            model.objects.all()
+            .enhance_by_fields()
+            .filter(id__in=list(set(chain(row_ids, cascade_updated.row_ids))))
+        ):
+            if row.id in row_ids:
+                updated_rows_to_return.append(row)
+            if row.id in cascade_updated.row_ids:
+                cascade_updated_rows.append(row)
+
+        if cascade_updated.updated_rows:
+            cascade_updated.field_ids.update(updated_field_ids)
+
+            # replace updated rows with fresh versions with formula values
+            cascade_updated.updated_rows = cascade_updated_rows
 
         rows_updated.send(
             self,
@@ -2276,18 +2373,22 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             send_webhook_events=send_webhook_events,
             fields=[f for f in updated_fields if f.id in updated_field_ids],
             dependant_fields=dependant_fields,
+            cascade_update=cascade_updated,
             **signal_params,
         )
 
         fields_metadata_by_row_id = self.get_fields_metadata_for_rows(
             updated_rows_to_return, updated_fields, fields_metadata_by_row_id
         )
+
         updated_rows_values = [
             {
                 "id": updated_row.id,
                 **self.get_internal_values_for_fields(updated_row, updated_field_ids),
             }
+            # split updated rows from cascade update rows
             for updated_row in updated_rows_to_return
+            if updated_row.id in row_ids
         ]
         updated_rows = UpdatedRowsData(
             updated_rows_to_return,
@@ -2295,6 +2396,8 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             original_row_values_by_id,
             fields_metadata_by_row_id,
             report,
+            updated_field_ids.union(cascade_updated.field_ids),
+            cascade_update=cascade_updated,
         )
 
         return updated_rows

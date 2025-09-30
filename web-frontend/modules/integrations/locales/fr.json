@@ -37,7 +37,15 @@
         "coreSMTPEmail": "Envoyer un e-mail",
         "coreSMTPEmailDescription": "Envoie un e-mail à l'aide de la configuration SMTP.",
         "errorFromEmailMissing": "Propriété \"From Email\" manquante",
-        "errorToEmailsMissing": "Propriété \"To Emails\" manquante"
+        "errorToEmailsMissing": "Propriété \"To Emails\" manquante",
+        "coreRouter": "Routeur",
+        "coreRouterEdgesRequired": "Au moins un branchement est nécessaire",
+        "coreRouterEdgeLabelRequired": "Un nom de branche est nécessaire.",
+        "coreRouterEdgeConditionRequired": "Une condition est nécessaire.",
+        "coreRouterDescription": "Poursuit vers l'une des branches en fonction d'une condition.",
+        "corePeriodic": "Déclencheur périodique",
+        "corePeriodicDescription": "Déclenche le scénario à des intervalles spécifiés",
+        "corePeriodicErrorIntervalMissing": "Un intervalle est nécessaire."
     },
     "localBaserowForm": {
         "user": "Utilisateur",
@@ -183,5 +191,43 @@
         "bodyTypeHtml": "HTML",
         "body": "Corps",
         "bodyPlaceholder": "Le contenu de votre e-mail..."
+    },
+    "routerForm": {
+        "defaultEdgeLabelLabel": "Étiquette de branche par défaut",
+        "defaultEdgeLabelPlaceholder": "Par défaut",
+        "defaultEdgeLabelDescription": "Vous pouvez choisir l'étiquette à afficher sur la branche par défaut.",
+        "branchesHeading": "Branches",
+        "branchesDescription": "Le routeur vous permet de n'exécuter des nœuds que lorsqu'une condition est remplie. Les branches sont exécutées de gauche à droite jusqu'à ce qu'une condition soit remplie, sinon la branche par défaut est exécutée. ",
+        "branchLabel": "Libéllé",
+        "branchConditionLabel": "Condition",
+        "branchConditionPlaceholder": "Saisir la condition...",
+        "addEdge": "Ajouter une branche",
+        "edgeDefaultName": "Branche",
+        "noLabel": "Pas d'étiquette",
+        "edgeDeletionLastEdge": "Vous ne pouvez pas supprimer la dernière branche.",
+        "edgeDeletionHasOutput": "Une branche ne peut pas être supprimée si elle contient des noeuds."
+    },
+    "periodicForm": {
+        "intervalLabel": "Interval",
+        "intervalHelper": "Choisissez la fréquence d'exécution de ce scénario",
+        "everyMinute": "Chaque minute",
+        "everyHour": "Toutes les heures",
+        "everyDay": "Tous les jours",
+        "everyWeek": "Chaque semaine",
+        "everyMonth": "Tous les mois",
+        "hour": "Heure",
+        "minute": "Minute",
+        "dayOfWeek": "Jour de la semaine",
+        "dayOfMonth": "Jour du mois",
+        "hourPlaceholder": "0-23",
+        "minutePlaceholder": "0-59",
+        "dayOfMonthPlaceholder": "1-31",
+        "minuteHelper": "Ce scénario sera exécuté toutes les minutes",
+        "hourHelper": "Ce scénario s'exécutera toutes les heures à la minute spécifiée dans votre fuseau horaire local ({timezone})",
+        "dayHelper": "Ce scénario sera exécuté chaque jour à l'heure spécifiée dans votre fuseau horaire local ({timezone})",
+        "weekHelper": "Ce scénario sera exécuté chaque semaine au jour et à l'heure spécifiés dans votre fuseau horaire local ({timezone})",
+        "monthHelper": "Ce scénario sera exécuté chaque mois le jour et l'heure spécifiés dans votre fuseau horaire local ({timezone})",
+        "deactivatedTitle": "Déclenchement périodique désactivé",
+        "deactivatedText": "Ce déclencheur périodique a été automatiquement désactivé en raison d'échecs consécutifs."
     }
 }

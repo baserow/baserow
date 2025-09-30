@@ -1,31 +1,48 @@
 from collections import defaultdict
-from typing import Any, Dict, List, Optional
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional, Union
 from zipfile import ZipFile
 
+from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.core.files.storage import Storage
 from django.db import IntegrityError
 from django.db.models import QuerySet
+from django.utils import timezone
 
+from loguru import logger
+
+from baserow.contrib.automation.automation_dispatch_context import (
+    AutomationDispatchContext,
+)
 from baserow.contrib.automation.constants import (
     IMPORT_SERIALIZED_IMPORTING,
     WORKFLOW_NAME_MAX_LEN,
 )
+from baserow.contrib.automation.history.constants import HistoryStatusChoices
+from baserow.contrib.automation.history.handler import AutomationHistoryHandler
+from baserow.contrib.automation.history.models import AutomationWorkflowHistory
 from baserow.contrib.automation.models import Automation
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.types import AutomationNodeDict
 from baserow.contrib.automation.types import AutomationWorkflowDict
+from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.contrib.automation.workflows.exceptions import (
+    AutomationWorkflowBeforeRunError,
     AutomationWorkflowDoesNotExist,
     AutomationWorkflowNameNotUnique,
     AutomationWorkflowNotInAutomation,
+    AutomationWorkflowRateLimited,
+    AutomationWorkflowTooManyErrors,
 )
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
+from baserow.contrib.automation.workflows.runner import AutomationWorkflowRunner
 from baserow.contrib.automation.workflows.tasks import run_workflow
 from baserow.contrib.automation.workflows.types import UpdatedAutomationWorkflow
-from baserow.core.cache import local_cache
+from baserow.core.cache import global_cache, local_cache
 from baserow.core.exceptions import IdDoesNotExist
 from baserow.core.registries import ImportExportConfig
+from baserow.core.services.exceptions import DispatchException
 from baserow.core.storage import ExportZipFile, get_default_storage
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import (
@@ -36,23 +53,32 @@ from baserow.core.utils import (
     find_unused_name,
 )
 
+WORKFLOW_RATE_LIMIT_CACHE_PREFIX = "automation_workflow_{}"
+AUTOMATION_WORKFLOW_CACHE_LOCK_SECONDS = 5
+
 
 class AutomationWorkflowHandler:
-    allowed_fields = ["name", "allow_test_run_until", "paused"]
+    allowed_fields = ["name", "allow_test_run_until", "state"]
 
     def run_workflow(
         self,
         workflow: AutomationWorkflow,
         event_payload: Optional[List[Dict]] = None,
+        simulate_until_node_id: Optional[int] = None,
     ) -> None:
         """
         Runs the provided workflow.
 
-        :param workflow_id: The AutomationWorkflow ID that should be executed.
+        :param workflow: The AutomationWorkflow ID that should be executed.
         :param event_payload: The payload from the action.
         """
 
-        run_workflow.delay(workflow.id, self.is_test_run(workflow), event_payload)
+        run_workflow.delay(
+            workflow.id,
+            self.is_test_run(workflow),
+            event_payload,
+            simulate_until_node_id,
+        )
 
     def get_workflow(
         self,
@@ -113,7 +139,7 @@ class AutomationWorkflowHandler:
         return _get_published_workflow(workflow)
 
     def get_original_workflow(
-        self, workflow: AutomationWorkflow
+        self, workflow: AutomationWorkflow, is_test_run: bool = False
     ) -> Optional[AutomationWorkflow]:
         """
         Gets the original workflow related to the provided published
@@ -125,14 +151,15 @@ class AutomationWorkflowHandler:
 
         :param workflow: The published workflow for which the original version
             should be returned.
-        :raises AutomationWorkflowDoesNotExist: If the workflow doesn't exist.
+        :param is_test_run: True if the provided workflow is a test run,
+            False otherwise.
         :return: The original workflow, if it exists.
         """
 
-        if workflow.published:
-            return workflow.automation.published_from
-        elif workflow.allow_test_run_until:
+        if is_test_run or workflow.allow_test_run_until:
             return workflow
+        elif workflow.is_published:
+            return workflow.automation.published_from
         else:
             return None
 
@@ -222,13 +249,13 @@ class AutomationWorkflowHandler:
 
         allowed_values = extract_allowed(kwargs, self.allowed_fields)
 
-        # paused is a special value that should only be set on the
+        # The state is a special value that should only be set on the
         # published workflow, if available.
-        paused = allowed_values.pop("paused", None)
-        if paused is not None:
+        state = allowed_values.pop("state", None)
+        if state is not None:
             if published_workflow := self.get_published_workflow(workflow):
-                published_workflow.paused = paused
-                published_workflow.save(update_fields=["paused"])
+                published_workflow.state = WorkflowState(state)
+                published_workflow.save(update_fields=["state"])
 
         for key, value in allowed_values.items():
             setattr(workflow, key, value)
@@ -380,6 +407,7 @@ class AutomationWorkflowHandler:
             name=workflow.name,
             order=workflow.order,
             nodes=serialized_nodes,
+            state=workflow.state,
         )
 
     def _ops_count_for_import_workflow(
@@ -576,7 +604,7 @@ class AutomationWorkflowHandler:
             automation=automation,
             name=serialized_workflow["name"],
             order=serialized_workflow["order"],
-            published=serialized_workflow.get("published") or False,
+            state=serialized_workflow["state"] or WorkflowState.DRAFT,
         )
 
         id_mapping["automation_workflows"][
@@ -591,7 +619,9 @@ class AutomationWorkflowHandler:
     def clean_up_previously_published_automations(
         self, workflow: AutomationWorkflow
     ) -> None:
-        published_automations = list(Automation.objects.filter(published_from=workflow))
+        published_automations = list(
+            Automation.objects.filter(published_from=workflow).order_by("id")
+        )
         if not published_automations:
             return
 
@@ -602,8 +632,8 @@ class AutomationWorkflowHandler:
 
         # Disable the last published workflow
         if published_workflow := published_automations[-1].workflows.first():
-            published_workflow.published = False
-            published_workflow.save(update_fields=["published"])
+            published_workflow.state = WorkflowState.DISABLED
+            published_workflow.save(update_fields=["state"])
 
     def publish(
         self,
@@ -647,9 +677,7 @@ class AutomationWorkflowHandler:
         )
 
         # Manually set the published status for the newly created workflow.
-        exported_automation["workflows"][0]["published"] = True
-        exported_automation["workflows"][0]["paused"] = False
-        exported_automation["workflows"][0]["disabled_on"] = None
+        exported_automation["workflows"][0]["state"] = WorkflowState.LIVE
 
         progress_builder = None
         if progress:
@@ -679,3 +707,178 @@ class AutomationWorkflowHandler:
         """
 
         return bool(workflow.allow_test_run_until)
+
+    def before_run(self, workflow: AutomationWorkflow) -> None:
+        """
+        Runs pre-flight checks before a workflow is allowed to run.
+
+        Each check may raise a subclass of the AutomationWorkflowBeforeRunError error.
+        """
+
+        # Make sure it won't run again in the meantime
+        if workflow.allow_test_run_until:
+            workflow.allow_test_run_until = None
+            workflow.save(update_fields=["allow_test_run_until"])
+
+        self.check_too_many_errors(workflow)
+        self.check_is_rate_limited(workflow.id)
+
+    def after_run(self, workflow: AutomationWorkflow):
+        """
+        Any logic that should be executed after a workflow run should be
+        called here.
+        """
+
+    def get_rate_limit_cache_key(self, workflow_id: int) -> str:
+        return WORKFLOW_RATE_LIMIT_CACHE_PREFIX.format(workflow_id)
+
+    def check_is_rate_limited(self, workflow_id: int) -> None:
+        """Uses a global cache key to track recent runs for the given workflow."""
+
+        expiry_seconds = settings.AUTOMATION_WORKFLOW_RATE_LIMIT_CACHE_EXPIRY_SECONDS
+        cache_key = self.get_rate_limit_cache_key(workflow_id)
+
+        global_cache.update(
+            cache_key,
+            self._check_is_rate_limited,
+            default_value=lambda: [],
+            timeout=expiry_seconds,
+        )
+
+    def _check_is_rate_limited(self, data: List[datetime]) -> List[datetime]:
+        """
+        Given a list of recent workflow run timestamps, determines whether
+        the workflow run should be rate limited. If so, raises the
+        AutomationWorkflowRateLimited error.
+        """
+
+        now = timezone.now()
+        expiry_seconds = settings.AUTOMATION_WORKFLOW_RATE_LIMIT_CACHE_EXPIRY_SECONDS
+        start_window = now - timedelta(seconds=expiry_seconds)
+
+        # Check the number of past runs that are in the window
+        runs_in_window = [
+            timestamp
+            for timestamp in data
+            if isinstance(timestamp, datetime) and timestamp > start_window
+        ]
+
+        if len(runs_in_window) >= settings.AUTOMATION_WORKFLOW_RATE_LIMIT_MAX_RUNS:
+            raise AutomationWorkflowRateLimited(
+                "The workflow was rate limited due to too many recent runs."
+            )
+
+        runs_in_window.append(now)
+
+        return runs_in_window
+
+    def check_too_many_errors(self, workflow: AutomationWorkflow) -> None:
+        """
+        Checks if the given workflow has too many consecutive errors. If so,
+        raises AutomationWorkflowTooManyErrors.
+        """
+
+        max_errors = settings.AUTOMATION_WORKFLOW_MAX_CONSECUTIVE_ERRORS
+
+        statuses = (
+            AutomationWorkflowHistory.objects.filter(workflow=workflow).order_by(
+                "-started_on"
+            )
+            # +1 because we will ignore the latest entry, since the workflow may
+            # have just started.
+            .values_list("status", flat=True)[: max_errors + 1]
+        )
+
+        # Ignore the latest status if it is 'started'
+        if statuses and statuses[0] == HistoryStatusChoices.STARTED:
+            statuses = statuses[1:]
+
+        # Not enough history to exceed threshold
+        if len(statuses) < max_errors:
+            return
+
+        if all(status == HistoryStatusChoices.ERROR for status in statuses):
+            raise AutomationWorkflowTooManyErrors(
+                f"The workflow {workflow.id} was disabled due to too "
+                "many consecutive errors."
+            )
+
+    def disable_workflow(self, workflow: AutomationWorkflow) -> None:
+        """
+        Disable the provided workflow, as well as the original workflow if it exists.
+        """
+
+        workflow_ids = {workflow.id}
+        if original_workflow := self.get_original_workflow(workflow):
+            workflow_ids.add(original_workflow.id)
+
+        AutomationWorkflow.objects.filter(id__in=workflow_ids).update(
+            state=WorkflowState.DISABLED
+        )
+
+    def start_workflow(
+        self,
+        workflow_id: int,
+        is_test_run: bool,
+        event_payload: Optional[Union[Dict, List[Dict]]],
+        simulate_until_node_id: Optional[int] = None,
+    ) -> None:
+        """Start the workflow run."""
+
+        from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
+
+        workflow = self.get_workflow(workflow_id)
+        original_workflow = (
+            self.get_original_workflow(workflow, is_test_run=is_test_run) or workflow
+        )
+        simulate_until_node = (
+            AutomationNodeHandler().get_node(simulate_until_node_id)
+            if simulate_until_node_id
+            else None
+        )
+
+        dispatch_context = AutomationDispatchContext(
+            workflow,
+            event_payload,
+            simulate_until_node=simulate_until_node,
+        )
+
+        start_time = timezone.now()
+
+        history_handler = AutomationHistoryHandler()
+
+        if not simulate_until_node:
+            history = history_handler.create_workflow_history(
+                workflow if is_test_run else original_workflow,
+                started_on=start_time,
+                is_test_run=is_test_run,
+            )
+
+        try:
+            self.before_run(original_workflow)
+            AutomationWorkflowRunner().run(workflow, dispatch_context)
+        except AutomationWorkflowTooManyErrors as e:
+            history_message = str(e)
+            history_status = HistoryStatusChoices.DISABLED
+            self.disable_workflow(workflow)
+        except (DispatchException, AutomationWorkflowBeforeRunError) as e:
+            history_message = str(e)
+            history_status = HistoryStatusChoices.ERROR
+        except Exception as e:
+            history_message = (
+                f"Unexpected error while running workflow {original_workflow.id}. "
+                f"Error: {str(e)}"
+            )
+            history_status = HistoryStatusChoices.ERROR
+            logger.exception(history_message)
+        else:
+            history_message = ""
+            history_status = HistoryStatusChoices.SUCCESS
+        finally:
+            if not simulate_until_node:
+                history.completed_on = timezone.now()
+                history.message = history_message
+                history.status = history_status
+                history.save()
+
+        self.after_run(original_workflow)

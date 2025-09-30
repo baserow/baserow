@@ -931,7 +931,7 @@
   },
   "collaboratorAddedToRowNotification": {
     "title": "{sender} assigned you to {fieldName} in row {rowId} in {tableName}",
-    "deletedUser": "A deleted user"
+    "unknownUser": "An unknown user"
   },
   "formSubmittedNotification": {
     "title": "{formName} has been submitted in table {tableName}:",
@@ -1141,5 +1141,12 @@
   "viewOptionsGuidedTourStep": {
     "title": "View Options",
     "content": "Click on the three dots next to the view to export, import, duplicate, and configure a webhook."
+  },
+  "fieldRules": {
+    "errorTitle": "Error during field rule processing",
+    "ruleDoesNotExist": "Rule doesn't exist",
+    "ruleTypeDoesNotExist": "Rule type doesn't exist",
+    "ruleAlreadyExists": "Rule already exists"
+
   }
 }

@@ -34,6 +34,9 @@
       class="margin-top-2"
       @values-changed="handleNodeChange({ service: $event })"
     />
+
+    <div class="separator"></div>
+    <SimulateDispatchNodeForm :automation="automation" :node="node" />
   </ReadOnlyForm>
 </template>
 
@@ -50,6 +53,7 @@ import useVuelidate from '@vuelidate/core'
 import { reactive, ref } from 'vue'
 import ReadOnlyForm from '@baserow/modules/core/components/ReadOnlyForm'
 import AutomationBuilderFormulaInput from '@baserow/modules/automation/components/AutomationBuilderFormulaInput'
+import SimulateDispatchNodeForm from '@baserow/modules/automation/components/form/SimulateDispatchNodeForm'
 import { DATA_PROVIDERS_ALLOWED_NODE_ACTIONS } from '@baserow/modules/automation/enums'
 import _ from 'lodash'
 import { helpers, maxLength } from '@vuelidate/validators'
@@ -147,7 +151,10 @@ const handleNodeChange = async ({
 
   // Handle service changes next
   if (serviceChanges) {
-    if (!formComponent.value?.isFormValid()) {
+    if (
+      formComponent.value?.isFormValid &&
+      !formComponent.value?.isFormValid()
+    ) {
       return
     }
     const serviceDifferences = Object.fromEntries(

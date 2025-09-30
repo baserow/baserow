@@ -459,7 +459,7 @@ class DataSyncHandler:
                 row_ids_to_delete.append(row["id"])
         progress.increment(by=1)  # makes the total `70`
 
-        created_rows = CreatedRowsData([], {})
+        created_rows = CreatedRowsData([], {}, [], None)
         if len(rows_to_create) > 0:
             created_rows = RowHandler().create_rows(
                 user=user,

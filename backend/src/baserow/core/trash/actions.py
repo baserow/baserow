@@ -119,6 +119,7 @@ class RestoreFromTrashActionType(ActionType):
         trash_entry = TrashHandler.get_trash_entry(
             trash_item_type, trash_item_id, parent_trash_item_id
         )
+
         workspace = trash_entry.workspace
         TrashHandler.restore_item(
             user, trash_item_type, trash_item_id, parent_trash_item_id

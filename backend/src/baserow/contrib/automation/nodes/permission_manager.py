@@ -30,7 +30,7 @@ class AutomationNodePermissionManager(PermissionManagerType):
                 DeleteAutomationNodeOperationType.type,
                 UpdateAutomationNodeOperationType.type,
             ]:
-                if check.context.workflow.published:
+                if check.context.workflow.is_published:
                     result[check] = False
 
         return result

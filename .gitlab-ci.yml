@@ -82,8 +82,6 @@ variables:
   PROJECT_PATH_FOR_CI_DIND_IMAGE: $CI_PROJECT_PATH
   # The image path for the helper CI util image that will be built and pushed to.
   CI_UTIL_IMAGE: $CI_REGISTRY/$PROJECT_PATH_FOR_CI_UTIL_IMAGE/ci/ci_util_image:latest
-  # The image path for the E2E testing image that will be built and pushed to.
-  E2E_TEST_IMAGE: $CI_REGISTRY/$PROJECT_PATH_FOR_E2E_TEST_IMAGE/ci/baserow_e2e-tests:latest
   # The image path for the dind CI image that will be built and pushed to.
   CI_DIND_IMAGE: $CI_REGISTRY/$PROJECT_PATH_FOR_E2E_TEST_IMAGE/ci/ci_dind_image:latest
 
@@ -112,35 +110,6 @@ build-ci-util-image:
   # We can't use the newer rules: syntax due to https://gitlab.com/gitlab-org/gitlab/-/issues/34756
   only:
     changes:
-      - .gitlab/ci_util_image/*
-      - .gitlab-ci.yml
-  except:
-    refs:
-      # When a pipeline is triggered by an upstream project we don't want to rebuild.
-      - pipelines
-      # When a pipeline is triggered by a git commit tag we don't want to rebuild.
-      - tags
-
-# An image used by the e2e tests.
-build-e2e-tests-image:
-  image: docker:20.10.18
-  stage: build
-  services:
-    - name: $CI_DIND_IMAGE
-      alias: docker
-  variables:
-    DOCKER_BUILDKIT: 1
-    DOCKER_HOST: tcp://docker:2376
-    DOCKER_TLS_CERTDIR: "/certs"
-  script:
-    - echo -n $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
-    - cd e2e-tests
-    - docker build -t $E2E_TEST_IMAGE .
-    - docker push $CI_REGISTRY/$PROJECT_PATH_FOR_E2E_TEST_IMAGE/ci/baserow_e2e-tests:latest
-  # We can't use the newer rules: syntax due to https://gitlab.com/gitlab-org/gitlab/-/issues/34756
-  only:
-    changes:
-      - e2e-tests/
       - .gitlab/ci_util_image/*
       - .gitlab-ci.yml
   except:
@@ -211,7 +180,7 @@ backend-check-startup-python:
   services:
     - name: $CI_DIND_IMAGE
       alias: docker
-    - name: postgres:12
+    - name: postgres:13
       alias: db
   variables:
     DOCKER_HOST: tcp://docker:2376
@@ -236,7 +205,7 @@ backend-test-group-1:
   services:
     - name: $CI_DIND_IMAGE
       alias: docker
-    - name: postgres:12
+    - name: postgres:13
       alias: db
       command:
         [
@@ -515,24 +484,68 @@ build-final-web-frontend-image-manual:
 # ==================================== E2E TESTS ======================================
 
 e2e-tests-group-1:
-  extends:
-    - .docker-image-test-stage
-    - .requires-lint
+  image: mcr.microsoft.com/playwright:v1.48.2
+  stage: test
+  services:
+    - name: postgres:13
+      alias: db
+      variables:
+        POSTGRES_USER: baserow
+        POSTGRES_PASSWORD: baserow
+        POSTGRES_DB: baserow
+    - name: adobe/s3mock:3.12.0
+      alias: s3mock
+    - name: redis:6-alpine
+      alias: redis
+    - name: $BACKEND_CI_DEV_IMAGE
+      alias: backend
+      command: ["gunicorn"]
+    - name: $WEBFRONTEND_CI_DEV_IMAGE
+      alias: web-frontend
+      command: ["nuxt-dev-no-attach"]
+    - name: $BACKEND_CI_DEV_IMAGE
+      alias: celery
+      command: ["celery-worker"]
+      variables:
+        BASEROW_RUN_MINIMAL: "yes"
   except:
     variables:
       - $CI_COMMIT_BRANCH == $MASTER_BRANCH_NAME
       - $CI_COMMIT_BRANCH == $DEVELOP_BRANCH_NAME
   variables:
+    CI: 1
     SHARD_INDEX: 1
+    FF_NETWORK_PER_BUILD: "true"
+    initialBuckets: testbucket
+    REDIS_URL: "redis://redis:6379"
+    BASEROW_BACKEND_URL: "http://backend:8000"
+    BASEROW_FRONTEND_URL: "http://frontend:3000"
+    BASEROW_AMOUNT_OF_WORKERS: 1
+    SECRET_KEY: test
+    AWS_ACCESS_KEY_ID: anyvalue
+    AWS_SECRET_ACCESS_KEY: anyvalue
+    AWS_STORAGE_BUCKET_NAME: testbucket
+    AWS_S3_ENDPOINT_URL: http://s3mock:9090
+    AWS_S3_CUSTOM_DOMAIN: localhost:9090/testbucket
+    AWS_S3_USE_SSL: no
+    AWS_S3_URL_PROTOCOL: "http:"
+    FEATURE_FLAGS: "*"
+    PUBLIC_BACKEND_URL: http://backend:8000
+    PUBLIC_WEB_FRONTEND_URL: http://web-frontend:3000
+    NODE_OPTIONS: --max-old-space-size=8192
+    BASEROW_TRIGGER_SYNC_TEMPLATES_AFTER_MIGRATION: false
+    DJANGO_SETTINGS_MODULE: "baserow.config.settings.e2e"
+    #DEBUG: "pw:api"
   script:
     - cd e2e-tests
-    - E2E_TEST_YARN_RUN_CMD="test-ci --shard=$SHARD_INDEX/4" docker compose up --no-build --exit-code-from e2e-tests
+    - ./wait-for-services.sh & yarn install & wait
+    - npx playwright test --grep-invert=@slow --shard=$SHARD_INDEX/4 --project=firefox
   artifacts:
     name: "$CI_JOB_NAME-e2e-report"
     paths:
       # Save the HTML report as an artifact for download or visualization
-      - e2e-tests/blob-report/
       - e2e-tests/playwright-report
+      - e2e-tests/blob-report/
     expire_in: 1 week
     when: always
 
@@ -581,9 +594,11 @@ collect-e2e-test-coverage:
   artifacts:
     name: "e2e-report"
     paths:
+      - playwright-report/index.html
       - e2e-tests/playwright-report
     expire_in: 1 week
     when: always
+    expose_as: "Playwright Report"
 
 # ================================== ALL IN ONES ======================================
 # If pipeline not triggered by tag:
@@ -880,7 +895,6 @@ docker-file-hadolint:
         backend/Dockerfile \
         web-frontend/Dockerfile \
         heroku.Dockerfile \
-        e2e-tests/Dockerfile \
         deploy/*/Dockerfile > reports/hadolint.json
   artifacts:
     name: "$CI_JOB_NAME artifacts from $CI_PROJECT_NAME on $CI_COMMIT_REF_SLUG"

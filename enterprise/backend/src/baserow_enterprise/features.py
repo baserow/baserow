@@ -9,8 +9,11 @@ ENTERPRISE_SETTINGS = "ENTERPRISE_SETTINGS"
 DATA_SYNC = "data_sync"
 ADVANCED_WEBHOOKS = "advanced_webhooks"
 FIELD_LEVEL_PERMISSIONS = "field_level_permissions"
+ASSISTANT = "assistant"
 
 BUILDER_SSO = "application_user_sso"
 BUILDER_NO_BRANDING = "application_no_branding"
 BUILDER_FILE_INPUT = "builder_file_input"
 BUILDER_CUSTOM_CODE = "builder_custom_code"
+
+DATE_DEPENDENCY = "date_dependency"

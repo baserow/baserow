@@ -4,12 +4,10 @@ from typing import (
     Callable,
     Dict,
     Generator,
-    Generic,
     List,
     Optional,
     Tuple,
     Type,
-    TypeVar,
     Union,
 )
 
@@ -453,8 +451,6 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
         Extracts the properties from the table model fields.
 
         :param service: A `LocalBaserowTableService` subclass.
-        :param allowed_fields: The properties which are allowed to be included in the
-            properties.
         :return: A schema dictionary, or None if no `Table` has been applied.
         """
 
@@ -834,7 +830,10 @@ class LocalBaserowListRowsUserServiceType(
 
     type = "local_baserow_list_rows"
     model_class = LocalBaserowListRows
-    dispatch_type = DispatchTypes.DISPATCH_DATA_SOURCE
+    dispatch_types = [
+        DispatchTypes.DATA,
+        DispatchTypes.ACTION,
+    ]
     serializer_mixins = (
         LocalBaserowTableServiceFilterableMixin.mixin_serializer_mixins
         + LocalBaserowTableServiceSortableMixin.mixin_serializer_mixins
@@ -1111,7 +1110,10 @@ class LocalBaserowAggregateRowsUserServiceType(
 
     type = "local_baserow_aggregate_rows"
     model_class = LocalBaserowAggregateRows
-    dispatch_type = DispatchTypes.DISPATCH_DATA_SOURCE
+    dispatch_types = [
+        DispatchTypes.DATA,
+        DispatchTypes.ACTION,
+    ]
     serializer_mixins = LocalBaserowTableServiceFilterableMixin.mixin_serializer_mixins
 
     # Local Baserow aggregate rows does not currently support the distribution
@@ -1475,7 +1477,10 @@ class LocalBaserowGetRowUserServiceType(
 
     type = "local_baserow_get_row"
     model_class = LocalBaserowGetRow
-    dispatch_type = DispatchTypes.DISPATCH_DATA_SOURCE
+    dispatch_types = [
+        DispatchTypes.DATA,
+        DispatchTypes.ACTION,
+    ]
     serializer_mixins = (
         LocalBaserowTableServiceFilterableMixin.mixin_serializer_mixins
         + LocalBaserowTableServiceSortableMixin.mixin_serializer_mixins
@@ -1649,7 +1654,7 @@ class LocalBaserowUpsertRowServiceType(
 
     type = "local_baserow_upsert_row"
     model_class = LocalBaserowUpsertRow
-    dispatch_type = DispatchTypes.DISPATCH_WORKFLOW_ACTION
+    dispatch_types = [DispatchTypes.ACTION]
 
     @property
     def allowed_fields(self):
@@ -2031,7 +2036,7 @@ class LocalBaserowUpsertRowServiceType(
                     table,
                     rows_values=[{**row_values, "id": row_id}],
                     model=model,
-                )
+                ).updated_rows
             except RowDoesNotExist as exc:
                 raise ServiceImproperlyConfiguredDispatchException(
                     f"The row with id {row_id} does not exist."
@@ -2119,7 +2124,7 @@ class LocalBaserowDeleteRowServiceType(
 ):
     type = "local_baserow_delete_row"
     model_class = LocalBaserowDeleteRow
-    dispatch_type = DispatchTypes.DISPATCH_WORKFLOW_ACTION
+    dispatch_types = [DispatchTypes.ACTION]
 
     @property
     def simple_formula_fields(self):
@@ -2205,55 +2210,50 @@ class LocalBaserowDeleteRowServiceType(
         return DispatchResult(status=204)
 
 
-T = TypeVar("T", bound="Instance")
+class LocalBaserowRowsSignalServiceType(
+    TriggerServiceTypeMixin, LocalBaserowTableServiceType
+):
+    # The signal that this service type is called by.
+    signal: Signal = None
 
-
-class LocalBaserowSignalTriggerTypeMixin(Generic[T]):
-    """
-    A mixin which `AutomationNodeType` can implement if they are related to a
-    Local Baserow signal, such as `rows_created`, `rows_updated`, etc.
-
-    New trigger types should inherit from this class, set the `signal` and `handler`
-    to point to the signal/function they are related to, and only implement the
-    `start_listening` and `stop_listening` methods.
-    """
-
-    signal: Optional[Signal] = None
-    on_event = None
-    model_class = None
-
-    # Local Baserow signal triggers (e.g. rows created, updated, deleted)
+    # Local Baserow signal services (e.g. rows created, updated, deleted)
     # all return an array of rows, even if only a single row is affected.
     # We set `returns_list` to `True` so that when we generate the schema,
     # the `type` is set to `array` instead of `object`.
     returns_list = True
 
     def start_listening(self, on_event: Callable):
-        self.on_event = on_event
-        self.signal.connect(self.handler)
+        super().start_listening(on_event)
+        self.signal.connect(self._signal_receiver)
 
     def stop_listening(self):
-        self.signal.disconnect(self.handler)
+        self.signal.disconnect(self._signal_receiver)
 
-    def handle_signal(self, sender, user, rows, table, model, **kwargs):
+    def _process_event(self, *args, **kwargs):
+        return self.on_event(*args, **kwargs) if callable(self.on_event) else None
+
+    def _handle_signal(
+        self,
+        sender,
+        user: AbstractUser,
+        rows: QuerySet["GeneratedTableModel"],
+        table: "Table",
+        model: "GeneratedTableModel",
+        **kwargs,
+    ):
         serializer = get_row_serializer_class(
             model,
             RowSerializer,
             is_response=True,
         )
-        serialized_rows = serializer(rows, many=True).data
-
-        self.process_event(
+        self._process_event(
             self.model_class.objects.filter(table=table),
-            serialized_rows,
+            serializer(rows, many=True).data,
             user=user,
         )
 
-    def process_event(self, *args, **kwargs):
-        return self.on_event(*args, **kwargs) if callable(self.on_event) else None
-
-    def handler(self, *args, **kwargs):
-        transaction.on_commit(lambda: self.handle_signal(*args, **kwargs))
+    def _signal_receiver(self, *args, **kwargs):
+        transaction.on_commit(lambda: self._handle_signal(*args, **kwargs))
 
     def import_context_path(
         self, path: List[str], id_mapping: Dict[int, int], **kwargs
@@ -2266,10 +2266,10 @@ class LocalBaserowSignalTriggerTypeMixin(Generic[T]):
 
     def import_path(self, path, id_mapping):
         """
-        Import Local Baserow signal trigger service types paths.
+        Import Local Baserow signal service types paths.
         """
 
-        # All Local Baserow signal trigger service types have a length of 3:
+        # All Local Baserow signal service types have a length of 3:
         # {previousNodeId}.{rowIndex}.{fieldName}. By this point, we should
         # only have two parts: {rowIndex}.{fieldName}.
         if len(path) == 2:
@@ -2291,31 +2291,19 @@ class LocalBaserowSignalTriggerTypeMixin(Generic[T]):
         return [index, imported_field_dbname]
 
 
-class LocalBaserowRowsCreatedTriggerServiceType(
-    LocalBaserowSignalTriggerTypeMixin,
-    LocalBaserowTableServiceType,
-    TriggerServiceTypeMixin,
-):
+class LocalBaserowRowsCreatedServiceType(LocalBaserowRowsSignalServiceType):
     signal = rows_created
     type = "local_baserow_rows_created"
     model_class = LocalBaserowRowsCreated
 
 
-class LocalBaserowRowsUpdatedTriggerServiceType(
-    LocalBaserowSignalTriggerTypeMixin,
-    LocalBaserowTableServiceType,
-    TriggerServiceTypeMixin,
-):
+class LocalBaserowRowsUpdatedServiceType(LocalBaserowRowsSignalServiceType):
     signal = rows_updated
     type = "local_baserow_rows_updated"
     model_class = LocalBaserowRowsUpdated
 
 
-class LocalBaserowRowsDeletedTriggerServiceType(
-    LocalBaserowSignalTriggerTypeMixin,
-    LocalBaserowTableServiceType,
-    TriggerServiceTypeMixin,
-):
+class LocalBaserowRowsDeletedServiceType(LocalBaserowRowsSignalServiceType):
     signal = rows_deleted
     type = "local_baserow_rows_deleted"
     model_class = LocalBaserowRowsDeleted

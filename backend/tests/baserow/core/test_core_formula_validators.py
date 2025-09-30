@@ -1,15 +1,130 @@
 from decimal import Decimal
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from django.core.exceptions import ValidationError
 
 import pytest
 
 from baserow.core.formula.validator import (
+    ensure_boolean,
     ensure_numeric,
     ensure_string,
     ensure_string_or_integer,
 )
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "t",
+        "T",
+        "y",
+        "Y",
+        "yes",
+        "Yes",
+        "YES",
+        "true",
+        "True",
+        "TRUE",
+        "on",
+        "On",
+        "ON",
+        "1",
+        1,
+        "checked",
+        True,
+    ],
+)
+def test_ensure_boolean_strict_returns_true(value):
+    """
+    Ensure that if an value is passed in, it is returned as a boolean.
+    """
+
+    assert ensure_boolean(value) is True
+    assert ensure_boolean(value, strict=True) is True
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "f",
+        "F",
+        "n",
+        "N",
+        "no",
+        "No",
+        "NO",
+        "false",
+        "False",
+        "FALSE",
+        "off",
+        "Off",
+        "OFF",
+        "0",
+        0,
+        0.0,
+        "unchecked",
+        False,
+    ],
+)
+def test_ensure_boolean_strict_returns_false(value):
+    """
+    Ensure that if an value is passed in, it is returned as a boolean.
+    """
+
+    assert ensure_boolean(value) is False
+    assert ensure_boolean(value, strict=True) is False
+
+
+@pytest.mark.parametrize(
+    "value,expected",
+    [
+        ("", False),
+        (" ", True),
+        ("foo", True),
+        ("100", True),
+        (None, False),
+        (MagicMock(), True),
+    ],
+)
+def test_ensure_boolean_not_strict(value, expected):
+    """
+    Ensure that if an value is passed in with strict=False, the correct
+    bool is returned.
+    """
+
+    assert ensure_boolean(value, strict=False) is expected
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "",
+        " ",
+        "foo",
+        "bar",
+        "123",
+        None,
+        MagicMock(),
+    ],
+)
+def test_ensure_boolean_validation_error(value):
+    """
+    Ensure that if an invalid value is passed with strict=True, a validation
+    error is raised.
+    """
+
+    expected_error = "Value is not a valid boolean or convertible to a boolean."
+
+    with pytest.raises(ValidationError) as e:
+        ensure_boolean(value, strict=True)
+
+    assert e.value.messages[0] == expected_error
+
+    with pytest.raises(ValidationError) as e:
+        assert ensure_boolean(value)
+
+    assert e.value.messages[0] == expected_error
 
 
 @pytest.mark.parametrize("value", [0, 1, 10, 100])

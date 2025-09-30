@@ -3,18 +3,19 @@ import {
   RolePermissionManagerType,
   WriteFieldValuesPermissionManagerType,
 } from '@baserow_enterprise/permissionManagerTypes'
-import { AuthProvidersType, AuditLogType } from '@baserow_enterprise/adminTypes'
+import { AuditLogType, AuthProvidersType } from '@baserow_enterprise/adminTypes'
 import authProviderAdminStore from '@baserow_enterprise/store/authProviderAdmin'
+import assistantStore from '@baserow_enterprise/store/assistant'
 import { PasswordAuthProviderType as CorePasswordAuthProviderType } from '@baserow/modules/core/authProviderTypes'
 import { MadeWithBaserowBuilderPageDecoratorType } from '@baserow_enterprise/builderPageDecoratorTypes'
 import {
+  FacebookAuthProviderType,
+  GitHubAuthProviderType,
+  GitLabAuthProviderType,
+  GoogleAuthProviderType,
+  OpenIdConnectAuthProviderType,
   PasswordAuthProviderType,
   SamlAuthProviderType,
-  GitHubAuthProviderType,
-  GoogleAuthProviderType,
-  FacebookAuthProviderType,
-  GitLabAuthProviderType,
-  OpenIdConnectAuthProviderType,
 } from '@baserow_enterprise/authProviderTypes'
 import { TeamsWorkspaceSettingsPageType } from '@baserow_enterprise/workspaceSettingsPageTypes'
 import { EnterpriseMembersPagePluginType } from '@baserow_enterprise/membersPagePluginTypes'
@@ -27,15 +28,15 @@ import it from '@baserow_enterprise/locales/it.json'
 import ko from '@baserow_enterprise/locales/ko.json'
 import {
   AdvancedLicenseType,
-  EnterpriseWithoutSupportLicenseType,
   EnterpriseLicenseType,
+  EnterpriseWithoutSupportLicenseType,
 } from '@baserow_enterprise/licenseTypes'
 import { EnterprisePlugin } from '@baserow_enterprise/plugins'
 import { LocalBaserowUserSourceType } from '@baserow_enterprise/integrations/userSourceTypes'
 import {
   LocalBaserowPasswordAppAuthProviderType,
-  SamlAppAuthProviderType,
   OpenIdConnectAppAuthProviderType,
+  SamlAppAuthProviderType,
 } from '@baserow_enterprise/integrations/appAuthProviderTypes'
 import {
   AuthFormElementType,
@@ -43,21 +44,21 @@ import {
 } from '@baserow_enterprise/builder/elementTypes'
 import {
   EnterpriseAdminRoleType,
-  EnterpriseMemberRoleType,
   EnterpriseBuilderRoleType,
-  EnterpriseEditorRoleType,
   EnterpriseCommenterRoleType,
+  EnterpriseEditorRoleType,
+  EnterpriseMemberRoleType,
   EnterpriseViewerRoleType,
   NoAccessRoleType,
   NoRoleLowPriorityRoleType,
 } from '@baserow_enterprise/roleTypes'
 import {
-  LocalBaserowTableDataSyncType,
-  JiraIssuesDataSyncType,
   GitHubIssuesDataSyncType,
   GitLabIssuesDataSyncType,
   HubspotContactsDataSyncType,
   PostgreSQLDataSyncType,
+  JiraIssuesDataSyncType,
+  LocalBaserowTableDataSyncType,
 } from '@baserow_enterprise/dataSyncTypes'
 import { PeriodicIntervalFieldsConfigureDataSyncType } from '@baserow_enterprise/configureDataSyncTypes'
 import {
@@ -69,19 +70,26 @@ import { RowsEnterViewWebhookEventType } from '@baserow_enterprise/webhookEventT
 import {
   AdvancedWebhooksPaidFeature,
   AuditLogPaidFeature,
-  CoBrandingPaidFeature,
-  DataSyncPaidFeature,
-  RBACPaidFeature,
-  SSOPaidFeature,
-  SupportPaidFeature,
-  FieldLevelPermissionsPaidFeature,
   BuilderBrandingPaidFeature,
   BuilderCustomCodePaidFeature,
   BuilderFileInputElementPaidFeature,
+  AssistantPaidFeature,
+  CoBrandingPaidFeature,
+  DataSyncPaidFeature,
+  DateDependencyPaidFeature,
+  FieldLevelPermissionsPaidFeature,
+  RBACPaidFeature,
+  SSOPaidFeature,
+  SupportPaidFeature,
 } from '@baserow_enterprise/paidFeatures'
 import { FieldPermissionsContextItemType } from '@baserow_enterprise/fieldContextItemTypes'
+import { DateDepencencyContextItemType } from '@baserow_enterprise/dateDependencyContextItemTypes'
 import { CustomCodeBuilderSettingType } from '@baserow_enterprise/builderSettingTypes'
 import { RealtimePushTwoWaySyncStrategyType } from '@baserow_enterprise/twoWaySyncStrategyTypes'
+import {
+  FF_ASSISTANT,
+  FF_DATE_DEPENDENCY,
+} from '@baserow/modules/core/plugins/featureFlags'
 
 export default (context) => {
   const { app, isDev, store } = context
@@ -110,6 +118,7 @@ export default (context) => {
   )
 
   store.registerModule('authProviderAdmin', authProviderAdminStore)
+  store.registerModule('assistant', assistantStore)
 
   app.$registry.register('admin', new AuthProvidersType(context))
   app.$registry.unregister(
@@ -221,6 +230,9 @@ export default (context) => {
     'paidFeature',
     new FieldLevelPermissionsPaidFeature(context)
   )
+  if (app.$featureFlagIsEnabled(FF_ASSISTANT)) {
+    app.$registry.register('paidFeature', new AssistantPaidFeature(context))
+  }
   app.$registry.register('paidFeature', new SupportPaidFeature(context))
   app.$registry.register('paidFeature', new BuilderBrandingPaidFeature(context))
   app.$registry.register(
@@ -231,8 +243,19 @@ export default (context) => {
     'paidFeature',
     new BuilderFileInputElementPaidFeature(context)
   )
-  // Register builder page decorator namespace and types
 
+  if (app.$featureFlagIsEnabled(FF_DATE_DEPENDENCY)) {
+    app.$registry.register(
+      'paidFeature',
+      new DateDependencyPaidFeature(context)
+    )
+  }
+  app.$registry.register(
+    'fieldContextItem',
+    new DateDepencencyContextItemType(context)
+  )
+
+  // Register builder page decorator namespace and types
   app.$registry.register(
     'builderPageDecorator',
     new MadeWithBaserowBuilderPageDecoratorType(context)

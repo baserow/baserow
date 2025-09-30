@@ -1,6 +1,7 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from django.contrib.auth.models import AbstractUser
+from django.db import router
 from django.db.models import CharField, Q, QuerySet
 from django.db.models.functions import Cast
 from django.utils import timezone
@@ -19,6 +20,7 @@ from baserow.contrib.automation.nodes.models import (
     AutomationNode,
     AutomationTriggerNode,
     CoreHTTPRequestActionNode,
+    CorePeriodicTriggerNode,
     CoreRouterActionNode,
     CoreSMTPEmailActionNode,
     LocalBaserowAggregateRowsActionNode,
@@ -32,8 +34,10 @@ from baserow.contrib.automation.nodes.models import (
     LocalBaserowUpdateRowActionNode,
 )
 from baserow.contrib.automation.nodes.registries import AutomationNodeType
+from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.contrib.integrations.core.service_types import (
     CoreHTTPRequestServiceType,
+    CorePeriodicServiceType,
     CoreRouterServiceType,
     CoreSMTPEmailServiceType,
 )
@@ -42,11 +46,12 @@ from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowDeleteRowServiceType,
     LocalBaserowGetRowUserServiceType,
     LocalBaserowListRowsUserServiceType,
-    LocalBaserowRowsCreatedTriggerServiceType,
-    LocalBaserowRowsDeletedTriggerServiceType,
-    LocalBaserowRowsUpdatedTriggerServiceType,
+    LocalBaserowRowsCreatedServiceType,
+    LocalBaserowRowsDeletedServiceType,
+    LocalBaserowRowsUpdatedServiceType,
     LocalBaserowUpsertRowServiceType,
 )
+from baserow.core.db import specific_iterator
 from baserow.core.registry import Instance
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
@@ -54,17 +59,27 @@ from baserow.core.services.registries import service_type_registry
 from baserow.core.services.types import DispatchResult
 
 
-class AutomationNodeActionNodeType(AutomationNodeType):
-    is_workflow_action = True
+class ServiceDispatchableAutomationNodeTypeMixin:
+    """
+    A mixin for automation node types that can be dispatched using the service.
+    This mixin provides a default implementation of the `dispatch` method that uses
+    the `ServiceHandler` to dispatch the service associated with the node.
+    """
 
     def dispatch(
         self,
-        automation_node: AutomationActionNode,
+        automation_node: AutomationNode,
         dispatch_context: AutomationDispatchContext,
     ) -> DispatchResult:
         return ServiceHandler().dispatch_service(
             automation_node.service.specific, dispatch_context
         )
+
+
+class AutomationNodeActionNodeType(
+    ServiceDispatchableAutomationNodeTypeMixin, AutomationNodeType
+):
+    is_workflow_action = True
 
 
 class LocalBaserowUpsertRowNodeType(AutomationNodeActionNodeType):
@@ -128,22 +143,30 @@ class CoreRouterActionNodeType(AutomationNodeActionNodeType):
     service_type = CoreRouterServiceType.type
 
     def get_output_nodes(
-        self, node: CoreRouterActionNode
-    ) -> QuerySet[AutomationActionNode]:
+        self, node: CoreRouterActionNode, specific: bool = False
+    ) -> Union[List[AutomationActionNode], QuerySet[AutomationActionNode]]:
         """
         Given a router node, this method returns the output nodes that are
         along the edges of the router node.
         :param node: The router node instance.
-        :return: A QuerySet of output nodes that are connected to the
+        :param specific: Whether to return the specific node instances.
+        :return: An iterable of output nodes that are connected to the
             router node's edges.
         """
 
-        return node.workflow.automation_workflow_nodes.filter(
-            previous_node_id=node.id,
-            previous_node_output__in=node.service.specific.edges.values_list(
-                Cast("uid", output_field=CharField()), flat=True
-            ),
+        queryset = (
+            node.workflow.automation_workflow_nodes.select_related("content_type")
+            .filter(previous_node_id=node.id)
+            .filter(
+                Q(previous_node_output="")
+                | Q(
+                    previous_node_output__in=node.service.specific.edges.values_list(
+                        Cast("uid", output_field=CharField()), flat=True
+                    )
+                ),
+            )
         )
+        return specific_iterator(queryset) if specific else queryset
 
     def before_delete(self, node: CoreRouterActionNode):
         output_nodes_count = self.get_output_nodes(node).count()
@@ -209,6 +232,27 @@ class CoreRouterActionNodeType(AutomationNodeActionNodeType):
 class AutomationNodeTriggerType(AutomationNodeType):
     is_workflow_trigger = True
 
+    def dispatch(
+        self,
+        node: AutomationNode,
+        dispatch_context: AutomationDispatchContext,
+    ) -> DispatchResult:
+        if dispatch_context.use_sample_data:
+            if sample_data := node.service.get_type().get_sample_data(
+                node.service.specific
+            ):
+                return DispatchResult(**sample_data)
+
+        return DispatchResult(data=dispatch_context.event_payload)
+
+    def after_register(self):
+        service_type_registry.get(self.service_type).start_listening(self.on_event)
+        return super().after_register()
+
+    def before_unregister(self):
+        service_type_registry.get(self.service_type).stop_listening()
+        return super().before_unregister()
+
     def before_delete(self, node: AutomationTriggerNode):
         """
         Trigger nodes cannot be deleted.
@@ -223,7 +267,7 @@ class AutomationNodeTriggerType(AutomationNodeType):
 
     def on_event(
         self,
-        service_queryset: QuerySet[Service],
+        services: QuerySet[Service],
         event_payload: Optional[List[Dict]] = None,
         user: Optional[AbstractUser] = None,
     ):
@@ -231,17 +275,16 @@ class AutomationNodeTriggerType(AutomationNodeType):
             AutomationWorkflowHandler,
         )
 
-        workflow_handler = AutomationWorkflowHandler()
-        now = timezone.now()
-
         triggers = (
             self.model_class.objects.filter(
-                service__in=service_queryset,
+                service__in=services,
             )
+            .using(router.db_for_write(self.model_class))
             .filter(
                 Q(
-                    Q(workflow__published=True, workflow__paused=False)
-                    | Q(workflow__allow_test_run_until__gte=now)
+                    Q(workflow__state=WorkflowState.LIVE)
+                    | Q(workflow__allow_test_run_until__gte=timezone.now())
+                    | Q(workflow__simulate_until_node__isnull=False)
                 ),
             )
             .select_related("workflow__automation__workspace")
@@ -249,36 +292,79 @@ class AutomationNodeTriggerType(AutomationNodeType):
 
         for trigger in triggers:
             workflow = trigger.workflow
-            workflow_handler.run_workflow(
+            simulate_until_node_id = (
+                trigger.workflow.simulate_until_node.id
+                if trigger.workflow.simulate_until_node
+                else None
+            )
+            AutomationWorkflowHandler().run_workflow(
                 workflow,
                 event_payload,
+                simulate_until_node_id,
             )
+
+            save_sample_data = False
             if workflow.allow_test_run_until:
                 workflow.allow_test_run_until = None
                 workflow.save(update_fields=["allow_test_run_until"])
+                save_sample_data = True
 
-    def after_register(self):
-        service_type_registry.get(self.service_type).start_listening(self.on_event)
-        return super().after_register()
+            if workflow.simulate_until_node and not workflow.is_published:
+                workflow.simulate_until_node = None
+                workflow.save(update_fields=["simulate_until_node"])
+                save_sample_data = True
 
-    def before_unregister(self):
-        service_type_registry.get(self.service_type).stop_listening()
-        return super().before_unregister()
+            if save_sample_data:
+                trigger.service.sample_data = {"data": event_payload}
+                trigger.service.save()
 
 
 class LocalBaserowRowsCreatedNodeTriggerType(AutomationNodeTriggerType):
     type = "rows_created"
     model_class = LocalBaserowRowsCreatedTriggerNode
-    service_type = LocalBaserowRowsCreatedTriggerServiceType.type
+    service_type = LocalBaserowRowsCreatedServiceType.type
 
 
 class LocalBaserowRowsUpdatedNodeTriggerType(AutomationNodeTriggerType):
     type = "rows_updated"
     model_class = LocalBaserowRowsUpdatedTriggerNode
-    service_type = LocalBaserowRowsUpdatedTriggerServiceType.type
+    service_type = LocalBaserowRowsUpdatedServiceType.type
 
 
 class LocalBaserowRowsDeletedNodeTriggerType(AutomationNodeTriggerType):
     type = "rows_deleted"
     model_class = LocalBaserowRowsDeletedTriggerNode
-    service_type = LocalBaserowRowsDeletedTriggerServiceType.type
+    service_type = LocalBaserowRowsDeletedServiceType.type
+
+
+class AutomationNodeImmediateTriggerTypeMixin:
+    # On a workflow test run, this node type will be immediately dispatched,
+    # it does not wait for an initial internal or external event to occur.
+    immediate_dispatch = True
+
+    def dispatch(
+        self,
+        automation_node: AutomationNode,
+        dispatch_context: AutomationDispatchContext,
+    ) -> DispatchResult:
+        """
+        Immediate nodes are generally able to generate their own payload so unless
+        the context has an event payload, we directly try to generate one from
+        the service.
+        """
+
+        if dispatch_context.event_payload is not None:
+            return super().dispatch(automation_node, dispatch_context)
+
+        return ServiceHandler().dispatch_service(
+            automation_node.service.specific, dispatch_context
+        )
+
+
+class CorePeriodicTriggerNodeType(
+    AutomationNodeImmediateTriggerTypeMixin,
+    AutomationNodeTriggerType,
+):
+    type = "periodic"
+    model_class = CorePeriodicTriggerNode
+    service_type = CorePeriodicServiceType.type

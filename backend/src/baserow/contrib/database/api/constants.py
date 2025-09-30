@@ -48,6 +48,19 @@ EXCLUDE_COUNT_API_PARAM = OpenApiParameter(
         "number of results is slow."
     ),
 )
+INCLUDE_OPERATION_METADATA = OpenApiParameter(
+    name="include_metadata",
+    location=OpenApiParameter.QUERY,
+    type=OpenApiTypes.BOOL,
+    description=(
+        "if provided, this will include `metadata` key containing operation metadata"
+        " information in the response. Metadata will include a list of field ids, that"
+        " were changed during the operation. The list will be stored in"
+        " `update_field_ids` key in `metadata` object. Also, metadata object will"
+        " include `cascade_update` key with a list of rows updated in cascade, and"
+        " a list of field ids that were updated in cascade update."
+    ),
+)
 
 
 def get_filters_object_description(combine_filters=True, view_is_aggregating=False):

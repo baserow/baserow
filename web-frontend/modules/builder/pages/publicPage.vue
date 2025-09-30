@@ -481,20 +481,28 @@ export default {
     async isAuthenticated(newIsAuthenticated) {
       // When the user login or logout, we need to refetch the elements and actions
       // as they might have changed
-      await this.$store.dispatch('element/fetchPublished', {
-        builder: this.builder,
-        page: this.sharedPage,
-      })
-      await this.$store.dispatch('element/fetchPublished', {
-        builder: this.builder,
-        page: this.currentPage,
-      })
-      await this.$store.dispatch('builderWorkflowAction/fetchPublished', {
-        page: this.currentPage,
-      })
-      await this.$store.dispatch('builderWorkflowAction/fetchPublished', {
-        page: this.sharedPage,
-      })
+      await Promise.all([
+        this.$store.dispatch('dataSource/fetchPublished', {
+          page: this.sharedPage,
+        }),
+        this.$store.dispatch('dataSource/fetchPublished', {
+          page: this.currentPage,
+        }),
+        this.$store.dispatch('element/fetchPublished', {
+          builder: this.builder,
+          page: this.sharedPage,
+        }),
+        this.$store.dispatch('element/fetchPublished', {
+          builder: this.builder,
+          page: this.currentPage,
+        }),
+        this.$store.dispatch('builderWorkflowAction/fetchPublished', {
+          page: this.currentPage,
+        }),
+        this.$store.dispatch('builderWorkflowAction/fetchPublished', {
+          page: this.sharedPage,
+        }),
+      ])
 
       if (newIsAuthenticated) {
         // If the user has just logged in, we redirect him to the next page.

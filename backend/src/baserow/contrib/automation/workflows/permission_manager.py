@@ -30,7 +30,7 @@ class AutomationWorkflowPermissionManager(PermissionManagerType):
                 DeleteAutomationWorkflowOperationType.type,
                 UpdateAutomationWorkflowOperationType.type,
             ]:
-                if check.context.published:
+                if check.context.is_published:
                     result[check] = False
 
         return result

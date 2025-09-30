@@ -649,6 +649,12 @@ class GeneratedTableModel(HierarchicalModelMixin, models.Model):
     class Meta:
         abstract = True
 
+    def get_primary_field_value(self):
+        primary_field = self.get_primary_field()
+        if primary_field is None:
+            return
+        return getattr(self, primary_field.db_column, None)
+
 
 class GeneratedModelAppsProxy:
     """
@@ -876,6 +882,12 @@ class Table(
         default=True,
         null=True,
         help_text="Indicates whether the table has had the created_by column added.",
+    )
+    field_rules_validity_column_added = models.BooleanField(
+        db_default=False,
+        default=False,
+        null=True,
+        help_text="Indicates whether the table has had the field_rules_are_valid column added.",
     )
 
     class Meta:
@@ -1112,6 +1124,9 @@ class Table(
         if self.last_modified_by_column_added:
             self._add_last_modified_by(field_attrs, indexes)
 
+        if self.field_rules_validity_column_added:
+            self._add_field_rules_valid(field_attrs, indexes)
+
         attrs.update(**field_attrs)
 
         # Create the model class.
@@ -1161,6 +1176,13 @@ class Table(
             on_delete=models.DO_NOTHING,
             help_text="Stores information about the user that modified the row last.",
         )
+
+    def _add_field_rules_valid(self, field_attrs, indexes):
+        from baserow.contrib.database.field_rules.handlers import FieldRuleHandler
+
+        column = FieldRuleHandler.get_state_column()
+        field_attrs[FieldRuleHandler.STATE_COLUMN_NAME] = column
+        return field_attrs
 
     @baserow_trace(tracer)
     def _after_model_generation(self, attrs, model):

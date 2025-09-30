@@ -315,7 +315,35 @@
     "builderFileInputElement": "File input element",
     "builderFileInputElementContent": "The file input element allows you to add a field to your application pages for uploading files. Give your users the ability to store important documents or images.",
     "builderCustomCode": "Custom code for applications",
-    "builderCustomCodeContent": "You can add custom CSS/JavaScript code to further customize the look and behaviour of your application. For example, you can integrate external services like analytics or social media."
+    "builderCustomCodeContent": "You can add custom CSS/JavaScript code to further customize the look and behaviour of your application. For example, you can integrate external services like analytics or social media.",
+    "assistant": "AI Assistant",
+    "assistantContent": "Boost your productivity with AI. Use natural language to create, analyze, and visualize your data directly within Baserow.",
+    "dateDependency": "Date dependency",
+    "dateDependencyContent": "You can define a dependency between two dates and a duration as start/end date and duration. With date dependency, if one value change, other values will be adjusted accordingly."
+  },
+  "assistantSidebarItem": {
+    "title": "AI Assistant"
+  },
+  "assistantPanel": {
+    "title": "AI Assistant",
+    "close": "Close AI Assistant",
+    "history": "Chat History",
+    "back": "Back"
+  },
+  "assistantWelcomeMessage": {
+    "greet": "Hey {name}",
+    "question": "how can I help?",
+    "subtitle": "I'm here to support you in handling your data."
+  },
+  "assistantInputMessage": {
+    "statusWaiting": "Assistant is ready to help",
+    "statusRunning": "Running...",
+    "placeholder": "Ask me anything...",
+    "send": "Send message"
+  },
+  "assistantChatHistoryContext": {
+    "empty": "No chat history available",
+    "loading": "Loading chat history..."
   },
   "chatwootSupportSidebarWorkspace": {
     "directSupport": "Direct support"
@@ -600,5 +628,27 @@
   },
   "enterpriseTwoWaySyncStrategyType": {
     "realtimePushDescription": "Allows editing the cell values directly in Baserow, and pushes it in real-time to the data sync source. Note that the changes are not pulled in real-time because they rely on the (periodic) sync action to complete. It's highly recommended to create backups of the PostgreSQL database to avoid accidental changes."
+  },
+  "dateDependencyModal": {
+    "errorTitle": "Date dependency",
+    "dependencyFieldTooltip": "Configure date dependencies",
+    "dependencyFieldTooltipError": "A field rule contains an error",
+    "contextMenuItemLabel": "Configure date dependencies",
+    "title": "Date dependency for {tableName}",
+    "description": "Specify which rows depend on others. When a row is rescheduled, its dependent rows are automatically adjusted.",
+    "enableDateDependency": "Enable date dependencies for Projects",
+    "startDateFieldLabel": "Start date",
+    "endDateFieldLabel": "End date",
+    "durationFieldLabel": "Duration",
+    "durationFieldHint": "This field must use the “d h” format.",
+    "dependencyLinkrowFieldLabel": "Predecessors",
+    "dependencyLinkrowFieldHint": "Use a Link to table field to connect a row to its predecessors.",
+    "dependencyBufferTypeLabel": "Rescheduling logic",
+    "durationBufferLabel": "Time buffer",
+    "dependencyConnectionTypeLabel": "Type",
+    "advancedSettingsLabel": "Advanced settings",
+    "includeWeekendsLabel": "Include weekends when calculating durations",
+    "dependencyFieldForReaderTooltip": "This field is included in date dependency field rule",
+    "fieldInvalidTitle": "Date dependency field error"
   }
 }

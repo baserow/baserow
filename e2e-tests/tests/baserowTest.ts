@@ -26,6 +26,11 @@ export const test = base.extend<BaserowFixtures>({
     const workspacePage = new WorkspacePage(page, user, workspace);
     await workspacePage.authenticate();
 
+    await page.evaluate(() => {
+      // Prevent the AI panel to automatically open in all tests
+      localStorage.setItem("baserow.rightSidebarOpen", "false");
+    });
+
     // Use the fixture value in the test.
     await use(workspacePage);
 
@@ -57,7 +62,11 @@ export const test = base.extend<BaserowFixtures>({
       "Default workflow",
       automation
     );
-    const automationWorkflowPage = new AutomationWorkflowPage(page, automation, automationWorkflow);
+    const automationWorkflowPage = new AutomationWorkflowPage(
+      page,
+      automation,
+      automationWorkflow
+    );
 
     await use(automationWorkflowPage);
   },

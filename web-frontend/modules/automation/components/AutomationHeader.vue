@@ -45,7 +45,7 @@
           }}</Badge>
         </template>
         <template v-else>
-          <Badge v-if="workflow?.disabled" color="red" rounded size="small">{{
+          <Badge v-if="isDisabled" color="red" rounded size="small">{{
             $t('automationHeader.switchLabelDisabled')
           }}</Badge>
           <Badge v-else-if="isPaused" color="red" rounded size="small">{{
@@ -58,7 +58,7 @@
         <SwitchInput
           small
           :value="statusSwitch"
-          :disabled="workflow?.disabled || !publishedOn"
+          :disabled="isDisabled || !publishedOn"
           @input="toggleStatusSwitch"
         ></SwitchInput>
       </span>
@@ -98,6 +98,7 @@ import { defineComponent, ref, computed } from 'vue'
 import { useStore, inject, useContext } from '@nuxtjs/composition-api'
 import { HistoryEditorSidePanelType } from '@baserow/modules/automation/editorSidePanelTypes'
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import { WORKFLOW_STATES } from '@baserow/modules/automation/components/enums'
 
 export default defineComponent({
   name: 'AutomationHeader',
@@ -161,11 +162,17 @@ export default defineComponent({
     })
 
     const statusSwitch = computed(() => {
-      return (publishedOn.value && !workflow.value?.paused) || false
+      return workflow.value?.state === WORKFLOW_STATES.LIVE
     })
 
     const isPaused = computed(() => {
-      return publishedOn.value && workflow.value?.paused
+      return (
+        publishedOn.value && workflow.value?.state === WORKFLOW_STATES.PAUSED
+      )
+    })
+
+    const isDisabled = computed(() => {
+      return workflow.value?.state === WORKFLOW_STATES.DISABLED
     })
 
     const activeSidePanel = computed(() => {
@@ -184,19 +191,20 @@ export default defineComponent({
     }
 
     const toggleStatusSwitch = async () => {
-      const oldValue = workflow.value.paused
-      workflow.value.paused = !oldValue
+      const newValue =
+        workflow.value.state === WORKFLOW_STATES.PAUSED
+          ? WORKFLOW_STATES.LIVE
+          : WORKFLOW_STATES.PAUSED
 
       try {
         await store.dispatch('automationWorkflow/update', {
           automation: props.automation,
           workflow: workflow.value,
           values: {
-            paused: workflow.value.paused,
+            state: newValue,
           },
         })
       } catch (error) {
-        workflow.value.paused = oldValue
         notifyIf(error, 'automationWorkflow')
       }
     }
@@ -220,18 +228,11 @@ export default defineComponent({
     const publishWorkflow = async () => {
       isPublishing.value = true
 
-      const originalPaused = workflow.value.paused
-      const originalDisabled = workflow.value.disabled
-
       try {
-        workflow.value.paused = false
-        workflow.value.disabled = false
         await store.dispatch('automationWorkflow/publishWorkflow', {
           workflow: workflow.value,
         })
       } catch (error) {
-        workflow.value.paused = originalPaused
-        workflow.value.disabled = originalDisabled
         notifyIf(error, 'automationWorkflow')
       }
       isPublishing.value = false
@@ -251,6 +252,7 @@ export default defineComponent({
       publishedOn,
       isPublishing,
       isPaused,
+      isDisabled,
       selectedWorkflow,
       workflow,
       activeSidePanel,

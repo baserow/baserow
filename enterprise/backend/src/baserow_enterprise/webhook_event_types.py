@@ -118,12 +118,9 @@ class RowsEnterViewEventType(EnterpriseWebhookEventType):
 
         return payload
 
-    def after_create(self, webhook_event):
-        views = webhook_event.views.all()
-        if views:
-            ViewSubscriptionHandler.subscribe_to_views(webhook_event, views)
-
     def after_update(self, webhook_event):
+        # This is called also during webhook creation, when setting the
+        # webhook_event_config
         ViewSubscriptionHandler.unsubscribe_from_views(webhook_event)
         views = webhook_event.views.all()
         if views:

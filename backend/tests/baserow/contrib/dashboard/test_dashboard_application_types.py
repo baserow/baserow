@@ -121,6 +121,7 @@ def test_dashboard_export_serialized_with_widgets(data_fixture):
                     "table_id": None,
                     "type": "local_baserow_aggregate_rows",
                     "view_id": None,
+                    "sample_data": None,
                 },
             },
             {
@@ -138,6 +139,7 @@ def test_dashboard_export_serialized_with_widgets(data_fixture):
                     "table_id": table.id,
                     "type": "local_baserow_aggregate_rows",
                     "view_id": view.id,
+                    "sample_data": None,
                 },
             },
         ],

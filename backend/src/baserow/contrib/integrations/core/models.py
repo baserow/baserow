@@ -1,5 +1,6 @@
 import uuid
 
+from django.contrib.auth import get_user_model
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
@@ -7,7 +8,9 @@ from baserow.core.formula.field import FormulaField
 from baserow.core.integrations.models import Integration
 from baserow.core.services.models import Service
 
-from .constants import BODY_TYPE, HTTP_METHOD
+from .constants import BODY_TYPE, HTTP_METHOD, PERIODIC_INTERVAL_CHOICES
+
+User = get_user_model()
 
 
 class SMTPIntegration(Integration):
@@ -73,12 +76,42 @@ class CoreHTTPRequestService(Service):
         ],
         help_text="The timeout for the HTTP request in seconds.",
     )
-    response_sample = models.JSONField(
-        default=None,
-        blank=True,
-        null=True,
-        help_text="Response got from test.",
+
+
+class HTTPFormData(models.Model):
+    """
+    Model to store Form data.
+    """
+
+    service = models.ForeignKey(
+        CoreHTTPRequestService, on_delete=models.CASCADE, related_name="form_data"
     )
+    key = models.CharField(max_length=255, help_text="The form data key.")
+    value = FormulaField(blank=True, help_text="The form data value.")
+
+
+class HTTPHeader(models.Model):
+    """
+    Model to store HTTP headers.
+    """
+
+    service = models.ForeignKey(
+        CoreHTTPRequestService, on_delete=models.CASCADE, related_name="headers"
+    )
+    key = models.CharField(max_length=255, help_text="The header key.")
+    value = FormulaField(blank=True, help_text="The header value.")
+
+
+class HTTPQueryParam(models.Model):
+    """
+    Model to store HTTP query parameters.
+    """
+
+    service = models.ForeignKey(
+        CoreHTTPRequestService, on_delete=models.CASCADE, related_name="query_params"
+    )
+    key = models.CharField(max_length=255, help_text="The query parameter key.")
+    value = FormulaField(blank=True, help_text="The query parameter value.")
 
 
 class CoreSMTPEmailService(Service):
@@ -154,37 +187,36 @@ class CoreRouterServiceEdge(models.Model):
         ordering = ("order",)
 
 
-class HTTPFormData(models.Model):
-    """
-    Model to store Form data.
-    """
-
-    service = models.ForeignKey(
-        CoreHTTPRequestService, on_delete=models.CASCADE, related_name="form_data"
+class CorePeriodicService(Service):
+    last_periodic_run = models.DateTimeField(
+        null=True,
+        help_text="Timestamp when the service was last executed periodically. This "
+        "value is used to calculate when it should be run.",
     )
-    key = models.CharField(max_length=255, help_text="The form data key.")
-    value = FormulaField(blank=True, help_text="The form data value.")
-
-
-class HTTPHeader(models.Model):
-    """
-    Model to store HTTP headers.
-    """
-
-    service = models.ForeignKey(
-        CoreHTTPRequestService, on_delete=models.CASCADE, related_name="headers"
+    interval = models.CharField(
+        max_length=10,
+        choices=PERIODIC_INTERVAL_CHOICES,
+        null=True,
+        default=None,
+        help_text="The interval frequency for running the service.",
     )
-    key = models.CharField(max_length=255, help_text="The header key.")
-    value = FormulaField(blank=True, help_text="The header value.")
-
-
-class HTTPQueryParam(models.Model):
-    """
-    Model to store HTTP query parameters.
-    """
-
-    service = models.ForeignKey(
-        CoreHTTPRequestService, on_delete=models.CASCADE, related_name="query_params"
+    minute = models.PositiveSmallIntegerField(
+        default=0,
+        help_text="The minute of the hour when to run (0-59). Required for hourly, "
+        "daily, weekly, monthly intervals.",
     )
-    key = models.CharField(max_length=255, help_text="The query parameter key.")
-    value = FormulaField(blank=True, help_text="The query parameter value.")
+    hour = models.PositiveSmallIntegerField(
+        default=0,
+        help_text="The hour of the day when to run (0-23). Required for daily, "
+        "weekly, monthly intervals.",
+    )
+    day_of_week = models.PositiveSmallIntegerField(
+        default=0,
+        help_text="The day of the week when to run (0=Monday, 6=Sunday). Required "
+        "for weekly intervals.",
+    )
+    day_of_month = models.PositiveSmallIntegerField(
+        default=1,
+        help_text="The day of the month when to run (1-31). Required for monthly "
+        "intervals.",
+    )
