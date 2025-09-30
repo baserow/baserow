@@ -313,17 +313,19 @@ class ReplaceAutomationNodeTrashOperationType(TrashOperationType):
 
     type = "replace_automation_node"
 
-    @property
-    def managed(self) -> bool:
-        return True
+    """
+    This trash operation type is 'managed'. We don't want users to interact with
+    it in the workspace trash, the system is responsible for it.
+    """
+    managed = True
 
-    @property
-    def send_post_restore_created_signal(self) -> bool:
-        return False
-
-    @property
-    def send_post_trash_deleted_signal(self) -> bool:
-        return False
+    """
+    In this trash operation type we don't want to send any created or deleted signals.
+    We need to be precise with our realtime signals, so at a strategic time we use
+    the `replace` signal instead.
+    """
+    send_post_restore_created_signal = False
+    send_post_trash_deleted_signal = False
 
 
 automation_node_type_registry = AutomationNodeTypeRegistry()

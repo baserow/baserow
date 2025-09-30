@@ -310,9 +310,9 @@ def mutable_element_type_registry():
 def stub_trash_operation_type(data_fixture, mutable_trash_operation_type_registry):
     @contextlib.contextmanager
     def stubbed(
-        managed=False,
-        send_deleted_signal=True,
-        send_created_signal=True,
+        type_managed=False,
+        type_send_deleted_signal=True,
+        type_send_created_signal=True,
     ):
         from baserow.core.trash.registries import (
             TrashOperationType,
@@ -321,18 +321,9 @@ def stub_trash_operation_type(data_fixture, mutable_trash_operation_type_registr
 
         class StubbedTrashOperationType(TrashOperationType):
             type = "stubbed"
-
-            @property
-            def managed(self) -> bool:
-                return managed
-
-            @property
-            def send_post_trash_deleted_signal(self) -> bool:
-                return send_deleted_signal
-
-            @property
-            def send_post_restore_created_signal(self) -> bool:
-                return send_created_signal
+            managed = type_managed
+            send_post_trash_deleted_signal = type_send_deleted_signal
+            send_post_restore_created_signal = type_send_created_signal
 
         operation_type = StubbedTrashOperationType()
         mutable_trash_operation_type_registry.registry[

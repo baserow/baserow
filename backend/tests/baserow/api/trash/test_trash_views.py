@@ -930,7 +930,7 @@ def test_restoring_managed_trash_entry_disallowed(
             trash_operation_type=operation_type.type,
         )
         assert trash_entry.managed
-        assert trash_entry.operation_type == operation_type.type
+        assert trash_entry.trash_operation_type == operation_type.type
 
     response = api_client.patch(
         reverse(
@@ -972,7 +972,7 @@ def test_managed_trash_entries_excluded_from_contents(
             trash_operation_type=operation_type.type,
         )
         assert managed_trash_entry.managed
-        assert managed_trash_entry.operation_type == operation_type.type
+        assert managed_trash_entry.trash_operation_type == operation_type.type
 
     unmanaged_row = model.objects.create()
     unmanaged_trash_entry = TrashHandler.trash(user, workspace, database, unmanaged_row)

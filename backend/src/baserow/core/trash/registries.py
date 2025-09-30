@@ -176,32 +176,23 @@ class TrashOperationType(Instance, ABC):
     trash entry, giving it additional context when trashing and restoring items.
     """
 
-    @property
-    @abstractmethod
-    def managed(self) -> bool:
-        """
-        Returns whether this operation type is managed by the system, or the user.
-        A system-managed trash operation is one that the user cannot interact with.
-        A user will trash a record, and be unable to restore it from the workspace
-        trash.
-        :return: True if the operation type is managed by the system, False otherwise.
-        """
+    """
+    Whether this operation type is managed by the system, or the user.
+    A system-managed trash operation is one that the user cannot interact with.
+    A user will trash a record, and be unable to restore it from the workspace
+    trash.
+    """
+    managed: bool = False
 
-    @property
-    @abstractmethod
-    def send_post_trash_deleted_signal(self) -> bool:
-        """
-        Returns whether a "deleted" signal should be sent after the
-        trash item is deleted.
-        """
+    """
+    Whether a "deleted" signal should be sent after the trash item is deleted.
+    """
+    send_post_trash_deleted_signal: bool = True
 
-    @property
-    @abstractmethod
-    def send_post_restore_created_signal(self) -> bool:
-        """
-        Returns whether a "created" signal should be sent after the
-        trash item is restored.
-        """
+    """
+    Whether a "created" signal should be sent after the trash item is restored.
+    """
+    send_post_restore_created_signal: bool = True
 
 
 class DefaultTrashOperationType(TrashOperationType):
@@ -212,18 +203,6 @@ class DefaultTrashOperationType(TrashOperationType):
     """
 
     type = "default"
-
-    @property
-    def managed(self) -> bool:
-        return False
-
-    @property
-    def send_post_trash_deleted_signal(self) -> bool:
-        return True
-
-    @property
-    def send_post_restore_created_signal(self) -> bool:
-        return True
 
 
 class TrashableItemTypeRegistry(ModelRegistryMixin, Registry):

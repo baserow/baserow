@@ -578,8 +578,8 @@ class TrashEntry(models.Model):
     # restored with a specific state.
     additional_restoration_data = models.JSONField(default=dict, null=True)
 
-    # Optionally store the operation type that was used to trash this item.
-    operation_type = models.CharField(
+    # Optionally store the trash operation type that was used to trash this item.
+    trash_operation_type = models.CharField(
         max_length=125,
         null=True,
         blank=True,
@@ -619,7 +619,7 @@ class TrashEntry(models.Model):
 
     def get_operation_type(self) -> TrashOperationType:
         return trash_operation_type_registry.get(
-            self.operation_type or DefaultTrashOperationType.type
+            self.trash_operation_type or DefaultTrashOperationType.type
         )
 
 

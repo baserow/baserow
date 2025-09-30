@@ -11,7 +11,7 @@ class Migration(migrations.Migration):
     operations = [
         migrations.AddField(
             model_name="trashentry",
-            name="operation_type",
+            name="trash_operation_type",
             field=models.CharField(
                 blank=True,
                 help_text="Optionally provide the trash operation type associated with this trash entry. The trash operation type gives additional context about how this trash entry was created, and if it has specific restoration requirements.",

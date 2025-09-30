@@ -115,7 +115,7 @@ class TrashHandler(metaclass=baserow_trace_methods(tracer)):
                         additional_restoration_data=trash_item_type.get_additional_restoration_data(
                             trash_item
                         ),
-                        operation_type=trash_operation_type.type
+                        trash_operation_type=trash_operation_type.type
                         if trash_operation_type
                         else None,
                     )
@@ -509,7 +509,7 @@ class TrashHandler(metaclass=baserow_trace_methods(tracer)):
                 if tot.managed
             ]
             trash_contents = trash_contents.exclude(
-                operation_type__in=managed_trash_operation_types
+                trash_operation_type__in=managed_trash_operation_types
             )
 
         if application:
