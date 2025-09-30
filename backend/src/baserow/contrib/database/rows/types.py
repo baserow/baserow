@@ -1,9 +1,11 @@
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, NamedTuple, NewType, TypedDict, TypeVar
 
 from django.db.models import QuerySet
 
+from baserow.contrib.database.field_rules.collector import CascadeUpdatedRows
 from baserow.contrib.database.table.models import GeneratedTableModel
 from baserow.core.action.registries import ActionType
 from baserow.core.action.signals import ActionCommandType
@@ -37,13 +39,19 @@ class UpdatedRowsData(NamedTuple):
     original_rows_values_by_id: dict[RowId, RowValues]
     updated_fields_metadata_by_row_id: dict[RowId, FieldsMetadata]
     errors: dict[int, dict[str, Any]] | None = None
-    updated_field_ids: list[int] | None = None
+    updated_field_ids: Iterable[int] | None = None
+
+    # use cascade update fields to propagate rows that weren't requested
+    # by the user to be updated, but were updated by various operations in the
+    # code (i.e. field rules).
+    cascade_update: CascadeUpdatedRows | None = None
 
 
 class CreatedRowsData(NamedTuple):
     created_rows: list[GeneratedTableModel]
     errors: dict[int, dict[str, Any]] | None = None
     updated_field_ids: list[int] | None = None
+    cascade_update: CascadeUpdatedRows | None = None
 
 
 FieldName = NewType("FieldName", str)

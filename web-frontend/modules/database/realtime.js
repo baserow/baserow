@@ -193,7 +193,11 @@ export const registerRealtimeEvents = (realtime) => {
     for (const viewType of Object.values(app.$registry.getAll('view'))) {
       for (let i = 0; i < data.rows.length; i++) {
         const row = data.rows[i]
-        const rowBeforeUpdate = data.rows_before_update[i]
+
+        // A row may be updated by the backend, while it wasn't requested by the user,
+        // causing rows before update and rows updated sets asymmetry. In that case,
+        // we just want a skeleton of a row.
+        const rowBeforeUpdate = data.rows_before_update[i] || { id: row.id }
 
         await viewType.rowUpdated(
           context,

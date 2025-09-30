@@ -10,7 +10,7 @@
           <strong v-if="sender">{{ sender }}</strong>
           <strong v-else
             ><s>{{
-              $t('collaboratorAddedToRowNotification.deletedUser')
+              $t('collaboratorAddedToRowNotification.unknownUser')
             }}</s></strong
           >
         </template>

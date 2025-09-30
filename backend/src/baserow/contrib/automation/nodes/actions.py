@@ -431,6 +431,7 @@ class ReplaceAutomationNodeActionType(UndoableActionType):
         params: Params,
         action_to_undo: Action,
     ):
+        # Restore the node to its original type.
         TrashHandler.restore_item(
             user,
             AutomationNodeTrashableItemType.type,
@@ -445,6 +446,7 @@ class ReplaceAutomationNodeActionType(UndoableActionType):
         params: Params,
         action_to_redo: Action,
     ):
+        # Restore the node to its new type again.
         TrashHandler.restore_item(
             user,
             AutomationNodeTrashableItemType.type,

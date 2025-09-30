@@ -35,11 +35,12 @@ export class DataSourceDataProviderType extends DataProviderType {
       const dataSource = this.app.store.getters[
         'dataSource/getPageDataSourceById'
       ](page, id)
+      const dataSourceName = dataSource?.name || `Data Source ${id}`
       handleDispatchError(
         fakeError,
         this.app,
         this.app.i18n.t('builderToast.errorDataSourceDispatch', {
-          name: dataSource.name,
+          name: dataSourceName,
         })
       )
     })

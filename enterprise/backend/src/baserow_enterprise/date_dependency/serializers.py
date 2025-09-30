@@ -6,7 +6,11 @@ from rest_framework.exceptions import ValidationError
 
 from baserow.contrib.database.fields.exceptions import FieldDoesNotExist
 from baserow.contrib.database.fields.handler import FieldHandler
-from baserow.contrib.database.fields.models import DateField, DurationField
+from baserow.contrib.database.fields.models import (
+    DateField,
+    DurationField,
+    LinkRowField,
+)
 from baserow.contrib.database.fields.registries import field_type_registry
 
 
@@ -22,6 +26,12 @@ def _valid_date_field(field: DateField):
     return field
 
 
+def _valid_linkrow_field(field: LinkRowField):
+    if not field.is_self_referencing:
+        raise ValidationError("Link row field should be self referencing")
+    return field
+
+
 class RequestDateDependencySerializer:
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -31,8 +41,10 @@ class RequestDateDependencySerializer:
             self.fields["duration_field_id"].required = True
 
     def _validate_field(
-        self, value: int, expected_type: str, *extra_checks: Callable
+        self, value: int | None, expected_type: str, *extra_checks: Callable
     ) -> int:
+        if value is None:
+            return value
         table = self.context["table"]
         try:
             field_cls = field_type_registry.get(expected_type).model_class
@@ -71,6 +83,9 @@ class RequestDateDependencySerializer:
 
     def validate_duration_field_id(self, value):
         return self._validate_field(value, "duration", _valid_duration_format)
+
+    def validate_dependency_linkrow_field_id(self, value):
+        return self._validate_field(value, "link_row", _valid_linkrow_field)
 
     def validate(self, attrs):
         error_dict = defaultdict(list)

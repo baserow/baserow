@@ -1,7 +1,7 @@
 const FF_ENABLE_ALL = '*'
 export const FF_AUTOMATION = 'automation'
 export const FF_ASSISTANT = 'assistant'
-export const FF_DATE_DEPENDENCY_V2 = 'date_dependency_v2'
+export const FF_DATE_DEPENDENCY = 'date_dependency'
 
 /**
  * A comma separated list of feature flags used to enable in-progress or not ready

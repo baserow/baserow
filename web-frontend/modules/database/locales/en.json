@@ -931,7 +931,7 @@
   },
   "collaboratorAddedToRowNotification": {
     "title": "{sender} assigned you to {fieldName} in row {rowId} in {tableName}",
-    "deletedUser": "A deleted user"
+    "unknownUser": "An unknown user"
   },
   "formSubmittedNotification": {
     "title": "{formName} has been submitted in table {tableName}:",

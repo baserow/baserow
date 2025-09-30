@@ -426,7 +426,9 @@ class TrashHandler(metaclass=baserow_trace_methods(tracer)):
 
     @staticmethod
     def get_trash_contents(
-        user: User, workspace_id: int, application_id: Optional[int]
+        user: User,
+        workspace_id: int,
+        application_id: Optional[int],
     ) -> QuerySet:
         """
         Looks up the trash contents for a particular workspace optionally filtered by
@@ -435,10 +437,10 @@ class TrashHandler(metaclass=baserow_trace_methods(tracer)):
         :param workspace_id: The workspace to lookup trash contents inside of.
         :param application_id: The optional application to filter down the trash
             contents to only this workspace.
-        :raises WorkspaceDoesNotExist: If the workspace_id is for an non
-            existent workspace.
-        :raises ApplicationDoesNotExist: If the application_id is for an non
-            existent application.
+        :raises WorkspaceDoesNotExist: If the workspace_id is for a non-existent
+            workspace.
+        :raises ApplicationDoesNotExist: If the application_id is for a non-existent
+            application.
         :raises ApplicationNotInWorkspace: If the application_id is for an application
             not in the requested workspace.
         :raises UserNotInWorkspace: If the user does not belong to the workspace.

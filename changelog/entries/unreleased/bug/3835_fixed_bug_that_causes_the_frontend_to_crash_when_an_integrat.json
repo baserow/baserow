@@ -1,0 +1,8 @@
+{
+    "type": "bug",
+    "message": "Fixed bug that causes the frontend to crash when an Integration is deleted.",
+    "domain": "builder",
+    "issue_number": 3835,
+    "bullet_points": [],
+    "created_at": "2025-09-23"
+}

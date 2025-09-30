@@ -137,7 +137,7 @@ class DashboardDataSourceService:
             context=dashboard,
         )
 
-        if service_type.dispatch_type != DispatchTypes.DISPATCH_DATA_SOURCE:
+        if not service_type.can_be_dispatched_as(DispatchTypes.DATA):
             raise InvalidServiceTypeDispatchSource()
 
         prepared_values = service_type.prepare_values(kwargs, user)
@@ -196,7 +196,7 @@ class DashboardDataSourceService:
             context=data_source,
         )
 
-        if service_type.dispatch_type != DispatchTypes.DISPATCH_DATA_SOURCE:
+        if not service_type.can_be_dispatched_as(DispatchTypes.DATA):
             raise InvalidServiceTypeDispatchSource()
 
         if "integration_id" in kwargs:

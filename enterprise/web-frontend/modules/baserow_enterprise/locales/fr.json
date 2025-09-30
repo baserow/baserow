@@ -303,7 +303,7 @@
         "supportContent": "Obtenez de l'aide quand vous en avez besoin. Contactez l'équipe de Baserow directement depuis la plateforme.",
         "fieldLevelPermissions": "Autorisations par colonne",
         "ssoContent": "Permet des connexions sécurisées et transparentes avec SAML, Google, Facebook, GitHub, GitLab ou OpenID Connect. Supporte plusieurs fournisseurs à la fois. Notez que Baserow, en tant qu'outil, et le système d'authentification du constructeur d'applications prennent tous deux en charge le SSO.",
-        "dataSyncContent": "Maintenez automatiquement les tables à jour en les synchronisant avec d'autres tables Baserow ou des sources externes comme Jira, GitHub, GitLab ou HubSpot.",
+        "dataSyncContent": "Maintenez automatiquement les tables à jour en les synchronisant avec d'autres tables Baserow ou des sources externes telles que Jira, GitHub, GitLab ou HubSpot. Il permet également une synchronisation périodique et une synchronisation bidirectionnelle des données pour les types de synchronisation de données pris en charge.",
         "fieldLevelPermissionsContent": "Contrôlez qui peut modifier des champs spécifiques d'une table. Définissez des autorisations pour les Éditeurs, les Architectes, les Administrateurs, ou désactivez complètement les modifications des valeurs de ces champs.",
         "advancedWebhooksContent": "Déclencher des webhooks lorsqu'une ligne entre dans une vue spécifique - idéal pour l'automatisation des scénarios basés sur des conditions complexes.",
         "builderBranding": "Branding de l'application",
@@ -311,7 +311,11 @@
         "builderFileInputElement": "Champs fichier",
         "builderFileInputElementContent": "L'élément d'entrée de fichier vous permet d'ajouter un champ à vos pages d'application pour le téléchargement de fichiers. Donnez à vos utilisateurs la possibilité de stocker des documents ou des images importants.",
         "builderCustomCode": "Code personnalisé pour les applications",
-        "builderCustomCodeContent": "Vous pouvez ajouter du code CSS/JavaScript personnalisé pour personnaliser davantage l'aspect et le comportement de votre application. Par exemple, vous pouvez intégrer des services externes tels que l'analyse d'audience ou les réseaux sociaux."
+        "builderCustomCodeContent": "Vous pouvez ajouter du code CSS/JavaScript personnalisé pour personnaliser davantage l'aspect et le comportement de votre application. Par exemple, vous pouvez intégrer des services externes tels que l'analyse d'audience ou les réseaux sociaux.",
+        "assistant": "Assistant IA",
+        "assistantContent": "Augmentez votre productivité grâce à l'IA. Utilisez le langage naturel pour créer, analyser et visualiser vos données directement dans Baserow.",
+        "dateDependency": "Dépendance de date",
+        "dateDependencyContent": "Vous pouvez définir une dépendance entre deux dates et une durée sous la forme d'une date de début/fin et d'une durée. Avec la dépendance de date, si une valeur change, les autres valeurs seront ajustées en conséquence."
     },
     "chatwootSupportSidebarWorkspace": {
         "directSupport": "Assistance"
@@ -620,5 +624,51 @@
     },
     "enterpriseTwoWaySyncStrategyType": {
         "realtimePushDescription": "Permet de modifier les valeurs des cellules directement dans Baserow et de les envoyer en temps réel à la source de synchronisation des données. Notez que les modifications ne sont pas récupérées en temps réel, car elles dépendent de l'action de synchronisation (périodique) pour être effectuées. Il est fortement recommandé de créer des sauvegardes de la base de données PostgreSQL afin d'éviter toute modification accidentelle."
+    },
+    "assistantSidebarItem": {
+        "title": "Assistant IA"
+    },
+    "assistantPanel": {
+        "title": "Assistant IA",
+        "close": "Fermer l'assistant IA",
+        "history": "Historique de conversation",
+        "back": "Retour"
+    },
+    "assistantWelcomeMessage": {
+        "greet": "Bonjour {name}",
+        "question": "comment puis-je aider ?",
+        "subtitle": "Je suis là pour vous aider à gérer vos données."
+    },
+    "assistantInputMessage": {
+        "statusWaiting": "L'assistant est prêt à vous aider",
+        "statusRunning": "En cours...",
+        "placeholder": "Demandez-moi ce que vous voulez...",
+        "send": "Envoyer"
+    },
+    "assistantChatHistoryContext": {
+        "empty": "Aucun historique de conversation",
+        "loading": "Chargement de l'historique de conversation..."
+    },
+    "dateDependencyModal": {
+        "errorTitle": "Dépendance de date",
+        "dependencyFieldTooltip": "Configurer les dépendances de date",
+        "dependencyFieldTooltipError": "Une règle de champ contient une erreur",
+        "contextMenuItemLabel": "Configurer les dépendances de date",
+        "title": "Dépendance de date pour {tableName}",
+        "description": "Spécifiez les lignes qui dépendent des autres. Lorsqu'une ligne est replanifiée, les lignes qui en dépendent sont automatiquement adaptées.",
+        "enableDateDependency": "Activer les dépendances de date",
+        "startDateFieldLabel": "Date de début",
+        "endDateFieldLabel": "Date de fin",
+        "durationFieldLabel": "Durée",
+        "durationFieldHint": "Ce champ doit utiliser le format \"d h\".",
+        "dependencyLinkrowFieldLabel": "Prédécesseurs",
+        "dependencyLinkrowFieldHint": "Utilisez le champ Lien vers une table pour relier une ligne à ses prédécesseurs.",
+        "dependencyBufferTypeLabel": "Logique de replanification",
+        "durationBufferLabel": "Tampon temporel",
+        "dependencyConnectionTypeLabel": "Type",
+        "advancedSettingsLabel": "Paramètres avancés",
+        "includeWeekendsLabel": "Inclure les week-ends dans le calcul des durées",
+        "dependencyFieldForReaderTooltip": "Ce champ est inclus dans la règle de dépendance de date",
+        "fieldInvalidTitle": "Erreur dans la dépendance de date"
     }
 }

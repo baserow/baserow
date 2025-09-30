@@ -62,7 +62,7 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
     integration_type = LocalBaserowIntegrationType.type
     type = "local_baserow_grouped_aggregate_rows"
     model_class = LocalBaserowGroupedAggregateRows
-    dispatch_type = DispatchTypes.DISPATCH_DATA_SOURCE
+    dispatch_types = [DispatchTypes.DATA]
     serializer_mixins = LocalBaserowTableServiceFilterableMixin.mixin_serializer_mixins
 
     def get_schema_name(self, service: LocalBaserowGroupedAggregateRows) -> str:

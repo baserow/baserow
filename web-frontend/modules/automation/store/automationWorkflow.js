@@ -7,6 +7,10 @@ import { AUTOMATION_ACTION_SCOPES } from '@baserow/modules/automation/utils/undo
 export function populateAutomationWorkflow(workflow) {
   return {
     ...workflow,
+    nodes: [],
+    orderedNodes: [],
+    nodeMap: {},
+    selectedNodeId: null,
     _: {
       selected: false,
     },

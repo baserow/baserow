@@ -625,7 +625,7 @@ def test_get_view_filter_group(api_client, data_fixture):
     response = api_client.get(
         reverse(
             url_name,
-            kwargs={"filter_group_id": filter_group_2.id},
+            kwargs={"view_filter_group_id": filter_group_2.id},
         ),
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
@@ -635,7 +635,7 @@ def test_get_view_filter_group(api_client, data_fixture):
     response = api_client.get(
         reverse(
             url_name,
-            kwargs={"filter_group_id": 99999},
+            kwargs={"view_filter_group_id": 99999},
         ),
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
@@ -645,7 +645,7 @@ def test_get_view_filter_group(api_client, data_fixture):
     response = api_client.get(
         reverse(
             url_name,
-            kwargs={"filter_group_id": filter_group_1.id},
+            kwargs={"view_filter_group_id": filter_group_1.id},
         ),
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
@@ -669,7 +669,7 @@ def test_get_view_filter_group(api_client, data_fixture):
     response = api_client.get(
         reverse(
             url_name,
-            kwargs={"filter_group_id": filter_group_1.id},
+            kwargs={"view_filter_group_id": filter_group_1.id},
         ),
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
@@ -726,7 +726,7 @@ def test_view_filter_group_delete_all_nested_children(api_client, data_fixture):
     response = api_client.delete(
         reverse(
             "api:database:views:filter_group_item",
-            kwargs={"filter_group_id": parent_group.id},
+            kwargs={"view_filter_group_id": parent_group.id},
         ),
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
@@ -751,7 +751,7 @@ def test_update_view_filter_group(api_client, data_fixture):
     response = api_client.patch(
         reverse(
             "api:database:views:filter_group_item",
-            kwargs={"filter_group_id": filter_group_2.id},
+            kwargs={"view_filter_group_id": filter_group_2.id},
         ),
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
@@ -761,7 +761,8 @@ def test_update_view_filter_group(api_client, data_fixture):
 
     response = api_client.patch(
         reverse(
-            "api:database:views:filter_group_item", kwargs={"filter_group_id": 99999}
+            "api:database:views:filter_group_item",
+            kwargs={"view_filter_group_id": 99999},
         ),
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
@@ -772,7 +773,7 @@ def test_update_view_filter_group(api_client, data_fixture):
     response = api_client.patch(
         reverse(
             "api:database:views:filter_group_item",
-            kwargs={"filter_group_id": filter_group.id},
+            kwargs={"view_filter_group_id": filter_group.id},
         ),
         {"filter_type": "NOT EXISTING FILTER TYPE"},
         format="json",
@@ -789,7 +790,7 @@ def test_update_view_filter_group(api_client, data_fixture):
     response = api_client.patch(
         reverse(
             "api:database:views:filter_group_item",
-            kwargs={"filter_group_id": filter_group.id},
+            kwargs={"view_filter_group_id": filter_group.id},
         ),
         {"filter_type": "OR"},
         format="json",
@@ -814,7 +815,7 @@ def test_delete_view_filter_group(api_client, data_fixture):
     response = api_client.delete(
         reverse(
             "api:database:views:filter_group_item",
-            kwargs={"filter_group_id": filter_group_2.id},
+            kwargs={"view_filter_group_id": filter_group_2.id},
         ),
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
@@ -824,7 +825,8 @@ def test_delete_view_filter_group(api_client, data_fixture):
 
     response = api_client.delete(
         reverse(
-            "api:database:views:filter_group_item", kwargs={"filter_group_id": 99999}
+            "api:database:views:filter_group_item",
+            kwargs={"view_filter_group_id": 99999},
         ),
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
@@ -837,7 +839,7 @@ def test_delete_view_filter_group(api_client, data_fixture):
     response = api_client.delete(
         reverse(
             "api:database:views:filter_group_item",
-            kwargs={"filter_group_id": filter_group.id},
+            kwargs={"view_filter_group_id": filter_group.id},
         ),
         {"filter_type": "OR"},
         format="json",

@@ -1,7 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Custom code demos",
-    "icon": "",
+    "icon": "iconoir-code",
     "keywords": [
         "application",
         "builder",

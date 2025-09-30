@@ -54,9 +54,11 @@ INCLUDE_OPERATION_METADATA = OpenApiParameter(
     type=OpenApiTypes.BOOL,
     description=(
         "if provided, this will include `metadata` key containing operation metadata"
-        " information. At the moment, metadata will include a list of field ids, that"
+        " information in the response. Metadata will include a list of field ids, that"
         " were changed during the operation. The list will be stored in"
-        " `update_field_ids` key in `metadata` object."
+        " `update_field_ids` key in `metadata` object. Also, metadata object will"
+        " include `cascade_update` key with a list of rows updated in cascade, and"
+        " a list of field ids that were updated in cascade update."
     ),
 )
 

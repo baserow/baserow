@@ -2,16 +2,16 @@ import json
 import uuid
 from unittest.mock import MagicMock, patch
 
+from django.utils import timezone
+
 import pytest
 
 from baserow.contrib.automation.automation_dispatch_context import (
     AutomationDispatchContext,
 )
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
-from baserow.contrib.automation.nodes.node_types import AutomationNodeTriggerType
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.workflows.constants import WorkflowState
-from baserow.core.exceptions import InstanceTypeDoesNotExist
 from baserow.core.services.types import DispatchResult
 from baserow.core.utils import MirrorDict
 
@@ -126,33 +126,6 @@ def test_service_node_type_rows_created_prepare_values_without_instance(data_fix
     new_service = result["service"]
     assert isinstance(new_service, type(node.service))
     assert new_service.id != node.service.id
-
-
-def signal_trigger_node_types():
-    return [
-        node_type
-        for node_type in automation_node_type_registry.get_all()
-        if issubclass(node_type.__class__, AutomationNodeTriggerType)
-    ]
-
-
-@pytest.mark.parametrize("node_type", signal_trigger_node_types())
-def test_registering_signal_node_type_connects_to_signal(node_type):
-    try:
-        automation_node_type_registry.get(node_type.type)
-    except InstanceTypeDoesNotExist:
-        automation_node_type_registry.register(node_type)
-    service_type = node_type.get_service_type()
-    registered_handlers = [receiver[1]() for receiver in service_type.signal.receivers]
-    assert service_type.handler in registered_handlers
-
-
-@pytest.mark.parametrize("node_type", signal_trigger_node_types())
-def test_unregistering_signal_node_type_disconnects_from_signal(node_type):
-    automation_node_type_registry.unregister(node_type.type)
-    service_type = node_type.get_service_type()
-    registered_handlers = [receiver[1]() for receiver in service_type.signal.receivers]
-    assert service_type.handler not in registered_handlers
 
 
 @pytest.mark.django_db
@@ -313,6 +286,45 @@ def test_on_event_excludes_disabled_workflows(mock_run_workflow, data_fixture):
 
     node.get_type().on_event(service_queryset, event_payload, user=user)
     mock_run_workflow.assert_not_called()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "node_type",
+    [
+        node_type
+        for node_type in automation_node_type_registry.get_all()
+        if node_type.immediate_dispatch
+    ],
+)
+@patch("baserow.contrib.automation.nodes.registries.ServiceHandler.dispatch_service")
+def test_triggers_which_dispatch_immediately_on_test_run(
+    mock_dispatch_service, node_type, data_fixture
+):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(
+        user=user,
+        trigger_type=node_type,
+        allow_test_run_until=timezone.now() + timezone.timedelta(hours=1),
+    )
+    trigger = workflow.get_trigger()
+    from baserow.contrib.automation.workflows.signals import automation_workflow_updated
+
+    with patch("django.db.transaction.on_commit") as on_commit_mock:
+        # Immediately call the callback before the transaction is commit
+        on_commit_mock.side_effect = lambda callback: callback()
+        automation_workflow_updated.send(
+            None,
+            user=user,
+            workflow=workflow,
+        )
+    assert mock_dispatch_service
+
+    mock_dispatch_service.assert_called_once()
+    args = mock_dispatch_service.call_args[0]
+    assert args[0] == trigger.service.specific
+    dispatch_context = args[1]
+    assert dispatch_context.workflow == workflow
 
 
 @pytest.mark.django_db

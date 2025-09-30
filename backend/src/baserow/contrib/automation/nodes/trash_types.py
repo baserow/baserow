@@ -1,3 +1,5 @@
+from django.contrib.auth.models import AbstractUser
+
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.models import AutomationActionNode, AutomationNode
 from baserow.contrib.automation.nodes.operations import (
@@ -33,7 +35,7 @@ class AutomationNodeTrashableItemType(TrashableItemType):
     def trash(
         self,
         item_to_trash: AutomationActionNode,
-        requesting_user,
+        requesting_user: AbstractUser,
         trash_entry: TrashEntry,
     ):
         # Determine if this node has a node after it. If it does, we'll

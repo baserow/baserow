@@ -17,7 +17,14 @@
         "or": "ou",
         "and": "et",
         "optional": "Optionel",
-        "alpha": "Alpha"
+        "alpha": "Alpha",
+        "monday": "Lundi",
+        "tuesday": "Mardi",
+        "wednesday": "Mercredi",
+        "thursday": "Jeudi",
+        "friday": "Vendredi",
+        "saturday": "Samedi",
+        "sunday": "Dimanche"
     },
     "action": {
         "upload": "Envoyer",

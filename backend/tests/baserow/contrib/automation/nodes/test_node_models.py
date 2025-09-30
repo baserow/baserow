@@ -26,13 +26,11 @@ def test_get_default_node_content_type(data_fixture):
 @pytest.mark.django_db
 def test_get_previous_service_outputs(data_fixture):
     user, _ = data_fixture.create_user_and_token()
-    workflow = data_fixture.create_automation_workflow(user=user, create_trigger=False)
-    trigger_node = data_fixture.create_local_baserow_rows_created_trigger_node(
-        workflow=workflow
-    )
+    workflow = data_fixture.create_automation_workflow(user=user)
+    trigger = workflow.get_trigger()
 
     router_a = data_fixture.create_core_router_action_node(
-        workflow=workflow, previous_node_id=trigger_node.id
+        workflow=workflow, previous_node_id=trigger.id
     )
     router_a_edge_1 = data_fixture.create_core_router_service_edge(
         service=router_a.service,
@@ -81,7 +79,7 @@ def test_get_previous_service_outputs(data_fixture):
     result = node_c_2.get_previous_service_outputs()
 
     assert result == {
-        trigger_node.id: "",
-        router_a.id: str(router_a_edge_1.uid),
-        router_b.id: str(router_b_edge_2.uid),
+        trigger.service_id: "",
+        router_a.service_id: str(router_a_edge_1.uid),
+        router_b.service_id: str(router_b_edge_2.uid),
     }
