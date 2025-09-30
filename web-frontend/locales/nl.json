@@ -17,7 +17,14 @@
         "or": "of",
         "and": "en",
         "optional": "Optioneel",
-        "alpha": "Alfa"
+        "alpha": "Alfa",
+        "monday": "Maandag",
+        "tuesday": "Dinsdag",
+        "wednesday": "Woensdag",
+        "thursday": "Donderdag",
+        "friday": "Vrijdag",
+        "saturday": "Zaterdag",
+        "sunday": "Zondag"
     },
     "action": {
         "upload": "Uploaden",

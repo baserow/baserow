@@ -439,7 +439,10 @@
         "boxLeft": "Gauche",
         "boxRight": "Droit",
         "backgroundImageMode": "Mode de remplissage",
-        "backgroundImage": "Image"
+        "backgroundImage": "Image",
+        "cssClasses": "Classes CSS",
+        "cssClassesHelp": "Définissez une liste de classes séparées par des espaces pour cet élément qui apparaîtra dans le code HTML généré.",
+        "cssClassesPlaceholder": "classe1 classe2..."
     },
     "buttonElementForm": {
         "valuePlaceholder": "Saisir le texte...",

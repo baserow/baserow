@@ -413,7 +413,10 @@
         "boxRight": "Rechts",
         "boxLeft": "Links",
         "backgroundImage": "Afbeelding",
-        "backgroundImageMode": "Vulmodus"
+        "backgroundImageMode": "Vulmodus",
+        "cssClasses": "CSS-klassen",
+        "cssClassesHelp": "Stel een door spaties gescheiden lijst in van klassen voor dit element die zullen verschijnen in de gegenereerde HTML.",
+        "cssClassesPlaceholder": "CSS-klassen invoeren..."
     },
     "updateUserSourceForm": {
         "nameFieldLabel": "Naam",
