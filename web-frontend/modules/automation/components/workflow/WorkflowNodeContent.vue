@@ -7,6 +7,7 @@
       class="workflow-node-content"
       :class="{
         'workflow-node-content--selected': selected,
+        'workflow-node-content--utility': nodeType.isUtilityNode,
       }"
       :title="displayLabel"
       :data-before-label="getDataBeforeLabel"

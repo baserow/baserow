@@ -18,3 +18,8 @@ export const ActionNodeTypeMixin = (Base) =>
   class extends Base {
     isWorkflowAction = true
   }
+
+export const UtilityNodeMixin = (Base) =>
+  class extends Base {
+    isUtilityNode = true
+  }
