@@ -34,6 +34,7 @@ from baserow.contrib.automation.nodes.models import (
     LocalBaserowRowsDeletedTriggerNode,
     LocalBaserowRowsUpdatedTriggerNode,
     LocalBaserowUpdateRowActionNode,
+    CoreSlackWriteMessageActionNode,
 )
 from baserow.contrib.automation.nodes.registries import AutomationNodeType
 from baserow.contrib.automation.nodes.types import NodePositionType
@@ -47,6 +48,7 @@ from baserow.contrib.integrations.core.service_types import (
     CorePeriodicServiceType,
     CoreRouterServiceType,
     CoreSMTPEmailServiceType,
+    CoreSlackWriteMessageServiceType,
 )
 from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowAggregateRowsUserServiceType,
@@ -404,3 +406,9 @@ class CoreHTTPTriggerNodeType(AutomationNodeTriggerType):
     type = "http_trigger"
     model_class = CoreHTTPTriggerNode
     service_type = CoreHTTPTriggerServiceType.type
+
+
+class CoreSlackWriteMessageActionNodeType(AutomationNodeActionNodeType):
+    type = "slack_write_message"
+    model_class = CoreSlackWriteMessageActionNode
+    service_type = CoreSlackWriteMessageServiceType.type

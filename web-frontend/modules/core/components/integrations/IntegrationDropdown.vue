@@ -18,6 +18,7 @@
       :key="integrationItem.id"
       :name="integrationItem.name"
       :value="integrationItem.id"
+      :image="integrationType.image"
     />
     <template #emptyState>
       {{ $t('integrationDropdown.noIntegrations') }}

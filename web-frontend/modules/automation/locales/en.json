@@ -119,6 +119,8 @@
     "iteratorWithChildrenNodesReplaceError": "Cannot be replaced until its child nodes are removed.",
     "periodicTriggerLabel": "Periodic trigger",
     "aiAgent": "AI prompt"
+    "slackWriteMessageName": "Send a Slack message",
+    "slackWriteMessageLabel": "Send a message to #{channel}"
   },
   "workflowNode": {
     "actionDelete": "Delete",

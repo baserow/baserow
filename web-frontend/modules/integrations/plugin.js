@@ -12,6 +12,10 @@ import { LocalBaserowIntegrationType } from '@baserow/modules/integrations/local
 import { SMTPIntegrationType } from '@baserow/modules/integrations/core/integrationTypes'
 import { AIIntegrationType } from '@baserow/modules/integrations/ai/integrationTypes'
 import {
+  SlackBotIntegrationType,
+  SMTPIntegrationType,
+} from '@baserow/modules/integrations/core/integrationTypes'
+import {
   LocalBaserowGetRowServiceType,
   LocalBaserowListRowsServiceType,
   LocalBaserowAggregateRowsServiceType,
@@ -26,6 +30,7 @@ import {
   CoreHTTPRequestServiceType,
   PeriodicTriggerServiceType,
   CoreRouterServiceType,
+  CoreSlackWriteMessageServiceType,
   CoreSMTPEmailServiceType,
   CoreHTTPTriggerServiceType,
   CoreIteratorServiceType,
@@ -54,6 +59,7 @@ export default (context) => {
   )
   app.$registry.register('integration', new SMTPIntegrationType(context))
   app.$registry.register('integration', new AIIntegrationType(context))
+  app.$registry.register('integration', new SlackBotIntegrationType(context))
 
   app.$registry.register('service', new LocalBaserowGetRowServiceType(context))
   app.$registry.register(
@@ -84,6 +90,10 @@ export default (context) => {
   app.$registry.register('service', new AIAgentServiceType(context))
 
   app.$registry.register('service', new PeriodicTriggerServiceType(context))
+  app.$registry.register(
+    'service',
+    new CoreSlackWriteMessageServiceType(context)
+  )
 
   if (app.$featureFlagIsEnabled(FF_AUTOMATION)) {
     app.$registry.register(

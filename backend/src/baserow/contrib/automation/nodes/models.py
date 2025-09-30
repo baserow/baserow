@@ -228,3 +228,7 @@ class CoreIteratorActionNode(AutomationActionNode):
 
 class AIAgentActionNode(AutomationActionNode):
     ...
+
+
+class CoreSlackWriteMessageActionNode(AutomationActionNode):
+    ...

@@ -8,6 +8,7 @@ class IntegrationsConfig(AppConfig):
         from baserow.contrib.integrations.ai.integration_types import AIIntegrationType
         from baserow.contrib.integrations.core.integration_types import (
             SMTPIntegrationType,
+            SlackBotIntegrationType,
         )
         from baserow.contrib.integrations.local_baserow.integration_types import (
             LocalBaserowIntegrationType,
@@ -18,6 +19,7 @@ class IntegrationsConfig(AppConfig):
         integration_type_registry.register(LocalBaserowIntegrationType())
         integration_type_registry.register(SMTPIntegrationType())
         integration_type_registry.register(AIIntegrationType())
+        integration_type_registry.register(SlackBotIntegrationType())
 
         from baserow.contrib.integrations.local_baserow.service_types import (
             LocalBaserowAggregateRowsUserServiceType,

@@ -16,10 +16,12 @@ import {
   LocalBaserowListRowsServiceType,
   LocalBaserowAggregateRowsServiceType,
 } from '@baserow/modules/integrations/localBaserow/serviceTypes'
+import slackIntegration from '@baserow/modules/integrations/core/assets/images/slack.svg'
 import localBaserowIntegration from '@baserow/modules/integrations/localBaserow/assets/images/localBaserowIntegration.svg'
 import {
   CoreHTTPRequestServiceType,
   CoreRouterServiceType,
+  CoreSlackWriteMessageServiceType,
   CoreSMTPEmailServiceType,
   CoreHTTPTriggerServiceType,
   CoreIteratorServiceType,
@@ -843,5 +845,45 @@ export class AIAgentActionNodeType extends ActionNodeTypeMixin(NodeType) {
 
   getOrder() {
     return 8
+  }
+}
+
+export class CoreSlackWriteMessageNodeType extends ActionNodeTypeMixin(
+  NodeType
+) {
+  static getType() {
+    return 'slack_write_message'
+  }
+
+  getOrder() {
+    return 8
+  }
+
+  get iconClass() {
+    return ''
+  }
+
+  get image() {
+    return slackIntegration
+  }
+
+  get name() {
+    return this.app.i18n.t('nodeType.slackWriteMessageName')
+  }
+
+  getDefaultLabel({ node }) {
+    if (!node.service) return this.name
+    return node.service.channel.length
+      ? this.app.i18n.t('nodeType.slackWriteMessageLabel', {
+          channel: node.service.channel,
+        })
+      : this.name
+  }
+
+  get serviceType() {
+    return this.app.$registry.get(
+      'service',
+      CoreSlackWriteMessageServiceType.getType()
+    )
   }
 }

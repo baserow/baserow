@@ -9,6 +9,7 @@ import CoreSMTPEmailServiceForm from '@baserow/modules/integrations/core/compone
 import CoreRouterServiceForm from '@baserow/modules/integrations/core/components/services/CoreRouterServiceForm'
 import CoreIteratorServiceForm from '@baserow/modules/integrations/core/components/services/CoreIteratorServiceForm'
 import CorePeriodicServiceForm from '@baserow/modules/integrations/core/components/services/CorePeriodicServiceForm.vue'
+import CoreSlackWriteMessageServiceForm from '@baserow/modules/integrations/core/components/services/CoreSlackWriteMessageServiceForm.vue'
 
 export class CoreHTTPRequestServiceType extends WorkflowActionServiceTypeMixin(
   ServiceType
@@ -273,5 +274,40 @@ export class PeriodicTriggerServiceType extends TriggerServiceTypeMixin(
       return this.app.i18n.t('serviceType.corePeriodicErrorIntervalMissing')
     }
     return super.getErrorMessage({ service })
+  }
+}
+
+export class CoreSlackWriteMessageServiceType extends WorkflowActionServiceTypeMixin(
+  ServiceType
+) {
+  static getType() {
+    return 'slack_write_message'
+  }
+
+  get name() {
+    return this.app.i18n.t('serviceType.coreSlackWriteMessage')
+  }
+
+  get description() {
+    return this.app.i18n.t('serviceType.coreSlackWriteMessageDescription')
+  }
+
+  getErrorMessage({ service }) {
+    if (service === undefined) {
+      return null
+    }
+    return super.getErrorMessage({ service })
+  }
+
+  getDataSchema(service) {
+    return service.schema
+  }
+
+  get formComponent() {
+    return CoreSlackWriteMessageServiceForm
+  }
+
+  getOrder() {
+    return 8
   }
 }

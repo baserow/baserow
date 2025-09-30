@@ -42,6 +42,10 @@ from baserow.contrib.integrations.core.exceptions import (
     CoreHTTPTriggerServiceMethodNotAllowed,
 )
 from baserow.contrib.integrations.core.integration_types import SMTPIntegrationType
+from baserow.contrib.integrations.core.integration_types import (
+    SMTPIntegrationType,
+    SlackBotIntegrationType,
+)
 from baserow.contrib.integrations.core.models import (
     CoreHTTPRequestService,
     CoreHTTPTriggerService,
@@ -53,8 +57,10 @@ from baserow.contrib.integrations.core.models import (
     HTTPFormData,
     HTTPHeader,
     HTTPQueryParam,
+    CoreSlackWriteMessageService,
 )
 from baserow.core.formula.types import BaserowFormulaObject
+from baserow.contrib.integrations.utils import get_http_request_function
 from baserow.core.formula.validator import (
     ensure_array,
     ensure_boolean,
@@ -535,24 +541,6 @@ class CoreHTTPRequestServiceType(CoreServiceType):
 
         return formulas
 
-    def _get_request_function(self) -> callable:
-        """
-        Return the appropriate request function based on production environment
-        or settings.
-        In production mode, the advocate library is used so that the internal
-        network can't be reached. This can be disabled by changing the Django
-        setting INTEGRATIONS_ALLOW_PRIVATE_ADDRESS.
-        """
-
-        if settings.INTEGRATIONS_ALLOW_PRIVATE_ADDRESS is True:
-            from requests import request
-
-            return request
-        else:
-            from advocate import request
-
-            return request
-
     def dispatch_data(
         self,
         service: CoreHTTPRequestService,
@@ -589,7 +577,7 @@ class CoreHTTPRequestServiceType(CoreServiceType):
         }
 
         try:
-            response = self._get_request_function()(
+            response = get_http_request_function()(
                 method=service.http_method,
                 url=resolved_values["url"],
                 headers=headers,
@@ -1729,3 +1717,113 @@ class CoreIteratorServiceType(ListServiceTypeMixin, ServiceType):
         data: Any,
     ) -> DispatchResult:
         return DispatchResult(data=data)
+
+
+class CoreSlackWriteMessageServiceType(CoreServiceType):
+    type = "slack_write_message"
+    model_class = CoreSlackWriteMessageService
+    dispatch_types = [DispatchTypes.ACTION]
+    integration_type = SlackBotIntegrationType.type
+
+    allowed_fields = ["integration_id", "channel", "text"]
+    serializer_field_names = ["integration_id", "channel", "text"]
+    simple_formula_fields = ["text"]
+
+    class SerializedDict(ServiceDict):
+        channel: str
+        text: str
+
+    @property
+    def serializer_field_overrides(self):
+        from baserow.core.formula.serializers import FormulaSerializerField
+
+        return {
+            "integration_id": serializers.IntegerField(
+                required=False,
+                allow_null=True,
+                help_text="The id of the Slack bot integration.",
+            ),
+            "channel": serializers.CharField(
+                help_text=CoreSlackWriteMessageService._meta.get_field(
+                    "channel"
+                ).help_text,
+                allow_blank=True,
+                required=False,
+                default="",
+            ),
+            "text": FormulaSerializerField(
+                help_text=CoreSlackWriteMessageService._meta.get_field(
+                    "text"
+                ).help_text,
+                allow_blank=True,
+                required=False,
+                default="",
+            ),
+        }
+
+    def formulas_to_resolve(
+        self, service: CoreSlackWriteMessageService
+    ) -> list[FormulaToResolve]:
+        return [
+            FormulaToResolve(
+                "text",
+                service.text,
+                ensure_string,
+                'property "text"',
+            ),
+        ]
+
+    def dispatch_data(
+        self,
+        service: CoreSlackWriteMessageService,
+        resolved_values: Dict[str, Any],
+        dispatch_context: DispatchContext,
+    ) -> Dict[str, Dict[str, Any]]:
+        """ """
+
+        url = "https://slack.com/api/chat.postMessage"
+        try:
+            token = service.integration.specific.token
+            response = get_http_request_function()(
+                method="POST",
+                url=url,
+                headers={"Authorization": f"Bearer {token}"},
+                params={
+                    "channel": f"#{service.channel}",
+                    "text": resolved_values["text"],
+                },
+                timeout=10,
+            )
+            print(response.json())
+
+            return {"data": response.json()}
+
+        except (UnacceptableAddressException, ConnectionError) as e:
+            raise UnexpectedDispatchException(f"Invalid URL: {url}") from e
+        except request_exceptions.RequestException as e:
+            raise UnexpectedDispatchException(str(e)) from e
+        except Exception as e:
+            logger.exception("Error while dispatching HTTP request")
+            raise UnexpectedDispatchException(f"Unknown error: {str(e)}") from e
+
+    def dispatch_transform(self, data):
+        return DispatchResult(data=data)
+
+    def get_schema_name(self, service: CoreSlackWriteMessageService) -> str:
+        return f"SlackWriteMessage{service.id}Schema"
+
+    def generate_schema(
+        self,
+        service: CoreSlackWriteMessageService,
+        allowed_fields: Optional[List[str]] = None,
+    ) -> Optional[Dict[str, Any]]:
+        return {
+            "title": self.get_schema_name(service),
+            "type": "object",
+            "properties": {
+                "ok": {
+                    "type": "boolean",
+                    "title": _("OK"),
+                },
+            },
+        }
