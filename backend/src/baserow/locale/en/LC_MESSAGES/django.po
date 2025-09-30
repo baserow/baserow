@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-09-29 14:05+0000\n"
+"POT-Creation-Date: 2025-09-30 08:04+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -35,19 +35,23 @@ msgstr ""
 #: src/baserow/contrib/automation/action_scopes.py:14
 #, python-format
 msgid ""
-"of type (%(node_type)s) in automation \"%(automation_name)s\" "
-"(%(automation_id)s)."
+"of type (%(node_type)s) in automation "
+"\"%(automation_name)s\" (%(automation_id)s)."
 msgstr ""
 
 #: src/baserow/contrib/automation/actions.py:8
 #, python-format
 msgid ""
-"in workflow (%(workflow_id)s) in automation \"%(automation_name)s\" "
-"(%(automation_id)s)."
+"in workflow (%(workflow_id)s) in automation "
+"\"%(automation_name)s\" (%(automation_id)s)."
 msgstr ""
 
-#: src/baserow/contrib/automation/automation_init_application.py:24
+#: src/baserow/contrib/automation/automation_init_application.py:29
 msgid "Workflow"
+msgstr ""
+
+#: src/baserow/contrib/automation/automation_init_application.py:30
+msgid "Local Baserow"
 msgstr ""
 
 #: src/baserow/contrib/automation/nodes/actions.py:28
