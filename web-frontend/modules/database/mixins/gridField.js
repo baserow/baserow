@@ -168,14 +168,21 @@ export default {
       const copyEventListener = (event) => {
         if (!this.canKeyDown(event) || !this.canKeyboardShortcut(event)) return
 
-        this.copySelectionToClipboard(
-          new Promise((resolve) => {
-            resolve([
-              [this.field],
-              [{ [`field_${this.field.id}`]: this.value }],
-            ])
-          })
+        const { textData, jsonData } = this.prepareValuesForCopy(
+          [this.field],
+          [{ [`field_${this.field.id}`]: this.value }]
         )
+        const { tsvData } = this.formatClipboardDataAndStoreRichCopy({
+          textData,
+          jsonData,
+        })
+
+        try {
+          navigator.clipboard.writeText(tsvData)
+        } catch (err) {
+          console.error('Failed to copy: ', err)
+        }
+
         // prevent Safari from beeping since the window.getSelection() is empty
         event.preventDefault()
       }
