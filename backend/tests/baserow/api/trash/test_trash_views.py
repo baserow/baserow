@@ -921,7 +921,7 @@ def test_restoring_managed_trash_entry_disallowed(
     model = table.get_model()
     row = model.objects.create()
 
-    with stub_trash_operation_type(managed=True) as operation_type:
+    with stub_trash_operation_type(type_managed=True) as operation_type:
         trash_entry = TrashHandler.trash(
             user,
             workspace,
@@ -963,7 +963,7 @@ def test_managed_trash_entries_excluded_from_contents(
     table = data_fixture.create_database_table(user=user, database=database)
     model = table.get_model()
     managed_row = model.objects.create()
-    with stub_trash_operation_type(managed=True) as operation_type:
+    with stub_trash_operation_type(type_managed=True) as operation_type:
         managed_trash_entry = TrashHandler.trash(
             user,
             workspace,
