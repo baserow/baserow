@@ -468,6 +468,9 @@
     - !reference [.skip-if-not-latest-commit-on-branch, script]
     - |
 
+      # Disable pre-set DOCKER_AUTH_CONFIG so docker login actually works
+      unset DOCKER_AUTH_CONFIG
+
       # If that project registry isn't public then we must login first.
       if [[ "$CI_PROJECT_VISIBILITY" != "public" ]]; then
         echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" "$CI_REGISTRY" --password-stdin
