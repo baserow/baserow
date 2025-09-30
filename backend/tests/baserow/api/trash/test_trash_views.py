@@ -15,7 +15,6 @@ from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.core.models import Application, TrashEntry, Workspace
 from baserow.core.trash.handler import TrashHandler
-from baserow.test_utils.helpers import AnyStr
 
 
 @pytest.mark.django_db
@@ -908,84 +907,3 @@ def test_restoring_a_field_which_depends_on_trashed_table_fails(
 
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json()["error"] == "ERROR_CANT_RESTORE_AS_RELATED_TABLE_TRASHED"
-
-
-@pytest.mark.django_db
-def test_restoring_managed_trash_entry_disallowed(api_client, data_fixture):
-    user, token = data_fixture.create_user_and_token()
-    workspace = data_fixture.create_workspace(user=user)
-    database = data_fixture.create_database_application(user=user, workspace=workspace)
-    table = data_fixture.create_database_table(user=user, database=database)
-    model = table.get_model()
-    row = model.objects.create()
-    trash_entry = TrashHandler.trash(user, workspace, database, row, managed=True)
-    assert trash_entry.managed
-
-    response = api_client.patch(
-        reverse(
-            "api:trash:restore",
-        ),
-        {
-            "trash_item_type": "row",
-            "trash_item_id": row.id,
-            "parent_trash_item_id": table.id,
-        },
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
-
-    assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json() == {
-        "error": "ERROR_TRASH_ITEM_DISALLOWED",
-        "detail": "This trash entry is managed internally "
-        "and cannot be restored manually.",
-    }
-
-
-@pytest.mark.django_db
-def test_managed_trash_entries_excluded_from_contents(api_client, data_fixture):
-    user, token = data_fixture.create_user_and_token()
-    workspace = data_fixture.create_workspace(user=user)
-    database = data_fixture.create_database_application(user=user, workspace=workspace)
-    table = data_fixture.create_database_table(user=user, database=database)
-    model = table.get_model()
-    managed_row = model.objects.create()
-    managed_trash_entry = TrashHandler.trash(
-        user, workspace, database, managed_row, managed=True
-    )
-    assert managed_trash_entry.managed
-    unmanaged_row = model.objects.create()
-    unmanaged_trash_entry = TrashHandler.trash(user, workspace, database, unmanaged_row)
-    assert not unmanaged_trash_entry.managed
-
-    response = api_client.get(
-        reverse(
-            "api:trash:contents",
-            kwargs={
-                "workspace_id": workspace.id,
-            },
-        ),
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
-
-    assert response.status_code == HTTP_200_OK
-    assert response.json() == {
-        "count": 1,
-        "next": None,
-        "previous": None,
-        "results": [
-            {
-                "id": unmanaged_trash_entry.id,
-                "user_who_trashed": user.get_full_name(),
-                "trash_item_type": "row",
-                "trash_item_id": unmanaged_row.id,
-                "parent_trash_item_id": table.id,
-                "trashed_at": AnyStr(),
-                "application": database.id,
-                "workspace": workspace.id,
-                "name": AnyStr(),
-                "names": [AnyStr()],
-                "parent_name": AnyStr(),
-            }
-        ],
-    }

@@ -15,10 +15,8 @@ from baserow.contrib.automation.nodes.node_types import (
     LocalBaserowUpdateRowNodeType,
 )
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
-from baserow.contrib.automation.nodes.trash_types import AutomationNodeTrashableItemType
 from baserow.core.action.handler import ActionHandler
 from baserow.core.cache import local_cache
-from baserow.core.trash.handler import TrashHandler
 
 
 @pytest.mark.django_db
@@ -104,14 +102,6 @@ def test_replace_automation_action_node_type(data_fixture):
     assert isinstance(replaced_node, LocalBaserowUpdateRowNodeType.model_class)
     assert node_after.previous_node_id == replaced_node.id
 
-    # Confirm that the `node` trash entry exists, and it is
-    # `managed` to prevent users from restoring it manually.
-    original_trash_entry = TrashHandler.get_trash_entry(
-        AutomationNodeTrashableItemType.type,
-        node.id,
-    )
-    assert original_trash_entry.managed
-
     with local_cache.context():
         ActionHandler.undo(
             user, [WorkflowActionScopeType.value(workflow.id)], session_id
@@ -125,14 +115,6 @@ def test_replace_automation_action_node_type(data_fixture):
     assert replaced_node.trashed
     assert node_after.previous_node_id == node.id
 
-    # Confirm that the `replaced_node` trash entry exists, and it
-    # is `managed` to prevent users from restoring it manually.
-    replaced_trash_entry = TrashHandler.get_trash_entry(
-        AutomationNodeTrashableItemType.type,
-        replaced_node.id,
-    )
-    assert replaced_trash_entry.managed
-
     with local_cache.context():
         ActionHandler.redo(
             user, [WorkflowActionScopeType.value(workflow.id)], session_id
@@ -145,14 +127,6 @@ def test_replace_automation_action_node_type(data_fixture):
     replaced_node.refresh_from_db(fields=["trashed"])
     assert not replaced_node.trashed
     assert node_after.previous_node_id == replaced_node.id
-
-    # Confirm that the `node` trash entry still exists, and it
-    # is `managed` to prevent users from restoring it manually.
-    original_trash_entry = TrashHandler.get_trash_entry(
-        AutomationNodeTrashableItemType.type,
-        node.id,
-    )
-    assert original_trash_entry.managed
 
 
 @pytest.mark.django_db
@@ -183,14 +157,6 @@ def test_replace_automation_trigger_node_type(data_fixture):
     )
     assert action_node.previous_node_id == replaced_trigger.id
 
-    # Confirm that the `original_trigger` trash entry exists, and
-    # it is `managed` to prevent users from restoring it manually.
-    original_trash_entry = TrashHandler.get_trash_entry(
-        AutomationNodeTrashableItemType.type,
-        original_trigger.id,
-    )
-    assert original_trash_entry.managed
-
     with local_cache.context():
         ActionHandler.undo(
             user, [WorkflowActionScopeType.value(workflow.id)], session_id
@@ -204,14 +170,6 @@ def test_replace_automation_trigger_node_type(data_fixture):
     assert replaced_trigger.trashed
     assert action_node.previous_node_id == original_trigger.id
 
-    # Confirm that the `replaced_trigger` trash entry exists, and
-    # it is `managed` to prevent users from restoring it manually.
-    replaced_trash_entry = TrashHandler.get_trash_entry(
-        AutomationNodeTrashableItemType.type,
-        replaced_trigger.id,
-    )
-    assert replaced_trash_entry.managed
-
     with local_cache.context():
         ActionHandler.redo(
             user, [WorkflowActionScopeType.value(workflow.id)], session_id
@@ -224,14 +182,6 @@ def test_replace_automation_trigger_node_type(data_fixture):
     replaced_trigger.refresh_from_db(fields=["trashed"])
     assert not replaced_trigger.trashed
     assert action_node.previous_node_id == replaced_trigger.id
-
-    # Confirm that the `original_trigger` trash entry still exists,
-    # and it is `managed` to prevent users from restoring it manually.
-    original_trash_entry = TrashHandler.get_trash_entry(
-        AutomationNodeTrashableItemType.type,
-        original_trigger.id,
-    )
-    assert original_trash_entry.managed
 
 
 @pytest.mark.django_db
