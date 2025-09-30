@@ -15,7 +15,14 @@
         "or": "또는",
         "and": "그리고",
         "optional": "선택적",
-        "alpha": "알파"
+        "alpha": "알파",
+        "monday": "월요일",
+        "tuesday": "화요일",
+        "wednesday": "수요일",
+        "thursday": "목요일",
+        "friday": "금요일",
+        "saturday": "토요일",
+        "sunday": "일요일"
     },
     "action": {
         "close": "닫기",
