@@ -26,9 +26,9 @@ const props = defineProps({
     default: false,
   },
   btnClass: {
-    type: String,
+    type: Object,
     required: false,
-    default: null,
+    default: () => {},
   },
 })
 
