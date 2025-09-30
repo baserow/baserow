@@ -5,14 +5,10 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("core", "0103_trashentry_managed"),
+        ("core", "0104_remove_trashentry_managed"),
     ]
 
     operations = [
-        migrations.RemoveField(
-            model_name="trashentry",
-            name="managed",
-        ),
         migrations.AddField(
             model_name="trashentry",
             name="operation_type",
