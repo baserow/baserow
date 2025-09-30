@@ -453,7 +453,10 @@
         "filePreview": "파일 내용 미리보기",
         "importPreview": "가져오기 미리보기",
         "useUpsertField": "이미 존재하는 행을 업데이트",
-        "upsertTooltip": "고유한 필드를 사용하여 기존 행을 일치시키고 가져온 값으로 데이터를 덮어씁니다."
+        "upsertTooltip": "고유한 필드를 사용하여 기존 행을 일치시키고 가져온 값으로 데이터를 덮어씁니다.",
+        "stateRowCreation": "가져오는 중...",
+        "statePreValidation": "데이터 검증 중...",
+        "stateCreateTable": "테이블 생성 중..."
     },
     "formulaAdvancedEditContext": {
         "textAreaFormulaInputPlaceholder": "수식을 편집하려면 클릭하세요",
@@ -909,7 +912,8 @@
     },
     "collaboratorAddedToRowNotification": {
         "title": "{sender}님이 {tableName}의 행 {rowId}에서 {fieldName}에 당신을 할당했습니다",
-        "deletedUser": "삭제된 사용자"
+        "deletedUser": "삭제된 사용자",
+        "unknownUser": "알 수 없는 사용자"
     },
     "formSubmittedNotification": {
         "title": "{tableName}의 {formName}이(가) 제출되었습니다:",
@@ -1140,5 +1144,11 @@
         "fieldId": "비밀번호를 확인할 필드 ID입니다.",
         "rowId": "비밀번호를 확인할 행 ID입니다.",
         "password": "비밀번호가 맞는지 확인해야 합니다."
+    },
+    "fieldRules": {
+        "errorTitle": "필드 규칙 처리 중 오류 발생",
+        "ruleDoesNotExist": "규칙이 존재하지 않습니다",
+        "ruleTypeDoesNotExist": "규칙 유형이 존재하지 않습니다",
+        "ruleAlreadyExists": "규칙이 이미 존재합니다"
     }
 }
