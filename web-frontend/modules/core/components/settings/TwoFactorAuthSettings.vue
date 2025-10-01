@@ -11,7 +11,7 @@
       <EnableWithQRCode v-if="state == 'qr_code'" @verified="stepVerified" />
       <SaveBackupCode v-if="state == 'save_code'" :backup-codes="backupCodes" />
       <TwoFactorEnabled v-if="state == 'enabled'" :provider="provider" @disable="disable" />
-      <DisableTwoFactorAuth v-if="state == 'disable'" @cancel="cancelDisable" />
+      <DisableTwoFactorAuth v-if="state == 'disable'" @cancel="cancelDisable" @disabled="disabled" />
     </div>
   </div>
 </template>
@@ -83,6 +83,9 @@ export default {
     },
     cancelDisable() {
       this.state = 'enabled'
+    },
+    disabled() {
+      this.state = 'empty'
     },
   },
 }

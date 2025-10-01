@@ -7,7 +7,7 @@ export default (client) => {
       return client.get('/two-factor-auth/configuration/')
     },
     disable(password) {
-      // TODO:
+      return client.post('/two-factor-auth/disable/', { password })
     },
   }
 }

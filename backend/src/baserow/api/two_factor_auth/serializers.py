@@ -26,3 +26,7 @@ class CreateTwoFactorAuthSerializer(serializers.ModelSerializer):
     class Meta:
         model = TwoFactorAuthProviderModel
         fields = ["type"]
+
+
+class DisableTwoFactorAuthSerializer(serializers.Serializer):
+    password = serializers.CharField(required=True)

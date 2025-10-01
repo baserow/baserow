@@ -60,3 +60,40 @@ class ConfigureTwoFactorAuthActionType(ActionType):
     @classmethod
     def scope(cls) -> ActionScopeStr:
         return RootActionScopeType.value()
+
+
+class DisableTwoFactorAuthActionType(ActionType):
+    type = "disable_two_factor_auth"
+    description = ActionTypeDescription(
+        _("Disable two-factor authentication"),
+        _('User "%(user_email)s" (%(user_id)s) disabled two-factor authentication.'),
+    )
+    analytics_params = [
+        "user_id",
+    ]
+
+    @dataclasses.dataclass
+    class Params:
+        user_id: int
+        user_email: str
+
+    @classmethod
+    def do(cls, user: AbstractUser, password: str) -> None:
+        """
+        Disable two-factor auth for a user.
+
+        :param user: The user the two-factor configuration is for.
+        :param password: The user's password for confirmation.
+        """
+
+        TwoFactorAuthHandler().disable(user, password)
+
+        cls.register_action(
+            user=user,
+            params=cls.Params(user.id, user.email),
+            scope=cls.scope(),
+        )
+
+    @classmethod
+    def scope(cls) -> ActionScopeStr:
+        return RootActionScopeType.value()

@@ -90,3 +90,16 @@ class TwoFactorAuthHandler:
         provider.save()
 
         return provider
+
+    def disable(self, user: AbstractUser, password: str):
+        """
+        Disables any configured provider for the user.
+
+        :param user: The user for whom to disable the authentication.
+        :param password: Password for confirmation.
+        """
+
+        # TODO: check password
+
+        provider = self.get_provider_for_update(user)
+        provider.delete()

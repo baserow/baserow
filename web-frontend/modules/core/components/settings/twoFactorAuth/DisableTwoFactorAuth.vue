@@ -1,11 +1,11 @@
 <template>
   <div>
-    <h2>Are you sure you want to disable 2FA?</h2>
+    <h3>Are you sure you want to disable 2FA?</h3>
     <div class="disable-two-factor__description">Your account will lose an extra layer of security. If someone finds out your password, they might be able to log in to your account.</div>
 
     <Error :error="error"></Error>
 
-    <form v-if="!success" @submit.prevent="confirm">
+    <form @submit.prevent="confirm">
       <FormGroup
         :error="v$.values.passwordConfirm.$error"
         :label="'Password'"
@@ -40,6 +40,7 @@
           size="large"
           :loading="loading"
           :disabled="loading || !values.passwordConfirm"
+          @click="confirm"
         >
           Disable
         </Button>
@@ -68,7 +69,6 @@ export default {
         passwordConfirm: '',
       },
       loading: false,
-      success: false,
     }
   },
   methods: {
@@ -86,8 +86,10 @@ export default {
         await TwoFactorAuthService(this.$client).disable(
           this.account.confirmPassword
         )
-        this.success = true
         this.loading = false
+
+        this.$emit('disabled')
+        // TODO: toast
       } catch (error) {
         this.loading = false
         // TODO:
