@@ -9,9 +9,21 @@
         @continue="stepContinue"
       />
       <EnableWithQRCode v-if="state == 'qr_code'" @verified="stepVerified" />
-      <SaveBackupCode v-if="state == 'save_code'" :backup-codes="backupCodes" @continue="stepEnabled" />
-      <TwoFactorEnabled v-if="state == 'enabled'" :provider="provider" @disable="disable" />
-      <DisableTwoFactorAuth v-if="state == 'disable'" @cancel="cancelDisable" @disabled="disabled" />
+      <SaveBackupCode
+        v-if="state == 'save_code'"
+        :backup-codes="backupCodes"
+        @continue="stepEnabled"
+      />
+      <TwoFactorEnabled
+        v-if="state == 'enabled'"
+        :provider="provider"
+        @disable="disable"
+      />
+      <DisableTwoFactorAuth
+        v-if="state == 'disable'"
+        @cancel="cancelDisable"
+        @disabled="disabled"
+      />
     </div>
   </div>
 </template>

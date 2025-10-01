@@ -31,7 +31,9 @@ class TwoFactorAuthProviderModel(
 
     @staticmethod
     def get_type_registry():
-        from baserow.core.two_factor_auth.registries import two_factor_auth_type_registry
+        from baserow.core.two_factor_auth.registries import (
+            two_factor_auth_type_registry,
+        )
 
         return two_factor_auth_type_registry
 

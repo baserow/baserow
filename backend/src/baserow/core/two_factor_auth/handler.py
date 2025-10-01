@@ -23,7 +23,9 @@ class TwoFactorAuthHandler:
         :return: The provider instance.
         """
 
-        queryset = base_queryset if base_queryset else TwoFactorAuthProviderModel.objects.all()
+        queryset = (
+            base_queryset if base_queryset else TwoFactorAuthProviderModel.objects.all()
+        )
 
         provider = queryset.filter(user=user).first()
         if provider is None:
@@ -33,7 +35,8 @@ class TwoFactorAuthHandler:
         return provider_specific
 
     def get_provider_for_update(
-        self, user: AbstractUser,
+        self,
+        user: AbstractUser,
     ) -> TwoFactorProviderForUpdate | None:
         """
         Returns the user's provider from the database or None if no
@@ -43,7 +46,9 @@ class TwoFactorAuthHandler:
         :return: The provider instance.
         """
 
-        queryset = TwoFactorAuthProviderModel.objects.all().select_for_update(of=("self",))
+        queryset = TwoFactorAuthProviderModel.objects.all().select_for_update(
+            of=("self",)
+        )
         provider = self.get_provider(
             user,
             base_queryset=queryset,

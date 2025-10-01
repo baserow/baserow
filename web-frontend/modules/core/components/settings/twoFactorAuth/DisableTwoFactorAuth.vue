@@ -1,7 +1,10 @@
 <template>
   <div>
     <h3>Are you sure you want to disable 2FA?</h3>
-    <div class="disable-two-factor__description">Your account will lose an extra layer of security. If someone finds out your password, they might be able to log in to your account.</div>
+    <div class="disable-two-factor__description">
+      Your account will lose an extra layer of security. If someone finds out
+      your password, they might be able to log in to your account.
+    </div>
 
     <Error :error="error"></Error>
 
@@ -28,11 +31,7 @@
       </FormGroup>
 
       <div class="actions actions--right actions--gap">
-        <Button
-          type="secondary"
-          size="large"
-          @click="$emit('cancel')"
-        >
+        <Button type="secondary" size="large" @click="$emit('cancel')">
           Leave it on
         </Button>
         <Button
@@ -83,9 +82,7 @@ export default {
       this.hideError()
 
       try {
-        await TwoFactorAuthService(this.$client).disable(
-          this.values.password
-        )
+        await TwoFactorAuthService(this.$client).disable(this.values.password)
         this.loading = false
 
         this.$emit('disabled')

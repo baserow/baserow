@@ -40,7 +40,8 @@ class TwoFactorAuthProviderType(
     @abstractmethod
     def configure(
         self, user: AbstractUser, provider, **kwargs
-    ) -> TwoFactorAuthProviderModel: ...
+    ) -> TwoFactorAuthProviderModel:
+        ...
 
 
 class TOTPAuthProviderType(TwoFactorAuthProviderType):
