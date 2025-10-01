@@ -4,7 +4,6 @@ from typing import Any, Dict, Optional
 OPTIONAL_FIELDS = [
     "subtitle",
     "description",
-    "url",
     "metadata",
     "created_on",
     "updated_on",
@@ -22,7 +21,6 @@ class SearchResult:
     title: str
     subtitle: Optional[str] = None
     description: Optional[str] = None
-    url: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
     created_on: Optional[str] = None
     updated_on: Optional[str] = None

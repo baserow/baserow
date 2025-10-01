@@ -1,12 +1,11 @@
 import { BaseSearchType } from './base'
-import { DashboardApplicationType } from '@baserow/modules/dashboard/applicationTypes'
 
 export class DashboardSearchType extends BaseSearchType {
   constructor() {
     super()
     this.type = 'dashboard'
     this.name = 'Dashboard'
-    this.icon = new DashboardApplicationType().getIconClass()
+    this.icon = 'baserow-icon-dashboard'
     this.priority = 3
   }
 

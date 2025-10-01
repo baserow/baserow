@@ -1,7 +1,6 @@
 <template>
   <Modal
     ref="modal"
-    :small="true"
     :content-scrollable="hasSearchTerm"
     :close-button="false"
     :box-padding="false"
@@ -82,7 +81,9 @@
                   v-if="activeIndex === index"
                   class="workspace-search__result-enter"
                 >
-                  <kbd>↵</kbd>
+                  <kbd class="workspace-search__keys">
+                    <img :src="enterIcon" />
+                  </kbd>
                 </div>
               </div>
             </div>
@@ -127,10 +128,13 @@
           <div class="workspace-search__shortcuts">
             <div class="workspace-search__shortcuts-left">
               <div class="workspace-search__shortcut">
-                <kbd>↑</kbd><kbd>↓</kbd> {{ $t('workspaceSearch.navigate') }}
-              </div>
-              <div class="workspace-search__shortcut">
-                <kbd>↵</kbd> {{ $t('workspaceSearch.select') }}
+                <kbd class="workspace-search__keys"
+                  ><i class="iconoir-arrow-up"></i
+                ></kbd>
+                <kbd class="workspace-search__keys"
+                  ><i class="iconoir-arrow-down"></i
+                ></kbd>
+                {{ $t('workspaceSearch.navigate') }}
               </div>
             </div>
             <div class="workspace-search__shortcuts-right">
@@ -149,6 +153,7 @@
 import debounce from 'lodash/debounce'
 import { mapGetters, mapState } from 'vuex'
 import { searchTypeRegistry } from '@baserow/modules/core/search/types'
+import enterIcon from '@baserow/modules/core/assets/icons/enter.svg'
 
 export default {
   name: 'WorkspaceSearchModal',
@@ -160,6 +165,11 @@ export default {
       hasMoreResults: false,
       isLoadingMore: false,
       isSearching: false,
+      currentPage: 1,
+      minChars: 3,
+      pageSize: 10,
+      initialLoadPages: 2,
+      scrollLoadPages: 3,
     }
   },
 
@@ -171,8 +181,12 @@ export default {
       'getAllResults',
     ]),
 
+    enterIcon() {
+      return enterIcon
+    },
+
     hasSearchTerm() {
-      return this.searchTerm && this.searchTerm.length >= 2
+      return this.searchTerm && this.searchTerm.length >= this.minChars
     },
 
     currentWorkspace() {
@@ -197,10 +211,18 @@ export default {
 
   watch: {
     searchTerm(newValue) {
-      if (newValue && newValue.length >= 2) {
+      if (newValue && newValue.length >= this.minChars) {
         this.isSearching = true
+        this.currentPage = 1
+        this.hasMoreResults = false
+        this.isLoadingMore = false
+        this.$store.dispatch('workspaceSearch/clearSearch')
       } else {
         this.isSearching = false
+        this.currentPage = 1
+        this.hasMoreResults = false
+        this.isLoadingMore = false
+        this.$store.dispatch('workspaceSearch/clearSearch')
       }
       this.debouncedSearch(newValue)
     },
@@ -280,7 +302,7 @@ export default {
     },
 
     debouncedSearch: debounce(async function (searchTerm) {
-      if (!searchTerm || searchTerm.length < 2) {
+      if (!searchTerm || searchTerm.length < this.minChars) {
         this.$store.dispatch('workspaceSearch/clearSearch')
         this.currentPage = 1
         this.hasMoreResults = false
@@ -297,7 +319,7 @@ export default {
         const result = await this.$store.dispatch('workspaceSearch/search', {
           workspaceId: this.currentWorkspace.id,
           searchTerm,
-          limit: 5,
+          limit: this.pageSize * this.initialLoadPages,
           offset: 0,
           append: false,
         })
@@ -323,7 +345,7 @@ export default {
         const result = await this.$store.dispatch('workspaceSearch/search', {
           workspaceId: this.currentWorkspace.id,
           searchTerm: this.searchTerm,
-          limit: 10,
+          limit: this.pageSize * this.scrollLoadPages,
           offset,
           append: true,
         })

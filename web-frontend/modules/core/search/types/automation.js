@@ -1,12 +1,11 @@
 import { BaseSearchType } from './base'
-import { AutomationApplicationType } from '@baserow/modules/automation/applicationTypes'
 
 export class AutomationSearchType extends BaseSearchType {
   constructor() {
     super()
     this.type = 'automation'
     this.name = 'Automation'
-    this.icon = new AutomationApplicationType().getIconClass()
+    this.icon = 'baserow-icon-automation'
     this.priority = 4
   }
 

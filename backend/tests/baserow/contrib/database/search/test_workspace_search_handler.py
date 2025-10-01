@@ -26,7 +26,7 @@ def test_handler_basic_search_workflow(data_fixture):
     assert len(result_data["results"]) == 1
 
     first = result_data["results"][0]
-    assert first["id"] == database.id
+    assert first["id"] == str(database.id)
     assert first["title"] == database.name
     assert first["type"] == database.get_type().type
 
@@ -40,7 +40,7 @@ def test_search_handler_query_count(data_fixture, django_assert_num_queries):
     data_fixture.create_database_application(workspace=workspace, name=f"Database 1")
     handler = WorkspaceSearchHandler()
 
-    with django_assert_num_queries(10):
+    with django_assert_num_queries(5):
         result_data = handler.search_workspace(
             user=user, workspace=workspace, query="Database", limit=10, offset=0
         )
@@ -214,14 +214,10 @@ def test_search_handler_result_serialization(data_fixture):
 
     assert len(result_data) == 1
     assert result_data[0]["type"] == "database"
-    assert result_data[0]["id"] == database.id
+    assert result_data[0]["id"] == str(database.id)
     assert result_data[0]["title"] == database.name
-    assert result_data[0]["subtitle"] == "database"
-    assert result_data[0]["metadata"] == {
-        "database_id": database.id,
-        "workspace_id": workspace.id,
-        "workspace_name": workspace.name,
-    }
+    assert result_data[0]["subtitle"] == "Database"
+    assert result_data[0]["metadata"] == {}
 
 
 @pytest.mark.workspace_search
@@ -284,8 +280,8 @@ def test_workspace_row_search_handler_with_interesting_database(data_fixture):
         return [x for x in r["results"] if x["type"] == "database_row"]
 
     def _assert_row_shape(item):
-        assert "title" in item and item["title"].startswith("row ")
-        assert "subtitle" in item and " > " in item["subtitle"]
+        assert "title" in item and item["title"].startswith("Row #")
+        assert "subtitle" in item and " / " in item["subtitle"]
         md = item.get("metadata", {})
         for k in ["workspace_id", "database_id", "table_id", "row_id", "field_id"]:
             assert k in md
@@ -300,7 +296,6 @@ def test_workspace_row_search_handler_with_interesting_database(data_fixture):
     res = handler.search_workspace(user=user, workspace=workspace, query="a.txt")
     rows = _row_results(res)
     assert len(rows) >= 1
-    assert rows[0].get("description") is not None
     _assert_row_shape(rows[0])
 
     # URL/email/phone fragments
@@ -309,7 +304,9 @@ def test_workspace_row_search_handler_with_interesting_database(data_fixture):
     assert len(rows) >= 1
     _assert_row_shape(rows[0])
 
-    res = handler.search_workspace(user=user, workspace=workspace, query="test@example.com")
+    res = handler.search_workspace(
+        user=user, workspace=workspace, query="test@example.com"
+    )
     rows = _row_results(res)
     assert len(rows) >= 1
     _assert_row_shape(rows[0])
@@ -323,7 +320,6 @@ def test_workspace_row_search_handler_with_interesting_database(data_fixture):
     res = handler.search_workspace(user=user, workspace=workspace, query="Object")
     rows = _row_results(res)
     assert len(rows) >= 1
-    assert any("ai_choice" in r["subtitle"] for r in rows)
     _assert_row_shape(rows[0])
 
     res = handler.search_workspace(user=user, workspace=workspace, query="1.2")
@@ -340,10 +336,8 @@ def test_workspace_row_search_handler_with_interesting_database(data_fixture):
     res = handler.search_workspace(user=user, workspace=workspace, query="linked_row_1")
     rows = _row_results(res)
     assert len(rows) >= 1
-    assert any("link_row" in r["subtitle"] for r in rows)
     _assert_row_shape(rows[0])
 
     # Negative control should produce no results
     empty = handler.search_workspace(user=user, workspace=workspace, query="__nohit__")
     assert empty["results"] == []
-

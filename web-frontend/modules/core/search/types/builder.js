@@ -1,20 +1,28 @@
 import { BaseSearchType } from './base'
-import { BuilderApplicationType } from '@baserow/modules/builder/applicationTypes'
 
 export class BuilderSearchType extends BaseSearchType {
   constructor() {
     super()
     this.type = 'builder'
     this.name = 'Builder'
-    this.icon = new BuilderApplicationType().getIconClass()
+    this.icon = 'baserow-icon-application'
     this.priority = 2
   }
 
   buildUrl(result, context = null) {
-    if (!result.metadata || !result.metadata.builder_id) {
+    if (!context || !context.store) {
       return null
     }
-
-    return `/builder/${result.metadata.builder_id}`
+    const application = context.store.getters['application/get'](
+      parseInt(result.id)
+    )
+    if (!application) {
+      return null
+    }
+    const pages = context.store.getters['page/getVisiblePages'](application)
+    if (pages && pages.length > 0) {
+      return `/builder/${application.id}/page/${pages[0].id}`
+    }
+    return null
   }
 }

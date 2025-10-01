@@ -1,20 +1,23 @@
-from collections import defaultdict
-from typing import Optional
+from typing import Dict, Iterable, List, Optional
 
 from django.contrib.auth.models import AbstractUser
-from django.contrib.contenttypes.models import ContentType
-from django.contrib.postgres.search import SearchHeadline, SearchQuery, SearchRank
+from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector
 from django.db.models import (
     Case,
     CharField,
     F,
+    FloatField,
     IntegerField,
     Prefetch,
     QuerySet,
+    TextField,
     Value,
     When,
+    Window,
 )
+from django.db.models.functions import Cast, Concat, JSONObject, RowNumber
 
+from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.fields.operations import ListFieldsOperationType
 from baserow.contrib.database.models import Database
@@ -27,6 +30,32 @@ from baserow.core.models import Workspace
 from baserow.core.search.data_types import SearchResult
 from baserow.core.search.registries import SearchableItemType
 from baserow.core.search.search_types import ApplicationSearchType
+
+
+def _empty_annotated_table_queryset(search_type: str, priority: int):
+    return (
+        Table.objects.none()
+        .annotate(
+            search_type=Value(search_type, output_field=TextField()),
+            object_id=Value("", output_field=TextField()),
+            sort_key=Value(0, output_field=IntegerField()),
+            rank=Value(None, output_field=FloatField()),
+            priority=Value(priority),
+            title=Value(None, output_field=TextField()),
+            subtitle=Value(None, output_field=TextField()),
+            payload=JSONObject(),
+        )
+        .values(
+            "search_type",
+            "object_id",
+            "sort_key",
+            "rank",
+            "priority",
+            "title",
+            "subtitle",
+            "payload",
+        )
+    )
 
 
 class DatabaseSearchType(ApplicationSearchType):
@@ -59,6 +88,35 @@ class DatabaseSearchType(ApplicationSearchType):
             },
         )
 
+    def get_union_values_queryset(self, user, workspace, context) -> QuerySet:
+        qs = self.get_search_queryset(user, workspace, context)
+
+        search_query = SearchQuery(
+            context.query, search_type="websearch", config="english"
+        )
+        search_vector = SearchVector("name", config="english")
+
+        qs = qs.annotate(
+            search_type=Value(self.type, output_field=TextField()),
+            object_id=Cast(F("id"), output_field=TextField()),
+            sort_key=F("id"),
+            rank=SearchRank(search_vector, search_query),
+            priority=Value(getattr(self, "priority", 10)),
+            title=Cast(F("name"), output_field=TextField()),
+            subtitle=Value("Database", output_field=TextField()),
+            payload=JSONObject(),
+        ).values(
+            "search_type",
+            "object_id",
+            "sort_key",
+            "rank",
+            "priority",
+            "title",
+            "subtitle",
+            "payload",
+        )
+        return qs
+
 
 class TableSearchType(DatabaseSearchableItemType):
     """
@@ -81,7 +139,7 @@ class TableSearchType(DatabaseSearchableItemType):
                 database__trashed=False,
                 database__workspace=workspace,
             )
-            .select_related("database", "database__workspace")
+            .select_related("database__workspace")
             .order_by("database__order", "order", "id")
         )
 
@@ -99,6 +157,54 @@ class TableSearchType(DatabaseSearchableItemType):
         if search_q:
             queryset = queryset.filter(search_q)
         return queryset.annotate(search_type=Value(self.type, output_field=CharField()))
+
+    def build_payload(self):
+        return JSONObject(
+            title=F("name"),
+            subtitle=F("database__name"),
+            workspace_id=F("database__workspace_id"),
+            database_id=F("database_id"),
+            table_id=F("id"),
+            table_name=F("name"),
+            database_name=F("database__name"),
+        )
+
+    def get_union_values_queryset(self, user, workspace, context) -> QuerySet:
+        qs = self.get_search_queryset(user, workspace, context)
+
+        search_query = SearchQuery(
+            context.query, search_type="websearch", config="english"
+        )
+        search_vector = SearchVector("name", config="english")
+
+        qs = qs.annotate(
+            search_type=Value(self.type, output_field=TextField()),
+            object_id=Cast(F("id"), output_field=TextField()),
+            sort_key=F("id"),
+            rank=SearchRank(search_vector, search_query),
+            priority=Value(getattr(self, "priority", 10)),
+            title=Cast(F("name"), output_field=TextField()),
+            subtitle=Concat(
+                Value("Table in ", output_field=TextField()),
+                Cast(F("database__name"), output_field=TextField()),
+                output_field=TextField(),
+            ),
+            payload=JSONObject(
+                workspace_id=F("database__workspace_id"),
+                database_id=F("database_id"),
+                table_id=F("id"),
+            ),
+        ).values(
+            "search_type",
+            "object_id",
+            "sort_key",
+            "rank",
+            "priority",
+            "title",
+            "subtitle",
+            "payload",
+        )
+        return qs
 
     def serialize_result(self, item, user, workspace) -> Optional[SearchResult]:
         database = item.database
@@ -130,19 +236,21 @@ class FieldDefinitionSearchType(DatabaseSearchableItemType):
     supports_full_text = False
 
     def get_base_queryset(self, user, workspace) -> QuerySet:
-        return (
-            Field.objects.filter(
-                trashed=False,
-                table__trashed=False,
-                table__database__trashed=False,
-                table__database__workspace=workspace,
-            )
-            .select_related("table", "table__database", "table__database__workspace")
-            .order_by("table__database__order", "table__order", "order", "id")
-        )
+        return FieldHandler().get_base_fields_queryset()
 
     def get_search_queryset(self, user, workspace, context) -> QuerySet:
-        queryset = self.get_base_queryset(user, workspace)
+        allowed_tables_qs = Table.objects.filter(
+            trashed=False,
+            database__trashed=False,
+            database__workspace=workspace,
+        ).values("id")
+
+        queryset = self.get_base_queryset(user, workspace).filter(
+            trashed=False,
+            table__trashed=False,
+            table__database__trashed=False,
+            table_id__in=allowed_tables_qs,
+        )
 
         queryset = CoreHandler().filter_queryset(
             user,
@@ -155,6 +263,59 @@ class FieldDefinitionSearchType(DatabaseSearchableItemType):
         if search_q:
             queryset = queryset.filter(search_q)
         return queryset.annotate(search_type=Value(self.type, output_field=CharField()))
+
+    def build_payload(self):
+        return JSONObject(
+            title=F("name"),
+            subtitle=Concat(F("table__database__name"), Value(" / "), F("table__name")),
+            workspace_id=F("table__database__workspace_id"),
+            database_id=F("table__database_id"),
+            table_id=F("table_id"),
+            field_id=F("id"),
+            field_name=F("name"),
+            table_name=F("table__name"),
+            database_name=F("table__database__name"),
+        )
+
+    def get_union_values_queryset(self, user, workspace, context) -> QuerySet:
+        qs = self.get_search_queryset(user, workspace, context)
+
+        search_query = SearchQuery(
+            context.query, search_type="websearch", config="english"
+        )
+        search_vector = SearchVector("name", config="english")
+
+        qs = qs.annotate(
+            search_type=Value(self.type, output_field=TextField()),
+            object_id=Cast(F("id"), output_field=TextField()),
+            sort_key=F("id"),
+            rank=SearchRank(search_vector, search_query),
+            priority=Value(getattr(self, "priority", 10)),
+            title=Cast(F("name"), output_field=TextField()),
+            subtitle=Concat(
+                Value("Field in ", output_field=TextField()),
+                Cast(F("table__database__name"), output_field=TextField()),
+                Value(" / ", output_field=TextField()),
+                Cast(F("table__name"), output_field=TextField()),
+                output_field=TextField(),
+            ),
+            payload=JSONObject(
+                workspace_id=F("table__database__workspace_id"),
+                database_id=F("table__database_id"),
+                table_id=F("table_id"),
+                field_id=F("id"),
+            ),
+        ).values(
+            "search_type",
+            "object_id",
+            "sort_key",
+            "rank",
+            "priority",
+            "title",
+            "subtitle",
+            "payload",
+        )
+        return qs
 
     def serialize_result(self, item, user, workspace) -> Optional[SearchResult]:
         database = item.table.database
@@ -191,11 +352,7 @@ class RowSearchType(SearchableItemType):
                 database__workspace=workspace,
             )
             .select_related("database", "database__workspace")
-            .prefetch_related(
-                Prefetch(
-                    "field_set", queryset=Field.objects.select_related("content_type")
-                )
-            )
+            .prefetch_related(Prefetch("field_set", queryset=Field.objects.all()))
             .order_by("database__order", "order", "id")
         )
 
@@ -207,258 +364,240 @@ class RowSearchType(SearchableItemType):
         )
         return tables
 
-    def execute_search(self, user, workspace, context):
-        """Optimized row search using search table directly with single query.
-
-        param user: The user requesting the search
-        param workspace: The workspace being searched
-        param context: Search context with query, limit, offset
-        return List[SearchResult]: List of search results
+    def get_union_values_queryset(self, user, workspace, context) -> QuerySet:
+        """
+        Optimized approach using window function to pick best field per row.
+        Uses ROW_NUMBER() OVER (
+            PARTITION BY table_id, row_id ORDER BY rank DESC, field_id ASC
+        )
+        to select only the highest-ranking field for each row.
         """
 
         if not SearchHandler.workspace_search_table_exists(workspace.id):
-            return []
+            return _empty_annotated_table_queryset(
+                self.type, getattr(self, "priority", 10)
+            )
 
         sanitized_query = SearchHandler.escape_postgres_query(context.query)
         if not sanitized_query:
-            return []
+            return _empty_annotated_table_queryset(
+                self.type, getattr(self, "priority", 10)
+            )
 
-        return self._search_in_tables(context, workspace, sanitized_query)
-
-    def _format_field_value(self, field_value) -> str:
-        """Format the field value for the search result."""
-
-        return str(field_value)[:10]
-
-    def _resolve_specifics_for_model_if_needed(
-        self, model, ids_by_model, specific_cache_by_model
-    ):
-        """Resolve specific field instances for a model if needed."""
-
-        if model in specific_cache_by_model:
-            return
-        ids = ids_by_model.get(model, [])
-        if not ids:
-            specific_cache_by_model[model] = {}
-            return
-        queryset = model._base_manager.filter(pk__in=ids)
-        specific_cache_by_model[model] = {item.id: item for item in queryset}
-
-    def _get_effective_field(
-        self, f, ct_id_to_model, specific_cache_by_model, ids_by_model
-    ):
-        """Get the effective field instance (specific or base)."""
-
-        model = ct_id_to_model.get(f.content_type_id)
-        self._resolve_specifics_for_model_if_needed(
-            model, ids_by_model, specific_cache_by_model
+        # Limit to tables user can read
+        tables_qs = Table.objects.filter(
+            trashed=False,
+            database__trashed=False,
+            database__workspace=workspace,
         )
-        return specific_cache_by_model.get(model, {}).get(f.id, f)
-
-    def _build_content_type_mapping(self, base_fields):
-        """Build content type to model mapping and organize field IDs by model."""
-
-        ct_ids = {f.content_type_id for f in base_fields}
-        ct_map = ContentType.objects.in_bulk(ct_ids)
-        ct_id_to_model = {
-            ct_id: ct_map[ct_id].model_class() for ct_id in ct_ids if ct_id in ct_map
-        }
-
-        ids_by_model = defaultdict(list)
-        for field in base_fields:
-            model = ct_id_to_model.get(field.content_type_id)
-            if model is None:
-                continue
-            ids_by_model[model].append(field.id)
-
-        return ct_id_to_model, ids_by_model
-
-    def _search_in_tables(self, context, workspace, sanitized_query):
-        """Optimized search using single query with search table directly."""
-
-        # TODO: Consider raising exception so it can be shown in frontend
-        # and trigger update of search table
-        if not SearchHandler.workspace_search_table_exists(workspace.id):
-            return []
+        tables_qs = CoreHandler().filter_queryset(
+            user,
+            ReadDatabaseTableOperationType.type,
+            tables_qs,
+            workspace=workspace,
+        )
+        allowed_table_ids = list(tables_qs.values_list("id", flat=True))
+        if not allowed_table_ids:
+            return _empty_annotated_table_queryset(
+                self.type, getattr(self, "priority", 10)
+            )
 
         search_model = SearchHandler.get_workspace_search_table_model(workspace.id)
         search_query = SearchQuery(
             sanitized_query, search_type="raw", config=SearchHandler.search_config()
         )
-        fields_query = (
-            Field.objects.filter(
+
+        # Get permission-filtered fields with table_id using the handler without
+        # deferring fields to avoid conflicts with select_related
+        base_fields_qs = (
+            FieldHandler()
+            .get_base_fields_queryset()
+            .filter(
                 trashed=False,
                 table__trashed=False,
                 table__database__trashed=False,
                 table__database__workspace=workspace,
+                table_id__in=allowed_table_ids,
             )
-            .select_related("table__database__workspace", "content_type")
-            .all()
         )
 
-        base_fields = list(
-            fields_query.only("id", "content_type_id", "name", "table_id", "primary")
+        # Apply permission filtering to fields query before reducing to tuples
+        fields_qs = CoreHandler().filter_queryset(
+            user,
+            ListFieldsOperationType.type,
+            base_fields_qs,
+            workspace=workspace,
         )
+        base_fields = list(fields_qs.values_list("id", "table_id"))
+        if not base_fields:
+            return _empty_annotated_table_queryset(
+                self.type, getattr(self, "priority", 10)
+            )
 
-        # Build content type mapping and organize field IDs by model
-        ct_id_to_model, ids_by_model = self._build_content_type_mapping(base_fields)
-        specific_cache_by_model = {}
-
-        # Build a field mapping directly from base_fields (no per-table iteration)
-        field_id_to_info = {
-            f.id: {
-                "field": f,
-                "table_id": f.table_id,
-            }
-            for f in base_fields
-        }
-
-        if not field_id_to_info:
-            return []
-
-        # Build table_id case for ordering
+        # Build field_id -> table_id mapping for CASE expression
         when_clauses = [
-            When(field_id=fid, then=Value(info["table_id"]))
-            for fid, info in field_id_to_info.items()
+            When(field_id=f_id, then=Value(t_id)) for (f_id, t_id) in base_fields
         ]
         table_id_case = Case(
             *when_clauses, default=Value(0), output_field=IntegerField()
         )
 
-        # Fetch matching search rows with ranking
-        matching_search_data = (
+        # Use window function to pick best field per row (highest rank, lowest field_id)
+        qs = (
             search_model.objects.filter(
-                field_id__in=list(field_id_to_info.keys()), value=search_query
+                field_id__in=[f_id for (f_id, _t_id) in base_fields], value=search_query
             )
             .annotate(
                 rank=SearchRank(F("value"), search_query),
                 table_id=table_id_case,
+                rn=Window(
+                    expression=RowNumber(),
+                    partition_by=[F("table_id"), F("row_id")],
+                    order_by=[F("rank").desc(), F("field_id").asc()],
+                ),
             )
-            .order_by("-rank", "table_id", "row_id", "field_id")
+            .filter(rn=1)  # Only keep the best field per row
+            .annotate(
+                search_type=Value(self.type, output_field=TextField()),
+                object_id=Concat(
+                    Cast(F("table_id"), output_field=TextField()),
+                    Value("_", output_field=TextField()),
+                    Cast(F("row_id"), output_field=TextField()),
+                    output_field=TextField(),
+                ),
+                sort_key=F("row_id"),
+                priority=Value(getattr(self, "priority", 10)),
+                title=Concat(
+                    Value("row "),
+                    Cast(F("row_id"), output_field=TextField()),
+                    output_field=TextField(),
+                ),
+                subtitle=Value(None, output_field=TextField()),
+                payload=JSONObject(
+                    table_id=F("table_id"),
+                    row_id=F("row_id"),
+                    field_id=F("field_id"),
+                    query=Value(context.query),
+                ),
+            )
+            .values(
+                "search_type",
+                "object_id",
+                "sort_key",
+                "rank",
+                "priority",
+                "title",
+                "subtitle",
+                "payload",
+            )
         )
 
-        paginated_data = list(
-            matching_search_data[context.offset : context.offset + context.limit]
+        return qs
+
+    def postprocess(self, rows: Iterable[Dict]) -> List[SearchResult]:
+        """
+        Return minimal row results
+        """
+
+        if not rows:
+            return []
+
+        rows_list = list(rows)
+        if not rows_list:
+            return []
+
+        field_ids = sorted(
+            {
+                int(r.get("payload", {}).get("field_id"))
+                for r in rows_list
+                if r.get("payload", {}).get("field_id") is not None
+            }
         )
 
-        # Gather candidates and group by table, keeping only first field per row
-        candidates = []
-        table_to_rows = {}
-        table_to_fields = {}
-        needed_table_ids = set()
-        needed_field_ids = set()
-        seen_row = set()
-        for item in paginated_data:
-            field_id = item.field_id
-            row_id = item.row_id
-            info = field_id_to_info.get(field_id)
-            if info is None:
-                continue
-            table_id = info["table_id"]
-            row_key = (table_id, row_id)
-            if row_key in seen_row:
-                continue
-            seen_row.add(row_key)
-            candidates.append((table_id, field_id, row_id, item))
-            needed_table_ids.add(table_id)
-            needed_field_ids.add(field_id)
-            table_to_rows.setdefault(table_id, set()).add(row_id)
-            table_to_fields.setdefault(table_id, set()).add(field_id)
+        # Early return if no field IDs to process
+        if not field_ids:
+            return []
 
-        # Now resolve specifics only for field_ids that are actually in the results
-        base_fields_by_id = {f.id: f for f in base_fields}
-        field_id_to_specific = {}
-        for fid in needed_field_ids:
-            base_f = base_fields_by_id.get(fid)
-            if base_f is None:
-                continue
-            field_id_to_specific[fid] = self._get_effective_field(
-                base_f, ct_id_to_model, specific_cache_by_model, ids_by_model
-            )
+        fields_qs = (
+            FieldHandler()
+            .get_base_fields_queryset()
+            .filter(id__in=field_ids)
+            .select_related("table__database")
+        )
 
-        # Fetch needed tables in one query
-        tables_by_id = {
-            t.id: t
-            for t in Table.objects.filter(id__in=list(needed_table_ids)).select_related(
-                "database"
-            )
-        }
+        field_id_to_name = {}
+        field_id_to_table_id = {}
+        table_id_to_name = {}
+        table_id_to_database_id = {}
+        database_id_to_name = {}
+        database_id_to_workspace_id = {}
 
-        # Build UNION ALL of needed rows/fields values and compute snippets in one query
-        snippets = {}
-        union_qs = None
-        for table_id in needed_table_ids:
-            table = tables_by_id.get(table_id)
-            if table is None:
-                continue
-            field_ids = list(table_to_fields.get(table_id, set()))
-            if not field_ids:
-                continue
-            row_ids = list(table_to_rows.get(table_id, set()))
-            if not row_ids:
-                continue
-
-            model = table.get_model(field_ids=field_ids)
-            base_qs = model.objects.filter(id__in=row_ids)
-
-            for field_id in field_ids:
-                specific_field = field_id_to_specific.get(field_id)
-                if specific_field is None:
-                    continue
-                field_qs = base_qs.all()
-                text_expr = specific_field.get_type().get_search_expression(
-                    specific_field, field_qs
+        for f in fields_qs:
+            field_id_to_name[f.id] = f.name
+            field_id_to_table_id[f.id] = f.table_id
+            if f.table_id:
+                table_id_to_name[f.table_id] = getattr(f.table, "name", None)
+                table_id_to_database_id[f.table_id] = getattr(
+                    f.table, "database_id", None
                 )
-                qs = (
-                    field_qs.annotate(
-                        table_id_ann=Value(table_id, output_field=IntegerField()),
-                        field_id_ann=Value(field_id, output_field=IntegerField()),
-                        value_ann=text_expr,
-                        snippet=SearchHeadline(
-                            text_expr,
-                            search_query,
-                            config=SearchHandler.search_config(),
-                            start_sel="[[H]]",
-                            stop_sel="[[/H]]",
-                            max_fragments=1,
-                            max_words=8,
-                            min_words=3,
-                            short_word=1,
-                            fragment_delimiter=" … ",
-                        ),
-                    ).values("table_id_ann", "id", "field_id_ann", "snippet")
-                )
-                union_qs = qs if union_qs is None else union_qs.union(qs, all=True)
+                if getattr(f.table, "database_id", None):
+                    database = getattr(f.table, "database", None)
+                    if database is not None:
+                        database_id_to_name[f.table.database_id] = getattr(
+                            database, "name", None
+                        )
+                        database_id_to_workspace_id[f.table.database_id] = getattr(
+                            database, "workspace_id", None
+                        )
 
-        if union_qs is not None:
-            for row in union_qs:
-                key = (row["table_id_ann"], row["id"], row["field_id_ann"])
-                snippets[key] = row["snippet"]
+        results_list = []
+        for r in rows_list:
+            payload = r.get("payload", {})
+            table_id = payload.get("table_id")
+            row_id = payload.get("row_id")
+            field_id = payload.get("field_id")
 
-        # Build final results
-        results = []
-        for table_id, field_id, row_id, item in candidates:
-            table = tables_by_id.get(table_id)
-            specific_field = field_id_to_specific.get(field_id)
-            subtitle_field = (
-                specific_field.name if specific_field is not None else field_id
-            )
-            snippet = snippets.get((table_id, row_id, field_id))
-            results.append(
+            if not all(x is not None for x in [table_id, row_id, field_id]):
+                continue
+
+            object_id = r.get("object_id")
+            rank = r.get("rank")
+
+            field_id_int = int(field_id)
+            table_id_int = field_id_to_table_id.get(field_id_int) or int(table_id)
+            database_id = table_id_to_database_id.get(table_id_int)
+            database_name = database_id_to_name.get(database_id)
+            workspace_id = database_id_to_workspace_id.get(database_id)
+            table_name = table_id_to_name.get(table_id_int)
+            field_name = field_id_to_name.get(field_id_int)
+
+            parts = []
+            if database_name:
+                parts.append(database_name)
+            if table_name:
+                parts.append(table_name)
+            subtitle_suffix = " / ".join(parts) if parts else None
+            subtitle = f"Row in {subtitle_suffix}" if subtitle_suffix else None
+
+            results_list.append(
                 SearchResult(
                     type=self.type,
-                    id=f"{table_id}_{row_id}",
-                    title=f"row {row_id}",
-                    subtitle=f"{table.name} > {subtitle_field}",
-                    description=snippet,
+                    id=object_id,
+                    title=f"Row #{row_id}",
+                    subtitle=subtitle,
+                    description=None,
                     metadata={
-                        "workspace_id": workspace.id,
-                        "database_id": table.database_id,
-                        "table_id": table_id,
-                        "row_id": row_id,
-                        "field_id": field_id,
-                        "rank": getattr(item, "rank", None),
+                        "workspace_id": workspace_id,
+                        "database_id": database_id,
+                        "table_id": int(table_id),
+                        "row_id": int(row_id),
+                        "field_id": int(field_id),
+                        "database_name": database_name,
+                        "table_name": table_name,
+                        "field_name": field_name,
+                        "rank": rank,
                     },
                 )
             )
-        return results
+
+        return results_list
