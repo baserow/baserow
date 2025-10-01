@@ -1,6 +1,11 @@
-from typing import Any, Callable
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any, Callable
 
 from django.contrib.auth.models import AbstractUser
+from django.utils import translation
+
+from dspy.dsp.utils.settings import settings
+from dspy.streaming.messages import sync_send_to_stream
 
 from baserow.core.exceptions import (
     InstanceTypeAlreadyRegistered,
@@ -8,12 +13,26 @@ from baserow.core.exceptions import (
 )
 from baserow.core.models import Workspace
 from baserow.core.registries import Instance, Registry
+from baserow_enterprise.assistant.tools.navigation.utils import unsafe_navigate_to
+from baserow_enterprise.assistant.types import AiThinkingMessage
+
+if TYPE_CHECKING:
+    from baserow_enterprise.assistant.tools.navigation.types import (
+        AnyNavigationRequestType,
+    )
+
+
+@dataclass
+class ToolHelpers:
+    update_status: Callable[[str], None]
+    navigate_to: Callable[["AnyNavigationRequestType"], str]
 
 
 class AssistantToolType(Instance):
-    def can_use(
-        self, user: AbstractUser, workspace: Workspace, *args, **kwargs
-    ) -> bool:
+    name: str = ""
+
+    @classmethod
+    def can_use(cls, user: AbstractUser, workspace: Workspace, *args, **kwargs) -> bool:
         """
         Returns whether or not the given user can use this tool in the given workspace.
 
@@ -24,8 +43,9 @@ class AssistantToolType(Instance):
 
         return True
 
+    @classmethod
     def on_tool_start(
-        self,
+        cls,
         call_id: str,
         instance: Any,
         inputs: dict[str, Any],
@@ -40,8 +60,9 @@ class AssistantToolType(Instance):
 
         pass
 
+    @classmethod
     def on_tool_end(
-        self,
+        cls,
         call_id: str,
         instance: Any,
         inputs: dict[str, Any],
@@ -62,9 +83,17 @@ class AssistantToolType(Instance):
 
         pass
 
-    def get_tool(self) -> Callable[[Any], Any]:
+    @classmethod
+    def get_tool(
+        cls, user: AbstractUser, workspace: Workspace, tool_helpers: ToolHelpers
+    ) -> Callable[[Any], Any]:
         """
         Returns the actual tool function to be called to pass to the dspy react agent.
+
+        :param user: The user that will be using the tool.
+        :param workspace: The workspace the user is currently in.
+        :param tool_helpers: A dataclass containing helper functions that can be used by
+            the tool function.
         """
 
         raise NotImplementedError("Subclasses must implement this method.")
@@ -85,12 +114,32 @@ class AssistantToolRegistry(Registry[AssistantToolType]):
     already_registered_exception_class = AssistantToolAlreadyRegistered
 
     def list_all_usable_tools(
-        self, user: AbstractUser, workspace: Workspace, *args, **kwargs
+        self, user: AbstractUser, workspace: Workspace
     ) -> list[AssistantToolType]:
+        def update_status_localized(status: str):
+            """
+            Sends a localized message to the frontend to update the assistant status.
+
+            :param status: The status message to send.
+            """
+
+            nonlocal user
+
+            with translation.override(user.profile.language):
+                stream = settings.send_stream
+
+                if stream is not None:
+                    sync_send_to_stream(stream, AiThinkingMessage(content=status))
+
+        tool_helpers = ToolHelpers(
+            update_status=update_status_localized,
+            navigate_to=unsafe_navigate_to,
+        )
+
         return [
-            tool_type.get_tool()
+            tool_type.get_tool(user, workspace, tool_helpers)
             for tool_type in self.get_all()
-            if tool_type.can_use(user, workspace, *args, **kwargs)
+            if tool_type.can_use(user, workspace)
         ]
 
 

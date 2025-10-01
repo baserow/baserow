@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-09-30 08:04+0000\n"
+"POT-Creation-Date: 2025-10-13 19:58+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -35,15 +35,15 @@ msgstr ""
 #: src/baserow/contrib/automation/action_scopes.py:14
 #, python-format
 msgid ""
-"of type (%(node_type)s) in automation "
-"\"%(automation_name)s\" (%(automation_id)s)."
+"of type (%(node_type)s) in automation \"%(automation_name)s\" "
+"(%(automation_id)s)."
 msgstr ""
 
 #: src/baserow/contrib/automation/actions.py:8
 #, python-format
 msgid ""
-"in workflow (%(workflow_id)s) in automation "
-"\"%(automation_name)s\" (%(automation_id)s)."
+"in workflow (%(workflow_id)s) in automation \"%(automation_name)s\" "
+"(%(automation_id)s)."
 msgstr ""
 
 #: src/baserow/contrib/automation/automation_init_application.py:29
@@ -54,62 +54,71 @@ msgstr ""
 msgid "Local Baserow"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/actions.py:28
+#: src/baserow/contrib/automation/nodes/actions.py:32
 msgid "Create automation node"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/actions.py:29
+#: src/baserow/contrib/automation/nodes/actions.py:33
 #, python-format
 msgid "Node (%(node_id)s) created"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/actions.py:100
+#: src/baserow/contrib/automation/nodes/actions.py:104
 msgid "Update automation node"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/actions.py:101
+#: src/baserow/contrib/automation/nodes/actions.py:105
 #, python-format
 msgid "Node (%(node_id)s) updated"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/actions.py:169
+#: src/baserow/contrib/automation/nodes/actions.py:173
 msgid "Delete automation node"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/actions.py:170
+#: src/baserow/contrib/automation/nodes/actions.py:174
 #, python-format
 msgid "Node (%(node_id)s) deleted"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/actions.py:227
+#: src/baserow/contrib/automation/nodes/actions.py:231
 msgid "Order nodes"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/actions.py:228
+#: src/baserow/contrib/automation/nodes/actions.py:232
 msgid "Node order changed"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/actions.py:296
+#: src/baserow/contrib/automation/nodes/actions.py:300
 msgid "Duplicate automation node"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/actions.py:297
+#: src/baserow/contrib/automation/nodes/actions.py:301
 #, python-format
 msgid "Node (%(node_id)s) duplicated"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/actions.py:380
+#: src/baserow/contrib/automation/nodes/actions.py:384
 msgid "Replace automation node"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/actions.py:382
+#: src/baserow/contrib/automation/nodes/actions.py:386
 #, python-format
 msgid ""
 "Node (%(node_id)s) changed from a type of %(original_node_type)s to "
 "%(node_type)s"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/node_types.py:195
+#: src/baserow/contrib/automation/nodes/actions.py:491
+msgid "Moved automation node"
+msgstr ""
+
+#: src/baserow/contrib/automation/nodes/actions.py:492
+#, python-format
+msgid "Node (%(node_id)s) moved"
+msgstr ""
+
+#: src/baserow/contrib/automation/nodes/node_types.py:176
 msgid "Branch"
 msgstr ""
 
@@ -204,18 +213,18 @@ msgstr ""
 msgid "Widget \"%(widget_title)s\" (%(widget_id)s) deleted"
 msgstr ""
 
-#: src/baserow/contrib/integrations/core/service_types.py:1083
+#: src/baserow/contrib/integrations/core/service_types.py:1103
 msgid "Branch taken"
 msgstr ""
 
-#: src/baserow/contrib/integrations/core/service_types.py:1088
+#: src/baserow/contrib/integrations/core/service_types.py:1108
 msgid "Label"
 msgstr ""
 
-#: src/baserow/contrib/integrations/core/service_types.py:1090
+#: src/baserow/contrib/integrations/core/service_types.py:1110
 msgid "The label of the branch that matched the condition."
 msgstr ""
 
-#: src/baserow/contrib/integrations/core/service_types.py:1374
+#: src/baserow/contrib/integrations/core/service_types.py:1402
 msgid "Triggered at"
 msgstr ""
