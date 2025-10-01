@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-12-17 08:48+0000\n"
+"POT-Creation-Date: 2025-10-13 19:58+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -27,29 +27,29 @@ msgstr ""
 msgid "Generate formula with AI using \"%(ai_type)s\" and \"%(ai_model)s\""
 msgstr ""
 
-#: src/baserow_premium/row_comments/actions.py:23
+#: src/baserow_premium/row_comments/actions.py:21
 msgid "Create row comment"
 msgstr ""
 
-#: src/baserow_premium/row_comments/actions.py:24
+#: src/baserow_premium/row_comments/actions.py:22
 #, python-format
 msgid "Comment (%(comment_id)s) has been added to row (%(row_id)s)"
 msgstr ""
 
-#: src/baserow_premium/row_comments/actions.py:108
+#: src/baserow_premium/row_comments/actions.py:93
 msgid "Update row comment"
 msgstr ""
 
-#: src/baserow_premium/row_comments/actions.py:109
+#: src/baserow_premium/row_comments/actions.py:94
 #, python-format
 msgid "Comment (%(comment_id)s) has been updated in row (%(row_id)s)"
 msgstr ""
 
-#: src/baserow_premium/row_comments/actions.py:203
+#: src/baserow_premium/row_comments/actions.py:174
 msgid "Delete row comment"
 msgstr ""
 
-#: src/baserow_premium/row_comments/actions.py:204
+#: src/baserow_premium/row_comments/actions.py:175
 #, python-format
 msgid "Comment (%(comment_id)s) has been deleted from row (%(row_id)s)"
 msgstr ""

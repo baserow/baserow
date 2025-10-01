@@ -1,14 +1,12 @@
 from typing import Any, Callable, TypedDict
 
 from django.contrib.auth.models import AbstractUser
+from django.utils.translation import gettext as _
 
 import dspy
-from dspy.dsp.utils.settings import settings as dspy_settings
-from dspy.streaming.messages import sync_send_to_stream
 
 from baserow.core.models import Workspace
-from baserow_enterprise.assistant.tools.registries import AssistantToolType
-from baserow_enterprise.assistant.types import AiThinkingMessage
+from baserow_enterprise.assistant.tools.registries import AssistantToolType, ToolHelpers
 
 from .handler import KnowledgeBaseHandler
 
@@ -20,7 +18,7 @@ class SearchDocsSignature(dspy.Signature):
     context: list[str] = dspy.InputField()
     response: str = dspy.OutputField()
     sources: list[str] = dspy.OutputField(
-        description=f"List of unique and relevant source URLs. Max {MAX_SOURCES}."
+        desc=f"List of unique and relevant source URLs. Max {MAX_SOURCES}."
     )
 
 
@@ -29,30 +27,38 @@ class SearchDocsToolOutput(TypedDict):
     sources: list[str]
 
 
-def search_docs(query: str) -> SearchDocsToolOutput:
+def get_search_docs_tool(
+    user: AbstractUser, workspace: Workspace, tool_helpers: ToolHelpers
+) -> Callable[[str], SearchDocsToolOutput]:
     """
-    Search Baserow documentation.
-
-    **Critical**: Always use before answering specifics.
-    Never use your general knowledge to answer specifics.
-
-    Covers: user guides, API references, tutorials, FAQs, features, usage.
+    Returns a function that searches the Baserow documentation for a given query.
     """
 
-    tool = SearchDocsRAG()
-    result = tool(query)
+    def search_docs(query: str) -> SearchDocsToolOutput:
+        """
+        Search Baserow documentation.
+        """
 
-    sources = []
-    for source in result["sources"]:
-        if source not in sources:
-            sources.append(source)
-        if len(sources) >= MAX_SOURCES:
-            break
+        nonlocal tool_helpers
 
-    return SearchDocsToolOutput(
-        response=result["response"],
-        sources=sources,
-    )
+        tool_helpers.update_status(_("Exploring the knowledge base..."))
+
+        tool = SearchDocsRAG()
+        result = tool(query)
+
+        sources = []
+        for source in result.sources:
+            if source not in sources:
+                sources.append(source)
+            if len(sources) >= MAX_SOURCES:
+                break
+
+        return SearchDocsToolOutput(
+            response=result.response,
+            sources=sources,
+        )
+
+    return search_docs
 
 
 class SearchDocsRAG(dspy.Module):
@@ -66,24 +72,14 @@ class SearchDocsRAG(dspy.Module):
 
 class SearchDocsToolType(AssistantToolType):
     type = "search_docs"
-    thinking_message = "Searching Baserow documentation..."
 
     def can_use(
         self, user: AbstractUser, workspace: Workspace, *args, **kwargs
     ) -> bool:
         return KnowledgeBaseHandler().can_search()
 
-    def get_tool(self) -> Callable[[Any], Any]:
-        return search_docs
-
-    def on_tool_start(
-        self,
-        call_id: str,
-        instance: Any,
-        inputs: dict[str, Any],
-    ):
-        stream = dspy_settings.send_stream
-        if stream is not None:
-            sync_send_to_stream(
-                stream, AiThinkingMessage(code=self.type, content=self.thinking_message)
-            )
+    @classmethod
+    def get_tool(
+        cls, user: AbstractUser, workspace: Workspace, tool_helpers: ToolHelpers
+    ) -> Callable[[Any], Any]:
+        return get_search_docs_tool(user, workspace, tool_helpers)

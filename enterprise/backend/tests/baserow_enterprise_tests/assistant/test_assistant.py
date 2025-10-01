@@ -281,51 +281,6 @@ class TestAssistantChatHistory:
 
 
 @pytest.mark.django_db
-class TestAssistantSignature:
-    """Test that the Assistant adapts its signature based on chat state"""
-
-    def test_signature_includes_title_field_for_new_chats(
-        self, enterprise_data_fixture
-    ):
-        """Test that new chats (without title) include chat_title in signature"""
-
-        user = enterprise_data_fixture.create_user()
-        workspace = enterprise_data_fixture.create_workspace(user=user)
-        chat = AssistantChat.objects.create(
-            user=user, workspace=workspace, title=""  # Empty title = new chat
-        )
-
-        assistant = Assistant(chat)
-        signature = assistant._get_chat_signature()
-
-        # Should have chat_title field for new chats
-        assert "chat_title" in signature.fields
-        assert "answer" in signature.fields
-        assert "question" in signature.fields
-
-    def test_signature_excludes_title_field_for_existing_chats(
-        self, enterprise_data_fixture
-    ):
-        """
-        Test that existing chats (with title) don't include chat_title in signature
-        """
-
-        user = enterprise_data_fixture.create_user()
-        workspace = enterprise_data_fixture.create_workspace(user=user)
-        chat = AssistantChat.objects.create(
-            user=user, workspace=workspace, title="Existing Chat"
-        )
-
-        assistant = Assistant(chat)
-        signature = assistant._get_chat_signature()
-
-        # Should NOT have chat_title field for existing chats
-        assert "chat_title" not in signature.fields
-        assert "answer" in signature.fields
-        assert "question" in signature.fields
-
-
-@pytest.mark.django_db
 class TestAssistantMessagePersistence:
     """Test that messages are persisted correctly during streaming"""
 
@@ -427,10 +382,15 @@ class TestAssistantMessagePersistence:
         ).count()
         assert ai_messages == 1
 
+    @patch("baserow_enterprise.assistant.assistant.ensure_llm_model_accessible")
     @patch("baserow_enterprise.assistant.assistant.dspy.streamify")
-    @patch("baserow_enterprise.assistant.assistant.dspy.LM")
+    @patch("baserow_enterprise.assistant.assistant.dspy.Predict")
     def test_astream_messages_persists_chat_title(
-        self, mock_lm, mock_streamify, enterprise_data_fixture
+        self,
+        mock_predict_class,
+        mock_streamify,
+        mock_ensure_llm,
+        enterprise_data_fixture,
     ):
         """Test that chat titles are persisted to the database"""
 
@@ -440,7 +400,7 @@ class TestAssistantMessagePersistence:
             user=user, workspace=workspace, title=""  # New chat
         )
 
-        # Mock streaming with title generation
+        # Mock streaming
         async def mock_stream(*args, **kwargs):
             yield StreamResponse(
                 signature_field_name="answer",
@@ -448,15 +408,17 @@ class TestAssistantMessagePersistence:
                 predict_name="ReAct",
                 is_last_chunk=False,
             )
-            yield StreamResponse(
-                signature_field_name="chat_title",
-                chunk="Greeting",
-                predict_name="ReAct",
-                is_last_chunk=False,
-            )
-            yield Prediction(answer="Hello", chat_title="Greeting")
+            yield Prediction(answer="Hello")
 
         mock_streamify.return_value = MagicMock(return_value=mock_stream())
+
+        # Mock title generator
+        async def mock_title_acall(*args, **kwargs):
+            return Prediction(chat_title="Greeting")
+
+        mock_title_generator = MagicMock()
+        mock_title_generator.acall = mock_title_acall
+        mock_predict_class.return_value = mock_title_generator
 
         assistant = Assistant(chat)
         ui_context = UIContext(
@@ -531,14 +493,20 @@ class TestAssistantStreaming:
         chunks = async_to_sync(consume_stream)()
 
         # Should receive chunks with accumulated content
-        assert len(chunks) == 2
+        assert len(chunks) == 3
         assert chunks[0].content == "Hello"
         assert chunks[1].content == "Hello world"
+        assert chunks[2].content == "Hello world"  # Final chunk repeats full answer
 
+    @patch("baserow_enterprise.assistant.assistant.ensure_llm_model_accessible")
     @patch("baserow_enterprise.assistant.assistant.dspy.streamify")
-    @patch("baserow_enterprise.assistant.assistant.dspy.LM")
+    @patch("baserow_enterprise.assistant.assistant.dspy.Predict")
     def test_astream_messages_yields_title_chunks(
-        self, mock_lm, mock_streamify, enterprise_data_fixture
+        self,
+        mock_predict_class,
+        mock_streamify,
+        mock_ensure_llm,
+        enterprise_data_fixture,
     ):
         """Test that title chunks are yielded for new chats"""
 
@@ -556,15 +524,17 @@ class TestAssistantStreaming:
                 predict_name="ReAct",
                 is_last_chunk=False,
             )
-            yield StreamResponse(
-                signature_field_name="chat_title",
-                chunk="Title",
-                predict_name="ReAct",
-                is_last_chunk=False,
-            )
-            yield Prediction(answer="Answer", chat_title="Title")
+            yield Prediction(answer="Answer")
 
         mock_streamify.return_value = MagicMock(return_value=mock_stream())
+
+        # Mock title generator
+        async def mock_title_acall(*args, **kwargs):
+            return Prediction(chat_title="Title")
+
+        mock_title_generator = MagicMock()
+        mock_title_generator.acall = mock_title_acall
+        mock_predict_class.return_value = mock_title_generator
 
         assistant = Assistant(chat)
         ui_context = UIContext(
@@ -601,7 +571,7 @@ class TestAssistantStreaming:
 
         # Mock streaming
         async def mock_stream(*args, **kwargs):
-            yield AiThinkingMessage(code="thinking")
+            yield AiThinkingMessage(content="thinking")
             yield StreamResponse(
                 signature_field_name="answer",
                 chunk="Answer",
@@ -630,7 +600,7 @@ class TestAssistantStreaming:
 
         # Should receive thinking messages
         assert len(thinking_messages) == 1
-        assert thinking_messages[0].code == "thinking"
+        assert thinking_messages[0].content == "thinking"
 
 
 @pytest.mark.django_db

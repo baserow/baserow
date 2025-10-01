@@ -2,11 +2,11 @@
   <div class="assistant__input">
     <div class="assistant__input-status" :class="{ 'is-running': isRunning }">
       <i class="iconoir-sparks assistant__input-status-icon"></i>
-      <span v-if="!isRunning" class="assistant__status-waiting">
+      <span v-if="!isRunning" class="assistant__status-message">
         {{ $t('assistantInputMessage.statusWaiting') }}
       </span>
-      <span v-else class="assistant__status-running">
-        {{ getRunningMessage() }}
+      <span v-else class="assistant__status-message">
+        {{ runningMessage || $t('assistant.statusThinking') }}
       </span>
     </div>
     <div class="assistant__input-section" :class="{ 'is-running': isRunning }">
@@ -44,15 +44,6 @@
 
 <script>
 import AssistantUiContext from '@baserow_enterprise/components/assistant/AssistantUiContext'
-import { THINKING_MESSAGES } from '@baserow_enterprise/store/assistant'
-
-const runningMessageCode = {
-  [THINKING_MESSAGES.THINKING]: 'statusThinking',
-  [THINKING_MESSAGES.RUNNING]: 'statusRunning',
-  [THINKING_MESSAGES.ANSWERING]: 'statusAnswering',
-  // Tool related messages
-  [THINKING_MESSAGES.SEARCH_DOCS]: 'statusSearchDocs',
-}
 
 export default {
   name: 'AssistantInputMessage',
@@ -85,10 +76,6 @@ export default {
     this.adjustHeight()
   },
   methods: {
-    getRunningMessage() {
-      const key = runningMessageCode[this.runningMessage]
-      return key ? this.$t(`assistantInputMessage.${key}`) : this.runningMessage
-    },
     handleEnter(event) {
       // If shift key is pressed, allow the default behavior (new line)
       if (!event.shiftKey) {
