@@ -474,9 +474,7 @@
       fi
 
       echo "$TARGET_REGISTRY_PASSWORD" | docker login -u "$TARGET_REGISTRY_USER" "$TARGET_REGISTRY" --password-stdin
-      docker pull $SOURCE_IMAGE
-      docker tag $SOURCE_IMAGE $TARGET_IMAGE
-      docker push $TARGET_IMAGE
+      docker buildx imagetools create -t $TARGET_IMAGE $SOURCE_IMAGE
 
 .skippable-job:
   before_script:
