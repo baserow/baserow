@@ -17,13 +17,76 @@ class AssistantChatsRequestSerializer(serializers.Serializer):
     limit = serializers.IntegerField(default=100, max_value=100, min_value=1)
 
 
+class UIContextApplicationSerializer(serializers.Serializer):
+    id = serializers.CharField(help_text="The unique ID of the application.")
+    name = serializers.CharField(help_text="The name of the application.")
+
+
+class UIContextTableSerializer(serializers.Serializer):
+    id = serializers.IntegerField(help_text="The ID of the table.")
+    name = serializers.CharField(help_text="The name of the table.")
+
+
+class UIContextViewSerializer(serializers.Serializer):
+    id = serializers.IntegerField(help_text="The ID of the view.")
+    name = serializers.CharField(help_text="The name of the view.")
+    type = serializers.CharField(help_text="The type of the view.")
+
+
 class UIContextWorkspaceSerializer(serializers.Serializer):
     id = serializers.IntegerField(help_text="The ID of the workspace.")
     name = serializers.CharField(help_text="The name of the workspace.")
 
 
+class UIContextPageSerializer(serializers.Serializer):
+    id = serializers.CharField(help_text="The unique ID of the page.")
+    name = serializers.CharField(help_text="The name of the page.")
+
+
+class UIContextWorkflowSerializer(serializers.Serializer):
+    id = serializers.CharField(help_text="The unique ID of the workflow.")
+    name = serializers.CharField(help_text="The name of the workflow.")
+
+
 class UIContextSerializer(serializers.Serializer):
     workspace = UIContextWorkspaceSerializer()
+    # database builder context
+    database = UIContextApplicationSerializer(
+        required=False,
+        help_text="The application the user is currently in, e.g. 'database'.",
+    )
+    table = UIContextTableSerializer(
+        required=False,
+        help_text="The table the user is currently viewing, if any.",
+    )
+    view = UIContextViewSerializer(
+        required=False,
+        help_text="The view the user is currently viewing, if any.",
+    )
+    # application builder context
+    application = UIContextApplicationSerializer(
+        required=False,
+        help_text="The application the user is currently in, e.g. 'application'.",
+    )
+    page = UIContextPageSerializer(
+        required=False,
+        help_text="The page the user is currently viewing, if any.",
+    )
+    # automation builder context
+    automation = UIContextApplicationSerializer(
+        required=False,
+        help_text="The application the user is currently in, e.g. 'automation'.",
+    )
+    workflow = UIContextWorkflowSerializer(
+        required=False,
+        help_text="The workflow the user is currently viewing, if any.",
+    )
+    # dashboard builder context
+    dashboard = UIContextApplicationSerializer(
+        required=False,
+        help_text="The application the user is currently in, e.g. 'dashboard'.",
+    )
+    # user context
     timezone = serializers.CharField(
         required=False,
         help_text="The timezone of the user, e.g. 'Europe/Amsterdam'.",

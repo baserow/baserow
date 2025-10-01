@@ -31,7 +31,11 @@ from baserow_enterprise.assistant.exceptions import (
 )
 from baserow_enterprise.assistant.handler import AssistantHandler
 from baserow_enterprise.assistant.operations import ChatAssistantChatOperationType
-from baserow_enterprise.assistant.types import AssistantMessageUnion, UIContext
+from baserow_enterprise.assistant.types import (
+    AssistantMessageUnion,
+    HumanMessage,
+    UIContext,
+)
 from baserow_enterprise.features import ASSISTANT
 
 from .serializers import (
@@ -142,7 +146,7 @@ class AssistantChatView(APIView):
     def post(self, request: Request, chat_uuid: str, data) -> StreamingHttpResponse:
         feature_flag_is_enabled(FF_ASSISTANT, raise_if_disabled=True)
 
-        ui_context = UIContext(**data["ui_context"])
+        ui_context = UIContext.from_validate_request(request, data["ui_context"])
         workspace_id = ui_context.workspace.id
         workspace = CoreHandler().get_workspace(workspace_id)
         LicenseHandler.raise_if_user_doesnt_have_feature(
@@ -158,12 +162,10 @@ class AssistantChatView(APIView):
         handler = AssistantHandler()
         chat, _ = handler.get_or_create_chat(request.user, workspace, chat_uuid)
         assistant = handler.get_assistant(chat)
-        human_message = data["content"]
+        human_message = HumanMessage(content=data["content"], ui_context=ui_context)
 
         async def stream_assistant_messages():
-            async for msg in assistant.astream_messages(
-                human_message, ui_context=ui_context
-            ):
+            async for msg in assistant.astream_messages(human_message):
                 yield self._stream_assistant_message(msg)
 
         response = StreamingHttpResponse(

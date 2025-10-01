@@ -31,14 +31,10 @@ export const mutations = {
   },
   UPDATE_CURRENT_SCOPE_SET(state, newScope) {
     const current = state.actionScopesStack[state.actionScopesStack.length - 1]
-    Object.assign(current, current, newScope)
+    // FIXME: different application types might have different sub-scopes, so we should
+    // clear them when updating parent scopes instead of just merging.
     for (const [key, value] of Object.entries(newScope)) {
-      const exists = Object.prototype.hasOwnProperty.call(state, key)
-      if (exists) {
-        current[key] = value
-      } else {
-        Vue.set(current, key, value)
-      }
+      Vue.set(current, key, value)
     }
   },
 }
