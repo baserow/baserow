@@ -66,6 +66,8 @@ import {
 } from '@baserow/modules/core/onboardingTypes'
 import { SidebarGuidedTourType } from '@baserow/modules/core/guidedTourTypes'
 
+import { TOTPAuthType } from '@baserow/modules/core/twoFactorAuthTypes'
+
 import settingsStore from '@baserow/modules/core/store/settings'
 import applicationStore from '@baserow/modules/core/store/application'
 import authProviderStore from '@baserow/modules/core/store/authProvider'
@@ -253,6 +255,8 @@ export default (context, inject) => {
     'notification',
     new BaserowVersionUpgradeNotificationType(context)
   )
+
+  registry.register('twoFactorAuth', new TOTPAuthType(context))
 
   registry.register('onboarding', new TeamOnboardingType(context))
   registry.register('onboarding', new MoreOnboardingType(context))

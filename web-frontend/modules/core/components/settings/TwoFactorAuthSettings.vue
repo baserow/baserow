@@ -10,12 +10,14 @@
       />
       <EnableWithQRCode v-if="state == 'qr_code'" @verified="stepVerified" />
       <SaveBackupCode v-if="state == 'save_code'" :backup-codes="backupCodes" />
+      <TwoFactorEnabled v-if="state == 'enabled'" :provider="provider" />
     </div>
   </div>
 </template>
 
 <script>
 import TwoFactorAuthEmpty from '@baserow/modules/core/components/settings/twoFactorAuth/TwoFactorAuthEmpty'
+import TwoFactorEnabled from '@baserow/modules/core/components/settings/twoFactorAuth/TwoFactorEnabled'
 import EnableTwoFactorOptions from '@baserow/modules/core/components/settings/twoFactorAuth/EnableTwoFactorOptions'
 import EnableWithQRCode from '@baserow/modules/core/components/settings/twoFactorAuth/EnableWithQRCode'
 import SaveBackupCode from '@baserow/modules/core/components/settings/twoFactorAuth/SaveBackupCode'
@@ -28,12 +30,14 @@ export default {
     EnableTwoFactorOptions,
     EnableWithQRCode,
     SaveBackupCode,
+    TwoFactorEnabled,
   },
   data() {
     return {
       loading: true,
       state: 'empty',
       backupCodes: [],
+      provider: null,
     }
   },
   async mounted() {
@@ -47,7 +51,8 @@ export default {
 
       if (data.type === 'totp') {
         if (data.enabled) {
-          this.state = 'save_code' // TODO: new screen
+          this.state = 'enabled'
+          this.provider = data
         }
       }
     } catch (error) {
