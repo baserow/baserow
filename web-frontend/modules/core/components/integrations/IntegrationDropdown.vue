@@ -77,6 +77,31 @@ export default {
       required: false,
       default: 'regular',
     },
+    /**
+     * If there is only one integration available, it will be
+     * automatically selected if this property is true.
+     */
+    autoSelectFirst: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
+  },
+  watch: {
+    integrations: {
+      handler(newValue) {
+        if (
+          this.autoSelectFirst &&
+          newValue.length === 1 &&
+          this.value === null
+        ) {
+          this.$nextTick(() => {
+            this.$emit('input', newValue[0].id)
+          })
+        }
+      },
+      immediate: true,
+    },
   },
 }
 </script>
