@@ -90,11 +90,12 @@
   }
 
   &.workflow-node-content--utility {
+    box-shadow: none;
     background: $palette-neutral-50;
-    border: 2px dashed $palette-neutral-400;
+    border: 1.5px dashed $palette-neutral-400;
 
     &.workflow-node-content--selected {
-      border: 2px dashed $palette-blue-500;
+      border: 1.5px dashed $palette-blue-500;
     }
   }
 }
