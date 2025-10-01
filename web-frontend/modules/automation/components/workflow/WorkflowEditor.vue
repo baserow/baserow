@@ -5,7 +5,6 @@
     :edges="vueFlowEdges"
     :zoom-on-scroll="false"
     :nodes-draggable="false"
-    :pan-on-drag="panOnDrag"
     :zoom-on-drag="zoomOnScroll"
     :pan-on-scroll="panOnScroll"
     :node-drag-threshold="2000"
@@ -60,7 +59,7 @@ const props = defineProps({
 const vueFlowEdges = []
 const emit = defineEmits(['add-node', 'remove-node', 'input', 'move-node'])
 
-const { onPaneClick, panOnDrag } = useVueFlow()
+const { onPaneClick } = useVueFlow()
 
 const { value: selectedNodeId } = toRefs(props)
 
