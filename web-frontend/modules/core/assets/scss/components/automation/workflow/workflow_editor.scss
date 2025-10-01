@@ -40,9 +40,11 @@
   padding: 6px 10px;
   margin-bottom: 10px;
   border-radius: 25px;
+  font-size: 11px;
+  font-weight: 500;
   background-color: $palette-neutral-200;
   border: 1px solid $palette-neutral-400;
-  color: $palette-neutral-700;
+  color: $palette-neutral-900;
   display: block;
 
   @include elevation($elevation-low);
@@ -85,6 +87,16 @@
 
   &.workflow-node-content--selected {
     border: 1.5px solid $palette-blue-500;
+  }
+
+  &.workflow-node-content--utility {
+    box-shadow: none;
+    background: $palette-neutral-50;
+    border: 1.5px dashed $palette-neutral-400;
+
+    &.workflow-node-content--selected {
+      border: 1.5px dashed $palette-blue-500;
+    }
   }
 }
 
@@ -141,6 +153,7 @@
   justify-content: center;
   align-items: center;
   gap: 8px;
+  background: $white;
   border: 1px solid $palette-neutral-200;
 
   @include elevation($elevation-low);
@@ -152,6 +165,7 @@
   font-weight: 500;
   color: $palette-neutral-1200;
   min-width: 0;
+  flex: 1;
 
   &:last-child {
     margin-bottom: 30px;

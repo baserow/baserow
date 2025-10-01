@@ -2,6 +2,7 @@ import { Registerable } from '@baserow/modules/core/registry'
 import {
   ActionNodeTypeMixin,
   TriggerNodeTypeMixin,
+  UtilityNodeMixin,
 } from '@baserow/modules/automation/nodeTypeMixins'
 import {
   LocalBaserowCreateRowWorkflowServiceType,
@@ -559,7 +560,9 @@ export class CoreSMTPEmailNodeType extends ActionNodeTypeMixin(NodeType) {
   }
 }
 
-export class CoreRouterNodeType extends ActionNodeTypeMixin(NodeType) {
+export class CoreRouterNodeType extends ActionNodeTypeMixin(
+  UtilityNodeMixin(NodeType)
+) {
   static getType() {
     return 'router'
   }
