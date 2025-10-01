@@ -4,7 +4,7 @@
       ref="btn"
       class="workflow-node__add-button"
       :class="{
-        g: isDragOver,
+        'workflow-node__add-button--hover': isDragOver,
         'workflow-node__add-button--active':
           draggingNodeId && !isDropZoneDisabled,
       }"
@@ -28,11 +28,6 @@ const props = defineProps({
   disabled: {
     type: Boolean,
     default: false,
-  },
-  btnClass: {
-    type: Object,
-    required: false,
-    default: () => {},
   },
   isDragOver: {
     type: Boolean,
