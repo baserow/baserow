@@ -18,11 +18,9 @@
         @drop="handleDrop"
       ></div>
       <WorkflowAddBtnNode
-        :btn-class="{
-          'workflow-node__add-button--hover': isDragOver,
-          'workflow-node__add-button--active':
-            draggingNodeId && !isDropZoneDisabled,
-        }"
+        :dragging-node-id="draggingNodeId"
+        :is-drag-over="isDragOver"
+        :is-drop-zone-disabled="isDropZoneDisabled"
         :disabled="readOnly"
         :debug="debug"
         @add-node="
