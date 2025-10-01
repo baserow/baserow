@@ -56,7 +56,7 @@ class TOTPAuthProviderType(TwoFactorAuthProviderType):
         "enabled": serializers.BooleanField(),
         "provisioning_url": serializers.CharField(),
         "provisioning_qr_code": serializers.CharField(),
-        "backup_codes": serializers.CharField(),
+        "backup_codes": serializers.ListField(child=serializers.CharField()),
     }
     request_serializer_field_names = ["code"]
     request_serializer_field_overrides = {"code": serializers.CharField(required=False)}

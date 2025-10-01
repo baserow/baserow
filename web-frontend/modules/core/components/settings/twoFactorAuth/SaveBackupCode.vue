@@ -12,7 +12,10 @@
         {{ code }}
       </div>
     </div>
-    <Button type="secondary" icon="iconoir-copy">Copy</Button>
+    <div class="actions actions--right actions--gap">
+      <Button type="secondary" icon="iconoir-copy">Copy</Button>
+      <Button type="primary" @click="$emit('continue')">Continue</Button>
+    </div>
   </div>
 </template>
 

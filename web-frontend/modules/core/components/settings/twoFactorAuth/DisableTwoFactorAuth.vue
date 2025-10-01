@@ -7,23 +7,23 @@
 
     <form @submit.prevent="confirm">
       <FormGroup
-        :error="v$.values.passwordConfirm.$error"
+        :error="v$.values.password.$error"
         :label="'Password'"
         required
         small-label
         class="margin-bottom-2"
       >
         <FormInput
-          v-model="v$.values.passwordConfirm.$model"
-          :error="v$.values.passwordConfirm.$error"
+          v-model="v$.values.password.$model"
+          :error="v$.values.password.$error"
           type="password"
           size="large"
-          @blur="v$.values.passwordConfirm.$touch"
+          @blur="v$.values.password.$touch"
         >
         </FormInput>
 
         <template #error>
-          {{ v$.values.passwordConfirm.$errors[0]?.$message }}
+          {{ v$.values.password.$errors[0]?.$message }}
         </template>
       </FormGroup>
 
@@ -39,7 +39,7 @@
           type="danger"
           size="large"
           :loading="loading"
-          :disabled="loading || !values.passwordConfirm"
+          :disabled="loading || !values.password"
           @click="confirm"
         >
           Disable
@@ -66,7 +66,7 @@ export default {
   data() {
     return {
       values: {
-        passwordConfirm: '',
+        password: '',
       },
       loading: false,
     }
@@ -84,7 +84,7 @@ export default {
 
       try {
         await TwoFactorAuthService(this.$client).disable(
-          this.account.confirmPassword
+          this.values.password
         )
         this.loading = false
 
@@ -93,6 +93,7 @@ export default {
       } catch (error) {
         this.loading = false
         // TODO:
+        this.handleError(error)
         // this.handleError(error, 'changePassword', {
         //   ERROR_INVALID_OLD_PASSWORD: new ResponseErrorMessage(
         //     this.$t('passwordSettings.errorInvalidOldPasswordTitle'),
@@ -105,7 +106,7 @@ export default {
   validations() {
     return {
       values: {
-        passwordConfirm: {
+        password: {
           required,
         },
       },
