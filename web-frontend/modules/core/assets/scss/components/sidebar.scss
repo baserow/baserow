@@ -313,20 +313,31 @@
 
 .sidebar__search {
   margin-bottom: 8px;
+  display: block;
+  width: 100%;
+  padding: 0;
+  background-color: transparent;
+
+  &:hover,
+  &:not(.tree__action--disabled):hover {
+    background-color: transparent;
+  }
 }
 
 .sidebar__search-input {
+  position: relative;
   display: flex;
   align-items: center;
-  padding: 6px 10px;
+  gap: 8px;
+  height: 32px;
+  line-height: 32px;
+  width: 100%;
+  padding: 0 48px 0 8px;
   background-color: $white;
   border: 1px solid $palette-neutral-300;
   border-radius: $rounded-md;
   cursor: pointer;
   transition: all 0.2s ease;
-  gap: 8px;
-  line-height: 8px;
-  width: 100%;
 }
 
 .sidebar__search-icon {
@@ -336,37 +347,34 @@
 }
 
 .sidebar__search-placeholder {
-  flex: 1;
-  font-size: 13px;
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 12px;
   color: $palette-neutral-700;
   font-weight: 400;
 }
 
 .sidebar__search-shortcut {
-  flex-shrink: 0;
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
 
   kbd {
     background-color: $palette-neutral-300;
     border: 1px solid $palette-neutral-400;
     border-radius: 3px;
-    padding: 1px 4px;
     font-family: inherit;
     font-size: 10px;
     font-weight: 500;
     color: $palette-neutral-800;
+    height: 16px;
+    line-height: 16px;
+    padding: 0;
     min-width: 16px;
     text-align: center;
-  }
-}
-
-.sidebar__action.sidebar__search {
-  display: block;
-  width: 100%;
-  padding: 0;
-  background-color: transparent;
-
-  &:hover,
-  &:not(.tree__action--disabled):hover {
-    background-color: transparent;
   }
 }

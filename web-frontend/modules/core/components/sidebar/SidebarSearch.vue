@@ -6,9 +6,7 @@
         <span class="sidebar__search-placeholder">
           {{ $t('workspaceSearch.searchEverything') }}
         </span>
-        <div class="sidebar__search-shortcut">
-          <kbd>⌘K</kbd>
-        </div>
+        <div class="sidebar__search-shortcut"><kbd>⌘</kbd><kbd>K</kbd></div>
       </div>
     </div>
   </li>

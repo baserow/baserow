@@ -1,8 +1,10 @@
 from typing import TYPE_CHECKING, List
 
 from django.contrib.auth.models import AbstractUser
+from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector
 from django.db import models
-from django.db.models import CharField, Q, Value
+from django.db.models import CharField, F, Q, TextField, Value
+from django.db.models.functions import Cast, JSONObject
 
 from baserow.core.search.data_types import SearchContext
 from baserow.core.search.registries import SearchableItemType
@@ -68,3 +70,51 @@ class DatabaseSearchableItemType(SearchableItemType):
             search_type=Value(self.type, output_field=CharField())
         )
         return queryset
+
+    def build_payload(self):
+        """
+        Default payload for name-based searchable items.
+        """
+
+        return JSONObject(title=F("name"), subtitle=Value(self.type))
+
+    def get_union_values_queryset(
+        self,
+        user: "AbstractUser",
+        workspace: "Workspace",
+        context: SearchContext,
+    ) -> models.QuerySet:
+        """
+        Default union values queryset: ranks by SearchRank on name and emits
+        standardized fields including a JSON payload. Subclasses can override
+        build_payload() to customize the payload.
+        """
+
+        qs = self.get_search_queryset(user, workspace, context)
+
+        search_query = SearchQuery(
+            context.query, search_type="websearch", config="english"
+        )
+        search_vector = SearchVector("name", config="english")
+
+        qs = qs.annotate(
+            search_type=Value(self.type, output_field=TextField()),
+            object_id=Cast(F("id"), output_field=TextField()),
+            sort_key=F("id"),
+            rank=SearchRank(search_vector, search_query),
+            priority=Value(getattr(self, "priority", 10)),
+            title=Cast(F("name"), output_field=TextField()),
+            subtitle=Value(self.type),
+            payload=JSONObject(),
+        )
+
+        return qs.values(
+            "search_type",
+            "object_id",
+            "sort_key",
+            "rank",
+            "priority",
+            "title",
+            "subtitle",
+            "payload",
+        )

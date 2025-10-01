@@ -1,5 +1,3 @@
-from django.db import transaction
-
 from drf_spectacular.openapi import OpenApiParameter, OpenApiTypes
 from drf_spectacular.utils import extend_schema
 from rest_framework.permissions import IsAuthenticated
@@ -47,7 +45,6 @@ class WorkspaceSearchView(APIView):
         operation_id="workspace_search",
         description="Search across all searchable content within a workspace",
     )
-    @transaction.atomic
     @map_exceptions(
         {
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,

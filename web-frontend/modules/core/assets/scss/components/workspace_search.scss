@@ -97,11 +97,12 @@
 .workspace-search__result-item {
   display: flex;
   align-items: center;
-  padding: 8px;
+  height: 64px; /* whole row height */
+  padding: 12px; /* 12px top/bottom -> inner block 40px */
   cursor: pointer;
   transition: background-color 0.1s ease;
-  border-radius: 4px;
-  margin-bottom: 2px;
+  border-radius: 0;
+  margin-bottom: 4px;
   width: 100%;
   box-sizing: border-box;
   overflow: hidden;
@@ -117,20 +118,30 @@
 }
 
 .workspace-search__result-icon {
-  width: 20px;
-  height: 20px;
-  margin-right: 12px;
+  width: 40px;
+  height: 40px;
+  margin-right: 8px; /* gap between icon box and text */
   display: flex;
   align-items: center;
   justify-content: center;
-  color: $palette-neutral-600;
+  color: $palette-neutral-800;
   flex-shrink: 0;
-  font-size: 16px;
+  border: 1px solid $palette-neutral-300;
+  border-radius: 6px;
+  background-color: $white;
+
+  i {
+    font-size: 16px; /* inner icon size */
+    line-height: 16px;
+  }
 }
 
 .workspace-search__result-main {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center; /* vertically center 40px content */
 }
 
 .workspace-search__result-enter {
@@ -139,6 +150,20 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+
+  kbd {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 24px;
+    line-height: 24px;
+    min-width: 24px;
+    padding: 0 12px;
+    background-color: $white;
+    border: 1px solid $palette-neutral-400;
+    border-radius: 6px;
+    color: $palette-neutral-800;
+  }
 }
 
 .workspace-search__result-title {
@@ -148,7 +173,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   font-size: 14px;
-  line-height: 1.4;
+  line-height: 20px; /* per figma */
 }
 
 .workspace-search__result-subtitle {
@@ -157,7 +182,8 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  margin-top: 1px;
+  line-height: 16px;
+  margin-top: 0; /* title/subtitle stack within 40px */
 }
 
 .workspace-search__loading-more {
@@ -228,6 +254,7 @@
   padding: 12px;
   border-top: 1px solid $palette-neutral-300;
   margin-top: 8px;
+  background-color: $palette-neutral-25;
 }
 
 .workspace-search__shortcuts {
@@ -240,9 +267,45 @@
 .workspace-search__shortcut {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
   font-size: 12px;
   color: $palette-neutral-700;
+  line-height: 12px;
+
+  kbd {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 24px;
+    line-height: 24px;
+    padding: 0 12px;
+    background-color: $white;
+    border: 1px solid $palette-neutral-400;
+    color: $palette-neutral-800;
+    border-radius: 4px;
+  }
+
+  kbd i {
+    width: 14px;
+    height: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 14px;
+    font-size: 8px; /* Arrow glyph size inside the 14px box */
+  }
+}
+
+.workspace-search__keys img {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+
+.workspace-search__keys {
+  width: 24px;
+  min-width: 24px;
+  padding: 0;
 }
 
 .workspace-search__shortcuts-left {

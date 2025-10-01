@@ -4,13 +4,12 @@ from baserow.contrib.database.search.handler import SearchHandler
 from baserow.contrib.database.search_types import (
     DatabaseSearchType,
     FieldDefinitionSearchType,
-    RowSearchType,
 )
 from baserow.core.search.data_types import SearchContext
 
 
 @pytest.mark.workspace_search
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 def test_database_search_type_basic_functionality(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
@@ -35,7 +34,7 @@ def test_database_search_type_basic_functionality(data_fixture):
 
 
 @pytest.mark.workspace_search
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 def test_database_search_excludes_trashed_workspaces(data_fixture):
     user = data_fixture.create_user()
 
@@ -59,7 +58,7 @@ def test_database_search_excludes_trashed_workspaces(data_fixture):
 
 
 @pytest.mark.workspace_search
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 def test_database_search_with_permissions(data_fixture):
     user1 = data_fixture.create_user()
     user2 = data_fixture.create_user()
@@ -82,7 +81,7 @@ def test_database_search_with_permissions(data_fixture):
 
 
 @pytest.mark.workspace_search
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 def test_field_definition_search_type_basic_functionality(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
@@ -97,13 +96,14 @@ def test_field_definition_search_type_basic_functionality(data_fixture):
 
     results = search_type.execute_search(user, workspace, context)
 
+    print(results)
     assert len(results) == 2
     assert results[0].id == field.id
     assert results[1].id == field2.id
 
 
 @pytest.mark.workspace_search
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 def test_field_definition_search_excludes_trashed_items(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
@@ -135,27 +135,39 @@ def test_row_search_type_basic_functionality(data_fixture):
     table = data_fixture.create_database_table(database=database, name="Test Table")
     text_field = data_fixture.create_text_field(table=table, name="Text Field")
 
-    model = table.get_model()
-    row1 = model.objects.create(**{f"field_{text_field.id}": "Test content"})
-    row2 = model.objects.create(**{f"field_{text_field.id}": "Other content"})
+    from baserow.contrib.database.rows.handler import RowHandler
 
+    row_handler = RowHandler()
+    row1_data = row_handler.create_rows(
+        user=user, table=table, rows_values=[{f"field_{text_field.id}": "Test content"}]
+    )
+    row2_data = row_handler.create_rows(
+        user=user,
+        table=table,
+        rows_values=[{f"field_{text_field.id}": "Other content"}],
+    )
+
+    row1 = row1_data.created_rows[0]
+    row2 = row2_data.created_rows[0]
+
+    SearchHandler.create_workspace_search_table_if_not_exists(workspace.id)
     SearchHandler.initialize_missing_search_data(table)
     SearchHandler.process_search_data_updates(table)
 
-    search_type = RowSearchType()
+    from baserow.core.search.registries import workspace_search_registry
 
     context = SearchContext(query="Test content", limit=10, offset=0)
 
-    results = search_type.execute_search(user, workspace, context)
+    results = workspace_search_registry.search_all_types(user, workspace, context)
 
     assert len(results) >= 1
     assert results[0].id == f"{table.id}_{row1.id}"
-    assert results[0].title == "row 1"
-    assert results[0].subtitle == f"{table.name} > Text Field"
+    assert results[0].title == "Row #1"
+    assert results[0].subtitle == f"Row in {database.name} / {table.name}"
 
 
 @pytest.mark.workspace_search
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 def test_row_search_multiple_fields(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
@@ -165,29 +177,43 @@ def test_row_search_multiple_fields(data_fixture):
     text_field1 = data_fixture.create_text_field(table=table, name="Field 1")
     text_field2 = data_fixture.create_text_field(table=table, name="Field 2")
 
-    model = table.get_model()
-    row1 = model.objects.create(
-        **{
-            f"field_{text_field1.id}": "Unique search term",
-            f"field_{text_field2.id}": "Other content",
-        }
+    from baserow.contrib.database.rows.handler import RowHandler
+
+    row_handler = RowHandler()
+    row1_data = row_handler.create_rows(
+        user=user,
+        table=table,
+        rows_values=[
+            {
+                f"field_{text_field1.id}": "Unique search term",
+                f"field_{text_field2.id}": "Other content",
+            }
+        ],
     )
 
-    row2 = model.objects.create(
-        **{
-            f"field_{text_field1.id}": "Different content",
-            f"field_{text_field2.id}": "Unique search term",
-        }
+    row2_data = row_handler.create_rows(
+        user=user,
+        table=table,
+        rows_values=[
+            {
+                f"field_{text_field1.id}": "Different content",
+                f"field_{text_field2.id}": "Unique search term",
+            }
+        ],
     )
 
+    row1 = row1_data.created_rows[0]
+    row2 = row2_data.created_rows[0]
+
+    SearchHandler.create_workspace_search_table_if_not_exists(workspace.id)
     SearchHandler.initialize_missing_search_data(table)
     SearchHandler.process_search_data_updates(table)
 
-    search_type = RowSearchType()
+    from baserow.core.search.registries import workspace_search_registry
 
-    context = SearchContext(query="Unique search term", limit=10, offset=0)
+    context = SearchContext(query="Unique", limit=10, offset=0)
 
-    results = search_type.execute_search(user, workspace, context)
+    results = workspace_search_registry.search_all_types(user, workspace, context)
 
     assert len(results) >= 2
     assert results[0].id == f"{table.id}_{row1.id}"
