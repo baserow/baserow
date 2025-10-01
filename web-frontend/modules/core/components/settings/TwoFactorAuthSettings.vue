@@ -47,9 +47,7 @@ export default {
 
       if (data.type === 'totp') {
         if (data.enabled) {
-          this.state = 'save_code'
-        } else {
-          this.state = 'pick_options'
+          this.state = 'save_code' // TODO: new screen
         }
       }
     } catch (error) {

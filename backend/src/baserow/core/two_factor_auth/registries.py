@@ -64,7 +64,7 @@ class TOTPAuthProviderType(TwoFactorAuthProviderType):
     def configure(
         self, user: AbstractUser, provider, **kwargs
     ) -> TOTPAuthProviderModel:
-        if provider:
+        if provider and kwargs.get("code"):
             code = kwargs.get("code")
             totp = pyotp.TOTP(provider.secret)
 
