@@ -2,6 +2,7 @@ from typing import cast
 
 from django.db.models import QuerySet
 
+from baserow.core.two_factor_auth.exceptions import WrongPassword
 from baserow.core.two_factor_auth.registries import TwoFactorAuthProviderType
 from baserow.core.utils import extract_allowed
 from .registries import two_factor_auth_type_registry
@@ -102,9 +103,12 @@ class TwoFactorAuthHandler:
 
         :param user: The user for whom to disable the authentication.
         :param password: Password for confirmation.
+        :raises WrongPassword: If the provided password doesn't match.
         """
 
-        # TODO: check password
+        if not user.check_password(password):
+            raise WrongPassword
 
         provider = self.get_provider_for_update(user)
-        provider.delete()
+        if provider:
+            provider.delete()

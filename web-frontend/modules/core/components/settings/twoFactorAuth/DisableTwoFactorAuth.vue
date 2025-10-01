@@ -89,14 +89,12 @@ export default {
         // TODO: toast
       } catch (error) {
         this.loading = false
-        // TODO:
-        this.handleError(error)
-        // this.handleError(error, 'changePassword', {
-        //   ERROR_INVALID_OLD_PASSWORD: new ResponseErrorMessage(
-        //     this.$t('passwordSettings.errorInvalidOldPasswordTitle'),
-        //     this.$t('passwordSettings.errorInvalidOldPasswordMessage')
-        //   ),
-        // })
+        this.handleError(error, 'twoFactor', {
+          ERROR_WRONG_PASSWORD: new ResponseErrorMessage(
+            this.$t('disableTwoFactorAuth.errorWrongPasswordTitle'),
+            this.$t('disableTwoFactorAuth.errorWrongPasswordMessage')
+          ),
+        })
       }
     },
   },

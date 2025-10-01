@@ -52,6 +52,10 @@
   "twoFactorAuthSettings": {
     "title": "Two-factor authentication"
   },
+  "disableTwoFactorAuth": {
+    "errorWrongPasswordTitle": "Wrong password",
+    "errorWrongPasswordMessage": "The password entered doesn't match your password."
+  },
   "saveBackupCode": {
     "backupCodesCopiedTitle": "Copied!",
     "backupCodesCopiedMessage": "Backup codes copied to clipboard."
