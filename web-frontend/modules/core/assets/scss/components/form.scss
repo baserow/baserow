@@ -146,6 +146,10 @@
   &.actions--right {
     justify-content: right;
   }
+
+  &.actions--gap {
+    gap: 12px;
+  }
 }
 
 .action__links {

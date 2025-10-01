@@ -10,13 +10,15 @@
       />
       <EnableWithQRCode v-if="state == 'qr_code'" @verified="stepVerified" />
       <SaveBackupCode v-if="state == 'save_code'" :backup-codes="backupCodes" />
-      <TwoFactorEnabled v-if="state == 'enabled'" :provider="provider" />
+      <TwoFactorEnabled v-if="state == 'enabled'" :provider="provider" @disable="disable" />
+      <DisableTwoFactorAuth v-if="state == 'disable'" @cancel="cancelDisable" />
     </div>
   </div>
 </template>
 
 <script>
 import TwoFactorAuthEmpty from '@baserow/modules/core/components/settings/twoFactorAuth/TwoFactorAuthEmpty'
+import DisableTwoFactorAuth from '@baserow/modules/core/components/settings/twoFactorAuth/DisableTwoFactorAuth'
 import TwoFactorEnabled from '@baserow/modules/core/components/settings/twoFactorAuth/TwoFactorEnabled'
 import EnableTwoFactorOptions from '@baserow/modules/core/components/settings/twoFactorAuth/EnableTwoFactorOptions'
 import EnableWithQRCode from '@baserow/modules/core/components/settings/twoFactorAuth/EnableWithQRCode'
@@ -31,6 +33,7 @@ export default {
     EnableWithQRCode,
     SaveBackupCode,
     TwoFactorEnabled,
+    DisableTwoFactorAuth,
   },
   data() {
     return {
@@ -74,6 +77,12 @@ export default {
     },
     cancel() {
       this.state = 'empty'
+    },
+    disable() {
+      this.state = 'disable'
+    },
+    cancelDisable() {
+      this.state = 'enabled'
     },
   },
 }

@@ -6,5 +6,8 @@ export default (client) => {
     getConfiguration() {
       return client.get('/two-factor-auth/configuration/')
     },
+    disable(password) {
+      // TODO:
+    },
   }
 }

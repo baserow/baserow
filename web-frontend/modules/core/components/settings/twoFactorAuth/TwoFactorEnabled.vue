@@ -2,7 +2,7 @@
   <div class="two-factor-enabled">
     <div><span class="two-factor-enabled__type">{{ providerName }}</span><Badge color="green" rounded="true">Enabled</Badge></div>
     <div class="two-factor-enabled__description">{{ providerDescription }}</div>
-    <Button type="secondary">Disable 2FA</Button>
+    <Button type="secondary" @click="$emit('disable')">Disable 2FA</Button>
   </div>
 </template>
 
