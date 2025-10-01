@@ -39,6 +39,8 @@ class AutomationNodeDuplication:
 class AutomationNodeMove:
     # The node we're trying to move.
     node: AutomationActionNode
+    # A list of origin *and* destination next nodes
+    next_node_updates: List[AutomationActionNode]
     # The original position & output of the node before the move.
     origin_previous_node_id: int
     origin_previous_node_output: str

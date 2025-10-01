@@ -9,7 +9,7 @@ from baserow.contrib.automation.nodes.exceptions import (
     AutomationTriggerModificationDisallowed,
 )
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
-from baserow.contrib.automation.nodes.models import AutomationNode
+from baserow.contrib.automation.nodes.models import AutomationActionNode, AutomationNode
 from baserow.contrib.automation.nodes.node_types import AutomationNodeType
 from baserow.contrib.automation.nodes.operations import (
     CreateAutomationNodeOperationType,
@@ -31,10 +31,12 @@ from baserow.contrib.automation.nodes.signals import (
     automation_node_moved,
     automation_node_updated,
     automation_nodes_reordered,
+    automation_nodes_updated,
 )
 from baserow.contrib.automation.nodes.types import (
     AutomationNodeDuplication,
     AutomationNodeMove,
+    NextAutomationNodeValues,
     ReplacedAutomationNode,
     UpdatedAutomationNode,
 )
@@ -193,12 +195,30 @@ class AutomationNodeService:
 
         return updated_node
 
-    def delete_node(
+    def update_next_nodes_values(
         self,
         user: AbstractUser,
-        node_id: int,
-        trash_operation_type: Optional[str] = None,
-    ) -> AutomationNode:
+        next_node_values: List[NextAutomationNodeValues],
+        workflow: AutomationWorkflow,
+    ) -> List[AutomationActionNode]:
+        """
+        Update the next nodes values for a list of nodes.
+
+        :param user: The user trying to update the next node values.
+        :param next_node_values: The new next node values.
+        :param workflow: The workflow the nodes belong to.
+        :return: The updated nodes.
+        """
+
+        updated_next_nodes = self.handler.update_next_nodes_values(next_node_values)
+        if updated_next_nodes:
+            automation_nodes_updated.send(
+                self, user=user, nodes=updated_next_nodes, workflow=workflow
+            )
+
+        return updated_next_nodes
+
+    def delete_node(self, user: AbstractUser, node_id: int, trash_operation_type: Optional[str] = None) -> AutomationNode:
         """
         Deletes the specified automation node.
 
@@ -448,10 +468,12 @@ class AutomationNodeService:
         after_node = self.get_node(user, new_previous_node_id)
         move = self.handler.move_node(node, after_node, new_previous_output, new_order)
 
-        automation_node_moved.send(
+        updated_nodes = [move.node] + move.next_node_updates
+        automation_nodes_updated.send(
             self,
-            node=move.node,
             user=user,
+            nodes=updated_nodes,
+            workflow=node.workflow,
         )
 
         return move

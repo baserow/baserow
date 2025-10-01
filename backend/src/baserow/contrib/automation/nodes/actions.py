@@ -562,14 +562,17 @@ class MoveAutomationNodeActionType(UndoableActionType):
             previous_node_output=params.origin_previous_node_output,
         )
 
+        # Pluck out the workflow, we need it to send our signals for next nodes.
+        workflow = AutomationWorkflowService().get_workflow(user, params.workflow_id)
+
         # Revert the origin's next nodes back to their original position.
-        AutomationNodeHandler().update_next_nodes_values(
-            params.origin_old_next_nodes_values
+        AutomationNodeService().update_next_nodes_values(
+            user, params.origin_old_next_nodes_values, workflow
         )
 
         # Revert the destination's next nodes back to their original position.
-        AutomationNodeHandler().update_next_nodes_values(
-            params.destination_old_next_nodes_values
+        AutomationNodeService().update_next_nodes_values(
+            user, params.destination_old_next_nodes_values, workflow
         )
 
     @classmethod
@@ -587,12 +590,15 @@ class MoveAutomationNodeActionType(UndoableActionType):
             previous_node_output=params.destination_previous_node_output,
         )
 
+        # Pluck out the workflow, we need it to send our signals for next nodes.
+        workflow = AutomationWorkflowService().get_workflow(user, params.workflow_id)
+
         # Set the origin's next nodes to their new position.
-        AutomationNodeHandler().update_next_nodes_values(
-            params.origin_new_next_nodes_values
+        AutomationNodeService().update_next_nodes_values(
+            user, params.origin_new_next_nodes_values, workflow
         )
 
         # Set the destination's next nodes to their new position.
-        AutomationNodeHandler().update_next_nodes_values(
-            params.destination_new_next_nodes_values
+        AutomationNodeService().update_next_nodes_values(
+            user, params.destination_new_next_nodes_values, workflow
         )

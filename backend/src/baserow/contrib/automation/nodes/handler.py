@@ -171,11 +171,12 @@ class AutomationNodeHandler:
     def update_next_nodes_values(
         self,
         next_node_values: List[NextAutomationNodeValues],
-    ):
+    ) -> List[AutomationActionNode]:
         """
         Update the next nodes values for a list of nodes.
 
         :param next_node_values: The new next node values.
+        :return: The updated nodes.
         """
 
         next_node_updates = []
@@ -191,6 +192,7 @@ class AutomationNodeHandler:
         AutomationNode.objects.bulk_update(
             next_node_updates, ["previous_node_id", "previous_node_output"]
         )
+        return next_node_updates
 
     def create_node(
         self,
@@ -436,11 +438,18 @@ class AutomationNodeHandler:
             for nn in origin_next_nodes
         ]
 
+        # Keep a list of "next nodes" at the origin and destination which
+        # we've updated. The node service will use this list to send a bulk
+        # 'automation nodes updated' signal.
+        next_node_updates: List[AutomationActionNode] = []
+
         # Update the nodes that followed `node` to now follow `node`'s previous node.
         # i.e. they all move "up" one step in the workflow.
         updated_origin_next_nodes = self.update_previous_node(
             node.previous_node, origin_next_nodes, node.previous_node_output
         )
+        next_node_updates.extend(updated_origin_next_nodes)
+
         origin_new_next_nodes_values = [
             NextAutomationNodeValues(
                 id=nn.id,
@@ -481,6 +490,8 @@ class AutomationNodeHandler:
             destination_next_nodes,
             previous_node_output="" if previous_node_output else None,
         )
+        next_node_updates.extend(updated_destination_next_nodes)
+
         destination_new_next_nodes_values = [
             NextAutomationNodeValues(
                 id=nn.id,
@@ -492,6 +503,7 @@ class AutomationNodeHandler:
 
         return AutomationNodeMove(
             node=node,
+            next_node_updates=next_node_updates,
             origin_previous_node_id=origin_previous_node_id,
             origin_previous_node_output=origin_previous_node_output,
             origin_old_next_nodes_values=origin_old_next_nodes_values,

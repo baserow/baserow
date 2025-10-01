@@ -13,12 +13,14 @@ from baserow.contrib.automation.nodes.operations import (
     ReadAutomationNodeOperationType,
     UpdateAutomationNodeOperationType,
 )
+from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.nodes.signals import (
     automation_node_created,
     automation_node_deleted,
     automation_node_replaced,
     automation_node_updated,
     automation_nodes_reordered,
+    automation_nodes_updated,
 )
 from baserow.contrib.automation.workflows.object_scopes import (
     AutomationWorkflowObjectScopeType,
@@ -75,6 +77,35 @@ def node_updated(sender, node: AutomationNode, user: AbstractUser, **kwargs):
             {
                 "type": "automation_node_updated",
                 "node": AutomationNodeSerializer(node).data,
+            },
+            getattr(user, "web_socket_id", None),
+        )
+    )
+
+
+@receiver(automation_nodes_updated)
+def nodes_updated(
+    sender,
+    nodes: List[AutomationNode],
+    workflow: AutomationWorkflow,
+    user: AbstractUser,
+    **kwargs,
+):
+    transaction.on_commit(
+        lambda: broadcast_to_permitted_users.delay(
+            workflow.automation.workspace_id,
+            ListAutomationNodeOperationType.type,
+            AutomationWorkflowObjectScopeType.type,
+            workflow.id,
+            {
+                "workflow_id": workflow.id,
+                "type": "automation_nodes_updated",
+                "nodes": [
+                    automation_node_type_registry.get_serializer(
+                        node, AutomationNodeSerializer
+                    ).data
+                    for node in nodes
+                ],
             },
             getattr(user, "web_socket_id", None),
         )
