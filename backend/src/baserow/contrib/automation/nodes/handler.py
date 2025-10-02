@@ -223,11 +223,15 @@ class AutomationNodeHandler:
                     "previous_node_output"
                 ] = before.previous_node_output
 
-            # Find any nodes which have a previous node ID and output
-            # that match the before node's previous node ID and output.
+            # Find the nodes that are using `before` as their previous node.
+            # If `before` has a `previous_node_id`, then we get `before.previous_node`'s
+            # next nodes. If there's no `previous_node_id`, then `before` is a trigger,
+            # so we want the nodes that come after this trigger.
             node_previous_ids_to_update = list(
                 workflow.automation_workflow_nodes.filter(
-                    previous_node_id=before.previous_node_id,
+                    previous_node_id=before.id
+                    if before.previous_node_id is None
+                    else before.previous_node_id,
                     previous_node_output=before.previous_node_output,
                 )
             )

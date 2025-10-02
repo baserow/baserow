@@ -5,10 +5,7 @@ from baserow.contrib.automation.nodes.models import AutomationActionNode, Automa
 from baserow.contrib.automation.nodes.operations import (
     RestoreAutomationNodeOperationType,
 )
-from baserow.contrib.automation.nodes.signals import (
-    automation_node_created,
-    automation_node_deleted,
-)
+from baserow.contrib.automation.nodes.signals import automation_node_created
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.core.models import TrashEntry
 from baserow.core.trash.exceptions import TrashItemRestorationDisallowed
@@ -51,14 +48,11 @@ class AutomationNodeTrashableItemType(TrashableItemType):
             item_to_trash.previous_node, next_nodes, item_to_trash.previous_node_output
         )
 
-        automation_node_deleted.send(
-            self,
-            workflow=item_to_trash.workflow,
-            node_id=item_to_trash.id,
-            user=requesting_user,
-        )
-
-    def restore(self, trashed_item: AutomationActionNode, trash_entry: TrashEntry):
+    def restore(
+        self,
+        trashed_item: AutomationActionNode,
+        trash_entry: TrashEntry,
+    ):
         workflow = trashed_item.workflow
         next_nodes = list(
             AutomationNodeHandler().get_next_nodes(workflow, trashed_item.previous_node)
@@ -106,7 +100,8 @@ class AutomationNodeTrashableItemType(TrashableItemType):
                 updates.append(next_node)
             AutomationNode.objects.bulk_update(updates, ["previous_node_output"])
 
-        automation_node_created.send(self, node=trashed_item, user=None)
+        if trash_entry.get_operation_type().send_post_restore_created_signal:
+            automation_node_created.send(self, node=trashed_item, user=None)
 
     def permanently_delete_item(
         self, trashed_item: AutomationNode, trash_item_lookup_cache=None

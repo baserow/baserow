@@ -25,6 +25,7 @@ from baserow.core.registry import (
 from baserow.core.services.exceptions import InvalidServiceTypeDispatchSource
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.registries import ServiceTypeSubClass, service_type_registry
+from baserow.core.trash.registries import TrashOperationType
 
 
 class AutomationNodeType(
@@ -301,6 +302,30 @@ class AutomationNodeTypeRegistry(
     """Contains all registered automation node types."""
 
     name = "automation_node_type"
+
+
+class ReplaceAutomationNodeTrashOperationType(TrashOperationType):
+    """
+    The replace-automation-node trash operation is used when an automation node is
+    replaced with another node type. This operation type exists to ensure that extra
+    steps are followed when the node is restored from its trashed state.
+    """
+
+    type = "replace_automation_node"
+
+    """
+    This trash operation type is 'managed'. We don't want users to interact with
+    it in the workspace trash, the system is responsible for it.
+    """
+    managed = True
+
+    """
+    In this trash operation type we don't want to send any created or deleted signals.
+    We need to be precise with our realtime signals, so at a strategic time we use
+    the `replace` signal instead.
+    """
+    send_post_restore_created_signal = False
+    send_post_trash_deleted_signal = False
 
 
 automation_node_type_registry = AutomationNodeTypeRegistry()

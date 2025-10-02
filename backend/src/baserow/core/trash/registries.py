@@ -170,6 +170,41 @@ class TrashableItemType(ModelInstanceMixin, Instance, ABC):
         return {}
 
 
+class TrashOperationType(Instance, ABC):
+    """
+    A TrashOperationType is an optional operation which can be applied to a
+    trash entry, giving it additional context when trashing and restoring items.
+    """
+
+    """
+    Whether this operation type is managed by the system, or the user.
+    A system-managed trash operation is one that the user cannot interact with.
+    A user will trash a record, and be unable to restore it from the workspace
+    trash.
+    """
+    managed: bool = False
+
+    """
+    Whether a "deleted" signal should be sent after the trash item is deleted.
+    """
+    send_post_trash_deleted_signal: bool = True
+
+    """
+    Whether a "created" signal should be sent after the trash item is restored.
+    """
+    send_post_restore_created_signal: bool = True
+
+
+class DefaultTrashOperationType(TrashOperationType):
+    """
+    The default trash operation type for the vast majority of trash entries.
+    This operation type is user-managed, meaning that the user can interact with
+    trash entries of this type, restoring and permanently deleting them.
+    """
+
+    type = "default"
+
+
 class TrashableItemTypeRegistry(ModelRegistryMixin, Registry):
     """
     The TrashableItemTypeRegistry contains models which can be "trashed" in baserow.
@@ -181,4 +216,16 @@ class TrashableItemTypeRegistry(ModelRegistryMixin, Registry):
     name = "trashable"
 
 
+class TrashOperationTypeRegistry(ModelRegistryMixin, Registry):
+    """
+    The TrashOperationTypeRegistry contains different types of trash operations
+    which can be applied to a trash entry. A trash operation type gives additional
+    context to a trash entry, for example if the trash entry was created by a user
+    or if it was created automatically by the system.
+    """
+
+    name = "trash_operation"
+
+
 trash_item_type_registry = TrashableItemTypeRegistry()
+trash_operation_type_registry = TrashOperationTypeRegistry()

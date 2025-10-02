@@ -297,14 +297,16 @@ const actions = {
     }
 
     if (nextNode) {
-      commit('UPDATE_ITEM', {
-        workflow,
-        node: nextNode,
-        values: {
-          previous_node_id: node.previous_node_id,
-          previous_node_output: node.previous_node_output,
-        },
-      })
+      if (node.previous_node_id) {
+        commit('UPDATE_ITEM', {
+          workflow,
+          node: nextNode,
+          values: {
+            previous_node_id: node.previous_node_id,
+            previous_node_output: node.previous_node_output,
+          },
+        })
+      }
       dispatch('select', { workflow, node: nextNode })
     }
 
@@ -434,7 +436,7 @@ const getters = {
     (workflow, targetNode, outputUid = null) => {
       const nodes = getters.getNodesOrdered(workflow)
       const nextNodes = nodes.filter(
-        (node) => node.previous_node_id === targetNode.id
+        (node) => node.previous_node_id === targetNode?.id
       )
       if (outputUid !== null) {
         return nextNodes.filter(

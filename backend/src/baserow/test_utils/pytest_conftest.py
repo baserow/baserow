@@ -258,6 +258,17 @@ def mutable_user_source_registry():
 
 
 @pytest.fixture()
+def mutable_trash_operation_type_registry():
+    from baserow.core.trash.registries import trash_operation_type_registry
+
+    before = trash_operation_type_registry.registry.copy()
+    trash_operation_type_registry.get_for_class.cache_clear()
+    yield trash_operation_type_registry
+    trash_operation_type_registry.get_for_class.cache_clear()
+    trash_operation_type_registry.registry = before
+
+
+@pytest.fixture()
 def mutable_builder_workflow_action_registry():
     from baserow.contrib.builder.workflow_actions.registries import (
         builder_workflow_action_type_registry,
@@ -293,6 +304,36 @@ def mutable_element_type_registry():
     before = element_type_registry.registry.copy()
     yield element_type_registry
     element_type_registry.registry = before
+
+
+@pytest.fixture()
+def stub_trash_operation_type(data_fixture, mutable_trash_operation_type_registry):
+    @contextlib.contextmanager
+    def stubbed(
+        type_managed=False,
+        type_send_deleted_signal=True,
+        type_send_created_signal=True,
+    ):
+        from baserow.core.trash.registries import (
+            TrashOperationType,
+            trash_operation_type_registry,
+        )
+
+        class StubbedTrashOperationType(TrashOperationType):
+            type = "stubbed"
+            managed = type_managed
+            send_post_trash_deleted_signal = type_send_deleted_signal
+            send_post_restore_created_signal = type_send_created_signal
+
+        operation_type = StubbedTrashOperationType()
+        mutable_trash_operation_type_registry.registry[
+            StubbedTrashOperationType.type
+        ] = StubbedTrashOperationType()
+        trash_operation_type_registry.get_for_class.cache_clear()
+
+        yield operation_type
+
+    return stubbed
 
 
 @pytest.fixture()
