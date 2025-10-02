@@ -26,7 +26,6 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['add-node'])
-
 const context = ref()
 const btn = ref()
 

@@ -5,10 +5,10 @@ from baserow.contrib.automation.nodes.models import AutomationActionNode, Automa
 from baserow.contrib.automation.nodes.operations import (
     RestoreAutomationNodeOperationType,
 )
-from baserow.contrib.automation.nodes.signals import (
-    automation_node_created,
-    automation_node_deleted,
+from baserow.contrib.automation.nodes.registries import (
+    ReplaceAutomationNodeTrashOperationType,
 )
+from baserow.contrib.automation.nodes.signals import automation_node_created
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.core.models import TrashEntry
 from baserow.core.trash.exceptions import TrashItemRestorationDisallowed
@@ -51,33 +51,39 @@ class AutomationNodeTrashableItemType(TrashableItemType):
             item_to_trash.previous_node, next_nodes, item_to_trash.previous_node_output
         )
 
-        automation_node_deleted.send(
-            self,
-            workflow=item_to_trash.workflow,
-            node_id=item_to_trash.id,
-            user=requesting_user,
-        )
-
-    def restore(self, trashed_item: AutomationActionNode, trash_entry: TrashEntry):
+    def restore(
+        self,
+        trashed_item: AutomationActionNode,
+        trash_entry: TrashEntry,
+    ):
         workflow = trashed_item.workflow
         next_nodes = list(
-            AutomationNodeHandler().get_next_nodes(workflow, trashed_item.previous_node)
+            AutomationNodeHandler().get_next_nodes(
+                workflow,
+                trashed_item.previous_node,
+                trashed_item.previous_node_output,
+            )
         )
 
-        # If we're restoring a node, and it has a previous node output, ensure that
-        # the output UUID matches one of the `uid` in the previous node's edges. If
-        # the output isn't found, it means that the edge was deleted whilst the node
-        # was trashed, and we cannot restore the node because it would create a broken
-        # workflow.
-        if trashed_item.previous_node_output and trashed_item.previous_node_id:
-            previous_node = trashed_item.previous_node.specific
-            if not previous_node.service.specific.edges.filter(
-                uid=trashed_item.previous_node_output
-            ).exists():
-                raise TrashItemRestorationDisallowed(
-                    "This automation node cannot be "
-                    "restored as its branch has been deleted."
-                )
+        # If we have we have a trash operation type, and it's not a replace operation...
+        if (
+            trash_entry.trash_operation_type
+            != ReplaceAutomationNodeTrashOperationType.type
+        ):
+            # If we're restoring a node, and it has a previous node output, ensure that
+            # the output UUID matches one of the `uid` in the previous node's edges. If
+            # the output isn't found, it means that the edge was deleted whilst the node
+            # was trashed, and we cannot restore the node because it would create a
+            # broken workflow.
+            if trashed_item.previous_node_output and trashed_item.previous_node_id:
+                previous_node = trashed_item.previous_node.specific
+                if not previous_node.service.specific.edges.filter(
+                    uid=trashed_item.previous_node_output
+                ).exists():
+                    raise TrashItemRestorationDisallowed(
+                        "This automation node cannot be "
+                        "restored as its branch has been deleted."
+                    )
 
         super().restore(trashed_item, trash_entry)
 
@@ -106,7 +112,8 @@ class AutomationNodeTrashableItemType(TrashableItemType):
                 updates.append(next_node)
             AutomationNode.objects.bulk_update(updates, ["previous_node_output"])
 
-        automation_node_created.send(self, node=trashed_item, user=None)
+        if trash_entry.get_operation_type().send_post_restore_created_signal:
+            automation_node_created.send(self, node=trashed_item, user=None)
 
     def permanently_delete_item(
         self, trashed_item: AutomationNode, trash_item_lookup_cache=None

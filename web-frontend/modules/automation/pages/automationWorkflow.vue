@@ -22,6 +22,7 @@
             @add-node="handleAddNode"
             @remove-node="handleRemoveNode"
             @replace-node="handleReplaceNode"
+            @move-node="handleMoveNode"
           />
         </client-only>
       </div>
@@ -221,6 +222,21 @@ export default {
         }
       }
       next()
+    },
+    async handleMoveNode(moveData) {
+      const originNodeId =
+        this.$store.getters['automationWorkflowNode/getDraggingNodeId']
+      this.$store.dispatch('automationWorkflowNode/setDraggingNodeId', null)
+      if (!originNodeId) {
+        return
+      }
+      await this.$store.dispatch('automationWorkflowNode/move', {
+        workflow: this.workflow,
+        moveData: {
+          originNodeId,
+          ...moveData,
+        },
+      })
     },
   },
 }

@@ -27,6 +27,7 @@
         @remove-node="emit('remove-node', $event)"
         @replace-node="emit('replace-node', $event)"
         @select-node="emit('input', $event.id)"
+        @move-node="emit('move-node', $event)"
       />
     </template>
   </VueFlow>
@@ -56,8 +57,7 @@ const props = defineProps({
 })
 
 const vueFlowEdges = []
-
-const emit = defineEmits(['add-node', 'remove-node', 'input', 'replace-node'])
+const emit = defineEmits(['add-node', 'remove-node', 'input', 'move-node'])
 
 const { onPaneClick } = useVueFlow()
 

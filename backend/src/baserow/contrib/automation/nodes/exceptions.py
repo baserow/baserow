@@ -66,3 +66,10 @@ class AutomationNodeNotReplaceable(AutomationNodeError):
 
 class AutomationNodeSimulateDispatchError(AutomationNodeError):
     """Raised when there is an error while simulating a dispatch of a node."""
+
+
+class AutomationNodeNotMovable(AutomationNodeError):
+    """
+    Raised when an automation node is not movable. This can happen if
+    the node's type dictates that it cannot be moved due to its state.
+    """

@@ -12,6 +12,7 @@ from rest_framework.status import (
 )
 
 from baserow.contrib.automation.nodes.models import AutomationNode
+from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.contrib.database.rows.signals import rows_created
 from baserow.test_utils.helpers import AnyDict, AnyInt, AnyStr
@@ -20,6 +21,7 @@ from tests.baserow.contrib.automation.api.utils import get_api_kwargs
 API_URL_BASE = "api:automation:nodes"
 API_URL_LIST = f"{API_URL_BASE}:list"
 API_URL_ITEM = f"{API_URL_BASE}:item"
+API_URL_MOVE = f"{API_URL_BASE}:move"
 API_URL_ORDER = f"{API_URL_BASE}:order"
 API_URL_DUPLICATE = f"{API_URL_BASE}:duplicate"
 API_URL_REPLACE = f"{API_URL_BASE}:replace"
@@ -1025,3 +1027,79 @@ def test_simulate_dispatch_action_node(api_client, data_fixture):
         "output_uid": "",
         "status": 200,
     }
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "node_type",
+    [
+        node_type
+        for node_type in automation_node_type_registry.get_all()
+        if not node_type.is_fixed
+    ],
+)
+def test_move_movable_node(node_type, api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user)
+    trigger = workflow.get_trigger(specific=False)
+    before_node = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow
+    )
+    node = data_fixture.create_automation_node(
+        workflow=workflow,
+        type=node_type.type,
+    )
+    response = api_client.post(
+        reverse(API_URL_MOVE, kwargs={"node_id": node.id}),
+        {"previous_node_id": trigger.id, "previous_node_output": ""},
+        **get_api_kwargs(token),
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json() == {
+        "id": node.id,
+        "label": node.label,
+        "order": AnyStr(),
+        "previous_node_id": trigger.id,
+        "previous_node_output": node.previous_node_output,
+        "service": AnyDict(),
+        "type": node_type.type,
+        "workflow": workflow.id,
+        "simulate_until_node": False,
+    }
+    before_node.refresh_from_db()
+    assert before_node.previous_node_id == node.id
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "node_type",
+    [
+        node_type
+        for node_type in automation_node_type_registry.get_all()
+        if node_type.is_fixed
+    ],
+)
+def test_move_fixed_node(node_type, api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user)
+    trigger = workflow.get_trigger(specific=False)
+    before_node = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow
+    )
+    node = data_fixture.create_automation_node(
+        workflow=workflow,
+        type=node_type.type,
+    )
+    response = api_client.post(
+        reverse(API_URL_MOVE, kwargs={"node_id": node.id}),
+        {"previous_node_id": trigger.id, "previous_node_output": ""},
+        **get_api_kwargs(token),
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "error": "ERROR_AUTOMATION_NODE_NOT_MOVABLE",
+        "detail": "This automation node cannot be moved.",
+    }
+    before_node.refresh_from_db()
+    assert before_node.previous_node_id == trigger.id
