@@ -147,6 +147,7 @@
 @import 'settings/two_factor_auth/save_backup_code';
 @import 'settings/two_factor_auth/two_factor_enabled';
 @import 'settings/two_factor_auth/disable_two_factor';
+@import 'auth/totp_login';
 @import 'badge';
 @import 'badge_counter';
 @import 'badge_collaborator';

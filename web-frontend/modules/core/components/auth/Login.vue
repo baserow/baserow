@@ -1,8 +1,9 @@
 <template>
   <div>
-    <EmailNotVerified v-if="displayEmailNotVerified" :email="emailToVerify">
+    <TOTPLogin v-if="totp" />
+    <EmailNotVerified v-else-if="displayEmailNotVerified" :email="emailToVerify">
     </EmailNotVerified>
-    <template v-if="!displayEmailNotVerified">
+    <template v-else>
       <div v-if="displayHeader">
         <div class="auth__logo">
           <nuxt-link :to="{ name: 'index' }">
@@ -70,9 +71,11 @@ import {
   isRelativeUrl,
   addQueryParamsToRedirectUrl,
 } from '@baserow/modules/core/utils/url'
+import TOTPLogin from '@baserow/modules/core/components/auth/TOTPLogin.vue'
 
 export default {
   components: {
+    TOTPLogin,
     PasswordLogin,
     LoginButtons,
     LangPicker,
@@ -116,6 +119,7 @@ export default {
       passwordLoginHiddenIfDisabled: true,
       displayEmailNotVerified: false,
       emailToVerify: null,
+      totp: true,
     }
   },
   computed: {
