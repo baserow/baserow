@@ -5,7 +5,6 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Type, TypeVar
 
 from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError
-from django.urls import path
 
 from loguru import logger
 from rest_framework.exceptions import ValidationError as DRFValidationError

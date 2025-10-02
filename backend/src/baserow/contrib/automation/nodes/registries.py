@@ -237,7 +237,7 @@ class AutomationNodeType(
         parent: Any,
         serialized_values: Dict[str, Any],
         import_export_config: ImportExportConfig,
-        id_mapping: Dict[str, Dict[str, Any]],        
+        id_mapping: Dict[str, Dict[str, Any]],
         **kwargs,
     ):
         if "automation_edge_outputs" not in id_mapping:

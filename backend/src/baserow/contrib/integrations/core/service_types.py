@@ -20,7 +20,6 @@ from loguru import logger
 from requests import exceptions as request_exceptions
 from rest_framework import serializers
 
-from baserow.core.registries import ImportExportConfig
 from baserow.config.celery import app as celery_app
 from baserow.contrib.integrations.core.api.webhooks.views import CoreHTTPWebhookView
 from baserow.contrib.integrations.core.constants import (
@@ -55,7 +54,8 @@ from baserow.core.formula.validator import (
     ensure_email,
     ensure_string,
 )
-from baserow.core.registry import APIUrlsInstanceMixin, Instance
+from baserow.core.registries import ImportExportConfig
+from baserow.core.registry import Instance
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.exceptions import (
     InvalidContextContentDispatchException,
@@ -1469,7 +1469,7 @@ class CoreHTTPWebhookServiceType(TriggerServiceTypeMixin, ServiceType):
                     "title": "Body",
                 }
             }
-        
+
         if allowed_fields is None or "raw_body" in allowed_fields:
             properties |= {
                 "raw_body": {
@@ -1545,7 +1545,7 @@ class CoreHTTPWebhookServiceType(TriggerServiceTypeMixin, ServiceType):
         """
         Handle the is_public field during import based on publishing context.
         """
-        
+
         if import_export_config and import_export_config.is_publishing:
             serialized_values["is_public"] = True
 

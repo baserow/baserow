@@ -8,11 +8,11 @@ from baserow.contrib.builder.pages.models import Page
 from baserow.core.db import specific_iterator
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.models import Integration
+from baserow.core.registries import ImportExportConfig
 from baserow.core.services.exceptions import (
     ServiceDoesNotExist,
     ServiceImproperlyConfiguredDispatchException,
 )
-from baserow.core.registries import ImportExportConfig
 from baserow.core.services.models import Service
 from baserow.core.services.registries import ServiceType, service_type_registry
 from baserow.core.storage import ExportZipFile

@@ -12,4 +12,3 @@ def invalidate_error_cache_key(sender, service: CoreHTTPWebhookService, **kwargs
     for i in [True, False]:
         cache_key = get_error_cache_key(service.uid, i)
         global_cache.invalidate(cache_key)
-
