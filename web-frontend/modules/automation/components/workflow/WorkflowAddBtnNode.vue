@@ -2,12 +2,6 @@
   <div>
     <ButtonFloating
       ref="btn"
-      class="workflow-node__add-button"
-      :class="{
-        'workflow-node__add-button--hover': isDragOver,
-        'workflow-node__add-button--active':
-          draggingNodeId && !isDropZoneDisabled,
-      }"
       icon="iconoir-plus"
       size="small"
       :disabled="props.disabled"
@@ -28,18 +22,6 @@ const props = defineProps({
   disabled: {
     type: Boolean,
     default: false,
-  },
-  isDragOver: {
-    type: Boolean,
-    default: false,
-  },
-  isDropZoneDisabled: {
-    type: Boolean,
-    default: false,
-  },
-  draggingNodeId: {
-    type: Number,
-    default: null,
   },
 })
 

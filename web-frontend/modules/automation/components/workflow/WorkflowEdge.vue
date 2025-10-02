@@ -2,15 +2,15 @@
   <div class="workflow-edge">
     <div v-if="hasSiblings" class="workflow-edge__label">{{ edge.label }}</div>
     <div
-      class="workflow-node__dropzone-wrapper workflow-edge__add-button"
+      class="workflow-edge__dropzone-wrapper workflow-edge__add-button-wrapper"
       :class="{
-        'workflow-edge__add-button--with-next': nextNodesOnEdge.length,
+        'workflow-edge__add-button-wrapper--with-next': nextNodesOnEdge.length,
       }"
     >
       <div
         :class="{
-          'workflow-node__dropzone': draggingNodeId && !isDropZoneDisabled,
-          'workflow-node__dropzone--hover': isDragOver,
+          'workflow-edge__dropzone': draggingNodeId && !isDropZoneDisabled,
+          'workflow-edge__dropzone--hover': isDragOver,
         }"
         @dragover.prevent
         @dragenter="handleDragEnter"
@@ -18,11 +18,13 @@
         @drop="handleDrop"
       ></div>
       <WorkflowAddBtnNode
-        :dragging-node-id="draggingNodeId"
-        :is-drag-over="isDragOver"
-        :is-drop-zone-disabled="isDropZoneDisabled"
+        class="workflow-edge__add-button"
+        :class="{
+          'workflow-edge__add-button--hover': isDragOver,
+          'workflow-edge__add-button--active':
+            draggingNodeId && !isDropZoneDisabled,
+        }"
         :disabled="readOnly"
-        :debug="debug"
         @add-node="
           emit('add-node', {
             type: $event,

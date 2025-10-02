@@ -27,7 +27,7 @@
   pointer-events: none;
 }
 
-.workflow-edge__add-button--with-next::after {
+.workflow-edge__add-button-wrapper--with-next::after {
   content: '';
   display: block;
   margin-left: 50%;
@@ -60,7 +60,7 @@
   }
 }
 
-.workflow-edge__add-button {
+.workflow-edge__add-button-wrapper {
   pointer-events: initial;
 }
 
@@ -206,20 +206,13 @@
   opacity: 0.5;
 }
 
-.workflow-node__dropzone-wrapper {
+.workflow-edge__dropzone-wrapper {
   position: relative;
   width: 400px;
   height: 100%;
 }
 
-.workflow-node__add-button {
-  position: absolute;
-  top: 0;
-  left: 50%;
-  transform: translateX(-50%);
-}
-
-.workflow-node__dropzone {
+.workflow-edge__dropzone {
   position: absolute;
   top: -18px;
   left: 0;
@@ -228,23 +221,31 @@
   height: 70px;
 
   @include rounded($rounded-xl);
-}
 
-.workflow-node__dropzone--hover {
-  border: 2px dashed $palette-blue-500;
-}
-
-.workflow-node__add-button--hover {
-  background: $palette-green-200 !important;
-  border: 1px solid $palette-green-500 !important;
-
-  i {
-    color: $palette-green-700;
+  &--hover {
+    border: 2px dashed $palette-blue-500;
   }
 }
 
-.workflow-node__add-button--active {
-  transition: all 0.2s ease;
-  background: $palette-blue-100;
-  border: 1px dashed $palette-blue-400;
+.workflow-edge__add-button {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.workflow-edge__add-button--active {
+  & > .button-floating {
+    transition: all 0.2s ease;
+    background: $palette-blue-100;
+    border: 1px dashed $palette-blue-400;
+  }
+}
+
+.workflow-edge__add-button--hover {
+  & > .button-floating {
+    background: $palette-green-200;
+    border: 1px solid $palette-green-500;
+    color: $palette-green-700;
+  }
 }

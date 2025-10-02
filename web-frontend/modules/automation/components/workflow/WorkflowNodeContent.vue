@@ -44,6 +44,8 @@
       <div
         v-if="isInteractionReady"
         class="workflow-node-content__more--wrapper"
+        draggable="false"
+        @mousedown.prevent
       >
         <a
           ref="editNodeContextToggle"

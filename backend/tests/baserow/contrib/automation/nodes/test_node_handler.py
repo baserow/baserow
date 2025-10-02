@@ -345,7 +345,7 @@ def test_simulate_dispatch_node_trigger(mock_run, data_fixture):
     mock_run.assert_not_called()
 
     workflow.refresh_from_db()
-    assert workflow.simulate_until_node.id is trigger_node.id
+    assert workflow.simulate_until_node.id == trigger_node.id
 
     trigger_node.refresh_from_db()
     assert trigger_node.service.sample_data is None
