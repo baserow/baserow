@@ -136,7 +136,7 @@ def test_update_node(data_fixture):
         node, previous_node_output="foo result"
     )
 
-    assert updated_node.node.previous_node_output == "foo result"
+    assert updated_node.previous_node_output == "foo result"
 
 
 @pytest.mark.django_db

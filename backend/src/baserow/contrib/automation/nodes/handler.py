@@ -22,7 +22,6 @@ from baserow.contrib.automation.nodes.types import (
     AutomationNodeDuplication,
     AutomationNodeMove,
     NextAutomationNodeValues,
-    UpdatedAutomationNode,
 )
 from baserow.contrib.automation.workflows.runner import AutomationWorkflowRunner
 from baserow.core.cache import local_cache
@@ -277,7 +276,7 @@ class AutomationNodeHandler:
 
         return node
 
-    def update_node(self, node: AutomationNode, **kwargs) -> UpdatedAutomationNode:
+    def update_node(self, node: AutomationNode, **kwargs) -> AutomationNode:
         """
         Updates fields of the provided AutomationNode.
 
@@ -287,22 +286,13 @@ class AutomationNodeHandler:
         :return: The updated AutomationNode.
         """
 
-        node_type = node.get_type()
-        original_node_values = node_type.export_prepared_values(node)
-
         allowed_values = extract_allowed(kwargs, self.allowed_fields)
-
         for key, value in allowed_values.items():
             setattr(node, key, value)
 
         node.save()
 
-        new_node_values = node_type.export_prepared_values(node)
-        return UpdatedAutomationNode(
-            node=node,
-            original_values=original_node_values,
-            new_values=new_node_values,
-        )
+        return node
 
     def get_nodes_order(self, workflow: AutomationWorkflow) -> List[int]:
         """

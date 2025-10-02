@@ -175,10 +175,11 @@ class AutomationNodeService:
         :param user: The user trying to update the node.
         :param node_id: The node that should be updated.
         :param kwargs: The fields that should be updated with their corresponding value
-        :return: The updated workflow.
+        :return: UpdatedAutomationNode.
         """
 
         node = self.handler.get_node(node_id)
+        node_type = node.get_type()
 
         CoreHandler().check_permissions(
             user,
@@ -187,12 +188,27 @@ class AutomationNodeService:
             context=node,
         )
 
-        prepared_values = node.get_type().prepare_values(kwargs, user, node)
+        # Export the 'original' node values now, as `prepare_values`
+        # will be changing the service first, and then `update_node`
+        # will be change the node itself.
+        original_node_values = node_type.export_prepared_values(node)
+
+        # Prepare the node's values, which handles service updates too.
+        prepared_values = node_type.prepare_values(kwargs, user, node)
+
+        # Update the node itself.
         updated_node = self.handler.update_node(node, **prepared_values)
 
-        automation_node_updated.send(self, user=user, node=updated_node.node)
+        # Now export the 'new' node values, since everything has been updated.
+        new_node_values = node_type.export_prepared_values(node)
 
-        return updated_node
+        automation_node_updated.send(self, user=user, node=updated_node)
+
+        return UpdatedAutomationNode(
+            node=updated_node,
+            original_values=original_node_values,
+            new_values=new_node_values,
+        )
 
     def update_next_nodes_values(
         self,
@@ -377,10 +393,9 @@ class AutomationNodeService:
             workflow=node.workflow,
             before=node,
             order=node.order,
-            previous_node_id=node.previous_node_id,
-            previous_node_output=node.previous_node_output,
             **prepared_values,
         )
+
         new_node_type.after_create(new_node)
 
         # After the node creation, the replaced node has changed
