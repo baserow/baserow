@@ -58,6 +58,7 @@ class DispatchTypes(str, Enum):
 
 
 class ServiceType(
+    APIUrlsInstanceMixin,
     InstanceWithFormulaMixin,
     EasyImportExportMixin[ServiceSubClass],
     ModelInstanceMixin[ServiceSubClass],
@@ -591,21 +592,6 @@ class ServiceTypeRegistry(
 
     name = "integration_service"
     does_not_exist_exception_class = ServiceTypeDoesNotExist
-
-    @property
-    def api_urls(self) -> List[path]:
-        """
-        Returns a list of URL paths for service types that inherit from
-        APIUrlsInstanceMixin, otherwise returns an empty list.
-        """
-
-        api_urls = []
-
-        for instance in self.registry.values():
-            if isinstance(instance, APIUrlsInstanceMixin):
-                api_urls.extend(instance.get_api_urls())
-
-        return api_urls
 
 
 service_type_registry: ServiceTypeRegistry = ServiceTypeRegistry()

@@ -1404,9 +1404,7 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
         }
 
 
-class CoreHTTPWebhookServiceType(
-    ServiceType, TriggerServiceTypeMixin, APIUrlsInstanceMixin
-):
+class CoreHTTPWebhookServiceType(TriggerServiceTypeMixin, ServiceType):
     type = "http_webhook"
     model_class = CoreHTTPWebhookService
     dispatch_type = DispatchTypes.EVENT
