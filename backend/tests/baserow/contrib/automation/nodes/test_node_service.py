@@ -15,7 +15,6 @@ from baserow.contrib.automation.nodes.registries import (
 )
 from baserow.contrib.automation.nodes.service import AutomationNodeService
 from baserow.contrib.automation.nodes.trash_types import AutomationNodeTrashableItemType
-from baserow.contrib.automation.nodes.trash_types import AutomationNodeTrashableItemType
 from baserow.contrib.automation.nodes.types import NextAutomationNodeValues
 from baserow.core.exceptions import UserNotInWorkspace
 from baserow.core.trash.handler import TrashHandler

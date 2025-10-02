@@ -28,7 +28,6 @@ from baserow.contrib.automation.nodes.signals import (
     automation_node_created,
     automation_node_deleted,
     automation_node_replaced,
-    automation_node_moved,
     automation_node_updated,
     automation_nodes_reordered,
     automation_nodes_updated,
@@ -218,7 +217,12 @@ class AutomationNodeService:
 
         return updated_next_nodes
 
-    def delete_node(self, user: AbstractUser, node_id: int, trash_operation_type: Optional[str] = None) -> AutomationNode:
+    def delete_node(
+        self,
+        user: AbstractUser,
+        node_id: int,
+        trash_operation_type: Optional[str] = None,
+    ) -> AutomationNode:
         """
         Deletes the specified automation node.
 
