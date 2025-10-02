@@ -403,5 +403,8 @@
     },
     "oidcAuthLink": {
         "placeholderWithOIDC": "{login} mit {provider}"
+    },
+    "advanced": {
+        "license": "Advanced"
     }
 }
