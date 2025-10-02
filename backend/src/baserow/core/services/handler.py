@@ -12,6 +12,7 @@ from baserow.core.services.exceptions import (
     ServiceDoesNotExist,
     ServiceImproperlyConfiguredDispatchException,
 )
+from baserow.core.registries import ImportExportConfig
 from baserow.core.services.models import Service
 from baserow.core.services.registries import ServiceType, service_type_registry
 from baserow.core.storage import ExportZipFile
@@ -251,6 +252,7 @@ class ServiceHandler:
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
         cache: Optional[Dict] = None,
+        import_export_config: Optional[ImportExportConfig] = None,
     ):
         service_type = service_type_registry.get(serialized_service["type"])
 
@@ -262,4 +264,5 @@ class ServiceHandler:
             files_zip=files_zip,
             storage=storage,
             import_formula=import_formula,
+            import_export_config=import_export_config,
         )

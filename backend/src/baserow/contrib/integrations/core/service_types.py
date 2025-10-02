@@ -20,6 +20,7 @@ from loguru import logger
 from requests import exceptions as request_exceptions
 from rest_framework import serializers
 
+from baserow.core.registries import ImportExportConfig
 from baserow.config.celery import app as celery_app
 from baserow.contrib.integrations.core.api.webhooks.views import CoreHTTPWebhookView
 from baserow.contrib.integrations.core.constants import (
@@ -1410,8 +1411,8 @@ class CoreHTTPWebhookServiceType(TriggerServiceTypeMixin, ServiceType):
     dispatch_type = DispatchTypes.EVENT
     on_event = None
 
-    allowed_fields = ["uid", "exclude_get"]
-    serializer_field_names = ["uid", "exclude_get"]
+    allowed_fields = ["uid", "exclude_get", "is_public"]
+    serializer_field_names = ["uid", "exclude_get", "is_public"]
     request_serializer_field_names = ["uid", "exclude_get"]
 
     class SerializedDict(ServiceDict):
@@ -1532,3 +1533,26 @@ class CoreHTTPWebhookServiceType(TriggerServiceTypeMixin, ServiceType):
             "type": "object",
             "properties": properties,
         }
+
+    def import_serialized(
+        self,
+        parent: Any,
+        serialized_values: Dict[str, Any],
+        id_mapping: Dict[str, Dict[str, str]],
+        import_export_config: Optional[ImportExportConfig] = None,
+        **kwargs,
+    ):
+        """
+        Handle the is_public field during import based on publishing context.
+        """
+        
+        if import_export_config and import_export_config.is_publishing:
+            serialized_values["is_public"] = True
+
+        return super().import_serialized(
+            parent,
+            serialized_values,
+            id_mapping,
+            import_export_config=import_export_config,
+            **kwargs,
+        )

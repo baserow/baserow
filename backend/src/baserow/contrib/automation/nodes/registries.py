@@ -12,6 +12,7 @@ from baserow.contrib.automation.nodes.exceptions import AutomationNodeNotReplace
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.types import AutomationNodeDict
 from baserow.core.integrations.models import Integration
+from baserow.core.registries import ImportExportConfig
 from baserow.core.registry import (
     CustomFieldsRegistryMixin,
     EasyImportExportMixin,
@@ -219,6 +220,7 @@ class AutomationNodeType(
                 cache=cache,
                 files_zip=files_zip,
                 import_formula=import_formula,
+                import_export_config=kwargs.get("import_export_config"),
             )
         return super().deserialize_property(
             prop_name,
@@ -234,8 +236,8 @@ class AutomationNodeType(
         self,
         parent: Any,
         serialized_values: Dict[str, Any],
-        import_export_config,
-        id_mapping: Dict[str, Dict[str, Any]],
+        import_export_config: ImportExportConfig,
+        id_mapping: Dict[str, Dict[str, Any]],        
         **kwargs,
     ):
         if "automation_edge_outputs" not in id_mapping:
@@ -244,8 +246,8 @@ class AutomationNodeType(
         return super().import_serialized(
             parent,
             serialized_values,
-            import_export_config,
             id_mapping,
+            import_export_config=import_export_config,
             **kwargs,
         )
 
