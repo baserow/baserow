@@ -967,7 +967,10 @@
     "exportWorkspaceForm": {
         "onlyStructureLabel": "Nur die Struktur exportieren",
         "onlyStructureDescription": "Wenn diese Option aktiviert ist, wird nur die Struktur der Anwendungen exportiert. Die Daten werden nicht enthalten sein.",
-        "exportSettingsLabel": "Einstellungen exportieren"
+        "exportSettingsLabel": "Einstellungen exportieren",
+        "selectDataToExport": "Zu exportierende Daten auswählen",
+        "selectAll": "Alles auswählen",
+        "deselectAll": "Alle abwählen"
     },
     "importWorkspaceModal": {
         "databases": "Datenbanken",
@@ -992,6 +995,12 @@
         "invalidResourceMessage": "Die bereitgestellte Datei ist kein gültiger Baserow-Export.",
         "untrustedPublicKeyTitle": "Nicht vertrauenswürdige Signatur",
         "importingState": "Importiere",
-        "title": "Baserow-Daten importieren"
+        "title": "Baserow-Daten importieren",
+        "uploadAndImport": "Hochladen & Importieren",
+        "importingTableStructure": "Erstelle: {table}",
+        "importingTableData": "Importiere Daten: {table}"
+    },
+    "importWorkspaceForm": {
+        "selectApplicationsToImport": "Zu importierende Anwendungen auswählen"
     }
 }
