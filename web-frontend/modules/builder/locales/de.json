@@ -87,14 +87,45 @@
         "notAllowedInsideSameType": "Dieses Element ist nicht in einem Container der gleichen Art erlaubt",
         "dateTimePickerDescription": "Ein Eingabefeld für Datum und Zeit",
         "header": "Mehrseitiger Kopfbereich",
-        "notAllowedUnlessHeader": "Dieses Element ist nur im Kopfbereich der Seite erlaubt"
+        "notAllowedUnlessHeader": "Dieses Element ist nur im Kopfbereich der Seite erlaubt",
+        "ratingInput": "Bewertungseingabefeld",
+        "ratingInputDescription": "Ein Bewertungs-Eingabeelement",
+        "rating": "Bewertung",
+        "ratingDescription": "Ein Bewertungs-Element",
+        "invalidElementValue": "Ungültiger Elementwert: {value}",
+        "menu": "Menü",
+        "menuDescription": "Menü-Element",
+        "simpleContainer": "Container",
+        "simpleContainerDescription": "Ein Container für andere Elemente",
+        "fileInput": "Dateieingabe",
+        "fileInputDescription": "Ein Eingabefeld zum Hochladen von Dateien",
+        "errorValueMissing": "Fehlende Eigenschaft \"Wert\"",
+        "errorEmptyContainer": "Dieser Container ist leer",
+        "errorParentWithDataSourceMissing": "Keine Datenquelle für das Element oder einen übergeordneten Container ausgewählt",
+        "errorDataSourceMissing": "Keine Datenquelle ausgewählt",
+        "errorSchemaPropertyMissing": "Keine Schema-Eigenschaft ausgewählt",
+        "errorWorkflowActionInError": "Mindestens eine Aktion ist falsch konfiguriert",
+        "errorCollectionFieldInError": "Mindestens ein Feld ist falsch konfiguriert",
+        "errorNavigateToPageMissing": "Fehlende Eigenschaft \"Navigieren zu\"",
+        "errorPageParameterInError": "Mindestens ein Seitenparameter ist falsch konfiguriert",
+        "errorNavigationUrlMissing": "Fehlende Eigenschaft \"Navigations-URL\"",
+        "errorImageFileMissing": "Fehlende Bild-Datei",
+        "errorImageUrlMissing": "Fehlende Eigenschaft \"Bild-URL\"",
+        "errorNoWorkflowAction": "Keine Workflow-Aktion konfiguriert",
+        "errorOptionsMissing": "Keine Option konfiguriert",
+        "errorIframeUrlMissing": "Fehlende Eigenschaft \"IFrame-URL\"",
+        "errorIframeContentMissing": "Fehlender IFrame-Inhalt",
+        "errorNoMenuItem": "Kein Menüpunkt konfiguriert",
+        "errorMenuItemInError": "Mindestens ein Menü ist falsch konfiguriert",
+        "errorSubMenuItemInError": "Mindestens ein Untermenü ist falsch konfiguriert"
     },
     "addElementButton": {
         "label": "Element"
     },
     "duplicatePageJobType": {
         "duplicating": "Duplizieren",
-        "duplicatedTitle": "Seite dupliziert"
+        "duplicatedTitle": "Seite dupliziert",
+        "name": "Seite duplizieren"
     },
     "pageHeaderItemTypes": {
         "labelElements": "Elemente",
@@ -852,5 +883,24 @@
         "imageConstraintFullWidth": "Auf maximale Breite ausweiten",
         "imageConstraintCover": "Cover",
         "imageConstraintContainDisabled": "Nicht verfügbar mit maximaler Höhe."
+    },
+    "builderToast": {
+        "details": "Details",
+        "defaultTitle": "Unerwarteter Fehler",
+        "defaultMessage": "Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.",
+        "invalidContextTitle": "Ungültige Anfrage",
+        "invalidContextMessage": "Die Anfrage ist ungültig.",
+        "InvalidContentTitle": "Ungültiges Formular",
+        "invalidContentMessage": "Ein oder mehrere Felder enthalten ungültige Werte.",
+        "serviceMisconfiguredTitle": "Unvollständige Konfiguration",
+        "serviceMisconfiguredMessage": "Bitte prüfen Sie die Konfiguration.",
+        "errorWorkflowActionDispatch": "Die Aktion \"{name}\" ist fehlgeschlagen: ",
+        "errorDataSourceDispatch": "Fehler beim Laden der Daten von \"{name}\": "
+    },
+    "addElementCategory": {
+        "suggestedElement": "Vorgeschlagene Elemente",
+        "baseElement": "Grundelemente",
+        "layoutElement": "Layout-Elemente",
+        "formElement": "Formularelemente"
     }
 }
