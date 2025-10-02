@@ -13,7 +13,16 @@
         "summarize": "Zusammenfassen",
         "disabled": "Deaktiviert",
         "or": "oder",
-        "and": "und"
+        "and": "und",
+        "alpha": "Alpha",
+        "optional": "Optional",
+        "monday": "Montag",
+        "tuesday": "Dienstag",
+        "wednesday": "Mittwoch",
+        "thursday": "Donnerstag",
+        "friday": "Freitag",
+        "saturday": "Samstag",
+        "sunday": "Sonntag"
     },
     "action": {
         "upload": "Hochladen",
@@ -75,14 +84,16 @@
         "automationDefaultName": "Unbenannte Automatisierung",
         "cantSelectAutomationWorkflowTitle": "Konnte die Automatisierung nicht auswählen.",
         "automation": "Automatisierung",
-        "automations": "Automatisierungen"
+        "automations": "Automatisierungen",
+        "cantSelectAutomationWorkflowDescription": "Die Automatisierung konnte nicht ausgewählt werden, da sie keine Workflows enthält. Verwenden Sie die Seitenleiste, um einen zu erstellen."
     },
     "settingType": {
         "account": "Konto",
         "password": "Passwort",
         "tokens": "Datenbank-Token",
         "deleteAccount": "Konto löschen",
-        "emailNotifications": "E-Mailbenachrichtigungen"
+        "emailNotifications": "E-Mailbenachrichtigungen",
+        "mcpEndpoint": "MCP-Server"
     },
     "userFileUploadType": {
         "file": "Mein Gerät",
@@ -107,7 +118,8 @@
         "invalidURL": "Bitte geben Sie eine gültige URL ein.",
         "alreadyInUse": "Dieser Feldname wird bereits verwendet.",
         "invalidCharacters": "Das Feld beinhaltet ungültige Zeichen.",
-        "decimalField": "Das Feld muss eine Dezimalzahl sein."
+        "decimalField": "Das Feld muss eine Dezimalzahl sein.",
+        "copyFailed": "Kopieren in die Zwischenablage fehlgeschlagen. Bitte versuchen Sie es erneut."
     },
     "permission": {
         "admin": "Administration",
@@ -147,9 +159,11 @@
         "duration": "Dauer",
         "multipleSelectCheckboxes": "Kontrollkästchen",
         "autonumber": "Automatische Nummerierung",
-        "singleSelectDropdown": "Dropdown",
+        "singleSelectDropdown": "Dropdown-Menü",
         "password": "Passwort",
-        "ai": "KI-Eingabeaufforderung"
+        "ai": "KI-Eingabeaufforderung",
+        "multipleCollaboratorsDropdown": "Dropdown-Menü",
+        "multipleCollaboratorsCheckboxes": "Kontrollkästchen"
     },
     "fieldErrors": {
         "invalidNumber": "Ungültige Zahl",
