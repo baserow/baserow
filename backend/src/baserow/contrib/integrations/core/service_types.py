@@ -1429,9 +1429,6 @@ class CoreHTTPWebhookServiceType(TriggerServiceTypeMixin, ServiceType):
     def start_listening(self, on_event: Callable):
         self.on_event = on_event
 
-    def stop_listening(self):
-        self.on_event = None
-
     def process_webhook_request(
         self, webhook_uid: uuid.uuid4, request_data: dict, simulate: bool
     ):
