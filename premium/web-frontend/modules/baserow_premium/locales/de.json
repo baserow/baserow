@@ -110,7 +110,8 @@
         "expired": "Abgelaufen",
         "validity": "Gültig von {start} bis {end}",
         "seats": "Sitze",
-        "premiumFeatures": "Premium-Funktionen"
+        "premiumFeatures": "Premium-Funktionen",
+        "applicationUsers": "Anwendungsbenutzer"
     },
     "license": {
         "title": "{name} Plan",
@@ -193,7 +194,21 @@
         "personalViews": "Persönliche Ansichten",
         "calendarView": "Kalenderansicht",
         "aiFeatures": "KI-Feld",
-        "timelineView": "Zeitleisten-Ansicht"
+        "timelineView": "Zeitleisten-Ansicht",
+        "rowCommentsContent": "Arbeiten Sie direkt in Ihrer Tabelle zusammen. Fügen Sie Kommentare zu einzelnen Zeilen hinzu, erwähnen Sie Teammitglieder und behalten Sie den Kontext der Unterhaltung im Blick.",
+        "kanbanViewContent": "Organisieren Sie Ihre Daten visuell auf einem Kanban-Board. Karten werden anhand eines einzigen Auswahlfeldes in Stapeln gruppiert und Sie können sie ganz einfach per Drag & Drop zwischen den Stapeln verschieben.",
+        "calendarViewContent": "Zeigen Sie Ihre Zeilen ganz einfach in einem Kalender an, indem Sie ein Datumsfeld Ihrer Wahl verwenden. Perfekt, um Termine, Ereignisse und Zeitpläne gesammelt im Blick zu behalten.",
+        "timelineViewContent": "Zeigen Sie Zeilen entlang einer horizontalen Zeitachse anhand von Start- und Enddaten an. Ideal für die Projektplanung und Roadmaps.",
+        "exportsContent": "Exportieren Sie Ihre Daten ganz einfach in weitere Formate wie Excel, JSON und XML oder laden Sie alle Dateien aus einer Tabelle als Massendownload herunter – ideal für Backups, Berichte und die Weitergabe an andere.",
+        "rowColoringContent": "Markieren Sie Zeilen mit Farben basierend auf einem einzelnen Auswahlfeld oder benutzerdefinierten Bedingungen. Dadurch lassen sich Muster und Prioritäten leichter erkennen.",
+        "rowNotifications": "Zeilenbenachrichtigungen",
+        "rowNotificationsContent": "Bleiben Sie mit anpassbaren Zeilenkommentar-Benachrichtigungen auf dem Laufenden. Wählen Sie zwischen Benachrichtigungen für alle Kommentare oder nur für Kommentare, in denen Sie erwähnt werden.",
+        "surveyFormContent": "Sammeln Sie Frage für Frage Antworten im Umfragemodus. Eine vereinfachte Version der Formularansicht, optimiert für Fokus und Benutzerfreundlichkeit.",
+        "publicLogoRemovalContent": "Entfernen Sie das Baserow-Logo aus öffentlichen Ansichten, um Ihren geteilten Inhalten ein klareres, markengerechteres Erscheinungsbild zu verleihen.",
+        "personalViewsContent": "Erstellen Sie Ansichten, die nur der Autor sehen kann. So haben Sie Raum zum Experimentieren und Filtern und Sortieren von Daten, ohne den Arbeitsbereich anderer zu beeinträchtigen.",
+        "aiFeaturesContent": "Nutzen Sie KI, um Ihre Arbeitsabläufe zu automatisieren und zu verbessern. Mit dem KI-Eingabefeldtyp können Sie Texte, Zusammenfassungen oder Erkenntnisse direkt in Zellen generieren, basierend auf dynamischen Eingabeaufforderungen, die auf andere Felder verweisen können. Unabhängig davon können Sie die KI auch bitten, Formeln für Sie zu erstellen.",
+        "chartWidget": "Diagramm-Widget",
+        "chartWidgetContent": "Visualisieren Sie Ihre Daten mit Diagrammen auf Dashboards. Verwenden Sie beliebige Tabellen als Datenquelle, fügen Sie mehrere Reihen hinzu und gruppieren oder sortieren Sie nach Feldern mit umfangreichen Zusammenfassungsoptionen."
     },
     "premiumModal": {
         "description": "Ihr Konto hat keinen Zugang zu den Premium-Funktionen. Führen Sie ein Upgrade auf die Premium-Version durch, um {name} nutzen zu können. Sie können Ihr Konto erweitern, indem Sie eine Lizenz erwerben. Klicken Sie auf den Knopf unten, um die Preise zu sehen.",
