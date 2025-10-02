@@ -4,6 +4,7 @@ from baserow.contrib.automation.api.nodes.views import (
     AutomationNodesView,
     AutomationNodeView,
     DuplicateAutomationNodeView,
+    MoveAutomationNodeView,
     OrderAutomationNodesView,
     ReplaceAutomationNodeView,
     SimulateDispatchAutomationNodeView,
@@ -41,5 +42,10 @@ urlpatterns = [
         r"node/(?P<node_id>[0-9]+)/simulate-dispatch/$",
         SimulateDispatchAutomationNodeView.as_view(),
         name="simulate_dispatch",
+    ),
+    re_path(
+        r"node/(?P<node_id>[0-9]+)/move/$",
+        MoveAutomationNodeView.as_view(),
+        name="move",
     ),
 ]

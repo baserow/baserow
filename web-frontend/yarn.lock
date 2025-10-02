@@ -6249,20 +6249,20 @@
     source-map "0.5.6"
     tsconfig "^7.0.0"
 
-"@vue2-flow/background@^6.0.0":
-  version "6.0.0"
-  resolved "https://registry.yarnpkg.com/@vue2-flow/background/-/background-6.0.0.tgz#a28d3878fa6e04af121917db49e4c958701746c2"
-  integrity sha512-GMkjOg1IYBa4Ie8EG7drWWbvpZ5kz3FDQgeHfz8oYFzY/SVi6mVyDE8MKXB2qKaER/zI0w4u0TOhAqdWP1aBJg==
+"@vue2-flow/background@^7.0.0":
+  version "7.0.0"
+  resolved "https://registry.yarnpkg.com/@vue2-flow/background/-/background-7.0.0.tgz#f7213d93f9c56d0a9278545a7d3e71cc5fc89b87"
+  integrity sha512-Heco/nTpG9Cn0h7cSTeWH2CeabJ9oXAIirw/5YNXDGNC6PAEKhDzy2iZ7g8zlwNinkMbxrlXsoaK3fsdaXtcNw==
 
-"@vue2-flow/controls@^6.0.0":
-  version "6.0.0"
-  resolved "https://registry.yarnpkg.com/@vue2-flow/controls/-/controls-6.0.0.tgz#28b42194572e6c259ad6cd8e06c377f177bec567"
-  integrity sha512-lsbTyVQxdvNLT0beeU3r1nNL9a1JumkGdsi9Vd98ZWKDf4NSipGSj2b9C65Qb5F/+sKjQaMjvofM6GHfEzsV5A==
+"@vue2-flow/controls@^7.0.0":
+  version "7.0.0"
+  resolved "https://registry.yarnpkg.com/@vue2-flow/controls/-/controls-7.0.0.tgz#eb20a32c03263eb3cda2178c117efd7d60ce937d"
+  integrity sha512-EBAh0m6hXQCyl+y63iT1Yu9RlIH+onvBWxVLa5gEjFrLyeJ8P7tRCAsvJ41a+cBWF7B5KSJmtBwv5wga1dNf2w==
 
-"@vue2-flow/core@^0.6.0":
-  version "0.6.0"
-  resolved "https://registry.yarnpkg.com/@vue2-flow/core/-/core-0.6.0.tgz#aa152d8dc132bd4cba15bd593b12ac34959a64b5"
-  integrity sha512-dDhhD1G5cWfBzmBKWLarhhRhi4WHywZ0UkcBSHyBck17UYeAozSTuxsNaygj4zc6Lbj4vno+5JKLjDpGRerWEw==
+"@vue2-flow/core@^0.7.0":
+  version "0.7.0"
+  resolved "https://registry.yarnpkg.com/@vue2-flow/core/-/core-0.7.0.tgz#3ace46c38db13107e4337af192d81152fd21824b"
+  integrity sha512-/6oBvvTgwVBLQ3aXTQyENwvd/L1pl3IbDHIJHruzv1t/frt5C5fvuUVuANEmwzPO/1MynEAzXJ7OEqQXLHKrWg==
   dependencies:
     "@vueuse/core" "^10.5.0"
     d3-drag "^3.0.0"

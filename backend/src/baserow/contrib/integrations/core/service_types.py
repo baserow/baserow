@@ -877,7 +877,7 @@ class CoreSMTPEmailServiceType(CoreServiceType):
     ) -> DispatchResult:
         return DispatchResult(data=data["data"])
 
-    def export_prepared_values(self, instance: Service) -> dict[str, any]:
+    def export_prepared_values(self, instance: Service) -> dict[str, Any]:
         values = super().export_prepared_values(instance)
         if values.get("integration"):
             del values["integration"]
@@ -1061,6 +1061,18 @@ class CoreRouterServiceType(CoreServiceType):
 
     def get_schema_name(self, service: CoreRouterService) -> str:
         return f"CoreRouter{service.id}Schema"
+
+    def export_prepared_values(self, instance: Service) -> dict[str, Any]:
+        values = super().export_prepared_values(instance)
+        values["edges"] = [
+            {
+                "label": edge.label,
+                "condition": edge.condition,
+                "uid": str(edge.uid),
+            }
+            for edge in instance.edges.all()
+        ]
+        return values
 
     def generate_schema(
         self,

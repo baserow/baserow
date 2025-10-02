@@ -15,6 +15,7 @@ class AutomationConfig(AppConfig):
             CreateAutomationNodeActionType,
             DeleteAutomationNodeActionType,
             DuplicateAutomationNodeActionType,
+            MoveAutomationNodeActionType,
             OrderAutomationNodesActionType,
             ReplaceAutomationNodeActionType,
             UpdateAutomationNodeActionType,
@@ -145,6 +146,7 @@ class AutomationConfig(AppConfig):
             action_type_registry.register(OrderAutomationNodesActionType())
             action_type_registry.register(DuplicateAutomationNodeActionType())
             action_type_registry.register(ReplaceAutomationNodeActionType())
+            action_type_registry.register(MoveAutomationNodeActionType())
 
             action_scope_registry.register(WorkflowActionScopeType())
 

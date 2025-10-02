@@ -5,6 +5,7 @@ import pytest
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeBeforeInvalid,
     AutomationNodeDoesNotExist,
+    AutomationNodeNotMovable,
 )
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.models import LocalBaserowCreateRowActionNode
@@ -14,6 +15,7 @@ from baserow.contrib.automation.nodes.registries import (
 )
 from baserow.contrib.automation.nodes.service import AutomationNodeService
 from baserow.contrib.automation.nodes.trash_types import AutomationNodeTrashableItemType
+from baserow.contrib.automation.nodes.types import NextAutomationNodeValues
 from baserow.core.exceptions import UserNotInWorkspace
 from baserow.core.trash.handler import TrashHandler
 
@@ -508,3 +510,122 @@ def test_simulate_dispatch_node_action(data_fixture):
         "output_uid": "",
         "status": 200,
     }
+
+
+@pytest.mark.django_db
+def test_move_fixed_node_throws_exception(data_fixture):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user)
+    trigger = workflow.get_trigger(specific=False)
+    action1 = data_fixture.create_automation_node(workflow=workflow)
+    with pytest.raises(AutomationNodeNotMovable) as exc:
+        AutomationNodeService().move_node(user, trigger.id, action1.id)
+    assert exc.value.args[0] == "This automation node cannot be moved."
+
+
+@pytest.mark.django_db
+def test_move_simple_node(data_fixture):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user)
+    action1 = data_fixture.create_automation_node(workflow=workflow)
+    # <-- to here
+    action2 = data_fixture.create_automation_node(workflow=workflow)
+    action3 = data_fixture.create_automation_node(workflow=workflow)  # <- from here
+    action4 = data_fixture.create_automation_node(workflow=workflow)
+
+    # move `action3` to be after `trigger`
+    move_result = AutomationNodeService().move_node(user, action3.id, action1.id)
+
+    # The node we're trying to move is `action3`
+    assert move_result.node == action3
+    assert move_result.node.previous_node_id == action1.id
+    assert move_result.node.previous_node_output == ""
+
+    # The node's origin previous node was `action2`
+    assert move_result.origin_previous_node_id == action2.id
+    assert move_result.origin_previous_node_output == ""
+
+    # Before the move, at the origin, `action4` was after `action3`
+    assert move_result.origin_old_next_nodes_values == [
+        NextAutomationNodeValues(
+            id=action4.id, previous_node_id=action3.id, previous_node_output=""
+        )
+    ]
+
+    # After the move, at the origin, `action4` is now after `action2`
+    assert move_result.origin_new_next_nodes_values == [
+        NextAutomationNodeValues(
+            id=action4.id, previous_node_id=action2.id, previous_node_output=""
+        )
+    ]
+
+    # Before the move, at the destination, `action2` was after `action1`.
+    assert move_result.destination_old_next_nodes_values == [
+        NextAutomationNodeValues(
+            id=action2.id, previous_node_id=action1.id, previous_node_output=""
+        )
+    ]
+
+    # After the move, at the destination, `action2` is now after `action3`.
+    assert move_result.destination_new_next_nodes_values == [
+        NextAutomationNodeValues(
+            id=action2.id, previous_node_id=action3.id, previous_node_output=""
+        )
+    ]
+
+    # The node's destination previous node is now `action1`.
+    assert move_result.destination_previous_node_id == action1.id
+    assert move_result.destination_previous_node_output == ""
+
+
+@pytest.mark.django_db
+def test_move_node_to_edge_above_existing_output(data_fixture):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user)
+    core_router_with_edges = data_fixture.create_core_router_action_node_with_edges(
+        workflow=workflow,
+    )
+    router = core_router_with_edges.router
+    edge1 = core_router_with_edges.edge1
+    # <- to here
+    edge1_output = core_router_with_edges.edge1_output
+    edge2 = core_router_with_edges.edge2
+    edge2_output = core_router_with_edges.edge2_output  # <- from here
+
+    # move `edge2_output` to be *above* `edge1_output` inside `edge1`
+    move_result = AutomationNodeService().move_node(
+        user, edge2_output.id, router.id, edge1_output.previous_node_output
+    )
+
+    # The node we're trying to move is `edge2_output`
+    assert move_result.node == edge2_output
+    assert move_result.node.previous_node_id == router.id
+    assert move_result.node.previous_node_output == str(edge1.uid)
+
+    # The node's origin previous node was `action2`
+    assert move_result.origin_previous_node_id == router.id
+    assert move_result.origin_previous_node_output == str(edge2.uid)
+
+    # Before the move, at the origin, there are no next nodes after `edge2_output`.
+    assert move_result.origin_old_next_nodes_values == []
+
+    # After the move, at the origin, there are still no next nodes.
+    assert move_result.origin_new_next_nodes_values == []
+
+    # Before the move, at the destination, `edge1_output` was after `router`.
+    assert move_result.destination_old_next_nodes_values == [
+        NextAutomationNodeValues(
+            id=edge1_output.id,
+            previous_node_id=router.id,
+            previous_node_output=str(edge1.uid),
+        )
+    ]
+
+    # After the move, at the destination, `edge1_output` is now after `edge2_output`.
+    assert move_result.destination_new_next_nodes_values == [
+        NextAutomationNodeValues(
+            id=edge1_output.id,
+            previous_node_id=edge2_output.id,
+            previous_node_output="",
+        )
+    ]

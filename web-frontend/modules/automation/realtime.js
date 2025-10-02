@@ -110,6 +110,24 @@ export const registerRealtimeEvents = (realtime) => {
     })
   })
 
+  realtime.registerEvent('automation_nodes_updated', ({ store }, data) => {
+    const { workflow_id: workflowId, nodes } = data
+    const workflow = store.getters['automationWorkflow/getSelected']
+    if (!workflow || workflow.id !== workflowId) return
+    nodes.forEach((node) => {
+      const existing = store.getters['automationWorkflowNode/findById'](
+        workflow,
+        node.id
+      )
+      store.dispatch('automationWorkflowNode/forceUpdate', {
+        workflow,
+        node: existing,
+        values: node,
+        override: true,
+      })
+    })
+  })
+
   realtime.registerEvent('automation_node_replaced', ({ store }, data) => {
     const {
       workflow_id: workflowId,

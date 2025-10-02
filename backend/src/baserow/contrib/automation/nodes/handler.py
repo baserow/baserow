@@ -14,14 +14,14 @@ from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeNotInWorkflow,
     AutomationNodeSimulateDispatchError,
 )
-from baserow.contrib.automation.nodes.models import AutomationNode
+from baserow.contrib.automation.nodes.models import AutomationActionNode, AutomationNode
 from baserow.contrib.automation.nodes.node_types import AutomationNodeType
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.nodes.types import (
     AutomationNodeDict,
     AutomationNodeDuplication,
+    AutomationNodeMove,
     NextAutomationNodeValues,
-    UpdatedAutomationNode,
 )
 from baserow.contrib.automation.workflows.runner import AutomationWorkflowRunner
 from baserow.core.cache import local_cache
@@ -144,7 +144,7 @@ class AutomationNodeHandler:
         new_previous_node: AutomationNode,
         nodes: List[AutomationNode],
         previous_node_output: Optional[str] = None,
-    ):
+    ) -> List[AutomationActionNode]:
         """
         Relink all nodes to the given new previous node and ensure that we set the
         previous node output correctly.
@@ -158,18 +158,24 @@ class AutomationNodeHandler:
         if previous_node_output is not None:
             update_kwargs["previous_node_output"] = previous_node_output
 
-        AutomationNode.objects.filter(id__in=[n.id for n in nodes]).update(
-            **update_kwargs
-        )
+        updates = []
+        for node in nodes:
+            for key, value in update_kwargs.items():
+                setattr(node, key, value)
+            updates.append(node)
+        AutomationNode.objects.bulk_update(updates, update_kwargs.keys())
+
+        return updates
 
     def update_next_nodes_values(
         self,
         next_node_values: List[NextAutomationNodeValues],
-    ):
+    ) -> List[AutomationActionNode]:
         """
         Update the next nodes values for a list of nodes.
 
         :param next_node_values: The new next node values.
+        :return: The updated nodes.
         """
 
         next_node_updates = []
@@ -185,6 +191,7 @@ class AutomationNodeHandler:
         AutomationNode.objects.bulk_update(
             next_node_updates, ["previous_node_id", "previous_node_output"]
         )
+        return next_node_updates
 
     def create_node(
         self,
@@ -269,7 +276,7 @@ class AutomationNodeHandler:
 
         return node
 
-    def update_node(self, node: AutomationNode, **kwargs) -> UpdatedAutomationNode:
+    def update_node(self, node: AutomationNode, **kwargs) -> AutomationNode:
         """
         Updates fields of the provided AutomationNode.
 
@@ -279,22 +286,13 @@ class AutomationNodeHandler:
         :return: The updated AutomationNode.
         """
 
-        node_type = node.get_type()
-        original_node_values = node_type.export_prepared_values(node)
-
         allowed_values = extract_allowed(kwargs, self.allowed_fields)
-
         for key, value in allowed_values.items():
             setattr(node, key, value)
 
         node.save()
 
-        new_node_values = node_type.export_prepared_values(node)
-        return UpdatedAutomationNode(
-            node=node,
-            original_values=original_node_values,
-            new_values=new_node_values,
-        )
+        return node
 
     def get_nodes_order(self, workflow: AutomationWorkflow) -> List[int]:
         """
@@ -396,6 +394,114 @@ class AutomationNodeHandler:
             source_node_next_nodes_values=source_node_next_nodes_values,
             duplicated_node=duplicated_node,
             duplicated_node_next_nodes_values=duplicated_node_next_nodes_values,
+        )
+
+    def move_node(
+        self,
+        node: AutomationActionNode,
+        after_node: AutomationNode,
+        previous_node_output: Optional[str] = None,
+        order: Optional[float] = None,
+    ) -> AutomationNodeMove:
+        """
+        Moves an action node to be after another node in the same workflow.
+
+        :param node: The action node to move.
+        :param after_node: The node to move the action node after.
+        :param previous_node_output: If the destination is an output, the output uid.
+        :param order: The new order of the node. If not provided, it will be calculated
+            to be last of `after_node`.
+        :return: The `AutomationNodeMove` dataclass containing the moved node,
+            its original previous node values and its new previous node values.
+        """
+
+        # Does `node`, in its current position, have any next nodes? If so,
+        # we need to ensure their `previous_node_id` are updated to the new
+        # previous node of `node`.
+        origin_next_nodes = list(node.get_next_nodes())
+        origin_old_next_nodes_values = [
+            NextAutomationNodeValues(
+                id=nn.id,
+                previous_node_id=nn.previous_node_id,
+                previous_node_output=nn.previous_node_output,
+            )
+            for nn in origin_next_nodes
+        ]
+
+        # Keep a list of "next nodes" at the origin and destination which
+        # we've updated. The node service will use this list to send a bulk
+        # 'automation nodes updated' signal.
+        next_node_updates: List[AutomationActionNode] = []
+
+        # Update the nodes that followed `node` to now follow `node`'s previous node.
+        # i.e. they all move "up" one step in the workflow.
+        updated_origin_next_nodes = self.update_previous_node(
+            node.previous_node, origin_next_nodes, node.previous_node_output
+        )
+        next_node_updates.extend(updated_origin_next_nodes)
+
+        origin_new_next_nodes_values = [
+            NextAutomationNodeValues(
+                id=nn.id,
+                previous_node_id=nn.previous_node_id,
+                previous_node_output=nn.previous_node_output,
+            )
+            for nn in updated_origin_next_nodes
+        ]
+
+        # Does `after_node`, the node that `node` is being moved after,
+        # have any next nodes? If so, we need to ensure their `previous_node_id`
+        # are updated to `node`.
+        destination_next_nodes = list(after_node.get_next_nodes(previous_node_output))
+        destination_old_next_nodes_values = [
+            NextAutomationNodeValues(
+                id=nn.id,
+                previous_node_id=nn.previous_node_id,
+                previous_node_output=nn.previous_node_output,
+            )
+            for nn in destination_next_nodes
+        ]
+
+        # Store the original `previous_node_{id,output}` so we can revert.
+        origin_previous_node_id = node.previous_node_id
+        origin_previous_node_output = node.previous_node_output
+
+        # Set the new position.
+        node.previous_node_id = after_node.id
+        node.previous_node_output = previous_node_output or ""
+        node.order = order or AutomationNode.get_unique_order_before_node(
+            after_node, after_node.parent_node
+        )
+        node.save(update_fields=["previous_node_id", "previous_node_output", "order"])
+
+        # Update the nodes at the destination that their previous node is now `node`.
+        updated_destination_next_nodes = self.update_previous_node(
+            node,
+            destination_next_nodes,
+            previous_node_output="" if previous_node_output else None,
+        )
+        next_node_updates.extend(updated_destination_next_nodes)
+
+        destination_new_next_nodes_values = [
+            NextAutomationNodeValues(
+                id=nn.id,
+                previous_node_id=nn.previous_node_id,
+                previous_node_output=nn.previous_node_output,
+            )
+            for nn in updated_destination_next_nodes
+        ]
+
+        return AutomationNodeMove(
+            node=node,
+            next_node_updates=next_node_updates,
+            origin_previous_node_id=origin_previous_node_id,
+            origin_previous_node_output=origin_previous_node_output,
+            origin_old_next_nodes_values=origin_old_next_nodes_values,
+            origin_new_next_nodes_values=origin_new_next_nodes_values,
+            destination_previous_node_id=node.previous_node_id,
+            destination_previous_node_output=node.previous_node_output,
+            destination_old_next_nodes_values=destination_old_next_nodes_values,
+            destination_new_next_nodes_values=destination_new_next_nodes_values,
         )
 
     def export_node(

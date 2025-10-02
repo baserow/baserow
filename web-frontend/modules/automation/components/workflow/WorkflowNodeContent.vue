@@ -1,6 +1,13 @@
 <template>
   <div
     class="workflow-node-content__wrapper"
+    :class="{
+      'workflow-node-content__wrapper--dragging': isDragging,
+    }"
+    :draggable="isDraggable"
+    @dragstart="handleDragStart"
+    @dragend="handleDragEnd"
+    @mousedown.stop
     @click="emit('select-node', node)"
   >
     <div
@@ -12,6 +19,7 @@
       :title="displayLabel"
       :data-before-label="getDataBeforeLabel"
     >
+      <div v-if="isDraggable" class="workflow-node-content__drag-handle"></div>
       <div class="workflow-node-content__icon">
         <i
           :class="{
@@ -36,6 +44,8 @@
       <div
         v-if="isInteractionReady"
         class="workflow-node-content__more--wrapper"
+        draggable="false"
+        @mousedown.prevent
       >
         <a
           ref="editNodeContextToggle"
@@ -128,6 +138,8 @@ const props = defineProps({
 
 const emit = defineEmits(['remove-node', 'replace-node', 'select-node'])
 
+const isDragging = ref(false)
+
 /**
  * When the pane is moved, if we have an active node context (whether it is
  * the edit, or replace context), we hide it. This is to ensure that the
@@ -175,6 +187,21 @@ const automation = inject('automation')
 const nodeType = computed(() => {
   return app.$registry.get('node', props.node.type)
 })
+
+const isDraggable = computed(() => {
+  return !nodeType.value.isFixed
+})
+
+const handleDragStart = (event) => {
+  isDragging.value = true
+  store.dispatch('automationWorkflowNode/setDraggingNodeId', props.node.id)
+}
+
+const handleDragEnd = () => {
+  isDragging.value = false
+  store.dispatch('automationWorkflowNode/setDraggingNodeId', null)
+}
+
 const loading = computed(() => {
   return store.getters['automationWorkflowNode/getLoading'](props.node)
 })

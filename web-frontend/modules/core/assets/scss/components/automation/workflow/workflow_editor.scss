@@ -27,11 +27,11 @@
   pointer-events: none;
 }
 
-.workflow-edge__add-button--with-next::after {
+.workflow-edge__add-button-wrapper--with-next::after {
   content: '';
   display: block;
   margin-left: 50%;
-  height: 40px;
+  height: 80px;
   border-left: 2px solid $palette-neutral-400;
 }
 
@@ -60,7 +60,7 @@
   }
 }
 
-.workflow-edge__add-button {
+.workflow-edge__add-button-wrapper {
   pointer-events: initial;
 }
 
@@ -81,6 +81,7 @@
   border: 1.5px solid $palette-neutral-200;
   background: $white;
   cursor: pointer;
+  background-size: 50px 57px;
 
   @include elevation($elevation-low);
   @include rounded($rounded-xl);
@@ -100,6 +101,29 @@
   }
 }
 
+.workflow-node-content__drag-handle {
+  position: absolute;
+  left: 0;
+  top: 4px;
+  width: 14px;
+  height: 62px;
+  cursor: grab;
+  background-image: radial-gradient(
+      circle,
+      $palette-neutral-400 1px,
+      transparent 1px
+    ),
+    radial-gradient(circle, $palette-neutral-400 1px, transparent 1px);
+  background-repeat: repeat-y;
+  background-position: 3px center, 0 center;
+  background-size: auto 4px;
+  display: none;
+
+  .workflow-node-content:hover & {
+    display: block;
+  }
+}
+
 .workflow-node-content::before {
   content: attr(data-before-label);
   position: absolute;
@@ -107,6 +131,10 @@
   left: 0;
   color: $palette-neutral-900;
   font-weight: 500;
+
+  .workflow-node-content__wrapper--dragging & {
+    display: none;
+  }
 }
 
 .workflow-node-content__more--wrapper {
@@ -172,4 +200,52 @@
   }
 
   @extend %ellipsis;
+}
+
+.workflow-node-content__wrapper--dragging {
+  opacity: 0.5;
+}
+
+.workflow-edge__dropzone-wrapper {
+  position: relative;
+  width: 400px;
+  height: 100%;
+}
+
+.workflow-edge__dropzone {
+  position: absolute;
+  top: -18px;
+  left: 0;
+  width: 100%;
+  z-index: 1;
+  height: 70px;
+
+  @include rounded($rounded-xl);
+
+  &--hover {
+    border: 2px dashed $palette-blue-500;
+  }
+}
+
+.workflow-edge__add-button {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.workflow-edge__add-button--active {
+  & > .button-floating {
+    transition: all 0.2s ease;
+    background: $palette-blue-100;
+    border: 1px dashed $palette-blue-400;
+  }
+}
+
+.workflow-edge__add-button--hover {
+  & > .button-floating {
+    background: $palette-green-200;
+    border: 1px solid $palette-green-500;
+    color: $palette-green-700;
+  }
 }

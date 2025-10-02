@@ -57,7 +57,13 @@ class AutomationNodeType(
     # Does this node type get immediately dispatch on a test run?
     immediate_dispatch: bool = False
 
+    # Whether this node type is allowed to be moved in a workflow.
+    is_fixed = False
+
+    # Whether this node type is a trigger. Triggers start workflows.
     is_workflow_trigger = False
+    # Whether this node type is an action.
+    # Actions are executed as part of workflows.
     is_workflow_action = False
 
     class SerializedDict(AutomationNodeDict):

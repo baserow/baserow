@@ -3,6 +3,14 @@ export const TriggerNodeTypeMixin = (Base) =>
     isTrigger = true
 
     /**
+     * Triggers cannot be moved around, so we return true here.
+     * @returns {boolean} - Whether the node can be moved.
+     */
+    get isFixed() {
+      return true
+    }
+
+    /**
      * Triggers cannot be deleted, so by default we return an error message.
      * @param workflow - the workflow that contains the node.
      * @param node - the node that is being deleted.
