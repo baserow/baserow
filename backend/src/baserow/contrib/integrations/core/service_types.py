@@ -1446,11 +1446,6 @@ class CoreHTTPWebhookServiceType(TriggerServiceTypeMixin, ServiceType):
 
         self.on_event([service], request_data, simulate=simulate)
 
-    def get_sample_data(
-        self, service: CoreHTTPWebhookService
-    ) -> Optional[Dict[str, Any]]:
-        return service.sample_data
-
     def generate_schema(
         self,
         service: CoreHTTPWebhookService,
