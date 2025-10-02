@@ -51,8 +51,6 @@ class Service(
         help_text="Store the sample data used for generating a schema.",
     )
 
-    is_published = models.BooleanField(default=False)
-
     class Meta:
         ordering = ("id",)
 

@@ -9,5 +9,7 @@ core_http_webhook_service_updated = Signal()
 
 @receiver(core_http_webhook_service_updated)
 def invalidate_error_cache_key(sender, service: CoreHTTPWebhookService, **kwargs):
-    cache_key = get_error_cache_key(service.uid)
-    global_cache.invalidate(cache_key)
+    for i in [True, False]:
+        cache_key = get_error_cache_key(service.uid, i)
+        global_cache.invalidate(cache_key)
+

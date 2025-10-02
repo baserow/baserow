@@ -1416,6 +1416,8 @@ class CoreHTTPWebhookServiceType(TriggerServiceTypeMixin, ServiceType):
 
     class SerializedDict(ServiceDict):
         uid: str
+        exclude_get: bool
+        is_public: bool
 
     def get_api_urls(self) -> List[path]:
         return [
@@ -1433,7 +1435,7 @@ class CoreHTTPWebhookServiceType(TriggerServiceTypeMixin, ServiceType):
         self, webhook_uid: uuid.uuid4, request_data: dict, simulate: bool
     ):
         service = (
-            self.model_class.objects.filter(uid=webhook_uid, is_published=not simulate)
+            self.model_class.objects.filter(uid=webhook_uid, is_public=not simulate)
             .order_by("-id")
             .first()
         )

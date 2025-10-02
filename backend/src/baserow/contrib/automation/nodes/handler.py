@@ -614,7 +614,8 @@ class AutomationNodeHandler:
     ) -> AutomationNode:
         node_type = automation_node_type_registry.get(serialized_node["type"])
 
-        serialized_node["service"]["is_published"] = True
+        if import_export_config.is_publishing:
+            serialized_node["service"]["is_public"] = True
 
         node_instance = node_type.import_serialized(
             workflow,

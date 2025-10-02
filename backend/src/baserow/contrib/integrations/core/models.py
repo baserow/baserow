@@ -234,4 +234,7 @@ class CoreHTTPWebhookService(Service):
         default=uuid.uuid4,
         help_text="The service identifier for the webhook.",
     )
+
     exclude_get = models.BooleanField(default=False)
+
+    is_public = models.BooleanField(default=False)

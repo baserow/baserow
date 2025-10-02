@@ -1,3 +1,4 @@
+from typing import Optional
 from uuid import uuid4
 
 from django.db import transaction
@@ -44,8 +45,8 @@ def webhook_schema(method):
     )
 
 
-def get_error_cache_key(uid: uuid4) -> str:
-    return f"http_webhook_error_{uid}"
+def get_error_cache_key(uid: uuid4, simulate: bool = False) -> str:
+    return f"http_webhook_error_simulate_{simulate}_{uid}"
 
 
 class CoreHTTPWebhookView(APIView):
@@ -100,7 +101,7 @@ class CoreHTTPWebhookView(APIView):
         request_data = self.handle_request_data(request)
         simulate = request.GET.get("test", "").lower() == "true"
 
-        cache_key = get_error_cache_key(webhook_uid)
+        cache_key = get_error_cache_key(webhook_uid, simulate)
         self.handle_error(cache_key, webhook_uid)
 
         service_type = service_type_registry.get("http_webhook")
