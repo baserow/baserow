@@ -1453,6 +1453,28 @@ class CoreHTTPWebhookServiceType(TriggerServiceTypeMixin, ServiceType):
     ) -> Optional[Dict[str, Any]]:
         properties = {}
 
+        if (allowed_fields is None or "body" in allowed_fields) and service.sample_data:
+            schema_builder = SchemaBuilder()
+            schema_builder.add_object(
+                service.sample_data.get("data", {}).get("body", {})
+            )
+            schema = schema_builder.to_schema()
+
+            properties |= {
+                "body": schema
+                | {
+                    "title": "Body",
+                }
+            }
+        
+        if allowed_fields is None or "raw_body" in allowed_fields:
+            properties |= {
+                "raw_body": {
+                    "type": "string",
+                    "title": "Raw body",
+                },
+            }
+
         if (
             allowed_fields is None or "query_params" in allowed_fields
         ) and service.sample_data:
@@ -1466,28 +1488,6 @@ class CoreHTTPWebhookServiceType(TriggerServiceTypeMixin, ServiceType):
                 "query_params": schema
                 | {
                     "title": "Query parameters",
-                }
-            }
-
-        if allowed_fields is None or "raw_body" in allowed_fields:
-            properties |= {
-                "raw_body": {
-                    "type": "string",
-                    "title": "Raw body",
-                },
-            }
-
-        if (allowed_fields is None or "body" in allowed_fields) and service.sample_data:
-            schema_builder = SchemaBuilder()
-            schema_builder.add_object(
-                service.sample_data.get("data", {}).get("body", {})
-            )
-            schema = schema_builder.to_schema()
-
-            properties |= {
-                "body": schema
-                | {
-                    "title": "Body",
                 }
             }
 
