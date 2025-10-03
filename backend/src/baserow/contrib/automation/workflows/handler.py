@@ -24,6 +24,7 @@ from baserow.contrib.automation.history.handler import AutomationHistoryHandler
 from baserow.contrib.automation.history.models import AutomationWorkflowHistory
 from baserow.contrib.automation.models import Automation
 from baserow.contrib.automation.nodes.models import AutomationNode
+from baserow.contrib.automation.nodes.signals import automation_node_updated
 from baserow.contrib.automation.nodes.types import AutomationNodeDict
 from baserow.contrib.automation.types import AutomationWorkflowDict
 from baserow.contrib.automation.workflows.constants import (
@@ -808,6 +809,8 @@ class AutomationWorkflowHandler:
             # stale sample data.
             simulate_until_node.service.sample_data = None
             simulate_until_node.service.save()
+
+            automation_node_updated.send(self, user=None, node=simulate_until_node)
 
             fields_to_save.append("simulate_until_node")
 
