@@ -261,7 +261,6 @@ class IntegrationHandler:
         self,
         application,
         serialized_integration,
-        import_export_config,
         id_mapping,
         cache: Optional[Dict] = None,
         files_zip: Optional[ZipFile] = None,

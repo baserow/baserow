@@ -12,7 +12,6 @@ from baserow.contrib.automation.nodes.exceptions import AutomationNodeNotReplace
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.types import AutomationNodeDict
 from baserow.core.integrations.models import Integration
-from baserow.core.registries import ImportExportConfig
 from baserow.core.registry import (
     CustomFieldsRegistryMixin,
     EasyImportExportMixin,
@@ -236,7 +235,6 @@ class AutomationNodeType(
         self,
         parent: Any,
         serialized_values: Dict[str, Any],
-        import_export_config: ImportExportConfig,
         id_mapping: Dict[str, Dict[str, Any]],
         **kwargs,
     ):
@@ -247,7 +245,6 @@ class AutomationNodeType(
             parent,
             serialized_values,
             id_mapping,
-            import_export_config=import_export_config,
             **kwargs,
         )
 

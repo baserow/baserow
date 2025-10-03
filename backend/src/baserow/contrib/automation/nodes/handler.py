@@ -536,7 +536,6 @@ class AutomationNodeHandler:
         self,
         workflow: AutomationWorkflow,
         serialized_node: AutomationNodeDict,
-        import_export_config: ImportExportConfig,
         id_mapping: Dict[str, Dict[int, int]],
         *args,
         **kwargs,
@@ -557,7 +556,6 @@ class AutomationNodeHandler:
         return self.import_nodes(
             workflow,
             [serialized_node],
-            import_export_config,
             id_mapping,
             *args,
             **kwargs,
@@ -567,7 +565,6 @@ class AutomationNodeHandler:
         self,
         workflow: AutomationWorkflow,
         serialized_nodes: List[AutomationNodeDict],
-        import_export_config: ImportExportConfig,
         id_mapping: Dict[str, Dict[int, int]],
         cache: Optional[Dict] = None,
         *args,
@@ -593,7 +590,6 @@ class AutomationNodeHandler:
             node_instance = self.import_node_only(
                 workflow,
                 serialized_node,
-                import_export_config,
                 id_mapping,
                 cache=cache,
                 *args,
@@ -607,7 +603,6 @@ class AutomationNodeHandler:
         self,
         workflow: AutomationWorkflow,
         serialized_node: AutomationNodeDict,
-        import_export_config: ImportExportConfig,
         id_mapping: Dict[str, Dict[int, int]],
         *args: Any,
         **kwargs: Any,
@@ -617,7 +612,6 @@ class AutomationNodeHandler:
         node_instance = node_type.import_serialized(
             workflow,
             serialized_node,
-            import_export_config,
             id_mapping,
             *args,
             **kwargs,

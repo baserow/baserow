@@ -358,7 +358,6 @@ class AutomationWorkflowHandler:
     def export_workflow(
         self,
         workflow: AutomationWorkflow,
-        import_export_config: ImportExportConfig,
         files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
         cache: Optional[Dict[str, any]] = None,
@@ -418,8 +417,8 @@ class AutomationWorkflowHandler:
         self,
         workflow: AutomationWorkflow,
         serialized_nodes: List[AutomationNodeDict],
-        import_export_config: ImportExportConfig,
         id_mapping: Dict[str, Dict[int, int]],
+        import_export_config: Optional[ImportExportConfig] = None,
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
         progress: Optional[ChildProgressBuilder] = None,
@@ -431,6 +430,8 @@ class AutomationWorkflowHandler:
         :param workflow: The AutomationWorkflow instance to import the nodes into.
         :param serialized_nodes: The serialized nodes to import.
         :param id_mapping: A map of old->new id per data type
+        :param import_export_config: provides configuration options for the
+            import/export process to customize how it works.
         :param files_zip: Contains files to import if any.
         :param storage: Storage to get the files from.
         :param progress: A progress object that can be used to report progress.
@@ -459,8 +460,8 @@ class AutomationWorkflowHandler:
                     imported_node = AutomationNodeHandler().import_node(
                         workflow,
                         serialized_node,
-                        import_export_config,
                         id_mapping,
+                        import_export_config=import_export_config,
                         files_zip=files_zip,
                         storage=storage,
                         cache=cache,
@@ -478,12 +479,12 @@ class AutomationWorkflowHandler:
         self,
         automation: Automation,
         serialized_workflows: List[AutomationWorkflowDict],
-        import_export_config: ImportExportConfig,
         id_mapping: Dict[str, Dict[int, int]],
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
         progress: Optional[ChildProgressBuilder] = None,
         cache: Optional[Dict[str, any]] = None,
+        import_export_config: Optional[ImportExportConfig] = None,
     ) -> List[AutomationWorkflow]:
         """
         Import multiple workflows at once.
@@ -513,7 +514,6 @@ class AutomationWorkflowHandler:
             workflow_instance = self.import_workflow_only(
                 automation,
                 serialized_workflow,
-                import_export_config,
                 id_mapping,
                 files_zip=files_zip,
                 storage=storage,
@@ -526,8 +526,8 @@ class AutomationWorkflowHandler:
             self.import_nodes(
                 workflow_instance,
                 serialized_workflow["nodes"],
-                import_export_config,
                 id_mapping,
+                import_export_config=import_export_config,
                 files_zip=files_zip,
                 storage=storage,
                 progress=progress,
@@ -541,6 +541,7 @@ class AutomationWorkflowHandler:
         automation: Automation,
         serialized_workflow: AutomationWorkflowDict,
         id_mapping: Dict[str, Dict[int, int]],
+        import_export_config: Optional[ImportExportConfig] = None,
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
         progress: Optional[ChildProgressBuilder] = None,
@@ -567,6 +568,7 @@ class AutomationWorkflowHandler:
             automation,
             [serialized_workflow],
             id_mapping,
+            import_export_config=import_export_config,
             files_zip=files_zip,
             storage=storage,
             progress=progress,
@@ -577,7 +579,6 @@ class AutomationWorkflowHandler:
         self,
         automation: Automation,
         serialized_workflow: Dict[str, Any],
-        import_export_config: ImportExportConfig,
         id_mapping: Dict[str, Dict[int, int]],
         progress: Optional[ChildProgressBuilder] = None,
         *args: Any,
