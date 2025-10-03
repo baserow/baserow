@@ -26,7 +26,7 @@ from baserow.contrib.automation.workflows.object_scopes import (
     AutomationWorkflowObjectScopeType,
 )
 from baserow.contrib.integrations.core.service_types import CoreHTTPTriggerServiceType
-from baserow.contrib.integrations.core.signals import core_http_webhook_service_updated
+from baserow.contrib.integrations.core.signals import core_http_webhook_trigger_updated
 from baserow.core.utils import generate_hash
 from baserow.ws.tasks import broadcast_to_group, broadcast_to_permitted_users
 
@@ -166,12 +166,13 @@ def clear_http_trigger_node_errors(
     sender, node: AutomationNode, user: AbstractUser, **kwargs
 ):
     """
-    The HTTP Webhook API caches errors. When a Node's service is updated, the
-    original cause of the error may no longer exist. The cache key should
-    therefore be invalidated.
+    The CoreHTTPTriggerService caches errors in the webhook endpoint.
+
+    When a node using this service is updated, the error cache should
+    be invalidated.
     """
 
     if not isinstance(node.service.get_type(), CoreHTTPTriggerServiceType):
         return
 
-    core_http_webhook_service_updated.send(sender, service=node.service.specific)
+    core_http_webhook_trigger_updated.send(sender, service=node.service.specific)

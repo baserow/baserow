@@ -27,7 +27,7 @@ from baserow.contrib.automation.workflows.signals import (
     automation_workflows_reordered,
 )
 from baserow.contrib.integrations.core.models import CoreHTTPTriggerService
-from baserow.contrib.integrations.core.signals import core_http_webhook_service_updated
+from baserow.contrib.integrations.core.signals import core_http_webhook_trigger_updated
 from baserow.core.utils import generate_hash
 from baserow.ws.tasks import broadcast_to_group, broadcast_to_permitted_users
 
@@ -135,10 +135,17 @@ def workflow_reordered(
 def clear_http_trigger_node_errors(
     sender, workflow: AutomationWorkflow, user: AbstractUser, **kwargs
 ):
+    """
+    The CoreHTTPTriggerService caches errors in the webhook endpoint.
+
+    When a Workflow is published and it has a node using this service, the
+    error cache should be invalidated.
+    """
+
     webhook_service_content_type = ContentType.objects.get_for_model(
         CoreHTTPTriggerService
     )
     for node in workflow.automation_workflow_nodes.filter(
         service__content_type=webhook_service_content_type
     ):
-        core_http_webhook_service_updated.send(sender, service=node.service.specific)
+        core_http_webhook_trigger_updated.send(sender, service=node.service.specific)
