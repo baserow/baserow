@@ -38,6 +38,7 @@ from .exceptions import (
     InvalidContextDispatchException,
     ServiceImproperlyConfiguredDispatchException,
     ServiceTypeDoesNotExist,
+    TriggerServiceNotDispatchable,
     UnexpectedDispatchException,
 )
 from .models import Service
@@ -235,7 +236,9 @@ class ServiceType(
 
         return None
 
-    def get_sample_data(self, service: ServiceSubClass) -> Optional[Dict[Any, Any]]:
+    def get_sample_data(
+        self, service: ServiceSubClass, dispatch_context: DispatchContext
+    ) -> Optional[Dict[Any, Any]]:
         """Return the sample data for this service."""
 
         return service.sample_data
@@ -359,9 +362,10 @@ class ServiceType(
                 dispatch_context.update_sample_data_for is None
                 or service not in dispatch_context.update_sample_data_for
             )
-            and service.get_type().get_sample_data(service) is not None
+            and (sample_data := self.get_sample_data(service, dispatch_context))
+            is not None
         ):
-            return DispatchResult(**self.get_sample_data(service))
+            return DispatchResult(**sample_data)
 
         data = self.dispatch_data(service, resolved_values, dispatch_context)
         serialized_data = self.dispatch_transform(data)
@@ -527,6 +531,29 @@ class TriggerServiceTypeMixin(ABC):
     # The service is always dispatched by an event.
     dispatch_types = [DispatchTypes.EVENT]
 
+    def can_immediately_be_tested(self, service: Service):
+        """
+        Does this trigger can be dispatched immediately. It's possible only if the
+        trigger data can be generated
+        """
+
+        return False
+
+    def dispatch_data(
+        self,
+        service: Service,
+        resolved_values: Dict[str, Any],
+        dispatch_context: DispatchContext,
+    ):
+        # By default a trigger uses the data from the dispatch context event_payload
+        if dispatch_context.event_payload is not None:
+            return dispatch_context.event_payload
+
+        raise TriggerServiceNotDispatchable()
+
+    def dispatch_transform(self, data):
+        return DispatchResult(data=data)
+
     @abstractmethod
     def start_listening(self, on_event: Callable) -> None:
         """
@@ -547,8 +574,6 @@ class TriggerServiceTypeMixin(ABC):
         events. This method ensure that we can stop listening when we need to.
         :return:
         """
-
-        ...
 
 
 class ServiceTypeRegistry(

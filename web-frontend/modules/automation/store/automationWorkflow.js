@@ -185,16 +185,8 @@ const actions = {
   setActiveSidePanel({ commit }, sidePanelType) {
     commit('SET_ACTIVE_SIDE_PANEL', sidePanelType)
   },
-  async toggleTestRun({ dispatch }, { workflow, allowTestRun }) {
-    const {
-      data: { allow_test_run_until: allowTestRunUntil },
-    } = await AutomationWorkflowService(this.$client).update(workflow.id, {
-      allow_test_run: allowTestRun,
-    })
-    await dispatch('forceUpdate', {
-      workflow,
-      values: { allow_test_run_until: allowTestRunUntil },
-    })
+  async testRun({ dispatch }, { workflow }) {
+    await AutomationWorkflowService(this.$client).testRun(workflow.id)
   },
   async publishWorkflow({ dispatch }, { workflow }) {
     await AutomationWorkflowService(this.$client).publish(workflow.id)

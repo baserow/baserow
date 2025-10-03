@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Any, Dict, Iterable, List, Optional, Union
+from typing import Any, Dict, Iterable, List, Optional, Type, Union
 
 from django.core.files.storage import Storage
 from django.db.models import QuerySet
@@ -10,12 +10,14 @@ from baserow.contrib.automation.automation_dispatch_context import (
 from baserow.contrib.automation.models import AutomationWorkflow
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeDoesNotExist,
-    AutomationNodeError,
+    AutomationNodeMisconfiguredService,
     AutomationNodeNotInWorkflow,
-    AutomationNodeSimulateDispatchError,
 )
 from baserow.contrib.automation.nodes.models import AutomationActionNode, AutomationNode
-from baserow.contrib.automation.nodes.node_types import AutomationNodeType
+from baserow.contrib.automation.nodes.node_types import (
+    AutomationNodeActionNodeType,
+    AutomationNodeType,
+)
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.nodes.types import (
     AutomationNodeDict,
@@ -23,15 +25,18 @@ from baserow.contrib.automation.nodes.types import (
     AutomationNodeMove,
     NextAutomationNodeValues,
 )
-from baserow.contrib.automation.workflows.runner import AutomationWorkflowRunner
 from baserow.core.cache import local_cache
 from baserow.core.db import specific_iterator
 from baserow.core.exceptions import IdDoesNotExist
-from baserow.core.services.exceptions import UnexpectedDispatchException
+from baserow.core.services.exceptions import (
+    ServiceImproperlyConfiguredDispatchException,
+)
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
 from baserow.core.storage import ExportZipFile
 from baserow.core.utils import MirrorDict, extract_allowed
+
+from .signals import automation_node_updated
 
 
 class AutomationNodeHandler:
@@ -612,33 +617,36 @@ class AutomationNodeHandler:
 
         return node_instance
 
-    def simulate_dispatch_node(self, node: AutomationNode) -> AutomationNode:
+    def dispatch_node(
+        self, node: "AutomationNode", dispatch_context: AutomationDispatchContext
+    ):
         """
-        Simulates a dispatch of the provided node. This will cause the node's
-        `service.sample_data` to be populated.
+        Dispatch one node and recursively dispatch the next nodes.
 
-        :param node: The node to simulate the dispatch for.
-        :return: The updated node.
+        :param node: The node to start with.
+        :param dispatch_context: The context in which the workflow is being dispatched,
+            which contains the event payload and other relevant data.
         """
 
-        if node.get_type().is_workflow_trigger:
-            node.workflow.simulate_until_node = node
-            node.workflow.save()
-            return node
-
-        dispatch_context = AutomationDispatchContext(
-            node.workflow,
-            simulate_until_node=node.specific,
-        )
-
+        node_type: Type[AutomationNodeActionNodeType] = node.get_type()
         try:
-            AutomationWorkflowRunner().run(node.workflow, dispatch_context)
-        except (
-            AutomationNodeError,
-            UnexpectedDispatchException,
-        ) as e:
-            raise AutomationNodeSimulateDispatchError(str(e))
+            dispatch_result = node_type.dispatch(node, dispatch_context)
+            dispatch_context.after_dispatch(node, dispatch_result)
 
-        node.refresh_from_db()
+            # Return early if this is a simulated dispatch
+            if until_node := dispatch_context.simulate_until_node:
+                if until_node.id == node.id:
+                    # sample_data was updated as it's a simulation we should tell to
+                    # the frontend
+                    node.service.refresh_from_db(fields=["sample_data"])
+                    automation_node_updated.send(self, user=None, node=node)
+                    return
 
-        return node
+            next_nodes = node.get_next_nodes(dispatch_result.output_uid)
+
+            for next_node in next_nodes:
+                self.dispatch_node(next_node, dispatch_context)
+        except ServiceImproperlyConfiguredDispatchException as e:
+            raise AutomationNodeMisconfiguredService(
+                f"The node {node.id} has a misconfigured service."
+            ) from e

@@ -98,8 +98,12 @@ def test_periodic_trigger_node_creation_and_property_updates(data_fixture):
 
 
 @pytest.mark.django_db(transaction=True)
-@patch("baserow.contrib.automation.workflows.handler.run_workflow")
-def test_call_periodic_services_that_are_not_published(mock_run_workflow, data_fixture):
+@patch(
+    "baserow.contrib.automation.workflows.handler.AutomationWorkflowHandler.start_workflow"
+)
+def test_call_periodic_services_that_are_not_published(
+    mock_start_workflow, data_fixture
+):
     user = data_fixture.create_user()
     automation = data_fixture.create_automation_application(user=user)
     workflow = data_fixture.create_automation_workflow(
@@ -119,12 +123,14 @@ def test_call_periodic_services_that_are_not_published(mock_run_workflow, data_f
                 CorePeriodicServiceType.type
             ).call_periodic_services_that_are_due(now())
 
-    mock_run_workflow.delay.assert_not_called()
+    mock_start_workflow.delay.assert_not_called()
 
 
 @pytest.mark.django_db(transaction=True)
-@patch("baserow.contrib.automation.workflows.handler.run_workflow")
-def test_call_periodic_services_that_are_paused(mock_run_workflow, data_fixture):
+@patch(
+    "baserow.contrib.automation.workflows.handler.AutomationWorkflowHandler.start_workflow"
+)
+def test_call_periodic_services_that_are_paused(mock_start_workflow, data_fixture):
     user = data_fixture.create_user()
     automation = data_fixture.create_automation_application(user=user)
     workflow = data_fixture.create_automation_workflow(
@@ -144,12 +150,14 @@ def test_call_periodic_services_that_are_paused(mock_run_workflow, data_fixture)
                 CorePeriodicServiceType.type
             ).call_periodic_services_that_are_due(now())
 
-    mock_run_workflow.delay.assert_not_called()
+    mock_start_workflow.delay.assert_not_called()
 
 
 @pytest.mark.django_db(transaction=True, databases=["default", "default-copy"])
-@patch("baserow.contrib.automation.workflows.handler.run_workflow")
-def test_call_periodic_services_that_are_locked(mock_run_workflow, data_fixture):
+@patch(
+    "baserow.contrib.automation.workflows.handler.AutomationWorkflowHandler.start_workflow"
+)
+def test_call_periodic_services_that_are_locked(mock_start_workflow, data_fixture):
     user = data_fixture.create_user()
     automation = data_fixture.create_automation_application(user=user)
     workflow = data_fixture.create_automation_workflow(
@@ -174,12 +182,16 @@ def test_call_periodic_services_that_are_locked(mock_run_workflow, data_fixture)
                     CorePeriodicServiceType.type
                 ).call_periodic_services_that_are_due(now())
 
-        mock_run_workflow.delay.assert_not_called()
+        mock_start_workflow.delay.assert_not_called()
 
 
 @pytest.mark.django_db(transaction=True)
-@patch("baserow.contrib.automation.workflows.handler.run_workflow")
-def test_call_multiple_periodic_services_that_are_due(mock_run_workflow, data_fixture):
+@patch(
+    "baserow.contrib.automation.workflows.handler.AutomationWorkflowHandler.async_start_workflow"
+)
+def test_call_multiple_periodic_services_that_are_due(
+    mock_async_start_workflow, data_fixture
+):
     user = data_fixture.create_user()
     automation = data_fixture.create_automation_application(user=user)
     workflow_1 = data_fixture.create_automation_workflow(
@@ -209,19 +221,15 @@ def test_call_multiple_periodic_services_that_are_due(mock_run_workflow, data_fi
                 CorePeriodicServiceType.type
             ).call_periodic_services_that_are_due(now())
 
-    assert list(mock_run_workflow.delay.call_args_list) == unordered(
+    assert list(mock_async_start_workflow.call_args_list) == unordered(
         [
             call(
-                workflow_1.id,
-                False,
+                workflow_1,
                 {"triggered_at": "2025-02-15T10:30:45+00:00"},
-                None,
             ),
             call(
-                workflow_2.id,
-                False,
+                workflow_2,
                 {"triggered_at": "2025-02-15T10:30:45+00:00"},
-                None,
             ),
         ]
     )

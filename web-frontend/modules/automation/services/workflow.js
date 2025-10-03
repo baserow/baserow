@@ -28,5 +28,8 @@ export default (client) => {
     publish(workflowId) {
       return client.post(`/automation/workflows/${workflowId}/publish/async/`)
     },
+    testRun(workflowId) {
+      return client.post(`/automation/workflows/${workflowId}/test/`)
+    },
   }
 }

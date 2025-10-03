@@ -26,7 +26,10 @@ from baserow.contrib.automation.models import Automation
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.types import AutomationNodeDict
 from baserow.contrib.automation.types import AutomationWorkflowDict
-from baserow.contrib.automation.workflows.constants import WorkflowState
+from baserow.contrib.automation.workflows.constants import (
+    ALLOW_TEST_RUN_MINUTES,
+    WorkflowState,
+)
 from baserow.contrib.automation.workflows.exceptions import (
     AutomationWorkflowBeforeRunError,
     AutomationWorkflowDoesNotExist,
@@ -36,8 +39,8 @@ from baserow.contrib.automation.workflows.exceptions import (
     AutomationWorkflowTooManyErrors,
 )
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
-from baserow.contrib.automation.workflows.runner import AutomationWorkflowRunner
-from baserow.contrib.automation.workflows.tasks import run_workflow
+from baserow.contrib.automation.workflows.signals import automation_workflow_updated
+from baserow.contrib.automation.workflows.tasks import start_workflow_celery_task
 from baserow.contrib.automation.workflows.types import UpdatedAutomationWorkflow
 from baserow.core.cache import global_cache, local_cache
 from baserow.core.exceptions import IdDoesNotExist
@@ -59,26 +62,6 @@ AUTOMATION_WORKFLOW_CACHE_LOCK_SECONDS = 5
 
 class AutomationWorkflowHandler:
     allowed_fields = ["name", "allow_test_run_until", "state"]
-
-    def run_workflow(
-        self,
-        workflow: AutomationWorkflow,
-        event_payload: Optional[List[Dict]] = None,
-        simulate_until_node_id: Optional[int] = None,
-    ) -> None:
-        """
-        Runs the provided workflow.
-
-        :param workflow: The AutomationWorkflow ID that should be executed.
-        :param event_payload: The payload from the action.
-        """
-
-        run_workflow.delay(
-            workflow.id,
-            self.is_test_run(workflow),
-            event_payload,
-            simulate_until_node_id,
-        )
 
     def get_workflow(
         self,
@@ -139,7 +122,7 @@ class AutomationWorkflowHandler:
         return _get_published_workflow(workflow)
 
     def get_original_workflow(
-        self, workflow: AutomationWorkflow, is_test_run: bool = False
+        self, workflow: AutomationWorkflow
     ) -> Optional[AutomationWorkflow]:
         """
         Gets the original workflow related to the provided published
@@ -151,17 +134,13 @@ class AutomationWorkflowHandler:
 
         :param workflow: The published workflow for which the original version
             should be returned.
-        :param is_test_run: True if the provided workflow is a test run,
-            False otherwise.
         :return: The original workflow, if it exists.
         """
 
-        if is_test_run or workflow.allow_test_run_until:
-            return workflow
-        elif workflow.is_published:
+        if workflow.automation.published_from_id:
             return workflow.automation.published_from
         else:
-            return None
+            return workflow
 
     def get_workflows(
         self, automation: Automation, base_queryset: Optional[QuerySet] = None
@@ -266,7 +245,7 @@ class AutomationWorkflowHandler:
             if "unique constraint" in e.args[0] and "name" in e.args[0]:
                 raise AutomationWorkflowNameNotUnique(
                     name=workflow.name, automation_id=workflow.automation_id
-                )
+                ) from e
             raise
 
         new_workflow_values = self.export_prepared_values(workflow)
@@ -701,13 +680,6 @@ class AutomationWorkflowHandler:
 
         return duplicate_automation.workflows.first()
 
-    def is_test_run(self, workflow: AutomationWorkflow) -> bool:
-        """
-        Returns True if the current workflow run is a Test Run, False otherwise.
-        """
-
-        return bool(workflow.allow_test_run_until)
-
     def before_run(self, workflow: AutomationWorkflow) -> None:
         """
         Runs pre-flight checks before a workflow is allowed to run.
@@ -715,37 +687,29 @@ class AutomationWorkflowHandler:
         Each check may raise a subclass of the AutomationWorkflowBeforeRunError error.
         """
 
-        # Make sure it won't run again in the meantime
-        if workflow.allow_test_run_until:
-            workflow.allow_test_run_until = None
-            workflow.save(update_fields=["allow_test_run_until"])
+        # If we don't come from an event, we need to reset the states
+        self.reset_workflow_temporary_states(workflow)
 
-        self.check_too_many_errors(workflow)
-        self.check_is_rate_limited(workflow.id)
+        self._check_too_many_errors(workflow)
+        self._check_is_rate_limited(workflow.id)
 
-    def after_run(self, workflow: AutomationWorkflow):
-        """
-        Any logic that should be executed after a workflow run should be
-        called here.
-        """
-
-    def get_rate_limit_cache_key(self, workflow_id: int) -> str:
+    def _get_rate_limit_cache_key(self, workflow_id: int) -> str:
         return WORKFLOW_RATE_LIMIT_CACHE_PREFIX.format(workflow_id)
 
-    def check_is_rate_limited(self, workflow_id: int) -> None:
+    def _check_is_rate_limited(self, workflow_id: int) -> None:
         """Uses a global cache key to track recent runs for the given workflow."""
 
         expiry_seconds = settings.AUTOMATION_WORKFLOW_RATE_LIMIT_CACHE_EXPIRY_SECONDS
-        cache_key = self.get_rate_limit_cache_key(workflow_id)
+        cache_key = self._get_rate_limit_cache_key(workflow_id)
 
         global_cache.update(
             cache_key,
-            self._check_is_rate_limited,
+            self._check_is_rate_limited_value,
             default_value=lambda: [],
             timeout=expiry_seconds,
         )
 
-    def _check_is_rate_limited(self, data: List[datetime]) -> List[datetime]:
+    def _check_is_rate_limited_value(self, data: List[datetime]) -> List[datetime]:
         """
         Given a list of recent workflow run timestamps, determines whether
         the workflow run should be rate limited. If so, raises the
@@ -772,7 +736,7 @@ class AutomationWorkflowHandler:
 
         return runs_in_window
 
-    def check_too_many_errors(self, workflow: AutomationWorkflow) -> None:
+    def _check_too_many_errors(self, workflow: AutomationWorkflow) -> None:
         """
         Checks if the given workflow has too many consecutive errors. If so,
         raises AutomationWorkflowTooManyErrors.
@@ -816,26 +780,136 @@ class AutomationWorkflowHandler:
             state=WorkflowState.DISABLED
         )
 
+    def set_workflow_temporary_states(self, workflow, simulate_until_node=None):
+        """
+        Sets the temporary states necessary to allow an unpublished workflow to be
+        ran by the next event. By default a full test run is scheduled unless the
+        simulate_until_node parameter is used.
+
+        :param workflow: The workflow to consider.
+        :param simulate_until_node: If set, schedules a simulation run instead.
+        """
+
+        fields_to_save = []
+        if simulate_until_node is not None:
+            # Switch to simulate until the given node
+            workflow.simulate_until_node = simulate_until_node
+            fields_to_save.append("simulate_until_node")
+
+        else:
+            # Full test run
+            workflow.allow_test_run_until = timezone.now() + timedelta(
+                minutes=ALLOW_TEST_RUN_MINUTES
+            )
+            fields_to_save.append("allow_test_run_until")
+
+        if fields_to_save:
+            workflow.save(update_fields=fields_to_save)
+            automation_workflow_updated.send(self, user=None, workflow=workflow)
+
+    def reset_workflow_temporary_states(self, workflow):
+        """
+        Reset the temporary states set when we want to test or simulate a workflow.
+        This should be executed after an event for this workflow is received.
+        """
+
+        fields_to_save = []
+        if workflow.allow_test_run_until:
+            workflow.allow_test_run_until = None
+            fields_to_save.append("allow_test_run_until")
+
+        if workflow.simulate_until_node:
+            workflow.simulate_until_node = None
+            fields_to_save.append("simulate_until_node")
+
+        if fields_to_save:
+            workflow.save(update_fields=fields_to_save)
+            automation_workflow_updated.send(self, user=None, workflow=workflow)
+
+    def async_start_workflow(
+        self,
+        workflow: AutomationWorkflow,
+        event_payload: Optional[List[Dict]] = None,
+    ) -> None:
+        """
+        Runs the provided workflow in a celery task.
+
+        :param workflow: The AutomationWorkflow ID that should be executed.
+        :param event_payload: The payload from the action.
+        """
+
+        start_workflow_celery_task.delay(
+            workflow.id,
+            event_payload,
+            simulate_until_node_id=workflow.simulate_until_node_id,
+        )
+
+    def toggle_test_run(
+        self, workflow: AutomationWorkflow, simulate_until_node: bool = None
+    ):
+        """
+        Trigger a test run if none is in progress or cancel the planned run. If the
+        workflow can immediately be dispatched, it will be by this function, otherwise
+        the workflow is switched in "listening" state and wait for the trigger event to
+        happens. When in simulate mode, the sample data of the simulated node will be
+        updated.
+
+        :param workflow: The workflow we want to trigger the test run for.
+        :param simulated_until_node: If we want to simulate until a particular node.
+        """
+
+        if workflow.simulate_until_node is not None or workflow.allow_test_run_until:
+            # We just stop waiting for the event
+            self.reset_workflow_temporary_states(workflow)
+            return
+
+        if simulate_until_node is None:  # Full test
+            AutomationWorkflowHandler().set_workflow_temporary_states(workflow)
+            if workflow.can_immediately_be_tested():
+                # If the service related to the trigger can immediately be tested
+                # we immediately trigger the workflow run
+                self.async_start_workflow(workflow)
+
+        else:
+            AutomationWorkflowHandler().set_workflow_temporary_states(
+                workflow, simulate_until_node=simulate_until_node
+            )
+            trigger = workflow.get_trigger()
+
+            dispatch_context = AutomationDispatchContext(
+                workflow,
+                None,
+                simulate_until_node=simulate_until_node,
+            )
+            if workflow.can_immediately_be_tested() or (
+                trigger.service.get_type().get_sample_data(
+                    trigger.service.specific, dispatch_context
+                )
+                is not None
+                and trigger.id != simulate_until_node.id
+            ):
+                # If the trigger is immediately dispatchable or if we already have
+                # the sample data for it we can immediately dispatch the workflow
+                # except if we are updating the trigger sample data by itself
+                self.async_start_workflow(workflow)
+
     def start_workflow(
         self,
-        workflow_id: int,
-        is_test_run: bool,
+        workflow: int,
         event_payload: Optional[Union[Dict, List[Dict]]],
-        simulate_until_node_id: Optional[int] = None,
+        simulate_until_node: Optional[int] = None,
     ) -> None:
-        """Start the workflow run."""
+        """Runs the workflow."""
 
         from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 
-        workflow = self.get_workflow(workflow_id)
-        original_workflow = (
-            self.get_original_workflow(workflow, is_test_run=is_test_run) or workflow
-        )
-        simulate_until_node = (
-            AutomationNodeHandler().get_node(simulate_until_node_id)
-            if simulate_until_node_id
-            else None
-        )
+        original_workflow = self.get_original_workflow(workflow)
+
+        # If the currently running workflow is an unpublished workflow then we are
+        # testing it.
+        is_test_run = original_workflow == workflow
+
+        is_simulation = simulate_until_node is not None
 
         dispatch_context = AutomationDispatchContext(
             workflow,
@@ -847,16 +921,19 @@ class AutomationWorkflowHandler:
 
         history_handler = AutomationHistoryHandler()
 
-        if not simulate_until_node:
+        if not is_simulation:
+            # No history stored in simulation, we want to populate the node sample data
             history = history_handler.create_workflow_history(
-                workflow if is_test_run else original_workflow,
+                original_workflow,
                 started_on=start_time,
                 is_test_run=is_test_run,
             )
 
         try:
             self.before_run(original_workflow)
-            AutomationWorkflowRunner().run(workflow, dispatch_context)
+            AutomationNodeHandler().dispatch_node(
+                workflow.get_trigger(), dispatch_context
+            )
         except AutomationWorkflowTooManyErrors as e:
             history_message = str(e)
             history_status = HistoryStatusChoices.DISABLED
@@ -875,10 +952,8 @@ class AutomationWorkflowHandler:
             history_message = ""
             history_status = HistoryStatusChoices.SUCCESS
         finally:
-            if not simulate_until_node:
+            if not is_simulation:
                 history.completed_on = timezone.now()
                 history.message = history_message
                 history.status = history_status
                 history.save()
-
-        self.after_run(original_workflow)

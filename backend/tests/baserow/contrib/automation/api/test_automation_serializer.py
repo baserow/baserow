@@ -53,6 +53,7 @@ def test_serializer_get_workflows(automation_fixture):
             "automation_id": automation.id,
             "allow_test_run_until": None,
             "state": "draft",
+            "simulate_until_node_id": None,
             "published_on": None,
         }
     ]

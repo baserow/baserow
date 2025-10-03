@@ -48,3 +48,7 @@ class ServiceFilterPropertyDoesNotExist(Exception):
 
 class ServiceSortPropertyDoesNotExist(Exception):
     """Raised when trying to dispatch a sort property that doesn't exist."""
+
+
+class TriggerServiceNotDispatchable(DispatchException):
+    """When the trigger can't be immediately dispatched and needs an event to happens"""

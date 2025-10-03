@@ -6,6 +6,7 @@ from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.status import HTTP_202_ACCEPTED
 from rest_framework.views import APIView
 
 from baserow.api.decorators import (
@@ -434,15 +435,10 @@ class SimulateDispatchAutomationNodeView(APIView):
         }
     )
     def post(self, request, node_id: int):
-        updated_node = AutomationNodeService().simulate_dispatch_node(
-            request.user, node_id
+        AutomationWorkflowService().toggle_test_run(
+            request.user, simulate_until_node_id=node_id
         )
-
-        serializer = automation_node_type_registry.get_serializer(
-            updated_node, AutomationNodeSerializer
-        )
-
-        return Response(serializer.data)
+        return Response(status=HTTP_202_ACCEPTED)
 
 
 class MoveAutomationNodeView(APIView):

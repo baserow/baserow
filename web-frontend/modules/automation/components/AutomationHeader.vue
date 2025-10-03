@@ -129,7 +129,10 @@ export default defineComponent({
     })
 
     const testRunEnabled = computed(() => {
-      return moment(workflow.value?.allow_test_run_until).isAfter()
+      return (
+        moment(workflow.value?.allow_test_run_until).isAfter() ||
+        Number.isInteger(workflow.value?.simulate_until_node_id)
+      )
     })
 
     const hasActionNode = computed(() => {
@@ -181,9 +184,8 @@ export default defineComponent({
 
     const toggleTestRun = async () => {
       try {
-        await store.dispatch('automationWorkflow/toggleTestRun', {
+        await store.dispatch('automationWorkflow/testRun', {
           workflow: workflow.value,
-          allowTestRun: !testRunEnabled.value,
         })
       } catch (error) {
         notifyIf(error, 'automationWorkflow')

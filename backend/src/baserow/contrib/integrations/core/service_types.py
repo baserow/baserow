@@ -1133,22 +1133,6 @@ class CoreRouterServiceType(CoreServiceType):
         :return: A dictionary containing the data of the first matching edge.
         """
 
-        if (
-            dispatch_context.force_outputs is not None
-            and service.id in dispatch_context.force_outputs
-        ):
-            if dispatch_context.force_outputs[service.id]:
-                edge = service.edges.get(uid=dispatch_context.force_outputs[service.id])
-                return {
-                    "output_uid": str(edge.uid),
-                    "data": {"edge": {"label": edge.label}},
-                }
-            else:
-                return {
-                    "output_uid": "",
-                    "data": {"edge": {"label": service.default_edge_label}},
-                }
-
         for edge in service.edges.all():
             condition_result = resolved_values[f"edge_{edge.uid}"]
             if condition_result:
@@ -1168,8 +1152,29 @@ class CoreRouterServiceType(CoreServiceType):
     ) -> DispatchResult:
         return DispatchResult(output_uid=data["output_uid"], data=data["data"])
 
-    def get_sample_data(self, service):
-        return None
+    def get_sample_data(self, service, dispatch_context):
+        """
+        If a specific output is forced it means that we need to simulate that
+        we traversed this specific output. Let's return the related result.
+        """
+
+        if (
+            dispatch_context.force_outputs is not None
+            and service.id in dispatch_context.force_outputs
+        ):
+            if dispatch_context.force_outputs[service.id]:
+                edge = service.edges.get(uid=dispatch_context.force_outputs[service.id])
+                return {
+                    "output_uid": str(edge.uid),
+                    "data": {"edge": {"label": edge.label}},
+                }
+            else:
+                return {
+                    "output_uid": "",
+                    "data": {"edge": {"label": service.default_edge_label}},
+                }
+
+        return super().get_sample_data(service, dispatch_context)
 
 
 class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
@@ -1238,6 +1243,9 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
         day_of_week: int
         day_of_month: int
 
+    def can_immediately_be_tested(self, service):
+        return True
+
     def _setup_periodic_task(self, sender, **kwargs):
         """
         Responsible for adding the periodic task to call due periodic services.
@@ -1287,10 +1295,10 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
         :param dispatch_context: The context in which the service is being dispatched.
         """
 
-        return self._get_payload()
+        if dispatch_context.event_payload is not None:
+            return dispatch_context.event_payload
 
-    def dispatch_transform(self, data):
-        return DispatchResult(data=data)
+        return self._get_payload()
 
     def call_periodic_services_that_are_due(self, now: datetime):
         """

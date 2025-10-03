@@ -492,23 +492,8 @@ const actions = {
   setDraggingNodeId({ commit }, nodeId) {
     commit('SET_DRAGGING_NODE_ID', nodeId)
   },
-  async simulateDispatch(
-    { commit, dispatch },
-    { workflow, nodeId, updateSampleData }
-  ) {
-    const result = await AutomationWorkflowNodeService(
-      this.$client
-    ).simulateDispatch(nodeId, updateSampleData)
-    const updatedNode = result.data
-
-    commit('UPDATE_ITEM', {
-      workflow,
-      node: updatedNode,
-      values: {
-        simulate_until_node: updatedNode.simulate_until_node,
-        service: updatedNode.service,
-      },
-    })
+  async simulateDispatch({ commit, dispatch }, { nodeId }) {
+    await AutomationWorkflowNodeService(this.$client).simulateDispatch(nodeId)
   },
   /**
    * Updates all the next nodes of a given node with the provided values.
