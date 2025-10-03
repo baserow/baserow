@@ -225,7 +225,7 @@ class CorePeriodicService(Service):
     )
 
 
-class CoreHTTPWebhookService(Service):
+class CoreHTTPTriggerService(Service):
     """
     A service for handling HTTP webhook requests.
     """

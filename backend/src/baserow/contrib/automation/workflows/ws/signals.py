@@ -26,7 +26,7 @@ from baserow.contrib.automation.workflows.signals import (
     automation_workflow_updated,
     automation_workflows_reordered,
 )
-from baserow.contrib.integrations.core.models import CoreHTTPWebhookService
+from baserow.contrib.integrations.core.models import CoreHTTPTriggerService
 from baserow.contrib.integrations.core.signals import core_http_webhook_service_updated
 from baserow.core.utils import generate_hash
 from baserow.ws.tasks import broadcast_to_group, broadcast_to_permitted_users
@@ -136,7 +136,7 @@ def clear_http_trigger_node_errors(
     sender, workflow: AutomationWorkflow, user: AbstractUser, **kwargs
 ):
     webhook_service_content_type = ContentType.objects.get_for_model(
-        CoreHTTPWebhookService
+        CoreHTTPTriggerService
     )
     for node in workflow.automation_workflow_nodes.filter(
         service__content_type=webhook_service_content_type

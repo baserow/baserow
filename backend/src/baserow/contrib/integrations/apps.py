@@ -39,7 +39,7 @@ class IntegrationsConfig(AppConfig):
 
         from baserow.contrib.integrations.core.service_types import (
             CoreHTTPRequestServiceType,
-            CoreHTTPWebhookServiceType,
+            CoreHTTPTriggerServiceType,
             CoreRouterServiceType,
             CoreSMTPEmailServiceType,
         )
@@ -47,6 +47,6 @@ class IntegrationsConfig(AppConfig):
         service_type_registry.register(CoreHTTPRequestServiceType())
         service_type_registry.register(CoreSMTPEmailServiceType())
         service_type_registry.register(CoreRouterServiceType())
-        service_type_registry.register(CoreHTTPWebhookServiceType())
+        service_type_registry.register(CoreHTTPTriggerServiceType())
 
         import baserow.contrib.integrations.signals  # noqa: F403, F401

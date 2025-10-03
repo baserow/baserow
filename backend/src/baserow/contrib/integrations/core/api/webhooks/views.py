@@ -11,12 +11,12 @@ from rest_framework.views import APIView
 from baserow.api.decorators import map_exceptions
 from baserow.api.schemas import get_error_schema
 from baserow.contrib.integrations.core.api.webhooks.errors import (
-    ERROR_CORE_HTTP_WEBHOOK_SERVICE_DOES_NOT_EXIST,
-    ERROR_CORE_HTTP_WEBHOOK_SERVICE_METHOD_NOT_ALLOWED,
+    ERROR_CORE_HTTP_TRIGGER_SERVICE_DOES_NOT_EXIST,
+    ERROR_CORE_HTTP_TRIGGER_SERVICE_METHOD_NOT_ALLOWED,
 )
 from baserow.contrib.integrations.core.exceptions import (
-    CoreHTTPWebhookServiceDoesNotExist,
-    CoreHTTPWebhookServiceMethodNotAllowed,
+    CoreHTTPTriggerServiceDoesNotExist,
+    CoreHTTPTriggerServiceMethodNotAllowed,
 )
 from baserow.core.cache import global_cache
 from baserow.core.services.registries import service_type_registry
@@ -48,9 +48,9 @@ def get_error_cache_key(uid: uuid4, simulate: bool = False) -> str:
     return f"http_webhook_error_simulate_{simulate}_{uid}"
 
 
-class CoreHTTPWebhookView(APIView):
+class CoreHTTPTriggerView(APIView):
     """
-    Handle incoming webhook requests.
+    Handle incoming HTTP trigger requests.
     """
 
     permission_classes = (AllowAny,)
@@ -79,10 +79,10 @@ class CoreHTTPWebhookView(APIView):
         """
 
         if error := global_cache.get(cache_key, default=None, timeout=0):
-            if error == "CoreHTTPWebhookServiceDoesNotExist":
-                raise CoreHTTPWebhookServiceDoesNotExist(uid=webhook_uid)
-            elif error == "CoreHTTPWebhookServiceMethodNotAllowed":
-                raise CoreHTTPWebhookServiceMethodNotAllowed()
+            if error == "CoreHTTPTriggerServiceDoesNotExist":
+                raise CoreHTTPTriggerServiceDoesNotExist(uid=webhook_uid)
+            elif error == "CoreHTTPTriggerServiceMethodNotAllowed":
+                raise CoreHTTPTriggerServiceMethodNotAllowed()
 
     @webhook_schema("GET")
     @webhook_schema("POST")
@@ -92,8 +92,8 @@ class CoreHTTPWebhookView(APIView):
     @transaction.atomic
     @map_exceptions(
         {
-            CoreHTTPWebhookServiceDoesNotExist: ERROR_CORE_HTTP_WEBHOOK_SERVICE_DOES_NOT_EXIST,
-            CoreHTTPWebhookServiceMethodNotAllowed: ERROR_CORE_HTTP_WEBHOOK_SERVICE_METHOD_NOT_ALLOWED,
+            CoreHTTPTriggerServiceDoesNotExist: ERROR_CORE_HTTP_TRIGGER_SERVICE_DOES_NOT_EXIST,
+            CoreHTTPTriggerServiceMethodNotAllowed: ERROR_CORE_HTTP_TRIGGER_SERVICE_METHOD_NOT_ALLOWED,
         }
     )
     def handle_request(self, request, webhook_uid, *args, **kwargs):
@@ -107,8 +107,8 @@ class CoreHTTPWebhookView(APIView):
         try:
             service_type.process_webhook_request(webhook_uid, request_data, simulate)
         except (
-            CoreHTTPWebhookServiceDoesNotExist,
-            CoreHTTPWebhookServiceMethodNotAllowed,
+            CoreHTTPTriggerServiceDoesNotExist,
+            CoreHTTPTriggerServiceMethodNotAllowed,
         ) as e:
             global_cache.get(cache_key, e.__class__.__name__, timeout=300)
             raise

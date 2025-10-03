@@ -25,7 +25,7 @@ from baserow.contrib.automation.nodes.signals import (
 from baserow.contrib.automation.workflows.object_scopes import (
     AutomationWorkflowObjectScopeType,
 )
-from baserow.contrib.integrations.core.service_types import CoreHTTPWebhookServiceType
+from baserow.contrib.integrations.core.service_types import CoreHTTPTriggerServiceType
 from baserow.contrib.integrations.core.signals import core_http_webhook_service_updated
 from baserow.core.utils import generate_hash
 from baserow.ws.tasks import broadcast_to_group, broadcast_to_permitted_users
@@ -171,7 +171,7 @@ def clear_http_trigger_node_errors(
     therefore be invalidated.
     """
 
-    if not isinstance(node.service.get_type(), CoreHTTPWebhookServiceType):
+    if not isinstance(node.service.get_type(), CoreHTTPTriggerServiceType):
         return
 
     core_http_webhook_service_updated.send(sender, service=node.service.specific)

@@ -1,7 +1,7 @@
 <template>
   <FormGroup
     class="margin-bottom-2"
-    :label="$t('coreHTTPWebhookServiceForm.title')"
+    :label="$t('coreHTTPTriggerServiceForm.title')"
     small-label
     required
   >
@@ -13,21 +13,21 @@
     <pre><code class="webhook-service-form__webhook-url">{{ webhookUrl }}</code></pre>
 
     <div class="webhook-service-form__copy-url">
-      {{ $t('coreHTTPWebhookServiceForm.copyUrl') }}
+      {{ $t('coreHTTPTriggerServiceForm.copyUrl') }}
       <ButtonIcon
         icon="iconoir-copy"
-        :title="$t('coreHTTPWebhookServiceForm.copyUrl')"
+        :title="$t('coreHTTPTriggerServiceForm.copyUrl')"
         size="small"
         @click="copyToClipboard"
       />
     </div>
 
-    <p>{{ $t('coreHTTPWebhookServiceForm.description') }}</p>
+    <p>{{ $t('coreHTTPTriggerServiceForm.description') }}</p>
 
     <FormGroup
       small-label
       required
-      :label="$t('coreHTTPWebhookServiceForm.methodsOptionLabel')"
+      :label="$t('coreHTTPTriggerServiceForm.methodsOptionLabel')"
     >
       <Dropdown
         v-model="values.exclude_get"
@@ -43,7 +43,7 @@
         </DropdownItem>
       </Dropdown>
 
-      <p>{{ $t('coreHTTPWebhookServiceForm.methodsOptionDescription') }}</p>
+      <p>{{ $t('coreHTTPTriggerServiceForm.methodsOptionDescription') }}</p>
     </FormGroup>
   </FormGroup>
 </template>
@@ -54,7 +54,7 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 import { WEBHOOK_EXCLUDE_METHOD_OPTIONS } from '@baserow/modules/integrations/core/enums'
 
 export default {
-  name: 'CoreHTTPWebhookServiceForm',
+  name: 'CoreHTTPTriggerServiceForm',
   mixins: [form],
   data() {
     return {
@@ -66,11 +66,11 @@ export default {
       urlVersions: [
         {
           value: true,
-          label: this.$t('coreHTTPWebhookServiceForm.urlVersionPublished'),
+          label: this.$t('coreHTTPTriggerServiceForm.urlVersionPublished'),
         },
         {
           value: false,
-          label: this.$t('coreHTTPWebhookServiceForm.urlVersionTest'),
+          label: this.$t('coreHTTPTriggerServiceForm.urlVersionTest'),
         },
       ],
     }
@@ -90,11 +90,11 @@ export default {
     methodOptions() {
       return [
         {
-          label: this.$t('coreHTTPWebhookServiceForm.methodsOptionAll'),
+          label: this.$t('coreHTTPTriggerServiceForm.methodsOptionAll'),
           value: WEBHOOK_EXCLUDE_METHOD_OPTIONS.ALL,
         },
         {
-          label: this.$t('coreHTTPWebhookServiceForm.methodsOptionExcludeGet'),
+          label: this.$t('coreHTTPTriggerServiceForm.methodsOptionExcludeGet'),
           value: WEBHOOK_EXCLUDE_METHOD_OPTIONS.EXCLUDE_GET,
         },
       ]
@@ -105,7 +105,7 @@ export default {
       try {
         await navigator.clipboard.writeText(this.webhookUrl)
         this.$store.dispatch('toast/success', {
-          title: this.$t('coreHTTPWebhookServiceForm.urlCopied'),
+          title: this.$t('coreHTTPTriggerServiceForm.urlCopied'),
         })
       } catch (error) {
         notifyIf(error)

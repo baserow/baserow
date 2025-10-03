@@ -21,7 +21,7 @@ from requests import exceptions as request_exceptions
 from rest_framework import serializers
 
 from baserow.config.celery import app as celery_app
-from baserow.contrib.integrations.core.api.webhooks.views import CoreHTTPWebhookView
+from baserow.contrib.integrations.core.api.webhooks.views import CoreHTTPTriggerView
 from baserow.contrib.integrations.core.constants import (
     BODY_TYPE,
     HTTP_METHOD,
@@ -33,13 +33,13 @@ from baserow.contrib.integrations.core.constants import (
     PERIODIC_INTERVAL_WEEK,
 )
 from baserow.contrib.integrations.core.exceptions import (
-    CoreHTTPWebhookServiceDoesNotExist,
-    CoreHTTPWebhookServiceMethodNotAllowed,
+    CoreHTTPTriggerServiceDoesNotExist,
+    CoreHTTPTriggerServiceMethodNotAllowed,
 )
 from baserow.contrib.integrations.core.integration_types import SMTPIntegrationType
 from baserow.contrib.integrations.core.models import (
     CoreHTTPRequestService,
-    CoreHTTPWebhookService,
+    CoreHTTPTriggerService,
     CorePeriodicService,
     CoreRouterService,
     CoreRouterServiceEdge,
@@ -1405,9 +1405,9 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
         }
 
 
-class CoreHTTPWebhookServiceType(TriggerServiceTypeMixin, ServiceType):
+class CoreHTTPTriggerServiceType(TriggerServiceTypeMixin, ServiceType):
     type = "http_webhook"
-    model_class = CoreHTTPWebhookService
+    model_class = CoreHTTPTriggerService
     dispatch_type = DispatchTypes.EVENT
     on_event = None
 
@@ -1424,8 +1424,8 @@ class CoreHTTPWebhookServiceType(TriggerServiceTypeMixin, ServiceType):
         return [
             path(
                 r"webhooks/<uuid:webhook_uid>/",
-                CoreHTTPWebhookView.as_view(),
-                name="http_webhook",
+                CoreHTTPTriggerView.as_view(),
+                name="http_trigger",
             ),
         ]
 
@@ -1442,16 +1442,16 @@ class CoreHTTPWebhookServiceType(TriggerServiceTypeMixin, ServiceType):
         )
 
         if not service:
-            raise CoreHTTPWebhookServiceDoesNotExist(uid=webhook_uid)
+            raise CoreHTTPTriggerServiceDoesNotExist(uid=webhook_uid)
 
         if request_data["method"] == "GET" and service.exclude_get:
-            raise CoreHTTPWebhookServiceMethodNotAllowed()
+            raise CoreHTTPTriggerServiceMethodNotAllowed()
 
         self.on_event([service], request_data, simulate=simulate)
 
     def generate_schema(
         self,
-        service: CoreHTTPWebhookService,
+        service: CoreHTTPTriggerService,
         allowed_fields: Optional[List[str]] = None,
     ) -> Optional[Dict[str, Any]]:
         properties = {}

@@ -1,8 +1,8 @@
 from uuid import uuid4
 
 
-class CoreHTTPWebhookServiceDoesNotExist(Exception):
-    """When the specified webhook service doesn't exist."""
+class CoreHTTPTriggerServiceDoesNotExist(Exception):
+    """When the specified HTTP trigger service doesn't exist."""
 
     def __init__(self, uid: uuid4, *args, **kwargs):
         self.uid = uid
@@ -13,7 +13,7 @@ class CoreHTTPWebhookServiceDoesNotExist(Exception):
         )
 
 
-class CoreHTTPWebhookServiceMethodNotAllowed(Exception):
+class CoreHTTPTriggerServiceMethodNotAllowed(Exception):
     """When the specified method isn't allowed for the service."""
 
     pass

@@ -35,7 +35,7 @@ from baserow.contrib.automation.nodes.registries import AutomationNodeType
 from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.contrib.integrations.core.service_types import (
     CoreHTTPRequestServiceType,
-    CoreHTTPWebhookServiceType,
+    CoreHTTPTriggerServiceType,
     CorePeriodicServiceType,
     CoreRouterServiceType,
     CoreSMTPEmailServiceType,
@@ -305,4 +305,4 @@ class CorePeriodicTriggerNodeType(
 class CoreHTTPTriggerType(AutomationNodeTriggerType):
     type = "http_trigger"
     model_class = CoreHTTPTriggerNode
-    service_type = CoreHTTPWebhookServiceType.type
+    service_type = CoreHTTPTriggerServiceType.type

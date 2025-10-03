@@ -20,7 +20,7 @@ import {
   CoreHTTPRequestServiceType,
   CoreRouterServiceType,
   CoreSMTPEmailServiceType,
-  CoreHTTPWebhookServiceType,
+  CoreHTTPTriggerServiceType,
 } from '@baserow/modules/integrations/core/serviceTypes'
 import { uuid } from '@baserow/modules/core/utils/string'
 
@@ -402,7 +402,7 @@ export class CoreHTTPTriggerType extends TriggerNodeTypeMixin(NodeType) {
   get serviceType() {
     return this.app.$registry.get(
       'service',
-      CoreHTTPWebhookServiceType.getType()
+      CoreHTTPTriggerServiceType.getType()
     )
   }
 
