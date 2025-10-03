@@ -42,7 +42,7 @@
 <script>
 import EnterpriseFeatures from '@baserow_enterprise/features'
 import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
-import DateDependencyModal from '@baserow_enterprise/components/dateDependency/DateDependencyModal.vue'
+import DateDependencyModal from '@baserow_enterprise/components/dateDependency/DateDependencyModal'
 import { FF_DATE_DEPENDENCY } from '@baserow/modules/core/plugins/featureFlags'
 
 export default {

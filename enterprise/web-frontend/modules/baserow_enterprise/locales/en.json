@@ -664,5 +664,16 @@
     "includeWeekendsLabel": "Include weekends when calculating durations",
     "dependencyFieldForReaderTooltip": "This field is included in date dependency field rule",
     "fieldInvalidTitle": "Date dependency field error"
+  },
+  "dateDependency": {
+   "invalidChildRow": "Successor row is invalid",
+    "invalidParentRow": "Predecessor row is invalid",
+    "invalidParentEndDateAfterChildStartDate": "Predecessor row end date is after successor start date",
+    "invalidStartDateEmpty": "Start date is empty",
+    "invalidEndDateEmpty": "End date is empty",
+    "invalidEndDateBeforeStartDate": "End date is before start date",
+    "invalidDurationEmpty": "Duration is empty",
+    "invalidDurationValue": "Duration value is not valid",
+    "invalidDurationMismatch": "Duration value mismatch"
   }
 }
