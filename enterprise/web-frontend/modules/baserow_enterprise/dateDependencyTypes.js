@@ -1,3 +1,9 @@
+import { Registerable } from '@baserow/modules/core/registry'
+import DateDependencyMenuItem from '@baserow_enterprise/components/dateDependency/DateDependencyMenuItem'
+import TimelineFieldRuleType from '@baserow_premium/timelineFieldRuleType'
+import { FF_DATE_DEPENDENCY } from '@baserow/modules/core/plugins/featureFlags'
+import DateDependencyConnection from '@baserow_enterprise/components/dateDependency/DateDependencyConnection'
+
 export const DependencyLinkRowRoles = {
   PREDECESSORS: 'predecessors',
   SUCCESSORS: 'successors',
@@ -62,4 +68,33 @@ export const DependencyBufferType = {
       { id: this.NONE, name: this.NONE, description: '' },
     ]
   },
+}
+
+export class DateDepencencyContextItemType extends Registerable {
+  static getType() {
+    return 'date_dependency'
+  }
+
+  getComponent() {
+    return DateDependencyMenuItem
+  }
+}
+
+export class DateDependencyTimelineComponent extends TimelineFieldRuleType {
+  getType() {
+    return 'date_dependency'
+  }
+
+  getTimelineFieldRuleComponent(rule, view, database) {
+    if (
+      this.app.$featureFlagIsEnabled(FF_DATE_DEPENDENCY) &&
+      this.app.$hasPermission(
+        'database.table.field_rules.read_field_rules',
+        view.table,
+        database.workspace.id
+      )
+    ) {
+      return DateDependencyConnection
+    }
+  }
 }
