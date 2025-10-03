@@ -23,6 +23,16 @@ def clear_db_state():
 
     if hasattr(_db_state, "pinned"):
         del _db_state.pinned
+    if hasattr(_db_state, "read_alias"):
+        del _db_state.read_alias
+
+
+def get_read_alias():
+    return getattr(_db_state, "read_alias", None)
+
+
+def set_read_alias(alias: str):
+    _db_state.read_alias = alias
 
 
 class ReadReplicaRouter:
@@ -37,9 +47,13 @@ class ReadReplicaRouter:
     def db_for_read(self, model, **hints):
         if is_write_mode():
             return DEFAULT_DB_ALIAS
+        alias = get_read_alias()
+        if alias:
+            return alias
         if DATABASE_READ_REPLICAS:
-            read = random.choice(DATABASE_READ_REPLICAS)  # nosec
-            return read
+            read_replica = random.choice(DATABASE_READ_REPLICAS)  # nosec
+            set_read_alias(read_replica)
+            return read_replica
         return DEFAULT_DB_ALIAS
 
     def db_for_write(self, model, **hints):
