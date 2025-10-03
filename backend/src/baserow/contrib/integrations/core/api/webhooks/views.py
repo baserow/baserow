@@ -103,7 +103,7 @@ class CoreHTTPTriggerView(APIView):
         cache_key = get_error_cache_key(webhook_uid, simulate)
         self.handle_error(cache_key, webhook_uid)
 
-        service_type = service_type_registry.get("http_webhook")
+        service_type = service_type_registry.get("http_trigger")
         try:
             service_type.process_webhook_request(webhook_uid, request_data, simulate)
         except (

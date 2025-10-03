@@ -80,7 +80,7 @@ export default {
       if (this.defaultValues.uid) {
         const url = `${this.$config.PUBLIC_BACKEND_URL}/api/webhooks/${this.defaultValues.uid}/`
         if (!this.isPublishedUrl) {
-          return `${url}?baserow_test=true`
+          return `${url}?test=true`
         } else {
           return url
         }

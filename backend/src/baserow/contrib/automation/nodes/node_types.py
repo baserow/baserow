@@ -241,7 +241,6 @@ class AutomationNodeTriggerType(AutomationNodeType):
         services: QuerySet[Service],
         event_payload: Optional[List[Dict]] = None,
         user: Optional[AbstractUser] = None,
-        simulate: bool = False,
     ):
         from baserow.contrib.automation.workflows.handler import (
             AutomationWorkflowHandler,
@@ -252,17 +251,15 @@ class AutomationNodeTriggerType(AutomationNodeType):
                 service__in=services,
             )
             .using(router.db_for_write(self.model_class))
+            .filter(
+                Q(
+                    Q(workflow__state=WorkflowState.LIVE)
+                    | Q(workflow__allow_test_run_until__gte=timezone.now())
+                    | Q(workflow__simulate_until_node__isnull=False)
+                ),
+            )
             .select_related("workflow__automation__workspace")
         )
-
-        if simulate:
-            triggers = triggers.filter(workflow__simulate_until_node__isnull=False)
-        else:
-            triggers = triggers.filter(
-                Q(workflow__state=WorkflowState.LIVE)
-                | Q(workflow__allow_test_run_until__gte=timezone.now())
-                | Q(workflow__simulate_until_node__isnull=False)
-            )
 
         for trigger in triggers:
             workflow = trigger.workflow

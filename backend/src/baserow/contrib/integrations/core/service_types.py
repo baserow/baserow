@@ -1406,9 +1406,8 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
 
 
 class CoreHTTPTriggerServiceType(TriggerServiceTypeMixin, ServiceType):
-    type = "http_webhook"
+    type = "http_trigger"
     model_class = CoreHTTPTriggerService
-    dispatch_type = DispatchTypes.EVENT
     on_event = None
 
     allowed_fields = ["uid", "exclude_get", "is_public"]
@@ -1447,7 +1446,7 @@ class CoreHTTPTriggerServiceType(TriggerServiceTypeMixin, ServiceType):
         if request_data["method"] == "GET" and service.exclude_get:
             raise CoreHTTPTriggerServiceMethodNotAllowed()
 
-        self.on_event([service], request_data, simulate=simulate)
+        self.on_event([service], request_data)
 
     def generate_schema(
         self,
