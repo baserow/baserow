@@ -284,14 +284,33 @@ class FormContainerElementType(ContainerElementTypeMixin, ElementType):
 
 
 class SimpleContainerElementType(ContainerElementTypeMixin, ElementType):
+    """
+    A container element that can optionally be aligned to a specific side
+    of the page.
+    """
+
     type = "simple_container"
     model_class = SimpleContainerElement
 
     class SerializedDict(ContainerElementTypeMixin.SerializedDict):
-        pass
+        behaviour: str
+
+    @property
+    def serializer_field_names(self):
+        return super().serializer_field_names + [
+            "behaviour",
+        ]
+
+    @property
+    def allowed_fields(self):
+        return super().allowed_fields + [
+            "behaviour",
+        ]
 
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
-        return {}
+        return {
+            "behaviour": SimpleContainerElement.PAGE_BEHAVIOURS.NORMAL,
+        }
 
 
 class TableElementType(CollectionElementWithFieldsTypeMixin, ElementType):

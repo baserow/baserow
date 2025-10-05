@@ -1,4 +1,5 @@
 .page {
+  position: relative;
   background-color: var(--page-background-color, #fff);
   background-image: var(--page-background-image, none);
   background-size: var(--page-background-size, cover);
@@ -17,12 +18,17 @@
 .public-page .context {
   // We want the same color as page background
   background-color: var(--page-background-color, #fff);
-  border: 1px solid
-    color-mix(
-      in srgb,
-      var(--page-background-color, $white),
-      var(--body-text-color, $black) 50%
-    );
-  box-shadow: 0 6px 12px 0
-    color-mix(in srgb, var(--body-text-color, $white) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--page-background-color, $white), var(--body-text-color, $black) 50%);
+  box-shadow: 0 6px 12px 0 color-mix(in srgb, var(--body-text-color, $white) 10%, transparent);
+}
+
+.page__sticky-header {
+  position: sticky;
+  background-color: var(--page-background-color, #fff);
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 3;
+
+  @include elevation($elevation-low);
 }

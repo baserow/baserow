@@ -16,27 +16,41 @@
     </div>
     <div class="elements-context__elements">
       <ElementsList
-        v-if="headerElementsVisible"
-        :elements="headerElements"
-        :filtered-search-elements="filteredHeaderElements"
+        v-if="placeElementsVisible(PAGE_PLACES.FIXED_HEADER)"
+        :elements="elementsPerPagePlaces[PAGE_PLACES.FIXED_HEADER]"
+        :filtered-search-elements="
+          filteredElementsPerPagePlaces[PAGE_PLACES.FIXED_HEADER]
+        "
         @select="selectElement($event)"
       />
       <ElementsList
-        v-if="contentElementsVisible"
-        :elements="rootElements"
-        :filtered-search-elements="filteredContentElements"
+        v-if="placeElementsVisible(PAGE_PLACES.HEADER)"
+        :elements="elementsPerPagePlaces[PAGE_PLACES.HEADER]"
+        :filtered-search-elements="
+          filteredElementsPerPagePlaces[PAGE_PLACES.HEADER]
+        "
+        @select="selectElement($event)"
+      />
+      <ElementsList
+        v-if="placeElementsVisible(PAGE_PLACES.CONTENT)"
+        :elements="elementsPerPagePlaces[PAGE_PLACES.CONTENT]"
+        :filtered-search-elements="
+          filteredElementsPerPagePlaces[PAGE_PLACES.CONTENT]
+        "
         @select="selectElement($event)"
       />
       <div
-        v-if="!contentElementsVisible && !isSearching"
+        v-if="!placeElementsVisible(PAGE_PLACES.CONTENT) && !isSearching"
         class="elements-list elements-list--empty"
       >
         {{ $t('elementsContext.noPageElements') }}
       </div>
       <ElementsList
-        v-if="footerElementsVisible"
-        :elements="footerElements"
-        :filtered-search-elements="filteredFooterElements"
+        v-if="placeElementsVisible(PAGE_PLACES.FOOTER)"
+        :elements="elementsPerPagePlaces[PAGE_PLACES.FOOTER]"
+        :filtered-search-elements="
+          filteredElementsPerPagePlaces[PAGE_PLACES.FOOTER]
+        "
         @select="selectElement($event)"
       />
       <div
@@ -80,6 +94,7 @@ import AddElementModal from '@baserow/modules/builder/components/elements/AddEle
 import { mapActions } from 'vuex'
 import { isSubstringOfStrings } from '@baserow/modules/core/utils/string'
 import { PAGE_PLACES } from '@baserow/modules/builder/enums'
+import _ from 'lodash'
 
 export default {
   name: 'ElementsContext',
@@ -96,7 +111,8 @@ export default {
       return Boolean(this.search)
     },
     elementsVisible() {
-      return (
+      return this.search && Object.values(PAGE_PLACES).some
+      /* return (
         (this.search &&
           (this.filteredContentElements.length ||
             this.filteredHeaderElements.length ||
@@ -105,7 +121,7 @@ export default {
           (this.rootElements.length ||
             this.headerElements.length ||
             this.footerElements.length))
-      )
+      ) */
     },
     contentElementsVisible() {
       return (
@@ -128,23 +144,48 @@ export default {
     rootElements() {
       return this.$store.getters['element/getRootElements'](this.currentPage)
     },
+    elements() {
+      return this.$store.getters['element/getRootElements'](this.currentPage)
+    },
     sharedPage() {
       return this.$store.getters['page/getSharedPage'](this.builder)
     },
     sharedElements() {
       return this.$store.getters['element/getRootElements'](this.sharedPage)
     },
+    elementsPerPagePlaces() {
+      return _.groupBy([...this.elements, ...this.sharedElements], (element) =>
+        this.$registry.get('element', element.type).getPagePlace(element)
+      )
+    },
+    PAGE_PLACES() {
+      return PAGE_PLACES
+    },
+    filteredElementsPerPagePlaces() {
+      return _.groupBy(
+        this.filterElements([...this.elements, ...this.sharedElements]),
+        (element) =>
+          this.$registry.get('element', element.type).getPagePlace(element)
+      )
+    },
+    fixedHeaderElements() {
+      return this.sharedElements.filter(
+        (element) =>
+          this.$registry.get('element', element.type).getPagePlace(element) ===
+          PAGE_PLACES.FIXED_HEADER
+      )
+    },
     headerElements() {
       return this.sharedElements.filter(
         (element) =>
-          this.$registry.get('element', element.type).getPagePlace() ===
+          this.$registry.get('element', element.type).getPagePlace(element) ===
           PAGE_PLACES.HEADER
       )
     },
     footerElements() {
       return this.sharedElements.filter(
         (element) =>
-          this.$registry.get('element', element.type).getPagePlace() ===
+          this.$registry.get('element', element.type).getPagePlace(element) ===
           PAGE_PLACES.FOOTER
       )
     },
@@ -176,6 +217,12 @@ export default {
         mode: this.mode,
         element,
       })
+    },
+    placeElementsVisible(place) {
+      return (
+        (this.search && this.filteredElementsPerPagePlaces?.[place]?.length) ||
+        (!this.search && this.elementsPerPagePlaces?.[place]?.length)
+      )
     },
     onElementAdded() {
       this.hide()
