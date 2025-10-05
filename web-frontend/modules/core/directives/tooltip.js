@@ -65,6 +65,11 @@ export default {
     el.tooltipOptions = getOptions(el, binding)
     el.onClickOutsideCallback = null
 
+    if (el._tooltipEventsAdded) {
+      return
+    }
+    el._tooltipEventsAdded = true
+
     el.updatePositionEvent = (event) => {
       const rect = el.getBoundingClientRect()
       const position = el.getAttribute('tooltip-position') || 'bottom'
@@ -162,6 +167,11 @@ export default {
       if (el.tooltipOptions.contentIsHtml) {
         el.tooltipContentElement.innerHTML = el.tooltipOptions.value
       } else {
+        while (el.tooltipContentElement.firstChild) {
+          el.tooltipContentElement.removeChild(
+            el.tooltipContentElement.firstChild
+          )
+        }
         el.tooltipContentElement.appendChild(
           document.createTextNode(el.tooltipOptions.value)
         )
@@ -179,17 +189,20 @@ export default {
       el.removeTimeout()
 
       // make tooltip content preserved if pointer hovers
-      el.tooltipContentElement.addEventListener('mouseenter', el.removeTimeout)
-      el.tooltipContentElement.addEventListener(
-        'mouseleave',
-        el.tooltipMoveLeaveEvent
-      )
+      // Only add event listeners if they haven't been added yet
+      if (!el._tooltipContentEventsAdded) {
+        el._tooltipContentEventsAdded = true
+        el.tooltipContentElement.addEventListener(
+          'mouseenter',
+          el.removeTimeout
+        )
+        el.tooltipContentElement.addEventListener(
+          'mouseleave',
+          el.tooltipMoveLeaveEvent
+        )
+      }
 
       window.addEventListener('mousemove', el.tooltipMouseMoveEvent)
-
-      // When the user scrolls or resizes the window it could be possible that the
-      // element where the tooltip is anchored to has moved, so then the position
-      // needs to be updated. We only want to do this when the tooltip is visible.
       window.addEventListener('scroll', el.updatePositionEvent, true)
       window.addEventListener('resize', el.updatePositionEvent)
 
@@ -211,12 +224,9 @@ export default {
      * visible, if duration is > 0.
      */
     el.tooltipMoveLeaveEvent = () => {
-      // we should remove any pending timeout before setting new one, because timeout
-      // should be counted from the last mouse leave event.
       el.removeTimeout()
       el.tooltipTimeout = setTimeout(
         el.tooltipClose,
-        // timeout from caller is in seconds. remember to convert to mseconds
         el.tooltipOptions.duration * 1000
       )
     }
@@ -230,13 +240,15 @@ export default {
      * actually closing the tooltip here
      */
     el.tooltipClose = () => {
-      // cleanup actions: remove window handlers set with onClickOutside()
       el.removeTooltipOutsideClickCallback()
 
       if (el.tooltipElement) {
-        el.tooltipElement.parentNode.removeChild(el.tooltipElement)
+        if (el.tooltipElement.parentNode) {
+          el.tooltipElement.parentNode.removeChild(el.tooltipElement)
+        }
         el.tooltipElement = null
         el.tooltipContentElement = null
+        el._tooltipContentEventsAdded = false
       }
 
       window.removeEventListener('mousemove', el.tooltipMouseMoveEvent)
@@ -244,7 +256,7 @@ export default {
       window.removeEventListener('resize', el.updatePositionEvent)
       el.removeTimeout()
     }
-    // those event listeners should be bind all the time to the el element
+
     el.addEventListener('mouseenter', el.tooltipMouseEnterEvent)
     el.addEventListener('mouseleave', el.tooltipMoveLeaveEvent)
   },
@@ -257,10 +269,17 @@ export default {
     if (el.tooltipElement && el.tooltipElement.parentNode) {
       el.tooltipElement.parentNode.removeChild(el.tooltipElement)
     }
+
+    if (el._tooltipEventsAdded) {
+      el.removeEventListener('mouseenter', el.tooltipMouseEnterEvent)
+      el.removeEventListener('mouseleave', el.tooltipMoveLeaveEvent)
+      el._tooltipEventsAdded = false
+    }
+
     el.tooltipElement = null
     el.tooltipContentElement = null
-    el.removeEventListener('mouseenter', el.tooltipMouseEnterEvent)
-    el.removeEventListener('mouseleave', el.tooltipMoveLeaveEvent)
+    el._tooltipContentEventsAdded = false
+
     window.removeEventListener('scroll', el.updatePositionEvent, true)
     window.removeEventListener('resize', el.updatePositionEvent)
   },
