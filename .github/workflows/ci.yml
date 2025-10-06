@@ -373,6 +373,7 @@ jobs:
             --network="${{ job.services.postgres.network }}" \
             -e PYTEST_SPLITS=100 \
             -e PYTEST_SPLIT_GROUP=${{ matrix.group }} \
+            -e DATABASE_URL=postgresql://baserow:baserow@postgres:5432/baserow \
             -e DATABASE_HOST=postgres \
             -e DATABASE_PORT=5432 \
             -e DATABASE_NAME=baserow \
