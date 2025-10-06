@@ -1,0 +1,378 @@
+name: CI Pipeline
+
+on:
+  push:
+  pull_request:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_REPO: ${{ github.repository }}
+  CI_IMAGE_TAG_PREFIX: ci-
+  DEVELOP_BRANCH_NAME: develop
+
+jobs:
+  # ==========================================================================
+  # BUILD STAGE - Build Docker images for backend and frontend
+  # ==========================================================================
+
+  build-backend:
+    name: Build Backend Dev Image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.image.outputs.full }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate image tag
+        id: image
+        run: |
+          IMAGE_NAME="${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/backend_dev"
+          IMAGE_TAG="${{ env.CI_IMAGE_TAG_PREFIX }}${{ github.sha }}"
+          FULL_IMAGE="${IMAGE_NAME}:${IMAGE_TAG}"
+          echo "full=${FULL_IMAGE}" >> $GITHUB_OUTPUT
+
+      - name: Determine cache sources
+        id: cache
+        run: |
+          BRANCH_NAME="${GITHUB_REF_NAME}"
+          TRUNCATED_BRANCH="${BRANCH_NAME:0:100}"
+          TRUNCATED_BRANCH="${TRUNCATED_BRANCH//\//-}"
+
+          IMAGE_NAME="${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/backend_dev"
+          BRANCH_CACHE="${IMAGE_NAME}:${{ env.CI_IMAGE_TAG_PREFIX }}${TRUNCATED_BRANCH}"
+          DEVELOP_CACHE="${IMAGE_NAME}:${{ env.CI_IMAGE_TAG_PREFIX }}${{ env.DEVELOP_BRANCH_NAME }}"
+
+          echo "branch=${BRANCH_CACHE}" >> $GITHUB_OUTPUT
+          echo "develop=${DEVELOP_CACHE}" >> $GITHUB_OUTPUT
+
+      - name: Build and push backend dev image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: backend/Dockerfile
+          target: dev
+          push: true
+          tags: ${{ steps.image.outputs.full }}
+          cache-from: |
+            type=registry,ref=${{ steps.cache.outputs.branch }}
+            type=registry,ref=${{ steps.cache.outputs.develop }}
+          cache-to: type=inline
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
+
+  build-frontend:
+    name: Build Web-Frontend Dev Image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.image.outputs.full }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate image tag
+        id: image
+        run: |
+          IMAGE_NAME="${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/web-frontend_dev"
+          IMAGE_TAG="${{ env.CI_IMAGE_TAG_PREFIX }}${{ github.sha }}"
+          FULL_IMAGE="${IMAGE_NAME}:${IMAGE_TAG}"
+          echo "full=${FULL_IMAGE}" >> $GITHUB_OUTPUT
+
+      - name: Determine cache sources
+        id: cache
+        run: |
+          BRANCH_NAME="${GITHUB_REF_NAME}"
+          TRUNCATED_BRANCH="${BRANCH_NAME:0:100}"
+          TRUNCATED_BRANCH="${TRUNCATED_BRANCH//\//-}"
+
+          IMAGE_NAME="${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/web-frontend_dev"
+          BRANCH_CACHE="${IMAGE_NAME}:${{ env.CI_IMAGE_TAG_PREFIX }}${TRUNCATED_BRANCH}"
+          DEVELOP_CACHE="${IMAGE_NAME}:${{ env.CI_IMAGE_TAG_PREFIX }}${{ env.DEVELOP_BRANCH_NAME }}"
+
+          echo "branch=${BRANCH_CACHE}" >> $GITHUB_OUTPUT
+          echo "develop=${DEVELOP_CACHE}" >> $GITHUB_OUTPUT
+
+      - name: Build and push web-frontend dev image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: web-frontend/Dockerfile
+          target: dev
+          push: true
+          tags: ${{ steps.image.outputs.full }}
+          cache-from: |
+            type=registry,ref=${{ steps.cache.outputs.branch }}
+            type=registry,ref=${{ steps.cache.outputs.develop }}
+          cache-to: type=inline
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
+
+  # ==========================================================================
+  # LINT STAGE - Run linting on backend, frontend, and Dockerfiles
+  # ==========================================================================
+
+  backend-lint:
+    name: Backend Lint
+    runs-on: ubuntu-latest
+    needs: build-backend
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run backend lint
+        run: docker run --rm ${{ needs.build-backend.outputs.image }} lint
+
+  frontend-lint:
+    name: Web-Frontend Lint
+    runs-on: ubuntu-latest
+    needs: build-frontend
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run frontend lint
+        run: docker run --rm ${{ needs.build-frontend.outputs.image }} lint
+
+  dockerfile-lint:
+    name: Dockerfile Lint (hadolint)
+    runs-on: ubuntu-latest
+    needs:
+      - backend-lint
+      - frontend-lint
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run hadolint on all Dockerfiles
+        run: |
+          mkdir -p reports
+          docker run --rm -i \
+            -v "$(pwd)":/opt/hadolint \
+            -w /opt/hadolint \
+            hadolint/hadolint:2.9.3-debian \
+            hadolint --ignore DL3008 -f json \
+              backend/Dockerfile \
+              web-frontend/Dockerfile \
+              heroku.Dockerfile \
+              deploy/*/Dockerfile > reports/hadolint.json || true
+
+      - name: Display hadolint results
+        run: |
+          if [ -s reports/hadolint.json ]; then
+            cat reports/hadolint.json
+          else
+            echo "No hadolint issues found!"
+          fi
+
+      - name: Upload hadolint results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hadolint-results
+          path: reports/hadolint.json
+          retention-days: 7
+
+  # ==========================================================================
+  # TEST STAGE - Run backend and frontend tests
+  # ==========================================================================
+
+  test-backend:
+    name: Backend Tests (Group ${{ matrix.group }})
+    runs-on: ubuntu-latest
+    needs:
+      - build-backend
+      - backend-lint
+    permissions:
+      contents: read
+      packages: read
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    services:
+      postgres:
+        image: postgres:13
+        env:
+          POSTGRES_USER: baserow
+          POSTGRES_PASSWORD: baserow
+          POSTGRES_DB: baserow
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    steps:
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run backend tests for group ${{ matrix.group }}
+        run: |
+          mkdir -p reports
+          docker run \
+            --name=baserow_backend_test_container \
+            --network=host \
+            -e PYTEST_SPLITS=10 \
+            -e PYTEST_SPLIT_GROUP=${{ matrix.group }} \
+            ${{ needs.build-backend.outputs.image }} ci-test
+          docker cp baserow_backend_test_container:/baserow/backend/reports ./reports
+          docker rm baserow_backend_test_container
+
+      - name: Upload test reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-test-reports-group-${{ matrix.group }}
+          path: reports/
+          retention-days: 7
+
+      - name: Publish test results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        if: always()
+        with:
+          files: reports/report.xml
+          check_name: Backend Tests (Group ${{ matrix.group }})
+
+  test-frontend:
+    name: Web-Frontend Tests
+    runs-on: ubuntu-latest
+    needs:
+      - build-frontend
+      - frontend-lint
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run web-frontend tests
+        run: |
+          mkdir -p reports
+          docker run \
+            --name=webfrontend_test \
+            ${{ needs.build-frontend.outputs.image }} ci-test | tee reports/stdout.txt
+          docker cp webfrontend_test:/baserow/reports ./reports
+          docker rm webfrontend_test
+
+      - name: Upload test reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: web-frontend-test-reports
+          path: reports/
+          retention-days: 7
+
+      - name: Publish test results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        if: always()
+        with:
+          files: reports/junit.xml
+          check_name: Web-Frontend Tests
+
+  # ==========================================================================
+  # COVERAGE STAGE - Collect and report test coverage
+  # ==========================================================================
+
+  collect-coverage:
+    name: Collect Backend Coverage
+    runs-on: ubuntu-latest
+    needs: test-backend
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install coverage tool
+        run: pip install coverage
+
+      - name: Download all backend test reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: backend-test-reports-group-*
+          path: reports-download
+          merge-multiple: true
+
+      - name: Combine coverage reports
+        run: |
+          cp reports-download/.coverage.* . 2>/dev/null || echo "No coverage files found"
+          export COVERAGE_RCFILE=backend/.coveragerc
+          coverage combine
+          coverage report
+          coverage xml -o coverage.xml
+
+      - name: Upload combined coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage-report
+          path: coverage.xml
+          retention-days: 30
+
+      - name: Comment coverage report on PR
+        uses: py-cov-action/python-coverage-comment-action@v3
+        if: github.event_name == 'pull_request'
+        with:
+          GITHUB_TOKEN: ${{ github.token }}
+          COVERAGE_PATH: coverage.xml
