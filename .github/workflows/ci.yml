@@ -340,6 +340,8 @@ jobs:
     permissions:
       contents: read
       packages: read
+      checks: write
+      pull-requests: write
     strategy:
       fail-fast: false
       matrix:
@@ -409,6 +411,8 @@ jobs:
     permissions:
       contents: read
       packages: read
+      checks: write
+      pull-requests: write
     strategy:
       fail-fast: false
       matrix:
@@ -430,7 +434,7 @@ jobs:
             -e JEST_SHARD_INDEX=${{ matrix.shard }} \
             -e JEST_SHARD_TOTAL=4 \
             ${{ needs.build-frontend.outputs.image }} ci-test | tee reports/stdout.txt
-          docker cp webfrontend_test:/baserow/reports ./reports
+          docker cp webfrontend_test:/baserow/reports/. ./reports
           docker rm webfrontend_test
 
       - name: Upload test reports
@@ -524,6 +528,8 @@ jobs:
     permissions:
       contents: read
       packages: read
+      checks: write
+      pull-requests: write
     strategy:
       fail-fast: false
       matrix:
@@ -668,6 +674,7 @@ jobs:
     needs: test-e2e
     permissions:
       contents: read
+      checks: read
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
