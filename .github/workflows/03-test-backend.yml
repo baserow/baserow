@@ -1,0 +1,86 @@
+name: Test Backend
+
+on:
+  workflow_run:
+    workflows: ["Lint"]
+    types:
+      - completed
+    branches:
+      - '**'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_REPO: ${{ github.repository }}
+  CI_IMAGE_TAG_PREFIX: ci-
+
+jobs:
+  # Run backend tests in parallel across 10 groups
+  test:
+    name: Backend Tests (Group ${{ matrix.group }})
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    permissions:
+      contents: read
+      packages: read
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    services:
+      postgres:
+        image: postgres:13
+        env:
+          POSTGRES_USER: baserow
+          POSTGRES_PASSWORD: baserow
+          POSTGRES_DB: baserow
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    steps:
+      - name: Get commit SHA from triggering workflow
+        id: commit
+        run: |
+          echo "sha=${{ github.event.workflow_run.head_sha }}" >> $GITHUB_OUTPUT
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run backend tests for group ${{ matrix.group }}
+        run: |
+          IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/backend_dev:${{ env.CI_IMAGE_TAG_PREFIX }}${{ steps.commit.outputs.sha }}"
+          mkdir -p reports
+
+          # Run tests in Docker container with pytest split by group
+          docker run \
+            --name=baserow_backend_test_container \
+            --network=host \
+            -e PYTEST_SPLITS=10 \
+            -e PYTEST_SPLIT_GROUP=${{ matrix.group }} \
+            $IMAGE ci-test
+
+          # Copy test reports from container
+          docker cp baserow_backend_test_container:/baserow/backend/reports ./reports
+          docker rm baserow_backend_test_container
+
+      - name: Upload test reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-test-reports-group-${{ matrix.group }}
+          path: reports/
+          retention-days: 7
+
+      - name: Publish test results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        if: always()
+        with:
+          files: reports/report.xml
+          check_name: Backend Tests (Group ${{ matrix.group }})

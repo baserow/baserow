@@ -1,0 +1,70 @@
+name: Coverage Report
+
+on:
+  workflow_run:
+    workflows: ["Test Backend"]
+    types:
+      - completed
+    branches:
+      - '**'
+
+jobs:
+  # Collect and combine coverage reports from all backend test groups
+  collect-backend-coverage:
+    name: Collect Backend Coverage
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install coverage tool
+        run: pip install coverage
+
+      - name: Download all backend test reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: backend-test-reports-group-*
+          path: reports-download
+          merge-multiple: true
+
+      - name: Combine coverage reports
+        run: |
+          # Copy all coverage files to current directory
+          cp reports-download/.coverage.* . 2>/dev/null || echo "No coverage files found"
+
+          # Set coverage config file location
+          export COVERAGE_RCFILE=backend/.coveragerc
+
+          # Combine all coverage databases
+          coverage combine
+
+          # Generate text report
+          coverage report
+
+          # Generate XML report for tools
+          coverage xml -o coverage.xml
+
+      - name: Upload combined coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage-report
+          path: coverage.xml
+          retention-days: 30
+
+      - name: Comment coverage report on PR
+        uses: py-cov-action/python-coverage-comment-action@v3
+        if: github.event.workflow_run.event == 'pull_request'
+        with:
+          GITHUB_TOKEN: ${{ github.token }}
+          COVERAGE_PATH: coverage.xml
