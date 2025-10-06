@@ -4,6 +4,11 @@ on:
   push:
   pull_request:
 
+# Automatically cancel in-progress workflows for the same branch/PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 env:
   REGISTRY: ghcr.io
   IMAGE_REPO: ${{ github.repository }}
