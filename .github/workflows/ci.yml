@@ -314,14 +314,14 @@ jobs:
 
       - name: Check backend startup
         run: |
-          docker run --rm \
+          docker run --rm --network="${{ job.services.db.network }}" \
             -e DATABASE_HOST=db \
             -e DATABASE_PORT=5432 \
             -e DATABASE_NAME=baserow \
             -e DATABASE_USER=baserow \
             -e DATABASE_PASSWORD=baserow \
             ${{ needs.build-backend.outputs.image }} ci-check-startup
-          docker run --rm \
+          docker run --rm --network="${{ job.services.db.network }}" \
             -e DATABASE_HOST=db \
             -e DATABASE_PORT=5432 \
             -e DATABASE_NAME=baserow \
@@ -578,7 +578,7 @@ jobs:
 
       - name: Start backend service
         run: |
-          docker run -d \
+          docker run -d --network="${{ job.services.db.network }}" \
             --name backend \
             -e DATABASE_HOST=db \
             -e DATABASE_NAME=baserow \
@@ -602,7 +602,7 @@ jobs:
 
       - name: Start celery worker
         run: |
-          docker run -d \
+          docker run -d --network="${{ job.services.db.network }}" \
             --name celery \
             -e DATABASE_HOST=db \
             -e DATABASE_NAME=baserow \
@@ -621,7 +621,7 @@ jobs:
 
       - name: Start web-frontend service
         run: |
-          docker run -d \
+          docker run -d --network="${{ job.services.db.network }}" \
             --name web-frontend \
             -e PUBLIC_BACKEND_URL=http://backend:8000 \
             -e PUBLIC_WEB_FRONTEND_URL=http://web-frontend:3000 \
