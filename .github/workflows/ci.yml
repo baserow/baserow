@@ -293,7 +293,7 @@ jobs:
       contents: read
       packages: read
     services:
-      postgres:
+      db:
         image: postgres:13
         env:
           POSTGRES_USER: baserow
@@ -315,14 +315,14 @@ jobs:
       - name: Check backend startup
         run: |
           docker run --rm \
-            -e DATABASE_HOST=postgres \
+            -e DATABASE_HOST=db \
             -e DATABASE_PORT=5432 \
             -e DATABASE_NAME=baserow \
             -e DATABASE_USER=baserow \
             -e DATABASE_PASSWORD=baserow \
             ${{ needs.build-backend.outputs.image }} ci-check-startup
           docker run --rm \
-            -e DATABASE_HOST=postgres \
+            -e DATABASE_HOST=db \
             -e DATABASE_PORT=5432 \
             -e DATABASE_NAME=baserow \
             -e DATABASE_USER=baserow \
@@ -380,7 +380,7 @@ jobs:
             -e DATABASE_PASSWORD=baserow \
             -e SECRET_KEY=test-secret-key \
             ${{ needs.build-backend.outputs.image }} ci-test
-          docker cp baserow_backend_test_container:/baserow/backend/reports ./reports
+          docker cp baserow_backend_test_container:/baserow/backend/reports/. ./reports
           docker rm baserow_backend_test_container
 
       - name: Upload test reports
@@ -530,7 +530,7 @@ jobs:
 #        shard: [1, 2, 3, 4]
         shard: [1]
     services:
-      postgres:
+      db:
         image: postgres:13
         env:
           POSTGRES_USER: baserow
@@ -574,7 +574,7 @@ jobs:
         run: |
           docker run -d \
             --name backend \
-            -e DATABASE_HOST=postgres \
+            -e DATABASE_HOST=db \
             -e DATABASE_NAME=baserow \
             -e DATABASE_USER=baserow \
             -e DATABASE_PASSWORD=baserow \
@@ -598,7 +598,7 @@ jobs:
         run: |
           docker run -d \
             --name celery \
-            -e DATABASE_HOST=postgres \
+            -e DATABASE_HOST=db \
             -e DATABASE_NAME=baserow \
             -e DATABASE_USER=baserow \
             -e DATABASE_PASSWORD=baserow \
