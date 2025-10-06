@@ -346,7 +346,7 @@ jobs:
         # group: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
         group: [1]
     services:
-      postgres:
+      db:
         image: postgres:13
         env:
           POSTGRES_USER: baserow
@@ -373,8 +373,7 @@ jobs:
             --network="${{ job.services.postgres.network }}" \
             -e PYTEST_SPLITS=100 \
             -e PYTEST_SPLIT_GROUP=${{ matrix.group }} \
-            -e DATABASE_URL=postgresql://baserow:baserow@postgres:5432/baserow \
-            -e DATABASE_HOST=postgres \
+            -e DATABASE_HOST=db \
             -e DATABASE_PORT=5432 \
             -e DATABASE_NAME=baserow \
             -e DATABASE_USER=baserow \
