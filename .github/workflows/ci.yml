@@ -390,7 +390,9 @@ jobs:
         if: always()
         with:
           name: backend-test-reports-group-${{ matrix.group }}
-          path: reports/
+          path: |
+            reports/report.xml
+            reports/.coverage.*
           retention-days: 7
 
       - name: Publish test results
@@ -442,7 +444,9 @@ jobs:
         if: always()
         with:
           name: web-frontend-test-reports-shard-${{ matrix.shard }}
-          path: reports/
+          path: |
+            reports/report.xml
+            reports/.coverage.*
           retention-days: 7
 
       - name: Publish test results
@@ -646,6 +650,9 @@ jobs:
         run: |
           cd e2e-tests
           ./wait-for-services.sh
+          curl -fsS http://localhost:8000/api/_health/ && echo backend OK
+          curl -fsS http://localhost:3000/_health/ && echo frontend OK
+          curl -fsS http://localhost:8000/api/templates/ | head -n1
 
       - name: Run E2E tests (shard ${{ matrix.shard }})
         run: |
