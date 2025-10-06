@@ -2,6 +2,9 @@ name: CI Pipeline
 
 on:
   push:
+    branches:
+      - develop
+      - master
   pull_request:
 
 # Automatically cancel in-progress workflows for the same branch/PR
