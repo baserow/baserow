@@ -370,6 +370,7 @@ jobs:
           mkdir -p reports
           docker run \
             --name=baserow_backend_test_container \
+            --network="${{ job.services.postgres.network }}" \
             -e PYTEST_SPLITS=100 \
             -e PYTEST_SPLIT_GROUP=${{ matrix.group }} \
             -e DATABASE_HOST=postgres \
