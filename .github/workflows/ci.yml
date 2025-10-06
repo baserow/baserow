@@ -314,14 +314,14 @@ jobs:
 
       - name: Check backend startup
         run: |
-          docker run --rm --network="service:postgres" \
+          docker run --rm \
             -e DATABASE_HOST=postgres \
             -e DATABASE_PORT=5432 \
             -e DATABASE_NAME=baserow \
             -e DATABASE_USER=baserow \
             -e DATABASE_PASSWORD=baserow \
             ${{ needs.build-backend.outputs.image }} ci-check-startup
-          docker run --rm --network="service:postgres" \
+          docker run --rm \
             -e DATABASE_HOST=postgres \
             -e DATABASE_PORT=5432 \
             -e DATABASE_NAME=baserow \
@@ -370,7 +370,6 @@ jobs:
           mkdir -p reports
           docker run \
             --name=baserow_backend_test_container \
-            --network="service:postgres" \
             -e PYTEST_SPLITS=10 \
             -e PYTEST_SPLIT_GROUP=${{ matrix.group }} \
             -e DATABASE_HOST=postgres \
@@ -571,7 +570,6 @@ jobs:
         run: |
           docker run -d \
             --name backend \
-            --network="service:postgres" \
             -e DATABASE_HOST=postgres \
             -e DATABASE_NAME=baserow \
             -e DATABASE_USER=baserow \
@@ -596,7 +594,6 @@ jobs:
         run: |
           docker run -d \
             --name celery \
-            --network="service:postgres" \
             -e DATABASE_HOST=postgres \
             -e DATABASE_NAME=baserow \
             -e DATABASE_USER=baserow \
@@ -616,7 +613,6 @@ jobs:
         run: |
           docker run -d \
             --name web-frontend \
-            --network="service:postgres" \
             -e PUBLIC_BACKEND_URL=http://backend:8000 \
             -e PUBLIC_WEB_FRONTEND_URL=http://web-frontend:3000 \
             -e BASEROW_BACKEND_URL=http://backend:8000 \
