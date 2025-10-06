@@ -7,6 +7,9 @@ on:
       - master
   pull_request:
 
+# Customize the workflow run name to show branch/PR info
+run-name: "CI: ${{ github.event_name == 'pull_request' && github.event.pull_request.title || github.ref_name }}"
+
 # Automatically cancel in-progress workflows for the same branch/PR
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
