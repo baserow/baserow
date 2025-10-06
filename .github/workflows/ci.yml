@@ -357,8 +357,6 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-        command: >
-          postgres -c fsync=off -c synchronous_commit=off -c full_page_writes=off
     steps:
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
