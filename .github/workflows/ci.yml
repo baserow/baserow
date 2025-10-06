@@ -266,15 +266,15 @@ jobs:
 
       - name: Check backend startup
         run: |
-          docker run --rm --network=host \
-            -e DATABASE_HOST=localhost \
+          docker run --rm --network="service:postgres" \
+            -e DATABASE_HOST=postgres \
             -e DATABASE_PORT=5432 \
             -e DATABASE_NAME=baserow \
             -e DATABASE_USER=baserow \
             -e DATABASE_PASSWORD=baserow \
             ${{ needs.build-backend.outputs.image }} ci-check-startup
-          docker run --rm --network=host \
-            -e DATABASE_HOST=localhost \
+          docker run --rm --network="service:postgres" \
+            -e DATABASE_HOST=postgres \
             -e DATABASE_PORT=5432 \
             -e DATABASE_NAME=baserow \
             -e DATABASE_USER=baserow \
@@ -322,14 +322,15 @@ jobs:
           mkdir -p reports
           docker run \
             --name=baserow_backend_test_container \
-            --network=host \
+            --network="service:postgres" \
             -e PYTEST_SPLITS=10 \
             -e PYTEST_SPLIT_GROUP=${{ matrix.group }} \
-            -e DATABASE_HOST=localhost \
+            -e DATABASE_HOST=postgres \
             -e DATABASE_PORT=5432 \
             -e DATABASE_NAME=baserow \
             -e DATABASE_USER=baserow \
             -e DATABASE_PASSWORD=baserow \
+            -e SECRET_KEY=test-secret-key \
             ${{ needs.build-backend.outputs.image }} ci-test
           docker cp baserow_backend_test_container:/baserow/backend/reports ./reports
           docker rm baserow_backend_test_container
