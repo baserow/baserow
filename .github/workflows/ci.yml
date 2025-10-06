@@ -518,6 +518,8 @@ jobs:
     needs:
       - build-backend
       - build-frontend
+      - backend-lint
+      - frontend-lint
     permissions:
       contents: read
       packages: read
