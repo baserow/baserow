@@ -357,6 +357,7 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+          postgres -c fsync=off -c synchronous_commit=off -c full_page_writes=off
     steps:
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
@@ -370,7 +371,7 @@ jobs:
           mkdir -p reports
           docker run \
             --name=baserow_backend_test_container \
-            --network="${{ job.services.postgres.network }}" \
+            --network="${{ job.services.db.network }}" \
             -e PYTEST_SPLITS=100 \
             -e PYTEST_SPLIT_GROUP=${{ matrix.group }} \
             -e DATABASE_HOST=db \
