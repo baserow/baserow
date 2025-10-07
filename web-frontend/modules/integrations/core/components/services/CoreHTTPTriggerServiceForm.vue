@@ -6,7 +6,7 @@
     required
   >
     <FormGroup class="margin-bottom-2">
-      <RadioGroup v-model="isPublishedUrl" :options="urlVersions" type="button" :disabled="true">
+      <RadioGroup v-model="isPublishedUrl" :options="urlVersions" type="button">
       </RadioGroup>
     </FormGroup>
 
