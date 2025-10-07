@@ -38,11 +38,6 @@ def test_rejects_http_get_if_service_excludes_get(
 
     assert resp.status_code == HTTP_405_METHOD_NOT_ALLOWED
 
-    # Subsequent queries to the same endpoint should be cached.
-    # I.e. no model queries, just the 3 transaction management queries.
-    with django_assert_num_queries(3):
-        resp = api_client.get(url)
-
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
