@@ -96,6 +96,11 @@ class ImportExportConfig:
     """
 
     is_publishing: bool = False
+    """
+    Indicates whether or not we are currently publishing. This class is used
+    to pass context to actions like publishing, duplicating, etc. In some cases,
+    it is necessary to know whether the action is specifically publishing.
+    """
 
     only_structure: bool = False
     """
