@@ -1563,3 +1563,10 @@ class CoreHTTPTriggerServiceType(TriggerServiceTypeMixin, ServiceType):
             import_export_config=import_export_config,
             **kwargs,
         )
+
+    def export_prepared_values(self, instance: CoreHTTPTriggerService) -> dict[str, Any]:
+        values = super().export_prepared_values(instance)
+
+        values["uid"] = str(values["uid"])
+
+        return values
