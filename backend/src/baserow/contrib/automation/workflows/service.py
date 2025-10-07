@@ -1,9 +1,11 @@
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 from django.contrib.auth.models import AbstractUser
 
 from baserow.contrib.automation.handler import AutomationHandler
 from baserow.contrib.automation.models import Automation, AutomationWorkflow
+from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
+from baserow.contrib.automation.nodes.node_types import CorePeriodicTriggerNodeType
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.operations import OrderAutomationWorkflowsOperationType
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
@@ -31,23 +33,7 @@ from baserow.core.utils import ChildProgressBuilder, Progress
 
 class AutomationWorkflowService:
     def __init__(self):
-        self.handler = AutomationWorkflowHandler()
-
-    def run_workflow(
-        self,
-        workflow_id: int,
-        event_payload: Optional[List[Dict]] = None,
-        user: Optional[AbstractUser] = None,
-    ):
-        """
-        Runs the workflow with the given ID.
-
-        :param workflow_id: The ID of the workflow to run.
-        :param event_payload: The payload from the action.
-        """
-
-        workflow = self.get_workflow(user, workflow_id)
-        self.handler.run_workflow(workflow, event_payload)
+        self.handler: AutomationWorkflowHandler = AutomationWorkflowHandler()
 
     def get_workflow(self, user: AbstractUser, workflow_id: int) -> AutomationWorkflow:
         """
@@ -102,14 +88,12 @@ class AutomationWorkflowService:
         if auto_create_trigger:
             from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 
-            first_trigger_type = [
-                t
-                for t in automation_node_type_registry.get_all()
-                if t.is_workflow_trigger
-            ][0]
-            prepared_values = first_trigger_type.prepare_values({}, user)
+            trigger_type = automation_node_type_registry.get(
+                CorePeriodicTriggerNodeType.type
+            )
+            prepared_values = trigger_type.prepare_values({}, user)
             AutomationNodeHandler().create_node(
-                first_trigger_type, workflow, **prepared_values
+                trigger_type, workflow, **prepared_values
             )
 
         automation_workflow_created.send(self, workflow=workflow, user=user)
@@ -291,3 +275,29 @@ class AutomationWorkflowService:
         published_workflow = self.handler.publish(workflow, progress)
 
         automation_workflow_published.send(self, user=user, workflow=published_workflow)
+
+    def toggle_test_run(
+        self,
+        user: AbstractUser,
+        workflow_id: int | None = None,
+        simulate_until_node_id: int | None = None,
+    ):
+        """Trigger a test run of the given workflow or cancel the planned run."""
+
+        if simulate_until_node_id is not None:
+            simulate_until_node = AutomationNodeHandler().get_node(
+                simulate_until_node_id
+            )
+            workflow = simulate_until_node.workflow
+        else:
+            simulate_until_node = None
+            workflow = self.handler.get_workflow(workflow_id)
+
+        CoreHandler().check_permissions(
+            user,
+            UpdateAutomationWorkflowOperationType.type,
+            workspace=workflow.automation.workspace,
+            context=workflow,
+        )
+
+        self.handler.toggle_test_run(workflow, simulate_until_node=simulate_until_node)

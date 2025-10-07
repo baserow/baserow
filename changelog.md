@@ -1,5 +1,32 @@
 # Changelog
 
+## Released 1.35.2
+
+### New features
+* [Database] Date dependency - allow to connect two dates as start date/end date, and a duration field, and recalculate other fields if one is modified. [#3735](https://gitlab.com/baserow/baserow/-/issues/3735)
+
+### Bug fixes
+* [Builder] Fix timezone issue with date time picker [#3566](https://gitlab.com/baserow/baserow/-/issues/3566)
+* [Core] Fix a bug in the Guided Tour that caused a Vue warning. [#3721](https://gitlab.com/baserow/baserow/-/issues/3721)
+* [Database] Do not fire for past entries on new webhook [#3811](https://gitlab.com/baserow/baserow/-/issues/3811)
+* [Database] Fix filter group api documentation [#3829](https://gitlab.com/baserow/baserow/-/issues/3829)
+* [Database] Fix the error when submitting form with collaborator field notification enabled in public forms. [#3834](https://gitlab.com/baserow/baserow/-/issues/3834)
+* [Builder] Fixed bug that causes the frontend to crash when an Integration is deleted. [#3835](https://gitlab.com/baserow/baserow/-/issues/3835)
+* [Database] Remove comment operations from Ctrl+Z undo stack to prevent accidental deletions [#3837](https://gitlab.com/baserow/baserow/-/issues/3837)
+* [Database] Fix a bug with frontend view filters when the root group doesn't have filters. [#3839](https://gitlab.com/baserow/baserow/-/issues/3839)
+* [Database] Fix button loading animation of publicly shared view login page.
+* [Database] Fix PostgreSQL update with multiple primary keys.
+* [Core] Improve SSR performance by only extending the translations once.
+* [Database] Prevent multiple concurrent `update_search_data` tasks from being scheduled.
+* [Core] Prevent the sync templates task from being scheduled multiple times concurrently.
+* [Builder] Reload data source information on authentication
+* [Builder] Resolved a bug which prevented formula fields from being filtered upon by external users.
+* [Builder] Resolved a table and repeat element bug which inadvertently displayed an error popup.
+
+### Refactors
+* [Core] Update backend and frontend dependencies 2025-09-29
+
+
 ## Released 1.35.1
 
 ### New features

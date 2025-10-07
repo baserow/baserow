@@ -30,7 +30,11 @@ class AutomationTrashableItemType(TrashableItemType):
 
         super().trash(item_to_trash, requesting_user, trash_entry)
 
-    def restore(self, trashed_item: Automation, trash_entry: TrashEntry):
+    def restore(
+        self,
+        trashed_item: Automation,
+        trash_entry: TrashEntry,
+    ):
         super().restore(trashed_item, trash_entry)
         application_created.send(self, application=trashed_item, user=None)
 

@@ -111,6 +111,10 @@ class AutomationWorkflow(
         node = self.automation_workflow_nodes.get(previous_node_id=None)
         return node.specific if specific else node
 
+    def can_immediately_be_tested(self):
+        service = self.get_trigger().service.specific
+        return service.get_type().can_immediately_be_tested(service)
+
     @property
     def is_published(self) -> bool:
         from baserow.contrib.automation.workflows.handler import (

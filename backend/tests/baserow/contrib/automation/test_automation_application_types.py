@@ -165,10 +165,12 @@ def test_automation_init_application(data_fixture):
     )
 
     assert automation.workflows.count() == 0
+    assert automation.integrations.count() == 0
 
     AutomationApplicationType().init_application(user, automation)
 
     assert automation.workflows.count() == 1
+    assert automation.integrations.count() == 1
 
 
 @pytest.mark.django_db

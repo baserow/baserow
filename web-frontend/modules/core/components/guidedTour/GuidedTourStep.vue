@@ -40,6 +40,7 @@ export default {
         return [
           'right-top',
           'right-bottom',
+          'left-top',
           'bottom-left',
           'bottom-right',
           'center',

@@ -164,6 +164,7 @@ export default function CoreModule(options) {
       },
       locales,
       langDir: path.resolve(__dirname, '../../locales/'),
+      lazy: true,
       vueI18n: {
         fallbackLocale: 'en',
         silentFallbackWarn: true,
@@ -171,8 +172,11 @@ export default function CoreModule(options) {
     },
   ])
 
+  let alreadyExtended = false
   this.nuxt.hook('i18n:extend-messages', function (additionalMessages) {
+    if (alreadyExtended) return
     additionalMessages.push({ en, fr, nl, de, es, it, pl, ko })
+    alreadyExtended = true
   })
 
   // Serve the static directory

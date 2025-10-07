@@ -406,3 +406,45 @@ class AsyncPublishAutomationWorkflowView(APIView):
         serializer = job_type_registry.get_serializer(job, JobSerializer)
 
         return Response(serializer.data, status=HTTP_202_ACCEPTED)
+
+
+class AutomationTestWorkflowView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="workflow_id",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.INT,
+                description="The workflow id the user wants to test.",
+            ),
+            CLIENT_SESSION_ID_SCHEMA_PARAMETER,
+        ],
+        tags=[AUTOMATION_WORKFLOWS_TAG],
+        operation_id="test_automation_workflow",
+        description=(
+            "This endpoint plan the execution of a test run for this workflow."
+        ),
+        request=None,
+        responses={
+            202: HTTP_202_ACCEPTED,
+            404: get_error_schema(["ERROR_AUTOMATION_WORKFLOW_DOES_NOT_EXIST"]),
+        },
+    )
+    @transaction.atomic
+    @map_exceptions(
+        {
+            AutomationWorkflowDoesNotExist: ERROR_AUTOMATION_WORKFLOW_DOES_NOT_EXIST,
+        }
+    )
+    def post(self, request, workflow_id: int):
+        """
+        Start the workflow asynchronously in test mode.
+        """
+
+        AutomationWorkflowService().toggle_test_run(
+            request.user, workflow_id=workflow_id
+        )
+
+        return Response(status=HTTP_202_ACCEPTED)

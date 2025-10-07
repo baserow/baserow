@@ -18,6 +18,7 @@ import { clone } from '@baserow/modules/core/utils/object'
 import { getDefaultSearchModeFromEnv } from '@baserow/modules/database/utils/search'
 import { GRID_VIEW_SIZE_TO_ROW_HEIGHT_MAPPING } from '@baserow/modules/database/constants'
 import { waitFor } from '@baserow/modules/core/utils/queue'
+import { FF_DATE_DEPENDENCY } from '@baserow/modules/core/plugins/featureFlags'
 
 export const maxPossibleOrderValue = 32767
 
@@ -580,6 +581,7 @@ export class GridViewType extends ViewType {
     )
 
     if (
+      this.app.$featureFlagIsEnabled(FF_DATE_DEPENDENCY) &&
       !isPublic &&
       !store.getters['fieldRules/hasRules']({ tableId: view.table_id })
     ) {

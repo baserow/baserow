@@ -58,7 +58,7 @@ def date_dependency_recalculate_rows(rule_id, table_id):
     #
     #  duration = start_date + end_date + 1 day.
     #
-    # see: .field_rule_types.DateDependencyCalculator.adjust_duration_after()
+    # see: .field_rule_types.DateCalculator.adjust_duration_after()
     # for details
     recalculation_query = sql.SQL(
         """WITH src AS

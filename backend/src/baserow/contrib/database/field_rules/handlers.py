@@ -1,8 +1,12 @@
+from typing import Any
+
 from django.contrib.auth.models import AbstractUser
 from django.db import connection, models
 from django.db.models import Q
 from django.dispatch import Signal
 from django.utils.functional import cached_property
+
+from loguru import logger
 
 from baserow.contrib.database.field_rules.registries import (
     FieldRulesTypeRegistry,
@@ -11,7 +15,9 @@ from baserow.contrib.database.field_rules.registries import (
 from baserow.contrib.database.table.cache import clear_generated_model_cache
 from baserow.contrib.database.table.models import GeneratedTableModel, Table
 from baserow.core.db import specific_iterator
+from baserow.core.feature_flags import FF_DATE_DEPENDENCY, feature_flag_is_enabled
 
+from .collector import FieldRuleCollector
 from .exceptions import FieldRuleTableMismatch, NoRuleError
 from .models import FieldRule
 from .registries import FieldRuleType, field_rules_type_registry
@@ -29,8 +35,9 @@ class FieldRuleHandler:
     def __init__(self, table: Table, user: AbstractUser | None = None):
         self.table = table
         self.user = user
+        self.collector = FieldRuleCollector(table.get_model())
 
-    def emit_signal(self, signal: Signal, rule):
+    def emit_signal(self, signal: Signal, rule: FieldRule):
         """
         Shortcut method that emits a field rules-specific signal after
         a field rule operation.
@@ -43,6 +50,8 @@ class FieldRuleHandler:
         Returns `True` if the table contains active field rules.
         """
 
+        if not feature_flag_is_enabled(FF_DATE_DEPENDENCY):
+            return False
         if not self.table.field_rules_validity_column_added:
             return False
         return bool(self.applicable_rules_with_types)
@@ -93,7 +102,8 @@ class FieldRuleHandler:
 
         return [r.specific for r in self._get_rules_queryset()]
 
-    def get_state_column(self) -> models.BooleanField:
+    @staticmethod
+    def get_state_column() -> models.BooleanField:
         """
         Returns a field to be added to table definition to store information if
         field rule validity column was added to table model.
@@ -407,7 +417,17 @@ class FieldRuleHandler:
         model = self._get_model()
         return model.objects.filter(**{self.STATE_COLUMN_NAME: False})
 
-    def on_row_create(self, row_data) -> RowRuleChanges:
+    def on_rows_create(self, rows_data: list[dict]) -> list[RowRuleChanges]:
+        rules = self.applicable_rules_with_types
+        collector = self.collector
+        model = self._get_model()
+        out = []
+        for row_data in rows_data:
+            changes = self._on_row_create(model, row_data, rules, collector)
+            out.extend(changes)
+        return out
+
+    def on_row_create(self, row_data) -> list[RowRuleChanges]:
         """
         Called when a row has been created to run all field rules attached to the
         table on that row.
@@ -418,25 +438,82 @@ class FieldRuleHandler:
         """
 
         rules = self.applicable_rules_with_types
-        values = {}
-        field_ids = set()
-        row_id = None
-        change = RowRuleChanges(
-            row_id=row_id, updated_values=values, updated_field_ids=field_ids
-        )
-        model = self.table.get_model()
-        for rule, rule_type in rules:
-            updated_status = rule_type.before_row_created(model, row_data, rule)
-            if not updated_status:
-                continue
-            values.update(updated_status.updated_values)
-            [field_ids.add(field_id) for field_id in updated_status.updated_field_ids]
+        collector = self.collector
+        model = self._get_model()
+        return self._on_row_create(model, row_data, rules, collector)
 
-        return change
+    def _on_row_create(self, model, row_data, rules, collector) -> list[RowRuleChanges]:
+        out = []
+        updated_values = {}
+
+        for rule, rule_type in rules:
+            updated_rows = rule_type.before_row_created(
+                model, row_data, rule, collector
+            )
+            if not updated_rows:
+                continue
+
+            # Note: this assumes that the first row returned from rule type handler will
+            # contain new row's updates, if row_id is not provided.
+            # The return from the handler may be longer, but other items should be
+            # applied to existing rows.
+            if updated_rows[0].row_id is None:
+                updated_values.update(updated_rows[0].updated_values)
+            collector.add_changes(updated_rows)
+            out.extend(updated_rows)
+
+        # Apply changes accumulated from rules to row data.
+        row_data.update(updated_values)
+        return out
+
+    def on_rows_updated(
+        self,
+        rows: list[GeneratedTableModel],
+        updated_values_by_id: dict[int, dict[str, Any]],
+    ) -> list[RowRuleChanges]:
+        rules = self.applicable_rules_with_types
+        collector = self.collector
+
+        out = []
+        for row in rows:
+            values = updated_values_by_id[row.id]
+            changes = self._on_row_update(row, values, rules, collector)
+            out.extend(changes)
+        # TODO: add row validation for cascades
+        return out
+
+    def _on_row_update(
+        self, row, updated_values, rules, collector
+    ) -> list[RowRuleChanges]:
+        out = []
+        for rule, rule_type in rules:
+            updated_rows = rule_type.before_row_updated(
+                row, rule, updated_values, collector
+            )
+            if not updated_rows:
+                continue
+            updated_row_values = next(
+                (
+                    row_change.updated_values
+                    for row_change in updated_rows
+                    if row_change.row_id == row.id
+                ),
+                None,
+            )
+            if updated_row_values:
+                updated_values.update(updated_row_values)
+                collector.add_changes(updated_rows)
+            else:
+                logger.error(
+                    f"Expected a change for {row} with {rule} rule, "
+                    f"but no change found in {updated_rows}."
+                )
+            out.extend(updated_rows)
+        return out
 
     def on_row_update(
         self, row: GeneratedTableModel, updated_values: dict
-    ) -> RowRuleChanges:
+    ) -> list[RowRuleChanges]:
         """
         When a row is about to be updated, this method will run all field rules attached
         to the table, to process the change.
@@ -448,20 +525,7 @@ class FieldRuleHandler:
         """
 
         rules = self.applicable_rules_with_types
-        values = {}
-        field_ids = set()
-        row_id = row.id
-        change = RowRuleChanges(
-            row_id=row_id, updated_values=values, updated_field_ids=field_ids
-        )
-        for rule, rule_type in rules:
-            updated_status = rule_type.before_row_updated(row, rule, updated_values)
-            if not updated_status:
-                continue
-            values.update(updated_status.updated_values)
-            [field_ids.add(field_id) for field_id in updated_status.updated_field_ids]
-
-        return change
+        return self._on_row_update(row, updated_values, rules, self.collector)
 
     def process_row_update(
         self, updated_values: dict, updated_field_ids: set[int], change: RowRuleChanges
@@ -488,6 +552,8 @@ class FieldRuleHandler:
         set to True.
         """
 
+        if self.collector.is_starting_row_processed(row):
+            return True
         rules = self.applicable_rules_with_types
 
         for rule, rule_type in rules:

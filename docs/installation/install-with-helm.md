@@ -37,7 +37,7 @@ file directly.
 ```
 global:
   baserow:
-    image: 1.35.1
+    image: 1.35.2
 ```
 
 Or use the latest Helm chart default. Then run the following command to upgrade your

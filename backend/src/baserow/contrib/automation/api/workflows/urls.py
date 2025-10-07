@@ -3,6 +3,7 @@ from django.urls import re_path
 from baserow.contrib.automation.api.workflows.views import (
     AsyncAutomationDuplicateWorkflowView,
     AsyncPublishAutomationWorkflowView,
+    AutomationTestWorkflowView,
     AutomationWorkflowHistoryView,
     AutomationWorkflowsView,
     AutomationWorkflowView,
@@ -35,6 +36,11 @@ urlpatterns_without_automation_id = [
         r"(?P<workflow_id>[0-9]+)/publish/async/$",
         AsyncPublishAutomationWorkflowView.as_view(),
         name="async_publish",
+    ),
+    re_path(
+        r"(?P<workflow_id>[0-9]+)/test/$",
+        AutomationTestWorkflowView.as_view(),
+        name="test",
     ),
     re_path(
         r"(?P<workflow_id>[0-9]+)/history/$",

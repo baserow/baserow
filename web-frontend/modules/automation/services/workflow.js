@@ -17,9 +17,9 @@ export default (client) => {
     delete(workflowId) {
       return client.delete(`automation/workflows/${workflowId}/`)
     },
-    order(automationId, order) {
-      return client.post(`/automation/${automationId}/workflows/order/`, {
-        workflow_ids: order,
+    order(workflowId, nodeIds) {
+      return client.post(`/automation/workflows/${workflowId}/nodes/order/`, {
+        node_ids: nodeIds,
       })
     },
     duplicate(workflowId) {
@@ -27,6 +27,9 @@ export default (client) => {
     },
     publish(workflowId) {
       return client.post(`/automation/workflows/${workflowId}/publish/async/`)
+    },
+    testRun(workflowId) {
+      return client.post(`/automation/workflows/${workflowId}/test/`)
     },
   }
 }

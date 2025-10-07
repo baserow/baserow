@@ -5,10 +5,11 @@ from django.contrib.auth.models import AbstractUser
 from baserow.contrib.automation.models import AutomationWorkflow
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeBeforeInvalid,
+    AutomationNodeNotMovable,
     AutomationTriggerModificationDisallowed,
 )
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
-from baserow.contrib.automation.nodes.models import AutomationNode
+from baserow.contrib.automation.nodes.models import AutomationActionNode, AutomationNode
 from baserow.contrib.automation.nodes.node_types import AutomationNodeType
 from baserow.contrib.automation.nodes.operations import (
     CreateAutomationNodeOperationType,
@@ -19,15 +20,22 @@ from baserow.contrib.automation.nodes.operations import (
     ReadAutomationNodeOperationType,
     UpdateAutomationNodeOperationType,
 )
-from baserow.contrib.automation.nodes.registries import automation_node_type_registry
+from baserow.contrib.automation.nodes.registries import (
+    ReplaceAutomationNodeTrashOperationType,
+    automation_node_type_registry,
+)
 from baserow.contrib.automation.nodes.signals import (
     automation_node_created,
     automation_node_deleted,
+    automation_node_replaced,
     automation_node_updated,
     automation_nodes_reordered,
+    automation_nodes_updated,
 )
 from baserow.contrib.automation.nodes.types import (
     AutomationNodeDuplication,
+    AutomationNodeMove,
+    NextAutomationNodeValues,
     ReplacedAutomationNode,
     UpdatedAutomationNode,
 )
@@ -167,10 +175,11 @@ class AutomationNodeService:
         :param user: The user trying to update the node.
         :param node_id: The node that should be updated.
         :param kwargs: The fields that should be updated with their corresponding value
-        :return: The updated workflow.
+        :return: UpdatedAutomationNode.
         """
 
         node = self.handler.get_node(node_id)
+        node_type = node.get_type()
 
         CoreHandler().check_permissions(
             user,
@@ -179,19 +188,65 @@ class AutomationNodeService:
             context=node,
         )
 
-        prepared_values = node.get_type().prepare_values(kwargs, user, node)
+        # Export the 'original' node values now, as `prepare_values`
+        # will be changing the service first, and then `update_node`
+        # will be change the node itself.
+        original_node_values = node_type.export_prepared_values(node)
+
+        # Prepare the node's values, which handles service updates too.
+        prepared_values = node_type.prepare_values(kwargs, user, node)
+
+        # Update the node itself.
         updated_node = self.handler.update_node(node, **prepared_values)
 
-        automation_node_updated.send(self, user=user, node=updated_node.node)
+        # Now export the 'new' node values, since everything has been updated.
+        new_node_values = node_type.export_prepared_values(node)
 
-        return updated_node
+        automation_node_updated.send(self, user=user, node=updated_node)
 
-    def delete_node(self, user: AbstractUser, node_id: int) -> AutomationNode:
+        return UpdatedAutomationNode(
+            node=updated_node,
+            original_values=original_node_values,
+            new_values=new_node_values,
+        )
+
+    def update_next_nodes_values(
+        self,
+        user: AbstractUser,
+        next_node_values: List[NextAutomationNodeValues],
+        workflow: AutomationWorkflow,
+    ) -> List[AutomationActionNode]:
+        """
+        Update the next nodes values for a list of nodes.
+
+        :param user: The user trying to update the next node values.
+        :param next_node_values: The new next node values.
+        :param workflow: The workflow the nodes belong to.
+        :return: The updated nodes.
+        """
+
+        updated_next_nodes = self.handler.update_next_nodes_values(next_node_values)
+        if updated_next_nodes:
+            automation_nodes_updated.send(
+                self, user=user, nodes=updated_next_nodes, workflow=workflow
+            )
+
+        return updated_next_nodes
+
+    def delete_node(
+        self,
+        user: AbstractUser,
+        node_id: int,
+        trash_operation_type: Optional[str] = None,
+    ) -> AutomationNode:
         """
         Deletes the specified automation node.
 
         :param user: The user trying to delete the node.
         :param node_id: The ID of the node to delete.
+        :param trash_operation_type: The trash operation type to use when trashing
+            the node.
+        :return: The deleted node.
         :raises AutomationTriggerModificationDisallowed: If the node is a trigger.
         """
 
@@ -205,14 +260,21 @@ class AutomationNodeService:
         )
 
         automation = node.workflow.automation
-        TrashHandler.trash(user, automation.workspace, automation, node)
-
-        automation_node_deleted.send(
-            self,
-            workflow=node.workflow,
-            node_id=node.id,
-            user=user,
+        trash_entry = TrashHandler.trash(
+            user,
+            automation.workspace,
+            automation,
+            node,
+            trash_operation_type=trash_operation_type,
         )
+
+        if trash_entry.get_operation_type().send_post_trash_deleted_signal:
+            automation_node_deleted.send(
+                self,
+                workflow=node.workflow,
+                node_id=node.id,
+                user=user,
+            )
 
         return node
 
@@ -331,16 +393,32 @@ class AutomationNodeService:
             workflow=node.workflow,
             before=node,
             order=node.order,
-            previous_node_output=node.previous_node_output,
             **prepared_values,
         )
+
         new_node_type.after_create(new_node)
 
         # After the node creation, the replaced node has changed
         node.refresh_from_db()
 
+        # Trash the old node, assigning it a specific trash operation
+        # type so that we know it was replaced when restoring it.
         automation = node.workflow.automation
-        TrashHandler.trash(user, automation.workspace, automation, node)
+        TrashHandler.trash(
+            user,
+            automation.workspace,
+            automation,
+            node,
+            trash_operation_type=ReplaceAutomationNodeTrashOperationType.type,
+        )
+
+        automation_node_replaced.send(
+            self,
+            workflow=new_node.workflow,
+            restored_node=new_node,
+            deleted_node=node,
+            user=user,
+        )
 
         return ReplacedAutomationNode(
             node=new_node,
@@ -348,18 +426,30 @@ class AutomationNodeService:
             original_node_type=node_type.type,
         )
 
-    def simulate_dispatch_node(
-        self, user: AbstractUser, node_id: int
-    ) -> AutomationNode:
+    def move_node(
+        self,
+        user: AbstractUser,
+        node_id: int,
+        new_previous_node_id: int,
+        new_previous_output: Optional[str] = None,
+        new_order: Optional[float] = None,
+    ) -> AutomationNodeMove:
         """
-        Simulates the dispatch of an automation node.
+        Moves an existing automation node to a new position in the workflow.
 
-        :param user: The user trying to simulate the node dispatch.
-        :param node_id: The ID of the node to dispatch.
-        :return: The updated node.
+        :param user: The user trying to move the node.
+        :param node_id: The ID of the node to move.
+        :param new_previous_node_id: The ID of the node that
+            will be the new previous node.
+        :param new_previous_output: If the destination is an output, the output uid.
+        :param new_order: The new order of the node. If not provided, it will
+            be calculated to be last of `new_previous_node_id`.
+        :raises AutomationNodeNotMovable: If the node cannot be moved.
+        :return: The move operation details.
         """
 
         node = self.get_node(user, node_id)
+        node_type: AutomationNodeType = node.get_type()
 
         CoreHandler().check_permissions(
             user,
@@ -368,4 +458,19 @@ class AutomationNodeService:
             context=node,
         )
 
-        return self.handler.simulate_dispatch_node(node)
+        # If a node type cannot move, raise an exception.
+        if node_type.is_fixed:
+            raise AutomationNodeNotMovable("This automation node cannot be moved.")
+
+        after_node = self.get_node(user, new_previous_node_id)
+        move = self.handler.move_node(node, after_node, new_previous_output, new_order)
+
+        updated_nodes = [move.node] + move.next_node_updates
+        automation_nodes_updated.send(
+            self,
+            user=user,
+            nodes=updated_nodes,
+            workflow=node.workflow,
+        )
+
+        return move

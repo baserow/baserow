@@ -34,7 +34,11 @@ class AutomationWorkflowTrashableItemType(TrashableItemType):
             user=None,
         )
 
-    def restore(self, trashed_item: AutomationWorkflow, trash_entry: TrashEntry):
+    def restore(
+        self,
+        trashed_item: AutomationWorkflow,
+        trash_entry: TrashEntry,
+    ):
         super().restore(trashed_item, trash_entry)
         automation_workflow_created.send(self, workflow=trashed_item, user=None)
 

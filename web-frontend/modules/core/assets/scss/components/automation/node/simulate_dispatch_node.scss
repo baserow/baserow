@@ -11,17 +11,27 @@
 
 .simulate-dispatch-node__sample-data-label {
   font-weight: 500;
+  margin-bottom: 10px;
 }
 
 .simulate-dispatch-node__sample-data-code {
-  display: block;
-  width: 100%;
-  padding: 6px;
-  font-size: 12px;
+  padding: 10px;
   background-color: $color-neutral-100;
-  line-height: 140%;
-  white-space: pre-wrap;
-  word-break: break-word;
 
   @include rounded($rounded);
+
+  pre,
+  code {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 7;
+    margin: 0;
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+.simulate-dispatch-node__button-icon {
+  color: $palette-neutral-600;
 }

@@ -2,6 +2,7 @@ import { Registerable } from '@baserow/modules/core/registry'
 import {
   ActionNodeTypeMixin,
   TriggerNodeTypeMixin,
+  UtilityNodeMixin,
 } from '@baserow/modules/automation/nodeTypeMixins'
 import {
   LocalBaserowCreateRowWorkflowServiceType,
@@ -102,6 +103,16 @@ export class NodeType extends Registerable {
    */
   get formComponent() {
     return this.serviceType.formComponent
+  }
+
+  /**
+   * Whether this node type can be moved around the workflow. By default,
+   * all nodes can be moved. This can be overridden by the node type
+   * to prevent moving.
+   * @returns {boolean} - Whether the node can be moved.
+   */
+  get isFixed() {
+    return false
   }
 
   /**
@@ -330,6 +341,46 @@ export class LocalBaserowRowsDeletedTriggerNodeType extends TriggerNodeTypeMixin
   }
 }
 
+export class CorePeriodicTriggerNodeType extends TriggerNodeTypeMixin(
+  NodeType
+) {
+  static getType() {
+    return 'periodic'
+  }
+
+  getOrder() {
+    return 4
+  }
+
+  get iconClass() {
+    return 'iconoir-timer'
+  }
+
+  get name() {
+    return this.app.i18n.t('nodeType.periodicTriggerLabel')
+  }
+
+  get serviceType() {
+    return this.app.$registry.get('service', 'periodic')
+  }
+
+  getDefaultLabel({ node }) {
+    if (!node.service) {
+      return this.name
+    }
+
+    const intervalLabels = {
+      MINUTE: this.app.i18n.t('periodicForm.everyMinute'),
+      HOUR: this.app.i18n.t('periodicForm.everyHour'),
+      DAY: this.app.i18n.t('periodicForm.everyDay'),
+      WEEK: this.app.i18n.t('periodicForm.everyWeek'),
+      MONTH: this.app.i18n.t('periodicForm.everyMonth'),
+    }
+
+    return intervalLabels[node.service.interval] || this.name
+  }
+}
+
 export class LocalBaserowCreateRowActionNodeType extends ActionNodeTypeMixin(
   LocalBaserowNodeType
 ) {
@@ -519,9 +570,21 @@ export class CoreSMTPEmailNodeType extends ActionNodeTypeMixin(NodeType) {
   }
 }
 
-export class CoreRouterNodeType extends ActionNodeTypeMixin(NodeType) {
+export class CoreRouterNodeType extends ActionNodeTypeMixin(
+  UtilityNodeMixin(NodeType)
+) {
   static getType() {
     return 'router'
+  }
+
+  /**
+   * Router nodes cannot be moved around the workflow, due to complications
+   * with managing their output nodes. This will be improved in the future,
+   * but for now, this node type is fixed.
+   * @returns {boolean} - Whether the node can be moved.
+   */
+  get isFixed() {
+    return true
   }
 
   getOrder() {

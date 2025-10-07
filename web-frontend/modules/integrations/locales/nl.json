@@ -79,7 +79,15 @@
         "coreSMTPEmail": "Verstuur e-mail",
         "coreSMTPEmailDescription": "Verstuurt een e-mail met SMTP-configuratie.",
         "errorFromEmailMissing": "Ontbreekt in e-maileigenschap",
-        "errorToEmailsMissing": "Naar Email Eigenschap Ontbreekt"
+        "errorToEmailsMissing": "Naar Email Eigenschap Ontbreekt",
+        "coreRouter": "Router",
+        "coreRouterEdgesRequired": "Minstens één rand is vereist",
+        "coreRouterEdgeLabelRequired": "Een vertakkingslabel is nodig.",
+        "coreRouterEdgeConditionRequired": "Een vertakkingsvoorwaarde is vereist.",
+        "coreRouterDescription": "Leidt de workflow naar de volgende vertakking op basis van een voorwaarde.",
+        "corePeriodic": "Periodieke trigger",
+        "corePeriodicDescription": "Triggert de workflow op periodieke basis met gespecificeerde intervallen",
+        "corePeriodicErrorIntervalMissing": "Een interval is vereist."
     },
     "userSourceType": {
         "localBaserow": "Baserow tabel authenticatie"
@@ -183,5 +191,43 @@
         "bodyTypeHtml": "HTML",
         "body": "Body",
         "bodyPlaceholder": "De inhoud van je e-mail..."
+    },
+    "routerForm": {
+        "defaultEdgeLabelLabel": "Standaard vertakkingslabel",
+        "defaultEdgeLabelPlaceholder": "Standaard",
+        "defaultEdgeLabelDescription": "Kies optioneel het label dat moet worden weergegeven op de standaard vertakking.",
+        "branchesHeading": "Vertakkingen",
+        "branchesDescription": "Met vertakkingen kun je alleen knooppunten uitvoeren als aan een voorwaarde is voldaan. Vertakkingen worden van links naar rechts uitgevoerd totdat aan een voorwaarde is voldaan, anders wordt de standaard vertakking uitgevoerd. ",
+        "branchLabel": "Label",
+        "branchConditionLabel": "Voorwaarde",
+        "branchConditionPlaceholder": "Voer conditie in...",
+        "addEdge": "Vertakking toevoegen",
+        "edgeDefaultName": "Vertakking",
+        "noLabel": "Geen label",
+        "edgeDeletionLastEdge": "Je kunt de laatste vertakking niet verwijderen.",
+        "edgeDeletionHasOutput": "Een tak kan niet worden verwijderd als deze een uitgang heeft."
+    },
+    "periodicForm": {
+        "intervalLabel": "Interval",
+        "intervalHelper": "Kies hoe vaak je deze workflow wilt uitvoeren",
+        "everyMinute": "Elke minuut",
+        "everyHour": "Elk uur",
+        "everyDay": "Elke dag",
+        "everyWeek": "Elke week",
+        "everyMonth": "Elke maand",
+        "hour": "Uur",
+        "minute": "Minuut",
+        "dayOfWeek": "Dag van de week",
+        "dayOfMonth": "Dag van de maand",
+        "hourPlaceholder": "0-23",
+        "minutePlaceholder": "0-59",
+        "dayOfMonthPlaceholder": "1-31",
+        "minuteHelper": "Deze workflow wordt elke minuut uitgevoerd",
+        "hourHelper": "Deze workflow wordt elk uur uitgevoerd op de opgegeven minuut in je lokale tijdzone ({timezone})",
+        "dayHelper": "Deze workflow wordt elke dag uitgevoerd op het opgegeven tijdstip in je lokale tijdzone ({timezone})",
+        "weekHelper": "Deze workflow wordt elke week uitgevoerd op de opgegeven dag en tijd in je lokale tijdzone ({timezone})",
+        "monthHelper": "Deze workflow wordt elke maand uitgevoerd op de opgegeven dag en tijd in je lokale tijdzone ({timezone}).",
+        "deactivatedTitle": "Periodieke trigger gedeactiveerd",
+        "deactivatedText": "Deze periodieke trigger is automatisch gedeactiveerd vanwege opeenvolgende fouten."
     }
 }

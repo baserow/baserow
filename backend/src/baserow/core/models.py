@@ -58,6 +58,12 @@ __all__ = [
     "ImportExportTrustedSource",
 ]
 
+from baserow.core.trash.registries import (
+    DefaultTrashOperationType,
+    TrashOperationType,
+    trash_operation_type_registry,
+)
+
 User = get_user_model()
 
 
@@ -572,6 +578,16 @@ class TrashEntry(models.Model):
     # restored with a specific state.
     additional_restoration_data = models.JSONField(default=dict, null=True)
 
+    # Optionally store the trash operation type that was used to trash this item.
+    trash_operation_type = models.CharField(
+        max_length=125,
+        null=True,
+        blank=True,
+        help_text="Optionally provide the trash operation type associated with this "
+        "trash entry. The trash operation type gives additional context about how this "
+        "trash entry was created, and if it has specific restoration requirements.",
+    )
+
     class Meta:
         constraints = [
             UniqueConstraint(
@@ -589,6 +605,22 @@ class TrashEntry(models.Model):
                 fields=["-trashed_at", "trash_item_type", "workspace", "application"]
             )
         ]
+
+    @property
+    def managed(self) -> bool:
+        """
+        Returns whether this trash entry is managed internally and
+        cannot be restored manually.
+
+        :return: True if the trash entry is managed, false otherwise.
+        """
+
+        return self.get_operation_type().managed
+
+    def get_operation_type(self) -> TrashOperationType:
+        return trash_operation_type_registry.get(
+            self.trash_operation_type or DefaultTrashOperationType.type
+        )
 
 
 class DuplicateApplicationJob(

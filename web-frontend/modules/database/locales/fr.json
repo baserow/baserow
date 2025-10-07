@@ -276,7 +276,7 @@
         "dbIndex": "Index",
         "dbIndexError": "Ce type de champ ne peut pas avoir d'index. Veuillez le supprimer avant d'enregistrer ou de modifier le type de champ.",
         "dbIndexDescription": "L'indexation peut améliorer considérablement les performances de filtrage, mais ralentit les opérations de création, de mise à jour et de suppression.",
-        "defaultValueDisabledByConstraint": "Impossible de définir une valeur par défaut avec une contrainte d'unicité."
+        "defaultValueDisabledByConstraint": "Impossible de définir une valeur par défaut avec une contrainte d'unicité"
     },
     "fieldLookupSubForm": {
         "noTable": "Vous devez créer au moins une autre table dans la même base de données pour pouvoir créer un lien.",
@@ -1082,7 +1082,7 @@
         "create": "Créer et synchroniser une table",
         "error": "Un problème s'est produit lors de la synchronisation",
         "autoAddLabel": "Ajout automatique de nouvelles propriétés",
-        "autoAddHelper": "Ajoute et synchronise automatiquement les propriétés nouvellement disponibles dans la table. Notez que pour que cela fonctionne, toutes les propriétés doivent être synchronisées.",
+        "autoAddHelper": "Ajoute et synchronise automatiquement les propriétés nouvellement disponibles de la source de données dans la table Baserow. Notez que pour que cela fonctionne, toutes les propriétés doivent être synchronisées.",
         "twoWaySyncLabel": "Synchronisation bidirectionnelle"
     },
     "syncTableModal": {
@@ -1179,5 +1179,11 @@
         "fieldId": "L'identifiant du champ dans lequel le mot de passe doit être vérifié.",
         "rowId": "L'ID de ligne où vérifier le mot de passe.",
         "password": "Le mot de passe qui doit être vérifié s'il est correct."
+    },
+    "fieldRules": {
+        "errorTitle": "Erreur lors du traitement des règles du champ",
+        "ruleDoesNotExist": "La règle n'existe pas",
+        "ruleTypeDoesNotExist": "Le type de règle n'existe pas",
+        "ruleAlreadyExists": "La règle existe déjà"
     }
 }

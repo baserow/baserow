@@ -3,16 +3,15 @@ from unittest.mock import patch
 from django.test.utils import override_settings
 
 import pytest
-from baserow_premium.row_comments.actions import DeleteRowCommentActionType
 from baserow_premium.row_comments.handler import (
     RowCommentHandler,
     RowCommentsNotificationModes,
 )
+from baserow_premium.row_comments.trash_types import RowCommentTrashableItemType
 from freezegun import freeze_time
 
-from baserow.contrib.database.action.scopes import TableActionScopeType
-from baserow.core.action.handler import ActionHandler
 from baserow.core.db import transaction_atomic
+from baserow.core.trash.handler import TrashHandler
 
 
 @pytest.mark.django_db(transaction=True)
@@ -158,18 +157,18 @@ def test_row_comment_restored(premium_data_fixture):
     message = premium_data_fixture.create_comment_message_from_plain_text("comment")
 
     with freeze_time("2020-01-02 12:00"), transaction_atomic():
-        c = RowCommentHandler.create_comment(user, table.id, rows[0].id, message)
-        DeleteRowCommentActionType.do(user, table.id, c.id)
+        row_comment = RowCommentHandler.create_comment(
+            user, table.id, rows[0].id, message
+        )
+        TrashHandler.trash(user, table.database.workspace, table.database, row_comment)
 
     with patch(
         "baserow.ws.registries.broadcast_to_channel_group"
     ) as mock_broadcast_to_channel_group:
         with freeze_time("2020-01-02 12:01"), transaction_atomic():
-            undone_actions = ActionHandler.undo(
-                user, [TableActionScopeType.value(table_id=table.id)], session_id
+            TrashHandler.restore_item(
+                user, RowCommentTrashableItemType.type, row_comment.id
             )
-            assert len(undone_actions) == 1
-            assert undone_actions[0].type == DeleteRowCommentActionType.type
 
         mock_broadcast_to_channel_group.delay.assert_called_once()
         args = mock_broadcast_to_channel_group.delay.call_args
@@ -188,7 +187,7 @@ def test_row_comment_restored(premium_data_fixture):
             },
             "created_on": "2020-01-02T12:00:00Z",
             "first_name": "test_user",
-            "id": c.id,
+            "id": row_comment.id,
             "user_id": user.id,
             "row_id": rows[0].id,
             "table_id": table.id,

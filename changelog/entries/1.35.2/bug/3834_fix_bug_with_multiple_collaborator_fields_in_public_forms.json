@@ -1,0 +1,8 @@
+{
+  "type": "bug",
+  "message": "Fix the error when submitting form with collaborator field notification enabled in public forms.",
+  "domain": "database",
+  "issue_number": 3834,
+  "bullet_points": [],
+  "created_at": "2025-09-29"
+}

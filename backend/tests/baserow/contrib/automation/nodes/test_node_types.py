@@ -8,10 +8,8 @@ from baserow.contrib.automation.automation_dispatch_context import (
     AutomationDispatchContext,
 )
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
-from baserow.contrib.automation.nodes.node_types import AutomationNodeTriggerType
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.workflows.constants import WorkflowState
-from baserow.core.exceptions import InstanceTypeDoesNotExist
 from baserow.core.services.types import DispatchResult
 from baserow.core.utils import MirrorDict
 
@@ -30,9 +28,11 @@ def test_automation_node_type_is_replaceable_with():
 
 @pytest.mark.django_db
 @patch(
-    "baserow.contrib.automation.workflows.service.AutomationWorkflowHandler.run_workflow"
+    "baserow.contrib.automation.workflows.service.AutomationWorkflowHandler.async_start_workflow"
 )
-def test_automation_service_node_trigger_type_on_event(mock_run_workflow, data_fixture):
+def test_automation_service_node_trigger_type_on_event(
+    mock_async_start_workflow, data_fixture
+):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
     original_workflow = data_fixture.create_automation_workflow(
@@ -61,7 +61,7 @@ def test_automation_service_node_trigger_type_on_event(mock_run_workflow, data_f
     ]
 
     trigger.get_type().on_event(service_queryset, event_payload, user=user)
-    mock_run_workflow.assert_called_once()
+    mock_async_start_workflow.assert_called_once()
 
 
 @pytest.mark.django_db
@@ -126,33 +126,6 @@ def test_service_node_type_rows_created_prepare_values_without_instance(data_fix
     new_service = result["service"]
     assert isinstance(new_service, type(node.service))
     assert new_service.id != node.service.id
-
-
-def signal_trigger_node_types():
-    return [
-        node_type
-        for node_type in automation_node_type_registry.get_all()
-        if issubclass(node_type.__class__, AutomationNodeTriggerType)
-    ]
-
-
-@pytest.mark.parametrize("node_type", signal_trigger_node_types())
-def test_registering_signal_node_type_connects_to_signal(node_type):
-    try:
-        automation_node_type_registry.get(node_type.type)
-    except InstanceTypeDoesNotExist:
-        automation_node_type_registry.register(node_type)
-    service_type = node_type.get_service_type()
-    registered_handlers = [receiver[1]() for receiver in service_type.signal.receivers]
-    assert service_type.handler in registered_handlers
-
-
-@pytest.mark.parametrize("node_type", signal_trigger_node_types())
-def test_unregistering_signal_node_type_disconnects_from_signal(node_type):
-    automation_node_type_registry.unregister(node_type.type)
-    service_type = node_type.get_service_type()
-    registered_handlers = [receiver[1]() for receiver in service_type.signal.receivers]
-    assert service_type.handler not in registered_handlers
 
 
 @pytest.mark.django_db
@@ -271,9 +244,9 @@ def test_automation_node_migrates_its_previous_node_output_on_import(
 
 @pytest.mark.django_db
 @patch(
-    "baserow.contrib.automation.workflows.service.AutomationWorkflowHandler.run_workflow"
+    "baserow.contrib.automation.workflows.service.AutomationWorkflowHandler.async_start_workflow"
 )
-def test_on_event_excludes_disabled_workflows(mock_run_workflow, data_fixture):
+def test_on_event_excludes_disabled_workflows(mock_async_start_workflow, data_fixture):
     """
     Ensure that the AutomationNodeTriggerType::on_event() excludes any disabled
     workflows.
@@ -312,7 +285,7 @@ def test_on_event_excludes_disabled_workflows(mock_run_workflow, data_fixture):
     ]
 
     node.get_type().on_event(service_queryset, event_payload, user=user)
-    mock_run_workflow.assert_not_called()
+    mock_async_start_workflow.assert_not_called()
 
 
 @pytest.mark.django_db
@@ -362,8 +335,7 @@ def test_trigger_node_dispatch_returns_event_payload_if_not_simulated(data_fixtu
     node = data_fixture.create_local_baserow_rows_created_trigger_node(
         workflow=workflow, service=service
     )
-    dispatch_context = AutomationDispatchContext(workflow)
-    dispatch_context.event_payload = "foo"
+    dispatch_context = AutomationDispatchContext(workflow, "foo")
 
     result = node.get_type().dispatch(node, dispatch_context)
 
@@ -374,17 +346,17 @@ def test_trigger_node_dispatch_returns_event_payload_if_not_simulated(data_fixtu
 def test_trigger_node_dispatch_returns_sample_data_if_simulated(data_fixture):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
-    service = data_fixture.create_local_baserow_rows_created_service(
-        table=table,
-    )
+    workflow = data_fixture.create_automation_workflow(state=WorkflowState.LIVE)
+    node = workflow.get_trigger().specific
+    service = node.service.specific
+    service.table = table
     service.sample_data = {"data": {"foo": "bar"}}
     service.save()
-    workflow = data_fixture.create_automation_workflow(state=WorkflowState.LIVE)
-    node = data_fixture.create_local_baserow_rows_created_trigger_node(
-        workflow=workflow, service=service
-    )
 
     dispatch_context = AutomationDispatchContext(workflow, simulate_until_node=node)
+    # If we don't reset this value, the trigger is considered as updatable and will
+    # be dispatched.
+    dispatch_context.update_sample_data_for = []
 
     result = node.get_type().dispatch(node, dispatch_context)
 

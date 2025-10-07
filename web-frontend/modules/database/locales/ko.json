@@ -307,7 +307,8 @@
         "addDescription": "설명 추가",
         "dbIndex": "색인",
         "dbIndexError": "이 필드 유형에는 인덱스가 있을 수 없습니다. 필드 유형을 저장하거나 변경하기 전에 인덱스를 제거하세요.",
-        "dbIndexDescription": "인덱싱을 사용하면 필터링 성능이 크게 향상되지만 생성, 업데이트 및 삭제 작업 속도가 느려집니다."
+        "dbIndexDescription": "인덱싱을 사용하면 필터링 성능이 크게 향상되지만 생성, 업데이트 및 삭제 작업 속도가 느려집니다.",
+        "defaultValueDisabledByConstraint": "고유 제약 조건으로 기본값을 설정할 수 없습니다"
     },
     "fieldSelectThroughFieldSubForm": {
         "noTable": "이 필드를 생성하려면 최소 하나의 테이블 링크 필드가 필요합니다.",
@@ -452,7 +453,10 @@
         "filePreview": "파일 내용 미리보기",
         "importPreview": "가져오기 미리보기",
         "useUpsertField": "이미 존재하는 행을 업데이트",
-        "upsertTooltip": "고유한 필드를 사용하여 기존 행을 일치시키고 가져온 값으로 데이터를 덮어씁니다."
+        "upsertTooltip": "고유한 필드를 사용하여 기존 행을 일치시키고 가져온 값으로 데이터를 덮어씁니다.",
+        "stateRowCreation": "가져오는 중...",
+        "statePreValidation": "데이터 검증 중...",
+        "stateCreateTable": "테이블 생성 중..."
     },
     "formulaAdvancedEditContext": {
         "textAreaFormulaInputPlaceholder": "수식을 편집하려면 클릭하세요",
@@ -638,7 +642,8 @@
         "sortField": "정렬",
         "hideField": "필드 숨기기",
         "dataSyncField": "필드는 읽기 전용이며 테이블의 데이터 동기화의 일부입니다.",
-        "noWriteValues": "이 필드에 대한 변경은 제한되어 있습니다."
+        "noWriteValues": "이 필드에 대한 변경은 제한되어 있습니다.",
+        "dataSyncFieldTwoWaySync": "필드는 테이블의 데이터 동기화와 동기화됩니다."
     },
     "gridViewRow": {
         "rowNotMatchingFilters": "행이 필터와 일치하지 않음",
@@ -907,7 +912,8 @@
     },
     "collaboratorAddedToRowNotification": {
         "title": "{sender}님이 {tableName}의 행 {rowId}에서 {fieldName}에 당신을 할당했습니다",
-        "deletedUser": "삭제된 사용자"
+        "deletedUser": "삭제된 사용자",
+        "unknownUser": "알 수 없는 사용자"
     },
     "formSubmittedNotification": {
         "title": "{tableName}의 {formName}이(가) 제출되었습니다:",
@@ -1059,7 +1065,8 @@
         "create": "테이블 생성 및 동기화",
         "error": "동기화 중 문제가 발생했습니다",
         "autoAddLabel": "새로운 속성을 자동으로 추가합니다",
-        "autoAddHelper": "새로 사용 가능한 속성을 테이블에 자동으로 추가하고 동기화합니다. 이 기능을 사용하려면 모든 속성이 동기화되어야 합니다."
+        "autoAddHelper": "데이터 소스에서 새로 사용 가능한 속성을 Baserow 테이블에 자동으로 추가하고 동기화합니다. 이 기능을 사용하려면 모든 속성을 동기화해야 합니다.",
+        "twoWaySyncLabel": "양방향 동기화"
     },
     "syncTableModal": {
         "title": "{name} 동기화",
@@ -1137,5 +1144,11 @@
         "fieldId": "비밀번호를 확인할 필드 ID입니다.",
         "rowId": "비밀번호를 확인할 행 ID입니다.",
         "password": "비밀번호가 맞는지 확인해야 합니다."
+    },
+    "fieldRules": {
+        "errorTitle": "필드 규칙 처리 중 오류 발생",
+        "ruleDoesNotExist": "규칙이 존재하지 않습니다",
+        "ruleTypeDoesNotExist": "규칙 유형이 존재하지 않습니다",
+        "ruleAlreadyExists": "규칙이 이미 존재합니다"
     }
 }

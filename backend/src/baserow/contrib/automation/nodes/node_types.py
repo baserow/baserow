@@ -1,14 +1,12 @@
 from typing import Any, Dict, List, Optional, Union
 
 from django.contrib.auth.models import AbstractUser
+from django.db import router
 from django.db.models import CharField, Q, QuerySet
 from django.db.models.functions import Cast
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
-from baserow.contrib.automation.automation_dispatch_context import (
-    AutomationDispatchContext,
-)
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeMisconfiguredService,
     AutomationNodeNotDeletable,
@@ -19,6 +17,7 @@ from baserow.contrib.automation.nodes.models import (
     AutomationNode,
     AutomationTriggerNode,
     CoreHTTPRequestActionNode,
+    CorePeriodicTriggerNode,
     CoreRouterActionNode,
     CoreSMTPEmailActionNode,
     LocalBaserowAggregateRowsActionNode,
@@ -35,6 +34,7 @@ from baserow.contrib.automation.nodes.registries import AutomationNodeType
 from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.contrib.integrations.core.service_types import (
     CoreHTTPRequestServiceType,
+    CorePeriodicServiceType,
     CoreRouterServiceType,
     CoreSMTPEmailServiceType,
 )
@@ -43,30 +43,19 @@ from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowDeleteRowServiceType,
     LocalBaserowGetRowUserServiceType,
     LocalBaserowListRowsUserServiceType,
-    LocalBaserowRowsCreatedTriggerServiceType,
-    LocalBaserowRowsDeletedTriggerServiceType,
-    LocalBaserowRowsUpdatedTriggerServiceType,
+    LocalBaserowRowsCreatedServiceType,
+    LocalBaserowRowsDeletedServiceType,
+    LocalBaserowRowsUpdatedServiceType,
     LocalBaserowUpsertRowServiceType,
 )
 from baserow.core.db import specific_iterator
 from baserow.core.registry import Instance
-from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
 from baserow.core.services.registries import service_type_registry
-from baserow.core.services.types import DispatchResult
 
 
 class AutomationNodeActionNodeType(AutomationNodeType):
     is_workflow_action = True
-
-    def dispatch(
-        self,
-        automation_node: AutomationActionNode,
-        dispatch_context: AutomationDispatchContext,
-    ) -> DispatchResult:
-        return ServiceHandler().dispatch_service(
-            automation_node.service.specific, dispatch_context
-        )
 
 
 class LocalBaserowUpsertRowNodeType(AutomationNodeActionNodeType):
@@ -128,6 +117,9 @@ class CoreRouterActionNodeType(AutomationNodeActionNodeType):
     type = "router"
     model_class = CoreRouterActionNode
     service_type = CoreRouterServiceType.type
+
+    # Routers cannot be moved in the workflow to a new position.
+    is_fixed = True
 
     def get_output_nodes(
         self, node: CoreRouterActionNode, specific: bool = False
@@ -217,20 +209,18 @@ class CoreRouterActionNodeType(AutomationNodeActionNodeType):
 
 
 class AutomationNodeTriggerType(AutomationNodeType):
+    # Triggers cannot be moved in the workflow to a new position.
+    is_fixed = True
+
     is_workflow_trigger = True
 
-    def dispatch(
-        self,
-        node: AutomationNode,
-        dispatch_context: AutomationDispatchContext,
-    ) -> DispatchResult:
-        if dispatch_context.use_sample_data:
-            if sample_data := node.service.get_type().get_sample_data(
-                node.service.specific
-            ):
-                return DispatchResult(**sample_data)
+    def after_register(self):
+        service_type_registry.get(self.service_type).start_listening(self.on_event)
+        return super().after_register()
 
-        return DispatchResult(data=dispatch_context.event_payload)
+    def before_unregister(self):
+        service_type_registry.get(self.service_type).stop_listening()
+        return super().before_unregister()
 
     def before_delete(self, node: AutomationTriggerNode):
         """
@@ -246,7 +236,7 @@ class AutomationNodeTriggerType(AutomationNodeType):
 
     def on_event(
         self,
-        service_queryset: QuerySet[Service],
+        services: QuerySet[Service],
         event_payload: Optional[List[Dict]] = None,
         user: Optional[AbstractUser] = None,
     ):
@@ -254,17 +244,15 @@ class AutomationNodeTriggerType(AutomationNodeType):
             AutomationWorkflowHandler,
         )
 
-        workflow_handler = AutomationWorkflowHandler()
-        now = timezone.now()
-
         triggers = (
             self.model_class.objects.filter(
-                service__in=service_queryset,
+                service__in=services,
             )
+            .using(router.db_for_write(self.model_class))
             .filter(
                 Q(
                     Q(workflow__state=WorkflowState.LIVE)
-                    | Q(workflow__allow_test_run_until__gte=now)
+                    | Q(workflow__allow_test_run_until__gte=timezone.now())
                     | Q(workflow__simulate_until_node__isnull=False)
                 ),
             )
@@ -273,54 +261,37 @@ class AutomationNodeTriggerType(AutomationNodeType):
 
         for trigger in triggers:
             workflow = trigger.workflow
-            simulate_until_node_id = (
-                trigger.workflow.simulate_until_node.id
-                if trigger.workflow.simulate_until_node
-                else None
-            )
-            workflow_handler.run_workflow(
+
+            AutomationWorkflowHandler().async_start_workflow(
                 workflow,
                 event_payload,
-                simulate_until_node_id,
             )
 
-            save_sample_data = False
-            if workflow.allow_test_run_until:
-                workflow.allow_test_run_until = None
-                workflow.save(update_fields=["allow_test_run_until"])
-                save_sample_data = True
-
-            if workflow.simulate_until_node and not workflow.is_published:
-                workflow.simulate_until_node = None
-                workflow.save(update_fields=["simulate_until_node"])
-                save_sample_data = True
-
-            if save_sample_data:
-                trigger.service.sample_data = {"data": event_payload}
-                trigger.service.save()
-
-    def after_register(self):
-        service_type_registry.get(self.service_type).start_listening(self.on_event)
-        return super().after_register()
-
-    def before_unregister(self):
-        service_type_registry.get(self.service_type).stop_listening()
-        return super().before_unregister()
+            # We don't want subsequent events to trigger a new test run
+            AutomationWorkflowHandler().reset_workflow_temporary_states(workflow)
 
 
 class LocalBaserowRowsCreatedNodeTriggerType(AutomationNodeTriggerType):
     type = "rows_created"
     model_class = LocalBaserowRowsCreatedTriggerNode
-    service_type = LocalBaserowRowsCreatedTriggerServiceType.type
+    service_type = LocalBaserowRowsCreatedServiceType.type
 
 
 class LocalBaserowRowsUpdatedNodeTriggerType(AutomationNodeTriggerType):
     type = "rows_updated"
     model_class = LocalBaserowRowsUpdatedTriggerNode
-    service_type = LocalBaserowRowsUpdatedTriggerServiceType.type
+    service_type = LocalBaserowRowsUpdatedServiceType.type
 
 
 class LocalBaserowRowsDeletedNodeTriggerType(AutomationNodeTriggerType):
     type = "rows_deleted"
     model_class = LocalBaserowRowsDeletedTriggerNode
-    service_type = LocalBaserowRowsDeletedTriggerServiceType.type
+    service_type = LocalBaserowRowsDeletedServiceType.type
+
+
+class CorePeriodicTriggerNodeType(
+    AutomationNodeTriggerType,
+):
+    type = "periodic"
+    model_class = CorePeriodicTriggerNode
+    service_type = CorePeriodicServiceType.type

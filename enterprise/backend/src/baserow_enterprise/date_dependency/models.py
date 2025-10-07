@@ -52,7 +52,7 @@ class DateDependency(FieldRule):
     )
 
     dependency_linkrow_field = models.ForeignKey(
-        "database.LinkRowField", null=True, on_delete=models.CASCADE, related_name="+"
+        "database.Field", null=True, on_delete=models.CASCADE, related_name="+"
     )
     dependency_linkrow_role = models.CharField(
         choices=DependencyLinkrowType,
@@ -65,7 +65,7 @@ class DateDependency(FieldRule):
         null=True,
     )
     dependency_buffer_type = models.CharField(
-        choices=DependencyBufferType, default=DependencyBufferType.FIXED, null=True
+        choices=DependencyBufferType, default=DependencyBufferType.FLEXIBLE, null=True
     )
 
     dependency_buffer = models.DurationField(null=True, default=timedelta(0))
@@ -87,3 +87,41 @@ class DateDependency(FieldRule):
         )
         d.update(base_dict)
         return d
+
+    @property
+    def buffer_is_fixed(self) -> bool:
+        return self.dependency_buffer_type == DependencyBufferType.FIXED
+
+    @property
+    def buffer_is_none(self) -> bool:
+        return self.dependency_buffer_type == DependencyBufferType.NONE
+
+    @property
+    def buffer_is_flexible(self) -> bool:
+        return self.dependency_buffer_type == DependencyBufferType.FLEXIBLE
+
+    @property
+    def linkrow_role_is_successors(self) -> bool:
+        return self.dependency_linkrow_role == DependencyLinkrowType.SUCCESSORS
+
+    @property
+    def linkrow_role_is_predecessors(self) -> bool:
+        return self.dependency_linkrow_role == DependencyLinkrowType.PREDECESSORS
+
+    @property
+    def connection_type_is_end_to_start(self) -> bool:
+        return self.dependency_connection_type == DependencyConnectionType.END_TO_START
+
+    @property
+    def connection_type_is_end_to_end(self) -> bool:
+        return self.dependency_connection_type == DependencyConnectionType.END_TO_END
+
+    @property
+    def connection_type_is_start_to_end(self) -> bool:
+        return self.dependency_connection_type == DependencyConnectionType.START_TO_END
+
+    @property
+    def connection_type_is_start_to_start(self) -> bool:
+        return (
+            self.dependency_connection_type == DependencyConnectionType.START_TO_START
+        )

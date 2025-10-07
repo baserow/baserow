@@ -30,6 +30,7 @@ import {
   CoreHttpRequestNodeType,
   CoreSMTPEmailNodeType,
   CoreRouterNodeType,
+  CorePeriodicTriggerNodeType,
 } from '@baserow/modules/automation/nodeTypes'
 import {
   DuplicateAutomationWorkflowJobType,
@@ -41,6 +42,7 @@ import {
   NodeEditorSidePanelType,
 } from '@baserow/modules/automation/editorSidePanelTypes'
 import { PreviousNodeDataProviderType } from '@baserow/modules/automation/dataProviderTypes'
+import { PeriodicTriggerServiceType } from '@baserow/modules/automation/serviceTypes'
 
 export default (context) => {
   const { app, isDev, store } = context
@@ -117,6 +119,8 @@ export default (context) => {
       'node',
       new LocalBaserowAggregateRowsActionNodeType(context)
     )
+    app.$registry.register('node', new CorePeriodicTriggerNodeType(context))
+    app.$registry.register('service', new PeriodicTriggerServiceType(context))
     app.$registry.register(
       'job',
       new DuplicateAutomationWorkflowJobType(context)

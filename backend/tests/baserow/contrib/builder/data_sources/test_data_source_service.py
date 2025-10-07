@@ -92,7 +92,7 @@ def test_create_data_source_with_service_type_for_different_dispatch_type(
 
     service_type = service_type_registry.get("local_baserow_upsert_row")
 
-    assert service_type.dispatch_type != DispatchTypes.DISPATCH_DATA_SOURCE
+    assert not service_type.can_be_dispatched_as(DispatchTypes.DATA)
 
     with pytest.raises(InvalidServiceTypeDispatchSource):
         DataSourceService().create_data_source(
@@ -312,7 +312,7 @@ def test_update_data_source_with_service_type_for_different_dispatch_type(
     data_source = data_fixture.create_builder_data_source(user=user)
 
     new_service_type = service_type_registry.get("local_baserow_upsert_row")
-    assert new_service_type.dispatch_type != DispatchTypes.DISPATCH_DATA_SOURCE
+    assert not new_service_type.can_be_dispatched_as(DispatchTypes.DATA)
 
     with pytest.raises(InvalidServiceTypeDispatchSource):
         DataSourceService().update_data_source(

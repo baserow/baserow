@@ -12,7 +12,7 @@ from baserow.core.services.utils import ServiceAdhocRefinements
 
 
 class AutomationDispatchContext(DispatchContext):
-    own_properties = ["workflow", "simulate_until_node"]
+    own_properties = ["workflow", "event_payload", "simulate_until_node"]
 
     def __init__(
         self,
@@ -35,7 +35,6 @@ class AutomationDispatchContext(DispatchContext):
         self.workflow = workflow
         self.previous_nodes_results: Dict[int, Any] = {}
         self.dispatch_history: List[int] = []
-        self.event_payload = event_payload
         self.simulate_until_node = simulate_until_node
 
         services = (
@@ -53,6 +52,7 @@ class AutomationDispatchContext(DispatchContext):
             update_sample_data_for=services,
             use_sample_data=bool(self.simulate_until_node),
             force_outputs=force_outputs,
+            event_payload=event_payload,
         )
 
     def clone(self, **kwargs):

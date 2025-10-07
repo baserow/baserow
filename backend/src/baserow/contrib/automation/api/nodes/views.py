@@ -6,6 +6,7 @@ from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.status import HTTP_202_ACCEPTED
 from rest_framework.views import APIView
 
 from baserow.api.decorators import (
@@ -21,6 +22,7 @@ from baserow.contrib.automation.api.nodes.errors import (
     ERROR_AUTOMATION_NODE_MISCONFIGURED_SERVICE,
     ERROR_AUTOMATION_NODE_NOT_DELETABLE,
     ERROR_AUTOMATION_NODE_NOT_IN_WORKFLOW,
+    ERROR_AUTOMATION_NODE_NOT_MOVABLE,
     ERROR_AUTOMATION_NODE_NOT_REPLACEABLE,
     ERROR_AUTOMATION_NODE_SIMULATE_DISPATCH,
     ERROR_AUTOMATION_TRIGGER_NODE_MODIFICATION_DISALLOWED,
@@ -28,6 +30,7 @@ from baserow.contrib.automation.api.nodes.errors import (
 from baserow.contrib.automation.api.nodes.serializers import (
     AutomationNodeSerializer,
     CreateAutomationNodeSerializer,
+    MoveAutomationNodeSerializer,
     OrderAutomationNodesSerializer,
     ReplaceAutomationNodeSerializer,
     UpdateAutomationNodeSerializer,
@@ -39,6 +42,7 @@ from baserow.contrib.automation.nodes.actions import (
     CreateAutomationNodeActionType,
     DeleteAutomationNodeActionType,
     DuplicateAutomationNodeActionType,
+    MoveAutomationNodeActionType,
     OrderAutomationNodesActionType,
     ReplaceAutomationNodeActionType,
     UpdateAutomationNodeActionType,
@@ -49,6 +53,7 @@ from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeMisconfiguredService,
     AutomationNodeNotDeletable,
     AutomationNodeNotInWorkflow,
+    AutomationNodeNotMovable,
     AutomationNodeNotReplaceable,
     AutomationNodeSimulateDispatchError,
     AutomationTriggerModificationDisallowed,
@@ -430,12 +435,54 @@ class SimulateDispatchAutomationNodeView(APIView):
         }
     )
     def post(self, request, node_id: int):
-        updated_node = AutomationNodeService().simulate_dispatch_node(
-            request.user, node_id
+        AutomationWorkflowService().toggle_test_run(
+            request.user, simulate_until_node_id=node_id
         )
+        return Response(status=HTTP_202_ACCEPTED)
 
-        serializer = automation_node_type_registry.get_serializer(
-            updated_node, AutomationNodeSerializer
+
+class MoveAutomationNodeView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="node_id",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.INT,
+                description="The node that is to be moved.",
+            ),
+            CLIENT_SESSION_ID_SCHEMA_PARAMETER,
+        ],
+        tags=[AUTOMATION_NODES_TAG],
+        operation_id="move_automation_node",
+        description="Move a node in a workflow to a new position.",
+        request=MoveAutomationNodeSerializer,
+        responses={
+            200: DiscriminatorCustomFieldsMappingSerializer(
+                automation_node_type_registry, AutomationNodeSerializer
+            ),
+            400: get_error_schema(["ERROR_AUTOMATION_NODE_NOT_MOVABLE"]),
+            404: get_error_schema(["ERROR_AUTOMATION_NODE_DOES_NOT_EXIST"]),
+        },
+    )
+    @transaction.atomic
+    @map_exceptions(
+        {
+            AutomationNodeDoesNotExist: ERROR_AUTOMATION_NODE_DOES_NOT_EXIST,
+            AutomationNodeNotMovable: ERROR_AUTOMATION_NODE_NOT_MOVABLE,
+        }
+    )
+    @validate_body(MoveAutomationNodeSerializer)
+    def post(self, request, data: Dict, node_id: int):
+        moved_node = MoveAutomationNodeActionType.do(
+            request.user,
+            node_id,
+            data["previous_node_id"],
+            data["previous_node_output"],
         )
-
-        return Response(serializer.data)
+        return Response(
+            automation_node_type_registry.get_serializer(
+                moved_node, AutomationNodeSerializer
+            ).data
+        )

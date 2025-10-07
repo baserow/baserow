@@ -110,3 +110,15 @@ class ReplaceAutomationNodeSerializer(serializers.Serializer):
         required=True,
         help_text="The type of the new automation node",
     )
+
+
+class MoveAutomationNodeSerializer(serializers.Serializer):
+    previous_node_id = serializers.IntegerField(
+        required=False,
+        help_text="The ID of the node that should be before the moved node.",
+    )
+    previous_node_output = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        help_text="The output UID of the destination.",
+    )
