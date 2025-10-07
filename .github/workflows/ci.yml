@@ -28,7 +28,7 @@ jobs:
 
   build-backend:
     name: Build Backend Dev Image
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     permissions:
       contents: read
       packages: write
@@ -89,7 +89,7 @@ jobs:
 
   build-frontend:
     name: Build Web-Frontend Dev Image
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     permissions:
       contents: read
       packages: write
@@ -155,7 +155,7 @@ jobs:
   # Detect which files have changed to skip unnecessary jobs
   detect-changes:
     name: Detect Changed Files
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     outputs:
       backend: ${{ steps.filter.outputs.backend }}
       frontend: ${{ steps.filter.outputs.frontend }}
@@ -193,7 +193,7 @@ jobs:
 
   backend-lint:
     name: Backend Lint
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs:
       - build-backend
       - detect-changes
@@ -215,7 +215,7 @@ jobs:
 
   frontend-lint:
     name: Web-Frontend Lint
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs:
       - build-frontend
       - detect-changes
@@ -236,7 +236,7 @@ jobs:
 
   dockerfile-lint:
     name: Dockerfile Lint (hadolint)
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs:
       - backend-lint
       - frontend-lint
@@ -283,7 +283,7 @@ jobs:
 
   backend-check-startup:
     name: Backend Startup Check
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs:
       - build-backend
       - backend-lint
@@ -331,7 +331,7 @@ jobs:
 
   test-backend:
     name: Backend Tests (Group ${{ matrix.group }})
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs:
       - build-backend
       - backend-lint
@@ -403,7 +403,7 @@ jobs:
 
   test-frontend:
     name: Web-Frontend Tests (Shard ${{ matrix.shard }})
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs:
       - build-frontend
       - frontend-lint
@@ -457,7 +457,7 @@ jobs:
 
   test-zapier:
     name: Zapier Integration Tests
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs:
       - backend-lint
       - frontend-lint
@@ -482,7 +482,7 @@ jobs:
 
   check-mjml-compiled:
     name: Check MJML Email Templates Compiled
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs:
       - backend-lint
       - frontend-lint
@@ -682,7 +682,7 @@ jobs:
 
   collect-e2e-reports:
     name: Collect E2E Test Reports
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     if: github.event_name == 'pull_request' && always()
     needs: test-e2e
     permissions:
@@ -724,7 +724,7 @@ jobs:
 
   collect-coverage:
     name: Collect Backend Coverage
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: [test-backend]
     permissions:
       contents: read
