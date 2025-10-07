@@ -1408,7 +1408,6 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
 class CoreHTTPTriggerServiceType(TriggerServiceTypeMixin, ServiceType):
     type = "http_trigger"
     model_class = CoreHTTPTriggerService
-    on_event = None
 
     allowed_fields = ["uid", "exclude_get", "is_public"]
     serializer_field_names = ["uid", "exclude_get", "is_public"]
