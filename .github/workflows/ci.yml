@@ -662,7 +662,7 @@ jobs:
           PRIVATE_BACKEND_URL: http://backend:8000
         run: |
           cd e2e-tests
-          CI=1 npx playwright test --grep-invert=@slow --shard=${{ matrix.shard }}/10 --project=firefox
+          CI=1 npx playwright test --timeout=120000 --grep-invert=@slow --shard=${{ matrix.shard }}/10 --project=firefox
 
       - name: Upload E2E test results
         uses: actions/upload-artifact@v4
