@@ -684,7 +684,6 @@ class EasyImportExportMixin(Generic[T], ABC):
         :return: The created instance.
         """
 
-        id_mapping = id_mapping or {}
         if self.id_mapping_name and self.id_mapping_name not in id_mapping:
             id_mapping[self.id_mapping_name] = {}
 
