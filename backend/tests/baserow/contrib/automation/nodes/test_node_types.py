@@ -13,6 +13,8 @@ from baserow.contrib.automation.automation_dispatch_context import (
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.workflows.constants import WorkflowState
+from baserow.contrib.automation.workflows.service import AutomationWorkflowService
+from baserow.core.handler import CoreHandler
 from baserow.core.services.types import DispatchResult
 from baserow.core.utils import MirrorDict
 
@@ -415,3 +417,45 @@ def test_core_http_trigger_node(api_client, data_fixture):
     rows = model.objects.all()
     assert len(rows) == 1
     assert getattr(rows[0], f"field_{fields[0].id}") == "foo: bar sky"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_core_http_trigger_node_duplicating_application_sets_unique_uid(data_fixture):
+    user = data_fixture.create_user()
+
+    workflow = data_fixture.create_automation_workflow(
+        user=user, state=WorkflowState.LIVE, create_trigger=False
+    )
+    trigger_node = data_fixture.create_http_trigger_node(user=user, workflow=workflow)
+    assert isinstance(trigger_node.service.uid, uuid.UUID)
+
+    duplicated_automation = CoreHandler().duplicate_application(
+        user, workflow.automation
+    )
+    duplicated_service = (
+        duplicated_automation.workflows.get()
+        .automation_workflow_nodes.get()
+        .specific.service.specific
+    )
+
+    assert isinstance(duplicated_service.uid, uuid.UUID)
+    assert str(duplicated_service.uid) != str(trigger_node.service.uid)
+
+
+@pytest.mark.django_db(transaction=True)
+def test_core_http_trigger_node_duplicating_workflow_sets_unique_uid(data_fixture):
+    user = data_fixture.create_user()
+
+    workflow = data_fixture.create_automation_workflow(
+        user=user, state=WorkflowState.LIVE, create_trigger=False
+    )
+    trigger_node = data_fixture.create_http_trigger_node(user=user, workflow=workflow)
+    assert isinstance(trigger_node.service.uid, uuid.UUID)
+
+    duplicated_workflow = AutomationWorkflowService().duplicate_workflow(user, workflow)
+    duplicated_service = (
+        duplicated_workflow.automation_workflow_nodes.get().specific.service.specific
+    )
+
+    assert isinstance(duplicated_service.uid, uuid.UUID)
+    assert str(duplicated_service.uid) != str(trigger_node.service.uid)

@@ -1557,8 +1557,13 @@ class CoreHTTPTriggerServiceType(TriggerServiceTypeMixin, ServiceType):
         Handle the is_public field during import based on publishing context.
         """
 
-        if import_export_config and import_export_config.is_publishing:
-            serialized_values["is_public"] = True
+        if import_export_config:
+            if import_export_config.is_publishing:
+                serialized_values["is_public"] = True
+            if import_export_config.is_duplicate:
+                # Ensure that duplicating a service (e.g. installing a template)
+                # results in a new unique uuid.
+                serialized_values["uid"] = str(uuid.uuid4())
 
         return super().import_serialized(
             parent,

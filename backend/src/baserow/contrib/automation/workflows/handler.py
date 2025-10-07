@@ -324,11 +324,19 @@ class AutomationWorkflowHandler:
         id_mapping = defaultdict(lambda: MirrorDict())
         id_mapping["automation_workflows"] = MirrorDict()
 
+        import_export_config = ImportExportConfig(
+            include_permission_data=True,
+            reduce_disk_space_usage=False,
+            exclude_sensitive_data=False,
+            is_duplicate=True,
+        )
+
         new_workflow_clone = self.import_workflow(
             automation,
             exported_workflow,
             progress=progress.create_child_builder(represents_progress=import_progress),
             id_mapping=id_mapping,
+            import_export_config=import_export_config,
         )
 
         return new_workflow_clone
