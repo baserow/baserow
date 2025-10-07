@@ -37,6 +37,7 @@ baserow_ready() {
 
 for _ in $(seq 1 "${BASEROW_E2E_STARTUP_MAX_WAIT_TIME_SECONDS:-60}")
 do
+  docker logs web-frontend -n 30
   echo 'Waiting for backend, web-frontend and synced templates to be ready'
   if baserow_ready; then
     echo 'Baserow is ready! Exiting with success code.'
