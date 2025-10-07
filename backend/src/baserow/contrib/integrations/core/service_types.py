@@ -1430,13 +1430,9 @@ class CoreHTTPTriggerServiceType(TriggerServiceTypeMixin, ServiceType):
     def process_webhook_request(
         self, webhook_uid: uuid.uuid4, request_data: dict, simulate: bool
     ):
-        service = (
-            self.model_class.objects.filter(uid=webhook_uid, is_public=not simulate)
-            .order_by("-id")
-            .first()
-        )
-
-        if not service:
+        try:
+            service = self.model_class.objects.get(uid=webhook_uid, is_public=not simulate)
+        except self.model_class.DoesNotExist:
             raise CoreHTTPTriggerServiceDoesNotExist(uid=webhook_uid)
 
         if request_data["method"] == "GET" and service.exclude_get:
