@@ -385,9 +385,6 @@ jobs:
           docker cp baserow_backend_test_container:/baserow/backend/reports/. ./reports
           docker rm baserow_backend_test_container
 
-      - name: Debug reports content
-        run: ls -la reports
-
       - name: Upload test reports
         uses: actions/upload-artifact@v4
         if: always()
@@ -629,10 +626,10 @@ jobs:
         run: |
           docker run -d --network="${{ job.services.db.network }}" \
             --name web-frontend \
-            -e PUBLIC_BACKEND_URL=http://backend:8000 \
-            -e PUBLIC_WEB_FRONTEND_URL=http://web-frontend:3000 \
-            -e BASEROW_BACKEND_URL=http://backend:8000 \
-            -e BASEROW_FRONTEND_URL=http://frontend:3000 \
+            -e PUBLIC_BACKEND_URL=http://localhost:8000 \
+            -e PUBLIC_WEB_FRONTEND_URL=http://localhost:3000 \
+            -e BASEROW_BACKEND_URL=http://localhost:8000 \
+            -e BASEROW_FRONTEND_URL=http://localhost:3000 \
             -e NODE_OPTIONS=--max-old-space-size=8192 \
             -p 3000:3000 \
             ${{ needs.build-frontend.outputs.image }} nuxt-dev-no-attach
@@ -652,18 +649,17 @@ jobs:
         run: |
           cd e2e-tests
           ./wait-for-services.sh
-          curl -fsS http://localhost:8000/api/_health/ && echo backend OK
-          curl -fsS http://localhost:3000/_health/ && echo frontend OK
+          curl -fsS http://localhost:3000/login && echo backend OK
           curl -fsS http://localhost:8000/api/templates/ | head -n1
 
       - name: Run E2E tests (shard ${{ matrix.shard }})
-        run: |
-          cd e2e-tests
-          CI=1 npx playwright test --grep-invert=@slow --shard=${{ matrix.shard }}/4 --project=firefox
         env:
           BASEROW_BACKEND_URL: http://localhost:8000
           PUBLIC_BACKEND_URL: http://localhost:8000
           PUBLIC_WEB_FRONTEND_URL: http://localhost:3000
+        run: |
+          cd e2e-tests
+          CI=1 npx playwright test --grep-invert=@slow --shard=${{ matrix.shard }}/4 --project=firefox
 
       - name: Upload E2E test results
         uses: actions/upload-artifact@v4
