@@ -4,6 +4,7 @@ from django.shortcuts import redirect
 
 from drf_spectacular.openapi import OpenApiParameter, OpenApiTypes
 from drf_spectacular.utils import extend_schema
+from loguru import logger
 from rest_framework.permissions import AllowAny
 from rest_framework.request import Request
 from rest_framework.views import APIView
@@ -80,6 +81,8 @@ class SamlAppAuthProviderAssertionConsumerServiceView(APIView):
         user = None
         application_urls = None
         error_raised = {"code": None}
+
+        logger.debug("SAML ACS response payload: {0}", request.data)
 
         def on_error(error_code):
             error_raised["code"] = error_code

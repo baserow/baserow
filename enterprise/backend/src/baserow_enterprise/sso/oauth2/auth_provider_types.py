@@ -215,6 +215,9 @@ class BaseOAuth2AuthProviderMixin:
         """
 
         _, json_response = self.get_oauth_token_and_response(instance, code, session)
+
+        logger.debug("OAuth2 response: {0} {1}", _, json_response)
+
         return self.get_user_info_from_oauth_json_response(json_response, session)
 
 
@@ -335,6 +338,8 @@ class GitHubAuthProviderType(OAuth2AuthProviderMixin, AuthProviderType):
         token, json_response = self.get_oauth_token_and_response(
             instance, code, session
         )
+        logger.debug("OAuth2 response: {0} {1}", token, json_response)
+
         try:
             json_response["email"] = self.get_email(
                 {"Authorization": "token {}".format(token.get("access_token"))},
@@ -557,6 +562,8 @@ class OpenIdConnectAuthProviderTypeMixin:
             instance, code, session
         )
 
+        logger.debug("OAuth2 response: {0} {1}", token, json_response)
+
         if instance.use_id_token:
             if "id_token" not in token:
                 raise AuthFlowError("Id token is missing")
@@ -627,6 +634,7 @@ class OpenIdConnectAuthProviderTypeMixin:
             audience=instance.client_id,
             issuer=self.get_issuer(instance),
         )
+        logger.debug("OIDC decoded id_token: {0}", decoded_token)
 
         email = decoded_token.get(instance.email_attr_key)
 
