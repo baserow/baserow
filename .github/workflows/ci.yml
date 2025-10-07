@@ -385,6 +385,9 @@ jobs:
           docker cp baserow_backend_test_container:/baserow/backend/reports/. ./reports
           docker rm baserow_backend_test_container
 
+      - name: Debug reports content
+        run: ls -la reports
+
       - name: Upload test reports
         uses: actions/upload-artifact@v4
         if: always()
