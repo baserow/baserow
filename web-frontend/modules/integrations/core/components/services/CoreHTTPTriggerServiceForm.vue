@@ -6,7 +6,7 @@
     required
   >
     <FormGroup class="margin-bottom-2">
-      <RadioGroup v-model="isPublishedUrl" :options="urlVersions" type="button">
+      <RadioGroup v-model="isPublishedUrl" :options="urlVersions" type="button" :disabled="true">
       </RadioGroup>
     </FormGroup>
 
@@ -60,15 +60,15 @@ export default {
       values: {
         exclude_get: this.defaultValues.exclude_get,
       },
-      isPublishedUrl: true,
+      isPublishedUrl: false,
       urlVersions: [
-        {
-          value: true,
-          label: this.$t('coreHTTPTriggerServiceForm.urlVersionPublished'),
-        },
         {
           value: false,
           label: this.$t('coreHTTPTriggerServiceForm.urlVersionTest'),
+        },
+        {
+          value: true,
+          label: this.$t('coreHTTPTriggerServiceForm.urlVersionPublished'),
         },
       ],
     }
