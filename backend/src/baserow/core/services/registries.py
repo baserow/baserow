@@ -557,7 +557,6 @@ class TriggerServiceTypeMixin(ABC):
     def dispatch_transform(self, data):
         return DispatchResult(data=data)
 
-    @abstractmethod
     def start_listening(self, on_event: Callable) -> None:
         """
         Triggers, a type of service which respond to internal and external events and
