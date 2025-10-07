@@ -520,7 +520,7 @@ jobs:
   test-e2e:
     name: E2E Tests (Shard ${{ matrix.shard }})
     timeout-minutes: 60
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     # Only run E2E tests on PRs, not on develop/master branches
     if: github.event_name == 'pull_request'
     needs:
