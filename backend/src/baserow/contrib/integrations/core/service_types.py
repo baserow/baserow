@@ -1428,8 +1428,24 @@ class CoreHTTPTriggerServiceType(TriggerServiceTypeMixin, ServiceType):
         ]
 
     def process_webhook_request(
-        self, webhook_uid: uuid.uuid4, request_data: dict, simulate: bool
-    ):
+        self, webhook_uid: uuid.uuid4, request_data: Dict[str, Any], simulate: bool
+    ) -> None:
+        """
+        Finds a CoreHTTPTriggerService instance by its webhook UUID and calls
+        the on_event handler to process it.
+
+        :param webhook_uid: The UUID of the service.
+        :param request_data: A dict containing the parsed headers, body, etc
+            of the webhook request.
+        :param simulate: True if the request was for testing the webhook
+            service, otherwise False. If False, tries to get the published
+            version of the service.
+        :raises CoreHTTPTriggerServiceDoesNotExist: When the webhook_uid
+            isn't valid.
+        :raises CoreHTTPTriggerServiceMethodNotAllowed: When the http
+            method isn't allowed for this service.
+        """
+
         try:
             service = self.model_class.objects.get(uid=webhook_uid, is_public=not simulate)
         except self.model_class.DoesNotExist:
