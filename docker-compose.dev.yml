@@ -3,7 +3,7 @@ services:
     # use lowest supported version for dev to check compatibility
     image: postgres:${POSTGRES_IMAGE_VERSION:-12}
     ports:
-      - "${HOST_PUBLISH_IP:-127.0.0.1}:${POSTGRES_PORT:-5432}:5432"
+      - "${HOST_PUBLISH_IP:-127.0.0.1}:${POSTGRES_PORT:-9999}:5432"
     command: "${POSTGRES_DEV_EXTRA_ARGS}"
 
   redis:
