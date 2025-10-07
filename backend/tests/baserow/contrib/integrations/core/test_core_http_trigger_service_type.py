@@ -1,5 +1,5 @@
 from unittest.mock import MagicMock
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -177,3 +177,15 @@ def test_import_serialized_sets_is_public(data_fixture, is_publishing):
     )
 
     assert instance.is_public is is_publishing
+
+
+@pytest.mark.django_db
+def test_export_prepared_values_casts_uid_to_str(data_fixture):
+    trigger_node = data_fixture.create_http_trigger_node()
+    service = trigger_node.service
+
+    assert isinstance(service.uid, UUID)
+    
+    values = CoreHTTPTriggerServiceType().export_prepared_values(service)
+
+    assert values["uid"] == str(service.uid)

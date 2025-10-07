@@ -1446,11 +1446,13 @@ class CoreHTTPTriggerServiceType(TriggerServiceTypeMixin, ServiceType):
             method isn't allowed for this service.
         """
 
-        try:
-            service = self.model_class.objects.get(
-                uid=webhook_uid, is_public=not simulate
-            )
-        except self.model_class.DoesNotExist:
+        service = (
+            self.model_class.objects.filter(uid=webhook_uid, is_public=not simulate)
+            .order_by("-id")
+            .first()
+        )
+
+        if not service:
             raise CoreHTTPTriggerServiceDoesNotExist(uid=webhook_uid)
 
         if request_data["method"] == "GET" and service.exclude_get:
