@@ -10,17 +10,15 @@
       </RadioGroup>
     </FormGroup>
 
-    <pre><code class="webhook-service-form__webhook-url">{{ webhookUrl }}</code></pre>
-
-    <div class="webhook-service-form__copy-url">
-      {{ $t('coreHTTPTriggerServiceForm.copyUrl') }}
-      <ButtonIcon
-        icon="iconoir-copy"
-        :title="$t('coreHTTPTriggerServiceForm.copyUrl')"
-        size="small"
-        @click="copyToClipboard"
-      />
-    </div>
+    <a
+      v-tooltip="$t('coreHTTPTriggerServiceForm.copyUrl')"
+      class="webhook-service-form__copy-url"
+      tooltip-position="top"
+      @click.stop=";[copyToClipboard(), $refs.webhookCopied.show()]"
+    >
+      <pre><code class="webhook-service-form__webhook-url">{{ webhookUrl }}</code></pre>
+      <Copied ref="webhookCopied" />
+    </a>
 
     <p>{{ $t('coreHTTPTriggerServiceForm.description') }}</p>
 
@@ -50,8 +48,8 @@
 
 <script>
 import form from '@baserow/modules/core/mixins/form'
-import { notifyIf } from '@baserow/modules/core/utils/error'
 import { WEBHOOK_EXCLUDE_METHOD_OPTIONS } from '@baserow/modules/integrations/core/enums'
+import { copyToClipboard } from '@baserow/modules/database/utils/clipboard'
 
 export default {
   name: 'CoreHTTPTriggerServiceForm',
@@ -101,15 +99,8 @@ export default {
     },
   },
   methods: {
-    async copyToClipboard() {
-      try {
-        await navigator.clipboard.writeText(this.webhookUrl)
-        this.$store.dispatch('toast/success', {
-          title: this.$t('coreHTTPTriggerServiceForm.urlCopied'),
-        })
-      } catch (error) {
-        notifyIf(error)
-      }
+    copyToClipboard() {
+      copyToClipboard(this.webhookUrl)
     },
   },
 }

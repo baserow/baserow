@@ -1447,7 +1447,9 @@ class CoreHTTPTriggerServiceType(TriggerServiceTypeMixin, ServiceType):
         """
 
         try:
-            service = self.model_class.objects.get(uid=webhook_uid, is_public=not simulate)
+            service = self.model_class.objects.get(
+                uid=webhook_uid, is_public=not simulate
+            )
         except self.model_class.DoesNotExist:
             raise CoreHTTPTriggerServiceDoesNotExist(uid=webhook_uid)
 
@@ -1564,7 +1566,9 @@ class CoreHTTPTriggerServiceType(TriggerServiceTypeMixin, ServiceType):
             **kwargs,
         )
 
-    def export_prepared_values(self, instance: CoreHTTPTriggerService) -> dict[str, Any]:
+    def export_prepared_values(
+        self, instance: CoreHTTPTriggerService
+    ) -> dict[str, Any]:
         values = super().export_prepared_values(instance)
 
         values["uid"] = str(values["uid"])

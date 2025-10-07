@@ -1,8 +1,13 @@
 .webhook-service-form__copy-url {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  font-size: 12px;
+  position: relative;
+  text-decoration: none;
+  user-select: none;
+  color: $palette-neutral-1000;
+
+  &:hover {
+    text-decoration: none;
+    color: $palette-neutral-1000;
+  }
 }
 
 .webhook-service-form__webhook-url {
