@@ -631,7 +631,7 @@ jobs:
             -e PRIVATE_BACKEND_URL=http://backend:8000 \
             -e NODE_OPTIONS=--max-old-space-size=8192 \
             -p 3000:3000 \
-            ${{ needs.build-frontend.outputs.image }} nuxt
+            ${{ needs.build-frontend.outputs.image }} nuxt-build-and-start
 
       - name: Install Playwright
         run: |
