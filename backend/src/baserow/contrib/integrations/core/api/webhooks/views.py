@@ -1,5 +1,3 @@
-from uuid import uuid4
-
 from django.db import transaction
 
 from drf_spectacular.utils import extend_schema
@@ -18,7 +16,6 @@ from baserow.contrib.integrations.core.exceptions import (
     CoreHTTPTriggerServiceDoesNotExist,
     CoreHTTPTriggerServiceMethodNotAllowed,
 )
-from baserow.core.cache import global_cache
 from baserow.core.services.registries import service_type_registry
 
 CORE_WEBHOOKS_TAG = "Core webhooks"
@@ -42,10 +39,6 @@ def webhook_schema(method):
             404: get_error_schema(["ERROR_CORE_HTTP_WEBHOOK_SERVICE_DOES_NOT_EXIST"]),
         },
     )
-
-
-def get_error_cache_key(uid: uuid4, simulate: bool = False) -> str:
-    return f"http_webhook_error_simulate_{simulate}_{uid}"
 
 
 class CoreHTTPTriggerView(APIView):
@@ -72,18 +65,6 @@ class CoreHTTPTriggerView(APIView):
             "user_agent": request.META.get("HTTP_USER_AGENT", ""),
         }
 
-    def handle_error(self, cache_key: str, webhook_uid: uuid4) -> None:
-        """
-        Checks the cache to see if the error exists. If so, raises the appropriate
-        exception.
-        """
-
-        if error := global_cache.get(cache_key, default=None, timeout=0):
-            if error == "CoreHTTPTriggerServiceDoesNotExist":
-                raise CoreHTTPTriggerServiceDoesNotExist(uid=webhook_uid)
-            elif error == "CoreHTTPTriggerServiceMethodNotAllowed":
-                raise CoreHTTPTriggerServiceMethodNotAllowed()
-
     @webhook_schema("GET")
     @webhook_schema("POST")
     @webhook_schema("PUT")
@@ -100,18 +81,8 @@ class CoreHTTPTriggerView(APIView):
         request_data = self.handle_request_data(request)
         simulate = request.GET.get("test", "").lower() == "true"
 
-        cache_key = get_error_cache_key(webhook_uid, simulate)
-        self.handle_error(cache_key, webhook_uid)
-
         service_type = service_type_registry.get("http_trigger")
-        try:
-            service_type.process_webhook_request(webhook_uid, request_data, simulate)
-        except (
-            CoreHTTPTriggerServiceDoesNotExist,
-            CoreHTTPTriggerServiceMethodNotAllowed,
-        ) as e:
-            global_cache.get(cache_key, e.__class__.__name__, timeout=300)
-            raise
+        service_type.process_webhook_request(webhook_uid, request_data, simulate)
 
         return Response(status=HTTP_204_NO_CONTENT)
 
