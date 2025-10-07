@@ -185,7 +185,7 @@ def test_export_prepared_values_casts_uid_to_str(data_fixture):
     service = trigger_node.service
 
     assert isinstance(service.uid, UUID)
-    
+
     values = CoreHTTPTriggerServiceType().export_prepared_values(service)
 
     assert values["uid"] == str(service.uid)

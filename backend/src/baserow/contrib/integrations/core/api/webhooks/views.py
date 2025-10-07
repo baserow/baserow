@@ -52,8 +52,8 @@ class CoreHTTPTriggerView(APIView):
     def handle_request_data(self, request):
         headers = {key: value for key, value in request.headers.items()}
         query_params = dict(request.GET.items())
-        body = request.data if hasattr(request, "data") else {}
         raw_body = request.body.decode("utf-8") if request.body else ""
+        body = request.data if hasattr(request, "data") else {}
 
         return {
             "method": request.method,
