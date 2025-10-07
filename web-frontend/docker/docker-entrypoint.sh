@@ -93,8 +93,7 @@ case "$1" in
     nuxt-build-and-start)
       startup_plugin_setup
       setup_additional_modules
-      exec ./node_modules/.bin/nuxt build
-      exec ./node_modules/.bin/nuxt start --hostname "${BASEROW_WEBFRONTEND_BIND_ADDRESS:-0.0.0.0}" --port "$BASEROW_WEBFRONTEND_PORT" "${@:2}"
+      exec ./node_modules/.bin/nuxt build && exec ./node_modules/.bin/nuxt start --hostname "${BASEROW_WEBFRONTEND_BIND_ADDRESS:-0.0.0.0}" --port "$BASEROW_WEBFRONTEND_PORT" "${@:2}"
     ;;
     nuxt-local)
       startup_plugin_setup
