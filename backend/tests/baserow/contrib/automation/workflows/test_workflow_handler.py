@@ -796,19 +796,3 @@ def test_toggle_simulate_mode_on_immediate(
 
     mock_automation_workflow_updated.send.assert_called_once()
     mock_async_start_workflow.assert_called_once()
-
-
-@pytest.mark.django_db
-def test_toggle_simulate_mode_resets_sample_data(data_fixture):
-    trigger_node = data_fixture.create_local_baserow_rows_created_trigger_node()
-
-    # Set initial sample data, since we want to test that it is cleared
-    # when the node is re-tested.
-    trigger_node.service.sample_data = {"foo": "bar"}
-    trigger_node.service.save()
-
-    AutomationWorkflowHandler().toggle_test_run(
-        trigger_node.workflow, simulate_until_node=trigger_node
-    )
-
-    assert trigger_node.service.sample_data is None

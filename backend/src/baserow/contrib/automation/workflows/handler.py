@@ -805,11 +805,6 @@ class AutomationWorkflowHandler:
             # Switch to simulate until the given node
             workflow.simulate_until_node = simulate_until_node
 
-            # Reset the sample data to ensure the frontend doesn't display
-            # stale sample data.
-            simulate_until_node.service.sample_data = None
-            simulate_until_node.service.save()
-
             automation_node_updated.send(self, user=None, node=simulate_until_node)
 
             fields_to_save.append("simulate_until_node")
