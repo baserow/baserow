@@ -393,7 +393,7 @@ jobs:
         if: always()
         with:
           name: backend-test-reports-group-${{ matrix.group }}
-          path: reports/
+          path: reports/**/*
           retention-days: 7
 
       - name: Publish test results
@@ -751,8 +751,12 @@ jobs:
 
       - name: Combine coverage reports
         run: |
-          cp reports-download/.coverage* . 2>/dev/null || echo "No coverage files found"
-          coverage combine || echo "No data to combine"
+          echo "Listing downloaded files:"
+          find reports-download -type f
+          find reports-download -type f -name ".coverage*" -exec cp {} . \;
+          coverage combine
+          coverage report
+          coverage xml -o coverage.xml
 
       - name: Upload combined coverage report
         uses: actions/upload-artifact@v4
