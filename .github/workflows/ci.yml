@@ -757,13 +757,12 @@ jobs:
           cp reports-download/.coverage* . 2>/dev/null || echo "No coverage files found"
           coverage combine
           coverage report
-          coverage xml -o coverage.xml
 
       - name: Upload combined coverage report
         uses: actions/upload-artifact@v4
         with:
           name: backend-coverage-report
-          path: coverage.xml
+          path: .coverage
           retention-days: 30
           overwrite: true
 
@@ -772,4 +771,4 @@ jobs:
         if: github.event_name == 'pull_request'
         with:
           GITHUB_TOKEN: ${{ github.token }}
-          COVERAGE_PATH: coverage.xml
+          MERGE_COVERAGE_FILES: false
