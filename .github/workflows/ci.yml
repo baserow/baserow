@@ -393,8 +393,9 @@ jobs:
         if: always()
         with:
           name: backend-test-reports-group-${{ matrix.group }}
-          path: reports/**/*
+          path: reports/
           retention-days: 7
+          include-hidden-files: true
 
       - name: Publish test results
         uses: EnricoMi/publish-unit-test-result-action@v2
@@ -753,7 +754,7 @@ jobs:
         run: |
           echo "Listing downloaded files:"
           find reports-download -type f
-          find reports-download -type f -name ".coverage*" -exec cp {} . \;
+          cp reports-download/.coverage* . 2>/dev/null || echo "No coverage files found"
           coverage combine
           coverage report
           coverage xml -o coverage.xml
@@ -764,6 +765,7 @@ jobs:
           name: backend-coverage-report
           path: coverage.xml
           retention-days: 30
+          overwrite: true
 
       - name: Comment coverage report on PR
         uses: py-cov-action/python-coverage-comment-action@v3
