@@ -249,6 +249,17 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
             field, field_name, base_queryset, value, cte, rows
         )
 
+    def get_formula_reference_to_model_field(
+        self, model_field, db_column, already_in_subquery
+    ):
+        instance = model_field.model.get_field_object(db_column, include_trash=True)[
+            "field"
+        ]
+        baserow_field_type = self.get_baserow_field_type(instance)
+        return baserow_field_type.get_formula_reference_to_model_field(
+            model_field, db_column, already_in_subquery
+        )
+
     def get_export_serialized_value(
         self,
         row,
