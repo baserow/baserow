@@ -235,7 +235,11 @@ class CoreHTTPTriggerService(Service):
         help_text="The service identifier for the webhook.",
     )
 
-    exclude_get = models.BooleanField(default=False)
+    exclude_get = models.BooleanField(
+        default=False,
+        help_text="Whether the service should exclude GET requests for added security. "
+        "By default all HTTP methods listed in the API endpoint are supported.",
+    )
 
     is_public = models.BooleanField(
         default=False,
