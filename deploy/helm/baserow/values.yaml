@@ -43,7 +43,7 @@ global:
   baserow:
     imageRegistry: baserow
     image:
-      tag: 1.35.2
+      tag: 1.35.3
     imagePullSecrets: []
     serviceAccount:
       shared: true
