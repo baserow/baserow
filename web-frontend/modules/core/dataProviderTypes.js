@@ -268,7 +268,8 @@ export class DataProviderType extends Registerable {
     }
 
     if (schemaNode.type === 'object') {
-      return this.getSchemaNode(schemaNode.properties[first], rest)
+      const properties = schemaNode.properties || {}
+      return this.getSchemaNode(properties[first], rest)
     }
   }
 

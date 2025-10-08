@@ -1,5 +1,8 @@
+from uuid import uuid4
+
 from baserow.contrib.integrations.core.models import (
     CoreHTTPRequestService,
+    CoreHTTPTriggerService,
     CoreRouterService,
     CoreSMTPEmailService,
 )
@@ -111,6 +114,12 @@ class ServiceFixtures:
                 workflow=router_node.workflow,
             )
         return edge
+
+    def create_core_http_trigger_service(self, **kwargs) -> CoreSMTPEmailService:
+        if "uid" not in kwargs:
+            kwargs["uid"] = uuid4()
+
+        return self.create_service(CoreHTTPTriggerService, **kwargs)
 
     def create_service(self, model_class, **kwargs):
         if "integration" not in kwargs:

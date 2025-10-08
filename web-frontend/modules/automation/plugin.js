@@ -26,6 +26,7 @@ import {
   LocalBaserowRowsCreatedTriggerNodeType,
   LocalBaserowRowsUpdatedTriggerNodeType,
   LocalBaserowRowsDeletedTriggerNodeType,
+  CoreHTTPTriggerNodeType,
   LocalBaserowAggregateRowsActionNodeType,
   CoreHttpRequestNodeType,
   CoreSMTPEmailNodeType,
@@ -92,6 +93,7 @@ export default (context) => {
       'node',
       new LocalBaserowRowsDeletedTriggerNodeType(context)
     )
+    app.$registry.register('node', new CoreHTTPTriggerNodeType(context))
     app.$registry.register(
       'node',
       new LocalBaserowCreateRowActionNodeType(context)

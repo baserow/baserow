@@ -9,6 +9,7 @@ from django.conf import settings
 from django.core.mail import EmailMultiAlternatives, get_connection
 from django.db import router
 from django.db.models import Q
+from django.urls import path
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
@@ -20,6 +21,7 @@ from requests import exceptions as request_exceptions
 from rest_framework import serializers
 
 from baserow.config.celery import app as celery_app
+from baserow.contrib.integrations.core.api.webhooks.views import CoreHTTPTriggerView
 from baserow.contrib.integrations.core.constants import (
     BODY_TYPE,
     HTTP_METHOD,
@@ -30,9 +32,14 @@ from baserow.contrib.integrations.core.constants import (
     PERIODIC_INTERVAL_MONTH,
     PERIODIC_INTERVAL_WEEK,
 )
+from baserow.contrib.integrations.core.exceptions import (
+    CoreHTTPTriggerServiceDoesNotExist,
+    CoreHTTPTriggerServiceMethodNotAllowed,
+)
 from baserow.contrib.integrations.core.integration_types import SMTPIntegrationType
 from baserow.contrib.integrations.core.models import (
     CoreHTTPRequestService,
+    CoreHTTPTriggerService,
     CorePeriodicService,
     CoreRouterService,
     CoreRouterServiceEdge,
@@ -47,6 +54,7 @@ from baserow.core.formula.validator import (
     ensure_email,
     ensure_string,
 )
+from baserow.core.registries import ImportExportConfig
 from baserow.core.registry import Instance
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.exceptions import (
@@ -1395,3 +1403,181 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
                 },
             },
         }
+
+
+class CoreHTTPTriggerServiceType(TriggerServiceTypeMixin, ServiceType):
+    type = "http_trigger"
+    model_class = CoreHTTPTriggerService
+
+    allowed_fields = ["uid", "exclude_get", "is_public"]
+    serializer_field_names = ["uid", "exclude_get", "is_public"]
+    request_serializer_field_names = ["uid", "exclude_get"]
+
+    class SerializedDict(ServiceDict):
+        uid: str
+        exclude_get: bool
+        is_public: bool
+
+    def get_api_urls(self) -> List[path]:
+        return [
+            path(
+                r"webhooks/<uuid:webhook_uid>/",
+                CoreHTTPTriggerView.as_view(),
+                name="http_trigger",
+            ),
+        ]
+
+    def process_webhook_request(
+        self, webhook_uid: uuid.uuid4, request_data: Dict[str, Any], simulate: bool
+    ) -> None:
+        """
+        Finds a CoreHTTPTriggerService instance by its webhook UUID and calls
+        the on_event handler to process it.
+
+        :param webhook_uid: The UUID of the service.
+        :param request_data: A dict containing the parsed headers, body, etc
+            of the webhook request.
+        :param simulate: True if the request was for testing the webhook
+            service, otherwise False. If False, tries to get the published
+            version of the service.
+        :raises CoreHTTPTriggerServiceDoesNotExist: When the webhook_uid
+            isn't valid.
+        :raises CoreHTTPTriggerServiceMethodNotAllowed: When the http
+            method isn't allowed for this service.
+        """
+
+        service = (
+            self.model_class.objects.filter(uid=webhook_uid, is_public=not simulate)
+            .order_by("-id")
+            .first()
+        )
+
+        if not service:
+            raise CoreHTTPTriggerServiceDoesNotExist(uid=webhook_uid)
+
+        if request_data["method"] == "GET" and service.exclude_get:
+            raise CoreHTTPTriggerServiceMethodNotAllowed()
+
+        self.on_event([service], request_data)
+
+    def generate_schema(
+        self,
+        service: CoreHTTPTriggerService,
+        allowed_fields: Optional[List[str]] = None,
+    ) -> Optional[Dict[str, Any]]:
+        properties = {}
+
+        if (allowed_fields is None or "body" in allowed_fields) and service.sample_data:
+            schema_builder = SchemaBuilder()
+            schema_builder.add_object(
+                service.sample_data.get("data", {}).get("body", {})
+            )
+            schema = schema_builder.to_schema()
+
+            properties |= {
+                "body": schema
+                | {
+                    "title": "Body",
+                }
+            }
+
+        if allowed_fields is None or "raw_body" in allowed_fields:
+            properties |= {
+                "raw_body": {
+                    "type": "string",
+                    "title": "Raw body",
+                },
+            }
+
+        if (
+            allowed_fields is None or "query_params" in allowed_fields
+        ) and service.sample_data:
+            schema_builder = SchemaBuilder()
+            schema_builder.add_object(
+                service.sample_data.get("data", {}).get("query_params", {})
+            )
+            schema = schema_builder.to_schema()
+
+            properties |= {
+                "query_params": schema
+                | {
+                    "title": "Query parameters",
+                }
+            }
+
+        if allowed_fields is None or "headers" in allowed_fields:
+            schema = {}
+            if service.sample_data:
+                schema_builder = SchemaBuilder()
+                schema_builder.add_object(
+                    service.sample_data.get("data", {}).get("headers", {})
+                )
+                schema = schema_builder.to_schema()
+
+            properties.update(
+                **{
+                    "headers": {
+                        "type": "object",
+                        "properties": {
+                            "Content-Type": {
+                                "type": "string",
+                                "description": "The MIME type of the request body",
+                            },
+                            "Content-Length": {
+                                "type": "number",
+                                "description": "The length of the request body in octets (8-bit bytes)",
+                            },
+                            "ETag": {
+                                "type": "string",
+                                "description": "An identifier for a specific version of "
+                                "a resource",
+                            },
+                        },
+                        "title": "Headers",
+                    }
+                    | schema,
+                },
+            )
+
+        return {
+            "title": self.get_schema_name(service),
+            "type": "object",
+            "properties": properties,
+        }
+
+    def import_serialized(
+        self,
+        parent: Any,
+        serialized_values: Dict[str, Any],
+        id_mapping: Dict[str, Dict[str, str]],
+        import_export_config: Optional[ImportExportConfig] = None,
+        **kwargs,
+    ):
+        """
+        Handle the is_public field during import based on publishing context.
+        """
+
+        if import_export_config:
+            if import_export_config.is_publishing:
+                serialized_values["is_public"] = True
+            if import_export_config.is_duplicate:
+                # Ensure that duplicating a service (e.g. installing a template)
+                # results in a new unique uuid.
+                serialized_values["uid"] = str(uuid.uuid4())
+
+        return super().import_serialized(
+            parent,
+            serialized_values,
+            id_mapping,
+            import_export_config=import_export_config,
+            **kwargs,
+        )
+
+    def export_prepared_values(
+        self, instance: CoreHTTPTriggerService
+    ) -> dict[str, Any]:
+        values = super().export_prepared_values(instance)
+
+        values["uid"] = str(values["uid"])
+
+        return values

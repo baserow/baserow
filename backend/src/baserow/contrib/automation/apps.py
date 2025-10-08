@@ -22,6 +22,7 @@ class AutomationConfig(AppConfig):
         )
         from baserow.contrib.automation.nodes.node_types import (
             CoreHttpRequestNodeType,
+            CoreHTTPTriggerNodeType,
             CorePeriodicTriggerNodeType,
             CoreRouterActionNodeType,
             CoreSMTPEmailNodeType,
@@ -171,6 +172,7 @@ class AutomationConfig(AppConfig):
                 LocalBaserowRowsDeletedNodeTriggerType()
             )
             automation_node_type_registry.register(CorePeriodicTriggerNodeType())
+            automation_node_type_registry.register(CoreHTTPTriggerNodeType())
 
             from baserow.core.trash.registries import trash_operation_type_registry
 

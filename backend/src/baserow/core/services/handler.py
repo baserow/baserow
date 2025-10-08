@@ -8,6 +8,7 @@ from baserow.contrib.builder.pages.models import Page
 from baserow.core.db import specific_iterator
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.models import Integration
+from baserow.core.registries import ImportExportConfig
 from baserow.core.services.exceptions import (
     ServiceDoesNotExist,
     ServiceImproperlyConfiguredDispatchException,
@@ -251,6 +252,7 @@ class ServiceHandler:
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
         cache: Optional[Dict] = None,
+        import_export_config: Optional[ImportExportConfig] = None,
     ):
         service_type = service_type_registry.get(serialized_service["type"])
 
@@ -262,4 +264,5 @@ class ServiceHandler:
             files_zip=files_zip,
             storage=storage,
             import_formula=import_formula,
+            import_export_config=import_export_config,
         )

@@ -2,7 +2,10 @@ import json
 import uuid
 from unittest.mock import MagicMock, patch
 
+from django.urls import reverse
+
 import pytest
+from rest_framework.status import HTTP_204_NO_CONTENT
 
 from baserow.contrib.automation.automation_dispatch_context import (
     AutomationDispatchContext,
@@ -10,6 +13,8 @@ from baserow.contrib.automation.automation_dispatch_context import (
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.workflows.constants import WorkflowState
+from baserow.contrib.automation.workflows.service import AutomationWorkflowService
+from baserow.core.handler import CoreHandler
 from baserow.core.services.types import DispatchResult
 from baserow.core.utils import MirrorDict
 
@@ -361,3 +366,96 @@ def test_trigger_node_dispatch_returns_sample_data_if_simulated(data_fixture):
     result = node.get_type().dispatch(node, dispatch_context)
 
     assert result == DispatchResult(data={"foo": "bar"}, status=200, output_uid="")
+
+
+@pytest.mark.django_db(transaction=True)
+def test_core_http_trigger_node(api_client, data_fixture):
+    user, _ = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    automation = data_fixture.create_automation_application(
+        user=user, workspace=workspace
+    )
+    workflow = data_fixture.create_automation_workflow(
+        user=user, automation=automation, state=WorkflowState.LIVE, create_trigger=False
+    )
+    integration = data_fixture.create_local_baserow_integration(
+        user=user, application=automation
+    )
+
+    trigger_node = data_fixture.create_http_trigger_node(
+        workflow=workflow,
+        service_kwargs={"is_public": True},
+    )
+
+    database = data_fixture.create_database_application(user=user, workspace=workspace)
+    table, fields, _ = data_fixture.build_table(
+        user=user,
+        database=database,
+        columns=[("Name", "text")],
+        rows=[],
+    )
+    action_service = data_fixture.create_local_baserow_upsert_row_service(
+        table=table,
+        integration=integration,
+    )
+    action_service.field_mappings.create(
+        field=fields[0],
+        value=f"concat('foo: ', get('previous_node.{trigger_node.id}.body.foo'))",
+    )
+    data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow,
+        service=action_service,
+    )
+
+    url = reverse("api:http_trigger", kwargs={"webhook_uid": trigger_node.service.uid})
+
+    resp = api_client.post(url, {"foo": "bar sky"}, format="json")
+
+    assert resp.status_code == HTTP_204_NO_CONTENT
+
+    model = table.get_model()
+    rows = model.objects.all()
+    assert len(rows) == 1
+    assert getattr(rows[0], f"field_{fields[0].id}") == "foo: bar sky"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_core_http_trigger_node_duplicating_application_sets_unique_uid(data_fixture):
+    user = data_fixture.create_user()
+
+    workflow = data_fixture.create_automation_workflow(
+        user=user, state=WorkflowState.LIVE, create_trigger=False
+    )
+    trigger_node = data_fixture.create_http_trigger_node(user=user, workflow=workflow)
+    assert isinstance(trigger_node.service.uid, uuid.UUID)
+
+    duplicated_automation = CoreHandler().duplicate_application(
+        user, workflow.automation
+    )
+    duplicated_service = (
+        duplicated_automation.workflows.get()
+        .automation_workflow_nodes.get()
+        .specific.service.specific
+    )
+
+    assert isinstance(duplicated_service.uid, uuid.UUID)
+    assert str(duplicated_service.uid) != str(trigger_node.service.uid)
+
+
+@pytest.mark.django_db(transaction=True)
+def test_core_http_trigger_node_duplicating_workflow_sets_unique_uid(data_fixture):
+    user = data_fixture.create_user()
+
+    workflow = data_fixture.create_automation_workflow(
+        user=user, state=WorkflowState.LIVE, create_trigger=False
+    )
+    trigger_node = data_fixture.create_http_trigger_node(user=user, workflow=workflow)
+    assert isinstance(trigger_node.service.uid, uuid.UUID)
+
+    duplicated_workflow = AutomationWorkflowService().duplicate_workflow(user, workflow)
+    duplicated_service = (
+        duplicated_workflow.automation_workflow_nodes.get().specific.service.specific
+    )
+
+    assert isinstance(duplicated_service.uid, uuid.UUID)
+    assert str(duplicated_service.uid) != str(trigger_node.service.uid)

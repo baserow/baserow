@@ -219,6 +219,7 @@ class AutomationNodeType(
                 cache=cache,
                 files_zip=files_zip,
                 import_formula=import_formula,
+                import_export_config=kwargs.get("import_export_config"),
             )
         return super().deserialize_property(
             prop_name,
