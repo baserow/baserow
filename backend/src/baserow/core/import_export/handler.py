@@ -7,7 +7,7 @@ import zipfile
 from datetime import datetime, timedelta, timezone
 from io import IOBase
 from os.path import join
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 from zipfile import ZipFile
 
 from django.conf import settings
@@ -19,6 +19,7 @@ from django.db import transaction
 from django.db.models import Exists, OuterRef, QuerySet
 from django.utils.encoding import force_bytes
 
+import ijson
 import jsonschema
 import zipstream
 from cryptography.exceptions import InvalidSignature
@@ -1036,6 +1037,13 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
                     self.mark_resource_invalid(resource)
                     raise
 
+                # Extract depended applications from the workspace schema
+                if application_ids:
+                    workspace_schema = self._build_workspace_schema_from_zip(zip_file)
+                    application_ids = self.get_applications_to_import(
+                        application_ids, workspace_schema
+                    )
+
                 self.extract_files_from_zip(
                     import_tmp_path,
                     zip_file,
@@ -1290,3 +1298,66 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
             else:
                 source.delete()
                 logger.info(f"Trusted public key for ID #{source_id} removed")
+
+    def _build_workspace_schema_from_zip(
+        self, zip_file: ZipFile
+    ) -> Dict[str, Set[int]]:
+        """
+        Extracts application, table and field IDs from an already-opened zip file
+        without loading the entire file into memory.
+
+        :param zip_file: Already opened ZipFile instance.
+        :return: {
+            "tables": {id1, id2, ...},
+            "fields": {id1, id2, ...},
+            "applications": {id1, id2, ...}
+        }
+        """
+
+        table_ids = set()
+        field_ids = set()
+        application_ids = set()
+
+        with zip_file.open("manifest.json") as manifest_file:
+            manifest = json.load(manifest_file)
+
+        for group in manifest["applications"].values():
+            for item in group["items"]:
+                application_ids.add(item.get("id"))
+
+            for item in group["items"]:
+                with zip_file.open(item["files"]["schema"]) as schema_file:
+                    for prefix, event, value in ijson.parse(schema_file):
+                        if prefix == "tables.item.id":
+                            table_ids.add(int(value))
+                        elif prefix == "tables.item.fields.item.id":
+                            field_ids.add(int(value))
+
+        return {
+            "tables": table_ids,
+            "fields": field_ids,
+            "applications": application_ids,
+        }
+
+    def get_applications_to_import(
+        self, application_ids: List[int], workspace_schema: Dict[str, Set[int]]
+    ) -> List[int]:
+        """
+        Filters application IDs based on workspace schema availability.
+
+        :param application_ids: List of application IDs to import.
+        :param workspace_schema: Schema containing available tables and fields.
+        :return: List of application IDs that can be imported.
+        :raises ImportExportApplicationIdsNotFound: If the application IDs
+            are not found in the workspace schema.
+        """
+
+        available_application_ids = workspace_schema.get("applications", set())
+        missing_ids = set(application_ids) - available_application_ids
+        if missing_ids:
+            raise ImportExportApplicationIdsNotFound(
+                f"Application IDs {list(missing_ids)} were not found in the export"
+            )
+
+        available_table_ids = workspace_schema.get("tables", set())
+        return [app_id for app_id in application_ids if app_id in available_table_ids]

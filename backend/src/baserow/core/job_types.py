@@ -4,6 +4,7 @@ from typing import Any, Dict, List
 from django.contrib.auth.models import AbstractUser
 
 from rest_framework import serializers
+from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from baserow.api.applications.errors import ERROR_APPLICATION_DOES_NOT_EXIST
 from baserow.api.applications.serializers import (
@@ -18,6 +19,7 @@ from baserow.api.errors import (
 )
 from baserow.api.import_export.errors import (
     ERROR_APPLICATION_IDS_NOT_FOUND,
+    ERROR_INVALID_FIELD_REFERENCE,
     ERROR_RESOURCE_DOES_NOT_EXIST,
     ERROR_RESOURCE_IS_INVALID,
 )
@@ -374,12 +376,14 @@ class ImportApplicationsJobType(JobType):
         ImportExportResourceDoesNotExist: ERROR_RESOURCE_DOES_NOT_EXIST,
         ImportExportResourceInvalidFile: ERROR_RESOURCE_IS_INVALID,
         ImportExportApplicationIdsNotFound: ERROR_APPLICATION_IDS_NOT_FOUND,
+        DRFValidationError: ERROR_INVALID_FIELD_REFERENCE,
     }
 
     job_exceptions_map = {
         ImportExportResourceDoesNotExist: ImportExportResourceDoesNotExist.message,
         ImportExportResourceInvalidFile: ImportExportResourceInvalidFile.message,
         ImportExportApplicationIdsNotFound: ImportExportApplicationIdsNotFound.message,
+        DRFValidationError: ERROR_INVALID_FIELD_REFERENCE[2],
     }
 
     request_serializer_field_names = ["resource_id", "application_ids"]

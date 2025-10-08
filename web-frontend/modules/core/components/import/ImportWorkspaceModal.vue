@@ -275,6 +275,10 @@ export default {
             this.$t('importWorkspaceModal.untrustedPublicKeyTitle'),
             this.$t('importWorkspaceModal.untrustedPublicKeyMessage')
           ),
+          ERROR_INVALID_FIELD_REFERENCE: new ResponseErrorMessage(
+            this.$t('importWorkspaceModal.invalidFieldReferenceTitle'),
+            this.$t('importWorkspaceModal.invalidFieldReferenceMessage')
+          ),
         })
       } finally {
         this.uploading = false
@@ -425,6 +429,10 @@ export default {
           ERROR_UNTRUSTED_PUBLIC_KEY: new ResponseErrorMessage(
             this.$t('importWorkspaceModal.untrustedPublicKeyTitle'),
             this.$t('importWorkspaceModal.untrustedPublicKeyMessage')
+          ),
+          ERROR_INVALID_FIELD_REFERENCE: new ResponseErrorMessage(
+            this.$t('importWorkspaceModal.invalidFieldReferenceTitle'),
+            this.$t('importWorkspaceModal.invalidFieldReferenceMessage')
           ),
         })
       } finally {

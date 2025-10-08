@@ -173,6 +173,8 @@
     "invalidResourceMessage": "The provided file is not a valid Baserow export.",
     "untrustedPublicKeyTitle": "Untrusted signature",
     "untrustedPublicKeyMessage": "The provided file is signed with an untrusted public key. Ask your administrator to add the public key to the list of trusted keys or disable the signature verification to be able to import this file.",
+    "invalidFieldReferenceTitle": "Invalid field references",
+    "invalidFieldReferenceMessage": "The import contains field references that cannot be resolved. This may happen when importing a workspace with missing or incompatible field configurations.",
     "importingState": "Importing...",
     "importingTableStructure": "Creating: {table}",
     "importingTableData": "Importing data: {table}"

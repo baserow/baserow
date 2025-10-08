@@ -78,6 +78,7 @@ openai==1.91.0
 anthropic==0.37.1
 mistralai==1.1.0
 # referencing==0.31.1 # pinned because of version conflict
+ijson==3.3.0
 # premium ical feed feature
 icalendar==5.0.12
 jira2markdown==0.3.7

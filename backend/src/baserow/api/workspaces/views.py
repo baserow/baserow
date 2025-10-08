@@ -5,6 +5,7 @@ from django.db import transaction
 from drf_spectacular.openapi import OpenApiParameter, OpenApiTypes
 from drf_spectacular.utils import extend_schema
 from rest_framework import serializers, status
+from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.parsers import MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -20,6 +21,7 @@ from baserow.api.errors import (
 )
 from baserow.api.import_export.errors import (
     ERROR_APPLICATION_IDS_NOT_FOUND,
+    ERROR_INVALID_FIELD_REFERENCE,
     ERROR_RESOURCE_DOES_NOT_EXIST,
     ERROR_RESOURCE_IS_BEING_IMPORTED,
     ERROR_RESOURCE_IS_INVALID,
@@ -724,6 +726,7 @@ class AsyncImportApplicationsView(APIView):
                     "ERROR_RESOURCE_DOES_NOT_EXIST",
                     "ERROR_RESOURCE_IS_INVALID",
                     "ERROR_APPLICATION_IDS_NOT_FOUND",
+                    "ERROR_INVALID_FIELD_REFERENCE",
                 ]
             ),
             404: get_error_schema(["ERROR_GROUP_DOES_NOT_EXIST"]),
@@ -738,6 +741,7 @@ class AsyncImportApplicationsView(APIView):
             ImportExportResourceDoesNotExist: ERROR_RESOURCE_DOES_NOT_EXIST,
             ImportExportResourceInvalidFile: ERROR_RESOURCE_IS_INVALID,
             ImportExportApplicationIdsNotFound: ERROR_APPLICATION_IDS_NOT_FOUND,
+            DRFValidationError: ERROR_INVALID_FIELD_REFERENCE,
         }
     )
     @validate_body(

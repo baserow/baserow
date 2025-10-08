@@ -29,3 +29,9 @@ ERROR_APPLICATION_IDS_NOT_FOUND = (
     HTTP_400_BAD_REQUEST,
     "One or more of the specified application IDs were not found in the export file.",
 )
+
+ERROR_INVALID_FIELD_REFERENCE = (
+    "ERROR_INVALID_FIELD_REFERENCE",
+    HTTP_400_BAD_REQUEST,
+    "The import contains invalid field references that cannot be resolved.",
+)
