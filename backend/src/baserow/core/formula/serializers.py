@@ -13,11 +13,18 @@ class FormulaSerializerField(serializers.CharField):
     This field can be used to store a formula in the database.
     """
 
+    def to_representation(self, value):
+        if isinstance(value, dict):
+            return value
+        return super().to_representation(value)
+
     def to_internal_value(self, data):
         data = super().to_internal_value(data)
 
         if not data:
             return data
+
+        print("Validating formula:", data)
 
         try:
             get_parse_tree_for_formula(data)

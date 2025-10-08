@@ -66,8 +66,16 @@ export default {
   },
   props: {
     value: {
-      type: String,
-      default: '',
+      type: Object,
+      default: () => {},
+      validator(value) {
+        if (typeof value !== 'object' || value === null) {
+          console.error('EXPECTED OBJECT BUT GOT:', value)
+          console.trace() // Shows the call stack
+          return false
+        }
+        return true
+      },
     },
     disabled: {
       type: Boolean,
@@ -158,7 +166,7 @@ export default {
       } catch (e) {
         console.error('Error while parsing formula content', this.value)
         console.error(e)
-        return generateHTML(this.toContent(''), this.extensions)
+        return generateHTML(this.toContent(null), this.extensions)
       }
     },
     wrapperContent() {
@@ -220,6 +228,8 @@ export default {
     value(value) {
       if (!_.isEqual(value, this.toFormula(this.wrapperContent))) {
         const content = this.toContent(value)
+        console.log('value is ', value)
+        console.log('content is ', content)
 
         if (!this.isFormulaInvalid) {
           this.content = content
@@ -260,10 +270,14 @@ export default {
   methods: {
     resetField() {
       this.isFormulaInvalid = false
-      this.$emit('input', '')
+      this.$emit('input', { mode: 'simple', version: '0.1', formula: '' })
     },
     emitChange() {
       if (!this.isFormulaInvalid) {
+        console.log(
+          'emitChange will emit ',
+          this.toFormula(this.wrapperContent)
+        )
         this.$emit('input', this.toFormula(this.wrapperContent))
       }
     },
@@ -306,8 +320,8 @@ export default {
         this.isFocused = false
       }
     },
-    toContent(formula) {
-      if (!formula) {
+    toContent(formulaCtx) {
+      if (!formulaCtx) {
         return {
           type: 'doc',
           content: [{ type: 'wrapper' }],
@@ -315,7 +329,8 @@ export default {
       }
 
       try {
-        const tree = parseBaserowFormula(formula)
+        console.log('toContent is trying to parse ', formulaCtx)
+        const tree = parseBaserowFormula(formulaCtx.formula)
         const functionCollection = new RuntimeFunctionCollection(this.$registry)
         return new ToTipTapVisitor(functionCollection).visit(tree)
       } catch (error) {
@@ -326,7 +341,14 @@ export default {
     toFormula(content) {
       const functionCollection = new RuntimeFunctionCollection(this.$registry)
       try {
-        return new FromTipTapVisitor(functionCollection).visit(content)
+        const formulaStr = new FromTipTapVisitor(functionCollection).visit(
+          content
+        )
+        return {
+          mode: 'simple',
+          version: '0.1',
+          formula: formulaStr,
+        }
       } catch (error) {
         this.isFormulaInvalid = true
         return null

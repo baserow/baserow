@@ -1,5 +1,6 @@
 from typing import Any
 
+from baserow.core.formula.field import BaserowFormulaContext
 from baserow.core.formula.parser.exceptions import (
     BaserowFormulaException,
     BaserowFormulaSyntaxError,
@@ -24,7 +25,9 @@ from baserow.core.formula.parser.python_executor import BaserowPythonExecutor
 
 
 def resolve_formula(
-    formula: str, functions: FunctionCollection, formula_context: FormulaContext
+    formula: BaserowFormulaContext,
+    functions: FunctionCollection,
+    formula_context: FormulaContext,
 ) -> Any:
     """
     Helper to resolve a formula given the formula_context.
@@ -36,8 +39,8 @@ def resolve_formula(
     """
 
     # If we receive a blank formula string, don't attempt to parse it.
-    if not formula:
+    if not formula["formula"]:
         return ""
 
-    tree = get_parse_tree_for_formula(formula)
+    tree = get_parse_tree_for_formula(formula["formula"])
     return BaserowPythonExecutor(functions, formula_context).visit(tree)
