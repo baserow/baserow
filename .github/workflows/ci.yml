@@ -629,6 +629,7 @@ jobs:
             -e PUBLIC_BACKEND_URL=http://localhost:8000 \
             -e PUBLIC_WEB_FRONTEND_URL=http://localhost:3000 \
             -e PRIVATE_BACKEND_URL=http://backend:8000 \
+            -e FEATURE_FLAGS="*" \
             -e NODE_OPTIONS=--max-old-space-size=8192 \
             -p 3000:3000 \
             ${{ needs.build-frontend.outputs.image }} nuxt-dev-no-attach
