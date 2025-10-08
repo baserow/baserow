@@ -32,6 +32,7 @@ from baserow.core.two_factor_auth.exceptions import (
 )
 from drf_spectacular.utils import extend_schema
 from rest_framework import serializers
+from rest_framework.permissions import AllowAny
 
 class ConfigureTwoFactorAuthView(APIView):
     permission_classes = (IsAuthenticated,)
@@ -140,7 +141,7 @@ class VerifyTOTPSerializer(serializers.Serializer):
 
 
 class VerifyTwoFactorAuthView(APIView):
-    # permission_classes = (IsAuthenticated,)
+    permission_classes = (AllowAny,)
 
     @extend_schema(
         tags=["Auth"],

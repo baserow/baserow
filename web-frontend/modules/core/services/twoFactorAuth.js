@@ -10,7 +10,7 @@ export default (client) => {
       return client.post('/two-factor-auth/disable/', { password })
     },
     verify(type, email, code) {
-      return client.post('/two_factor-auth/verify/', { type, email, code })
+      return client.post('/two-factor-auth/verify/', { type, email, code })
     },
   }
 }
