@@ -14,7 +14,7 @@ env:
 jobs:
   cleanup-old-images:
     name: Cleanup Old CI Images
-    runs-on: self-hosted
+    runs-on: ubicloud-standard-2
     permissions:
       packages: write
       contents: read
