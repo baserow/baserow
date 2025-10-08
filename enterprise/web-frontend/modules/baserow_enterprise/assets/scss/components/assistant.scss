@@ -357,6 +357,10 @@
     background-color: $palette-neutral-100;
     border-color: $palette-neutral-100;
   }
+
+  .assistant__message--error & {
+    background-color: $palette-red-200;
+  }
 }
 
 .assistant__message-text {

@@ -7,6 +7,7 @@
       :class="{
         'assistant__message--human': message.role === 'human',
         'assistant__message--ai': message.role === 'ai',
+        'assistant__message--error': message.error,
       }"
     >
       <div class="assistant__message-content">

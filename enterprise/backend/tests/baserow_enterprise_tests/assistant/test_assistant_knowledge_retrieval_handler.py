@@ -6,16 +6,145 @@ from django.db.models import Q
 import numpy as np
 import pytest
 
-from baserow.core.pgvector import EMBEDDING_DIMENSIONS
+from baserow.core.pgvector import DEFAULT_EMBEDDING_DIMENSIONS
 from baserow_enterprise.assistant.models import (
     KnowledgeBaseCategory,
     KnowledgeBaseChunk,
     KnowledgeBaseDocument,
 )
 from baserow_enterprise.assistant.tools.search_docs.handler import (
+    BaserowEmbedder,
     KnowledgeBaseHandler,
     VectorHandler,
 )
+
+
+@pytest.mark.django_db
+class TestBaserowEmbedder:
+    """Tests for the BaserowEmbedder class"""
+
+    def test_returns_list_of_vectors(self):
+        """Test that calling BaserowEmbedder returns a list of vectors"""
+
+        embedder = BaserowEmbedder(api_url="http://test-api:8000")
+
+        # Mock the httpxClient where it's used in the handler module
+        with patch(
+            "baserow_enterprise.assistant.tools.search_docs.handler.httpxClient"
+        ) as mock_client:
+            mock_client_instance = mock_client.return_value
+            mock_post_response = mock_client_instance.post.return_value
+            mock_post_response.json.return_value = {
+                "embeddings": [
+                    [0.1] * DEFAULT_EMBEDDING_DIMENSIONS,
+                    [0.2] * DEFAULT_EMBEDDING_DIMENSIONS,
+                    [0.3] * DEFAULT_EMBEDDING_DIMENSIONS,
+                ]
+            }
+
+            texts = ["text 1", "text 2", "text 3"]
+            result = embedder(texts)
+
+            # Verify result is a list of vectors
+            assert isinstance(result, list)
+            assert len(result) == 3
+            for vector in result:
+                assert isinstance(vector, list)
+                assert all(isinstance(x, (int, float)) for x in vector)
+
+    def test_returns_embeddings_with_correct_dimensions(self):
+        """Test that embeddings have the correct number of dimensions"""
+
+        embedder = BaserowEmbedder(api_url="http://test-api:8000")
+
+        # Mock the httpxClient where it's used in the handler module
+        with patch(
+            "baserow_enterprise.assistant.tools.search_docs.handler.httpxClient"
+        ) as mock_client:
+            mock_client_instance = mock_client.return_value
+            mock_post_response = mock_client_instance.post.return_value
+            mock_post_response.json.return_value = {
+                "embeddings": [
+                    [0.1] * DEFAULT_EMBEDDING_DIMENSIONS,
+                    [0.2] * DEFAULT_EMBEDDING_DIMENSIONS,
+                ]
+            }
+
+            texts = ["text 1", "text 2"]
+            result = embedder(texts)
+
+            # Verify all embeddings have the correct dimensions
+            assert len(result) == 2
+            for vector in result:
+                assert len(vector) == DEFAULT_EMBEDDING_DIMENSIONS
+
+    def test_pads_smaller_dimensions_with_zeros(self):
+        """Test that embeddings with fewer dimensions are padded with zeros"""
+
+        embedder = BaserowEmbedder(api_url="http://test-api:8000")
+
+        # Mock the httpxClient where it's used in the handler module
+        with patch(
+            "baserow_enterprise.assistant.tools.search_docs.handler.httpxClient"
+        ) as mock_client:
+            # Mock the httpxClient.post call with smaller dimensions
+            small_dimension = 512
+            mock_client_instance = mock_client.return_value
+            mock_post_response = mock_client_instance.post.return_value
+            mock_post_response.json.return_value = {
+                "embeddings": [
+                    [0.5] * small_dimension,
+                ]
+            }
+
+            texts = ["text 1"]
+            result = embedder(texts)
+
+            # Verify padding was added
+            assert len(result) == 1
+            assert len(result[0]) == DEFAULT_EMBEDDING_DIMENSIONS
+            # Check that the last values are zeros (padding)
+            padding_size = DEFAULT_EMBEDDING_DIMENSIONS - small_dimension
+            assert result[0][-padding_size:] == [0.0] * padding_size
+
+    def test_raises_error_on_larger_dimensions(self):
+        """Test that embeddings with more dimensions raise an error"""
+
+        embedder = BaserowEmbedder(api_url="http://test-api:8000")
+
+        # Mock the httpxClient where it's used in the handler module
+        with patch(
+            "baserow_enterprise.assistant.tools.search_docs.handler.httpxClient"
+        ) as mock_client:
+            # Mock the httpxClient.post call with larger dimensions
+            large_dimension = DEFAULT_EMBEDDING_DIMENSIONS + 100
+            mock_client_instance = mock_client.return_value
+            mock_post_response = mock_client_instance.post.return_value
+            mock_post_response.json.return_value = {
+                "embeddings": [
+                    [0.5] * large_dimension,
+                ]
+            }
+
+            texts = ["text 1"]
+
+            # Should raise ValueError
+            with pytest.raises(ValueError) as exc_info:
+                embedder(texts)
+
+            assert (
+                f"Expected embeddings of dimension {DEFAULT_EMBEDDING_DIMENSIONS}"
+                in str(exc_info.value)
+            )
+
+    def test_returns_empty_list_for_empty_input(self):
+        """Test that empty input returns an empty list"""
+
+        embedder = BaserowEmbedder(api_url="http://test-api:8000")
+
+        result = embedder([])
+
+        assert result == []
 
 
 class MockEmbeddings:
@@ -24,10 +153,10 @@ class MockEmbeddings:
     def __init__(self):
         # Map query strings to mock embeddings
         self.query_embeddings = {
-            "database fundamentals": [1.0] + [0.0] * 1535,
-            "database query": [0.8] + [0.0] * 1535,
-            "database": [0.9] + [0.0] * 1535,
-            "application": [0.0, 1.0] + [0.0] * 1534,
+            "database fundamentals": [1.0] + [0.0] * (DEFAULT_EMBEDDING_DIMENSIONS - 1),
+            "database query": [0.8] + [0.0] * (DEFAULT_EMBEDDING_DIMENSIONS - 1),
+            "database": [0.9] + [0.0] * (DEFAULT_EMBEDDING_DIMENSIONS - 1),
+            "application": [0.0, 1.0] + [0.0] * (DEFAULT_EMBEDDING_DIMENSIONS - 2),
         }
 
     def embed_documents(self, texts):
@@ -37,17 +166,21 @@ class MockEmbeddings:
         for text in texts:
             # Create deterministic embeddings based on text content
             if "database" in text.lower():
-                embeddings.append([1.0] + [0.0] * 1535)
+                embeddings.append([1.0] + [0.0] * (DEFAULT_EMBEDDING_DIMENSIONS - 1))
             elif "application" in text.lower():
-                embeddings.append([0.0, 1.0] + [0.0] * 1534)
+                embeddings.append(
+                    [0.0, 1.0] + [0.0] * (DEFAULT_EMBEDDING_DIMENSIONS - 2)
+                )
             else:
-                embeddings.append([0.0] * 1536)
+                embeddings.append([0.0] * DEFAULT_EMBEDDING_DIMENSIONS)
         return embeddings
 
     def embed_query(self, text):
         """Mock embedding for a single query"""
 
-        return self.query_embeddings.get(text.lower(), [0.0] * 1536)
+        return self.query_embeddings.get(
+            text.lower(), [0.0] * DEFAULT_EMBEDDING_DIMENSIONS
+        )
 
 
 @pytest.mark.django_db
@@ -103,14 +236,18 @@ class TestKnowledgeHandler:
         chunk1 = KnowledgeBaseChunk.objects.create(
             source_document=doc1,
             content="Database fundamentals and SQL basics",
-            embedding=np.random.RandomState(42).random(EMBEDDING_DIMENSIONS).tolist(),
+            embedding=np.random.RandomState(42)
+            .random(DEFAULT_EMBEDDING_DIMENSIONS)
+            .tolist(),
             index=0,
             metadata={"section": "fundamentals"},
         )
         chunk2 = KnowledgeBaseChunk.objects.create(
             source_document=doc2,
             content="Building web applications with frameworks",
-            embedding=np.random.RandomState(43).random(EMBEDDING_DIMENSIONS).tolist(),
+            embedding=np.random.RandomState(43)
+            .random(DEFAULT_EMBEDDING_DIMENSIONS)
+            .tolist(),
             index=0,
             metadata={"section": "applications"},
         )
@@ -153,7 +290,7 @@ class TestKnowledgeHandler:
             chunk = chunks[0].__class__(
                 source_document=documents[0],
                 content=f"Additional database content {i}",
-                embedding=np.random.random(EMBEDDING_DIMENSIONS).tolist(),
+                embedding=np.random.random(DEFAULT_EMBEDDING_DIMENSIONS).tolist(),
                 index=i + 1,
                 metadata={"section": "additional"},
             )
@@ -193,7 +330,7 @@ class TestKnowledgeHandler:
         closest_chunk = KnowledgeBaseChunk.objects.create(
             source_document=doc,
             content="Closest content to query",
-            embedding=[1.0] + [0.0] * (EMBEDDING_DIMENSIONS - 1),
+            embedding=[1.0] + [0.0] * (DEFAULT_EMBEDDING_DIMENSIONS - 1),
             index=0,
             metadata={"distance_test": "closest"},
         )
@@ -202,7 +339,7 @@ class TestKnowledgeHandler:
         medium_chunk = KnowledgeBaseChunk.objects.create(
             source_document=doc,
             content="Medium distance content",
-            embedding=[0.5] + [0.0] * (EMBEDDING_DIMENSIONS - 1),
+            embedding=[0.5] + [0.0] * (DEFAULT_EMBEDDING_DIMENSIONS - 1),
             index=1,
             metadata={"distance_test": "medium"},
         )
@@ -211,7 +348,7 @@ class TestKnowledgeHandler:
         farthest_chunk = KnowledgeBaseChunk.objects.create(
             source_document=doc,
             content="Farthest content from query",
-            embedding=[0.0] * EMBEDDING_DIMENSIONS,
+            embedding=[0.0] * DEFAULT_EMBEDDING_DIMENSIONS,
             index=2,
             metadata={"distance_test": "farthest"},
         )
@@ -251,7 +388,7 @@ class TestKnowledgeHandler:
         chunk_distance_0 = KnowledgeBaseChunk.objects.create(
             source_document=doc,
             content="Perfect match",
-            embedding=[1.0, 0.0, 0.0] + [0.0] * (EMBEDDING_DIMENSIONS - 3),
+            embedding=[1.0, 0.0, 0.0] + [0.0] * (DEFAULT_EMBEDDING_DIMENSIONS - 3),
             index=0,
         )
 
@@ -259,7 +396,7 @@ class TestKnowledgeHandler:
         chunk_distance_sqrt2 = KnowledgeBaseChunk.objects.create(
             source_document=doc,
             content="Distance sqrt(2)",
-            embedding=[0.0, 1.0, 0.0] + [0.0] * (EMBEDDING_DIMENSIONS - 3),
+            embedding=[0.0, 1.0, 0.0] + [0.0] * (DEFAULT_EMBEDDING_DIMENSIONS - 3),
             index=1,
         )
 
@@ -267,7 +404,7 @@ class TestKnowledgeHandler:
         chunk_distance_sqrt05 = KnowledgeBaseChunk.objects.create(
             source_document=doc,
             content="Distance sqrt(0.5)",
-            embedding=[0.5, 0.5, 0.0] + [0.0] * (EMBEDDING_DIMENSIONS - 3),
+            embedding=[0.5, 0.5, 0.0] + [0.0] * (DEFAULT_EMBEDDING_DIMENSIONS - 3),
             index=2,
         )
 

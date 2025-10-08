@@ -40,7 +40,7 @@ class TestKnowledgeBaseCommands:
             source_document=document,
             content="Test chunk content",
             index=0,
-            embedding=[1.0] * 1536,  # Use 1536 dimensions for OpenAI embeddings
+            embedding=[1.0] * KnowledgeBaseChunk.EMBEDDING_DIMENSIONS,
             metadata={"test": "data"},
         )
         return {"category": category, "document": document, "chunk": chunk}
@@ -66,7 +66,7 @@ class TestKnowledgeBaseCommands:
             source_document=ready_document,
             content="Ready chunk content",
             index=0,
-            embedding=[1.0] * 1536,
+            embedding=[1.0] * KnowledgeBaseChunk.EMBEDDING_DIMENSIONS,
             metadata={"test": "ready"},
         )
 
@@ -83,7 +83,7 @@ class TestKnowledgeBaseCommands:
             source_document=processing_document,
             content="Processing chunk content",
             index=0,
-            embedding=[2.0] * 1536,
+            embedding=[2.0] * KnowledgeBaseChunk.EMBEDDING_DIMENSIONS,
             metadata={"test": "processing"},
         )
 

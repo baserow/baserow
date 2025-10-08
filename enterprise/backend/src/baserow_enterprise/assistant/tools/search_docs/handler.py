@@ -1,10 +1,12 @@
 from typing import IO, Iterable, Tuple
 from zipfile import ZIP_DEFLATED, ZipFile
 
+from django.conf import settings
 from django.core import serializers
 from django.db.models import Q
 
 import dspy
+from httpx import Client as httpxClient
 from pgvector.django import L2Distance
 
 from baserow_enterprise.assistant.models import (
@@ -13,7 +15,50 @@ from baserow_enterprise.assistant.models import (
     KnowledgeBaseDocument,
 )
 
-EMBEDDER_MODEL = "text-embedding-3-small"
+
+class BaserowEmbedder:
+    def __init__(self, api_url: str):
+        self.api_url = api_url
+
+    def _embed(self, texts: list[str], batch_size=20) -> list[float]:
+        embeddings = []
+        for i in range(0, len(texts), batch_size):
+            batch = texts[i : i + batch_size]
+            response = httpxClient(base_url=self.api_url).post(
+                "/embed", json={"texts": batch}
+            )
+
+            embeddings.extend(response.json()["embeddings"])
+
+        return embeddings
+
+    def __call__(self, texts: list[str]) -> list[list[float]]:
+        if not texts:
+            return []
+
+        if not isinstance(texts, (list, tuple)):
+            texts = [texts]
+
+        embeddings = self._embed(texts)
+
+        if len(embeddings) != len(texts):
+            raise ValueError(
+                f"Expected {len(texts)} embeddings, but got {len(embeddings)}"
+            )
+
+        # Ensure the dimensions are correct
+        if len(embeddings[0]) > KnowledgeBaseChunk.EMBEDDING_DIMENSIONS:
+            raise ValueError(
+                f"Expected embeddings of dimension {KnowledgeBaseChunk.EMBEDDING_DIMENSIONS}, "
+                "but got {len(embeddings[0])}"
+            )
+        elif len(embeddings[0]) < KnowledgeBaseChunk.EMBEDDING_DIMENSIONS:
+            # Pad the embeddings with zeros if they are smaller than expected
+            for i in range(len(embeddings)):
+                embeddings[i] = embeddings[i] + [0.0] * (
+                    KnowledgeBaseChunk.EMBEDDING_DIMENSIONS - len(embeddings[i])
+                )
+        return embeddings
 
 
 class VectorHandler:
@@ -23,7 +68,11 @@ class VectorHandler:
     @property
     def embedder(self) -> dspy.Embedder:
         if self._embedder is None:
-            self._embedder = dspy.Embedder(EMBEDDER_MODEL)
+            self._embedder = dspy.Embedder(
+                BaserowEmbedder(
+                    settings.BASEROW_ENTERPRISE_ASSISTANT_EMBEDDINGS_API_URL
+                )
+            )
         return self._embedder
 
     def embed_texts(self, texts: list[str]) -> list[list[float]]:
@@ -118,7 +167,8 @@ class KnowledgeBaseHandler:
         """
 
         return (
-            KnowledgeBaseChunk.can_search_vectors()
+            settings.BASEROW_ENTERPRISE_ASSISTANT_EMBEDDINGS_API_URL != ""
+            and KnowledgeBaseChunk.can_search_vectors()
             and KnowledgeBaseDocument.objects.filter(
                 status=KnowledgeBaseDocument.Status.READY
             ).exists()

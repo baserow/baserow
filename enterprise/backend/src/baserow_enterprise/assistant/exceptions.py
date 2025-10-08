@@ -4,3 +4,7 @@ class AssistantException(Exception):
 
 class AssistantChatDoesNotExist(AssistantException):
     pass
+
+
+class AssistantModelNotSupportedError(AssistantException):
+    pass

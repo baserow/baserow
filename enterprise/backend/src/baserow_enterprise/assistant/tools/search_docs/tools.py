@@ -3,7 +3,7 @@ from typing import Any, Callable, TypedDict
 from django.contrib.auth.models import AbstractUser
 
 import dspy
-from dspy.dsp.utils.settings import settings
+from dspy.dsp.utils.settings import settings as dspy_settings
 from dspy.streaming.messages import sync_send_to_stream
 
 from baserow.core.models import Workspace
@@ -82,7 +82,7 @@ class SearchDocsToolType(AssistantToolType):
         instance: Any,
         inputs: dict[str, Any],
     ):
-        stream = settings.send_stream
+        stream = dspy_settings.send_stream
         if stream is not None:
             sync_send_to_stream(
                 stream, AiThinkingMessage(code=self.type, content=self.thinking_message)

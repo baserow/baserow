@@ -20,8 +20,7 @@ from .types import (
     HumanMessage,
     UIContext,
 )
-
-DEFAULT_LM_NAME = "groq/openai/gpt-oss-120b"
+from .utils import ensure_llm_model_accessible
 
 
 class ChatSignature(dspy.Signature):
@@ -107,6 +106,12 @@ class Assistant:
         self._chat = chat
         self._user = chat.user
         self._workspace = chat.workspace
+
+        lm_model = settings.BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL
+        self._lm_client = dspy.LM(
+            model=lm_model,
+            cache=not settings.DEBUG,
+        )
 
         Signature = self._get_chat_signature()
         self._assistant = dspy.ReAct(
@@ -255,10 +260,11 @@ class Assistant:
         :return: An async generator that yields the response messages.
         """
 
-        lm = dspy.LM(DEFAULT_LM_NAME, cache=not settings.DEBUG)
+        # The first time, make sure the model and api_key are setup correctly
+        ensure_llm_model_accessible(self._lm_client)
 
         callback_manager = AssistantCallbacks()
-        with dspy.context(lm=lm, callbacks=[callback_manager]):
+        with dspy.context(lm=self._lm_client, callbacks=[callback_manager]):
             if self.history is None:
                 await self.aload_chat_history()
 

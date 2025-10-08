@@ -43,9 +43,49 @@ export default (client) => {
                 })
               }
 
-              xhr.onload = () =>
-                resolve({ data: xhr.responseText, status: xhr.status })
-              xhr.onerror = reject
+              xhr.onload = () => {
+                // Check if the request was successful (2xx status codes)
+                if (xhr.status >= 200 && xhr.status < 300) {
+                  resolve({ data: xhr.responseText, status: xhr.status })
+                } else {
+                  let errorData
+                  try {
+                    errorData = JSON.parse(xhr.responseText)
+                  } catch {
+                    errorData = {
+                      error: 'REQUEST_FAILED',
+                      detail: xhr.responseText || xhr.statusText,
+                    }
+                  }
+
+                  const error = new Error(
+                    errorData.detail ||
+                      errorData.message ||
+                      `Oops! Something went wrong. Please try again.`
+                  )
+                  error.response = {
+                    data: errorData,
+                    status: xhr.status,
+                    statusText: xhr.statusText,
+                  }
+                  error.isAxiosError = true
+
+                  reject(error)
+                }
+              }
+
+              xhr.onerror = () => {
+                const error = new Error('Network error occurred')
+                error.isAxiosError = true
+                reject(error)
+              }
+
+              xhr.ontimeout = () => {
+                const error = new Error('Request timeout')
+                error.isAxiosError = true
+                reject(error)
+              }
+
               xhr.send(config.data)
             })
           },

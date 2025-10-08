@@ -21,8 +21,14 @@ from baserow.api.serializers import get_example_pagination_serializer_class
 from baserow.core.exceptions import UserNotInWorkspace, WorkspaceDoesNotExist
 from baserow.core.feature_flags import FF_ASSISTANT, feature_flag_is_enabled
 from baserow.core.handler import CoreHandler
-from baserow_enterprise.api.assistant.errors import ERROR_ASSISTANT_CHAT_DOES_NOT_EXIST
-from baserow_enterprise.assistant.exceptions import AssistantChatDoesNotExist
+from baserow_enterprise.api.assistant.errors import (
+    ERROR_ASSISTANT_CHAT_DOES_NOT_EXIST,
+    ERROR_ASSISTANT_MODEL_NOT_SUPPORTED,
+)
+from baserow_enterprise.assistant.exceptions import (
+    AssistantChatDoesNotExist,
+    AssistantModelNotSupportedError,
+)
 from baserow_enterprise.assistant.handler import AssistantHandler
 from baserow_enterprise.assistant.operations import ChatAssistantChatOperationType
 from baserow_enterprise.assistant.types import AssistantMessageUnion, UIContext
@@ -130,6 +136,7 @@ class AssistantChatView(APIView):
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
             WorkspaceDoesNotExist: ERROR_GROUP_DOES_NOT_EXIST,
             AssistantChatDoesNotExist: ERROR_ASSISTANT_CHAT_DOES_NOT_EXIST,
+            AssistantModelNotSupportedError: ERROR_ASSISTANT_MODEL_NOT_SUPPORTED,
         }
     )
     def post(self, request: Request, chat_uuid: str, data) -> StreamingHttpResponse:

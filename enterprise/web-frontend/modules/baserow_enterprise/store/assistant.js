@@ -242,15 +242,24 @@ export const actions = {
           })
         }
       )
+      // If the AI message was never updated but the request finished, set a generic error message.
+      if (
+        state.messages.find((m) => m.id === aiMessageId && m.content === '')
+      ) {
+        throw new Error('The assistant did not provide a response.')
+      }
     } catch (error) {
       commit('UPDATE_MESSAGE', {
         id: aiMessageId,
         updates: {
-          content: 'Oops! Something went wrong on the server...',
+          content:
+            error.data?.detail ||
+            error.message ||
+            'Oops! Something went wrong on the server. Please try again.',
           loading: false,
+          error: true,
         },
       })
-      throw error
     } finally {
       commit('SET_ASSISTANT_RUNNING', { chat, value: false })
     }

@@ -13,9 +13,10 @@ from pgvector.django import VectorField
 from baserow.core.models import SchemaOperation
 from baserow.core.psycopg import sql
 
-EMBEDDING_DIMENSIONS = 1536
-
-VECTOR_FIELDS_INITIALIZED = False
+# This is the dimensions used by most open source models. OpenAI models use 1536 or
+# higher dimensions but some models support 768 as well. This is also a good compromise
+# between performance, space requirements and quality.
+DEFAULT_EMBEDDING_DIMENSIONS = 768
 
 
 class EmbeddingSchemaOperationType(StrEnum):
@@ -71,6 +72,7 @@ class EmbeddingMixinManager(models.Manager):
 
 class EmbeddingMixin(models.Model):
     VECTOR_FIELD_NAME = "embedding"
+    EMBEDDING_DIMENSIONS = DEFAULT_EMBEDDING_DIMENSIONS
 
     _can_search_vectors = None
     """
@@ -153,7 +155,7 @@ class EmbeddingMixin(models.Model):
         """
 
         vector_field = VectorField(
-            dimensions=EMBEDDING_DIMENSIONS,
+            dimensions=DEFAULT_EMBEDDING_DIMENSIONS,
             null=True,
             help_text=(
                 "The embedding vector for the chunk. This is used for retrieval."

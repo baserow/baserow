@@ -156,7 +156,7 @@ class Migration(migrations.Migration):
                         base_field=models.FloatField(),
                         help_text="An array containing the embedding values as a float list. This is used for as backup if pgvector is not available, so we can copy the values to the vector field when pgvector is enabled, but they cannot be queried directly.",
                         null=True,
-                        size=1536,
+                        size=768,
                     ),
                 ),
                 (
