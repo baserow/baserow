@@ -557,6 +557,8 @@ jobs:
         image: adobe/s3mock:3.12.0
         env:
           initialBuckets: testbucket
+        ports:
+          - 9090:9090
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -585,7 +587,6 @@ jobs:
             -e DATABASE_PASSWORD=baserow \
             -e REDIS_URL=redis://redis:6379 \
             -e SECRET_KEY=test \
-            -e BASEROW_AMOUNT_OF_WORKERS=1 \
             -e AWS_ACCESS_KEY_ID=anyvalue \
             -e AWS_SECRET_ACCESS_KEY=anyvalue \
             -e AWS_STORAGE_BUCKET_NAME=testbucket \
@@ -594,8 +595,8 @@ jobs:
             -e AWS_S3_USE_SSL=no \
             -e AWS_S3_URL_PROTOCOL=http: \
             -e FEATURE_FLAGS="*" \
-            -e BASEROW_TRIGGER_SYNC_TEMPLATES_AFTER_MIGRATION=false \
             -e DJANGO_SETTINGS_MODULE=baserow.config.settings.e2e \
+            -e BASEROW_TRIGGER_SYNC_TEMPLATES_AFTER_MIGRATION=false \
             -p 8000:8000 \
             ${{ needs.build-backend.outputs.image }} gunicorn
 
@@ -609,13 +610,17 @@ jobs:
             -e DATABASE_PASSWORD=baserow \
             -e REDIS_URL=redis://redis:6379 \
             -e SECRET_KEY=test \
-            -e BASEROW_RUN_MINIMAL=yes \
             -e AWS_ACCESS_KEY_ID=anyvalue \
             -e AWS_SECRET_ACCESS_KEY=anyvalue \
             -e AWS_STORAGE_BUCKET_NAME=testbucket \
             -e AWS_S3_ENDPOINT_URL=http://s3mock:9090 \
+            -e AWS_S3_CUSTOM_DOMAIN=localhost:9090/testbucket \
+            -e AWS_S3_USE_SSL=no \
+            -e AWS_S3_URL_PROTOCOL=http: \
             -e FEATURE_FLAGS="*" \
             -e DJANGO_SETTINGS_MODULE=baserow.config.settings.e2e \
+            -e BASEROW_RUN_MINIMAL=yes \
+            -e BASEROW_AMOUNT_OF_WORKERS=1 \
             ${{ needs.build-backend.outputs.image }} celery-worker
 
       - name: Start web-frontend service
