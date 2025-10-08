@@ -237,4 +237,7 @@ class CoreHTTPTriggerService(Service):
 
     exclude_get = models.BooleanField(default=False)
 
-    is_public = models.BooleanField(default=False)
+    is_public = models.BooleanField(
+        default=False,
+        help_text="Defines whether the service is published or not.",
+    )
