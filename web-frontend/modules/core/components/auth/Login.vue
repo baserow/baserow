@@ -1,6 +1,6 @@
 <template>
   <div>
-    <TOTPLogin v-if="totp" />
+    <TOTPLogin v-if="totp" :email="twoFactorEmail" />
     <EmailNotVerified
       v-else-if="displayEmailNotVerified"
       :email="emailToVerify"
@@ -124,6 +124,7 @@ export default {
       displayEmailNotVerified: false,
       emailToVerify: null,
       totp: false,
+      twoFactorEmail: null,
     }
   },
   computed: {
@@ -175,9 +176,10 @@ export default {
       this.displayEmailNotVerified = true
       this.emailToVerify = email
     },
-    twoFactorRequired() {
+    twoFactorRequired(email) {
       // TODO: based on provider type
       this.totp = true
+      this.twoFactorEmail = email
     },
   },
 }

@@ -31,7 +31,7 @@ from baserow.core.two_factor_auth.exceptions import (
     WrongPassword,
 )
 from drf_spectacular.utils import extend_schema
-
+from rest_framework import serializers
 
 class ConfigureTwoFactorAuthView(APIView):
     permission_classes = (IsAuthenticated,)
@@ -131,3 +131,52 @@ class DisableTwoFactorAuthView(APIView):
         DisableTwoFactorAuthActionType.do(request.user, data.get("password"))
 
         return Response(status=status.HTTP_200_OK)
+
+
+class VerifyTOTPSerializer(serializers.Serializer):
+    type = serializers.CharField(required=True)
+    email = serializers.EmailField(required=True)
+    code = serializers.CharField(required=True)
+
+
+class VerifyTwoFactorAuthView(APIView):
+    # permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
+        tags=["Auth"],
+        operation_id="verify_two_factor_auth",
+        description=("Verifies two-factor authentication"),
+        request=VerifyTOTPSerializer,  # FIXME:
+        responses={
+            200: TwoFactorAuthSerializer,  # FIXME:
+            400: get_error_schema([]),
+            # 401: get_error_schema(["ERROR_TWO_FACTOR_AUTH_VERIFICATION_FAILED"]),
+            # 404: get_error_schema(["ERROR_TWO_FACTOR_AUTH_TYPE_DOES_NOT_EXIST"]),
+        },
+    )
+    @map_exceptions(
+        {
+            TwoFactorAuthTypeDoesNotExist: ERROR_TWO_FACTOR_AUTH_TYPE_DOES_NOT_EXIST,
+            VerificationFailed: ERROR_TWO_FACTOR_AUTH_VERIFICATION_FAILED,
+        }
+    )
+    @validate_body(VerifyTOTPSerializer, return_validated=True)
+    # @validate_body_custom_fields(
+    #     two_factor_auth_type_registry,
+    #     base_serializer_class=CreateTwoFactorAuthSerializer,
+    # )
+    @transaction.atomic
+    def post(self, request, data: dict):
+        """
+        Verifies two-factor authentication.
+        """
+
+        provider_type = data.pop("type")
+        verified = TwoFactorAuthHandler().verify(provider_type, **data)
+
+        # serializer = two_factor_auth_type_registry.get_serializer(
+        #     provider, TwoFactorAuthSerializer
+        # )
+        # return Response(serializer.data)
+
+        return Response({verified: verified})

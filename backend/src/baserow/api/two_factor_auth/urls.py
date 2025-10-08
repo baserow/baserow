@@ -1,6 +1,10 @@
 from django.urls import re_path
 
-from .views import ConfigureTwoFactorAuthView, DisableTwoFactorAuthView
+from .views import (
+    ConfigureTwoFactorAuthView,
+    DisableTwoFactorAuthView,
+    VerifyTwoFactorAuthView,
+)
 
 app_name = "baserow.api.two_factor_auth"
 
@@ -15,4 +19,5 @@ urlpatterns = [
         DisableTwoFactorAuthView.as_view(),
         name="disable",
     ),
+    re_path(r"^verify/$", VerifyTwoFactorAuthView.as_view(), name="verify"),
 ]

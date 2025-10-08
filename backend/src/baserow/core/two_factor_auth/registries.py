@@ -48,6 +48,10 @@ class TwoFactorAuthProviderType(
     def is_enabled(self, provider) -> bool:
         raise NotImplementedError
 
+    @abstractmethod
+    def verify(self, **kwargs) -> bool:
+        raise NotImplementedError
+
 
 class TOTPAuthProviderType(TwoFactorAuthProviderType):
     type = "totp"
@@ -136,6 +140,11 @@ class TOTPAuthProviderType(TwoFactorAuthProviderType):
 
     def is_enabled(self, provider) -> bool:
         return provider.enabled
+
+    def verify(self, **kwargs) -> bool:
+        # TODO: check with email, code
+        return True
+
 
 class TwoFactorAuthTypeRegistry(
     CustomFieldsRegistryMixin,

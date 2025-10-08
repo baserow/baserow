@@ -52,13 +52,37 @@
 
 <script>
 import AuthCodeInput from '@baserow/modules/core/components/settings/twoFactorAuth/AuthCodeInput.vue'
+import TwoFactorAuthService from '@baserow/modules/core/services/twoFactorAuth'
 
 export default {
   name: 'TOTPLogin',
   components: { AuthCodeInput },
+  props: {
+    email: {
+      type: Object,
+      required: true,
+    },
+  },
   methods: {
-    verify() {
-      alert('verify!')
+    async verify(code) {
+      try {
+        const { data } = await TwoFactorAuthService(this.$client).verify(
+          'totp',
+          this.email,
+          code
+        )
+        console.log({ data })
+        alert('success')
+        // const title = 'Successfully enabled two-factor authentication'
+        // this.$store.dispatch('toast/success', { title })
+        // this.$emit('verified', data.backup_codes)
+      } catch (error) {
+        // TODO: diff type of error?
+        const title = 'Verification failed' // this.$t('generalSettings.cantUpdateApplicationTitle')
+        this.$store.dispatch('toast/error', { title })
+      } finally {
+        // this.loading = false
+      }
     },
   },
 }

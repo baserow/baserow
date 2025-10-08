@@ -112,3 +112,17 @@ class TwoFactorAuthHandler:
         provider = self.get_provider_for_update(user)
         if provider:
             provider.delete()
+
+    def verify(self, provider_type_str: str, **kwargs) -> bool:
+        """
+        Verifies 2fa of the provider type.
+
+        :param provider_type: The two-factor auth type of the provider.
+        :param kwargs: Additional verification attributes of the provider.
+        :return: If the verification request is accepted.
+        """
+
+        provider_type: TwoFactorAuthProviderType = two_factor_auth_type_registry.get(
+            provider_type_str
+        )
+        return provider_type.verify(**kwargs)

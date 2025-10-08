@@ -187,9 +187,8 @@ export default {
           email: this.values.email,
           password: this.values.password,
         })
-        console.log({ data })
         if (data.two_factor_auth) {
-          this.$emit('two-factor-auth')
+          this.$emit('two-factor-auth', this.values.email)
           return
         }
 
