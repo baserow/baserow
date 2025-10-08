@@ -8,7 +8,7 @@ from baserow.contrib.automation.nodes.models import (
     LocalBaserowCreateRowActionNode,
 )
 from baserow.contrib.automation.nodes.node_types import (
-    CoreHTTPTriggerType,
+    CoreHTTPTriggerNodeType,
     CorePeriodicTriggerNodeType,
     CoreRouterActionNodeType,
     LocalBaserowCreateRowNodeType,
@@ -141,6 +141,6 @@ class AutomationNodeFixtures:
     def create_http_trigger_node(self, user=None, **kwargs):
         return self.create_automation_node(
             user=user,
-            type=CoreHTTPTriggerType.type,
+            type=CoreHTTPTriggerNodeType.type,
             **kwargs,
         )

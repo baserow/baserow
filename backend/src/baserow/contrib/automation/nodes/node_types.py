@@ -299,7 +299,7 @@ class CorePeriodicTriggerNodeType(
     service_type = CorePeriodicServiceType.type
 
 
-class CoreHTTPTriggerType(AutomationNodeTriggerType):
+class CoreHTTPTriggerNodeType(AutomationNodeTriggerType):
     type = "http_trigger"
     model_class = CoreHTTPTriggerNode
     service_type = CoreHTTPTriggerServiceType.type

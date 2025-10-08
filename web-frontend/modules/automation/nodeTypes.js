@@ -382,7 +382,7 @@ export class CorePeriodicTriggerNodeType extends TriggerNodeTypeMixin(
   }
 }
 
-export class CoreHTTPTriggerType extends TriggerNodeTypeMixin(NodeType) {
+export class CoreHTTPTriggerNodeType extends TriggerNodeTypeMixin(NodeType) {
   static getType() {
     return 'http_trigger'
   }
