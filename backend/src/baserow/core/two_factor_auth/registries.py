@@ -41,7 +41,12 @@ class TwoFactorAuthProviderType(
     def configure(
         self, user: AbstractUser, provider, **kwargs
     ) -> TwoFactorAuthProviderModel:
-        ...
+        # TODO: maybe don't require user here?
+        raise NotImplementedError
+
+    @abstractmethod
+    def is_enabled(self, provider) -> bool:
+        raise NotImplementedError
 
 
 class TOTPAuthProviderType(TwoFactorAuthProviderType):
@@ -129,6 +134,8 @@ class TOTPAuthProviderType(TwoFactorAuthProviderType):
             codes.append(formatted_code)
         return codes
 
+    def is_enabled(self, provider) -> bool:
+        return provider.enabled
 
 class TwoFactorAuthTypeRegistry(
     CustomFieldsRegistryMixin,

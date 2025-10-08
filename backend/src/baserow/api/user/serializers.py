@@ -30,6 +30,7 @@ from baserow.core.auth_provider.exceptions import (
 from baserow.core.auth_provider.handler import PasswordProviderHandler
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Settings, Template, UserProfile
+from baserow.core.two_factor_auth.handler import TwoFactorAuthHandler
 from baserow.core.user.actions import SignInUserActionType
 from baserow.core.user.exceptions import DeactivatedUserException
 from baserow.core.user.handler import UserHandler
@@ -333,6 +334,14 @@ class TokenObtainPairWithUserSerializer(TokenObtainPairSerializer):
             attrs[self.username_field] = email
 
         super().validate(attrs)
+
+        twofa_provider = TwoFactorAuthHandler().get_provider(self.user)
+        if twofa_provider:
+            provider_type = twofa_provider.get_type()
+            twofa_enabled = provider_type.is_enabled(twofa_provider)
+            if twofa_enabled:
+                return {"two_factor_auth": provider_type.type}
+
         return log_in_user(self.context["request"], self.user)
 
 

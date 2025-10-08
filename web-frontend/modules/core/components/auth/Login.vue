@@ -1,7 +1,10 @@
 <template>
   <div>
     <TOTPLogin v-if="totp" />
-    <EmailNotVerified v-else-if="displayEmailNotVerified" :email="emailToVerify">
+    <EmailNotVerified
+      v-else-if="displayEmailNotVerified"
+      :email="emailToVerify"
+    >
     </EmailNotVerified>
     <template v-else>
       <div v-if="displayHeader">
@@ -44,6 +47,7 @@
             settings.allow_reset_password && !passwordLoginHidden
           "
           @success="success"
+          @two-factor-auth="twoFactorRequired"
           @email-not-verified="emailNotVerified"
         >
         </PasswordLogin>
@@ -119,7 +123,7 @@ export default {
       passwordLoginHiddenIfDisabled: true,
       displayEmailNotVerified: false,
       emailToVerify: null,
-      totp: true,
+      totp: false,
     }
   },
   computed: {
@@ -170,6 +174,10 @@ export default {
     emailNotVerified(email) {
       this.displayEmailNotVerified = true
       this.emailToVerify = email
+    },
+    twoFactorRequired() {
+      // TODO: based on provider type
+      this.totp = true
     },
   },
 }

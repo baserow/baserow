@@ -187,6 +187,11 @@ export default {
           email: this.values.email,
           password: this.values.password,
         })
+        console.log({ data })
+        if (data.two_factor_auth) {
+          this.$emit('two-factor-auth')
+          return
+        }
 
         // If there is an invitation we can immediately accept that one after the user
         // successfully signs in.
@@ -238,6 +243,8 @@ export default {
         } else {
           throw error
         }
+      } finally {
+        this.loading = false
       }
     },
   },
