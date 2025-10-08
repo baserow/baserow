@@ -443,10 +443,9 @@ jobs:
         if: always()
         with:
           name: web-frontend-test-reports-shard-${{ matrix.shard }}
-          path: |
-            reports/report.xml
-            reports/.coverage.*
+          path: reports/
           retention-days: 7
+          include-hidden-files: true
 
       - name: Publish test results
         uses: EnricoMi/publish-unit-test-result-action@v2
@@ -670,10 +669,9 @@ jobs:
         if: always()
         with:
           name: e2e-test-results-shard-${{ matrix.shard }}
-          path: |
-            e2e-tests/playwright-report
-            e2e-tests/blob-report/
+          path: e2e-tests/blob-report/
           retention-days: 7
+          include-hidden-files: true
 
       - name: Cleanup containers
         if: always()
@@ -685,7 +683,7 @@ jobs:
     name: Collect E2E Test Reports
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request' && always()
-    needs: test-e2e
+    needs: [test-e2e]
     permissions:
       contents: read
       checks: read
@@ -716,7 +714,7 @@ jobs:
         if: always()
         with:
           name: e2e-test-report-merged
-          path: e2e-tests/playwright-report
+          path: e2e-tests/playwright-report/
           retention-days: 30
 
   # ==========================================================================
