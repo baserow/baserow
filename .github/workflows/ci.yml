@@ -372,7 +372,7 @@ jobs:
           docker run \
             --name=baserow_backend_test_container \
             --network="${{ job.services.db.network }}" \
-            -e PYTEST_SPLITS=100 \
+            -e PYTEST_SPLITS=10 \
             -e PYTEST_SPLIT_GROUP=${{ matrix.group }} \
             -e DATABASE_HOST=db \
             -e DATABASE_PORT=5432 \
