@@ -417,8 +417,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-#        shard: [1, 2, 3, 4]
-        shard: [1]
+        shard: [1, 2, 3, 4]
     steps:
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
@@ -535,8 +534,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-#        shard: [1, 2, 3, 4]
-        shard: [1]
+        shard: [1, 2, 3, 4]
     services:
       db:
         image: postgres:13
@@ -648,12 +646,6 @@ jobs:
         run: |
           cd e2e-tests
           ./wait-for-services.sh
-          curl -fsS http://localhost:3000/login && echo backend OK
-          curl -fsS http://localhost:8000/api/templates/ | head -n1
-
-      - name: Cross-check internal connectivity
-        run: |
-          docker exec web-frontend curl -sSf http://backend:8000/api/_health/ && echo "Frontend→Backend OK"
 
       - name: Run E2E tests (shard ${{ matrix.shard }})
         env:
@@ -662,7 +654,7 @@ jobs:
           PRIVATE_BACKEND_URL: http://backend:8000
         run: |
           cd e2e-tests
-          CI=1 npx playwright test --timeout=30000 --grep-invert=@slow --shard=${{ matrix.shard }}/10 --project=firefox
+          CI=1 npx playwright test --timeout=30000 --grep-invert=@slow --shard=${{ matrix.shard }}/4 --project=firefox
 
       - name: Upload E2E test results
         uses: actions/upload-artifact@v4
