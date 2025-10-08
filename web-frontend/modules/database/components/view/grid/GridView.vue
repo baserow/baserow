@@ -1466,15 +1466,11 @@ export default {
         return
       }
 
-      const showLoadingState = (loading) =>
-        this.$store.dispatch('toast/setCopying', loading)
-
       this.copySelectionToClipboard(
         this.$store.dispatch(`${gridStore}/getCurrentSelection`, {
           fields: this.allVisibleFields,
         }),
-        includeHeader,
-        showLoadingState
+        includeHeader
       )
 
       // prevent Safari from beeping since window.getSelection() is empty

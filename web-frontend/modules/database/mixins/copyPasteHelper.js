@@ -137,37 +137,32 @@ export default {
      * resolves to an array containing the fields and rows to copy. The fields are
      * used to determine which columns to copy and in which order. The rows are the
      * actual data to copy. If includeHeader is true, the field names are included as
-     * the first row of the copied data. If showLoadingState is provided, it is called
-     * with a boolean value to indicate whether the copy operation is in progress or
-     * not.
+     * the first row of the copied data.
      *
      * @param {Promise} selectionPromise A promise that resolves to an array containing
      * the fields and rows to copy.
      * @param {boolean} includeHeader Whether to include the field names as the first
      * row of the copied data.
-     * @param {Function|null} showLoadingState An optional function that is called
-     * with a boolean value to indicate whether the copy operation is in progress or
-     * not.
      */
-    copySelectionToClipboard(
-      selectionPromise,
-      includeHeader = false,
-      showLoadingState = null
-    ) {
-      if (showLoadingState) {
-        showLoadingState(true)
-      }
-      const dataPromise = selectionPromise.then(([fields, rows]) => {
-        const { textData, jsonData } = this.prepareValuesForCopy(
-          fields,
-          rows,
-          includeHeader
-        )
-        return this.formatClipboardDataAndStoreRichCopy(
-          { textData, jsonData },
-          includeHeader
-        )
-      })
+    copySelectionToClipboard(selectionPromise, includeHeader = false) {
+      this.$store.dispatch('toast/setCopying', true)
+      const dataPromise = selectionPromise
+        .then(([fields, rows]) => {
+          const { textData, jsonData } = this.prepareValuesForCopy(
+            fields,
+            rows,
+            includeHeader
+          )
+          this.$store.dispatch('toast/setCopying', false)
+          return this.formatClipboardDataAndStoreRichCopy(
+            { textData, jsonData },
+            includeHeader
+          )
+        })
+        .catch((error) => {
+          this.$store.dispatch('toast/setCopying', false)
+          throw error
+        })
 
       try {
         this.writeToClipboard(dataPromise)
@@ -180,10 +175,6 @@ export default {
           )
         } else {
           this.showCopyClipboardError()
-        }
-      } finally {
-        if (showLoadingState) {
-          showLoadingState(false)
         }
       }
     },
