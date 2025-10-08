@@ -1,25 +1,30 @@
-from datetime import timedelta
+from unittest.mock import patch
 
 from django.urls import reverse
-from django.utils import timezone
 
 import pytest
 from rest_framework.status import (
     HTTP_200_OK,
+    HTTP_202_ACCEPTED,
     HTTP_204_NO_CONTENT,
     HTTP_400_BAD_REQUEST,
     HTTP_404_NOT_FOUND,
 )
 
 from baserow.contrib.automation.nodes.models import AutomationNode
+from baserow.contrib.automation.nodes.node_types import (
+    CorePeriodicTriggerNodeType,
+    LocalBaserowRowsCreatedNodeTriggerType,
+)
+from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
-from baserow.contrib.database.rows.signals import rows_created
 from baserow.test_utils.helpers import AnyDict, AnyInt, AnyStr
 from tests.baserow.contrib.automation.api.utils import get_api_kwargs
 
 API_URL_BASE = "api:automation:nodes"
 API_URL_LIST = f"{API_URL_BASE}:list"
 API_URL_ITEM = f"{API_URL_BASE}:item"
+API_URL_MOVE = f"{API_URL_BASE}:move"
 API_URL_ORDER = f"{API_URL_BASE}:order"
 API_URL_DUPLICATE = f"{API_URL_BASE}:duplicate"
 API_URL_REPLACE = f"{API_URL_BASE}:replace"
@@ -862,29 +867,91 @@ def test_simulate_dispatch_invalid_node(api_client, data_fixture):
     }
 
 
-@pytest.mark.django_db
-def test_simulate_dispatch_error_service_not_configured(api_client, data_fixture):
+@pytest.mark.django_db()
+@patch(
+    "baserow.contrib.automation.workflows.service.AutomationWorkflowHandler.async_start_workflow"
+)
+def test_simulate_dispatch_trigger_node(
+    mock_async_start_workflow, api_client, data_fixture
+):
     user, token = data_fixture.create_user_and_token()
-    _ = data_fixture.create_local_baserow_rows_created_trigger_node(user=user)
-    node = data_fixture.create_local_baserow_create_row_action_node(
-        user=user, workflow=_.workflow
+
+    # Create a trigger node with service
+    table, fields, _ = data_fixture.build_table(
+        user=user,
+        columns=[("Name", "text")],
+        rows=[["Blueberry Muffin"]],
+    )
+    workflow = data_fixture.create_automation_workflow(
+        user=user,
+        trigger_type=LocalBaserowRowsCreatedNodeTriggerType.type,
+        trigger_service_kwargs={"table": table},
     )
 
+    trigger_node = workflow.get_trigger()
+
+    assert trigger_node.workflow.simulate_until_node is None
+
     api_kwargs = get_api_kwargs(token)
-    url = reverse(API_URL_SIMULATE_DISPATCH, kwargs={"node_id": node.id})
+    url = reverse(API_URL_SIMULATE_DISPATCH, kwargs={"node_id": trigger_node.id})
     response = api_client.post(url, **api_kwargs)
 
-    assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json() == {
-        "detail": f"Failed to simulate dispatch: The node {node.id} has a misconfigured service.",
-        "error": "ERROR_AUTOMATION_NODE_SIMULATE_DISPATCH",
-    }
+    assert response.status_code == HTTP_202_ACCEPTED
+
+    workflow = trigger_node.workflow
+    workflow.refresh_from_db()
+
+    assert workflow.simulate_until_node_id == trigger_node.id
+    mock_async_start_workflow.assert_not_called()
 
 
-@pytest.mark.django_db(transaction=True)
-def test_simulate_dispatch_trigger_node(api_client, data_fixture):
+@pytest.mark.django_db()
+@patch(
+    "baserow.contrib.automation.workflows.service.AutomationWorkflowHandler.async_start_workflow"
+)
+def test_simulate_dispatch_trigger_node_immediate_dispatch(
+    mock_async_start_workflow, api_client, data_fixture
+):
     user, token = data_fixture.create_user_and_token()
-    workflow = data_fixture.create_automation_workflow(user=user)
+    workflow = data_fixture.create_automation_workflow(
+        user=user, trigger_type=CorePeriodicTriggerNodeType.type
+    )
+
+    trigger_node = workflow.get_trigger()
+
+    assert trigger_node.workflow.simulate_until_node is None
+
+    old_imm = trigger_node.service.get_type().can_immediately_be_tested
+    trigger_node.service.get_type().can_immediately_be_tested = lambda s: True
+
+    api_kwargs = get_api_kwargs(token)
+    url = reverse(API_URL_SIMULATE_DISPATCH, kwargs={"node_id": trigger_node.id})
+    response = api_client.post(url, **api_kwargs)
+
+    assert response.status_code == HTTP_202_ACCEPTED
+
+    workflow = trigger_node.workflow
+    workflow.refresh_from_db()
+
+    assert workflow.simulate_until_node_id == trigger_node.id
+    # In case of an immediate dispatch we want to trigger immediately the workflow
+    mock_async_start_workflow.assert_called_with(workflow)
+
+    trigger_node.service.get_type().can_immediately_be_tested = old_imm
+
+
+@pytest.mark.django_db()
+@patch(
+    "baserow.contrib.automation.workflows.service.AutomationWorkflowHandler.async_start_workflow"
+)
+def test_simulate_dispatch_trigger_node_with_sample_data(
+    mock_async_start_workflow, api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(
+        user=user,
+        trigger_type=LocalBaserowRowsCreatedNodeTriggerType.type,
+    )
 
     # Create a trigger node with service
     table, fields, _ = data_fixture.build_table(
@@ -902,59 +969,33 @@ def test_simulate_dispatch_trigger_node(api_client, data_fixture):
     )
 
     # Initially, the sample_data should be empty
-    assert trigger_node.service.sample_data is None
     assert trigger_node.workflow.simulate_until_node is None
+
+    trigger_node.service.sample_data = {"data": {"test": "data"}}
+    trigger_node.service.save()
 
     api_kwargs = get_api_kwargs(token)
     url = reverse(API_URL_SIMULATE_DISPATCH, kwargs={"node_id": trigger_node.id})
     response = api_client.post(url, **api_kwargs)
 
-    assert response.status_code == HTTP_200_OK
-    # Simulating a trigger is async. Until the trigger is actually executed,
-    # this should remain True.
-    assert response.json()["simulate_until_node"] is True
-    assert response.json()["id"] == trigger_node.id
-    assert response.json()["workflow"] == workflow.id
-    assert response.json()["service"]["sample_data"] is None
+    assert response.status_code == HTTP_202_ACCEPTED
 
+    workflow = trigger_node.workflow
     workflow.refresh_from_db()
-    assert workflow.simulate_until_node.id == trigger_node.id
 
-    trigger_node.refresh_from_db()
-    # Sample data should still be empty, since the trigger hasn't fired yet.
-    assert trigger_node.service.sample_data is None
-
-    workflow.allow_test_run_until = timezone.now() + timedelta(seconds=10)
-    workflow.save()
-
-    row = table.get_model().objects.first()
-    rows_created.send(
-        None,
-        rows=[row],
-        table=table,
-        model=table.get_model(),
-        before=None,
-        user=None,
-        fields=[],
-        dependant_fields=[],
-    )
-
-    trigger_node.refresh_from_db()
-    assert trigger_node.workflow.simulate_until_node is None
-    # Having dispatched the trigger, the sample_data should be populated
-    assert trigger_node.service.sample_data == {
-        "data": [
-            {
-                f"field_{fields[0].id}": "Blueberry Muffin",
-                "id": row.id,
-                "order": str(row.order),
-            }
-        ]
-    }
+    assert workflow.simulate_until_node_id == trigger_node.id
+    # Should be not called as even if the sample data are set, we are simulating the
+    # trigger itself so we need to wait for a new event
+    mock_async_start_workflow.assert_not_called()
 
 
-@pytest.mark.django_db
-def test_simulate_dispatch_action_node(api_client, data_fixture):
+@pytest.mark.django_db()
+@patch(
+    "baserow.contrib.automation.workflows.service.AutomationWorkflowHandler.async_start_workflow"
+)
+def test_simulate_dispatch_action_node(
+    mock_async_start_workflow, api_client, data_fixture
+):
     user, token = data_fixture.create_user_and_token()
     # Create a trigger node with service
     table_1, _, _ = data_fixture.build_table(
@@ -963,7 +1004,9 @@ def test_simulate_dispatch_action_node(api_client, data_fixture):
         rows=[["Pumpkin pie"]],
     )
     workflow = data_fixture.create_automation_workflow(
-        user=user, trigger_service_kwargs={"table": table_1}
+        user=user,
+        trigger_service_kwargs={"table": table_1},
+        trigger_type=LocalBaserowRowsCreatedNodeTriggerType.type,
     )
 
     # Create an action node with service
@@ -988,40 +1031,150 @@ def test_simulate_dispatch_action_node(api_client, data_fixture):
         service=action_service,
     )
 
-    # Initially, the sample_data should be empty
-    assert action_node.service.sample_data is None
+    api_kwargs = get_api_kwargs(token)
+    url = reverse(API_URL_SIMULATE_DISPATCH, kwargs={"node_id": action_node.id})
+    response = api_client.post(url, **api_kwargs)
+
+    assert response.status_code == HTTP_202_ACCEPTED
+
+    # Not called as the trigger is not an immediate trigger
+    mock_async_start_workflow.assert_not_called()
+
+    workflow.refresh_from_db()
+
+    assert workflow.simulate_until_node_id == action_node.id
+
+
+@pytest.mark.django_db()
+@patch(
+    "baserow.contrib.automation.workflows.service.AutomationWorkflowHandler.async_start_workflow"
+)
+def test_simulate_dispatch_action_node_with_sample_data(
+    mock_async_start_workflow, api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    # Create a trigger node with service
+    table_1, _, _ = data_fixture.build_table(
+        user=user,
+        columns=[("Name", "text")],
+        rows=[["Pumpkin pie"]],
+    )
+    workflow = data_fixture.create_automation_workflow(
+        user=user,
+        trigger_service_kwargs={"table": table_1},
+        trigger_type=LocalBaserowRowsCreatedNodeTriggerType.type,
+    )
+
+    # Create an action node with service
+    table_2, fields_2, _ = data_fixture.build_table(
+        user=user,
+        columns=[("Name", "text")],
+        rows=[],
+    )
+
+    action_service = data_fixture.create_local_baserow_upsert_row_service(
+        table=table_2,
+        integration=data_fixture.create_local_baserow_integration(user=user),
+    )
+    action_service.field_mappings.create(
+        field=fields_2[0],
+        value="'A new row'",
+    )
+    action_node = data_fixture.create_automation_node(
+        user=user,
+        workflow=workflow,
+        type="create_row",
+        service=action_service,
+    )
+
+    trigger_node = workflow.get_trigger()
+    trigger_node.service.sample_data = {"data": {"test": "data"}}
+    trigger_node.service.save()
 
     api_kwargs = get_api_kwargs(token)
     url = reverse(API_URL_SIMULATE_DISPATCH, kwargs={"node_id": action_node.id})
     response = api_client.post(url, **api_kwargs)
 
+    assert response.status_code == HTTP_202_ACCEPTED
+
+    # As the trigger node has sample data we can immediately trigger the workflow
+    mock_async_start_workflow.assert_called_with(workflow)
+
+    workflow.refresh_from_db()
+    assert workflow.simulate_until_node_id == action_node.id
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "node_type",
+    [
+        node_type
+        for node_type in automation_node_type_registry.get_all()
+        if not node_type.is_fixed
+    ],
+)
+def test_move_movable_node(node_type, api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user)
+    trigger = workflow.get_trigger(specific=False)
+    before_node = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow
+    )
+    node = data_fixture.create_automation_node(
+        workflow=workflow,
+        type=node_type.type,
+    )
+    response = api_client.post(
+        reverse(API_URL_MOVE, kwargs={"node_id": node.id}),
+        {"previous_node_id": trigger.id, "previous_node_output": ""},
+        **get_api_kwargs(token),
+    )
     assert response.status_code == HTTP_200_OK
-    # Since the node has already been simulated, this should be False
-    assert response.json()["simulate_until_node"] is False
-    assert response.json()["id"] == action_node.id
-    assert response.json()["workflow"] == workflow.id
-    field_id = action_service.field_mappings.all()[0].field.id
-
-    assert response.json()["service"]["sample_data"] == {
-        "data": {
-            f"field_{field_id}": "A new row",
-            "id": AnyInt(),
-            "order": AnyStr(),
-        },
-        "output_uid": "",
-        "status": 200,
+    assert response.json() == {
+        "id": node.id,
+        "label": node.label,
+        "order": AnyStr(),
+        "previous_node_id": trigger.id,
+        "previous_node_output": node.previous_node_output,
+        "service": AnyDict(),
+        "type": node_type.type,
+        "workflow": workflow.id,
+        "simulate_until_node": False,
     }
+    before_node.refresh_from_db()
+    assert before_node.previous_node_id == node.id
 
-    action_node.refresh_from_db()
-    row = table_2.get_model().objects.first()
 
-    # Having dispatched the action, the sample_data should be populated
-    assert action_node.service.sample_data == {
-        "data": {
-            f"field_{fields_2[0].id}": "A new row",
-            "id": row.id,
-            "order": AnyStr(),
-        },
-        "output_uid": "",
-        "status": 200,
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "node_type",
+    [
+        node_type
+        for node_type in automation_node_type_registry.get_all()
+        if node_type.is_fixed
+    ],
+)
+def test_move_fixed_node(node_type, api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user)
+    trigger = workflow.get_trigger(specific=False)
+    before_node = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow
+    )
+    node = data_fixture.create_automation_node(
+        workflow=workflow,
+        type=node_type.type,
+    )
+    response = api_client.post(
+        reverse(API_URL_MOVE, kwargs={"node_id": node.id}),
+        {"previous_node_id": trigger.id, "previous_node_output": ""},
+        **get_api_kwargs(token),
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "error": "ERROR_AUTOMATION_NODE_NOT_MOVABLE",
+        "detail": "This automation node cannot be moved.",
     }
+    before_node.refresh_from_db()
+    assert before_node.previous_node_id == trigger.id

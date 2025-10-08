@@ -78,6 +78,8 @@ export const registerRealtimeEvents = (realtime) => {
       }
     }
   )
+
+  // Workflow node events
   realtime.registerEvent('automation_node_created', ({ store }, data) => {
     const workflow = store.getters['automationWorkflow/getSelected']
     if (workflow && workflow.id === data.node.workflow) {
@@ -105,6 +107,62 @@ export const registerRealtimeEvents = (realtime) => {
       node: existing,
       values: node,
       override: true,
+    })
+  })
+
+  realtime.registerEvent('automation_nodes_updated', ({ store }, data) => {
+    const { workflow_id: workflowId, nodes } = data
+    const workflow = store.getters['automationWorkflow/getSelected']
+    if (!workflow || workflow.id !== workflowId) return
+    nodes.forEach((node) => {
+      const existing = store.getters['automationWorkflowNode/findById'](
+        workflow,
+        node.id
+      )
+      store.dispatch('automationWorkflowNode/forceUpdate', {
+        workflow,
+        node: existing,
+        values: node,
+        override: true,
+      })
+    })
+  })
+
+  realtime.registerEvent('automation_node_replaced', ({ store }, data) => {
+    const {
+      workflow_id: workflowId,
+      deleted_node: deletedNode,
+      restored_node: restoredNode,
+    } = data
+
+    const workflow = store.getters['automationWorkflow/getSelected']
+    if (workflow.id !== workflowId) return
+
+    // Find the nodes that follow the node we're about to delete.
+    const deletedNodeNextNodes = store.getters[
+      'automationWorkflowNode/getNextNodes'
+    ](workflow, deletedNode)
+
+    // Add our new node.
+    store.dispatch('automationWorkflowNode/forceCreate', {
+      workflow,
+      node: restoredNode,
+    })
+
+    // Update the deleted node's next nodes,
+    // so they point to the newly added node.
+    deletedNodeNextNodes.forEach((nextNode) => {
+      store.dispatch('automationWorkflowNode/forceUpdate', {
+        workflow,
+        node: nextNode,
+        values: { previous_node_id: restoredNode.id },
+      })
+    })
+
+    // Now delete the old node.
+    store.dispatch('automationWorkflowNode/forceDelete', {
+      workflow,
+      nodeId: deletedNode.id,
     })
   })
 

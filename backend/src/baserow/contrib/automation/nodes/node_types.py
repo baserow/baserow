@@ -7,9 +7,6 @@ from django.db.models.functions import Cast
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
-from baserow.contrib.automation.automation_dispatch_context import (
-    AutomationDispatchContext,
-)
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeMisconfiguredService,
     AutomationNodeNotDeletable,
@@ -20,6 +17,7 @@ from baserow.contrib.automation.nodes.models import (
     AutomationNode,
     AutomationTriggerNode,
     CoreHTTPRequestActionNode,
+    CoreHTTPTriggerNode,
     CorePeriodicTriggerNode,
     CoreRouterActionNode,
     CoreSMTPEmailActionNode,
@@ -37,6 +35,7 @@ from baserow.contrib.automation.nodes.registries import AutomationNodeType
 from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.contrib.integrations.core.service_types import (
     CoreHTTPRequestServiceType,
+    CoreHTTPTriggerServiceType,
     CorePeriodicServiceType,
     CoreRouterServiceType,
     CoreSMTPEmailServiceType,
@@ -53,32 +52,11 @@ from baserow.contrib.integrations.local_baserow.service_types import (
 )
 from baserow.core.db import specific_iterator
 from baserow.core.registry import Instance
-from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
 from baserow.core.services.registries import service_type_registry
-from baserow.core.services.types import DispatchResult
 
 
-class ServiceDispatchableAutomationNodeTypeMixin:
-    """
-    A mixin for automation node types that can be dispatched using the service.
-    This mixin provides a default implementation of the `dispatch` method that uses
-    the `ServiceHandler` to dispatch the service associated with the node.
-    """
-
-    def dispatch(
-        self,
-        automation_node: AutomationNode,
-        dispatch_context: AutomationDispatchContext,
-    ) -> DispatchResult:
-        return ServiceHandler().dispatch_service(
-            automation_node.service.specific, dispatch_context
-        )
-
-
-class AutomationNodeActionNodeType(
-    ServiceDispatchableAutomationNodeTypeMixin, AutomationNodeType
-):
+class AutomationNodeActionNodeType(AutomationNodeType):
     is_workflow_action = True
 
 
@@ -141,6 +119,9 @@ class CoreRouterActionNodeType(AutomationNodeActionNodeType):
     type = "router"
     model_class = CoreRouterActionNode
     service_type = CoreRouterServiceType.type
+
+    # Routers cannot be moved in the workflow to a new position.
+    is_fixed = True
 
     def get_output_nodes(
         self, node: CoreRouterActionNode, specific: bool = False
@@ -230,20 +211,10 @@ class CoreRouterActionNodeType(AutomationNodeActionNodeType):
 
 
 class AutomationNodeTriggerType(AutomationNodeType):
+    # Triggers cannot be moved in the workflow to a new position.
+    is_fixed = True
+
     is_workflow_trigger = True
-
-    def dispatch(
-        self,
-        node: AutomationNode,
-        dispatch_context: AutomationDispatchContext,
-    ) -> DispatchResult:
-        if dispatch_context.use_sample_data:
-            if sample_data := node.service.get_type().get_sample_data(
-                node.service.specific
-            ):
-                return DispatchResult(**sample_data)
-
-        return DispatchResult(data=dispatch_context.event_payload)
 
     def after_register(self):
         service_type_registry.get(self.service_type).start_listening(self.on_event)
@@ -292,31 +263,14 @@ class AutomationNodeTriggerType(AutomationNodeType):
 
         for trigger in triggers:
             workflow = trigger.workflow
-            simulate_until_node_id = (
-                trigger.workflow.simulate_until_node.id
-                if trigger.workflow.simulate_until_node
-                else None
-            )
-            AutomationWorkflowHandler().run_workflow(
+
+            AutomationWorkflowHandler().async_start_workflow(
                 workflow,
                 event_payload,
-                simulate_until_node_id,
             )
 
-            save_sample_data = False
-            if workflow.allow_test_run_until:
-                workflow.allow_test_run_until = None
-                workflow.save(update_fields=["allow_test_run_until"])
-                save_sample_data = True
-
-            if workflow.simulate_until_node and not workflow.is_published:
-                workflow.simulate_until_node = None
-                workflow.save(update_fields=["simulate_until_node"])
-                save_sample_data = True
-
-            if save_sample_data:
-                trigger.service.sample_data = {"data": event_payload}
-                trigger.service.save()
+            # We don't want subsequent events to trigger a new test run
+            AutomationWorkflowHandler().reset_workflow_temporary_states(workflow)
 
 
 class LocalBaserowRowsCreatedNodeTriggerType(AutomationNodeTriggerType):
@@ -337,34 +291,15 @@ class LocalBaserowRowsDeletedNodeTriggerType(AutomationNodeTriggerType):
     service_type = LocalBaserowRowsDeletedServiceType.type
 
 
-class AutomationNodeImmediateTriggerTypeMixin:
-    # On a workflow test run, this node type will be immediately dispatched,
-    # it does not wait for an initial internal or external event to occur.
-    immediate_dispatch = True
-
-    def dispatch(
-        self,
-        automation_node: AutomationNode,
-        dispatch_context: AutomationDispatchContext,
-    ) -> DispatchResult:
-        """
-        Immediate nodes are generally able to generate their own payload so unless
-        the context has an event payload, we directly try to generate one from
-        the service.
-        """
-
-        if dispatch_context.event_payload is not None:
-            return super().dispatch(automation_node, dispatch_context)
-
-        return ServiceHandler().dispatch_service(
-            automation_node.service.specific, dispatch_context
-        )
-
-
 class CorePeriodicTriggerNodeType(
-    AutomationNodeImmediateTriggerTypeMixin,
     AutomationNodeTriggerType,
 ):
     type = "periodic"
     model_class = CorePeriodicTriggerNode
     service_type = CorePeriodicServiceType.type
+
+
+class CoreHTTPTriggerNodeType(AutomationNodeTriggerType):
+    type = "http_trigger"
+    model_class = CoreHTTPTriggerNode
+    service_type = CoreHTTPTriggerServiceType.type

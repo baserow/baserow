@@ -2,6 +2,7 @@ import { Registerable } from '@baserow/modules/core/registry'
 import {
   ActionNodeTypeMixin,
   TriggerNodeTypeMixin,
+  UtilityNodeMixin,
 } from '@baserow/modules/automation/nodeTypeMixins'
 import {
   LocalBaserowCreateRowWorkflowServiceType,
@@ -19,6 +20,7 @@ import {
   CoreHTTPRequestServiceType,
   CoreRouterServiceType,
   CoreSMTPEmailServiceType,
+  CoreHTTPTriggerServiceType,
 } from '@baserow/modules/integrations/core/serviceTypes'
 import { uuid } from '@baserow/modules/core/utils/string'
 
@@ -102,6 +104,16 @@ export class NodeType extends Registerable {
    */
   get formComponent() {
     return this.serviceType.formComponent
+  }
+
+  /**
+   * Whether this node type can be moved around the workflow. By default,
+   * all nodes can be moved. This can be overridden by the node type
+   * to prevent moving.
+   * @returns {boolean} - Whether the node can be moved.
+   */
+  get isFixed() {
+    return false
   }
 
   /**
@@ -370,6 +382,39 @@ export class CorePeriodicTriggerNodeType extends TriggerNodeTypeMixin(
   }
 }
 
+export class CoreHTTPTriggerNodeType extends TriggerNodeTypeMixin(NodeType) {
+  static getType() {
+    return 'http_trigger'
+  }
+
+  get name() {
+    return this.app.i18n.t('serviceType.coreHTTPTrigger')
+  }
+
+  get description() {
+    return this.app.i18n.t('serviceType.coreHTTPTriggerDescription')
+  }
+
+  get iconClass() {
+    return 'iconoir-globe'
+  }
+
+  get serviceType() {
+    return this.app.$registry.get(
+      'service',
+      CoreHTTPTriggerServiceType.getType()
+    )
+  }
+
+  getOrder() {
+    return 4
+  }
+
+  getDefaultLabel({ automation, node }) {
+    return this.app.i18n.t('serviceType.coreHTTPTrigger')
+  }
+}
+
 export class LocalBaserowCreateRowActionNodeType extends ActionNodeTypeMixin(
   LocalBaserowNodeType
 ) {
@@ -559,9 +604,21 @@ export class CoreSMTPEmailNodeType extends ActionNodeTypeMixin(NodeType) {
   }
 }
 
-export class CoreRouterNodeType extends ActionNodeTypeMixin(NodeType) {
+export class CoreRouterNodeType extends ActionNodeTypeMixin(
+  UtilityNodeMixin(NodeType)
+) {
   static getType() {
     return 'router'
+  }
+
+  /**
+   * Router nodes cannot be moved around the workflow, due to complications
+   * with managing their output nodes. This will be improved in the future,
+   * but for now, this node type is fixed.
+   * @returns {boolean} - Whether the node can be moved.
+   */
+  get isFixed() {
+    return true
   }
 
   getOrder() {

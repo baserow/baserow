@@ -366,6 +366,7 @@ default_roles[VIEWER_ROLE_UID].extend(
         DeleteMCPEndpointOperationType,
         ChatAssistantChatOperationType,
         ReadFieldRuleOperationType,
+        ExportTableOperationType,
     ]
 )
 default_roles[COMMENTER_ROLE_UID].extend(
@@ -385,7 +386,6 @@ default_roles[EDITOR_ROLE_UID].extend(
         CreateRowDatabaseTableOperationType,
         UpdateDatabaseRowOperationType,
         DeleteDatabaseRowOperationType,
-        ExportTableOperationType,
         MoveRowDatabaseRowOperationType,
         ImportRowsDatabaseTableOperationType,
         ListWorkspaceUsersWorkspaceOperationType,

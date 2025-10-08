@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Any, Dict, Iterable, List, Optional, Union
+from typing import Any, Dict, Iterable, List, Optional, Type, Union
 
 from django.core.files.storage import Storage
 from django.db.models import QuerySet
@@ -10,28 +10,34 @@ from baserow.contrib.automation.automation_dispatch_context import (
 from baserow.contrib.automation.models import AutomationWorkflow
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeDoesNotExist,
-    AutomationNodeError,
+    AutomationNodeMisconfiguredService,
     AutomationNodeNotInWorkflow,
-    AutomationNodeSimulateDispatchError,
 )
-from baserow.contrib.automation.nodes.models import AutomationNode
-from baserow.contrib.automation.nodes.node_types import AutomationNodeType
+from baserow.contrib.automation.nodes.models import AutomationActionNode, AutomationNode
+from baserow.contrib.automation.nodes.node_types import (
+    AutomationNodeActionNodeType,
+    AutomationNodeType,
+)
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.nodes.types import (
     AutomationNodeDict,
     AutomationNodeDuplication,
+    AutomationNodeMove,
     NextAutomationNodeValues,
-    UpdatedAutomationNode,
 )
-from baserow.contrib.automation.workflows.runner import AutomationWorkflowRunner
 from baserow.core.cache import local_cache
 from baserow.core.db import specific_iterator
 from baserow.core.exceptions import IdDoesNotExist
-from baserow.core.services.exceptions import UnexpectedDispatchException
+from baserow.core.registries import ImportExportConfig
+from baserow.core.services.exceptions import (
+    ServiceImproperlyConfiguredDispatchException,
+)
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
 from baserow.core.storage import ExportZipFile
 from baserow.core.utils import MirrorDict, extract_allowed
+
+from .signals import automation_node_updated
 
 
 class AutomationNodeHandler:
@@ -144,7 +150,7 @@ class AutomationNodeHandler:
         new_previous_node: AutomationNode,
         nodes: List[AutomationNode],
         previous_node_output: Optional[str] = None,
-    ):
+    ) -> List[AutomationActionNode]:
         """
         Relink all nodes to the given new previous node and ensure that we set the
         previous node output correctly.
@@ -158,18 +164,24 @@ class AutomationNodeHandler:
         if previous_node_output is not None:
             update_kwargs["previous_node_output"] = previous_node_output
 
-        AutomationNode.objects.filter(id__in=[n.id for n in nodes]).update(
-            **update_kwargs
-        )
+        updates = []
+        for node in nodes:
+            for key, value in update_kwargs.items():
+                setattr(node, key, value)
+            updates.append(node)
+        AutomationNode.objects.bulk_update(updates, update_kwargs.keys())
+
+        return updates
 
     def update_next_nodes_values(
         self,
         next_node_values: List[NextAutomationNodeValues],
-    ):
+    ) -> List[AutomationActionNode]:
         """
         Update the next nodes values for a list of nodes.
 
         :param next_node_values: The new next node values.
+        :return: The updated nodes.
         """
 
         next_node_updates = []
@@ -185,6 +197,7 @@ class AutomationNodeHandler:
         AutomationNode.objects.bulk_update(
             next_node_updates, ["previous_node_id", "previous_node_output"]
         )
+        return next_node_updates
 
     def create_node(
         self,
@@ -223,11 +236,15 @@ class AutomationNodeHandler:
                     "previous_node_output"
                 ] = before.previous_node_output
 
-            # Find any nodes which have a previous node ID and output
-            # that match the before node's previous node ID and output.
+            # Find the nodes that are using `before` as their previous node.
+            # If `before` has a `previous_node_id`, then we get `before.previous_node`'s
+            # next nodes. If there's no `previous_node_id`, then `before` is a trigger,
+            # so we want the nodes that come after this trigger.
             node_previous_ids_to_update = list(
                 workflow.automation_workflow_nodes.filter(
-                    previous_node_id=before.previous_node_id,
+                    previous_node_id=before.id
+                    if before.previous_node_id is None
+                    else before.previous_node_id,
                     previous_node_output=before.previous_node_output,
                 )
             )
@@ -265,7 +282,7 @@ class AutomationNodeHandler:
 
         return node
 
-    def update_node(self, node: AutomationNode, **kwargs) -> UpdatedAutomationNode:
+    def update_node(self, node: AutomationNode, **kwargs) -> AutomationNode:
         """
         Updates fields of the provided AutomationNode.
 
@@ -275,22 +292,13 @@ class AutomationNodeHandler:
         :return: The updated AutomationNode.
         """
 
-        node_type = node.get_type()
-        original_node_values = node_type.export_prepared_values(node)
-
         allowed_values = extract_allowed(kwargs, self.allowed_fields)
-
         for key, value in allowed_values.items():
             setattr(node, key, value)
 
         node.save()
 
-        new_node_values = node_type.export_prepared_values(node)
-        return UpdatedAutomationNode(
-            node=node,
-            original_values=original_node_values,
-            new_values=new_node_values,
-        )
+        return node
 
     def get_nodes_order(self, workflow: AutomationWorkflow) -> List[int]:
         """
@@ -367,10 +375,18 @@ class AutomationNodeHandler:
         id_mapping = defaultdict(lambda: MirrorDict())
         id_mapping["automation_workflow_nodes"] = MirrorDict()
 
+        import_export_config = ImportExportConfig(
+            include_permission_data=True,
+            reduce_disk_space_usage=False,
+            is_duplicate=True,
+            exclude_sensitive_data=False,
+        )
+
         duplicated_node = self.import_node(
             source_node.workflow,
             exported_node,
             id_mapping=id_mapping,
+            import_export_config=import_export_config,
         )
 
         # Update the nodes that follow the original node to now follow the new clone.
@@ -392,6 +408,114 @@ class AutomationNodeHandler:
             source_node_next_nodes_values=source_node_next_nodes_values,
             duplicated_node=duplicated_node,
             duplicated_node_next_nodes_values=duplicated_node_next_nodes_values,
+        )
+
+    def move_node(
+        self,
+        node: AutomationActionNode,
+        after_node: AutomationNode,
+        previous_node_output: Optional[str] = None,
+        order: Optional[float] = None,
+    ) -> AutomationNodeMove:
+        """
+        Moves an action node to be after another node in the same workflow.
+
+        :param node: The action node to move.
+        :param after_node: The node to move the action node after.
+        :param previous_node_output: If the destination is an output, the output uid.
+        :param order: The new order of the node. If not provided, it will be calculated
+            to be last of `after_node`.
+        :return: The `AutomationNodeMove` dataclass containing the moved node,
+            its original previous node values and its new previous node values.
+        """
+
+        # Does `node`, in its current position, have any next nodes? If so,
+        # we need to ensure their `previous_node_id` are updated to the new
+        # previous node of `node`.
+        origin_next_nodes = list(node.get_next_nodes())
+        origin_old_next_nodes_values = [
+            NextAutomationNodeValues(
+                id=nn.id,
+                previous_node_id=nn.previous_node_id,
+                previous_node_output=nn.previous_node_output,
+            )
+            for nn in origin_next_nodes
+        ]
+
+        # Keep a list of "next nodes" at the origin and destination which
+        # we've updated. The node service will use this list to send a bulk
+        # 'automation nodes updated' signal.
+        next_node_updates: List[AutomationActionNode] = []
+
+        # Update the nodes that followed `node` to now follow `node`'s previous node.
+        # i.e. they all move "up" one step in the workflow.
+        updated_origin_next_nodes = self.update_previous_node(
+            node.previous_node, origin_next_nodes, node.previous_node_output
+        )
+        next_node_updates.extend(updated_origin_next_nodes)
+
+        origin_new_next_nodes_values = [
+            NextAutomationNodeValues(
+                id=nn.id,
+                previous_node_id=nn.previous_node_id,
+                previous_node_output=nn.previous_node_output,
+            )
+            for nn in updated_origin_next_nodes
+        ]
+
+        # Does `after_node`, the node that `node` is being moved after,
+        # have any next nodes? If so, we need to ensure their `previous_node_id`
+        # are updated to `node`.
+        destination_next_nodes = list(after_node.get_next_nodes(previous_node_output))
+        destination_old_next_nodes_values = [
+            NextAutomationNodeValues(
+                id=nn.id,
+                previous_node_id=nn.previous_node_id,
+                previous_node_output=nn.previous_node_output,
+            )
+            for nn in destination_next_nodes
+        ]
+
+        # Store the original `previous_node_{id,output}` so we can revert.
+        origin_previous_node_id = node.previous_node_id
+        origin_previous_node_output = node.previous_node_output
+
+        # Set the new position.
+        node.previous_node_id = after_node.id
+        node.previous_node_output = previous_node_output or ""
+        node.order = order or AutomationNode.get_unique_order_before_node(
+            after_node, after_node.parent_node
+        )
+        node.save(update_fields=["previous_node_id", "previous_node_output", "order"])
+
+        # Update the nodes at the destination that their previous node is now `node`.
+        updated_destination_next_nodes = self.update_previous_node(
+            node,
+            destination_next_nodes,
+            previous_node_output="" if previous_node_output else None,
+        )
+        next_node_updates.extend(updated_destination_next_nodes)
+
+        destination_new_next_nodes_values = [
+            NextAutomationNodeValues(
+                id=nn.id,
+                previous_node_id=nn.previous_node_id,
+                previous_node_output=nn.previous_node_output,
+            )
+            for nn in updated_destination_next_nodes
+        ]
+
+        return AutomationNodeMove(
+            node=node,
+            next_node_updates=next_node_updates,
+            origin_previous_node_id=origin_previous_node_id,
+            origin_previous_node_output=origin_previous_node_output,
+            origin_old_next_nodes_values=origin_old_next_nodes_values,
+            origin_new_next_nodes_values=origin_new_next_nodes_values,
+            destination_previous_node_id=node.previous_node_id,
+            destination_previous_node_output=node.previous_node_output,
+            destination_old_next_nodes_values=destination_old_next_nodes_values,
+            destination_new_next_nodes_values=destination_new_next_nodes_values,
         )
 
     def export_node(
@@ -487,6 +611,7 @@ class AutomationNodeHandler:
         workflow: AutomationWorkflow,
         serialized_node: AutomationNodeDict,
         id_mapping: Dict[str, Dict[int, int]],
+        import_export_config: Optional[ImportExportConfig] = None,
         *args: Any,
         **kwargs: Any,
     ) -> AutomationNode:
@@ -496,39 +621,43 @@ class AutomationNodeHandler:
             workflow,
             serialized_node,
             id_mapping,
+            import_export_config=import_export_config,
             *args,
             **kwargs,
         )
 
         return node_instance
 
-    def simulate_dispatch_node(self, node: AutomationNode) -> AutomationNode:
+    def dispatch_node(
+        self, node: "AutomationNode", dispatch_context: AutomationDispatchContext
+    ):
         """
-        Simulates a dispatch of the provided node. This will cause the node's
-        `service.sample_data` to be populated.
+        Dispatch one node and recursively dispatch the next nodes.
 
-        :param node: The node to simulate the dispatch for.
-        :return: The updated node.
+        :param node: The node to start with.
+        :param dispatch_context: The context in which the workflow is being dispatched,
+            which contains the event payload and other relevant data.
         """
 
-        if node.get_type().is_workflow_trigger:
-            node.workflow.simulate_until_node = node
-            node.workflow.save()
-            return node
-
-        dispatch_context = AutomationDispatchContext(
-            node.workflow,
-            simulate_until_node=node.specific,
-        )
-
+        node_type: Type[AutomationNodeActionNodeType] = node.get_type()
         try:
-            AutomationWorkflowRunner().run(node.workflow, dispatch_context)
-        except (
-            AutomationNodeError,
-            UnexpectedDispatchException,
-        ) as e:
-            raise AutomationNodeSimulateDispatchError(str(e))
+            dispatch_result = node_type.dispatch(node, dispatch_context)
+            dispatch_context.after_dispatch(node, dispatch_result)
 
-        node.refresh_from_db()
+            # Return early if this is a simulated dispatch
+            if until_node := dispatch_context.simulate_until_node:
+                if until_node.id == node.id:
+                    # sample_data was updated as it's a simulation we should tell to
+                    # the frontend
+                    node.service.refresh_from_db(fields=["sample_data"])
+                    automation_node_updated.send(self, user=None, node=node)
+                    return
 
-        return node
+            next_nodes = node.get_next_nodes(dispatch_result.output_uid)
+
+            for next_node in next_nodes:
+                self.dispatch_node(next_node, dispatch_context)
+        except ServiceImproperlyConfiguredDispatchException as e:
+            raise AutomationNodeMisconfiguredService(
+                f"The node {node.id} has a misconfigured service."
+            ) from e

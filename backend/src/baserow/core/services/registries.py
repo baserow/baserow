@@ -19,6 +19,8 @@ from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.integrations.exceptions import IntegrationDoesNotExist
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.registry import (
+    APIUrlsInstanceMixin,
+    APIUrlsRegistryMixin,
     CustomFieldsInstanceMixin,
     CustomFieldsRegistryMixin,
     EasyImportExportMixin,
@@ -38,6 +40,7 @@ from .exceptions import (
     InvalidContextDispatchException,
     ServiceImproperlyConfiguredDispatchException,
     ServiceTypeDoesNotExist,
+    TriggerServiceNotDispatchable,
     UnexpectedDispatchException,
 )
 from .models import Service
@@ -54,6 +57,7 @@ class DispatchTypes(str, Enum):
 
 
 class ServiceType(
+    APIUrlsInstanceMixin,
     InstanceWithFormulaMixin,
     EasyImportExportMixin[ServiceSubClass],
     ModelInstanceMixin[ServiceSubClass],
@@ -235,7 +239,9 @@ class ServiceType(
 
         return None
 
-    def get_sample_data(self, service: ServiceSubClass) -> Optional[Dict[Any, Any]]:
+    def get_sample_data(
+        self, service: ServiceSubClass, dispatch_context: DispatchContext
+    ) -> Optional[Dict[Any, Any]]:
         """Return the sample data for this service."""
 
         return service.sample_data
@@ -359,9 +365,10 @@ class ServiceType(
                 dispatch_context.update_sample_data_for is None
                 or service not in dispatch_context.update_sample_data_for
             )
-            and service.get_type().get_sample_data(service) is not None
+            and (sample_data := self.get_sample_data(service, dispatch_context))
+            is not None
         ):
-            return DispatchResult(**self.get_sample_data(service))
+            return DispatchResult(**sample_data)
 
         data = self.dispatch_data(service, resolved_values, dispatch_context)
         serialized_data = self.dispatch_transform(data)
@@ -527,7 +534,29 @@ class TriggerServiceTypeMixin(ABC):
     # The service is always dispatched by an event.
     dispatch_types = [DispatchTypes.EVENT]
 
-    @abstractmethod
+    def can_immediately_be_tested(self, service: Service):
+        """
+        Does this trigger can be dispatched immediately. It's possible only if the
+        trigger data can be generated
+        """
+
+        return False
+
+    def dispatch_data(
+        self,
+        service: Service,
+        resolved_values: Dict[str, Any],
+        dispatch_context: DispatchContext,
+    ):
+        # By default a trigger uses the data from the dispatch context event_payload
+        if dispatch_context.event_payload is not None:
+            return dispatch_context.event_payload
+
+        raise TriggerServiceNotDispatchable()
+
+    def dispatch_transform(self, data):
+        return DispatchResult(data=data)
+
     def start_listening(self, on_event: Callable) -> None:
         """
         Triggers, a type of service which respond to internal and external events and
@@ -548,10 +577,9 @@ class TriggerServiceTypeMixin(ABC):
         :return:
         """
 
-        ...
-
 
 class ServiceTypeRegistry(
+    APIUrlsRegistryMixin,
     ModelRegistryMixin[ServiceSubClass, ServiceTypeSubClass],
     Registry[ServiceTypeSubClass],
     CustomFieldsRegistryMixin,

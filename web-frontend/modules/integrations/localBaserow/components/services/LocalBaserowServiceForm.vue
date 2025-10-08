@@ -9,6 +9,7 @@
     >
       <IntegrationDropdown
         v-model="values.integration_id"
+        auto-select-first
         :application="application"
         :integrations="integrations"
         :integration-type="integrationType"

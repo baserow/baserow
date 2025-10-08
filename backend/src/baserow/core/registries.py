@@ -95,6 +95,13 @@ class ImportExportConfig:
     The data then doesn't leave the instance.
     """
 
+    is_publishing: bool = False
+    """
+    Indicates whether or not we are currently publishing. This class is used
+    to pass context to actions like publishing, duplicating, etc. In some cases,
+    it is necessary to know whether the action is specifically publishing.
+    """
+
     only_structure: bool = False
     """
     Whether or not the export should include the user data

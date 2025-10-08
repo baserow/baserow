@@ -1,7 +1,7 @@
 <template>
   <div class="simulate-dispatch-node">
     <Button
-      :loading="isSimulatingDispatch || isAwaitingTriggerEvent"
+      :loading="isLoading"
       :disabled="isDisabled"
       class="simulate-dispatch-node__button"
       type="secondary"
@@ -14,14 +14,15 @@
       {{ nodeIsInError }}
     </div>
 
-    <div v-if="showTestNodeDescription">
+    <div v-else-if="showTestNodeDescription">
       {{ $t('simulateDispatch.testNodeDescription') }}
     </div>
 
-    <div v-if="isAwaitingTriggerEvent">
+    <div v-else-if="isLoading">
       {{ $t('simulateDispatch.triggerNodeAwaitingEvent') }}
     </div>
-    <div v-else-if="hasSampleData">
+
+    <div v-if="hasSampleData && !isSimulating">
       <div class="simulate-dispatch-node__sample-data-label">
         {{ $t('simulateDispatch.sampleDataLabel') }}
       </div>
@@ -31,7 +32,7 @@
     </div>
 
     <Button
-      v-if="sampleData && !isAwaitingTriggerEvent && !isSimulatingDispatch"
+      v-if="sampleData"
       class="simulate-dispatch-node__button"
       type="secondary"
       icon="iconoir-code-brackets simulate-dispatch-node__button-icon"
@@ -59,7 +60,6 @@ const { app } = useContext()
 const store = useStore()
 
 const workflow = inject('workflow')
-const isTestingTrigger = ref(false)
 const sampleDataModalRef = ref(null)
 
 const props = defineProps({
@@ -73,7 +73,22 @@ const props = defineProps({
   },
 })
 
-const isSimulatingDispatch = ref(false)
+const isSimulating = computed(() => {
+  return Number.isInteger(workflow.value.simulate_until_node_id)
+})
+
+const isSimulatingThisNode = computed(() => {
+  return (
+    isSimulating.value &&
+    workflow.value.simulate_until_node_id === props.node.id
+  )
+})
+
+const queryInProgress = ref(false)
+
+const isLoading = computed(() => {
+  return queryInProgress.value || isSimulatingThisNode.value
+})
 
 /**
  * All previous nodes must have been tested, i.e. they must have sample
@@ -97,7 +112,7 @@ const nodeIsInError = computed(() => {
       return app.i18n.t('simulateDispatch.errorPreviousNodeNotConfigured')
     }
 
-    if (!currentNode.service?.sample_data || currentNode.simulate_until_node) {
+    if (!currentNode.service?.sample_data) {
       return app.i18n.t('simulateDispatch.errorPreviousNodesNotTested')
     }
 
@@ -107,6 +122,13 @@ const nodeIsInError = computed(() => {
   }
 
   return ''
+})
+
+const isDisabled = computed(() => {
+  return (
+    Boolean(nodeIsInError.value) ||
+    (isSimulating.value && !isSimulatingThisNode.value)
+  )
 })
 
 const sampleDataModalTitle = computed(() => {
@@ -119,22 +141,12 @@ const sampleDataModalTitle = computed(() => {
   })
 })
 
-const isTriggerNode = computed(() => {
-  const nodeType = app.$registry.get('node', props.node.type)
-  return Boolean(nodeType.isTrigger)
-})
-
-const isDisabled = computed(() => {
-  return (
-    Boolean(nodeIsInError.value) ||
-    isSimulatingDispatch.value ||
-    props.node.simulate_until_node ||
-    (isTriggerNode.value && isTestingTrigger.value)
-  )
+const sampleData = computed(() => {
+  return props.node.service.sample_data?.data
 })
 
 const hasSampleData = computed(() => {
-  return Boolean(props.node.service.sample_data)
+  return Boolean(sampleData.value)
 })
 
 const buttonLabel = computed(() => {
@@ -143,29 +155,8 @@ const buttonLabel = computed(() => {
     : app.i18n.t('simulateDispatch.buttonLabelTest')
 })
 
-const sampleData = computed(() => {
-  const data = props.node.service.sample_data?.data
-  if (data) {
-    if (data?.body) {
-      return props.node.service.sample_data.data.body
-    } else {
-      return props.node.service.sample_data.data
-    }
-  }
-
-  return props.node.service.sample_data
-})
-
-const isAwaitingTriggerEvent = computed(() => {
-  return props.node.simulate_until_node && isTriggerNode.value
-})
-
 const showTestNodeDescription = computed(() => {
-  if (
-    Boolean(nodeIsInError.value) ||
-    isAwaitingTriggerEvent.value ||
-    hasSampleData.value
-  ) {
+  if (Boolean(nodeIsInError.value) || hasSampleData.value) {
     return false
   }
 
@@ -173,23 +164,17 @@ const showTestNodeDescription = computed(() => {
 })
 
 const simulateDispatchNode = async () => {
-  isSimulatingDispatch.value = true
-
-  if (isTriggerNode.value) {
-    isTestingTrigger.value = true
-  }
+  queryInProgress.value = true
 
   try {
     await store.dispatch('automationWorkflowNode/simulateDispatch', {
-      workflow: workflow.value,
       nodeId: props.node.id,
-      updateSampleData: true,
     })
   } catch (error) {
     notifyIf(error, 'automationWorkflow')
   }
 
-  isSimulatingDispatch.value = false
+  queryInProgress.value = false
 }
 
 const showSampleDataModal = () => {

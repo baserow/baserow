@@ -4,6 +4,7 @@ import { NodeEditorSidePanelType } from '@baserow/modules/automation/editorSideP
 
 const state = {
   selectedNodeId: null,
+  draggingNodeId: null,
 }
 
 const updateContext = {
@@ -75,6 +76,9 @@ const mutations = {
   },
   SET_LOADING(state, { node, value }) {
     node._.loading = value
+  },
+  SET_DRAGGING_NODE_ID(state, nodeId) {
+    state.draggingNodeId = nodeId
   },
 }
 
@@ -297,14 +301,16 @@ const actions = {
     }
 
     if (nextNode) {
-      commit('UPDATE_ITEM', {
-        workflow,
-        node: nextNode,
-        values: {
-          previous_node_id: node.previous_node_id,
-          previous_node_output: node.previous_node_output,
-        },
-      })
+      if (node.previous_node_id) {
+        commit('UPDATE_ITEM', {
+          workflow,
+          node: nextNode,
+          values: {
+            previous_node_id: node.previous_node_id,
+            previous_node_output: node.previous_node_output,
+          },
+        })
+      }
       dispatch('select', { workflow, node: nextNode })
     }
 
@@ -343,29 +349,125 @@ const actions = {
     }
   },
   async replace({ commit, dispatch, getters }, { workflow, nodeId, newType }) {
-    const node = getters.findById(workflow, nodeId)
-    const nextNodes = getters.getNextNodes(workflow, node)
-    const nextNode = nextNodes.length > 0 ? nextNodes[0] : null
-
     const { data: newNode } = await AutomationWorkflowNodeService(
       this.$client
     ).replace(nodeId, {
       new_type: newType,
     })
+    // Update nodes that follow `nodeId` so that their
+    // `previous_node_id` point to the newly created node.
+    dispatch('updateNextNodesValues', {
+      workflow,
+      nodeId,
+      valuesToUpdate: { previous_node_id: newNode.id },
+    })
     commit('DELETE_ITEM', { workflow, nodeId })
     commit('ADD_ITEM', { workflow, node: newNode })
 
-    // If the node that we replaced had a node after it, we need to update
-    // its `previous_node_id` to point to the new node ID.
-    if (nextNode) {
+    setTimeout(() => {
+      dispatch('select', { workflow, node: newNode })
+    })
+  },
+  async move({ commit, dispatch, getters }, { workflow, moveData }) {
+    const { originNodeId, afterNodeId, afterNodeOutput } = moveData
+
+    const originNode = getters.findById(workflow, originNodeId)
+    const originSnapshot = { ...originNode }
+    const originNextNodesSnapshot = getters
+      .getNextNodes(workflow, originNode)
+      .map((n) => ({
+        id: n.id,
+        previous_node_id: n.previous_node_id,
+        previous_node_output: n.previous_node_output,
+      }))
+
+    const afterNode = getters.findById(workflow, afterNodeId)
+    const afterNextNodesSnapshot = getters
+      .getNextNodes(workflow, afterNode)
+      .map((n) => ({
+        id: n.id,
+        previous_node_id: n.previous_node_id,
+        previous_node_output: n.previous_node_output,
+      }))
+
+    try {
+      // We start by moving the dragged node's next nodes, pre-move, so that
+      // they all go "up" a level, they will point to the dragged node's previous
+      // node id and output.
+      dispatch('updateNextNodesValues', {
+        workflow,
+        nodeId: originNode.id,
+        valuesToUpdate: {
+          previous_node_id: originNode.previous_node_id,
+          previous_node_output: originNode.previous_node_output,
+        },
+      })
+
+      // Next, we deal with the target node's next nodes, they need to point to
+      // the dragged node. We'll only update the `previous_node_output` to a
+      // blank string if we're moving the node to a specific output.
+      dispatch('updateNextNodesValues', {
+        workflow,
+        nodeId: afterNode.id,
+        valuesToUpdate: {
+          previous_node_id: originNode.id,
+          ...(afterNodeOutput ? { previous_node_output: '' } : {}),
+        },
+        outputUid: afterNodeOutput,
+      })
+
+      // Finally, we update the dragged node itself, to point to the target
+      // node and output.
       commit('UPDATE_ITEM', {
         workflow,
-        node: nextNode,
-        values: { previous_node_id: newNode.id },
+        node: originNode,
+        values: {
+          previous_node_id: afterNodeId,
+          previous_node_output: afterNodeOutput,
+        },
       })
-    }
 
-    dispatch('select', { workflow, node: newNode })
+      // Perform the backend update.
+      await AutomationWorkflowNodeService(this.$client).move(originNodeId, {
+        previous_node_id: afterNodeId,
+        previous_node_output: afterNodeOutput,
+      })
+    } catch (error) {
+      // Something went wrong, revert our changes.
+      originNextNodesSnapshot.forEach((snap) => {
+        const snapNode = getters.findById(workflow, snap.id)
+        commit('UPDATE_ITEM', {
+          workflow,
+          node: snapNode,
+          values: {
+            previous_node_id: snap.previous_node_id,
+            previous_node_output: snap.previous_node_output,
+          },
+        })
+      })
+      afterNextNodesSnapshot.forEach((snap) => {
+        const snapNode = getters.findById(workflow, snap.id)
+        commit('UPDATE_ITEM', {
+          workflow,
+          node: snapNode,
+          values: {
+            previous_node_id: snap.previous_node_id,
+            previous_node_output: snap.previous_node_output,
+          },
+        })
+      })
+      // Move `originNode` back to its original position.
+      commit('UPDATE_ITEM', {
+        workflow,
+        node: originSnapshot,
+        values: {
+          previous_node_id: originSnapshot.previous_node_id,
+          previous_node_output: originSnapshot.previous_node_output,
+        },
+      })
+
+      throw error
+    }
   },
   async order({ commit }, { workflow, order, oldOrder }) {
     commit('ORDER_ITEMS', { workflow, order })
@@ -387,22 +489,29 @@ const actions = {
       { root: true }
     )
   },
-  async simulateDispatch(
-    { commit, dispatch },
-    { workflow, nodeId, updateSampleData }
+  setDraggingNodeId({ commit }, nodeId) {
+    commit('SET_DRAGGING_NODE_ID', nodeId)
+  },
+  async simulateDispatch({ commit, dispatch }, { nodeId }) {
+    await AutomationWorkflowNodeService(this.$client).simulateDispatch(nodeId)
+  },
+  /**
+   * Updates all the next nodes of a given node with the provided values.
+   * This used when a node is replaced, or moved, as the next nodes need to
+   * be updated to reflect the new previous node id and output.
+   */
+  updateNextNodesValues(
+    { commit, getters },
+    { workflow, nodeId, valuesToUpdate, outputUid = null }
   ) {
-    const result = await AutomationWorkflowNodeService(
-      this.$client
-    ).simulateDispatch(nodeId, updateSampleData)
-    const updatedNode = result.data
-
-    commit('UPDATE_ITEM', {
-      workflow,
-      node: updatedNode,
-      values: {
-        simulate_until_node: updatedNode.simulate_until_node,
-        service: updatedNode.service,
-      },
+    const node = getters.findById(workflow, nodeId)
+    const nextNodes = getters.getNextNodes(workflow, node, outputUid)
+    nextNodes.forEach((nextNode) => {
+      commit('UPDATE_ITEM', {
+        workflow,
+        node: nextNode,
+        values: valuesToUpdate,
+      })
     })
   },
 }
@@ -429,12 +538,15 @@ const getters = {
   getLoading: (state) => (node) => {
     return node._.loading
   },
+  getDraggingNodeId(state) {
+    return state.draggingNodeId
+  },
   getNextNodes:
     (state, getters) =>
     (workflow, targetNode, outputUid = null) => {
       const nodes = getters.getNodesOrdered(workflow)
       const nextNodes = nodes.filter(
-        (node) => node.previous_node_id === targetNode.id
+        (node) => node.previous_node_id === targetNode?.id
       )
       if (outputUid !== null) {
         return nextNodes.filter(

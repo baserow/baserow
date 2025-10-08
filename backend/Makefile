@@ -177,10 +177,16 @@ test-coverage: .check-dev
 	$(VPYTEST) -n 10 --cov-report term --cov-report html:reports/html --cov=src $(BACKEND_TESTS_DIRS) || exit;
 
 test-builder: .check-dev
-	$(VPYTEST) tests/baserow/contrib/builder || exit
+	$(VPYTEST) tests/baserow/contrib/integrations tests/baserow/contrib/builder || exit
 
 test-builder-parallel: .check-dev
-	$(VPYTEST) tests/baserow/contrib/builder -n 10 || exit
+	$(VPYTEST) tests/baserow/contrib/integrations tests/baserow/contrib/builder -n 10 || exit
+
+test-automation: .check-dev
+	$(VPYTEST) tests/baserow/contrib/integrations tests/baserow/contrib/automation || exit
+
+test-automation-parallel: .check-dev
+	$(VPYTEST) tests/baserow/contrib/integrations tests/baserow/contrib/automation -n 10 || exit
 
 test-regenerate-ci-durations: .check-dev
 	$(VPYTEST) $(BACKEND_TESTS_DIRS) --store-durations || exit;

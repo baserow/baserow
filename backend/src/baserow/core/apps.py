@@ -240,6 +240,13 @@ class CoreConfig(AppConfig):
         action_type_registry.register(EmptyTrashActionType())
         action_type_registry.register(RestoreFromTrashActionType())
 
+        from baserow.core.trash.registries import (
+            DefaultTrashOperationType,
+            trash_operation_type_registry,
+        )
+
+        trash_operation_type_registry.register(DefaultTrashOperationType())
+
         from baserow.core.mcp.actions import (
             CreateMCPEndpointActionType,
             DeleteMCPEndpointActionType,

@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from baserow.core.formula.runtime_formula_context import RuntimeFormulaContext
 from baserow.core.services.models import Service
@@ -13,6 +13,7 @@ class DispatchContext(RuntimeFormulaContext, ABC):
         "update_sample_data_for",
         "use_sample_data",
         "force_outputs",
+        "event_payload",
     ]
 
     """
@@ -25,6 +26,7 @@ class DispatchContext(RuntimeFormulaContext, ABC):
     def __init__(
         self,
         only_record_id=None,
+        event_payload: Any = None,
         update_sample_data_for: Optional[List[Service]] = None,
         use_sample_data: bool = False,
         force_outputs: Dict[int, str] = None,
@@ -34,6 +36,7 @@ class DispatchContext(RuntimeFormulaContext, ABC):
         services when they are dispatched during service execution.
 
         :param only_record_id: Filters a queryset by a specific ID.
+        :param event_payload: The event data for an optional trigger if any.
         :param update_sample_data_for: Updates the sample_data for only the
             provided services. Used in conjunction with use_sample_data.
         :param use_sample_data: Whether to use or update the sample_data.
@@ -46,6 +49,7 @@ class DispatchContext(RuntimeFormulaContext, ABC):
         self.update_sample_data_for = update_sample_data_for
         self.use_sample_data = use_sample_data
         self.force_outputs = force_outputs
+        self.event_payload = event_payload
         super().__init__()
 
     @abstractmethod

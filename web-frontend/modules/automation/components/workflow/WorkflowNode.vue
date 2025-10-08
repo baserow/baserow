@@ -33,6 +33,7 @@
           @select-node="emit('select-node', $event)"
           @remove-node="emit('remove-node', $event)"
           @replace-node="emit('replace-node', $event)"
+          @move-node="emit('move-node', $event)"
         />
       </div>
     </div>
@@ -75,6 +76,7 @@ const emit = defineEmits([
   'select-node',
   'remove-node',
   'replace-node',
+  'move-node',
 ])
 
 const { app } = useContext()

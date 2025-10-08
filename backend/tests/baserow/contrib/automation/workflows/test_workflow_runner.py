@@ -3,8 +3,8 @@ import pytest
 from baserow.contrib.automation.automation_dispatch_context import (
     AutomationDispatchContext,
 )
+from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.workflows.constants import WorkflowState
-from baserow.contrib.automation.workflows.runner import AutomationWorkflowRunner
 
 
 @pytest.mark.django_db
@@ -35,7 +35,7 @@ def test_run_workflow_with_create_row_action(data_fixture):
     assert action_table_model.objects.count() == 0
 
     dispatch_context = AutomationDispatchContext(workflow, {})
-    AutomationWorkflowRunner().run(workflow, dispatch_context)
+    AutomationNodeHandler().dispatch_node(workflow.get_trigger(), dispatch_context)
 
     row = action_table_model.objects.first()
     assert getattr(row, action_table_field.db_column) == "Horse"
@@ -73,7 +73,7 @@ def test_run_workflow_with_update_row_action(data_fixture):
     )
 
     dispatch_context = AutomationDispatchContext(workflow, {})
-    AutomationWorkflowRunner().run(workflow, dispatch_context)
+    AutomationNodeHandler().dispatch_node(workflow.get_trigger(), dispatch_context)
 
     action_table_row.refresh_from_db()
     assert getattr(action_table_row, action_table_field.db_column) == "Badger"
@@ -112,7 +112,7 @@ def test_run_workflow_with_delete_row_action(data_fixture):
     assert action_table.get_model().objects.all().count() == 1
 
     dispatch_context = AutomationDispatchContext(workflow, {})
-    AutomationWorkflowRunner().run(workflow, dispatch_context)
+    AutomationNodeHandler().dispatch_node(workflow.get_trigger(), dispatch_context)
 
     assert action_table.get_model().objects.all().count() == 0
     assert dispatch_context.dispatch_history == [trigger.id, action_node.id]
@@ -168,7 +168,7 @@ def test_run_workflow_with_router_action(data_fixture):
     edge2_output_node.save()
 
     dispatch_context = AutomationDispatchContext(workflow, {})
-    AutomationWorkflowRunner().run(workflow, dispatch_context)
+    AutomationNodeHandler().dispatch_node(workflow.get_trigger(), dispatch_context)
 
     action_table_row.refresh_from_db()
     assert getattr(action_table_row, action_table_field.db_column) == "Badger"

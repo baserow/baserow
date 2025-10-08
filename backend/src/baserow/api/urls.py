@@ -7,6 +7,7 @@ from baserow.core.registries import (
     auth_provider_type_registry,
     plugin_registry,
 )
+from baserow.core.services.registries import service_type_registry
 
 from .admin import urls as admin_urls
 from .applications import urls as application_urls
@@ -63,4 +64,5 @@ urlpatterns = (
     + application_type_registry.api_urls
     + auth_provider_type_registry.api_urls
     + plugin_registry.api_urls
+    + service_type_registry.api_urls
 )

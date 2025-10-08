@@ -37,6 +37,7 @@ def test_automation_workflow_serializer_fields(workflow_fixture):
         "name",
         "order",
         "published_on",
+        "simulate_until_node_id",
         "state",
     ]
 

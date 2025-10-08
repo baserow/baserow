@@ -231,6 +231,10 @@ class CorePeriodicTriggerNode(AutomationTriggerNode):
     ...
 
 
+class CoreHTTPTriggerNode(AutomationTriggerNode):
+    ...
+
+
 class LocalBaserowCreateRowActionNode(AutomationActionNode):
     ...
 

@@ -25,6 +25,7 @@ import {
   CoreHTTPRequestServiceType,
   CoreRouterServiceType,
   CoreSMTPEmailServiceType,
+  CoreHTTPTriggerServiceType,
 } from '@baserow/modules/integrations/core/serviceTypes'
 
 export default (context) => {
@@ -73,6 +74,7 @@ export default (context) => {
   app.$registry.register('service', new CoreHTTPRequestServiceType(context))
   app.$registry.register('service', new CoreSMTPEmailServiceType(context))
   app.$registry.register('service', new CoreRouterServiceType(context))
+  app.$registry.register('service', new CoreHTTPTriggerServiceType(context))
 
   if (app.$featureFlagIsEnabled(FF_AUTOMATION)) {
     app.$registry.register(

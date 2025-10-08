@@ -185,25 +185,25 @@
 .assistant__input-textarea {
   @extend %scrollbar-thin;
 
-    flex: 1;
-    border: none;
-    resize: none;
-    background: transparent;
-    font-size: 13px;
-    line-height: 20px;
-    max-height: 120px;
+  flex: 1;
+  border: none;
+  resize: none;
+  background: transparent;
+  font-size: 13px;
+  line-height: 20px;
+  max-height: 120px;
+  outline: none;
+  box-shadow: none;
+  padding: 8px 50px 0 16px;
+
+  &:focus {
     outline: none;
     box-shadow: none;
-    padding: 8px 50px 0 16px;
+  }
 
-    &:focus {
-      outline: none;
-      box-shadow: none;
-    }
-
-    &::placeholder {
-      color: $palette-neutral-600;
-    }
+  &::placeholder {
+    color: $palette-neutral-600;
+  }
 }
 
 .assistant__context-badge {
@@ -247,7 +247,7 @@
   }
 
   &--is-running i {
-    animation: spin 1.2s linear infinite;
+    animation: spin 2.5s linear infinite;
   }
 
   &:hover:not(.assistant__send-button--disabled) {
@@ -266,16 +266,6 @@
     i {
       color: white;
     }
-  }
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-
-  to {
-    transform: rotate(360deg);
   }
 }
 

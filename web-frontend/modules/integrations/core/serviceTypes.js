@@ -1,5 +1,7 @@
+import CoreHTTPTriggerServiceForm from '@baserow/modules/integrations/core/components/services/CoreHTTPTriggerServiceForm'
 import {
   ServiceType,
+  TriggerServiceTypeMixin,
   WorkflowActionServiceTypeMixin,
 } from '@baserow/modules/core/serviceTypes'
 import CoreHTTPRequestServiceForm from '@baserow/modules/integrations/core/components/services/CoreHTTPRequestServiceForm'
@@ -142,5 +144,41 @@ export class CoreRouterServiceType extends WorkflowActionServiceTypeMixin(
 
   getOrder() {
     return 7
+  }
+}
+
+export class CoreHTTPTriggerServiceType extends TriggerServiceTypeMixin(
+  ServiceType
+) {
+  static getType() {
+    return 'http_trigger'
+  }
+
+  get name() {
+    return this.app.i18n.t('serviceType.coreHTTPTrigger')
+  }
+
+  get description() {
+    return this.app.i18n.t('serviceType.coreHTTPTriggerDescription')
+  }
+
+  get formComponent() {
+    return CoreHTTPTriggerServiceForm
+  }
+
+  getErrorMessage({ service }) {
+    if (service === undefined) {
+      return null
+    }
+
+    return super.getErrorMessage({ service })
+  }
+
+  getDataSchema(service) {
+    return service.schema
+  }
+
+  getOrder() {
+    return 8
   }
 }

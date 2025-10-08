@@ -1,10 +1,12 @@
 from unittest.mock import MagicMock, Mock, PropertyMock
 
 import pytest
+from baserow_premium.integrations.local_baserow.service_types import DispatchResult
 from rest_framework.exceptions import ValidationError
 
 from baserow.core.services.models import Service
 from baserow.core.services.registries import ServiceType
+from baserow.test_utils.pytest_conftest import FakeDispatchContext
 
 
 def test_service_type_get_schema_name():
@@ -127,7 +129,9 @@ def test_get_sample_data():
     service = MagicMock()
     service.sample_data = {"foo": "bar"}
 
-    result = service_type.get_sample_data(service)
+    dispatch_context = FakeDispatchContext()
+
+    result = service_type.get_sample_data(service, dispatch_context)
 
     assert result == {"foo": "bar"}
 
@@ -142,22 +146,78 @@ def test_dispatch_returns_sample_data_when_simulated():
     service_type_cls.model_class = MagicMock()
     service_type = service_type_cls()
 
-    service_type.resolve_service_formulas = MagicMock()
-    mock_data = MagicMock()
-    service_type.dispatch_data = MagicMock(return_value=mock_data)
+    service_type.get_sample_data = MagicMock(return_value={"data": {"foo": "bar"}})
+    service_type.dispatch_data = MagicMock()
     service_type.dispatch_transform = MagicMock()
 
     mock_service = MagicMock()
-    type(mock_service).id = PropertyMock(return_value=100)
-    mock_service.sample_data = {"data": {"foo": "bar"}}
-    mock_dispatch_context = MagicMock()
 
-    mock_dispatch_context.is_simulated = True
-    mock_dispatch_context.force = False
+    dispatch_context = FakeDispatchContext(use_sample_data=True)
 
-    result = service_type.dispatch(mock_service, mock_dispatch_context)
+    result = service_type.dispatch(mock_service, dispatch_context)
 
     service_type.dispatch_data.assert_not_called()
     service_type.dispatch_transform.assert_not_called()
+    service_type.get_sample_data.assert_called_with(mock_service, dispatch_context)
 
     assert result.data == {"foo": "bar"}
+
+
+def test_dispatch_even_if_simulated_when_updated():
+    """
+    Ensure that when dispatch_context.is_simulated is True, the cached sample
+    data is returned.
+    """
+
+    service_type_cls = ServiceType
+    service_type_cls.model_class = MagicMock()
+    service_type = service_type_cls()
+
+    service_type.get_sample_data = MagicMock(return_value={"data": {"foo": "bar"}})
+    service_type.dispatch_data = MagicMock(return_value={"data": {"other": "data"}})
+    service_type.dispatch_transform = MagicMock(
+        return_value=DispatchResult(data={"someother": "data"})
+    )
+
+    mock_service = MagicMock()
+
+    dispatch_context = FakeDispatchContext(
+        use_sample_data=True, update_sample_data_for=[mock_service]
+    )
+
+    result = service_type.dispatch(mock_service, dispatch_context)
+
+    service_type.dispatch_data.assert_called()
+    service_type.dispatch_transform.assert_called()
+    service_type.get_sample_data.assert_not_called()
+
+    assert result.data == {"someother": "data"}
+
+
+def test_dispatch_even_if_simulated_without_sample_data():
+    """
+    Ensure that when dispatch_context.is_simulated is True, the cached sample
+    data is returned.
+    """
+
+    service_type_cls = ServiceType
+    service_type_cls.model_class = MagicMock()
+    service_type = service_type_cls()
+
+    service_type.get_sample_data = MagicMock(return_value=None)
+    service_type.dispatch_data = MagicMock(return_value={"data": {"other": "data"}})
+    service_type.dispatch_transform = MagicMock(
+        return_value=DispatchResult(data={"someother": "data"})
+    )
+
+    mock_service = MagicMock()
+
+    dispatch_context = FakeDispatchContext(use_sample_data=True)
+
+    result = service_type.dispatch(mock_service, dispatch_context)
+
+    service_type.dispatch_data.assert_called()
+    service_type.dispatch_transform.assert_called()
+    service_type.get_sample_data.assert_called_once()
+
+    assert result.data == {"someother": "data"}

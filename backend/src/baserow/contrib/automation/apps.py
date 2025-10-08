@@ -15,12 +15,14 @@ class AutomationConfig(AppConfig):
             CreateAutomationNodeActionType,
             DeleteAutomationNodeActionType,
             DuplicateAutomationNodeActionType,
+            MoveAutomationNodeActionType,
             OrderAutomationNodesActionType,
             ReplaceAutomationNodeActionType,
             UpdateAutomationNodeActionType,
         )
         from baserow.contrib.automation.nodes.node_types import (
             CoreHttpRequestNodeType,
+            CoreHTTPTriggerNodeType,
             CorePeriodicTriggerNodeType,
             CoreRouterActionNodeType,
             CoreSMTPEmailNodeType,
@@ -48,6 +50,7 @@ class AutomationConfig(AppConfig):
             UpdateAutomationNodeOperationType,
         )
         from baserow.contrib.automation.nodes.registries import (
+            ReplaceAutomationNodeTrashOperationType,
             automation_node_type_registry,
         )
         from baserow.contrib.automation.nodes.trash_types import (
@@ -144,6 +147,7 @@ class AutomationConfig(AppConfig):
             action_type_registry.register(OrderAutomationNodesActionType())
             action_type_registry.register(DuplicateAutomationNodeActionType())
             action_type_registry.register(ReplaceAutomationNodeActionType())
+            action_type_registry.register(MoveAutomationNodeActionType())
 
             action_scope_registry.register(WorkflowActionScopeType())
 
@@ -168,6 +172,13 @@ class AutomationConfig(AppConfig):
                 LocalBaserowRowsDeletedNodeTriggerType()
             )
             automation_node_type_registry.register(CorePeriodicTriggerNodeType())
+            automation_node_type_registry.register(CoreHTTPTriggerNodeType())
+
+            from baserow.core.trash.registries import trash_operation_type_registry
+
+            trash_operation_type_registry.register(
+                ReplaceAutomationNodeTrashOperationType()
+            )
 
             from baserow.contrib.automation.data_providers.data_provider_types import (
                 PreviousNodeProviderType,

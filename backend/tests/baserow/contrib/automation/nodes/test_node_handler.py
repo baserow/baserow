@@ -2,6 +2,9 @@ from unittest.mock import patch
 
 import pytest
 
+from baserow.contrib.automation.automation_dispatch_context import (
+    AutomationDispatchContext,
+)
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeDoesNotExist,
     AutomationNodeNotInWorkflow,
@@ -136,7 +139,7 @@ def test_update_node(data_fixture):
         node, previous_node_output="foo result"
     )
 
-    assert updated_node.node.previous_node_output == "foo result"
+    assert updated_node.previous_node_output == "foo result"
 
 
 @pytest.mark.django_db
@@ -321,12 +324,17 @@ def test_import_node_only(data_fixture):
 
 
 @pytest.mark.django_db
-@patch("baserow.contrib.automation.nodes.handler.AutomationWorkflowRunner.run")
-def test_simulate_dispatch_node_trigger(mock_run, data_fixture):
+def test_simulate_dispatch_node_trigger(data_fixture):
     user, _ = data_fixture.create_user_and_token()
     workflow = data_fixture.create_automation_workflow(user=user)
+    database = data_fixture.create_database_application(
+        user=user, workspace=workflow.automation.workspace
+    )
+    table, fields, _ = data_fixture.build_table(
+        user=user, columns=[("Name", "text")], rows=[], database=database
+    )
     trigger_node = data_fixture.create_local_baserow_rows_created_trigger_node(
-        workflow=workflow
+        workflow=workflow, service_kwargs={"table": table}
     )
     assert workflow.simulate_until_node is None
     action_node = data_fixture.create_automation_node(
@@ -340,15 +348,18 @@ def test_simulate_dispatch_node_trigger(mock_run, data_fixture):
     action_node.service.sample_data = {"foo": "bar"}
     action_node.service.save()
 
-    AutomationNodeHandler().simulate_dispatch_node(trigger_node)
+    dispatch_context = AutomationDispatchContext(
+        action_node.workflow, {"trigger": "data"}, simulate_until_node=trigger_node
+    )
 
-    mock_run.assert_not_called()
-
-    workflow.refresh_from_db()
-    assert workflow.simulate_until_node.id is trigger_node.id
+    AutomationNodeHandler().dispatch_node(trigger_node, dispatch_context)
 
     trigger_node.refresh_from_db()
-    assert trigger_node.service.sample_data is None
+    assert trigger_node.service.sample_data == {
+        "data": {"trigger": "data"},
+        "output_uid": "",
+        "status": 200,
+    }
 
     action_node.refresh_from_db()
     assert action_node.service.sample_data == {"foo": "bar"}
@@ -404,7 +415,11 @@ def test_simulate_dispatch_node_action(data_fixture):
 
     assert action_node.service.sample_data is None
 
-    AutomationNodeHandler().simulate_dispatch_node(action_node)
+    dispatch_context = AutomationDispatchContext(
+        action_node.workflow, None, simulate_until_node=action_node
+    )
+
+    AutomationNodeHandler().dispatch_node(action_node, dispatch_context)
 
     action_node.refresh_from_db()
     row = table.get_model().objects.first()
@@ -433,7 +448,11 @@ def test_simulate_dispatch_node_action_with_update_sample_data(
 
     mock_get_sample_data.return_value = None
 
-    AutomationNodeHandler().simulate_dispatch_node(action_node)
+    dispatch_context = AutomationDispatchContext(
+        action_node.workflow, None, simulate_until_node=action_node
+    )
+
+    AutomationNodeHandler().dispatch_node(action_node, dispatch_context)
 
     action_node.refresh_from_db()
 
@@ -469,7 +488,11 @@ def test_simulate_dispatch_node_action_with_simulate_until_node(data_fixture):
     for node in nodes:
         assert node.service.sample_data is None
 
-    AutomationNodeHandler().simulate_dispatch_node(action_node_1)
+    dispatch_context = AutomationDispatchContext(
+        action_node_1.workflow, None, simulate_until_node=action_node_1
+    )
+
+    AutomationNodeHandler().dispatch_node(action_node_1, dispatch_context)
 
     # Only the first action nodes dispatch should be simulated
     action_node_1.refresh_from_db()
@@ -590,7 +613,11 @@ def test_simulate_dispatch_node_dispatches_correct_edge_node(data_fixture):
     for node in nodes:
         assert node.service.sample_data is None
 
-    AutomationNodeHandler().simulate_dispatch_node(node_c_2)
+    dispatch_context = AutomationDispatchContext(
+        workflow, None, simulate_until_node=node_c_2
+    )
+
+    AutomationNodeHandler().dispatch_node(node_c_2, dispatch_context)
 
     # node_c_2 is intentionally excluded. here
     nodes = [trigger_node, router_a, router_b, node_b, node_c_1]

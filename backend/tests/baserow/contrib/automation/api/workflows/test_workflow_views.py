@@ -27,6 +27,7 @@ API_URL_WORKFLOW_ITEM = f"{API_URL_BASE_WORKFLOW}:item"
 API_URL_WORKFLOW_PUBLISH = f"{API_URL_BASE_WORKFLOW}:async_publish"
 API_URL_WORKFLOW_DUPLICATE = f"{API_URL_BASE_WORKFLOW}:async_duplicate"
 API_URL_WORKFLOW_HISTORY = f"{API_URL_BASE_WORKFLOW}:history"
+API_URL_WORKFLOW_TEST = f"{API_URL_BASE_WORKFLOW}:test"
 
 
 @pytest.mark.django_db
@@ -53,6 +54,7 @@ def test_create_workflow(api_client, data_fixture):
         "order": AnyInt(),
         "state": "draft",
         "published_on": None,
+        "simulate_until_node_id": None,
     }
 
     workflow = automation.workflows.get(id=response_json["id"])
@@ -137,6 +139,7 @@ def test_read_workflow(api_client, data_fixture):
         "name": workflow.name,
         "automation_id": automation.id,
         "allow_test_run_until": None,
+        "simulate_until_node_id": None,
         "state": "draft",
         "published_on": None,
     }
@@ -355,6 +358,7 @@ def test_duplicate_workflow(api_client, data_fixture):
             "order": AnyInt(),
             "state": "draft",
             "published_on": None,
+            "simulate_until_node_id": None,
         },
         "progress_percentage": 0,
         "state": "pending",
@@ -370,21 +374,16 @@ def test_enable_workflow_test_run(api_client, data_fixture):
         workflow = data_fixture.create_automation_workflow(user, name="test")
 
     assert workflow.allow_test_run_until is None
-    url = reverse(API_URL_WORKFLOW_ITEM, kwargs={"workflow_id": workflow.id})
+
+    url = reverse(API_URL_WORKFLOW_TEST, kwargs={"workflow_id": workflow.id})
 
     with freeze_time(frozen_time):
-        response = api_client.patch(
-            url,
-            {"allow_test_run": True},
-            format="json",
-            HTTP_AUTHORIZATION=f"JWT {token}",
+        response = api_client.post(
+            url, format="json", HTTP_AUTHORIZATION=f"JWT {token}"
         )
 
-    assert response.status_code == HTTP_200_OK
-    assert (
-        response.json()["allow_test_run_until"]
-        == f"2025-06-04T11:0{ALLOW_TEST_RUN_MINUTES}:00Z"
-    )
+    assert response.status_code == HTTP_202_ACCEPTED
+
     workflow.refresh_from_db()
     assert workflow.allow_test_run_until == datetime.datetime(
         2025, 6, 4, 11, ALLOW_TEST_RUN_MINUTES, tzinfo=datetime.timezone.utc
@@ -401,13 +400,11 @@ def test_disable_workflow_test_run(api_client, data_fixture):
     workflow.allow_test_run_until = timezone.now()
     workflow.save()
 
-    url = reverse(API_URL_WORKFLOW_ITEM, kwargs={"workflow_id": workflow.id})
-    response = api_client.patch(
-        url, {"allow_test_run": False}, format="json", HTTP_AUTHORIZATION=f"JWT {token}"
-    )
+    url = reverse(API_URL_WORKFLOW_TEST, kwargs={"workflow_id": workflow.id})
+    response = api_client.post(url, format="json", HTTP_AUTHORIZATION=f"JWT {token}")
 
-    assert response.status_code == HTTP_200_OK
-    assert response.json()["allow_test_run_until"] is None
+    assert response.status_code == HTTP_202_ACCEPTED
+
     workflow.refresh_from_db()
     assert workflow.allow_test_run_until is None
 
@@ -456,10 +453,9 @@ def test_run_workflow_in_test_mode(api_client, data_fixture):
     )
 
     # Enable the test run
-    url = reverse(API_URL_WORKFLOW_ITEM, kwargs={"workflow_id": workflow.id})
-    api_client.patch(
-        url, {"allow_test_run": True}, format="json", HTTP_AUTHORIZATION=f"JWT {token}"
-    )
+    url = reverse(API_URL_WORKFLOW_TEST, kwargs={"workflow_id": workflow.id})
+    api_client.post(url, format="json", HTTP_AUTHORIZATION=f"JWT {token}")
+
     workflow.refresh_from_db()
     assert workflow.allow_test_run_until is not None
     assert workflow.is_published is False

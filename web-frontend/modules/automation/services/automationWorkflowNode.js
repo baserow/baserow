@@ -28,18 +28,14 @@ export default (client) => {
     delete(nodeId) {
       return client.delete(`automation/node/${nodeId}/`)
     },
-    order(workflowId, order) {
-      return client.post(`/automation/workflow/${workflowId}/order/`, {
-        node_ids: order,
-      })
+    move(nodeId, values) {
+      return client.post(`automation/node/${nodeId}/move/`, values)
     },
     replace(nodeId, values) {
       return client.post(`automation/node/${nodeId}/replace/`, values)
     },
-    simulateDispatch(nodeId, updateSampleData) {
-      return client.post(`automation/node/${nodeId}/simulate-dispatch/`, {
-        update_sample_data: updateSampleData,
-      })
+    simulateDispatch(nodeId) {
+      return client.post(`automation/node/${nodeId}/simulate-dispatch/`)
     },
   }
 }

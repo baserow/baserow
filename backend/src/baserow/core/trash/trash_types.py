@@ -21,7 +21,11 @@ class ApplicationTrashableItemType(TrashableItemType):
     def get_name(self, trashed_item: Application) -> str:
         return trashed_item.name
 
-    def restore(self, trashed_item: Application, trash_entry: TrashEntry):
+    def restore(
+        self,
+        trashed_item: Application,
+        trash_entry: TrashEntry,
+    ):
         super().restore(trashed_item, trash_entry)
         application_created.send(
             self,

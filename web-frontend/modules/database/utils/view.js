@@ -32,7 +32,7 @@ export function getRowSortFunction($registry, sortings, fields, groupBys = []) {
   })
 
   sortFunction = sortFunction.thenBy((a, b) =>
-    new BigNumber(a.order).minus(new BigNumber(b.order))
+    new BigNumber(a.order).minus(new BigNumber(b.order)).toNumber()
   )
   sortFunction = sortFunction.thenBy((a, b) => a.id - b.id)
   return sortFunction

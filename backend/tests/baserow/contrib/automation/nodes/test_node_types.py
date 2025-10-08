@@ -2,9 +2,10 @@ import json
 import uuid
 from unittest.mock import MagicMock, patch
 
-from django.utils import timezone
+from django.urls import reverse
 
 import pytest
+from rest_framework.status import HTTP_204_NO_CONTENT
 
 from baserow.contrib.automation.automation_dispatch_context import (
     AutomationDispatchContext,
@@ -12,6 +13,8 @@ from baserow.contrib.automation.automation_dispatch_context import (
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.workflows.constants import WorkflowState
+from baserow.contrib.automation.workflows.service import AutomationWorkflowService
+from baserow.core.handler import CoreHandler
 from baserow.core.services.types import DispatchResult
 from baserow.core.utils import MirrorDict
 
@@ -30,9 +33,11 @@ def test_automation_node_type_is_replaceable_with():
 
 @pytest.mark.django_db
 @patch(
-    "baserow.contrib.automation.workflows.service.AutomationWorkflowHandler.run_workflow"
+    "baserow.contrib.automation.workflows.service.AutomationWorkflowHandler.async_start_workflow"
 )
-def test_automation_service_node_trigger_type_on_event(mock_run_workflow, data_fixture):
+def test_automation_service_node_trigger_type_on_event(
+    mock_async_start_workflow, data_fixture
+):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
     original_workflow = data_fixture.create_automation_workflow(
@@ -61,7 +66,7 @@ def test_automation_service_node_trigger_type_on_event(mock_run_workflow, data_f
     ]
 
     trigger.get_type().on_event(service_queryset, event_payload, user=user)
-    mock_run_workflow.assert_called_once()
+    mock_async_start_workflow.assert_called_once()
 
 
 @pytest.mark.django_db
@@ -244,9 +249,9 @@ def test_automation_node_migrates_its_previous_node_output_on_import(
 
 @pytest.mark.django_db
 @patch(
-    "baserow.contrib.automation.workflows.service.AutomationWorkflowHandler.run_workflow"
+    "baserow.contrib.automation.workflows.service.AutomationWorkflowHandler.async_start_workflow"
 )
-def test_on_event_excludes_disabled_workflows(mock_run_workflow, data_fixture):
+def test_on_event_excludes_disabled_workflows(mock_async_start_workflow, data_fixture):
     """
     Ensure that the AutomationNodeTriggerType::on_event() excludes any disabled
     workflows.
@@ -285,46 +290,7 @@ def test_on_event_excludes_disabled_workflows(mock_run_workflow, data_fixture):
     ]
 
     node.get_type().on_event(service_queryset, event_payload, user=user)
-    mock_run_workflow.assert_not_called()
-
-
-@pytest.mark.django_db
-@pytest.mark.parametrize(
-    "node_type",
-    [
-        node_type
-        for node_type in automation_node_type_registry.get_all()
-        if node_type.immediate_dispatch
-    ],
-)
-@patch("baserow.contrib.automation.nodes.registries.ServiceHandler.dispatch_service")
-def test_triggers_which_dispatch_immediately_on_test_run(
-    mock_dispatch_service, node_type, data_fixture
-):
-    user = data_fixture.create_user()
-    workflow = data_fixture.create_automation_workflow(
-        user=user,
-        trigger_type=node_type,
-        allow_test_run_until=timezone.now() + timezone.timedelta(hours=1),
-    )
-    trigger = workflow.get_trigger()
-    from baserow.contrib.automation.workflows.signals import automation_workflow_updated
-
-    with patch("django.db.transaction.on_commit") as on_commit_mock:
-        # Immediately call the callback before the transaction is commit
-        on_commit_mock.side_effect = lambda callback: callback()
-        automation_workflow_updated.send(
-            None,
-            user=user,
-            workflow=workflow,
-        )
-    assert mock_dispatch_service
-
-    mock_dispatch_service.assert_called_once()
-    args = mock_dispatch_service.call_args[0]
-    assert args[0] == trigger.service.specific
-    dispatch_context = args[1]
-    assert dispatch_context.workflow == workflow
+    mock_async_start_workflow.assert_not_called()
 
 
 @pytest.mark.django_db
@@ -374,8 +340,7 @@ def test_trigger_node_dispatch_returns_event_payload_if_not_simulated(data_fixtu
     node = data_fixture.create_local_baserow_rows_created_trigger_node(
         workflow=workflow, service=service
     )
-    dispatch_context = AutomationDispatchContext(workflow)
-    dispatch_context.event_payload = "foo"
+    dispatch_context = AutomationDispatchContext(workflow, "foo")
 
     result = node.get_type().dispatch(node, dispatch_context)
 
@@ -386,18 +351,111 @@ def test_trigger_node_dispatch_returns_event_payload_if_not_simulated(data_fixtu
 def test_trigger_node_dispatch_returns_sample_data_if_simulated(data_fixture):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
-    service = data_fixture.create_local_baserow_rows_created_service(
-        table=table,
-    )
+    workflow = data_fixture.create_automation_workflow(state=WorkflowState.LIVE)
+    node = workflow.get_trigger().specific
+    service = node.service.specific
+    service.table = table
     service.sample_data = {"data": {"foo": "bar"}}
     service.save()
-    workflow = data_fixture.create_automation_workflow(state=WorkflowState.LIVE)
-    node = data_fixture.create_local_baserow_rows_created_trigger_node(
-        workflow=workflow, service=service
-    )
 
     dispatch_context = AutomationDispatchContext(workflow, simulate_until_node=node)
+    # If we don't reset this value, the trigger is considered as updatable and will
+    # be dispatched.
+    dispatch_context.update_sample_data_for = []
 
     result = node.get_type().dispatch(node, dispatch_context)
 
     assert result == DispatchResult(data={"foo": "bar"}, status=200, output_uid="")
+
+
+@pytest.mark.django_db(transaction=True)
+def test_core_http_trigger_node(api_client, data_fixture):
+    user, _ = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    automation = data_fixture.create_automation_application(
+        user=user, workspace=workspace
+    )
+    workflow = data_fixture.create_automation_workflow(
+        user=user, automation=automation, state=WorkflowState.LIVE, create_trigger=False
+    )
+    integration = data_fixture.create_local_baserow_integration(
+        user=user, application=automation
+    )
+
+    trigger_node = data_fixture.create_http_trigger_node(
+        workflow=workflow,
+        service_kwargs={"is_public": True},
+    )
+
+    database = data_fixture.create_database_application(user=user, workspace=workspace)
+    table, fields, _ = data_fixture.build_table(
+        user=user,
+        database=database,
+        columns=[("Name", "text")],
+        rows=[],
+    )
+    action_service = data_fixture.create_local_baserow_upsert_row_service(
+        table=table,
+        integration=integration,
+    )
+    action_service.field_mappings.create(
+        field=fields[0],
+        value=f"concat('foo: ', get('previous_node.{trigger_node.id}.body.foo'))",
+    )
+    data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow,
+        service=action_service,
+    )
+
+    url = reverse("api:http_trigger", kwargs={"webhook_uid": trigger_node.service.uid})
+
+    resp = api_client.post(url, {"foo": "bar sky"}, format="json")
+
+    assert resp.status_code == HTTP_204_NO_CONTENT
+
+    model = table.get_model()
+    rows = model.objects.all()
+    assert len(rows) == 1
+    assert getattr(rows[0], f"field_{fields[0].id}") == "foo: bar sky"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_core_http_trigger_node_duplicating_application_sets_unique_uid(data_fixture):
+    user = data_fixture.create_user()
+
+    workflow = data_fixture.create_automation_workflow(
+        user=user, state=WorkflowState.LIVE, create_trigger=False
+    )
+    trigger_node = data_fixture.create_http_trigger_node(user=user, workflow=workflow)
+    assert isinstance(trigger_node.service.uid, uuid.UUID)
+
+    duplicated_automation = CoreHandler().duplicate_application(
+        user, workflow.automation
+    )
+    duplicated_service = (
+        duplicated_automation.workflows.get()
+        .automation_workflow_nodes.get()
+        .specific.service.specific
+    )
+
+    assert isinstance(duplicated_service.uid, uuid.UUID)
+    assert str(duplicated_service.uid) != str(trigger_node.service.uid)
+
+
+@pytest.mark.django_db(transaction=True)
+def test_core_http_trigger_node_duplicating_workflow_sets_unique_uid(data_fixture):
+    user = data_fixture.create_user()
+
+    workflow = data_fixture.create_automation_workflow(
+        user=user, state=WorkflowState.LIVE, create_trigger=False
+    )
+    trigger_node = data_fixture.create_http_trigger_node(user=user, workflow=workflow)
+    assert isinstance(trigger_node.service.uid, uuid.UUID)
+
+    duplicated_workflow = AutomationWorkflowService().duplicate_workflow(user, workflow)
+    duplicated_service = (
+        duplicated_workflow.automation_workflow_nodes.get().specific.service.specific
+    )
+
+    assert isinstance(duplicated_service.uid, uuid.UUID)
+    assert str(duplicated_service.uid) != str(trigger_node.service.uid)

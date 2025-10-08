@@ -1,5 +1,18 @@
 # Changelog
 
+## Released 1.35.3
+
+### New features
+* [Database] Allow viewers and higher to export table.
+
+### Bug fixes
+* [Database] Fix copy/paste on Safari 18.6+ [#3830](https://gitlab.com/baserow/baserow/-/issues/3830)
+* [Database] Removed duplicated spin animation causing loading icon to look slower than intended.
+
+### Refactors
+* [Core] Add debug logging to SAML/OAuth2 views to get more information on issues.
+
+
 ## Released 1.35.2
 
 ### New features
