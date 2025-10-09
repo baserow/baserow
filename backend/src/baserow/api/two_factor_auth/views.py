@@ -3,6 +3,8 @@ from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
+from baserow.api.user.serializers import TokenObtainPairWithUserSerializer, log_in_user
+from baserow.core.models import User
 from baserow.core.two_factor_auth.handler import TwoFactorAuthHandler
 from baserow.core.two_factor_auth.registries import two_factor_auth_type_registry
 from baserow.api.decorators import (
@@ -173,12 +175,19 @@ class VerifyTwoFactorAuthView(APIView):
         Verifies two-factor authentication.
         """
 
+        # TODO: verify that the user has already provided correct passwd
+
         provider_type = data.pop("type")
-        verified = TwoFactorAuthHandler().verify(provider_type, **data)
+        TwoFactorAuthHandler().verify(provider_type, **data)
 
-        # serializer = two_factor_auth_type_registry.get_serializer(
-        #     provider, TwoFactorAuthSerializer
-        # )
-        # return Response(serializer.data)
+        user = User.objects.filter(email=data["email"]).first()
+        return_data = log_in_user(request, user)
 
-        return Response({verified: verified})
+        from rich import print
+
+        print(return_data)
+
+        return Response(
+            return_data,
+            status=status.HTTP_200_OK,
+        )
