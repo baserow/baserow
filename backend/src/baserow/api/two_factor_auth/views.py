@@ -137,7 +137,8 @@ class DisableTwoFactorAuthView(APIView):
 class VerifyTOTPSerializer(serializers.Serializer):
     type = serializers.CharField(required=True)
     email = serializers.EmailField(required=True)
-    code = serializers.CharField(required=True)
+    code = serializers.CharField(required=False)
+    backupCode = serializers.CharField(required=False)
 
 
 class VerifyTwoFactorAuthView(APIView):

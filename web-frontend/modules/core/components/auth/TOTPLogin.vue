@@ -138,7 +138,7 @@ export default {
         const { data } = await TwoFactorAuthService(this.$client).verify(
           'totp',
           this.email,
-          code
+          { code }
         )
         console.log({ data })
         alert('success')
@@ -153,8 +153,25 @@ export default {
         // this.loading = false
       }
     },
-    verifyBackupCode(code) {
-      alert('verify backup code')
+    async verifyBackupCode(code) {
+      try {
+        const { data } = await TwoFactorAuthService(this.$client).verify(
+          'totp',
+          this.email,
+          { backupCode: this.values.backupCode }
+        )
+        console.log({ data })
+        alert('success')
+        // const title = 'Successfully enabled two-factor authentication'
+        // this.$store.dispatch('toast/success', { title })
+        // this.$emit('verified', data.backup_codes)
+      } catch (error) {
+        // TODO: diff type of error?
+        const title = 'Verification failed' // this.$t('generalSettings.cantUpdateApplicationTitle')
+        this.$store.dispatch('toast/error', { title })
+      } finally {
+        // this.loading = false
+      }
     },
   },
 }

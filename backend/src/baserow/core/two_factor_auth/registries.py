@@ -144,6 +144,18 @@ class TOTPAuthProviderType(TwoFactorAuthProviderType):
     def verify(self, **kwargs) -> bool:
         email = kwargs.get("email")
         code = kwargs.get("code")
+        backup_code = kwargs.get("backupCode")
+
+        if backup_code:
+            hashed = hashlib.sha256(backup_code.encode("utf-8")).hexdigest()
+            recovery_code = TwoFactorAuthRecoveryCode.objects.filter(
+                user__email=email, code=hashed
+            ).first()
+            if not recovery_code:
+                raise VerificationFailed
+            else:
+                recovery_code.delete()
+                return True
 
         provider = TwoFactorAuthProviderModel.objects.filter(user__email=email).first()
         if not provider:
