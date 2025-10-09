@@ -171,8 +171,6 @@ class PublicTestWorkflowActionType(NotificationWorkflowActionType):
     public_serializer_field_overrides = {
         "test": FormulaSerializerField(
             required=False,
-            allow_blank=True,
-            default="",
         ),
     }
 

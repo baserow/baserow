@@ -66,16 +66,8 @@ export default {
   },
   props: {
     value: {
-      type: Object,
+      type: [String, Object],
       default: () => {},
-      validator(value) {
-        if (typeof value !== 'object' || value === null) {
-          console.error('EXPECTED OBJECT BUT GOT:', value)
-          console.trace() // Shows the call stack
-          return false
-        }
-        return true
-      },
     },
     disabled: {
       type: Boolean,
@@ -117,6 +109,11 @@ export default {
     }
   },
   computed: {
+    compatValue() {
+      return typeof this.value === 'string'
+        ? { mode: 'simple', version: '0.1', formula: this.value }
+        : this.value
+    },
     classes() {
       return {
         'form-input--disabled': this.disabled,
@@ -164,9 +161,7 @@ export default {
       try {
         return generateHTML(this.content, this.extensions)
       } catch (e) {
-        console.error('Error while parsing formula content', this.value)
-        console.error(e)
-        return generateHTML(this.toContent(null), this.extensions)
+        return generateHTML(this.toContent({}), this.extensions)
       }
     },
     wrapperContent() {
@@ -225,12 +220,9 @@ export default {
         )
       }
     },
-    value(value) {
+    compatValue(value) {
       if (!_.isEqual(value, this.toFormula(this.wrapperContent))) {
         const content = this.toContent(value)
-        console.log('value is ', value)
-        console.log('content is ', content)
-
         if (!this.isFormulaInvalid) {
           this.content = content
         }
@@ -248,7 +240,7 @@ export default {
     },
   },
   mounted() {
-    this.content = this.toContent(this.value)
+    this.content = this.toContent(this.compatValue)
     this.editor = new Editor({
       content: this.htmlContent,
       editable: !this.disabled,
@@ -274,10 +266,6 @@ export default {
     },
     emitChange() {
       if (!this.isFormulaInvalid) {
-        console.log(
-          'emitChange will emit ',
-          this.toFormula(this.wrapperContent)
-        )
         this.$emit('input', this.toFormula(this.wrapperContent))
       }
     },
@@ -321,7 +309,7 @@ export default {
       }
     },
     toContent(formulaCtx) {
-      if (!formulaCtx) {
+      if (!formulaCtx?.formula) {
         return {
           type: 'doc',
           content: [{ type: 'wrapper' }],
@@ -329,7 +317,6 @@ export default {
       }
 
       try {
-        console.log('toContent is trying to parse ', formulaCtx)
         const tree = parseBaserowFormula(formulaCtx.formula)
         const functionCollection = new RuntimeFunctionCollection(this.$registry)
         return new ToTipTapVisitor(functionCollection).visit(tree)

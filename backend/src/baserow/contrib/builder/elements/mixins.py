@@ -252,8 +252,6 @@ class CollectionElementTypeMixin:
                     "button_load_more_label"
                 ).help_text,
                 required=False,
-                allow_blank=True,
-                default="",
             ),
             "property_options": CollectionElementPropertyOptionsSerializer(
                 many=True,

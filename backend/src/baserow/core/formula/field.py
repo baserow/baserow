@@ -1,7 +1,7 @@
 import json
 from typing import TypedDict
 
-from django.db import models, connection
+from django.db import connection, models
 
 from baserow.core.formula.types import BaserowFormula
 
@@ -73,9 +73,15 @@ class FormulaField(models.TextField):
             # formula context and return it as is.
             return value
         else:
-            # The column has been migrated to a `jsonb` column.
-            # If we receive a string now, it's always a formula string. Serialized
-            # objects would be deserialized by Django automatically
+            # The column type is "jsonb" *but* we may still be using a `TextField`
+            # (if the application code hasn't yet been deployed) or a `JSONField`
+            # (if it has been deployed). To support both cases, we manually deserialize
+            # the value, regardless of whether it's a formula string, or a serialized
+            # object.
+            try:
+                value = json.loads(value)
+            except (TypeError, json.JSONDecodeError):
+                return None
             if isinstance(value, str):
                 return BaserowFormulaContext(
                     mode="simple", version="1.0", formula=value

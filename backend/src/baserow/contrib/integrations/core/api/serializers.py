@@ -44,7 +44,7 @@ class HTTPFormDataSerializer(serializers.ModelSerializer):
     key = serializers.CharField(
         allow_blank=True, max_length=255, validators=[validate_form_data_key]
     )
-    value = FormulaSerializerField(allow_blank=True)
+    value = FormulaSerializerField()
 
     class Meta:
         model = HTTPFormData
@@ -59,7 +59,7 @@ class HTTPHeaderSerializer(serializers.ModelSerializer):
     key = serializers.CharField(
         allow_blank=True, max_length=255, validators=[validate_param_or_header_name]
     )
-    value = FormulaSerializerField(allow_blank=True)
+    value = FormulaSerializerField()
 
     class Meta:
         model = HTTPHeader
@@ -74,7 +74,7 @@ class HTTPQueryParamSerializer(serializers.ModelSerializer):
     key = serializers.CharField(
         allow_blank=True, max_length=255, validators=[validate_param_or_header_name]
     )
-    value = FormulaSerializerField(allow_blank=True)
+    value = FormulaSerializerField()
 
     class Meta:
         model = HTTPQueryParam

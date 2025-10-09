@@ -65,7 +65,7 @@ export default function resolveElementUrl(
   if (element.query_parameters && element.query_parameters.length > 0) {
     const queryString = element.query_parameters
       .map(({ name, value }) => {
-        if (!value) return null
+        if (!value) return null // TODO: !value.formula
         const resolvedValue = resolveFormula(value)
         if (!resolvedValue && String(resolvedValue) !== '0') return null
         return `${encodeURIComponent(name)}=${encodeURIComponent(

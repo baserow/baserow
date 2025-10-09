@@ -54,8 +54,6 @@ class AuthFormElementType(ElementType):
                     "login_button_label"
                 ).help_text,
                 required=False,
-                allow_blank=True,
-                default="",
             ),
             "styles": DynamicConfigBlockSerializer(
                 required=False,
@@ -187,26 +185,18 @@ class FileInputElementType(InputElementType):
             "label": FormulaSerializerField(
                 help_text=FileInputElement._meta.get_field("label").help_text,
                 required=False,
-                allow_blank=True,
-                default="",
             ),
             "default_name": FormulaSerializerField(
                 help_text=FileInputElement._meta.get_field("default_name").help_text,
                 required=False,
-                allow_blank=True,
-                default="",
             ),
             "default_url": FormulaSerializerField(
                 help_text=FileInputElement._meta.get_field("default_url").help_text,
                 required=False,
-                allow_blank=True,
-                default="",
             ),
             "help_text": FormulaSerializerField(
                 help_text=FileInputElement._meta.get_field("help_text").help_text,
                 required=False,
-                allow_blank=True,
-                default="",
             ),
             "max_filesize": serializers.IntegerField(
                 help_text=FileInputElement._meta.get_field("preview").help_text,

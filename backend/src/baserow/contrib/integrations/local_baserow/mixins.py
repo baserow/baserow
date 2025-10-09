@@ -676,8 +676,6 @@ class LocalBaserowTableServiceSearchableMixin:
     mixin_serializer_field_names = ["search_query"]
     mixin_serializer_field_overrides = {
         "search_query": FormulaSerializerField(
-            required=False,
-            allow_blank=True,
             help_text="Any search queries to apply to the "
             "service when it is dispatched.",
         )
@@ -788,8 +786,6 @@ class LocalBaserowTableServiceSpecificRowMixin:
     mixin_serializer_field_names = ["row_id"]
     mixin_serializer_field_overrides = {
         "row_id": FormulaSerializerField(
-            required=False,
-            allow_blank=True,
             help_text="A formula for defining the intended row.",
         ),
     }
@@ -803,11 +799,6 @@ class LocalBaserowTableServiceSpecificRowMixin:
         """
 
         super_formulas = super().formulas_to_resolve(service)
-
-        # Ignore empty formulas
-        if not service.row_id:
-            return super_formulas
-
         return super_formulas + [
             FormulaToResolve("row_id", service.row_id, ensure_integer, '"row_id"')
         ]

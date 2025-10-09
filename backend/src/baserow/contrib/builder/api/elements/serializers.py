@@ -264,7 +264,7 @@ class DuplicateElementSerializer(serializers.Serializer):
 
 class PageParameterValueSerializer(serializers.Serializer):
     name = serializers.CharField()
-    value = FormulaSerializerField(allow_blank=True)
+    value = FormulaSerializerField()
 
 
 @extend_schema_serializer(exclude_fields=("config",))
@@ -363,7 +363,7 @@ class UpdateCollectionFieldSerializer(serializers.ModelSerializer):
         help_text=CollectionField._meta.get_field("type").help_text,
     )
 
-    value = FormulaSerializerField(allow_blank=True)
+    value = FormulaSerializerField()
 
 
 class ChoiceOptionSerializer(serializers.ModelSerializer):
@@ -408,8 +408,6 @@ class MenuItemSerializer(serializers.ModelSerializer):
     )
     navigate_to_url = FormulaSerializerField(
         help_text=LinkElement._meta.get_field("navigate_to_url").help_text,
-        default="",
-        allow_blank=True,
         required=False,
     )
     page_parameters = PageParameterValueSerializer(
