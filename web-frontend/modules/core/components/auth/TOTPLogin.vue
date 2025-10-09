@@ -36,20 +36,57 @@
         </clipPath>
       </defs>
     </svg>
-    <div class="totp-login__title">Two-factor authentication</div>
-    <div class="totp-login__description">
-      Enter the code from your authenticator app.
+    <div v-if="enterBackupCode">
+      <div class="totp-login__title">Enter backup code</div>
+      <div class="totp-login__description">
+        Log in with your single-use backup code.
+      </div>
+      <FormGroup
+        small-label
+        :label="'Backup code'"
+        :error="fieldHasErrors('values.backupCode')"
+        class="margin-bottom-2"
+        required
+      >
+        <FormInput
+          ref="backup_code"
+          v-model="v$.values.backupCode.$model"
+          size="large"
+          :error="fieldHasErrors('values.backupCode')"
+          :placeholder="'XXXXX-XXXXX'"
+          @blur="v$.values.backupCode.$touch"
+        ></FormInput>
+        <template #error>
+          {{ v$.values.backupCode.$errors[0]?.$message }}
+        </template>
+      </FormGroup>
+      <Button
+        class="totp-login__submit"
+        type="primary"
+        size="large"
+        @click="verifyBackupCode"
+        >Authenticate</Button
+      >
+      <div>
+        <ButtonText @click="enterBackupCode = false">Go back</ButtonText>
+      </div>
     </div>
-    <AuthCodeInput class="totp-login__code" @all-filled="verify" />
-    <Button
-      class="totp-login__submit"
-      type="primary"
-      size="large"
-      @click="verify"
-      >Verify</Button
-    >
-    <div>
-      <ButtonText>Use backup code</ButtonText>
+    <div v-else>
+      <div class="totp-login__title">Two-factor authentication</div>
+      <div class="totp-login__description">
+        Enter the code from your authenticator app.
+      </div>
+      <AuthCodeInput class="totp-login__code" @all-filled="verify" />
+      <Button
+        class="totp-login__submit"
+        type="primary"
+        size="large"
+        @click="verify"
+        >Verify</Button
+      >
+      <div>
+        <ButtonText @click="enterBackupCode = true">Use backup code</ButtonText>
+      </div>
     </div>
   </div>
 </template>
@@ -57,15 +94,43 @@
 <script>
 import AuthCodeInput from '@baserow/modules/core/components/settings/twoFactorAuth/AuthCodeInput.vue'
 import TwoFactorAuthService from '@baserow/modules/core/services/twoFactorAuth'
+import form from '@baserow/modules/core/mixins/form'
+import { useVuelidate } from "@vuelidate/core"
+import { reactive, computed } from "vue"
+import { required } from "@vuelidate/validators"
 
 export default {
   name: 'TOTPLogin',
   components: { AuthCodeInput },
+  mixins: [form],
   props: {
     email: {
-      type: Object,
+      type: String,
       required: true,
     },
+  },
+  setup() {
+    const values = reactive({
+      values: {
+        backupCode: '',
+      },
+    })
+
+    const rules = computed(() => ({
+      values: {
+        backupCode: { required },
+      },
+    }))
+
+    return {
+      v$: useVuelidate(rules, values, { $lazy: true }),
+      values: values.values,
+    }
+  },
+  data() {
+    return {
+      enterBackupCode: false,
+    }
   },
   methods: {
     async verify(code) {
@@ -87,6 +152,9 @@ export default {
       } finally {
         // this.loading = false
       }
+    },
+    verifyBackupCode(code) {
+      alert('verify backup code')
     },
   },
 }
