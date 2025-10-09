@@ -22,7 +22,8 @@
     "thursday": "Thursday",
     "friday": "Friday",
     "saturday": "Saturday",
-    "sunday": "Sunday"
+    "sunday": "Sunday",
+    "value": "value"
   },
   "action": {
     "close": "Close",
