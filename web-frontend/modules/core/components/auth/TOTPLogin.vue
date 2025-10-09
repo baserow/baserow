@@ -41,7 +41,11 @@
       Enter the code from your authenticator app.
     </div>
     <AuthCodeInput class="totp-login__code" @all-filled="verify" />
-    <Button class="totp-login__submit" type="primary" size="large" @click="verify"
+    <Button
+      class="totp-login__submit"
+      type="primary"
+      size="large"
+      @click="verify"
       >Verify</Button
     >
     <div>

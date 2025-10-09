@@ -142,8 +142,19 @@ class TOTPAuthProviderType(TwoFactorAuthProviderType):
         return provider.enabled
 
     def verify(self, **kwargs) -> bool:
-        # TODO: check with email, code
-        return True
+        email = kwargs.get("email")
+        code = kwargs.get("code")
+
+        provider = TwoFactorAuthProviderModel.objects.filter(user__email=email).first()
+        if not provider:
+            raise VerificationFailed
+
+        totp = pyotp.TOTP(provider.specific.secret)
+
+        if totp.verify(code):
+            return True
+        else:
+            raise VerificationFailed
 
 
 class TwoFactorAuthTypeRegistry(

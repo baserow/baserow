@@ -153,7 +153,7 @@ export const actions = {
       return data.user
     } else if (data.two_factor_auth) {
       return {
-        'two_factor_auth': data.two_factor_auth
+        two_factor_auth: data.two_factor_auth,
       }
     }
   },
