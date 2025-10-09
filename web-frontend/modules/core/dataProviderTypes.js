@@ -198,7 +198,7 @@ export class DataProviderType extends Registerable {
         nodes: [
           // Always allow direct access to the entire value
           {
-            name: `${name} (value)`,
+            name: `${name} (${this.app.i18n.t('common.value')})`,
             identifier: '',
             order: 0,
             type: 'unknown',
