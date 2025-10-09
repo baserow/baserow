@@ -1,6 +1,7 @@
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
 
+from baserow.core.formula.field import FormulaField
 from baserow.core.integrations.models import Integration
 from baserow.core.mixins import (
     HierarchicalModelMixin,
@@ -67,7 +68,7 @@ class SearchableServiceMixin(models.Model):
     and to add a `search_query` field to it.
     """
 
-    search_query = models.TextField(
+    search_query = FormulaField(
         default="",
         max_length=225,
         help_text="The query to apply to the service to narrow the results down.",

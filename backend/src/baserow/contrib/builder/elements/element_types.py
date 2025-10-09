@@ -252,8 +252,6 @@ class FormContainerElementType(ContainerElementTypeMixin, ElementType):
                     "submit_button_label"
                 ).help_text,
                 required=False,
-                allow_blank=True,
-                default="",
             ),
             "reset_initial_values_post_submission": serializers.BooleanField(
                 help_text=FormContainerElement._meta.get_field(
@@ -456,24 +454,18 @@ class RecordSelectorElementType(
             "label": FormulaSerializerField(
                 help_text=RecordSelectorElement._meta.get_field("label").help_text,
                 required=False,
-                allow_blank=True,
-                default="",
             ),
             "default_value": FormulaSerializerField(
                 help_text=RecordSelectorElement._meta.get_field(
                     "default_value"
                 ).help_text,
                 required=False,
-                allow_blank=True,
-                default="",
             ),
             "placeholder": FormulaSerializerField(
                 help_text=RecordSelectorElement._meta.get_field(
                     "placeholder"
                 ).help_text,
                 required=False,
-                allow_blank=True,
-                default="",
             ),
             "multiple": serializers.BooleanField(
                 help_text=RecordSelectorElement._meta.get_field("multiple").help_text,
@@ -485,8 +477,6 @@ class RecordSelectorElementType(
                     "option_name_suffix"
                 ).help_text,
                 required=False,
-                allow_blank=True,
-                default="",
             ),
         }
 
@@ -681,8 +671,6 @@ class HeadingElementType(ElementType):
             "value": FormulaSerializerField(
                 help_text="The value of the element. Must be an formula.",
                 required=False,
-                allow_blank=True,
-                default="",
             ),
             "level": serializers.IntegerField(
                 help_text="The level of the heading from 1 to 6.",
@@ -743,8 +731,6 @@ class TextElementType(ElementType):
             "value": FormulaSerializerField(
                 help_text="The value of the element. Must be a formula.",
                 required=False,
-                allow_blank=True,
-                default="",
             ),
             "format": serializers.ChoiceField(
                 choices=TextElement.TEXT_FORMATS.choices,
@@ -835,8 +821,6 @@ class NavigationElementManager:
                     "navigate_to_url"
                 ).help_text,
                 default="",
-                allow_blank=True,
-                required=False,
             ),
             "page_parameters": PageParameterValueSerializer(
                 many=True,
@@ -1032,8 +1016,6 @@ class LinkElementType(ElementType):
                 "value": FormulaSerializerField(
                     help_text="The value of the element. Must be an formula.",
                     required=False,
-                    allow_blank=True,
-                    default="",
                 ),
                 "variant": serializers.ChoiceField(
                     choices=LinkElement.VARIANTS.choices,
@@ -1126,14 +1108,10 @@ class ImageElementType(ElementType):
             "image_url": FormulaSerializerField(
                 help_text=ImageElement._meta.get_field("image_url").help_text,
                 required=False,
-                allow_blank=True,
-                default="",
             ),
             "alt_text": FormulaSerializerField(
                 help_text=ImageElement._meta.get_field("alt_text").help_text,
                 required=False,
-                allow_blank=True,
-                default="",
             ),
             "styles": DynamicConfigBlockSerializer(
                 required=False,
@@ -1266,8 +1244,6 @@ class RatingElementType(ElementType):
             "value": FormulaSerializerField(
                 help_text=RatingElement._meta.get_field("value").help_text,
                 required=False,
-                allow_blank=True,
-                default="",
             ),
         }
 
@@ -1319,8 +1295,6 @@ class RatingInputElementType(InputElementType):
             "label": FormulaSerializerField(
                 help_text=RatingInputElement._meta.get_field("label").help_text,
                 required=False,
-                allow_blank=True,
-                default="",
             ),
             "required": serializers.BooleanField(
                 help_text=RatingInputElement._meta.get_field("required").help_text,
@@ -1330,8 +1304,6 @@ class RatingInputElementType(InputElementType):
             "value": FormulaSerializerField(
                 help_text=RatingInputElement._meta.get_field("value").help_text,
                 required=False,
-                allow_blank=True,
-                default="",
             ),
         }
 
@@ -1404,14 +1376,10 @@ class InputTextElementType(InputElementType):
             "label": FormulaSerializerField(
                 help_text=InputTextElement._meta.get_field("label").help_text,
                 required=False,
-                allow_blank=True,
-                default="",
             ),
             "default_value": FormulaSerializerField(
                 help_text=InputTextElement._meta.get_field("default_value").help_text,
                 required=False,
-                allow_blank=True,
-                default="",
             ),
             "required": serializers.BooleanField(
                 help_text=InputTextElement._meta.get_field("required").help_text,
@@ -1421,8 +1389,6 @@ class InputTextElementType(InputElementType):
             "placeholder": FormulaSerializerField(
                 help_text=InputTextElement._meta.get_field("placeholder").help_text,
                 required=False,
-                allow_blank=True,
-                default="",
             ),
             "is_multiline": serializers.BooleanField(
                 help_text=InputTextElement._meta.get_field("is_multiline").help_text,
@@ -1514,8 +1480,6 @@ class ButtonElementType(ElementType):
             "value": FormulaSerializerField(
                 help_text=ButtonElement._meta.get_field("value").help_text,
                 required=False,
-                allow_blank=True,
-                default="",
             ),
             "styles": DynamicConfigBlockSerializer(
                 required=False,
@@ -1557,14 +1521,10 @@ class CheckboxElementType(InputElementType):
             "label": FormulaSerializerField(
                 help_text=CheckboxElement._meta.get_field("label").help_text,
                 required=False,
-                allow_blank=True,
-                default="",
             ),
             "default_value": FormulaSerializerField(
                 help_text=CheckboxElement._meta.get_field("default_value").help_text,
                 required=False,
-                allow_blank=True,
-                default="",
             ),
             "required": serializers.BooleanField(
                 help_text=CheckboxElement._meta.get_field("required").help_text,
@@ -1674,14 +1634,10 @@ class ChoiceElementType(FormElementTypeMixin, ElementType):
             "label": FormulaSerializerField(
                 help_text=ChoiceElement._meta.get_field("label").help_text,
                 required=False,
-                allow_blank=True,
-                default="",
             ),
             "default_value": FormulaSerializerField(
                 help_text=ChoiceElement._meta.get_field("default_value").help_text,
                 required=False,
-                allow_blank=True,
-                default="",
             ),
             "required": serializers.BooleanField(
                 help_text=ChoiceElement._meta.get_field("required").help_text,
@@ -1716,14 +1672,10 @@ class ChoiceElementType(FormElementTypeMixin, ElementType):
             "formula_value": FormulaSerializerField(
                 help_text=ChoiceElement._meta.get_field("formula_value").help_text,
                 required=False,
-                allow_blank=True,
-                default="",
             ),
             "formula_name": FormulaSerializerField(
                 help_text=ChoiceElement._meta.get_field("formula_name").help_text,
                 required=False,
-                allow_blank=True,
-                default="",
             ),
             "styles": DynamicConfigBlockSerializer(
                 required=False,
@@ -1935,14 +1887,10 @@ class IFrameElementType(ElementType):
             "url": FormulaSerializerField(
                 help_text=IFrameElement._meta.get_field("url").help_text,
                 required=False,
-                allow_blank=True,
-                default="",
             ),
             "embed": FormulaSerializerField(
                 help_text=IFrameElement._meta.get_field("embed").help_text,
                 required=False,
-                allow_blank=True,
-                default="",
             ),
             "height": serializers.IntegerField(
                 help_text=IFrameElement._meta.get_field("height").help_text,
@@ -2004,8 +1952,6 @@ class DateTimePickerElementType(FormElementTypeMixin, ElementType):
             "label": FormulaSerializerField(
                 help_text=DateTimePickerElement._meta.get_field("label").help_text,
                 required=False,
-                allow_blank=True,
-                default="",
             ),
             "required": serializers.BooleanField(
                 help_text=DateTimePickerElement._meta.get_field("required").help_text,
@@ -2017,8 +1963,6 @@ class DateTimePickerElementType(FormElementTypeMixin, ElementType):
                     "default_value"
                 ).help_text,
                 required=False,
-                allow_blank=True,
-                default="",
             ),
             "date_format": serializers.ChoiceField(
                 help_text=DateTimePickerElement._meta.get_field(

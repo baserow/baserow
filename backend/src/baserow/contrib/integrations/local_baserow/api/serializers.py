@@ -55,7 +55,6 @@ class LocalBaserowTableServiceSortSerializerMixin(serializers.Serializer):
 
 class LocalBaserowTableServiceFilterSerializer(serializers.ModelSerializer):
     value = OptionalFormulaSerializerField(
-        allow_blank=True,
         help_text="A formula for the filter's value.",
         is_formula_field_name="value_is_formula",
     )
@@ -119,4 +118,4 @@ class LocalBaserowTableServiceFieldMappingSerializer(serializers.Serializer):
     enabled = serializers.BooleanField(
         help_text="Indicates whether the field mapping is enabled or not."
     )
-    value = FormulaSerializerField(allow_blank=True)
+    value = FormulaSerializerField()

@@ -285,11 +285,14 @@ class ServiceType(
         """
 
         resolved_values = {}
-        for key, formula, ensurer, label in self.formulas_to_resolve(service):
+        for key, formula_ctx, ensurer, label in self.formulas_to_resolve(service):
+            if not formula_ctx["formula"]:
+                logger.debug(f"No formula to resolve for {label}.")
+                continue
             try:
                 resolved_values[key] = ensurer(
                     resolve_formula(
-                        formula,
+                        formula_ctx,
                         formula_runtime_function_registry,
                         dispatch_context.clone(),
                     )

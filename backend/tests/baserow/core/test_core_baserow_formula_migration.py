@@ -1,9 +1,9 @@
 import json
 from unittest.mock import patch
 
-import pytest
-
 from django.db import connection
+
+import pytest
 
 from baserow.core.formula.field import BaserowFormulaContext
 

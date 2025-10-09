@@ -32,8 +32,6 @@ class BooleanCollectionFieldType(CollectionFieldType):
             "value": FormulaSerializerField(
                 help_text="The boolean value.",
                 required=False,
-                allow_blank=True,
-                default=False,
             ),
         }
 
@@ -56,8 +54,6 @@ class RatingCollectionFieldType(CollectionFieldType):
             "value": FormulaSerializerField(
                 help_text="The rating value.",
                 required=False,
-                allow_blank=True,
-                default="",
             ),
             "color": serializers.CharField(
                 help_text="The color of the rating.",
@@ -95,8 +91,6 @@ class TextCollectionFieldType(CollectionFieldType):
             "value": FormulaSerializerField(
                 help_text="The formula for the text.",
                 required=False,
-                allow_blank=True,
-                default="",
             ),
         }
 
@@ -171,8 +165,6 @@ class LinkCollectionFieldType(CollectionFieldType):
                 "link_name": FormulaSerializerField(
                     help_text="The formula for the link name.",
                     required=False,
-                    allow_blank=True,
-                    default="",
                 ),
                 "variant": serializers.ChoiceField(
                     choices=LinkElement.VARIANTS.choices,
@@ -248,14 +240,10 @@ class TagsCollectionFieldType(CollectionFieldType):
             "values": FormulaSerializerField(
                 help_text="The formula for the tags values",
                 required=False,
-                allow_blank=True,
-                default="",
             ),
             "colors": OptionalFormulaSerializerField(
                 help_text="The formula or value for the tags colors",
                 required=False,
-                allow_blank=True,
-                default="",
                 is_formula_field_name="colors_is_formula",
             ),
             "colors_is_formula": serializers.BooleanField(
@@ -299,8 +287,6 @@ class ButtonCollectionFieldType(CollectionFieldType):
             "label": FormulaSerializerField(
                 help_text="The string value.",
                 required=False,
-                allow_blank=True,
-                default="",
             ),
         }
 
@@ -325,13 +311,9 @@ class ImageCollectionFieldType(CollectionFieldType):
             "src": FormulaSerializerField(
                 help_text="A link to the image file",
                 required=False,
-                allow_blank=True,
-                default="",
             ),
             "alt": FormulaSerializerField(
                 help_text="A brief text description of the image",
                 required=False,
-                allow_blank=True,
-                default="",
             ),
         }

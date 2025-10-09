@@ -1250,7 +1250,8 @@ export class InputTextElementType extends FormElementType {
   }
 
   getDisplayName(element, applicationContext) {
-    const displayValue = element.label || element.placeholder
+    const displayValue = element.label.formula || element.placeholder.formula
+    // TODO: we can't trim below
 
     if (displayValue?.trim()) {
       const resolvedName = ensureString(
@@ -1323,7 +1324,8 @@ export class HeadingElementType extends ElementType {
   }
 
   getDisplayName(element, applicationContext) {
-    if (element.value && element.value.length) {
+    // TODO: we need to element.value.formula.length
+    if (element.value.formula.length) {
       const resolvedName = ensureString(
         this.resolveFormula(element.value, applicationContext)
       ).trim()
@@ -1379,6 +1381,7 @@ export class TextElementType extends ElementType {
   }
 
   getDisplayName(element, applicationContext) {
+    // TODO: element.value.formula
     if (element.value) {
       const resolvedName = ensureString(
         this.resolveFormula(element.value, applicationContext)
@@ -1480,6 +1483,7 @@ export class LinkElementType extends ElementType {
       destination = ` -> ${destination}`
     }
 
+    // TODO: element.value.formula
     if (element.value) {
       displayValue = ensureString(
         this.resolveFormula(element.value, applicationContext)
@@ -1547,6 +1551,7 @@ export class ImageElementType extends ElementType {
   }
 
   getDisplayName(element, applicationContext) {
+    // TODO: element.alt_text.formula
     if (element.alt_text) {
       const resolvedName = ensureString(
         this.resolveFormula(element.alt_text, applicationContext)
@@ -1617,6 +1622,7 @@ export class ButtonElementType extends ElementType {
   }
 
   getDisplayName(element, applicationContext) {
+    // TODO: element.value.formula
     if (element.value) {
       const resolvedName = ensureString(
         this.resolveFormula(element.value, applicationContext)
@@ -1716,6 +1722,7 @@ export class ChoiceElementType extends FormElementType {
   getDisplayName(element, applicationContext) {
     const displayValue = element.label || element.placeholder
 
+    // TODO: pluck out formula from both
     if (displayValue) {
       const resolvedName = ensureString(
         this.resolveFormula(displayValue, applicationContext)
@@ -1914,6 +1921,7 @@ export class IFrameElementType extends ElementType {
   }
 
   getDisplayName(element, applicationContext) {
+    // TODO: element.url.formula.length
     if (element.url && element.url.length) {
       const resolvedName = ensureString(
         this.resolveFormula(element.url, applicationContext)
@@ -1982,6 +1990,7 @@ export class RecordSelectorElementType extends CollectionElementTypeMixin(
   getDisplayName(element, applicationContext) {
     const displayValue = element.label || element.placeholder
 
+    // TODO pluck out formula from both
     if (displayValue) {
       const resolvedName = ensureString(
         this.resolveFormula(displayValue, applicationContext)

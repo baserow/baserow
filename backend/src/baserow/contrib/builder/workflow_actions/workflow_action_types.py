@@ -59,14 +59,10 @@ class NotificationWorkflowActionType(BuilderWorkflowActionType):
         "title": FormulaSerializerField(
             help_text="The title of the notification. Must be an formula.",
             required=False,
-            allow_blank=True,
-            default="",
         ),
         "description": FormulaSerializerField(
             help_text="The description of the notification. Must be an formula.",
             required=False,
-            allow_blank=True,
-            default="",
         ),
     }
 
