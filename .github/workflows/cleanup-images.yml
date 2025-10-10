@@ -1,10 +1,17 @@
 name: Cleanup Old CI Images
 
+#on:
+#  schedule:
+#    # Run daily at 2 AM UTC
+#    - cron: '0 2 * * *'
+#  workflow_dispatch: # Allow manual trigger
+
 on:
-  schedule:
-    # Run daily at 2 AM UTC
-    - cron: '0 2 * * *'
-  workflow_dispatch: # Allow manual trigger
+  push:
+    branches:
+      - develop
+      - master
+  pull_request:
 
 env:
   REGISTRY: ghcr.io
