@@ -1446,6 +1446,10 @@ class CoreHTTPTriggerServiceType(TriggerServiceTypeMixin, ServiceType):
             method isn't allowed for this service.
         """
 
+        # When the service is published, the previous published service may
+        # be kept (e.g. see `AutomationWorkflowHandler::publish()`). Since the
+        # uid is the same between the two, a filter is necessary to fetch only
+        # the latest published service.
         service = (
             self.model_class.objects.filter(uid=webhook_uid, is_public=not simulate)
             .order_by("-id")

@@ -28,8 +28,12 @@
           :depth="depth + 1"
           :open-nodes="openNodes"
           :node-selected="nodeSelected"
-          :path="`${path}.${subNode.identifier}`"
-          :search-path="`${searchPath}.${subNode.identifier}`"
+          :path="subNode.identifier ? `${path}.${subNode.identifier}` : path"
+          :search-path="
+            subNode.identifier
+              ? `${searchPath}.${subNode.identifier}`
+              : searchPath
+          "
           :search="search"
           @click="$emit('click', $event)"
           @toggle="$emit('toggle', $event)"
