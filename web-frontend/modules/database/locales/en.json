@@ -326,7 +326,8 @@
     "dbIndex": "Index",
     "dbIndexError": "This field type cannot have an index. Please remove it before saving or change the field type.",
     "dbIndexDescription": "Indexing can significantly improve filtering performance, but slows down create, update, and delete operations.",
-    "defaultValueDisabledByConstraint": "Cannot set a default value with a unique constraint"
+    "defaultValueDisabledByConstraint": "Cannot set a default value with a unique constraint",
+    "dbIndexDisabledTooltip": "Indexing is not available for this field type."
   },
   "fieldSelectThroughFieldSubForm": {
     "noTable": "You need at least one link to table field to create this field.",
