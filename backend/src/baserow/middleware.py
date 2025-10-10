@@ -6,7 +6,7 @@ from django.urls import is_valid_path
 
 from rest_framework import status
 
-from baserow.config.db_routers import clear_db_state, set_write_mode
+from baserow.config.db_routers import clear_db_state
 from baserow.core.handler import CoreHandler
 from baserow.throttling import ConcurrentUserRequestsThrottle
 
@@ -115,13 +115,3 @@ class ClearDBStateMiddleware:
         response = self.get_response(request)
         clear_db_state()
         return response
-
-
-class SelectReplicaMiddleware:
-    def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]):
-        self.get_response = get_response
-
-    def __call__(self, request: HttpRequest) -> HttpResponse:
-        if request.method not in ["GET", "HEAD", "OPTIONS"]:
-            set_write_mode()
-        return self.get_response(request)

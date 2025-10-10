@@ -1,38 +1,36 @@
 import random
 
 from django.conf import settings
+from django.db import transaction
 
 from asgiref.local import Local
 
-DATABASE_READ_REPLICAS = settings.DATABASE_READ_REPLICAS
 DEFAULT_DB_ALIAS = "default"
 
 _db_state = Local()
 
 
-def set_write_mode():
-    _db_state.pinned = True
+def set_db_alias(alias: str):
+    _db_state.alias = alias
 
 
-def is_write_mode():
-    return getattr(_db_state, "pinned", False)
+def get_db_alias():
+    alias = getattr(_db_state, "alias", None)
+    if alias:
+        return alias
+    if settings.DATABASE_READ_REPLICAS:
+        read_replica = random.choice(settings.DATABASE_READ_REPLICAS)  # nosec
+        _db_state.alias = read_replica
+        return read_replica
+    _db_state.alias = DEFAULT_DB_ALIAS
+    return DEFAULT_DB_ALIAS
 
 
 def clear_db_state():
     """Should be called when a request or celery finishes."""
 
-    if hasattr(_db_state, "pinned"):
-        del _db_state.pinned
-    if hasattr(_db_state, "read_alias"):
-        del _db_state.read_alias
-
-
-def get_read_alias():
-    return getattr(_db_state, "read_alias", None)
-
-
-def set_read_alias(alias: str):
-    _db_state.read_alias = alias
+    if hasattr(_db_state, "alias"):
+        del _db_state.alias
 
 
 class ReadReplicaRouter:
@@ -45,24 +43,19 @@ class ReadReplicaRouter:
     """
 
     def db_for_read(self, model, **hints):
-        if is_write_mode():
+        conn = transaction.get_connection()
+        if getattr(conn, "in_atomic_block", False):
+            set_db_alias(DEFAULT_DB_ALIAS)
             return DEFAULT_DB_ALIAS
-        alias = get_read_alias()
-        if alias:
-            return alias
-        if DATABASE_READ_REPLICAS:
-            read_replica = random.choice(DATABASE_READ_REPLICAS)  # nosec
-            set_read_alias(read_replica)
-            return read_replica
-        return DEFAULT_DB_ALIAS
+        return get_db_alias()
 
     def db_for_write(self, model, **hints):
-        set_write_mode()
+        set_db_alias(DEFAULT_DB_ALIAS)
         return DEFAULT_DB_ALIAS
 
     def allow_relation(self, obj1, obj2, **hints):
         db_set = {DEFAULT_DB_ALIAS}
-        db_set.update(DATABASE_READ_REPLICAS)
+        db_set.update(settings.DATABASE_READ_REPLICAS)
         if obj1._state.db in db_set and obj2._state.db in db_set:
             return True
         return None
