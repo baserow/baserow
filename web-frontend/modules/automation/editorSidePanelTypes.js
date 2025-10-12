@@ -7,6 +7,10 @@ export class editorSidePanelType extends Registerable {
     return null
   }
 
+  get guidedTourAttr() {
+    return ''
+  }
+
   isDeactivated() {
     return false
   }
@@ -21,6 +25,10 @@ export class NodeEditorSidePanelType extends editorSidePanelType {
     return 'node'
   }
 
+  get guidedTourAttr() {
+    return 'automation-node-sidepanel'
+  }
+
   get component() {
     return NodeSidePanel
   }
@@ -33,6 +41,10 @@ export class NodeEditorSidePanelType extends editorSidePanelType {
 export class HistoryEditorSidePanelType extends editorSidePanelType {
   static getType() {
     return 'history'
+  }
+
+  get guidedTourAttr() {
+    return 'automation-history-sidepanel'
   }
 
   get component() {

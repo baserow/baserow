@@ -3,6 +3,11 @@
     <WorkflowNodeContent
       ref="nodeComponent"
       :node="node"
+      :data-highlight="
+        node.previous_node_id === null
+          ? 'automation-trigger'
+          : 'automation-action'
+      "
       :selected="node.id === selectedNodeId"
       :debug="debug"
       :read-only="readOnly"

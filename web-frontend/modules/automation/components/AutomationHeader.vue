@@ -12,6 +12,7 @@
       <li class="header__filter-item">
         <a
           data-item-type="history"
+          data-highlight="automation-history"
           class="header__filter-link"
           :class="{ 'active--primary': activeSidePanel === 'history' }"
           @click="historyClick()"
@@ -57,6 +58,7 @@
         </template>
         <SwitchInput
           small
+          data-highlight="automation-workflow-state"
           :value="statusSwitch"
           :disabled="isDisabled || !publishedOn"
           @input="toggleStatusSwitch"
@@ -72,6 +74,7 @@
         <Button
           :icon="testRunEnabled ? 'iconoir-cancel' : 'iconoir-play'"
           type="secondary"
+          data-highlight="automation-test-run"
           @click="toggleTestRun"
           >{{
             testRunEnabled
@@ -80,6 +83,7 @@
           }}</Button
         >
         <Button
+          data-highlight="automation-publish"
           :loading="isPublishing"
           :disabled="isPublishing || !canPublishWorkflow"
           @click="publishWorkflow()"

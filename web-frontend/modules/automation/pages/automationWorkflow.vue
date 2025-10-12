@@ -27,7 +27,10 @@
         </client-only>
       </div>
       <div v-if="activeSidePanel" class="automation-workflow__side-panel">
-        <EditorSidePanels :active-side-panel="activeSidePanel" />
+        <EditorSidePanels
+          :active-side-panel="activeSidePanel"
+          :data-highlight="activeSidePanelType.guidedTourAttr"
+        />
       </div>
     </div>
   </div>
@@ -138,6 +141,11 @@ export default {
     },
     activeSidePanel() {
       return this.$store.getters['automationWorkflow/getActiveSidePanel']
+    },
+    activeSidePanelType() {
+      return this.activeSidePanel
+        ? this.$registry.get('editorSidePanel', this.activeSidePanel)
+        : null
     },
     selectedNodeId: {
       get() {
