@@ -2122,7 +2122,9 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
             parsed_json["export"],
             files_buffer=files_buffer,
             import_export_config=ImportExportConfig(
-                include_permission_data=False, reduce_disk_space_usage=False
+                include_permission_data=False,
+                reduce_disk_space_usage=False,
+                is_duplicate=True,
             ),
             storage=storage,
             progress_builder=progress_builder,

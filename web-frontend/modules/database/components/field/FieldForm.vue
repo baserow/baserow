@@ -141,6 +141,11 @@
           >
             <div class="control__elements flex justify-content-end">
               <SwitchInput
+                v-tooltip="
+                  !canHaveDbIndex
+                    ? $t('fieldForm.dbIndexDisabledTooltip')
+                    : null
+                "
                 :value="!!canHaveDbIndex && values.db_index"
                 :small="true"
                 :disabled="!canHaveDbIndex"

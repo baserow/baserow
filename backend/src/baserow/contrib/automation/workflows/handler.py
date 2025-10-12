@@ -24,6 +24,7 @@ from baserow.contrib.automation.history.handler import AutomationHistoryHandler
 from baserow.contrib.automation.history.models import AutomationWorkflowHistory
 from baserow.contrib.automation.models import Automation
 from baserow.contrib.automation.nodes.models import AutomationNode
+from baserow.contrib.automation.nodes.signals import automation_node_updated
 from baserow.contrib.automation.nodes.types import AutomationNodeDict
 from baserow.contrib.automation.types import AutomationWorkflowDict
 from baserow.contrib.automation.workflows.constants import (
@@ -323,11 +324,19 @@ class AutomationWorkflowHandler:
         id_mapping = defaultdict(lambda: MirrorDict())
         id_mapping["automation_workflows"] = MirrorDict()
 
+        import_export_config = ImportExportConfig(
+            include_permission_data=True,
+            reduce_disk_space_usage=False,
+            exclude_sensitive_data=False,
+            is_duplicate=True,
+        )
+
         new_workflow_clone = self.import_workflow(
             automation,
             exported_workflow,
             progress=progress.create_child_builder(represents_progress=import_progress),
             id_mapping=id_mapping,
+            import_export_config=import_export_config,
         )
 
         return new_workflow_clone
@@ -418,6 +427,7 @@ class AutomationWorkflowHandler:
         workflow: AutomationWorkflow,
         serialized_nodes: List[AutomationNodeDict],
         id_mapping: Dict[str, Dict[int, int]],
+        import_export_config: Optional[ImportExportConfig] = None,
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
         progress: Optional[ChildProgressBuilder] = None,
@@ -429,6 +439,8 @@ class AutomationWorkflowHandler:
         :param workflow: The AutomationWorkflow instance to import the nodes into.
         :param serialized_nodes: The serialized nodes to import.
         :param id_mapping: A map of old->new id per data type
+        :param import_export_config: provides configuration options for the
+            import/export process to customize how it works.
         :param files_zip: Contains files to import if any.
         :param storage: Storage to get the files from.
         :param progress: A progress object that can be used to report progress.
@@ -458,6 +470,7 @@ class AutomationWorkflowHandler:
                         workflow,
                         serialized_node,
                         id_mapping,
+                        import_export_config=import_export_config,
                         files_zip=files_zip,
                         storage=storage,
                         cache=cache,
@@ -480,6 +493,7 @@ class AutomationWorkflowHandler:
         storage: Optional[Storage] = None,
         progress: Optional[ChildProgressBuilder] = None,
         cache: Optional[Dict[str, any]] = None,
+        import_export_config: Optional[ImportExportConfig] = None,
     ) -> List[AutomationWorkflow]:
         """
         Import multiple workflows at once.
@@ -522,6 +536,7 @@ class AutomationWorkflowHandler:
                 workflow_instance,
                 serialized_workflow["nodes"],
                 id_mapping,
+                import_export_config=import_export_config,
                 files_zip=files_zip,
                 storage=storage,
                 progress=progress,
@@ -535,6 +550,7 @@ class AutomationWorkflowHandler:
         automation: Automation,
         serialized_workflow: AutomationWorkflowDict,
         id_mapping: Dict[str, Dict[int, int]],
+        import_export_config: Optional[ImportExportConfig] = None,
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
         progress: Optional[ChildProgressBuilder] = None,
@@ -561,6 +577,7 @@ class AutomationWorkflowHandler:
             automation,
             [serialized_workflow],
             id_mapping,
+            import_export_config=import_export_config,
             files_zip=files_zip,
             storage=storage,
             progress=progress,
@@ -643,6 +660,7 @@ class AutomationWorkflowHandler:
             include_permission_data=True,
             reduce_disk_space_usage=False,
             exclude_sensitive_data=False,
+            is_publishing=True,
         )
         default_storage = get_default_storage()
         application_type = workflow.automation.get_type()
@@ -794,6 +812,9 @@ class AutomationWorkflowHandler:
         if simulate_until_node is not None:
             # Switch to simulate until the given node
             workflow.simulate_until_node = simulate_until_node
+
+            automation_node_updated.send(self, user=None, node=simulate_until_node)
+
             fields_to_save.append("simulate_until_node")
 
         else:

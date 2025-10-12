@@ -230,6 +230,7 @@ class AutomationApplicationType(ApplicationType):
                 files_zip,
                 storage,
                 progress.create_child_builder(represents_progress=workflow_progress),
+                import_export_config=import_export_config,
             )
 
         return automation

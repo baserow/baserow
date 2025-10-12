@@ -22,7 +22,7 @@
       {{ $t('simulateDispatch.triggerNodeAwaitingEvent') }}
     </div>
 
-    <div v-if="hasSampleData">
+    <div v-if="hasSampleData && !isSimulating">
       <div class="simulate-dispatch-node__sample-data-label">
         {{ $t('simulateDispatch.sampleDataLabel') }}
       </div>

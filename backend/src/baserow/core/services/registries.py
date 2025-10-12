@@ -19,6 +19,8 @@ from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.integrations.exceptions import IntegrationDoesNotExist
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.registry import (
+    APIUrlsInstanceMixin,
+    APIUrlsRegistryMixin,
     CustomFieldsInstanceMixin,
     CustomFieldsRegistryMixin,
     EasyImportExportMixin,
@@ -55,6 +57,7 @@ class DispatchTypes(str, Enum):
 
 
 class ServiceType(
+    APIUrlsInstanceMixin,
     InstanceWithFormulaMixin,
     EasyImportExportMixin[ServiceSubClass],
     ModelInstanceMixin[ServiceSubClass],
@@ -554,7 +557,6 @@ class TriggerServiceTypeMixin(ABC):
     def dispatch_transform(self, data):
         return DispatchResult(data=data)
 
-    @abstractmethod
     def start_listening(self, on_event: Callable) -> None:
         """
         Triggers, a type of service which respond to internal and external events and
@@ -577,6 +579,7 @@ class TriggerServiceTypeMixin(ABC):
 
 
 class ServiceTypeRegistry(
+    APIUrlsRegistryMixin,
     ModelRegistryMixin[ServiceSubClass, ServiceTypeSubClass],
     Registry[ServiceTypeSubClass],
     CustomFieldsRegistryMixin,

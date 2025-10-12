@@ -1,6 +1,6 @@
 <template>
   <div
-    v-if="showEntry && featureFlagEnabled && (hasPermission || !featureEnabled)"
+    v-if="showEntry && featureFlagEnabled && (hasPermission || !hasFeature)"
     class="context__menu-item"
   >
     <div>
@@ -8,7 +8,7 @@
         class="context__menu-item-link"
         @click="
           () => {
-            if (featureEnabled) {
+            if (hasFeature) {
               $refs.dateDependencyModal.show()
             } else {
               $refs.paidFeaturesModal.show()
@@ -19,7 +19,7 @@
       >
         <i class="context__menu-item-icon baserow-icon-dependency"></i>
         {{ $t('dateDependencyModal.contextMenuItemLabel') }}
-        <div v-if="deactivated" class="deactivated-label">
+        <div v-if="!hasFeature" class="deactivated-label">
           <i class="iconoir-lock"></i>
         </div>
       </a>
@@ -70,7 +70,7 @@ export default {
     },
   },
   computed: {
-    featureEnabled() {
+    hasFeature() {
       return this.$hasFeature(
         EnterpriseFeatures.DATE_DEPENDENCY,
         this.database.workspace.id
@@ -87,6 +87,8 @@ export default {
       )
     },
     showEntry() {
+      // Menu entry requested outside a field context (i.e. table sidebar menu,
+      // view menu), so we can show it always.
       if (!this.field) {
         return true
       }

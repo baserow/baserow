@@ -160,6 +160,9 @@ class SamlAuthProviderHandler:
         first_name_key = saml_auth_provider.first_name_attr_key
         last_name_key = saml_auth_provider.last_name_attr_key
 
+        logger.debug("Expected email key: {0}", email_key)
+        logger.debug("SAML authn identity: {0}", authn_identity)
+
         saml_request_data = saml_request_data or {}
         email = authn_identity[email_key][0]
         if first_name_key in authn_identity:
@@ -175,6 +178,7 @@ class SamlAuthProviderHandler:
         else:
             name = email
 
+        logger.debug("Extracted user info: {0} {1} {2}", email, name, saml_request_data)
         return UserInfo(email, name, **saml_request_data)
 
     @classmethod

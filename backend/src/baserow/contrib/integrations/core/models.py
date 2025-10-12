@@ -4,11 +4,14 @@ from django.contrib.auth import get_user_model
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
+from baserow.contrib.integrations.core.constants import (
+    BODY_TYPE,
+    HTTP_METHOD,
+    PERIODIC_INTERVAL_CHOICES,
+)
 from baserow.core.formula.field import FormulaField
 from baserow.core.integrations.models import Integration
 from baserow.core.services.models import Service
-
-from .constants import BODY_TYPE, HTTP_METHOD, PERIODIC_INTERVAL_CHOICES
 
 User = get_user_model()
 
@@ -219,4 +222,26 @@ class CorePeriodicService(Service):
         default=1,
         help_text="The day of the month when to run (1-31). Required for monthly "
         "intervals.",
+    )
+
+
+class CoreHTTPTriggerService(Service):
+    """
+    A service for handling HTTP webhook requests.
+    """
+
+    uid = models.UUIDField(
+        default=uuid.uuid4,
+        help_text="The service identifier for the webhook.",
+    )
+
+    exclude_get = models.BooleanField(
+        default=False,
+        help_text="Whether the service should exclude GET requests for added security. "
+        "By default all HTTP methods listed in the API endpoint are supported.",
+    )
+
+    is_public = models.BooleanField(
+        default=False,
+        help_text="Defines whether the service is published or not.",
     )

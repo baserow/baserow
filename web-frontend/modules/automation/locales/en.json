@@ -112,7 +112,9 @@
     "periodicTrigger": "Periodic trigger",
     "periodicTriggerDescription": "Triggers the workflow on a periodic basis at specified intervals",
     "periodicTriggerTriggeredAt": "Triggered at",
-    "errorIntervalMissing": "An interval is required."
+    "errorIntervalMissing": "An interval is required.",
+    "coreHTTPTrigger": "HTTP trigger",
+    "coreHTTPTriggerDescription": "Receive HTTP requests to trigger workflows"
   },
   "periodicTriggerServiceForm": {
     "intervalLabel": "Interval",

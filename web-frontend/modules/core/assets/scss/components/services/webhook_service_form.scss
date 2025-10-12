@@ -1,0 +1,24 @@
+.webhook-service-form__copy-url {
+  position: relative;
+  text-decoration: none;
+  user-select: none;
+  color: $palette-neutral-1000;
+
+  &:hover {
+    text-decoration: none;
+    color: $palette-neutral-1000;
+  }
+}
+
+.webhook-service-form__webhook-url {
+  display: block;
+  width: 100%;
+  padding: 6px;
+  font-size: 12px;
+  background-color: $color-neutral-100;
+  line-height: 140%;
+  white-space: pre-wrap;
+  word-break: break-word;
+
+  @include rounded($rounded);
+}

@@ -28,6 +28,7 @@ from baserow.contrib.automation.nodes.types import (
 from baserow.core.cache import local_cache
 from baserow.core.db import specific_iterator
 from baserow.core.exceptions import IdDoesNotExist
+from baserow.core.registries import ImportExportConfig
 from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
 )
@@ -374,10 +375,18 @@ class AutomationNodeHandler:
         id_mapping = defaultdict(lambda: MirrorDict())
         id_mapping["automation_workflow_nodes"] = MirrorDict()
 
+        import_export_config = ImportExportConfig(
+            include_permission_data=True,
+            reduce_disk_space_usage=False,
+            is_duplicate=True,
+            exclude_sensitive_data=False,
+        )
+
         duplicated_node = self.import_node(
             source_node.workflow,
             exported_node,
             id_mapping=id_mapping,
+            import_export_config=import_export_config,
         )
 
         # Update the nodes that follow the original node to now follow the new clone.
@@ -602,6 +611,7 @@ class AutomationNodeHandler:
         workflow: AutomationWorkflow,
         serialized_node: AutomationNodeDict,
         id_mapping: Dict[str, Dict[int, int]],
+        import_export_config: Optional[ImportExportConfig] = None,
         *args: Any,
         **kwargs: Any,
     ) -> AutomationNode:
@@ -611,6 +621,7 @@ class AutomationNodeHandler:
             workflow,
             serialized_node,
             id_mapping,
+            import_export_config=import_export_config,
             *args,
             **kwargs,
         )

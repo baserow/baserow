@@ -20,6 +20,7 @@ import {
   CoreHTTPRequestServiceType,
   CoreRouterServiceType,
   CoreSMTPEmailServiceType,
+  CoreHTTPTriggerServiceType,
 } from '@baserow/modules/integrations/core/serviceTypes'
 import { uuid } from '@baserow/modules/core/utils/string'
 
@@ -378,6 +379,39 @@ export class CorePeriodicTriggerNodeType extends TriggerNodeTypeMixin(
     }
 
     return intervalLabels[node.service.interval] || this.name
+  }
+}
+
+export class CoreHTTPTriggerNodeType extends TriggerNodeTypeMixin(NodeType) {
+  static getType() {
+    return 'http_trigger'
+  }
+
+  get name() {
+    return this.app.i18n.t('serviceType.coreHTTPTrigger')
+  }
+
+  get description() {
+    return this.app.i18n.t('serviceType.coreHTTPTriggerDescription')
+  }
+
+  get iconClass() {
+    return 'iconoir-globe'
+  }
+
+  get serviceType() {
+    return this.app.$registry.get(
+      'service',
+      CoreHTTPTriggerServiceType.getType()
+    )
+  }
+
+  getOrder() {
+    return 4
+  }
+
+  getDefaultLabel({ automation, node }) {
+    return this.app.i18n.t('serviceType.coreHTTPTrigger')
   }
 }
 
