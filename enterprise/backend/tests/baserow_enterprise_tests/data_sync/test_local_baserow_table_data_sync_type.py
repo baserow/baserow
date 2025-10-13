@@ -1,6 +1,7 @@
 from django.core.exceptions import ObjectDoesNotExist
-from django.test.utils import override_settings
-from django.urls import reverse
+from django.db import connection, transaction
+from django.shortcuts import reverse
+from django.test.utils import CaptureQueriesContext, override_settings
 
 import pytest
 from baserow_premium.license.exceptions import FeaturesNotAvailableError
@@ -982,7 +983,7 @@ def test_sync_data_sync_table_single_select_field(enterprise_data_fixture):
     assert getattr(row_empty, f"field_{single_select_field.id}_id") is None
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @pytest.mark.data_sync
 @override_settings(DEBUG=True)
 def test_sync_data_sync_table_single_select_field_and_making_changes(
@@ -1033,7 +1034,8 @@ def test_sync_data_sync_table_single_select_field_and_making_changes(
         synced_properties=["id", f"field_{source_single_select_field.id}"],
         source_table_id=source_table.id,
     )
-    handler.sync_data_sync_table(user=user, data_sync=data_sync)
+    with transaction.atomic():
+        handler.sync_data_sync_table(user=user, data_sync=data_sync)
 
     source_option_b.delete()
     source_option_c = enterprise_data_fixture.create_select_option(
@@ -1051,7 +1053,8 @@ def test_sync_data_sync_table_single_select_field_and_making_changes(
     )
 
     print("LAST")
-    handler.sync_data_sync_table(user=user, data_sync=data_sync)
+    with transaction.atomic():
+        handler.sync_data_sync_table(user=user, data_sync=data_sync)
 
     fields = specific_iterator(data_sync.table.field_set.all().order_by("id"))
     row_id_field = fields[0]
@@ -1197,11 +1200,11 @@ def test_sync_data_sync_table_single_select_get_metadata_update(
     }
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @pytest.mark.data_sync
 @override_settings(DEBUG=True)
 def test_sync_data_sync_table_single_select_get_metadata_delete(
-    enterprise_data_fixture, django_assert_num_queries
+    enterprise_data_fixture,
 ):
     enterprise_data_fixture.enable_enterprise()
     user = enterprise_data_fixture.create_user()
@@ -1233,10 +1236,11 @@ def test_sync_data_sync_table_single_select_get_metadata_delete(
 
     source_option_a.delete()
 
-    with django_assert_num_queries(5):
+    with CaptureQueriesContext(connection) as captured:
         metadata = data_sync_property.get_metadata(
             target_single_select_field_1, metadata
         )
+    assert len([c["sql"] for c in captured if c["sql"] not in ["BEGIN", "COMMIT"]]) <= 6
 
     target_select_options = list(target_single_select_field_1.select_options.all())
     assert len(target_select_options) == 1

@@ -1,7 +1,7 @@
 services:
   db:
     # use lowest supported version for dev to check compatibility
-    image: postgres:${POSTGRES_IMAGE_VERSION:-13}
+    image: pgvector/pgvector:pg${POSTGRES_IMAGE_VERSION:-13}
     ports:
       - "${HOST_PUBLISH_IP:-127.0.0.1}:${POSTGRES_PORT:-5432}:5432"
     command: "${POSTGRES_DEV_EXTRA_ARGS}"
@@ -24,6 +24,7 @@ services:
       - BASEROW_BACKEND_DEBUGGER_PORT=${BASEROW_BACKEND_DEBUGGER_PORT:-5678}
       - BASEROW_DANGEROUS_SILKY_ANALYZE_QUERIES
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+      - BASEROW_EMBEDDINGS_API_URL=${BASEROW_EMBEDDINGS_API_URL:-http://embeddings:80}
     build:
       dockerfile: ./backend/Dockerfile
       context: .
@@ -235,6 +236,27 @@ services:
       - "8025:8025" # web ui
     networks:
       local:
+
+  embeddings:
+    build:
+      context: ./embeddings
+      dockerfile: Dockerfile
+    ports:
+      - "${HOST_PUBLISH_IP:-127.0.0.1}:7999:80"
+    networks:
+      local:
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import requests; requests.get('http://localhost/health').raise_for_status()",
+          ]
+      interval: 1m30s
+      timeout: 10s
+      retries: 3
 
   # When switching between dev and local the media files in the media volume will be
   # owned by different users. Ensure that we chown them to the user appropriate for the

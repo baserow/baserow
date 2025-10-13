@@ -322,7 +322,7 @@
     "dateDependencyContent": "You can define a dependency between two dates and a duration as start/end date and duration. With date dependency, if one value change, other values will be adjusted accordingly."
   },
   "assistantSidebarItem": {
-    "title": "AI Assistant"
+    "title": "AI assistant"
   },
   "assistantPanel": {
     "title": "AI Assistant",
@@ -339,7 +339,11 @@
     "statusWaiting": "Assistant is ready to help",
     "statusRunning": "Running...",
     "placeholder": "Ask me anything...",
-    "send": "Send message"
+    "send": "Send message",
+    "statusThinking": "Thinking...",
+    "statusAnswering": "Answering...",
+    "statusSearchDocs": "Exploring the knowledge base...",
+    "statusAnalyzingKnowledge": "Analyzing sources..."
   },
   "assistantChatHistoryContext": {
     "empty": "No chat history available",

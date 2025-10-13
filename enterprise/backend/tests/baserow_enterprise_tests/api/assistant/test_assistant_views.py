@@ -1,4 +1,5 @@
 import json
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
@@ -11,8 +12,11 @@ from freezegun import freeze_time
 from baserow.test_utils.helpers import AnyStr
 from baserow_enterprise.assistant.models import AssistantChat
 from baserow_enterprise.assistant.types import (
+    THINKING_MESSAGES,
     AiErrorMessage,
     AiMessage,
+    AiMessageChunk,
+    AiThinkingMessage,
     ChatTitleMessage,
     HumanMessage,
     UIContext,
@@ -198,9 +202,10 @@ def test_cannot_send_message_without_license(api_client, enterprise_data_fixture
 
 @pytest.mark.django_db()
 @override_settings(DEBUG=True)
+@patch("baserow_enterprise.assistant.handler.Assistant")
 @patch("baserow_enterprise.api.assistant.views.AssistantHandler")
 def test_send_message_creates_chat_if_not_exists(
-    mock_handler_class, api_client, enterprise_data_fixture
+    mock_handler_class, mock_assistant_class, api_client, enterprise_data_fixture
 ):
     """Test that sending a message creates a chat if it doesn't exist"""
 
@@ -221,11 +226,15 @@ def test_send_message_creates_chat_if_not_exists(
     mock_chat.user = user
     mock_handler.get_or_create_chat.return_value = (mock_chat, True)
 
-    async def mock_astream(chat, new_message):
+    # Mock the assistant
+    mock_assistant = MagicMock()
+    mock_handler.get_assistant.return_value = mock_assistant
+
+    async def mock_astream(human_message, ui_context):
         # Simulate AI response messages
         yield AiMessage(content="Hello! How can I help you today?")
 
-    mock_handler.stream_assistant_messages = mock_astream
+    mock_assistant.astream_messages = mock_astream
 
     rsp = api_client.post(
         reverse("assistant:chat_messages", kwargs={"chat_uuid": chat_uuid}),
@@ -246,8 +255,6 @@ def test_send_message_creates_chat_if_not_exists(
     # Verify we got streaming content
     assert len(chunks) > 0
     ai_response = json.loads(chunks[0])
-    assert ai_response["id"] is not None
-    assert ai_response["role"] == "ai"
     assert ai_response["type"] == "ai/message"
     assert ai_response["content"] == "Hello! How can I help you today?"
 
@@ -257,9 +264,10 @@ def test_send_message_creates_chat_if_not_exists(
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
+@patch("baserow_enterprise.assistant.handler.Assistant")
 @patch("baserow_enterprise.api.assistant.views.AssistantHandler")
 def test_send_message_streams_response(
-    mock_handler_class, api_client, enterprise_data_fixture
+    mock_handler_class, mock_assistant_class, api_client, enterprise_data_fixture
 ):
     """Test that the endpoint streams AI responses properly"""
 
@@ -280,6 +288,10 @@ def test_send_message_streams_response(
     mock_chat.user = user
     mock_handler.get_or_create_chat.return_value = (mock_chat, True)
 
+    # Mock the assistant
+    mock_assistant = MagicMock()
+    mock_handler.get_assistant.return_value = mock_assistant
+
     # Mock assistant with async generator for streaming
     response_messages = [
         AiMessage(content="I'm thinking..."),
@@ -287,11 +299,11 @@ def test_send_message_streams_response(
         ChatTitleMessage(content="Chat about AI assistance"),
     ]
 
-    async def mock_astream(chat, new_message):
+    async def mock_astream(human_message, ui_context):
         for msg in response_messages:
             yield msg
 
-    mock_handler.stream_assistant_messages = mock_astream
+    mock_assistant.astream_messages = mock_astream
 
     rsp = api_client.post(
         reverse("assistant:chat_messages", kwargs={"chat_uuid": chat_uuid}),
@@ -319,17 +331,14 @@ def test_send_message_streams_response(
 
     # Check first message
     assert messages[0]["content"] == "I'm thinking..."
-    assert messages[0]["role"] == "ai"
     assert messages[0]["type"] == "ai/message"
 
     # Check second message
     assert messages[1]["content"] == "Here's my response!"
-    assert messages[1]["role"] == "ai"
     assert messages[1]["type"] == "ai/message"
 
     # Check title update message
     assert messages[2]["content"] == "Chat about AI assistance"
-    assert messages[2]["role"] == "ai"
     assert messages[2]["type"] == "chat/title"
 
 
@@ -468,28 +477,34 @@ def test_get_messages_returns_chat_history(
     # Mock get_chat to return the chat
     mock_handler.get_chat.return_value = chat
 
-    # Mock message history
+    # Mock message history - only HumanMessage and AiMessage are returned
     message_history = [
         HumanMessage(
+            id=1,
             content="What's the weather like?",
             ui_context=UIContext(
                 workspace=WorkspaceUIContext(id=workspace.id, name=workspace.name)
             ),
         ),
         AiMessage(
+            id=2,
             content="I don't have access to real-time weather data.",
+            timestamp=datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
         ),
         HumanMessage(
-            content="Can you help me with Python?",
+            id=3,
+            content="Can you help me with Baserow?",
             ui_context=UIContext(
                 workspace=WorkspaceUIContext(id=workspace.id, name=workspace.name)
             ),
         ),
         AiMessage(
-            content="Of course! I'd be happy to help you with Python.",
+            id=4,
+            content="Of course! I'd be happy to help you with Baserow.",
+            timestamp=datetime(2024, 1, 1, 12, 1, 0, tzinfo=timezone.utc),
         ),
     ]
-    mock_handler.get_chat_messages.return_value = message_history
+    mock_handler.list_chat_messages.return_value = message_history
 
     rsp = api_client.get(
         reverse(
@@ -507,31 +522,35 @@ def test_get_messages_returns_chat_history(
 
     # Check first message (human)
     assert data["messages"][0]["content"] == "What's the weather like?"
-    assert data["messages"][0]["role"] == "human"
-    assert "id" in data["messages"][0]
+    assert data["messages"][0]["type"] == "human"
+    assert data["messages"][0]["id"] == 1
 
     # Check second message (AI)
     assert (
         data["messages"][1]["content"]
         == "I don't have access to real-time weather data."
     )
-    assert data["messages"][1]["role"] == "ai"
     assert data["messages"][1]["type"] == "ai/message"
+    assert data["messages"][1]["id"] == 2
+    assert "timestamp" in data["messages"][1]
 
     # Check third message (human)
-    assert data["messages"][2]["content"] == "Can you help me with Python?"
-    assert data["messages"][2]["role"] == "human"
+    assert data["messages"][2]["content"] == "Can you help me with Baserow?"
+    assert data["messages"][2]["type"] == "human"
+    assert data["messages"][2]["id"] == 3
 
     # Check fourth message (AI)
     assert (
         data["messages"][3]["content"]
-        == "Of course! I'd be happy to help you with Python."
+        == "Of course! I'd be happy to help you with Baserow."
     )
-    assert data["messages"][3]["role"] == "ai"
+    assert data["messages"][3]["type"] == "ai/message"
+    assert data["messages"][3]["id"] == 4
+    assert "timestamp" in data["messages"][3]
 
     # Verify handler was called correctly
     mock_handler.get_chat.assert_called_once_with(user, chat.uuid)
-    mock_handler.get_chat_messages.assert_called_once_with(chat)
+    mock_handler.list_chat_messages.assert_called_once_with(chat)
 
 
 @pytest.mark.django_db
@@ -600,18 +619,31 @@ def test_get_messages_with_different_message_types(
     # Mock get_chat to return the chat
     mock_handler.get_chat.return_value = chat
 
-    # Mock message history with different types
+    # Mock message history - only HumanMessage and AiMessage are returned
     message_history = [
         HumanMessage(
+            id=1,
             content="Hello",
             ui_context=UIContext(
                 workspace=WorkspaceUIContext(id=workspace.id, name=workspace.name)
             ),
         ),
-        AiErrorMessage(content="Something went wrong", code="unknown"),
-        ChatTitleMessage(content="New Chat Title"),
+        AiMessage(
+            id=2,
+            content="Hi there! How can I help you?",
+            timestamp=datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+        ),
+        HumanMessage(
+            id=3,
+            content="Tell me about Baserow",
+        ),
+        AiMessage(
+            id=4,
+            content="Baserow is an open-source no-code database platform.",
+            timestamp=datetime(2024, 1, 1, 12, 1, 0, tzinfo=timezone.utc),
+        ),
     ]
-    mock_handler.get_chat_messages.return_value = message_history
+    mock_handler.list_chat_messages.return_value = message_history
 
     rsp = api_client.get(
         reverse(
@@ -624,12 +656,416 @@ def test_get_messages_with_different_message_types(
     assert rsp.status_code == 200
     data = rsp.json()
 
-    assert len(data["messages"]) == 3
+    assert len(data["messages"]) == 4
 
-    # Check error message
-    assert data["messages"][1]["content"] == "Something went wrong"
-    assert data["messages"][1]["type"] == "ai/error"
+    # Check first human message has id
+    assert data["messages"][0]["content"] == "Hello"
+    assert data["messages"][0]["type"] == "human"
+    assert data["messages"][0]["id"] == 1
 
-    # Check title message
-    assert data["messages"][2]["content"] == "New Chat Title"
-    assert data["messages"][2]["type"] == "chat/title"
+    # Check first AI message has id and timestamp
+    assert data["messages"][1]["content"] == "Hi there! How can I help you?"
+    assert data["messages"][1]["type"] == "ai/message"
+    assert data["messages"][1]["id"] == 2
+    assert "timestamp" in data["messages"][1]
+
+    # Check second human message
+    assert data["messages"][2]["content"] == "Tell me about Baserow"
+    assert data["messages"][2]["type"] == "human"
+    assert data["messages"][2]["id"] == 3
+
+    # Check second AI message
+    assert (
+        data["messages"][3]["content"]
+        == "Baserow is an open-source no-code database platform."
+    )
+    assert data["messages"][3]["type"] == "ai/message"
+    assert data["messages"][3]["id"] == 4
+    assert "timestamp" in data["messages"][3]
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+@patch("baserow_enterprise.assistant.handler.Assistant")
+@patch("baserow_enterprise.api.assistant.views.AssistantHandler")
+def test_send_message_streams_sources_from_tools(
+    mock_handler_class, mock_assistant_class, api_client, enterprise_data_fixture
+):
+    """Test that sources from tool calls are included in streamed responses"""
+
+    user, token = enterprise_data_fixture.create_user_and_token()
+    workspace = enterprise_data_fixture.create_workspace(user=user)
+    enterprise_data_fixture.enable_enterprise()
+
+    chat_uuid = str(uuid4())
+
+    # Mock the handler
+    mock_handler = MagicMock()
+    mock_handler_class.return_value = mock_handler
+
+    # Mock chat creation
+    mock_chat = MagicMock(spec=AssistantChat)
+    mock_chat.uuid = chat_uuid
+    mock_chat.workspace = workspace
+    mock_chat.user = user
+    mock_handler.get_or_create_chat.return_value = (mock_chat, True)
+
+    # Mock the assistant
+    mock_assistant = MagicMock()
+    mock_handler.get_assistant.return_value = mock_assistant
+
+    # Mock assistant with sources from tool calls
+    async def mock_astream(human_message, ui_context):
+        # First chunk without sources
+        yield AiMessageChunk(content="Let me search for that...")
+        # Second chunk with sources (as if a tool was called)
+        yield AiMessageChunk(
+            content="Let me search for that... Based on the documentation,",
+            sources=["https://baserow.io/user-docs/database"],
+        )
+        # Third chunk with more sources
+        yield AiMessageChunk(
+            content="Let me search for that... Based on the documentation, you can use fields",
+            sources=[
+                "https://baserow.io/user-docs/database",
+                "https://baserow.io/user-docs/fields",
+            ],
+        )
+
+    mock_assistant.astream_messages = mock_astream
+
+    rsp = api_client.post(
+        reverse("assistant:chat_messages", kwargs={"chat_uuid": chat_uuid}),
+        data={
+            "content": "How do I create a field?",
+            "ui_context": {"workspace": {"id": workspace.id, "name": workspace.name}},
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert rsp.status_code == 200
+    assert rsp["Content-Type"] == "text/event-stream"
+
+    # Read the streamed content
+    chunks = rsp.stream_chunks()
+
+    # Parse the streamed messages
+    messages = [json.loads(line) for line in chunks if line]
+
+    assert len(messages) == 3
+
+    # First chunk has no sources
+    assert messages[0]["content"] == "Let me search for that..."
+    assert messages[0].get("sources") is None
+
+    # Second chunk has one source
+    assert (
+        messages[1]["content"]
+        == "Let me search for that... Based on the documentation,"
+    )
+    assert messages[1]["sources"] == ["https://baserow.io/user-docs/database"]
+
+    # Third chunk has two sources (accumulated)
+    assert messages[2]["sources"] == [
+        "https://baserow.io/user-docs/database",
+        "https://baserow.io/user-docs/fields",
+    ]
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+@patch("baserow_enterprise.assistant.handler.Assistant")
+@patch("baserow_enterprise.api.assistant.views.AssistantHandler")
+def test_send_message_streams_thinking_messages_during_tool_execution(
+    mock_handler_class, mock_assistant_class, api_client, enterprise_data_fixture
+):
+    """Test that thinking messages are streamed during tool execution"""
+
+    user, token = enterprise_data_fixture.create_user_and_token()
+    workspace = enterprise_data_fixture.create_workspace(user=user)
+    enterprise_data_fixture.enable_enterprise()
+
+    chat_uuid = str(uuid4())
+
+    # Mock the handler
+    mock_handler = MagicMock()
+    mock_handler_class.return_value = mock_handler
+
+    # Mock chat creation
+    mock_chat = MagicMock(spec=AssistantChat)
+    mock_chat.uuid = chat_uuid
+    mock_chat.workspace = workspace
+    mock_chat.user = user
+    mock_handler.get_or_create_chat.return_value = (mock_chat, True)
+
+    # Mock the assistant
+    mock_assistant = MagicMock()
+    mock_handler.get_assistant.return_value = mock_assistant
+
+    # Mock assistant with thinking messages (simulating tool execution)
+    async def mock_astream(human_message, ui_context):
+        # Initial thinking
+        yield AiThinkingMessage(code=THINKING_MESSAGES.THINKING)
+        # Tool-specific thinking (e.g., searching docs)
+        yield AiThinkingMessage(code=THINKING_MESSAGES.SEARCH_DOCS)
+        # Analyzing results
+        yield AiThinkingMessage(code=THINKING_MESSAGES.ANALYZE_RESULTS)
+        # Final answer
+        yield AiMessageChunk(
+            content="Based on the documentation, here's how to do it...",
+            sources=["https://baserow.io/user-docs"],
+        )
+
+    mock_assistant.astream_messages = mock_astream
+
+    rsp = api_client.post(
+        reverse("assistant:chat_messages", kwargs={"chat_uuid": chat_uuid}),
+        data={
+            "content": "How do I use webhooks?",
+            "ui_context": {"workspace": {"id": workspace.id, "name": workspace.name}},
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert rsp.status_code == 200
+    assert rsp["Content-Type"] == "text/event-stream"
+
+    # Read the streamed content
+    chunks = rsp.stream_chunks()
+
+    # Parse the streamed messages
+    messages = [json.loads(line) for line in chunks if line]
+
+    assert len(messages) == 4
+
+    # First three messages are thinking messages
+    assert messages[0]["type"] == "ai/thinking"
+    assert messages[0]["code"] == THINKING_MESSAGES.THINKING
+
+    assert messages[1]["type"] == "ai/thinking"
+    assert messages[1]["code"] == THINKING_MESSAGES.SEARCH_DOCS
+
+    assert messages[2]["type"] == "ai/thinking"
+    assert messages[2]["code"] == THINKING_MESSAGES.ANALYZE_RESULTS
+
+    # Final message is the answer
+    assert messages[3]["type"] == "ai/message"
+    assert (
+        messages[3]["content"] == "Based on the documentation, here's how to do it..."
+    )
+    assert messages[3]["sources"] == ["https://baserow.io/user-docs"]
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+@patch("baserow_enterprise.assistant.handler.Assistant")
+@patch("baserow_enterprise.api.assistant.views.AssistantHandler")
+def test_send_message_generates_chat_title_on_first_message(
+    mock_handler_class, mock_assistant_class, api_client, enterprise_data_fixture
+):
+    """Test that a chat title is generated and streamed on the first message"""
+
+    user, token = enterprise_data_fixture.create_user_and_token()
+    workspace = enterprise_data_fixture.create_workspace(user=user)
+    enterprise_data_fixture.enable_enterprise()
+
+    chat_uuid = str(uuid4())
+
+    # Mock the handler
+    mock_handler = MagicMock()
+    mock_handler_class.return_value = mock_handler
+
+    # Mock chat creation (empty title, indicates first message)
+    mock_chat = MagicMock(spec=AssistantChat)
+    mock_chat.uuid = chat_uuid
+    mock_chat.workspace = workspace
+    mock_chat.user = user
+    mock_chat.title = ""  # Empty title for new chat
+    mock_handler.get_or_create_chat.return_value = (mock_chat, True)
+
+    # Mock the assistant
+    mock_assistant = MagicMock()
+    mock_handler.get_assistant.return_value = mock_assistant
+
+    # Mock assistant that generates title on first message
+    async def mock_astream(human_message, ui_context):
+        # Stream the answer
+        yield AiMessageChunk(content="Hello! How can I help you?")
+        # Stream the generated title
+        yield ChatTitleMessage(content="Greeting and Assistance")
+
+    mock_assistant.astream_messages = mock_astream
+
+    rsp = api_client.post(
+        reverse("assistant:chat_messages", kwargs={"chat_uuid": chat_uuid}),
+        data={
+            "content": "Hello!",
+            "ui_context": {"workspace": {"id": workspace.id, "name": workspace.name}},
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert rsp.status_code == 200
+    assert rsp["Content-Type"] == "text/event-stream"
+
+    # Read the streamed content
+    chunks = rsp.stream_chunks()
+
+    # Parse the streamed messages
+    messages = [json.loads(line) for line in chunks if line]
+
+    assert len(messages) == 2
+
+    # First message is the answer
+    assert messages[0]["type"] == "ai/message"
+    assert messages[0]["content"] == "Hello! How can I help you?"
+
+    # Second message is the title
+    assert messages[1]["type"] == "chat/title"
+    assert messages[1]["content"] == "Greeting and Assistance"
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+@patch("baserow_enterprise.assistant.handler.Assistant")
+@patch("baserow_enterprise.api.assistant.views.AssistantHandler")
+def test_send_message_does_not_generate_title_on_subsequent_messages(
+    mock_handler_class, mock_assistant_class, api_client, enterprise_data_fixture
+):
+    """Test that chat title is NOT regenerated on subsequent messages"""
+
+    user, token = enterprise_data_fixture.create_user_and_token()
+    workspace = enterprise_data_fixture.create_workspace(user=user)
+    enterprise_data_fixture.enable_enterprise()
+
+    # Create existing chat with title
+    chat = AssistantChat.objects.create(
+        user=user, workspace=workspace, title="Existing Chat Title"
+    )
+
+    # Mock the handler
+    mock_handler = MagicMock()
+    mock_handler_class.return_value = mock_handler
+
+    # Mock chat retrieval (has existing title)
+    mock_chat = MagicMock(spec=AssistantChat)
+    mock_chat.uuid = chat.uuid
+    mock_chat.workspace = workspace
+    mock_chat.user = user
+    mock_chat.title = "Existing Chat Title"  # Already has title
+    mock_handler.get_or_create_chat.return_value = (mock_chat, False)
+
+    # Mock the assistant
+    mock_assistant = MagicMock()
+    mock_handler.get_assistant.return_value = mock_assistant
+
+    # Mock assistant that only streams answer (no title)
+    async def mock_astream(human_message, ui_context):
+        # Only stream the answer, no title
+        yield AiMessageChunk(content="Here's the answer to your follow-up question.")
+
+    mock_assistant.astream_messages = mock_astream
+
+    rsp = api_client.post(
+        reverse("assistant:chat_messages", kwargs={"chat_uuid": str(chat.uuid)}),
+        data={
+            "content": "Follow-up question",
+            "ui_context": {"workspace": {"id": workspace.id, "name": workspace.name}},
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert rsp.status_code == 200
+    assert rsp["Content-Type"] == "text/event-stream"
+
+    # Read the streamed content
+    chunks = rsp.stream_chunks()
+
+    # Parse the streamed messages
+    messages = [json.loads(line) for line in chunks if line]
+
+    # Should only have the answer, no title message
+    assert len(messages) == 1
+    assert messages[0]["type"] == "ai/message"
+    assert messages[0]["content"] == "Here's the answer to your follow-up question."
+
+    # Verify no ChatTitleMessage was sent
+    for msg in messages:
+        assert msg["type"] != "chat/title"
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+@patch("baserow_enterprise.assistant.handler.Assistant")
+@patch("baserow_enterprise.api.assistant.views.AssistantHandler")
+def test_send_message_handles_ai_error_in_streaming(
+    mock_handler_class, mock_assistant_class, api_client, enterprise_data_fixture
+):
+    """Test that AI errors are properly streamed to the client"""
+
+    user, token = enterprise_data_fixture.create_user_and_token()
+    workspace = enterprise_data_fixture.create_workspace(user=user)
+    enterprise_data_fixture.enable_enterprise()
+
+    chat_uuid = str(uuid4())
+
+    # Mock the handler
+    mock_handler = MagicMock()
+    mock_handler_class.return_value = mock_handler
+
+    # Mock chat creation
+    mock_chat = MagicMock(spec=AssistantChat)
+    mock_chat.uuid = chat_uuid
+    mock_chat.workspace = workspace
+    mock_chat.user = user
+    mock_handler.get_or_create_chat.return_value = (mock_chat, True)
+
+    # Mock the assistant
+    mock_assistant = MagicMock()
+    mock_handler.get_assistant.return_value = mock_assistant
+
+    # Mock assistant that encounters an error during streaming
+    async def mock_astream(human_message, ui_context):
+        # Start responding
+        yield AiMessageChunk(content="Let me help you with that...")
+        # Simulate an error (e.g., tool failure, timeout, etc.)
+        yield AiErrorMessage(
+            content="I encountered an error while processing your request. Please try again.",
+            code="timeout",
+        )
+
+    mock_assistant.astream_messages = mock_astream
+
+    rsp = api_client.post(
+        reverse("assistant:chat_messages", kwargs={"chat_uuid": chat_uuid}),
+        data={
+            "content": "Can you help me?",
+            "ui_context": {"workspace": {"id": workspace.id, "name": workspace.name}},
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert rsp.status_code == 200
+    assert rsp["Content-Type"] == "text/event-stream"
+
+    # Read the streamed content
+    chunks = rsp.stream_chunks()
+
+    # Parse the streamed messages
+    messages = [json.loads(line) for line in chunks if line]
+
+    assert len(messages) == 2
+
+    # First message is partial answer
+    assert messages[0]["type"] == "ai/message"
+    assert messages[0]["content"] == "Let me help you with that..."
+
+    # Second message is the error
+    assert messages[1]["type"] == "ai/error"
+    assert messages[1]["code"] == "timeout"
+    assert "error while processing your request" in messages[1]["content"].lower()

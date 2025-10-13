@@ -1,19 +1,8 @@
+from datetime import datetime
 from enum import StrEnum
-from typing import Annotated, Any, Literal, Optional, Sequence, TypeVar
-from uuid import uuid4
+from typing import Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
-
-StateType = TypeVar("StateType", bound=BaseModel)
-PartialStateType = TypeVar("PartialStateType", bound=BaseModel)
-
-
-def uuid4_str() -> str:
-    """
-    Generate a new UUID4 and return it as a string.
-    """
-
-    return str(uuid4())
+from pydantic import BaseModel, Field
 
 
 class WorkspaceUIContext(BaseModel):
@@ -28,57 +17,73 @@ class UIContext(BaseModel):
     )
 
 
-class BaseMessage(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
+class AssistantMessageType(StrEnum):
+    HUMAN = "human"
+    AI_MESSAGE = "ai/message"
+    AI_THINKING = "ai/thinking"
+    AI_ERROR = "ai/error"
+    TOOL_CALL = "tool_call"
+    TOOL = "tool"
+    CHAT_TITLE = "chat/title"
+
+
+class HumanMessage(BaseModel):
+    id: int | None = Field(
+        default=None,
+        description="The unique UUID of the message",
     )
-    id: Optional[str] = Field(default_factory=uuid4_str)
-
-
-class HumanMessage(BaseMessage):
-    type: Literal["human"] = "human"
+    type: Literal["human"] = AssistantMessageType.HUMAN.value
     content: str
     ui_context: Optional[UIContext] = Field(
         default=None, description="The UI context when the message was sent"
     )
 
 
-class ToolCall(BaseMessage):
-    type: Literal["tool_call"] = Field(
-        default="tool_call",
-        description="`type` needed to conform to the OpenAI shape, which is expected by LangChain",
-    )
-    id: str
-    name: str
-    args: dict[str, Any]
-
-
-class ToolMessage(BaseMessage):
-    type: Literal["tool"] = "tool"
-    content: str
-    tool_call_id: str
-    ui_payload: Optional[dict[str, Any]] = Field(
+class AiMessageChunk(BaseModel):
+    type: Literal["ai/message"] = "ai/message"
+    content: str = Field(description="The content of the AI message chunk")
+    sources: Optional[list[str]] = Field(
         default=None,
+        description="The list of relevant source URLs referenced in the message.",
+    )
+
+
+class AiMessage(AiMessageChunk):
+    id: int | None = Field(
+        default=None,
+        description="The unique UUID of the message",
+    )
+    timestamp: datetime | None = Field(default=None)
+
+
+class THINKING_MESSAGES(StrEnum):
+    THINKING = "thinking"
+    ANSWERING = "answering"
+    # Tool-specific
+    SEARCH_DOCS = "search_docs"
+    ANALYZE_RESULTS = "analyze_results"
+
+    # For dynamic messages that don't have a translation in the frontend
+    CUSTOM = "custom"
+
+
+class AiThinkingMessage(BaseModel):
+    type: Literal["ai/thinking"] = AssistantMessageType.AI_THINKING.value
+    code: str = Field(
+        default=THINKING_MESSAGES.CUSTOM,
+        description="Thinking content. If empty, signals end of thinking.",
+    )
+    content: str = Field(
+        default="",
         description=(
-            "Payload passed through to the frontend - specifically for calls of "
-            "contextual tool. Tool call messages without a ui_payload are not passed "
-            "through to the frontend."
+            "A short description of what the AI is thinking about. It can be used to "
+            "provide a dynamic message that don't have a translation in the frontend."
         ),
     )
 
 
-class AiMessage(BaseMessage):
-    type: Literal["ai/message"] = "ai/message"
-    tool_calls: Optional[list[ToolCall]] = None
-    content: str = Field(description="The AI message content")
-
-
-class AiMessageChunk(BaseModel):
-    pass
-
-
-class ChatTitleMessage(BaseMessage):
-    type: Literal["chat/title"] = "chat/title"
+class ChatTitleMessage(BaseModel):
+    type: Literal["chat/title"] = AssistantMessageType.CHAT_TITLE.value
     content: str = Field(description="The chat title")
 
 
@@ -88,54 +93,13 @@ class AiErrorMessageCode(StrEnum):
     UNKNOWN = "unknown"
 
 
-class AiErrorMessage(BaseMessage):
-    type: Literal["ai/error"] = "ai/error"
-    content: str = Field(description="Error message content")
+class AiErrorMessage(BaseModel):
+    type: Literal["ai/error"] = AssistantMessageType.AI_ERROR.value
     code: AiErrorMessageCode = Field(description="The type of error that occurred")
+    content: str = Field(description="Error message content")
 
 
-AIMessageUnion = AiMessage | ToolCall | ToolMessage | ChatTitleMessage
-AssistantMessageUnion = HumanMessage | AIMessageUnion | AiErrorMessage
-
-
-def add_and_merge_messages(
-    left: Sequence[AssistantMessageUnion], right: Sequence[AssistantMessageUnion]
-) -> Sequence[AssistantMessageUnion]:
-    """
-    Merges two lists of messages, updating existing messages by ID.
-
-    By default, this ensures the state is "append-only", unless the new message has the
-    same ID as an existing message. new message has the same ID as an existing message.
-
-    :param left: The base list of messages.
-    :param right: The list of messages to merge into the base list.
-
-    :return: A new list of messages with the messages from `right` merged into `left`.
-        If a message in `right` has the same ID as a message in `left`, the message from
-        `right` will replace the message from `left`.
-    """
-
-    # coerce to list
-    left = list(left)
-    right = list(right)
-
-    # merge
-    left_idx_by_id = {m.id: i for i, m in enumerate(left)}
-    merged = left.copy()
-    for m in right:
-        if (existing_idx := left_idx_by_id.get(m.id)) is not None:
-            merged[existing_idx] = m
-        else:
-            merged.append(m)
-
-    return merged
-
-
-class AssistantState(BaseModel):
-    messages: Annotated[
-        Sequence[AssistantMessageUnion], add_and_merge_messages
-    ] = Field(default=[])
-
-
-class PartialAssistantState(BaseModel):
-    messages: Sequence[AssistantMessageUnion] = Field(default=[])
+AIMessageUnion = (
+    AiMessage | AiErrorMessage | AiThinkingMessage | ChatTitleMessage | AiMessageChunk
+)
+AssistantMessageUnion = HumanMessage | AIMessageUnion

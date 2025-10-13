@@ -458,6 +458,16 @@ class CoreConfig(AppConfig):
         import baserow.core.import_export.tasks  # noqa: F403, F401
         import baserow.core.integrations.receivers  # noqa: F403, F401
 
+        # pgvector extension setup. Because the extension is optional, we must
+        # dynamically check if it's available and adjust the models accordingly.
+        from baserow.core.pgvector import try_migrate_vector_fields
+
+        post_migrate.connect(
+            try_migrate_vector_fields,
+            sender=self,
+            dispatch_uid="baserow_core_pgvector_post_migrate",
+        )
+
 
 # noinspection PyPep8Naming
 def start_sync_templates_task_after_migrate(sender, **kwargs):

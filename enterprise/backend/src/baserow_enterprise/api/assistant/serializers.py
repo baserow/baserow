@@ -1,8 +1,14 @@
+from enum import StrEnum
+
+from drf_spectacular.extensions import OpenApiSerializerExtension
+from drf_spectacular.plumbing import force_instance
 from rest_framework import serializers
 
-from baserow_enterprise.assistant.graph.base import StrEnum
 from baserow_enterprise.assistant.models import AssistantChat
-from baserow_enterprise.assistant.types import BaseMessage, HumanMessage
+from baserow_enterprise.assistant.types import (
+    AssistantMessageType,
+    AssistantMessageUnion,
+)
 
 
 class AssistantChatsRequestSerializer(serializers.Serializer):
@@ -53,38 +59,76 @@ class AssistantMessageRole(StrEnum):
     AI = "ai"
 
 
-class AssistantMessageType(StrEnum):
-    MESSAGE = "ai/message"
-    """
-    The chat message itself (default)
-    """
-    ERROR = "ai/error"
-    """
-    Use to signal that the AI has failed to process the message
-    """
-    CHAT_TITLE = "chat/title"
-    """
-    Use to signal the chat title should be updated with the message content
-    """
+class AiMessageSerializer(serializers.Serializer):
+    id = serializers.IntegerField(
+        help_text="The unique ID of the message.", required=False
+    )
+    type = serializers.CharField(default=AssistantMessageType.AI_MESSAGE)
+    content = serializers.CharField(help_text="The content of the AI message.")
+    timestamp = serializers.DateTimeField(
+        required=False, help_text="The timestamp of the message."
+    )
+    sources = serializers.ListField(
+        child=serializers.CharField(),
+        required=False,
+        help_text=(
+            "The list of relevant source URLs referenced in the knowledge. Can be empty or null."
+        ),
+    )
+
+
+class AiThinkingSerializer(serializers.Serializer):
+    type = serializers.CharField(default=AssistantMessageType.AI_THINKING)
+    code = serializers.CharField(
+        help_text=(
+            "Thinking code. If empty, signals end of thinking. This is used to provide recurring "
+            "messages that have a translation in the frontend (i.e. 'thinking', 'answering', etc.)"
+        )
+    )
+    content = serializers.CharField(
+        default="",
+        allow_blank=True,
+        help_text=(
+            "A short description of what the AI is thinking about. It can be used to "
+            "provide a dynamic message that don't have a translation in the frontend."
+        ),
+    )
+
+
+class AiErrorMessageSerializer(serializers.Serializer):
+    type = serializers.CharField(default=AssistantMessageType.AI_ERROR)
+    code = serializers.CharField(
+        help_text="A short error code that can be used to identify the error."
+    )
+    content = serializers.CharField(help_text="The error message content.")
+
+
+class ChatTitleMessageSerializer(serializers.Serializer):
+    type = serializers.CharField(default=AssistantMessageType.CHAT_TITLE)
+    content = serializers.CharField(help_text="The chat title message content.")
+
+
+class HumanMessageSerializer(serializers.Serializer):
+    id = serializers.IntegerField(help_text="The unique ID of the message.")
+    type = serializers.CharField(default=AssistantMessageType.HUMAN)
+    content = serializers.CharField(help_text="The content of the human message.")
+    timestamp = serializers.DateTimeField(
+        required=False, help_text="The timestamp of the message."
+    )
+
+
+TYPE_SERIALIZER_MAP = {
+    AssistantMessageType.CHAT_TITLE: ChatTitleMessageSerializer,
+    AssistantMessageType.HUMAN: HumanMessageSerializer,
+    AssistantMessageType.AI_MESSAGE: AiMessageSerializer,
+    AssistantMessageType.AI_THINKING: AiThinkingSerializer,
+    AssistantMessageType.AI_ERROR: AiErrorMessageSerializer,
+}
 
 
 class AssistantMessageSerializer(serializers.Serializer):
-    id = serializers.UUIDField(help_text="The unique UUID of the message.")
-    content = serializers.CharField(help_text="The content of the message.", default="")
-    role = serializers.ChoiceField(
-        choices=[
-            (AssistantMessageRole.HUMAN, "Human"),
-            (AssistantMessageRole.AI, "AI"),
-        ],
-        default=AssistantMessageRole.AI,
-        help_text="The role of the message sender.",
-    )
     type = serializers.ChoiceField(
-        choices=[
-            (AssistantMessageType.MESSAGE, "Message"),
-            (AssistantMessageType.ERROR, "Error"),
-            (AssistantMessageType.CHAT_TITLE, "Chat Title"),
-        ],
+        choices=[(msg_type, msg_type) for msg_type in TYPE_SERIALIZER_MAP.keys()],
         required=False,
         help_text=(
             "The type of the message content. Used to distinguish how the content "
@@ -92,22 +136,103 @@ class AssistantMessageSerializer(serializers.Serializer):
         ),
     )
 
-    @classmethod
-    def from_assistant_message(cls, message: BaseMessage):
-        data = {
-            "id": message.id,
-            "content": message.content,
-        }
-        if isinstance(message, HumanMessage):
-            data["role"] = AssistantMessageRole.HUMAN
+    def to_representation(self, instance):
+        # Handle both dict and object instances
+        if isinstance(instance, dict):
+            msg_type = instance.get("type")
+            data = instance
         else:
-            data["role"] = AssistantMessageRole.AI
-            data["type"] = message.type
+            msg_type = getattr(instance, "type", None)
+            # Convert Pydantic model to dict if needed
+            if hasattr(instance, "model_dump"):
+                data = instance.model_dump()
+            else:
+                data = instance
 
-        serializer = cls(data=data)
+        # Get the appropriate serializer for this message type
+        serializer_class = TYPE_SERIALIZER_MAP.get(msg_type)
+        if serializer_class:
+            # Use the type-specific serializer to represent the data
+            return serializer_class(data).data
+
+        # Fallback for unknown types
+        return {"type": msg_type}
+
+    @classmethod
+    def can_serialize(cls, message: AssistantMessageUnion) -> bool:
+        return message.type in TYPE_SERIALIZER_MAP
+
+    @classmethod
+    def from_assistant_message(
+        cls, message: AssistantMessageUnion
+    ) -> "AssistantMessageSerializer":
+        if message.type not in TYPE_SERIALIZER_MAP:
+            raise ValueError(
+                f"Unknown message type {message.type}. Cannot serialize. "
+                "Did you forget to add it to TYPE_SERIALIZER_MAP?"
+            )
+
+        serializer = cls(data=message.model_dump())
         serializer.is_valid(raise_exception=True)
         return serializer
 
 
-class AssistantChatMessageSerializer(serializers.Serializer):
+class AssistantChatMessagesSerializer(serializers.Serializer):
     messages = AssistantMessageSerializer(many=True)
+
+    def to_representation(self, instance):
+        """Convert the instance to the proper representation."""
+
+        if isinstance(instance, dict) and "messages" in instance:
+            messages = instance["messages"]
+        else:
+            messages = getattr(instance, "messages", [])
+
+        # Filter out messages that can't be serialized
+        serializable_messages = [
+            msg
+            for msg in messages
+            if hasattr(msg, "type") and AssistantMessageSerializer.can_serialize(msg)
+        ]
+
+        return {
+            "messages": AssistantMessageSerializer(
+                serializable_messages, many=True
+            ).data
+        }
+
+
+# Custom extension to make drf-spectacular use the polymorphic serializer
+class AssistantMessageSerializerExtension(OpenApiSerializerExtension):
+    target_class = (
+        "baserow_enterprise.api.assistant.serializers.AssistantMessageSerializer"
+    )
+
+    def map_serializer(self, auto_schema, direction):
+        return self._map_serializer(auto_schema, direction, TYPE_SERIALIZER_MAP)
+
+    def _map_serializer(self, auto_schema, direction, mapping):
+        sub_components = []
+
+        for key, serializer_class in mapping.items():
+            sub_serializer = force_instance(serializer_class)
+            resolved = auto_schema.resolve_serializer(sub_serializer, direction)
+            schema = resolved.ref
+
+            if isinstance(schema, list):
+                for item in schema:
+                    sub_components.append((key, item))
+            else:
+                sub_components.append((key, schema))
+
+        return {
+            "oneOf": [schema for _, schema in sub_components],
+            "discriminator": {
+                "propertyName": "type",
+                "mapping": {
+                    key: value["$ref"]
+                    for key, value in sub_components
+                    if isinstance(value, dict) and "$ref" in value
+                },
+            },
+        }

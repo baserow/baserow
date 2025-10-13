@@ -7,6 +7,7 @@
       :class="{
         'assistant__message--human': message.role === 'human',
         'assistant__message--ai': message.role === 'ai',
+        'assistant__message--error': message.error,
       }"
     >
       <div class="assistant__message-content">
@@ -19,13 +20,22 @@
             <span></span>
             <span></span>
           </div>
-          <!-- eslint-disable vue/no-v-html -->
-          <div
-            v-else
-            class="assistant__message-text"
-            @click="interceptLinkClick"
-            v-html="formatMessage(message.content)"
-          ></div>
+          <template v-else>
+            <!-- eslint-disable vue/no-v-html -->
+            <div
+              class="assistant__message-text"
+              @click="interceptLinkClick"
+              v-html="formatMessage(message.content)"
+            ></div>
+
+            <!-- Sources section - only show for AI messages with sources -->
+            <AssistantMessageSources
+              v-if="message.role === 'ai'"
+              :sources="message.sources"
+              :expanded="expandedSources[message.id] || false"
+              @toggle="toggleSources(message.id)"
+            />
+          </template>
         </div>
       </div>
     </div>
@@ -34,22 +44,31 @@
 
 <script>
 import MarkdownIt from 'markdown-it'
+import AssistantMessageSources from './AssistantMessageSources'
 
 // Initialize markdown parser with safe settings
 const md = new MarkdownIt({
   html: false, // Disable HTML tags for security
   linkify: true, // Auto-convert URLs to links
   typographer: true, // Enable smart quotes and other typography
-  breaks: true, // Convert line breaks to <br>
+  breaks: false, // Convert line breaks to <br>
 })
 
 export default {
   name: 'AssistantMessageList',
+  components: {
+    AssistantMessageSources,
+  },
   props: {
     messages: {
       type: Array,
       default: () => [],
     },
+  },
+  data() {
+    return {
+      expandedSources: {},
+    }
   },
   methods: {
     waitingForAssistantResponse(message) {
@@ -79,6 +98,7 @@ export default {
       } else {
         // Open external links in a new tab
         window.open(href, '_blank', 'noopener,noreferrer')
+        event.preventDefault()
       }
     },
 
@@ -91,6 +111,14 @@ export default {
       // Same origin links
       const url = new URL(href, window.location.origin)
       return url.origin === window.location.origin
+    },
+
+    toggleSources(messageId) {
+      this.$set(
+        this.expandedSources,
+        messageId,
+        !this.expandedSources[messageId]
+      )
     },
   },
 }

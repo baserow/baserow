@@ -826,3 +826,32 @@ class ImportExportTrustedSource(models.Model):
         help_text="The public key used to verify the signature of the export."
     )
     created_at = models.DateTimeField(auto_now_add=True)
+
+
+class SchemaOperation(CreatedAndUpdatedOnMixin, models.Model):
+    """
+    Keeps track of schema operations that have been applied to database tables.
+
+    This is only useful for schema operations that cannot be handled by Django's
+    built-in migration framework, that we want to do only once and are somehow dynamic
+    or conditional.
+
+    For example, we might want to add a table field or migrate some data only if a
+    certain extension is installed in the database (i.e. vector).
+
+    Even if this table is born to add and migrate pgvector fields, it can be used for
+    other similar use cases in the future.
+    """
+
+    content_type = models.ForeignKey(
+        ContentType,
+        on_delete=models.CASCADE,
+        help_text="The content type of the model that the operation was applied to.",
+    )
+    operation = models.CharField(
+        max_length=64,
+        help_text="A unique identifier for the operation that was applied.",
+    )
+
+    class Meta:
+        unique_together = [["content_type_id", "operation"]]

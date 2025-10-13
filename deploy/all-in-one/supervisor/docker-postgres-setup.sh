@@ -58,6 +58,7 @@ docker_setup_db() {
 			create user :"user" with encrypted password :'pass';
 			grant all privileges on database :"db" to :"user";
 			alter database :"db" OWNER TO :"user";
+			CREATE EXTENSION IF NOT EXISTS vector;
 		EOSQL
 	fi
 }
@@ -81,6 +82,7 @@ _main() {
     export POSTGRES_PASSWORD=$DATABASE_PASSWORD
     export POSTGRES_DB=$DATABASE_NAME
     ALREADY_SETUP_INDICATOR_FILE="$PGDATA/baserow_db_setup"
+    PGVECTOR_EXTENSION_SETUP_FILE="$PGDATA/pgvector_extension_setup"
 
     # This script will re-run itself as postgres user, so this part is reserved for the root user setup/teardown
     if [ "$(id -u)" = '0' ]; then
@@ -112,11 +114,23 @@ _main() {
         docker_temp_server_start "$@"
         docker_setup_db
         touch "$ALREADY_SETUP_INDICATOR_FILE"
+        touch "$PGVECTOR_EXTENSION_SETUP_FILE"
         docker_temp_server_stop
 
         echo
         echo 'PostgreSQL init process complete; ready for start up.'
         echo
+      fi
+      if [ ! -f "$PGVECTOR_EXTENSION_SETUP_FILE" ]; then
+        echo "Setting up pgvector extension..."
+        docker_temp_server_start "$@"
+        docker_process_sql --dbname "$POSTGRES_DB" <<-'EOSQL'
+					CREATE EXTENSION IF NOT EXISTS vector;
+				EOSQL
+
+        touch "$PGVECTOR_EXTENSION_SETUP_FILE"
+        docker_temp_server_stop
+        echo "Extensions setup complete."
       fi
     elif [ "$1" == "run" ]; then
       shift

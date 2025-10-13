@@ -636,5 +636,8 @@
     "submit": "Send test email",
     "success": "Successfully sent test email",
     "configLink": "Email Configuration Help"
+  },
+  "assistantMessageSources": {
+    "sources": "{count} source | {count} sources"
   }
 }

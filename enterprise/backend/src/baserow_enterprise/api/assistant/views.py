@@ -21,15 +21,21 @@ from baserow.api.serializers import get_example_pagination_serializer_class
 from baserow.core.exceptions import UserNotInWorkspace, WorkspaceDoesNotExist
 from baserow.core.feature_flags import FF_ASSISTANT, feature_flag_is_enabled
 from baserow.core.handler import CoreHandler
-from baserow_enterprise.api.assistant.errors import ERROR_ASSISTANT_CHAT_DOES_NOT_EXIST
-from baserow_enterprise.assistant.exceptions import AssistantChatDoesNotExist
+from baserow_enterprise.api.assistant.errors import (
+    ERROR_ASSISTANT_CHAT_DOES_NOT_EXIST,
+    ERROR_ASSISTANT_MODEL_NOT_SUPPORTED,
+)
+from baserow_enterprise.assistant.exceptions import (
+    AssistantChatDoesNotExist,
+    AssistantModelNotSupportedError,
+)
 from baserow_enterprise.assistant.handler import AssistantHandler
 from baserow_enterprise.assistant.operations import ChatAssistantChatOperationType
-from baserow_enterprise.assistant.types import BaseMessage, HumanMessage
+from baserow_enterprise.assistant.types import AssistantMessageUnion, UIContext
 from baserow_enterprise.features import ASSISTANT
 
 from .serializers import (
-    AssistantChatMessageSerializer,
+    AssistantChatMessagesSerializer,
     AssistantChatSerializer,
     AssistantChatsRequestSerializer,
     AssistantMessageRequestSerializer,
@@ -130,13 +136,14 @@ class AssistantChatView(APIView):
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
             WorkspaceDoesNotExist: ERROR_GROUP_DOES_NOT_EXIST,
             AssistantChatDoesNotExist: ERROR_ASSISTANT_CHAT_DOES_NOT_EXIST,
+            AssistantModelNotSupportedError: ERROR_ASSISTANT_MODEL_NOT_SUPPORTED,
         }
     )
     def post(self, request: Request, chat_uuid: str, data) -> StreamingHttpResponse:
         feature_flag_is_enabled(FF_ASSISTANT, raise_if_disabled=True)
 
-        ui_context = data["ui_context"]
-        workspace_id = ui_context["workspace"]["id"]
+        ui_context = UIContext(**data["ui_context"])
+        workspace_id = ui_context.workspace.id
         workspace = CoreHandler().get_workspace(workspace_id)
         LicenseHandler.raise_if_user_doesnt_have_feature(
             ASSISTANT, request.user, workspace
@@ -150,21 +157,27 @@ class AssistantChatView(APIView):
 
         handler = AssistantHandler()
         chat, _ = handler.get_or_create_chat(request.user, workspace, chat_uuid)
+        assistant = handler.get_assistant(chat)
+        human_message = data["content"]
 
         async def stream_assistant_messages():
-            async for msg in handler.stream_assistant_messages(
-                chat, HumanMessage(**data)
+            async for msg in assistant.astream_messages(
+                human_message, ui_context=ui_context
             ):
                 yield self._stream_assistant_message(msg)
 
-        return StreamingHttpResponse(
+        response = StreamingHttpResponse(
             stream_assistant_messages(),
             content_type="text/event-stream",
         )
+        response["Cache-Control"] = "no-cache"
+        response["X-Accel-Buffering"] = "no"  # helpful behind Nginx
+        return response
 
-    def _stream_assistant_message(self, message: BaseMessage) -> str:
-        message = AssistantMessageSerializer.from_assistant_message(message)
-        return json.dumps(message.data) + "\n\n"
+    def _stream_assistant_message(self, message: AssistantMessageUnion) -> str:
+        if AssistantMessageSerializer.can_serialize(message):
+            serializer = AssistantMessageSerializer(message)
+            return json.dumps(serializer.data) + "\n\n"
 
     @extend_schema(
         tags=["AI Assistant"],
@@ -174,7 +187,7 @@ class AssistantChatView(APIView):
             "This is an **advanced/enterprise** feature."
         ),
         responses={
-            200: AssistantChatMessageSerializer,
+            200: AssistantChatMessagesSerializer,
             400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
         },
     )
@@ -202,15 +215,9 @@ class AssistantChatView(APIView):
             context=workspace,
         )
 
-        messages = handler.get_chat_messages(chat)
-        serializer = AssistantChatMessageSerializer(
-            data={
-                "messages": [
-                    AssistantMessageSerializer.from_assistant_message(msg).data
-                    for msg in messages
-                ],
-            }
-        )
-        serializer.is_valid(raise_exception=True)
+        messages = handler.list_chat_messages(chat)
+
+        # Pass the messages as an instance for serialization
+        serializer = AssistantChatMessagesSerializer({"messages": messages})
 
         return Response(serializer.data)
