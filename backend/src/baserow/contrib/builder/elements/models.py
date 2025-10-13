@@ -17,7 +17,7 @@ from baserow.core.constants import (
     DATE_TIME_FORMAT_CHOICES,
     RatingStyleChoices,
 )
-from baserow.core.formula.field import FormulaField
+from baserow.core.formula.field import FormulaField, JSONFormulaField
 from baserow.core.mixins import (
     CreatedAndUpdatedOnMixin,
     FractionOrderableMixin,
@@ -786,8 +786,9 @@ class CollectionField(models.Model):
         help_text="The type of the field.",
     )
 
-    config = models.JSONField(
+    config = JSONFormulaField(
         default=dict,
+        property_name="value",
         help_text="The configuration of the field.",
     )
 

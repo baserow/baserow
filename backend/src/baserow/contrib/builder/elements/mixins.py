@@ -144,6 +144,8 @@ class CollectionElementTypeMixin:
     is_publicly_filterable = True
     is_publicly_searchable = True
 
+    simple_formula_fields = ["button_load_more_label"]
+
     allowed_fields = [
         "data_source",
         "data_source_id",

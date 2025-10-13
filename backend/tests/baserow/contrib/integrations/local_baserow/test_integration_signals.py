@@ -165,10 +165,10 @@ def test_local_baserow_service_filters_delete_when_field_type_changes_to_incompa
     number_field = data_fixture.create_number_field(table=table)
     service = data_fixture.create_local_baserow_list_rows_service(table=table)
     link_row_filter = data_fixture.create_local_baserow_table_service_filter(
-        service=service, type="link_row_has", field=link_field, value=1, order=0
+        service=service, type="link_row_has", field=link_field, value="'1'", order=0
     )
     number_filter = data_fixture.create_local_baserow_table_service_filter(
-        service=service, field=number_field, value=25, order=1
+        service=service, field=number_field, value="'25'", order=1
     )
     # Converting a `link_row` to a `text` field type will result in an
     # incompatible filter, so it'll be destroyed.

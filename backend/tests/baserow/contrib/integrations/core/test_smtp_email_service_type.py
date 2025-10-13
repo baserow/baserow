@@ -394,14 +394,30 @@ def test_serialized_export_import(data_fixture):
         "integration_id": smtp_integration.id,
         "sample_data": None,
         "type": "smtp_email",
-        "from_email": "'sender@example.com'",
-        "from_name": "'Test Sender'",
-        "to_emails": "'recipient@example.com'",
-        "cc_emails": "'cc@example.com'",
-        "bcc_emails": "'bcc@example.com'",
-        "subject": "'Test Subject'",
+        "from_email": {
+            "formula": "'sender@example.com'",
+            "mode": "simple",
+            "version": "0.1",
+        },
+        "from_name": {"formula": "'Test Sender'", "mode": "simple", "version": "0.1"},
+        "to_emails": {
+            "formula": "'recipient@example.com'",
+            "mode": "simple",
+            "version": "0.1",
+        },
+        "cc_emails": {
+            "formula": "'cc@example.com'",
+            "mode": "simple",
+            "version": "0.1",
+        },
+        "bcc_emails": {
+            "formula": "'bcc@example.com'",
+            "mode": "simple",
+            "version": "0.1",
+        },
+        "subject": {"formula": "'Test Subject'", "mode": "simple", "version": "0.1"},
         "body_type": "html",
-        "body": "'Test body'",
+        "body": {"formula": "'Test body'", "mode": "simple", "version": "0.1"},
     }
 
     assert serialized == expected_serialized
@@ -410,14 +426,14 @@ def test_serialized_export_import(data_fixture):
         None, serialized, {smtp_integration.id: smtp_integration}, lambda x, d: x
     )
 
-    assert new_service.from_email == "'sender@example.com'"
-    assert new_service.from_name == "'Test Sender'"
-    assert new_service.to_emails == "'recipient@example.com'"
-    assert new_service.cc_emails == "'cc@example.com'"
-    assert new_service.bcc_emails == "'bcc@example.com'"
-    assert new_service.subject == "'Test Subject'"
+    assert new_service.from_email["formula"] == "'sender@example.com'"
+    assert new_service.from_name["formula"] == "'Test Sender'"
+    assert new_service.to_emails["formula"] == "'recipient@example.com'"
+    assert new_service.cc_emails["formula"] == "'cc@example.com'"
+    assert new_service.bcc_emails["formula"] == "'bcc@example.com'"
+    assert new_service.subject["formula"] == "'Test Subject'"
     assert new_service.body_type == "html"
-    assert new_service.body == "'Test body'"
+    assert new_service.body["formula"] == "'Test body'"
 
 
 @pytest.mark.django_db
@@ -435,11 +451,31 @@ def test_smtp_email_service_create_update(data_fixture):
         body_type="plain",
     )
 
-    assert service.from_email == "'sender@example.com'"
-    assert service.from_name == "'Test Sender'"
-    assert service.to_emails == "'recipient@example.com'"
-    assert service.subject == "'Test Subject'"
-    assert service.body == "'Test body'"
+    assert service.from_email == {
+        "mode": "simple",
+        "formula": "'sender@example.com'",
+        "version": "0.1",
+    }
+    assert service.from_name == {
+        "mode": "simple",
+        "formula": "'Test Sender'",
+        "version": "0.1",
+    }
+    assert service.to_emails == {
+        "mode": "simple",
+        "formula": "'recipient@example.com'",
+        "version": "0.1",
+    }
+    assert service.subject == {
+        "mode": "simple",
+        "formula": "'Test Subject'",
+        "version": "0.1",
+    }
+    assert service.body == {
+        "mode": "simple",
+        "formula": "'Test body'",
+        "version": "0.1",
+    }
     assert service.body_type == "plain"
     assert service.integration_id == smtp_integration.id
 
@@ -454,6 +490,7 @@ def test_smtp_email_service_create_update(data_fixture):
 
     service.refresh_from_db()
 
-    assert service.from_email == "'updated@example.com'"
-    assert service.subject == "'Updated Subject'"
+    assert service.from_email["formula"] == "'updated@example.com'"
+    assert service.subject["formula"] == "'Updated Subject'"
+    assert service.body["formula"] == "'Test body'"
     assert service.body_type == "html"

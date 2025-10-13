@@ -69,10 +69,7 @@ class SearchableServiceMixin(models.Model):
     """
 
     search_query = FormulaField(
-        default="",
-        max_length=225,
         help_text="The query to apply to the service to narrow the results down.",
-        blank=True,
     )
 
     class Meta:

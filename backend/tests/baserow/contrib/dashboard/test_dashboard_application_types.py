@@ -317,7 +317,7 @@ def test_dashboard_import_serialized_with_widgets(data_fixture):
     assert ds1_service.integration_id == integration.id
     assert ds1_service.aggregation_type == ""
     assert ds1_service.filter_type == "AND"
-    assert ds1_service.search_query == ""
+    assert ds1_service.search_query["formula"] == ""
     assert ds1_service.table_id is None
     assert ds1_service.view_id is None
     assert ds1_service.field_id is None
@@ -333,7 +333,7 @@ def test_dashboard_import_serialized_with_widgets(data_fixture):
     assert ds2_service.integration_id == integration.id
     assert ds2_service.aggregation_type == "sum"
     assert ds2_service.filter_type == "AND"
-    assert ds2_service.search_query == ""
+    assert ds2_service.search_query["formula"] == ""
     assert ds2_service.table_id == table.id
     assert ds2_service.view_id == view.id
     assert ds2_service.field_id == number_field.id

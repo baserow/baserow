@@ -50,7 +50,7 @@ def test_create_local_baserow_get_row_service(data_fixture):
 
     assert service.view.id == view.id
     assert service.table.id == view.table_id
-    assert service.row_id == "1"
+    assert service.row_id["formula"] == "1"
 
 
 @pytest.mark.django_db
@@ -177,7 +177,7 @@ def test_update_local_baserow_get_row_service(data_fixture):
     service.refresh_from_db()
 
     assert service.specific.table is None
-    assert service.specific.search_query == ""
+    assert service.specific.search_query["formula"] == ""
     assert service.specific.integration is None
 
 
@@ -510,7 +510,7 @@ def test_import_datasource_provider_formula_using_get_row_service_containing_no_
     duplicated_element = duplicated_page.element_set.first()
     duplicated_data_source = duplicated_page.datasource_set.first()
     assert (
-        duplicated_element.specific.placeholder
+        duplicated_element.specific.placeholder["formula"]
         == f"get('data_source.{duplicated_data_source.id}')"
     )
 
@@ -588,7 +588,6 @@ def test_import_formula_local_baserow_get_row_user_service_type(data_fixture):
 
     duplicated_page = PageService().duplicate_page(user, page)
     data_source2 = duplicated_page.datasource_set.first()
-    id_mapping = {}
     id_mapping = {"builder_data_sources": {data_source.id: data_source2.id}}
 
     from baserow.contrib.builder.formula_importer import import_formula
@@ -598,14 +597,20 @@ def test_import_formula_local_baserow_get_row_user_service_type(data_fixture):
     )
 
     # See the docstring to understand why these formulas looks truncated.
-    assert imported_service.search_query == f"get('data_source.{data_source2.id}')"
-    assert imported_service.row_id == f"get('data_source.{data_source2.id}')"
+    assert (
+        imported_service.search_query["formula"]
+        == f"get('data_source.{data_source2.id}')"
+    )
+    assert imported_service.row_id["formula"] == f"get('data_source.{data_source2.id}')"
 
     imported_service_filter = imported_service.service_filters.get(order=0)
-    assert imported_service_filter.value == f"get('data_source.{data_source2.id}')"
+    assert (
+        imported_service_filter.value["formula"]
+        == f"get('data_source.{data_source2.id}')"
+    )
 
     imported_service_filter = imported_service.service_filters.get(order=1)
-    assert imported_service_filter.value == "FooServiceFilter"
+    assert imported_service_filter.value["formula"] == "FooServiceFilter"
 
 
 @pytest.mark.django_db

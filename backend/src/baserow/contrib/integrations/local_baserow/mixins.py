@@ -140,12 +140,12 @@ class LocalBaserowTableServiceFilterableMixin:
                 ),
                 "value": (
                     id_mapping["database_field_select_options"].get(
-                        int(f["value"]), f["value"]
+                        int(f["value"]["formula"]), f["value"]["formula"]
                     )
                     if "database_field_select_options" in id_mapping
-                    and f["value"].isdigit()
+                    and f["value"]["formula"].isdigit()
                     and not f["value_is_formula"]
-                    else f["value"]
+                    else f["value"]["formula"]
                 ),
             }
             for f in value
@@ -273,7 +273,7 @@ class LocalBaserowTableServiceFilterableMixin:
                         f"The {field_name} service filter formula can't be resolved: {exc}"
                     ) from exc
             else:
-                resolved_value = service_filter.value
+                resolved_value = service_filter.value["formula"]
 
             service_filter_builder.filter(
                 view_filter_type.get_filter(
@@ -799,6 +799,11 @@ class LocalBaserowTableServiceSpecificRowMixin:
         """
 
         super_formulas = super().formulas_to_resolve(service)
+
+        # Ignore empty formulas
+        if not service.row_id["formula"]:
+            return super_formulas
+
         return super_formulas + [
             FormulaToResolve("row_id", service.row_id, ensure_integer, '"row_id"')
         ]

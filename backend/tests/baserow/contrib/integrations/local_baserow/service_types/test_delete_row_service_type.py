@@ -37,7 +37,7 @@ def test_create_local_baserow_delete_row_service(data_fixture):
     )
 
     assert service.table.id == table.id
-    assert service.row_id == ""
+    assert service.row_id["formula"] == ""
 
 
 @pytest.mark.django_db
@@ -65,7 +65,7 @@ def test_update_local_baserow_delete_row_service(data_fixture):
 
     service.refresh_from_db()
 
-    assert service.row_id == "1"
+    assert service.row_id["formula"] == "1"
 
 
 @pytest.mark.django_db

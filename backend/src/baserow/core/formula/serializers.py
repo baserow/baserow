@@ -3,8 +3,10 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
+from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
 from baserow.core.formula.parser.exceptions import BaserowFormulaSyntaxError
 from baserow.core.formula.parser.parser import get_parse_tree_for_formula
+from baserow.core.formula.types import BASEROW_FORMULA_MODE_SIMPLE, BaserowFormulaObject
 
 
 @extend_schema_field(OpenApiTypes.OBJECT)
@@ -16,10 +18,20 @@ class FormulaSerializerField(serializers.JSONField):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.required = False
-        self.default = {}
+        self.default = BaserowFormulaObject(
+            formula="",
+            version=BASEROW_FORMULA_VERSION_INITIAL,
+            mode=BASEROW_FORMULA_MODE_SIMPLE,
+        )
 
     def to_internal_value(self, data):
         data = super().to_internal_value(data)
+
+        # The formula serializer does not require a value, but if this
+        # value is a blank string or object, we need to construct the
+        # default value.
+        if not data:
+            data = self.default
 
         if not data["formula"]:
             return data

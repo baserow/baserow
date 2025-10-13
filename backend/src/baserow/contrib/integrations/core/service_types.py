@@ -690,27 +690,21 @@ class CoreSMTPEmailServiceType(CoreServiceType):
             ),
             "from_email": FormulaSerializerField(
                 help_text=CoreSMTPEmailService._meta.get_field("from_email").help_text,
-                allow_blank=True,
             ),
             "from_name": FormulaSerializerField(
                 help_text=CoreSMTPEmailService._meta.get_field("from_name").help_text,
-                allow_blank=True,
             ),
             "to_emails": FormulaSerializerField(
                 help_text=CoreSMTPEmailService._meta.get_field("to_emails").help_text,
-                required=False,
             ),
             "cc_emails": FormulaSerializerField(
                 help_text=CoreSMTPEmailService._meta.get_field("cc_emails").help_text,
-                required=False,
             ),
             "bcc_emails": FormulaSerializerField(
                 help_text=CoreSMTPEmailService._meta.get_field("bcc_emails").help_text,
-                required=False,
             ),
             "subject": FormulaSerializerField(
                 help_text=CoreSMTPEmailService._meta.get_field("subject").help_text,
-                required=False,
             ),
             "body_type": serializers.ChoiceField(
                 choices=[
@@ -723,7 +717,6 @@ class CoreSMTPEmailServiceType(CoreServiceType):
             ),
             "body": FormulaSerializerField(
                 help_text=CoreSMTPEmailService._meta.get_field("body").help_text,
-                required=False,
             ),
         }
 

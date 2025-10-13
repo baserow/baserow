@@ -43,7 +43,7 @@ def test_update_core_router_service(data_fixture):
     assert result.service.edges.count() == 1
     edge = result.service.edges.first()
     assert edge.label == "Branch name"
-    assert edge.condition == "'true'"
+    assert edge.condition["formula"] == "'true'"
 
 
 @pytest.mark.django_db

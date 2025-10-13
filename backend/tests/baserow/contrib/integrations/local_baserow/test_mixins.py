@@ -17,6 +17,7 @@ from baserow.contrib.integrations.local_baserow.mixins import (
 from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowTableServiceType,
 )
+from baserow.core.formula import BaserowFormulaObject
 from baserow.core.handler import CoreHandler
 from baserow.core.registries import ImportExportConfig
 from baserow.core.services.exceptions import (
@@ -131,7 +132,7 @@ def test_local_baserow_table_service_filterable_mixin_import_export(data_fixture
         page=page, table=table, integration=integration
     )
     data_fixture.create_local_baserow_table_service_filter(
-        service=data_source.service, field=text_field, value="foobar", order=0
+        service=data_source.service, field=text_field, value="'foobar'", order=0
     )
     data_fixture.create_local_baserow_table_service_filter(
         service=data_source.service, field=text_field, value="123", order=1
@@ -139,7 +140,7 @@ def test_local_baserow_table_service_filterable_mixin_import_export(data_fixture
     data_fixture.create_local_baserow_table_service_filter(
         service=data_source.service,
         field=single_select_field,
-        value=single_option.id,
+        value=str(single_option.id),
         order=2,
     )
     data_fixture.create_builder_table_element(
@@ -185,11 +186,21 @@ def test_local_baserow_table_service_filterable_mixin_import_export(data_fixture
     ]
 
     assert imported_filters == [
-        {"field_id": imported_text_field.id, "value": "foobar"},
-        {"field_id": imported_text_field.id, "value": "123"},
+        {
+            "field_id": imported_text_field.id,
+            "value": {"mode": "simple", "version": "0.1", "formula": "'foobar'"},
+        },
+        {
+            "field_id": imported_text_field.id,
+            "value": {"mode": "simple", "version": "0.1", "formula": "123"},
+        },
         {
             "field_id": imported_single_select_field.id,
-            "value": str(imported_select_option.id),
+            "value": {
+                "mode": "simple",
+                "version": "0.1",
+                "formula": str(imported_select_option.id),
+            },
         },
     ]
 
@@ -392,7 +403,9 @@ def test_local_baserow_table_service_searchable_mixin_get_table_queryset(
     ] == [alessia.id, alex.id, alastair.id, alexandra.id]
 
     # Add a service level search query
-    service.search_query = "'Ale'"
+    service.search_query = BaserowFormulaObject(
+        formula="'Ale'", mode="simple", version="0.1"
+    )
 
     assert [
         row.id

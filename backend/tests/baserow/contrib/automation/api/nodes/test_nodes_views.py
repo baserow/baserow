@@ -693,7 +693,7 @@ def test_create_router_node(api_client, data_fixture):
             "default_edge_label": "",
             "edges": [
                 {
-                    "condition": "",
+                    "condition": {"formula": "", "mode": "simple", "version": "0.1"},
                     "label": "Branch",
                     "order": AnyStr(),
                     "uid": AnyStr(),

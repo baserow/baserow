@@ -240,9 +240,9 @@ def test_core_http_request_with_query_params(
     service_type = service.get_type()
 
     service.query_params.create(
-        key="test", value="""concat('test__', get('page_parameter.id'))"""
+        key="test", value="concat('test__', get('page_parameter.id'))"
     )
-    service.query_params.create(key="test2", value="""'value'""")
+    service.query_params.create(key="test2", value="'value'")
 
     formula_context = {"page_parameter": {"id": 2}}
     dispatch_context = FakeDispatchContext(context=formula_context)
@@ -305,7 +305,7 @@ def test_core_http_request_create(data_fixture):
         form_data=[{"key": "key", "value": "'value'"}],
     )
 
-    assert service.url == "'http://example.com'"
+    assert service.url["formula"] == "'http://example.com'"
     assert service.headers.count() == 1
     assert service.headers.first().key == "key"
     assert service.query_params.count() == 1
@@ -332,7 +332,7 @@ def test_core_http_request_update(data_fixture):
 
     service.refresh_from_db()
 
-    assert service.url == "'http://another.url'"
+    assert service.url["formula"] == "'http://another.url'"
     assert service.headers.count() == 1
     assert service.headers.first().key == "key"
     assert service.query_params.count() == 1
@@ -343,7 +343,7 @@ def test_core_http_request_update(data_fixture):
 
 @pytest.mark.django_db
 def test_core_http_request_formula_generator():
-    service = service = ServiceHandler().create_service(
+    service = ServiceHandler().create_service(
         CoreHTTPRequestServiceType(),
         url="'http://example.com'",
         body_content="'body'",
@@ -351,17 +351,15 @@ def test_core_http_request_formula_generator():
         query_params=[{"key": "key", "value": "'value2'"}],
         form_data=[{"key": "key", "value": "'value3'"}],
     )
-
     service_type = service.get_type()
 
     formulas = list(service_type.formula_generator(service))
-
     assert formulas == [
-        "'body'",
-        "'http://example.com'",
-        "'value3'",
-        "'value1'",
-        "'value2'",
+        {"mode": "simple", "version": "0.1", "formula": "'body'"},
+        {"mode": "simple", "version": "0.1", "formula": "'http://example.com'"},
+        {"mode": "simple", "version": "0.1", "formula": "'value3'"},
+        {"mode": "simple", "version": "0.1", "formula": "'value1'"},
+        {"mode": "simple", "version": "0.1", "formula": "'value2'"},
     ]
 
 
@@ -376,7 +374,7 @@ def test_core_http_request_extract_properties(data_fixture):
 
 @pytest.mark.django_db
 def test_core_http_request_export_import():
-    service = service = ServiceHandler().create_service(
+    service = ServiceHandler().create_service(
         CoreHTTPRequestServiceType(),
         url="'http://example.com'",
         body_content="'body'",
@@ -394,19 +392,34 @@ def test_core_http_request_export_import():
         "integration_id": None,
         "type": "http_request",
         "http_method": "GET",
-        "url": "'http://example.com'",
-        "headers": [{"key": "key", "value": "'value1'"}],
-        "query_params": [{"key": "key", "value": "'value2'"}],
-        "form_data": [{"key": "key", "value": "'value3'"}],
+        "url": {"formula": "'http://example.com'", "version": "0.1", "mode": "simple"},
+        "headers": [
+            {
+                "key": "key",
+                "value": {"formula": "'value1'", "version": "0.1", "mode": "simple"},
+            }
+        ],
+        "query_params": [
+            {
+                "key": "key",
+                "value": {"formula": "'value2'", "version": "0.1", "mode": "simple"},
+            }
+        ],
+        "form_data": [
+            {
+                "key": "key",
+                "value": {"formula": "'value3'", "version": "0.1", "mode": "simple"},
+            }
+        ],
         "body_type": "none",
-        "body_content": "'body'",
+        "body_content": {"formula": "'body'", "version": "0.1", "mode": "simple"},
         "timeout": 30,
         "sample_data": None,
     }
 
     new_service = service_type.import_serialized(None, serialized, {}, lambda x, d: x)
 
-    assert new_service.url == "'http://example.com'"
+    assert new_service.url["formula"] == "'http://example.com'"
     assert new_service.headers.count() == 1
     assert new_service.query_params.count() == 1
     assert new_service.form_data.count() == 1
@@ -414,7 +427,7 @@ def test_core_http_request_export_import():
 
 @pytest.mark.django_db
 def test_core_http_request_generate_schema():
-    service = service = ServiceHandler().create_service(
+    service = ServiceHandler().create_service(
         CoreHTTPRequestServiceType(),
         url="'http://example.com'",
         body_content="'body'",
@@ -491,7 +504,6 @@ def test_core_http_request_generate_schema_with_sample_data():
     service = ServiceHandler().create_service(
         CoreHTTPRequestServiceType(),
         url="'http://example.com'",
-        body_content=api_response,
         headers=[{"key": "key", "value": "'value1'"}],
         query_params=[{"key": "key", "value": "'value2'"}],
         form_data=[{"key": "key", "value": "'value3'"}],
