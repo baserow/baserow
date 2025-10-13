@@ -18,6 +18,7 @@ class AssistantToolType(Instance):
         Returns whether or not the given user can use this tool in the given workspace.
 
         :param user: The user to check if they can use this tool.
+        :param workspace: The workspace where to check if the tool can be used.
         :return: True if the user can use this tool, False otherwise.
         """
 
