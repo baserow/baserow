@@ -1,6 +1,10 @@
 from django.urls import path
 
-from .views import AssistantChatsView, AssistantChatView
+from .views import (
+    AssistantChatMessageFeedbackView,
+    AssistantChatsView,
+    AssistantChatView,
+)
 
 app_name = "baserow_enterprise.api.assistant"
 
@@ -14,5 +18,10 @@ urlpatterns = [
         "chat/",
         AssistantChatsView.as_view(),
         name="list",
+    ),
+    path(
+        "messages/<int:message_id>/feedback/",
+        AssistantChatMessageFeedbackView.as_view(),
+        name="message_feedback",
     ),
 ]

@@ -112,5 +112,16 @@ export default (client) => {
       )
       return data
     },
+
+    async submitFeedback(messageId, sentiment, feedback) {
+      const { data } = await client.put(
+        `/assistant/messages/${messageId}/feedback/`,
+        { sentiment, feedback },
+        {
+          baseURL: getAssistantBaseURL(client),
+        }
+      )
+      return data
+    },
   }
 }

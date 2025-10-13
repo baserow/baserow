@@ -284,8 +284,8 @@ class TestAssistantChatHistory:
 class TestAssistantMessagePersistence:
     """Test that messages are persisted correctly during streaming"""
 
-    @patch("baserow_enterprise.assistant.assistant.dspy.streamify")
-    @patch("baserow_enterprise.assistant.assistant.dspy.LM")
+    @patch("dspy.streamify")
+    @patch("dspy.LM")
     def test_astream_messages_persists_human_message(
         self, mock_lm, mock_streamify, enterprise_data_fixture
     ):
@@ -306,9 +306,12 @@ class TestAssistantMessagePersistence:
                 predict_name="ReAct",
                 is_last_chunk=False,
             )
-            yield Prediction(answer="Hello")
+            yield Prediction(answer="Hello", trajectory=[], reasoning="")
 
         mock_streamify.return_value = MagicMock(return_value=mock_stream())
+
+        # Configure mock LM to return a serializable model name
+        mock_lm.return_value.model = "test-model"
 
         assistant = Assistant(chat)
         ui_context = UIContext(
@@ -335,8 +338,8 @@ class TestAssistantMessagePersistence:
         ).first()
         assert saved_message.content == "Test message"
 
-    @patch("baserow_enterprise.assistant.assistant.dspy.streamify")
-    @patch("baserow_enterprise.assistant.assistant.dspy.LM")
+    @patch("dspy.streamify")
+    @patch("dspy.LM")
     def test_astream_messages_persists_ai_message_with_sources(
         self, mock_lm, mock_streamify, enterprise_data_fixture
     ):
@@ -356,9 +359,12 @@ class TestAssistantMessagePersistence:
                 predict_name="ReAct",
                 is_last_chunk=False,
             )
-            yield Prediction(answer="Based on docs")
+            yield Prediction(answer="Based on docs", trajectory=[], reasoning="")
 
         mock_streamify.return_value = MagicMock(return_value=mock_stream())
+
+        # Configure mock LM to return a serializable model name
+        mock_lm.return_value.model = "test-model"
 
         assistant = Assistant(chat)
         ui_context = UIContext(
@@ -382,14 +388,12 @@ class TestAssistantMessagePersistence:
         ).count()
         assert ai_messages == 1
 
-    @patch("baserow_enterprise.assistant.assistant.ensure_llm_model_accessible")
-    @patch("baserow_enterprise.assistant.assistant.dspy.streamify")
-    @patch("baserow_enterprise.assistant.assistant.dspy.Predict")
+    @patch("dspy.streamify")
+    @patch("dspy.Predict")
     def test_astream_messages_persists_chat_title(
         self,
         mock_predict_class,
         mock_streamify,
-        mock_ensure_llm,
         enterprise_data_fixture,
     ):
         """Test that chat titles are persisted to the database"""
@@ -408,7 +412,7 @@ class TestAssistantMessagePersistence:
                 predict_name="ReAct",
                 is_last_chunk=False,
             )
-            yield Prediction(answer="Hello")
+            yield Prediction(answer="Hello", trajectory=[], reasoning="")
 
         mock_streamify.return_value = MagicMock(return_value=mock_stream())
 
@@ -445,8 +449,8 @@ class TestAssistantMessagePersistence:
 class TestAssistantStreaming:
     """Test streaming behavior of the Assistant"""
 
-    @patch("baserow_enterprise.assistant.assistant.dspy.streamify")
-    @patch("baserow_enterprise.assistant.assistant.dspy.LM")
+    @patch("dspy.streamify")
+    @patch("dspy.LM")
     def test_astream_messages_yields_answer_chunks(
         self, mock_lm, mock_streamify, enterprise_data_fixture
     ):
@@ -472,9 +476,12 @@ class TestAssistantStreaming:
                 predict_name="ReAct",
                 is_last_chunk=False,
             )
-            yield Prediction(answer="Hello world")
+            yield Prediction(answer="Hello world", trajectory=[], reasoning="")
 
         mock_streamify.return_value = MagicMock(return_value=mock_stream())
+
+        # Configure mock LM to return a serializable model name
+        mock_lm.return_value.model = "test-model"
 
         assistant = Assistant(chat)
         ui_context = UIContext(
@@ -498,14 +505,12 @@ class TestAssistantStreaming:
         assert chunks[1].content == "Hello world"
         assert chunks[2].content == "Hello world"  # Final chunk repeats full answer
 
-    @patch("baserow_enterprise.assistant.assistant.ensure_llm_model_accessible")
-    @patch("baserow_enterprise.assistant.assistant.dspy.streamify")
-    @patch("baserow_enterprise.assistant.assistant.dspy.Predict")
+    @patch("dspy.streamify")
+    @patch("dspy.Predict")
     def test_astream_messages_yields_title_chunks(
         self,
         mock_predict_class,
         mock_streamify,
-        mock_ensure_llm,
         enterprise_data_fixture,
     ):
         """Test that title chunks are yielded for new chats"""
@@ -524,7 +529,7 @@ class TestAssistantStreaming:
                 predict_name="ReAct",
                 is_last_chunk=False,
             )
-            yield Prediction(answer="Answer")
+            yield Prediction(answer="Answer", trajectory=[], reasoning="")
 
         mock_streamify.return_value = MagicMock(return_value=mock_stream())
 
@@ -556,8 +561,8 @@ class TestAssistantStreaming:
         assert len(title_messages) == 1
         assert title_messages[0].content == "Title"
 
-    @patch("baserow_enterprise.assistant.assistant.dspy.streamify")
-    @patch("baserow_enterprise.assistant.assistant.dspy.LM")
+    @patch("dspy.streamify")
+    @patch("dspy.LM")
     def test_astream_messages_yields_thinking_messages(
         self, mock_lm, mock_streamify, enterprise_data_fixture
     ):
@@ -578,9 +583,12 @@ class TestAssistantStreaming:
                 predict_name="ReAct",
                 is_last_chunk=False,
             )
-            yield Prediction(answer="Answer")
+            yield Prediction(answer="Answer", trajectory=[], reasoning="")
 
         mock_streamify.return_value = MagicMock(return_value=mock_stream())
+
+        # Configure mock LM to return a serializable model name
+        mock_lm.return_value.model = "test-model"
 
         assistant = Assistant(chat)
         ui_context = UIContext(

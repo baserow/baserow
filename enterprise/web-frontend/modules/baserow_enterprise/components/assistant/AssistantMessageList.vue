@@ -37,6 +37,8 @@
             />
           </template>
         </div>
+
+        <AssistantMessageActions :message="message" />
       </div>
     </div>
   </div>
@@ -45,6 +47,7 @@
 <script>
 import MarkdownIt from 'markdown-it'
 import AssistantMessageSources from './AssistantMessageSources'
+import AssistantMessageActions from './AssistantMessageActions'
 
 // Initialize markdown parser with safe settings
 const md = new MarkdownIt({
@@ -58,6 +61,7 @@ export default {
   name: 'AssistantMessageList',
   components: {
     AssistantMessageSources,
+    AssistantMessageActions,
   },
   props: {
     messages: {

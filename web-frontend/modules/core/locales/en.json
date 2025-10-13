@@ -6,6 +6,10 @@
   "copied": {
     "label": "Copied!"
   },
+  "action": {
+    "cancel": "Cancel",
+    "submit": "Submit"
+  },
   "sidebarApplication": {
     "rename": "Rename",
     "duplicate": "Duplicate",
