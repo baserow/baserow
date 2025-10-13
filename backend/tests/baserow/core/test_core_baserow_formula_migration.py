@@ -5,7 +5,7 @@ from django.db import connection
 
 import pytest
 
-from baserow.core.formula.field import BaserowFormulaContext
+from baserow.core.formula import BaserowFormulaObject
 
 
 def get_raw_table_value(field_name, table_name, pk) -> str:
@@ -32,7 +32,7 @@ def test_create_text_formula_field_value(mock_db_type, data_fixture):
 
     # Create a service with a formula context.
     service = data_fixture.create_core_http_request_service(
-        url=BaserowFormulaContext(
+        url=BaserowFormulaObject(
             mode="simple", version="1.0", formula="'http://google.com'"
         )
     )
@@ -80,7 +80,7 @@ def test_update_text_formula_field_value(mock_db_type, data_fixture):
 
     # Update a service with a formula context.
     service = data_fixture.create_core_http_request_service()
-    service.url = BaserowFormulaContext(
+    service.url = BaserowFormulaObject(
         mode="simple", version="1.0", formula="'http://google.com'"
     )
     service.save()

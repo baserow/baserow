@@ -414,7 +414,7 @@ class RecordSelectorElementType(
 ):
     type = "record_selector"
     model_class = RecordSelectorElement
-    simple_formula_fields = [
+    simple_formula_fields = CollectionElementTypeMixin.simple_formula_fields + [
         "label",
         "default_value",
         "placeholder",

@@ -345,7 +345,7 @@ export default {
           this.$t('tableElementForm.fieldDefaultName'),
           this.v$.values.fields.$model.map(({ name }) => name)
         ),
-        value: '',
+        value: {},
         type: 'text',
         id: uuid(), // Temporary id
         uid: uuid(),

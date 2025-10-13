@@ -1,6 +1,5 @@
 from typing import Any
 
-from baserow.core.formula.field import BaserowFormulaContext
 from baserow.core.formula.parser.exceptions import (
     BaserowFormulaException,
     BaserowFormulaSyntaxError,
@@ -10,7 +9,11 @@ from baserow.core.formula.parser.generated.BaserowFormula import BaserowFormula
 from baserow.core.formula.parser.generated.BaserowFormulaVisitor import (
     BaserowFormulaVisitor,
 )
-from baserow.core.formula.types import FormulaContext, FunctionCollection
+from baserow.core.formula.types import (
+    BaserowFormulaObject,
+    FormulaContext,
+    FunctionCollection,
+)
 
 __all__ = [
     BaserowFormulaException,
@@ -25,7 +28,7 @@ from baserow.core.formula.parser.python_executor import BaserowPythonExecutor
 
 
 def resolve_formula(
-    formula: BaserowFormulaContext,
+    formula: BaserowFormulaObject,
     functions: FunctionCollection,
     formula_context: FormulaContext,
 ) -> Any:
@@ -33,6 +36,7 @@ def resolve_formula(
     Helper to resolve a formula given the formula_context.
 
     :param formula: the formula itself.
+    :param functions: The collection of functions that can be used in formulas.
     :param formula_context: A dict like object that contains the data that can
         be accessed in from the formulas.
     :return: the formula result.
