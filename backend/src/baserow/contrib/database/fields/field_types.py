@@ -3971,12 +3971,19 @@ class FileFieldType(FieldType):
             if files_zip is None:
                 files.append(file)
             else:
-                with files_zip.open(file["name"]) as stream:
-                    # Try to upload the user file with the original name to make sure
-                    # that if the was already uploaded, it will not be uploaded again.
-                    user_file = user_file_handler.upload_user_file(
-                        None, file["original_name"], stream, storage=storage
-                    )
+                try:
+                    with files_zip.open(file["name"]) as stream:
+                        # Try to upload the user file with the original name
+                        # to make sure that if the was already uploaded, it will
+                        # not be uploaded again.
+                        user_file = user_file_handler.upload_user_file(
+                            None, file["original_name"], stream, storage=storage
+                        )
+                except KeyError:
+                    # File not found in zip archive - skip this file and
+                    # let the import process report handle missing files
+                    # appropriately
+                    continue
 
                 value = user_file.serialize()
                 value["visible_name"] = file["visible_name"]
