@@ -28,7 +28,7 @@ def load_test_data():
         user_handler.update_user(
             admin,
             completed_onboarding=True,
-            completed_guided_tours=["sidebar", "database", "builder"],
+            completed_guided_tours=["sidebar", "database", "builder", "automation"],
         )
 
         try:

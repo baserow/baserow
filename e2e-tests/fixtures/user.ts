@@ -62,7 +62,7 @@ export async function createUser(
     await getClient(user).patch("user/account/", {
       completed_onboarding: skipOnboarding,
       completed_guided_tours: skipGuidedTours
-        ? ["sidebar", "database", "builder"]
+        ? ["sidebar", "database", "builder", "automation"]
         : [],
     });
   }
