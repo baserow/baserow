@@ -25,3 +25,11 @@ class AirtableSkipFilter(Exception):
     """
     Raised when an Airtable filter is not compatible and must be skipped.
     """
+
+
+class FileDownloadFailed(Exception):
+    """Raised when a file download fails."""
+
+    def __init__(self, message):
+        self.message = message
+        super().__init__(message)

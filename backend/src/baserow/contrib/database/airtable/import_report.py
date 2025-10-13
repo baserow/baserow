@@ -13,6 +13,9 @@ from baserow.contrib.database.views.models import GridView
 from baserow.contrib.database.views.registries import view_type_registry
 from baserow.core.constants import BASEROW_COLORS
 
+REPORT_TABLE_ID = "report"
+REPORT_TABLE_NAME = "Airtable import report"
+
 SCOPE_FIELD = SelectOption(id="scope_field", value="Field", color="light-blue", order=1)
 SCOPE_CELL = SelectOption(id="scope_cell", value="Cell", color="light-green", order=2)
 SCOPE_VIEW = SelectOption(id="scope_view", value="View", color="light-cyan", order=3)
@@ -161,8 +164,8 @@ class AirtableImportReport:
             exported_rows.append(row)
 
         exported_table = DatabaseExportSerializedStructure.table(
-            id="report",
-            name="Airtable import report",
+            id=REPORT_TABLE_ID,
+            name=REPORT_TABLE_NAME,
             order=order,
             fields=exported_fields,
             views=exported_views,
@@ -172,3 +175,49 @@ class AirtableImportReport:
         )
 
         return exported_table
+
+    def append_items_to_exported_table(
+        self, exported_database: dict, items: list
+    ) -> None:
+        """
+        Appends new items to an existing exported table.
+
+        :param exported_database: The exported database
+        :param items: List of ImportReportFailedItem to append
+        """
+
+        if not items:
+            return
+
+        report_table = next(
+            (
+                table
+                for table in exported_database["tables"]
+                if table["id"] == REPORT_TABLE_ID
+            ),
+            None,
+        )
+        if not report_table:
+            return
+
+        current_row_count = len(report_table["rows"])
+        table_select_options = {
+            opt["value"]: opt for opt in report_table["fields"][2]["select_options"]
+        }
+
+        for index, item in enumerate(items, start=current_row_count + 1):
+            table_select_option = table_select_options.get(item.table)
+            row = DatabaseExportSerializedStructure.row(
+                id=index,
+                order=f"{index}.00000000000000000000",
+                created_on=None,
+                updated_on=None,
+            )
+            row["field_object_name"] = item.object_name
+            row["field_scope"] = item.scope.id
+            row["field_table"] = (
+                table_select_option["id"] if table_select_option else None
+            )
+            row["field_error_type"] = item.error_type.id
+            row["field_message"] = item.message
+            report_table["rows"].append(row)
