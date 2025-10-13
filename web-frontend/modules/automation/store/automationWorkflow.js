@@ -185,7 +185,6 @@ const actions = {
   setActiveSidePanel({ commit }, sidePanelType) {
     commit('SET_ACTIVE_SIDE_PANEL', sidePanelType)
   },
-
   async testRun({ dispatch }, { workflow }) {
     await AutomationWorkflowService(this.$client).testRun(workflow.id)
   },

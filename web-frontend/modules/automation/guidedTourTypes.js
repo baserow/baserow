@@ -19,10 +19,6 @@ class WelcomeGuidedTourStep extends GuidedTourStep {
   get position() {
     return 'center'
   }
-
-  async beforeShow() {
-    await new Promise((resolve) => setTimeout(resolve, 100))
-  }
 }
 
 class TriggerGuidedTourStep extends GuidedTourStep {
