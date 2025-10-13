@@ -8,3 +8,7 @@ class AssistantChatDoesNotExist(AssistantException):
 
 class AssistantModelNotSupportedError(AssistantException):
     pass
+
+
+class AssistantChatMessagePredictionDoesNotExist(AssistantException):
+    pass

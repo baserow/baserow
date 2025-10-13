@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta, timezone
 from typing import AsyncGenerator
 from uuid import UUID
 
@@ -7,7 +8,7 @@ from baserow.core.models import Workspace
 
 from .assistant import Assistant
 from .exceptions import AssistantChatDoesNotExist
-from .models import AssistantChat
+from .models import AssistantChat, AssistantChatMessage, AssistantChatPrediction
 from .types import AiMessage, AssistantMessageUnion, HumanMessage, UIContext
 
 
@@ -66,6 +67,25 @@ class AssistantHandler:
             workspace_id=workspace_id, user=user
         ).order_by("-updated_on", "id")
 
+    def get_chat_message_by_id(self, user: AbstractUser, message_id: int) -> AiMessage:
+        """
+        Get a specific message from the AI assistant chat by its ID.
+
+        :param user: The user requesting the message.
+        :param message_id: The ID of the message to retrieve.
+        :return: The AI assistant message.
+        :raises AssistantChatDoesNotExist: If the chat or message does not exist.
+        """
+
+        try:
+            return AssistantChatMessage.objects.select_related(
+                "chat__workspace", "prediction"
+            ).get(chat__user=user, id=message_id)
+        except AssistantChatMessage.DoesNotExist:
+            raise AssistantChatDoesNotExist(
+                f"Message with ID {message_id} does not exist."
+            )
+
     def list_chat_messages(self, chat: AssistantChat) -> list[AiMessage | HumanMessage]:
         """
         Get all messages from the AI assistant chat.
@@ -86,6 +106,27 @@ class AssistantHandler:
         """
 
         return Assistant(chat)
+
+    def delete_predictions(
+        self, older_than_days: int = 30, exclude_rated: bool = True
+    ) -> tuple[int, dict]:
+        """
+        Delete predictions older than the specified number of days.
+
+        :param older_than_days: The number of days to retain predictions.
+        :param exclude_rated: Whether to exclude predictions that have been rated by
+            users.
+        :return: A tuple containing the number of deleted predictions and a dict with
+            details.
+        """
+
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=older_than_days)
+        queryset = AssistantChatPrediction.objects.filter(created_on__lt=cutoff_date)
+
+        if exclude_rated:
+            queryset = queryset.filter(human_sentiment__isnull=True)
+
+        return queryset.delete()
 
     async def astream_assistant_messages(
         self,

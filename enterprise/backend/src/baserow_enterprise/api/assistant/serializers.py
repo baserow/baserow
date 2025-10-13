@@ -4,7 +4,7 @@ from drf_spectacular.extensions import OpenApiSerializerExtension
 from drf_spectacular.plumbing import force_instance
 from rest_framework import serializers
 
-from baserow_enterprise.assistant.models import AssistantChat
+from baserow_enterprise.assistant.models import AssistantChat, AssistantChatPrediction
 from baserow_enterprise.assistant.types import (
     AssistantMessageType,
     AssistantMessageUnion,
@@ -137,6 +137,19 @@ class AiMessageSerializer(serializers.Serializer):
         help_text=(
             "The list of relevant source URLs referenced in the knowledge. Can be empty or null."
         ),
+    )
+    can_submit_feedback = serializers.BooleanField(
+        default=False,
+        help_text=(
+            "Whether the user can submit feedback for this message. "
+            "Only true for messages with an associated prediction."
+        ),
+    )
+    human_sentiment = serializers.ChoiceField(
+        required=False,
+        allow_null=True,
+        choices=["LIKE", "DISLIKE"],
+        help_text="The sentiment for the message, if it has been rated.",
     )
 
 
@@ -295,3 +308,28 @@ class AssistantMessageSerializerExtension(OpenApiSerializerExtension):
                 },
             },
         }
+
+
+class AssistantRateChatMessageSerializer(serializers.Serializer):
+    sentiment = serializers.ChoiceField(
+        required=True,
+        allow_null=True,
+        choices=["LIKE", "DISLIKE"],
+        help_text="The sentiment for the message.",
+    )
+    feedback = serializers.CharField(
+        help_text="Optional feedback about the message.",
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+
+    def to_internal_value(self, data):
+        validated_data = super().to_internal_value(data)
+        validated_data["sentiment"] = AssistantChatPrediction.SENTIMENT_MAP.get(
+            data.get("sentiment")
+        )
+        # Additional feedback is only allowed for DISLIKE sentiment
+        if data["sentiment"] != "DISLIKE":
+            validated_data["feedback"] = ""
+        return validated_data

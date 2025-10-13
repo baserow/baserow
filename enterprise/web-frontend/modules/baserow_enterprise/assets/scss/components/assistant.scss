@@ -656,3 +656,79 @@
   color: $palette-neutral-400;
   flex-shrink: 0;
 }
+
+.assistant__actions {
+  margin-top: 4px;
+  width: 100%;
+}
+
+.assistant__actions-header {
+  display: flex;
+  align-items: center;
+  justify-content: end;
+  gap: 8px;
+}
+
+// Feedback buttons (inline in header)
+.assistant__feedback-button {
+  padding: 3px 6px;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  color: $palette-neutral-500;
+  font-size: 11px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+
+  i {
+    font-size: 13px;
+  }
+
+  &--thumb-up {
+    &:hover {
+      color: $palette-green-400;
+    }
+
+    &.assistant__feedback-button--active {
+      background: $palette-green-50;
+      color: $palette-green-600;
+    }
+  }
+
+  &--thumb-down {
+    &:hover {
+      color: $palette-red-400;
+    }
+
+    &.assistant__feedback-button--active {
+      background: $palette-red-50;
+      color: $palette-red-600;
+    }
+  }
+}
+
+// Feedback Context (popup near thumb down)
+.assistant__feedback-context {
+  min-width: 280px;
+  max-width: 320px;
+}
+
+.assistant__feedback-context-content {
+  padding: 12px;
+}
+
+.assistant__feedback-context-title {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 500;
+  color: $palette-neutral-1000;
+}
+
+.assistant__feedback-context-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
+}
