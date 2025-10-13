@@ -290,6 +290,13 @@ class KnowledgeBaseChunkManager(models.Manager):
 
 
 class KnowledgeBaseChunk(CreatedAndUpdatedOnMixin, EmbeddingMixin):
+    """
+    Model representing a chunk of a knowledge base document. Documents are split into
+    smaller chunks to facilitate efficient retrieval and embedding generation. Every
+    chunk belongs to a single document and has a unique index within that document,
+    representing its position.
+    """
+
     source_document = models.ForeignKey(
         KnowledgeBaseDocument,
         on_delete=models.CASCADE,
@@ -297,9 +304,16 @@ class KnowledgeBaseChunk(CreatedAndUpdatedOnMixin, EmbeddingMixin):
         help_text="The document this chunk belongs to.",
     )
     index = models.PositiveIntegerField(
-        help_text="The chunk index within the document."
+        help_text=(
+            "The index of this chunk within the document, representing its position "
+            "in the original document."
+        )
     )
-    content = models.TextField(help_text="The content of the chunk.")
+    content = models.TextField(
+        help_text=(
+            "The portion of the original document content that this chunk represents."
+        )
+    )
     metadata = models.JSONField(
         help_text="Additional metadata about the chunk.", default=dict
     )

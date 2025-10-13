@@ -69,9 +69,7 @@ class VectorHandler:
     def embedder(self) -> dspy.Embedder:
         if self._embedder is None:
             self._embedder = dspy.Embedder(
-                BaserowEmbedder(
-                    settings.BASEROW_ENTERPRISE_ASSISTANT_EMBEDDINGS_API_URL
-                )
+                BaserowEmbedder(settings.BASEROW_EMBEDDINGS_API_URL)
             )
         return self._embedder
 
@@ -167,7 +165,7 @@ class KnowledgeBaseHandler:
         """
 
         return (
-            settings.BASEROW_ENTERPRISE_ASSISTANT_EMBEDDINGS_API_URL != ""
+            settings.BASEROW_EMBEDDINGS_API_URL != ""
             and KnowledgeBaseChunk.can_search_vectors()
             and KnowledgeBaseDocument.objects.filter(
                 status=KnowledgeBaseDocument.Status.READY
