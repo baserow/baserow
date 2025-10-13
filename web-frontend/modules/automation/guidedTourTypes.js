@@ -3,6 +3,28 @@ import {
   GuidedTourType,
 } from '@baserow/modules/core/guidedTourTypes'
 
+class WelcomeGuidedTourStep extends GuidedTourStep {
+  get title() {
+    return this.app.i18n.t('welcomeGuidedTourStep.title')
+  }
+
+  get content() {
+    return this.app.i18n.t('welcomeGuidedTourStep.content')
+  }
+
+  get selectors() {
+    return []
+  }
+
+  get position() {
+    return 'center'
+  }
+
+  async beforeShow() {
+    await new Promise((resolve) => setTimeout(resolve, 100))
+  }
+}
+
 class TriggerGuidedTourStep extends GuidedTourStep {
   get title() {
     return this.app.i18n.t('triggerGuidedTourStep.title')
@@ -18,10 +40,6 @@ class TriggerGuidedTourStep extends GuidedTourStep {
 
   get position() {
     return 'bottom-center'
-  }
-
-  async beforeShow() {
-    await new Promise((resolve) => setTimeout(resolve, 100))
   }
 }
 
@@ -133,6 +151,24 @@ class StateGuidedTourStep extends GuidedTourStep {
   }
 }
 
+class DocsGuidedTourStep extends GuidedTourStep {
+  get title() {
+    return this.app.i18n.t('docsGuidedTourStep.title')
+  }
+
+  get content() {
+    return this.app.i18n.t('docsGuidedTourStep.content')
+  }
+
+  get selectors() {
+    return ['[data-highlight="automation-docs"]']
+  }
+
+  get position() {
+    return 'bottom-left'
+  }
+}
+
 export class AutomationGuidedTourType extends GuidedTourType {
   static getType() {
     return 'automation'
@@ -140,6 +176,7 @@ export class AutomationGuidedTourType extends GuidedTourType {
 
   get steps() {
     return [
+      new WelcomeGuidedTourStep(this.app),
       new TriggerGuidedTourStep(this.app),
       new ActionGuidedTourStep(this.app),
       new NodeSidepanelGuidedTourStep(this.app),
@@ -147,6 +184,7 @@ export class AutomationGuidedTourType extends GuidedTourType {
       new TestRunGuidedTourStep(this.app),
       new PublishGuidedTourStep(this.app),
       new StateGuidedTourStep(this.app),
+      new DocsGuidedTourStep(this.app),
     ]
   }
 

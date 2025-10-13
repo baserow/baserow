@@ -13,7 +13,11 @@
       }"
     >
       <div v-if="workflowLoading" class="loading"></div>
-      <div v-else class="automation-workflow__editor">
+      <div
+        v-else
+        class="automation-workflow__editor"
+        data-highlight="automation-editor"
+      >
         <client-only>
           <WorkflowEditor
             v-model="selectedNodeId"

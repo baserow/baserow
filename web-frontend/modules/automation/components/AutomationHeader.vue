@@ -1,7 +1,7 @@
 <template>
   <header class="layout__col-2-1 header header--space-between">
-    <ul v-if="isDev" class="header__filter">
-      <li class="header__filter-item">
+    <ul class="header__filter">
+      <li v-if="isDev" class="header__filter-item">
         <a data-item-type="settings" class="header__filter-link"
           ><i class="header__filter-icon iconoir-settings"></i>
           <span class="header__filter-name">{{
@@ -23,6 +23,18 @@
         </a>
       </li>
       <li class="header__filter-item">
+        <a
+          data-highlight="automation-docs"
+          class="header__filter-link"
+          target="_blank"
+          href="https://baserow.io/user-docs/workflow-automation"
+          ><i class="header__filter-icon iconoir-help-circle"></i>
+          <span class="header__filter-name">{{
+            $t('automationHeader.docsBtn')
+          }}</span>
+        </a>
+      </li>
+      <li v-if="isDev" class="header__filter-item">
         <a
           data-item-type="debug"
           class="header__filter-link"
