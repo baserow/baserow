@@ -1,7 +1,7 @@
 from typing import Dict, Iterable, List, Optional
 
 from django.contrib.auth.models import AbstractUser
-from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector
+from django.contrib.postgres.search import SearchQuery, SearchRank
 from django.db.models import (
     Case,
     CharField,
@@ -78,7 +78,7 @@ class DatabaseSearchType(ApplicationSearchType):
             type=self.type,
             id=result.id,
             title=result.name,
-            subtitle=self.type,
+            subtitle=self.name,
             created_on=result.created_on.isoformat() if result.created_on else None,
             updated_on=result.updated_on.isoformat() if result.updated_on else None,
             metadata={
@@ -88,34 +88,8 @@ class DatabaseSearchType(ApplicationSearchType):
             },
         )
 
-    def get_union_values_queryset(self, user, workspace, context) -> QuerySet:
-        qs = self.get_search_queryset(user, workspace, context)
-
-        search_query = SearchQuery(
-            context.query, search_type="websearch", config="english"
-        )
-        search_vector = SearchVector("name", config="english")
-
-        qs = qs.annotate(
-            search_type=Value(self.type, output_field=TextField()),
-            object_id=Cast(F("id"), output_field=TextField()),
-            sort_key=F("id"),
-            rank=SearchRank(search_vector, search_query),
-            priority=Value(getattr(self, "priority", 10)),
-            title=Cast(F("name"), output_field=TextField()),
-            subtitle=Value("Database", output_field=TextField()),
-            payload=JSONObject(),
-        ).values(
-            "search_type",
-            "object_id",
-            "sort_key",
-            "rank",
-            "priority",
-            "title",
-            "subtitle",
-            "payload",
-        )
-        return qs
+    def build_subtitle_annotation(self):
+        return Value(self.name, output_field=TextField())
 
 
 class TableSearchType(DatabaseSearchableItemType):
@@ -169,42 +143,12 @@ class TableSearchType(DatabaseSearchableItemType):
             database_name=F("database__name"),
         )
 
-    def get_union_values_queryset(self, user, workspace, context) -> QuerySet:
-        qs = self.get_search_queryset(user, workspace, context)
-
-        search_query = SearchQuery(
-            context.query, search_type="websearch", config="english"
+    def build_subtitle_annotation(self):
+        return Concat(
+            Value("Table in ", output_field=TextField()),
+            Cast(F("database__name"), output_field=TextField()),
+            output_field=TextField(),
         )
-        search_vector = SearchVector("name", config="english")
-
-        qs = qs.annotate(
-            search_type=Value(self.type, output_field=TextField()),
-            object_id=Cast(F("id"), output_field=TextField()),
-            sort_key=F("id"),
-            rank=SearchRank(search_vector, search_query),
-            priority=Value(getattr(self, "priority", 10)),
-            title=Cast(F("name"), output_field=TextField()),
-            subtitle=Concat(
-                Value("Table in ", output_field=TextField()),
-                Cast(F("database__name"), output_field=TextField()),
-                output_field=TextField(),
-            ),
-            payload=JSONObject(
-                workspace_id=F("database__workspace_id"),
-                database_id=F("database_id"),
-                table_id=F("id"),
-            ),
-        ).values(
-            "search_type",
-            "object_id",
-            "sort_key",
-            "rank",
-            "priority",
-            "title",
-            "subtitle",
-            "payload",
-        )
-        return qs
 
     def serialize_result(self, item, user, workspace) -> Optional[SearchResult]:
         database = item.database
@@ -264,58 +208,22 @@ class FieldDefinitionSearchType(DatabaseSearchableItemType):
             queryset = queryset.filter(search_q)
         return queryset.annotate(search_type=Value(self.type, output_field=CharField()))
 
+    def build_subtitle_annotation(self):
+        return Concat(
+            Value("Field in ", output_field=TextField()),
+            Cast(F("table__database__name"), output_field=TextField()),
+            Value(" / ", output_field=TextField()),
+            Cast(F("table__name"), output_field=TextField()),
+            output_field=TextField(),
+        )
+
     def build_payload(self):
         return JSONObject(
-            title=F("name"),
-            subtitle=Concat(F("table__database__name"), Value(" / "), F("table__name")),
             workspace_id=F("table__database__workspace_id"),
             database_id=F("table__database_id"),
             table_id=F("table_id"),
             field_id=F("id"),
-            field_name=F("name"),
-            table_name=F("table__name"),
-            database_name=F("table__database__name"),
         )
-
-    def get_union_values_queryset(self, user, workspace, context) -> QuerySet:
-        qs = self.get_search_queryset(user, workspace, context)
-
-        search_query = SearchQuery(
-            context.query, search_type="websearch", config="english"
-        )
-        search_vector = SearchVector("name", config="english")
-
-        qs = qs.annotate(
-            search_type=Value(self.type, output_field=TextField()),
-            object_id=Cast(F("id"), output_field=TextField()),
-            sort_key=F("id"),
-            rank=SearchRank(search_vector, search_query),
-            priority=Value(getattr(self, "priority", 10)),
-            title=Cast(F("name"), output_field=TextField()),
-            subtitle=Concat(
-                Value("Field in ", output_field=TextField()),
-                Cast(F("table__database__name"), output_field=TextField()),
-                Value(" / ", output_field=TextField()),
-                Cast(F("table__name"), output_field=TextField()),
-                output_field=TextField(),
-            ),
-            payload=JSONObject(
-                workspace_id=F("table__database__workspace_id"),
-                database_id=F("table__database_id"),
-                table_id=F("table_id"),
-                field_id=F("id"),
-            ),
-        ).values(
-            "search_type",
-            "object_id",
-            "sort_key",
-            "rank",
-            "priority",
-            "title",
-            "subtitle",
-            "payload",
-        )
-        return qs
 
     def serialize_result(self, item, user, workspace) -> Optional[SearchResult]:
         database = item.table.database

@@ -99,7 +99,7 @@ def test_workspace_search_basic_success(api_client, data_fixture):
 
     results = response_json["results"]
     assert len(results) == 1
-    assert results[0]["id"] == str(database.id)
+    assert results[0]["id"] == database.id
     assert results[0]["title"] == "Test Database"
 
 
@@ -168,10 +168,10 @@ def test_workspace_search_with_offset_parameter(api_client, data_fixture):
     assert len(results1) == 2
     assert len(results2) == 2
 
-    assert results1[0]["id"] == str(databases[0].id)
-    assert results1[1]["id"] == str(databases[1].id)
-    assert results2[0]["id"] == str(databases[2].id)
-    assert results2[1]["id"] == str(databases[3].id)
+    assert results1[0]["id"] == databases[0].id
+    assert results1[1]["id"] == databases[1].id
+    assert results2[0]["id"] == databases[2].id
+    assert results2[1]["id"] == databases[3].id
 
 
 @pytest.mark.workspace_search
@@ -238,7 +238,7 @@ def test_workspace_search_case_insensitive(api_client, data_fixture):
 
         database_results = response_json["results"]
         assert len(database_results) == 1
-        assert database_results[0]["id"] == str(database.id)
+        assert database_results[0]["id"] == database.id
         assert database_results[0]["title"] == database.name
 
 
@@ -267,7 +267,7 @@ def test_workspace_search_partial_match(api_client, data_fixture):
 
         database_results = response_json["results"]
         assert len(database_results) == 1
-        assert database_results[0]["id"] == str(database.id)
+        assert database_results[0]["id"] == database.id
         assert database_results[0]["title"] == database.name
 
 
@@ -340,7 +340,7 @@ def test_workspace_search_scoped_to_requested_workspace(api_client, data_fixture
     assert len(db_results_ws1) == 1
     db_result_ws1 = db_results_ws1[0]
     assert db_result_ws1["type"] == "database"
-    assert db_result_ws1["id"] == str(db1.id)
+    assert db_result_ws1["id"] == db1.id
 
     # Query workspace 1 - table
     resp_table_ws1 = api_client.get(
@@ -351,7 +351,7 @@ def test_workspace_search_scoped_to_requested_workspace(api_client, data_fixture
     assert len(table_results_ws1) == 1
     table_result_ws1 = table_results_ws1[0]
     assert table_result_ws1["type"] == "database_table"
-    assert table_result_ws1["id"] == str(table1.id)
+    assert table_result_ws1["id"] == table1.id
 
     # Query workspace 1 - field
     resp_field_ws1 = api_client.get(
@@ -397,7 +397,7 @@ def test_workspace_search_admin_permissions(api_client, data_fixture):
     assert response.status_code == HTTP_200_OK
     response_json = response.json()
     assert len(response_json["results"]) == 1
-    assert response_json["results"][0]["id"] == str(database.id)
+    assert response_json["results"][0]["id"] == database.id
     assert response_json["results"][0]["title"] == database.name
 
 
@@ -422,7 +422,7 @@ def test_workspace_search_member_permissions(api_client, data_fixture):
     assert response.status_code == HTTP_200_OK
     response_json = response.json()
     assert len(response_json["results"]) == 1
-    assert response_json["results"][0]["id"] == str(database.id)
+    assert response_json["results"][0]["id"] == database.id
     assert response_json["results"][0]["title"] == database.name
 
 
@@ -559,9 +559,9 @@ def test_workspace_search_pagination_across_multiple_types(api_client, data_fixt
     page1_results = response_page1.json()["results"]
     page2_results = response_page2.json()["results"]
 
-    page1_ids = {result["id"] for result in page1_results}
-    page2_ids = {result["id"] for result in page2_results}
-    assert len(page1_ids.intersection(page2_ids)) == 0
+    page1_keys = {(result["type"], result["id"]) for result in page1_results}
+    page2_keys = {(result["type"], result["id"]) for result in page2_results}
+    assert len(page1_keys.intersection(page2_keys)) == 0
 
     response_beyond = api_client.get(
         url,

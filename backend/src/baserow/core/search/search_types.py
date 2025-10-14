@@ -1,18 +1,16 @@
 from typing import Optional
 
 from django.contrib.auth.models import AbstractUser
-from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector
-from django.db.models import CharField, F, QuerySet, TextField, Value
-from django.db.models.functions import Cast, JSONObject
+from django.db.models import CharField, QuerySet, Value
 
-from baserow.contrib.database.search_base import DatabaseSearchableItemType
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Application, Workspace
 from baserow.core.operations import ReadApplicationOperationType
 from baserow.core.search.data_types import SearchContext, SearchResult
+from baserow.core.search.model_search_base import ModelSearchableItemType
 
 
-class ApplicationSearchType(DatabaseSearchableItemType):
+class ApplicationSearchType(ModelSearchableItemType):
     """
     Searchable item type for applications (databases, builders, etc.).
     """
@@ -74,41 +72,6 @@ class ApplicationSearchType(DatabaseSearchableItemType):
             search_type=Value(self.type, output_field=CharField())
         )
         return queryset
-
-    def get_union_values_queryset(
-        self,
-        user: "AbstractUser",
-        workspace: "Workspace",
-        context: SearchContext,
-    ) -> QuerySet:
-        qs = self.get_search_queryset(user, workspace, context)
-
-        # Create search query and vector for ranking
-        search_query = SearchQuery(
-            context.query, search_type="websearch", config="english"
-        )
-        search_vector = SearchVector("name", config="english")
-
-        qs = qs.annotate(
-            search_type=Value(self.type, output_field=TextField()),
-            object_id=Cast(F("id"), output_field=TextField()),
-            sort_key=F("id"),
-            rank=SearchRank(search_vector, search_query),
-            priority=Value(getattr(self, "priority", 10)),
-            title=Cast(F("name"), output_field=TextField()),
-            subtitle=Value(self.type),
-            payload=JSONObject(),
-        ).values(
-            "search_type",
-            "object_id",
-            "sort_key",
-            "rank",
-            "priority",
-            "title",
-            "subtitle",
-            "payload",
-        )
-        return qs
 
     def serialize_result(
         self, result: Application, user: "AbstractUser", workspace: "Workspace"

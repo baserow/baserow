@@ -7,7 +7,6 @@ from rest_framework.views import APIView
 from baserow.api.decorators import map_exceptions, validate_query_parameters
 from baserow.api.errors import ERROR_GROUP_DOES_NOT_EXIST, ERROR_USER_NOT_IN_GROUP
 from baserow.api.schemas import get_error_schema
-from baserow.api.search.constants import DEFAULT_SEARCH_LIMIT
 from baserow.api.search.serializers import (
     WorkspaceSearchResponseSerializer,
     WorkspaceSearchSerializer,
@@ -66,8 +65,9 @@ class WorkspaceSearchView(APIView):
             user=request.user,
             workspace=workspace,
             query=query_params["query"],
-            limit=query_params.get("limit", DEFAULT_SEARCH_LIMIT),
-            offset=query_params.get("offset", 0),
+            limit=query_params["limit"],
+            offset=query_params["offset"],
         )
-
-        return Response(result_data)
+        serializer = WorkspaceSearchResponseSerializer(data=result_data)
+        serializer.is_valid(raise_exception=True)
+        return Response(serializer.data)

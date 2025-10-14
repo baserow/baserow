@@ -100,7 +100,6 @@ import {
   AdminRoleType,
   MemberRoleType,
 } from '@baserow/modules/database/roleTypes'
-import { registerSearchTypes } from '@baserow/modules/core/search/types'
 
 export default (context, inject) => {
   const { store, isDev, app } = context
@@ -257,8 +256,6 @@ export default (context, inject) => {
   registry.register('onboarding', new MoreOnboardingType(context))
   registry.register('onboarding', new WorkspaceOnboardingType(context))
 
-  // Register search types
-  registerSearchTypes()
   registry.register('onboarding', new InviteOnboardingType(context))
 
   registry.register('guidedTour', new SidebarGuidedTourType(context))

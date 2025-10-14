@@ -46,7 +46,7 @@ class WorkspaceSearchResponseSerializer(serializers.Serializer):
 
     results = serializers.ListField(
         child=SearchResultSerializer(),
-        help_text="Priority-orderedsearch results",
+        help_text="Priority-ordered search results",
     )
     has_more = serializers.BooleanField(
         help_text="Whether there are more results available for pagination"

@@ -2,10 +2,10 @@ from unittest.mock import patch
 
 import pytest
 
+from baserow.contrib.database.search.handler import SearchHandler
 from baserow.core.search.data_types import SearchContext
 from baserow.core.search.handler import WorkspaceSearchHandler
-from baserow.core.search.registries import workspace_search_registry
-from baserow.test_utils.helpers import setup_interesting_test_database
+from baserow.test_utils.helpers import defer_signals, setup_interesting_test_database
 
 
 @pytest.mark.workspace_search
@@ -39,6 +39,11 @@ def test_search_handler_query_count(data_fixture, django_assert_num_queries):
 
     data_fixture.create_database_application(workspace=workspace, name=f"Database 1")
     handler = WorkspaceSearchHandler()
+
+    def do_search(q: str):
+        return handler.search_workspace(
+            user=user, workspace=workspace, query=q, limit=100, offset=0
+        )
 
     with django_assert_num_queries(5):
         result_data = handler.search_workspace(
@@ -148,12 +153,10 @@ def test_search_context_creation(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
 
-    handler = WorkspaceSearchHandler()
+    with patch.object(WorkspaceSearchHandler, "search_all_types") as mock_search:
+        mock_search.return_value = ([], False)
 
-    with patch.object(workspace_search_registry, "search_all_types") as mock_search:
-        mock_search.return_value = {}
-
-        handler.search_workspace(
+        WorkspaceSearchHandler().search_workspace(
             user=user, workspace=workspace, query="test query", limit=15, offset=5
         )
 
@@ -270,11 +273,29 @@ def test_workspace_row_search_handler_with_interesting_database(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
 
-    database = setup_interesting_test_database(
-        data_fixture, user=user, workspace=workspace, name="db"
-    )
+    with defer_signals(
+        [
+            "baserow.ws.tasks.broadcast_to_channel_group.delay",
+            "baserow.contrib.database.search.tasks.schedule_update_search_data.delay",
+            "baserow.contrib.database.search.tasks.update_search_data.delay",
+            "baserow.contrib.database.table.tasks.update_table_usage.delay",
+        ]
+    ):
+        database = setup_interesting_test_database(
+            data_fixture, user=user, workspace=workspace, name="db"
+        )
 
     handler = WorkspaceSearchHandler()
+
+    SearchHandler.create_workspace_search_table_if_not_exists(workspace.id)
+    for table in database.table_set.all():
+        SearchHandler.initialize_missing_search_data(table)
+        SearchHandler.process_search_data_updates(table)
+
+    def do_search(q: str):
+        return handler.search_workspace(
+            user=user, workspace=workspace, query=q, limit=100, offset=0
+        )
 
     def _row_results(r):
         return [x for x in r["results"] if x["type"] == "database_row"]
@@ -287,57 +308,58 @@ def test_workspace_row_search_handler_with_interesting_database(data_fixture):
             assert k in md
 
     # Basic text
-    res = handler.search_workspace(user=user, workspace=workspace, query="text")
+    res = do_search("text")
+    import pprint
+
+    pprint.pprint(res)
     rows = _row_results(res)
     assert len(rows) >= 1
     _assert_row_shape(rows[0])
 
     # File visible_name from interesting table
-    res = handler.search_workspace(user=user, workspace=workspace, query="a.txt")
+    res = do_search("a.txt")
     rows = _row_results(res)
     assert len(rows) >= 1
     _assert_row_shape(rows[0])
 
     # URL/email/phone fragments
-    res = handler.search_workspace(user=user, workspace=workspace, query="google.com")
+    res = do_search("google.com")
     rows = _row_results(res)
     assert len(rows) >= 1
     _assert_row_shape(rows[0])
 
-    res = handler.search_workspace(
-        user=user, workspace=workspace, query="test@example.com"
-    )
+    res = do_search("test@example.com")
     rows = _row_results(res)
     assert len(rows) >= 1
     _assert_row_shape(rows[0])
 
-    res = handler.search_workspace(user=user, workspace=workspace, query="+4412345678")
+    res = do_search("+4412345678")
     rows = _row_results(res)
     assert len(rows) >= 1
     _assert_row_shape(rows[0])
 
     # Select/number/date fragments
-    res = handler.search_workspace(user=user, workspace=workspace, query="Object")
+    res = do_search("Object")
     rows = _row_results(res)
     assert len(rows) >= 1
     _assert_row_shape(rows[0])
 
-    res = handler.search_workspace(user=user, workspace=workspace, query="1.2")
+    res = do_search("1.2")
     rows = _row_results(res)
     assert len(rows) >= 1
     _assert_row_shape(rows[0])
 
-    res = handler.search_workspace(user=user, workspace=workspace, query="2020")
+    res = do_search("2020")
     rows = _row_results(res)
     assert len(rows) >= 1
     _assert_row_shape(rows[0])
 
     # Linked rows created by helper
-    res = handler.search_workspace(user=user, workspace=workspace, query="linked_row_1")
+    res = do_search("linked_row_1")
     rows = _row_results(res)
     assert len(rows) >= 1
     _assert_row_shape(rows[0])
 
     # Negative control should produce no results
-    empty = handler.search_workspace(user=user, workspace=workspace, query="__nohit__")
+    empty = do_search("__nohit__")
     assert empty["results"] == []

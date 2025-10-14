@@ -1,12 +1,13 @@
 import json
 import os
 import uuid
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from datetime import timedelta, timezone
 from decimal import Decimal
 from ipaddress import ip_network
 from socket import AF_INET, AF_INET6, IPPROTO_TCP, SOCK_STREAM
 from typing import Any, Dict, Generator, List, Optional, Type, Union
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
@@ -477,6 +478,32 @@ def setup_interesting_test_database(
         )
 
     return database
+
+
+@contextmanager
+def defer_signals(dotted_names: List[str]):
+    """Temporarily no-op a list of callable paths during test setup.
+
+    Pass fully qualified dotted names of callables (e.g. Celery task .delay
+    methods or websocket broadcasters). While inside the context these
+    callables are patched to no-op to avoid a storm of side-effects while
+    bulk-creating data. After exiting, perform any needed one-shot processing
+    (e.g. initialize/process search data once per table).
+
+    Example:
+        with defer_signals([
+            "baserow.ws.tasks.broadcast_to_channel_group.delay",
+            "baserow.contrib.database.search.tasks.schedule_update_search_data.delay",
+            "baserow.contrib.database.search.tasks.update_search_data.delay",
+        ]):
+            # create lots of data without triggering tasks/broadcasts
+            ...
+    """
+
+    with ExitStack() as stack:
+        for name in dotted_names:
+            stack.enter_context(patch(name, lambda *args, **kwargs: None))
+        yield
 
 
 @contextmanager
