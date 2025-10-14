@@ -31,3 +31,7 @@
   color: $palette-neutral-700;
   box-shadow: none;
 }
+
+.form-textarea--auto-expendable {
+  resize: none;
+}
