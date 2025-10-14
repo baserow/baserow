@@ -11,6 +11,7 @@
       'form-textarea--error': error,
       'form-textarea--disabled': disabled,
       'form-textarea--small': size === 'small',
+      'form-textarea--auto-expendable': autoExpandable,
     }"
     :style="{
       overflow: textBoxOverflow ? textBoxOverflow : 'visible',
