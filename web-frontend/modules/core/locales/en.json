@@ -394,7 +394,7 @@
     "undoneTitle": "Undone",
     "undoneText": "Action is undone",
     "noMoreUndo": "No more actions to undo",
-    "skippingUndoDueToError": "Undo failed due to unknown error, skipping it.",
+    "skippingUndoDueToError": "Failed to undo restore: Item has already been restored and cannot be re-trashed. Manual deletion required",
     "redoingTitle": "Redoing...",
     "redoingText": "Redoing your action",
     "redoneTitle": "Redone",
