@@ -154,6 +154,9 @@ export default {
     },
     htmlContent() {
       try {
+        if (!this.content) {
+          return generateHTML(this.toContent(''), this.extensions)
+        }
         return generateHTML(this.content, this.extensions)
       } catch (e) {
         console.error('Error while parsing formula content', this.value)
