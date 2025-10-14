@@ -22,6 +22,8 @@ from baserow.contrib.automation.nodes.registries import automation_node_type_reg
 from baserow.contrib.integrations.core.models import CoreRouterServiceEdge
 from baserow.core.services.registries import service_type_registry
 
+from baserow.core.cache import local_cache
+
 
 @dataclasses.dataclass
 class CoreRouterWithEdges:
@@ -59,9 +61,10 @@ class AutomationNodeFixtures:
         if "order" not in kwargs:
             kwargs["order"] = AutomationNode.get_last_order(workflow)
 
-        return AutomationNodeHandler().create_node(
-            node_type, workflow=workflow, **kwargs
-        )
+        with local_cache.context():  # We make sure the cache is empty
+            return AutomationNodeHandler().create_node(
+                node_type, workflow=workflow, **kwargs
+            )
 
     def create_local_baserow_rows_created_trigger_node(self, user=None, **kwargs):
         return self.create_automation_node(
@@ -130,7 +133,7 @@ class AutomationNodeFixtures:
             previous_node_output=edge2.uid
         ).specific
         fallback_output_node = self.create_local_baserow_create_row_action_node(
-            workflow=workflow, previous_node_id=router.id, previous_node_output=""
+            workflow=workflow, previous_node=router, previous_node_output=""
         )
 
         return CoreRouterWithEdges(
