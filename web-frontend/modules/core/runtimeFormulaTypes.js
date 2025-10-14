@@ -242,3 +242,17 @@ export class RuntimeAdd extends RuntimeFormulaFunction {
     return a + b
   }
 }
+
+export class RuntimeUpper extends RuntimeFormulaFunction {
+  static getType() {
+    return 'upper'
+  }
+
+  get args() {
+    return [new TextBaserowRuntimeFormulaArgumentType()]
+  }
+
+  execute(context, [s]) {
+    return String(s).toUpperCase()
+  }
+}

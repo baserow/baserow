@@ -34,3 +34,12 @@ class RuntimeAdd(RuntimeFormulaFunction):
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
         return args[0] + args[1]
+
+
+class RuntimeUpper(RuntimeFormulaFunction):
+    type = "upper"
+
+    args = [TextBaserowRuntimeFormulaArgumentType()]
+
+    def execute(self, context: FormulaContext, args: FormulaArgs):
+        return args[0].upper()

@@ -93,6 +93,7 @@ import {
   RuntimeAdd,
   RuntimeConcat,
   RuntimeGet,
+  RuntimeUpper,
 } from '@baserow/modules/core/runtimeFormulaTypes'
 
 import priorityBus from '@baserow/modules/core/plugins/priorityBus'
@@ -232,6 +233,7 @@ export default (context, inject) => {
   registry.register('runtimeFormulaFunction', new RuntimeConcat(context))
   registry.register('runtimeFormulaFunction', new RuntimeGet(context))
   registry.register('runtimeFormulaFunction', new RuntimeAdd(context))
+  registry.register('runtimeFormulaFunction', new RuntimeUpper(context))
 
   registry.register('roles', new AdminRoleType(context))
   registry.register('roles', new MemberRoleType(context))
