@@ -13,8 +13,8 @@
       'form-textarea--small': size === 'small',
     }"
     :style="{
-      height: textBoxSize ? `${textBoxSize}px` : 'auto',
       overflow: textBoxOverflow ? textBoxOverflow : 'visible',
+      ...heightStyle,
     }"
     @blur="$emit('blur', $event)"
     @focus="$emit('focus', $event)"
@@ -140,6 +140,14 @@ export default {
     textBoxOverflow() {
       if (this.autoExpandable)
         return this.numTextAreaLines > this.maxRows ? 'auto' : 'hidden'
+      return null
+    },
+    heightStyle() {
+      if (this.textBoxSize) {
+        return {
+          height: `${this.textBoxSize}px`,
+        }
+      }
       return null
     },
   },
