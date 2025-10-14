@@ -20,6 +20,7 @@ from baserow_enterprise.assistant.types import (
     ChatTitleMessage,
     HumanMessage,
     UIContext,
+    UserUIContext,
     WorkspaceUIContext,
 )
 
@@ -230,7 +231,7 @@ def test_send_message_creates_chat_if_not_exists(
     mock_assistant = MagicMock()
     mock_handler.get_assistant.return_value = mock_assistant
 
-    async def mock_astream(human_message, ui_context):
+    async def mock_astream(human_message):
         # Simulate AI response messages
         yield AiMessage(content="Hello! How can I help you today?")
 
@@ -299,7 +300,7 @@ def test_send_message_streams_response(
         ChatTitleMessage(content="Chat about AI assistance"),
     ]
 
-    async def mock_astream(human_message, ui_context):
+    async def mock_astream(human_message):
         for msg in response_messages:
             yield msg
 
@@ -483,7 +484,8 @@ def test_get_messages_returns_chat_history(
             id=1,
             content="What's the weather like?",
             ui_context=UIContext(
-                workspace=WorkspaceUIContext(id=workspace.id, name=workspace.name)
+                workspace=WorkspaceUIContext(id=workspace.id, name=workspace.name),
+                user=UserUIContext(id=user.id, name=user.first_name, email=user.email),
             ),
         ),
         AiMessage(
@@ -495,7 +497,8 @@ def test_get_messages_returns_chat_history(
             id=3,
             content="Can you help me with Baserow?",
             ui_context=UIContext(
-                workspace=WorkspaceUIContext(id=workspace.id, name=workspace.name)
+                workspace=WorkspaceUIContext(id=workspace.id, name=workspace.name),
+                user=UserUIContext(id=user.id, name=user.first_name, email=user.email),
             ),
         ),
         AiMessage(
@@ -625,7 +628,8 @@ def test_get_messages_with_different_message_types(
             id=1,
             content="Hello",
             ui_context=UIContext(
-                workspace=WorkspaceUIContext(id=workspace.id, name=workspace.name)
+                workspace=WorkspaceUIContext(id=workspace.id, name=workspace.name),
+                user=UserUIContext(id=user.id, name=user.first_name, email=user.email),
             ),
         ),
         AiMessage(
@@ -636,6 +640,10 @@ def test_get_messages_with_different_message_types(
         HumanMessage(
             id=3,
             content="Tell me about Baserow",
+            ui_context=UIContext(
+                workspace=WorkspaceUIContext(id=workspace.id, name=workspace.name),
+                user=UserUIContext(id=user.id, name=user.first_name, email=user.email),
+            ),
         ),
         AiMessage(
             id=4,
@@ -715,7 +723,7 @@ def test_send_message_streams_sources_from_tools(
     mock_handler.get_assistant.return_value = mock_assistant
 
     # Mock assistant with sources from tool calls
-    async def mock_astream(human_message, ui_context):
+    async def mock_astream(human_message):
         # First chunk without sources
         yield AiMessageChunk(content="Let me search for that...")
         # Second chunk with sources (as if a tool was called)
@@ -804,7 +812,7 @@ def test_send_message_streams_thinking_messages_during_tool_execution(
     mock_handler.get_assistant.return_value = mock_assistant
 
     # Mock assistant with thinking messages (simulating tool execution)
-    async def mock_astream(human_message, ui_context):
+    async def mock_astream(human_message):
         # Initial thinking
         yield AiThinkingMessage(code=THINKING_MESSAGES.THINKING)
         # Tool-specific thinking (e.g., searching docs)
@@ -890,7 +898,7 @@ def test_send_message_generates_chat_title_on_first_message(
     mock_handler.get_assistant.return_value = mock_assistant
 
     # Mock assistant that generates title on first message
-    async def mock_astream(human_message, ui_context):
+    async def mock_astream(human_message):
         # Stream the answer
         yield AiMessageChunk(content="Hello! How can I help you?")
         # Stream the generated title
@@ -963,7 +971,7 @@ def test_send_message_does_not_generate_title_on_subsequent_messages(
     mock_handler.get_assistant.return_value = mock_assistant
 
     # Mock assistant that only streams answer (no title)
-    async def mock_astream(human_message, ui_context):
+    async def mock_astream(human_message):
         # Only stream the answer, no title
         yield AiMessageChunk(content="Here's the answer to your follow-up question.")
 
@@ -1029,7 +1037,7 @@ def test_send_message_handles_ai_error_in_streaming(
     mock_handler.get_assistant.return_value = mock_assistant
 
     # Mock assistant that encounters an error during streaming
-    async def mock_astream(human_message, ui_context):
+    async def mock_astream(human_message):
         # Start responding
         yield AiMessageChunk(content="Let me help you with that...")
         # Simulate an error (e.g., tool failure, timeout, etc.)
@@ -1069,3 +1077,394 @@ def test_send_message_handles_ai_error_in_streaming(
     assert messages[1]["type"] == "ai/error"
     assert messages[1]["code"] == "timeout"
     assert "error while processing your request" in messages[1]["content"].lower()
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+@patch("baserow_enterprise.assistant.handler.Assistant")
+@patch("baserow_enterprise.api.assistant.views.AssistantHandler")
+def test_send_message_with_minimal_ui_context(
+    mock_handler_class, mock_assistant_class, api_client, enterprise_data_fixture
+):
+    """Test sending message with minimal UI context (workspace only)"""
+
+    user, token = enterprise_data_fixture.create_user_and_token()
+    workspace = enterprise_data_fixture.create_workspace(user=user)
+    enterprise_data_fixture.enable_enterprise()
+
+    chat_uuid = str(uuid4())
+
+    # Mock the handler
+    mock_handler = MagicMock()
+    mock_handler_class.return_value = mock_handler
+
+    # Mock chat creation
+    mock_chat = MagicMock(spec=AssistantChat)
+    mock_chat.uuid = chat_uuid
+    mock_chat.workspace = workspace
+    mock_chat.user = user
+    mock_handler.get_or_create_chat.return_value = (mock_chat, True)
+
+    # Mock the assistant
+    mock_assistant = MagicMock()
+    mock_handler.get_assistant.return_value = mock_assistant
+
+    # Track what HumanMessage was passed to the assistant
+    received_message = None
+
+    async def mock_astream(human_message):
+        nonlocal received_message
+        received_message = human_message
+        yield AiMessage(content="Response")
+
+    mock_assistant.astream_messages = mock_astream
+
+    rsp = api_client.post(
+        reverse("assistant:chat_messages", kwargs={"chat_uuid": chat_uuid}),
+        data={
+            "content": "Hello",
+            "ui_context": {"workspace": {"id": workspace.id, "name": workspace.name}},
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert rsp.status_code == 200
+
+    # Consume the stream to trigger the async function
+    chunks = rsp.stream_chunks()
+    list(chunks)  # Force consumption
+
+    # Verify the HumanMessage received has correct ui_context
+    assert received_message is not None
+    assert received_message.content == "Hello"
+    assert received_message.ui_context.workspace.id == workspace.id
+    assert received_message.ui_context.workspace.name == workspace.name
+    assert received_message.ui_context.database is None
+    assert received_message.ui_context.table is None
+    assert received_message.ui_context.view is None
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+@patch("baserow_enterprise.assistant.handler.Assistant")
+@patch("baserow_enterprise.api.assistant.views.AssistantHandler")
+def test_send_message_with_database_builder_context(
+    mock_handler_class, mock_assistant_class, api_client, enterprise_data_fixture
+):
+    """
+    Test sending message with database builder context
+    (workspace + database + table + view)
+    """
+
+    user, token = enterprise_data_fixture.create_user_and_token()
+    workspace = enterprise_data_fixture.create_workspace(user=user)
+    enterprise_data_fixture.enable_enterprise()
+
+    chat_uuid = str(uuid4())
+
+    # Mock the handler
+    mock_handler = MagicMock()
+    mock_handler_class.return_value = mock_handler
+
+    # Mock chat creation
+    mock_chat = MagicMock(spec=AssistantChat)
+    mock_chat.uuid = chat_uuid
+    mock_chat.workspace = workspace
+    mock_chat.user = user
+    mock_handler.get_or_create_chat.return_value = (mock_chat, True)
+
+    # Mock the assistant
+    mock_assistant = MagicMock()
+    mock_handler.get_assistant.return_value = mock_assistant
+
+    # Track what HumanMessage was passed to the assistant
+    received_message = None
+
+    async def mock_astream(human_message):
+        nonlocal received_message
+        received_message = human_message
+        yield AiMessage(content="Response with database context")
+
+    mock_assistant.astream_messages = mock_astream
+
+    # Send message with full database builder context
+    ui_context = {
+        "workspace": {"id": workspace.id, "name": workspace.name},
+        "database": {"id": "123", "name": "My Database"},
+        "table": {"id": 456, "name": "Customers"},
+        "view": {"id": 789, "name": "All Customers", "type": "grid"},
+    }
+
+    rsp = api_client.post(
+        reverse("assistant:chat_messages", kwargs={"chat_uuid": chat_uuid}),
+        data={
+            "content": "How do I filter this view?",
+            "ui_context": ui_context,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert rsp.status_code == 200
+
+    # Consume the stream to trigger the async function
+    chunks = rsp.stream_chunks()
+    list(chunks)  # Force consumption
+
+    # Verify the HumanMessage received has correct ui_context
+    assert received_message is not None
+    assert received_message.content == "How do I filter this view?"
+    assert received_message.ui_context.workspace.id == workspace.id
+    assert received_message.ui_context.database.id == "123"
+    assert received_message.ui_context.database.name == "My Database"
+    assert received_message.ui_context.table.id == 456
+    assert received_message.ui_context.table.name == "Customers"
+    assert received_message.ui_context.view.id == 789
+    assert received_message.ui_context.view.name == "All Customers"
+    assert received_message.ui_context.view.type == "grid"
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+@patch("baserow_enterprise.assistant.handler.Assistant")
+@patch("baserow_enterprise.api.assistant.views.AssistantHandler")
+def test_send_message_with_application_builder_context(
+    mock_handler_class, mock_assistant_class, api_client, enterprise_data_fixture
+):
+    """
+    Test sending message with application builder context
+    (workspace + application + page)
+    """
+
+    user, token = enterprise_data_fixture.create_user_and_token()
+    workspace = enterprise_data_fixture.create_workspace(user=user)
+    enterprise_data_fixture.enable_enterprise()
+
+    chat_uuid = str(uuid4())
+
+    # Mock the handler
+    mock_handler = MagicMock()
+    mock_handler_class.return_value = mock_handler
+
+    # Mock chat creation
+    mock_chat = MagicMock(spec=AssistantChat)
+    mock_chat.uuid = chat_uuid
+    mock_chat.workspace = workspace
+    mock_chat.user = user
+    mock_handler.get_or_create_chat.return_value = (mock_chat, True)
+
+    # Mock the assistant
+    mock_assistant = MagicMock()
+    mock_handler.get_assistant.return_value = mock_assistant
+
+    # Track what HumanMessage was passed to the assistant
+    received_message = None
+
+    async def mock_astream(human_message):
+        nonlocal received_message
+        received_message = human_message
+        yield AiMessage(content="Response with application context")
+
+    mock_assistant.astream_messages = mock_astream
+
+    # Send message with application builder context
+    ui_context = {
+        "workspace": {"id": workspace.id, "name": workspace.name},
+        "application": {"id": "app-123", "name": "My App"},
+        "page": {"id": "page-456", "name": "Dashboard"},
+    }
+
+    rsp = api_client.post(
+        reverse("assistant:chat_messages", kwargs={"chat_uuid": chat_uuid}),
+        data={
+            "content": "How do I add a button to this page?",
+            "ui_context": ui_context,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert rsp.status_code == 200
+
+    # Consume the stream to trigger the async function
+    chunks = rsp.stream_chunks()
+    list(chunks)  # Force consumption
+
+    # Verify the HumanMessage received has correct ui_context
+    assert received_message is not None
+    assert received_message.content == "How do I add a button to this page?"
+    assert received_message.ui_context.workspace.id == workspace.id
+    assert received_message.ui_context.application.id == "app-123"
+    assert received_message.ui_context.application.name == "My App"
+    assert received_message.ui_context.page.id == "page-456"
+    assert received_message.ui_context.page.name == "Dashboard"
+    assert received_message.ui_context.database is None
+    assert received_message.ui_context.table is None
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_send_message_ui_context_validation_missing_workspace(
+    api_client, enterprise_data_fixture
+):
+    """Test that UI context validation requires workspace"""
+
+    user, token = enterprise_data_fixture.create_user_and_token()
+    enterprise_data_fixture.create_workspace(user=user)
+    enterprise_data_fixture.enable_enterprise()
+
+    chat_uuid = str(uuid4())
+
+    # Send message without workspace in ui_context
+    rsp = api_client.post(
+        reverse("assistant:chat_messages", kwargs={"chat_uuid": chat_uuid}),
+        data={
+            "content": "Hello",
+            "ui_context": {},  # Missing workspace
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert rsp.status_code == 400
+    assert "workspace" in str(rsp.json()).lower()
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+@patch("baserow_enterprise.assistant.handler.Assistant")
+@patch("baserow_enterprise.api.assistant.views.AssistantHandler")
+def test_send_message_with_automation_context(
+    mock_handler_class, mock_assistant_class, api_client, enterprise_data_fixture
+):
+    """Test sending message with automation builder context"""
+
+    user, token = enterprise_data_fixture.create_user_and_token()
+    workspace = enterprise_data_fixture.create_workspace(user=user)
+    enterprise_data_fixture.enable_enterprise()
+
+    chat_uuid = str(uuid4())
+
+    # Mock the handler
+    mock_handler = MagicMock()
+    mock_handler_class.return_value = mock_handler
+
+    # Mock chat creation
+    mock_chat = MagicMock(spec=AssistantChat)
+    mock_chat.uuid = chat_uuid
+    mock_chat.workspace = workspace
+    mock_chat.user = user
+    mock_handler.get_or_create_chat.return_value = (mock_chat, True)
+
+    # Mock the assistant
+    mock_assistant = MagicMock()
+    mock_handler.get_assistant.return_value = mock_assistant
+
+    # Track what HumanMessage was passed to the assistant
+    received_message = None
+
+    async def mock_astream(human_message):
+        nonlocal received_message
+        received_message = human_message
+        yield AiMessage(content="Response with automation context")
+
+    mock_assistant.astream_messages = mock_astream
+
+    # Send message with automation context
+    ui_context = {
+        "workspace": {"id": workspace.id, "name": workspace.name},
+        "automation": {"id": "auto-123", "name": "Customer Automation"},
+        "workflow": {"id": "wf-456", "name": "Send Email Workflow"},
+    }
+
+    rsp = api_client.post(
+        reverse("assistant:chat_messages", kwargs={"chat_uuid": chat_uuid}),
+        data={
+            "content": "How do I trigger this workflow?",
+            "ui_context": ui_context,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert rsp.status_code == 200
+
+    # Consume the stream to trigger the async function
+    chunks = rsp.stream_chunks()
+    list(chunks)  # Force consumption
+
+    # Verify the HumanMessage received has correct ui_context
+    assert received_message is not None
+    assert received_message.ui_context.automation.id == "auto-123"
+    assert received_message.ui_context.automation.name == "Customer Automation"
+    assert received_message.ui_context.workflow.id == "wf-456"
+    assert received_message.ui_context.workflow.name == "Send Email Workflow"
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+@patch("baserow_enterprise.assistant.handler.Assistant")
+@patch("baserow_enterprise.api.assistant.views.AssistantHandler")
+def test_send_message_with_dashboard_context(
+    mock_handler_class, mock_assistant_class, api_client, enterprise_data_fixture
+):
+    """Test sending message with dashboard context"""
+
+    user, token = enterprise_data_fixture.create_user_and_token()
+    workspace = enterprise_data_fixture.create_workspace(user=user)
+    enterprise_data_fixture.enable_enterprise()
+
+    chat_uuid = str(uuid4())
+
+    # Mock the handler
+    mock_handler = MagicMock()
+    mock_handler_class.return_value = mock_handler
+
+    # Mock chat creation
+    mock_chat = MagicMock(spec=AssistantChat)
+    mock_chat.uuid = chat_uuid
+    mock_chat.workspace = workspace
+    mock_chat.user = user
+    mock_handler.get_or_create_chat.return_value = (mock_chat, True)
+
+    # Mock the assistant
+    mock_assistant = MagicMock()
+    mock_handler.get_assistant.return_value = mock_assistant
+
+    # Track what HumanMessage was passed to the assistant
+    received_message = None
+
+    async def mock_astream(human_message):
+        nonlocal received_message
+        received_message = human_message
+        yield AiMessage(content="Response with dashboard context")
+
+    mock_assistant.astream_messages = mock_astream
+
+    # Send message with dashboard context
+    ui_context = {
+        "workspace": {"id": workspace.id, "name": workspace.name},
+        "dashboard": {"id": "dash-789", "name": "Sales Dashboard"},
+    }
+
+    rsp = api_client.post(
+        reverse("assistant:chat_messages", kwargs={"chat_uuid": chat_uuid}),
+        data={
+            "content": "How do I add widgets to this dashboard?",
+            "ui_context": ui_context,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert rsp.status_code == 200
+
+    # Consume the stream to trigger the async function
+    chunks = rsp.stream_chunks()
+    list(chunks)  # Force consumption
+
+    # Verify the HumanMessage received has correct ui_context
+    assert received_message is not None
+    assert received_message.ui_context.dashboard.id == "dash-789"
+    assert received_message.ui_context.dashboard.name == "Sales Dashboard"

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import StrEnum
 from typing import Literal, Optional
 
@@ -10,11 +10,75 @@ class WorkspaceUIContext(BaseModel):
     name: str
 
 
+class ApplicationUIContext(BaseModel):
+    id: str
+    name: str
+
+
+class TableUIContext(BaseModel):
+    id: int
+    name: str
+
+
+class ViewUIContext(BaseModel):
+    id: int
+    name: str
+    type: str
+
+
+class UserUIContext(BaseModel):
+    id: int
+    name: str
+    email: str
+
+    @classmethod
+    def from_user(cls, user) -> "UserUIContext":
+        return cls(id=user.id, name=user.first_name, email=user.email)
+
+
+class PageUIContext(BaseModel):
+    id: str
+    name: str
+
+
+class WorkflowUIContext(BaseModel):
+    id: str
+    name: str
+
+
+class DashboardUIContext(BaseModel):
+    id: str
+    name: str
+
+
 class UIContext(BaseModel):
     workspace: WorkspaceUIContext
-    timezone: Optional[str] = Field(
+    # database builder context
+    database: Optional[ApplicationUIContext] = None
+    table: Optional[TableUIContext] = None
+    view: Optional[ViewUIContext] = None
+    # application builder context
+    application: Optional[ApplicationUIContext] = None
+    page: Optional[PageUIContext] = None
+    # automation context
+    automation: Optional[ApplicationUIContext] = None
+    workflow: Optional[WorkflowUIContext] = None
+    # dashboard context
+    dashboard: Optional[DashboardUIContext] = None
+    # user and time context
+    user: UserUIContext
+    timestamp: datetime = Field(
+        default_factory=lambda: datetime.now(tz=timezone.utc),
+        description="The UTC timestamp when the message was sent",
+    )
+    timezone: str = Field(
         default="UTC", description="The timezone of the user, e.g. 'Europe/Amsterdam'"
     )
+
+    @classmethod
+    def from_validate_request(cls, request, ui_context_data) -> "UIContext":
+        user_context = UserUIContext.from_user(request.user)
+        return cls(user=user_context, **ui_context_data)
 
 
 class AssistantMessageType(StrEnum):

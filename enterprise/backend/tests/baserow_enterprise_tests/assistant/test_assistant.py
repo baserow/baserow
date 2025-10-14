@@ -20,8 +20,13 @@ from baserow_enterprise.assistant.models import AssistantChat, AssistantChatMess
 from baserow_enterprise.assistant.types import (
     AiMessageChunk,
     AiThinkingMessage,
+    ApplicationUIContext,
     ChatTitleMessage,
+    HumanMessage,
+    TableUIContext,
     UIContext,
+    UserUIContext,
+    ViewUIContext,
     WorkspaceUIContext,
 )
 
@@ -352,12 +357,14 @@ class TestAssistantMessagePersistence:
 
         assistant = Assistant(chat)
         ui_context = UIContext(
-            workspace=WorkspaceUIContext(id=workspace.id, name=workspace.name)
+            workspace=WorkspaceUIContext(id=workspace.id, name=workspace.name),
+            user=UserUIContext(id=user.id, name=user.first_name, email=user.email),
         )
 
         # Consume the stream
         async def consume_stream():
-            async for _ in assistant.astream_messages("Test message", ui_context):
+            human_message = HumanMessage(content="Test message", ui_context=ui_context)
+            async for _ in assistant.astream_messages(human_message):
                 pass
 
         async_to_sync(consume_stream)()
@@ -400,13 +407,15 @@ class TestAssistantMessagePersistence:
 
         assistant = Assistant(chat)
         ui_context = UIContext(
-            workspace=WorkspaceUIContext(id=workspace.id, name=workspace.name)
+            workspace=WorkspaceUIContext(id=workspace.id, name=workspace.name),
+            user=UserUIContext(id=user.id, name=user.first_name, email=user.email),
         )
 
         # Manually add sources to callback manager (simulating tool execution)
         async def consume_stream():
             messages = []
-            async for msg in assistant.astream_messages("Question", ui_context):
+            human_message = HumanMessage(content="Question", ui_context=ui_context)
+            async for msg in assistant.astream_messages(human_message):
                 messages.append(msg)
             return messages
 
@@ -451,12 +460,14 @@ class TestAssistantMessagePersistence:
 
         assistant = Assistant(chat)
         ui_context = UIContext(
-            workspace=WorkspaceUIContext(id=workspace.id, name=workspace.name)
+            workspace=WorkspaceUIContext(id=workspace.id, name=workspace.name),
+            user=UserUIContext(id=user.id, name=user.first_name, email=user.email),
         )
 
         # Consume the stream
         async def consume_stream():
-            async for _ in assistant.astream_messages("Hello", ui_context):
+            human_message = HumanMessage(content="Hello", ui_context=ui_context)
+            async for _ in assistant.astream_messages(human_message):
                 pass
 
         async_to_sync(consume_stream)()
@@ -505,12 +516,14 @@ class TestAssistantStreaming:
 
         assistant = Assistant(chat)
         ui_context = UIContext(
-            workspace=WorkspaceUIContext(id=workspace.id, name=workspace.name)
+            workspace=WorkspaceUIContext(id=workspace.id, name=workspace.name),
+            user=UserUIContext(id=user.id, name=user.first_name, email=user.email),
         )
 
         async def consume_stream():
             chunks = []
-            async for msg in assistant.astream_messages("Test", ui_context):
+            human_message = HumanMessage(content="Test", ui_context=ui_context)
+            async for msg in assistant.astream_messages(human_message):
                 if isinstance(msg, AiMessageChunk):
                     chunks.append(msg)
             return chunks
@@ -555,12 +568,14 @@ class TestAssistantStreaming:
 
         assistant = Assistant(chat)
         ui_context = UIContext(
-            workspace=WorkspaceUIContext(id=workspace.id, name=workspace.name)
+            workspace=WorkspaceUIContext(id=workspace.id, name=workspace.name),
+            user=UserUIContext(id=user.id, name=user.first_name, email=user.email),
         )
 
         async def consume_stream():
             title_messages = []
-            async for msg in assistant.astream_messages("Test", ui_context):
+            human_message = HumanMessage(content="Test", ui_context=ui_context)
+            async for msg in assistant.astream_messages(human_message):
                 if isinstance(msg, ChatTitleMessage):
                     title_messages.append(msg)
             return title_messages
@@ -599,12 +614,14 @@ class TestAssistantStreaming:
 
         assistant = Assistant(chat)
         ui_context = UIContext(
-            workspace=WorkspaceUIContext(id=workspace.id, name=workspace.name)
+            workspace=WorkspaceUIContext(id=workspace.id, name=workspace.name),
+            user=UserUIContext(id=user.id, name=user.first_name, email=user.email),
         )
 
         async def consume_stream():
             thinking_messages = []
-            async for msg in assistant.astream_messages("Test", ui_context):
+            human_message = HumanMessage(content="Test", ui_context=ui_context)
+            async for msg in assistant.astream_messages(human_message):
                 if isinstance(msg, AiThinkingMessage):
                     thinking_messages.append(msg)
             return thinking_messages
@@ -614,3 +631,203 @@ class TestAssistantStreaming:
         # Should receive thinking messages
         assert len(thinking_messages) == 1
         assert thinking_messages[0].code == "thinking"
+
+
+@pytest.mark.django_db
+class TestUIContext:
+    """Test UI context handling and validation"""
+
+    def test_ui_context_from_validate_request_adds_user_info(
+        self, enterprise_data_fixture
+    ):
+        """
+        Test that UIContext.from_validate_request adds user information
+        from request
+        """
+
+        user = enterprise_data_fixture.create_user(
+            email="test@example.com", first_name="Test User"
+        )
+        workspace = enterprise_data_fixture.create_workspace(user=user)
+
+        # Mock request object
+        class MockRequest:
+            pass
+
+        request = MockRequest()
+        request.user = user
+
+        ui_context_data = {"workspace": {"id": workspace.id, "name": workspace.name}}
+
+        ui_context = UIContext.from_validate_request(request, ui_context_data)
+
+        assert ui_context.workspace.id == workspace.id
+        assert ui_context.workspace.name == workspace.name
+        assert ui_context.user.id == user.id
+        assert ui_context.user.email == "test@example.com"
+        assert ui_context.user.name == "Test User"
+
+    def test_ui_context_with_database_builder_fields(self):
+        """Test that UIContext correctly stores database builder fields"""
+
+        ui_context = UIContext(
+            workspace=WorkspaceUIContext(id=1, name="Test Workspace"),
+            database=ApplicationUIContext(id="db-123", name="My Database"),
+            table=TableUIContext(id=456, name="Customers"),
+            view=ViewUIContext(id=789, name="All Customers", type="grid"),
+            user=UserUIContext(id=1, name="Test", email="test@test.com"),
+        )
+
+        assert ui_context.workspace.id == 1
+        assert ui_context.database.id == "db-123"
+        assert ui_context.database.name == "My Database"
+        assert ui_context.table.id == 456
+        assert ui_context.table.name == "Customers"
+        assert ui_context.view.id == 789
+        assert ui_context.view.name == "All Customers"
+        assert ui_context.view.type == "grid"
+
+    def test_ui_context_with_application_builder_fields(self):
+        """Test that UIContext correctly stores application builder fields"""
+
+        ui_context = UIContext(
+            workspace=WorkspaceUIContext(id=1, name="Test Workspace"),
+            application=ApplicationUIContext(id="app-123", name="My App"),
+            user=UserUIContext(id=1, name="Test", email="test@test.com"),
+        )
+
+        assert ui_context.application.id == "app-123"
+        assert ui_context.application.name == "My App"
+        assert ui_context.database is None
+        assert ui_context.table is None
+
+    def test_ui_context_serialization_excludes_none_values(self):
+        """Test that UIContext serialization excludes None values"""
+
+        ui_context = UIContext(
+            workspace=WorkspaceUIContext(id=1, name="Test Workspace"),
+            user=UserUIContext(id=1, name="Test", email="test@test.com"),
+            # All other fields are None
+        )
+
+        # Serialize with exclude_none=True
+        serialized = ui_context.model_dump(exclude_none=True)
+
+        assert "workspace" in serialized
+        assert "user" in serialized
+        assert "database" not in serialized
+        assert "table" not in serialized
+        assert "view" not in serialized
+        assert "application" not in serialized
+
+    def test_ui_context_json_serialization_excludes_none(self):
+        """Test that UIContext JSON serialization excludes None values"""
+
+        ui_context = UIContext(
+            workspace=WorkspaceUIContext(id=1, name="Test Workspace"),
+            table=TableUIContext(id=456, name="Customers"),
+            user=UserUIContext(id=1, name="Test", email="test@test.com"),
+            # database and view are None
+        )
+
+        # Serialize to JSON with exclude_none=True
+        json_str = ui_context.model_dump_json(exclude_none=True)
+
+        # Parse back to verify
+        import json
+
+        parsed = json.loads(json_str)
+
+        assert "workspace" in parsed
+        assert "table" in parsed
+        assert "user" in parsed
+        assert "database" not in parsed
+        assert "view" not in parsed
+
+    def test_human_message_with_ui_context(self):
+        """Test that HumanMessage correctly stores ui_context"""
+
+        ui_context = UIContext(
+            workspace=WorkspaceUIContext(id=1, name="Test Workspace"),
+            database=ApplicationUIContext(id="db-123", name="My Database"),
+            user=UserUIContext(id=1, name="Test", email="test@test.com"),
+        )
+
+        human_message = HumanMessage(
+            content="How do I create a field?", ui_context=ui_context
+        )
+
+        assert human_message.content == "How do I create a field?"
+        assert human_message.ui_context.workspace.id == 1
+        assert human_message.ui_context.database.id == "db-123"
+        assert human_message.ui_context.database.name == "My Database"
+
+    def test_human_message_ui_context_json_serialization(self):
+        """
+        Test that HumanMessage ui_context serializes to JSON with None
+        values excluded
+        """
+
+        ui_context = UIContext(
+            workspace=WorkspaceUIContext(id=1, name="Test Workspace"),
+            database=ApplicationUIContext(id="db-123", name="My Database"),
+            table=TableUIContext(id=456, name="Customers"),
+            user=UserUIContext(id=1, name="Test", email="test@test.com"),
+            # view is None
+        )
+
+        human_message = HumanMessage(
+            content="How do I filter this view?", ui_context=ui_context
+        )
+
+        # Serialize ui_context as it would be in the prompt
+        ui_context_json = human_message.ui_context.model_dump_json(exclude_none=True)
+
+        # Parse to verify
+        import json
+
+        parsed = json.loads(ui_context_json)
+
+        # Should have database and table but not view
+        assert "database" in parsed
+        assert parsed["database"]["name"] == "My Database"
+        assert "table" in parsed
+        assert parsed["table"]["name"] == "Customers"
+        assert "view" not in parsed  # None values excluded
+
+    def test_ui_context_has_default_timestamp(self):
+        """Test that UIContext has a default timestamp"""
+
+        ui_context = UIContext(
+            workspace=WorkspaceUIContext(id=1, name="Test"),
+            user=UserUIContext(id=1, name="Test", email="test@test.com"),
+        )
+
+        assert ui_context.timestamp is not None
+        # Should be a datetime object
+        from datetime import datetime
+
+        assert isinstance(ui_context.timestamp, datetime)
+
+    def test_ui_context_has_default_timezone(self):
+        """Test that UIContext has a default timezone of UTC"""
+
+        ui_context = UIContext(
+            workspace=WorkspaceUIContext(id=1, name="Test"),
+            user=UserUIContext(id=1, name="Test", email="test@test.com"),
+        )
+
+        assert ui_context.timezone == "UTC"
+
+    def test_user_ui_context_from_user(self, enterprise_data_fixture):
+        """Test UserUIContext.from_user factory method"""
+
+        user = enterprise_data_fixture.create_user(
+            email="john@example.com", first_name="John Doe"
+        )
+
+        user_context = UserUIContext.from_user(user)
+
+        assert user_context.id == user.id
+        assert user_context.name == "John Doe"
+        assert user_context.email == "john@example.com"

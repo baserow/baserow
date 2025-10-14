@@ -207,8 +207,6 @@
 }
 
 .assistant__context-badge {
-  @extend %ellipsis;
-
   position: absolute;
   top: 8px;
   left: 8px;
@@ -218,9 +216,14 @@
   font-size: 10px;
   color: $palette-neutral-900;
   max-width: calc(100% - 16px);
+  display: flex;
+  align-items: center;
+  gap: 5px;
 }
 
 .assistant__context-text {
+  @extend %ellipsis;
+
   font-weight: 500;
   letter-spacing: 0.2px;
 }

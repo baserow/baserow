@@ -26,6 +26,13 @@ from .utils import ensure_llm_model_accessible
 class ChatSignature(dspy.Signature):
     question: str = dspy.InputField()
     history: dspy.History = dspy.InputField()
+    ui_context: UIContext = dspy.InputField(
+        default=None,
+        description=(
+            "The frontend UI content the user is currently in. "
+            "Whenever make sense, use it to ground your answer."
+        ),
+    )
     answer: str = dspy.OutputField()
 
 
@@ -131,12 +138,13 @@ class Assistant:
             history, and answer fields.
         """
 
+        chat_signature_instructions = "## INSTRUCTIONS\n\nGiven the fields `question`, `history`, and `ui_context`, produce the fields `answer`"
         if self._chat.title:  # only inject our base system prompt
             return ChatSignature.with_instructions(
                 "\n".join(
                     [
                         ASSISTANT_SYSTEM_PROMPT,
-                        "Given the fields `question`, `history`, produce the fields `answer`.",
+                        f"{chat_signature_instructions}.",
                     ]
                 )
             )
@@ -155,7 +163,7 @@ class Assistant:
                 instructions="\n".join(
                     [
                         ASSISTANT_SYSTEM_PROMPT,
-                        "Given the fields `question`, `history`, produce the fields `answer`, `chat_title`.",
+                        f"{chat_signature_instructions}, `chat_title`.",
                     ]
                 ),
             )
@@ -250,13 +258,12 @@ class Assistant:
         self.history = dspy.History(messages=messages)
 
     async def astream_messages(
-        self, user_message: str, ui_context: UIContext
+        self, human_message: HumanMessage
     ) -> AsyncGenerator[AssistantMessageUnion, None]:
         """
         Streams the response to a user message.
 
-        :param user_message: The message from the user.
-        :param ui_context: The UI context where the message was sent.
+        :param human_message: The message from the user.
         :return: An async generator that yields the response messages.
         """
 
@@ -281,10 +288,16 @@ class Assistant:
                 self._assistant,
                 stream_listeners=stream_listeners,
             )
-            output_stream = stream_predict(question=user_message, history=self.history)
+            output_stream = stream_predict(
+                history=self.history,
+                question=human_message.content,
+                ui_context=human_message.ui_context.model_dump_json(
+                    exclude_none=True, indent=2
+                ),
+            )
 
             await self.acreate_chat_message(
-                AssistantChatMessage.Role.HUMAN, user_message
+                AssistantChatMessage.Role.HUMAN, human_message.content
             )
 
             chat_title, answer = "", ""

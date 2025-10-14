@@ -10,13 +10,8 @@
       </span>
     </div>
     <div class="assistant__input-section" :class="{ 'is-running': isRunning }">
-      <div
-        class="assistant__input-wrapper"
-        :class="{ 'has-context': contextDisplay }"
-      >
-        <div v-if="contextDisplay" class="assistant__context-badge">
-          <span class="assistant__context-text">{{ contextDisplay }}</span>
-        </div>
+      <div class="assistant__input-wrapper has-context">
+        <AssistantUiContext :ui-context="uiContext" />
 
         <textarea
           ref="textarea"
@@ -48,6 +43,7 @@
 </template>
 
 <script>
+import AssistantUiContext from '@baserow_enterprise/components/assistant/AssistantUiContext'
 import { THINKING_MESSAGES } from '@baserow_enterprise/store/assistant'
 
 const runningMessageCode = {
@@ -60,10 +56,13 @@ const runningMessageCode = {
 
 export default {
   name: 'AssistantInputMessage',
+  components: {
+    AssistantUiContext,
+  },
   props: {
-    contextDisplay: {
-      type: String,
-      default: '',
+    uiContext: {
+      type: Object,
+      default: () => ({}),
     },
     isRunning: {
       type: Boolean,
