@@ -131,7 +131,7 @@ class AutomationWorkflow(
 
         return workflow.state == WorkflowState.LIVE
 
-    def print_workflow(self):
+    def print(self):
         for node in self.automation_workflow_nodes.all():
             print(
                 f"Node {node.id} ({node.get_type().type})",

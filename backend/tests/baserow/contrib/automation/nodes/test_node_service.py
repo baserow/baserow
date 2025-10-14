@@ -80,16 +80,10 @@ def test_create_node_parent_invalid(data_fixture: Fixtures):
         AutomationNodeService().create_node(
             user, node_type, workflow=workflow, parent=node2_b
         )
-    assert (
-        exc.value.args[0]
-        == "The `before` node must belong to the same workflow as the one supplied."
-    )
 
-    with pytest.raises(AutomationNodeBeforeInvalid) as exc:
-        AutomationNodeService().create_node(
-            user, node_type, workflow=workflow_b, before=node1_b
-        )
-    assert exc.value.args[0] == "You cannot create an automation node before a trigger."
+    assert (
+        exc.value.args[0] == f"The node {node2_b.id} does not belong to the workflow."
+    )
 
 
 @pytest.mark.django_db
@@ -176,10 +170,10 @@ def test_update_node(mocked_signal, data_fixture: Fixtures):
     assert node.previous_node_output == ""
 
     service = AutomationNodeService()
-    updated_node = service.update_node(user, node.id, previous_node_output="foo")
+    updated_node = service.update_node(user, node.id, label="foo")
 
     node.refresh_from_db()
-    assert node.previous_node_output == "foo"
+    assert node.label == "foo"
 
     mocked_signal.send.assert_called_once_with(
         service, user=user, node=updated_node.node
@@ -445,8 +439,9 @@ def test_replace_node_in_last(data_fixture: Fixtures):
 
     node_type = automation_node_type_registry.get("update_row")
 
-    service = AutomationNodeService()
-    replace_result = service.replace_node(user, last_node.id, node_type.type)
+    replace_result = AutomationNodeService().replace_node(
+        user, last_node.id, node_type.type
+    )
 
     first_node.refresh_from_db()
     second_node.refresh_from_db()
@@ -555,7 +550,7 @@ def test_move_node_to_edge_above_existing_output(data_fixture: Fixtures):
     edge2 = core_router_with_edges.edge2
     edge2_output = core_router_with_edges.edge2_output  # <- from here
 
-    workflow.print_workflow()
+    assert edge2_output.previous_node_id == router.id
 
     # move `edge2_output` to be *above* `edge1_output` inside `edge1`
     move_result = AutomationNodeService().move_node(
@@ -568,7 +563,7 @@ def test_move_node_to_edge_above_existing_output(data_fixture: Fixtures):
     assert move_result.node.previous_node_output == str(edge1.uid)
 
     # The node's origin previous node was `edge2`
-    assert move_result.origin_previous_node_id == edge2.id
+    assert move_result.origin_previous_node_id == router.id
     assert move_result.origin_previous_node_output == str(edge2.uid)
 
     # Before the move, at the origin, there are no next nodes after `edge2_output`.
