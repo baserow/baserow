@@ -1,53 +1,92 @@
 <template>
-  <div class="date-dependency__timeline-container">
-    <svg :width="width" :height="height" style="pointer-events: none">
-      <g
-        v-for="(connection, index) in connections"
-        :key="`row-connection-${index}`"
-        :class="{
-          'date-dependency__connection-group--invalid':
-            !connection.connection.isValid,
-        }"
-        style="pointer-events: all"
-        class="date-dependency__connection-group"
-      >
-        <path
-          class="date-dependency__path"
-          :d="connection.connection.path"
-          @pointerenter="onPathPointerEnter(connection, $event)"
-          @pointerleave="onPathPointerLeave(connection, $event)"
-          @dblclick="onConnectionRemove(connection, $event)"
+  <div ref="container" class="date-dependency__timeline-container">
+    <svg
+      :width="width"
+      :height="height"
+      @mousedown="onDragStart($event)"
+      @mousemove="onDragMove($event)"
+      @mouseup="onDragEnd($event)"
+    >
+      <g v-for="dz in dropZones" :key="dz.row.item.id">
+        <rect
+          :id="`row-${dz.row.item.id}-activator`"
+          class="date-dependency__bounding-box-activator"
+          :x="dz.position.left - 10"
+          :y="dz.position.top - 10"
+          :width="dz.position.width + 20"
+          :height="dz.position.height + 20"
         />
 
-        <path
-          v-if="connection.connection.showRemovePath"
-          class="date-dependency__remove-connection"
-          :d="connection.connection.removePath"
-          @click="onConnectionRemove(connection, $event)"
-        />
-
-        <text
-          v-if="
-            connection.connection.message && connection.connection.showMessage
-          "
-          class="control__label--small"
-          :x="connection.connection.anchorPoint.x"
-          :y="connection.connection.anchorPoint.y"
-        >
-          {{ connection.connection.message }}
-        </text>
-
-        <circle
-          class="date-dependency__circle date-dependency__circle--start"
-          :cx="connection.connection.startPoint.x"
-          :cy="connection.connection.startPoint.y"
-        />
-        <circle
-          class="date-dependency__circle date-dependency__circle--end"
-          :cx="connection.connection.endPoint.x"
-          :cy="connection.connection.endPoint.y"
+        <rect
+          :id="`row-${dz.row.item.id}-droppable`"
+          class="date-dependency__bounding-box"
+          :x="dz.position.left"
+          :y="dz.position.top"
+          :width="dz.position.width"
+          :height="dz.position.height"
+          :data-row-id="dz.row.item.id"
+          rx="5"
+          ry="5"
         />
       </g>
+
+      <g v-for="(rowItem, rindex) in rows" :key="`row-${rindex}`">
+        <g
+          v-for="(connection, cindex) in getConnectionsForRow(rowItem)"
+          :key="`row-connection-${cindex}`"
+          :class="{
+            'date-dependency__connection-group--invalid':
+              !connection.connection.isValid,
+          }"
+          class="date-dependency__connection-group"
+        >
+          <path
+            class="date-dependency__path"
+            :d="connection.connection.path"
+            @dblclick="onConnectionRemove(connection, $event)"
+          />
+
+          <path
+            v-if="connection.connection.showRemovePath"
+            class="date-dependency__remove-connection"
+            :d="connection.connection.removePath"
+            @click="onConnectionRemove(connection, $event)"
+          />
+
+          <text
+            v-if="connection.connection.message"
+            class="date-dependency__text"
+            :x="connection.connection.anchorPoint.x"
+            :y="connection.connection.anchorPoint.y"
+          >
+            {{ connection.connection.message }}
+          </text>
+
+          <circle
+            class="date-dependency__circle date-dependency__circle--end"
+            :cx="connection.connection.endPoint.x"
+            :cy="connection.connection.endPoint.y"
+            :data-row-id="connection.child.id"
+          />
+        </g>
+        <circle
+          v-for="(handlePoint, hindex) in getHandlePointsForRow(rowItem)"
+          :key="`row-handler-${rindex}-${hindex}`"
+          :cx="handlePoint.x"
+          :cy="handlePoint.y"
+          :data-row-id="rowItem.item.id"
+          class="date-dependency__circle date-dependency__circle--start"
+        />
+      </g>
+
+      <circle
+        ref="handle"
+        class="date-dependency__circle date-dependency__circle--handle"
+        :cx="dragPoint.x"
+        :cy="dragPoint.y"
+      />
+
+      <path class="date-dependency__path--creating" :d="drawConnection" />
     </svg>
   </div>
 </template>
@@ -293,9 +332,24 @@ export default {
     storePrefix: { type: String, required: true },
   },
   data() {
-    return { drawConnection: null }
+    return {
+      drawConnection: null,
+      dragStartPoint: null,
+      dragEndPoint: null,
+      dragPoint: new Point(0, 0),
+    }
   },
   computed: {
+    dropZones() {
+      const dropZones = []
+      this.rows.forEach((row) => {
+        if (row.item) {
+          const position = this.getRowPosition(row)
+          dropZones.push({ row, position })
+        }
+      })
+      return dropZones
+    },
     connections() {
       const connections = this.getConnections()
       return connections
@@ -321,19 +375,25 @@ export default {
         return row.item !== undefined && row.item.id === rowId
       })[0]
     },
-
-    /**
-     * Returns a list of connections between rows
-     * @returns {*[]}
-     */
-    getConnections() {
+    getHandlePointsForRow(rowItem) {
+      const out = []
+      const rowPosition = this.getRowPosition(rowItem)
+      if (!rowPosition) {
+        return out
+      }
+      const DIRECTIONS = ['NE', 'SE', 'NW', 'SW', 'E', 'W']
+      for (const direction of DIRECTIONS) {
+        const callable = this[`getPointBearing${direction}`]
+        const point = callable(rowPosition)
+        out.push(point)
+      }
+      return out
+    },
+    getConnectionsForRow(rowItem) {
       const rule = this.rule
       const out = []
 
-      for (const rowItem of this.rows) {
-        if (!rowItem.item) {
-          continue
-        }
+      if (rowItem.item) {
         const row = rowItem.item
         const childRow = new DateDependencyRow(rule, row)
         const predecessors = this.getPredecessors(rule, row)
@@ -348,6 +408,26 @@ export default {
               out.push(connection)
             }
           }
+        }
+      }
+      return out
+    },
+
+    /**
+     * Returns a list of connections between rows
+     * @returns {*[]}
+     */
+    getConnections() {
+      const out = []
+
+      for (const rowItem of this.rows) {
+        if (!rowItem.item) {
+          continue
+        }
+        const connection = this.getConnectionsForRow(rowItem)
+
+        if (!!connection && !!connection.connection.path) {
+          out.push(connection)
         }
       }
       return out
@@ -371,8 +451,8 @@ export default {
       const parentValid = parentRow.isValid()
       const childValid = child.isValid()
       const connectionValid = this.isConnectionValid(child, parentRow)
-      const message = this.getConnectionErrorMessage(child, parentRow)
-      const connectionPath = this.getConnectionPath(child, parent)
+      const message = this.$t(this.getConnectionErrorMessage(child, parentRow))
+      const connectionPath = this.getConnectionPath(child.row, parent)
       const connection = {
         isValid: connectionValid && parentValid && childValid,
         isHighlighted: false,
@@ -381,7 +461,7 @@ export default {
         ...connectionPath,
       }
       return Vue.observable({
-        child,
+        child: child.row,
         parent: parentRow.row,
         parentRow,
         connection,
@@ -428,15 +508,15 @@ export default {
     },
 
     /**
-     * Returns a connection information: path, start/end points, bouding box, anchor point, remove connection marker.
+     * Returns a connection information: path, start/end points, bounding box, anchor point, remove connection marker.
      *
      * @param child
      * @param parent
      * @returns {{path: *, startPoint: *, endPoint: *, anchorPoint: *, boundingBox: {x, y, width, height}, showRemovePath: boolean, removePath: string}|null}
      */
     getConnectionPath(child, parent) {
-      const start = this.getRowFromBuffer(parent.id) // type: referenced row from linkrow
-      const end = this.getRowFromBuffer(child.row.id) // type: DependencyRow
+      const start = this.getRowFromBuffer(parent.id)
+      const end = this.getRowFromBuffer(child.id)
 
       const startPosition = this.getRowPosition(start)
       const endPosition = this.getRowPosition(end)
@@ -444,7 +524,7 @@ export default {
       if (!endPosition || !startPosition) {
         return null
       }
-      const { startPoint, endPoint, anchorPoint, path } =
+      const { startPoint, endPoint, anchorPoint, path, bearingName } =
         this.getConnectionBearingPath(startPosition, endPosition)
 
       const moveAnchorPoint = _.clone(anchorPoint)
@@ -471,6 +551,7 @@ export default {
         anchorPoint,
         boundingBox,
         showRemovePath: true,
+        bearingName,
         removePath: removeCommands.join(' '),
       }
     },
@@ -486,14 +567,25 @@ export default {
      * @param childPosition
      */
     getConnectionBearingSE(parentPosition, childPosition) {
-      const startPoint = new Point(
-        parentPosition.left + parentPosition.width - HANDLER_POINT_OFFSET,
-        parentPosition.top + parentPosition.height - ADJUST_FOR_PADDING
+      const startPoint = this.getPointBearingSE(parentPosition)
+      const endPoint = this.getPointBearingW(childPosition)
+      const { anchorPoint, commands } = this.getConnectionPathCommandsSE(
+        startPoint,
+        endPoint
       )
-      const endPoint = new Point(
-        childPosition.left,
-        childPosition.top + childPosition.height - HANDLER_POINT_OFFSET
-      )
+
+      return {
+        startPoint,
+        endPoint,
+        anchorPoint,
+        path: commands.join(' '),
+      }
+    },
+
+    getConnectionPathCommandsSE(startPoint, endPoint) {
+      if (!startPoint || !endPoint) {
+        return { anchorPoint: new Point(0, 0), commands: [] }
+      }
 
       const movePoint = _.clone(startPoint)
       const commands = [movePoint.commandMove()]
@@ -504,13 +596,7 @@ export default {
       anchorPoint.movX(-ROUND_RADIUS)
       commands.push(endPoint.commandDrawLine())
       commands.push(endPoint.commandHorizontalArrowEndRight())
-
-      return {
-        startPoint,
-        endPoint,
-        anchorPoint,
-        path: commands.join(' '),
-      }
+      return { commands, anchorPoint }
     },
     /**
      * SE bearing connection
@@ -522,14 +608,24 @@ export default {
      * @param childPosition
      */
     getConnectionBearingNE(parentPosition, childPosition) {
-      const startPoint = new Point(
-        parentPosition.left + parentPosition.width - HANDLER_POINT_OFFSET,
-        parentPosition.top + ADJUST_FOR_PADDING
+      const startPoint = this.getPointBearingNE(parentPosition)
+      const endPoint = this.getPointBearingW(childPosition)
+      const { anchorPoint, commands } = this.getConnectionPathCommandsNE(
+        startPoint,
+        endPoint
       )
-      const endPoint = new Point(
-        childPosition.left,
-        childPosition.top + childPosition.height - HANDLER_POINT_OFFSET
-      )
+
+      return {
+        startPoint,
+        endPoint,
+        anchorPoint,
+        path: commands.join(' '),
+      }
+    },
+    getConnectionPathCommandsNE(startPoint, endPoint) {
+      if (!startPoint || !endPoint) {
+        return { anchorPoint: new Point(0, 0), commands: [] }
+      }
 
       const movePoint = _.clone(startPoint)
       const commands = [movePoint.commandMove()]
@@ -541,12 +637,7 @@ export default {
       commands.push(endPoint.commandDrawLine())
       commands.push(endPoint.commandHorizontalArrowEndRight())
 
-      return {
-        startPoint,
-        endPoint,
-        anchorPoint,
-        path: commands.join(' '),
-      }
+      return { commands, anchorPoint }
     },
 
     /**
@@ -559,15 +650,22 @@ export default {
      * @param childPosition
      */
     getConnectionBearingNW(parentPosition, childPosition) {
-      const startPoint = new Point(
-        parentPosition.left + HANDLER_POINT_OFFSET,
-        parentPosition.top + ADJUST_FOR_PADDING
-      )
-      const endPoint = new Point(
-        childPosition.left + childPosition.width - ADJUST_FOR_PADDING * 2,
-        childPosition.top + childPosition.height - HANDLER_POINT_OFFSET
-      )
+      const startPoint = this.getPointBearingNW(parentPosition)
+      const endPoint = this.getPointBearingE(childPosition)
 
+      const { anchorPoint, commands } = this.getConnectionPathCommandsNW()
+
+      return {
+        startPoint,
+        endPoint,
+        anchorPoint,
+        path: commands.join(' '),
+      }
+    },
+    getConnectionPathCommandsNW(startPoint, endPoint) {
+      if (!startPoint || !endPoint) {
+        return { anchorPoint: new Point(0, 0), commands: [] }
+      }
       const movePoint = _.clone(startPoint)
       const commands = [movePoint.commandMove()]
 
@@ -577,13 +675,7 @@ export default {
       anchorPoint.movX(+ROUND_RADIUS)
       commands.push(endPoint.commandDrawLine())
       commands.push(endPoint.commandHorizontalArrowEndLeft())
-
-      return {
-        startPoint,
-        endPoint,
-        anchorPoint,
-        path: commands.join(' '),
-      }
+      return { anchorPoint, commands }
     },
 
     /**
@@ -597,24 +689,12 @@ export default {
      * @param childPosition
      */
     getConnectionBearingSW(parentPosition, childPosition) {
-      const startPoint = new Point(
-        parentPosition.left + HANDLER_POINT_OFFSET,
-        parentPosition.top + parentPosition.height - ADJUST_FOR_PADDING
+      const startPoint = this.getPointBearingSW(parentPosition)
+      const endPoint = this.getPointBearingE(childPosition)
+      const { anchorPoint, commands } = this.getConnectionPathCommandsSW(
+        startPoint,
+        endPoint
       )
-      const endPoint = new Point(
-        childPosition.left + childPosition.width - ADJUST_FOR_PADDING * 2,
-        childPosition.top + childPosition.height - HANDLER_POINT_OFFSET
-      )
-
-      const movePoint = _.clone(startPoint)
-      const commands = [movePoint.commandMove()]
-
-      commands.push(movePoint.setY(endPoint.y - ROUND_RADIUS).commandDrawLine())
-      commands.push(movePoint.commandRoundLeftDown())
-      const anchorPoint = _.clone(movePoint)
-      anchorPoint.movX(+ROUND_RADIUS)
-      commands.push(endPoint.commandDrawLine())
-      commands.push(endPoint.commandHorizontalArrowEndLeft())
 
       return {
         startPoint,
@@ -624,6 +704,147 @@ export default {
       }
     },
 
+    getConnectionPathCommandsSW(startPoint, endPoint) {
+      if (!startPoint || !endPoint) {
+        return { anchorPoint: new Point(0, 0), commands: [] }
+      }
+      const movePoint = _.clone(startPoint)
+      const commands = [movePoint.commandMove()]
+
+      commands.push(movePoint.setY(endPoint.y - ROUND_RADIUS).commandDrawLine())
+      commands.push(movePoint.commandRoundLeftDown())
+      const anchorPoint = _.clone(movePoint)
+      anchorPoint.movX(+ROUND_RADIUS)
+      commands.push(endPoint.commandDrawLine())
+      commands.push(endPoint.commandHorizontalArrowEndLeft())
+      return { anchorPoint, commands }
+    },
+
+    /**
+     * SW point position
+     *
+     *    +------+
+     *    |      |
+     *    +-X----+
+     *
+     * @param position
+     * @returns {Point}
+     */
+    getPointBearingSW(position) {
+      return new Point(
+        position.left + HANDLER_POINT_OFFSET,
+        position.top + position.height - ADJUST_FOR_PADDING
+      )
+    },
+    /**
+     * NW point position
+     *
+     *    +-X----+
+     *    |      |
+     *    +------+
+     *
+     * @param position
+     * @returns {Point}
+     */
+    getPointBearingNW(position) {
+      return new Point(
+        position.left + HANDLER_POINT_OFFSET,
+        position.top + ADJUST_FOR_PADDING
+      )
+    },
+
+    /**
+     * NE point position
+     *
+     *    +----X-+
+     *    |      |
+     *    +------+
+     *
+     * @param position
+     * @returns {Point}
+     */
+    getPointBearingNE(position) {
+      return new Point(
+        position.left + position.width - HANDLER_POINT_OFFSET,
+        position.top + ADJUST_FOR_PADDING
+      )
+    },
+
+    /**
+     * SE point position
+     *
+     *    +------+
+     *    |      |
+     *    +----x-+
+     *
+     * @param position
+     * @returns {Point}
+     */
+
+    getPointBearingSE(position) {
+      return new Point(
+        position.left + position.width - HANDLER_POINT_OFFSET,
+        position.top + position.height - ADJUST_FOR_PADDING
+      )
+    },
+
+    /**
+     * E point position
+     *
+     *    +------+
+     *    |      X
+     *    +------+
+     *
+     * @param position
+     * @returns {Point}
+     */
+    getPointBearingE(position) {
+      return new Point(
+        position.left + position.width - ADJUST_FOR_PADDING * 2,
+        position.top + position.height - HANDLER_POINT_OFFSET
+      )
+    },
+
+    /**
+     * W point position
+     *
+     *    +------+
+     *    X      |
+     *    +------+
+     *
+     * @param position
+     * @returns {Point}
+     */
+
+    getPointBearingW(position) {
+      return new Point(
+        position.left,
+        position.top + position.height - HANDLER_POINT_OFFSET
+      )
+    },
+
+    getConnectionBearingName(parentPosition, childPosition) {
+      const bearing = []
+      if (
+        (childPosition.top || childPosition.y) >
+        (parentPosition.top || parentPosition.y)
+      ) {
+        bearing.push('S')
+      } else {
+        bearing.push('N')
+      }
+
+      if (
+        (childPosition.left || childPosition.x) >
+        (parentPosition.left || parentPosition.x)
+      ) {
+        bearing.push('E')
+      } else {
+        bearing.push('W')
+      }
+
+      return bearing.join('')
+    },
     /**
      * Calculates connection path using proper bearing handler.
      *
@@ -632,20 +853,16 @@ export default {
      * @returns {*}
      */
     getConnectionBearingPath(parentPosition, childPosition) {
-      const bearing = []
-      if (childPosition.top > parentPosition.top) {
-        bearing.push('S')
-      } else {
-        bearing.push('N')
-      }
+      const bearing = this.getConnectionBearingName(
+        parentPosition,
+        childPosition
+      )
 
-      if (childPosition.left > parentPosition.left) {
-        bearing.push('E')
-      } else {
-        bearing.push('W')
+      const bearingName = `getConnectionBearing${bearing}`
+      return {
+        bearingName,
+        ...this[bearingName](parentPosition, childPosition),
       }
-      const bearingName = `getConnectionBearing${bearing.join('')}`
-      return this[bearingName](parentPosition, childPosition)
     },
 
     /**
@@ -664,8 +881,46 @@ export default {
       const predecessors = row[fieldName]
       return predecessors
     },
-    onPathPointerEnter(connection, event) {},
-    onPathPointerLeave(connection, event) {},
+
+    async addConnection(parentRowId, childRowId) {
+      const row = this.getRowFromBuffer(childRowId)?.item
+      if (!row) {
+        return
+      }
+
+      const storePrefix = this.storePrefix
+      const view = this.view
+      const table = this.view.table
+      const fields = this.fields
+      const rule = this.rule
+      const field = fields.filter(
+        (_field) => _field.id === rule.dependency_linkrow_field_id
+      )[0]
+
+      const fieldName = `field_${field.id}`
+      const value = _.clone(row[fieldName])
+      const oldValue = _.clone(row[fieldName])
+      // do not create a connection which already exists
+      const existing = oldValue.find((row) => row.id === parentRowId)
+      if (existing) {
+        return
+      }
+      value.push({ id: parentRowId })
+      const storeName = storePrefix + 'view/timeline/'
+      try {
+        await this.$store.dispatch(storeName + 'updateRowValue', {
+          table,
+          view,
+          fields,
+          row,
+          field,
+          value,
+          oldValue,
+        })
+      } catch (error) {
+        notifyIf(error, 'field')
+      }
+    },
 
     /**
      * Removes a connection between rows.
@@ -676,7 +931,7 @@ export default {
      */
     async onConnectionRemove(connection, event) {
       const parent = connection.parent
-      const row = connection.child.row
+      const row = connection.child
       const storePrefix = this.storePrefix
       const view = this.view
       const table = this.view.table
@@ -707,6 +962,126 @@ export default {
         })
       } catch (error) {
         notifyIf(error, 'field')
+      }
+    },
+
+    /**
+     * Enable dragging elements
+     *
+     * @param rowId
+     */
+    dragSetupElements(rowId) {
+      if (!rowId) {
+        return
+      }
+      const currentRow = this.getRowFromBuffer(rowId)
+      this.$refs.container.classList.add(
+        'date-dependency__timeline-container--draggable'
+      )
+      document
+        .getElementById(`row-${rowId}-activator`)
+        ?.classList.add('date-dependency--no-events')
+      document
+        .getElementById(`row-${rowId}-droppable`)
+        ?.classList.add('date-dependency--no-events')
+
+      const fields = this.fields
+      const rule = this.rule
+      const field = fields.filter(
+        (_field) => _field.id === rule.dependency_linkrow_field_id
+      )[0]
+
+      const fieldName = `field_${field.id}`
+
+      const noEvents = []
+
+      // disable drop zones in direct children
+      this.rows.forEach((rowItem) => {
+        const row = rowItem.item
+        if (
+          row[fieldName].findIndex((rowValue) => {
+            return rowValue.id === rowId
+          })
+        ) {
+          const childRowId = row.id
+
+          noEvents.push(document.getElementById(`row-${childRowId}-activator`))
+
+          noEvents.push(document.getElementById(`row-${childRowId}-droppable`))
+        }
+      })
+
+      // disable drop zones in direct parents
+      // currentRow.item[fieldName].forEach((row) => {
+      //   const childRowId = row.id
+      //   noEvents.push(document.getElementById(`row-${childRowId}-activator`))
+      //
+      //   noEvents.push(document.getElementById(`row-${childRowId}-droppable`))
+      // })
+      noEvents.forEach((elm) => {
+         elm.classList.add('date-dependency--no-events')
+      })
+    },
+
+    /**
+     * Cleanup after drag is finished.
+     *
+     * @param rowId
+     */
+    dragClearElements(rowId) {
+      this.$refs.container.classList.remove(
+        'date-dependency__timeline-container--draggable'
+      )
+      Array.from(
+        document.getElementsByClassName('date-dependency--no-events')
+      ).forEach((elm) => {
+        elm.classList.remove('date-dependency--no-events')
+      })
+      this.dragPoint.x = 0
+      this.dragPoint.y = 0
+      this.dragStartPoint = null
+      this.drawConnection = null
+    },
+    onDragStart(event) {
+      if (this.dragStartPoint) {
+        return
+      }
+      this.dragPoint.x = event.offsetX
+      this.dragPoint.y = event.offsetY
+      const rowId = Number.parseInt(event.target.dataset.rowId)
+      const startPoint = new Point(event.offsetX, event.offsetY)
+      startPoint.rowId = rowId
+      this.dragStartPoint = startPoint
+
+      this.dragSetupElements(rowId)
+    },
+    async onDragEnd(event) {
+      const rowId = Number.parseInt(this.dragStartPoint?.rowId)
+      this.dragClearElements(rowId)
+      if (!rowId || Number.isNaN(rowId)) {
+        return
+      }
+      const dropZone = event.target
+      const targetRowId = Number.parseInt(dropZone.dataset.rowId)
+      if (!targetRowId) {
+        return
+      }
+      await this.addConnection(rowId, targetRowId)
+    },
+    onDragMove(event) {
+      if (this.dragStartPoint) {
+        this.dragPoint.x = event.offsetX
+        this.dragPoint.y = event.offsetY
+        const bearing = this.getConnectionBearingName(
+          this.dragStartPoint,
+          this.dragPoint
+        )
+        const { commands } = this[`getConnectionPathCommands${bearing}`](
+          this.dragStartPoint,
+          this.dragPoint
+        )
+        const path = commands.join('')
+        this.drawConnection = path
       }
     },
   },
