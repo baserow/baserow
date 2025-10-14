@@ -1,192 +1,181 @@
-from unittest.mock import Mock
-
 import pytest
 
-from baserow.core.search.data_types import SearchContext, SearchResult
-from baserow.core.search.registries import WorkspaceSearchRegistry
+from baserow.core.search.handler import WorkspaceSearchHandler
 
 
-class MockSearchType:
-    def __init__(self, type_name, priority, total_count):
-        self.type = type_name
-        self.priority = priority
-        self.total_count = total_count
-        self.call_count = 0
-        self.last_context = None
+@pytest.mark.workspace_search
+@pytest.mark.django_db(transaction=True)
+def test_search_all_types_pagination_within_single_type(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
 
-    def get_union_values_queryset(self, user, workspace, context):
-        self.call_count += 1
-        self.last_context = context
-
-        mock_data = []
-        for i in range(self.total_count):
-            mock_data.append(
-                {
-                    "search_type": self.type,
-                    "object_id": f"{self.type}_{i}",
-                    "sort_key": i,
-                    "rank": None,
-                    "priority": self.priority,
-                    "title": f"{self.type} Item {i}",
-                    "subtitle": self.type,
-                    "payload": {},
-                }
-            )
-
-        mock_qs = Mock()
-        mock_qs.__iter__ = lambda self: iter(mock_data)
-        mock_qs.__getitem__ = lambda self, key: mock_data[key]
-        mock_qs.order_by = lambda *args: mock_qs
-        mock_qs.union = lambda other, all=True: self._create_union_mock(
-            mock_data, other
+    # Create multiple applications to test pagination
+    apps = []
+    for i in range(50):
+        app = data_fixture.create_database_application(
+            workspace=workspace, name=f"Database {i:02d}"
         )
+        apps.append(app)
 
-        return mock_qs
+    handler = WorkspaceSearchHandler()
 
-    def _create_union_mock(self, self_data, other_qs):
-        other_data = list(other_qs) if hasattr(other_qs, "__iter__") else []
-        combined_data = self_data + other_data
+    # Test pagination using search_workspace method
+    result_data = handler.search_workspace(
+        user=user, workspace=workspace, query="Database", limit=10, offset=5
+    )
 
-        mock_qs = Mock()
-        mock_qs.__iter__ = lambda self: iter(combined_data)
-        mock_qs.__getitem__ = lambda self, key: combined_data[key]
-        mock_qs.order_by = lambda *args: mock_qs
-        mock_qs.union = lambda other, all=True: self._create_union_mock(
-            combined_data, other
+    # Should return 10 results starting from offset 5
+    assert len(result_data["results"]) == 10
+    assert all(result["type"] == "database" for result in result_data["results"])
+
+    result_ids = [result["id"] for result in result_data["results"]]
+    expected_ids = [str(apps[i].id) for i in range(5, 15)]  # offset 5, limit 10
+    assert result_ids == expected_ids
+
+
+@pytest.mark.workspace_search
+@pytest.mark.django_db(transaction=True)
+def test_search_all_types_pagination_skip_entire_type(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+
+    # Create applications with different priorities by creating them in different order
+    # This will help us test the priority-based ordering
+    app1 = data_fixture.create_database_application(
+        workspace=workspace, name="First Database"
+    )
+    app2 = data_fixture.create_database_application(
+        workspace=workspace, name="Second Database"
+    )
+    app3 = data_fixture.create_database_application(
+        workspace=workspace, name="Third Database"
+    )
+
+    handler = WorkspaceSearchHandler()
+
+    # Test with offset that should skip some results
+    result_data = handler.search_workspace(
+        user=user, workspace=workspace, query="Database", limit=2, offset=1
+    )
+
+    # Should return 2 results starting from offset 1
+    assert len(result_data["results"]) == 2
+    assert all(result["type"] == "database" for result in result_data["results"])
+
+    # Results should be ordered by object_id (since all have same priority)
+    result_ids = [result["id"] for result in result_data["results"]]
+    expected_ids = [str(app.id) for app in [app1, app2, app3][1:3]]  # offset 1, limit 2
+    assert result_ids == expected_ids
+
+
+@pytest.mark.workspace_search
+@pytest.mark.django_db(transaction=True)
+def test_search_all_types_pagination_no_results(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+
+    # Create a few applications
+    data_fixture.create_database_application(workspace=workspace, name="Database 1")
+    data_fixture.create_database_application(workspace=workspace, name="Database 2")
+
+    handler = WorkspaceSearchHandler()
+
+    # Test with offset beyond available results
+    result_data = handler.search_workspace(
+        user=user, workspace=workspace, query="Database", limit=5, offset=10
+    )
+
+    # Should return no results
+    assert len(result_data["results"]) == 0
+
+
+@pytest.mark.workspace_search
+@pytest.mark.django_db(transaction=True)
+def test_search_all_types_pagination_limit_reached(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+
+    # Create multiple applications
+    apps = []
+    for i in range(10):
+        app = data_fixture.create_database_application(
+            workspace=workspace, name=f"Database {i:02d}"
         )
+        apps.append(app)
 
-        return mock_qs
+    handler = WorkspaceSearchHandler()
 
-    def postprocess(self, rows):
-        return [
-            SearchResult(
-                type=row["search_type"],
-                id=row["object_id"],
-                title=row["title"],
-                subtitle=row["subtitle"],
-                created_on=None,
-                updated_on=None,
-                metadata=row["payload"],
-            )
-            for row in rows
-        ]
+    # Test with limit that should return exactly the limit
+    result_data = handler.search_workspace(
+        user=user, workspace=workspace, query="Database", limit=5, offset=0
+    )
 
+    # Should return exactly 5 results
+    assert len(result_data["results"]) == 5
+    assert all(result["type"] == "database" for result in result_data["results"])
 
-@pytest.mark.workspace_search
-@pytest.mark.django_db(transaction=True)
-def test_search_all_types_pagination_within_single_type():
-    registry = WorkspaceSearchRegistry()
-
-    type1 = MockSearchType("type1", priority=1, total_count=50)
-
-    registry.registry = {"type1": type1}
-
-    context = SearchContext(query="test", limit=10, offset=5)
-
-    user = Mock()
-    workspace = Mock()
-
-    results = registry.search_all_types(user, workspace, context)
-
-    assert type1.call_count == 1
-    assert type1.last_context.offset == 5
-    assert type1.last_context.limit == 10
-
-    assert len(results) == 10
-    assert all(result.type == "type1" for result in results)
-    assert results[0].id == "type1_5"
-    assert results[9].id == "type1_14"
+    # Results should be ordered by object_id
+    result_ids = [result["id"] for result in result_data["results"]]
+    expected_ids = [str(apps[i].id) for i in range(5)]  # first 5 apps
+    assert result_ids == expected_ids
 
 
 @pytest.mark.workspace_search
 @pytest.mark.django_db(transaction=True)
-def test_search_all_types_pagination_skip_entire_type():
-    registry = WorkspaceSearchRegistry()
+def test_search_all_types_pagination_with_different_priorities(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
 
-    type1 = MockSearchType("type1", priority=1, total_count=5)
-    type2 = MockSearchType("type2", priority=2, total_count=3)
-    type3 = MockSearchType("type3", priority=3, total_count=10)
+    # Create applications - they all have the same priority (10) by default
+    app1 = data_fixture.create_database_application(workspace=workspace, name="App 1")
+    app2 = data_fixture.create_database_application(workspace=workspace, name="App 2")
+    app3 = data_fixture.create_database_application(workspace=workspace, name="App 3")
 
-    registry.registry = {"type1": type1, "type2": type2, "type3": type3}
+    handler = WorkspaceSearchHandler()
 
-    # Should skip type1 (5) + type2 (3) = 8, then start at offset 2 in type3
-    context = SearchContext(query="test", limit=5, offset=10)
+    # Test pagination
+    result_data = handler.search_workspace(
+        user=user, workspace=workspace, query="App", limit=2, offset=1
+    )
 
-    user = Mock()
-    workspace = Mock()
+    # Should return 2 results starting from offset 1
+    assert len(result_data["results"]) == 2
+    assert all(result["type"] == "database" for result in result_data["results"])
 
-    results = registry.search_all_types(user, workspace, context)
-
-    assert type1.call_count == 1
-    assert type1.last_context.offset == 10  # Original offset
-
-    assert type2.call_count == 1
-    assert type2.last_context.offset == 10  # Original offset
-
-    assert type3.call_count == 1
-    assert type3.last_context.offset == 10  # Original offset
-
-    assert len(results) == 5
-    assert all(result.type == "type3" for result in results)
-    assert results[0].id == "type3_2"
-    assert results[4].id == "type3_6"
+    # Results should be ordered by object_id (since all have same priority)
+    result_ids = [result["id"] for result in result_data["results"]]
+    expected_ids = [str(app.id) for app in [app1, app2, app3][1:3]]  # offset 1, limit 2
+    assert result_ids == expected_ids
 
 
 @pytest.mark.workspace_search
 @pytest.mark.django_db(transaction=True)
-def test_search_all_types_pagination_no_results():
-    registry = WorkspaceSearchRegistry()
+def test_search_all_types_pagination_edge_cases(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
 
-    type1 = MockSearchType("type1", priority=1, total_count=3)
-    type2 = MockSearchType("type2", priority=2, total_count=2)
+    # Create a single application
+    app = data_fixture.create_database_application(
+        workspace=workspace, name="Single Database"
+    )
 
-    registry.registry = {"type1": type1, "type2": type2}
+    handler = WorkspaceSearchHandler()
 
-    context = SearchContext(query="test", limit=5, offset=10)
+    # Test with limit 0
+    result_data = handler.search_workspace(
+        user=user, workspace=workspace, query="Database", limit=0, offset=0
+    )
+    assert len(result_data["results"]) == 0
 
-    user = Mock()
-    workspace = Mock()
+    # Test with offset 0, limit 1
+    result_data = handler.search_workspace(
+        user=user, workspace=workspace, query="Database", limit=1, offset=0
+    )
+    assert len(result_data["results"]) == 1
+    assert result_data["results"][0]["id"] == str(app.id)
 
-    results = registry.search_all_types(user, workspace, context)
-
-    assert type1.call_count == 1
-    assert type1.last_context.offset == 10
-    assert type2.call_count == 1
-    assert type2.last_context.offset == 10
-
-    assert len(results) == 0
-
-
-@pytest.mark.workspace_search
-@pytest.mark.django_db(transaction=True)
-def test_search_all_types_pagination_limit_reached():
-    registry = WorkspaceSearchRegistry()
-
-    type1 = MockSearchType("type1", priority=1, total_count=5)
-    type2 = MockSearchType("type2", priority=2, total_count=10)
-    type3 = MockSearchType("type3", priority=3, total_count=10)
-
-    registry.registry = {"type1": type1, "type2": type2, "type3": type3}
-
-    context = SearchContext(query="test", limit=8, offset=0)
-
-    user = Mock()
-    workspace = Mock()
-
-    results = registry.search_all_types(user, workspace, context)
-
-    assert type1.call_count == 1
-    assert type1.last_context.offset == 0
-    assert type1.last_context.limit == 8
-
-    assert type2.call_count == 1
-    assert type2.last_context.offset == 0
-    assert type2.last_context.limit == 8
-
-    assert type3.call_count == 1
-    assert type3.last_context.offset == 0
-    assert type3.last_context.limit == 8
-
-    assert len(results) == 8
-    assert len([r for r in results if r.type == "type1"]) == 5
-    assert len([r for r in results if r.type == "type2"]) == 3
+    # Test with offset 1, limit 1 (should return no results)
+    result_data = handler.search_workspace(
+        user=user, workspace=workspace, query="Database", limit=1, offset=1
+    )
+    assert len(result_data["results"]) == 0

@@ -30,6 +30,7 @@
           v-if="hasSearchTerm"
           class="workspace-search__content"
           @scroll="handleScroll"
+          @mousemove="isKeyboardNavigating = false"
         >
           <!-- Search results -->
           <div v-if="hasResults" class="workspace-search__results">
@@ -43,7 +44,7 @@
                     activeIndex === index,
                 }"
                 @click="selectResult(result)"
-                @mouseenter="activeIndex = index"
+                @mouseenter="onMouseEnter(index)"
               >
                 <div class="workspace-search__result-icon">
                   <i :class="getResultIcon(result.type)"></i>
@@ -165,6 +166,7 @@ export default {
       hasMoreResults: false,
       isLoadingMore: false,
       isSearching: false,
+      isKeyboardNavigating: false,
       currentPage: 1,
       minChars: 3,
       pageSize: 10,
@@ -225,6 +227,11 @@ export default {
         this.$store.dispatch('workspaceSearch/clearSearch')
       }
       this.debouncedSearch(newValue)
+    },
+    'selectedWorkspace.id'(newId, oldId) {
+      if (newId !== oldId) {
+        this.clearSearch()
+      }
     },
   },
 
@@ -327,7 +334,12 @@ export default {
         this.hasMoreResults = result.has_more || false
         this.activeIndex = 0
       } catch (error) {
-        console.error('Search failed:', error)
+        this.reportSearchError('initial_search', error, {
+          searchTermLength: searchTerm?.length || 0,
+          limit: this.pageSize * this.initialLoadPages,
+          offset: 0,
+          append: false,
+        })
       } finally {
         this.isSearching = false
       }
@@ -352,7 +364,12 @@ export default {
 
         this.hasMoreResults = result.has_more || false
       } catch (error) {
-        console.error('Load more failed:', error)
+        this.reportSearchError('load_more', error, {
+          searchTermLength: this.searchTerm?.length || 0,
+          limit: this.pageSize * this.scrollLoadPages,
+          offset: this.totalResultCount,
+          append: true,
+        })
       } finally {
         this.isLoadingMore = false
       }
@@ -371,6 +388,7 @@ export default {
     },
 
     handleKeydown(event) {
+      this.isKeyboardNavigating = true
       switch (event.key) {
         case 'ArrowDown':
           event.preventDefault()
@@ -392,15 +410,13 @@ export default {
 
     moveSelection(direction) {
       const newIndex = this.activeIndex + direction
-
       if (newIndex < 0) {
-        this.activeIndex = this.maxIndex
-      } else if (newIndex > this.maxIndex) {
         this.activeIndex = 0
+      } else if (newIndex > this.maxIndex) {
+        this.activeIndex = this.maxIndex
       } else {
         this.activeIndex = newIndex
       }
-
       this.scrollToActiveItem()
     },
 
@@ -450,6 +466,30 @@ export default {
 
     getResultIcon(type) {
       return searchTypeRegistry.getIcon(type)
+    },
+    reportSearchError(
+      phase,
+      error,
+      { searchTermLength, limit, offset, append }
+    ) {
+      const workspaceId = this.currentWorkspace?.id
+      if (this.$sentry && typeof this.$sentry.withScope === 'function') {
+        this.$sentry.withScope((scope) => {
+          scope.setTag('feature', 'workspace_search')
+          if (workspaceId) scope.setTag('workspace_id', String(workspaceId))
+          scope.setExtra('phase', phase)
+          scope.setExtra('search_term_length', searchTermLength)
+          scope.setExtra('limit', limit)
+          scope.setExtra('offset', offset)
+          scope.setExtra('append', append)
+        })
+        this.$sentry.captureException(error)
+      }
+    },
+    onMouseEnter(index) {
+      if (!this.isKeyboardNavigating) {
+        this.activeIndex = index
+      }
     },
   },
 }

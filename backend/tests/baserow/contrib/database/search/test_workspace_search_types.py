@@ -154,11 +154,11 @@ def test_row_search_type_basic_functionality(data_fixture):
     SearchHandler.initialize_missing_search_data(table)
     SearchHandler.process_search_data_updates(table)
 
-    from baserow.core.search.registries import workspace_search_registry
+    from baserow.core.search.handler import WorkspaceSearchHandler
 
     context = SearchContext(query="Test content", limit=10, offset=0)
 
-    results = workspace_search_registry.search_all_types(user, workspace, context)
+    results, _ = WorkspaceSearchHandler().search_all_types(user, workspace, context)
 
     assert len(results) >= 1
     assert results[0].id == f"{table.id}_{row1.id}"
@@ -209,11 +209,11 @@ def test_row_search_multiple_fields(data_fixture):
     SearchHandler.initialize_missing_search_data(table)
     SearchHandler.process_search_data_updates(table)
 
-    from baserow.core.search.registries import workspace_search_registry
+    from baserow.core.search.handler import WorkspaceSearchHandler
 
     context = SearchContext(query="Unique", limit=10, offset=0)
 
-    results = workspace_search_registry.search_all_types(user, workspace, context)
+    results, _ = WorkspaceSearchHandler().search_all_types(user, workspace, context)
 
     assert len(results) >= 2
     assert results[0].id == f"{table.id}_{row1.id}"

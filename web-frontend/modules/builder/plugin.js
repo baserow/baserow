@@ -149,6 +149,8 @@ import {
   NumericQueryParamType,
 } from '@baserow/modules/builder/queryParamTypes'
 import { BuilderGuidedTourType } from '@baserow/modules/builder/guidedTourTypes'
+import { BuilderSearchType } from '@baserow/modules/core/search/types/builder'
+import { searchTypeRegistry } from '@baserow/modules/core/search/types'
 
 export default (context) => {
   const { store, app, isDev } = context
@@ -424,4 +426,6 @@ export default (context) => {
   app.$registry.register('fontFamily', new BrushScriptMTFontFamilyType(context))
 
   app.$registry.register('guidedTour', new BuilderGuidedTourType(context))
+
+  searchTypeRegistry.register(new BuilderSearchType())
 }
