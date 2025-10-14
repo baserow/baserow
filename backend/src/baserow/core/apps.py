@@ -39,11 +39,13 @@ class CoreConfig(AppConfig):
             RuntimeAdd,
             RuntimeConcat,
             RuntimeGet,
+            RuntimeUpper,
         )
 
         formula_runtime_function_registry.register(RuntimeConcat())
         formula_runtime_function_registry.register(RuntimeGet())
         formula_runtime_function_registry.register(RuntimeAdd())
+        formula_runtime_function_registry.register(RuntimeUpper())
 
         from baserow.core.permission_manager import (
             AllowIfTemplatePermissionManagerType,
