@@ -79,7 +79,12 @@ export default {
       return (
         this.value.find(
           (fieldMapping) => fieldMapping.field_id === fieldId
-        ) || { enabled: true, field_id: fieldId, value: {} }
+        ) || {
+          enabled: true,
+          field_id: fieldId,
+          value: {},
+          value_is_formula: true,
+        }
       )
     },
     updateFieldMapping(fieldId, changes) {
