@@ -1227,6 +1227,7 @@ class LocalBaserowAggregateRowsUserServiceType(
         return {
             **super().serializer_field_overrides,
             **LocalBaserowTableServiceFilterableMixin.mixin_serializer_field_overrides,
+            **LocalBaserowTableServiceSearchableMixin.mixin_serializer_field_overrides,
             "field_id": serializers.IntegerField(
                 required=False,
                 allow_null=True,

@@ -1,3 +1,5 @@
+from typing import Any
+
 from rest_framework import serializers
 
 from baserow.contrib.dashboard.data_sources.handler import DashboardDataSourceHandler
@@ -62,10 +64,10 @@ class SummaryWidgetType(WidgetType):
     def deserialize_property(
         self,
         prop_name: str,
-        value: any,
-        id_mapping: dict[str, any],
+        value: Any,
+        id_mapping: dict[str, Any],
         **kwargs,
-    ) -> any:
+    ) -> Any:
         if prop_name == "data_source_id" and value:
             return id_mapping["dashboard_data_sources"][value]
 

@@ -95,7 +95,7 @@ from baserow.core.formula import (
     resolve_formula,
 )
 from baserow.core.formula.registries import formula_runtime_function_registry
-from baserow.core.formula.types import BaserowFormula
+from baserow.core.formula.types import BaserowFormula, BaserowFormulaObject
 from baserow.core.formula.validator import (
     ensure_array,
     ensure_boolean,
@@ -227,7 +227,7 @@ class FormContainerElementType(ContainerElementTypeMixin, ElementType):
     simple_formula_fields = ["submit_button_label"]
 
     class SerializedDict(ContainerElementTypeMixin.SerializedDict):
-        submit_button_label: BaserowFormula
+        submit_button_label: BaserowFormulaObject
         reset_initial_values_post_submission: bool
 
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
@@ -251,7 +251,6 @@ class FormContainerElementType(ContainerElementTypeMixin, ElementType):
                 help_text=FormContainerElement._meta.get_field(
                     "submit_button_label"
                 ).help_text,
-                required=False,
             ),
             "reset_initial_values_post_submission": serializers.BooleanField(
                 help_text=FormContainerElement._meta.get_field(
@@ -427,11 +426,11 @@ class RecordSelectorElementType(
 
     class SerializedDict(CollectionElementTypeMixin.SerializedDict):
         required: bool
-        label: BaserowFormula
-        default_value: BaserowFormula
-        placeholder: BaserowFormula
+        label: BaserowFormulaObject
+        default_value: BaserowFormulaObject
+        placeholder: BaserowFormulaObject
         multiple: bool
-        option_name_suffix: BaserowFormula
+        option_name_suffix: BaserowFormulaObject
 
     @property
     def serializer_field_overrides(self):
@@ -453,19 +452,16 @@ class RecordSelectorElementType(
             ),
             "label": FormulaSerializerField(
                 help_text=RecordSelectorElement._meta.get_field("label").help_text,
-                required=False,
             ),
             "default_value": FormulaSerializerField(
                 help_text=RecordSelectorElement._meta.get_field(
                     "default_value"
                 ).help_text,
-                required=False,
             ),
             "placeholder": FormulaSerializerField(
                 help_text=RecordSelectorElement._meta.get_field(
                     "placeholder"
                 ).help_text,
-                required=False,
             ),
             "multiple": serializers.BooleanField(
                 help_text=RecordSelectorElement._meta.get_field("multiple").help_text,
@@ -476,7 +472,6 @@ class RecordSelectorElementType(
                 help_text=RecordSelectorElement._meta.get_field(
                     "option_name_suffix"
                 ).help_text,
-                required=False,
             ),
         }
 
@@ -654,7 +649,7 @@ class HeadingElementType(ElementType):
     simple_formula_fields = ["value"]
 
     class SerializedDict(ElementDict):
-        value: BaserowFormula
+        value: BaserowFormulaObject
         level: int
 
     @property
@@ -670,7 +665,6 @@ class HeadingElementType(ElementType):
         overrides = {
             "value": FormulaSerializerField(
                 help_text="The value of the element. Must be an formula.",
-                required=False,
             ),
             "level": serializers.IntegerField(
                 help_text="The level of the heading from 1 to 6.",
@@ -704,7 +698,7 @@ class TextElementType(ElementType):
     simple_formula_fields = ["value"]
 
     class SerializedDict(ElementDict):
-        value: BaserowFormula
+        value: BaserowFormulaObject
         format: str
 
     def get_pytest_params(self, pytest_data_fixture):
@@ -730,7 +724,6 @@ class TextElementType(ElementType):
         return {
             "value": FormulaSerializerField(
                 help_text="The value of the element. Must be a formula.",
-                required=False,
             ),
             "format": serializers.ChoiceField(
                 choices=TextElement.TEXT_FORMATS.choices,
@@ -777,7 +770,7 @@ class NavigationElementManager:
         navigate_to_page_id: int
         page_parameters: List
         query_parameters: List
-        navigate_to_url: BaserowFormula
+        navigate_to_url: BaserowFormulaObject
         target: str
 
     def deserialize_property(
@@ -820,7 +813,6 @@ class NavigationElementManager:
                 help_text=NavigationElementMixin._meta.get_field(
                     "navigate_to_url"
                 ).help_text,
-                default="",
             ),
             "page_parameters": PageParameterValueSerializer(
                 many=True,
@@ -949,7 +941,7 @@ class LinkElementType(ElementType):
         )
 
     class SerializedDict(ElementDict, NavigationElementManager.SerializedDict):
-        value: BaserowFormula
+        value: BaserowFormulaObject
         variant: str
 
     def formula_generator(
@@ -1015,7 +1007,6 @@ class LinkElementType(ElementType):
             | {
                 "value": FormulaSerializerField(
                     help_text="The value of the element. Must be an formula.",
-                    required=False,
                 ),
                 "variant": serializers.ChoiceField(
                     choices=LinkElement.VARIANTS.choices,
@@ -1081,8 +1072,8 @@ class ImageElementType(ElementType):
     class SerializedDict(ElementDict):
         image_source_type: str
         image_file_id: int
-        image_url: BaserowFormula
-        alt_text: BaserowFormula
+        image_url: BaserowFormulaObject
+        alt_text: BaserowFormulaObject
 
     def get_pytest_params(self, pytest_data_fixture):
         return {
@@ -1107,11 +1098,9 @@ class ImageElementType(ElementType):
             "image_file": UserFileSerializer(required=False),
             "image_url": FormulaSerializerField(
                 help_text=ImageElement._meta.get_field("image_url").help_text,
-                required=False,
             ),
             "alt_text": FormulaSerializerField(
                 help_text=ImageElement._meta.get_field("alt_text").help_text,
-                required=False,
             ),
             "styles": DynamicConfigBlockSerializer(
                 required=False,
@@ -1134,8 +1123,15 @@ class ImageElementType(ElementType):
         from baserow.contrib.builder.theme.theme_config_block_types import (
             ImageThemeConfigBlockType,
         )
+        from baserow.core.formula.serializers import FormulaSerializerField
 
         overrides = {
+            "image_url": FormulaSerializerField(
+                help_text=ImageElement._meta.get_field("image_url").help_text
+            ),
+            "alt_text": FormulaSerializerField(
+                help_text=ImageElement._meta.get_field("alt_text").help_text
+            ),
             "image_file": UserFileField(
                 allow_null=True,
                 required=False,
@@ -1223,7 +1219,7 @@ class RatingElementType(ElementType):
     simple_formula_fields = ["value"]
 
     class SerializedDict(ElementDict):
-        value: BaserowFormula
+        value: BaserowFormulaObject
         max_value: str
         color: str
         rating_style: str
@@ -1242,8 +1238,7 @@ class RatingElementType(ElementType):
 
         return {
             "value": FormulaSerializerField(
-                help_text=RatingElement._meta.get_field("value").help_text,
-                required=False,
+                help_text=RatingElement._meta.get_field("value").help_text
             ),
         }
 
@@ -1270,9 +1265,9 @@ class RatingInputElementType(InputElementType):
     simple_formula_fields = ["value", "label"]
 
     class SerializedDict(ElementDict):
-        label: BaserowFormula
+        label: BaserowFormulaObject
         required: bool
-        value: BaserowFormula
+        value: BaserowFormulaObject
         max_value: str
         color: str
         rating_style: str
@@ -1293,8 +1288,7 @@ class RatingInputElementType(InputElementType):
 
         return super().serializer_field_overrides | {
             "label": FormulaSerializerField(
-                help_text=RatingInputElement._meta.get_field("label").help_text,
-                required=False,
+                help_text=RatingInputElement._meta.get_field("label").help_text
             ),
             "required": serializers.BooleanField(
                 help_text=RatingInputElement._meta.get_field("required").help_text,
@@ -1303,7 +1297,6 @@ class RatingInputElementType(InputElementType):
             ),
             "value": FormulaSerializerField(
                 help_text=RatingInputElement._meta.get_field("value").help_text,
-                required=False,
             ),
         }
 
@@ -1353,11 +1346,11 @@ class InputTextElementType(InputElementType):
     simple_formula_fields = ["label", "default_value", "placeholder"]
 
     class SerializedDict(ElementDict):
-        label: BaserowFormula
+        label: BaserowFormulaObject
         required: bool
         validation_type: str
         placeholder: str
-        default_value: BaserowFormula
+        default_value: BaserowFormulaObject
         is_multiline: bool
         rows: int
         input_type: str
@@ -1375,11 +1368,9 @@ class InputTextElementType(InputElementType):
         overrides = {
             "label": FormulaSerializerField(
                 help_text=InputTextElement._meta.get_field("label").help_text,
-                required=False,
             ),
             "default_value": FormulaSerializerField(
                 help_text=InputTextElement._meta.get_field("default_value").help_text,
-                required=False,
             ),
             "required": serializers.BooleanField(
                 help_text=InputTextElement._meta.get_field("required").help_text,
@@ -1387,8 +1378,7 @@ class InputTextElementType(InputElementType):
                 required=False,
             ),
             "placeholder": FormulaSerializerField(
-                help_text=InputTextElement._meta.get_field("placeholder").help_text,
-                required=False,
+                help_text=InputTextElement._meta.get_field("placeholder").help_text
             ),
             "is_multiline": serializers.BooleanField(
                 help_text=InputTextElement._meta.get_field("is_multiline").help_text,
@@ -1464,7 +1454,7 @@ class ButtonElementType(ElementType):
     simple_formula_fields = ["value"]
 
     class SerializedDict(ElementDict):
-        value: BaserowFormula
+        value: BaserowFormulaObject
 
     @property
     def serializer_field_overrides(self):
@@ -1479,7 +1469,6 @@ class ButtonElementType(ElementType):
         overrides = {
             "value": FormulaSerializerField(
                 help_text=ButtonElement._meta.get_field("value").help_text,
-                required=False,
             ),
             "styles": DynamicConfigBlockSerializer(
                 required=False,
@@ -1503,9 +1492,9 @@ class CheckboxElementType(InputElementType):
     simple_formula_fields = ["label", "default_value"]
 
     class SerializedDict(ElementDict):
-        label: BaserowFormula
+        label: BaserowFormulaObject
         required: bool
-        default_value: BaserowFormula
+        default_value: BaserowFormulaObject
 
     @property
     def serializer_field_overrides(self):
@@ -1520,11 +1509,9 @@ class CheckboxElementType(InputElementType):
         overrides = {
             "label": FormulaSerializerField(
                 help_text=CheckboxElement._meta.get_field("label").help_text,
-                required=False,
             ),
             "default_value": FormulaSerializerField(
                 help_text=CheckboxElement._meta.get_field("default_value").help_text,
-                required=False,
             ),
             "required": serializers.BooleanField(
                 help_text=CheckboxElement._meta.get_field("required").help_text,
@@ -1609,16 +1596,16 @@ class ChoiceElementType(FormElementTypeMixin, ElementType):
     ]
 
     class SerializedDict(ElementDict):
-        label: BaserowFormula
+        label: BaserowFormulaObject
         required: bool
-        placeholder: BaserowFormula
-        default_value: BaserowFormula
+        placeholder: BaserowFormulaObject
+        default_value: BaserowFormulaObject
         options: List
         multiple: bool
         show_as_dropdown: bool
         option_type: str
-        formula_value: BaserowFormula
-        formula_name: BaserowFormula
+        formula_value: BaserowFormulaObject
+        formula_name: BaserowFormulaObject
 
     @property
     def serializer_field_overrides(self):
@@ -1633,22 +1620,17 @@ class ChoiceElementType(FormElementTypeMixin, ElementType):
         overrides = {
             "label": FormulaSerializerField(
                 help_text=ChoiceElement._meta.get_field("label").help_text,
-                required=False,
             ),
             "default_value": FormulaSerializerField(
                 help_text=ChoiceElement._meta.get_field("default_value").help_text,
-                required=False,
             ),
             "required": serializers.BooleanField(
                 help_text=ChoiceElement._meta.get_field("required").help_text,
                 default=False,
                 required=False,
             ),
-            "placeholder": serializers.CharField(
-                help_text=ChoiceElement._meta.get_field("placeholder").help_text,
-                required=False,
-                allow_blank=True,
-                default="",
+            "placeholder": FormulaSerializerField(
+                help_text=ChoiceElement._meta.get_field("placeholder").help_text
             ),
             "options": ChoiceOptionSerializer(
                 source="choiceelementoption_set", many=True, required=False
@@ -1671,11 +1653,9 @@ class ChoiceElementType(FormElementTypeMixin, ElementType):
             ),
             "formula_value": FormulaSerializerField(
                 help_text=ChoiceElement._meta.get_field("formula_value").help_text,
-                required=False,
             ),
             "formula_name": FormulaSerializerField(
                 help_text=ChoiceElement._meta.get_field("formula_name").help_text,
-                required=False,
             ),
             "styles": DynamicConfigBlockSerializer(
                 required=False,
@@ -1869,8 +1849,8 @@ class IFrameElementType(ElementType):
 
     class SerializedDict(ElementDict):
         source_type: str
-        url: BaserowFormula
-        embed: BaserowFormula
+        url: BaserowFormulaObject
+        embed: BaserowFormulaObject
         height: int
 
     @property
@@ -1886,11 +1866,9 @@ class IFrameElementType(ElementType):
             ),
             "url": FormulaSerializerField(
                 help_text=IFrameElement._meta.get_field("url").help_text,
-                required=False,
             ),
             "embed": FormulaSerializerField(
                 help_text=IFrameElement._meta.get_field("embed").help_text,
-                required=False,
             ),
             "height": serializers.IntegerField(
                 help_text=IFrameElement._meta.get_field("height").help_text,
@@ -1937,9 +1915,9 @@ class DateTimePickerElementType(FormElementTypeMixin, ElementType):
     ]
 
     class SerializedDict(ElementDict):
-        label: BaserowFormula
+        label: BaserowFormulaObject
         required: bool
-        default_value: BaserowFormula
+        default_value: BaserowFormulaObject
         date_format: str
         include_time: bool
         time_format: str
@@ -1951,7 +1929,6 @@ class DateTimePickerElementType(FormElementTypeMixin, ElementType):
         overrides = {
             "label": FormulaSerializerField(
                 help_text=DateTimePickerElement._meta.get_field("label").help_text,
-                required=False,
             ),
             "required": serializers.BooleanField(
                 help_text=DateTimePickerElement._meta.get_field("required").help_text,
@@ -1961,8 +1938,7 @@ class DateTimePickerElementType(FormElementTypeMixin, ElementType):
             "default_value": FormulaSerializerField(
                 help_text=DateTimePickerElement._meta.get_field(
                     "default_value"
-                ).help_text,
-                required=False,
+                ).help_text
             ),
             "date_format": serializers.ChoiceField(
                 help_text=DateTimePickerElement._meta.get_field(
