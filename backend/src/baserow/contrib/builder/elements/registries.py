@@ -585,6 +585,7 @@ class CollectionFieldType(
         """
 
         for formula_field in self.simple_formula_fields:
+            # TODO: what do I need to change here?
             formula = collection_field.config.get(formula_field, "")
             new_formula = yield formula
             if new_formula is not None:
