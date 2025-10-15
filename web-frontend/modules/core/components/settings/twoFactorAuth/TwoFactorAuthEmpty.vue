@@ -4,9 +4,11 @@
       <div class="two-factor-auth-empty__icon">
         <div class="baserow-icon-password-check" />
       </div>
-      <h3>You have not yet enabled 2FA</h3>
-      <p>Add an extra layer of security to your account.</p>
-      <Button @click="$emit('enable')">Enable 2FA</Button>
+      <h3>{{ $t('twoFactorAuthEmpty.title') }}</h3>
+      <p>{{ $t('twoFactorAuthEmpty.description') }}</p>
+      <Button @click="$emit('enable')">{{
+        $t('twoFactorAuthEmpty.enable')
+      }}</Button>
     </div>
   </div>
 </template>
