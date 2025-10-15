@@ -987,5 +987,12 @@
     "title": "You have not yet enabled 2FA",
     "description": "Add an extra layer of security to your account.",
     "enable": "Enable 2FA"
+  },
+  "enableWithQRCode": {
+    "scanQRCode": "Scan QR code",
+    "scanQRCodeDescription": "Scan the code with an app like Google Authenticator, Authy or Microsoft Authenticator.",
+    "enterCode": "Enter the code shown",
+    "enterCodeDescription": "Enter a 6-digit code shown by the app to confirm that you have set it up correctly.",
+    "verificationFailed": "Verification failed"
   }
 }

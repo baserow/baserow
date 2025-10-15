@@ -3,10 +3,11 @@
     <div class="enable-with-qr-code__step">
       <div class="enable-with-qr-code__number">1</div>
       <div>
-        <div class="enable-with-qr-code__step-heading">Scan QR code</div>
+        <div class="enable-with-qr-code__step-heading">
+          {{ $t('enableWithQRCode.scanQRCode') }}
+        </div>
         <div class="enable-with-qr-code__step-description">
-          Scan the code with an app like Google Authenticator, Authy or
-          Microsoft Authenticator, or click here to copy the code.
+          {{ $t('enableWithQRCode.scanQRCodeDescription') }}
         </div>
         <img
           v-if="qr_code"
@@ -20,11 +21,10 @@
       <div class="enable-with-qr-code__number">2</div>
       <div>
         <div class="enable-with-qr-code__step-heading">
-          Enter the code shown
+          {{ $t('enableWithQRCode.enterCode') }}
         </div>
         <div class="enable-with-qr-code__step-description">
-          Enter a 6-digit code shown by the app to confirm that you have set it
-          up correctly.
+          {{ $t('enableWithQRCode.enterCodeDescription') }}
         </div>
         <AuthCodeInput @all-filled="checkCode" />
       </div>
@@ -78,7 +78,7 @@ export default {
         this.$emit('verified', data.backup_codes)
       } catch (error) {
         // TODO: diff type of error?
-        const title = 'Verification failed' // this.$t('generalSettings.cantUpdateApplicationTitle')
+        const title = this.$t('enableWithQRCode.verificationFailed')
         this.$store.dispatch('toast/error', { title })
       } finally {
         // this.loading = false
