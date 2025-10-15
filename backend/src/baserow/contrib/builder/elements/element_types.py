@@ -537,7 +537,9 @@ class RecordSelectorElementType(
                 # to populate the formula context with the `data_source_id`
                 # of the element so that we can resolve them.
                 formula_context = kwargs | self.import_context_addition(instance)
-                tree = get_parse_tree_for_formula(instance.option_name_suffix)
+                tree = get_parse_tree_for_formula(
+                    instance.option_name_suffix["formula"]
+                )
                 properties = merge_dicts_no_duplicates(
                     properties,
                     FormulaFieldVisitor(**formula_context).visit(tree),
