@@ -482,6 +482,9 @@ class ServiceType(
 
         return property_name
 
+    def get_edges(self, service):
+        return {"": {"label": ""}}
+
 
 ServiceTypeSubClass = TypeVar("ServiceTypeSubClass", bound=ServiceType)
 

@@ -47,8 +47,9 @@ def test_get_previous_service_outputs(data_fixture):
 
     router_b = data_fixture.create_core_router_action_node(
         workflow=workflow,
-        previous_node=router_a,
-        previous_node_output=router_a_edge_1.uid,
+        position_node=router_a,
+        position="south",
+        output=router_a_edge_1.uid,
     )
 
     data_fixture.create_core_router_service_edge(
@@ -65,16 +66,31 @@ def test_get_previous_service_outputs(data_fixture):
     )
 
     data_fixture.create_local_baserow_create_row_action_node(
-        workflow=workflow, previous_node=router_a
+        workflow=workflow, position_node=router_a, position="south", output=""
     )
 
     data_fixture.create_local_baserow_create_row_action_node(
-        workflow=workflow, previous_node=router_b
+        workflow=workflow, position_node=router_b, position="south", output=""
     )
     node_c_2 = data_fixture.create_local_baserow_create_row_action_node(
         workflow=workflow,
-        previous_node=router_b,
-        previous_node_output=router_b_edge_2.uid,
+        position_node=router_b,
+        position="south",
+        output=router_b_edge_2.uid,
+    )
+
+    assert workflow.assert_reference(
+        {
+            "0": "rows_created",
+            "create_row": {},
+            "create_row-": {},
+            "create_row--": {},
+            "router": {"next": {"": ["create_row"], "Router A, Edge 1": ["router-"]}},
+            "router-": {
+                "next": {"": ["create_row-"], "Router B, Edge 2": ["create_row--"]}
+            },
+            "rows_created": {"next": {"": ["router"]}},
+        }
     )
 
     result = node_c_2.get_previous_service_outputs()

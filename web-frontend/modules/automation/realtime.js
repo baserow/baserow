@@ -63,24 +63,9 @@ export const registerRealtimeEvents = (realtime) => {
     }
   })
 
-  realtime.registerEvent(
-    'automation_workflows_reordered',
-    ({ store, app }, data) => {
-      const automation = store.getters['application/getAll'].find(
-        (application) => generateHash(application.id) === data.automation_id
-      )
-      if (automation !== undefined) {
-        store.commit('automationWorkflow/ORDER_WORKFLOWS', {
-          automation,
-          order: data.order,
-          isHashed: true,
-        })
-      }
-    }
-  )
-
   // Workflow node events
   realtime.registerEvent('automation_node_created', ({ store }, data) => {
+    console.log('received node created', data)
     const workflow = store.getters['automationWorkflow/getSelected']
     if (workflow && workflow.id === data.node.workflow) {
       store.dispatch('automationWorkflowNode/forceCreate', {
@@ -110,7 +95,7 @@ export const registerRealtimeEvents = (realtime) => {
     })
   })
 
-  realtime.registerEvent('automation_nodes_updated', ({ store }, data) => {
+  /* realtime.registerEvent('automation_nodes_updated', ({ store }, data) => {
     const { workflow_id: workflowId, nodes } = data
     const workflow = store.getters['automationWorkflow/getSelected']
     if (!workflow || workflow.id !== workflowId) return
@@ -126,9 +111,9 @@ export const registerRealtimeEvents = (realtime) => {
         override: true,
       })
     })
-  })
+  }) */
 
-  realtime.registerEvent('automation_node_replaced', ({ store }, data) => {
+  /* realtime.registerEvent('automation_node_replaced', ({ store }, data) => {
     const {
       workflow_id: workflowId,
       deleted_node: deletedNode,
@@ -164,9 +149,10 @@ export const registerRealtimeEvents = (realtime) => {
       workflow,
       nodeId: deletedNode.id,
     })
-  })
+  }) */
 
   realtime.registerEvent('automation_node_deleted', ({ store }, data) => {
+    console.log('received node deleted', data)
     const workflow = store.getters['automationWorkflow/getSelected']
     const nodeId = data.node_id || data.node?.id
     const workflowId = data.workflow || data.workflow_id || data.node?.workflow

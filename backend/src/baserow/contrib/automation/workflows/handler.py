@@ -396,6 +396,7 @@ class AutomationWorkflowHandler:
             order=workflow.order,
             nodes=serialized_nodes,
             state=workflow.state,
+            graph=workflow.graph,
         )
 
     def _ops_count_for_import_workflow(
@@ -601,6 +602,7 @@ class AutomationWorkflowHandler:
             name=serialized_workflow["name"],
             order=serialized_workflow["order"],
             state=serialized_workflow["state"] or WorkflowState.DRAFT,
+            graph=serialized_workflow.get("graph", {}),
         )
 
         id_mapping["automation_workflows"][

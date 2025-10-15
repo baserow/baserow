@@ -8,9 +8,11 @@ from django.utils import timezone
 from django.utils.translation import gettext as _
 
 from baserow.contrib.automation.nodes.exceptions import (
+    AutomationNodeBeforeInvalid,
     AutomationNodeMisconfiguredService,
     AutomationNodeNotDeletable,
     AutomationNodeNotReplaceable,
+    AutomationTriggerModificationDisallowed,
 )
 from baserow.contrib.automation.nodes.models import (
     AutomationActionNode,
@@ -56,9 +58,6 @@ from baserow.core.db import specific_iterator
 from baserow.core.registry import Instance
 from baserow.core.services.models import Service
 from baserow.core.services.registries import service_type_registry
-from baserow.contrib.automation.nodes.exceptions import (
-    AutomationNodeBeforeInvalid,
-)
 
 
 class AutomationNodeActionNodeType(AutomationNodeType):
@@ -71,16 +70,6 @@ class AutomationNodeActionNodeType(AutomationNodeType):
         instance: AutomationNode = None,
     ) -> Dict[str, Any]:
         """ """
-
-        print(values)
-        if (
-            not instance
-            and "previous_node_id" not in values
-            and "parent_node_id" not in values
-        ):
-            raise AutomationNodeBeforeInvalid(
-                "You cannot create an automation node before a trigger."
-            )
 
         return super().prepare_values(values, user, instance)
 
@@ -271,6 +260,22 @@ class AutomationNodeTriggerType(AutomationNodeType):
             "Triggers can not be created, deleted or duplicated, "
             "they can only be replaced with a different type."
         )
+
+    def prepare_values(
+        self,
+        values: Dict[str, Any],
+        user: AbstractUser,
+        instance: AutomationNode = None,
+    ) -> Dict[str, Any]:
+        """ """
+
+        # if instance is None:
+        # Triggers are not directly created by users. When a workflow is created,
+        # the trigger node is created automatically, so users are only able to change
+        # the trigger node type, not create a new one.
+        # raise AutomationTriggerModificationDisallowed()
+
+        return super().prepare_values(values, user, instance)
 
     def on_event(
         self,

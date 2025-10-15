@@ -11,6 +11,7 @@ class AutomationWorkflowDict(TypedDict):
     order: int
     nodes: List[AutomationNodeDict]
     state: WorkflowState
+    graph: dict
 
 
 class AutomationDict(TypedDict):
