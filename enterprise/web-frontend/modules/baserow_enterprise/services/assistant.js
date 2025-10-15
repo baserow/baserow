@@ -4,7 +4,8 @@
  * root URL when making requests to the AI Assistant endpoints.
  */
 function getAssistantBaseURL(client) {
-  return client.defaults.baseURL.split('/api')[0]
+  const url = new URL(client.defaults.baseURL)
+  return url.origin
 }
 
 export default (client) => {
