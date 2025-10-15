@@ -57,6 +57,10 @@
     "errorWrongPasswordMessage": "The password entered doesn't match your password."
   },
   "saveBackupCode": {
+    "description": "If you lose access to your authenticator app or phone and can’t receive or generate authentication codes, you can use this backup. You can only use it once. Make sure you write it down or copy it into a safe place so that you can access it without logging in.",
+    "backupCodes": "Backup codes",
+    "copy": "Copy",
+    "continue": "Continue",
     "backupCodesCopiedTitle": "Copied!",
     "backupCodesCopiedMessage": "Backup codes copied to clipboard."
   },
