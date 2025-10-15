@@ -27,10 +27,6 @@ export class TwoFactorAuthType extends Registerable {
     return null
   }
 
-  getOrder() {
-    return 0
-  }
-
   /**
    * The component to setup the auth type.
    */
@@ -44,6 +40,10 @@ export class TwoFactorAuthType extends Registerable {
    */
   get authEnabledSettingsComponent() {
     return null
+  }
+
+  getOrder() {
+    return 0
   }
 }
 
@@ -69,15 +69,15 @@ export class TOTPAuthType extends TwoFactorAuthType {
     return 'Recommended'
   }
 
-  getOrder() {
-    return 0
-  }
-
   get settingsComponent() {
     return null
   }
 
   get authEnabledSettingsComponent() {
     return null
+  }
+
+  getOrder() {
+    return 0
   }
 }

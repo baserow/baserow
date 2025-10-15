@@ -6,7 +6,9 @@
         $t('twoFactorEnabled.enabled')
       }}</Badge>
     </div>
-    <div class="two-factor-enabled__description">{{ providerEnabledDescription }}</div>
+    <div class="two-factor-enabled__description">
+      {{ providerEnabledDescription }}
+    </div>
     <Button type="secondary" @click="$emit('disable')">{{
       $t('twoFactorEnabled.disable')
     }}</Button>
