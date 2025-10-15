@@ -20,9 +20,8 @@ from baserow.contrib.automation.nodes.node_types import (
 )
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.integrations.core.models import CoreRouterServiceEdge
-from baserow.core.services.registries import service_type_registry
-
 from baserow.core.cache import local_cache
+from baserow.core.services.registries import service_type_registry
 
 
 @dataclasses.dataclass

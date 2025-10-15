@@ -107,13 +107,13 @@ def test_create_node_before_router_edge_output(api_client, data_fixture):
         service=service, label="Edge 1", condition="'true'"
     )
     edge1_output = AutomationNode.objects.get(
-        previous_node_id=router.id, previous_node_output=edge1.uid
+        previous_node=router, previous_node_output=edge1.uid
     )
     edge2 = data_fixture.create_core_router_service_edge(
         service=service, label="Edge 2", condition="'true'"
     )
     edge2_output = AutomationNode.objects.get(
-        previous_node_id=router.id, previous_node_output=edge2.uid
+        previous_node=router, previous_node_output=edge2.uid
     )
 
     url = reverse(API_URL_LIST, kwargs={"workflow_id": workflow.id})

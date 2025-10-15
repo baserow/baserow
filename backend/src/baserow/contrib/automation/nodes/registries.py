@@ -6,7 +6,11 @@ from baserow.contrib.automation.automation_dispatch_context import (
     AutomationDispatchContext,
 )
 from baserow.contrib.automation.formula_importer import import_formula
-from baserow.contrib.automation.nodes.exceptions import AutomationNodeNotReplaceable
+from baserow.contrib.automation.nodes.exceptions import (
+    AutomationNodeBeforeInvalid,
+    AutomationNodeNotInWorkflow,
+    AutomationNodeNotReplaceable,
+)
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.types import AutomationNodeDict
 from baserow.core.integrations.models import Integration
@@ -241,6 +245,8 @@ class AutomationNodeType(
         :return: The modified node values, prepared.
         """
 
+        from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
+
         service_type = service_type_registry.get(self.service_type)
 
         if not instance:
@@ -263,6 +269,23 @@ class AutomationNodeType(
         )
 
         values["service"] = service
+
+        if instance:
+            workflow = instance.workflow
+
+        else:
+            workflow = values["workflow"]
+
+        if (previous_node_id := values.get("previous_node_id", None)) is not None:
+            values["previous_node"] = AutomationNodeHandler().get_node(previous_node_id)
+            if workflow.id != values["previous_node"].workflow_id:
+                raise AutomationNodeNotInWorkflow(values["previous_node"].id)
+
+        if (parent_node_id := values.get("parent_node_id", None)) is not None:
+            values["parent_node"] = AutomationNodeHandler().get_node(parent_node_id)
+            if workflow.id != values["parent_node"].workflow_id:
+                raise AutomationNodeNotInWorkflow(values["parent_node"].id)
+
         return values
 
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:

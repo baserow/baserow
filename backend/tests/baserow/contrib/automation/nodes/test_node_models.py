@@ -30,7 +30,7 @@ def test_get_previous_service_outputs(data_fixture):
     trigger = workflow.get_trigger()
 
     router_a = data_fixture.create_core_router_action_node(
-        workflow=workflow, previous_node_id=trigger.id
+        workflow=workflow, previous_node=trigger
     )
     router_a_edge_1 = data_fixture.create_core_router_service_edge(
         service=router_a.service,
@@ -47,10 +47,10 @@ def test_get_previous_service_outputs(data_fixture):
 
     router_b = data_fixture.create_core_router_action_node(
         workflow=workflow,
-        previous_node_id=router_a.id,
+        previous_node=router_a,
         previous_node_output=router_a_edge_1.uid,
     )
-    print(router_b.previous_node_output, router_b.id)
+
     data_fixture.create_core_router_service_edge(
         service=router_b.service,
         label="Router B, Edge 1",
@@ -65,15 +65,15 @@ def test_get_previous_service_outputs(data_fixture):
     )
 
     data_fixture.create_local_baserow_create_row_action_node(
-        workflow=workflow, previous_node_id=router_a.id
+        workflow=workflow, previous_node=router_a
     )
 
     data_fixture.create_local_baserow_create_row_action_node(
-        workflow=workflow, previous_node_id=router_b.id
+        workflow=workflow, previous_node=router_b
     )
     node_c_2 = data_fixture.create_local_baserow_create_row_action_node(
         workflow=workflow,
-        previous_node_id=router_b.id,
+        previous_node=router_b,
         previous_node_output=router_b_edge_2.uid,
     )
 

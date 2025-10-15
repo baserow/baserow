@@ -5,9 +5,9 @@ from django.contrib.auth.models import AbstractUser
 from baserow.contrib.automation.models import AutomationWorkflow
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeBeforeInvalid,
+    AutomationNodeNotInWorkflow,
     AutomationNodeNotMovable,
     AutomationTriggerModificationDisallowed,
-    AutomationNodeNotInWorkflow,
 )
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.models import AutomationActionNode, AutomationNode
@@ -141,7 +141,7 @@ class AutomationNodeService:
         )
 
         # If we've been given a `before` node, validate it.
-        if parent:
+        """if parent:
             if workflow.id != parent.workflow_id:
                 raise AutomationNodeNotInWorkflow(parent.id)
             # TODO, parent node must be a container
@@ -164,17 +164,27 @@ class AutomationNodeService:
                 )
 
             previous_node = before.previous_node
-            previous_node_output = before.previous_node_output
+            previous_node_output = before.previous_node_output"""
+
+        kwargs["workflow"] = workflow
+
+        if parent:
+            kwargs["parent_node_id"] = parent.id
+
+        if before:
+            kwargs["previous_node_id"] = before.previous_node_id
+            kwargs["previous_node_output"] = before.previous_node_output
+            kwargs["parent_node_id"] = before.parent_node_id
 
         prepared_values = node_type.prepare_values(kwargs, user)
 
         new_node = self.handler.create_node(
             node_type,
             order=order,
-            workflow=workflow,
-            previous_node=previous_node,
-            previous_node_output=previous_node_output,
-            parent_node=parent,
+            # workflow=workflow,
+            # previous_node=previous_node,
+            # previous_node_output=previous_node_output,
+            # parent_node=parent,
             **prepared_values,
         )
         node_type.after_create(new_node)
@@ -188,7 +198,12 @@ class AutomationNodeService:
         return new_node
 
     def update_node(
-        self, user: AbstractUser, node_id: int, **kwargs
+        self,
+        user: AbstractUser,
+        node_id: int,
+        # previous_node_id: int = None,
+        # parent_node_id: int = None,
+        **kwargs,
     ) -> UpdatedAutomationNode:
         """
         Updates fields of a node.
@@ -405,18 +420,22 @@ class AutomationNodeService:
         node_type.before_replace(node_to_replace, new_node_type)
 
         prepared_values = new_node_type.prepare_values(
-            {},
+            {
+                "parent_node_id": node_to_replace.parent_node_id,
+                "previous_node_id": node_to_replace.previous_node_id,
+                "previous_node_output": node_to_replace.previous_node_output,
+                "workflow": node_to_replace.workflow,
+            },
             user,
         )
 
         new_node = self.handler.create_node(
             new_node_type,
-            workflow=node_to_replace.workflow,
-            previous_node=node_to_replace.previous_node,
-            previous_node_output=node_to_replace.previous_node_output,
             order=node_to_replace.order,
             **prepared_values,
         )
+
+        node_to_replace.refresh_from_db()
 
         new_node_type.after_create(new_node)
 

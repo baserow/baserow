@@ -14,7 +14,7 @@ def test_trashing_and_restoring_node_updates_next_node_values(data_fixture):
 
     initial_router_service = data_fixture.create_core_router_service()
     initial_router = data_fixture.create_core_router_action_node(
-        workflow=workflow, service=initial_router_service
+        workflow=workflow, service=initial_router_service, previous_node=trigger
     )
     second_router_service = data_fixture.create_core_router_service()
     second_router = data_fixture.create_core_router_action_node(

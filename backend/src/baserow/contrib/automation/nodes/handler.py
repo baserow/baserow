@@ -44,14 +44,23 @@ class AutomationNodeHandler:
     allowed_fields = [
         "label",
         "service",
-        "previous_node_id",
+        # "previous_node_id",
+        #  "previous_node_output",
+        # "parent_node_id",
+        "previous_node",
         "previous_node_output",
-        "parent_node_id",
+        "parent_node",
     ]
     allowed_update_fields = [
         "label",
         "service",
+        "previous_node",
+        "previous_node_output",
+        "parent_node",
     ]
+
+    def _get_node_cache_key(self, workflow, specific):
+        return f"wa_get_{workflow.id}_nodes_{specific}"
 
     def get_nodes(
         self,
@@ -98,7 +107,7 @@ class AutomationNodeHandler:
 
         if with_cache and not base_queryset:
             return local_cache.get(
-                f"wa_get_{workflow.id}_nodes_{specific}",
+                self._get_node_cache_key(workflow, specific),
                 _get_nodes,
             )
         return _get_nodes()
@@ -257,22 +266,25 @@ class AutomationNodeHandler:
         if previous_node:
             allowed_prepared_values["previous_node_id"] = previous_node.id
             allowed_prepared_values["parent_node_id"] = previous_node.parent_node_id
-            previous_node_to_update = list(
+            next_nodes_to_update = list(
                 previous_node.get_next_nodes(output_uid=previous_node_output)
             )
-        else:
-            # If we don't have a previous node then we add it at the end.
-            allowed_prepared_values[
-                "previous_node_id"
-            ] = AutomationWorkflow.get_last_node_id(
-                workflow, parent_node.id if parent_node else None
-            )
-            previous_node_to_update = []
-
-        if not previous_node and parent_node:
+            allowed_prepared_values["previous_node_output"] = previous_node_output
+        elif parent_node:
+            allowed_prepared_values["previous_node_id"] = None
             allowed_prepared_values["parent_node_id"] = parent_node.id
-
-        allowed_prepared_values["previous_node_output"] = previous_node_output
+            next_nodes_to_update = list(
+                self.get_next_nodes(workflow, None, None, parent=parent_node)
+            )
+        else:
+            # If we don't have a previous node then we add it at the beginning.
+            # allowed_prepared_values[
+            #    "previous_node_id"
+            # ] = AutomationWorkflow.get_last_node_id(
+            #    workflow, parent_node.id if parent_node else None
+            # )
+            allowed_prepared_values["previous_node_id"] = None
+            next_nodes_to_update = list(self.get_next_nodes(workflow, None, None))
 
         # Are we creating a node before another? If we are, the
         # `previous_node_id`, `previous_node_output` and `parent_node_id` fields
@@ -300,10 +312,10 @@ class AutomationNodeHandler:
         )
 
         # If we have next nodes to update, we need to adjust them after the creation
-        if previous_node:
+        if next_nodes_to_update:
             self.update_previous_node(
                 node,
-                previous_node_to_update,
+                next_nodes_to_update,
                 previous_node_output="",
             )
 
@@ -312,6 +324,8 @@ class AutomationNodeHandler:
         """if previous_node_output:
             before.previous_node_output = ""
             before.save(update_fields=["previous_node_output"])"""
+
+        local_cache.delete(self._get_node_cache_key(workflow, specific=True))
 
         return node
 
@@ -331,6 +345,8 @@ class AutomationNodeHandler:
             setattr(node, key, value)
 
         node.save()
+
+        local_cache.delete(self._get_node_cache_key(node.workflow, specific=True))
 
         return node
 
@@ -439,6 +455,10 @@ class AutomationNodeHandler:
             )
             for nn in duplicated_node_next_nodes
         ]
+
+        local_cache.delete(
+            self._get_node_cache_key(source_node.workflow, specific=True)
+        )
 
         return AutomationNodeDuplication(
             source_node=source_node,
@@ -573,6 +593,8 @@ class AutomationNodeHandler:
             )
             for nn in updated_destination_next_nodes
         ]
+
+        local_cache.delete(self._get_node_cache_key(workflow, specific=True))
 
         return AutomationNodeMove(
             node=node_to_move,
