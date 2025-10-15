@@ -6,7 +6,7 @@
         $t('twoFactorEnabled.enabled')
       }}</Badge>
     </div>
-    <div class="two-factor-enabled__description">{{ providerDescription }}</div>
+    <div class="two-factor-enabled__description">{{ providerEnabledDescription }}</div>
     <Button type="secondary" @click="$emit('disable')">{{
       $t('twoFactorEnabled.disable')
     }}</Button>
@@ -29,8 +29,8 @@ export default {
     providerName() {
       return this.providerType.name
     },
-    providerDescription() {
-      return this.providerType.description
+    providerEnabledDescription() {
+      return this.providerType.enabledDescription
     },
   },
 }

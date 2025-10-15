@@ -5,7 +5,7 @@
     </div>
     <div class="radio-card__content">
       <div class="radio-card__labels">
-        <label class="radio-card__label">{{ value }}</label>
+        <label class="radio-card__label">{{ label }}</label>
         <div v-if="sideLabel" class="radio-card__side-label">
           {{ sideLabel }}
         </div>
@@ -34,6 +34,10 @@ export default {
       type: [String, Number, Boolean, Object],
       required: false,
       default: '',
+    },
+    label: {
+      type: String,
+      required: true,
     },
     sideLabel: {
       type: String,

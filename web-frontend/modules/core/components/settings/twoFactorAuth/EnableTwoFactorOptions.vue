@@ -1,33 +1,24 @@
 <template>
   <div>
-    <!-- TODO: refactor <RadioGroup
-      v-model="values.twoFaChoice"
-      :options="twoFaOptions"
-      vertical-layout
-    > -->
-    <!-- </RadioGroup> -->
     <RadioCard
-      :value="'authapp'"
+      v-for="option in twoFaOptions"
+      :key="option.type"
+      :value="option.type"
       :model-value="values.twoFaChoice"
-      :side-label="'Recommended'"
+      :label="option.name"
+      :side-label="option.sideLabel"
       @input="updateValue"
     >
       <div>
-        Use an app to get two-factor authentication codes. We recommend using
-        apps such as Google Authenticator, Authy and Microsoft Authenticator.
+        {{ option.description }}
       </div>
     </RadioCard>
-    <div>&nbsp;</div>
-    <RadioCard
-      :value="'email'"
-      :model-value="values.twoFaChoice"
-      @input="updateValue"
-    >
-      <div>Baserow will send a temporary login link via email.</div>
-    </RadioCard>
-    <div>&nbsp;</div>
-    <Button type="secondary" @click="$emit('cancel')">Cancel</Button>
-    <Button type="primary" @click="$emit('continue')">Continue</Button>
+    <Button type="secondary" @click="$emit('cancel')">{{
+      $t('enableTwoFactorOptions.cancel')
+    }}</Button>
+    <Button type="primary" @click="$emit('continue')">{{
+      $t('enableTwoFactorOptions.continue')
+    }}</Button>
   </div>
 </template>
 
@@ -37,22 +28,13 @@ export default {
   data() {
     return {
       values: {
-        twoFaChoice: 'authapp',
+        twoFaChoice: 'totp',
       },
     }
   },
   computed: {
     twoFaOptions() {
-      return [
-        {
-          label: 'Authentication app', // TODO: this.$t('twoFac.instant'),
-          value: 'authapp', // EMAIL_NOTIFICATIONS_FREQUENCY_OPTIONS.INSTANT,
-        },
-        {
-          label: 'Email', // this.$t('emailNotifications.daily'),
-          value: 'email', // EMAIL_NOTIFICATIONS_FREQUENCY_OPTIONS.DAILY,
-        },
-      ]
+      return this.$registry.getList('twoFactorAuth')
     },
   },
   methods: {
