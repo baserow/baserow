@@ -95,9 +95,9 @@
 import AuthCodeInput from '@baserow/modules/core/components/settings/twoFactorAuth/AuthCodeInput.vue'
 import TwoFactorAuthService from '@baserow/modules/core/services/twoFactorAuth'
 import form from '@baserow/modules/core/mixins/form'
-import { useVuelidate } from "@vuelidate/core"
-import { reactive, computed } from "vue"
-import { required } from "@vuelidate/validators"
+import { useVuelidate } from '@vuelidate/core'
+import { reactive, computed } from 'vue'
+import { required } from '@vuelidate/validators'
 
 export default {
   name: 'TOTPLogin',
@@ -141,7 +141,8 @@ export default {
           { code }
         )
         console.log({ data })
-        alert('success')
+        this.$store.dispatch('auth/loginWithData', { data })
+        this.$emit('success')
         // const title = 'Successfully enabled two-factor authentication'
         // this.$store.dispatch('toast/success', { title })
         // this.$emit('verified', data.backup_codes)
@@ -161,7 +162,8 @@ export default {
           { backupCode: this.values.backupCode }
         )
         console.log({ data })
-        alert('success')
+        this.$store.dispatch('auth/loginWithData', { data })
+        this.$emit('success')
         // const title = 'Successfully enabled two-factor authentication'
         // this.$store.dispatch('toast/success', { title })
         // this.$emit('verified', data.backup_codes)

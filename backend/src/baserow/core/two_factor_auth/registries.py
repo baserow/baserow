@@ -41,7 +41,6 @@ class TwoFactorAuthProviderType(
     def configure(
         self, user: AbstractUser, provider, **kwargs
     ) -> TwoFactorAuthProviderModel:
-        # TODO: maybe don't require user here?
         raise NotImplementedError
 
     @abstractmethod
@@ -78,7 +77,7 @@ class TOTPAuthProviderType(TwoFactorAuthProviderType):
             code = kwargs.get("code")
             totp = pyotp.TOTP(provider.secret)
 
-            if True:  # TODO: totp.verify(code):
+            if totp.verify(code):
                 provider.enabled = True
                 provider.provisioning_url = ""
                 provider.provisioning_qr_code = ""

@@ -1,6 +1,6 @@
 <template>
   <div>
-    <TOTPLogin v-if="totp" :email="twoFactorEmail" />
+    <TOTPLogin v-if="totp" :email="twoFactorEmail" @success="success" />
     <EmailNotVerified
       v-else-if="displayEmailNotVerified"
       :email="emailToVerify"
