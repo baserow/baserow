@@ -51,6 +51,10 @@ class TwoFactorAuthProviderType(
     def verify(self, **kwargs) -> bool:
         raise NotImplementedError
 
+    @abstractmethod
+    def disable(self, provider, user):
+        raise NotImplementedError
+
 
 class TOTPAuthProviderType(TwoFactorAuthProviderType):
     type = "totp"
@@ -166,6 +170,10 @@ class TOTPAuthProviderType(TwoFactorAuthProviderType):
             return True
         else:
             raise VerificationFailed
+
+    def disable(self, provider, user):
+        TwoFactorAuthRecoveryCode.objects.filter(user=user).delete()
+        provider.delete()
 
 
 class TwoFactorAuthTypeRegistry(

@@ -111,7 +111,8 @@ class TwoFactorAuthHandler:
 
         provider = self.get_provider_for_update(user)
         if provider:
-            provider.delete()
+            provider_type = provider.get_type()
+            provider_type.disable(provider, user)
 
     def verify(self, provider_type_str: str, **kwargs) -> bool:
         """
