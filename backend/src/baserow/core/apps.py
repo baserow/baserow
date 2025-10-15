@@ -37,15 +37,39 @@ class CoreConfig(AppConfig):
         from baserow.core.formula.registries import formula_runtime_function_registry
         from baserow.core.formula.runtime_formula_types import (
             RuntimeAdd,
+            RuntimeCapitalize,
             RuntimeConcat,
+            RuntimeDateTimeFormat,
+            RuntimeDay,
             RuntimeGet,
+            RuntimeHour,
+            RuntimeIsEven,
+            RuntimeIsOdd,
+            RuntimeLower,
+            RuntimeMinute,
+            RuntimeMonth,
+            RuntimeRound,
+            RuntimeSecond,
             RuntimeUpper,
+            RuntimeYear,
         )
 
         formula_runtime_function_registry.register(RuntimeConcat())
         formula_runtime_function_registry.register(RuntimeGet())
         formula_runtime_function_registry.register(RuntimeAdd())
         formula_runtime_function_registry.register(RuntimeUpper())
+        formula_runtime_function_registry.register(RuntimeLower())
+        formula_runtime_function_registry.register(RuntimeCapitalize())
+        formula_runtime_function_registry.register(RuntimeRound())
+        formula_runtime_function_registry.register(RuntimeIsEven())
+        formula_runtime_function_registry.register(RuntimeIsOdd())
+        formula_runtime_function_registry.register(RuntimeDateTimeFormat())
+        formula_runtime_function_registry.register(RuntimeDay())
+        formula_runtime_function_registry.register(RuntimeMonth())
+        formula_runtime_function_registry.register(RuntimeYear())
+        formula_runtime_function_registry.register(RuntimeHour())
+        formula_runtime_function_registry.register(RuntimeMinute())
+        formula_runtime_function_registry.register(RuntimeSecond())
 
         from baserow.core.permission_manager import (
             AllowIfTemplatePermissionManagerType,
