@@ -56,27 +56,27 @@ export default {
     }
   },
   async mounted() {
-    // TODO: loading, error
-    this.loading = true
-    try {
-      const { data } = await TwoFactorAuthService(
-        this.$client
-      ).getConfiguration()
-      console.log({ data })
-
-      if (data.type === 'totp') {
-        if (data.enabled) {
-          this.state = 'enabled'
-          this.provider = data
-        }
-      }
-    } catch (error) {
-      this.handleError(error)
-    } finally {
-      this.loading = false
-    }
+    await this.loadConfiguration()
   },
   methods: {
+    async loadConfiguration() {
+      this.loading = true
+      try {
+        const { data } = await TwoFactorAuthService(
+          this.$client
+        ).getConfiguration()
+        if (data.type === 'totp') {
+          if (data.enabled) {
+            this.state = 'enabled'
+            this.provider = data
+          }
+        }
+      } catch (error) {
+        this.handleError(error)
+      } finally {
+        this.loading = false
+      }
+    },
     enable() {
       this.state = 'pick_options'
     },
@@ -99,8 +99,8 @@ export default {
     disabled() {
       this.state = 'empty'
     },
-    stepEnabled() {
-      this.state = 'enabled'
+    async stepEnabled() {
+      await this.loadConfiguration()
     },
   },
 }
