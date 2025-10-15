@@ -4,6 +4,7 @@
     v-model="copy"
     :error="v$.copy.$error"
     :disabled="disabled"
+    :placeholder="placeholder"
     @input="delayedUpdate($event)"
     @keydown.enter="delayedUpdate($event.target.value, true)"
   >

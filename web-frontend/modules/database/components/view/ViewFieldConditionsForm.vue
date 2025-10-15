@@ -29,6 +29,7 @@
           :fields="fields"
           :disable-filter="disableFilter"
           :read-only="readOnly"
+          :placeholder="placeholder"
           @updateFilter="updateFilter({ filter, values: $event })"
           @deleteFilter="deleteFilter({ filter, event: $event })"
         >
@@ -177,6 +178,11 @@ export default {
     readOnly: {
       type: Boolean,
       required: true,
+    },
+    placeholder: {
+      type: String,
+      required: false,
+      default: '',
     },
     addConditionString: {
       type: String,
