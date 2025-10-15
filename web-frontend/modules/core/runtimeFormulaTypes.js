@@ -2,6 +2,7 @@ import { Registerable } from '@baserow/modules/core/registry'
 import {
   NumberBaserowRuntimeFormulaArgumentType,
   TextBaserowRuntimeFormulaArgumentType,
+  DateTimeBaserowRuntimeFormulaArgumentType,
 } from '@baserow/modules/core/runtimeFormulaArgumentTypes'
 import {
   InvalidFormulaArgumentType,
@@ -253,6 +254,194 @@ export class RuntimeUpper extends RuntimeFormulaFunction {
   }
 
   execute(context, [s]) {
-    return String(s).toUpperCase()
+    return s.toUpperCase()
+  }
+}
+
+export class RuntimeLower extends RuntimeFormulaFunction {
+  static getType() {
+    return 'lower'
+  }
+
+  get args() {
+    return [new TextBaserowRuntimeFormulaArgumentType()]
+  }
+
+  execute(context, [s]) {
+    return s.toLowerCase()
+  }
+}
+
+export class RuntimeCapitalize extends RuntimeFormulaFunction {
+  static getType() {
+    return 'capitalize'
+  }
+
+  get args() {
+    return [new TextBaserowRuntimeFormulaArgumentType()]
+  }
+
+  capitalize(str) {
+    if (!str) return ''
+    const [firstChar, ...remainingChars] = [...str]
+    return firstChar.toUpperCase() + remainingChars.join('').toLowerCase()
+  }
+
+  execute(context, [s]) {
+    return this.capitalize(s)
+  }
+}
+
+export class RuntimeRound extends RuntimeFormulaFunction {
+  static getType() {
+    return 'round'
+  }
+
+  get args() {
+    return [
+      new NumberBaserowRuntimeFormulaArgumentType(),
+      new NumberBaserowRuntimeFormulaArgumentType(),
+    ]
+  }
+
+  execute(context, args) {
+    // Default to 2 decimal places?
+    let decimalPlaces = 2
+
+    if (args.length === 2) {
+      // Avoid negative numbers
+      decimalPlaces = Math.max(args[1], 0)
+    }
+
+    return args[0].toFixed(decimalPlaces)
+  }
+}
+
+export class RuntimeIsEven extends RuntimeFormulaFunction {
+  static getType() {
+    return 'is_even'
+  }
+
+  get args() {
+    return [new NumberBaserowRuntimeFormulaArgumentType()]
+  }
+
+  execute(context, [n]) {
+    return n % 2 === 0
+  }
+}
+
+export class RuntimeIsOdd extends RuntimeFormulaFunction {
+  static getType() {
+    return 'is_odd'
+  }
+
+  get args() {
+    return [new NumberBaserowRuntimeFormulaArgumentType()]
+  }
+
+  execute(context, [n]) {
+    return n % 2 !== 0
+  }
+}
+
+export class RuntimeDateTimeFormat extends RuntimeFormulaFunction {
+  static getType() {
+    return 'datetime_format'
+  }
+
+  get args() {
+    return [new DateTimeBaserowRuntimeFormulaArgumentType()]
+  }
+
+  execute(context, args) {
+    // Backend uses Python's datetime formatting syntax, e.g. `%Y-%m-%d %H:%M:%S`
+    // but I haven't yet found a way to replicate this in pure JS. Maybe
+    // we can rely on a 3rd party lib?
+    return 'TODO'
+  }
+}
+
+export class RuntimeDay extends RuntimeFormulaFunction {
+  static getType() {
+    return 'day'
+  }
+
+  get args() {
+    return [new DateTimeBaserowRuntimeFormulaArgumentType()]
+  }
+
+  execute(context, [datetime]) {
+    return datetime.getDate()
+  }
+}
+
+export class RuntimeMonth extends RuntimeFormulaFunction {
+  static getType() {
+    return 'month'
+  }
+
+  get args() {
+    return [new DateTimeBaserowRuntimeFormulaArgumentType()]
+  }
+
+  execute(context, [datetime]) {
+    return datetime.getMonth()
+  }
+}
+
+export class RuntimeYear extends RuntimeFormulaFunction {
+  static getType() {
+    return 'year'
+  }
+
+  get args() {
+    return [new DateTimeBaserowRuntimeFormulaArgumentType()]
+  }
+
+  execute(context, [datetime]) {
+    return datetime.getFullYear()
+  }
+}
+
+export class RuntimeHour extends RuntimeFormulaFunction {
+  static getType() {
+    return 'hour'
+  }
+
+  get args() {
+    return [new DateTimeBaserowRuntimeFormulaArgumentType()]
+  }
+
+  execute(context, [datetime]) {
+    return datetime.getHours()
+  }
+}
+
+export class RuntimeMinute extends RuntimeFormulaFunction {
+  static getType() {
+    return 'minute'
+  }
+
+  get args() {
+    return [new DateTimeBaserowRuntimeFormulaArgumentType()]
+  }
+
+  execute(context, [datetime]) {
+    return datetime.getMinutes()
+  }
+}
+
+export class RuntimeSecond extends RuntimeFormulaFunction {
+  static getType() {
+    return 'second'
+  }
+
+  get args() {
+    return [new DateTimeBaserowRuntimeFormulaArgumentType()]
+  }
+
+  execute(context, [datetime]) {
+    return datetime.getSeconds()
   }
 }
