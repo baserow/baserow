@@ -13,12 +13,14 @@
         {{ option.description }}
       </div>
     </RadioCard>
-    <Button type="secondary" @click="$emit('cancel')">{{
-      $t('enableTwoFactorOptions.cancel')
-    }}</Button>
-    <Button type="primary" @click="$emit('continue')">{{
-      $t('enableTwoFactorOptions.continue')
-    }}</Button>
+    <div class="actions actions--right actions--gap">
+      <Button type="secondary" @click="$emit('cancel')">{{
+        $t('enableTwoFactorOptions.cancel')
+      }}</Button>
+      <Button type="primary" @click="$emit('continue')">{{
+        $t('enableTwoFactorOptions.continue')
+      }}</Button>
+    </div>
   </div>
 </template>
 
