@@ -31,6 +31,14 @@ class FormulaField(models.TextField):
             advanced, raw) and the version of the formula context.
     """
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # For compat reasons, applied the parameters we used to receive.
+        # These can be altered once we inherit from `JSONField`.
+        self.default = ""
+        self.null = True
+        self.blank = True
+
     def _value_is_serialized_object(self, value: FormulaFieldDatabaseValue) -> bool:
         return isinstance(value, str) and value[:1] == "{" and value[-1:] == "}"
 
