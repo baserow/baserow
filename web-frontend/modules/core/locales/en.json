@@ -68,6 +68,17 @@
     "enabled": "Enabled",
     "disable": "Disable 2FA"
   },
+  "totpLogin": {
+    "backupCodesTitle": "Enter backup code",
+    "backupCodesDescription": "Log in with your single-use backup code.",
+    "authenticate": "Authenticate",
+    "goBack": "Go back",
+    "totpTitle": "Two-factor authentication",
+    "totpDescription": "Enter the code from your authenticator app.",
+    "verify": "Verify",
+    "useBackupCode": "Use backup code",
+    "verificationFailed": "Verification failed"
+  },
   "settingsModal": {
     "title": "My settings"
   },

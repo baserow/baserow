@@ -37,9 +37,11 @@
       </defs>
     </svg>
     <div v-if="enterBackupCode">
-      <div class="totp-login__title">Enter backup code</div>
+      <div class="totp-login__title">
+        {{ $t('totpLogin.backupCodesTitle') }}
+      </div>
       <div class="totp-login__description">
-        Log in with your single-use backup code.
+        {{ $t('totpLogin.backupCodesDescription') }}
       </div>
       <FormGroup
         small-label
@@ -65,16 +67,18 @@
         type="primary"
         size="large"
         @click="verifyBackupCode"
-        >Authenticate</Button
+        >{{ $t('totpLogin.authenticate') }}</Button
       >
       <div>
-        <ButtonText @click="enterBackupCode = false">Go back</ButtonText>
+        <ButtonText @click="enterBackupCode = false">{{
+          $t('totpLogin.goBack')
+        }}</ButtonText>
       </div>
     </div>
     <div v-else>
-      <div class="totp-login__title">Two-factor authentication</div>
+      <div class="totp-login__title">{{ $t('totpLogin.totpTitle') }}</div>
       <div class="totp-login__description">
-        Enter the code from your authenticator app.
+        {{ $t('totpLogin.totpDescription') }}
       </div>
       <AuthCodeInput class="totp-login__code" @all-filled="verify" />
       <Button
@@ -82,10 +86,12 @@
         type="primary"
         size="large"
         @click="verify"
-        >Verify</Button
+        >{{ $t('totpLogin.verify') }}</Button
       >
       <div>
-        <ButtonText @click="enterBackupCode = true">Use backup code</ButtonText>
+        <ButtonText @click="enterBackupCode = true">{{
+          $t('totpLogin.useBackupCode')
+        }}</ButtonText>
       </div>
     </div>
   </div>
@@ -140,15 +146,10 @@ export default {
           this.email,
           { code }
         )
-        console.log({ data })
         this.$store.dispatch('auth/loginWithData', { data })
         this.$emit('success')
-        // const title = 'Successfully enabled two-factor authentication'
-        // this.$store.dispatch('toast/success', { title })
-        // this.$emit('verified', data.backup_codes)
       } catch (error) {
-        // TODO: diff type of error?
-        const title = 'Verification failed' // this.$t('generalSettings.cantUpdateApplicationTitle')
+        const title = this.$t('totpLogin.verificationFailed')
         this.$store.dispatch('toast/error', { title })
       } finally {
         // this.loading = false
@@ -161,15 +162,10 @@ export default {
           this.email,
           { backupCode: this.values.backupCode }
         )
-        console.log({ data })
         this.$store.dispatch('auth/loginWithData', { data })
         this.$emit('success')
-        // const title = 'Successfully enabled two-factor authentication'
-        // this.$store.dispatch('toast/success', { title })
-        // this.$emit('verified', data.backup_codes)
       } catch (error) {
-        // TODO: diff type of error?
-        const title = 'Verification failed' // this.$t('generalSettings.cantUpdateApplicationTitle')
+        const title = this.$t('totpLogin.verificationFailed')
         this.$store.dispatch('toast/error', { title })
       } finally {
         // this.loading = false
