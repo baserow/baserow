@@ -53,6 +53,11 @@
     "title": "Two-factor authentication"
   },
   "disableTwoFactorAuth": {
+    "title": "Are you sure you want to disable 2FA?",
+    "description": "Your account will lose an extra layer of security. If someone finds out your password, they might be able to log in to your account.",
+    "cancel": "Leave it on",
+    "disable": "Disable",
+    "successTitle": "Two-factor authentication has been disabled",
     "errorWrongPasswordTitle": "Wrong password",
     "errorWrongPasswordMessage": "The password entered doesn't match your password."
   },

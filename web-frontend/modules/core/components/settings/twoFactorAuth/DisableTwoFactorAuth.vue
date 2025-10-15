@@ -1,9 +1,8 @@
 <template>
   <div>
-    <h3>Are you sure you want to disable 2FA?</h3>
+    <h3>{{ $t('disableTwoFactorAuth.title') }}</h3>
     <div class="disable-two-factor__description">
-      Your account will lose an extra layer of security. If someone finds out
-      your password, they might be able to log in to your account.
+      {{ $t('disableTwoFactorAuth.description') }}
     </div>
 
     <Error :error="error"></Error>
@@ -32,7 +31,7 @@
 
       <div class="actions actions--right actions--gap">
         <Button type="secondary" size="large" @click="$emit('cancel')">
-          Leave it on
+          {{ $t('disableTwoFactorAuth.cancel') }}
         </Button>
         <Button
           type="danger"
@@ -41,7 +40,7 @@
           :disabled="loading || !values.password"
           @click="confirm"
         >
-          Disable
+          {{ $t('disableTwoFactorAuth.disable') }}
         </Button>
       </div>
     </form>
@@ -84,9 +83,10 @@ export default {
       try {
         await TwoFactorAuthService(this.$client).disable(this.values.password)
         this.loading = false
-
         this.$emit('disabled')
-        // TODO: toast
+        this.$store.dispatch('toast/success', {
+          title: this.$t('disableTwoFactorAuth.successTitle'),
+        })
       } catch (error) {
         this.loading = false
         this.handleError(error, 'twoFactor', {
