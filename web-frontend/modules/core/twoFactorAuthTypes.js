@@ -53,20 +53,19 @@ export class TOTPAuthType extends TwoFactorAuthType {
   }
 
   get name() {
-    return 'Authenticator app'
+    return this.app.i18n.t('totpAuthType.name')
   }
 
   get description() {
-    return `Use an app to get two-factor authentication codes. We recommend using
-        apps such as Google Authenticator, Authy and Microsoft Authenticator.`
+    return this.app.i18n.t('totpAuthType.description')
   }
 
   get enabledDescription() {
-    return "You'll receive verification codes via an authenticator app. To set up different app or method, simply disable 2FA and setup again."
+    return this.app.i18n.t('totpAuthType.enabledDescription')
   }
 
   get sideLabel() {
-    return 'Recommended'
+    return this.app.i18n.t('totpAuthType.sideLabel')
   }
 
   get settingsComponent() {

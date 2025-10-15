@@ -73,6 +73,12 @@
     "backupCodesCopiedTitle": "Copied!",
     "backupCodesCopiedMessage": "Backup codes copied to clipboard."
   },
+  "totpAuthType": {
+    "name": "Authenticator app",
+    "description": "Use an app to get two-factor authentication codes. We recommend using apps such as Google Authenticator, Authy and Microsoft Authenticator.",
+    "enabledDescription": "You'll receive verification codes via an authenticator app. To set up different app or method, simply disable 2FA and setup again.",
+    "sideLabel": "Recommended"
+  },
   "twoFactorEnabled": {
     "enabled": "Enabled",
     "disable": "Disable 2FA"
