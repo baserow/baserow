@@ -1185,6 +1185,11 @@ class CoreRouterServiceType(CoreServiceType):
 
         return super().get_sample_data(service, dispatch_context)
 
+    def get_edges(self, service):
+        return {str(e.uid): {"label": e.label} for e in service.edges.all()} | {
+            "": {"label": service.default_edge_label}
+        }
+
 
 class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
     type = "periodic"

@@ -58,9 +58,6 @@ class AutomationNodeType(
     def allowed_fields(self):
         return super().allowed_fields + [
             "label",
-            "previous_node_id",
-            "parent_node_id",
-            "previous_node_output",
             "service",
         ]
 
@@ -140,9 +137,6 @@ class AutomationNodeType(
         storage=None,
         cache=None,
     ):
-        if prop_name == "order":
-            return str(node.order)
-
         if prop_name == "service":
             service = node.service.specific
             return service.get_type().export_serialized(
@@ -270,21 +264,8 @@ class AutomationNodeType(
 
         values["service"] = service
 
-        if instance:
-            workflow = instance.workflow
-
-        else:
-            workflow = values["workflow"]
-
-        if (previous_node_id := values.get("previous_node_id", None)) is not None:
-            values["previous_node"] = AutomationNodeHandler().get_node(previous_node_id)
-            if workflow.id != values["previous_node"].workflow_id:
-                raise AutomationNodeNotInWorkflow(values["previous_node"].id)
-
-        if (parent_node_id := values.get("parent_node_id", None)) is not None:
-            values["parent_node"] = AutomationNodeHandler().get_node(parent_node_id)
-            if workflow.id != values["parent_node"].workflow_id:
-                raise AutomationNodeNotInWorkflow(values["parent_node"].id)
+        if (position_node_id := values.get("position_node_id", None)) is not None:
+            values["position_node"] = AutomationNodeHandler().get_node(position_node_id)
 
         return values
 
