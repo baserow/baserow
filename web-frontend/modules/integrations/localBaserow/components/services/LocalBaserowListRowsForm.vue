@@ -109,7 +109,7 @@ export default {
       values: {
         table_id: null,
         view_id: null,
-        search_query: '',
+        search_query: {},
         filters: [],
         sortings: [],
         filter_type: 'AND',

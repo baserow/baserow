@@ -304,7 +304,7 @@ export default {
         items_per_page: 1,
         styles: {},
         orientation: {},
-        button_load_more_label: '',
+        button_load_more_label: {},
       },
     }
   },

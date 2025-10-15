@@ -94,7 +94,7 @@ export default {
         table_id: null,
         view_id: null,
         field_id: null,
-        search_query: '',
+        search_query: {},
         filters: [],
         filter_type: 'AND',
         aggregation_type: 'sum',

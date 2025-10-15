@@ -54,7 +54,7 @@ export default {
   data() {
     return {
       values: {
-        value: '',
+        value: {},
         level: 1,
         styles: {},
       },

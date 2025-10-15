@@ -252,7 +252,8 @@ export default {
     },
     hasActiveSearch() {
       return (
-        this.values.search_query && this.values.search_query.trim().length > 0
+        this.values.search_query &&
+        this.values.search_query.formula.trim().length > 0
       )
     },
   },

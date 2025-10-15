@@ -837,7 +837,8 @@
     "link": "Link",
     "tags": "Tags",
     "image": "Image",
-    "rating": "Rating"
+    "rating": "Rating",
+    "errorValueMissing": "Missing value property"
   },
   "textFieldForm": {
     "fieldValueLabel": "Value",

@@ -1167,13 +1167,10 @@ export class FormElementType extends ElementType {
    * @returns {string} this element's display name.
    */
   getDisplayName(element, applicationContext) {
-    if (element.label) {
-      const resolvedName = ensureString(
-        this.resolveFormula(element.label, applicationContext)
-      ).trim()
-      return resolvedName || this.name
-    }
-    return this.name
+    const resolvedName = ensureString(
+      this.resolveFormula(element.label, applicationContext)
+    ).trim()
+    return resolvedName || this.name
   }
 
   afterDelete(element, page) {
@@ -1250,16 +1247,11 @@ export class InputTextElementType extends FormElementType {
   }
 
   getDisplayName(element, applicationContext) {
-    const displayValue = element.label.formula || element.placeholder.formula
-    // TODO: we can't trim below
-
-    if (displayValue?.trim()) {
-      const resolvedName = ensureString(
-        this.resolveFormula(displayValue, applicationContext)
-      ).trim()
-      return resolvedName || this.name
-    }
-    return this.name
+    const displayValue = element.label || element.placeholder
+    const resolvedName = ensureString(
+      this.resolveFormula(displayValue, applicationContext)
+    ).trim()
+    return resolvedName || this.name
   }
 
   getInitialFormDataValue(element, applicationContext) {
@@ -1312,7 +1304,7 @@ export class HeadingElementType extends ElementType {
    * is empty to indicate an error, otherwise return false.
    */
   getErrorMessage({ workspace, page, element, builder }) {
-    if (element.value.length === 0) {
+    if (element.value.formula.length === 0) {
       return this.app.i18n.t('elementType.errorValueMissing')
     }
     return super.getErrorMessage({
@@ -1324,14 +1316,10 @@ export class HeadingElementType extends ElementType {
   }
 
   getDisplayName(element, applicationContext) {
-    // TODO: we need to element.value.formula.length
-    if (element.value.formula.length) {
-      const resolvedName = ensureString(
-        this.resolveFormula(element.value, applicationContext)
-      ).trim()
-      return resolvedName || this.name
-    }
-    return this.name
+    const resolvedName = ensureString(
+      this.resolveFormula(element.value, applicationContext)
+    ).trim()
+    return resolvedName || this.name
   }
 }
 
@@ -1369,7 +1357,7 @@ export class TextElementType extends ElementType {
    * is empty to indicate an error, otherwise return false.
    */
   getErrorMessage({ workspace, page, element, builder }) {
-    if (element.value.length === 0) {
+    if (element.value.formula.length === 0) {
       return this.app.i18n.t('elementType.errorValueMissing')
     }
     return super.getErrorMessage({
@@ -1381,14 +1369,10 @@ export class TextElementType extends ElementType {
   }
 
   getDisplayName(element, applicationContext) {
-    // TODO: element.value.formula
-    if (element.value) {
-      const resolvedName = ensureString(
-        this.resolveFormula(element.value, applicationContext)
-      ).trim()
-      return resolvedName || this.name
-    }
-    return this.name
+    const resolvedName = ensureString(
+      this.resolveFormula(element.value, applicationContext)
+    ).trim()
+    return resolvedName || this.name
   }
 }
 
@@ -1430,7 +1414,7 @@ export class LinkElementType extends ElementType {
    */
   getErrorMessage({ workspace, page, element, builder }) {
     // A Link without any text isn't usable
-    if (element.value.length === 0) {
+    if (element.value.formula.length === 0) {
       return this.app.i18n.t('elementType.errorValueMissing')
     }
 
@@ -1461,7 +1445,6 @@ export class LinkElementType extends ElementType {
   }
 
   getDisplayName(element, applicationContext) {
-    let displayValue = ''
     let destination = ''
     if (element.navigation_type === 'page') {
       const builder = applicationContext.builder
@@ -1483,12 +1466,9 @@ export class LinkElementType extends ElementType {
       destination = ` -> ${destination}`
     }
 
-    // TODO: element.value.formula
-    if (element.value) {
-      displayValue = ensureString(
-        this.resolveFormula(element.value, applicationContext)
-      ).trim()
-    }
+    const displayValue = ensureString(
+      this.resolveFormula(element.value, applicationContext)
+    ).trim()
 
     return displayValue
       ? `${displayValue}${destination}`
@@ -1551,14 +1531,10 @@ export class ImageElementType extends ElementType {
   }
 
   getDisplayName(element, applicationContext) {
-    // TODO: element.alt_text.formula
-    if (element.alt_text) {
-      const resolvedName = ensureString(
-        this.resolveFormula(element.alt_text, applicationContext)
-      ).trim()
-      return resolvedName || this.name
-    }
-    return this.name
+    const resolvedName = ensureString(
+      this.resolveFormula(element.alt_text, applicationContext)
+    ).trim()
+    return resolvedName || this.name
   }
 }
 
@@ -1601,7 +1577,7 @@ export class ButtonElementType extends ElementType {
    */
   getErrorMessage({ workspace, page, element, builder }) {
     // If Button without any label should be considered invalid
-    if (element.value.length === 0) {
+    if (element.value.formula.length === 0) {
       return this.app.i18n.t('elementType.errorValueMissing')
     }
 
@@ -1622,14 +1598,10 @@ export class ButtonElementType extends ElementType {
   }
 
   getDisplayName(element, applicationContext) {
-    // TODO: element.value.formula
-    if (element.value) {
-      const resolvedName = ensureString(
-        this.resolveFormula(element.value, applicationContext)
-      ).trim()
-      return resolvedName || this.name
-    }
-    return this.name
+    const resolvedName = ensureString(
+      this.resolveFormula(element.value, applicationContext)
+    ).trim()
+    return resolvedName || this.name
   }
 }
 
@@ -1721,15 +1693,10 @@ export class ChoiceElementType extends FormElementType {
 
   getDisplayName(element, applicationContext) {
     const displayValue = element.label || element.placeholder
-
-    // TODO: pluck out formula from both
-    if (displayValue) {
-      const resolvedName = ensureString(
-        this.resolveFormula(displayValue, applicationContext)
-      ).trim()
-      return resolvedName || this.name
-    }
-    return this.name
+    const resolvedName = ensureString(
+      this.resolveFormula(displayValue, applicationContext)
+    ).trim()
+    return resolvedName || this.name
   }
 
   /**
@@ -1904,7 +1871,10 @@ export class IFrameElementType extends ElementType {
    * otherwise return false.
    */
   getErrorMessage({ workspace, page, element, builder }) {
-    if (element.source_type === IFRAME_SOURCE_TYPES.URL && !element.url) {
+    if (
+      element.source_type === IFRAME_SOURCE_TYPES.URL &&
+      !element.url.formula
+    ) {
       return this.app.i18n.t('elementType.errorIframeUrlMissing')
     } else if (
       element.source_type === IFRAME_SOURCE_TYPES.EMBED &&
@@ -1921,14 +1891,10 @@ export class IFrameElementType extends ElementType {
   }
 
   getDisplayName(element, applicationContext) {
-    // TODO: element.url.formula.length
-    if (element.url && element.url.length) {
-      const resolvedName = ensureString(
-        this.resolveFormula(element.url, applicationContext)
-      )
-      return resolvedName || this.name
-    }
-    return this.name
+    const resolvedName = ensureString(
+      this.resolveFormula(element.url, applicationContext)
+    )
+    return resolvedName || this.name
   }
 }
 
@@ -1989,16 +1955,10 @@ export class RecordSelectorElementType extends CollectionElementTypeMixin(
 
   getDisplayName(element, applicationContext) {
     const displayValue = element.label || element.placeholder
-
-    // TODO pluck out formula from both
-    if (displayValue) {
-      const resolvedName = ensureString(
-        this.resolveFormula(displayValue, applicationContext)
-      ).trim()
-      return resolvedName || this.name
-    }
-
-    return this.name
+    const resolvedName = ensureString(
+      this.resolveFormula(displayValue, applicationContext)
+    ).trim()
+    return resolvedName || this.name
   }
 
   isValid(element, value, applicationContext) {

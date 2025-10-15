@@ -69,8 +69,8 @@ export default {
       values: {
         table_id: null,
         view_id: null,
-        row_id: '',
-        search_query: '',
+        row_id: {},
+        search_query: {},
         filters: [],
         filter_type: 'AND',
       },

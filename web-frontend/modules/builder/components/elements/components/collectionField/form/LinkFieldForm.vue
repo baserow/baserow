@@ -61,7 +61,7 @@ export default {
     return {
       allowedValues: ['link_name', 'styles', 'variant'],
       values: {
-        link_name: '',
+        link_name: {},
         styles: {},
         variant: LINK_VARIANTS.LINK,
       },

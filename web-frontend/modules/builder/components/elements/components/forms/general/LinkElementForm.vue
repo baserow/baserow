@@ -61,7 +61,7 @@ export default {
   data() {
     return {
       values: {
-        value: '',
+        value: {},
         alignment: HORIZONTAL_ALIGNMENTS.LEFT,
         variant: LINK_VARIANTS.LINK,
         width: WIDTHS_NEW.AUTO,

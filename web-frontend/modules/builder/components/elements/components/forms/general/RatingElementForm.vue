@@ -36,7 +36,7 @@ export default {
   data() {
     return {
       values: {
-        value: '',
+        value: {},
       },
       allowedValues: ['value'],
     }

@@ -44,7 +44,7 @@ export default {
   data() {
     return {
       values: {
-        submit_button_label: '',
+        submit_button_label: {},
         reset_initial_values_post_submission: false,
         styles: {},
       },

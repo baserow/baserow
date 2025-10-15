@@ -104,8 +104,8 @@ export default {
         'styles',
       ],
       values: {
-        label: '',
-        default_value: '',
+        label: {},
+        default_value: {},
         required: false,
         date_format: '',
         include_time: false,
