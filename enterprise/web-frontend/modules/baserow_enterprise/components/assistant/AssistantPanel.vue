@@ -50,8 +50,9 @@
     </div>
     <div class="assistant__footer">
       <AssistantInputMessage
-        :context-display="workspace.name"
-        :running="isAssistantRunning"
+        :ui-context="uiContext"
+        :is-running="isAssistantRunning"
+        :running-message="assistantRunningMessage"
         @send-message="handleSendMessage"
       ></AssistantInputMessage>
     </div>
@@ -91,6 +92,7 @@ export default {
       currentChat: 'assistant/currentChat',
       chats: 'assistant/chats',
       isLoadingChats: 'assistant/isLoadingChats',
+      uiContext: 'assistant/uiContext',
     }),
     currentChatId() {
       return this.currentChat?.id
@@ -100,6 +102,9 @@ export default {
     },
     isAssistantRunning() {
       return Boolean(this.currentChat?.running)
+    },
+    assistantRunningMessage() {
+      return this.currentChat?.runningMessage || ''
     },
   },
   watch: {

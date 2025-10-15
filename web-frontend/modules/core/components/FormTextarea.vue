@@ -11,10 +11,11 @@
       'form-textarea--error': error,
       'form-textarea--disabled': disabled,
       'form-textarea--small': size === 'small',
+      'form-textarea--auto-expendable': autoExpandable,
     }"
     :style="{
-      height: textBoxSize ? `${textBoxSize}px` : 'auto',
       overflow: textBoxOverflow ? textBoxOverflow : 'visible',
+      ...heightStyle,
     }"
     @blur="$emit('blur', $event)"
     @focus="$emit('focus', $event)"
@@ -140,6 +141,14 @@ export default {
     textBoxOverflow() {
       if (this.autoExpandable)
         return this.numTextAreaLines > this.maxRows ? 'auto' : 'hidden'
+      return null
+    },
+    heightStyle() {
+      if (this.textBoxSize) {
+        return {
+          height: `${this.textBoxSize}px`,
+        }
+      }
       return null
     },
   },

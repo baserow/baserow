@@ -47,6 +47,7 @@ RUN apt-get update && \
     apt-get update && \
     apt-get install --no-install-recommends -y \
     postgresql-$POSTGRES_VERSION \
+    postgresql-${POSTGRES_VERSION}-pgvector \
     postgresql-client-$POSTGRES_VERSION \
     libpq-dev \
     redis-server \

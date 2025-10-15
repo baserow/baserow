@@ -8,7 +8,7 @@ Software versions are divided into the following groups:
   before the release.
 * `Recommended`: Recommended software for the best experience.  
 
-## Baserow 1.24
+## Baserow 1.35.3
 
 
 | Dependency     | Supported versions | Tested versions | Recommended versions | 
@@ -21,5 +21,5 @@ Software versions are divided into the following groups:
 | Docker         | >= 19.03           | Latest          | Latest               |
 | docker-compose | >= 1.19.0          | Latest          | Latest               |
 | PostgreSQL     | >= 13              | 13.22           | 15+                  |
+| pgvector       | >= 0.8.1           | 0.8.1           | Latest               |
 | Redis          | >= 6.2.7           | 6.2.7           | Latest               |
-

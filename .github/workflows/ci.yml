@@ -1,0 +1,768 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches:
+      - develop
+      - master
+  pull_request:
+
+# Customize the workflow run name to show branch/PR info
+run-name: "CI: ${{ github.event_name == 'pull_request' && github.event.pull_request.title || github.ref_name }}"
+
+# Automatically cancel in-progress workflows for the same branch/PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_REPO: ${{ github.repository }}
+  CI_IMAGE_TAG_PREFIX: ci-
+  DEVELOP_BRANCH_NAME: develop
+
+jobs:
+  # ==========================================================================
+  # BUILD STAGE - Build Docker images for backend and frontend
+  # ==========================================================================
+
+  build-backend:
+    name: Build Backend Dev Image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.image.outputs.full }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate image tag
+        id: image
+        run: |
+          IMAGE_NAME="${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/backend_dev"
+          IMAGE_TAG="${{ env.CI_IMAGE_TAG_PREFIX }}${{ github.sha }}"
+          FULL_IMAGE="${IMAGE_NAME}:${IMAGE_TAG}"
+          echo "full=${FULL_IMAGE}" >> $GITHUB_OUTPUT
+
+      - name: Determine cache sources
+        id: cache
+        run: |
+          BRANCH_NAME="${GITHUB_REF_NAME}"
+          TRUNCATED_BRANCH="${BRANCH_NAME:0:100}"
+          TRUNCATED_BRANCH="${TRUNCATED_BRANCH//\//-}"
+
+          IMAGE_NAME="${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/backend_dev"
+          BRANCH_CACHE="${IMAGE_NAME}:${{ env.CI_IMAGE_TAG_PREFIX }}${TRUNCATED_BRANCH}"
+          DEVELOP_CACHE="${IMAGE_NAME}:${{ env.CI_IMAGE_TAG_PREFIX }}${{ env.DEVELOP_BRANCH_NAME }}"
+
+          echo "branch=${BRANCH_CACHE}" >> $GITHUB_OUTPUT
+          echo "develop=${DEVELOP_CACHE}" >> $GITHUB_OUTPUT
+
+      - name: Build and push backend dev image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: backend/Dockerfile
+          target: dev
+          push: true
+          tags: ${{ steps.image.outputs.full }}
+          cache-from: |
+            type=registry,ref=${{ steps.cache.outputs.branch }}
+            type=registry,ref=${{ steps.cache.outputs.develop }}
+          cache-to: type=inline
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
+
+  build-frontend:
+    name: Build Web-Frontend Dev Image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.image.outputs.full }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate image tag
+        id: image
+        run: |
+          IMAGE_NAME="${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/web-frontend_dev"
+          IMAGE_TAG="${{ env.CI_IMAGE_TAG_PREFIX }}${{ github.sha }}"
+          FULL_IMAGE="${IMAGE_NAME}:${IMAGE_TAG}"
+          echo "full=${FULL_IMAGE}" >> $GITHUB_OUTPUT
+
+      - name: Determine cache sources
+        id: cache
+        run: |
+          BRANCH_NAME="${GITHUB_REF_NAME}"
+          TRUNCATED_BRANCH="${BRANCH_NAME:0:100}"
+          TRUNCATED_BRANCH="${TRUNCATED_BRANCH//\//-}"
+
+          IMAGE_NAME="${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/web-frontend_dev"
+          BRANCH_CACHE="${IMAGE_NAME}:${{ env.CI_IMAGE_TAG_PREFIX }}${TRUNCATED_BRANCH}"
+          DEVELOP_CACHE="${IMAGE_NAME}:${{ env.CI_IMAGE_TAG_PREFIX }}${{ env.DEVELOP_BRANCH_NAME }}"
+
+          echo "branch=${BRANCH_CACHE}" >> $GITHUB_OUTPUT
+          echo "develop=${DEVELOP_CACHE}" >> $GITHUB_OUTPUT
+
+      - name: Build and push web-frontend dev image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: web-frontend/Dockerfile
+          target: dev
+          push: true
+          tags: ${{ steps.image.outputs.full }}
+          cache-from: |
+            type=registry,ref=${{ steps.cache.outputs.branch }}
+            type=registry,ref=${{ steps.cache.outputs.develop }}
+          cache-to: type=inline
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
+
+  # ==========================================================================
+  # LINT STAGE - Run linting on backend, frontend, and Dockerfiles
+  # ==========================================================================
+
+  # Detect which files have changed to skip unnecessary jobs
+  detect-changes:
+    name: Detect Changed Files
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      dockerfiles: ${{ steps.filter.outputs.dockerfiles }}
+      mjml: ${{ steps.filter.outputs.mjml }}
+      zapier: ${{ steps.filter.outputs.zapier }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check changed files
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+              - 'premium/backend/**'
+              - 'enterprise/backend/**'
+              - '.github/workflows/ci.yml'
+            frontend:
+              - 'web-frontend/**'
+              - 'premium/web-frontend/**'
+              - 'enterprise/web-frontend/**'
+              - '.github/workflows/ci.yml'
+            dockerfiles:
+              - '**/Dockerfile'
+              - '.github/workflows/ci.yml'
+            mjml:
+              - '**/*.eta'
+              - '.github/workflows/ci.yml'
+            zapier:
+              - 'integrations/zapier/**'
+              - '.github/workflows/ci.yml'
+
+  backend-lint:
+    name: Backend Lint
+    runs-on: ubuntu-latest
+    needs:
+      - build-backend
+      - detect-changes
+    # Only run if backend files changed or always on develop/master
+    if: needs.detect-changes.outputs.backend == 'true' || github.ref_name == 'develop' || github.ref_name == 'master'
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run backend lint
+        run: docker run --rm ${{ needs.build-backend.outputs.image }} lint
+
+  frontend-lint:
+    name: Web-Frontend Lint
+    runs-on: ubuntu-latest
+    needs:
+      - build-frontend
+      - detect-changes
+    if: needs.detect-changes.outputs.frontend == 'true' || github.ref_name == 'develop' || github.ref_name == 'master'
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run frontend lint
+        run: docker run --rm ${{ needs.build-frontend.outputs.image }} lint
+
+  dockerfile-lint:
+    name: Dockerfile Lint (hadolint)
+    runs-on: ubuntu-latest
+    needs:
+      - backend-lint
+      - frontend-lint
+      - detect-changes
+    if: needs.detect-changes.outputs.dockerfiles == 'true' || github.ref_name == 'develop' || github.ref_name == 'master'
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run hadolint on all Dockerfiles
+        run: |
+          mkdir -p reports
+          docker run --rm -i \
+            -v "$(pwd)":/opt/hadolint \
+            -w /opt/hadolint \
+            hadolint/hadolint:2.9.3-debian \
+            hadolint --ignore DL3008 -f json \
+              backend/Dockerfile \
+              web-frontend/Dockerfile \
+              heroku.Dockerfile \
+              deploy/*/Dockerfile > reports/hadolint.json || true
+
+      - name: Display hadolint results
+        run: |
+          if [ -s reports/hadolint.json ]; then
+            cat reports/hadolint.json
+          else
+            echo "No hadolint issues found!"
+          fi
+
+      - name: Upload hadolint results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hadolint-results
+          path: reports/hadolint.json
+          retention-days: 7
+
+  # ==========================================================================
+  # TEST STAGE - Run backend and frontend tests
+  # ==========================================================================
+
+  backend-check-startup:
+    name: Backend Startup Check
+    runs-on: ubuntu-latest
+    needs:
+      - build-backend
+      - backend-lint
+      - detect-changes
+    if: needs.detect-changes.outputs.backend == 'true' || github.ref_name == 'develop' || github.ref_name == 'master'
+    permissions:
+      contents: read
+      packages: read
+    services:
+      db:
+        image: postgres:13
+        env:
+          POSTGRES_USER: baserow
+          POSTGRES_PASSWORD: baserow
+          POSTGRES_DB: baserow
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check backend startup
+        run: |
+          docker run --rm --network="${{ job.services.db.network }}" \
+            -e DATABASE_HOST=db \
+            -e DATABASE_PORT=5432 \
+            -e DATABASE_NAME=baserow \
+            -e DATABASE_USER=baserow \
+            -e DATABASE_PASSWORD=baserow \
+            ${{ needs.build-backend.outputs.image }} ci-check-startup
+          docker run --rm --network="${{ job.services.db.network }}" \
+            -e DATABASE_HOST=db \
+            -e DATABASE_PORT=5432 \
+            -e DATABASE_NAME=baserow \
+            -e DATABASE_USER=baserow \
+            -e DATABASE_PASSWORD=baserow \
+            ${{ needs.build-backend.outputs.image }} ci-check-startup-oss-only
+
+  test-backend:
+    name: Backend Tests (Group ${{ matrix.group }})
+    runs-on: ubuntu-latest
+    needs:
+      - build-backend
+      - backend-lint
+      - detect-changes
+    if: needs.detect-changes.outputs.backend == 'true' || github.ref_name == 'develop' || github.ref_name == 'master'
+    permissions:
+      contents: read
+      packages: read
+      checks: write
+      pull-requests: write
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    services:
+      db:
+        image: postgres:13
+        env:
+          POSTGRES_USER: baserow
+          POSTGRES_PASSWORD: baserow
+          POSTGRES_DB: baserow
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run backend tests for group ${{ matrix.group }}
+        run: |
+          mkdir -p reports
+          docker run \
+            --name=baserow_backend_test_container \
+            --network="${{ job.services.db.network }}" \
+            -e PYTEST_SPLITS=10 \
+            -e PYTEST_SPLIT_GROUP=${{ matrix.group }} \
+            -e DATABASE_HOST=db \
+            -e DATABASE_PORT=5432 \
+            -e DATABASE_NAME=baserow \
+            -e DATABASE_USER=baserow \
+            -e DATABASE_PASSWORD=baserow \
+            -e SECRET_KEY=test-secret-key \
+            ${{ needs.build-backend.outputs.image }} ci-test
+          docker cp baserow_backend_test_container:/baserow/backend/reports/. ./reports
+          docker rm baserow_backend_test_container
+
+      - name: Upload test reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-test-reports-group-${{ matrix.group }}
+          path: reports/
+          retention-days: 7
+          include-hidden-files: true
+
+      - name: Publish test results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        if: always()
+        with:
+          files: reports/report.xml
+          check_name: Backend Tests (Group ${{ matrix.group }})
+
+  test-frontend:
+    name: Web-Frontend Tests (Shard ${{ matrix.shard }})
+    runs-on: ubuntu-latest
+    needs:
+      - build-frontend
+      - frontend-lint
+      - detect-changes
+    if: needs.detect-changes.outputs.frontend == 'true' || github.ref_name == 'develop' || github.ref_name == 'master'
+    permissions:
+      contents: read
+      packages: read
+      checks: write
+      pull-requests: write
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run web-frontend tests for shard ${{ matrix.shard }}
+        run: |
+          mkdir -p reports
+          docker run \
+            --name=webfrontend_test \
+            -e JEST_SHARD_INDEX=${{ matrix.shard }} \
+            -e JEST_SHARD_TOTAL=4 \
+            ${{ needs.build-frontend.outputs.image }} ci-test | tee reports/stdout.txt
+          docker cp webfrontend_test:/baserow/reports/. ./reports
+          docker rm webfrontend_test
+
+      - name: Upload test reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: web-frontend-test-reports-shard-${{ matrix.shard }}
+          path: reports/
+          retention-days: 7
+          include-hidden-files: true
+
+      - name: Publish test results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        if: always()
+        with:
+          files: reports/junit.xml
+          check_name: Web-Frontend Tests (Shard ${{ matrix.shard }})
+
+  test-zapier:
+    name: Zapier Integration Tests
+    runs-on: ubuntu-latest
+    needs:
+      - backend-lint
+      - frontend-lint
+      - detect-changes
+    if: needs.detect-changes.outputs.zapier == 'true' || github.ref_name == 'develop' || github.ref_name == 'master'
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Run Zapier tests
+        run: |
+          cd integrations/zapier
+          yarn install
+          yarn run zapier test
+
+  check-mjml-compiled:
+    name: Check MJML Email Templates Compiled
+    runs-on: ubuntu-latest
+    needs:
+      - backend-lint
+      - frontend-lint
+      - detect-changes
+    if: needs.detect-changes.outputs.mjml == 'true' || github.ref_name == 'develop' || github.ref_name == 'master'
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Compile MJML templates
+        run: |
+          cd backend/email_compiler
+          yarn install
+          yarn run compile
+
+      - name: Check for uncompiled changes
+        run: |
+          if ! git diff --exit-code; then
+            echo "Error: Uncompiled changes found to MJML email templates"
+            echo "Please run the compiler in backend/email_compiler/ and commit the changes"
+            exit 1
+          fi
+
+  # ==========================================================================
+  # E2E TESTS - End-to-end tests with Playwright
+  # ==========================================================================
+
+  test-e2e:
+    name: E2E Tests (Shard ${{ matrix.shard }})
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    # Only run E2E tests on PRs, not on develop/master branches
+    if: github.event_name == 'pull_request'
+    needs:
+      - build-backend
+      - build-frontend
+      - backend-lint
+      - frontend-lint
+    permissions:
+      contents: read
+      packages: read
+      checks: write
+      pull-requests: write
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    services:
+      db:
+        image: postgres:13
+        env:
+          POSTGRES_USER: baserow
+          POSTGRES_PASSWORD: baserow
+          POSTGRES_DB: baserow
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:6-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      s3mock:
+        image: adobe/s3mock:3.12.0
+        env:
+          initialBuckets: testbucket
+        ports:
+          - 9090:9090
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'yarn'
+          cache-dependency-path: 'e2e-tests/yarn.lock'
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Start backend service
+        run: |
+          docker run -d --network="${{ job.services.db.network }}" \
+            --name backend \
+            -e DATABASE_HOST=db \
+            -e DATABASE_NAME=baserow \
+            -e DATABASE_USER=baserow \
+            -e DATABASE_PASSWORD=baserow \
+            -e REDIS_URL=redis://redis:6379 \
+            -e SECRET_KEY=test \
+            -e AWS_ACCESS_KEY_ID=anyvalue \
+            -e AWS_SECRET_ACCESS_KEY=anyvalue \
+            -e AWS_STORAGE_BUCKET_NAME=testbucket \
+            -e AWS_S3_ENDPOINT_URL=http://s3mock:9090 \
+            -e AWS_S3_CUSTOM_DOMAIN=localhost:9090/testbucket \
+            -e AWS_S3_USE_SSL=no \
+            -e AWS_S3_URL_PROTOCOL=http: \
+            -e FEATURE_FLAGS="*" \
+            -e DJANGO_SETTINGS_MODULE=baserow.config.settings.e2e \
+            -e BASEROW_TRIGGER_SYNC_TEMPLATES_AFTER_MIGRATION=false \
+            -p 8000:8000 \
+            ${{ needs.build-backend.outputs.image }} gunicorn
+
+      - name: Start celery worker
+        run: |
+          docker run -d --network="${{ job.services.db.network }}" \
+            --name celery \
+            -e DATABASE_HOST=db \
+            -e DATABASE_NAME=baserow \
+            -e DATABASE_USER=baserow \
+            -e DATABASE_PASSWORD=baserow \
+            -e REDIS_URL=redis://redis:6379 \
+            -e SECRET_KEY=test \
+            -e AWS_ACCESS_KEY_ID=anyvalue \
+            -e AWS_SECRET_ACCESS_KEY=anyvalue \
+            -e AWS_STORAGE_BUCKET_NAME=testbucket \
+            -e AWS_S3_ENDPOINT_URL=http://s3mock:9090 \
+            -e AWS_S3_CUSTOM_DOMAIN=localhost:9090/testbucket \
+            -e AWS_S3_USE_SSL=no \
+            -e AWS_S3_URL_PROTOCOL=http: \
+            -e FEATURE_FLAGS="*" \
+            -e DJANGO_SETTINGS_MODULE=baserow.config.settings.e2e \
+            -e BASEROW_RUN_MINIMAL=yes \
+            -e BASEROW_AMOUNT_OF_WORKERS=1 \
+            ${{ needs.build-backend.outputs.image }} celery-worker
+
+      - name: Start web-frontend service
+        run: |
+          docker run -d --network="${{ job.services.db.network }}" \
+            --name web-frontend \
+            -e PUBLIC_BACKEND_URL=http://localhost:8000 \
+            -e PUBLIC_WEB_FRONTEND_URL=http://localhost:3000 \
+            -e PRIVATE_BACKEND_URL=http://backend:8000 \
+            -e FEATURE_FLAGS="*" \
+            -e NODE_OPTIONS=--max-old-space-size=8192 \
+            -p 3000:3000 \
+            ${{ needs.build-frontend.outputs.image }} nuxt-dev-no-attach
+
+      - name: Install Playwright
+        run: |
+          cd e2e-tests
+          yarn install
+          npx playwright install --with-deps firefox
+
+      - name: Wait for services
+        env:
+          BASEROW_E2E_STARTUP_MAX_WAIT_TIME_SECONDS: 300
+          PUBLIC_BACKEND_URL: http://localhost:8000
+          PUBLIC_WEB_FRONTEND_URL: http://localhost:3000
+          PRIVATE_BACKEND_URL: http://backend:8000
+        run: |
+          cd e2e-tests
+          ./wait-for-services.sh
+
+      - name: Run E2E tests (shard ${{ matrix.shard }})
+        env:
+          PUBLIC_BACKEND_URL: http://localhost:8000
+          PUBLIC_WEB_FRONTEND_URL: http://localhost:3000
+          PRIVATE_BACKEND_URL: http://backend:8000
+        run: |
+          cd e2e-tests
+          CI=1 npx playwright test --timeout=30000 --grep-invert=@slow --shard=${{ matrix.shard }}/4 --project=firefox
+
+      - name: Upload E2E test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-test-results-shard-${{ matrix.shard }}
+          path: e2e-tests/blob-report/
+          retention-days: 7
+          include-hidden-files: true
+
+      - name: Cleanup containers
+        if: always()
+        run: |
+          docker stop backend web-frontend celery || true
+          docker rm backend web-frontend celery || true
+
+  collect-e2e-reports:
+    name: Collect E2E Test Reports
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' && always()
+    needs: [test-e2e]
+    permissions:
+      contents: read
+      checks: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Download all E2E test results
+        uses: actions/download-artifact@v4
+        with:
+          pattern: e2e-test-results-shard-*
+          path: e2e-tests/blob-report
+          merge-multiple: true
+
+      - name: Merge Playwright reports
+        run: |
+          cd e2e-tests
+          yarn install
+          npx playwright merge-reports --reporter html blob-report/
+
+      - name: Upload merged E2E report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-test-report-merged
+          path: e2e-tests/playwright-report/
+          retention-days: 30
+
+  # ==========================================================================
+  # COVERAGE STAGE - Collect and report test coverage
+  # ==========================================================================
+
+  collect-coverage:
+    name: Collect Backend Coverage
+    runs-on: ubuntu-latest
+    needs: [test-backend]
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install coverage tool
+        run: pip install coverage
+
+      - name: Download all backend test reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: backend-test-reports-group-*
+          path: reports-download
+          merge-multiple: true
+
+      - name: Combine coverage reports
+        run: |
+          echo "Listing downloaded files:"
+          find reports-download -type f
+          cp reports-download/.coverage* . 2>/dev/null || echo "No coverage files found"
+          coverage combine
+          coverage report
+
+      - name: Upload combined coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage-report
+          path: .coverage
+          retention-days: 30
+          overwrite: true
+
+      - name: Comment coverage report on PR
+        uses: py-cov-action/python-coverage-comment-action@v3
+        if: github.event_name == 'pull_request'
+        with:
+          GITHUB_TOKEN: ${{ github.token }}
+          MERGE_COVERAGE_FILES: false

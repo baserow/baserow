@@ -91,7 +91,7 @@ services:
   db:
     # Please ensure the postgres-client's major version in the backend image is kept in
     # sync with this major version so pg_dump remains compatible.
-    image: postgres:15
+    image: pgvector/pgvector:pg15
     restart: unless-stopped
     env_file:
       - .env

@@ -4,8 +4,19 @@ import Vue from 'vue'
 
 const MESSAGE_TYPE = {
   MESSAGE: 'ai/message',
+  THINKING: 'ai/thinking',
   ERROR: 'ai/error',
   CHAT_TITLE: 'chat/title',
+}
+
+export const THINKING_MESSAGES = {
+  THINKING: 'thinking',
+  RUNNING: 'running',
+  ANSWERING: 'answering',
+  // Tool related messages
+  SEARCH_DOCS: 'search_docs',
+
+  CUSTOM: 'custom', // Messages without a predefined translation
 }
 
 export const state = () => ({
@@ -26,6 +37,14 @@ export const mutations = {
 
   SET_ASSISTANT_RUNNING(state, { chat, value }) {
     Vue.set(chat, 'running', value)
+  },
+
+  SET_ASSISTANT_RUNNING_MESSAGE(state, { chat, code, message = '' }) {
+    Vue.set(
+      chat,
+      'runningMessage',
+      code === THINKING_MESSAGES.CUSTOM ? message : code
+    )
   },
 
   SET_MESSAGES(state, messages) {
@@ -105,12 +124,19 @@ export const actions = {
   async selectChat({ commit }, chat) {
     commit('SET_CHAT_LOADING', { chat, value: true })
 
+    // Set role and loading state for each message
+    const parseMessage = (msg) => ({
+      role: msg.type === 'human' ? 'human' : 'ai',
+      loading: false,
+      ...msg,
+    })
+
     try {
       const { messages } = await assistant(this.$client).fetchChatMessages(
         chat.id
       )
       commit('SET_CURRENT_CHAT_ID', chat.id)
-      commit('SET_MESSAGES', messages)
+      commit('SET_MESSAGES', messages.map(parseMessage))
     } finally {
       commit('SET_CHAT_LOADING', { chat, value: false })
     }
@@ -134,15 +160,27 @@ export const actions = {
     }
   },
 
-  handleStreamingResponse({ commit, state }, { id, update }) {
+  handleStreamingResponse({ commit, state }, { chat, id, update }) {
     switch (update.type) {
       case MESSAGE_TYPE.MESSAGE:
+        commit('SET_ASSISTANT_RUNNING_MESSAGE', {
+          chat,
+          code: THINKING_MESSAGES.ANSWERING,
+        })
         commit('UPDATE_MESSAGE', {
           id,
           updates: {
             content: update.content,
+            sources: update.sources,
             loading: false,
           },
+        })
+        break
+      case MESSAGE_TYPE.THINKING:
+        commit('SET_ASSISTANT_RUNNING_MESSAGE', {
+          chat,
+          code: update.code,
+          message: update.content,
         })
         break
       case MESSAGE_TYPE.CHAT_TITLE:
@@ -163,7 +201,10 @@ export const actions = {
     }
   },
 
-  async sendMessage({ commit, state, dispatch }, { message, workspace }) {
+  async sendMessage(
+    { commit, state, dispatch, getters },
+    { message, workspace }
+  ) {
     if (!state.currentChatId) {
       await dispatch('createChat', workspace.id)
     }
@@ -185,7 +226,11 @@ export const actions = {
     }
     commit('ADD_MESSAGE', aiMessage)
     commit('SET_ASSISTANT_RUNNING', { chat, value: true })
-    const uiContext = { workspace: { id: workspace.id, name: workspace.name } }
+    commit('SET_ASSISTANT_RUNNING_MESSAGE', {
+      chat,
+      code: THINKING_MESSAGES.THINKING,
+    })
+    const uiContext = getters.uiContext
 
     try {
       await assistant(this.$client).sendMessage(
@@ -194,20 +239,30 @@ export const actions = {
         uiContext,
         async (progressEvent) => {
           await dispatch('handleStreamingResponse', {
+            chat,
             id: aiMessageId,
             update: progressEvent,
           })
         }
       )
+      // If the AI message was never updated but the request finished, set a generic error message.
+      if (
+        state.messages.find((m) => m.id === aiMessageId && m.content === '')
+      ) {
+        throw new Error('The assistant did not provide a response.')
+      }
     } catch (error) {
       commit('UPDATE_MESSAGE', {
         id: aiMessageId,
         updates: {
-          content: 'Oops! Something went wrong on the server...',
+          content:
+            error.data?.detail ||
+            error.message ||
+            'Oops! Something went wrong on the server. Please try again.',
           loading: false,
+          error: true,
         },
       })
-      throw error
     } finally {
       commit('SET_ASSISTANT_RUNNING', { chat, value: false })
     }
@@ -226,6 +281,44 @@ export const getters = {
   chats: (state) => state.chats,
 
   isLoadingChats: (state) => state.isLoadingChats,
+
+  uiContext: (state, getters, rootState, rootGetters) => {
+    const scope = rootGetters['undoRedo/getCurrentScope']
+    const workspace = rootGetters['workspace/get'](scope.workspace)
+
+    const application = scope.application
+      ? rootGetters['application/get'](scope.application)
+      : null
+
+    const table =
+      application && scope.table
+        ? application.tables?.find((t) => t.id === scope.table)
+        : null
+
+    const view =
+      table && scope.view ? rootGetters['view/get'](scope.view) : null
+
+    const uiContext = {
+      workspace: { id: workspace.id, name: workspace.name },
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    }
+
+    if (application) {
+      const appType =
+        application.type === 'builder' ? 'application' : application.type
+      uiContext[appType] = {
+        id: application.id,
+        name: application.name,
+      }
+    }
+    if (table) {
+      uiContext.table = { id: table.id, name: table.name }
+    }
+    if (view) {
+      uiContext.view = { id: view.id, name: view.name, type: view.type }
+    }
+    return uiContext
+  },
 }
 
 export default {

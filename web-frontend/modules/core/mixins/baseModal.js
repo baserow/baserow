@@ -9,7 +9,15 @@ export default {
       // when you release the mouse at different coordinates. Therefore we expect this
       // variable to be set on mousedown to be consistent.
       downElement: null,
+      isModal: true,
     }
+  },
+  props: {
+    canClose: {
+      type: Boolean,
+      default: true,
+      required: false,
+    },
   },
   mounted() {
     this.$bus.$on('close-modals', this.hide)
@@ -65,6 +73,16 @@ export default {
      */
     hide(emit = true) {
       if (!this.open) {
+        return
+      }
+
+      const hasOpenModalAsChild = this.moveToBody.children.some((child) => {
+        return child.isModal === true && child.open === true
+      })
+      // When the `esc` key is pressed and multiple modals are open, then we don't
+      // want to close them all. Only last opened modal should close. This will make
+      // sure that if there is an open child modal, it will not hide the parent modal.
+      if (hasOpenModalAsChild) {
         return
       }
 

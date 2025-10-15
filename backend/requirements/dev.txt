@@ -14,10 +14,6 @@ asttokens==3.0.0
     # via
     #   snoop
     #   stack-data
-async-timeout==5.0.1
-    # via
-    #   -c base.txt
-    #   redis
 attrs==24.3.0
     # via
     #   -c base.txt
@@ -116,8 +112,10 @@ isort==5.13.2
     # via -r dev.in
 jedi==0.19.2
     # via ipython
-jinja2==3.1.5
-    # via pytest-html
+jinja2==3.1.6
+    # via
+    #   -c base.txt
+    #   pytest-html
 jsonschema==4.25.0
     # via
     #   -c base.txt
@@ -138,8 +136,10 @@ markdown-it-py==3.0.0
     # via
     #   -c base.txt
     #   rich
-markupsafe==3.0.2
-    # via jinja2
+markupsafe==3.0.3
+    # via
+    #   -c base.txt
+    #   jinja2
 matplotlib-inline==0.1.7
     # via ipython
 mccabe==0.7.0
@@ -269,7 +269,7 @@ pyyaml==6.0.2
     #   bandit
     #   jsonschema-path
     #   responses
-redis==5.0.4
+redis==5.2.1
     # via
     #   -c base.txt
     #   fakeredis

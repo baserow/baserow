@@ -183,6 +183,8 @@ x-backend-variables:
   BASEROW_DEADLOCK_MAX_RETRIES:
   BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_SERIES:
   BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS:
+  BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL:
+  BASEROW_EMBEDDINGS_API_URL:
 
 services:
   backend:
@@ -299,7 +301,7 @@ services:
       local:
 
   db:
-    image: postgres:15
+    image: pgvector/pgvector:pg15
     restart: unless-stopped
     environment:
       - POSTGRES_USER=${DATABASE_USER:-baserow}

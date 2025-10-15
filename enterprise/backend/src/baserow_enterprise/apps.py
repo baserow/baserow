@@ -302,6 +302,15 @@ class BaserowEnterpriseConfig(AppConfig):
         notification_type_registry.register(TwoWaySyncUpdateFailedNotificationType())
         notification_type_registry.register(TwoWaySyncDeactivatedNotificationType())
 
+        from baserow_enterprise.assistant.tools.registries import (
+            assistant_tool_registry,
+        )
+        from baserow_enterprise.assistant.tools.search_docs.tools import (
+            SearchDocsToolType,
+        )
+
+        assistant_tool_registry.register(SearchDocsToolType())
+
         # The signals must always be imported last because they use the registries
         # which need to be filled first.
         import baserow_enterprise.audit_log.signals  # noqa: F
