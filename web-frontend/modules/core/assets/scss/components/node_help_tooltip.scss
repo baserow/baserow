@@ -1,4 +1,4 @@
-.formula-function-help-tooltip {
+.node-help-tooltip {
   padding: 20px;
   max-width: 320px;
   background: $palette-neutral-100;
@@ -28,7 +28,7 @@
 
   &__icon-symbol {
     font-size: 18px;
-    color: #6b7280;
+    color: $palette-neutral-700;
   }
 
   &__title {
@@ -37,46 +37,9 @@
     margin: 0;
   }
 
-  &__content {
-    color: #6b7280;
-  }
-
   &__description {
     font-size: 12px;
 
     @extend %mb-16;
-  }
-
-  &__example-function {
-    color: #059669;
-    font-weight: 600;
-  }
-
-  &__example-syntax {
-    color: #374151;
-
-    // Style pour les différents éléments de la syntaxe
-    .param {
-      color: #1d4ed8;
-      font-weight: 500;
-    }
-
-    .string {
-      color: #dc2626;
-    }
-
-    .number {
-      color: #7c3aed;
-    }
-
-    .operator {
-      color: #059669;
-      font-weight: 600;
-    }
-
-    .result {
-      color: #374151;
-      font-weight: 600;
-    }
   }
 }

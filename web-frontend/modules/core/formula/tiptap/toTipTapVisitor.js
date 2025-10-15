@@ -3,13 +3,45 @@ import { UnknownOperatorError } from '@baserow/modules/core/formula/parser/error
 import _ from 'lodash'
 
 export class ToTipTapVisitor extends BaserowFormulaVisitor {
-  constructor(functions) {
+  constructor(functions, mode = 'simple') {
     super()
     this.functions = functions
+    this.mode = mode
   }
 
   visitRoot(ctx) {
     const result = ctx.expr().accept(this)
+
+    // In advanced mode, ensure all content is wrapped in a single wrapper
+    if (this.mode === 'advanced') {
+      const content = _.isArray(result) ? result : [result]
+      return {
+        type: 'doc',
+        content: [
+          {
+            type: 'wrapper',
+            content: content.flatMap((item) => {
+              // Filter out null or undefined items
+              if (!item) return []
+
+              // If the item is an array (from functions without wrapper in advanced mode)
+              if (Array.isArray(item)) {
+                return item
+              }
+
+              // If the item is a wrapper, extract its content
+              if (item.type === 'wrapper' && item.content) {
+                return item.content
+              }
+
+              // Return the item if it has a type
+              return item.type ? [item] : []
+            }),
+          },
+        ],
+      }
+    }
+
     return { type: 'doc', content: _.isArray(result) ? result : [result] }
   }
 
@@ -18,24 +50,25 @@ export class ToTipTapVisitor extends BaserowFormulaVisitor {
       case "'\n'":
         // Specific element that helps to recognize root concat
         return { type: 'newLine' }
-      default:
-        if (this.processString(ctx)) {
-          return { type: 'text', text: this.processString(ctx) }
+      default: {
+        const processedString = this.processString(ctx)
+        if (processedString) {
+          return { type: 'text', text: processedString }
         } else {
           // An empty string is an empty wrapper
           return { type: 'wrapper' }
         }
+      }
     }
   }
 
   visitDecimalLiteral(ctx) {
-    // TODO
-    return parseFloat(ctx.getText())
+    return { type: 'text', text: ctx.getText() }
   }
 
   visitBooleanLiteral(ctx) {
-    // TODO
-    return ctx.TRUE() !== null
+    const value = ctx.TRUE() !== null ? 'true' : 'false'
+    return { type: 'text', text: value }
   }
 
   visitBrackets(ctx) {
@@ -69,8 +102,60 @@ export class ToTipTapVisitor extends BaserowFormulaVisitor {
     )
 
     const formulaFunctionType = this.functions.get(functionName)
+    const node = formulaFunctionType.toNode(args, this.mode)
 
-    return formulaFunctionType.toNode(args)
+    // If the function returns an array (like concat with newlines in simple mode),
+    // return it directly
+    if (Array.isArray(node)) {
+      return node
+    }
+
+    // If the function doesn't have a proper TipTap component (node is null or type is null),
+    // wrap it as text but preserve the arguments
+    if (!node || !node.type) {
+      const content = []
+
+      // Add function name and opening parenthesis
+      content.push({ type: 'text', text: `${functionName}(` })
+
+      // Add the processed arguments (which may include components like GetFormulaComponent)
+      args.forEach((arg, index) => {
+        if (index > 0) {
+          content.push({ type: 'text', text: ', ' })
+        }
+
+        // Check if the argument is a complex node or a simple value
+        if (arg.type === 'text' && typeof arg.text === 'string') {
+          // Don't add quotes for boolean or numeric values
+          const isBoolean = arg.text === 'true' || arg.text === 'false'
+          const isNumber = !isNaN(Number(arg.text))
+
+          if (isBoolean || isNumber) {
+            content.push(arg)
+          } else {
+            // For actual string literals, add quotes
+            content.push({ type: 'text', text: `"${arg.text}"` })
+          }
+        } else if (arg) {
+          content.push(arg)
+        }
+      })
+
+      // Add closing parenthesis
+      content.push({ type: 'text', text: ')' })
+
+      // In advanced mode, return inline content without wrapper
+      if (this.mode === 'advanced') {
+        return content
+      }
+
+      return {
+        type: 'wrapper',
+        content,
+      }
+    }
+
+    return node
   }
 
   visitBinaryOp(ctx) {

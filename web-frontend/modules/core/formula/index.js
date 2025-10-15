@@ -1,5 +1,6 @@
 import parseBaserowFormula from '@baserow/modules/core/formula/parser/parser'
 import JavascriptExecutor from '@baserow/modules/core/formula/parser/javascriptExecutor'
+import { FORMULA_TYPE } from '@baserow/modules/core/enums'
 
 /**
  * Resolves a formula in the context of the given context.
@@ -45,4 +46,375 @@ export const isFormulaValid = (formula, functions) => {
   } catch (err) {
     return false
   }
+}
+
+/**
+ * Get all formula functions from the registry
+ * @param {Object} app The app instance with registry
+ * @returns {Object} All formula functions
+ */
+export const getFormulaFunctions = (app) => {
+  return app.$registry.getAll('runtimeFormulaFunction')
+}
+
+/**
+ * Get formula functions organized by category
+ * @param {Object} app The app instance with registry
+ * @returns {Array} Array of category nodes with their functions
+ */
+export const getFormulaFunctionsByCategory = (app) => {
+  const functions = getFormulaFunctions(app)
+  const { i18n } = app
+  const categorizedFunctions = {}
+  const categorizedOperators = {}
+
+  // Group functions by category
+  for (const [functionName, registryItem] of Object.entries(functions)) {
+    try {
+      // The registry might return instances instead of classes
+      let instance = null
+      let FunctionType = null
+
+      // Check if registryItem is already an instance
+      if (
+        registryItem &&
+        typeof registryItem === 'object' &&
+        registryItem.constructor
+      ) {
+        // It's an instance, get its constructor
+        FunctionType = registryItem.constructor
+        instance = registryItem
+      } else if (typeof registryItem === 'function') {
+        // It's a constructor function
+        FunctionType = registryItem
+        instance = new FunctionType({ app })
+      } else {
+        // Skip items that are not valid constructors or instances
+        continue
+      }
+
+      // Skip if getFormulaType is not defined (not a formula function)
+      if (!FunctionType.getFormulaType) {
+        continue
+      }
+
+      // Skip if getCategoryType is not defined
+      if (!FunctionType.getCategoryType) {
+        continue
+      }
+
+      // Get formula type
+      const formulaType = FunctionType.getFormulaType()
+
+      // Get category - use static method and format it
+      const categoryType = FunctionType.getCategoryType()
+
+      // Get translated category name
+      let category = 'Other'
+      const icon = categoryType.iconClass || 'iconoir-function'
+
+      if (categoryType.category) {
+        // Get translated category name using i18n
+        category = i18n.t(`runtimeFormulaTypes.${categoryType.category}`)
+      }
+
+      const item = {
+        name: functionName,
+        functionType: FunctionType,
+        icon,
+        instance,
+      }
+
+      if (formulaType === FORMULA_TYPE.OPERATOR) {
+        // Store operators by their category
+        if (!categorizedOperators[category]) {
+          categorizedOperators[category] = []
+        }
+        categorizedOperators[category].push(item)
+      } else if (formulaType === FORMULA_TYPE.FUNCTION) {
+        // Store regular functions
+        if (!categorizedFunctions[category]) {
+          categorizedFunctions[category] = []
+        }
+        categorizedFunctions[category].push(item)
+      }
+    } catch (e) {
+      // Skip functions that throw errors during processing
+      console.warn(`Skipping ${functionName} due to error:`, e.message)
+    }
+  }
+
+  // Build the hierarchy
+  const functionNodes = []
+  const categories = Object.keys(categorizedFunctions).sort()
+
+  for (const category of categories) {
+    if (categorizedFunctions[category].length > 0) {
+      functionNodes.push({
+        name: category,
+        functions: categorizedFunctions[category].sort((a, b) =>
+          a.name.localeCompare(b.name)
+        ),
+      })
+    }
+  }
+
+  // Add operators as a separate structure
+  const operatorNodes = []
+  const operatorCategories = Object.keys(categorizedOperators).sort()
+
+  for (const category of operatorCategories) {
+    if (categorizedOperators[category].length > 0) {
+      operatorNodes.push({
+        name: category,
+        operators: categorizedOperators[category].sort((a, b) =>
+          a.name.localeCompare(b.name)
+        ),
+      })
+    }
+  }
+
+  return { functionNodes, operatorNodes }
+}
+
+/**
+ * Build function nodes for FormulaInputField
+ * @param {Object} app The app instance with registry
+ * @returns {Array} Array of function nodes ready for FormulaInputField
+ */
+export const buildFormulaFunctionNodes = (app) => {
+  const { functionNodes, operatorNodes } = getFormulaFunctionsByCategory(app)
+  const nodes = []
+  const { i18n } = app
+
+  // Process regular functions
+  if (functionNodes.length > 0) {
+    const functionCategories = []
+
+    for (const category of functionNodes) {
+      const categoryNodes = []
+
+      for (const func of category.functions) {
+        const instance = func.instance
+
+        // Get function signature information
+        let signature = null
+
+        // Check if function is variadic by looking at its validateNumberOfArgs implementation
+        const isVariadic =
+          instance.validateNumberOfArgs &&
+          instance.validateNumberOfArgs !==
+            instance.constructor.prototype.validateNumberOfArgs
+
+        if (instance.args && instance.args.length > 0) {
+          signature = {
+            parameters: instance.args.map((arg, index) => {
+              // Map argument types to their string representation
+              let type = 'any'
+              const argClassName = arg.constructor.name
+
+              if (argClassName === 'NumberBaserowRuntimeFormulaArgumentType') {
+                type = 'number'
+              } else if (
+                argClassName === 'TextBaserowRuntimeFormulaArgumentType'
+              ) {
+                type = 'text'
+              } else if (
+                argClassName === 'DateTimeBaserowRuntimeFormulaArgumentType'
+              ) {
+                type = 'date'
+              } else if (
+                argClassName === 'ObjectBaserowRuntimeFormulaArgumentType'
+              ) {
+                type = 'object'
+              }
+
+              return {
+                type,
+                required: true,
+              }
+            }),
+            variadic: isVariadic,
+            minArgs: isVariadic ? 1 : instance.numArgs ?? instance.args.length,
+            maxArgs: isVariadic
+              ? null
+              : instance.numArgs ?? instance.args.length,
+          }
+        } else {
+          signature = {
+            parameters: [
+              {
+                type: 'any',
+                required: true,
+              },
+            ],
+            variadic: isVariadic,
+            minArgs: 1,
+            maxArgs: null,
+          }
+        }
+
+        // Get description and examples
+        let description = null
+        let example = null
+        try {
+          description = instance.getDescription()
+        } catch (e) {
+          // Method not implemented
+        }
+        try {
+          const examples = instance.getExamples()
+          example = examples && examples.length > 0 ? examples[0] : null
+        } catch (e) {
+          // Method not implemented
+        }
+
+        categoryNodes.push({
+          name: func.name,
+          type: 'function',
+          description,
+          example,
+          highlightingColor: 'blue',
+          icon: func.icon,
+          identifier: null,
+          order: null,
+          signature,
+        })
+      }
+
+      functionCategories.push({
+        name: category.name,
+        identifier: null,
+        order: null,
+        signature: null,
+        description: null,
+        example: null,
+        highlightingColor: null,
+        icon: null,
+        nodes: categoryNodes,
+      })
+    }
+
+    // Add functions as a top-level section
+    nodes.push({
+      name: i18n.tc('runtimeFormulaTypes.formulaTypeFormula', {
+        count: functionNodes.length,
+      }),
+      type: 'function',
+      identifier: null,
+      order: null,
+      signature: null,
+      description: null,
+      example: null,
+      highlightingColor: 'blue',
+      icon: null,
+      nodes: functionCategories,
+    })
+  }
+
+  // Process operators
+  if (operatorNodes.length > 0) {
+    const operatorCategories = []
+
+    for (const category of operatorNodes) {
+      const categoryNodes = []
+
+      for (const op of category.operators) {
+        const instance = op.instance
+        const operatorSymbol = instance.getOperatorSymbol
+
+        // Build operator signature
+        const signature = {
+          operator: operatorSymbol,
+          parameters: instance.args
+            ? instance.args.map((arg, index) => {
+                // Map argument types to their string representation
+                let type = 'any'
+                const argClassName = arg.constructor.name
+
+                if (
+                  argClassName === 'NumberBaserowRuntimeFormulaArgumentType'
+                ) {
+                  type = 'number'
+                } else if (
+                  argClassName === 'TextBaserowRuntimeFormulaArgumentType'
+                ) {
+                  type = 'text'
+                } else if (
+                  argClassName === 'DateTimeBaserowRuntimeFormulaArgumentType'
+                ) {
+                  type = 'date'
+                } else if (
+                  argClassName === 'ObjectBaserowRuntimeFormulaArgumentType'
+                ) {
+                  type = 'object'
+                }
+
+                return {
+                  name: index === 0 ? 'left' : 'right',
+                  type,
+                  required: true,
+                }
+              })
+            : [
+                {
+                  type: 'any',
+                  required: true,
+                },
+                {
+                  type: 'any',
+                  required: true,
+                },
+              ],
+          variadic: false,
+          minArgs: 2,
+          maxArgs: 2,
+        }
+
+        // Get description and examples
+        let description = null
+        let example = null
+
+        description = instance.getDescription()
+        const examples = instance.getExamples()
+        example = examples && examples.length > 0 ? examples[0] : null
+
+        categoryNodes.push({
+          name: op.name,
+          type: 'operator',
+          description,
+          example,
+          highlightingColor: 'green',
+          icon: op.icon,
+          identifier: null,
+          order: null,
+          signature,
+        })
+      }
+
+      operatorCategories.push({
+        name: category.name,
+        example: null,
+        signature: null,
+        highlightingColor: null,
+        icon: null,
+        identifier: null,
+        order: null,
+        description: null,
+        nodes: categoryNodes,
+      })
+    }
+
+    // Add operators as a top-level section
+    nodes.push({
+      name: i18n.tc('runtimeFormulaTypes.formulaTypeOperator', {
+        count: operatorNodes.length,
+      }),
+      type: 'operator',
+      nodes: operatorCategories,
+    })
+  }
+
+  console.log('nodes', nodes)
+  return nodes
 }

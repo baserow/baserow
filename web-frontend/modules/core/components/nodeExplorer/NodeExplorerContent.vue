@@ -1,23 +1,25 @@
 <template>
   <div
-    v-if="showNode"
-    class="data-explorer-node"
+    v-if="shouldShow"
+    class="node-explorer-content"
     :class="{
-      [`data-explorer-node--level-${depth}`]: true,
-      'data-explorer-node--selected': isSelected,
+      [`node-explorer-content--level-${depth}`]: true,
+      'node-explorer-content--selected': isSelected,
     }"
   >
-    <div class="data-explorer-node__content" @click="handleClick(node)">
-      <i
-        v-if="depth > 0"
-        class="data-explorer-node__content-icon"
-        :class="getIcon(node)"
-      />
-      <span class="data-explorer-node__content-name">{{ node.name }}</span>
-      <i
-        v-if="isSelected"
-        class="data-explorer-node__content-selected-icon iconoir-check-circle"
-      />
+    <div
+      class="node-explorer-content__content"
+      @click="handleClick(node)"
+      @mouseenter="onNodeHover($event, node)"
+      @mouseleave="onNodeLeave"
+    >
+      <span v-if="depth > 0" class="node-explorer-content__icon">
+        <i class="node-explorer-content__content-icon" :class="getIcon(node)" />
+      </span>
+      <span class="node-explorer-content__name">{{ node.name }}</span>
+      <span v-if="isSelected" class="node-explorer-content__selected-icon">
+        <i class="iconoir-check-circle" />
+      </span>
       <span
         v-else-if="allowNodeSelection && node.type === 'array'"
         class="data-explorer-node__select-node"
@@ -25,46 +27,48 @@
       >
         {{ $t('dataExplorerNode.selectNode') }}
       </span>
+      <NodeHelpTooltip ref="nodeHelpTooltip" :node="node" />
     </div>
-    <div v-if="isNodeOpen" ref="nodes" class="data-explorer-node__children">
+    <div v-if="hasChildren && isOpen" class="node-explorer-content__children">
       <template v-if="node.type !== 'array'">
-        <DataExplorerNode
-          v-for="subNode in sortedNodes"
-          :key="subNode.identifier"
-          :node="subNode"
+        <NodeExplorerContent
+          v-for="child in node.nodes"
+          :key="child.name"
+          :node="child"
           :depth="depth + 1"
           :open-nodes="openNodes"
-          :node-selected="nodeSelected"
-          :path="subNode.identifier ? `${path}.${subNode.identifier}` : path"
-          :search-path="
-            subNode.identifier
-              ? `${searchPath}.${subNode.identifier}`
-              : searchPath
+          :path="
+            path
+              ? `${path}.${child.identifier || child.name}`
+              : child.identifier || child.name
           "
+          :search-path="`${searchPath ? searchPath + '.' : ''}${
+            child.identifier || child.name
+          }`"
+          :node-selected="nodeSelected"
           :search="search"
-          :allow-node-selection="allowNodeSelection"
           @click="$emit('click', $event)"
           @toggle="$emit('toggle', $event)"
         />
       </template>
       <div v-else>
-        <DataExplorerNode
+        <NodeExplorerContent
           v-for="subNode in arrayNodes"
           :key="subNode.identifier"
           :node="subNode"
           :depth="depth + 1"
           :open-nodes="openNodes"
           :node-selected="nodeSelected"
-          :allow-node-selection="allowNodeSelection"
           :search="search"
           :path="`${path}.${subNode.identifier}`"
+          :allow-node-selection="allowNodeSelection"
           :search-path="`${searchPath}.__any__`"
           @click="$emit('click', $event)"
           @toggle="$emit('toggle', $event)"
         />
         <button
           v-tooltip="$t('dataExplorerNode.showMore')"
-          class="data-explorer-node__array-node-more"
+          class="node-explorer-content__array-node-more"
           @click="count += nextIncrement"
         >
           {{ `[ ${count}...${nextCount - 1} ]` }}
@@ -75,27 +79,25 @@
 </template>
 
 <script>
-import _ from 'lodash'
-
+import NodeHelpTooltip from '@baserow/modules/core/components/nodeExplorer/NodeHelpTooltip.vue'
 export default {
-  name: 'DataExplorerNode',
+  name: 'NodeExplorerContent',
+  components: {
+    NodeHelpTooltip,
+  },
   props: {
     node: {
       type: Object,
       required: true,
-    },
-    depth: {
-      type: Number,
-      required: false,
-      default: 0,
     },
     openNodes: {
       type: Set,
       required: true,
     },
     path: {
-      type: String,
-      required: true,
+      type: [String, null],
+      required: false,
+      default: null,
     },
     searchPath: {
       type: String,
@@ -111,6 +113,11 @@ export default {
       required: false,
       default: null,
     },
+    depth: {
+      type: Number,
+      required: false,
+      default: 0,
+    },
     allowNodeSelection: {
       type: Boolean,
       required: false,
@@ -118,27 +125,12 @@ export default {
     },
   },
   data() {
-    return { count: 3 }
+    return { count: 3, tooltipTimer: null }
   },
   computed: {
-    isSelected() {
-      return this.nodeSelected === this.path
-    },
-    showNode() {
-      // we show the node if...
-      return (
-        // We are not searching
-        this.search === null ||
-        // It is selected
-        this.isSelected ||
-        // It has children and at least one children matches
-        (this.hasChildren && this.openNodes.has(this.searchPath)) ||
-        // Or it's a leaf and it matches the search term
-        this.node.name.trim().toLowerCase().includes(this.search)
-      )
-    },
     hasChildren() {
-      return this.node.nodes?.length > 0
+      const children = this.node.nodes || this.node.items
+      return children && children.length > 0
     },
     sortedNodes() {
       if (this.hasChildren) {
@@ -147,7 +139,7 @@ export default {
         return []
       }
     },
-    isNodeOpen() {
+    isOpen() {
       return (
         // It's open if we are the first level
         this.depth === 0 ||
@@ -157,6 +149,13 @@ export default {
         // The search path is the version with `__any__` instead of array indexes
         this.openNodes.has(this.searchPath)
       )
+    },
+    isSelected() {
+      return this.nodeSelected === this.path
+    },
+    shouldShow() {
+      if (!this.search) return true
+      return this.openNodes.has(this.searchPath)
     },
     nextCount() {
       return this.count + 10 - ((this.count + 10) % 10)
@@ -184,36 +183,6 @@ export default {
       return []
     },
   },
-  watch: {
-    nodeSelected: {
-      handler(newValue) {
-        // Generate enough array nodes to display arbitrary selected data
-        if (this.node.type === 'array' && newValue?.startsWith(this.path)) {
-          const nodeSelectedPath = _.toPath(newValue)
-          const pathParts = _.toPath(this.path)
-          const indexStr = nodeSelectedPath[pathParts.length]
-
-          if (indexStr !== '*') {
-            const index = parseInt(indexStr)
-            if (this.count <= index) {
-              this.count = index + 10 - ((index + 10) % 10)
-            }
-          }
-        }
-      },
-      immediate: true,
-    },
-    isSelected: {
-      async handler(newValue) {
-        if (newValue) {
-          await this.$nextTick()
-          // We scroll it into view when it becomes selected.
-          this.$el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-        }
-      },
-      immediate: true,
-    },
-  },
   methods: {
     handleClick(node, isNode) {
       if (this.depth < 1) {
@@ -221,20 +190,59 @@ export default {
         return
       }
       if (this.hasChildren && !isNode) {
-        if (this.search === null) {
+        // En mode recherche, on ne ferme pas les noeuds
+        if (this.search === null && this.path) {
           this.$emit('toggle', this.path)
         }
-      } else {
+      } else if (node.type === 'data') {
         this.$emit('click', { path: this.path, node })
+      } else {
+        this.$emit('click', { path: null, node })
       }
     },
     getIcon(node) {
       if (this.hasChildren) {
-        return this.isNodeOpen
+        return this.isOpen
           ? 'iconoir-nav-arrow-down'
           : 'iconoir-nav-arrow-right'
       }
       return node.icon
+    },
+    onNodeHover($event, node) {
+      if (this.tooltipTimer) {
+        clearTimeout(this.tooltipTimer)
+      }
+
+      if (
+        (node.type === 'function' || node.type === 'operator') &&
+        node.example &&
+        node.description
+      ) {
+        this.tooltipTimer = setTimeout(() => {
+          if (this.$refs.nodeHelpTooltip) {
+            this.$refs.nodeHelpTooltip.show(
+              $event.target,
+              'bottom',
+              'right',
+              5,
+              10
+            )
+          }
+        }, 300)
+      }
+    },
+    onNodeLeave() {
+      if (this.tooltipTimer) {
+        clearTimeout(this.tooltipTimer)
+        this.tooltipTimer = null
+      }
+
+      this.hideTooltip()
+    },
+    hideTooltip() {
+      if (this.$refs.nodeHelpTooltip) {
+        this.$refs.nodeHelpTooltip.hide()
+      }
     },
   },
 }

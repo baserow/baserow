@@ -151,9 +151,10 @@ export class RuntimeFormulaFunction extends Registerable {
    * in the editor.
    *
    * @param args - The args that are being parsed
+   * @param mode - The mode of the formula editor ('simple', 'advanced', or 'raw')
    * @returns {object || Array} - The component configuration or a list of components
    */
-  toNode(args) {
+  toNode(args, mode = 'simple') {
     return {
       type: this.formulaComponentType,
     }
@@ -212,8 +213,15 @@ export class RuntimeConcat extends RuntimeFormulaFunction {
     return args.length > 1
   }
 
-  toNode(args) {
-    // Recognize root concat that adds the new lines between paragraphs
+  toNode(args, mode = 'simple') {
+    // In advanced mode, we want to show the formula as-is with quotes
+    if (mode === 'advanced') {
+      return {
+        type: this.formulaComponentType,
+      }
+    }
+
+    // In simple mode, recognize root concat that adds the new lines between paragraphs
     if (args.every((arg, index) => index % 2 === 0 || arg.type === 'newLine')) {
       return args
         .filter((arg, index) => index % 2 === 0) // Remove the new lines elements

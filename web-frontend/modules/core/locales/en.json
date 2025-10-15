@@ -811,10 +811,10 @@
     "functions": "Functions",
     "operators": "Operators",
     "search": "Search",
-    "useRegularInputModalTitle": "Use regular input for this field ?",
+    "useRegularInputModalTitle": "Use regular input for this field?",
     "useRegularInput": "Use regular input",
     "useAdvancedInput": "Use advanced input",
-    "useAdvancedInputModalTitle": "Use regular input for this field ?",
+    "useAdvancedInputModalTitle": "Use advanced input for this field?",
     "modalMessage": "Your field’s content will be cleared and it will not be possible to recover it."
   },
   "dataExplorer": {

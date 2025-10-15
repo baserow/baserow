@@ -1,10 +1,9 @@
-// Global styles for syntax highlighting (must come first for specificity)
 .function-name-highlight {
   color: $palette-cyan-800;
   font-weight: 500;
   background-color: $palette-cyan-50;
   padding: 6px 8px;
-  margin-right: 4px; // Gap between elements
+  margin-right: 4px;
 
   @include rounded;
 }
@@ -14,14 +13,25 @@
   font-weight: 500;
   background-color: $palette-green-50;
   padding: 6px 8px;
-  margin-right: 4px; // Gap between elements
+  margin-right: 4px;
 
   @include rounded;
 }
 
 .text-segment {
   display: inline;
-  margin-right: 4px; // Gap between elements
+  margin-right: 4px;
+}
+
+.function-comma-highlight,
+.function-paren-highlight {
+  color: $palette-cyan-800;
+  font-weight: 500;
+  background-color: $palette-cyan-50;
+  padding: 6px 4px;
+  margin-right: 2px;
+
+  @include rounded;
 }
 
 .formula-input-field {
@@ -29,7 +39,7 @@
   font-size: 13px;
   min-height: 38px;
   padding: 5px 12px;
-  line-height: 25px;
+  line-height: 30px;
 
   // If the field is empty, then give it the
   // same padding as a normal form input field.
@@ -54,7 +64,15 @@
 }
 
 .formula-input-field--focused {
-  border-color: $color-primary-500;
+  border-color: $palette-blue-500;
+
+  &.formula-input-field--error {
+    border-color: $palette-red-500;
+  }
+}
+
+.formula-input-field--error {
+  border-color: $palette-red-500;
 }
 
 .formula-input-field--disabled {

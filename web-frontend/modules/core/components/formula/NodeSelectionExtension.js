@@ -83,7 +83,7 @@ export const NodeSelectionExtension = Extension.create({
 
             const isDataComponent =
               target.closest('[data-type="get-formula-component"]') ||
-              target.hasAttribute('data-component-clicked')
+              target.hasAttribute('data-node-clicked')
 
             if (!isDataComponent) {
               this.editor.commands.unselectNode()

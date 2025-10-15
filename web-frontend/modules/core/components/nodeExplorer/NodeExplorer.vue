@@ -1,37 +1,68 @@
 <template>
-  <div class="data-explorer">
+  <div class="node-explorer">
     <div ref="wrapper">
       <div v-if="loading" class="context--loading">
         <div class="loading" />
       </div>
       <template v-else>
-        <SelectSearch
-          v-model="search"
-          :placeholder="$t('action.search')"
-          class="margin-bottom-1"
-        />
-        <DataExplorerNode
-          v-for="node in nodes"
-          :key="node.identifier"
-          :node="node"
-          :open-nodes="openNodes"
-          :path="node.identifier"
-          :search-path="node.identifier"
-          :node-selected="nodeSelected"
-          :search="debouncedSearch"
-          :allow-node-selection="allowNodeSelection"
-          @click="$emit('node-selected', $event)"
-          @toggle="toggleNode"
-        />
-        <div
-          v-if="nodes.length === 0 || emptyResults"
-          class="context__description"
+        <Tabs
+          v-if="filteredNodesHierarchy.length > 1"
+          :selected-index="activeTabIndex"
+          content-no-padding
+          rounded
+          @update:selectedIndex="resetSearch"
         >
-          <span v-if="emptyResults">
-            {{ $t('dataExplorer.noMatchingNodesText') }}
-          </span>
-          <span v-else>{{ $t('dataExplorer.noProvidersText') }}</span>
-        </div>
+          <Tab
+            v-for="hierarchyNode in filteredNodesHierarchy"
+            :key="hierarchyNode.name"
+            :title="hierarchyNode.name"
+          >
+            <SelectSearch
+              v-model="search"
+              :placeholder="$t('action.search')"
+              class="margin-bottom-1"
+              @clear="resetSearch"
+            />
+            <div class="data-explorer__content">
+              <NodeExplorerContent
+                v-for="node in hierarchyNode.nodes"
+                :key="node.name"
+                :node="node"
+                :open-nodes="openNodes"
+                :path="node.identifier || node.name"
+                :search-path="node.identifier || node.name"
+                :node-selected="nodeSelected"
+                :search="debouncedSearch"
+                :allow-node-selection="allowNodeSelection"
+                @click="$emit('node-selected', $event)"
+                @toggle="toggleNode"
+              />
+            </div>
+          </Tab>
+        </Tabs>
+        <template v-else-if="filteredNodesHierarchy.length === 1">
+          <SelectSearch
+            v-model="search"
+            :placeholder="$t('action.search')"
+            class="margin-bottom-1"
+            @clear="resetSearch"
+          />
+          <div class="data-explorer__content">
+            <NodeExplorerContent
+              v-for="node in filteredNodesHierarchy[0].nodes"
+              :key="node.name"
+              :node="node"
+              :open-nodes="openNodes"
+              :path="node.identifier || node.name"
+              :search-path="node.identifier || node.name"
+              :node-selected="nodeSelected"
+              :allow-node-selection="allowNodeSelection"
+              :search="debouncedSearch"
+              @click="$emit('node-selected', $event)"
+              @toggle="toggleNode"
+            />
+          </div>
+        </template>
       </template>
     </div>
   </div>
@@ -39,18 +70,22 @@
 
 <script>
 import SelectSearch from '@baserow/modules/core/components/SelectSearch'
-import DataExplorerNode from '@baserow/modules/core/components/dataExplorer/DataExplorerNode'
+import NodeExplorerContent from '@baserow/modules/core/components/nodeExplorer/NodeExplorerContent'
 
 import _ from 'lodash'
 
 export default {
-  name: 'DataExplorer',
-  components: { SelectSearch, DataExplorerNode },
+  name: 'NodeExplorer',
+  components: {
+    SelectSearch,
+    NodeExplorerContent,
+  },
   props: {
-    nodes: {
-      type: Array,
+    mode: {
+      type: String,
       required: false,
-      default: () => [],
+      default: 'advanced',
+      validator: (value) => ['advanced', 'simple', 'raw'].includes(value),
     },
     nodeSelected: {
       type: String,
@@ -62,6 +97,11 @@ export default {
       required: false,
       default: false,
     },
+    nodesHierarchy: {
+      type: Array,
+      required: false,
+      default: () => [],
+    },
     allowNodeSelection: {
       type: Boolean,
       required: false,
@@ -70,6 +110,7 @@ export default {
   },
   data() {
     return {
+      activeTabIndex: 0,
       search: null,
       debounceSearch: null,
       debouncedSearch: null,
@@ -78,6 +119,14 @@ export default {
     }
   },
   computed: {
+    filteredNodesHierarchy() {
+      if (this.mode === 'simple') {
+        return this.nodesHierarchy.filter(
+          (hierarchyNode) => hierarchyNode.type === 'data'
+        )
+      }
+      return this.nodesHierarchy
+    },
     isSearching() {
       return Boolean(this.debouncedSearch)
     },
@@ -88,11 +137,22 @@ export default {
       if (!this.isSearching) {
         return new Set()
       } else {
-        return this.matchesSearch(this.nodes, this.debouncedSearch)
+        // Get the nodes from the current tab
+        const currentTab = this.filteredNodesHierarchy[this.activeTabIndex]
+        if (!currentTab || !currentTab.nodes) {
+          return new Set()
+        }
+        return this.matchesSearch(currentTab.nodes, this.debouncedSearch)
       }
     },
   },
   watch: {
+    mode(newMode, oldMode) {
+      if (newMode !== oldMode) {
+        this.activeTabIndex = 0
+        this.resetSearch()
+      }
+    },
     /**
      * Debounces the actual search to prevent perf issues
      */
@@ -120,6 +180,14 @@ export default {
     this.onShow()
   },
   methods: {
+    resetSearch(newTabIndex) {
+      this.search = null
+      this.debouncedSearch = null
+      this.openNodes = new Set()
+      if (typeof newTabIndex === 'number') {
+        this.activeTabIndex = newTabIndex
+      }
+    },
     onShow() {
       this.search = null
       this.openNodes = new Set()
@@ -141,14 +209,17 @@ export default {
      */
     matchesSearch(nodes, search, parentPath = []) {
       return (nodes || []).reduce((acc, subNode) => {
-        let subNodePath = [...parentPath, subNode.identifier]
+        // Use identifier if available, otherwise use name
+        const nodeKey = subNode.identifier || subNode.name
+        let subNodePath = [...parentPath, nodeKey]
+
         if (subNode.nodes) {
           // It's not a leaf
           if (subNode.type === 'array') {
             // For array we have a special case. We need to match any intermediate value
             // Can be either `*` or an integer. We use the `__any__` placeholder to
             // achieve that.
-            subNodePath = [...parentPath, subNode.identifier, '__any__']
+            subNodePath = [...parentPath, nodeKey, '__any__']
           }
           const subSubNodes = this.matchesSearch(
             subNode.nodes,
@@ -162,7 +233,8 @@ export default {
 
           if (nodeNameSanitised.includes(search)) {
             // We also add the parents of the node
-            acc = new Set([...acc, ...this.getPathAndParents(subNodePath)])
+            const pathsToAdd = this.getPathAndParents(subNodePath.join('.'))
+            acc = new Set([...acc, ...pathsToAdd])
           }
         }
         return acc

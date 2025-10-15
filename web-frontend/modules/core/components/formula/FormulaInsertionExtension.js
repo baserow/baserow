@@ -1,28 +1,64 @@
-import { Extension } from '@tiptap/core'
-import { RuntimeGet } from '@baserow/modules/core/runtimeFormulaTypes'
+import { Node, mergeAttributes, Extension } from '@tiptap/core'
+import { VueNodeViewRenderer } from '@tiptap/vue-2'
+import GetFormulaComponent from '@baserow/modules/core/components/formula/GetFormulaComponent'
 
-/**
- * @name FormulaInsertionExtension
- * @description A Tiptap extension that provides a suite of commands for intelligently
- * inserting various types of content into the formula editor. This includes functions,
- * operators, data components, and plain text, often with smart cursor placement and
- * contextual spacing.
- */
-export const FormulaInsertionExtension = Extension.create({
-  name: 'formulaInsertion',
+export const GetFormulaComponentNode = Node.create({
+  name: 'get-formula-component',
+  group: 'inline',
+  inline: true,
+  draggable: true,
 
-  addOptions() {
+  addAttributes() {
     return {
-      vueComponent: null,
+      path: {
+        default: null,
+      },
+      isSelected: {
+        default: false,
+      },
     }
   },
 
+  parseHTML() {
+    return [
+      {
+        tag: 'span[data-formula-component="get-formula-component"]',
+      },
+    ]
+  },
+
+  renderHTML({ HTMLAttributes }) {
+    return [
+      'span',
+      mergeAttributes(HTMLAttributes, { 'data-formula-component': this.name }),
+    ]
+  },
+
+  addNodeView() {
+    return VueNodeViewRenderer(GetFormulaComponent)
+  },
+})
+
+export const FormulaInsertionExtension = Extension.create({
+  name: 'formulaInsertion',
   addCommands() {
     return {
-      insertFunction:
-        (functionInfo) =>
+      insertDataComponent:
+        (path) =>
         ({ editor, commands }) => {
-          const functionName = functionInfo.name
+          commands.insertContent({
+            type: 'get-formula-component',
+            attrs: { path },
+          })
+
+          commands.focus()
+
+          return true
+        },
+      insertFunction:
+        (node) =>
+        ({ editor, commands }) => {
+          const functionName = node.name
           const functionText = functionName + '()'
 
           const { state } = editor
@@ -38,58 +74,15 @@ export const FormulaInsertionExtension = Extension.create({
 
           return true
         },
-
       insertOperator:
-        (operatorInfo) =>
-        ({ commands }) => {
-          commands.insertContent(operatorInfo.operator || operatorInfo.name)
-
-          commands.focus()
-
-          return true
-        },
-
-      insertDataComponent:
-        (path) =>
+        (node) =>
         ({ editor, commands }) => {
-          const { vueComponent } = this.options
-
-          if (!vueComponent) {
-            console.warn('FormulaInsertionExtension: vueComponent not provided')
-            return false
-          }
-
-          const selectedNode = commands.getSelectedNode()
-          const isInEditingMode = selectedNode !== null
-
-          if (isInEditingMode) {
-            selectedNode.attrs.path = path
-
-            if (vueComponent.emitChange) {
-              vueComponent.emitChange()
-            }
-          } else {
-            try {
-              const getNode = new RuntimeGet().toNode([{ text: path }])
-              commands.insertContent(getNode)
-            } catch (error) {
-              console.error('Error creating DataExplorer component:', error)
-              return false
-            }
-          }
+          commands.insertContent(node.signature.operator)
 
           commands.focus()
 
           return true
         },
-    }
-  },
-
-  addKeyboardShortcuts() {
-    return {
-      'Mod-Space': () => {
-        return false
-      },
     }
   },
 })

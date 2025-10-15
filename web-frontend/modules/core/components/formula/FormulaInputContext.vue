@@ -1,131 +1,39 @@
 <template>
-  <Context ref="context" class="formula-input-context">
-    <Tabs
-      v-if="totalVisibleTabs > 1"
-      :key="advanced ? 'advanced' : 'simple'"
-      :selected-index="activeTabIndex"
-      content-no-padding
-      rounded
-      @update:selectedIndex="activeTabIndex = $event"
-    >
-      <Tab :title="$t('formulaInputContext.variables')">
-        <DataExplorer
-          :nodes="dataExplorerNodes"
-          :node-selected="nodeSelected"
-          :loading="dataExplorerLoading"
-          @node-selected="$emit('node-selected', $event)"
-          @node-unselected="$emit('node-unselected')"
-        />
-      </Tab>
-
-      <Tab
-        v-for="tab in filteredTabs"
-        :key="tab.name"
-        :title="getTabTitle(tab.name)"
-      >
-        <SelectSearch
-          v-model="searchQuery"
-          :placeholder="$t('action.search')"
-          class="margin-bottom-1"
-        />
-
-        <div class="formula-input-context__tab-content">
-          <div v-if="tab.categories" class="formula-input-context__section">
-            <div v-for="category in tab.categories" :key="category.name">
-              <h4 class="formula-input-context__section-title">
-                {{ category.name }}
-              </h4>
-              <ul class="formula-input-context__items">
-                <li
-                  v-for="item in getFilteredItems(category.items, tab.name)"
-                  :key="item.name"
-                  class="formula-input-context__item"
-                  @click="insertItem(item, tab.name)"
-                  @mouseenter="onFunctionHover(item, tab.name, $event)"
-                  @mouseleave="onFunctionLeave"
-                >
-                  <i
-                    :class="item.icon"
-                    class="formula-input-context__item-icon"
-                  ></i>
-
-                  {{ item.name }}
-                </li>
-              </ul>
-            </div>
-          </div>
-
-          <div v-else class="formula-input-context__section">
-            <h4 class="formula-input-context__section-title">
-              {{ getTabTitle(tab.name) }}
-            </h4>
-            <div class="formula-input-context__items">
-              <div
-                v-for="item in getFilteredItems(tab.items, tab.name)"
-                :key="item.name"
-                class="formula-input-context__item"
-                @click="insertItem(item, tab.name)"
-                @mouseenter="onFunctionHover(item, tab.name, $event)"
-                @mouseleave="onFunctionLeave"
-              >
-                <i
-                  :class="item.icon"
-                  class="formula-input-context__item-icon"
-                ></i>
-                <div class="formula-input-context__item-content">
-                  <div class="formula-input-context__item-name">
-                    {{ item.name }}
-                  </div>
-                  <div
-                    v-if="item.description"
-                    class="formula-input-context__item-description"
-                  >
-                    {{ item.description }}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </Tab>
-    </Tabs>
-
-    <div v-else class="formula-input-context__single-tab-content">
-      <DataExplorer
-        :nodes="dataExplorerNodes"
-        :node-selected="nodeSelected"
-        :loading="dataExplorerLoading"
-        @node-selected="$emit('node-selected', $event)"
-        @node-unselected="$emit('node-unselected')"
-      />
-    </div>
-
-    <div class="formula-input-context__footer">
+  <Context
+    ref="context"
+    class="formula-input-context"
+    overflow-scroll
+    max-height-if-outside-viewport
+  >
+    <NodeExplorer
+      :node-selected="nodeSelected"
+      :mode="mode"
+      :nodes-hierarchy="nodesHierarchy"
+      :allow-node-selection="allowNodeSelection"
+      :loading="loading"
+      @node-selected="$emit('node-selected', $event)"
+      @node-unselected="$emit('node-unselected')"
+    />
+    <div v-if="enableAdvancedMode" class="formula-input-context__footer">
       <ButtonText
         type="primary"
         icon="iconoir-input-field"
         size="small"
-        @click="toggleAdvancedMode"
+        @click="toggleMode"
         >{{
-          advanced
+          isAdvancedMode
             ? $t('formulaInputContext.useRegularInput')
             : $t('formulaInputContext.useAdvancedInput')
         }}</ButtonText
       >
     </div>
 
-    <FormulaFunctionHelpTooltip
-      ref="functionHelpTooltip"
-      :function-data="tooltip.functionData"
-      :context-tabs="contextTabs"
-    />
-
-    <Modal ref="advancedModeModal" :title="modalTitle">
+    <Modal ref="advancedModeModal">
       <h2 class="box__title">
         {{
-          advanced
-            ? $t('formulaInputContext.useAdvancedInputModalTitle')
-            : $t('formulaInputContext.useRegularInputModalTitle')
+          isAdvancedMode
+            ? $t('formulaInputContext.useRegularInputModalTitle')
+            : $t('formulaInputContext.useAdvancedInputModalTitle')
         }}
       </h2>
       <p>{{ $t('formulaInputContext.modalMessage') }}</p>
@@ -137,7 +45,7 @@
           </Button>
           <Button type="danger" size="large" @click="confirmModeChange">
             {{
-              advanced
+              isAdvancedMode
                 ? $t('formulaInputContext.useRegularInput')
                 : $t('formulaInputContext.useAdvancedInput')
             }}
@@ -150,43 +58,40 @@
 
 <script>
 import context from '@baserow/modules/core/mixins/context'
-import SelectSearch from '@baserow/modules/core/components/SelectSearch'
-import DataExplorer from '@baserow/modules/core/components/dataExplorer/DataExplorer'
-import Tab from '@baserow/modules/core/components/Tab'
-import FormulaFunctionHelpTooltip from '@baserow/modules/core/components/formula/FormulaFunctionHelpTooltip'
+import NodeExplorer from '@baserow/modules/core/components/nodeExplorer/NodeExplorer'
 
 export default {
   name: 'FormulaInputContext',
   components: {
-    DataExplorer,
-    Tab,
-    SelectSearch,
-    FormulaFunctionHelpTooltip,
+    NodeExplorer,
   },
   mixins: [context],
-  inject: ['contextTabs'],
+  inject: ['nodesHierarchy'],
   props: {
     nodeSelected: {
       type: String,
       required: false,
       default: null,
     },
-    dataExplorerLoading: {
+    loading: {
       type: Boolean,
       required: false,
       default: false,
     },
-    dataProviders: {
-      type: Array,
+    mode: {
+      type: String,
       required: false,
-      default: () => [],
+      default: 'advanced',
+      validator: (value) => {
+        return ['advanced', 'simple'].includes(value)
+      },
     },
-    applicationContext: {
-      type: Object,
+    allowNodeSelection: {
+      type: Boolean,
       required: false,
-      default: () => {},
+      default: false,
     },
-    advanced: {
+    enableAdvancedMode: {
       type: Boolean,
       required: false,
       default: false,
@@ -194,7 +99,6 @@ export default {
   },
   data() {
     return {
-      activeTabIndex: 0,
       searchQuery: '',
       tooltip: {
         functionData: null,
@@ -205,92 +109,12 @@ export default {
     }
   },
   computed: {
-    totalVisibleTabs() {
-      return 1 + this.filteredTabs.length
-    },
-    dataExplorerNodes() {
-      return this.dataProviders
-        .map((dataProvider) => dataProvider.getNodes(this.applicationContext))
-        .filter((dataProviderNodes) => dataProviderNodes.nodes?.length > 0)
-    },
-    functions() {
-      const allItems = []
-
-      this.tabs.forEach((tab) => {
-        if (tab.categories) {
-          tab.categories.forEach((category) => {
-            if (category.items) {
-              category.items.forEach((item) => {
-                allItems.push({
-                  ...item,
-                  value: item.name,
-                  operator: item.operator || null,
-                  icon: item.icon || null,
-                })
-              })
-            }
-          })
-        }
-      })
-
-      return allItems
-    },
-    functionNames() {
-      const functionsTab = this.tabs.find((tab) => tab.name === 'Functions')
-      if (!functionsTab || !functionsTab.categories) return []
-
-      const functionNames = []
-
-      functionsTab.categories.forEach((category) => {
-        if (category.items) {
-          category.items.forEach((item) => {
-            functionNames.push(item.name)
-          })
-        }
-      })
-
-      return functionNames
-    },
-    operators() {
-      const operatorsTab = this.tabs.find((tab) => tab.name === 'Operators')
-      if (!operatorsTab || !operatorsTab.categories) return []
-
-      const operators = []
-
-      operatorsTab.categories.forEach((category) => {
-        if (category.items) {
-          category.items.forEach((item) => {
-            if (item.operator) {
-              operators.push({
-                ...item,
-                value: item.name,
-                icon: item.icon,
-              })
-            }
-          })
-        }
-      })
-
-      return operators
-    },
-    filteredTabs() {
-      if (!this.advanced) {
-        return []
-      }
-
-      return this.tabs.filter((tab) => {
-        if (tab.categories && tab.categories.length > 0) {
-          return tab.categories.some(
-            (category) => category.items && category.items.length > 0
-          )
-        }
-
-        return false
-      })
+    isAdvancedMode() {
+      return this.mode === 'advanced'
     },
   },
   watch: {
-    advanced() {
+    mode() {
       this.$nextTick(() => {
         this.activeTabIndex = 0
       })
@@ -301,7 +125,7 @@ export default {
     },
   },
   created() {
-    this.tabs = this.contextTabs
+    this.tabs = this.nodes
   },
   methods: {
     show(
@@ -345,24 +169,11 @@ export default {
               .includes(this.searchQuery.toLowerCase()))
       )
     },
-    insertItem(item, tabName) {
-      if (tabName === 'Functions') {
-        this.$emit('function-selected', item)
-      } else if (tabName === 'Operators') {
-        this.$emit('operator-selected', item)
-      }
-    },
-    insertFunction(func) {
-      this.$emit('function-selected', func)
-    },
-    insertOperator(operator) {
-      this.$emit('operator-selected', operator)
-    },
-    toggleAdvancedMode() {
-      if (this.advanced) {
+    toggleMode() {
+      if (this.mode === 'advanced') {
         this.showAdvancedModeModal()
       } else {
-        this.$emit('toggle-advanced-mode')
+        this.$emit('mode-changed', 'advanced')
       }
     },
     onFunctionHover(item, tabName, event) {
@@ -411,7 +222,10 @@ export default {
       this.$refs.advancedModeModal.show()
     },
     confirmModeChange() {
-      this.$emit('toggle-advanced-mode')
+      this.$emit(
+        'mode-changed',
+        this.mode === 'advanced' ? 'simple' : 'advanced'
+      )
       this.$refs.advancedModeModal.hide()
     },
     cancelModeChange() {

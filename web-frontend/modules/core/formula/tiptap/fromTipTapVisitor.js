@@ -1,6 +1,7 @@
 export class FromTipTapVisitor {
-  constructor(functions) {
+  constructor(functions, mode = 'simple') {
     this.functions = functions
+    this.mode = mode
   }
 
   visit(node) {
@@ -30,12 +31,28 @@ export class FromTipTapVisitor {
         return nodeContents[0]
       }
     }
+
+    // Try to reconstruct a single function call spread across multiple wrappers
+    const flatContent = node.content.flatMap((w) =>
+      Array.isArray(w?.content) ? w.content : []
+    )
+    if (flatContent.length > 0 && this.isFunctionCallPattern(flatContent)) {
+      const result = this.assembleFunctionCall(flatContent)
+      if (result) return result
+    }
+
+    // Fallback: join multiple paragraphs with a visible newline
     return `concat(${nodeContents.join(", '\n', ")})`
   }
 
   visitWrapper(node) {
     if (!node.content || node.content.length === 0) {
       return "''"
+    }
+
+    // Handle nested empty wrapper
+    if (node.content.length === 1 && node.content[0].type === 'wrapper') {
+      return this.visit(node.content[0])
     }
 
     if (node.content.length === 1) {
@@ -65,7 +82,11 @@ export class FromTipTapVisitor {
       }
     }
 
-    return `concat(${node.content.map(this.visit.bind(this)).join(', ')})`
+    if (this.mode === 'simple') {
+      return `concat(${node.content.map(this.visit.bind(this)).join(', ')})`
+    } else {
+      return node.content.map(this.visit.bind(this)).join('\n')
+    }
   }
 
   isFunctionCallPattern(content) {
@@ -113,26 +134,13 @@ export class FromTipTapVisitor {
     }
 
     const argsString = fullContent.substring(argsStartIndex + 1, argsEndIndex)
-
-    return `${functionName}(${argsString})`
+    const suffix = fullContent.slice(argsEndIndex + 1)
+    return `${functionName}(${argsString})${suffix}`
   }
 
   visitText(node) {
-    const text = node.text.trim()
-
-    const functionCallPattern = /^[a-zA-Z_][a-zA-Z0-9_]*\s*\([^]*\)$/
-    const simpleExpressionPattern = /^(\d+(\.\d+)?|true|false|'[^']*'|"[^"]*")$/
-    const mathExpressionPattern = /^[\d\s+\-*/().<>=!&|]+$/
-
-    if (functionCallPattern.test(text) || simpleExpressionPattern.test(text)) {
-      return text
-    }
-
-    if (mathExpressionPattern.test(text)) {
-      return text
-    }
-
-    return `'${node.text.replace(/'/g, "\\'")}'`
+    if (this.mode === 'simple') return `'${node.text.replace(/'/g, "\\'")}'`
+    return node.text
   }
 
   visitFunction(node) {

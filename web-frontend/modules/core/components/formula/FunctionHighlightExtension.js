@@ -3,7 +3,6 @@ import { Plugin, PluginKey } from 'prosemirror-state'
 import { Decoration, DecorationSet } from 'prosemirror-view'
 
 const functionHighlightPluginKey = new PluginKey('functionHighlight')
-
 /**
  * @name FunctionHighlightExtension
  * @description Provides syntax highlighting for the formula editor. This Tiptap
@@ -39,7 +38,13 @@ export const FunctionHighlightExtension = Extension.create({
       return true
     }
 
-    const addToSegments = (segments, start, end, type) => {
+    const addToSegments = (segments, start, end, type, metadata = {}) => {
+      // Don't merge function segments - each function should have its own span
+      if (type === 'function') {
+        segments.push({ start, end, type, ...metadata })
+        return
+      }
+
       const existing = segments.find(
         (s) =>
           s.type === type &&
@@ -52,7 +57,7 @@ export const FunctionHighlightExtension = Extension.create({
         existing.start = Math.min(existing.start, start)
         existing.end = Math.max(existing.end, end)
       } else {
-        segments.push({ start, end, type })
+        segments.push({ start, end, type, ...metadata })
       }
     }
 
@@ -71,10 +76,23 @@ export const FunctionHighlightExtension = Extension.create({
           }
         }
 
-        const className =
-          segment.type === 'function'
-            ? 'function-name-highlight'
-            : 'operator-highlight'
+        let className
+        switch (segment.type) {
+          case 'function':
+            className = 'function-name-highlight'
+            break
+          case 'function-paren':
+            className = 'function-paren-highlight'
+            break
+          case 'function-comma':
+            className = 'function-comma-highlight'
+            break
+          case 'operator':
+            className = 'operator-highlight'
+            break
+          default:
+            className = 'text-segment'
+        }
 
         decorations.push(
           Decoration.inline(pos + segment.start, pos + segment.end, {
@@ -195,6 +213,42 @@ export const FunctionHighlightExtension = Extension.create({
                 const text = node.text
                 const segments = []
 
+                // Build function segments for this text node
+                for (const funcRange of functionRanges) {
+                  let funcStartInText = -1
+                  let funcEndInText = -1
+
+                  // Find where this function intersects with the current text node
+                  for (let i = 0; i < text.length; i++) {
+                    const docPos = pos + i
+                    const contentIndex = documentContent.findIndex(
+                      (c) => c.docPos === docPos && c.type === 'text'
+                    )
+
+                    if (contentIndex === -1) continue
+
+                    // Check if this character is part of the function name or opening parenthesis
+                    if (
+                      contentIndex >= funcRange.start &&
+                      contentIndex <= funcRange.openParen
+                    ) {
+                      if (funcStartInText === -1) funcStartInText = i
+                      funcEndInText = i + 1
+                    }
+                  }
+
+                  // Add segment for the complete function name + opening parenthesis
+                  if (funcStartInText !== -1 && funcEndInText !== -1) {
+                    segments.push({
+                      start: funcStartInText,
+                      end: funcEndInText,
+                      type: 'function',
+                      functionId: funcRange.start,
+                    })
+                  }
+                }
+
+                // Add segments for closing parentheses and commas
                 for (let i = 0; i < text.length; i++) {
                   const docPos = pos + i
                   const char = text[i]
@@ -206,24 +260,22 @@ export const FunctionHighlightExtension = Extension.create({
 
                     if (contentIndex === -1) continue
 
-                    if (
-                      contentIndex >= funcRange.start &&
-                      contentIndex < funcRange.start + funcRange.name.length
-                    ) {
-                      addToSegments(segments, i, i + 1, 'function')
-                    } else if (
-                      contentIndex >= funcRange.start + funcRange.name.length &&
-                      contentIndex <= funcRange.openParen
-                    ) {
-                      addToSegments(segments, i, i + 1, 'function')
-                    } else if (contentIndex === funcRange.closeParen) {
-                      addToSegments(segments, i, i + 1, 'function')
+                    if (contentIndex === funcRange.closeParen) {
+                      segments.push({
+                        start: i,
+                        end: i + 1,
+                        type: 'function-paren',
+                      })
                     } else if (
                       char === ',' &&
                       contentIndex > funcRange.openParen &&
                       contentIndex < funcRange.closeParen
                     ) {
-                      addToSegments(segments, i, i + 1, 'function')
+                      segments.push({
+                        start: i,
+                        end: i + 1,
+                        type: 'function-comma',
+                      })
                     }
                   }
                 }

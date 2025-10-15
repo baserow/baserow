@@ -3,19 +3,23 @@
     v-bind="$attrs"
     required
     :value="formulaStr"
-    :data-providers="dataProviders"
-    :application-context="applicationContext"
-    enable-advanced-mode
-    :mode="currentMode"
+    :nodes-hierarchy="nodesHierarchy"
+    :mode="localMode"
+    @update:mode="updateMode"
     @input="updatedFormulaStr"
-    @mode-changed="updateMode"
   />
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
-import { inject, computed, useContext } from '@nuxtjs/composition-api'
+import {
+  inject,
+  computed,
+  useContext,
+  ref,
+  watch,
+} from '@nuxtjs/composition-api'
 import FormulaInputField from '@baserow/modules/core/components/formula/FormulaInputField'
+import { buildFormulaFunctionNodes } from '@baserow/modules/core/formula'
 
 const props = defineProps({
   value: { type: [Object, String], required: false, default: () => ({}) },
@@ -23,13 +27,18 @@ const props = defineProps({
 })
 
 const applicationContext = inject('applicationContext')
-const currentMode = ref(props.value.mode)
 
+const emit = defineEmits(['input'])
+
+// Local mode state
+const localMode = ref(props.value.mode || 'simple')
+
+// Watch for external changes to the mode
 watch(
   () => props.value.mode,
   (newMode) => {
-    if (newMode) {
-      currentMode.value = newMode
+    if (newMode !== undefined && newMode !== localMode.value) {
+      localMode.value = newMode
     }
   }
 )
@@ -39,6 +48,58 @@ const dataProviders = computed(() => {
   return props.dataProvidersAllowed.map((dataProviderName) =>
     app.$registry.get('automationDataProvider', dataProviderName)
   )
+})
+
+const nodesHierarchy = computed(() => {
+  const hierarchy = []
+
+  // Add data nodes from dataProviders
+  const dataNodes = []
+  for (const dataProvider of dataProviders.value) {
+    if (dataProvider && typeof dataProvider.getNodes === 'function') {
+      const providerNodes = dataProvider.getNodes(applicationContext)
+      if (providerNodes) {
+        // Transform provider nodes to match FormulaInputField expected structure
+        const transformNode = (node) => {
+          return {
+            name: node.name || node.title,
+            type: 'data', // All nodes should be of type 'data'
+            identifier: node.identifier || node.name,
+            description: node.description || null,
+            icon: node.icon || 'iconoir-database',
+            highlightingColor: null,
+            example: null,
+            order: node.order || null,
+            signature: null,
+            nodes: node.nodes ? node.nodes.map(transformNode) : undefined,
+          }
+        }
+
+        // Ensure providerNodes is an array before processing
+        if (Array.isArray(providerNodes)) {
+          dataNodes.push(...providerNodes.map(transformNode))
+        } else if (typeof providerNodes === 'object') {
+          // If it's a single object, transform and add it
+          dataNodes.push(transformNode(providerNodes))
+        }
+      }
+    }
+  }
+
+  if (dataNodes.length > 0) {
+    hierarchy.push({
+      name: 'Data',
+      type: 'data',
+      icon: 'iconoir-database',
+      nodes: dataNodes,
+    })
+  }
+
+  // Add functions and operators from the registry
+  const formulaNodes = buildFormulaFunctionNodes(app)
+  hierarchy.push(...formulaNodes)
+
+  return hierarchy
 })
 
 /**
@@ -55,16 +116,19 @@ const formulaStr = computed(() => {
  * entire value object with the updated formula string.
  * @param {String} newFormulaStr The new formula string.
  */
-const emit = defineEmits(['input'])
 const updatedFormulaStr = (newFormulaStr) => {
   emit('input', {
     ...props.value,
     formula: newFormulaStr,
-    mode: currentMode.value,
+    mode: localMode.value,
   })
 }
 
+/**
+ * When the mode changes, update the local mode value only
+ * @param {String} newMode The new mode value
+ */
 const updateMode = (newMode) => {
-  currentMode.value = newMode
+  localMode.value = newMode
 }
 </script>
