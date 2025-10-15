@@ -5,8 +5,7 @@
  */
 function getAssistantBaseURL(client) {
   const url = new URL(client.defaults.baseURL)
-  url.pathname = url.pathname.replace(/^\/api(?=\/|$)/, '')
-  return url.toString()
+  return url.origin
 }
 
 export default (client) => {
