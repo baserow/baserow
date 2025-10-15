@@ -7,23 +7,25 @@
       role="textbox"
       :class="classes"
       :editor="editor"
-      @data-component-clicked="dataComponentClicked"
+      @data-node-clicked="dataNodeClicked"
     />
 
     <FormulaInputContext
       v-if="isFocused && !readOnly"
       ref="formulaInputContext"
-      :data-providers="dataProviders"
-      :application-context="applicationContext"
       :node-selected="nodeSelected"
-      :data-explorer-loading="dataExplorerLoading"
-      :advanced="advanced"
-      @node-selected="dataExplorerItemSelected"
+      :loading="loading"
+      :mode="mode"
+      @node-selected="handleNodeSelected"
       @node-unselected="unSelectNode()"
-      @function-selected="onFunctionSelected"
-      @operator-selected="onOperatorSelected"
-      @toggle-advanced-mode="onAdvancedModeToggled"
+      @mode-changed="handleModeChange"
       @mousedown.native="onDataExplorerMouseDown"
+    />
+
+    <NodeHelpTooltip
+      ref="nodeHelpTooltip"
+      :node="hoveredFunctionNode"
+      :nodes-hierarchy="nodesHierarchy"
     />
   </div>
 </template>
@@ -37,8 +39,11 @@ import { History } from '@tiptap/extension-history'
 import { FunctionHighlightExtension } from '@baserow/modules/core/components/formula/FunctionHighlightExtension'
 import { FunctionAutoCompleteExtension } from '@baserow/modules/core/components/formula/FunctionAutoCompleteExtension'
 import { FunctionDeletionExtension } from '@baserow/modules/core/components/formula/FunctionDeletionExtension'
-import { FormulaValidationExtension } from '@baserow/modules/core/components/formula/FormulaValidationExtension'
-import { FormulaInsertionExtension } from '@baserow/modules/core/components/formula/FormulaInsertionExtension'
+import { FunctionHelpTooltipExtension } from '@baserow/modules/core/components/formula/FunctionHelpTooltipExtension'
+import {
+  FormulaInsertionExtension,
+  GetFormulaComponentNode,
+} from '@baserow/modules/core/components/formula/FormulaInsertionExtension'
 import { NodeSelectionExtension } from '@baserow/modules/core/components/formula/NodeSelectionExtension'
 import { ContextManagementExtension } from '@baserow/modules/core/components/formula/ContextManagementExtension'
 import _ from 'lodash'
@@ -48,18 +53,18 @@ import { RuntimeFunctionCollection } from '@baserow/modules/core/functionCollect
 import { FromTipTapVisitor } from '@baserow/modules/core/formula/tiptap/fromTipTapVisitor'
 import { mergeAttributes } from '@tiptap/core'
 import FormulaInputContext from '@baserow/modules/core/components/formula/FormulaInputContext'
+import NodeHelpTooltip from '@baserow/modules/core/components/nodeExplorer/NodeHelpTooltip'
 
 export default {
   name: 'FormulaInputField',
   components: {
     FormulaInputContext,
     EditorContent,
+    NodeHelpTooltip,
   },
   provide() {
     return {
-      applicationContext: this.applicationContext,
-      dataProviders: this.dataProviders,
-      contextTabs: this.contextTabs,
+      nodesHierarchy: this.nodesHierarchy,
     }
   },
   inject: {
@@ -84,35 +89,28 @@ export default {
       type: String,
       default: null,
     },
-    dataProviders: {
-      type: Array,
-      required: false,
-      default: () => [],
-    },
-    dataExplorerLoading: {
+    loading: {
       type: Boolean,
       required: false,
       default: false,
-    },
-    applicationContext: {
-      type: Object,
-      required: false,
-      default: () => ({}),
     },
     small: {
       type: Boolean,
       required: false,
       default: false,
     },
-    contextTabs: {
+    nodesHierarchy: {
       type: Array,
       required: false,
       default: () => [],
     },
-    advanced: {
-      type: Boolean,
+    mode: {
+      type: String,
       required: false,
-      default: false,
+      default: 'advanced',
+      validator: (value) => {
+        return ['advanced', 'simple', 'raw'].includes(value)
+      },
     },
     contextPosition: {
       type: String,
@@ -129,6 +127,7 @@ export default {
       content: null,
       isFormulaInvalid: false,
       isFocused: false,
+      hoveredFunctionNode: null,
     }
   },
   computed: {
@@ -143,37 +142,28 @@ export default {
       }
     },
     functionSignatures() {
-      const signatures = {}
-
-      this.contextTabs.forEach((tab) => {
-        if (tab.categories) {
-          tab.categories.forEach((category) => {
-            if (category.items) {
-              category.items.forEach((item) => {
-                if (item.signature) {
-                  const {
-                    parameters = [],
-                    minArgs,
-                    maxArgs,
-                    variadic,
-                  } = item.signature
-                  signatures[item.name] = {
-                    parameters,
-                    minArgs:
-                      minArgs || parameters.filter((p) => p.required).length,
-                    maxArgs:
-                      maxArgs || (variadic ? Infinity : parameters.length),
-                    hasUnlimitedArgs: variadic || maxArgs === null,
-                    returnType: item.signature.returnType || 'any',
-                  }
-                }
-              })
-            }
-          })
+      const extract = (nodes) => {
+        let signatures = {}
+        if (!nodes) {
+          return signatures
         }
-      })
-
-      return signatures
+        for (const node of nodes) {
+          if (node.type === 'function' && node.signature) {
+            signatures[node.name.toLowerCase()] = {
+              ...node.signature,
+              returnType: node.returnType,
+              hasUnlimitedArgs:
+                node.signature.variadic || node.signature.maxArgs === null,
+            }
+          }
+          const children = node.nodes || node.items
+          if (children) {
+            signatures = { ...signatures, ...extract(children) }
+          }
+        }
+        return signatures
+      }
+      return extract(this.nodesHierarchy)
     },
     placeHolderExt() {
       return Placeholder.configure({
@@ -199,45 +189,46 @@ export default {
       })
     },
     functionNames() {
-      const functionsTab = this.contextTabs.find(
-        (tab) => tab.name === 'Functions'
-      )
-      if (!functionsTab || !functionsTab.categories) return []
-
-      const functionNames = []
-
-      functionsTab.categories.forEach((category) => {
-        if (category.items) {
-          category.items.forEach((item) => {
-            functionNames.push(item.name)
-          })
+      const extract = (nodes) => {
+        let names = []
+        if (!nodes) {
+          return names
         }
-      })
-
-      return functionNames
+        for (const node of nodes) {
+          if (node.type === 'function' && node.signature) {
+            names.push(node.name)
+          }
+          const children = node.nodes
+          if (children) {
+            names = names.concat(extract(children))
+          }
+        }
+        return names
+      }
+      return extract(this.nodesHierarchy)
     },
     highlightingOperatorNames() {
-      const operatorsTab = this.contextTabs.find(
-        (tab) => tab.name === 'Operators'
-      )
-      if (!operatorsTab || !operatorsTab.categories) return []
-
-      const operators = []
-
-      operatorsTab.categories.forEach((category) => {
-        if (category.items) {
-          category.items.forEach((item) => {
-            if (item.operator) {
-              operators.push({
-                ...item,
-                value: item.name,
-              })
-            }
-          })
+      const extract = (nodes) => {
+        let operators = []
+        if (!nodes) {
+          return operators
         }
-      })
-
-      return operators
+        for (const node of nodes) {
+          if (
+            node.type === 'operator' &&
+            node.signature &&
+            node.signature.operator
+          ) {
+            operators.push(node.signature.operator)
+          }
+          const children = node.nodes
+          if (children) {
+            operators = operators.concat(extract(children))
+          }
+        }
+        return operators
+      }
+      return extract(this.nodesHierarchy)
     },
     extensions() {
       const DocumentNode = Document.extend()
@@ -247,6 +238,7 @@ export default {
         DocumentNode,
         this.wrapperNode,
         TextNode,
+        GetFormulaComponentNode,
         this.placeHolderExt,
         History.configure({
           depth: 100,
@@ -261,12 +253,6 @@ export default {
         FunctionDeletionExtension.configure({
           functionNames: this.functionNames,
         }),
-        FormulaValidationExtension.configure({
-          functionSignatures: this.functionSignatures,
-          dataProviders: this.dataProviders,
-          applicationContext: this.applicationContext,
-          vueComponent: this,
-        }),
         FormulaInsertionExtension.configure({
           vueComponent: this,
         }),
@@ -278,6 +264,9 @@ export default {
           contextPosition: this.contextPosition,
           disabled: this.disabled,
           readOnly: this.readOnly,
+        }),
+        FunctionHelpTooltipExtension.configure({
+          vueComponent: this,
         }),
         ...this.formulaComponents,
       ]
@@ -332,17 +321,15 @@ export default {
     this.editor = new Editor({
       content: this.htmlContent,
       editable: !this.disabled && !this.readOnly,
+      onUpdate: this.onUpdate,
       extensions: this.extensions,
       parseOptions: {
         preserveWhitespace: 'full',
       },
       editorProps: {},
     })
-
-    this.$on('validation-changed', this.onValidationChanged)
   },
   beforeDestroy() {
-    this.$off('validation-changed', this.onValidationChanged)
     this.editor?.destroy()
   },
   methods: {
@@ -350,14 +337,29 @@ export default {
       this.isFormulaInvalid = false
       this.$emit('input', '')
     },
-    onValidationChanged({ isValid, errors }) {
-      this.isFormulaInvalid = !isValid
-      if (isValid) {
-        const formula = this.toFormula(this.wrapperContent)
-        this.$emit('input', formula)
+    emitChange() {
+      if (!this.isFormulaInvalid) {
+        this.$emit('input', this.toFormula(this.wrapperContent))
       }
     },
-
+    onUpdate() {
+      this.emitChange()
+    },
+    handleNodeSelected({ path, node }) {
+      switch (node.type) {
+        case 'data':
+          this.editor.commands.insertDataComponent(path)
+          break
+        case 'function':
+          this.editor.commands.insertFunction(node)
+          break
+        case 'operator':
+          this.editor.commands.insertOperator(node)
+          break
+        default:
+          break
+      }
+    },
     onDataExplorerMouseDown() {
       this.editor?.commands.handleDataExplorerMouseDown()
     },
@@ -391,20 +393,8 @@ export default {
         const functionCollection = new RuntimeFunctionCollection(this.$registry)
         return new ToTipTapVisitor(functionCollection).visit(tree)
       } catch (error) {
-        return {
-          type: 'doc',
-          content: [
-            {
-              type: 'wrapper',
-              content: [
-                {
-                  type: 'text',
-                  text: formula,
-                },
-              ],
-            },
-          ],
-        }
+        this.isFormulaInvalid = true
+        return null
       }
     },
     toFormula(content) {
@@ -414,29 +404,20 @@ export default {
 
         return formula
       } catch (error) {
+        this.isFormulaInvalid = true
         return null
       }
     },
-    dataComponentClicked(node) {
+    dataNodeClicked(node) {
       this.editor.commands.selectNode(node)
     },
-    dataExplorerItemSelected({ path }) {
-      this.editor.commands.insertDataComponent(path)
-    },
-    onFunctionSelected(func) {
-      this.editor.commands.insertFunction(func)
-    },
-    onOperatorSelected(operator) {
-      this.editor.commands.insertOperator(operator)
-    },
 
-    onAdvancedModeToggled() {
-      if (this.advanced) {
+    handleModeChange(newMode) {
+      if (this.mode === 'advanced' && newMode === 'simple') {
         this.editor.commands.clearContent()
         this.$emit('input', '')
       }
-
-      this.$emit('update:advanced', !this.advanced)
+      this.$emit('update:mode', newMode)
     },
     undo() {
       if (this.editor) {

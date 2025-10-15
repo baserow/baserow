@@ -1,10 +1,9 @@
-// Global styles for syntax highlighting (must come first for specificity)
 .function-name-highlight {
   color: $palette-cyan-800;
   font-weight: 500;
   background-color: $palette-cyan-50;
   padding: 6px 8px;
-  margin-right: 4px; // Gap between elements
+  margin-right: 4px;
 
   @include rounded;
 }
@@ -14,14 +13,25 @@
   font-weight: 500;
   background-color: $palette-green-50;
   padding: 6px 8px;
-  margin-right: 4px; // Gap between elements
+  margin-right: 4px;
 
   @include rounded;
 }
 
 .text-segment {
   display: inline;
-  margin-right: 4px; // Gap between elements
+  margin-right: 4px;
+}
+
+.function-comma-highlight,
+.function-paren-highlight {
+  color: $palette-cyan-800;
+  font-weight: 500;
+  background-color: $palette-cyan-50;
+  padding: 6px 4px;
+  margin-right: 2px;
+
+  @include rounded;
 }
 
 .formula-input-field {
@@ -30,6 +40,10 @@
   min-height: 38px;
   padding: 5px 12px;
   line-height: 25px;
+
+  .tiptap {
+    line-height: 2.3;
+  }
 
   &.formula-input-field--large {
     line-height: 25px;

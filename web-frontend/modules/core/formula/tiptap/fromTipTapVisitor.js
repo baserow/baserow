@@ -30,7 +30,18 @@ export class FromTipTapVisitor {
         return nodeContents[0]
       }
     }
-    return `concat(${nodeContents.join(", '\n', ")})`
+
+    // Try to reconstruct a single function call spread across multiple wrappers
+    const flatContent = node.content.flatMap((w) =>
+      Array.isArray(w?.content) ? w.content : []
+    )
+    if (flatContent.length > 0 && this.isFunctionCallPattern(flatContent)) {
+      const result = this.assembleFunctionCall(flatContent)
+      if (result) return result
+    }
+
+    // Fallback: join multiple paragraphs with a visible newline
+    return `concat(${nodeContents.join(", '\\n', ")})`
   }
 
   visitWrapper(node) {
@@ -113,8 +124,8 @@ export class FromTipTapVisitor {
     }
 
     const argsString = fullContent.substring(argsStartIndex + 1, argsEndIndex)
-
-    return `${functionName}(${argsString})`
+    const suffix = fullContent.slice(argsEndIndex + 1)
+    return `${functionName}(${argsString})${suffix}`
   }
 
   visitText(node) {
@@ -137,7 +148,7 @@ export class FromTipTapVisitor {
 
   visitFunction(node) {
     const formulaFunction = Object.values(this.functions.getAll()).find(
-      (functionCurrent) => functionCurrent.formulaComponentType === node.type
+      (functionCurrent) => functionCurrent.getType() === node.type
     )
 
     return formulaFunction?.fromNodeToFormula(node)

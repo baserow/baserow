@@ -3,7 +3,6 @@ import { Plugin, PluginKey } from 'prosemirror-state'
 import { Decoration, DecorationSet } from 'prosemirror-view'
 
 const functionHighlightPluginKey = new PluginKey('functionHighlight')
-
 /**
  * @name FunctionHighlightExtension
  * @description Provides syntax highlighting for the formula editor. This Tiptap
@@ -71,10 +70,23 @@ export const FunctionHighlightExtension = Extension.create({
           }
         }
 
-        const className =
-          segment.type === 'function'
-            ? 'function-name-highlight'
-            : 'operator-highlight'
+        let className
+        switch (segment.type) {
+          case 'function':
+            className = 'function-name-highlight'
+            break
+          case 'function-paren':
+            className = 'function-paren-highlight'
+            break
+          case 'function-comma':
+            className = 'function-comma-highlight'
+            break
+          case 'operator':
+            className = 'operator-highlight'
+            break
+          default:
+            className = 'text-segment'
+        }
 
         decorations.push(
           Decoration.inline(pos + segment.start, pos + segment.end, {
@@ -217,13 +229,21 @@ export const FunctionHighlightExtension = Extension.create({
                     ) {
                       addToSegments(segments, i, i + 1, 'function')
                     } else if (contentIndex === funcRange.closeParen) {
-                      addToSegments(segments, i, i + 1, 'function')
+                      segments.push({
+                        start: i,
+                        end: i + 1,
+                        type: 'function-paren',
+                      })
                     } else if (
                       char === ',' &&
                       contentIndex > funcRange.openParen &&
                       contentIndex < funcRange.closeParen
                     ) {
-                      addToSegments(segments, i, i + 1, 'function')
+                      segments.push({
+                        start: i,
+                        end: i + 1,
+                        type: 'function-comma',
+                      })
                     }
                   }
                 }

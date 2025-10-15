@@ -45,14 +45,14 @@ import FormulaInputField from '@baserow/modules/core/components/formula/FormulaI
             },
             defaultValue: false,
         },
-        advanced: {
+        mode: {
             control: {
-                type: 'boolean',
-                options: [true, false],
+                type: 'select',
+                options: ['advanced', 'simple', 'raw'],
             },
-            defaultValue: true,
+            defaultValue: 'advanced',
         },
-        dataExplorerLoading: {
+        loading: {
             control: {
                 type: 'boolean',
                 options: [true, false],
@@ -87,100 +87,219 @@ export const mockApplicationContext = {
     },
 }
 
-export const mockDataProviders = [
+export const mockNodesHierarchy = [
     {
-        type: 'current_user',
-        name: 'Current User',
-        getNodes: (applicationContext) => ({
-            icon: 'iconoir-user',
-            identifier: 'current_user',
-            name: 'Current User',
-            nodes: [
-                {
-                    name: 'Is authenticated',
-                    order: 1,
-                    type: 'boolean',
-                    icon: 'baserow-icon-circle-checked',
-                    identifier: 'is_authenticated',
-                },
-                {
-                    name: 'Id',
-                    order: 2,
-                    type: 'number',
-                    icon: 'baserow-icon-hashtag',
-                    identifier: 'id',
-                },
-                {
-                    name: 'Email',
-                    order: 3,
-                    type: 'string',
-                    icon: 'iconoir-text',
-                    identifier: 'email',
-                },
-                {
-                    name: 'Username',
-                    order: 4,
-                    type: 'string',
-                    icon: 'iconoir-text',
-                    identifier: 'username',
-                },
-                {
-                    name: 'Role',
-                    order: 5,
-                    type: 'string',
-                    icon: 'iconoir-text',
-                    identifier: 'role',
-                },
-            ],
-            order: null,
-        }),
-        getPathTitle: (applicationContext, pathParts) => {
-            // This method returns the display name for each part of the path
-            const [root, ...rest] = pathParts
-            if (root === 'current_user') {
-                if (rest.length === 0) {
-                    return 'Current User'
-                }
-                const fieldNames = {
-                    is_authenticated: 'Is authenticated',
-                    id: 'Id',
-                    email: 'Email',
-                    username: 'Username',
-                    role: 'Role',
-                }
-                return fieldNames[rest[0]] || rest[0]
-            }
-            return pathParts.join('.')
-        },
-        getDataChunk: (applicationContext, pathParts) => {
-            // This method would return actual data in a real scenario
-            // For the story, we can return mock data
-            const [field] = pathParts
-            const mockData = {
-                is_authenticated: true,
-                id: 123,
-                email: 'user@example.com',
-                username: 'johndoe',
-                role: 'admin',
-            }
-            return mockData[field] || `mock_${field}`
-        },
+        name: 'Data',
+        type: 'data',
+        identifier: null,
+        icon: null,
+        order: null,
+        description: null,
+        example: null,
+        highlightingColor: null,
+        returnType: null,
+        nodes: [
+            {
+                name: 'User',
+                type: 'data',
+                identifier: 'user',
+                icon: 'iconoir-question-mark',
+                order: null,
+                description: null,
+                example: null,
+                highlightingColor: null,
+                returnType: null,
+                signature: null,
+                nodes: [
+                    {
+                        name: 'Is authenticated',
+                        type: 'data',
+                        returnType: 'boolean',
+                        identifier: 'is_authenticated',
+                        description: null,
+                        icon: 'baserow-icon-circle-checked',
+                        highlightingColor: null,
+                        description: null,
+                        example: null,
+                        order: null,
+                        signature: null,
+                    },
+                    {
+                        name: 'Id',
+                        type: 'data',
+                        returnType: 'number',
+                        identifier: 'id',
+                        description: null,
+                        icon: 'baserow-icon-hashtag',
+                        highlightingColor: null,
+                        description: null,
+                        example: null,
+                        order: null,
+                        signature: null,
+                    },
+                    {
+                        name: 'Email',
+                        type: 'data',
+                        returnType: 'string',
+                        identifier: 'email',
+                        description: null,
+                        icon: 'iconoir-text',
+                        highlightingColor: null,
+                        description: null,
+                        example: null,
+                        order: null,
+                        signature: null,
+                    },
+                    {
+                        name: 'Username',
+                        type: 'data',
+                        returnType: 'string',
+                        identifier: 'username',
+                        description: null,
+                        icon: 'iconoir-text',
+                        highlightingColor: null,
+                        description: null,
+                        example: null,
+                        order: null,
+                        signature: null,
+                    },
+                    {
+                        name: 'Role',
+                        type: 'data',
+                        returnType: 'string',
+                        identifier: 'role',
+                        description: null,
+                        icon: 'iconoir-text',
+                        highlightingColor: null,
+                        description: null,
+                        example: null,
+                        order: null,
+                        signature: null,
+                    },
+                ],
+            },
+            {
+                name: 'Data records',
+                type: 'data',
+                identifier: 'data_source',
+                highlightingColor: null,
+                description: null,
+                example: null,
+                order: null,
+                icon: 'iconoir-question-mark',
+                signature: null,
+                nodes: [
+                    {
+                        name: 'List rows',
+                        type: 'data',
+                        identifier: '543',
+                        returnType: 'array',
+                        description: null,
+                        highlightingColor: null,
+                        example: null,
+                        icon: 'iconoir-list',
+                        type: 'array',
+                        order: null,
+                        nodes: [
+                            {
+                                name: 'Id',
+                                type: 'data',
+                                returnType: 'number',
+                                order: null,
+                                description: null,
+                                highlightingColor: null,
+                                example: null,
+                                icon: 'baserow-icon-hashtag',
+                                identifier: 'id',
+                                signature: null,
+                            },
+                            {
+                                name: 'Name',
+                                type: 'data',
+                                returnType: 'string',
+                                description: null,
+                                example: null,
+                                highlightingColor: null,
+                                order: null,
+                                icon: 'iconoir-text',
+                                identifier: 'field_7094',
+                                signature: null,
+                            },
+                            {
+                                name: 'Last name',
+                                type: 'data',
+                                order: null,
+                                returnType: 'string',
+                                description: null,
+                                example: null,
+                                highlightingColor: null,
+                                icon: 'iconoir-text',
+                                identifier: 'field_7095',
+                                signature: null,
+                            },
+                            {
+                                name: 'Notes',
+                                type: 'data',
+                                returnType: 'string',
+                                description: null,
+                                example: null,
+                                highlightingColor: null,
+                                order: null,
+                                icon: 'iconoir-text',
+                                identifier: 'field_7096',
+                                signature: null,
+                            },
+                            {
+                                name: 'Active',
+                                type: 'data',
+                                returnType: 'boolean',
+                                description: null,
+                                example: null,
+                                highlightingColor: null,
+                                order: null,
+                                icon: 'baserow-icon-circle-checked',
+                                identifier: 'field_7097',
+                                signature: null,
+                            },
+                        ],
+                    },
+                ],
+            },
+        ],
     },
-]
-
-export const mockContextTabs = [
     {
         name: 'Functions',
-        categories: [
+        type: 'function',
+        identifier: null,
+        order: null,
+        signature: null,
+        description: null,
+        example: null,
+        highlightingColor: null,
+        icon: null,
+        nodes: [
             {
                 name: 'Text',
-                items: [
+                identifier: null,
+                returnType: null,
+                order: null,
+                signature: null,
+                description: null,
+                example: null,
+                highlightingColor: null,
+                icon: null,
+                nodes: [
                     {
                         name: 'concat',
+                        type: 'function',
                         description:
                             'Concatenates multiple text values together',
+                        example: "concat('Hello', ' ', 'World')",
                         highlightingColor: 'blue',
                         icon: 'iconoir-text',
+                        identifier: null,
+                        returnType: 'string',
+                        order: null,
                         signature: {
                             parameters: [
                                 {
@@ -197,18 +316,21 @@ export const mockContextTabs = [
                                         'Additional text to concatenate',
                                 },
                             ],
-                            variadic: true, //  unlimited arguments
+                            variadic: true,
                             minArgs: 1,
-                            maxArgs: null, // null = unlimited
-                            returnType: 'text',
+                            maxArgs: null,
                         },
-                        example: "concat('Hello', ' ', 'World')",
                     },
                     {
                         name: 'upper',
+                        type: 'function',
                         description: 'Converts text to uppercase',
+                        returnType: 'string',
+                        example: "upper('hello world')",
                         highlightingColor: 'blue',
                         icon: 'iconoir-text',
+                        identifier: null,
+                        order: null,
                         signature: {
                             parameters: [
                                 {
@@ -221,15 +343,18 @@ export const mockContextTabs = [
                             variadic: false,
                             minArgs: 1,
                             maxArgs: 1,
-                            returnType: 'text',
                         },
-                        example: "upper('hello world')",
                     },
                     {
                         name: 'lower',
+                        type: 'function',
                         description: 'Converts text to lowercase',
+                        example: "lower('HELLO WORLD')",
                         highlightingColor: 'blue',
+                        returnType: 'string',
                         icon: 'iconoir-text',
+                        identifier: null,
+                        order: null,
                         signature: {
                             parameters: [
                                 {
@@ -242,15 +367,18 @@ export const mockContextTabs = [
                             variadic: false,
                             minArgs: 1,
                             maxArgs: 1,
-                            returnType: 'text',
                         },
-                        example: "lower('HELLO WORLD')",
                     },
                     {
                         name: 'substring',
+                        type: 'function',
                         description: 'Extracts a portion of text',
+                        example: "substring('Hello World', 0, 5)",
                         highlightingColor: 'blue',
                         icon: 'iconoir-text',
+                        identifier: null,
+                        order: null,
+                        returnType: 'string',
                         signature: {
                             parameters: [
                                 {
@@ -276,21 +404,33 @@ export const mockContextTabs = [
                             variadic: false,
                             minArgs: 2,
                             maxArgs: 3,
-                            returnType: 'text',
                         },
-                        example: "substring('Hello World', 0, 5)",
                     },
                 ],
             },
             {
                 name: 'Math',
-                items: [
+                type: 'function',
+                identifier: null,
+                returnType: null,
+                order: null,
+                signature: null,
+                description: null,
+                example: null,
+                highlightingColor: null,
+                icon: null,
+                nodes: [
                     {
                         name: 'round',
+                        type: 'function',
                         description:
                             'Rounds a number to specified decimal places',
                         highlightingColor: 'green',
+                        example: 'round(3.14159, 2)',
                         icon: 'iconoir-calculator',
+                        identifier: null,
+                        order: null,
+                        returnType: 'number',
                         signature: {
                             parameters: [
                                 {
@@ -310,15 +450,18 @@ export const mockContextTabs = [
                             variadic: false,
                             minArgs: 1,
                             maxArgs: 2,
-                            returnType: 'number',
                         },
-                        example: 'round(3.14159, 2)',
                     },
                     {
                         name: 'sum',
+                        type: 'function',
                         description: 'Calculates the sum of multiple numbers',
+                        example: 'sum(1, 2, 3, 4)',
                         highlightingColor: 'green',
                         icon: 'iconoir-calculator',
+                        identifier: null,
+                        order: null,
+                        returnType: 'number',
                         signature: {
                             parameters: [
                                 {
@@ -337,9 +480,7 @@ export const mockContextTabs = [
                             variadic: true,
                             minArgs: 1,
                             maxArgs: null,
-                            returnType: 'number',
                         },
-                        example: 'sum(1, 2, 3, 4)',
                     },
                 ],
             },
@@ -347,18 +488,32 @@ export const mockContextTabs = [
     },
     {
         name: 'Operators',
-        categories: [
+        type: 'operator',
+        nodes: [
             {
                 name: 'Arithmetic',
-                items: [
+                example: null,
+                signature: null,
+                highlightingColor: null,
+                icon: null,
+                identifier: null,
+                order: null,
+                returnType: null,
+                description: null,
+                returnType: null,
+                nodes: [
                     {
                         name: 'add',
+                        type: 'operator',
                         description: 'Adds two numbers',
+                        example: '5 + 3',
                         highlightingColor: 'green',
                         icon: 'iconoir-calculator',
-                        isOperator: true,
-                        operator: '+',
+                        identifier: null,
+                        order: null,
+                        returnType: 'number',
                         signature: {
+                            operator: '+',
                             parameters: [
                                 {
                                     name: 'left',
@@ -376,18 +531,17 @@ export const mockContextTabs = [
                             variadic: false,
                             minArgs: 2,
                             maxArgs: 2,
-                            returnType: 'number',
                         },
-                        example: '5 + 3',
                     },
                     {
                         name: 'multiply',
+                        type: 'operator',
                         description: 'Multiplies two numbers',
+                        example: '5 * 3',
                         highlightingColor: 'green',
                         icon: 'iconoir-calculator',
-                        isOperator: true,
-                        operator: '*',
                         signature: {
+                            operator: '*',
                             parameters: [
                                 {
                                     name: 'left',
@@ -405,9 +559,7 @@ export const mockContextTabs = [
                             variadic: false,
                             minArgs: 2,
                             maxArgs: 2,
-                            returnType: 'number',
                         },
-                        example: '5 * 3',
                     },
                 ],
             },
@@ -421,10 +573,8 @@ export const Template = (args, { argTypes }) => ({
     data() {
         return {
             formulaValue: args.value || '',
-            advancedMode: args.advanced || false,
-            mockDataProviders,
-            mockApplicationContext,
-            mockContextTabs,
+            currentMode: args.mode,
+            mockNodesHierarchy,
         }
     },
     template: `
@@ -432,18 +582,16 @@ export const Template = (args, { argTypes }) => ({
         <FormulaInputField 
             v-bind="$props"
             :value="formulaValue"
-            :advanced="advancedMode"
-            :data-providers="mockDataProviders"
-            :application-context="mockApplicationContext"
-            :context-tabs="mockContextTabs"
+            :mode="currentMode"
+            :nodes-hierarchy="mockNodesHierarchy"
             @input="onInput"
-            @update:advanced="onAdvanced"
+            @update:mode="onModeChanged"
         />
         
         <!-- Display emitted formula value -->
         <div style="margin-top: 16px; padding: 12px; background: #f5f5f5; border-radius: 4px; border-left: 4px solid #007bff;">
             <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #333;">Emitted Formula:</h4>
-            <code style="background: #fff; padding: 4px 8px; border-radius: 3px; font-family: monospace; color: #e83e8c; word-break: break-all;">
+            <code style="background: #fff; padding: 4px 8px; border-radius: 3px; font-family: monospace; color: #e83e8c; word-break: break-all; line-height:26px">
                 {{ formulaValue || '(empty)' }}
             </code>
         </div>
@@ -454,9 +602,9 @@ export const Template = (args, { argTypes }) => ({
             this.formulaValue = value
             action('input')(value)
         },
-        onAdvanced(value) {
-            this.advancedMode = value
-            action('update:advanced')(value)
+        onModeChanged(value) {
+            this.currentMode = value
+            action('update:mode')(value)
         },
     },
 })
@@ -486,11 +634,8 @@ export const designConfig = {
 ```javascript
 <FormulaInputField
     v-model="formulaValue"
-    :data-providers="dataProviders"
-    :application-context="applicationContext"
-    :context-tabs="contextTabs"
+    :nodes-hierarchy="mockNodesHierarchy"
     placeholder="Enter a formula..."
-    :advanced="true"
     context-position="bottom"
     @input="onFormulaChange"
 />
