@@ -136,6 +136,13 @@ class EmbeddingMixin(models.Model):
         """
 
         with connection.schema_editor() as schema_editor:
+            # Ensure we only create the field if it does not exist yet. While this
+            # should not happen if the SchemaOperation is updated correctly, this can
+            # happen in tests or if some manual intervention happened. In any case, if
+            # the field already exists, there's no need to fail or log an error.
+            schema_editor.sql_create_column = schema_editor.sql_create_column.replace(
+                "ADD COLUMN", "ADD COLUMN IF NOT EXISTS"
+            )
             schema_editor.add_field(cls, field)
 
         SchemaOperation.objects.create(
