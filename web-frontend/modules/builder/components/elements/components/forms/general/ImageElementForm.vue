@@ -99,8 +99,8 @@ export default {
       values: {
         image_source_type: IMAGE_SOURCE_TYPES.UPLOAD,
         image_file: null,
-        image_url: '',
-        alt_text: '',
+        image_url: {},
+        alt_text: {},
         styles: {},
       },
     }

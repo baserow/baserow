@@ -81,7 +81,7 @@ export default {
     return {
       allowedValues: ['values', 'colors', 'colors_is_formula', 'styles'],
       values: {
-        values: '',
+        values: {},
         colors: '#acc8f8',
         colors_is_formula: false,
         styles: {},

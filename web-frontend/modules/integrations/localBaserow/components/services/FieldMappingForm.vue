@@ -79,7 +79,7 @@ export default {
       return (
         this.value.find(
           (fieldMapping) => fieldMapping.field_id === fieldId
-        ) || { enabled: true, field_id: fieldId, value: '' }
+        ) || { enabled: true, field_id: fieldId, value: {} }
       )
     },
     updateFieldMapping(fieldId, changes) {

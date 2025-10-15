@@ -66,8 +66,8 @@ export default {
   },
   props: {
     value: {
-      type: [String, Object],
-      default: () => {},
+      type: String,
+      default: '',
     },
     disabled: {
       type: Boolean,
@@ -109,11 +109,6 @@ export default {
     }
   },
   computed: {
-    compatValue() {
-      return typeof this.value === 'string'
-        ? { mode: 'simple', version: '0.1', formula: this.value }
-        : this.value
-    },
     classes() {
       return {
         'form-input--disabled': this.disabled,
@@ -161,7 +156,9 @@ export default {
       try {
         return generateHTML(this.content, this.extensions)
       } catch (e) {
-        return generateHTML(this.toContent({}), this.extensions)
+        console.error('Error while parsing formula content', this.value)
+        console.error(e)
+        return generateHTML(this.toContent(''), this.extensions)
       }
     },
     wrapperContent() {
@@ -220,9 +217,10 @@ export default {
         )
       }
     },
-    compatValue(value) {
+    value(value) {
       if (!_.isEqual(value, this.toFormula(this.wrapperContent))) {
         const content = this.toContent(value)
+
         if (!this.isFormulaInvalid) {
           this.content = content
         }
@@ -240,7 +238,7 @@ export default {
     },
   },
   mounted() {
-    this.content = this.toContent(this.compatValue)
+    this.content = this.toContent(this.value)
     this.editor = new Editor({
       content: this.htmlContent,
       editable: !this.disabled,
@@ -262,7 +260,7 @@ export default {
   methods: {
     resetField() {
       this.isFormulaInvalid = false
-      this.$emit('input', { mode: 'simple', version: '0.1', formula: '' })
+      this.$emit('input', '')
     },
     emitChange() {
       if (!this.isFormulaInvalid) {
@@ -308,8 +306,8 @@ export default {
         this.isFocused = false
       }
     },
-    toContent(formulaCtx) {
-      if (!formulaCtx?.formula) {
+    toContent(formula) {
+      if (!formula) {
         return {
           type: 'doc',
           content: [{ type: 'wrapper' }],
@@ -317,7 +315,7 @@ export default {
       }
 
       try {
-        const tree = parseBaserowFormula(formulaCtx.formula)
+        const tree = parseBaserowFormula(formula)
         const functionCollection = new RuntimeFunctionCollection(this.$registry)
         return new ToTipTapVisitor(functionCollection).visit(tree)
       } catch (error) {
@@ -328,14 +326,7 @@ export default {
     toFormula(content) {
       const functionCollection = new RuntimeFunctionCollection(this.$registry)
       try {
-        const formulaStr = new FromTipTapVisitor(functionCollection).visit(
-          content
-        )
-        return {
-          mode: 'simple',
-          version: '0.1',
-          formula: formulaStr,
-        }
+        return new FromTipTapVisitor(functionCollection).visit(content)
       } catch (error) {
         this.isFormulaInvalid = true
         return null

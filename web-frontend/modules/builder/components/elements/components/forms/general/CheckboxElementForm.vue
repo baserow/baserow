@@ -53,8 +53,8 @@ export default {
     return {
       allowedValues: ['label', 'default_value', 'required', 'styles'],
       values: {
-        label: '',
-        default_value: '',
+        label: {},
+        default_value: {},
         required: false,
         styles: {},
       },

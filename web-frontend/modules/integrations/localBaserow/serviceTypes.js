@@ -219,11 +219,11 @@ export class LocalBaserowListRowsServiceType extends DataSourceLocalBaserowTable
           outputType = 'rating'
         } else if (originalType === 'url') {
           return {
-            link_name: valueFormula,
+            link_name: { formula: valueFormula },
             name: service.schema.items.properties[field].title,
             id: uuid(), // Temporary id
             navigate_to_page_id: null,
-            navigate_to_url: valueFormula,
+            navigate_to_url: { formula: valueFormula },
             navigation_type: 'custom',
             page_parameters: [],
             target: 'blank',
@@ -234,8 +234,8 @@ export class LocalBaserowListRowsServiceType extends DataSourceLocalBaserowTable
             id: uuid(),
             name: service.schema.items.properties[field].title,
             type: 'image',
-            src: `get('current_record.${field}.*.url')`,
-            alt: `get('current_record.${field}.*.visible_name')`,
+            src: { formula: `get('current_record.${field}.*.url')` },
+            alt: { formula: `get('current_record.${field}.*.visible_name')` },
           }
         } else if (
           originalType === 'last_modified_by' ||
@@ -253,7 +253,7 @@ export class LocalBaserowListRowsServiceType extends DataSourceLocalBaserowTable
         return {
           name: service.schema.items.properties[field].title,
           type: outputType,
-          value: valueFormula,
+          value: { formula: valueFormula },
           id: uuid(), // Temporary id
         }
       })

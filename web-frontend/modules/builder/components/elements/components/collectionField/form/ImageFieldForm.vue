@@ -40,8 +40,8 @@ export default {
     return {
       allowedValues: ['src', 'alt', 'styles'],
       values: {
-        src: '',
-        alt: '',
+        src: {},
+        alt: {},
         styles: {},
       },
     }

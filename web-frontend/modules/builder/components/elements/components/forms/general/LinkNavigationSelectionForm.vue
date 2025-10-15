@@ -142,7 +142,7 @@ export default {
       values: {
         navigation_type: 'page',
         navigate_to_page_id: null,
-        navigate_to_url: '',
+        navigate_to_url: {},
         page_parameters: [],
         query_parameters: [],
         target: 'self',

@@ -35,7 +35,7 @@ export default {
   data() {
     return {
       values: {
-        value: '',
+        value: {},
         styles: {},
       },
       allowedValues: ['value', 'styles'],
