@@ -64,6 +64,10 @@
     "backupCodesCopiedTitle": "Copied!",
     "backupCodesCopiedMessage": "Backup codes copied to clipboard."
   },
+  "twoFactorEnabled": {
+    "enabled": "Enabled",
+    "disable": "Disable 2FA"
+  },
   "settingsModal": {
     "title": "My settings"
   },
