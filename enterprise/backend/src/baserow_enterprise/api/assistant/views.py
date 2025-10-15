@@ -3,6 +3,7 @@ from urllib.request import Request
 
 from django.http import StreamingHttpResponse
 
+from asgiref.sync import async_to_sync
 from baserow_premium.license.handler import LicenseHandler
 from drf_spectacular.openapi import OpenApiParameter, OpenApiTypes
 from drf_spectacular.utils import OpenApiResponse, extend_schema
@@ -168,8 +169,17 @@ class AssistantChatView(APIView):
             async for msg in assistant.astream_messages(human_message):
                 yield self._stream_assistant_message(msg)
 
+        def sync_stream():
+            agen = stream_assistant_messages()
+            try:
+                while True:
+                    # Pull next item from async generator in a sync-safe way
+                    yield async_to_sync(agen.__anext__)()
+            except StopAsyncIteration:
+                return
+
         response = StreamingHttpResponse(
-            stream_assistant_messages(),
+            sync_stream(),
             content_type="text/event-stream",
         )
         response["Cache-Control"] = "no-cache"
