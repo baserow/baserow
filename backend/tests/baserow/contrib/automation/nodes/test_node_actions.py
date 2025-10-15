@@ -167,6 +167,7 @@ def test_replace_automation_trigger_node_type(data_fixture):
     original_trigger = workflow.get_trigger()
     action_node = data_fixture.create_automation_node(
         workflow=workflow,
+        previous_node=original_trigger,
         type=LocalBaserowCreateRowNodeType.type,
     )
 
@@ -178,10 +179,12 @@ def test_replace_automation_trigger_node_type(data_fixture):
     # The original trigger is trashed, we have a new trigger of the new type.
     original_trigger.refresh_from_db(fields=["trashed"])
     action_node.refresh_from_db()
+
     assert original_trigger.trashed
     assert isinstance(
         replaced_trigger, LocalBaserowRowsUpdatedNodeTriggerType.model_class
     )
+
     assert action_node.previous_node_id == replaced_trigger.id
 
     # Confirm that the `original_trigger` trash entry exists, and
@@ -463,20 +466,27 @@ def test_move_node_action(data_fixture):
         workflow=workflow,
     )
 
-    moved_node = MoveAutomationNodeActionType.do(user, node.id, after_node.id)
+    with local_cache.context():
+        moved_node = MoveAutomationNodeActionType.do(user, node.id, after_node.id)
 
     assert moved_node.previous_node_id == after_node.id
     previous_node.refresh_from_db()
     assert previous_node.previous_node_id == moved_node.id
 
-    ActionHandler.undo(user, [WorkflowActionScopeType.value(workflow.id)], session_id)
+    with local_cache.context():
+        ActionHandler.undo(
+            user, [WorkflowActionScopeType.value(workflow.id)], session_id
+        )
 
     moved_node.refresh_from_db()
     assert moved_node.previous_node_id == previous_node.id
     previous_node.refresh_from_db()
     assert previous_node.previous_node_id == after_node.id
 
-    ActionHandler.redo(user, [WorkflowActionScopeType.value(workflow.id)], session_id)
+    with local_cache.context():
+        ActionHandler.redo(
+            user, [WorkflowActionScopeType.value(workflow.id)], session_id
+        )
 
     moved_node.refresh_from_db()
     assert moved_node.previous_node_id == after_node.id
@@ -502,22 +512,29 @@ def test_move_node_action_to_output(data_fixture):
     edge2 = core_router_with_edges.edge2
     edge2_output = core_router_with_edges.edge2_output  # <- from here
 
-    moved_node = MoveAutomationNodeActionType.do(
-        user, edge2_output.id, router.id, edge1_output.previous_node_output
-    )
+    with local_cache.context():
+        moved_node = MoveAutomationNodeActionType.do(
+            user, edge2_output.id, router.id, edge1_output.previous_node_output
+        )
 
     # The node we're trying to move is `edge2_output`
     assert moved_node == edge2_output
     assert moved_node.previous_node_id == router.id
     assert moved_node.previous_node_output == str(edge1.uid)
 
-    ActionHandler.undo(user, [WorkflowActionScopeType.value(workflow.id)], session_id)
+    with local_cache.context():
+        ActionHandler.undo(
+            user, [WorkflowActionScopeType.value(workflow.id)], session_id
+        )
 
     moved_node.refresh_from_db()
     assert moved_node.previous_node_id == router.id
     assert moved_node.previous_node_output == str(edge2.uid)
 
-    ActionHandler.redo(user, [WorkflowActionScopeType.value(workflow.id)], session_id)
+    with local_cache.context():
+        ActionHandler.redo(
+            user, [WorkflowActionScopeType.value(workflow.id)], session_id
+        )
 
     moved_node.refresh_from_db()
     assert moved_node.previous_node_id == router.id

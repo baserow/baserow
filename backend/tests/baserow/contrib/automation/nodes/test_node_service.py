@@ -5,8 +5,8 @@ import pytest
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeBeforeInvalid,
     AutomationNodeDoesNotExist,
-    AutomationNodeNotMovable,
     AutomationNodeNotInWorkflow,
+    AutomationNodeNotMovable,
 )
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.models import LocalBaserowCreateRowActionNode
@@ -32,7 +32,9 @@ def test_create_node(mocked_signal, data_fixture: Fixtures):
     node_type = automation_node_type_registry.get("create_row")
 
     service = AutomationNodeService()
-    node = service.create_node(user, node_type, workflow)
+    node = service.create_node(
+        user, node_type, workflow, previous_node_id=workflow.get_trigger().id
+    )
 
     assert isinstance(node, LocalBaserowCreateRowActionNode)
     mocked_signal.send.assert_called_once_with(service, node=node, user=user)
@@ -50,18 +52,19 @@ def test_create_node_before_invalid(data_fixture: Fixtures):
 
     node_type = automation_node_type_registry.get("create_row")
 
-    with pytest.raises(AutomationNodeBeforeInvalid) as exc:
+    with pytest.raises(AutomationNodeNotInWorkflow) as exc:
         AutomationNodeService().create_node(
-            user, node_type, workflow=workflow, before=node2_b
+            user, node_type, workflow=workflow, previous_node_id=node2_b.id
         )
     assert (
-        exc.value.args[0]
-        == "The `before` node must belong to the same workflow as the one supplied."
+        exc.value.args[0] == f"The node {node2_b.id} does not belong to the workflow."
     )
 
     with pytest.raises(AutomationNodeBeforeInvalid) as exc:
         AutomationNodeService().create_node(
-            user, node_type, workflow=workflow_b, before=node1_b
+            user,
+            node_type,
+            workflow=workflow_b,
         )
     assert exc.value.args[0] == "You cannot create an automation node before a trigger."
 

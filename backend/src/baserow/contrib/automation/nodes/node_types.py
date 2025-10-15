@@ -56,10 +56,33 @@ from baserow.core.db import specific_iterator
 from baserow.core.registry import Instance
 from baserow.core.services.models import Service
 from baserow.core.services.registries import service_type_registry
+from baserow.contrib.automation.nodes.exceptions import (
+    AutomationNodeBeforeInvalid,
+)
 
 
 class AutomationNodeActionNodeType(AutomationNodeType):
     is_workflow_action = True
+
+    def prepare_values(
+        self,
+        values: Dict[str, Any],
+        user: AbstractUser,
+        instance: AutomationNode = None,
+    ) -> Dict[str, Any]:
+        """ """
+
+        print(values)
+        if (
+            not instance
+            and "previous_node_id" not in values
+            and "parent_node_id" not in values
+        ):
+            raise AutomationNodeBeforeInvalid(
+                "You cannot create an automation node before a trigger."
+            )
+
+        return super().prepare_values(values, user, instance)
 
 
 class LocalBaserowUpsertRowNodeType(AutomationNodeActionNodeType):

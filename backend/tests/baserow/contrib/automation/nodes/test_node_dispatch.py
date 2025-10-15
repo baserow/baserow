@@ -148,7 +148,7 @@ def test_run_workflow_with_router_action(data_fixture):
     )
     edge2_output_node = data_fixture.create_local_baserow_update_row_action_node(
         workflow=workflow,
-        previous_node_id=router_node.id,
+        previous_node=router_node,
         service=data_fixture.create_local_baserow_upsert_row_service(
             table=action_table,
             integration=integration,
@@ -247,7 +247,7 @@ def iterator_graph_fixture(data_fixture):
 
     action_node = data_fixture.create_local_baserow_create_row_action_node(
         workflow=workflow,
-        parent_node_id=iterator_node.id,
+        parent_node=iterator_node,
         service_kwargs={"table": action_table, "integration": integration},
     )
     action_node.service.specific.field_mappings.create(
@@ -257,7 +257,7 @@ def iterator_graph_fixture(data_fixture):
 
     action2_node = data_fixture.create_local_baserow_create_row_action_node(
         workflow=workflow,
-        previous_node_id=iterator_node.id,
+        previous_node=iterator_node,
         service_kwargs={"table": action2_table, "integration": integration},
     )
     action2_node.service.specific.field_mappings.create(
@@ -267,8 +267,8 @@ def iterator_graph_fixture(data_fixture):
 
     action3_node = data_fixture.create_local_baserow_create_row_action_node(
         workflow=workflow,
-        previous_node_id=action_node.id,
-        parent_node_id=iterator_node.id,
+        previous_node=action_node,
+        parent_node=iterator_node,
         service_kwargs={"table": action3_table, "integration": integration},
     )
     action3_node.service.specific.field_mappings.create(
