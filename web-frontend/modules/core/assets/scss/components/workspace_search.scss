@@ -117,6 +117,12 @@
   }
 }
 
+.workspace-search--keyboard-nav {
+  .workspace-search__result-item {
+    pointer-events: none;
+  }
+}
+
 .workspace-search__result-icon {
   width: 40px;
   height: 40px;

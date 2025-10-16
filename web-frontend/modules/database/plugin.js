@@ -368,8 +368,8 @@ import {
   DatabaseTableSearchType,
   DatabaseFieldSearchType,
   DatabaseRowSearchType,
-} from '@baserow/modules/core/search/types/database'
-import { searchTypeRegistry } from '@baserow/modules/core/search/types'
+} from '@baserow/modules/database/searchTypes'
+import { searchTypeRegistry } from '@baserow/modules/core/search/types/registry'
 
 export default (context) => {
   const { store, app, isDev } = context

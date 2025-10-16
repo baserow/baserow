@@ -44,8 +44,8 @@ import {
 } from '@baserow/modules/automation/editorSidePanelTypes'
 import { PreviousNodeDataProviderType } from '@baserow/modules/automation/dataProviderTypes'
 import { PeriodicTriggerServiceType } from '@baserow/modules/automation/serviceTypes'
-import { AutomationSearchType } from '@baserow/modules/core/search/types/automation'
-import { searchTypeRegistry } from '@baserow/modules/core/search/types'
+import { AutomationSearchType } from '@baserow/modules/automation/searchTypes'
+import { searchTypeRegistry } from '@baserow/modules/core/search/types/registry'
 
 export default (context) => {
   const { app, isDev, store } = context

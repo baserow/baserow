@@ -11,8 +11,8 @@ import { registerRealtimeEvents } from '@baserow/modules/dashboard/realtime'
 import { DashboardApplicationType } from '@baserow/modules/dashboard/applicationTypes'
 import { SummaryWidgetType } from '@baserow/modules/dashboard/widgetTypes'
 import dashboardApplicationStore from '@baserow/modules/dashboard/store/dashboardApplication'
-import { DashboardSearchType } from '@baserow/modules/core/search/types/dashboard'
-import { searchTypeRegistry } from '@baserow/modules/core/search/types'
+import { DashboardSearchType } from '@baserow/modules/dashboard/searchTypes'
+import { searchTypeRegistry } from '@baserow/modules/core/search/types/registry'
 
 export default (context) => {
   const { app, isDev, store } = context
