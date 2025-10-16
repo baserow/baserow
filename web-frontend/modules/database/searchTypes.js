@@ -1,4 +1,4 @@
-import { BaseSearchType } from './base'
+import { BaseSearchType } from '@baserow/modules/core/search/types/base'
 
 export class DatabaseSearchType extends BaseSearchType {
   constructor() {
@@ -10,21 +10,20 @@ export class DatabaseSearchType extends BaseSearchType {
   }
 
   buildUrl(result, context = null) {
-    if (!result.metadata || !result.metadata.database_id) {
+    const databaseId = result?.metadata?.database_id || result?.id
+    if (!databaseId) {
       return null
     }
 
     if (context && context.store) {
-      const application = context.store.getters['application/get'](
-        result.metadata.database_id
-      )
+      const application = context.store.getters['application/get'](databaseId)
       if (application && application.tables && application.tables.length > 0) {
         const tables = application.tables
           .map((t) => t)
           .sort((a, b) => a.order - b.order)
 
         if (tables.length > 0) {
-          return `/database/${result.metadata.database_id}/table/${tables[0].id}`
+          return `/database/${databaseId}/table/${tables[0].id}`
         }
       }
     }

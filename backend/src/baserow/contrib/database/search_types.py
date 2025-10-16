@@ -79,8 +79,8 @@ class DatabaseSearchType(ApplicationSearchType):
             id=result.id,
             title=result.name,
             subtitle=self.name,
-            created_on=result.created_on.isoformat() if result.created_on else None,
-            updated_on=result.updated_on.isoformat() if result.updated_on else None,
+            created_on=result.created_on,
+            updated_on=result.updated_on,
             metadata={
                 "workspace_id": workspace.id,
                 "workspace_name": workspace.name,
@@ -374,7 +374,7 @@ class RowSearchType(SearchableItemType):
                     output_field=TextField(),
                 ),
                 sort_key=F("row_id"),
-                priority=Value(getattr(self, "priority", 10)),
+                priority=Value(self.priority),
                 title=Concat(
                     Value("row "),
                     Cast(F("row_id"), output_field=TextField()),

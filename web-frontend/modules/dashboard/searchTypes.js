@@ -1,4 +1,4 @@
-import { BaseSearchType } from './base'
+import { BaseSearchType } from '@baserow/modules/core/search/types/base'
 
 export class DashboardSearchType extends BaseSearchType {
   constructor() {
@@ -10,10 +10,10 @@ export class DashboardSearchType extends BaseSearchType {
   }
 
   buildUrl(result, context = null) {
-    if (!result.metadata || !result.metadata.application_id) {
+    const appId = result?.metadata?.application_id || result?.id
+    if (!appId) {
       return null
     }
-
-    return `/dashboard/${result.metadata.application_id}`
+    return `/dashboard/${appId}`
   }
 }

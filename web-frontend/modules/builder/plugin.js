@@ -149,8 +149,8 @@ import {
   NumericQueryParamType,
 } from '@baserow/modules/builder/queryParamTypes'
 import { BuilderGuidedTourType } from '@baserow/modules/builder/guidedTourTypes'
-import { BuilderSearchType } from '@baserow/modules/core/search/types/builder'
-import { searchTypeRegistry } from '@baserow/modules/core/search/types'
+import { BuilderSearchType } from '@baserow/modules/builder/searchTypes'
+import { searchTypeRegistry } from '@baserow/modules/core/search/types/registry'
 
 export default (context) => {
   const { store, app, isDev } = context

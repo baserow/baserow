@@ -36,8 +36,9 @@ class WorkspaceSearchView(APIView):
         request=WorkspaceSearchSerializer,
         responses={
             200: WorkspaceSearchResponseSerializer,
-            400: get_error_schema(["ERROR_INVALID_SEARCH_QUERY"]),
-            403: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
+            400: get_error_schema(
+                ["ERROR_USER_NOT_IN_GROUP", "ERROR_INVALID_SEARCH_QUERY"]
+            ),
             404: get_error_schema(["ERROR_GROUP_DOES_NOT_EXIST"]),
         },
         tags=["Search"],

@@ -51,7 +51,7 @@ class ModelSearchableItemType(SearchableItemType):
         return Cast(F("name"), output_field=TextField())
 
     def build_subtitle_annotation(self):
-        return Value(self.type, output_field=TextField())
+        return Value(self.name, output_field=TextField())
 
     def get_union_values_queryset(
         self, user: "AbstractUser", workspace: "Workspace", context: SearchContext
@@ -68,7 +68,7 @@ class ModelSearchableItemType(SearchableItemType):
             object_id=Cast(F("id"), output_field=TextField()),
             sort_key=F("id"),
             rank=SearchRank(search_vector, search_query),
-            priority=Value(getattr(self, "priority", 10)),
+            priority=Value(self.priority),
             title=self.build_title_annotation(),
             subtitle=self.build_subtitle_annotation(),
             payload=self.build_payload(),

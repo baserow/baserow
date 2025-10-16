@@ -89,9 +89,9 @@ class ApplicationSearchType(ModelSearchableItemType):
             type=self.type,
             id=result.id,
             title=result.name,
-            subtitle=self.type,
-            created_on=result.created_on.isoformat() if result.created_on else None,
-            updated_on=result.updated_on.isoformat() if result.updated_on else None,
+            subtitle=self.name,
+            created_on=result.created_on,
+            updated_on=result.updated_on,
             metadata={
                 "workspace_id": workspace.id,
                 "workspace_name": workspace.name,

@@ -10,7 +10,10 @@
     <template #content>
       <div
         class="workspace-search"
-        :class="{ 'workspace-search--expanded': hasSearchTerm }"
+        :class="{
+          'workspace-search--expanded': hasSearchTerm,
+          'workspace-search--keyboard-nav': isKeyboardNavigating,
+        }"
       >
         <div class="workspace-search__header">
           <FormInput
@@ -30,7 +33,7 @@
           v-if="hasSearchTerm"
           class="workspace-search__content"
           @scroll="handleScroll"
-          @mousemove="isKeyboardNavigating = false"
+          @mousemove="onMouseMove"
         >
           <!-- Search results -->
           <div v-if="hasResults" class="workspace-search__results">
@@ -44,7 +47,7 @@
                     activeIndex === index,
                 }"
                 @click="selectResult(result)"
-                @mouseenter="onMouseEnter(index)"
+                @mouseenter="handleMouseEnter(index)"
               >
                 <div class="workspace-search__result-icon">
                   <i :class="getResultIcon(result.type)"></i>
@@ -153,7 +156,7 @@
 <script>
 import debounce from 'lodash/debounce'
 import { mapGetters, mapState } from 'vuex'
-import { searchTypeRegistry } from '@baserow/modules/core/search/types'
+import { searchTypeRegistry } from '@baserow/modules/core/search/types/registry'
 import enterIcon from '@baserow/modules/core/assets/icons/enter.svg'
 
 export default {
@@ -246,6 +249,11 @@ export default {
   },
 
   methods: {
+    onMouseMove(event) {
+      if (event && (event.movementX !== 0 || event.movementY !== 0)) {
+        this.isKeyboardNavigating = false
+      }
+    },
     displayFor(result) {
       return searchTypeRegistry.formatResultDisplay(result.type, result, {
         searchTerm: this.searchTerm,
@@ -321,28 +329,18 @@ export default {
         return
       }
 
-      try {
-        this.currentPage = 1
-        const result = await this.$store.dispatch('workspaceSearch/search', {
-          workspaceId: this.currentWorkspace.id,
-          searchTerm,
-          limit: this.pageSize * this.initialLoadPages,
-          offset: 0,
-          append: false,
-        })
+      this.currentPage = 1
+      const result = await this.$store.dispatch('workspaceSearch/search', {
+        workspaceId: this.currentWorkspace.id,
+        searchTerm,
+        limit: this.pageSize * this.initialLoadPages,
+        offset: 0,
+        append: false,
+      })
 
-        this.hasMoreResults = result.has_more || false
-        this.activeIndex = 0
-      } catch (error) {
-        this.reportSearchError('initial_search', error, {
-          searchTermLength: searchTerm?.length || 0,
-          limit: this.pageSize * this.initialLoadPages,
-          offset: 0,
-          append: false,
-        })
-      } finally {
-        this.isSearching = false
-      }
+      this.hasMoreResults = result.has_more || false
+      this.activeIndex = 0
+      this.isSearching = false
     }, 400),
 
     async loadMoreResults() {
@@ -351,28 +349,18 @@ export default {
       }
 
       this.isLoadingMore = true
-      try {
-        const offset = this.totalResultCount
+      const offset = this.totalResultCount
 
-        const result = await this.$store.dispatch('workspaceSearch/search', {
-          workspaceId: this.currentWorkspace.id,
-          searchTerm: this.searchTerm,
-          limit: this.pageSize * this.scrollLoadPages,
-          offset,
-          append: true,
-        })
+      const result = await this.$store.dispatch('workspaceSearch/search', {
+        workspaceId: this.currentWorkspace.id,
+        searchTerm: this.searchTerm,
+        limit: this.pageSize * this.scrollLoadPages,
+        offset,
+        append: true,
+      })
 
-        this.hasMoreResults = result.has_more || false
-      } catch (error) {
-        this.reportSearchError('load_more', error, {
-          searchTermLength: this.searchTerm?.length || 0,
-          limit: this.pageSize * this.scrollLoadPages,
-          offset: this.totalResultCount,
-          append: true,
-        })
-      } finally {
-        this.isLoadingMore = false
-      }
+      this.hasMoreResults = result.has_more || false
+      this.isLoadingMore = false
     },
 
     handleScroll(event) {
@@ -467,26 +455,8 @@ export default {
     getResultIcon(type) {
       return searchTypeRegistry.getIcon(type)
     },
-    reportSearchError(
-      phase,
-      error,
-      { searchTermLength, limit, offset, append }
-    ) {
-      const workspaceId = this.currentWorkspace?.id
-      if (this.$sentry && typeof this.$sentry.withScope === 'function') {
-        this.$sentry.withScope((scope) => {
-          scope.setTag('feature', 'workspace_search')
-          if (workspaceId) scope.setTag('workspace_id', String(workspaceId))
-          scope.setExtra('phase', phase)
-          scope.setExtra('search_term_length', searchTermLength)
-          scope.setExtra('limit', limit)
-          scope.setExtra('offset', offset)
-          scope.setExtra('append', append)
-        })
-        this.$sentry.captureException(error)
-      }
-    },
-    onMouseEnter(index) {
+
+    handleMouseEnter(index) {
       if (!this.isKeyboardNavigating) {
         this.activeIndex = index
       }
