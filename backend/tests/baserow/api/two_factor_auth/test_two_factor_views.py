@@ -1,7 +1,12 @@
 import pyotp
 from django.urls import reverse
 import pytest
-from rest_framework.status import HTTP_200_OK, HTTP_401_UNAUTHORIZED
+from rest_framework.status import (
+    HTTP_200_OK,
+    HTTP_401_UNAUTHORIZED,
+    HTTP_400_BAD_REQUEST,
+    HTTP_404_NOT_FOUND,
+)
 
 from baserow.test_utils.helpers import AnyList, AnyStr
 
@@ -55,6 +60,23 @@ def test_configure_totp_view(api_client, data_fixture):
         "provisioning_url": "",
         "type": "totp",
     }
+
+
+@pytest.mark.django_db
+def test_configure_totp_view_type_does_not_exist(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+
+    url = reverse("api:two_factor_auth:configuration")
+    response = api_client.post(
+        url,
+        {"type": "wrongtype"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    response_json = response.json()
+    assert response.status_code == HTTP_404_NOT_FOUND, response_json
+    assert response_json["error"] == "ERROR_TWO_FACTOR_AUTH_TYPE_DOES_NOT_EXIST"
 
 
 @pytest.mark.django_db
