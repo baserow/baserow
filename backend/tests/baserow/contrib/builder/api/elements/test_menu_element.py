@@ -7,6 +7,9 @@ from rest_framework.status import HTTP_200_OK
 
 from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.models import MenuItemElement
+from baserow.core.formula import BaserowFormulaObject
+from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
+from baserow.core.formula.types import BASEROW_FORMULA_MODE_SIMPLE
 from baserow.test_utils.helpers import AnyInt, AnyStr
 
 
@@ -81,7 +84,11 @@ def test_get_menu_element(api_client, menu_element_fixture):
             "menu_item_order": AnyInt(),
             "name": "Link",
             "navigate_to_page_id": None,
-            "navigate_to_url": "",
+            "navigate_to_url": BaserowFormulaObject(
+                formula="",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
             "navigation_type": "",
             "page_parameters": [],
             "parent_menu_item": None,
@@ -156,7 +163,11 @@ def test_can_update_menu_element_items(api_client, menu_element_fixture):
             "type": "link",
             "uid": AnyStr(),
             "navigate_to_page_id": None,
-            "navigate_to_url": "",
+            "navigate_to_url": BaserowFormulaObject(
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                formula="",
+            ),
             "navigation_type": "page",
             "page_parameters": [],
             "parent_menu_item": None,

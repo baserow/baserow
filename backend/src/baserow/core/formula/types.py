@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, List, Literal, TypedDict, Union
+from typing import Any, Dict, List, Literal, TypedDict, Union
 
 from baserow.core.formula.exceptions import RuntimeFormulaRecursion
 
@@ -90,3 +90,11 @@ class BaserowFormulaMinified(TypedDict):
 
 
 FormulaFieldDatabaseValue = Union[str, BaserowFormulaMinified]
+
+JSONFormulaFieldDatabaseValue = Union[
+    BaserowFormulaMinified, List[Dict[str, BaserowFormulaMinified]]
+]
+
+JSONFormulaFieldResult = Union[
+    BaserowFormulaObject, List[Dict[str, BaserowFormulaObject]]
+]

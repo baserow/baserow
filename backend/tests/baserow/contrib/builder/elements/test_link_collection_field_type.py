@@ -15,6 +15,9 @@ from baserow.contrib.builder.elements.registries import collection_field_type_re
 from baserow.contrib.builder.pages.service import PageService
 from baserow.contrib.builder.pages.signals import page_deleted
 from baserow.core.exceptions import InstanceTypeDoesNotExist
+from baserow.core.formula import BaserowFormulaObject
+from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
+from baserow.core.formula.types import BASEROW_FORMULA_MODE_SIMPLE
 
 
 def test_registering_link_collection_field_type_connects_to_page_deleted_signal():
@@ -62,7 +65,6 @@ def test_import_export_link_collection_field_type(data_fixture):
                 "name": "Foo Link Field",
                 "type": "link",
                 "config": {
-                    "target": "self",
                     "link_name": f"get('data_source.{data_source.id}.0.{text_field.db_column}')",
                     "navigate_to_url": f"get('data_source.{data_source.id}.0.{text_field.db_column}')",
                     "navigation_type": "page",
@@ -104,20 +106,36 @@ def test_import_export_link_collection_field_type(data_fixture):
 
     imported_field = imported_table_element.fields.get(name="Foo Link Field")
     assert imported_field.config == {
-        "link_name": f"get('data_source.{data_source2.id}.0.{text_field.db_column}')",
-        "navigate_to_url": f"get('data_source.{data_source2.id}.0.{text_field.db_column}')",
+        "link_name": BaserowFormulaObject(
+            formula=f"get('data_source.{data_source2.id}.0.{text_field.db_column}')",
+            version=BASEROW_FORMULA_VERSION_INITIAL,
+            mode=BASEROW_FORMULA_MODE_SIMPLE,
+        ),
+        "navigate_to_url": BaserowFormulaObject(
+            formula=f"get('data_source.{data_source2.id}.0.{text_field.db_column}')",
+            version=BASEROW_FORMULA_VERSION_INITIAL,
+            mode=BASEROW_FORMULA_MODE_SIMPLE,
+        ),
         "navigate_to_page_id": None,
         "navigation_type": "page",
         "query_parameters": [
             {
                 "name": "fooQueryParam",
-                "value": f"get('data_source.{data_source2.id}.field_1')",
+                "value": BaserowFormulaObject(
+                    formula=f"get('data_source.{data_source2.id}.field_1')",
+                    version=BASEROW_FORMULA_VERSION_INITIAL,
+                    mode=BASEROW_FORMULA_MODE_SIMPLE,
+                ),
             },
         ],
         "page_parameters": [
             {
                 "name": "fooPageParam",
-                "value": f"get('data_source.{data_source2.id}.field_1')",
+                "value": BaserowFormulaObject(
+                    formula=f"get('data_source.{data_source2.id}.field_1')",
+                    version=BASEROW_FORMULA_VERSION_INITIAL,
+                    mode=BASEROW_FORMULA_MODE_SIMPLE,
+                ),
             },
         ],
         "target": "self",

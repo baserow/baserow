@@ -1,4 +1,4 @@
-from typing import Any, Dict, Generator, TypedDict, Union
+from typing import Any, Dict, Generator, TypedDict
 
 from django.core.validators import MinValueValidator
 
@@ -13,7 +13,7 @@ from baserow.core.formula.serializers import (
     FormulaSerializerField,
     OptionalFormulaSerializerField,
 )
-from baserow.core.formula.types import BaserowFormula
+from baserow.core.formula.types import BaserowFormulaObject
 from baserow.core.registry import Instance
 
 
@@ -24,7 +24,7 @@ class BooleanCollectionFieldType(CollectionFieldType):
     simple_formula_fields = ["value"]
 
     class SerializedDict(TypedDict):
-        value: bool
+        value: BaserowFormulaObject
 
     @property
     def serializer_field_overrides(self):
@@ -43,7 +43,7 @@ class RatingCollectionFieldType(CollectionFieldType):
     simple_formula_fields = ["value"]
 
     class SerializedDict(TypedDict):
-        value: BaserowFormula
+        value: BaserowFormulaObject
         color: str
         rating_style: str
         max_value: int
@@ -83,7 +83,7 @@ class TextCollectionFieldType(CollectionFieldType):
     simple_formula_fields = ["value"]
 
     class SerializedDict(TypedDict):
-        value: str
+        value: BaserowFormulaObject
 
     @property
     def serializer_field_overrides(self):
@@ -230,9 +230,9 @@ class TagsCollectionFieldType(CollectionFieldType):
     simple_formula_fields = ["values"]
 
     class SerializedDict(TypedDict):
-        values: str
+        values: BaserowFormulaObject
         colors_is_formula: bool
-        colors: Union[BaserowFormula, str]
+        colors: BaserowFormulaObject
 
     @property
     def serializer_field_overrides(self):
@@ -279,7 +279,7 @@ class ButtonCollectionFieldType(CollectionFieldType):
     simple_formula_fields = ["label"]
 
     class SerializedDict(TypedDict):
-        label: str
+        label: BaserowFormulaObject
 
     @property
     def serializer_field_overrides(self):
@@ -302,8 +302,8 @@ class ImageCollectionFieldType(CollectionFieldType):
     simple_formula_fields = ["src", "alt"]
 
     class SerializedDict(TypedDict):
-        src: BaserowFormula
-        alt: BaserowFormula
+        src: BaserowFormulaObject
+        alt: BaserowFormulaObject
 
     @property
     def serializer_field_overrides(self):

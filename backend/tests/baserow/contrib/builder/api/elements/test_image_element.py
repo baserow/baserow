@@ -60,7 +60,7 @@ def test_create_image_element(api_client, data_fixture, tmpdir):
             "type": ImageElementType.type,
             "image_file": UserFileSerializer(user_file).data,
             "image_source_type": ImageElement.IMAGE_SOURCE_TYPES.UPLOAD,
-            "alt_text": "test",
+            "alt_text": "'test'",
         },
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
@@ -70,7 +70,7 @@ def test_create_image_element(api_client, data_fixture, tmpdir):
     assert response.status_code == 200
     assert response_json["image_file"]["name"] == user_file.name
     assert response_json["image_source_type"] == ImageElement.IMAGE_SOURCE_TYPES.UPLOAD
-    assert response_json["alt_text"] == "test"
+    assert response_json["alt_text"]["formula"] == "'test'"
 
 
 @pytest.mark.django_db
@@ -153,7 +153,7 @@ def test_image_file_is_not_deleted_when_not_explicitly_set(
     url = reverse("api:builder:element:item", kwargs={"element_id": element.id})
     response = api_client.patch(
         url,
-        {"alt_text": "something"},
+        {"alt_text": "'something'"},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )

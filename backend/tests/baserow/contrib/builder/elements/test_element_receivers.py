@@ -5,6 +5,8 @@ from baserow.contrib.builder.elements.collection_field_types import (
 )
 from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.pages.signals import page_deleted
+from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
+from baserow.core.formula.types import BASEROW_FORMULA_MODE_SIMPLE
 
 
 @pytest.mark.django_db
@@ -24,7 +26,7 @@ def test_page_deletion_updates_link_collection_navigate_to_page_id(data_fixture)
                     "navigate_to_page_id": destination_page.id,
                     "navigation_type": "page",
                     "navigate_to_url": "",
-                    "link_name": "Click me",
+                    "link_name": "'Click me'",
                     "target": "self",
                 },
             },
@@ -35,8 +37,16 @@ def test_page_deletion_updates_link_collection_navigate_to_page_id(data_fixture)
     field.refresh_from_db()
     assert field.config == {
         "target": "self",
-        "link_name": "Click me",
-        "navigate_to_url": "",
+        "link_name": {
+            "formula": "'Click me'",
+            "mode": BASEROW_FORMULA_MODE_SIMPLE,
+            "version": BASEROW_FORMULA_VERSION_INITIAL,
+        },
+        "navigate_to_url": {
+            "formula": "",
+            "mode": BASEROW_FORMULA_MODE_SIMPLE,
+            "version": BASEROW_FORMULA_VERSION_INITIAL,
+        },
         "navigation_type": "page",
         "page_parameters": [],
         "navigate_to_page_id": None,

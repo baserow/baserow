@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Dict, Union
+from typing import Dict, List, Union
 
 from django.db import connection, models
 
@@ -9,6 +9,8 @@ from baserow.core.formula.types import (
     BASEROW_FORMULA_MODE_SIMPLE,
     BaserowFormulaMinified,
     FormulaFieldDatabaseValue,
+    JSONFormulaFieldDatabaseValue,
+    JSONFormulaFieldResult,
 )
 
 logger = logging.getLogger(__name__)
@@ -210,7 +212,7 @@ class FormulaField(models.TextField):
 
 class JSONFormulaField(models.JSONField):
     def __init__(self, *args, **kwargs):
-        self.property_name = kwargs.pop("property_name", None)
+        self.properties = kwargs.pop("properties", [])
         super().__init__(*args, **kwargs)
 
     def deconstruct(self):
@@ -223,85 +225,264 @@ class JSONFormulaField(models.JSONField):
         path = "django.db.models.JSONField"
         return name, path, args, kwargs
 
-    def _transform_db_value_to_dict(
-        self, value: Union[str, BaserowFormulaMinified]
-    ) -> Dict[str, BaserowFormulaObject]:
+    def contribute_to_class(self, cls, name, **kwargs):
         """
-        Responsible for taking a `value` from our database, which could be a string
-        or dictionary, and transforming it into a dictionary containing a
-        `BaserowFormulaObject` nested inside `value[self.property_name]`.
+        Due to a limitation of Django's ORM after saving, it keeps the original value
+        in memory without re-processing it through `to_python`. We need to override the
+        save method to ensure the value is transformed correctly after each save.
+        """
+
+        super().contribute_to_class(cls, name, **kwargs)
+
+        # Store references for closure
+        field_name = name
+        field_instance = self
+        original_save = cls.save
+
+        def save_with_to_python(instance, *args, **kwargs):
+            # Perform the original save operation
+            result = original_save(instance, *args, **kwargs)
+            # Get the intended formula field value...
+            value = getattr(instance, field_name, None)
+            # Process it with `to_python` to ensure it's in the correct format.
+            setattr(instance, field_name, field_instance.to_python(value))
+            return result
+
+        cls.save = save_with_to_python
+
+    def _transform_db_property(
+        self,
+        value: Union[str, BaserowFormulaMinified, BaserowFormulaObject],
+    ) -> BaserowFormulaObject:
+        """
+        Responsible for taking a `value` from our database, which will be a string or
+        `BaserowFormulaMinified`, and transforming it into a `BaserowFormulaObject`.
+
+        - We will receive a formula string if we've got a legacy `JSONField` which
+          hasn't yet been migrated to an object.
+        - We will receive a `BaserowFormulaMinified` if we've got a migrated object
+          which we've persisted to the database.
+        - We will receive a `BaserowFormulaObject` if we're being called via
+          `to_python`.
+
         :param value: The value from the database, either a string or dictionary.
-        :return: A dictionary containing a `BaserowFormulaObject` nested inside
-        `value[self.property_name]`.
+        :return: A `BaserowFormulaObject`.
         """
 
         if isinstance(value, str):
-            return {
-                self.property_name: BaserowFormulaObject(
-                    mode=BASEROW_FORMULA_MODE_SIMPLE,
-                    version=BASEROW_FORMULA_VERSION_INITIAL,
-                    formula=value,
-                )
-            }
-        return {
-            self.property_name: BaserowFormulaObject(
-                mode=value["m"], version=value["v"], formula=value["f"]
+            return BaserowFormulaObject(
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+                formula=value,
             )
-        }
+        return BaserowFormulaObject(
+            mode=value.get("m", value.get("mode")),
+            version=value.get("v", value.get("version")),
+            formula=value.get("f", value.get("formula")),
+        )
 
-    def to_python(
-        self, value: Dict[str, FormulaFieldDatabaseValue]
-    ) -> Dict[str, BaserowFormulaObject]:
+    def _transform_db_properties(
+        self, value: JSONFormulaFieldDatabaseValue
+    ) -> JSONFormulaFieldResult:
+        """
+        Responsible for taking a `value` from our database, which could be a
+        string, dictionary, or list of dictionaries, and transforming it into a
+        `JSONFormulaFieldResult` (either a `BaserowFormulaObject` or list
+        of dictionaries containing `BaserowFormulaObject`s) at their designated paths.
+
+        :param value: The value from the database.
+        :return: A `JSONFormulaFieldResult`.
+        """
+
+        # Iterate over the properties bound to this field.
+        # Each property represents a path to a formula field
+        # we need to convert from minified to full.
+        for path in self.properties:
+            # A path can be nested, e.g. "parent.child",
+            # or just a single level, e.g. "parent".
+            parent_path, child_path = (
+                path.split(".", 1) if "." in path else (path, None)
+            )
+            # If `value` is a dictionary, we'll extract the nested value from it.
+            # However, if it's a list, then the `value` itself is our property value.
+            property_value = (
+                value.get(parent_path) if isinstance(value, dict) else value
+            )
+
+            # Sometimes in tests we don't set all formula properties correctly.
+            if property_value is None:
+                continue
+
+            # If we have a list of values to work with...
+            if isinstance(property_value, list):
+                # Iterate over each item in this list, transforming the
+                # relevant property to a `BaserowFormulaObject`.
+                object_list_value = []
+                for item in property_value:
+                    # If there's no `child_path` (i.e. it's just "parent"),
+                    # then we transform the `item[parent_path]` value. E.g.
+                    # [{parent: "formula"}] > [{parent: BaserowFormulaObject}]
+                    if child_path is None:
+                        object_value = self._transform_db_property(item[parent_path])
+                        object_list_value.append(item | {parent_path: object_value})
+                    else:
+                        # However if we have a `child_path` (i.e. it's "parent.child"),
+                        # then we transform the `item[child_path]` value. E.g.
+                        # [{parent: {child: "'formula'"}}] >
+                        #   [{parent: {child: BaserowFormulaObject}}]
+                        object_value = self._transform_db_property(item[child_path])
+                        # Rebuild the item with the transformed value, making sure
+                        # we preserve any other keys in the item.
+                        object_list_value.append(item | {child_path: object_value})
+
+                # If we have a `child_path`, then we set the transformed list
+                # on `value[parent_path]`. Otherwise, we set the entire `value
+                # to be the transformed list.
+                if child_path:
+                    value[parent_path] = object_list_value
+                else:
+                    value = object_list_value
+            else:
+                # Otherwise, we have a dictionary, so we transform the
+                # `property_value` directly.
+                object_value = self._transform_db_property(property_value)
+                value[path] = object_value
+
+        return value
+
+    def to_python(self, value: JSONFormulaFieldDatabaseValue) -> JSONFormulaFieldResult:
         """
         Called during create/update and deserialization. We will call
-        `_transform_db_value_to_dict` to ensure we always return a
-        `BaserowFormulaObject`.
+        `_transform_db_properties` to ensure we always return a
+        `JSONFormulaFieldResult`.
 
         :param value: The value from the database, either a string or dictionary.
-        :return: A `BaserowFormulaObject` nested inside a dictionary.
+        :return: A `JSONFormulaFieldResult` nested inside a dictionary.
         """
 
         value = super().to_python(value)
-        return self._transform_db_value_to_dict(value[self.property_name])
+        return self._transform_db_properties(value)
 
     def from_db_value(
-        self, value: Dict[str, FormulaFieldDatabaseValue], *args
-    ) -> Dict[str, BaserowFormulaObject]:
+        self, value: JSONFormulaFieldDatabaseValue, *args
+    ) -> JSONFormulaFieldResult:
         """
         Called when reading from the database. We will call
-        `_transform_db_value_to_dict` to ensure we always return a
-        `BaserowFormulaObject` nested inside a dictionary.
+        `_transform_db_properties` to ensure we always return a
+        `JSONFormulaFieldResult` nested inside a dictionary.
 
         :param value: The value from the database, either a string or dictionary.
-        :return: A `BaserowFormulaObject` nested inside a dictionary.
+        :return: A `JSONFormulaFieldResult` nested inside a dictionary.
         """
 
         value = super().from_db_value(value, *args)
-        return self._transform_db_value_to_dict(value[self.property_name])
+        return self._transform_db_properties(value)
+
+    def _transform_python_property(
+        self, value: Union[str, BaserowFormulaObject]
+    ) -> BaserowFormulaMinified:
+        """
+        Responsible for taking a `value`, which could be a string
+        or dictionary, and transforming it into a `BaserowFormulaMinified`
+        for `get_prep_value` to persist in our database.
+
+        :param value: The value from the database, either a string or dictionary.
+        :return: A `BaserowFormulaMinified`.
+        """
+
+        if isinstance(value, str):
+            return BaserowFormulaMinified(
+                m=BASEROW_FORMULA_MODE_SIMPLE,
+                v=BASEROW_FORMULA_VERSION_INITIAL,
+                f=value,
+            )
+        return BaserowFormulaMinified(
+            m=value.get("mode", BASEROW_FORMULA_MODE_SIMPLE),
+            v=value.get("version", BASEROW_FORMULA_VERSION_INITIAL),
+            f=value.get("formula", ""),
+        )
 
     def get_prep_value(
-        self, value: Dict[str, Union[str, BaserowFormulaObject]]
-    ) -> Dict[str, BaserowFormulaMinified]:
+        self, value: Union[BaserowFormulaObject, List[Dict[str, BaserowFormulaObject]]]
+    ) -> JSONFormulaFieldDatabaseValue:
         """
-        Responsible for converting a formula string, or `BaserowFormulaObject` to a
-        `BaserowFormulaMinified` object, nested inside `value[self.property_name]`.
+        Responsible for converting a Python value to database value. Our Python
+        value could be a dictionary (a `BaserowFormulaObject`), or a list
+        of dictionaries (a list of `BaserowFormulaObject`s). We need to convert
+        both of these into a `BaserowFormulaMinified` object, or a list of
+        `BaserowFormulaMinified` objects at their designated paths.
+
         :param value: The value to convert, either a string or `BaserowFormulaObject`.
-        :return: A `BaserowFormulaMinified` object nested inside a dictionary.
+        :return: A `JSONFormulaFieldDatabaseValue`.
         """
 
-        formula = value.get(self.property_name, {})
-        if isinstance(formula, str):
-            return {
-                self.property_name: BaserowFormulaMinified(
-                    m=BASEROW_FORMULA_MODE_SIMPLE,
-                    v=BASEROW_FORMULA_VERSION_INITIAL,
-                    f=formula,
-                )
-            }
-        return {
-            self.property_name: BaserowFormulaMinified(
-                m=formula.get("mode", BASEROW_FORMULA_MODE_SIMPLE),
-                v=formula.get("version", BASEROW_FORMULA_VERSION_INITIAL),
-                f=formula.get("formula", ""),
+        # If we receive an empty dict or string, just return early.
+        # We'll be back in a moment with a value (e.g. creating a
+        # record with no json value, then updating it).
+        if not value:
+            return value
+
+        # We only process dictionaries and lists.
+        # If we receive anything else (e.g. via a receiver such as
+        # `page_deleted_update_link_collection_fields`), then return its value.
+        if not isinstance(value, (dict, list)):
+            return value
+
+        # Iterate over the properties bound to this field.
+        # Each property represents a path to a formula field
+        # we need to convert from full to minified.
+        for path in self.properties:
+            # A path can be nested, e.g. "parent.child",
+            # or just a single level, e.g. "parent".
+            parent_path, child_path = (
+                path.split(".", 1) if "." in path else (path, None)
             )
-        }
+            # If `value` is a dictionary, we'll extract the nested value from it.
+            # However, if it's a list, then the `value` itself is our property value.
+            property_value: Union[BaserowFormulaObject, List] = (
+                value.get(parent_path) if isinstance(value, dict) else value
+            )
+
+            # Sometimes in tests we don't set all formula properties correctly.
+            if property_value is None:
+                continue
+
+            # If we have a list of values to work with...
+            if isinstance(property_value, list):
+                # Iterate over each item in this list, transforming the
+                # relevant property to a `BaserowFormulaMinified`.
+                minified_list_value = []
+                for item in property_value:
+                    # If there's no `child_path` (i.e. it's just "parent"),
+                    # then we transform the `item[parent_path]` value. E.g.
+                    # [{parent: BaserowFormulaObject}] ->
+                    #   [{parent: BaserowFormulaMinified}]
+                    if child_path is None:
+                        minified_value = self._transform_python_property(
+                            item[parent_path]
+                        )
+                        minified_list_value.append(item | {parent_path: minified_value})
+                    else:
+                        # However if we have a `child_path` (i.e. it's "parent.child"),
+                        # then we transform the `item[child_path]` value. E.g.
+                        # [{parent: {child: BaserowFormulaObject}}] ->
+                        #   [{parent: {child: BaserowFormulaMinified}}]
+                        minified_value = self._transform_python_property(
+                            item[child_path]
+                        )
+                        minified_list_value.append(item | {child_path: minified_value})
+
+                # If we have a `child_path`, then we set the transformed list
+                # on `value[parent_path]`. Otherwise, we set the entire `value
+                # to be the transformed list.
+                if child_path:
+                    value[parent_path] = minified_list_value
+                else:
+                    value = minified_list_value
+            else:
+                # Otherwise, we have a dictionary, so we transform the
+                # `property_value` directly.
+                minified_value = self._transform_python_property(property_value)
+                value[path] = minified_value
+
+        return value

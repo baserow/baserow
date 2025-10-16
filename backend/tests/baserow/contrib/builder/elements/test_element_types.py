@@ -226,11 +226,15 @@ def test_link_collection_field_import_export_formula(data_fixture):
     expected_formula = f"get('data_source.{data_source_2.id}.field_1')"
     expected_query_formula = f"get('data_source.{data_source_2.id}.field_2')"
     imported_field = imported_element.fields.all()[0]
-    assert imported_field.config["link_name"] == expected_formula
-    assert imported_field.config["navigate_to_url"] == expected_formula
-    assert imported_field.config["page_parameters"][0]["value"] == expected_formula
+    assert imported_field.config["link_name"]["formula"] == expected_formula
+    assert imported_field.config["navigate_to_url"]["formula"] == expected_formula
     assert (
-        imported_field.config["query_parameters"][0]["value"] == expected_query_formula
+        imported_field.config["page_parameters"][0]["value"]["formula"]
+        == expected_formula
+    )
+    assert (
+        imported_field.config["query_parameters"][0]["value"]["formula"]
+        == expected_query_formula
     )
 
 
@@ -269,10 +273,13 @@ def test_link_element_import_export_formula(data_fixture):
 
     expected_formula = f"get('data_source.{data_source_2.id}.field_1')"
     expected_query_formula = f"get('data_source.{data_source_2.id}.field_2')"
-    assert imported_element.navigate_to_url == expected_formula
-    assert imported_element.value == expected_formula
-    assert imported_element.page_parameters[0]["value"] == expected_formula
-    assert imported_element.query_parameters[0]["value"] == expected_query_formula
+    assert imported_element.navigate_to_url["formula"] == expected_formula
+    assert imported_element.value["formula"] == expected_formula
+    assert imported_element.page_parameters[0]["value"]["formula"] == expected_formula
+    assert (
+        imported_element.query_parameters[0]["value"]["formula"]
+        == expected_query_formula
+    )
 
 
 @pytest.mark.django_db
@@ -296,7 +303,7 @@ def test_form_container_element_import_export_formula(data_fixture):
     imported_element = element_type.import_serialized(page, serialized, id_mapping)
 
     expected_formula = f"get('data_source.{data_source_2.id}.field_1')"
-    assert imported_element.submit_button_label == expected_formula
+    assert imported_element.submit_button_label["formula"] == expected_formula
 
 
 @pytest.mark.parametrize(
@@ -335,7 +342,7 @@ def test_text_element_import_export_formula(data_fixture):
     imported_element = element_type.import_serialized(page, serialized, id_mapping)
 
     expected_formula = f"get('data_source.{data_source_2.id}.field_1')"
-    assert imported_element.value == expected_formula
+    assert imported_element.value["formula"] == expected_formula
 
 
 @pytest.mark.django_db
@@ -359,9 +366,9 @@ def test_input_text_element_import_export_formula(data_fixture):
     imported_element = element_type.import_serialized(page, serialized, id_mapping)
 
     expected_formula = f"get('data_source.{data_source_2.id}.field_1')"
-    assert imported_element.label == expected_formula
-    assert imported_element.default_value == expected_formula
-    assert imported_element.placeholder == expected_formula
+    assert imported_element.label["formula"] == expected_formula
+    assert imported_element.default_value["formula"] == expected_formula
+    assert imported_element.placeholder["formula"] == expected_formula
 
 
 @pytest.mark.django_db
@@ -384,8 +391,8 @@ def test_image_element_import_export_formula(data_fixture):
     imported_element = element_type.import_serialized(page, serialized, id_mapping)
 
     expected_formula = f"get('data_source.{data_source_2.id}.field_1')"
-    assert imported_element.image_url == expected_formula
-    assert imported_element.alt_text == expected_formula
+    assert imported_element.image_url["formula"] == expected_formula
+    assert imported_element.alt_text["formula"] == expected_formula
 
 
 @pytest.mark.django_db
@@ -407,7 +414,7 @@ def test_button_element_import_export_formula(data_fixture):
     imported_element = element_type.import_serialized(page, serialized, id_mapping)
 
     expected_formula = f"get('data_source.{data_source_2.id}.field_1')"
-    assert imported_element.value == expected_formula
+    assert imported_element.value["formula"] == expected_formula
 
 
 def test_rating_input_element_type_is_valid_with_valid_value():
@@ -496,11 +503,11 @@ def test_choice_element_import_export_formula(data_fixture):
     imported_element = element_type.import_serialized(page, serialized, id_mapping)
 
     expected_formula = f"get('data_source.{data_source_2.id}.field_1')"
-    assert imported_element.label == expected_formula
-    assert imported_element.default_value == expected_formula
-    assert imported_element.placeholder == expected_formula
-    assert imported_element.formula_name == expected_formula
-    assert imported_element.formula_value == expected_formula
+    assert imported_element.label["formula"] == expected_formula
+    assert imported_element.default_value["formula"] == expected_formula
+    assert imported_element.placeholder["formula"] == expected_formula
+    assert imported_element.formula_name["formula"] == expected_formula
+    assert imported_element.formula_value["formula"] == expected_formula
 
 
 @pytest.mark.django_db
@@ -820,7 +827,7 @@ def test_page_with_element_using_form_data_has_dependencies_import_first(data_fi
 
     form_input_clone = InputTextElement.objects.get(page=page_clone)
     heading_clone = HeadingElement.objects.get(page=page_clone)
-    assert heading_clone.value == f"get('form_data.{form_input_clone.id}')"
+    assert heading_clone.value["formula"] == f"get('form_data.{form_input_clone.id}')"
 
 
 @pytest.mark.django_db
@@ -843,8 +850,8 @@ def test_checkbox_element_import_export_formula(data_fixture):
     imported_element = element_type.import_serialized(page, serialized, id_mapping)
 
     expected_formula = f"get('data_source.{data_source_2.id}.field_1')"
-    assert imported_element.label == expected_formula
-    assert imported_element.default_value == expected_formula
+    assert imported_element.label["formula"] == expected_formula
+    assert imported_element.default_value["formula"] == expected_formula
 
 
 @pytest.mark.django_db
@@ -901,8 +908,8 @@ def test_iframe_element_import_export_formula(data_fixture):
     imported_element = element_type.import_serialized(page, serialized, id_mapping)
 
     expected_formula = f"get('data_source.{data_source_2.id}.field_1')"
-    assert imported_element.url == expected_formula
-    assert imported_element.embed == expected_formula
+    assert imported_element.url["formula"] == expected_formula
+    assert imported_element.embed["formula"] == expected_formula
 
 
 @pytest.mark.django_db
@@ -954,7 +961,7 @@ def test_image_element_import_export(data_fixture, fake, storage):
         )
 
     expected_formula = f"get('data_source.{data_source_2.id}.field_1')"
-    assert imported_element.image_url == expected_formula
+    assert imported_element.image_url["formula"] == expected_formula
     assert (
         imported_element.image_file_id is not None
         and imported_element.image_file_id != element_to_export.image_file_id
@@ -986,9 +993,9 @@ def test_choice_element_import_export(data_fixture):
     imported_element = element_type.import_serialized(page, serialized, id_mapping)
 
     expected_formula = f"get('data_source.{data_source_2.id}.field_1')"
-    assert imported_element.label == expected_formula
-    assert imported_element.default_value == expected_formula
-    assert imported_element.placeholder == expected_formula
+    assert imported_element.label["formula"] == expected_formula
+    assert imported_element.default_value["formula"] == expected_formula
+    assert imported_element.placeholder["formula"] == expected_formula
 
     assert imported_element.multiple is True
 
