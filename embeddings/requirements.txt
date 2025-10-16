@@ -1,0 +1,4 @@
+optimum[onnxruntime]==1.27.0
+transformers==4.53.0
+starlette==0.48.0
+uvicorn==0.37.0
