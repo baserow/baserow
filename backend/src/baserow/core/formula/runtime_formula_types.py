@@ -1,5 +1,7 @@
 from zoneinfo import ZoneInfo
 
+from django.utils import timezone
+
 from baserow.core.formula.argument_types import (
     DateTimeBaserowRuntimeFormulaArgumentType,
     NumberBaserowRuntimeFormulaArgumentType,
@@ -13,11 +15,11 @@ from baserow.core.formula.validator import ensure_string
 class RuntimeConcat(RuntimeFormulaFunction):
     type = "concat"
 
-    def execute(self, context: FormulaContext, args: FormulaArgs):
-        return "".join([ensure_string(a) for a in args])
-
     def validate_number_of_args(self, args):
         return len(args) >= 2
+
+    def execute(self, context: FormulaContext, args: FormulaArgs):
+        return "".join([ensure_string(a) for a in args])
 
 
 class RuntimeGet(RuntimeFormulaFunction):
@@ -30,13 +32,143 @@ class RuntimeGet(RuntimeFormulaFunction):
 
 class RuntimeAdd(RuntimeFormulaFunction):
     type = "add"
+    # TODO: maybe create a new type that combines Number + String
     args = [
         NumberBaserowRuntimeFormulaArgumentType(),
         NumberBaserowRuntimeFormulaArgumentType(),
     ]
 
+    def validate_number_of_args(self, args):
+        return len(args) == 2
+
     def execute(self, context: FormulaContext, args: FormulaArgs):
         return args[0] + args[1]
+
+
+class RuntimeMinus(RuntimeFormulaFunction):
+    type = "minus"
+    args = [
+        NumberBaserowRuntimeFormulaArgumentType(),
+        NumberBaserowRuntimeFormulaArgumentType(),
+    ]
+
+    def validate_number_of_args(self, args):
+        return len(args) == 2
+
+    def execute(self, context: FormulaContext, args: FormulaArgs):
+        return args[0] - args[1]
+
+
+class RuntimeMultiply(RuntimeFormulaFunction):
+    type = "multiply"
+    args = [
+        NumberBaserowRuntimeFormulaArgumentType(),
+        NumberBaserowRuntimeFormulaArgumentType(),
+    ]
+
+    def validate_number_of_args(self, args):
+        return len(args) == 2
+
+    def execute(self, context: FormulaContext, args: FormulaArgs):
+        return args[0] * args[1]
+
+
+class RuntimeDivide(RuntimeFormulaFunction):
+    type = "divide"
+    args = [
+        NumberBaserowRuntimeFormulaArgumentType(),
+        NumberBaserowRuntimeFormulaArgumentType(),
+    ]
+
+    def validate_number_of_args(self, args):
+        return len(args) == 2
+
+    def execute(self, context: FormulaContext, args: FormulaArgs):
+        return args[0] / args[1]
+
+
+class RuntimeEqual(RuntimeFormulaFunction):
+    type = "equal"
+    args = [
+        NumberBaserowRuntimeFormulaArgumentType(),
+        NumberBaserowRuntimeFormulaArgumentType(),
+    ]
+
+    def validate_number_of_args(self, args):
+        return len(args) == 2
+
+    def execute(self, context: FormulaContext, args: FormulaArgs):
+        return args[0] == args[1]
+
+
+class RuntimeNotEqual(RuntimeFormulaFunction):
+    type = "not_equal"
+    args = [
+        NumberBaserowRuntimeFormulaArgumentType(),
+        NumberBaserowRuntimeFormulaArgumentType(),
+    ]
+
+    def validate_number_of_args(self, args):
+        return len(args) == 2
+
+    def execute(self, context: FormulaContext, args: FormulaArgs):
+        return args[0] != args[1]
+
+
+class RuntimeGreaterThan(RuntimeFormulaFunction):
+    type = "greater_than"
+    args = [
+        NumberBaserowRuntimeFormulaArgumentType(),
+        NumberBaserowRuntimeFormulaArgumentType(),
+    ]
+
+    def validate_number_of_args(self, args):
+        return len(args) == 2
+
+    def execute(self, context: FormulaContext, args: FormulaArgs):
+        return args[0] > args[1]
+
+
+class RuntimeLessThan(RuntimeFormulaFunction):
+    type = "less_than"
+    args = [
+        NumberBaserowRuntimeFormulaArgumentType(),
+        NumberBaserowRuntimeFormulaArgumentType(),
+    ]
+
+    def validate_number_of_args(self, args):
+        return len(args) == 2
+
+    def execute(self, context: FormulaContext, args: FormulaArgs):
+        return args[0] < args[1]
+
+
+class RuntimeGreaterThanOrEqual(RuntimeFormulaFunction):
+    type = "greater_than_or_equal"
+    args = [
+        NumberBaserowRuntimeFormulaArgumentType(),
+        NumberBaserowRuntimeFormulaArgumentType(),
+    ]
+
+    def validate_number_of_args(self, args):
+        return len(args) == 2
+
+    def execute(self, context: FormulaContext, args: FormulaArgs):
+        return args[0] >= args[1]
+
+
+class RuntimeLessThanOrEqual(RuntimeFormulaFunction):
+    type = "less_than_or_equal"
+    args = [
+        NumberBaserowRuntimeFormulaArgumentType(),
+        NumberBaserowRuntimeFormulaArgumentType(),
+    ]
+
+    def validate_number_of_args(self, args):
+        return len(args) == 2
+
+    def execute(self, context: FormulaContext, args: FormulaArgs):
+        return args[0] <= args[1]
 
 
 class RuntimeUpper(RuntimeFormulaFunction):
@@ -180,3 +312,17 @@ class RuntimeSecond(RuntimeFormulaFunction):
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
         return args[0].second
+
+
+class RuntimeNow(RuntimeFormulaFunction):
+    type = "now"
+
+    def execute(self, context: FormulaContext, args: FormulaArgs):
+        return timezone.now()
+
+
+class RuntimeToday(RuntimeFormulaFunction):
+    type = "today"
+
+    def execute(self, context: FormulaContext, args: FormulaArgs):
+        return timezone.localdate()

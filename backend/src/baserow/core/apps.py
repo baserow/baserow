@@ -41,15 +41,25 @@ class CoreConfig(AppConfig):
             RuntimeConcat,
             RuntimeDateTimeFormat,
             RuntimeDay,
+            RuntimeDivide,
+            RuntimeEqual,
             RuntimeGet,
+            RuntimeGreaterThan,
+            RuntimeGreaterThanOrEqual,
             RuntimeHour,
             RuntimeIsEven,
             RuntimeIsOdd,
+            RuntimeLessThan,
             RuntimeLower,
+            RuntimeMinus,
             RuntimeMinute,
             RuntimeMonth,
+            RuntimeMultiply,
+            RuntimeNotEqual,
+            RuntimeNow,
             RuntimeRound,
             RuntimeSecond,
+            RuntimeToday,
             RuntimeUpper,
             RuntimeYear,
         )
@@ -57,6 +67,14 @@ class CoreConfig(AppConfig):
         formula_runtime_function_registry.register(RuntimeConcat())
         formula_runtime_function_registry.register(RuntimeGet())
         formula_runtime_function_registry.register(RuntimeAdd())
+        formula_runtime_function_registry.register(RuntimeMinus())
+        formula_runtime_function_registry.register(RuntimeMultiply())
+        formula_runtime_function_registry.register(RuntimeDivide())
+        formula_runtime_function_registry.register(RuntimeEqual())
+        formula_runtime_function_registry.register(RuntimeNotEqual())
+        formula_runtime_function_registry.register(RuntimeGreaterThan())
+        formula_runtime_function_registry.register(RuntimeLessThan())
+        formula_runtime_function_registry.register(RuntimeGreaterThanOrEqual())
         formula_runtime_function_registry.register(RuntimeUpper())
         formula_runtime_function_registry.register(RuntimeLower())
         formula_runtime_function_registry.register(RuntimeCapitalize())
@@ -70,6 +88,8 @@ class CoreConfig(AppConfig):
         formula_runtime_function_registry.register(RuntimeHour())
         formula_runtime_function_registry.register(RuntimeMinute())
         formula_runtime_function_registry.register(RuntimeSecond())
+        formula_runtime_function_registry.register(RuntimeNow())
+        formula_runtime_function_registry.register(RuntimeToday())
 
         from baserow.core.permission_manager import (
             AllowIfTemplatePermissionManagerType,
