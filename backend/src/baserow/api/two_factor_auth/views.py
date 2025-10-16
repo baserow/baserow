@@ -36,6 +36,7 @@ from drf_spectacular.utils import extend_schema
 from rest_framework import serializers
 from rest_framework.permissions import AllowAny
 
+
 class ConfigureTwoFactorAuthView(APIView):
     permission_classes = (IsAuthenticated,)
 

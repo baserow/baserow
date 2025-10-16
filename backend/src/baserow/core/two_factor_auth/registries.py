@@ -75,7 +75,10 @@ class TOTPAuthProviderType(TwoFactorAuthProviderType):
     request_serializer_field_overrides = {"code": serializers.CharField(required=False)}
 
     def configure(
-        self, user: AbstractUser, provider, **kwargs
+        self,
+        user: AbstractUser,
+        provider: TOTPAuthProviderModel | None = None,
+        **kwargs,
     ) -> TOTPAuthProviderModel:
         if provider and kwargs.get("code"):
             code = kwargs.get("code")

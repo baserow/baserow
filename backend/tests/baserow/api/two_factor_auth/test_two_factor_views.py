@@ -129,6 +129,25 @@ def test_configure_totp_view_confirmation_failed_invalidcode(api_client, data_fi
 
 
 @pytest.mark.django_db
+def test_configure_totp_view_failed_already_provisioned(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    totp_provider = data_fixture.configure_totp(user)
+
+    url = reverse("api:two_factor_auth:configuration")
+    response = api_client.post(
+        url,
+        {"type": "totp"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    # TODO:
+    response_json = response.json()
+    assert response.status_code == HTTP_200_OK, response_json
+    assert response_json == {}
+
+
+@pytest.mark.django_db
 def test_configure_totp_view_replaces_previous_configuration(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
 
