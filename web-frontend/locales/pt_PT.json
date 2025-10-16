@@ -202,6 +202,7 @@
         "hasNoneSelectOptionEqual": "",
         "contains": "",
         "containsNot": "",
+        "starts_with": "",
         "containsWord": "",
         "doesntContainWord": "",
         "filenameContains": "",

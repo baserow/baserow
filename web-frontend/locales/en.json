@@ -245,6 +245,7 @@
     "hasNoneSelectOptionEqual": "doesn't have select option equal",
     "contains": "contains",
     "containsNot": "doesn't contain",
+    "starts_with": "starts with",
     "containsWord": "contains word",
     "doesntContainWord": "doesn't contain word",
     "filenameContains": "filename contains",

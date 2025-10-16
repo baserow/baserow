@@ -200,6 +200,7 @@ from .field_filters import (
     contains_word_filter,
     filename_contains_filter,
     parse_ids_from_csv_string,
+    startswith_filter,
 )
 from .field_helpers import prepare_files_for_export
 from .field_sortings import OptionallyAnnotatedOrderBy
@@ -457,6 +458,9 @@ class TextFieldType(CollationSortMixin, FieldType):
     def contains_word_query(self, *args):
         return contains_word_filter(*args)
 
+    def startswith_query(self, *args):
+        return startswith_filter(*args)
+
     def to_baserow_formula_type(self, field) -> BaserowFormulaType:
         return BaserowFormulaTextType(nullable=True)
 
@@ -526,6 +530,9 @@ class LongTextFieldType(CollationSortMixin, FieldType):
 
     def contains_word_query(self, *args):
         return contains_word_filter(*args)
+
+    def startswith_query(self, *args):
+        return startswith_filter(*args)
 
     def to_baserow_formula_type(self, field) -> BaserowFormulaType:
         return BaserowFormulaTextType(nullable=True)

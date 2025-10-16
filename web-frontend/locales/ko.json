@@ -226,6 +226,7 @@
         "hasNoneSelectOptionEqual": "선택 옵션이 동일하지 않음",
         "contains": "포함됨",
         "containsNot": "포함되지 않음",
+        "starts_with": "다음으로 시작함",
         "containsWord": "단어를 포함함",
         "doesntContainWord": "단어를 포함하지 않음",
         "filenameContains": "파일 이름에 포함됨",

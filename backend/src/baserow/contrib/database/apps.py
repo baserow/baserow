@@ -388,6 +388,7 @@ class DatabaseConfig(AppConfig):
             SingleSelectIsAnyOfViewFilterType,
             SingleSelectIsNoneOfViewFilterType,
             SingleSelectNotEqualViewFilterType,
+            StartsWithViewFilterType,
             UserIsNotViewFilterType,
             UserIsViewFilterType,
         )
@@ -399,6 +400,7 @@ class DatabaseConfig(AppConfig):
         view_filter_type_registry.register(HasFileTypeViewFilterType())
         view_filter_type_registry.register(ContainsViewFilterType())
         view_filter_type_registry.register(ContainsNotViewFilterType())
+        view_filter_type_registry.register(StartsWithViewFilterType())
         view_filter_type_registry.register(ContainsWordViewFilterType())
         view_filter_type_registry.register(DoesntContainWordViewFilterType())
         view_filter_type_registry.register(LengthIsLowerThanViewFilterType())

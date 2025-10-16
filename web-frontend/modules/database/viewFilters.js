@@ -657,6 +657,46 @@ export class ContainsNotViewFilterType extends ViewFilterType {
   }
 }
 
+export class StartsWithViewFilterType extends ViewFilterType {
+  static getType() {
+    return 'starts_with'
+  }
+
+  getName() {
+    const { i18n } = this.app
+    return i18n.t('viewFilter.starts_with')
+  }
+
+  getInputComponent(field) {
+    const inputComponent = {
+      [NumberFieldType.getType()]: ViewFilterTypeNumber,
+    }
+    return inputComponent[field?.type] || ViewFilterTypeText
+  }
+
+  getCompatibleFieldTypes() {
+    // The GitLab issue explicitly says: only text and long text fields
+    return ['text', 'long_text']
+  }
+
+  matches(rowValue, filterValue, field, fieldType) {
+    if (!filterValue || filterValue === '') {
+      return true
+    }
+
+    if (typeof rowValue !== 'string') {
+      return false
+    }
+
+    try {
+      return rowValue.toLowerCase().startsWith(filterValue.toLowerCase())
+    } catch (error) {
+      console.warn('StartsWithViewFilterType.matches error:', error)
+      return false
+    }
+  }
+}
+
 export class ContainsWordViewFilterType extends ViewFilterType {
   static getType() {
     return 'contains_word'

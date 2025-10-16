@@ -209,6 +209,7 @@
         "hasNoneSelectOptionEqual": "не имеет выбранной опции, равной",
         "contains": "содержит",
         "containsNot": "не содержит",
+        "starts_with": "начинается с",
         "containsWord": "содержит слово",
         "doesntContainWord": "не содержит слово",
         "filenameContains": "имя файла содержит",

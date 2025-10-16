@@ -40,6 +40,7 @@ import {
   EqualViewFilterType,
   NotEqualViewFilterType,
   ContainsViewFilterType,
+  StartsWithViewFilterType,
   FilenameContainsViewFilterType,
   FilesLowerThanViewFilterType,
   HasFileTypeViewFilterType,
@@ -554,6 +555,7 @@ export default (context) => {
   app.$registry.register('viewFilter', new ContainsViewFilterType(context))
   app.$registry.register('viewFilter', new ContainsNotViewFilterType(context))
   app.$registry.register('viewFilter', new ContainsWordViewFilterType(context))
+  app.$registry.register('viewFilter', new StartsWithViewFilterType(context))
   app.$registry.register(
     'viewFilter',
     new DoesntContainWordViewFilterType(context)

@@ -173,6 +173,7 @@
     "viewFilter": {
         "contains": "tartalmazza",
         "containsNot": "nem tartalmazza",
+        "starts_with": "ezzel kezdődik",
         "containsWord": "szót tartalmaz",
         "doesntContainWord": "nem tartalmaz szót",
         "filenameContains": "fájlnév tartalmazza",

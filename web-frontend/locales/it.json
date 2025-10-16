@@ -204,6 +204,7 @@
     "viewFilter": {
         "contains": "contiene",
         "containsNot": "non contiene",
+        "starts_with": "inizia con",
         "filenameContains": "il nome file contiene",
         "has": "ha",
         "hasNot": "non ha",

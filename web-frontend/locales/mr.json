@@ -124,6 +124,7 @@
     "viewFilter": {
         "contains": "",
         "containsNot": "",
+        "starts_with": "",
         "filenameContains": "",
         "has": "",
         "hasNot": "",

@@ -131,6 +131,7 @@
     "viewFilter": {
         "contains": "含む",
         "containsNot": "含まない",
+        "starts_with": "次で始まる：",
         "filenameContains": "ファイル名は以下を含みます：",
         "has": "含む",
         "hasNot": "含まない",

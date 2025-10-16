@@ -45,7 +45,7 @@ from baserow_enterprise.integrations.local_baserow.user_source_types import (
     LocalBaserowUserSourceType,
 )
 
-# Added comment to test
+
 def test_builder_application_type_import_application_priority():
     database_type = application_type_registry.get(DatabaseApplicationType.type)
     builder_type = application_type_registry.get(BuilderApplicationType.type)
