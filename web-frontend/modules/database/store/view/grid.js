@@ -2041,159 +2041,160 @@ export const actions = {
       undoRedoActionGroupId = null,
     }
   ) {
-    // Create an object of default field values that can be used to fill the row with
-    // missing default values
-    const fieldNewRowValueMap = fields.reduce((map, field) => {
-      const name = `field_${field.id}`
-      const fieldType = this.$registry.get('field', field._.type.type)
-      map[name] = fieldType.getNewRowValue(field)
-      return map
-    }, {})
-
-    const step = before ? ORDER_STEP_BEFORE : ORDER_STEP
-
-    // If before is not provided, then the row is added last. Because we don't know
-    // the total amount of rows in the table, we are going to add find the highest
-    // existing order in the buffer and increase that by one.
-    let order = getters.getHighestOrder
-      .integerValue(BigNumber.ROUND_CEIL)
-      .plus(step)
-      .toString()
-    if (before !== null) {
-      // It's okay to temporary set an order that just subtracts the
-      // ORDER_STEP_BEFORE because there will never be a conflict with rows because
-      // of the fraction ordering.
-      order = new BigNumber(before.order)
-        .minus(new BigNumber(step * rows.length))
-        .toString()
-    }
-
-    const index =
-      before === null
-        ? getters.getBufferEndIndex
-        : getters.getAllRows.findIndex((r) => r.id === before.id)
-
-    const fieldPermissionsMap = fields.reduce((map, field) => {
-      const fieldType = this.$registry.get('field', field._.type.type)
-      map[`field_${field.id}`] = fieldType.canWriteFieldValues(field)
-      return map
-    }, {})
-    const rowsPopulated = rows.map((row) => {
-      // Exclude fields where the user does not have the permission to edit
-      const permittedValues = Object.entries(row).reduce(
-        (map, [key, value]) => {
-          if (fieldPermissionsMap[key] === true) {
-            map[key] = value
-          }
-          return map
-        },
-        {}
-      )
-      row = { ...clone(fieldNewRowValueMap), ...permittedValues }
-      row = populateRow(row)
-      row.id = uuid()
-      row.order = order
-      row._.loading = true
-
-      order = new BigNumber(order).plus(new BigNumber(step)).toString()
-
-      return row
-    })
-
-    const isSingleRowInsertion = rowsPopulated.length === 1
-    const oldCount = getters.getCount
-    const canUpdateOptimistically = canRowsBeOptimisticallyUpdatedInView(
-      this.$registry,
-      view,
-      fields,
-      getters.getActiveSearchTerm
+    const taskQueue = createAndUpdateRowQueue.getOrCreateQueue(
+      `table_${table.id}`
     )
-    if (canUpdateOptimistically) {
-      // When a single row is inserted we don't want to deal with filters, sorts and
-      // search just yet. Therefore it is okay to just insert the row into the buffer.
-      if (isSingleRowInsertion) {
-        commit('UPDATE_GROUP_BY_METADATA_COUNT', {
-          fields,
-          registry: this.$registry,
-          row: rowsPopulated[0],
-          increase: true,
-          decrease: false,
-        })
+    const taskId = taskQueue.add(async () => {
+      // Create an object of default field values that can be used to fill the row with
+      // missing default values
+      const fieldNewRowValueMap = fields.reduce((map, field) => {
+        const name = `field_${field.id}`
+        const fieldType = this.$registry.get('field', field._.type.type)
+        map[name] = fieldType.getNewRowValue(field)
+        return map
+      }, {})
+
+      const step = before ? ORDER_STEP_BEFORE : ORDER_STEP
+
+      // If before is not provided, then the row is added last. Because we don't know
+      // the total amount of rows in the table, we are going to add find the highest
+      // existing order in the buffer and increase that by one.
+      let order = getters.getHighestOrder
+        .integerValue(BigNumber.ROUND_CEIL)
+        .plus(step)
+        .toString()
+      if (before !== null) {
+        // It's okay to temporary set an order that just subtracts the
+        // ORDER_STEP_BEFORE because there will never be a conflict with rows because
+        // of the fraction ordering.
+        order = new BigNumber(before.order)
+          .minus(new BigNumber(step * rows.length))
+          .toString()
+      }
+
+      const index =
+        before === null
+          ? getters.getBufferEndIndex
+          : getters.getAllRows.findIndex((r) => r.id === before.id)
+
+      const fieldPermissionsMap = fields.reduce((map, field) => {
+        const fieldType = this.$registry.get('field', field._.type.type)
+        map[`field_${field.id}`] = fieldType.canWriteFieldValues(field)
+        return map
+      }, {})
+      const rowsPopulated = rows.map((row) => {
+        // Exclude fields where the user does not have the permission to edit
+        const permittedValues = Object.entries(row).reduce(
+          (map, [key, value]) => {
+            if (fieldPermissionsMap[key] === true) {
+              map[key] = value
+            }
+            return map
+          },
+          {}
+        )
+        row = { ...clone(fieldNewRowValueMap), ...permittedValues }
+        row = populateRow(row)
+        row.id = uuid()
+        row.order = order
+        row._.loading = true
+
+        order = new BigNumber(order).plus(new BigNumber(step)).toString()
+
+        return row
+      })
+
+      const isSingleRowInsertion = rowsPopulated.length === 1
+      const oldCount = getters.getCount
+      const canUpdateOptimistically = canRowsBeOptimisticallyUpdatedInView(
+        this.$registry,
+        view,
+        fields,
+        getters.getActiveSearchTerm
+      )
+      if (canUpdateOptimistically) {
+        // When a single row is inserted we don't want to deal with filters, sorts and
+        // search just yet. Therefore it is okay to just insert the row into the buffer.
+        if (isSingleRowInsertion) {
+          commit('UPDATE_GROUP_BY_METADATA_COUNT', {
+            fields,
+            registry: this.$registry,
+            row: rowsPopulated[0],
+            increase: true,
+            decrease: false,
+          })
+          commit('INSERT_NEW_ROWS_IN_BUFFER_AT_INDEX', {
+            rows: rowsPopulated,
+            index,
+          })
+        } else {
+          // When inserting multiple rows we will need to deal with filters, sorts or search
+          // not matching. `createdNewRow` deals with exactly that for us.
+          for (const rowPopulated of rowsPopulated) {
+            await dispatch('createdNewRow', {
+              view,
+              fields,
+              values: rowPopulated,
+              metadata: {},
+              populate: false,
+            })
+          }
+        }
+      } else {
+        // just insert rows in the buffer and delay dealing with filters, sorts or search
+        // until we get the response from the backend.
         commit('INSERT_NEW_ROWS_IN_BUFFER_AT_INDEX', {
           rows: rowsPopulated,
           index,
         })
-      } else {
-        // When inserting multiple rows we will need to deal with filters, sorts or search
-        // not matching. `createdNewRow` deals with exactly that for us.
-        for (const rowPopulated of rowsPopulated) {
-          await dispatch('createdNewRow', {
-            view,
-            fields,
-            values: rowPopulated,
-            metadata: {},
-            populate: false,
-          })
-        }
       }
-    } else {
-      // just insert rows in the buffer and delay dealing with filters, sorts or search
-      // until we get the response from the backend.
-      commit('INSERT_NEW_ROWS_IN_BUFFER_AT_INDEX', {
-        rows: rowsPopulated,
-        index,
+
+      dispatch('visibleByScrollTop')
+
+      // Check if not all rows are visible.
+      const diff = oldCount - getters.getCount + rowsPopulated.length
+      if (!isSingleRowInsertion && diff > 0) {
+        dispatch(
+          'toast/success',
+          {
+            title: this.$i18n.t('gridView.hiddenRowsInsertedTitle'),
+            message: this.$i18n.t('gridView.hiddenRowsInsertedMessage', {
+              number: diff,
+            }),
+          },
+          { root: true }
+        )
+      }
+
+      const primaryField = fields.find((f) => f.primary)
+      if (selectPrimaryCell && primaryField && isSingleRowInsertion) {
+        await dispatch('setSelectedCell', {
+          rowId: rowsPopulated[0].id,
+          fieldId: primaryField.id,
+          fields,
+        })
+      }
+
+      // The backend expects slightly different values than what we have in the row
+      // buffer. Therefore, we need to prepare the rows before we can send them to the
+      // backend.
+      const rowsPrepared = rows.map((row) => {
+        row = { ...clone(fieldNewRowValueMap), ...row }
+        row = prepareRowForRequest(row, fields, this.$registry)
+        return row
       })
-    }
 
-    dispatch('visibleByScrollTop')
-
-    // Check if not all rows are visible.
-    const diff = oldCount - getters.getCount + rowsPopulated.length
-    if (!isSingleRowInsertion && diff > 0) {
-      dispatch(
-        'toast/success',
-        {
-          title: this.$i18n.t('gridView.hiddenRowsInsertedTitle'),
-          message: this.$i18n.t('gridView.hiddenRowsInsertedMessage', {
-            number: diff,
-          }),
-        },
-        { root: true }
-      )
-    }
-
-    const primaryField = fields.find((f) => f.primary)
-    if (selectPrimaryCell && primaryField && isSingleRowInsertion) {
-      await dispatch('setSelectedCell', {
-        rowId: rowsPopulated[0].id,
-        fieldId: primaryField.id,
-        fields,
+      // Lock the newly created rows with their persistent ID, so that if the user
+      // changes the value before the row is created, that request is queued.
+      rowsPopulated.forEach((row) => {
+        createAndUpdateRowQueue.lock(row._.persistentId)
       })
-    }
 
-    // The backend expects slightly different values than what we have in the row
-    // buffer. Therefore, we need to prepare the rows before we can send them to the
-    // backend.
-    const rowsPrepared = rows.map((row) => {
-      row = { ...clone(fieldNewRowValueMap), ...row }
-      row = prepareRowForRequest(row, fields, this.$registry)
-      return row
-    })
+      try {
+        let data = {}
+        // We're queueing this task, so other tasks, that may read state and modify it,
+        // won't overalp.
 
-    // Lock the newly created rows with their persistent ID, so that if the user
-    // changes the value before the row is created, that request is queued.
-    rowsPopulated.forEach((row) => {
-      createAndUpdateRowQueue.lock(row._.persistentId)
-    })
-
-    try {
-      let data = {}
-      const taskQueue = createAndUpdateRowQueue.getOrCreateQueue(
-        `table_${table.id}`
-      )
-      // We're queueing this task, so other tasks, that may read state and modify it,
-      // won't overalp.
-      const taskId = taskQueue.add(async () => {
         const resp = await RowService(this.$client).batchCreate(
           table.id,
           rowsPrepared,
@@ -2251,39 +2252,40 @@ export const actions = {
         await dispatch('fetchAllFieldAggregationData', {
           view,
         })
-      })
-      await taskQueue.waitFor(taskId)
-    } catch (error) {
-      if (isSingleRowInsertion) {
-        commit('UPDATE_GROUP_BY_METADATA_COUNT', {
-          fields,
-          registry: this.$registry,
-          row: rowsPopulated[0],
-          increase: false,
-          decrease: true,
-        })
-        commit('DELETE_ROW_IN_BUFFER', rowsPopulated[0])
-      } else {
-        // When we have multiple rows we will need to re-evaluate where the rest of the
-        // rows are now positioned. Therefore, we need to call `deletedExistingRow` to
-        // deal with all the potential edge cases
-        for (const rowPopulated of rowsPopulated) {
-          await dispatch('deletedExistingRow', {
-            view,
+      } catch (error) {
+        if (isSingleRowInsertion) {
+          commit('UPDATE_GROUP_BY_METADATA_COUNT', {
             fields,
-            row: rowPopulated,
+            registry: this.$registry,
+            row: rowsPopulated[0],
+            increase: false,
+            decrease: true,
           })
+          commit('DELETE_ROW_IN_BUFFER', rowsPopulated[0])
+        } else {
+          // When we have multiple rows we will need to re-evaluate where the rest of the
+          // rows are now positioned. Therefore, we need to call `deletedExistingRow` to
+          // deal with all the potential edge cases
+          for (const rowPopulated of rowsPopulated) {
+            await dispatch('deletedExistingRow', {
+              view,
+              fields,
+              row: rowPopulated,
+            })
+          }
         }
+        throw error
+      } finally {
+        // Release the lock because now the update requests can come through if they
+        // were made. Even if the rows were not created, we have to release the ids to
+        // clear the memory.
+
+        rowsPopulated.forEach((row) => {
+          createAndUpdateRowQueue.release(row._.persistentId)
+        })
       }
-      throw error
-    } finally {
-      // Release the lock because now the update requests can come through if they
-      // were made. Even if the rows were not created, we have to release the ids to
-      // clear the memory.
-      rowsPopulated.forEach((row) => {
-        createAndUpdateRowQueue.release(row._.persistentId)
-      })
-    }
+    })
+    await taskQueue.waitFor(taskId)
 
     dispatch('fetchByScrollTopDelayed', {
       scrollTop: getters.getScrollTop,
@@ -2466,91 +2468,94 @@ export const actions = {
       isRowOpenedInModal = undefined,
     }
   ) {
-    /**
-     * This helper function will make sure that the values of the related row are
-     * updated the right way.
-     */
-    const updateValues = async (row, values, optimisticUpdate) => {
-      const rowExistsInBuffer = getters.getRow(row.id) !== undefined
-
-      if (rowExistsInBuffer) {
-        // If the row exists in the buffer, we can visually show to the user that
-        // the values have changed, without immediately reflecting the change in
-        // the buffer.
-        if (optimisticUpdate) {
-          commit('UPDATE_GROUP_BY_METADATA_COUNT', {
-            fields,
-            registry: this.$registry,
-            row,
-            increase: false,
-            decrease: true,
-          })
-        }
-        commit('UPDATE_ROW_VALUES', {
-          row,
-          values: { ...values },
-        })
-        if (optimisticUpdate) {
-          commit('UPDATE_GROUP_BY_METADATA_COUNT', {
-            fields,
-            registry: this.$registry,
-            row,
-            increase: true,
-            decrease: false,
-          })
-          await dispatch('onRowChange', { view, row, fields })
-        }
-      } else {
-        // If the row doesn't exist in the buffer, it could be that the new values
-        // bring in into there. Dispatching the `updatedExistingRow` will make
-        // sure that will happen in the right way.
-        await dispatch('updatedExistingRow', { view, fields, row, values })
-        // There is a chance that the row is not in the buffer, but it does exist in
-        // the view. In that case, the `updatedExistingRow` action has not done
-        // anything. There is a possibility that the row is visible in the row edit
-        // modal, but then it won't be updated, so we have to update it forcefully.
-        commit('UPDATE_ROW_VALUES', {
-          row,
-          values: { ...values },
-        })
-        await dispatch('fetchByScrollTopDelayed', {
-          scrollTop: getters.getScrollTop,
-          fields,
-        })
-      }
-    }
-
-    const { newRowValues, oldRowValues, updateRequestValues } =
-      prepareNewOldAndUpdateRequestValues(
-        row,
-        fields,
-        field,
-        value,
-        oldValue,
-        this.$registry
-      )
-
-    const canUpdateOptimistically = canRowsBeOptimisticallyUpdatedInView(
-      this.$registry,
-      view,
-      fields,
-      getters.getActiveSearchTerm
+    // Add the update actual update function to the queue so that the same row
+    // will never be updated concurrency, and so that the value won't be
+    // updated if the row hasn't been created yet
+    const taskQueue = createAndUpdateRowQueue.getOrCreateQueue(
+      `table_${table.id}`
     )
-    if (!canUpdateOptimistically) {
-      commit('SET_ROW_LOADING', { row, value: true })
-    }
 
-    // When possible update the values before making a request to the backend to make
-    // it feel instant for the user. If we can't safely do it in the frontend, then
-    // we have to show a loading state and update the row after the request has been
-    // made.
-    await updateValues(row, newRowValues, canUpdateOptimistically)
+    const taskId = taskQueue.add(async () => {
+      /**
+       * This helper function will make sure that the values of the related row are
+       * updated the right way.
+       */
+      const updateValues = async (row, values, optimisticUpdate) => {
+        const rowExistsInBuffer = getters.getRow(row.id) !== undefined
 
-    try {
-      // Add the update actual update function to the queue so that the same row
-      // will never be updated concurrency, and so that the value won't be
-      // updated if the row hasn't been created yet.
-      await createAndUpdateRowQueue.add(async () => {
+        if (rowExistsInBuffer) {
+          // If the row exists in the buffer, we can visually show to the user that
+          // the values have changed, without immediately reflecting the change in
+          // the buffer.
+          if (optimisticUpdate) {
+            commit('UPDATE_GROUP_BY_METADATA_COUNT', {
+              fields,
+              registry: this.$registry,
+              row,
+              increase: false,
+              decrease: true,
+            })
+          }
+          commit('UPDATE_ROW_VALUES', {
+            row,
+            values: { ...values },
+          })
+          if (optimisticUpdate) {
+            commit('UPDATE_GROUP_BY_METADATA_COUNT', {
+              fields,
+              registry: this.$registry,
+              row,
+              increase: true,
+              decrease: false,
+            })
+            await dispatch('onRowChange', { view, row, fields })
+          }
+        } else {
+          // If the row doesn't exist in the buffer, it could be that the new values
+          // bring in into there. Dispatching the `updatedExistingRow` will make
+          // sure that will happen in the right way.
+          await dispatch('updatedExistingRow', { view, fields, row, values })
+          // There is a chance that the row is not in the buffer, but it does exist in
+          // the view. In that case, the `updatedExistingRow` action has not done
+          // anything. There is a possibility that the row is visible in the row edit
+          // modal, but then it won't be updated, so we have to update it forcefully.
+          commit('UPDATE_ROW_VALUES', {
+            row,
+            values: { ...values },
+          })
+          await dispatch('fetchByScrollTopDelayed', {
+            scrollTop: getters.getScrollTop,
+            fields,
+          })
+        }
+      }
+
+      const { newRowValues, oldRowValues, updateRequestValues } =
+        prepareNewOldAndUpdateRequestValues(
+          row,
+          fields,
+          field,
+          value,
+          oldValue,
+          this.$registry
+        )
+
+      const canUpdateOptimistically = canRowsBeOptimisticallyUpdatedInView(
+        this.$registry,
+        view,
+        fields,
+        getters.getActiveSearchTerm
+      )
+      if (!canUpdateOptimistically) {
+        commit('SET_ROW_LOADING', { row, value: true })
+      }
+
+      // When possible update the values before making a request to the backend to make
+      // it feel instant for the user. If we can't safely do it in the frontend, then
+      // we have to show a loading state and update the row after the request has been
+      // made.
+      await updateValues(row, newRowValues, canUpdateOptimistically)
+      try {
         const batchResponse = await RowService(this.$client).batchUpdate(
           table.id,
           [updateRequestValues]
@@ -2612,14 +2617,15 @@ export const actions = {
         dispatch('fetchAllFieldAggregationData', {
           view,
         })
-      }, row._.persistentId)
-    } catch (error) {
-      if (!canUpdateOptimistically) {
-        commit('SET_ROW_LOADING', { row, value: false })
+      } catch (error) {
+        if (!canUpdateOptimistically) {
+          commit('SET_ROW_LOADING', { row, value: false })
+        }
+        await updateValues(row, oldRowValues, true)
+        throw error
       }
-      await updateValues(row, oldRowValues, true)
-      throw error
-    }
+    }, row._.persistentId)
+    await taskQueue.waitFor(taskId)
   },
   /**
    * Set the multiple select indexes using the row and field head and tail indexes.
