@@ -212,9 +212,9 @@ def test_update_element(data_fixture):
     user = data_fixture.create_user()
     element = data_fixture.create_builder_heading_element(user=user)
 
-    element_updated = ElementHandler().update_element(element, value="newValue")
+    element_updated = ElementHandler().update_element(element, value="'newValue'")
 
-    assert element_updated.value == "newValue"
+    assert element_updated.value["formula"] == "'newValue'"
 
 
 @pytest.mark.django_db

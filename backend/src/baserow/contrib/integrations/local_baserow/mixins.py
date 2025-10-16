@@ -20,7 +20,7 @@ from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowTableServiceSort,
     LocalBaserowViewService,
 )
-from baserow.core.formula import BaserowFormula, resolve_formula
+from baserow.core.formula import BaserowFormulaObject, resolve_formula
 from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.formula.serializers import FormulaSerializerField
 from baserow.core.formula.validator import ensure_integer, ensure_string
@@ -791,7 +791,7 @@ class LocalBaserowTableServiceSpecificRowMixin:
     }
 
     class SerializedDict(ServiceDict):
-        row_id: BaserowFormula
+        row_id: BaserowFormulaObject
 
     def formulas_to_resolve(self, service: ServiceSubClass) -> list[FormulaToResolve]:
         """

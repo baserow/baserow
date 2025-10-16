@@ -27,6 +27,9 @@ from baserow.contrib.builder.elements.models import (
     LinkElement,
     TextElement,
 )
+from baserow.core.formula import BaserowFormulaObject
+from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
+from baserow.core.formula.types import BASEROW_FORMULA_MODE_SIMPLE
 
 
 @pytest.fixture
@@ -101,10 +104,8 @@ def test_element_formula_generator_mixin(
     )
 
     for formula_field in element_type.simple_formula_fields:
-        assert (
-            getattr(imported_element, formula_field)
-            == formula_generator_fixture["formula_2"]
-        )
+        formula_obj = getattr(imported_element, formula_field)
+        assert formula_obj["formula"] == formula_generator_fixture["formula_2"]
 
 
 @pytest.mark.django_db
@@ -149,13 +150,13 @@ def test_link_element_formula_generator(data_fixture, formula_generator_fixture)
         formula_generator_fixture["id_mapping"],
     )
 
-    assert imported_element.value == formula_generator_fixture["formula_2"]
+    assert imported_element.value["formula"] == formula_generator_fixture["formula_2"]
 
     for page_param in imported_element.page_parameters:
-        assert page_param.get("value") == formula_generator_fixture["formula_2"]
+        assert page_param["value"]["formula"] == formula_generator_fixture["formula_2"]
 
     for query_param in imported_element.query_parameters:
-        assert query_param.get("value") == formula_generator_fixture["formula_2"]
+        assert query_param["value"]["formula"] == formula_generator_fixture["formula_2"]
 
 
 @pytest.mark.django_db
@@ -206,7 +207,11 @@ def test_table_element_formula_generator(data_fixture, formula_generator_fixture
     )
 
     assert table_element.fields.get().config == {
-        "label": "get('current_record.field_111')"
+        "label": BaserowFormulaObject(
+            formula="get('current_record.field_111')",
+            version=BASEROW_FORMULA_VERSION_INITIAL,
+            mode=BASEROW_FORMULA_MODE_SIMPLE,
+        )
     }
     assert table_element.data_source_id == data_source.id
 
@@ -252,11 +257,14 @@ def test_menu_element_formula_generator(data_fixture, formula_generator_fixture)
 
     imported_menu_item = imported_element.menu_items.first()
     assert (
-        imported_menu_item.page_parameters[0]["value"]
+        imported_menu_item.page_parameters[0]["value"]["formula"]
         == formula_generator_fixture["formula_2"]
     )
     assert (
-        imported_menu_item.query_parameters[0]["value"]
+        imported_menu_item.query_parameters[0]["value"]["formula"]
         == formula_generator_fixture["formula_2"]
     )
-    assert imported_menu_item.navigate_to_url == formula_generator_fixture["formula_2"]
+    assert (
+        imported_menu_item.navigate_to_url["formula"]
+        == formula_generator_fixture["formula_2"]
+    )

@@ -6,6 +6,9 @@ import pytest
 from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST
 
 from baserow.contrib.builder.elements.models import LinkElement, NavigationElementMixin
+from baserow.core.formula import BaserowFormulaObject
+from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
+from baserow.core.formula.types import BASEROW_FORMULA_MODE_SIMPLE
 
 
 @pytest.mark.django_db
@@ -93,7 +96,11 @@ def test_can_update_a_table_element_fields(api_client, data_fixture):
         {
             "name": "Name",
             "type": "text",
-            "value": "get('test1')",
+            "value": BaserowFormulaObject(
+                formula="get('test1')",
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+            ),
             "uid": uuids[0],
             "styles": {},
         },
@@ -102,8 +109,16 @@ def test_can_update_a_table_element_fields(api_client, data_fixture):
             "type": "link",
             "navigate_to_page_id": None,
             "navigation_type": NavigationElementMixin.NAVIGATION_TYPES.PAGE,
-            "navigate_to_url": "get('test2')",
-            "link_name": "get('test3')",
+            "navigate_to_url": BaserowFormulaObject(
+                formula="get('test2')",
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+            ),
+            "link_name": BaserowFormulaObject(
+                formula="get('test3')",
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+            ),
             "target": "self",
             "page_parameters": [],
             "query_parameters": [],
@@ -114,7 +129,11 @@ def test_can_update_a_table_element_fields(api_client, data_fixture):
         {
             "name": "Question",
             "type": "text",
-            "value": "get('test3')",
+            "value": BaserowFormulaObject(
+                formula="get('test3')",
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+            ),
             "uid": uuids[2],
             "styles": {},
         },

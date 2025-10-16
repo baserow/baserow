@@ -6,6 +6,8 @@ from django.core.files.storage import FileSystemStorage
 import pytest
 
 from baserow.contrib.builder.pages.service import PageService
+from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
+from baserow.core.formula.types import BASEROW_FORMULA_MODE_SIMPLE, BaserowFormulaObject
 from baserow.core.user_files.handler import UserFileHandler
 
 
@@ -70,6 +72,14 @@ def test_import_export_image_collection_field_type(data_fixture, fake, storage):
 
     images = imported_table_element.fields.get(name="Images")
     assert images.config == {
-        "src": f"get('data_source.{data_source_2.id}.*.{fields[0].db_column}.url')",
-        "alt": f"get('data_source.{data_source_2.id}.*.{fields[0].db_column}.name')",
+        "src": BaserowFormulaObject(
+            formula=f"get('data_source.{data_source_2.id}.*.{fields[0].db_column}.url')",
+            version=BASEROW_FORMULA_VERSION_INITIAL,
+            mode=BASEROW_FORMULA_MODE_SIMPLE,
+        ),
+        "alt": BaserowFormulaObject(
+            formula=f"get('data_source.{data_source_2.id}.*.{fields[0].db_column}.name')",
+            version=BASEROW_FORMULA_VERSION_INITIAL,
+            mode=BASEROW_FORMULA_MODE_SIMPLE,
+        ),
     }

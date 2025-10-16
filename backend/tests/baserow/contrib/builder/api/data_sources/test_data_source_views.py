@@ -17,6 +17,8 @@ from rest_framework.status import (
 from baserow.contrib.builder.data_sources.models import DataSource
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.views.models import SORT_ORDER_ASC
+from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
+from baserow.core.formula.types import BASEROW_FORMULA_MODE_SIMPLE, BaserowFormulaObject
 from baserow.core.services.models import Service
 from baserow.core.user_sources.user_source_user import UserSourceUser
 from baserow.test_utils.helpers import AnyInt, AnyStr, setup_interesting_test_table
@@ -247,7 +249,7 @@ def test_update_data_source(api_client, data_fixture):
     assert response.status_code == HTTP_200_OK
     assert response.json()["view_id"] == view.id
     assert response.json()["table_id"] == table.id
-    assert response.json()["row_id"] == '"test"'
+    assert response.json()["row_id"]["formula"] == '"test"'
     assert response.json()["name"] == "name test"
 
 
@@ -355,13 +357,21 @@ def test_update_data_source_with_filters(api_client, data_fixture):
                 {
                     "field": text_field.id,
                     "type": "equals",
-                    "value": "foobar",
+                    "value": BaserowFormulaObject(
+                        formula="foobar",
+                        version=BASEROW_FORMULA_VERSION_INITIAL,
+                        mode=BASEROW_FORMULA_MODE_SIMPLE,
+                    ),
                     "value_is_formula": False,
                 },
                 {
                     "field": formula_field.id,
                     "type": "equals",
-                    "value": "get('page_parameter.id')",
+                    "value": BaserowFormulaObject(
+                        formula="get('page_parameter.id')",
+                        version=BASEROW_FORMULA_VERSION_INITIAL,
+                        mode=BASEROW_FORMULA_MODE_SIMPLE,
+                    ),
                     "value_is_formula": True,
                 },
             ]
@@ -378,7 +388,11 @@ def test_update_data_source_with_filters(api_client, data_fixture):
             "order": service_filters[0].order,
             "field": text_field.id,
             "type": "equals",
-            "value": "foobar",
+            "value": BaserowFormulaObject(
+                formula="foobar",
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+            ),
             "trashed": False,
             "value_is_formula": False,
         },
@@ -388,7 +402,11 @@ def test_update_data_source_with_filters(api_client, data_fixture):
             "field": formula_field.id,
             "type": "equals",
             "trashed": False,
-            "value": "get('page_parameter.id')",
+            "value": BaserowFormulaObject(
+                formula="get('page_parameter.id')",
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+            ),
             "value_is_formula": True,
         },
     ]
@@ -415,7 +433,11 @@ def test_update_data_source_with_filters(api_client, data_fixture):
                     "service": data_source1.service_id,
                     "field": text_field.id,
                     "type": "equals",
-                    "value": "foobar",
+                    "value": BaserowFormulaObject(
+                        formula="foobar",
+                        version=BASEROW_FORMULA_VERSION_INITIAL,
+                        mode=BASEROW_FORMULA_MODE_SIMPLE,
+                    ),
                     "value_is_formula": False,
                 }
             ]
@@ -432,7 +454,11 @@ def test_update_data_source_with_filters(api_client, data_fixture):
             "order": 0,
             "field": text_field.id,
             "type": "equals",
-            "value": "foobar",
+            "value": BaserowFormulaObject(
+                formula="foobar",
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+            ),
             "trashed": False,
             "value_is_formula": False,
         }

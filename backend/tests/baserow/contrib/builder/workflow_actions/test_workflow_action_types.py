@@ -15,6 +15,9 @@ from baserow.contrib.builder.workflow_actions.workflow_action_types import (
     OpenPageWorkflowActionType,
     RefreshDataSourceWorkflowActionType,
 )
+from baserow.core.formula import BaserowFormulaObject
+from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
+from baserow.core.formula.types import BASEROW_FORMULA_MODE_SIMPLE
 from baserow.core.services.exceptions import InvalidServiceTypeDispatchSource
 from baserow.core.utils import MirrorDict
 from baserow.core.workflow_actions.registries import WorkflowActionType
@@ -144,10 +147,18 @@ def test_export_import_upsert_row_workflow_action_type(data_fixture):
             "id": service.id,
             "integration_id": integration.id,
             "type": "local_baserow_upsert_row",
-            "row_id": "",
+            "row_id": BaserowFormulaObject(
+                formula="",
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+            ),
             "table_id": table.id,
             "field_mappings": [
-                {"field_id": field.id, "value": field_mapping.value, "enabled": True}
+                {
+                    "field_id": field.id,
+                    "value": field_mapping.value,
+                    "enabled": True,
+                }
             ],
             "sample_data": None,
         },
@@ -181,7 +192,7 @@ def test_export_import_upsert_row_workflow_action_type(data_fixture):
     # in its formula.
     imported_field_mapping = new_workflow_action.service.field_mappings.all()[0]
     assert (
-        imported_field_mapping.value
+        imported_field_mapping.value["formula"]
         == f"get('data_source.{data_source2.id}.{field.db_column}')"
     )
 
@@ -228,7 +239,7 @@ def test_builder_local_baserow_workflow_service_type_prepare_values_with_instanc
         user,
         workflow_action,
     )
-    assert service.row_id == row2.id
+    assert service.row_id["formula"] == str(row2.id)
     assert service.table_id == table.id
     assert service.integration_id == integration.id
 
@@ -330,8 +341,8 @@ def test_import_notification_workflow_action(data_fixture):
     )
 
     expected_formula = f"get('data_source.{data_source_2.id}.field_1')"
-    assert imported_workflow_action.title == expected_formula
-    assert imported_workflow_action.description == expected_formula
+    assert imported_workflow_action.title["formula"] == expected_formula
+    assert imported_workflow_action.description["formula"] == expected_formula
 
 
 @pytest.mark.django_db
@@ -376,10 +387,14 @@ def test_import_open_page_workflow_action(data_fixture):
 
     expected_formula = f"get('data_source.{data_source_2.id}.field_1')"
     expected_query_formula = f"get('data_source.{data_source_2.id}.field_2')"
-    assert imported_workflow_action.navigate_to_url == expected_formula
-    assert imported_workflow_action.page_parameters[0]["value"] == expected_formula
+    assert imported_workflow_action.navigate_to_url["formula"] == expected_formula
     assert (
-        imported_workflow_action.query_parameters[0]["value"] == expected_query_formula
+        imported_workflow_action.page_parameters[0]["value"]["formula"]
+        == expected_formula
+    )
+    assert (
+        imported_workflow_action.query_parameters[0]["value"]["formula"]
+        == expected_query_formula
     )
 
 

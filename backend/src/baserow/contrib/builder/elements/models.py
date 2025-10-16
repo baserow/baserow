@@ -1,10 +1,11 @@
 import uuid
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, List, Optional
 
 from django.contrib.contenttypes.models import ContentType
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.db.models import SET_NULL, QuerySet
+from django.utils.functional import lazy
 
 from baserow.contrib.builder.constants import (
     BACKGROUND_IMAGE_MODES,
@@ -18,6 +19,7 @@ from baserow.core.constants import (
     RatingStyleChoices,
 )
 from baserow.core.formula.field import FormulaField, JSONFormulaField
+from baserow.core.formula.serializers import collect_json_formula_field_properties
 from baserow.core.mixins import (
     CreatedAndUpdatedOnMixin,
     FractionOrderableMixin,
@@ -67,6 +69,19 @@ def get_default_table_orientation():
         "tablet": "horizontal",
         "desktop": "horizontal",
     }
+
+
+def get_collection_field_config_formula_properties() -> List[str]:
+    """
+    Returns the list of properties in the collection field config that are formulas.
+    :return: A list of property names.
+    """
+
+    from baserow.contrib.builder.elements.registries import (
+        collection_field_type_registry,
+    )
+
+    return collect_json_formula_field_properties(collection_field_type_registry)
 
 
 class Element(
@@ -494,12 +509,14 @@ class NavigationElementMixin(models.Model):
     navigate_to_url = FormulaField(
         help_text="If no page is selected, this indicate the destination of the link.",
     )
-    page_parameters = models.JSONField(
+    page_parameters = JSONFormulaField(
+        properties=["value"],
         default=list,
         help_text="The parameters for each parameters of the selected page if any.",
         null=True,
     )
-    query_parameters = models.JSONField(
+    query_parameters = JSONFormulaField(
+        properties=["value"],
         db_default=[],
         default=list,
         help_text="The query parameters for each parameter of the selected page if any.",
@@ -771,7 +788,7 @@ class CollectionField(models.Model):
 
     config = JSONFormulaField(
         default=dict,
-        property_name="value",
+        properties=lazy(get_collection_field_config_formula_properties, list)(),
         help_text="The configuration of the field.",
     )
 

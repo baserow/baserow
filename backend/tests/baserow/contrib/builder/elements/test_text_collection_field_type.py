@@ -10,7 +10,10 @@ from baserow.contrib.builder.elements.collection_field_types import (
     TextCollectionFieldType,
 )
 from baserow.contrib.builder.pages.service import PageService
+from baserow.core.formula import BaserowFormulaObject
+from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
 from baserow.core.formula.serializers import FormulaSerializerField
+from baserow.core.formula.types import BASEROW_FORMULA_MODE_SIMPLE
 
 MODULE_PATH = "baserow.contrib.builder.elements.collection_field_types"
 
@@ -40,8 +43,7 @@ def test_serializer_field_overrides_returns_expected_value():
     field = result["value"]
 
     assert type(field) is FormulaSerializerField
-    assert field.allow_blank is True
-    assert field.default == ""
+    assert isinstance(field.default, dict)
     assert field.required is False
     assert field.help_text == "The formula for the text."
 
@@ -139,5 +141,9 @@ def test_import_export_text_collection_field_type(data_fixture):
 
     imported_field = imported_table_element.fields.get(name="Foo Field")
     assert imported_field.config == {
-        "value": f"get('data_source.{data_source2.id}.0.{text_field.db_column}')"
+        "value": BaserowFormulaObject(
+            formula=f"get('data_source.{data_source2.id}.0.{text_field.db_column}')",
+            version=BASEROW_FORMULA_VERSION_INITIAL,
+            mode=BASEROW_FORMULA_MODE_SIMPLE,
+        )
     }

@@ -18,6 +18,9 @@ from baserow.contrib.builder.elements.models import Element
 from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.database.views.models import SORT_ORDER_ASC
 from baserow.core.exceptions import PermissionException
+from baserow.core.formula import BaserowFormulaObject
+from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
+from baserow.core.formula.types import BASEROW_FORMULA_MODE_SIMPLE
 from baserow.core.models import Workspace
 from baserow.core.services.exceptions import (
     DoesNotExist,
@@ -432,7 +435,11 @@ def test_get_elements_of_public_builder(api_client, data_fixture):
         "style_width_child": "normal",
         "role_type": "allow_all",
         "roles": [],
-        "value": "",
+        "value": BaserowFormulaObject(
+            version=BASEROW_FORMULA_VERSION_INITIAL,
+            mode=BASEROW_FORMULA_MODE_SIMPLE,
+            formula="",
+        ),
         "level": 1,
     }
 

@@ -9,12 +9,15 @@ class BuilderInstanceWithFormulaMixin(InstanceWithFormulaMixin):
     def extract_properties(self, instance, **kwargs):
         result = {}
 
-        for formula_ctx in self.formula_generator(instance):
-            if not formula_ctx["formula"]:
+        for formula in self.formula_generator(instance):
+            # Figure out what our formula string is.
+            formula_str = formula if isinstance(formula, str) else formula["formula"]
+
+            if not formula_str:
                 continue
 
             try:
-                tree = get_parse_tree_for_formula(formula_ctx["formula"])
+                tree = get_parse_tree_for_formula(formula_str)
             except BaserowFormulaSyntaxError:
                 continue
 

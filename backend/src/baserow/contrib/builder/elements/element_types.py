@@ -94,8 +94,13 @@ from baserow.core.formula import (
     get_parse_tree_for_formula,
     resolve_formula,
 )
+from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
 from baserow.core.formula.registries import formula_runtime_function_registry
-from baserow.core.formula.types import BaserowFormula, BaserowFormulaObject
+from baserow.core.formula.types import (
+    BASEROW_FORMULA_MODE_SIMPLE,
+    BaserowFormula,
+    BaserowFormulaObject,
+)
 from baserow.core.formula.validator import (
     ensure_array,
     ensure_boolean,
@@ -232,7 +237,11 @@ class FormContainerElementType(ContainerElementTypeMixin, ElementType):
 
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
         return {
-            "submit_button_label": "'Submit'",
+            "submit_button_label": BaserowFormulaObject(
+                formula="'Submit'",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
             "reset_initial_values_post_submission": True,
         }
 
@@ -340,7 +349,11 @@ class TableElementType(CollectionElementWithFieldsTypeMixin, ElementType):
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
         return {
             "data_source_id": None,
-            "button_load_more_label": "'test'",
+            "button_load_more_label": BaserowFormulaObject(
+                formula="'test'",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
             "orientation": get_default_table_orientation(),
         }
 
@@ -403,7 +416,11 @@ class RepeatElementType(
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
         return {
             "data_source_id": None,
-            "button_load_more_label": "'test'",
+            "button_load_more_label": BaserowFormulaObject(
+                formula="'test'",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
             "orientation": RepeatElement.ORIENTATIONS.VERTICAL,
         }
 
@@ -576,11 +593,27 @@ class RecordSelectorElementType(
         return {
             "data_source_id": None,
             "required": False,
-            "label": "",
-            "default_value": "",
-            "placeholder": "",
+            "label": BaserowFormulaObject(
+                formula="",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
+            "default_value": BaserowFormulaObject(
+                formula="",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
+            "placeholder": BaserowFormulaObject(
+                formula="",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
             "multiple": False,
-            "option_name_suffix": "",
+            "option_name_suffix": BaserowFormulaObject(
+                formula="",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
         }
 
     def is_valid(
@@ -685,7 +718,14 @@ class HeadingElementType(ElementType):
         return overrides
 
     def get_pytest_params(self, pytest_data_fixture):
-        return {"value": "'Corporis perspiciatis'", "level": 2}
+        return {
+            "value": BaserowFormulaObject(
+                formula="'Corporis perspiciatis'",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
+            "level": 2,
+        }
 
 
 class TextElementType(ElementType):
@@ -705,11 +745,15 @@ class TextElementType(ElementType):
 
     def get_pytest_params(self, pytest_data_fixture):
         return {
-            "value": "'Suscipit maxime eos ea vel commodi dolore. "
-            "Eum dicta sit rerum animi. Sint sapiente eum cupiditate nobis vel. "
-            "Maxime qui nam consequatur. "
-            "Asperiores corporis perspiciatis nam harum veritatis. "
-            "Impedit qui maxime aut illo quod ea molestias.'",
+            "value": BaserowFormulaObject(
+                formula="'Suscipit maxime eos ea vel commodi dolore. "
+                "Eum dicta sit rerum animi. Sint sapiente eum cupiditate nobis vel. "
+                "Maxime qui nam consequatur. "
+                "Asperiores corporis perspiciatis nam harum veritatis. "
+                "Impedit qui maxime aut illo quod ea molestias.'",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
             "format": TextElement.TEXT_FORMATS.PLAIN,
         }
 
@@ -849,7 +893,11 @@ class NavigationElementManager:
         return {
             "navigation_type": "custom",
             "navigate_to_page_id": None,
-            "navigate_to_url": '"http://example.com"',
+            "navigate_to_url": BaserowFormulaObject(
+                formula='"http://example.com"',
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
             "page_parameters": [],
             "query_parameters": [],
             "target": "blank",
@@ -959,13 +1007,21 @@ class LinkElementType(ElementType):
         yield from super().formula_generator(element)
 
         for index, data in enumerate(element.page_parameters):
-            new_formula = yield data["value"]
+            new_formula = (
+                yield data["value"]
+                if isinstance(data["value"], str)
+                else data["value"]["formula"]
+            )
             if new_formula is not None:
                 element.page_parameters[index]["value"] = new_formula
                 yield element
 
         for index, data in enumerate(element.query_parameters or []):
-            new_formula = yield data["value"]
+            new_formula = (
+                yield data["value"]
+                if isinstance(data["value"], str)
+                else data["value"]["formula"]
+            )
             if new_formula is not None:
                 element.query_parameters[index]["value"] = new_formula
                 yield element
@@ -1031,7 +1087,11 @@ class LinkElementType(ElementType):
 
     def get_pytest_params(self, pytest_data_fixture):
         return NavigationElementManager().get_pytest_params(pytest_data_fixture) | {
-            "value": "'test'",
+            "value": BaserowFormulaObject(
+                formula="'test'",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
             "variant": "link",
         }
 
@@ -1081,8 +1141,16 @@ class ImageElementType(ElementType):
         return {
             "image_source_type": ImageElement.IMAGE_SOURCE_TYPES.UPLOAD,
             "image_file_id": None,
-            "image_url": "'https://test.com/image.png'",
-            "alt_text": "'some alt text'",
+            "image_url": BaserowFormulaObject(
+                formula="'https://test.com/image.png'",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
+            "alt_text": BaserowFormulaObject(
+                formula="'some alt text'",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
         }
 
     @property
@@ -1229,7 +1297,11 @@ class RatingElementType(ElementType):
     def get_pytest_params(self, pytest_data_fixture):
         return {
             "max_value": 5,
-            "value": "5",
+            "value": BaserowFormulaObject(
+                formula="5",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
             "color": "dark-orange",
             "rating_style": "star",
         }
@@ -1277,10 +1349,18 @@ class RatingInputElementType(InputElementType):
     def get_pytest_params(self, pytest_data_fixture):
         return {
             "max_value": 5,
-            "value": "5",
+            "value": BaserowFormulaObject(
+                formula="5",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
             "color": "dark-orange",
             "rating_style": "star",
-            "label": "",
+            "label": BaserowFormulaObject(
+                formula="",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
             "required": False,
         }
 
@@ -1311,8 +1391,8 @@ class RatingInputElementType(InputElementType):
         """
         :param element: The element we're trying to use form data in.
         :param value: The form data value, which may be invalid.
+        :param dispatch_context: The context the element is being used in.
         :return: Whether the value is valid or not for this element.
-
         """
 
         if (element.required and value is None) or not (
@@ -1412,10 +1492,22 @@ class InputTextElementType(InputElementType):
 
     def get_pytest_params(self, pytest_data_fixture):
         return {
-            "label": "",
+            "label": BaserowFormulaObject(
+                formula="",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
             "required": False,
-            "placeholder": "",
-            "default_value": "'Corporis perspiciatis'",
+            "placeholder": BaserowFormulaObject(
+                formula="",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
+            "default_value": BaserowFormulaObject(
+                formula="'Corporis perspiciatis'",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
             "is_multiline": False,
             "rows": 1,
             "input_type": "text",
@@ -1483,7 +1575,13 @@ class ButtonElementType(ElementType):
         return overrides
 
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
-        return {"value": "'Some value'"}
+        return {
+            "value": BaserowFormulaObject(
+                formula="'Some value'",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            )
+        }
 
 
 class CheckboxElementType(InputElementType):
@@ -1545,9 +1643,17 @@ class CheckboxElementType(InputElementType):
 
     def get_pytest_params(self, pytest_data_fixture):
         return {
-            "label": "",
+            "label": BaserowFormulaObject(
+                formula="",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
             "required": False,
-            "default_value": "",
+            "default_value": BaserowFormulaObject(
+                formula="",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
         }
 
 
@@ -1755,15 +1861,35 @@ class ChoiceElementType(FormElementTypeMixin, ElementType):
 
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
         return {
-            "label": "'test'",
-            "default_value": "'option 1'",
+            "label": BaserowFormulaObject(
+                formula="'test'",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
+            "default_value": BaserowFormulaObject(
+                formula="'option 1'",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
             "required": False,
-            "placeholder": "'some placeholder'",
+            "placeholder": BaserowFormulaObject(
+                formula="'some placeholder'",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
             "multiple": False,
             "show_as_dropdown": True,
             "option_type": ChoiceElement.OPTION_TYPE.MANUAL,
-            "formula_value": "",
-            "formula_name": "",
+            "formula_value": BaserowFormulaObject(
+                formula="",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
+            "formula_name": BaserowFormulaObject(
+                formula="",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
         }
 
     def after_create(self, instance: ChoiceElement, values: Dict):
@@ -1886,8 +2012,16 @@ class IFrameElementType(ElementType):
     def get_pytest_params(self, pytest_data_fixture):
         return {
             "source_type": IFrameElement.IFRAME_SOURCE_TYPE.URL,
-            "url": "",
-            "embed": "",
+            "url": BaserowFormulaObject(
+                formula="",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
+            "embed": BaserowFormulaObject(
+                formula="",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
             "height": 300,
         }
 
@@ -2002,8 +2136,16 @@ class DateTimePickerElementType(FormElementTypeMixin, ElementType):
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
         return {
             "required": False,
-            "label": "",
-            "default_value": "",
+            "label": BaserowFormulaObject(
+                formula="",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
+            "default_value": BaserowFormulaObject(
+                formula="",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
             "date_format": DATE_FORMAT_CHOICES[0][0],
             "include_time": False,
             "time_format": DATE_TIME_FORMAT_CHOICES[0][0],

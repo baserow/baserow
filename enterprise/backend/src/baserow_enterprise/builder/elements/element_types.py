@@ -9,7 +9,12 @@ from baserow.contrib.builder.elements.element_types import InputElementType
 from baserow.contrib.builder.elements.registries import ElementType
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.types import ElementDict
-from baserow.core.formula.types import BaserowFormula
+from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
+from baserow.core.formula.types import (
+    BASEROW_FORMULA_MODE_SIMPLE,
+    BaserowFormula,
+    BaserowFormulaObject,
+)
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.user_sources.handler import UserSourceHandler
 from baserow_enterprise.builder.elements.models import AuthFormElement, FileInputElement
@@ -224,12 +229,28 @@ class FileInputElementType(InputElementType):
 
     def get_pytest_params(self, pytest_data_fixture):
         return {
-            "label": "",
+            "label": BaserowFormulaObject(
+                formula="",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
             "required": False,
             "multiple": False,
-            "default_name": "",
-            "default_url": "",
-            "help_text": "",
+            "default_name": BaserowFormulaObject(
+                formula="",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
+            "default_url": BaserowFormulaObject(
+                formula="",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
+            "help_text": BaserowFormulaObject(
+                formula="",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
             "max_filesize": 5,
             "allowed_filetypes": [],
             "preview": False,

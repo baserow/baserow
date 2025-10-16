@@ -98,10 +98,10 @@ def test_export_import_record_selector_element(data_fixture):
     )
 
     # Check that the formula for option name suffix was updated with the new mapping
-    import_option_name_suffix = imported_element.option_name_suffix
+    import_option_name_suffix = imported_element.option_name_suffix["formula"]
     import_option_name_suffix_field_id = str(
         id_mapping["database_fields"][fields[-1].id]
     )
-    assert import_option_name_suffix == element.option_name_suffix.replace(
+    assert import_option_name_suffix == element.option_name_suffix["formula"].replace(
         option_name_suffix_field_id, import_option_name_suffix_field_id
     )

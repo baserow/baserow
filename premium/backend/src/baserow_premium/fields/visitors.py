@@ -1,7 +1,11 @@
-from typing import Dict
+from typing import Dict, Union
 
 from baserow.contrib.database.fields.utils import get_field_id_from_field_key
-from baserow.core.formula import BaserowFormula, BaserowFormulaVisitor
+from baserow.core.formula import (
+    BaserowFormula,
+    BaserowFormulaObject,
+    BaserowFormulaVisitor,
+)
 from baserow.core.formula.parser.exceptions import FieldByIdReferencesAreDeprecated
 from baserow.core.formula.parser.parser import get_parse_tree_for_formula
 from baserow.core.utils import to_path
@@ -84,7 +88,9 @@ class BaserowFormulaReplaceFieldReferences(BaserowFormulaVisitor):
         return ctx.expr().accept(self)
 
 
-def replace_field_id_references(formula: str, id_mapping: Dict[str, str]) -> str:
+def replace_field_id_references(
+    formula: Union[str, BaserowFormulaObject], id_mapping: Dict[str, str]
+) -> str:
     """
     Replace the `get("fields.field_1")` field id references with the new value in the
     provided mapping.
@@ -100,8 +106,11 @@ def replace_field_id_references(formula: str, id_mapping: Dict[str, str]) -> str
     :return: The formula with the updated field references.
     """
 
-    if not formula:
-        return formula
+    # Figure out what our formula string is.
+    formula_str = formula if isinstance(formula, str) else formula["formula"]
 
-    tree = get_parse_tree_for_formula(formula)
+    if not formula_str:
+        return formula_str
+
+    tree = get_parse_tree_for_formula(formula_str)
     return BaserowFormulaReplaceFieldReferences(id_mapping).visit(tree)
