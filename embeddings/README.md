@@ -36,11 +36,29 @@ The service uses a multi-stage Docker build:
 -   **Batch support**: Process multiple texts in a single request
 -   **Health checks**: Built-in health endpoint for monitoring
 
+## Docker
+
+### Run locally
+
+```
+docker run -p 8080:80 baserow/embeddings:1.0.0
+```
+
+### Build for publish
+
+```
+docker buildx build \
+  --platform linux/amd64,linux/arm64 \
+  -t baserow/embeddings:1.0.0 \
+  -t baserow/embeddings:latest \
+  --push .
+```
+
 ## API
 
 ### Endpoints
 
-#### `POST /embed`
+#### `POST http://localhost:8080/embed`
 
 Generate embeddings for one or more texts.
 
