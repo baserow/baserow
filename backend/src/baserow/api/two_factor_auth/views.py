@@ -3,7 +3,7 @@ from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
-from baserow.api.user.serializers import TokenObtainPairWithUserSerializer, log_in_user
+from baserow.api.user.serializers import log_in_user
 from baserow.core.models import User
 from baserow.core.two_factor_auth.handler import TwoFactorAuthHandler
 from baserow.core.two_factor_auth.registries import two_factor_auth_type_registry
