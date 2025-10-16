@@ -217,6 +217,7 @@
     "viewFilter": {
         "contains": "bevat",
         "containsNot": "bevat niet",
+        "starts_with": "begint met",
         "filenameContains": "bestandsnaam bevat",
         "has": "heeft",
         "hasNot": "heeft niet",

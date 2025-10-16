@@ -1,0 +1,8 @@
+{
+    "type": "feature",
+    "message": "Add 'Starts with' text field view filter type",
+    "domain": "database",
+    "issue_number": 1849,
+    "bullet_points": [],
+    "created_at": "2025-10-16"
+}

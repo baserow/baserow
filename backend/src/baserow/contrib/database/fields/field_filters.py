@@ -218,6 +218,21 @@ def contains_word_filter(field_name, value, model_field, _) -> OptionallyAnnotat
     return Q(**{f"{field_name}__iregex": rf"\m{value}\M"})
 
 
+def startswith_filter(field_name, value, model_field, _) -> OptionallyAnnotatedQ:
+    """
+    Returns a Q object for filtering rows where the field value starts with
+    the provided value (case-insensitive).
+    """
+
+    value = value.strip()
+    # If an empty value has been provided we do not want to filter at all.
+    if value == "":
+        return Q()
+
+    model_field.get_prep_value(value)
+    return Q(**{f"{field_name}__istartswith": value})
+
+
 def filename_contains_filter(field_name, value, _, field) -> OptionallyAnnotatedQ:
     value = value.strip()
     # If an empty value has been provided we do not want to filter at all.

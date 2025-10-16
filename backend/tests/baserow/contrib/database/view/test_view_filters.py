@@ -806,6 +806,91 @@ def test_contains_not_filter_type(data_fixture):
 
 
 @pytest.mark.django_db
+def test_starts_with_filter_type(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    grid_view = data_fixture.create_grid_view(table=table)
+    text_field = data_fixture.create_text_field(table=table)
+    long_text_field = data_fixture.create_long_text_field(table=table)
+
+    handler = ViewHandler()
+    model = table.get_model()
+
+    row_1, row_2, row_3 = (
+        RowHandler()
+        .create_rows(
+            user,
+            table,
+            rows_values=[
+                {
+                    f"field_{text_field.id}": "Apple pie",
+                    f"field_{long_text_field.id}": "Apple tree",
+                },
+                {
+                    f"field_{text_field.id}": "apricot jam",
+                    f"field_{long_text_field.id}": "apartment view",
+                },
+                {
+                    f"field_{text_field.id}": "Banana smoothie",
+                    f"field_{long_text_field.id}": "Berry bowl",
+                },
+            ],
+            model=model,
+        )
+        .created_rows
+    )
+
+    view_filter = data_fixture.create_view_filter(
+        view=grid_view,
+        field=text_field,
+        type="starts_with",
+        value="ap",
+    )
+
+    # Check lowercase prefix
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert len(ids) == 2
+    assert row_1.id in ids
+    assert row_2.id in ids
+    assert row_3.id not in ids
+
+    # Check case-insensitivity
+    view_filter.value = "AP"
+    view_filter.save()
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert len(ids) == 2
+    assert row_1.id in ids
+    assert row_2.id in ids
+    assert row_3.id not in ids
+
+    # Check other starting letter
+    view_filter.value = "B"
+    view_filter.save()
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert len(ids) == 1
+    assert row_3.id in ids
+
+    # Check empty value returns all rows
+    view_filter.value = ""
+    view_filter.save()
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert len(ids) == 3
+    assert row_1.id in ids
+    assert row_2.id in ids
+    assert row_3.id in ids
+
+    # Check long text field
+    view_filter.field = long_text_field
+    view_filter.value = "ap"
+    view_filter.save()
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert len(ids) == 2
+    assert row_1.id in ids
+    assert row_2.id in ids
+    assert row_3.id not in ids
+
+
+@pytest.mark.django_db
 def test_contains_word_filter_type(data_fixture):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)

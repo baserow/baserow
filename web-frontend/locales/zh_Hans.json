@@ -127,6 +127,7 @@
     "viewFilter": {
         "contains": "包含",
         "containsNot": "不包含",
+        "starts_with": "以...开始",
         "filenameContains": "文件名包含",
         "has": "有",
         "hasNot": "没有",

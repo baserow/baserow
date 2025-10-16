@@ -163,6 +163,7 @@
     "viewFilter": {
         "contains": "",
         "containsNot": "",
+        "starts_with": "",
         "containsWord": "",
         "doesntContainWord": "",
         "filenameContains": "",
