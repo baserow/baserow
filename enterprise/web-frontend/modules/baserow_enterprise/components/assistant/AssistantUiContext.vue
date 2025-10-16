@@ -16,7 +16,7 @@ export default {
   },
   computed: {
     contextIcon() {
-      const applicationType = this.uiContext.application?.type
+      const applicationType = this.uiContext.applicationType
       if (!applicationType) {
         return null
       }
@@ -28,6 +28,8 @@ export default {
         return this.uiContext.table.name + ' - ' + this.uiContext.view.name
       } else if (this.uiContext.table) {
         return this.uiContext.table.name
+      } else if (this.uiContext.workflow) {
+        return this.uiContext.workflow.name
       } else if (this.uiContext.application) {
         return this.uiContext.application.name
       } else if (this.uiContext.workspace) {

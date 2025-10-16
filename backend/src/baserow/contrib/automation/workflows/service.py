@@ -54,6 +54,30 @@ class AutomationWorkflowService:
 
         return workflow
 
+    def list_workflows(
+        self, user: AbstractUser, automation_id: int
+    ) -> List[AutomationWorkflow]:
+        """
+        Lists all the workflows that belong to the given automation.
+
+        :param user: The user requesting the workflows.
+        :param automation_id: The automation to which the workflows belong.
+        :return: A list of AutomationWorkflow instances.
+        """
+
+        automation = AutomationHandler().get_automation(automation_id)
+
+        all_workflows = self.handler.get_workflows(
+            automation, base_queryset=AutomationWorkflow.objects
+        )
+
+        return CoreHandler().filter_queryset(
+            user,
+            ReadAutomationWorkflowOperationType.type,
+            all_workflows,
+            workspace=automation.workspace,
+        )
+
     def create_workflow(
         self,
         user: AbstractUser,

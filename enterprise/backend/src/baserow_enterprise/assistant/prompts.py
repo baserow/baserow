@@ -41,7 +41,7 @@ AUTOMATION_BUILDER_CONCEPTS = """
 **Structure**: Automation → Workflows → Triggers + Actions + Routers (Nodes)
 
 **Key concepts**:
-• **Triggers**: Events that start automations (e.g., row created/updated, view accessed)
+• **Triggers**: Events that start automations (e.g., row created/updated/deleted)
 • **Actions**: Tasks performed (e.g., create/update rows, send emails, call webhooks)
 • **Routers**: Conditional logic (if/else, switch) to control flow
 • **Execution**: Runs in the background; monitor via logs

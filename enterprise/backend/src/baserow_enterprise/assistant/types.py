@@ -209,8 +209,21 @@ class WorkspaceNavigationType(BaseModel):
         return _("home")
 
 
+class WorkflowNavigationType(BaseModel):
+    type: Literal["automation-workflow"]
+    automation_id: int
+    workflow_id: int
+    workflow_name: str
+
+    def to_localized_string(self):
+        return _("workflow %(workflow_name)s") % {"workflow_name": self.workflow_name}
+
+
 AnyNavigationType = Annotated[
-    TableNavigationType | WorkspaceNavigationType | ViewNavigationType,
+    TableNavigationType
+    | WorkspaceNavigationType
+    | ViewNavigationType
+    | WorkflowNavigationType,
     Field(discriminator="type"),
 ]
 

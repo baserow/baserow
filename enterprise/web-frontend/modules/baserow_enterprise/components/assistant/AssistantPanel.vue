@@ -130,12 +130,12 @@ export default {
       handler(newLocation) {
         if (!newLocation) return
 
+        const router = this.$router
+        const store = this.$store
         if (
           newLocation.type === 'database-table' ||
           newLocation.type === 'database-view'
         ) {
-          const router = this.$router
-          const store = this.$store
           waitFor(() => {
             const database = store.getters['application/get'](
               newLocation.database_id
@@ -166,6 +166,27 @@ export default {
             params: {
               workspaceId: this.workspace.id,
             },
+          })
+        } else if (newLocation.type === 'automation-workflow') {
+          waitFor(() => {
+            const automation = store.getters['application/get'](
+              newLocation.automation_id
+            )
+
+            return (
+              automation &&
+              automation.workflows.find(
+                (workflow) => workflow.id === newLocation.workflow_id
+              )
+            )
+          }).then(() => {
+            this.$router.push({
+              name: 'automation-workflow',
+              params: {
+                automationId: newLocation.automation_id,
+                workflowId: newLocation.workflow_id,
+              },
+            })
           })
         }
       },

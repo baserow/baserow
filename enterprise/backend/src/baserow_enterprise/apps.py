@@ -303,18 +303,20 @@ class BaserowEnterpriseConfig(AppConfig):
         notification_type_registry.register(TwoWaySyncDeactivatedNotificationType())
 
         from baserow_enterprise.assistant.tools import (
-            CreateDatabaseToolType,
+            CreateBuildersToolType,
             CreateFieldsToolType,
             CreateTablesToolType,
             CreateViewFiltersToolType,
             CreateViewsToolType,
+            CreateWorkflowsToolType,
             GenerateDatabaseFormulaToolType,
             GetRowsToolsToolType,
             GetTablesSchemaToolType,
-            ListDatabasesToolType,
+            ListBuildersToolType,
             ListRowsToolType,
             ListTablesToolType,
             ListViewsToolType,
+            ListWorkflowsToolType,
             NavigationToolType,
             SearchDocsToolType,
         )
@@ -325,8 +327,8 @@ class BaserowEnterpriseConfig(AppConfig):
         assistant_tool_registry.register(SearchDocsToolType())
         assistant_tool_registry.register(NavigationToolType())
 
-        assistant_tool_registry.register(ListDatabasesToolType())
-        assistant_tool_registry.register(CreateDatabaseToolType())
+        assistant_tool_registry.register(ListBuildersToolType())
+        assistant_tool_registry.register(CreateBuildersToolType())
         assistant_tool_registry.register(ListTablesToolType())
         assistant_tool_registry.register(CreateTablesToolType())
         assistant_tool_registry.register(GetTablesSchemaToolType())
@@ -337,6 +339,9 @@ class BaserowEnterpriseConfig(AppConfig):
         assistant_tool_registry.register(ListViewsToolType())
         assistant_tool_registry.register(CreateViewsToolType())
         assistant_tool_registry.register(CreateViewFiltersToolType())
+
+        assistant_tool_registry.register(ListWorkflowsToolType())
+        assistant_tool_registry.register(CreateWorkflowsToolType())
 
         # The signals must always be imported last because they use the registries
         # which need to be filled first.

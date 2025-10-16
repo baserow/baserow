@@ -195,7 +195,7 @@ const actions = {
 
 const getters = {
   getWorkflows: (state) => (automation) => {
-    return [...automation.workflows]
+    return automation?.workflows ? [...automation.workflows] : []
   },
   getOrderedWorkflows: (state, getters) => (automation) => {
     return getters.getWorkflows(automation).sort((a, b) => a.order - b.order)

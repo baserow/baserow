@@ -145,6 +145,7 @@ class Assistant:
             model=lm_model,
             cache=not settings.DEBUG,
             max_retries=5,
+            max_tokens=32000,
         )
 
     def _init_assistant(self):

@@ -245,7 +245,8 @@ class CoreRouterActionNodeType(AutomationNodeActionNodeType):
         :param node: The router node instance that was just created.
         """
 
-        node.service.edges.create(label=_("Branch"))
+        if not len(node.service.edges.all()):
+            node.service.edges.create(label=_("Branch"))
 
     def prepare_values(
         self,

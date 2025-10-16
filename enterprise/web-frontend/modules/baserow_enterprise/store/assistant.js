@@ -324,7 +324,7 @@ export const getters = {
       : null
 
     const table =
-      application && scope.table
+      application?.type === 'database' && scope.table
         ? application.tables?.find((t) => t.id === scope.table)
         : null
 
@@ -332,6 +332,7 @@ export const getters = {
       table && scope.view ? rootGetters['view/get'](scope.view) : null
 
     const uiContext = {
+      applicationType: application?.type || null,
       workspace: { id: workspace.id, name: workspace.name },
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     }
@@ -350,6 +351,19 @@ export const getters = {
     if (view) {
       uiContext.view = { id: view.id, name: view.name, type: view.type }
     }
+
+    try {
+      const workflow =
+        application?.type === 'automation' && scope.workflow
+          ? rootGetters['automationWorkflow/getById'](
+              application,
+              scope.workflow
+            )
+          : null
+      if (workflow) {
+        uiContext.workflow = { id: workflow.id, name: workflow.name }
+      }
+    } catch {}
     return uiContext
   },
 

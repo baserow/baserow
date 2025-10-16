@@ -1,7 +1,6 @@
 from typing import TYPE_CHECKING, Any, Callable, Literal, Tuple
 
 from django.contrib.auth.models import AbstractUser
-from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
 from django.utils.translation import gettext as _
 
@@ -25,7 +24,6 @@ from baserow.contrib.database.views.actions import (
     UpdateViewFieldOptionsActionType,
 )
 from baserow.contrib.database.views.handler import ViewHandler
-from baserow.core.actions import CreateApplicationActionType
 from baserow.core.models import Workspace
 from baserow.core.service import CoreService
 from baserow_enterprise.assistant.tools.registries import AssistantToolType
@@ -44,7 +42,6 @@ from .types import (
     AnyViewFilterItemCreate,
     AnyViewItemCreate,
     BaseTableItem,
-    DatabaseItem,
     ListTablesFilterArg,
     TableItemCreate,
     view_item_registry,
@@ -52,51 +49,6 @@ from .types import (
 
 if TYPE_CHECKING:
     from baserow_enterprise.assistant.assistant import ToolHelpers
-
-
-def get_list_databases_tool(
-    user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
-) -> Callable[[], list[DatabaseItem]]:
-    """
-    Returns a function that lists all the databases the user has access to in the
-    current workspace.
-    """
-
-    def list_databases() -> list[DatabaseItem]:
-        """
-        Lists all the databases the user can access.
-        """
-
-        nonlocal user, workspace, tool_helpers
-
-        tool_helpers.update_status(_("Listing databases..."))
-
-        applications_qs = CoreService().list_applications_in_workspace(
-            user, workspace, specific=False
-        )
-
-        database_content_type = ContentType.objects.get_for_model(Database)
-
-        return {
-            "databases": [
-                DatabaseItem(id=database.id, name=database.name).model_dump()
-                for database in applications_qs.filter(
-                    content_type=database_content_type
-                )
-            ]
-        }
-
-    return list_databases
-
-
-class ListDatabasesToolType(AssistantToolType):
-    type = "list_databases"
-
-    @classmethod
-    def get_tool(
-        cls, user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
-    ) -> Callable[[Any], Any]:
-        return get_list_databases_tool(user, workspace, tool_helpers)
 
 
 def get_list_tables_tool(
@@ -222,54 +174,6 @@ class GetTablesSchemaToolType(AssistantToolType):
         cls, user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
     ) -> Callable[[Any], Any]:
         return get_tables_schema_tool(user, workspace, tool_helpers)
-
-
-def get_create_database_tool(
-    user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
-) -> Callable[[str], dict[str, Any]]:
-    """
-    Returns a function that creates a database in the current workspace.
-    """
-
-    def create_database(name: str) -> dict[str, Any]:
-        """
-        Create a database in the current workspace and return its ID and name.
-        **ALWAYS** create tables afterwards unless explicitly asked otherwise.
-
-        - name: desired database name (must be unique in the workspace)
-        - call list_databases first to avoid duplicates
-        - call the create_tables tools afterwards unless explicitly asked otherwise
-        """
-
-        nonlocal user, workspace, tool_helpers
-
-        tool_helpers.update_status(
-            _("Creating database %(database_name)s...") % {"database_name": name}
-        )
-
-        with transaction.atomic():
-            database = CreateApplicationActionType.do(
-                user, workspace, "database", name=name
-            )
-
-        return {
-            "created_database": DatabaseItem(
-                id=database.id, name=database.name
-            ).model_dump()
-        }
-
-    return create_database
-
-
-class CreateDatabaseToolType(AssistantToolType):
-    type = "create_database"
-    thinking_message = "Creating a new database..."
-
-    @classmethod
-    def get_tool(
-        cls, user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
-    ) -> Callable[[Any], Any]:
-        return get_create_database_tool(user, workspace, tool_helpers)
 
 
 def get_create_tables_tool(
