@@ -4,13 +4,43 @@ import pytest
 from rest_framework.status import (
     HTTP_200_OK,
     HTTP_401_UNAUTHORIZED,
-    HTTP_400_BAD_REQUEST,
     HTTP_404_NOT_FOUND,
 )
 
 from baserow.test_utils.helpers import AnyList, AnyStr
 
 from urllib.parse import urlparse, parse_qs
+
+
+@pytest.mark.django_db
+def test_configure_totp_view_not_authenticated(api_client):
+    url = reverse("api:two_factor_auth:configuration")
+    response = api_client.post(
+        url,
+        {"type": "totp"},
+        format="json",
+    )
+
+    response_json = response.json()
+    assert response.status_code == HTTP_401_UNAUTHORIZED, response_json
+    assert response_json["detail"] == "Authentication credentials were not provided."
+
+
+@pytest.mark.django_db
+def test_configure_totp_view_type_does_not_exist(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+
+    url = reverse("api:two_factor_auth:configuration")
+    response = api_client.post(
+        url,
+        {"type": "wrongtype"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    response_json = response.json()
+    assert response.status_code == HTTP_404_NOT_FOUND, response_json
+    assert response_json["error"] == "ERROR_TWO_FACTOR_AUTH_TYPE_DOES_NOT_EXIST"
 
 
 @pytest.mark.django_db
@@ -63,24 +93,7 @@ def test_configure_totp_view(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_configure_totp_view_type_does_not_exist(api_client, data_fixture):
-    user, token = data_fixture.create_user_and_token()
-
-    url = reverse("api:two_factor_auth:configuration")
-    response = api_client.post(
-        url,
-        {"type": "wrongtype"},
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
-
-    response_json = response.json()
-    assert response.status_code == HTTP_404_NOT_FOUND, response_json
-    assert response_json["error"] == "ERROR_TWO_FACTOR_AUTH_TYPE_DOES_NOT_EXIST"
-
-
-@pytest.mark.django_db
-def test_configure_totp_view_confirmation_failed(api_client, data_fixture):
+def test_configure_totp_view_confirmation_failed_invalidcode(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
 
     url = reverse("api:two_factor_auth:configuration")
@@ -113,3 +126,49 @@ def test_configure_totp_view_confirmation_failed(api_client, data_fixture):
     response_json = response.json()
     assert response.status_code == HTTP_401_UNAUTHORIZED, response_json
     assert response_json["error"] == "ERROR_TWO_FACTOR_AUTH_VERIFICATION_FAILED"
+
+
+@pytest.mark.django_db
+def test_configure_totp_view_replaces_previous_configuration(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+
+    url = reverse("api:two_factor_auth:configuration")
+    response = api_client.post(
+        url,
+        {"type": "totp"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    response_json = response.json()
+    assert response.status_code == HTTP_200_OK, response_json
+    assert response_json == {
+        "backup_codes": [],
+        "enabled": False,
+        "provisioning_qr_code": AnyStr(),
+        "provisioning_url": AnyStr(),
+        "type": "totp",
+    }
+
+    # when the totp is not fully enabled yet
+    # we want to replace the previous configuration
+    # as the user is trying to configure totp again
+    url = reverse("api:two_factor_auth:configuration")
+    response = api_client.post(
+        url,
+        {"type": "totp"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    response_json2 = response.json()
+    assert response.status_code == HTTP_200_OK, response_json2
+    assert response_json2 == {
+        "backup_codes": [],
+        "enabled": False,
+        "provisioning_qr_code": AnyStr(),
+        "provisioning_url": AnyStr(),
+        "type": "totp",
+    }
+
+    assert response_json["provisioning_url"] != response_json2["provisioning_url"]
