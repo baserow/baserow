@@ -106,6 +106,8 @@ import {
   RuntimeHour,
   RuntimeMinute,
   RuntimeSecond,
+  RuntimeNow,
+  RuntimeToday,
 } from '@baserow/modules/core/runtimeFormulaTypes'
 
 import priorityBus from '@baserow/modules/core/plugins/priorityBus'
@@ -261,6 +263,8 @@ export default (context, inject) => {
   registry.register('runtimeFormulaFunction', new RuntimeHour(context))
   registry.register('runtimeFormulaFunction', new RuntimeMinute(context))
   registry.register('runtimeFormulaFunction', new RuntimeSecond(context))
+  registry.register('runtimeFormulaFunction', new RuntimeNow(context))
+  registry.register('runtimeFormulaFunction', new RuntimeToday(context))
 
   registry.register('roles', new AdminRoleType(context))
   registry.register('roles', new MemberRoleType(context))
