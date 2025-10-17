@@ -74,6 +74,7 @@ class LookupFieldSetup:
     target_field: Field
     row_handler: RowHandler
     view_handler: ViewHandler
+    extra: dict
 
 
 @dataclasses.dataclass
@@ -253,6 +254,7 @@ def setup_linked_table_and_lookup(
         lookup_field=lookup_field,
         view_handler=view_handler,
         model=model,
+        extra={},
     )
 
 

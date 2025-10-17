@@ -22,6 +22,9 @@ const HasEmptyValueViewFilterTypeMixin = {
       FormulaFieldType.compatibleWithFormulaTypes('array(date)'),
       FormulaFieldType.compatibleWithFormulaTypes('array(single_select)'),
       FormulaFieldType.compatibleWithFormulaTypes('array(multiple_select)'),
+      FormulaFieldType.compatibleWithFormulaTypes(
+        'array(multiple_collaborators)'
+      ),
     ]
   },
 }
@@ -82,7 +85,8 @@ const HasValueEqualViewFilterTypeMixin = {
         FormulaFieldType.arrayOf('boolean'),
         FormulaFieldType.arrayOf('number'),
         FormulaFieldType.arrayOf('single_select'),
-        FormulaFieldType.arrayOf('multiple_select')
+        FormulaFieldType.arrayOf('multiple_select'),
+        FormulaFieldType.arrayOf('multiple_collaborators')
       ),
     ]
   },
@@ -146,7 +150,8 @@ const HasValueContainsViewFilterTypeMixin = {
         FormulaFieldType.arrayOf('number'),
         FormulaFieldType.arrayOf('date'),
         FormulaFieldType.arrayOf('single_select'),
-        FormulaFieldType.arrayOf('multiple_select')
+        FormulaFieldType.arrayOf('multiple_select'),
+        FormulaFieldType.arrayOf('multiple_collaborators')
       ),
     ]
   },
@@ -206,7 +211,8 @@ const HasValueContainsWordViewFilterTypeMixin = {
         FormulaFieldType.arrayOf('char'),
         FormulaFieldType.arrayOf('url'),
         FormulaFieldType.arrayOf('single_select'),
-        FormulaFieldType.arrayOf('multiple_select')
+        FormulaFieldType.arrayOf('multiple_select'),
+        FormulaFieldType.arrayOf('multiple_collaborators')
       ),
     ]
   },

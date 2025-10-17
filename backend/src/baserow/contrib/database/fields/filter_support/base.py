@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 class HasValueEmptyFilterSupport:
     def get_in_array_empty_value(self, field: "Field") -> Any:
         """
-        Returns a sigle value or a list of values to use for filtering empty values in
+        Returns a single value or a list of values to use for filtering empty values in
         an arrays with the `get_jsonb_has_any_in_value_filter_expr`. See
         `get_in_array_empty_query` and `get_all_empty_query` for more details
         on how this value is used.
