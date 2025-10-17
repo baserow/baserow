@@ -41,12 +41,17 @@ export class FromTipTapVisitor {
     }
 
     // Fallback: join multiple paragraphs with a visible newline
-    return `concat(${nodeContents.join(", '\\n', ")})`
+    return `concat(${nodeContents.join(", '\n', ")})`
   }
 
   visitWrapper(node) {
     if (!node.content || node.content.length === 0) {
       return "''"
+    }
+
+    // Handle nested empty wrapper
+    if (node.content.length === 1 && node.content[0].type === 'wrapper') {
+      return this.visit(node.content[0])
     }
 
     if (node.content.length === 1) {
@@ -148,7 +153,7 @@ export class FromTipTapVisitor {
 
   visitFunction(node) {
     const formulaFunction = Object.values(this.functions.getAll()).find(
-      (functionCurrent) => functionCurrent.getType() === node.type
+      (functionCurrent) => functionCurrent.formulaComponentType === node.type
     )
 
     return formulaFunction?.fromNodeToFormula(node)

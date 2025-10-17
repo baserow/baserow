@@ -3,7 +3,7 @@ import { VueNodeViewRenderer } from '@tiptap/vue-2'
 import GetFormulaComponent from '@baserow/modules/core/components/formula/GetFormulaComponent'
 
 export const GetFormulaComponentNode = Node.create({
-  name: 'get',
+  name: 'get-formula-component',
   group: 'inline',
   inline: true,
   draggable: true,
@@ -22,7 +22,7 @@ export const GetFormulaComponentNode = Node.create({
   parseHTML() {
     return [
       {
-        tag: 'span[data-formula-component="get"]',
+        tag: 'span[data-formula-component="get-formula-component"]',
       },
     ]
   },
@@ -47,7 +47,7 @@ export const FormulaInsertionExtension = Extension.create({
         (path) =>
         ({ editor, commands }) => {
           commands.insertContent({
-            type: 'get',
+            type: 'get-formula-component',
             attrs: { path },
           })
 
