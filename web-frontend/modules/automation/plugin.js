@@ -44,6 +44,7 @@ import {
 } from '@baserow/modules/automation/editorSidePanelTypes'
 import { PreviousNodeDataProviderType } from '@baserow/modules/automation/dataProviderTypes'
 import { PeriodicTriggerServiceType } from '@baserow/modules/automation/serviceTypes'
+import { AutomationGuidedTourType } from '@baserow/modules/automation/guidedTourTypes'
 
 export default (context) => {
   const { app, isDev, store } = context
@@ -145,5 +146,6 @@ export default (context) => {
       'editorSidePanel',
       new HistoryEditorSidePanelType(context)
     )
+    app.$registry.register('guidedTour', new AutomationGuidedTourType(context))
   }
 }

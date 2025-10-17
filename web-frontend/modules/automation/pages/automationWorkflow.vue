@@ -13,7 +13,11 @@
       }"
     >
       <div v-if="workflowLoading" class="loading"></div>
-      <div v-else class="automation-workflow__editor">
+      <div
+        v-else
+        class="automation-workflow__editor"
+        data-highlight="automation-editor"
+      >
         <client-only>
           <WorkflowEditor
             v-model="selectedNodeId"
@@ -27,7 +31,10 @@
         </client-only>
       </div>
       <div v-if="activeSidePanel" class="automation-workflow__side-panel">
-        <EditorSidePanels :active-side-panel="activeSidePanel" />
+        <EditorSidePanels
+          :active-side-panel="activeSidePanel"
+          :data-highlight="activeSidePanelType.guidedTourAttr"
+        />
       </div>
     </div>
   </div>
@@ -138,6 +145,11 @@ export default {
     },
     activeSidePanel() {
       return this.$store.getters['automationWorkflow/getActiveSidePanel']
+    },
+    activeSidePanelType() {
+      return this.activeSidePanel
+        ? this.$registry.get('editorSidePanel', this.activeSidePanel)
+        : null
     },
     selectedNodeId: {
       get() {

@@ -43,6 +43,7 @@ export default {
           'left-top',
           'bottom-left',
           'bottom-right',
+          'bottom-center',
           'center',
         ].includes(value)
       },

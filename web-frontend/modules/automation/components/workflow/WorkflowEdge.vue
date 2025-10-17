@@ -18,6 +18,7 @@
         @drop="handleDrop"
       ></div>
       <WorkflowAddBtnNode
+        data-highlight="automation-add-node-btn"
         class="workflow-edge__add-button"
         :class="{
           'workflow-edge__add-button--hover': isDragOver,

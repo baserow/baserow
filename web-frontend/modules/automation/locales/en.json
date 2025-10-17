@@ -1,4 +1,41 @@
+
 {
+  "welcomeGuidedTourStep": {
+    "title": "Welcome to Baserow Automations!",
+    "content": "Let's take a quick tour. You'll see how to set up triggers, add actions, test your workflow, and publish it — no coding required."
+  },
+  "triggerGuidedTourStep": {
+    "title": "Workflows start with a trigger",
+    "content": "Every workflow begins with a trigger. By default, this is an interval trigger, but you can replace it with other types to suit your needs. Triggers can be replaced, but not deleted."
+  },
+  "actionGuidedTourStep": {
+    "title": "Workflows then execute actions",
+    "content": "Add one or more actions after your trigger to define what the workflow should do. Click the highlighted button to get started."
+  },
+  "nodeSidepanelGuidedTourStep": {
+    "title": "Configure your steps",
+    "content": "Select a trigger or action to configure it in the side panel. Each step's settings can be adjusted here."
+  },
+  "testRunGuidedTourStep": {
+    "title": "Test your workflow",
+    "content": "When you're ready, start a test run to see your workflow in action. The trigger will run once to simulate a full execution."
+  },
+  "historyGuidedTourStep": {
+    "title": "View workflow history",
+    "content": "Use the history panel to review past test runs and published executions. It's a great way to debug or confirm results."
+  },
+  "publishGuidedTourStep": {
+    "title": "Publish your workflow",
+    "content": "Once you've tested and refined your setup, publish your workflow to make it live. Its trigger will now run automatically on schedule."
+  },
+  "workflowStateGuidedTourStep": {
+    "title": "Control workflow state",
+    "content": "From here, you can pause or resume your workflow at any time. You're always in control of whether it's active or disabled."
+  },
+  "docsGuidedTourStep": {
+    "title": "Explore the documentation",
+    "content": "If you ever get stuck or want to learn more, click the highlighted button for detailed guides and FAQs about building automations in Baserow."
+  },
   "sidebarComponentAutomation": {
     "createAutomationWorkflow": "New workflow"
   },
@@ -43,6 +80,7 @@
     "publishBtn": "Publish",
     "settingsBtn": "Settings",
     "historyBtn": "History",
+    "docsBtn": "Docs",
     "switchLabelDraft": "Draft",
     "switchLabelDisabled": "Disabled",
     "switchLabelPaused": "Paused",
