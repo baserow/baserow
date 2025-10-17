@@ -604,6 +604,7 @@ exports[`ViewFilterForm match snapshots Full view filter component 1`] = `
                 <input
                   autocomplete=""
                   class="form-input__input"
+                  placeholder=""
                   type="text"
                 />
                  

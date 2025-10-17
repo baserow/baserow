@@ -8,7 +8,7 @@ exports[`HeadingElement Default HeadingElement component 1`] = `
     class="ab-heading ab-heading--h2"
   >
     
-    headingElement.missingValue
+     
   
   </h2>
 </div>

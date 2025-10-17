@@ -1432,7 +1432,7 @@ export class LinkElementType extends ElementType {
       }
     } else if (
       element.navigation_type === 'custom' &&
-      !element.navigate_to_url
+      !element.navigate_to_url.formula
     ) {
       return this.app.i18n.t('elementType.errorNavigationUrlMissing')
     }
@@ -1878,7 +1878,7 @@ export class IFrameElementType extends ElementType {
       return this.app.i18n.t('elementType.errorIframeUrlMissing')
     } else if (
       element.source_type === IFRAME_SOURCE_TYPES.EMBED &&
-      !element.embed
+      !element.embed.formula
     ) {
       return this.app.i18n.t('elementType.errorIframeContentMissing')
     }
@@ -2474,7 +2474,7 @@ export class MenuElementType extends ElementType {
 
           if (
             menuItem.navigation_type === 'custom' &&
-            !menuItem.navigate_to_url
+            !menuItem.navigate_to_url.formula
           ) {
             return this.app.i18n.t('elementType.errorNavigationUrlMissing')
           }

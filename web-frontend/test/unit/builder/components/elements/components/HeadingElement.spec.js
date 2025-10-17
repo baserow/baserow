@@ -27,7 +27,7 @@ describe('HeadingElement', () => {
     const builder = { id: 1, theme: { primary_color: '#ccc' } }
     const page = {}
     const workspace = {}
-    const element = { level: 2, value: '', styles: {} }
+    const element = { level: 2, value: { formula: '' }, styles: {} }
     const mode = 'public'
 
     const wrapper = await mountComponent({
@@ -51,7 +51,7 @@ describe('HeadingElement', () => {
     const builder = { id: 1, theme: { primary_color: '#ccc' } }
     const page = {}
     const workspace = {}
-    const element = { level: 3, value: '"hello"', styles: {} }
+    const element = { level: 3, value: { formula: '"hello"' }, styles: {} }
     const mode = 'public'
 
     const wrapper = await mountComponent({

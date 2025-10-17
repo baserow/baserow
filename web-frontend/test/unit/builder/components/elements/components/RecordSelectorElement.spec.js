@@ -153,7 +153,7 @@ describe('RecordSelectorElement', () => {
       type: 'record_selector',
       data_source_id: page.dataSources[0].id,
       items_per_page: 5,
-      option_name_suffix: "'Suffix'",
+      option_name_suffix: { formula: "'Suffix'" },
     }
     store.dispatch('element/forceCreate', { page, element })
 
@@ -198,7 +198,9 @@ describe('RecordSelectorElement', () => {
       builder,
       page,
       element,
-      values: { option_name_suffix: "get('current_record.field_2')" },
+      values: {
+        option_name_suffix: { formula: "get('current_record.field_2')" },
+      },
     })
     await flushPromises()
     await wrapper
