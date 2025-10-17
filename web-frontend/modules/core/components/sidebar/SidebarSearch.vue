@@ -6,13 +6,18 @@
         <span class="sidebar__search-placeholder">
           {{ $t('workspaceSearch.searchEverything') }}
         </span>
-        <div class="sidebar__search-shortcut"><kbd>⌘</kbd><kbd>K</kbd></div>
+        <div class="sidebar__search-shortcut">
+          <kbd>{{ modifierKey }}</kbd
+          ><kbd>K</kbd>
+        </div>
       </div>
     </div>
   </li>
 </template>
 
 <script>
+import { isMac } from '@baserow/modules/core/utils/events'
+
 export default {
   name: 'SidebarSearch',
 
@@ -20,6 +25,12 @@ export default {
     selectedWorkspace: {
       type: Object,
       required: true,
+    },
+  },
+
+  computed: {
+    modifierKey() {
+      return isMac() ? '⌘' : 'Ctrl'
     },
   },
 
