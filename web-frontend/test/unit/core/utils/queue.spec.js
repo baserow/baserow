@@ -8,41 +8,33 @@ function sleep(ms) {
 }
 
 describe('test GroupTaskQueue when immediately filling the queue', () => {
-  test('test GroupTaskQueue when immediately filling the queue', async () => {
-    let executed1 = false
-    let executed2 = false
+  test('tasks run in order', async () => {
+  let executed1 = false
+  let executed2 = false
 
-    const queue = new GroupTaskQueue()
-    queue.add(async () => {
-      await sleep(20)
-      executed1 = true
-    })
-    queue.add(async () => {
-      await sleep(20)
-      executed2 = true
-    })
+  const queue = new GroupTaskQueue()
 
+  const p1 = queue.add(async () => {
     expect(executed1).toBe(false)
     expect(executed2).toBe(false)
-
-    jest.advanceTimersByTime(15)
-    await flushPromises()
-
-    expect(executed1).toBe(false)
-    expect(executed2).toBe(false)
-
-    jest.advanceTimersByTime(10)
-    await flushPromises()
-
+    executed1 = true
     expect(executed1).toBe(true)
     expect(executed2).toBe(false)
+  })
 
-    jest.advanceTimersByTime(20)
-    await flushPromises()
-
+  const p2 = queue.add(async () => {
+    expect(executed1).toBe(true)
+    expect(executed2).toBe(false)
+    executed2 = true
     expect(executed1).toBe(true)
     expect(executed2).toBe(true)
   })
+
+  await Promise.all([p1, p2])
+
+  expect(executed1).toBe(true)
+  expect(executed2).toBe(true)
+})
 })
 describe('test GroupTaskQueue adding to queue on the fly', () => {
   test('test GroupTaskQueue adding to queue on the fly', async () => {
