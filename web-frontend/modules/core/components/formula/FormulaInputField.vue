@@ -260,7 +260,6 @@ export default {
       return this.editor.getJSON()
     },
     nodeSelected() {
-      console.log('in')
       return this.editor?.commands.getSelectedNodePath() || null
     },
   },

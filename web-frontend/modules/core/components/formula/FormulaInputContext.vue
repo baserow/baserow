@@ -164,7 +164,6 @@ export default {
       )
     },
     toggleMode() {
-      console.log('toggleMode', this.mode)
       if (this.mode === 'advanced') {
         this.showAdvancedModeModal()
       } else {
