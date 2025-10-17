@@ -5,7 +5,7 @@ from django.contrib.auth.models import AbstractUser
 from pydantic import Field
 
 from baserow.core.models import Workspace
-from baserow_enterprise.assistant.tools.database.utils import get_tables
+from baserow_enterprise.assistant.tools.database.utils import filter_tables
 from baserow_enterprise.assistant.types import (
     BaseModel,
     TableNavigationType,
@@ -41,7 +41,7 @@ class TableNavigationRequestType(NavigationRequestType):
         workspace: Workspace,
         request: "TableNavigationRequestType",
     ) -> TableNavigationType:
-        (table,) = get_tables(user, workspace, [request.table_id])
+        table = filter_tables(user, workspace).get(id=request.table_id)
 
         return TableNavigationType(
             type="database-table",

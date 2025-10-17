@@ -16,7 +16,6 @@ from baserow.contrib.database.fields.field_types import LinkRowFieldType
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import SelectOption as OrmSelectOption
 from baserow.contrib.database.fields.registries import field_type_registry
-from baserow.contrib.database.models import Database
 from baserow.contrib.database.rows.actions import (
     CreateRowsActionType,
     DeleteRowsActionType,
@@ -31,7 +30,6 @@ from baserow.contrib.database.table.models import (
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.core.db import specific_iterator
 from baserow.core.models import Workspace
-from baserow.core.service import CoreService
 from baserow_enterprise.assistant.tools.database.types.table import (
     BaseTableItem,
     TableItem,
@@ -50,40 +48,12 @@ from .types import (
 NoChange = Literal["__NO_CHANGE__"]
 
 
-def get_tables(user, workspace: Workspace, table_ids: list[int]) -> list[Table]:
-    if not isinstance(table_ids, (list, tuple)):
-        table_ids = [table_ids]
-
-    tables = list(
-        TableHandler().list_workspace_tables(
-            user, workspace, base_queryset=Table.objects.filter(id__in=table_ids)
-        )
-    )
-
-    if len(tables) < len(table_ids):
-        raise ValidationError(_("One or more tables do not exist."))
-
-    # Make sure the order is the same as the input
-    tables.sort(key=lambda t: table_ids.index(t.id))
-
-    return tables
-
-
-def get_database(user, workspace: Workspace, database_id: int) -> Database:
-    return CoreService().get_application(
-        user,
-        database_id,
-        specific=False,
-        base_queryset=Database.objects.filter(workspace=workspace),
-    )
+def filter_tables(user, workspace: Workspace) -> list[Table]:
+    return TableHandler().list_workspace_tables(user, workspace)
 
 
 def list_tables(user, workspace: Workspace, database_id: int) -> list[BaseTableItem]:
-    tables_qs = (
-        TableHandler()
-        .list_workspace_tables(user, workspace)
-        .filter(database_id=database_id)
-    )
+    tables_qs = filter_tables(user, workspace).filter(database_id=database_id)
 
     return [BaseTableItem(id=table.id, name=table.name) for table in tables_qs]
 
@@ -129,6 +99,7 @@ def get_tables_schema(
         )
 
     # Make sure the order is the same as the input
+    tables = list(tables)
     table_items.sort(
         key=lambda t: tables.index(next(tb for tb in tables if tb.id == t.id))
     )
@@ -245,6 +216,11 @@ def _get_pydantic_field_definition(
         case "link_row":
             linked_model = orm_field.link_row_table.get_model()
             linked_primary_key = linked_model.get_primary_field()
+
+            # If there's no primary key, we can't safely work with this field
+            if linked_primary_key is None:
+                return FieldDefinition()  # Unsupported field type
+
             # Avoid null or empty values
             linked_pk = linked_primary_key.db_column
             linked_values = list(

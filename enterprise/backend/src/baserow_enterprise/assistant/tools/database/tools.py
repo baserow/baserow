@@ -5,6 +5,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
 from django.utils.translation import gettext as _
 
+import dspy
 from loguru import logger
 from pydantic import create_model
 
@@ -24,6 +25,7 @@ from baserow.core.service import CoreService
 from baserow_enterprise.assistant.tools.registries import AssistantToolType, ToolHelpers
 from baserow_enterprise.assistant.types import (
     TableNavigationType,
+    ToolSignature,
     ToolsUpgradeResponse,
     ViewNavigationType,
 )
@@ -37,6 +39,7 @@ from .types import (
     AnyViewItemCreate,
     BaseTableItem,
     DatabaseItem,
+    ListTablesFilterArg,
     TableItemCreate,
     view_item_registry,
 )
@@ -95,9 +98,9 @@ def get_list_tables_tool(
     access to in the current workspace.
     """
 
-    def list_tables(database_id: int) -> list[dict[str, Any]]:
+    def list_tables(filters: ListTablesFilterArg) -> list[dict[str, Any]]:
         """
-        List tables in the specified database the user can access.
+        List tables that verifies the filters
 
         - Always call this before creating new tables to avoid duplicates.
         - Always call this to link existing tables when table IDs are not known.
@@ -105,18 +108,42 @@ def get_list_tables_tool(
 
         nonlocal user, workspace, tool_helpers
 
-        database = utils.get_database(user, workspace, database_id)
-
-        tool_helpers.update_status(
-            _("Listing tables in %(database_name)s...")
-            % {"database_name": database.name}
+        tables = (
+            utils.filter_tables(user, workspace)
+            .filter(filters.to_orm_filter())
+            .select_related("database")
         )
 
-        return {
-            "tables": [
-                t.model_dump() for t in utils.list_tables(user, workspace, database_id)
-            ]
-        }
+        databases = {}
+        database_names = []
+        for table in tables:
+            if table.database_id not in databases:
+                databases[table.database_id] = {
+                    "id": table.database_id,
+                    "name": table.database.name,
+                    "tables": [],
+                }
+                database_names.append(table.database.name)
+            databases[table.database_id]["tables"].append(
+                {
+                    "id": table.id,
+                    "name": table.name,
+                    "database_id": table.database_id,
+                }
+            )
+
+        tool_helpers.update_status(
+            _("Listing tables in %(database_names)s...")
+            % {"database_names": ", ".join(database_names)}
+        )
+
+        if len(databases) == 0:
+            return "No tables found"
+        elif len(databases) == 1:
+            # Return just the tables array when there's only one database
+            return list(databases.values())[0]["tables"]
+        else:
+            return list(databases.values())
 
     return list_tables
 
@@ -162,7 +189,7 @@ def get_tables_schema_tool(
         if not table_ids:
             return []
 
-        tables = utils.get_tables(user, workspace, table_ids)
+        tables = utils.filter_tables(user, workspace).filter(id__in=table_ids)
 
         tool_helpers.update_status(
             _("Inspecting %(table_names)s schema...")
@@ -198,10 +225,11 @@ def get_create_database_tool(
     def create_database(name: str) -> dict[str, Any]:
         """
         Create a database in the current workspace and return its ID and name.
+        **ALWAYS** create tables afterwards unless explicitly asked otherwise.
 
         - name: desired database name (must be unique in the workspace)
         - call list_databases first to avoid duplicates
-        - to add tables/fields after creation, use the create_tables afterwards
+        - call the create_tables tools afterwards unless explicitly asked otherwise
         """
 
         nonlocal user, workspace, tool_helpers
@@ -244,14 +272,16 @@ def get_create_tables_tool(
     """
 
     def create_tables(
-        database_id: int, tables: list[TableItemCreate]
+        database_id: int, tables: list[TableItemCreate], add_sample_rows: bool = True
     ) -> list[dict[str, Any]]:
         """
-        Creates tables with fields in a database.
+        Creates tables with fields and rows in a database. **ALWAYS** add sample rows
+        unless explicitly asked otherwise.
 
         - table names should be unique in a database
         - add meaningful fields with the appropriate types and relationships to other
           existing tables. The reversed link_row fields will be created automatically.
+        - if add_sample_rows is True (default), add some example rows to each table
         """
 
         nonlocal user, workspace, tool_helpers
@@ -268,7 +298,7 @@ def get_create_tables_tool(
 
         created_tables = []
         with transaction.atomic():
-            for table in tables:
+            for i, table in enumerate(tables):
                 tool_helpers.update_status(
                     _("Creating table %(table_name)s...") % {"table_name": table.name}
                 )
@@ -288,9 +318,17 @@ def get_create_tables_tool(
                     name=primary_field_item.name,
                 )
 
-            # Now that we have all the tables created, we can create the fields
-            for table, created_table in zip(tables, created_tables):
-                utils.create_fields(user, created_table, table.fields, tool_helpers)
+        # Now that we have all the tables created, we can create the fields
+        notes = []
+        for table, created_table in zip(tables, created_tables):
+            with transaction.atomic():
+                try:
+                    utils.create_fields(user, created_table, table.fields, tool_helpers)
+                except Exception as e:
+                    notes.append(
+                        f"Error creating fields for table_{created_table.id}: {e}.\n"
+                        f"Please retry recreating fields for table_{created_table.id} manually."
+                    )
 
         tool_helpers.navigate_to(
             TableNavigationType(
@@ -301,10 +339,44 @@ def get_create_tables_tool(
             )
         )
 
+        if add_sample_rows:
+            tools = {}
+            instructions = []
+            tool_helpers.update_status(
+                _("Preparing example rows for these new tables...")
+            )
+            for table, created_table in zip(tables, created_tables):
+                create_rows_tool = utils.get_table_rows_tools(
+                    user, workspace, tool_helpers, created_table
+                )["create"]
+                tools[create_rows_tool.name] = create_rows_tool
+                instructions.append(
+                    f"- Create 5 example rows for table_{created_table.id}. Fill every relationship with valid data when possible."
+                )
+
+            predictor = dspy.Predict(ToolSignature)
+            result = predictor(
+                question=("\n".join(instructions)),
+                tools=list(tools.values()),
+            )
+            for call in result.outputs.tool_calls:
+                with transaction.atomic():
+                    try:
+                        result = tools[call.name](**call.args)
+                        notes.append(
+                            f"Rows created for table_{created_table.id}: {result}"
+                        )
+                    except Exception as e:
+                        notes.append(
+                            f"Error creating example rows for table_{created_table.id}: {e}\n."
+                            f"Please retry recreating rows for table_{created_table.id} manually."
+                        )
+
         return {
             "created_tables": [
                 BaseTableItem(id=t.id, name=t.name).model_dump() for t in created_tables
-            ]
+            ],
+            "notes": notes,
         }
 
     return create_tables
@@ -348,7 +420,7 @@ def get_create_fields_tool(
         if not fields:
             return []
 
-        (table,) = utils.get_tables(user, workspace, [table_id])
+        table = utils.filter_tables(user, workspace).get(id=table_id)
 
         with transaction.atomic():
             created_fields = utils.create_fields(user, table, fields, tool_helpers)
@@ -390,7 +462,7 @@ def get_list_rows_tool(
 
         nonlocal user, workspace, tool_helpers
 
-        (table,) = utils.get_tables(user, workspace, [table_id])
+        table = utils.filter_tables(user, workspace).get(id=table_id)
 
         tool_helpers.update_status(
             _("Listing rows in %(table_name)s ") % {"table_name": table.name}
@@ -451,7 +523,7 @@ def get_rows_meta_tool(
         observation = ["New tools are now available.\n"]
 
         new_tools = []
-        tables = utils.get_tables(user, workspace, table_ids)
+        tables = utils.filter_tables(user, workspace).filter(id__in=table_ids)
         for table in tables:
             table_tools = utils.get_table_rows_tools(
                 user, workspace, tool_helpers, table
@@ -515,7 +587,7 @@ def get_list_views_tool(
 
         nonlocal user, workspace, tool_helpers
 
-        (table,) = utils.get_tables(user, workspace, [table_id])
+        table = utils.filter_tables(user, workspace).get(id=table_id)
 
         tool_helpers.update_status(
             _("Listing views in %(table_name)s...") % {"table_name": table.name}
@@ -562,11 +634,12 @@ def get_create_views_tool(
         table_id: int, views: list[AnyViewItemCreate]
     ) -> list[dict[str, Any]]:
         """
-        Creates views in the specified table.
+        Creates views in the specified table. A default grid view showing all the rows
+        is created automatically when a table is created, no need to recreate it.
 
         - Choose the most appropriate view type for each view.
-        - View names must be unique within a table: check existing names
-          when needed and skip duplicates.
+        - View names must be unique within a table: check existing names when needed and
+          skip duplicates.
         """
 
         nonlocal user, workspace, tool_helpers
@@ -574,7 +647,7 @@ def get_create_views_tool(
         if not views:
             return []
 
-        (table,) = utils.get_tables(user, workspace, [table_id])
+        table = utils.filter_tables(user, workspace).get(id=table_id)
 
         created_views = []
         with transaction.atomic():
