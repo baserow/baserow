@@ -1,4 +1,4 @@
-.automation-app {
+.automation-workflow {
   display: flex;
   flex-direction: column;
   height: 100%; // Or another appropriate height
@@ -21,18 +21,17 @@
 }
 
 .automation-workflow__side-panel {
-  flex: 20 1 0px;
+  flex-basis: 360px;
   padding: 16px;
   overflow: hidden;
   background-color: $white;
   border-left: 1px solid $palette-neutral-200;
   overflow-y: auto;
-  max-width: 350px;
-  min-width: 250px;
 }
 
 .automation-workflow__editor {
-  flex: 80 1 0px;
+  flex: 1;
+  min-width: 300px;
   overflow: hidden;
 }
 

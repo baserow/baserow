@@ -47,7 +47,12 @@ class AutomationWorkflowFixtures:
                 service_type.model_class, **trigger_service_kwargs
             )
             self.create_automation_node(
-                workflow=workflow, type=trigger_type.type, service=service
+                workflow=workflow,
+                type=trigger_type.type,
+                service=service,
+                position_node_id=None,
+                position="south",
+                output="",
             )
 
         return workflow

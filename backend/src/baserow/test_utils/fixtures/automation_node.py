@@ -4,11 +4,13 @@ from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.models import (
     AutomationActionNode,
     AutomationNode,
+    CoreIteratorActionNode,
     CoreRouterActionNode,
     LocalBaserowCreateRowActionNode,
 )
 from baserow.contrib.automation.nodes.node_types import (
     CoreHTTPTriggerNodeType,
+    CoreIteratorNodeType,
     CorePeriodicTriggerNodeType,
     CoreRouterActionNodeType,
     LocalBaserowCreateRowNodeType,
@@ -18,6 +20,7 @@ from baserow.contrib.automation.nodes.node_types import (
 )
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.integrations.core.models import CoreRouterServiceEdge
+from baserow.core.cache import local_cache
 from baserow.core.services.registries import service_type_registry
 
 
@@ -54,12 +57,26 @@ class AutomationNodeFixtures:
                 service_type.model_class, **service_kwargs
             )
 
-        if "order" not in kwargs:
-            kwargs["order"] = AutomationNode.get_last_order(workflow)
+        [
+            last_position_node,
+            last_position,
+            last_output,
+        ] = workflow.get_graph().get_last_position()
 
-        return AutomationNodeHandler().create_node(
-            node_type, workflow=workflow, **kwargs
-        )
+        # By default the node is placed at the end of the graph if not position is
+        # provided
+        position_node = kwargs.pop("position_node", last_position_node)
+        position = kwargs.pop("position", last_position)
+        output = kwargs.pop("output", last_output)
+
+        with local_cache.context():  # We make sure the cache is empty
+            created_node = AutomationNodeHandler().create_node(
+                node_type, workflow=workflow, **kwargs
+            )
+            # insert the node in the graph
+            workflow.get_graph().insert(created_node, position_node, position, output)
+
+        return created_node
 
     def create_local_baserow_rows_created_trigger_node(self, user=None, **kwargs):
         return self.create_automation_node(
@@ -91,6 +108,15 @@ class AutomationNodeFixtures:
             **kwargs,
         )
 
+    def create_core_iterator_action_node(
+        self, user=None, **kwargs
+    ) -> CoreIteratorActionNode:
+        return self.create_automation_node(
+            user=user,
+            type=CoreIteratorNodeType.type,
+            **kwargs,
+        )
+
     def create_core_router_action_node(
         self, user=None, **kwargs
     ) -> CoreRouterActionNode:
@@ -106,20 +132,29 @@ class AutomationNodeFixtures:
             user=user, service=service, **kwargs
         )
         workflow = router.workflow
+
         edge1 = self.create_core_router_service_edge(
-            service=service, label="Do this", condition="'true'"
+            service=service,
+            label="Do this",
+            condition="'true'",
+            output_label="output edge 1",
         )
-        edge1_output = workflow.automation_workflow_nodes.get(
-            previous_node_output=edge1.uid
-        ).specific
         edge2 = self.create_core_router_service_edge(
-            service=service, label="Do that", condition="'true'"
+            service=service,
+            label="Do that",
+            condition="'true'",
+            output_label="output edge 2",
         )
-        edge2_output = workflow.automation_workflow_nodes.get(
-            previous_node_output=edge2.uid
-        ).specific
+
+        edge1_output = workflow.get_graph().get_node(
+            position_node=router, position="south", output=edge1.uid
+        )
+        edge2_output = workflow.get_graph().get_node(
+            position_node=router, position="south", output=edge2.uid
+        )
+
         fallback_output_node = self.create_local_baserow_create_row_action_node(
-            workflow=workflow, previous_node_id=router.id, previous_node_output=""
+            workflow=workflow, position_node=router, label="fallback node"
         )
 
         return CoreRouterWithEdges(

@@ -2,13 +2,15 @@ from typing import Any, Dict, Optional
 
 from django.contrib.auth.models import AbstractUser
 
-from rest_framework import serializers
-
 from baserow.contrib.automation.automation_dispatch_context import (
     AutomationDispatchContext,
 )
 from baserow.contrib.automation.formula_importer import import_formula
-from baserow.contrib.automation.nodes.exceptions import AutomationNodeNotReplaceable
+from baserow.contrib.automation.nodes.exceptions import (
+    AutomationNodeBeforeInvalid,
+    AutomationNodeNotInWorkflow,
+    AutomationNodeNotReplaceable,
+)
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.types import AutomationNodeDict
 from baserow.core.integrations.models import Integration
@@ -39,21 +41,6 @@ class AutomationNodeType(
     parent_property_name = "workflow"
     id_mapping_name = "automation_workflow_nodes"
 
-    request_serializer_field_names = ["previous_node_id", "previous_node_output"]
-    request_serializer_field_overrides = {
-        "previous_node_id": serializers.IntegerField(
-            required=False,
-            default=None,
-            allow_null=True,
-        ),
-        "previous_node_output": serializers.CharField(
-            required=False,
-            default="",
-            allow_blank=True,
-            help_text="The output of the previous node.",
-        ),
-    }
-
     # Whether this node type is allowed to be moved in a workflow.
     is_fixed = False
 
@@ -65,17 +52,12 @@ class AutomationNodeType(
     is_workflow_action = False
 
     class SerializedDict(AutomationNodeDict):
-        label: str
-        service: Dict
-        parent_node_id: Optional[int]
-        previous_node_id: Optional[int]
+        ...
 
     @property
     def allowed_fields(self):
         return super().allowed_fields + [
             "label",
-            "previous_node_id",
-            "previous_node_output",
             "service",
         ]
 
@@ -86,8 +68,6 @@ class AutomationNodeType(
 
         :param node: The node instance to about to be deleted.
         """
-
-        ...
 
     def before_replace(self, node: AutomationNode, new_node_type: Instance) -> None:
         """
@@ -112,8 +92,6 @@ class AutomationNodeType(
 
         :param node: The node instance that was just created.
         """
-
-        ...
 
     def get_service_type(self) -> Optional[ServiceTypeSubClass]:
         return (
@@ -159,9 +137,6 @@ class AutomationNodeType(
         storage=None,
         cache=None,
     ):
-        if prop_name == "order":
-            return str(node.order)
-
         if prop_name == "service":
             service = node.service.specific
             return service.get_type().export_serialized(
@@ -264,6 +239,8 @@ class AutomationNodeType(
         :return: The modified node values, prepared.
         """
 
+        from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
+
         service_type = service_type_registry.get(self.service_type)
 
         if not instance:
@@ -286,6 +263,10 @@ class AutomationNodeType(
         )
 
         values["service"] = service
+
+        if (position_node_id := values.get("position_node_id", None)) is not None:
+            values["position_node"] = AutomationNodeHandler().get_node(position_node_id)
+
         return values
 
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:

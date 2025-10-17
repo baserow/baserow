@@ -1,6 +1,7 @@
 import pytest
 
 from baserow.contrib.automation.nodes.trash_types import AutomationNodeTrashableItemType
+from baserow.core.cache import local_cache
 from baserow.core.trash.exceptions import TrashItemRestorationDisallowed
 from baserow.core.trash.handler import TrashHandler
 
@@ -10,9 +11,10 @@ def test_trashing_and_restoring_node_updates_next_node_values(data_fixture):
     user = data_fixture.create_user()
     workflow = data_fixture.create_automation_workflow(user=user)
     trigger = workflow.get_trigger()
+
     initial_router_service = data_fixture.create_core_router_service()
     initial_router = data_fixture.create_core_router_action_node(
-        workflow=workflow, service=initial_router_service
+        workflow=workflow, service=initial_router_service, previous_node=trigger
     )
     second_router_service = data_fixture.create_core_router_service()
     second_router = data_fixture.create_core_router_action_node(
@@ -50,9 +52,12 @@ def test_trashing_and_restoring_node_updates_next_node_values(data_fixture):
     )
 
     automation = workflow.automation
-    trash_entry = TrashHandler.trash(
-        user, automation.workspace, automation, second_router
-    )
+
+    with local_cache.context():
+        trash_entry = TrashHandler.trash(
+            user, automation.workspace, automation, second_router
+        )
+
     assert trash_entry.additional_restoration_data == {
         second_router_edge_output_node.id: {
             "previous_node_output": str(second_router_edge.uid)
@@ -68,11 +73,12 @@ def test_trashing_and_restoring_node_updates_next_node_values(data_fixture):
         initial_router_edge.uid
     )
 
-    TrashHandler.restore_item(
-        user,
-        AutomationNodeTrashableItemType.type,
-        second_router.id,
-    )
+    with local_cache.context():
+        TrashHandler.restore_item(
+            user,
+            AutomationNodeTrashableItemType.type,
+            second_router.id,
+        )
 
     second_router.refresh_from_db()
     assert second_router.previous_node_id == initial_router.id

@@ -25,6 +25,7 @@
           :search-path="node.identifier"
           :node-selected="nodeSelected"
           :search="debouncedSearch"
+          :allow-node-selection="allowNodeSelection"
           @click="$emit('node-selected', $event)"
           @toggle="toggleNode"
         />
@@ -65,6 +66,11 @@ export default {
       default: null,
     },
     loading: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
+    allowNodeSelection: {
       type: Boolean,
       required: false,
       default: false,

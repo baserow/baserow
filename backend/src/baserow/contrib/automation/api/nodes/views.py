@@ -11,11 +11,15 @@ from rest_framework.views import APIView
 
 from baserow.api.decorators import (
     map_exceptions,
+    require_request_data_type,
     validate_body,
-    validate_body_custom_fields,
 )
 from baserow.api.schemas import CLIENT_SESSION_ID_SCHEMA_PARAMETER, get_error_schema
-from baserow.api.utils import DiscriminatorCustomFieldsMappingSerializer
+from baserow.api.utils import (
+    DiscriminatorCustomFieldsMappingSerializer,
+    type_from_data_or_registry,
+    validate_data_custom_fields,
+)
 from baserow.contrib.automation.api.nodes.errors import (
     ERROR_AUTOMATION_NODE_BEFORE_INVALID,
     ERROR_AUTOMATION_NODE_DOES_NOT_EXIST,
@@ -31,7 +35,6 @@ from baserow.contrib.automation.api.nodes.serializers import (
     AutomationNodeSerializer,
     CreateAutomationNodeSerializer,
     MoveAutomationNodeSerializer,
-    OrderAutomationNodesSerializer,
     ReplaceAutomationNodeSerializer,
     UpdateAutomationNodeSerializer,
 )
@@ -43,7 +46,6 @@ from baserow.contrib.automation.nodes.actions import (
     DeleteAutomationNodeActionType,
     DuplicateAutomationNodeActionType,
     MoveAutomationNodeActionType,
-    OrderAutomationNodesActionType,
     ReplaceAutomationNodeActionType,
     UpdateAutomationNodeActionType,
 )
@@ -58,6 +60,7 @@ from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeSimulateDispatchError,
     AutomationTriggerModificationDisallowed,
 )
+from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.nodes.service import AutomationNodeService
 from baserow.contrib.automation.workflows.exceptions import (
@@ -118,6 +121,7 @@ class AutomationNodesView(APIView):
     )
     @validate_body(CreateAutomationNodeSerializer)
     def post(self, request, data: Dict, workflow_id: int):
+        print("create", data)
         type_name = data.pop("type")
         node_type = automation_node_type_registry.get(type_name)
         workflow = AutomationWorkflowService().get_workflow(request.user, workflow_id)
@@ -219,12 +223,22 @@ class AutomationNodeView(APIView):
             AutomationNodeMisconfiguredService: ERROR_AUTOMATION_NODE_MISCONFIGURED_SERVICE,
         }
     )
-    @validate_body_custom_fields(
-        automation_node_type_registry,
-        base_serializer_class=UpdateAutomationNodeSerializer,
-        partial=True,
-    )
-    def patch(self, request, data: Dict, node_id: int):
+    @require_request_data_type(dict)
+    def patch(self, request, node_id: int):
+        node = AutomationNodeHandler().get_node(node_id)
+        node_type = type_from_data_or_registry(
+            request.data, automation_node_type_registry, node
+        )
+
+        data = validate_data_custom_fields(
+            node_type.type,
+            automation_node_type_registry,
+            request.data,
+            base_serializer_class=UpdateAutomationNodeSerializer,
+            partial=True,
+            return_validated=True,
+        )
+
         node = UpdateAutomationNodeActionType.do(request.user, node_id, data)
 
         serializer = automation_node_type_registry.get_serializer(
@@ -261,55 +275,12 @@ class AutomationNodeView(APIView):
     )
     @transaction.atomic
     def delete(self, request, node_id: int):
+        # TODO cant' remove trigger
         node = AutomationNodeService().get_node(request.user, node_id)
+
         node.get_type().before_delete(node)
+
         DeleteAutomationNodeActionType.do(request.user, node_id)
-
-        return Response(status=204)
-
-
-class OrderAutomationNodesView(APIView):
-    @extend_schema(
-        parameters=[
-            OpenApiParameter(
-                name="workflow_id",
-                location=OpenApiParameter.PATH,
-                type=OpenApiTypes.INT,
-                description="The workflow that the nodes belong to.",
-            ),
-            CLIENT_SESSION_ID_SCHEMA_PARAMETER,
-        ],
-        tags=[AUTOMATION_NODES_TAG],
-        operation_id="order_automation_nodes",
-        description="Apply a new order to the nodes of a workflow.",
-        request=OrderAutomationNodesSerializer,
-        responses={
-            204: None,
-            400: get_error_schema(
-                [
-                    "ERROR_REQUEST_BODY_VALIDATION",
-                    "ERROR_AUTOMATION_NODE_NOT_IN_WORKFLOW",
-                ]
-            ),
-            404: get_error_schema(
-                [
-                    "ERROR_AUTOMATION_NODE_DOES_NOT_EXIST",
-                    "ERROR_AUTOMATION_WORKFLOW_DOES_NOT_EXIST",
-                ]
-            ),
-        },
-    )
-    @transaction.atomic
-    @map_exceptions(
-        {
-            AutomationWorkflowDoesNotExist: ERROR_AUTOMATION_WORKFLOW_DOES_NOT_EXIST,
-            AutomationNodeDoesNotExist: ERROR_AUTOMATION_NODE_DOES_NOT_EXIST,
-            AutomationNodeNotInWorkflow: ERROR_AUTOMATION_NODE_NOT_IN_WORKFLOW,
-        }
-    )
-    @validate_body(OrderAutomationNodesSerializer)
-    def post(self, request, data: Dict, workflow_id: int):
-        OrderAutomationNodesActionType.do(request.user, workflow_id, data["node_ids"])
 
         return Response(status=204)
 
@@ -389,6 +360,7 @@ class ReplaceAutomationNodeView(APIView):
         {
             AutomationNodeDoesNotExist: ERROR_AUTOMATION_NODE_DOES_NOT_EXIST,
             AutomationNodeNotReplaceable: ERROR_AUTOMATION_NODE_NOT_REPLACEABLE,
+            AutomationNodeNotInWorkflow: ERROR_AUTOMATION_NODE_NOT_IN_WORKFLOW,
         }
     )
     @validate_body(ReplaceAutomationNodeSerializer)
@@ -396,6 +368,7 @@ class ReplaceAutomationNodeView(APIView):
         replaced_node = ReplaceAutomationNodeActionType.do(
             request.user, node_id, data["new_type"]
         )
+
         return Response(
             automation_node_type_registry.get_serializer(
                 replaced_node, AutomationNodeSerializer
@@ -471,18 +444,10 @@ class MoveAutomationNodeView(APIView):
         {
             AutomationNodeDoesNotExist: ERROR_AUTOMATION_NODE_DOES_NOT_EXIST,
             AutomationNodeNotMovable: ERROR_AUTOMATION_NODE_NOT_MOVABLE,
+            AutomationNodeNotInWorkflow: ERROR_AUTOMATION_NODE_NOT_IN_WORKFLOW,
         }
     )
     @validate_body(MoveAutomationNodeSerializer)
     def post(self, request, data: Dict, node_id: int):
-        moved_node = MoveAutomationNodeActionType.do(
-            request.user,
-            node_id,
-            data["previous_node_id"],
-            data["previous_node_output"],
-        )
-        return Response(
-            automation_node_type_registry.get_serializer(
-                moved_node, AutomationNodeSerializer
-            ).data
-        )
+        MoveAutomationNodeActionType.do(request.user, node_id, **data)
+        return Response(status=HTTP_202_ACCEPTED)

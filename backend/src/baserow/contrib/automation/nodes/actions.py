@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, List, Optional
+from typing import Any, List
 
 from django.contrib.auth.models import AbstractUser
 from django.utils.translation import gettext_lazy as _
@@ -8,7 +8,6 @@ from baserow.contrib.automation.action_scopes import (
     NODE_ACTION_CONTEXT,
     WorkflowActionScopeType,
 )
-from baserow.contrib.automation.actions import AUTOMATION_WORKFLOW_CONTEXT
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.models import AutomationActionNode, AutomationNode
 from baserow.contrib.automation.nodes.node_types import AutomationNodeType
@@ -16,11 +15,9 @@ from baserow.contrib.automation.nodes.registries import (
     ReplaceAutomationNodeTrashOperationType,
 )
 from baserow.contrib.automation.nodes.service import AutomationNodeService
-from baserow.contrib.automation.nodes.signals import automation_node_replaced
 from baserow.contrib.automation.nodes.trash_types import AutomationNodeTrashableItemType
-from baserow.contrib.automation.nodes.types import NextAutomationNodeValues
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
-from baserow.contrib.automation.workflows.service import AutomationWorkflowService
+from baserow.contrib.automation.workflows.signals import automation_workflow_updated
 from baserow.core.action.models import Action
 from baserow.core.action.registries import ActionTypeDescription, UndoableActionType
 from baserow.core.trash.handler import TrashHandler
@@ -49,14 +46,7 @@ class CreateAutomationNodeActionType(UndoableActionType):
         workflow: AutomationWorkflow,
         data: dict,
     ) -> AutomationNode:
-        before_id = data.pop("before_id", None)
-        before = (
-            AutomationNodeService().get_node(user, before_id) if before_id else None
-        )
-
-        node = AutomationNodeService().create_node(
-            user, node_type, workflow, before, **data
-        )
+        node = AutomationNodeService().create_node(user, node_type, workflow, **data)
 
         cls.register_action(
             user=user,
@@ -225,75 +215,6 @@ class DeleteAutomationNodeActionType(UndoableActionType):
         AutomationNodeService().delete_node(user, params.node_id)
 
 
-class OrderAutomationNodesActionType(UndoableActionType):
-    type = "order_automation_nodes"
-    description = ActionTypeDescription(
-        _("Order nodes"),
-        _("Node order changed"),
-        AUTOMATION_WORKFLOW_CONTEXT,
-    )
-
-    @dataclass
-    class Params:
-        workflow_id: int
-        nodes_order: List[int]
-        original_nodes_order: List[int]
-        automation_name: str
-        automation_id: int
-
-    @classmethod
-    def do(cls, user: AbstractUser, workflow_id: int, order: List[int]) -> None:
-        workflow = AutomationWorkflowService().get_workflow(user, workflow_id)
-
-        original_nodes_order = AutomationNodeHandler().get_nodes_order(workflow)
-        params = cls.Params(
-            workflow_id,
-            order,
-            original_nodes_order,
-            workflow.automation.name,
-            workflow.automation.id,
-        )
-
-        AutomationNodeService().order_nodes(user, workflow, order=order)
-
-        cls.register_action(
-            user=user,
-            params=params,
-            scope=cls.scope(workflow_id),
-            workspace=workflow.automation.workspace,
-        )
-
-    @classmethod
-    def scope(cls, workflow_id):
-        return WorkflowActionScopeType.value(workflow_id)
-
-    @classmethod
-    def undo(
-        cls,
-        user: AbstractUser,
-        params: Params,
-        action_to_undo: Action,
-    ):
-        AutomationNodeService().order_nodes(
-            user,
-            AutomationWorkflowService().get_workflow(user, params.workflow_id),
-            order=params.original_nodes_order,
-        )
-
-    @classmethod
-    def redo(
-        cls,
-        user: AbstractUser,
-        params: Params,
-        action_to_redo: Action,
-    ):
-        AutomationNodeService().order_nodes(
-            user,
-            AutomationWorkflowService().get_workflow(user, params.workflow_id),
-            order=params.nodes_order,
-        )
-
-
 class DuplicateAutomationNodeActionType(UndoableActionType):
     type = "duplicate_automation_node"
     description = ActionTypeDescription(
@@ -309,9 +230,7 @@ class DuplicateAutomationNodeActionType(UndoableActionType):
         workflow_id: int
         node_id: int  # The source node id
         node_type: str  # The source node type
-        source_node_next_nodes_values: List[NextAutomationNodeValues]
         duplicated_node_id: int
-        duplicated_node_next_nodes_values: List[NextAutomationNodeValues]
 
     @classmethod
     def do(
@@ -320,7 +239,7 @@ class DuplicateAutomationNodeActionType(UndoableActionType):
         source_node_id: int,
     ) -> AutomationNode:
         source_node = AutomationNodeService().get_node(user, source_node_id)
-        duplication = AutomationNodeService().duplicate_node(user, source_node)
+        duplicated_node = AutomationNodeService().duplicate_node(user, source_node_id)
         workflow = source_node.workflow
         cls.register_action(
             user=user,
@@ -330,14 +249,12 @@ class DuplicateAutomationNodeActionType(UndoableActionType):
                 workflow.id,
                 source_node_id,
                 source_node.get_type().type,
-                duplication.source_node_next_nodes_values,
-                duplication.duplicated_node.id,
-                duplication.duplicated_node_next_nodes_values,
+                duplicated_node.id,
             ),
             scope=cls.scope(workflow.id),
             workspace=workflow.automation.workspace,
         )
-        return duplication.duplicated_node
+        return duplicated_node
 
     @classmethod
     def scope(cls, workflow_id):
@@ -353,11 +270,6 @@ class DuplicateAutomationNodeActionType(UndoableActionType):
         # Trash the duplicated node.
         AutomationNodeService().delete_node(user, params.duplicated_node_id)
 
-        # Revert any next nodes to point back to the source node.
-        AutomationNodeHandler().update_next_nodes_values(
-            params.source_node_next_nodes_values
-        )
-
     @classmethod
     def redo(
         cls,
@@ -370,11 +282,6 @@ class DuplicateAutomationNodeActionType(UndoableActionType):
             user,
             AutomationNodeTrashableItemType.type,
             params.duplicated_node_id,
-        )
-
-        # Revert any next nodes to point back to the duplicated node.
-        AutomationNodeHandler().update_next_nodes_values(
-            params.duplicated_node_next_nodes_values
         )
 
 
@@ -443,17 +350,15 @@ class ReplaceAutomationNodeActionType(UndoableActionType):
         )
         # Trash the node of the new type, and pass its operation type so that its
         # trash entry is flagged as managed to prevent users from restoring it.
-        deleted_node = AutomationNodeService().delete_node(
+        AutomationNodeService().delete_node(
             user,
             params.node_id,
             trash_operation_type=ReplaceAutomationNodeTrashOperationType.type,
+            send_graph_update_signal=False,
         )
-        automation_node_replaced.send(
-            cls,
-            workflow=restored_node.workflow,
-            deleted_node=deleted_node,
-            restored_node=restored_node.specific,
-            user=user,
+
+        automation_workflow_updated.send(
+            cls, workflow=restored_node.workflow, user=None
         )
 
     @classmethod
@@ -471,17 +376,15 @@ class ReplaceAutomationNodeActionType(UndoableActionType):
         )
         # Trash the node of the original type, and pass its operation type so that its
         # trash entry is flagged as managed to prevent users from restoring it.
-        deleted_node = AutomationNodeService().delete_node(
+        AutomationNodeService().delete_node(
             user,
             params.original_node_id,
             trash_operation_type=ReplaceAutomationNodeTrashOperationType.type,
+            send_graph_update_signal=False,
         )
-        automation_node_replaced.send(
-            cls,
-            workflow=restored_node.workflow,
-            restored_node=restored_node.specific,
-            deleted_node=deleted_node,
-            user=user,
+
+        automation_workflow_updated.send(
+            cls, workflow=restored_node.workflow, user=None
         )
 
 
@@ -500,48 +403,50 @@ class MoveAutomationNodeActionType(UndoableActionType):
         workflow_id: int
         node_id: int
         node_type: str
-        origin_previous_node_id: int
-        origin_previous_node_output: str
-        origin_new_next_nodes_values: List[NextAutomationNodeValues]
-        origin_old_next_nodes_values: List[NextAutomationNodeValues]
-        destination_previous_node_id: int
-        destination_previous_node_output: str
-        destination_new_next_nodes_values: List[NextAutomationNodeValues]
-        destination_old_next_nodes_values: List[NextAutomationNodeValues]
+        origin_position_node_id: int
+        origin_position: str
+        origin_output: str
+        destination_position_node_id: int
+        destination_position: str
+        destination_output: str
 
     @classmethod
     def do(
         cls,
         user: AbstractUser,
         node_id: int,
-        new_previous_node_id: int,
-        new_previous_node_output: Optional[str] = None,
+        position_node_id: int | None,
+        position,
+        output,
     ) -> AutomationActionNode:
         move = AutomationNodeService().move_node(
-            user, node_id, new_previous_node_id, new_previous_node_output
+            user,
+            node_id,
+            position_node_id,
+            position,
+            output,
         )
-        workflow = move.node.workflow
+        node = move.node
+        workflow = node.workflow
         cls.register_action(
             user=user,
             params=cls.Params(
                 workflow.automation_id,
                 workflow.automation.name,
                 workflow.id,
-                move.node.id,
-                move.node.get_type().type,
-                move.origin_previous_node_id,
-                move.origin_previous_node_output,
-                move.origin_new_next_nodes_values,
-                move.origin_old_next_nodes_values,
-                move.destination_previous_node_id,
-                move.destination_previous_node_output,
-                move.destination_new_next_nodes_values,
-                move.destination_old_next_nodes_values,
+                node.id,
+                node.get_type().type,
+                move.previous_position_node.id,
+                move.previous_position,
+                move.previous_output,
+                position_node_id,
+                position,
+                output,
             ),
             scope=cls.scope(workflow.id),
             workspace=workflow.automation.workspace,
         )
-        return move.node
+        return node
 
     @classmethod
     def scope(cls, workflow_id):
@@ -554,25 +459,12 @@ class MoveAutomationNodeActionType(UndoableActionType):
         params: Params,
         action_to_undo: Action,
     ):
-        # Revert the node to its original position & output (if applicable).
-        AutomationNodeService().update_node(
+        AutomationNodeService().move_node(
             user,
             params.node_id,
-            previous_node_id=params.origin_previous_node_id,
-            previous_node_output=params.origin_previous_node_output,
-        )
-
-        # Pluck out the workflow, we need it to send our signals for next nodes.
-        workflow = AutomationWorkflowService().get_workflow(user, params.workflow_id)
-
-        # Revert the origin's next nodes back to their original position.
-        AutomationNodeService().update_next_nodes_values(
-            user, params.origin_old_next_nodes_values, workflow
-        )
-
-        # Revert the destination's next nodes back to their original position.
-        AutomationNodeService().update_next_nodes_values(
-            user, params.destination_old_next_nodes_values, workflow
+            params.origin_position_node_id,
+            params.origin_position,
+            params.origin_output,
         )
 
     @classmethod
@@ -582,23 +474,10 @@ class MoveAutomationNodeActionType(UndoableActionType):
         params: Params,
         action_to_redo: Action,
     ):
-        # Set the node to its new position & output (if applicable).
-        AutomationNodeService().update_node(
+        AutomationNodeService().move_node(
             user,
             params.node_id,
-            previous_node_id=params.destination_previous_node_id,
-            previous_node_output=params.destination_previous_node_output,
-        )
-
-        # Pluck out the workflow, we need it to send our signals for next nodes.
-        workflow = AutomationWorkflowService().get_workflow(user, params.workflow_id)
-
-        # Set the origin's next nodes to their new position.
-        AutomationNodeService().update_next_nodes_values(
-            user, params.origin_new_next_nodes_values, workflow
-        )
-
-        # Set the destination's next nodes to their new position.
-        AutomationNodeService().update_next_nodes_values(
-            user, params.destination_new_next_nodes_values, workflow
+            params.destination_position_node_id,
+            params.destination_position,
+            params.destination_output,
         )

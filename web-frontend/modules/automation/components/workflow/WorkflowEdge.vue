@@ -1,22 +1,23 @@
 <template>
   <div class="workflow-edge">
-    <div v-if="hasSiblings" class="workflow-edge__label">{{ edge.label }}</div>
+    <div v-if="hasSiblings" class="workflow-edge__label">{{ edgeLabel }}</div>
     <div
-      class="workflow-edge__dropzone-wrapper workflow-edge__add-button-wrapper"
+      class="workflow-edge__dropzone-wrapper"
       :class="{
-        'workflow-edge__add-button-wrapper--with-next': nextNodesOnEdge.length,
+        'workflow-edge__dropzone-wrapper--with-next': nextNodesOnEdge.length,
       }"
     >
       <div
+        v-if="draggingNodeId && !isDropZoneDisabled"
+        class="workflow-edge__dropzone"
         :class="{
-          'workflow-edge__dropzone': draggingNodeId && !isDropZoneDisabled,
           'workflow-edge__dropzone--hover': isDragOver,
         }"
         @dragover.prevent
         @dragenter="handleDragEnter"
         @dragleave="handleDragLeave"
         @drop="handleDrop"
-      ></div>
+      />
       <WorkflowAddBtnNode
         class="workflow-edge__add-button"
         :class="{
@@ -28,8 +29,9 @@
         @add-node="
           emit('add-node', {
             type: $event,
-            previousNodeId: node.id,
-            previousNodeOutput: edge.uid,
+            position: isChild ? 'child' : 'south',
+            output: edgeUid,
+            positionNode: node,
           })
         "
       />
@@ -62,9 +64,11 @@ const props = defineProps({
     type: Object,
     required: true,
   },
-  edge: {
-    type: Object,
-    required: true,
+  edgeUid: { type: String, default: '' },
+  edgeLabel: { type: String, default: '' },
+  isChild: {
+    type: Boolean,
+    default: false,
   },
   hasSiblings: {
     type: Boolean,
@@ -109,7 +113,7 @@ const isDropZoneDisabled = computed(() => {
   }
 
   const afterNodeId = props.node.id
-  const afterNodeOutput = props.edge.uid
+  const afterNodeOutput = props.edgeUid
 
   // Disable drop zone immediately below the dragged node.
   if (afterNodeId === draggedNode.value.id) {
@@ -117,6 +121,7 @@ const isDropZoneDisabled = computed(() => {
   }
 
   // Disable drop zone where the dragged node is currently located.
+  // TODO
   if (
     draggedNode.value.previous_node_id === afterNodeId &&
     draggedNode.value.previous_node_output === afterNodeOutput
@@ -128,27 +133,42 @@ const isDropZoneDisabled = computed(() => {
 })
 
 const handleDragEnter = () => {
-  if (draggingNodeId.value && !isDropZoneDisabled.value) {
-    isDragOver.value = true
-  }
+  isDragOver.value = true
 }
 const handleDragLeave = () => {
   isDragOver.value = false
 }
+
 const handleDrop = () => {
-  if (isDropZoneDisabled.value) {
-    return
-  }
   isDragOver.value = false
+
   emit('move-node', {
-    afterNodeId: props.node.id,
-    afterNodeOutput: props.edge.uid,
+    positionNodeId: props.node.id,
+    position: props.isChild ? 'child' : 'south',
+    output: props.edgeUid,
   })
+  /* const positionNodeId = props.isChild ? props.node.parent_node_id : props.node.id
+  const parentNodeId = props.isChild ? props.node.id : props.node.parent_node_id
+  emit('move-node', {
+    positionNodeId,
+    afterNodeOutput: props.edgeUid,
+    parentNodeId,
+  }) */
 }
 
-const nextNodesOnEdge = store.getters['automationWorkflowNode/getNextNodes'](
-  workflow.value,
-  props.node,
-  props.edge.uid
-)
+const nextNodesOnEdge = computed(() => {
+  if (!props.isChild) {
+    return store.getters['automationWorkflowNode/getNextNodes'](
+      workflow.value,
+      props.node,
+      props.edgeUid
+    )
+  } else {
+    // we are selecting children
+    return store.getters['automationWorkflowNode/getChildren'](
+      workflow.value,
+      props.node
+    )
+  }
+})
 </script>

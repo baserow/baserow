@@ -6,10 +6,8 @@ from django.db import models
 from django.db.models import Manager, QuerySet
 
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
-from baserow.core.db import get_unique_orders_before_item
 from baserow.core.mixins import (
     CreatedAndUpdatedOnMixin,
-    FractionOrderableMixin,
     HierarchicalModelMixin,
     PolymorphicContentTypeMixin,
     TrashableModelMixin,
@@ -47,7 +45,6 @@ class AutomationNode(
     PolymorphicContentTypeMixin,
     CreatedAndUpdatedOnMixin,
     HierarchicalModelMixin,
-    FractionOrderableMixin,
     WithRegistry,
 ):
     """
@@ -97,13 +94,6 @@ class AutomationNode(
         related_name="automation_workflow_node",
         on_delete=models.CASCADE,
     )
-    order = models.DecimalField(
-        help_text="Lowest first.",
-        max_digits=40,
-        decimal_places=20,
-        editable=False,
-        default=1,
-    )
 
     previous_node_output = models.CharField(default="")
 
@@ -111,7 +101,7 @@ class AutomationNode(
     objects_and_trash = Manager()
 
     class Meta:
-        ordering = ("order", "id")
+        ordering = ("id",)
 
     @staticmethod
     def get_type_registry():
@@ -124,18 +114,49 @@ class AutomationNode(
     def get_parent(self):
         return self.workflow
 
-    def get_previous_service_outputs(self):
-        return (
-            (
-                {self.previous_node.service.id: str(self.previous_node_output)}
-                | self.previous_node.get_previous_service_outputs()
-            )
-            if self.previous_node
-            else {}
+    def get_label(self):
+        if self.label:
+            return self.label
+        else:
+            return self.get_type().type
+
+    def get_previous_nodes(self, specific: bool = True):
+        """
+        Returns the nodes before the current node. A previous node can be a
+        `previous_node` or a `parent_node`.
+        """
+
+        from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
+
+        nodes = AutomationNodeHandler().get_nodes(
+            workflow=self.workflow, specific=specific
         )
 
+        node_map = {node.id: node for node in nodes}
+
+        def _previous_nodes(node):
+            if node.previous_node_id:
+                previous = node_map[node.previous_node_id]
+                return [*_previous_nodes(previous), previous]
+
+            if node.parent_node_id:
+                parent = node_map[node.parent_node_id]
+                return [*_previous_nodes(parent), parent]
+
+            return []
+
+        return _previous_nodes(self)
+
+    def get_previous_service_outputs(self):
+        previous_nodes = [*self.get_previous_nodes(), self]
+
+        return {
+            previous_nodes[index].service_id: str(node.previous_node_output)
+            for index, node in enumerate(previous_nodes[1:])
+        }
+
     def get_next_nodes(
-        self, output_uid: str | None = None, specific: bool = False
+        self, output_uid: str | None = None, specific: bool = True
     ) -> Iterable["AutomationNode"]:
         """
         Returns all nodes which follow this node in the workflow. A list of nodes
@@ -152,57 +173,10 @@ class AutomationNode(
             self.workflow, self, output_uid=output_uid, specific=specific
         )
 
-    @classmethod
-    def get_last_order(cls, workflow: "AutomationWorkflow"):
-        queryset = AutomationNode.objects.filter(workflow=workflow)
-        return cls.get_highest_order_of_queryset(queryset)[0]
+    def get_children(self, specific=True):
+        from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 
-    @classmethod
-    def get_unique_order_before_node(
-        cls, before: "AutomationNode", parent_node_id: Optional[int]
-    ) -> Decimal:
-        """
-        Returns a safe order value before the given node in the given workflow.
-
-        :param before: The node before which we want the safe order
-        :param parent_node_id: The id of the parent node.
-        :raises CannotCalculateIntermediateOrder: If it's not possible to find an
-            intermediate order. The full order of the items must be recalculated in this
-            case before calling this method again.
-        :return: The order value.
-        """
-
-        queryset = AutomationNode.objects.filter(workflow=before.workflow).filter(
-            parent_node_id=parent_node_id
-        )
-
-        return cls.get_unique_orders_before_item(before, queryset)[0]
-
-    @classmethod
-    def get_unique_orders_before_item(
-        cls,
-        before: Optional[models.Model],
-        queryset: QuerySet,
-        amount: int = 1,
-        field: str = "order",
-    ) -> List[Decimal]:
-        """
-        Calculates a list of unique decimal orders that can safely be used before the
-        provided `before` item.
-
-        :param before: The model instance where the before orders must be
-            calculated for.
-        :param queryset: The base queryset used to compute the value.
-        :param amount: The number of orders that must be requested. Can be higher if
-            multiple items are inserted or moved.
-        :param field: The order field name.
-        :raises CannotCalculateIntermediateOrder: If it's not possible to find an
-            intermediate order. The full order of the items must be recalculated in this
-            case before calling this method again.
-        :return: A list of decimals containing safe to use orders in order.
-        """
-
-        return get_unique_orders_before_item(before, queryset, amount, field=field)
+        return AutomationNodeHandler().get_children(self, specific=specific)
 
 
 class AutomationActionNode(AutomationNode):
@@ -268,4 +242,8 @@ class CoreSMTPEmailActionNode(AutomationActionNode):
 
 
 class CoreRouterActionNode(AutomationActionNode):
+    ...
+
+
+class CoreIteratorActionNode(AutomationActionNode):
     ...

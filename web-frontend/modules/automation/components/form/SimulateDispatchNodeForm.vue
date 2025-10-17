@@ -10,8 +10,8 @@
       {{ buttonLabel }}
     </Button>
 
-    <div v-if="nodeIsInError">
-      {{ nodeIsInError }}
+    <div v-if="cantBeTestedReason">
+      {{ cantBeTestedReason }}
     </div>
 
     <div v-else-if="showTestNodeDescription">
@@ -59,6 +59,7 @@ import SampleDataModal from '@baserow/modules/automation/components/sidebar/Samp
 const { app } = useContext()
 const store = useStore()
 
+const automation = inject('automation')
 const workflow = inject('workflow')
 const sampleDataModalRef = ref(null)
 
@@ -90,35 +91,46 @@ const isLoading = computed(() => {
   return queryInProgress.value || isSimulatingThisNode.value
 })
 
+const nodeType = computed(() => app.$registry.get('node', props.node.type))
+
+const sampleData = computed(() => {
+  return nodeType.value.getSampleData(props.node)
+})
+
+const hasSampleData = computed(() => {
+  return Boolean(sampleData.value)
+})
+
 /**
  * All previous nodes must have been tested, i.e. they must have sample
  * data and shouldn't be in error.
  */
-const nodeIsInError = computed(() => {
-  const nodeType = app.$registry.get('node', props.node.type)
-
-  if (nodeType.isInError({ service: props.node.service })) {
+const cantBeTestedReason = computed(() => {
+  if (nodeType.value.isInError({ service: props.node.service })) {
     return app.i18n.t('simulateDispatch.errorNodeNotConfigured')
   }
 
-  let currentNode = workflow.value.orderedNodes.find(
-    (node) => node.id === props.node.previous_node_id
-  )
+  const previousNodes = store.getters[
+    'automationWorkflowNode/getPreviousNodes'
+  ](workflow.value, props.node)
 
-  while (currentNode) {
-    const nodeType = app.$registry.get('node', currentNode.type)
-
-    if (nodeType.isInError({ service: currentNode.service })) {
-      return app.i18n.t('simulateDispatch.errorPreviousNodeNotConfigured')
+  for (const previousNode of previousNodes) {
+    const previousNodeType = app.$registry.get('node', previousNode.type)
+    const nodeLabel = previousNodeType.getLabel({
+      automation: automation.value,
+      node: previousNode,
+    })
+    if (previousNodeType.isInError(previousNode)) {
+      return app.i18n.t('simulateDispatch.errorPreviousNodeNotConfigured', {
+        node: nodeLabel,
+      })
     }
 
-    if (!currentNode.service?.sample_data) {
-      return app.i18n.t('simulateDispatch.errorPreviousNodesNotTested')
+    if (!previousNodeType.getSampleData(previousNode)) {
+      return app.i18n.t('simulateDispatch.errorPreviousNodesNotTested', {
+        node: nodeLabel,
+      })
     }
-
-    currentNode = workflow.value.orderedNodes.find(
-      (node) => node.id === currentNode.previous_node_id
-    )
   }
 
   return ''
@@ -126,7 +138,7 @@ const nodeIsInError = computed(() => {
 
 const isDisabled = computed(() => {
   return (
-    Boolean(nodeIsInError.value) ||
+    Boolean(cantBeTestedReason.value) ||
     (isSimulating.value && !isSimulatingThisNode.value)
   )
 })
@@ -141,14 +153,6 @@ const sampleDataModalTitle = computed(() => {
   })
 })
 
-const sampleData = computed(() => {
-  return props.node.service.sample_data?.data
-})
-
-const hasSampleData = computed(() => {
-  return Boolean(sampleData.value)
-})
-
 const buttonLabel = computed(() => {
   return hasSampleData.value
     ? app.i18n.t('simulateDispatch.buttonLabelTestAgain')
@@ -156,7 +160,7 @@ const buttonLabel = computed(() => {
 })
 
 const showTestNodeDescription = computed(() => {
-  if (Boolean(nodeIsInError.value) || hasSampleData.value) {
+  if (Boolean(cantBeTestedReason.value) || hasSampleData.value) {
     return false
   }
 

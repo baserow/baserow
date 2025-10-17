@@ -8,9 +8,11 @@ from django.utils import timezone
 from django.utils.translation import gettext as _
 
 from baserow.contrib.automation.nodes.exceptions import (
+    AutomationNodeBeforeInvalid,
     AutomationNodeMisconfiguredService,
     AutomationNodeNotDeletable,
     AutomationNodeNotReplaceable,
+    AutomationTriggerModificationDisallowed,
 )
 from baserow.contrib.automation.nodes.models import (
     AutomationActionNode,
@@ -18,6 +20,7 @@ from baserow.contrib.automation.nodes.models import (
     AutomationTriggerNode,
     CoreHTTPRequestActionNode,
     CoreHTTPTriggerNode,
+    CoreIteratorActionNode,
     CorePeriodicTriggerNode,
     CoreRouterActionNode,
     CoreSMTPEmailActionNode,
@@ -36,6 +39,7 @@ from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.contrib.integrations.core.service_types import (
     CoreHTTPRequestServiceType,
     CoreHTTPTriggerServiceType,
+    CoreIteratorServiceType,
     CorePeriodicServiceType,
     CoreRouterServiceType,
     CoreSMTPEmailServiceType,
@@ -58,6 +62,16 @@ from baserow.core.services.registries import service_type_registry
 
 class AutomationNodeActionNodeType(AutomationNodeType):
     is_workflow_action = True
+
+    def prepare_values(
+        self,
+        values: Dict[str, Any],
+        user: AbstractUser,
+        instance: AutomationNode = None,
+    ) -> Dict[str, Any]:
+        """ """
+
+        return super().prepare_values(values, user, instance)
 
 
 class LocalBaserowUpsertRowNodeType(AutomationNodeActionNodeType):
@@ -107,6 +121,12 @@ class CoreHttpRequestNodeType(AutomationNodeActionNodeType):
     type = "http_request"
     model_class = CoreHTTPRequestActionNode
     service_type = CoreHTTPRequestServiceType.type
+
+
+class CoreIteratorNodeType(AutomationNodeActionNodeType):
+    type = "iterator"
+    model_class = CoreIteratorActionNode
+    service_type = CoreIteratorServiceType.type
 
 
 class CoreSMTPEmailNodeType(AutomationNodeActionNodeType):
@@ -195,12 +215,17 @@ class CoreRouterActionNodeType(AutomationNodeActionNodeType):
 
         if instance:
             service = instance.service.specific
-            prepared_uids = [edge["uid"] for edge in values["service"].get("edges", [])]
+
+            prepared_uids = [
+                str(edge["uid"]) for edge in values["service"].get("edges", [])
+            ]
             persisted_uids = [str(edge.uid) for edge in service.edges.only("uid")]
             removed_uids = list(set(persisted_uids) - set(prepared_uids))
+
             output_nodes_with_removed_uids = AutomationNode.objects.filter(
                 previous_node_id=instance.id, previous_node_output__in=removed_uids
             ).exists()
+
             if output_nodes_with_removed_uids:
                 raise AutomationNodeMisconfiguredService(
                     "One or more branches have been removed from the router node, "
@@ -235,6 +260,22 @@ class AutomationNodeTriggerType(AutomationNodeType):
             "Triggers can not be created, deleted or duplicated, "
             "they can only be replaced with a different type."
         )
+
+    def prepare_values(
+        self,
+        values: Dict[str, Any],
+        user: AbstractUser,
+        instance: AutomationNode = None,
+    ) -> Dict[str, Any]:
+        """ """
+
+        # if instance is None:
+        # Triggers are not directly created by users. When a workflow is created,
+        # the trigger node is created automatically, so users are only able to change
+        # the trigger node type, not create a new one.
+        # raise AutomationTriggerModificationDisallowed()
+
+        return super().prepare_values(values, user, instance)
 
     def on_event(
         self,

@@ -44,12 +44,15 @@ export default {
       required: false,
       default: () => null,
     },
+    onlyTrigger: {
+      type: Boolean,
+      required: false,
+      default: () => false,
+    },
   },
   computed: {
     editingTriggerNode() {
-      return this.node
-        ? this.$registry.get('node', this.node.type).isTrigger
-        : false
+      return this.onlyTrigger
     },
     /**
      * Returns an array of node types that can be listed in the context.
