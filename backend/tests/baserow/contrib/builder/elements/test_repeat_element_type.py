@@ -160,19 +160,19 @@ def test_repeat_element_import_child_with_formula_with_current_record(data_fixtu
     migrated_ref = f"get('current_record.{field.db_column}')"
 
     button = ButtonElement.objects.all().first()
-    assert button.value == migrated_ref
+    assert button.value["formula"] == migrated_ref
 
     heading = HeadingElement.objects.all().first()
-    assert heading.value == migrated_ref
+    assert heading.value["formula"] == migrated_ref
 
     action = NotificationWorkflowAction.objects.first()
-    assert action.title == migrated_ref
+    assert action.title["formula"] == migrated_ref
 
     link = LinkElement.objects.all().first()
-    assert link.value == migrated_ref
-    assert link.navigate_to_url == migrated_ref
-    assert link.page_parameters[0]["value"] == migrated_ref
-    assert link.query_parameters[0]["value"] == migrated_ref
+    assert link.value["formula"] == migrated_ref
+    assert link.navigate_to_url["formula"] == migrated_ref
+    assert link.page_parameters[0]["value"]["formula"] == migrated_ref
+    assert link.query_parameters[0]["value"]["formula"] == migrated_ref
 
 
 @pytest.mark.django_db

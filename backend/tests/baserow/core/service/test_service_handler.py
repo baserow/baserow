@@ -78,7 +78,7 @@ def test_update_service(data_fixture):
     )
 
     assert service_updated.service.view.id == view.id
-    assert service_updated.service.search_query == search_query
+    assert service_updated.service.search_query["formula"] == search_query
 
 
 @pytest.mark.django_db

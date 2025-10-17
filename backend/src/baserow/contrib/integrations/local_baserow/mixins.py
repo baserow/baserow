@@ -20,7 +20,7 @@ from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowTableServiceSort,
     LocalBaserowViewService,
 )
-from baserow.core.formula import BaserowFormula, resolve_formula
+from baserow.core.formula import BaserowFormulaObject, resolve_formula
 from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.formula.serializers import FormulaSerializerField
 from baserow.core.formula.validator import ensure_integer, ensure_string
@@ -140,12 +140,12 @@ class LocalBaserowTableServiceFilterableMixin:
                 ),
                 "value": (
                     id_mapping["database_field_select_options"].get(
-                        int(f["value"]), f["value"]
+                        int(f["value"]["formula"]), f["value"]["formula"]
                     )
                     if "database_field_select_options" in id_mapping
-                    and f["value"].isdigit()
+                    and f["value"]["formula"].isdigit()
                     and not f["value_is_formula"]
-                    else f["value"]
+                    else f["value"]["formula"]
                 ),
             }
             for f in value
@@ -273,7 +273,7 @@ class LocalBaserowTableServiceFilterableMixin:
                         f"The {field_name} service filter formula can't be resolved: {exc}"
                     ) from exc
             else:
-                resolved_value = service_filter.value
+                resolved_value = service_filter.value["formula"]
 
             service_filter_builder.filter(
                 view_filter_type.get_filter(
@@ -676,8 +676,6 @@ class LocalBaserowTableServiceSearchableMixin:
     mixin_serializer_field_names = ["search_query"]
     mixin_serializer_field_overrides = {
         "search_query": FormulaSerializerField(
-            required=False,
-            allow_blank=True,
             help_text="Any search queries to apply to the "
             "service when it is dispatched.",
         )
@@ -788,14 +786,12 @@ class LocalBaserowTableServiceSpecificRowMixin:
     mixin_serializer_field_names = ["row_id"]
     mixin_serializer_field_overrides = {
         "row_id": FormulaSerializerField(
-            required=False,
-            allow_blank=True,
             help_text="A formula for defining the intended row.",
         ),
     }
 
     class SerializedDict(ServiceDict):
-        row_id: BaserowFormula
+        row_id: BaserowFormulaObject
 
     def formulas_to_resolve(self, service: ServiceSubClass) -> list[FormulaToResolve]:
         """
@@ -805,7 +801,7 @@ class LocalBaserowTableServiceSpecificRowMixin:
         super_formulas = super().formulas_to_resolve(service)
 
         # Ignore empty formulas
-        if not service.row_id:
+        if not service.row_id["formula"]:
             return super_formulas
 
         return super_formulas + [

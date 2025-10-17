@@ -144,6 +144,8 @@ class CollectionElementTypeMixin:
     is_publicly_filterable = True
     is_publicly_searchable = True
 
+    simple_formula_fields = ["button_load_more_label"]
+
     allowed_fields = [
         "data_source",
         "data_source_id",
@@ -252,8 +254,6 @@ class CollectionElementTypeMixin:
                     "button_load_more_label"
                 ).help_text,
                 required=False,
-                allow_blank=True,
-                default="",
             ),
             "property_options": CollectionElementPropertyOptionsSerializer(
                 many=True,

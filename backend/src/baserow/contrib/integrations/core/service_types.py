@@ -151,8 +151,6 @@ class CoreHTTPRequestServiceType(CoreServiceType):
             "url": FormulaSerializerField(
                 help_text=CoreHTTPRequestService._meta.get_field("url").help_text,
                 default="",
-                allow_blank=True,
-                required=False,
             ),
             "body_type": serializers.ChoiceField(
                 choices=BODY_TYPE.choices,
@@ -165,8 +163,6 @@ class CoreHTTPRequestServiceType(CoreServiceType):
                     "body_content"
                 ).help_text,
                 default="",
-                allow_blank=True,
-                required=False,
             ),
             "headers": HTTPHeaderSerializer(
                 many=True,
@@ -694,39 +690,21 @@ class CoreSMTPEmailServiceType(CoreServiceType):
             ),
             "from_email": FormulaSerializerField(
                 help_text=CoreSMTPEmailService._meta.get_field("from_email").help_text,
-                allow_blank=True,
-                required=False,
-                default="",
             ),
             "from_name": FormulaSerializerField(
                 help_text=CoreSMTPEmailService._meta.get_field("from_name").help_text,
-                allow_blank=True,
-                required=False,
-                default="",
             ),
             "to_emails": FormulaSerializerField(
                 help_text=CoreSMTPEmailService._meta.get_field("to_emails").help_text,
-                allow_blank=True,
-                required=False,
-                default="",
             ),
             "cc_emails": FormulaSerializerField(
                 help_text=CoreSMTPEmailService._meta.get_field("cc_emails").help_text,
-                allow_blank=True,
-                required=False,
-                default="",
             ),
             "bcc_emails": FormulaSerializerField(
                 help_text=CoreSMTPEmailService._meta.get_field("bcc_emails").help_text,
-                allow_blank=True,
-                required=False,
-                default="",
             ),
             "subject": FormulaSerializerField(
                 help_text=CoreSMTPEmailService._meta.get_field("subject").help_text,
-                allow_blank=True,
-                required=False,
-                default="",
             ),
             "body_type": serializers.ChoiceField(
                 choices=[
@@ -739,9 +717,6 @@ class CoreSMTPEmailServiceType(CoreServiceType):
             ),
             "body": FormulaSerializerField(
                 help_text=CoreSMTPEmailService._meta.get_field("body").help_text,
-                allow_blank=True,
-                required=False,
-                default="",
             ),
         }
 

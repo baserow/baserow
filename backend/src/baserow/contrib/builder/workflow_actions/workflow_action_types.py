@@ -39,8 +39,9 @@ from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowUpsertRowServiceType,
 )
 from baserow.core.db import specific_queryset
+from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
 from baserow.core.formula.serializers import FormulaSerializerField
-from baserow.core.formula.types import BaserowFormula
+from baserow.core.formula.types import BASEROW_FORMULA_MODE_SIMPLE, BaserowFormulaObject
 from baserow.core.integrations.models import Integration
 from baserow.core.registry import Instance
 from baserow.core.services.handler import ServiceHandler
@@ -59,27 +60,34 @@ class NotificationWorkflowActionType(BuilderWorkflowActionType):
         "title": FormulaSerializerField(
             help_text="The title of the notification. Must be an formula.",
             required=False,
-            allow_blank=True,
-            default="",
         ),
         "description": FormulaSerializerField(
             help_text="The description of the notification. Must be an formula.",
             required=False,
-            allow_blank=True,
-            default="",
         ),
     }
 
     class SerializedDict(BuilderWorkflowActionDict):
-        title: BaserowFormula
-        description: BaserowFormula
+        title: BaserowFormulaObject
+        description: BaserowFormulaObject
 
     @property
     def allowed_fields(self):
         return super().allowed_fields + ["title", "description"]
 
-    def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
-        return {"title": "'hello'", "description": "'there'"}
+    def get_pytest_params(self, pytest_data_fixture) -> Dict[str, BaserowFormulaObject]:
+        return {
+            "title": BaserowFormulaObject(
+                formula="'hello'",
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+            ),
+            "description": BaserowFormulaObject(
+                formula="'there'",
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+            ),
+        }
 
 
 class OpenPageWorkflowActionType(BuilderWorkflowActionType):

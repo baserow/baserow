@@ -9,7 +9,12 @@ from baserow.contrib.builder.elements.element_types import InputElementType
 from baserow.contrib.builder.elements.registries import ElementType
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.types import ElementDict
-from baserow.core.formula.types import BaserowFormula
+from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
+from baserow.core.formula.types import (
+    BASEROW_FORMULA_MODE_SIMPLE,
+    BaserowFormula,
+    BaserowFormulaObject,
+)
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.user_sources.handler import UserSourceHandler
 from baserow_enterprise.builder.elements.models import AuthFormElement, FileInputElement
@@ -54,8 +59,6 @@ class AuthFormElementType(ElementType):
                     "login_button_label"
                 ).help_text,
                 required=False,
-                allow_blank=True,
-                default="",
             ),
             "styles": DynamicConfigBlockSerializer(
                 required=False,
@@ -187,26 +190,18 @@ class FileInputElementType(InputElementType):
             "label": FormulaSerializerField(
                 help_text=FileInputElement._meta.get_field("label").help_text,
                 required=False,
-                allow_blank=True,
-                default="",
             ),
             "default_name": FormulaSerializerField(
                 help_text=FileInputElement._meta.get_field("default_name").help_text,
                 required=False,
-                allow_blank=True,
-                default="",
             ),
             "default_url": FormulaSerializerField(
                 help_text=FileInputElement._meta.get_field("default_url").help_text,
                 required=False,
-                allow_blank=True,
-                default="",
             ),
             "help_text": FormulaSerializerField(
                 help_text=FileInputElement._meta.get_field("help_text").help_text,
                 required=False,
-                allow_blank=True,
-                default="",
             ),
             "max_filesize": serializers.IntegerField(
                 help_text=FileInputElement._meta.get_field("preview").help_text,
@@ -234,12 +229,28 @@ class FileInputElementType(InputElementType):
 
     def get_pytest_params(self, pytest_data_fixture):
         return {
-            "label": "",
+            "label": BaserowFormulaObject(
+                formula="",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
             "required": False,
             "multiple": False,
-            "default_name": "",
-            "default_url": "",
-            "help_text": "",
+            "default_name": BaserowFormulaObject(
+                formula="",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
+            "default_url": BaserowFormulaObject(
+                formula="",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
+            "help_text": BaserowFormulaObject(
+                formula="",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
             "max_filesize": 5,
             "allowed_filetypes": [],
             "preview": False,

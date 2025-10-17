@@ -38,7 +38,7 @@ export default {
     return {
       allowedValues: ['value', 'styles'],
       values: {
-        value: '',
+        value: {},
         styles: {},
       },
     }

@@ -52,7 +52,7 @@ export default {
     return {
       allowedValues: ['value', 'format', 'styles'],
       values: {
-        value: '',
+        value: {},
         format: TEXT_FORMAT_TYPES.PLAIN,
         styles: {},
       },

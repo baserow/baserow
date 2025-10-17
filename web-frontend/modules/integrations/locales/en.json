@@ -34,7 +34,7 @@
     "coreHTTPTrigger": "Receive an HTTP Request",
     "coreHTTPTriggerDescription": "Triggered when an HTTP request is received.",
     "coreHTTPRequest": "Send an HTTP request",
-    "coreHTTPRequestDescription": "Sends an HTTP request to a specified endpoint.",    
+    "coreHTTPRequestDescription": "Sends an HTTP request to a specified endpoint.",
     "coreSMTPEmail": "Send Email",
     "coreRouter": "Router",
     "coreRouterEdgesRequired": "At least one edge is required",
@@ -104,7 +104,8 @@
     "filterTypeNotFound": "The filter type is not compatible.",
     "noCompatibleFilterTypesErrorTitle": "No compatible filter types",
     "noCompatibleFilterTypesErrorMessage": "None of your fields have any compatible filter types",
-    "formulaFilterInputPlaceholder": "Enter text...",
+    "textFilterInputPlaceholder": "Enter text...",
+    "formulaFilterInputPlaceholder": "Choose a formula...",
     "useFormulaForValue": "Use a formula for this filter",
     "useDefaultForValue": "Use the default filter for this field"
   },

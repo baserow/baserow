@@ -42,7 +42,7 @@ describe('resolveElementUrl tests', () => {
     const element = {
       navigation_type: 'page',
       navigate_to_page_id: 1,
-      page_parameters: [{ name: 'id', value: "'10'" }],
+      page_parameters: [{ name: 'id', value: { formula: "'10'" } }],
     }
     const builder = {
       id: 123,
@@ -67,7 +67,7 @@ describe('resolveElementUrl tests', () => {
   test('Should return resolvedContext for external custom navigation type.', () => {
     const element = {
       navigation_type: 'custom',
-      navigate_to_url: "'https://baserow.io'",
+      navigate_to_url: { formula: "'https://baserow.io'" },
     }
     const builder = { pages: [] }
 
@@ -83,7 +83,7 @@ describe('resolveElementUrl tests', () => {
   test('Should return resolvedContext for internal custom navigation type.', () => {
     const element = {
       navigation_type: 'custom',
-      navigate_to_url: "'/contact/'",
+      navigate_to_url: { formula: "'/contact/'" },
     }
     const builder = { id: 123, pages: [] }
 
@@ -100,7 +100,7 @@ describe('resolveElementUrl tests', () => {
     const element = {
       navigation_type: 'page',
       navigate_to_page_id: 1,
-      page_parameters: [{ name: 'id', value: '"10"' }],
+      page_parameters: [{ name: 'id', value: { formula: '"10"' } }],
     }
     const builder = {
       id: 123,

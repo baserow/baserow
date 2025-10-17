@@ -142,7 +142,7 @@ export default {
       values: {
         navigation_type: 'page',
         navigate_to_page_id: null,
-        navigate_to_url: '',
+        navigate_to_url: {},
         page_parameters: [],
         query_parameters: [],
         target: 'self',
@@ -240,7 +240,7 @@ export default {
       this.values.page_parameters = (
         this.destinationPage?.path_params || []
       ).map(({ name }, index) => {
-        const previousValue = this.values.page_parameters[index]?.value || ''
+        const previousValue = this.values.page_parameters[index]?.value || {}
         return { name, value: previousValue }
       })
 
@@ -248,7 +248,7 @@ export default {
       this.values.query_parameters = (
         this.destinationPage?.query_params || []
       ).map(({ name }, index) => {
-        const previousValue = this.values.query_parameters[index]?.value || ''
+        const previousValue = this.values.query_parameters[index]?.value || {}
         return { name, value: previousValue }
       })
 

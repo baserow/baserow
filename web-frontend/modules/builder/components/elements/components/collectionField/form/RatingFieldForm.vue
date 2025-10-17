@@ -34,7 +34,7 @@ export default {
     return {
       allowedValues: ['value'],
       values: {
-        value: '',
+        value: {},
       },
     }
   },

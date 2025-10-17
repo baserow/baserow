@@ -9,6 +9,9 @@ from baserow.contrib.builder.api.elements.serializers import MenuItemSerializer
 from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.models import MenuElement, MenuItemElement
 from baserow.contrib.builder.workflow_actions.models import NotificationWorkflowAction
+from baserow.core.formula import BaserowFormulaObject
+from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
+from baserow.core.formula.types import BASEROW_FORMULA_MODE_SIMPLE
 from baserow.core.utils import MirrorDict
 from baserow.test_utils.helpers import AnyInt
 
@@ -181,9 +184,40 @@ def test_add_sub_link(menu_element_fixture):
         ("navigation_type", "link"),
         # None is replaced with a valid page in the test
         ("navigate_to_page_id", None),
-        ("navigate_to_url", "https://www.baserow.io"),
-        ("page_parameters", [{"name": "foo", "value": "'bar'"}]),
-        ("query_parameters", [{"name": "param", "value": "'baz'"}]),
+        (
+            "navigate_to_url",
+            BaserowFormulaObject(
+                formula="https://www.baserow.io",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
+        ),
+        (
+            "page_parameters",
+            [
+                {
+                    "name": "foo",
+                    "value": BaserowFormulaObject(
+                        formula="'bar'",
+                        mode=BASEROW_FORMULA_MODE_SIMPLE,
+                        version=BASEROW_FORMULA_VERSION_INITIAL,
+                    ),
+                }
+            ],
+        ),
+        (
+            "query_parameters",
+            [
+                {
+                    "name": "param",
+                    "value": BaserowFormulaObject(
+                        formula="'baz'",
+                        mode=BASEROW_FORMULA_MODE_SIMPLE,
+                        version=BASEROW_FORMULA_VERSION_INITIAL,
+                    ),
+                }
+            ],
+        ),
         ("target", "_blank"),
     ],
 )
@@ -205,7 +239,11 @@ def test_update_menu_item(menu_element_fixture, field, value):
         "uid": str(uid),
         "navigation_type": "page",
         "navigate_to_page_id": None,
-        "navigate_to_url": "",
+        "navigate_to_url": {
+            "formula": "",
+            "mode": BASEROW_FORMULA_MODE_SIMPLE,
+            "version": BASEROW_FORMULA_VERSION_INITIAL,
+        },
         "parent_menu_item": None,
         "page_parameters": [],
         "query_parameters": [],

@@ -144,7 +144,11 @@ def test_automation_export_serialized(data_fixture):
                             "integration_id": first_action.service.specific.integration_id,
                             "type": "local_baserow_upsert_row",
                             "table_id": first_action.service.specific.table_id,
-                            "row_id": "",
+                            "row_id": {
+                                "formula": "",
+                                "mode": "simple",
+                                "version": "0.1",
+                            },
                             "field_mappings": [],
                             "sample_data": None,
                         },
@@ -221,7 +225,7 @@ def test_automation_application_import(data_fixture):
     create_row_mapping = create_row_service.field_mappings.get(enabled=True)
     assert create_row_mapping.field_id == text_field.id
     assert (
-        create_row_mapping.value
+        create_row_mapping.value["formula"]
         == f"get('previous_node.{trigger.id}.0.field_{text_field.id}')"
     )
 

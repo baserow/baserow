@@ -135,6 +135,7 @@ class WidgetService:
         Updates a widget given the user permissions.
 
         :param user: The user trying to update the widget.
+        :param widget_id: The ID of the widget to update.
         :param kwargs: Attributes of the widget.
         :raises WidgetDoesNotExist: If the widget can't be found.
         :raises PermissionException: Raised when user doesn't have the

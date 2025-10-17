@@ -5,7 +5,7 @@ from baserow.core.formula.serializers import FormulaSerializerField
 
 
 class CoreRouterServiceEdgeSerializer(serializers.ModelSerializer):
-    condition = FormulaSerializerField(allow_blank=True)
+    condition = FormulaSerializerField()
 
     class Meta:
         model = CoreRouterServiceEdge

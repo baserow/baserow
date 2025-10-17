@@ -219,7 +219,7 @@ export default {
         orientation: 'vertical',
         vertical_gap: 0,
         horizontal_gap: 0,
-        button_load_more_label: '',
+        button_load_more_label: {},
         styles: {},
       },
     }

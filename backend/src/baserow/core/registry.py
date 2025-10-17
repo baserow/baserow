@@ -37,6 +37,7 @@ from baserow.api.utils import (
 from baserow.core.storage import ExportZipFile
 
 from .exceptions import InstanceTypeAlreadyRegistered, InstanceTypeDoesNotExist
+from .formula import BaserowFormulaObject
 
 if typing.TYPE_CHECKING:
     from django.contrib.contenttypes.models import ContentType
@@ -1031,8 +1032,8 @@ class InstanceWithFormulaMixin:
         """
 
         for formula_field in self.simple_formula_fields:
-            formula = getattr(instance, formula_field)
-            new_formula = yield formula
+            formula: Union[str, BaserowFormulaObject] = getattr(instance, formula_field)
+            new_formula = yield formula if isinstance(formula, str) else formula
             if new_formula is not None:
                 setattr(instance, formula_field, new_formula)
                 yield instance

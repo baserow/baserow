@@ -10,11 +10,14 @@ class BuilderInstanceWithFormulaMixin(InstanceWithFormulaMixin):
         result = {}
 
         for formula in self.formula_generator(instance):
-            if not formula:
+            # Figure out what our formula string is.
+            formula_str = formula if isinstance(formula, str) else formula["formula"]
+
+            if not formula_str:
                 continue
 
             try:
-                tree = get_parse_tree_for_formula(formula)
+                tree = get_parse_tree_for_formula(formula_str)
             except BaserowFormulaSyntaxError:
                 continue
 

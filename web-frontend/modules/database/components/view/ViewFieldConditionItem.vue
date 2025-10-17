@@ -70,6 +70,7 @@
             :fields="fields"
             :disabled="disableFilter"
             :read-only="readOnly"
+            :placeholder="placeholder"
             @input="$emit('updateFilter', { value: $event })"
             @migrate="$emit('updateFilter', $event)"
           />
@@ -137,6 +138,11 @@ export default {
     readOnly: {
       type: Boolean,
       required: true,
+    },
+    placeholder: {
+      type: String,
+      required: false,
+      default: '',
     },
   },
   computed: {

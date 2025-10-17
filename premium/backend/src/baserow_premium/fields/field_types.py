@@ -87,8 +87,6 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         "ai_prompt": FormulaSerializerField(
             help_text="The prompt that must run for each row. Must be an formula.",
             required=False,
-            allow_blank=True,
-            default="",
         ),
         "ai_file_field_id": serializers.IntegerField(
             min_value=1,

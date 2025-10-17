@@ -1,9 +1,9 @@
-from typing import Dict
+from typing import Dict, Union
 
 from baserow.contrib.builder.data_providers.registries import (
     builder_data_provider_type_registry,
 )
-from baserow.core.formula import get_parse_tree_for_formula
+from baserow.core.formula import BaserowFormulaObject, get_parse_tree_for_formula
 from baserow.core.services.formula_importer import BaserowFormulaImporter
 
 
@@ -18,7 +18,9 @@ class BuilderFormulaImporter(BaserowFormulaImporter):
         return builder_data_provider_type_registry
 
 
-def import_formula(formula: str, id_mapping: Dict[str, str], **kwargs) -> str:
+def import_formula(
+    formula: Union[str, BaserowFormulaObject], id_mapping: Dict[str, str], **kwargs
+) -> str:
     """
     When a formula is used in a service, it must be migrated when we import it because
     it could contain IDs referencing other objects. For example, the formula
@@ -36,15 +38,18 @@ def import_formula(formula: str, id_mapping: Dict[str, str], **kwargs) -> str:
                 )
     ```
 
-    :param formula: The formula to import.
+    :param formula: The formula to import (can be a string or BaserowFormulaObject dict)
     :param id_mapping: The Id map between old and new instances used during import.
     :param kwargs: Sometimes more parameters are needed by the import formula process.
       Extra kwargs are then passed to the underlying migration process.
-    :return: The updated path.
+    :return: The updated formula (same type as input - string or object).
     """
 
-    if not formula:
-        return formula
+    # Figure out what our formula string is.
+    formula_str = formula if isinstance(formula, str) else formula["formula"]
 
-    tree = get_parse_tree_for_formula(formula)
+    if not formula_str:
+        return formula_str
+
+    tree = get_parse_tree_for_formula(formula_str)
     return BuilderFormulaImporter(id_mapping, **kwargs).visit(tree)

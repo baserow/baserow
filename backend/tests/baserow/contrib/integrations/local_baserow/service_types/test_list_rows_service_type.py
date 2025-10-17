@@ -201,7 +201,7 @@ def test_update_local_baserow_list_rows_service(data_fixture):
     service.refresh_from_db()
 
     assert service.specific.view is None
-    assert service.specific.search_query == ""
+    assert service.specific.search_query["formula"] == ""
     assert service.specific.integration is None
 
 
@@ -727,7 +727,7 @@ def test_import_datasource_provider_formula_using_list_rows_service_containing_n
     duplicated_element = duplicated_page.element_set.first()
     duplicated_data_source = duplicated_page.datasource_set.first()
     assert (
-        duplicated_element.specific.placeholder
+        duplicated_element.specific.placeholder["formula"]
         == f"get('data_source.{duplicated_data_source.id}')"
     )
 
@@ -802,19 +802,19 @@ def test_import_formula_local_baserow_list_rows_user_service_type(data_fixture):
         integration, exported, id_mapping, import_formula=import_formula
     )
     assert (
-        imported_service.search_query
+        imported_service.search_query["formula"]
         == f"get('data_source.{data_source2.id}.0.{text_field.db_column}')"
     )
 
     imported_service_filter_0 = imported_service.service_filters.get(order=0)
     assert (
-        imported_service_filter_0.value
+        imported_service_filter_0.value["formula"]
         == f"get('data_source.{data_source2.id}.0.{text_field.db_column}')"
     )
     assert imported_service_filter_0.value_is_formula is True
 
     imported_service_filter_1 = imported_service.service_filters.get(order=1)
-    assert imported_service_filter_1.value == "fooValue"
+    assert imported_service_filter_1.value["formula"] == "fooValue"
     assert imported_service_filter_1.value_is_formula is False
 
 

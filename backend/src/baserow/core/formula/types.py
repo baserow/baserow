@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, List
+from typing import Any, Dict, List, Literal, TypedDict, Union
 
 from baserow.core.formula.exceptions import RuntimeFormulaRecursion
 
@@ -69,3 +69,32 @@ class FormulaFunction(ABC):
     @abstractmethod
     def execute(self, context: FormulaContext, args: FormulaArgs) -> Any:
         """Executes the function"""
+
+
+BASEROW_FORMULA_MODE_SIMPLE: Literal["simple"] = "simple"
+BASEROW_FORMULA_MODE_ADVANCED: Literal["advanced"] = "advanced"
+BASEROW_FORMULA_MODE_RAW: Literal["raw"] = "raw"
+BaserowFormulaMode = Literal["simple", "advanced", "raw"]
+
+
+class BaserowFormulaObject(TypedDict):
+    version: str
+    mode: BaserowFormulaMode
+    formula: BaserowFormula
+
+
+class BaserowFormulaMinified(TypedDict):
+    v: str
+    m: BaserowFormulaMode
+    f: BaserowFormula
+
+
+FormulaFieldDatabaseValue = Union[str, BaserowFormulaMinified]
+
+JSONFormulaFieldDatabaseValue = Union[
+    BaserowFormulaMinified, List[Dict[str, BaserowFormulaMinified]]
+]
+
+JSONFormulaFieldResult = Union[
+    BaserowFormulaObject, List[Dict[str, BaserowFormulaObject]]
+]

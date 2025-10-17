@@ -1,10 +1,11 @@
 import uuid
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, List, Optional
 
 from django.contrib.contenttypes.models import ContentType
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.db.models import SET_NULL, QuerySet
+from django.utils.functional import lazy
 
 from baserow.contrib.builder.constants import (
     BACKGROUND_IMAGE_MODES,
@@ -17,7 +18,8 @@ from baserow.core.constants import (
     DATE_TIME_FORMAT_CHOICES,
     RatingStyleChoices,
 )
-from baserow.core.formula.field import FormulaField
+from baserow.core.formula.field import FormulaField, JSONFormulaField
+from baserow.core.formula.serializers import collect_json_formula_field_properties
 from baserow.core.mixins import (
     CreatedAndUpdatedOnMixin,
     FractionOrderableMixin,
@@ -67,6 +69,19 @@ def get_default_table_orientation():
         "tablet": "horizontal",
         "desktop": "horizontal",
     }
+
+
+def get_collection_field_config_formula_properties() -> List[str]:
+    """
+    Returns the list of properties in the collection field config that are formulas.
+    :return: A list of property names.
+    """
+
+    from baserow.contrib.builder.elements.registries import (
+        collection_field_type_registry,
+    )
+
+    return collect_json_formula_field_properties(collection_field_type_registry)
 
 
 class Element(
@@ -438,7 +453,7 @@ class HeadingElement(Element):
         H4 = 4
         H5 = 5
 
-    value = FormulaField(default="")
+    value = FormulaField()
     level = models.IntegerField(
         choices=HeadingLevel.choices, default=1, help_text="The level of the heading"
     )
@@ -453,7 +468,7 @@ class TextElement(Element):
         PLAIN = "plain"
         MARKDOWN = "markdown"
 
-    value = FormulaField(default="")
+    value = FormulaField()
     format = models.CharField(
         choices=TEXT_FORMATS.choices,
         help_text="The format of the text",
@@ -492,16 +507,16 @@ class NavigationElementMixin(models.Model):
         ),
     )
     navigate_to_url = FormulaField(
-        default="",
         help_text="If no page is selected, this indicate the destination of the link.",
-        null=True,
     )
-    page_parameters = models.JSONField(
+    page_parameters = JSONFormulaField(
+        properties=["value"],
         default=list,
         help_text="The parameters for each parameters of the selected page if any.",
         null=True,
     )
-    query_parameters = models.JSONField(
+    query_parameters = JSONFormulaField(
+        properties=["value"],
         db_default=[],
         default=list,
         help_text="The query parameters for each parameter of the selected page if any.",
@@ -528,7 +543,7 @@ class LinkElement(Element, NavigationElementMixin):
         LINK = "link"
         BUTTON = "button"
 
-    value = FormulaField(default="")
+    value = FormulaField()
     variant = models.CharField(
         choices=VARIANTS.choices,
         help_text="The variant of the link.",
@@ -564,13 +579,9 @@ class ImageElement(Element):
         related_name="image_element_image_file",
         help_text="An image file uploaded by the user to be used by the element",
     )
-    image_url = FormulaField(
-        help_text="A link to the image file", blank=True, default="", max_length=1000
-    )
+    image_url = FormulaField(help_text="A link to the image file")
     alt_text = FormulaField(
-        help_text="Text that is displayed when the image can't load",
-        default="",
-        blank=True,
+        help_text="Text that is displayed when the image can't load"
     )
 
 
@@ -579,7 +590,7 @@ class FormContainerElement(ContainerElement):
     A form element
     """
 
-    submit_button_label = FormulaField(default="")
+    submit_button_label = FormulaField()
     reset_initial_values_post_submission = models.BooleanField(
         default=False,
         help_text="Whether to reset the form to using its initial "
@@ -606,7 +617,7 @@ class BaseRatingElement(Element):
     A Rating element to display a rating.
     """
 
-    value = FormulaField(default="")
+    value = FormulaField()
 
     max_value = models.PositiveSmallIntegerField(
         default=5,
@@ -640,7 +651,6 @@ class RatingElement(BaseRatingElement):
 
 class RatingInputElement(BaseRatingElement, FormElement):
     label = FormulaField(
-        default="",
         help_text="The text label for this field",
     )
 
@@ -656,12 +666,9 @@ class InputTextElement(FormElement):
         INTEGER = "integer"
 
     label = FormulaField(
-        default="",
         help_text="The text label for this input",
     )
-    default_value = FormulaField(
-        default="", help_text="This text input's default value."
-    )
+    default_value = FormulaField(help_text="This text input's default value.")
     validation_type = models.CharField(
         max_length=15,
         choices=INPUT_TEXT_VALIDATION_TYPES.choices,
@@ -669,7 +676,6 @@ class InputTextElement(FormElement):
         help_text="Optionally set the validation type to use when applying form data.",
     )
     placeholder = FormulaField(
-        default="",
         help_text="The placeholder text which should be applied to the element.",
     )
     is_multiline = models.BooleanField(
@@ -694,15 +700,12 @@ class ChoiceElement(FormElement):
         FORMULAS = "formulas"
 
     label = FormulaField(
-        default="",
         help_text="The text label for this choice",
     )
     default_value = FormulaField(
-        default="",
         help_text="This choice's input default value.",
     )
     placeholder = FormulaField(
-        default="",
         help_text="The placeholder text which should be applied to the element.",
     )
     multiple = models.BooleanField(
@@ -719,11 +722,9 @@ class ChoiceElement(FormElement):
         default=OPTION_TYPE.MANUAL,
     )
     formula_value = FormulaField(
-        default="",
         help_text="The value of the option if it is a formula",
     )
     formula_name = FormulaField(
-        default="",
         help_text="The display name of the option if it is a formula",
     )
 
@@ -756,10 +757,9 @@ class CheckboxElement(FormElement):
     """
 
     label = FormulaField(
-        default="",
         help_text="The text label for this input",
     )
-    default_value = FormulaField(default="", help_text="The input's default value.")
+    default_value = FormulaField(help_text="The input's default value.")
 
 
 class ButtonElement(Element):
@@ -767,7 +767,7 @@ class ButtonElement(Element):
     A button element
     """
 
-    value = FormulaField(default="", help_text="The caption of the button.")
+    value = FormulaField(help_text="The caption of the button.")
 
 
 class CollectionField(models.Model):
@@ -786,8 +786,9 @@ class CollectionField(models.Model):
         help_text="The type of the field.",
     )
 
-    config = models.JSONField(
+    config = JSONFormulaField(
         default=dict,
+        properties=lazy(get_collection_field_config_formula_properties, list)(),
         help_text="The configuration of the field.",
     )
 
@@ -833,8 +834,6 @@ class CollectionElement(Element):
 
     button_load_more_label = FormulaField(
         help_text="The label of the show more button",
-        blank=True,
-        default="",
     )
 
     class Meta:
@@ -905,10 +904,8 @@ class IFrameElement(Element):
     )
     url = FormulaField(
         help_text="A link to the page to embed",
-        blank=True,
-        default="",
     )
-    embed = FormulaField(help_text="Inline HTML to embed", blank=True, default="")
+    embed = FormulaField(help_text="Inline HTML to embed")
     height = models.PositiveIntegerField(
         help_text="Height in pixels of the iframe",
         default=300,
@@ -959,15 +956,12 @@ class RecordSelectorElement(CollectionElement, FormElement):
     """A collection element that displays a list of records for the user to select."""
 
     label = FormulaField(
-        default="",
         help_text="The text label for this record selector",
     )
     default_value = FormulaField(
-        default="",
         help_text="This record selector default value.",
     )
     placeholder = FormulaField(
-        default="",
         help_text="The placeholder text which should be applied to the element.",
     )
     multiple = models.BooleanField(
@@ -976,8 +970,6 @@ class RecordSelectorElement(CollectionElement, FormElement):
     )
     option_name_suffix = FormulaField(
         help_text="The formula to generate the displayed option name suffix",
-        blank=True,
-        default="",
     )
 
 
@@ -987,11 +979,9 @@ class DateTimePickerElement(FormElement):
     """
 
     label = FormulaField(
-        default="",
         help_text="The text label for this date time picker",
     )
     default_value = FormulaField(
-        default="",
         help_text="This date time picker input's default value.",
     )
     date_format = models.CharField(

@@ -19,6 +19,9 @@ from baserow.contrib.integrations.local_baserow.models import (
 from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowUpsertRowServiceType,
 )
+from baserow.core.formula import BaserowFormulaObject
+from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
+from baserow.core.formula.types import BASEROW_FORMULA_MODE_SIMPLE
 from baserow.core.handler import CoreHandler
 from baserow.core.registries import ImportExportConfig
 from baserow.core.services.exceptions import (
@@ -588,11 +591,19 @@ def test_local_baserow_upsert_row_service_resolve_service_formulas(
     dispatch_context = FakeDispatchContext()
 
     # We're creating a row.
-    assert service.row_id == ""
+    service.row_id = BaserowFormulaObject(
+        formula="",
+        mode=BASEROW_FORMULA_MODE_SIMPLE,
+        version=BASEROW_FORMULA_VERSION_INITIAL,
+    )
     assert service_type.resolve_service_formulas(service, dispatch_context) == {}
 
     # We're updating a row, but the ID isn't an integer
-    service.row_id = "'horse'"
+    service.row_id = BaserowFormulaObject(
+        formula="'horse'",
+        mode=BASEROW_FORMULA_MODE_SIMPLE,
+        version=BASEROW_FORMULA_VERSION_INITIAL,
+    )
     with pytest.raises(InvalidContextContentDispatchException) as exc:
         service_type.resolve_service_formulas(service, dispatch_context)
 
@@ -600,13 +611,6 @@ def test_local_baserow_upsert_row_service_resolve_service_formulas(
         'Value error for "row_id": '
         "The value must be an integer or convertible to an integer."
     )
-
-    # We're updating a row, but the ID formula can't be resolved
-    service.row_id = "'horse"
-    with pytest.raises(ServiceImproperlyConfiguredDispatchException) as exc:
-        service_type.resolve_service_formulas(service, dispatch_context)
-
-    assert exc.value.args[0].startswith('Error in formula for "row_id"')
 
 
 @pytest.mark.django_db
@@ -679,11 +683,11 @@ def test_export_import_local_baserow_upsert_row_service(
 
     assert imported_field_mapping.field == imported_field
     assert (
-        imported_field_mapping.value
+        imported_field_mapping.value["formula"]
         == f"get('data_source.{imported_data_source.id}.{imported_field.db_column}')"
     )
     assert (
-        imported_upsert_row_service.row_id
+        imported_upsert_row_service.row_id["formula"]
         == f"get('data_source.{imported_data_source.id}.{imported_field.db_column}')"
     )
 

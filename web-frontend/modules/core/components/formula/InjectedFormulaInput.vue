@@ -3,7 +3,7 @@
     :is="formulaComponent"
     :data-providers-allowed="dataProvidersAllowed || []"
     v-bind="$attrs"
-    v-on="$listeners"
+    @input="$emit('input', $event)"
   >
     <template #after-input>
       <slot name="after-input"></slot>

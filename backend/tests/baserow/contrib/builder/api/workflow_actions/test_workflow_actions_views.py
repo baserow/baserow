@@ -27,7 +27,9 @@ from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowUpsertRowServiceType,
 )
+from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
 from baserow.core.formula.serializers import FormulaSerializerField
+from baserow.core.formula.types import BASEROW_FORMULA_MODE_SIMPLE, BaserowFormulaObject
 
 
 @pytest.mark.django_db
@@ -161,7 +163,7 @@ def test_patch_workflow_actions(api_client, data_fixture):
 
     response_json = response.json()
     assert response.status_code == HTTP_200_OK
-    assert response_json["description"] == "'hello'"
+    assert response_json["description"]["formula"] == "'hello'"
 
 
 class PublicTestWorkflowActionType(NotificationWorkflowActionType):
@@ -171,8 +173,6 @@ class PublicTestWorkflowActionType(NotificationWorkflowActionType):
     public_serializer_field_overrides = {
         "test": FormulaSerializerField(
             required=False,
-            allow_blank=True,
-            default="",
         ),
     }
 
@@ -359,7 +359,11 @@ def test_create_create_row_workflow_action(api_client, data_fixture):
     assert response_json["service"] == {
         "id": workflow_action.service_id,
         "integration_id": None,
-        "row_id": "",
+        "row_id": BaserowFormulaObject(
+            formula="",
+            version=BASEROW_FORMULA_VERSION_INITIAL,
+            mode=BASEROW_FORMULA_MODE_SIMPLE,
+        ),
         "type": LocalBaserowUpsertRowServiceType.type,
         "schema": None,
         "table_id": None,
@@ -419,7 +423,15 @@ def test_update_create_row_workflow_action(api_client, data_fixture):
     assert response_json["service"]["table_id"] == service.table_id
     assert response_json["service"]["integration_id"] == service.integration_id
     assert response_json["service"]["field_mappings"] == [
-        {"field_id": field.id, "value": "'Pony'", "enabled": True}
+        {
+            "field_id": field.id,
+            "value": BaserowFormulaObject(
+                formula="'Pony'",
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+            ),
+            "enabled": True,
+        }
     ]
 
 
@@ -455,7 +467,11 @@ def test_create_update_row_workflow_action(api_client, data_fixture):
         "integration_id": None,
         "type": LocalBaserowUpsertRowServiceType.type,
         "schema": None,
-        "row_id": "",
+        "row_id": BaserowFormulaObject(
+            formula="",
+            version=BASEROW_FORMULA_VERSION_INITIAL,
+            mode=BASEROW_FORMULA_MODE_SIMPLE,
+        ),
         "table_id": None,
         "field_mappings": [],
         "context_data": None,
@@ -518,13 +534,21 @@ def test_update_update_row_workflow_action(api_client, data_fixture):
     assert response_json["element_id"] == workflow_action.element_id
 
     assert response_json["service"]["table_id"] == table.id
-    assert response_json["service"]["row_id"] == str(first_row.id)
+    assert response_json["service"]["row_id"]["formula"] == str(first_row.id)
     assert (
         response_json["service"]["integration_id"]
         == workflow_action.service.integration_id
     )
     assert response_json["service"]["field_mappings"] == [
-        {"field_id": field.id, "value": "'Pony'", "enabled": True}
+        {
+            "field_id": field.id,
+            "value": BaserowFormulaObject(
+                formula="'Pony'",
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+            ),
+            "enabled": True,
+        }
     ]
 
 
@@ -1034,7 +1058,11 @@ def test_create_delete_row_workflow_action(api_client, data_fixture):
     assert response_json["service"] == {
         "id": workflow_action.service_id,
         "integration_id": None,
-        "row_id": "",
+        "row_id": BaserowFormulaObject(
+            formula="",
+            version=BASEROW_FORMULA_VERSION_INITIAL,
+            mode=BASEROW_FORMULA_MODE_SIMPLE,
+        ),
         "type": DeleteRowWorkflowActionType.service_type,
         "schema": None,
         "table_id": None,
