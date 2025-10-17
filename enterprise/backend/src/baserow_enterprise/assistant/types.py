@@ -208,3 +208,11 @@ class AiNavigationMessage(BaseModel):
 class ToolsUpgradeResponse(BaseModel):
     observation: str
     new_tools: list[dspy.Tool | Callable[[Any], Any]]
+
+
+class ToolSignature(dspy.Signature):
+    """Signature for manual tool handling."""
+
+    question: str = dspy.InputField()
+    tools: list[dspy.Tool] = dspy.InputField()
+    outputs: dspy.ToolCalls = dspy.OutputField()

@@ -23,7 +23,6 @@ def get_navigation_tool(
 
         Use when:
         - the user asks to open, go, to be brought to something
-        - new rows are created and you want to show the user the result
         - the user asks to see something from their workspace
         """
 
