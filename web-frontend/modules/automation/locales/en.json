@@ -2,7 +2,7 @@
 {
   "welcomeGuidedTourStep": {
     "title": "Welcome to Baserow Automations!",
-    "content": "Let's take a quick tour. You’ll see how to set up triggers, add actions, test your workflow, and publish it — no coding required."
+    "content": "Let's take a quick tour. You'll see how to set up triggers, add actions, test your workflow, and publish it — no coding required."
   },
   "triggerGuidedTourStep": {
     "title": "Workflows start with a trigger",
@@ -10,11 +10,11 @@
   },
   "actionGuidedTourStep": {
     "title": "Workflows then execute actions",
-    "content": "Add one or more actions after your trigger to define what the workflow should do. Click here to get started."
+    "content": "Add one or more actions after your trigger to define what the workflow should do. Click the highlighted button to get started."
   },
   "nodeSidepanelGuidedTourStep": {
     "title": "Configure your steps",
-    "content": "Select a trigger or action to configure it in the side panel. Each step’s settings can be adjusted here."
+    "content": "Select a trigger or action to configure it in the side panel. Each step's settings can be adjusted here."
   },
   "testRunGuidedTourStep": {
     "title": "Test your workflow",
@@ -22,19 +22,19 @@
   },
   "historyGuidedTourStep": {
     "title": "View workflow history",
-    "content": "Use the history panel to review past test runs and published executions. It’s a great way to debug or confirm results."
+    "content": "Use the history panel to review past test runs and published executions. It's a great way to debug or confirm results."
   },
   "publishGuidedTourStep": {
     "title": "Publish your workflow",
-    "content": "Once you’ve tested and refined your setup, publish your workflow to make it live. Its trigger will now run automatically on schedule."
+    "content": "Once you've tested and refined your setup, publish your workflow to make it live. Its trigger will now run automatically on schedule."
   },
   "workflowStateGuidedTourStep": {
     "title": "Control workflow state",
-    "content": "From here, you can pause or resume your workflow at any time. You’re always in control of whether it’s active or disabled."
+    "content": "From here, you can pause or resume your workflow at any time. You're always in control of whether it's active or disabled."
   },
   "docsGuidedTourStep": {
     "title": "Explore the documentation",
-    "content": "If you ever get stuck or want to learn more, click here for detailed guides and FAQs about building automations in Baserow."
+    "content": "If you ever get stuck or want to learn more, click the highlighted button for detailed guides and FAQs about building automations in Baserow."
   },
   "sidebarComponentAutomation": {
     "createAutomationWorkflow": "New workflow"
