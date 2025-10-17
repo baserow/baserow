@@ -1,5 +1,4 @@
 import json
-from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
@@ -10,7 +9,11 @@ import pytest
 from freezegun import freeze_time
 
 from baserow.test_utils.helpers import AnyStr
-from baserow_enterprise.assistant.models import AssistantChat
+from baserow_enterprise.assistant.models import (
+    AssistantChat,
+    AssistantChatMessage,
+    AssistantChatPrediction,
+)
 from baserow_enterprise.assistant.types import (
     AiErrorMessage,
     AiMessage,
@@ -455,10 +458,7 @@ def test_cannot_get_messages_from_another_users_chat(
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
-@patch("baserow_enterprise.api.assistant.views.AssistantHandler")
-def test_get_messages_returns_chat_history(
-    mock_handler_class, api_client, enterprise_data_fixture
-):
+def test_get_messages_returns_chat_history(api_client, enterprise_data_fixture):
     """Test that the endpoint returns the chat message history"""
 
     user, token = enterprise_data_fixture.create_user_and_token()
@@ -470,43 +470,34 @@ def test_get_messages_returns_chat_history(
         user=user, workspace=workspace, title="Test Chat"
     )
 
-    # Mock the handler
-    mock_handler = MagicMock()
-    mock_handler_class.return_value = mock_handler
-
-    # Mock get_chat to return the chat
-    mock_handler.get_chat.return_value = chat
-
     # Mock message history - only HumanMessage and AiMessage are returned
     message_history = [
-        HumanMessage(
+        AssistantChatMessage(
             id=1,
+            role=AssistantChatMessage.Role.HUMAN,
             content="What's the weather like?",
-            ui_context=UIContext(
-                workspace=WorkspaceUIContext(id=workspace.id, name=workspace.name),
-                user=UserUIContext(id=user.id, name=user.first_name, email=user.email),
-            ),
+            chat=chat,
         ),
-        AiMessage(
+        AssistantChatMessage(
             id=2,
+            role=AssistantChatMessage.Role.AI,
             content="I don't have access to real-time weather data.",
-            timestamp=datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+            chat=chat,
         ),
-        HumanMessage(
+        AssistantChatMessage(
             id=3,
+            role=AssistantChatMessage.Role.HUMAN,
             content="Can you help me with Baserow?",
-            ui_context=UIContext(
-                workspace=WorkspaceUIContext(id=workspace.id, name=workspace.name),
-                user=UserUIContext(id=user.id, name=user.first_name, email=user.email),
-            ),
+            chat=chat,
         ),
-        AiMessage(
+        AssistantChatMessage(
             id=4,
+            role=AssistantChatMessage.Role.AI,
             content="Of course! I'd be happy to help you with Baserow.",
-            timestamp=datetime(2024, 1, 1, 12, 1, 0, tzinfo=timezone.utc),
+            chat=chat,
         ),
     ]
-    mock_handler.list_chat_messages.return_value = message_history
+    AssistantChatMessage.objects.bulk_create(message_history)
 
     rsp = api_client.get(
         reverse(
@@ -550,16 +541,11 @@ def test_get_messages_returns_chat_history(
     assert data["messages"][3]["id"] == 4
     assert "timestamp" in data["messages"][3]
 
-    # Verify handler was called correctly
-    mock_handler.get_chat.assert_called_once_with(user, chat.uuid)
-    mock_handler.list_chat_messages.assert_called_once_with(chat)
-
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
-@patch("baserow_enterprise.api.assistant.views.AssistantHandler")
 def test_get_messages_returns_empty_list_for_new_chat(
-    mock_handler_class, api_client, enterprise_data_fixture
+    api_client, enterprise_data_fixture
 ):
     """Test that the endpoint returns an empty list for a chat with no messages"""
 
@@ -571,16 +557,6 @@ def test_get_messages_returns_empty_list_for_new_chat(
     chat = AssistantChat.objects.create(
         user=user, workspace=workspace, title="Empty Chat"
     )
-
-    # Mock the handler
-    mock_handler = MagicMock()
-    mock_handler_class.return_value = mock_handler
-
-    # Mock get_chat to return the chat
-    mock_handler.get_chat.return_value = chat
-
-    # Mock empty message history
-    mock_handler.get_chat_messages.return_value = []
 
     rsp = api_client.get(
         reverse(
@@ -599,10 +575,7 @@ def test_get_messages_returns_empty_list_for_new_chat(
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
-@patch("baserow_enterprise.api.assistant.views.AssistantHandler")
-def test_get_messages_with_different_message_types(
-    mock_handler_class, api_client, enterprise_data_fixture
-):
+def test_get_messages_with_different_message_types(api_client, enterprise_data_fixture):
     """Test that the endpoint correctly handles different message types"""
 
     user, token = enterprise_data_fixture.create_user_and_token()
@@ -614,43 +587,31 @@ def test_get_messages_with_different_message_types(
         user=user, workspace=workspace, title="Test Chat"
     )
 
-    # Mock the handler
-    mock_handler = MagicMock()
-    mock_handler_class.return_value = mock_handler
-
-    # Mock get_chat to return the chat
-    mock_handler.get_chat.return_value = chat
-
     # Mock message history - only HumanMessage and AiMessage are returned
     message_history = [
-        HumanMessage(
-            id=1,
-            content="Hello",
-            ui_context=UIContext(
-                workspace=WorkspaceUIContext(id=workspace.id, name=workspace.name),
-                user=UserUIContext(id=user.id, name=user.first_name, email=user.email),
-            ),
+        AssistantChatMessage(
+            id=1, role=AssistantChatMessage.Role.HUMAN, content="Hello", chat=chat
         ),
-        AiMessage(
+        AssistantChatMessage(
             id=2,
+            role=AssistantChatMessage.Role.AI,
             content="Hi there! How can I help you?",
-            timestamp=datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+            chat=chat,
         ),
-        HumanMessage(
+        AssistantChatMessage(
             id=3,
+            role=AssistantChatMessage.Role.HUMAN,
             content="Tell me about Baserow",
-            ui_context=UIContext(
-                workspace=WorkspaceUIContext(id=workspace.id, name=workspace.name),
-                user=UserUIContext(id=user.id, name=user.first_name, email=user.email),
-            ),
+            chat=chat,
         ),
-        AiMessage(
+        AssistantChatMessage(
             id=4,
+            role=AssistantChatMessage.Role.AI,
             content="Baserow is an open-source no-code database platform.",
-            timestamp=datetime(2024, 1, 1, 12, 1, 0, tzinfo=timezone.utc),
+            chat=chat,
         ),
     ]
-    mock_handler.list_chat_messages.return_value = message_history
+    AssistantChatMessage.objects.bulk_create(message_history)
 
     rsp = api_client.get(
         reverse(
@@ -689,6 +650,226 @@ def test_get_messages_with_different_message_types(
     assert data["messages"][3]["type"] == "ai/message"
     assert data["messages"][3]["id"] == 4
     assert "timestamp" in data["messages"][3]
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_get_messages_includes_can_submit_feedback_field(
+    api_client, enterprise_data_fixture
+):
+    """
+    Test that AI messages include can_submit_feedback field based on prediction state
+    """
+
+    user, token = enterprise_data_fixture.create_user_and_token()
+    workspace = enterprise_data_fixture.create_workspace(user=user)
+    enterprise_data_fixture.enable_enterprise()
+
+    # Create a chat with messages
+    chat = AssistantChat.objects.create(
+        user=user, workspace=workspace, title="Test Chat"
+    )
+
+    # Create human message
+    human_message_1 = AssistantChatMessage.objects.create(
+        chat=chat,
+        role=AssistantChatMessage.Role.HUMAN,
+        content="First question",
+    )
+
+    # Create AI message WITH prediction (no feedback yet)
+    ai_message_1 = AssistantChatMessage.objects.create(
+        chat=chat,
+        role=AssistantChatMessage.Role.AI,
+        content="First answer",
+    )
+    AssistantChatPrediction.objects.create(
+        human_message=human_message_1,
+        ai_response=ai_message_1,
+        prediction={"reasoning": "test"},
+    )
+
+    # Create second human message
+    human_message_2 = AssistantChatMessage.objects.create(
+        chat=chat,
+        role=AssistantChatMessage.Role.HUMAN,
+        content="Second question",
+    )
+
+    # Create AI message WITHOUT prediction
+    ai_message_2 = AssistantChatMessage.objects.create(
+        chat=chat,
+        role=AssistantChatMessage.Role.AI,
+        content="Second answer",
+    )
+
+    # Create third human message
+    human_message_3 = AssistantChatMessage.objects.create(
+        chat=chat,
+        role=AssistantChatMessage.Role.HUMAN,
+        content="Third question",
+    )
+
+    # Create AI message WITH prediction AND existing feedback
+    ai_message_3 = AssistantChatMessage.objects.create(
+        chat=chat,
+        role=AssistantChatMessage.Role.AI,
+        content="Third answer",
+    )
+    AssistantChatPrediction.objects.create(
+        human_message=human_message_3,
+        ai_response=ai_message_3,
+        prediction={"reasoning": "test"},
+        human_sentiment=1,  # Already has feedback
+        human_feedback="Great answer",
+    )
+
+    rsp = api_client.get(
+        reverse(
+            "assistant:chat_messages",
+            kwargs={"chat_uuid": str(chat.uuid)},
+        ),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert rsp.status_code == 200
+    data = rsp.json()
+
+    assert len(data["messages"]) == 6
+
+    assert data["messages"][0]["type"] == "human"
+    assert "can_submit_feedback" not in data["messages"][0]
+    assert "human_sentiment" not in data["messages"][0]
+
+    # First AI message: has prediction, no feedback yet -> can submit
+    assert data["messages"][1]["type"] == "ai/message"
+    assert data["messages"][1]["can_submit_feedback"] is True
+    assert data["messages"][1]["human_sentiment"] is None
+
+    assert data["messages"][2]["type"] == "human"
+    assert "can_submit_feedback" not in data["messages"][2]
+    assert "human_sentiment" not in data["messages"][2]
+
+    # Second AI message: no prediction -> cannot submit
+    assert data["messages"][3]["type"] == "ai/message"
+    assert data["messages"][3]["can_submit_feedback"] is False
+    assert data["messages"][3]["human_sentiment"] is None
+
+    assert data["messages"][4]["type"] == "human"
+    assert "can_submit_feedback" not in data["messages"][4]
+    assert "human_sentiment" not in data["messages"][4]
+
+    # Third AI message: has prediction with existing feedback
+    assert data["messages"][5]["type"] == "ai/message"
+    assert data["messages"][5]["can_submit_feedback"] is True
+    assert data["messages"][5]["human_sentiment"] == "LIKE"
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_get_messages_includes_human_sentiment_when_feedback_exists(
+    api_client, enterprise_data_fixture
+):
+    """Test that human_sentiment is included in AI messages when feedback exists"""
+
+    user, token = enterprise_data_fixture.create_user_and_token()
+    workspace = enterprise_data_fixture.create_workspace(user=user)
+    enterprise_data_fixture.enable_enterprise()
+
+    # Create a chat
+    chat = AssistantChat.objects.create(
+        user=user, workspace=workspace, title="Test Chat"
+    )
+
+    # Create messages with LIKE feedback
+    human_message_1 = AssistantChatMessage.objects.create(
+        chat=chat,
+        role=AssistantChatMessage.Role.HUMAN,
+        content="Question 1",
+    )
+    ai_message_1 = AssistantChatMessage.objects.create(
+        chat=chat,
+        role=AssistantChatMessage.Role.AI,
+        content="Answer 1",
+    )
+    AssistantChatPrediction.objects.create(
+        human_message=human_message_1,
+        ai_response=ai_message_1,
+        prediction={"reasoning": "test"},
+        human_sentiment=1,  # LIKE
+        human_feedback="Very helpful",
+    )
+
+    # Create messages with DISLIKE feedback
+    human_message_2 = AssistantChatMessage.objects.create(
+        chat=chat,
+        role=AssistantChatMessage.Role.HUMAN,
+        content="Question 2",
+    )
+    ai_message_2 = AssistantChatMessage.objects.create(
+        chat=chat,
+        role=AssistantChatMessage.Role.AI,
+        content="Answer 2",
+    )
+    AssistantChatPrediction.objects.create(
+        human_message=human_message_2,
+        ai_response=ai_message_2,
+        prediction={"reasoning": "test"},
+        human_sentiment=-1,  # DISLIKE
+        human_feedback="Not accurate",
+    )
+
+    message_history = [
+        HumanMessage(
+            id=human_message_1.id,
+            content="Question 1",
+            ui_context=UIContext(
+                workspace=WorkspaceUIContext(id=workspace.id, name=workspace.name),
+                user=UserUIContext(id=user.id, name=user.first_name, email=user.email),
+            ),
+        ),
+        AiMessage(
+            id=ai_message_1.id,
+            content="Answer 1",
+            can_submit_feedback=False,
+            human_sentiment="LIKE",
+        ),
+        HumanMessage(
+            id=human_message_2.id,
+            content="Question 2",
+            ui_context=UIContext(
+                workspace=WorkspaceUIContext(id=workspace.id, name=workspace.name),
+                user=UserUIContext(id=user.id, name=user.first_name, email=user.email),
+            ),
+        ),
+        AiMessage(
+            id=ai_message_2.id,
+            content="Answer 2",
+            can_submit_feedback=False,
+            human_sentiment="DISLIKE",
+        ),
+    ]
+
+    rsp = api_client.get(
+        reverse(
+            "assistant:chat_messages",
+            kwargs={"chat_uuid": str(chat.uuid)},
+        ),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert rsp.status_code == 200
+    data = rsp.json()
+
+    # First AI message: LIKE sentiment
+    assert data["messages"][1]["type"] == "ai/message"
+    assert data["messages"][1]["human_sentiment"] == "LIKE"
+    assert data["messages"][1]["can_submit_feedback"] is True
+
+    # Second AI message: DISLIKE sentiment
+    assert data["messages"][3]["type"] == "ai/message"
+    assert data["messages"][3]["human_sentiment"] == "DISLIKE"
+    assert data["messages"][3]["can_submit_feedback"] is True
 
 
 @pytest.mark.django_db
@@ -1467,3 +1648,522 @@ def test_send_message_with_dashboard_context(
     assert received_message is not None
     assert received_message.ui_context.dashboard.id == "dash-789"
     assert received_message.ui_context.dashboard.name == "Sales Dashboard"
+
+
+# =============================================================================
+# Tests for AssistantChatMessageFeedbackView
+# =============================================================================
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_submit_feedback_with_like_sentiment(api_client, enterprise_data_fixture):
+    """Test submitting positive feedback (LIKE) for a message"""
+
+    user, token = enterprise_data_fixture.create_user_and_token()
+    workspace = enterprise_data_fixture.create_workspace(user=user)
+    enterprise_data_fixture.enable_enterprise()
+
+    # Create a chat with messages and prediction
+    chat = AssistantChat.objects.create(
+        user=user, workspace=workspace, title="Test Chat"
+    )
+
+    # Create human message
+    human_message = AssistantChatMessage.objects.create(
+        chat=chat,
+        role=AssistantChatMessage.Role.HUMAN,
+        content="Hello",
+    )
+
+    # Create AI message
+    ai_message = AssistantChatMessage.objects.create(
+        chat=chat,
+        role=AssistantChatMessage.Role.AI,
+        content="Hi there!",
+    )
+
+    # Create prediction
+    prediction = AssistantChatPrediction.objects.create(
+        human_message=human_message,
+        ai_response=ai_message,
+        prediction={"reasoning": "test"},
+    )
+
+    # Submit feedback
+    rsp = api_client.put(
+        reverse("assistant:message_feedback", kwargs={"message_id": ai_message.id}),
+        data={"sentiment": "LIKE"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert rsp.status_code == 204
+
+    # Verify feedback was saved
+    prediction.refresh_from_db()
+    assert prediction.human_sentiment == 1  # LIKE = 1
+    assert prediction.human_feedback == ""
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_submit_feedback_with_dislike_sentiment_and_text(
+    api_client, enterprise_data_fixture
+):
+    """Test submitting negative feedback (DISLIKE) with feedback text"""
+
+    user, token = enterprise_data_fixture.create_user_and_token()
+    workspace = enterprise_data_fixture.create_workspace(user=user)
+    enterprise_data_fixture.enable_enterprise()
+
+    # Create chat and messages
+    chat = AssistantChat.objects.create(
+        user=user, workspace=workspace, title="Test Chat"
+    )
+    human_message = AssistantChatMessage.objects.create(
+        chat=chat, role=AssistantChatMessage.Role.HUMAN, content="Question"
+    )
+    ai_message = AssistantChatMessage.objects.create(
+        chat=chat, role=AssistantChatMessage.Role.AI, content="Answer"
+    )
+    prediction = AssistantChatPrediction.objects.create(
+        human_message=human_message,
+        ai_response=ai_message,
+        prediction={"reasoning": "test"},
+    )
+
+    # Submit negative feedback with text
+    feedback_text = "The answer was not helpful"
+    rsp = api_client.put(
+        reverse("assistant:message_feedback", kwargs={"message_id": ai_message.id}),
+        data={"sentiment": "DISLIKE", "feedback": feedback_text},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert rsp.status_code == 204
+
+    # Verify feedback was saved
+    prediction.refresh_from_db()
+    assert prediction.human_sentiment == -1  # DISLIKE = -1
+    assert prediction.human_feedback == feedback_text
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_update_existing_feedback(api_client, enterprise_data_fixture):
+    """Test updating feedback that was already submitted"""
+
+    user, token = enterprise_data_fixture.create_user_and_token()
+    workspace = enterprise_data_fixture.create_workspace(user=user)
+    enterprise_data_fixture.enable_enterprise()
+
+    # Create chat and messages with existing feedback
+    chat = AssistantChat.objects.create(
+        user=user, workspace=workspace, title="Test Chat"
+    )
+    human_message = AssistantChatMessage.objects.create(
+        chat=chat, role=AssistantChatMessage.Role.HUMAN, content="Question"
+    )
+    ai_message = AssistantChatMessage.objects.create(
+        chat=chat, role=AssistantChatMessage.Role.AI, content="Answer"
+    )
+    prediction = AssistantChatPrediction.objects.create(
+        human_message=human_message,
+        ai_response=ai_message,
+        prediction={"reasoning": "test"},
+        human_sentiment=1,  # Initially LIKE
+        human_feedback="Was helpful",
+    )
+
+    # Update to DISLIKE with new feedback
+    new_feedback = "Actually, it wasn't accurate"
+    rsp = api_client.put(
+        reverse("assistant:message_feedback", kwargs={"message_id": ai_message.id}),
+        data={"sentiment": "DISLIKE", "feedback": new_feedback},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert rsp.status_code == 204
+
+    # Verify feedback was updated
+    prediction.refresh_from_db()
+    assert prediction.human_sentiment == -1  # Changed to DISLIKE
+    assert prediction.human_feedback == new_feedback
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_submit_feedback_with_null_sentiment(api_client, enterprise_data_fixture):
+    """Test clearing/removing feedback by setting sentiment to null"""
+
+    user, token = enterprise_data_fixture.create_user_and_token()
+    workspace = enterprise_data_fixture.create_workspace(user=user)
+    enterprise_data_fixture.enable_enterprise()
+
+    # Create chat and messages with existing feedback
+    chat = AssistantChat.objects.create(
+        user=user, workspace=workspace, title="Test Chat"
+    )
+    human_message = AssistantChatMessage.objects.create(
+        chat=chat, role=AssistantChatMessage.Role.HUMAN, content="Question"
+    )
+    ai_message = AssistantChatMessage.objects.create(
+        chat=chat, role=AssistantChatMessage.Role.AI, content="Answer"
+    )
+    prediction = AssistantChatPrediction.objects.create(
+        human_message=human_message,
+        ai_response=ai_message,
+        prediction={"reasoning": "test"},
+        human_sentiment=1,
+        human_feedback="Was helpful",
+    )
+
+    # Clear feedback by sending null sentiment
+    rsp = api_client.put(
+        reverse("assistant:message_feedback", kwargs={"message_id": ai_message.id}),
+        data={"sentiment": None},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert rsp.status_code == 204
+
+    # Verify feedback was cleared
+    prediction.refresh_from_db()
+    assert prediction.human_sentiment is None
+    assert prediction.human_feedback == ""
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_cannot_submit_feedback_for_message_without_prediction(
+    api_client, enterprise_data_fixture
+):
+    """Test that submitting feedback fails if message has no prediction"""
+
+    user, token = enterprise_data_fixture.create_user_and_token()
+    workspace = enterprise_data_fixture.create_workspace(user=user)
+    enterprise_data_fixture.enable_enterprise()
+
+    # Create chat and AI message WITHOUT prediction
+    chat = AssistantChat.objects.create(
+        user=user, workspace=workspace, title="Test Chat"
+    )
+    ai_message = AssistantChatMessage.objects.create(
+        chat=chat, role=AssistantChatMessage.Role.AI, content="Answer"
+    )
+
+    # Try to submit feedback
+    rsp = api_client.put(
+        reverse("assistant:message_feedback", kwargs={"message_id": ai_message.id}),
+        data={"sentiment": "LIKE"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert rsp.status_code == 400
+    assert rsp.json()["error"] == "ERROR_CANNOT_SUBMIT_MESSAGE_FEEDBACK"
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_cannot_submit_feedback_for_nonexistent_message(
+    api_client, enterprise_data_fixture
+):
+    """Test that submitting feedback fails for non-existent message"""
+
+    _, token = enterprise_data_fixture.create_user_and_token()
+    enterprise_data_fixture.enable_enterprise()
+
+    # Try to submit feedback for non-existent message
+    rsp = api_client.put(
+        reverse("assistant:message_feedback", kwargs={"message_id": 999999}),
+        data={"sentiment": "LIKE"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert rsp.status_code == 404
+    assert rsp.json()["error"] == "ERROR_ASSISTANT_CHAT_DOES_NOT_EXIST"
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_cannot_submit_feedback_for_another_users_message(
+    api_client, enterprise_data_fixture
+):
+    """Test that users cannot submit feedback on other users' messages"""
+
+    user1, _ = enterprise_data_fixture.create_user_and_token()
+    user2, token2 = enterprise_data_fixture.create_user_and_token()
+    workspace = enterprise_data_fixture.create_workspace(members=[user1, user2])
+    enterprise_data_fixture.enable_enterprise()
+
+    # Create chat and message for user1
+    chat = AssistantChat.objects.create(
+        user=user1, workspace=workspace, title="User1's Chat"
+    )
+    human_message = AssistantChatMessage.objects.create(
+        chat=chat, role=AssistantChatMessage.Role.HUMAN, content="Question"
+    )
+    ai_message = AssistantChatMessage.objects.create(
+        chat=chat, role=AssistantChatMessage.Role.AI, content="Answer"
+    )
+    AssistantChatPrediction.objects.create(
+        human_message=human_message,
+        ai_response=ai_message,
+        prediction={"reasoning": "test"},
+    )
+
+    # Try to submit feedback as user2
+    rsp = api_client.put(
+        reverse("assistant:message_feedback", kwargs={"message_id": ai_message.id}),
+        data={"sentiment": "LIKE"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token2}",
+    )
+
+    assert rsp.status_code == 404
+    assert rsp.json()["error"] == "ERROR_ASSISTANT_CHAT_DOES_NOT_EXIST"
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_cannot_submit_feedback_without_license(api_client, enterprise_data_fixture):
+    """Test that submitting feedback requires an enterprise license"""
+
+    user, token = enterprise_data_fixture.create_user_and_token()
+    workspace = enterprise_data_fixture.create_workspace(user=user)
+    # Note: NOT enabling enterprise license
+
+    # Create chat and messages
+    chat = AssistantChat.objects.create(
+        user=user, workspace=workspace, title="Test Chat"
+    )
+    human_message = AssistantChatMessage.objects.create(
+        chat=chat, role=AssistantChatMessage.Role.HUMAN, content="Question"
+    )
+    ai_message = AssistantChatMessage.objects.create(
+        chat=chat, role=AssistantChatMessage.Role.AI, content="Answer"
+    )
+    AssistantChatPrediction.objects.create(
+        human_message=human_message,
+        ai_response=ai_message,
+        prediction={"reasoning": "test"},
+    )
+
+    # Try to submit feedback without license
+    rsp = api_client.put(
+        reverse("assistant:message_feedback", kwargs={"message_id": ai_message.id}),
+        data={"sentiment": "LIKE"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert rsp.status_code == 402
+    assert rsp.json()["error"] == "ERROR_FEATURE_NOT_AVAILABLE"
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_submit_feedback_validates_sentiment_choice(
+    api_client, enterprise_data_fixture
+):
+    """Test that feedback endpoint validates sentiment choices"""
+
+    user, token = enterprise_data_fixture.create_user_and_token()
+    workspace = enterprise_data_fixture.create_workspace(user=user)
+    enterprise_data_fixture.enable_enterprise()
+
+    # Create chat and messages
+    chat = AssistantChat.objects.create(
+        user=user, workspace=workspace, title="Test Chat"
+    )
+    human_message = AssistantChatMessage.objects.create(
+        chat=chat, role=AssistantChatMessage.Role.HUMAN, content="Question"
+    )
+    ai_message = AssistantChatMessage.objects.create(
+        chat=chat, role=AssistantChatMessage.Role.AI, content="Answer"
+    )
+    AssistantChatPrediction.objects.create(
+        human_message=human_message,
+        ai_response=ai_message,
+        prediction={"reasoning": "test"},
+    )
+
+    # Try to submit with invalid sentiment
+    rsp = api_client.put(
+        reverse("assistant:message_feedback", kwargs={"message_id": ai_message.id}),
+        data={"sentiment": "INVALID"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert rsp.status_code == 400
+    assert "sentiment" in str(rsp.json()).lower()
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_submit_feedback_requires_sentiment_field(api_client, enterprise_data_fixture):
+    """Test that feedback endpoint requires sentiment field"""
+
+    user, token = enterprise_data_fixture.create_user_and_token()
+    workspace = enterprise_data_fixture.create_workspace(user=user)
+    enterprise_data_fixture.enable_enterprise()
+
+    # Create chat and messages
+    chat = AssistantChat.objects.create(
+        user=user, workspace=workspace, title="Test Chat"
+    )
+    human_message = AssistantChatMessage.objects.create(
+        chat=chat, role=AssistantChatMessage.Role.HUMAN, content="Question"
+    )
+    ai_message = AssistantChatMessage.objects.create(
+        chat=chat, role=AssistantChatMessage.Role.AI, content="Answer"
+    )
+    AssistantChatPrediction.objects.create(
+        human_message=human_message,
+        ai_response=ai_message,
+        prediction={"reasoning": "test"},
+    )
+
+    # Try to submit without sentiment field
+    rsp = api_client.put(
+        reverse("assistant:message_feedback", kwargs={"message_id": ai_message.id}),
+        data={"feedback": "Just some feedback"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert rsp.status_code == 400
+    assert "sentiment" in str(rsp.json()).lower()
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_submit_feedback_without_feedback_text(api_client, enterprise_data_fixture):
+    """Test that feedback text is optional"""
+
+    user, token = enterprise_data_fixture.create_user_and_token()
+    workspace = enterprise_data_fixture.create_workspace(user=user)
+    enterprise_data_fixture.enable_enterprise()
+
+    # Create chat and messages
+    chat = AssistantChat.objects.create(
+        user=user, workspace=workspace, title="Test Chat"
+    )
+    human_message = AssistantChatMessage.objects.create(
+        chat=chat, role=AssistantChatMessage.Role.HUMAN, content="Question"
+    )
+    ai_message = AssistantChatMessage.objects.create(
+        chat=chat, role=AssistantChatMessage.Role.AI, content="Answer"
+    )
+    prediction = AssistantChatPrediction.objects.create(
+        human_message=human_message,
+        ai_response=ai_message,
+        prediction={"reasoning": "test"},
+    )
+
+    # Submit feedback without text (only sentiment)
+    rsp = api_client.put(
+        reverse("assistant:message_feedback", kwargs={"message_id": ai_message.id}),
+        data={"sentiment": "DISLIKE"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert rsp.status_code == 204
+
+    # Verify feedback was saved without text
+    prediction.refresh_from_db()
+    assert prediction.human_sentiment == -1
+    assert prediction.human_feedback == ""
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_submit_feedback_with_empty_feedback_text(api_client, enterprise_data_fixture):
+    """Test that empty feedback text is stored as empty string"""
+
+    user, token = enterprise_data_fixture.create_user_and_token()
+    workspace = enterprise_data_fixture.create_workspace(user=user)
+    enterprise_data_fixture.enable_enterprise()
+
+    # Create chat and messages
+    chat = AssistantChat.objects.create(
+        user=user, workspace=workspace, title="Test Chat"
+    )
+    human_message = AssistantChatMessage.objects.create(
+        chat=chat, role=AssistantChatMessage.Role.HUMAN, content="Question"
+    )
+    ai_message = AssistantChatMessage.objects.create(
+        chat=chat, role=AssistantChatMessage.Role.AI, content="Answer"
+    )
+    prediction = AssistantChatPrediction.objects.create(
+        human_message=human_message,
+        ai_response=ai_message,
+        prediction={"reasoning": "test"},
+    )
+
+    # Submit with empty feedback string
+    rsp = api_client.put(
+        reverse("assistant:message_feedback", kwargs={"message_id": ai_message.id}),
+        data={"sentiment": "LIKE", "feedback": ""},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert rsp.status_code == 204
+
+    # Verify empty string is stored
+    prediction.refresh_from_db()
+    assert prediction.human_sentiment == 1
+    assert prediction.human_feedback == ""
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_submit_feedback_toggles_sentiment_from_like_to_dislike(
+    api_client, enterprise_data_fixture
+):
+    """Test changing sentiment from LIKE to DISLIKE"""
+
+    user, token = enterprise_data_fixture.create_user_and_token()
+    workspace = enterprise_data_fixture.create_workspace(user=user)
+    enterprise_data_fixture.enable_enterprise()
+
+    # Create chat and messages
+    chat = AssistantChat.objects.create(
+        user=user, workspace=workspace, title="Test Chat"
+    )
+    human_message = AssistantChatMessage.objects.create(
+        chat=chat, role=AssistantChatMessage.Role.HUMAN, content="Question"
+    )
+    ai_message = AssistantChatMessage.objects.create(
+        chat=chat, role=AssistantChatMessage.Role.AI, content="Answer"
+    )
+    prediction = AssistantChatPrediction.objects.create(
+        human_message=human_message,
+        ai_response=ai_message,
+        prediction={"reasoning": "test"},
+        human_sentiment=1,  # Start with LIKE
+    )
+
+    # Change to DISLIKE
+    rsp = api_client.put(
+        reverse("assistant:message_feedback", kwargs={"message_id": ai_message.id}),
+        data={"sentiment": "DISLIKE", "feedback": "Changed my mind"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert rsp.status_code == 204
+
+    # Verify change
+    prediction.refresh_from_db()
+    assert prediction.human_sentiment == -1
+    assert prediction.human_feedback == "Changed my mind"

@@ -44,7 +44,9 @@ export const mutations = {
   },
 
   UPDATE_MESSAGE(state, { id, updates }) {
-    const messageIndex = state.messages.findIndex((m) => m.id === id)
+    const messageIndex = state.messages.findIndex(
+      (m) => m.id === id || m._uuid === id
+    )
     if (messageIndex !== -1) {
       const updatedMessage = {
         ...state.messages[messageIndex],
@@ -162,8 +164,10 @@ export const actions = {
         commit('UPDATE_MESSAGE', {
           id,
           updates: {
+            id: update.id || id,
             content: update.content,
             sources: update.sources,
+            can_submit_feedback: update.can_submit_feedback,
             loading: false,
           },
         })
@@ -189,6 +193,8 @@ export const actions = {
           updates: {
             content: update.content,
             loading: false,
+            error: true,
+            can_submit_feedback: false,
           },
         })
         break
@@ -213,7 +219,8 @@ export const actions = {
     commit('ADD_MESSAGE', userMessage)
     const aiMessageId = uuidv4()
     const aiMessage = {
-      id: aiMessageId,
+      _uuid: aiMessageId,
+      id: aiMessageId, // Temporary ID, will be updated when the final message arrives
       role: 'ai',
       content: '',
       loading: true,
@@ -259,6 +266,37 @@ export const actions = {
       })
     } finally {
       commit('SET_ASSISTANT_RUNNING', { chat, value: false })
+    }
+  },
+  async submitFeedback({ commit, state }, { messageId, sentiment, feedback }) {
+    const message = state.messages.find((m) => m.id === messageId)
+    if (!message) {
+      return
+    }
+
+    const originalSentiment = message.human_sentiment
+    // Optimistically update the message with the new sentiment
+    commit('UPDATE_MESSAGE', {
+      id: messageId,
+      updates: {
+        human_sentiment: sentiment,
+      },
+    })
+
+    try {
+      await assistant(this.$client).submitFeedback(
+        message.id,
+        sentiment,
+        feedback?.trim()
+      )
+    } catch (error) {
+      // Ignore error and revert the optimistic update
+      commit('UPDATE_MESSAGE', {
+        id: messageId,
+        updates: {
+          human_sentiment: originalSentiment,
+        },
+      })
     }
   },
 }

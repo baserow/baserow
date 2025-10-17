@@ -130,6 +130,20 @@ class AiMessage(AiMessageChunk):
         description="The unique UUID of the message",
     )
     timestamp: datetime | None = Field(default=None)
+    can_submit_feedback: bool = Field(
+        default=False,
+        description=(
+            "Whether the message can be submitted for feedback. This is true if the "
+            "message has an associated prediction."
+        ),
+    )
+    human_sentiment: Optional[Literal["LIKE", "DISLIKE"]] = Field(
+        default=None,
+        description=(
+            "The sentiment of the message as submitted by the user. It can be 'LIKE', "
+            "'DISLIKE', or None if no sentiment has been submitted."
+        ),
+    )
 
 
 class AiThinkingMessage(BaseModel):
@@ -156,7 +170,9 @@ class AiErrorMessageCode(StrEnum):
 
 class AiErrorMessage(BaseModel):
     type: Literal["ai/error"] = AssistantMessageType.AI_ERROR.value
-    code: AiErrorMessageCode = Field(description="The type of error that occurred")
+    code: AiErrorMessageCode = Field(
+        AiErrorMessageCode.UNKNOWN, description="The type of error that occurred"
+    )
     content: str = Field(description="Error message content")
 
 

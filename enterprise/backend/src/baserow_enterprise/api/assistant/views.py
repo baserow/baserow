@@ -1,12 +1,15 @@
 import json
 from urllib.request import Request
+from uuid import uuid4
 
 from django.http import StreamingHttpResponse
 
 from baserow_premium.license.handler import LicenseHandler
 from drf_spectacular.openapi import OpenApiParameter, OpenApiTypes
 from drf_spectacular.utils import OpenApiResponse, extend_schema
+from loguru import logger
 from rest_framework.response import Response
+from rest_framework.status import HTTP_204_NO_CONTENT
 from rest_framework.views import APIView
 
 from baserow.api.decorators import (
@@ -18,32 +21,38 @@ from baserow.api.errors import ERROR_GROUP_DOES_NOT_EXIST, ERROR_USER_NOT_IN_GRO
 from baserow.api.pagination import LimitOffsetPagination
 from baserow.api.schemas import get_error_schema
 from baserow.api.serializers import get_example_pagination_serializer_class
+from baserow.api.sessions import set_client_undo_redo_action_group_id
 from baserow.core.exceptions import UserNotInWorkspace, WorkspaceDoesNotExist
 from baserow.core.feature_flags import FF_ASSISTANT, feature_flag_is_enabled
 from baserow.core.handler import CoreHandler
-from baserow_enterprise.api.assistant.errors import (
-    ERROR_ASSISTANT_CHAT_DOES_NOT_EXIST,
-    ERROR_ASSISTANT_MODEL_NOT_SUPPORTED,
-)
 from baserow_enterprise.assistant.exceptions import (
     AssistantChatDoesNotExist,
+    AssistantChatMessagePredictionDoesNotExist,
     AssistantModelNotSupportedError,
 )
 from baserow_enterprise.assistant.handler import AssistantHandler
+from baserow_enterprise.assistant.models import AssistantChatPrediction
 from baserow_enterprise.assistant.operations import ChatAssistantChatOperationType
 from baserow_enterprise.assistant.types import (
+    AiErrorMessage,
     AssistantMessageUnion,
     HumanMessage,
     UIContext,
 )
 from baserow_enterprise.features import ASSISTANT
 
+from .errors import (
+    ERROR_ASSISTANT_CHAT_DOES_NOT_EXIST,
+    ERROR_ASSISTANT_MODEL_NOT_SUPPORTED,
+    ERROR_CANNOT_SUBMIT_MESSAGE_FEEDBACK,
+)
 from .serializers import (
     AssistantChatMessagesSerializer,
     AssistantChatSerializer,
     AssistantChatsRequestSerializer,
     AssistantMessageRequestSerializer,
     AssistantMessageSerializer,
+    AssistantRateChatMessageSerializer,
 )
 
 
@@ -139,7 +148,6 @@ class AssistantChatView(APIView):
         {
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
             WorkspaceDoesNotExist: ERROR_GROUP_DOES_NOT_EXIST,
-            AssistantChatDoesNotExist: ERROR_ASSISTANT_CHAT_DOES_NOT_EXIST,
             AssistantModelNotSupportedError: ERROR_ASSISTANT_MODEL_NOT_SUPPORTED,
         }
     )
@@ -164,16 +172,33 @@ class AssistantChatView(APIView):
 
         # Clearing the user websocket_id will make sure real-time updates are sent
         chat.user.web_socket_id = None
-        # FIXME: As long as we don't allow users to change it, temporarily set the
-        # timezone to the one provided in the UI context
+
+        # Used to group all the actions done to produce this message together
+        # so they can be undone in one go.
+        set_client_undo_redo_action_group_id(chat.user, str(uuid4()))
+
+        # As long as we don't allow users to change it, temporarily set the timezone to
+        # the one provided in the UI context so tools can use it if needed.
         chat.user.profile.timezone = ui_context.timezone
 
         assistant = handler.get_assistant(chat)
+        assistant.check_llm_ready_or_raise()
         human_message = HumanMessage(content=data["content"], ui_context=ui_context)
 
         async def stream_assistant_messages():
-            async for msg in assistant.astream_messages(human_message):
-                yield self._stream_assistant_message(msg)
+            try:
+                async for msg in assistant.astream_messages(human_message):
+                    yield self._stream_assistant_message(msg)
+            except Exception:
+                logger.exception("Error while streaming assistant messages")
+                yield self._stream_assistant_message(
+                    AiErrorMessage(
+                        content=(
+                            "Oops, something went wrong and I cannot continue the conversation. "
+                            "Please try again."
+                        )
+                    )
+                )
 
         response = StreamingHttpResponse(
             stream_assistant_messages(),
@@ -230,3 +255,50 @@ class AssistantChatView(APIView):
         serializer = AssistantChatMessagesSerializer({"messages": messages})
 
         return Response(serializer.data)
+
+
+class AssistantChatMessageFeedbackView(APIView):
+    @extend_schema(
+        tags=["AI Assistant"],
+        operation_id="submit_assistant_message_feedback",
+        description=(
+            "Provide sentiment and feedback for the given AI assistant chat message.\n\n"
+            "This is an **advanced/enterprise** feature."
+        ),
+        responses={
+            200: None,
+            400: get_error_schema(
+                ["ERROR_USER_NOT_IN_GROUP", "ERROR_CANNOT_SUBMIT_MESSAGE_FEEDBACK"]
+            ),
+        },
+    )
+    @validate_body(AssistantRateChatMessageSerializer, return_validated=True)
+    @map_exceptions(
+        {
+            UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
+            WorkspaceDoesNotExist: ERROR_GROUP_DOES_NOT_EXIST,
+            AssistantChatDoesNotExist: ERROR_ASSISTANT_CHAT_DOES_NOT_EXIST,
+            AssistantChatMessagePredictionDoesNotExist: ERROR_CANNOT_SUBMIT_MESSAGE_FEEDBACK,
+        }
+    )
+    def put(self, request: Request, message_id: int, data) -> Response:
+        feature_flag_is_enabled(FF_ASSISTANT, raise_if_disabled=True)
+
+        handler = AssistantHandler()
+        message = handler.get_chat_message_by_id(request.user, message_id)
+        LicenseHandler.raise_if_user_doesnt_have_feature(
+            ASSISTANT, request.user, message.chat.workspace
+        )
+        try:
+            prediction: AssistantChatPrediction = message.prediction
+        except AttributeError:
+            raise AssistantChatMessagePredictionDoesNotExist(
+                f"Message with ID {message_id} does not have an associated prediction."
+            )
+
+        prediction.human_sentiment = data["sentiment"]
+        prediction.human_feedback = data.get("feedback") or ""
+        prediction.save(
+            update_fields=["human_sentiment", "human_feedback", "updated_on"]
+        )
+        return Response(status=HTTP_204_NO_CONTENT)

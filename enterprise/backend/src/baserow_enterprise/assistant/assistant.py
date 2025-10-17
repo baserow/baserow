@@ -1,3 +1,4 @@
+from functools import lru_cache
 from typing import Any, AsyncGenerator, TypedDict
 
 from django.conf import settings
@@ -6,11 +7,14 @@ import dspy
 from dspy.primitives.prediction import Prediction
 from dspy.streaming import StreamListener, StreamResponse
 from dspy.utils.callback import BaseCallback
+from litellm import get_supported_openai_params
 
+from baserow.api.sessions import get_client_undo_redo_action_group_id
+from baserow_enterprise.assistant.exceptions import AssistantModelNotSupportedError
 from baserow_enterprise.assistant.tools.registries import assistant_tool_registry
 
 from .adapter import ChatAdapter
-from .models import AssistantChat, AssistantChatMessage
+from .models import AssistantChat, AssistantChatMessage, AssistantChatPrediction
 from .react import ReAct
 from .types import (
     AiMessage,
@@ -22,7 +26,6 @@ from .types import (
     HumanMessage,
     UIContext,
 )
-from .utils import ensure_llm_model_accessible
 
 
 class ChatSignature(dspy.Signature):
@@ -135,6 +138,7 @@ class Assistant:
         role: AssistantChatMessage.Role,
         content: str,
         artifacts: dict[str, Any] | None = None,
+        **kwargs,
     ) -> AssistantChatMessage:
         """
         Creates and saves a new chat message.
@@ -149,10 +153,13 @@ class Assistant:
             chat=self._chat,
             role=role,
             content=content,
+            **kwargs,
         )
         if artifacts:
             message.artifacts = artifacts
-        return await message.asave()
+
+        await message.asave()
+        return message
 
     def list_chat_messages(
         self, last_message_id: int | None = None, limit: int = 100
@@ -166,7 +173,11 @@ class Assistant:
         :return: A list of AssistantChatMessage instances.
         """
 
-        queryset = self._chat.messages.all().order_by("-created_on")
+        queryset = (
+            self._chat.messages.all()
+            .select_related("prediction")
+            .order_by("-created_on")
+        )
         if last_message_id is not None:
             queryset = queryset.filter(id__lt=last_message_id)
 
@@ -179,8 +190,19 @@ class Assistant:
                     )
                 )
             else:
+                sentiment_data = {}
+                if getattr(msg, "prediction", None):
+                    sentiment_data = {
+                        "can_submit_feedback": True,
+                        "human_sentiment": msg.prediction.get_human_sentiment_display(),
+                    }
                 messages.append(
-                    AiMessage(content=msg.content, id=msg.id, timestamp=msg.created_on)
+                    AiMessage(
+                        content=msg.content,
+                        id=msg.id,
+                        timestamp=msg.created_on,
+                        **sentiment_data,
+                    )
                 )
         return list(reversed(messages))
 
@@ -219,6 +241,25 @@ class Assistant:
 
         self.history = dspy.History(messages=messages)
 
+    @lru_cache(maxsize=1)
+    def check_llm_ready_or_raise(self):
+        lm = self._lm_client
+        params = get_supported_openai_params(lm.model)
+        if params is None or "tools" not in params:
+            raise AssistantModelNotSupportedError(
+                f"The model '{lm.model}' is not supported or could not be found. "
+                "Please make sure the model name is correct, it can use tools, "
+                "and that your API key has access to it."
+            )
+
+        try:
+            with dspy.context(lm=lm):
+                lm("Say ok if you can read this.")
+        except Exception as e:
+            raise AssistantModelNotSupportedError(
+                f"The model '{lm.model}' is not supported or accessible: {e}"
+            )
+
     async def astream_messages(
         self, human_message: HumanMessage
     ) -> AsyncGenerator[AssistantMessageUnion, None]:
@@ -228,9 +269,6 @@ class Assistant:
         :param human_message: The message from the user.
         :return: An async generator that yields the response messages.
         """
-
-        # The first time, make sure the model and api_key are setup correctly
-        ensure_llm_model_accessible(self._lm_client)
 
         callback_manager = AssistantCallbacks()
 
@@ -260,7 +298,7 @@ class Assistant:
                 ),
             )
 
-            await self.acreate_chat_message(
+            human_msg = await self.acreate_chat_message(
                 AssistantChatMessage.Role.HUMAN, human_message.content
             )
 
@@ -273,19 +311,37 @@ class Assistant:
                         yield AiMessageChunk(
                             content=answer, sources=callback_manager.sources
                         )
-                elif isinstance(stream_chunk, Prediction):
-                    yield AiMessageChunk(
-                        content=stream_chunk.answer, sources=callback_manager.sources
-                    )
-                    await self.acreate_chat_message(
-                        AssistantChatMessage.Role.AI,
-                        answer,
-                        artifacts={"sources": callback_manager.sources},
-                    )
-
                 elif isinstance(stream_chunk, (AiThinkingMessage, AiNavigationMessage)):
                     # forward thinking/navigation messages as-is to the frontend
                     yield stream_chunk
+                elif isinstance(stream_chunk, Prediction):
+                    # At the end of the prediction, save the AI message and the
+                    # prediction details for future analysis and feedback.
+                    ai_msg = await self.acreate_chat_message(
+                        AssistantChatMessage.Role.AI,
+                        answer,
+                        artifacts={"sources": callback_manager.sources},
+                        action_group_id=get_client_undo_redo_action_group_id(
+                            self._user
+                        ),
+                    )
+                    await AssistantChatPrediction.objects.acreate(
+                        human_message=human_msg,
+                        ai_response=ai_msg,
+                        prediction={
+                            "model": self._lm_client.model,
+                            "trajectory": stream_chunk.trajectory,
+                            "reasoning": stream_chunk.reasoning,
+                        },
+                    )
+                    # In case the streaming didn't work, make sure we yield at least one
+                    # final message with the complete answer.
+                    yield AiMessage(
+                        id=ai_msg.id,
+                        content=stream_chunk.answer,
+                        sources=callback_manager.sources,
+                        can_submit_feedback=True,
+                    )
 
             if not self._chat.title:
                 title_generator = dspy.Predict("question -> chat_title")

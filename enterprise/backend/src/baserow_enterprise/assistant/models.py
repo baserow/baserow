@@ -80,11 +80,72 @@ class AssistantChatMessage(BigAutoFieldMixin, CreatedAndUpdatedOnMixin, models.M
             "such as metadata or processing results."
         ),
     )
+    action_group_id = models.UUIDField(
+        null=True,
+        help_text=(
+            "Unique identifier for the action group. Can be provided by the client. "
+            "All the actions done to produce this message can be undone by referencing this ID."
+        ),
+    )
 
     class Meta:
         indexes = [
             models.Index(fields=["chat", "created_on"]),
         ]
+
+
+class AssistantChatPrediction(
+    BigAutoFieldMixin, CreatedAndUpdatedOnMixin, models.Model
+):
+    """
+    Model representing a prediction for an assistant chat message, including the
+    reasoning and any tool calls made by the AI. It also captures optional feedback from
+    the human user regarding the prediction.
+    """
+
+    SENTIMENT_MAP = {
+        "LIKE": 1,
+        "DISLIKE": -1,
+        # Add also the reverse mapping for convenience.
+        1: "LIKE",
+        -1: "DISLIKE",
+    }
+
+    human_message = models.OneToOneField(
+        AssistantChatMessage,
+        on_delete=models.CASCADE,
+        related_name="+",
+        help_text="The human message that caused this prediction.",
+    )
+    ai_response = models.OneToOneField(
+        AssistantChatMessage,
+        on_delete=models.CASCADE,
+        related_name="prediction",
+        help_text="The AI response message generated as a prediction.",
+    )
+    prediction = models.JSONField(
+        default=dict,
+        help_text="The prediction data, including the reasoning and any tool calls.",
+    )
+    human_sentiment = models.SmallIntegerField(
+        choices=[
+            (SENTIMENT_MAP["LIKE"], "Like"),
+            (SENTIMENT_MAP["DISLIKE"], "Dislike"),
+        ],
+        null=True,
+        help_text="Optional feedback provided by the human user on the prediction.",
+    )
+    human_feedback = models.TextField(
+        blank=True,
+        help_text="Optional feedback provided by the human user on the prediction.",
+    )
+
+    def get_human_sentiment_display(self):
+        """
+        Returns the display value of the human sentiment.
+        """
+
+        return self.SENTIMENT_MAP.get(self.human_sentiment)
 
 
 class DocumentCategory(NamedTuple):
