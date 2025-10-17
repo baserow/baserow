@@ -141,30 +141,6 @@ export default {
         'form-input--error': this.isFormulaInvalid,
       }
     },
-    functionSignatures() {
-      const extract = (nodes) => {
-        let signatures = {}
-        if (!nodes) {
-          return signatures
-        }
-        for (const node of nodes) {
-          if (node.type === 'function' && node.signature) {
-            signatures[node.name.toLowerCase()] = {
-              ...node.signature,
-              returnType: node.returnType,
-              hasUnlimitedArgs:
-                node.signature.variadic || node.signature.maxArgs === null,
-            }
-          }
-          const children = node.nodes || node.items
-          if (children) {
-            signatures = { ...signatures, ...extract(children) }
-          }
-        }
-        return signatures
-      }
-      return extract(this.nodesHierarchy)
-    },
     placeHolderExt() {
       return Placeholder.configure({
         placeholder: this.placeholder,
@@ -207,7 +183,7 @@ export default {
       }
       return extract(this.nodesHierarchy)
     },
-    highlightingOperatorNames() {
+    operators() {
       const extract = (nodes) => {
         let operators = []
         if (!nodes) {
@@ -245,7 +221,7 @@ export default {
         }),
         FunctionHighlightExtension.configure({
           functionNames: this.functionNames,
-          operators: this.highlightingOperatorNames,
+          operators: this.operators,
         }),
         FunctionAutoCompleteExtension.configure({
           functionNames: this.functionNames,
@@ -284,6 +260,7 @@ export default {
       return this.editor.getJSON()
     },
     nodeSelected() {
+      console.log('in')
       return this.editor?.commands.getSelectedNodePath() || null
     },
   },
