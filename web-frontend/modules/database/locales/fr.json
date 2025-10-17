@@ -873,7 +873,7 @@
         "selectTargetFieldLabel": "Sélectionner un champ à cumuler"
     },
     "fieldSelectThroughFieldSubForm": {
-        "noTable": "Vous avez besoin d’au moins un champ te type « lien vers une table » pour créer ce champ.",
+        "noTable": "Vous avez besoin d’au moins un champ de type « lien vers une table » pour créer ce champ.",
         "selectThroughFieldLabel": "Sélectionner un champ « lien vers une table »"
     },
     "apiDocsFiltersBuilderModal": {
