@@ -246,3 +246,27 @@ export const ensureDateTime = (
     return parsed.toDate()
   }
 }
+
+/**
+ * Ensures that the value is a valid object or convert it.
+ * @param {*} value - The value to ensure as an object
+ * @returns {Object} - The converted value as an object.
+ * @throws {Error} if `value` is not convertable to an object.
+ */
+export const ensureObject = (value) => {
+  if (value !== null && typeof value !== 'object') {
+    throw new TypeError(
+      'Value is not a valid object or convertible to an object.'
+    )
+  }
+
+  if (value instanceof Object) {
+    return value
+  } else {
+    try {
+      return JSON.parse(value)
+    } catch {
+      throw new TypeError('Value is not a valid JSON.')
+    }
+  }
+}

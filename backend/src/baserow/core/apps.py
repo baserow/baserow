@@ -37,13 +37,69 @@ class CoreConfig(AppConfig):
         from baserow.core.formula.registries import formula_runtime_function_registry
         from baserow.core.formula.runtime_formula_types import (
             RuntimeAdd,
+            RuntimeCapitalize,
             RuntimeConcat,
+            RuntimeDateTimeFormat,
+            RuntimeDay,
+            RuntimeDivide,
+            RuntimeEqual,
+            RuntimeGenerateUUID,
             RuntimeGet,
+            RuntimeGetProperty,
+            RuntimeGreaterThan,
+            RuntimeGreaterThanOrEqual,
+            RuntimeHour,
+            RuntimeIsEven,
+            RuntimeIsOdd,
+            RuntimeLessThan,
+            RuntimeLower,
+            RuntimeMinus,
+            RuntimeMinute,
+            RuntimeMonth,
+            RuntimeMultiply,
+            RuntimeNotEqual,
+            RuntimeNow,
+            RuntimeRandomBool,
+            RuntimeRandomFloat,
+            RuntimeRandomInt,
+            RuntimeRound,
+            RuntimeSecond,
+            RuntimeToday,
+            RuntimeUpper,
+            RuntimeYear,
         )
 
         formula_runtime_function_registry.register(RuntimeConcat())
         formula_runtime_function_registry.register(RuntimeGet())
         formula_runtime_function_registry.register(RuntimeAdd())
+        formula_runtime_function_registry.register(RuntimeMinus())
+        formula_runtime_function_registry.register(RuntimeMultiply())
+        formula_runtime_function_registry.register(RuntimeDivide())
+        formula_runtime_function_registry.register(RuntimeEqual())
+        formula_runtime_function_registry.register(RuntimeNotEqual())
+        formula_runtime_function_registry.register(RuntimeGreaterThan())
+        formula_runtime_function_registry.register(RuntimeLessThan())
+        formula_runtime_function_registry.register(RuntimeGreaterThanOrEqual())
+        formula_runtime_function_registry.register(RuntimeUpper())
+        formula_runtime_function_registry.register(RuntimeLower())
+        formula_runtime_function_registry.register(RuntimeCapitalize())
+        formula_runtime_function_registry.register(RuntimeRound())
+        formula_runtime_function_registry.register(RuntimeIsEven())
+        formula_runtime_function_registry.register(RuntimeIsOdd())
+        formula_runtime_function_registry.register(RuntimeDateTimeFormat())
+        formula_runtime_function_registry.register(RuntimeDay())
+        formula_runtime_function_registry.register(RuntimeMonth())
+        formula_runtime_function_registry.register(RuntimeYear())
+        formula_runtime_function_registry.register(RuntimeHour())
+        formula_runtime_function_registry.register(RuntimeMinute())
+        formula_runtime_function_registry.register(RuntimeSecond())
+        formula_runtime_function_registry.register(RuntimeNow())
+        formula_runtime_function_registry.register(RuntimeToday())
+        formula_runtime_function_registry.register(RuntimeGetProperty())
+        formula_runtime_function_registry.register(RuntimeRandomInt())
+        formula_runtime_function_registry.register(RuntimeRandomFloat())
+        formula_runtime_function_registry.register(RuntimeRandomBool())
+        formula_runtime_function_registry.register(RuntimeGenerateUUID())
 
         from baserow.core.permission_manager import (
             AllowIfTemplatePermissionManagerType,

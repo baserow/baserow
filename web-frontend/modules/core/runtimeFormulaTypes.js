@@ -2,6 +2,8 @@ import { Registerable } from '@baserow/modules/core/registry'
 import {
   NumberBaserowRuntimeFormulaArgumentType,
   TextBaserowRuntimeFormulaArgumentType,
+  DateTimeBaserowRuntimeFormulaArgumentType,
+  ObjectBaserowRuntimeFormulaArgumentType,
 } from '@baserow/modules/core/runtimeFormulaArgumentTypes'
 import {
   InvalidFormulaArgumentType,
@@ -132,6 +134,19 @@ export class RuntimeFormulaFunction extends Registerable {
       type: this.formulaComponentType,
     }
   }
+
+  getDescription() {
+    throw new Error(
+      'Not implemented error. This method should return the functions description.'
+    )
+  }
+
+  getExamples() {
+    throw new Error(
+      'Not implemented error. This method should return list of strings showing ' +
+        'example usage of the function.'
+    )
+  }
 }
 
 export class RuntimeConcat extends RuntimeFormulaFunction {
@@ -155,6 +170,15 @@ export class RuntimeConcat extends RuntimeFormulaFunction {
         .map((arg) => ({ type: 'wrapper', content: [arg].flat() }))
     }
     return { type: 'wrapper', content: args }
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.concatDescription')
+  }
+
+  getExamples() {
+    return ["concat('Hello,', ' World!') = 'Hello, world!'"]
   }
 }
 
@@ -224,6 +248,15 @@ export class RuntimeGet extends RuntimeFormulaFunction {
   fromNodeToFormula(node) {
     return `get('${node.attrs.path}')`
   }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.getDescription')
+  }
+
+  getExamples() {
+    return ["get('previous_node.1.body')"]
+  }
 }
 
 export class RuntimeAdd extends RuntimeFormulaFunction {
@@ -240,5 +273,668 @@ export class RuntimeAdd extends RuntimeFormulaFunction {
 
   execute(context, [a, b]) {
     return a + b
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.addDescription')
+  }
+
+  getExamples() {
+    return ['1+1+1 = 3', "'a' + 'b' = 'ab'"]
+  }
+}
+
+export class RuntimeMinus extends RuntimeFormulaFunction {
+  static getType() {
+    return 'minus'
+  }
+
+  get args() {
+    return [
+      new NumberBaserowRuntimeFormulaArgumentType(),
+      new NumberBaserowRuntimeFormulaArgumentType(),
+    ]
+  }
+
+  execute(context, [a, b]) {
+    return a - b
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.minusDescription')
+  }
+
+  getExamples() {
+    return ['3-1 = 2']
+  }
+}
+
+export class RuntimeMultiply extends RuntimeFormulaFunction {
+  static getType() {
+    return 'multiply'
+  }
+
+  get args() {
+    return [
+      new NumberBaserowRuntimeFormulaArgumentType(),
+      new NumberBaserowRuntimeFormulaArgumentType(),
+    ]
+  }
+
+  execute(context, [a, b]) {
+    return a * b
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.multiplyDescription')
+  }
+
+  getExamples() {
+    return ['2*3 = 6', "'a' * 3 = 'aaa'"]
+  }
+}
+
+export class RuntimeDivide extends RuntimeFormulaFunction {
+  static getType() {
+    return 'divide'
+  }
+
+  get args() {
+    return [
+      new NumberBaserowRuntimeFormulaArgumentType(),
+      new NumberBaserowRuntimeFormulaArgumentType(),
+    ]
+  }
+
+  execute(context, [a, b]) {
+    return a * b
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.divideDescription')
+  }
+
+  getExamples() {
+    return ['6/3 = 2']
+  }
+}
+
+export class RuntimeNotEqual extends RuntimeFormulaFunction {
+  static getType() {
+    return 'not_equal'
+  }
+
+  get args() {
+    return [
+      new NumberBaserowRuntimeFormulaArgumentType(),
+      new NumberBaserowRuntimeFormulaArgumentType(),
+    ]
+  }
+
+  execute(context, [a, b]) {
+    return a !== b
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.notEqualDescription')
+  }
+
+  getExamples() {
+    return ['2!=3 = true']
+  }
+}
+
+export class RuntimeGreaterThan extends RuntimeFormulaFunction {
+  static getType() {
+    return 'greater_than'
+  }
+
+  get args() {
+    return [
+      new NumberBaserowRuntimeFormulaArgumentType(),
+      new NumberBaserowRuntimeFormulaArgumentType(),
+    ]
+  }
+
+  execute(context, [a, b]) {
+    return a > b
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.greaterThanDescription')
+  }
+
+  getExamples() {
+    return ['3>2 = true']
+  }
+}
+
+export class RuntimeLessThan extends RuntimeFormulaFunction {
+  static getType() {
+    return 'less_than'
+  }
+
+  get args() {
+    return [
+      new NumberBaserowRuntimeFormulaArgumentType(),
+      new NumberBaserowRuntimeFormulaArgumentType(),
+    ]
+  }
+
+  execute(context, [a, b]) {
+    return a < b
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.lessThanDescription')
+  }
+
+  getExamples() {
+    return ['2<3 = true']
+  }
+}
+
+export class RuntimeGreaterThanOrEqual extends RuntimeFormulaFunction {
+  static getType() {
+    return 'greater_than_or_equal'
+  }
+
+  get args() {
+    return [
+      new NumberBaserowRuntimeFormulaArgumentType(),
+      new NumberBaserowRuntimeFormulaArgumentType(),
+    ]
+  }
+
+  execute(context, [a, b]) {
+    return a < b
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.greaterThanOrEqualDescription')
+  }
+
+  getExamples() {
+    return ['3>=3 = true']
+  }
+}
+
+export class RuntimeUpper extends RuntimeFormulaFunction {
+  static getType() {
+    return 'upper'
+  }
+
+  get args() {
+    return [new TextBaserowRuntimeFormulaArgumentType()]
+  }
+
+  execute(context, [s]) {
+    return s.toUpperCase()
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.upperDescription')
+  }
+
+  getExamples() {
+    return ["upper('Hello, World!') = 'HELLO, WORLD!'"]
+  }
+}
+
+export class RuntimeLower extends RuntimeFormulaFunction {
+  static getType() {
+    return 'lower'
+  }
+
+  get args() {
+    return [new TextBaserowRuntimeFormulaArgumentType()]
+  }
+
+  execute(context, [s]) {
+    return s.toLowerCase()
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.lowerDescription')
+  }
+
+  getExamples() {
+    return ["lower('Hello, World!') = 'hello, world!'"]
+  }
+}
+
+export class RuntimeCapitalize extends RuntimeFormulaFunction {
+  static getType() {
+    return 'capitalize'
+  }
+
+  get args() {
+    return [new TextBaserowRuntimeFormulaArgumentType()]
+  }
+
+  capitalize(str) {
+    if (!str) return ''
+    const [firstChar, ...remainingChars] = [...str]
+    return firstChar.toUpperCase() + remainingChars.join('').toLowerCase()
+  }
+
+  execute(context, [s]) {
+    return this.capitalize(s)
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.capitalizeDescription')
+  }
+
+  getExamples() {
+    return ["capitalize('hello, world!') = 'Hello, world!'"]
+  }
+}
+
+export class RuntimeRound extends RuntimeFormulaFunction {
+  static getType() {
+    return 'round'
+  }
+
+  get args() {
+    return [
+      new NumberBaserowRuntimeFormulaArgumentType(),
+      new NumberBaserowRuntimeFormulaArgumentType(),
+    ]
+  }
+
+  execute(context, args) {
+    // Default to 2 decimal places?
+    let decimalPlaces = 2
+
+    if (args.length === 2) {
+      // Avoid negative numbers
+      decimalPlaces = Math.max(args[1], 0)
+    }
+
+    return args[0].toFixed(decimalPlaces)
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.roundDescription')
+  }
+
+  getExamples() {
+    return ["round('12.345', 2) = '12.35'"]
+  }
+}
+
+export class RuntimeIsEven extends RuntimeFormulaFunction {
+  static getType() {
+    return 'is_even'
+  }
+
+  get args() {
+    return [new NumberBaserowRuntimeFormulaArgumentType()]
+  }
+
+  execute(context, [n]) {
+    return n % 2 === 0
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.evenDescription')
+  }
+
+  getExamples() {
+    return ['even(12) = true']
+  }
+}
+
+export class RuntimeIsOdd extends RuntimeFormulaFunction {
+  static getType() {
+    return 'is_odd'
+  }
+
+  get args() {
+    return [new NumberBaserowRuntimeFormulaArgumentType()]
+  }
+
+  execute(context, [n]) {
+    return n % 2 !== 0
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.oddDescription')
+  }
+
+  getExamples() {
+    return ['odd(11) = true']
+  }
+}
+
+export class RuntimeDateTimeFormat extends RuntimeFormulaFunction {
+  static getType() {
+    return 'datetime_format'
+  }
+
+  get args() {
+    return [
+      new DateTimeBaserowRuntimeFormulaArgumentType(),
+      new TextBaserowRuntimeFormulaArgumentType(),
+      new TextBaserowRuntimeFormulaArgumentType(),
+    ]
+  }
+
+  execute(context, args) {
+    // Backend uses Python's datetime formatting syntax, e.g. `%Y-%m-%d %H:%M:%S`
+    // but I haven't yet found a way to replicate this in pure JS. Maybe
+    // we can rely on a 3rd party lib?
+    return 'TODO'
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.dateTimeDescription')
+  }
+
+  getExamples() {
+    return [
+      "datetime_format('2025-10-16 11:05:38.547989', '%Y-%m-%d', 'Asia/Dubai') = '2025-10-16'",
+    ]
+  }
+}
+
+export class RuntimeDay extends RuntimeFormulaFunction {
+  static getType() {
+    return 'day'
+  }
+
+  get args() {
+    return [new DateTimeBaserowRuntimeFormulaArgumentType()]
+  }
+
+  execute(context, [datetime]) {
+    return datetime.getDate()
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.dayDescription')
+  }
+
+  getExamples() {
+    return ["day('2025-10-16 11:05:38') = '16'"]
+  }
+}
+
+export class RuntimeMonth extends RuntimeFormulaFunction {
+  static getType() {
+    return 'month'
+  }
+
+  get args() {
+    return [new DateTimeBaserowRuntimeFormulaArgumentType()]
+  }
+
+  execute(context, [datetime]) {
+    return datetime.getMonth()
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.monthDescription')
+  }
+
+  getExamples() {
+    return ["month('2025-10-16 11:05:38') = '10'"]
+  }
+}
+
+export class RuntimeYear extends RuntimeFormulaFunction {
+  static getType() {
+    return 'year'
+  }
+
+  get args() {
+    return [new DateTimeBaserowRuntimeFormulaArgumentType()]
+  }
+
+  execute(context, [datetime]) {
+    return datetime.getFullYear()
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.yearDescription')
+  }
+
+  getExamples() {
+    return ["year('2025-10-16 11:05:38') = '2025'"]
+  }
+}
+
+export class RuntimeHour extends RuntimeFormulaFunction {
+  static getType() {
+    return 'hour'
+  }
+
+  get args() {
+    return [new DateTimeBaserowRuntimeFormulaArgumentType()]
+  }
+
+  execute(context, [datetime]) {
+    return datetime.getHours()
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.hourDescription')
+  }
+
+  getExamples() {
+    return ["hour('2025-10-16 11:05:38') = '11'"]
+  }
+}
+
+export class RuntimeMinute extends RuntimeFormulaFunction {
+  static getType() {
+    return 'minute'
+  }
+
+  get args() {
+    return [new DateTimeBaserowRuntimeFormulaArgumentType()]
+  }
+
+  execute(context, [datetime]) {
+    return datetime.getMinutes()
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.minuteDescription')
+  }
+
+  getExamples() {
+    return ["minute('2025-10-16 11:05:38') = '05'"]
+  }
+}
+
+export class RuntimeSecond extends RuntimeFormulaFunction {
+  static getType() {
+    return 'second'
+  }
+
+  get args() {
+    return [new DateTimeBaserowRuntimeFormulaArgumentType()]
+  }
+
+  execute(context, [datetime]) {
+    return datetime.getSeconds()
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.secondDescription')
+  }
+
+  getExamples() {
+    return ["second('2025-10-16 11:05:38') = '38'"]
+  }
+}
+
+export class RuntimeNow extends RuntimeFormulaFunction {
+  static getType() {
+    return 'now'
+  }
+
+  execute(context, args) {
+    return new Date()
+  }
+}
+
+export class RuntimeToday extends RuntimeFormulaFunction {
+  static getType() {
+    return 'today'
+  }
+
+  execute(context, args) {
+    return new Date().toISOString().split('T')[0]
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.todayDescription')
+  }
+
+  getExamples() {
+    return ["today() = '2025-10-16'"]
+  }
+}
+
+export class RuntimeGetProperty extends RuntimeFormulaFunction {
+  static getType() {
+    return 'get_property'
+  }
+
+  get args() {
+    return [
+      new ObjectBaserowRuntimeFormulaArgumentType(),
+      new TextBaserowRuntimeFormulaArgumentType(),
+    ]
+  }
+
+  execute(context, args) {
+    return new args[0][args[1]]()
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.getPropertyDescription')
+  }
+
+  getExamples() {
+    return ['get_property(\'{"cherry": "red"}\', "fruit")']
+  }
+}
+
+export class RuntimeRandomInt extends RuntimeFormulaFunction {
+  static getType() {
+    return 'random_int'
+  }
+
+  get args() {
+    return [
+      new NumberBaserowRuntimeFormulaArgumentType(),
+      new NumberBaserowRuntimeFormulaArgumentType(),
+    ]
+  }
+
+  execute(context, args) {
+    const min = Math.ceil(args[0])
+    const max = Math.floor(args[1])
+    return Math.floor(Math.random() * (max - min) + min)
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.randomIntDescription')
+  }
+
+  getExamples() {
+    return ['random_int(10, 20) = 17']
+  }
+}
+
+export class RuntimeRandomFloat extends RuntimeFormulaFunction {
+  static getType() {
+    return 'random_float'
+  }
+
+  get args() {
+    return [
+      new NumberBaserowRuntimeFormulaArgumentType(),
+      new NumberBaserowRuntimeFormulaArgumentType(),
+    ]
+  }
+
+  execute(context, args) {
+    return Math.random() * (args[1] - args[0]) + args[0]
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.randomFloatDescription')
+  }
+
+  getExamples() {
+    return ['random_float(10, 20) = 18.410550297490616']
+  }
+}
+
+export class RuntimeRandomBool extends RuntimeFormulaFunction {
+  static getType() {
+    return 'random_bool'
+  }
+
+  execute(context, args) {
+    return Math.random() < 0.5
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.randomBoolDescription')
+  }
+
+  getExamples() {
+    return ['random_bool() = true']
+  }
+}
+
+export class RuntimeGenerateUUID extends RuntimeFormulaFunction {
+  static getType() {
+    return 'generate_uuid'
+  }
+
+  execute(context, args) {
+    return crypto.randomUUID()
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.generateUUIDDescription')
+  }
+
+  getExamples() {
+    return ["generate_uuid() = '9b772ad6-08bc-4d19-958d-7f1c21a4f4ef'"]
   }
 }

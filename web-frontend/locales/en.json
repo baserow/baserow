@@ -639,5 +639,37 @@
   },
   "assistantMessageSources": {
     "sources": "{count} source | {count} sources"
+  },
+  "runtimeFormulaTypes": {
+    "concatDescription": "Joined arguments together as a single text.",
+    "getDescription": "Returns the resolved value of a Baserow formula.",
+    "addDescription": "Adds two arguments together.",
+    "minusDescription": "Subtracts the second argument from the first.",
+    "multiplyDescription": "Multiplies the two arguments.",
+    "divideDescription": "Divides the first argument from the second.",
+    "equalDescription": "Checks if both arguments are equal.",
+    "notEqualDescription": "Checks if both arguments are not equal.",
+    "greaterThanDescription": "Checks if the first argument is greater than the second.",
+    "lessThanDescription": "Checks if the first argument is less than the second.",
+    "greaterThanOrEqualDescription": "Checks if the first argument is greater than or equal to the second.",
+    "upperDescription": "Converts the argument to upper case.",
+    "lowerDescription": "Converts the argument to lower case.",
+    "capitalizeDescription": "Capitalizes the argument's first letter.",
+    "roundDescription": "Rounds the first argument to the number of decimal places specified by the second argument.",
+    "evenDescription": "Return true if the argument is even, false otherwise.",
+    "oddDescription": "Return true if the argument is odd, false otherwise.",
+    "dateTimeDescription": "Formats the date time argument using the format and timezone arguments.",
+    "dayDescription": "Returns the day from the date time argument.",
+    "monthDescription": "Returns the month from the date time argument.",
+    "yearDescription": "Returns the year from the date time argument.",
+    "hourDescription": "Returns the hour from the date time argument.",
+    "minuteDescription": "Returns the minute from the date time argument.",
+    "secondDescription": "Returns the second from the date time argument.",
+    "todayDescription": "Returns the current date.",
+    "getPropertyDescription": "Returns the property from the object.",
+    "randomIntDescription": "Returns a random integer from the range specified by the arguments.",
+    "randomFloatDescription": "Returns a random float from the range specified by the arguments.",
+    "randomBoolDescription": "Returns a random boolean of true or false.",
+    "generateUUIDDescription": "Returns a random UUID4 string."
   }
 }

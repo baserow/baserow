@@ -92,6 +92,26 @@ import {
   RuntimeAdd,
   RuntimeConcat,
   RuntimeGet,
+  RuntimeUpper,
+  RuntimeLower,
+  RuntimeCapitalize,
+  RuntimeRound,
+  RuntimeIsEven,
+  RuntimeIsOdd,
+  RuntimeDateTimeFormat,
+  RuntimeDay,
+  RuntimeMonth,
+  RuntimeYear,
+  RuntimeHour,
+  RuntimeMinute,
+  RuntimeSecond,
+  RuntimeNow,
+  RuntimeToday,
+  RuntimeGetProperty,
+  RuntimeRandomInt,
+  RuntimeRandomFloat,
+  RuntimeRandomBool,
+  RuntimeGenerateUUID,
 } from '@baserow/modules/core/runtimeFormulaTypes'
 
 import priorityBus from '@baserow/modules/core/plugins/priorityBus'
@@ -230,6 +250,29 @@ export default (context, inject) => {
   registry.register('runtimeFormulaFunction', new RuntimeConcat(context))
   registry.register('runtimeFormulaFunction', new RuntimeGet(context))
   registry.register('runtimeFormulaFunction', new RuntimeAdd(context))
+  registry.register('runtimeFormulaFunction', new RuntimeUpper(context))
+  registry.register('runtimeFormulaFunction', new RuntimeLower(context))
+  registry.register('runtimeFormulaFunction', new RuntimeCapitalize(context))
+  registry.register('runtimeFormulaFunction', new RuntimeRound(context))
+  registry.register('runtimeFormulaFunction', new RuntimeIsEven(context))
+  registry.register('runtimeFormulaFunction', new RuntimeIsOdd(context))
+  registry.register(
+    'runtimeFormulaFunction',
+    new RuntimeDateTimeFormat(context)
+  )
+  registry.register('runtimeFormulaFunction', new RuntimeDay(context))
+  registry.register('runtimeFormulaFunction', new RuntimeMonth(context))
+  registry.register('runtimeFormulaFunction', new RuntimeYear(context))
+  registry.register('runtimeFormulaFunction', new RuntimeHour(context))
+  registry.register('runtimeFormulaFunction', new RuntimeMinute(context))
+  registry.register('runtimeFormulaFunction', new RuntimeSecond(context))
+  registry.register('runtimeFormulaFunction', new RuntimeNow(context))
+  registry.register('runtimeFormulaFunction', new RuntimeToday(context))
+  registry.register('runtimeFormulaFunction', new RuntimeGetProperty(context))
+  registry.register('runtimeFormulaFunction', new RuntimeRandomInt(context))
+  registry.register('runtimeFormulaFunction', new RuntimeRandomFloat(context))
+  registry.register('runtimeFormulaFunction', new RuntimeRandomBool(context))
+  registry.register('runtimeFormulaFunction', new RuntimeGenerateUUID(context))
 
   registry.register('roles', new AdminRoleType(context))
   registry.register('roles', new MemberRoleType(context))

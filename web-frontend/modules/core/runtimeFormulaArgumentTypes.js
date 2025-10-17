@@ -1,3 +1,10 @@
+import {
+  ensureString,
+  ensureNumeric,
+  ensureDateTime,
+  ensureObject,
+} from '@baserow/modules/core/utils/validator'
+
 export class BaserowRuntimeFormulaArgumentType {
   /**
    * This function tests if a given value is compatible with its type
@@ -28,7 +35,7 @@ export class NumberBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFormu
   }
 
   parse(value) {
-    return parseFloat(value)
+    return ensureNumeric(value)
   }
 }
 
@@ -38,6 +45,26 @@ export class TextBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFormula
   }
 
   parse(value) {
-    return value.toString()
+    return ensureString(value)
+  }
+}
+
+export class DateTimeBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFormulaArgumentType {
+  test(value) {
+    return value instanceof Date
+  }
+
+  parse(value) {
+    return ensureDateTime(value)
+  }
+}
+
+export class ObjectBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFormulaArgumentType {
+  test(value) {
+    return value instanceof Object
+  }
+
+  parse(value) {
+    return ensureObject(value)
   }
 }
