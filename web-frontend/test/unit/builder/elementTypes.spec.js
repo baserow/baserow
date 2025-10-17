@@ -99,82 +99,101 @@ describe('elementTypes tests', () => {
     })
     test('InputTextElementType label and default_value variations', () => {
       const elementType = testApp.getRegistry().get('element', 'input_text')
-      expect(elementType.getDisplayName({ label: "'First name'" }, {})).toBe(
-        'First name'
-      )
+      expect(
+        elementType.getDisplayName({ label: { formula: "'First name'" } }, {})
+      ).toBe('First name')
       expect(
         elementType.getDisplayName(
-          { placeholder: "'Choose a first name...'" },
+          { placeholder: { formula: "'Choose a first name...'" } },
           {}
         )
       ).toBe('Choose a first name...')
       // If a formula resolves to a blank string, fallback to the name.
       expect(
         elementType.getDisplayName(
-          { label: "get('page_parameter.id')" },
+          { label: { formula: "get('page_parameter.id')" } },
           contextBlankParam
         )
       ).toBe(elementType.name)
-      expect(elementType.getDisplayName({}, {})).toBe(elementType.name)
+      expect(
+        elementType.getDisplayName(
+          { label: { formula: '' }, placeholder: { formula: '' } },
+          {}
+        )
+      ).toBe(elementType.name)
     })
     test('ChoiceElementType label, default_value & placeholder variations', () => {
       const elementType = testApp.getRegistry().get('element', 'choice')
-      expect(elementType.getDisplayName({ label: "'Animals'" }, {})).toBe(
-        'Animals'
-      )
       expect(
-        elementType.getDisplayName({ placeholder: "'Choose an animal'" }, {})
+        elementType.getDisplayName({ label: { formula: "'Animals'" } }, {})
+      ).toBe('Animals')
+      expect(
+        elementType.getDisplayName(
+          { placeholder: { formula: "'Choose an animal'" } },
+          {}
+        )
       ).toBe('Choose an animal')
       // If a formula resolves to a blank string, fallback to the name.
       expect(
         elementType.getDisplayName(
-          { label: "get('page_parameter.id')" },
+          { label: { formula: "get('page_parameter.id')" } },
           contextBlankParam
         )
       ).toBe(elementType.name)
-      expect(elementType.getDisplayName({}, {})).toBe(elementType.name)
+      expect(
+        elementType.getDisplayName(
+          { label: { formula: '' }, placeholder: { formula: '' } },
+          {}
+        )
+      ).toBe(elementType.name)
     })
     test('CheckboxElementType with and without a label to use', () => {
       const elementType = testApp.getRegistry().get('element', 'checkbox')
-      expect(elementType.getDisplayName({ label: "'Active'" }, {})).toBe(
-        'Active'
-      )
+      expect(
+        elementType.getDisplayName({ label: { formula: "'Active'" } }, {})
+      ).toBe('Active')
       // If a formula resolves to a blank string, fallback to the name.
       expect(
         elementType.getDisplayName(
-          { label: "get('page_parameter.id')" },
+          { label: { formula: "get('page_parameter.id')" } },
           contextBlankParam
         )
       ).toBe(elementType.name)
-      expect(elementType.getDisplayName({}, {})).toBe(elementType.name)
+      expect(elementType.getDisplayName({ label: { formula: '' } }, {})).toBe(
+        elementType.name
+      )
     })
     test('HeadingElementType with and without a value to use', () => {
       const elementType = testApp.getRegistry().get('element', 'heading')
-      expect(elementType.getDisplayName({ value: "'A heading'" }, {})).toBe(
-        'A heading'
-      )
+      expect(
+        elementType.getDisplayName({ value: { formula: "'A heading'" } }, {})
+      ).toBe('A heading')
       // If a formula resolves to a blank string, fallback to the name.
       expect(
         elementType.getDisplayName(
-          { value: "get('page_parameter.id')" },
+          { value: { formula: "get('page_parameter.id')" } },
           contextBlankParam
         )
       ).toBe(elementType.name)
-      expect(elementType.getDisplayName({}, {})).toBe(elementType.name)
+      expect(elementType.getDisplayName({ value: { formula: '' } }, {})).toBe(
+        elementType.name
+      )
     })
     test('TextElementType with and without a value to use', () => {
       const elementType = testApp.getRegistry().get('element', 'text')
-      expect(elementType.getDisplayName({ value: "'Some text'" }, {})).toBe(
-        'Some text'
-      )
+      expect(
+        elementType.getDisplayName({ value: { formula: "'Some text'" } }, {})
+      ).toBe('Some text')
       // If a formula resolves to a blank string, fallback to the name.
       expect(
         elementType.getDisplayName(
-          { value: "get('page_parameter.id')" },
+          { value: { formula: "get('page_parameter.id')" } },
           contextBlankParam
         )
       ).toBe(elementType.name)
-      expect(elementType.getDisplayName({}, {})).toBe(elementType.name)
+      expect(elementType.getDisplayName({ value: { formula: '' } }, {})).toBe(
+        elementType.name
+      )
     })
     test('LinkElementType page and custom URL variations', () => {
       const elementType = testApp.getRegistry().get('element', 'link')
@@ -188,6 +207,7 @@ describe('elementTypes tests', () => {
           {
             navigate_to_page_id: 1,
             navigation_type: 'page',
+            value: { formula: '' },
           },
           applicationContext
         )
@@ -197,7 +217,7 @@ describe('elementTypes tests', () => {
       expect(
         elementType.getDisplayName(
           {
-            value: "'Click me'",
+            value: { formula: "'Click me'" },
             navigate_to_page_id: 2,
             navigation_type: 'page',
           },
@@ -211,6 +231,7 @@ describe('elementTypes tests', () => {
           {
             navigate_to_page_id: 2,
             navigation_type: 'page',
+            value: { formula: '' },
           },
           applicationContext
         )
@@ -220,8 +241,8 @@ describe('elementTypes tests', () => {
         elementType.getDisplayName(
           {
             navigation_type: 'custom',
-            navigate_to_url: "'https://baserow.io'",
-            value: "'Link name'",
+            navigate_to_url: { formula: "'https://baserow.io'" },
+            value: { formula: "'Link name'" },
           },
           applicationContext
         )
@@ -230,30 +251,37 @@ describe('elementTypes tests', () => {
     test('ImageElementType with and without alt text to use', () => {
       const elementType = testApp.getRegistry().get('element', 'image')
       expect(
-        elementType.getDisplayName({ alt_text: "'Baserow logo'" }, {})
+        elementType.getDisplayName(
+          { alt_text: { formula: "'Baserow logo'" } },
+          {}
+        )
       ).toBe('Baserow logo')
       // If a formula resolves to a blank string, fallback to the name.
       expect(
         elementType.getDisplayName(
-          { alt_text: "get('page_parameter.id')" },
+          { alt_text: { formula: "get('page_parameter.id')" } },
           contextBlankParam
         )
       ).toBe(elementType.name)
-      expect(elementType.getDisplayName({}, {})).toBe(elementType.name)
+      expect(
+        elementType.getDisplayName({ alt_text: { formula: '' } }, {})
+      ).toBe(elementType.name)
     })
     test('ButtonElementType with and without value to use', () => {
       const elementType = testApp.getRegistry().get('element', 'button')
-      expect(elementType.getDisplayName({ value: "'Click me'" }, {})).toBe(
-        'Click me'
-      )
+      expect(
+        elementType.getDisplayName({ value: { formula: "'Click me'" } }, {})
+      ).toBe('Click me')
       // If a formula resolves to a blank string, fallback to the name.
       expect(
         elementType.getDisplayName(
-          { value: "get('page_parameter.id')" },
+          { value: { formula: "get('page_parameter.id')" } },
           contextBlankParam
         )
       ).toBe(elementType.name)
-      expect(elementType.getDisplayName({}, {})).toBe(elementType.name)
+      expect(elementType.getDisplayName({ value: { formula: '' } }, {})).toBe(
+        elementType.name
+      )
     })
     test('TableElementType with and without data_source_id to use', () => {
       const elementType = testApp.getRegistry().get('element', 'table')
@@ -297,11 +325,13 @@ describe('elementTypes tests', () => {
       const elementType = testApp.getRegistry().get('element', 'iframe')
       expect(
         elementType.getDisplayName(
-          { url: "'https://www.youtube.com/watch?v=dQw4w9WgXcQ'" },
+          { url: { formula: "'https://www.youtube.com/watch?v=dQw4w9WgXcQ'" } },
           {}
         )
       ).toBe('https://www.youtube.com/watch?v=dQw4w9WgXcQ')
-      expect(elementType.getDisplayName({}, {})).toBe(elementType.name)
+      expect(elementType.getDisplayName({ url: { formula: '' } }, {})).toBe(
+        elementType.name
+      )
     })
   })
 
@@ -707,13 +737,16 @@ describe('elementTypes tests', () => {
       const elementType = testApp.getRegistry().get('element', 'heading')
 
       // Heading with missing value is invalid
-      expect(elementType.isInError({ page: {}, element: { value: '' } })).toBe(
-        true
-      )
+      expect(
+        elementType.isInError({ page: {}, element: { value: { formula: '' } } })
+      ).toBe(true)
 
       // Heading with value is valid
       expect(
-        elementType.isInError({ page: {}, element: { value: 'Foo Heading' } })
+        elementType.isInError({
+          page: {},
+          element: { value: { formula: "'Foo Heading'" } },
+        })
       ).toBe(false)
     })
   })
@@ -723,13 +756,16 @@ describe('elementTypes tests', () => {
       const elementType = testApp.getRegistry().get('element', 'text')
 
       // Text with missing value is invalid
-      expect(elementType.isInError({ page: {}, element: { value: '' } })).toBe(
-        true
-      )
+      expect(
+        elementType.isInError({ page: {}, element: { value: { formula: '' } } })
+      ).toBe(true)
 
       // Text with value is valid
       expect(
-        elementType.isInError({ page: {}, element: { value: 'Foo Text' } })
+        elementType.isInError({
+          page: {},
+          element: { value: { formula: "'Foo Text'" } },
+        })
       ).toBe(false)
     })
   })
@@ -739,13 +775,15 @@ describe('elementTypes tests', () => {
       const elementType = testApp.getRegistry().get('element', 'link')
 
       // Link with missing text is invalid
-      expect(elementType.isInError({ element: { value: '' } })).toBe(true)
+      expect(
+        elementType.isInError({ element: { value: { formula: '' } } })
+      ).toBe(true)
 
       // When navigation_type is 'page' the navigate_to_page_id must be set
       let element = {
         navigation_type: 'page',
         navigate_to_page_id: '',
-        value: 'Foo Link',
+        value: { formula: "'Foo Link'" },
       }
       expect(elementType.isInError({ page: {}, element })).toBe(true)
 
@@ -758,14 +796,14 @@ describe('elementTypes tests', () => {
       // When navigation_type is 'custom' the navigate_to_url must be set
       element = {
         navigation_type: 'custom',
-        navigate_to_url: '',
-        value: 'Test',
+        navigate_to_url: { formula: '' },
+        value: { formula: "'Test'" },
       }
       expect(elementType.isInError({ page, element })).toBe(true)
 
       // Otherwise it is valid
-      element.navigate_to_url = 'http://localhost'
-      element.value = 'Foo Link'
+      element.navigate_to_url = { formula: 'http://localhost' }
+      element.value = { formula: "'Foo Link'" }
       expect(elementType.isInError({ page, element })).toBe(false)
     })
   })
@@ -788,7 +826,7 @@ describe('elementTypes tests', () => {
       expect(elementType.isInError({ element })).toBe(true)
 
       // Otherwise it is valid
-      element.image_url = "'http://localhost'"
+      element.image_url = { formula: "'http://localhost'" }
       expect(elementType.isInError({ element })).toBe(false)
     })
   })
@@ -805,7 +843,7 @@ describe('elementTypes tests', () => {
       }
       const element = {
         id: 50,
-        value: 'Click me',
+        value: { formula: "'Click me'" },
         page_id: page.id,
       }
       const builder = {
@@ -821,18 +859,18 @@ describe('elementTypes tests', () => {
       const page = {
         id: 1,
         shared: false,
-        name: 'Foo Page',
+        name: { formula: "'Foo Page'" },
         workflowActions: [],
       }
       const builder = { id: 1, pages: [page] }
-      const element = { id: 50, value: '', page_id: page.id }
+      const element = { id: 50, value: { formula: '' }, page_id: page.id }
       const elementType = testApp.getRegistry().get('element', 'button')
 
       // Button with missing value is invalid
       expect(elementType.isInError({ page, element, builder })).toBe(true)
 
       // Button with value but missing workflowActions is invalid
-      element.value = 'click me'
+      element.value = { formula: "'click me'" }
       expect(elementType.isInError({ page, element, builder })).toBe(true)
 
       // Button with value and workflowAction is valid
@@ -846,11 +884,15 @@ describe('elementTypes tests', () => {
       const elementType = testApp.getRegistry().get('element', 'iframe')
 
       // IFrame with source_type of 'url' and missing url is invalid
-      const element = { source_type: IFRAME_SOURCE_TYPES.URL }
+      const element = {
+        source_type: IFRAME_SOURCE_TYPES.URL,
+        url: { formula: '' },
+        embed: { formula: '' },
+      }
       expect(elementType.isInError({ element })).toBe(true)
 
       // Otherwise it is valid
-      element.url = 'http://localhost'
+      element.url = { formula: "'http://localhost'" }
       expect(elementType.isInError({ element })).toBe(false)
 
       // IFrame with source_type of 'embed' and missing embed is invalid
@@ -858,7 +900,7 @@ describe('elementTypes tests', () => {
       expect(elementType.isInError({ element })).toBe(true)
 
       // Otherwise it is valid
-      element.embed = 'http://localhost'
+      element.embed = { formula: "'http://localhost'" }
       expect(elementType.isInError({ element })).toBe(false)
 
       // Default is to return no errors
@@ -879,7 +921,7 @@ describe('elementTypes tests', () => {
       }
       const element = {
         id: 50,
-        submit_button_label: 'Submit',
+        submit_button_label: { formula: "'Submit'" },
         page_id: page.id,
       }
       const childElement = {
@@ -908,7 +950,7 @@ describe('elementTypes tests', () => {
       }
       const element = {
         id: 50,
-        submit_button_label: 'Submit',
+        submit_button_label: { formula: "'Submit'" },
         page_id: page.id,
       }
       page.elementMap = { 50: element }
@@ -993,7 +1035,7 @@ describe('elementTypes tests', () => {
 
       element.menu_items[0].name = 'sub link'
       element.menu_items[0].navigation_type = 'custom'
-      element.menu_items[0].navigate_to_url = ''
+      element.menu_items[0].navigate_to_url = { formula: '' }
 
       // Link Menu item - sublink with custom navigation but no URL is invalid.
       expect(elementType.isInError({ page, element, builder })).toBe(true)
@@ -1017,7 +1059,9 @@ describe('elementTypes tests', () => {
       element.menu_items[0].type = 'link'
       element.menu_items[0].name = 'foo link'
       element.menu_items[0].navigation_type = 'custom'
-      element.menu_items[0].navigate_to_url = 'https://www.baserow.io'
+      element.menu_items[0].navigate_to_url = {
+        formula: "'https://www.baserow.io'",
+      }
 
       expect(elementType.isInError({ page, element, builder })).toBe(false)
     })
