@@ -31,6 +31,20 @@
   color: $color-primary-500 !important;
 }
 
+kbd {
+  background-color: $palette-neutral-200;
+  border: 1px solid $palette-neutral-300;
+  border-radius: 3px;
+  padding: 2px 6px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 500;
+  color: $palette-neutral-900;
+  min-width: 20px;
+  text-align: center;
+  display: inline-block;
+}
+
 .color-success {
   color: $color-success-500 !important;
 }

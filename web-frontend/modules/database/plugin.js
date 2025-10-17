@@ -363,6 +363,13 @@ import {
   SettingsConfigureDataSyncType,
 } from '@baserow/modules/database/configureDataSyncTypes'
 import { DatabaseGuidedTourType } from '@baserow/modules/database/guidedTourTypes'
+import {
+  DatabaseSearchType,
+  DatabaseTableSearchType,
+  DatabaseFieldSearchType,
+  DatabaseRowSearchType,
+} from '@baserow/modules/database/searchTypes'
+import { searchTypeRegistry } from '@baserow/modules/core/search/types/registry'
 
 export default (context) => {
   const { store, app, isDev } = context
@@ -1114,4 +1121,9 @@ export default (context) => {
   registerRealtimeEvents(app.$realtime)
 
   app.$registry.registerNamespace('fieldContextItem')
+
+  searchTypeRegistry.register(new DatabaseSearchType())
+  searchTypeRegistry.register(new DatabaseTableSearchType())
+  searchTypeRegistry.register(new DatabaseFieldSearchType())
+  searchTypeRegistry.register(new DatabaseRowSearchType())
 }

@@ -255,6 +255,7 @@ export default (context, inject) => {
   registry.register('onboarding', new TeamOnboardingType(context))
   registry.register('onboarding', new MoreOnboardingType(context))
   registry.register('onboarding', new WorkspaceOnboardingType(context))
+
   registry.register('onboarding', new InviteOnboardingType(context))
 
   registry.register('guidedTour', new SidebarGuidedTourType(context))

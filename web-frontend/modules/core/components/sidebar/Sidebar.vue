@@ -60,6 +60,7 @@
         v-show="!collapsed"
         v-if="hasSelectedWorkspace"
         :selected-workspace="selectedWorkspace"
+        @open-workspace-search="$emit('open-workspace-search')"
       ></SidebarMenu>
 
       <SidebarWithWorkspace

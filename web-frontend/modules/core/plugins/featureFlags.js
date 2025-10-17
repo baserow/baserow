@@ -1,6 +1,7 @@
 const FF_ENABLE_ALL = '*'
 export const FF_AUTOMATION = 'automation'
 export const FF_ASSISTANT = 'assistant'
+export const FF_WORKSPACE_SEARCH = 'workspace-search'
 export const FF_DATE_DEPENDENCY = 'date_dependency'
 
 /**

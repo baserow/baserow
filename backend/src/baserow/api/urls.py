@@ -17,6 +17,7 @@ from .integrations import urls as integrations_urls
 from .jobs import urls as jobs_urls
 from .mcp import urls as mcp_urls
 from .notifications import urls as notifications_urls
+from .search import urls as search_urls
 from .settings import urls as settings_urls
 from .snapshots import urls as snapshots_urls
 from .spectacular.views import CachedSpectacularJSONAPIView
@@ -50,6 +51,7 @@ urlpatterns = (
         path("snapshots/", include(snapshots_urls, namespace="snapshots")),
         path("_health/", include(health_urls, namespace="health")),
         path("notifications/", include(notifications_urls, namespace="notifications")),
+        path("search/", include(search_urls, namespace="search")),
         path("admin/", include(admin_urls, namespace="admin")),
         path("mcp/", include(mcp_urls, namespace="mcp")),
         path(
