@@ -358,4 +358,6 @@ export default (context) => {
     new PublicLogoRemovalPaidFeature(context)
   )
   app.$registry.register('paidFeature', new ChartPaidFeature(context))
+
+  app.$registry.registerNamespace('timelineFieldRules')
 }
