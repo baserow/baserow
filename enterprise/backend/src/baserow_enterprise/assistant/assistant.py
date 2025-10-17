@@ -9,11 +9,13 @@ from dspy.utils.callback import BaseCallback
 
 from baserow_enterprise.assistant.tools.registries import assistant_tool_registry
 
+from .adapter import ChatAdapter
 from .models import AssistantChat, AssistantChatMessage
-from .prompts import ASSISTANT_SYSTEM_PROMPT
+from .react import ReAct
 from .types import (
     AiMessage,
     AiMessageChunk,
+    AiNavigationMessage,
     AiThinkingMessage,
     AssistantMessageUnion,
     ChatTitleMessage,
@@ -26,9 +28,9 @@ from .utils import ensure_llm_model_accessible
 class ChatSignature(dspy.Signature):
     question: str = dspy.InputField()
     history: dspy.History = dspy.InputField()
-    ui_context: UIContext = dspy.InputField(
+    ui_context: UIContext | None = dspy.InputField(
         default=None,
-        description=(
+        desc=(
             "The frontend UI content the user is currently in. "
             "Whenever make sense, use it to ground your answer."
         ),
@@ -104,6 +106,7 @@ class AssistantCallbacks(BaseCallback):
             call_id, instance, inputs, outputs, exception
         )
 
+        # If the tool produced sources, add them to the overall list of sources.
         if isinstance(outputs, dict) and "sources" in outputs:
             self.extend_sources(outputs["sources"])
 
@@ -118,55 +121,14 @@ class Assistant:
         self._lm_client = dspy.LM(
             model=lm_model,
             cache=not settings.DEBUG,
+            max_retries=5,
         )
 
-        Signature = self._get_chat_signature()
-        self._assistant = dspy.ReAct(
-            Signature,
-            tools=assistant_tool_registry.list_all_usable_tools(
-                self._user, self._workspace
-            ),
+        tools = assistant_tool_registry.list_all_usable_tools(
+            self._user, self._workspace
         )
+        self._assistant = ReAct(ChatSignature, tools=tools)
         self.history = None
-
-    def _get_chat_signature(self) -> dspy.Signature:
-        """
-        Returns the appropriate signature for the chat based on whether it has a title.
-
-        :return: the dspy.Signature for the chat, with the chat_title field included if
-            the chat does not yet have a title, otherwise with only the question,
-            history, and answer fields.
-        """
-
-        chat_signature_instructions = "## INSTRUCTIONS\n\nGiven the fields `question`, `history`, and `ui_context`, produce the fields `answer`"
-        if self._chat.title:  # only inject our base system prompt
-            return ChatSignature.with_instructions(
-                "\n".join(
-                    [
-                        ASSISTANT_SYSTEM_PROMPT,
-                        f"{chat_signature_instructions}.",
-                    ]
-                )
-            )
-        else:  # the chat also needs a title
-            return dspy.Signature(
-                {
-                    **ChatSignature.fields,
-                    "chat_title": dspy.OutputField(
-                        max_length=20,
-                        description=(
-                            "Capture the core intent of the conversation in ≤ 8 words for the chat title. "
-                            "Use clear, action-oriented language (gerund verbs up front where possible)."
-                        ),
-                    ),
-                },
-                instructions="\n".join(
-                    [
-                        ASSISTANT_SYSTEM_PROMPT,
-                        f"{chat_signature_instructions}, `chat_title`.",
-                    ]
-                ),
-            )
 
     async def acreate_chat_message(
         self,
@@ -271,7 +233,13 @@ class Assistant:
         ensure_llm_model_accessible(self._lm_client)
 
         callback_manager = AssistantCallbacks()
-        with dspy.context(lm=self._lm_client, callbacks=[callback_manager]):
+
+        with dspy.context(
+            lm=self._lm_client,
+            cache=not settings.DEBUG,
+            callbacks=[*dspy.settings.config.callbacks, callback_manager],
+            adapter=ChatAdapter(),
+        ):
             if self.history is None:
                 await self.aload_chat_history()
 
@@ -279,10 +247,6 @@ class Assistant:
             stream_listeners = [
                 StreamListener(signature_field_name="answer"),
             ]
-            if not self._chat.title:
-                stream_listeners.append(
-                    StreamListener(signature_field_name="chat_title")
-                )
 
             stream_predict = dspy.streamify(
                 self._assistant,
@@ -300,30 +264,32 @@ class Assistant:
                 AssistantChatMessage.Role.HUMAN, human_message.content
             )
 
-            chat_title, answer = "", ""
+            answer = ""
             async for stream_chunk in output_stream:
                 if isinstance(stream_chunk, StreamResponse):
                     # Accumulate chunks per field to deliver full, real‐time updates.
-                    match stream_chunk.signature_field_name:
-                        case "answer":
-                            answer += stream_chunk.chunk
-                            yield AiMessageChunk(
-                                content=answer, sources=callback_manager.sources
-                            )
-                        case "chat_title":
-                            chat_title += stream_chunk.chunk
-                            yield ChatTitleMessage(content=chat_title)
+                    if stream_chunk.signature_field_name == "answer":
+                        answer += stream_chunk.chunk
+                        yield AiMessageChunk(
+                            content=answer, sources=callback_manager.sources
+                        )
                 elif isinstance(stream_chunk, Prediction):
-                    # Final output ready — save streamed answer and title
+                    yield AiMessageChunk(
+                        content=stream_chunk.answer, sources=callback_manager.sources
+                    )
                     await self.acreate_chat_message(
                         AssistantChatMessage.Role.AI,
                         answer,
                         artifacts={"sources": callback_manager.sources},
                     )
 
-                    if chat_title and not self._chat.title:
-                        self._chat.title = chat_title
-                        await self._chat.asave(update_fields=["title", "updated_on"])
-                elif isinstance(stream_chunk, AiThinkingMessage):
-                    # If any tool stream a thinking message, forward it to the user
+                elif isinstance(stream_chunk, (AiThinkingMessage, AiNavigationMessage)):
+                    # forward thinking/navigation messages as-is to the frontend
                     yield stream_chunk
+
+            if not self._chat.title:
+                title_generator = dspy.Predict("question -> chat_title")
+                rsp = await title_generator.acall(question=human_message.content)
+                self._chat.title = rsp.chat_title
+                yield ChatTitleMessage(content=self._chat.title)
+                await self._chat.asave(update_fields=["title", "updated_on"])

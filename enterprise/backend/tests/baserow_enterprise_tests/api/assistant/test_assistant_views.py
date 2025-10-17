@@ -12,7 +12,6 @@ from freezegun import freeze_time
 from baserow.test_utils.helpers import AnyStr
 from baserow_enterprise.assistant.models import AssistantChat
 from baserow_enterprise.assistant.types import (
-    THINKING_MESSAGES,
     AiErrorMessage,
     AiMessage,
     AiMessageChunk,
@@ -814,11 +813,11 @@ def test_send_message_streams_thinking_messages_during_tool_execution(
     # Mock assistant with thinking messages (simulating tool execution)
     async def mock_astream(human_message):
         # Initial thinking
-        yield AiThinkingMessage(code=THINKING_MESSAGES.THINKING)
+        yield AiThinkingMessage(content="Thinking...")
         # Tool-specific thinking (e.g., searching docs)
-        yield AiThinkingMessage(code=THINKING_MESSAGES.SEARCH_DOCS)
+        yield AiThinkingMessage(content="Searching documentation...")
         # Analyzing results
-        yield AiThinkingMessage(code=THINKING_MESSAGES.ANALYZE_RESULTS)
+        yield AiThinkingMessage(content="Analyzing results...")
         # Final answer
         yield AiMessageChunk(
             content="Based on the documentation, here's how to do it...",
@@ -850,13 +849,13 @@ def test_send_message_streams_thinking_messages_during_tool_execution(
 
     # First three messages are thinking messages
     assert messages[0]["type"] == "ai/thinking"
-    assert messages[0]["code"] == THINKING_MESSAGES.THINKING
+    assert messages[0]["content"] == "Thinking..."
 
     assert messages[1]["type"] == "ai/thinking"
-    assert messages[1]["code"] == THINKING_MESSAGES.SEARCH_DOCS
+    assert messages[1]["content"] == "Searching documentation..."
 
     assert messages[2]["type"] == "ai/thinking"
-    assert messages[2]["code"] == THINKING_MESSAGES.ANALYZE_RESULTS
+    assert messages[2]["content"] == "Analyzing results..."
 
     # Final message is the answer
     assert messages[3]["type"] == "ai/message"

@@ -1,8 +1,18 @@
 from datetime import datetime, timezone
 from enum import StrEnum
-from typing import Literal, Optional
+from typing import Annotated, Any, Callable, Literal, Optional
 
-from pydantic import BaseModel, Field
+from django.utils.translation import gettext as _
+
+import dspy
+from pydantic import BaseModel as PydanticBaseModel
+from pydantic import ConfigDict, Field
+
+
+class BaseModel(PydanticBaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
 
 
 class WorkspaceUIContext(BaseModel):
@@ -85,6 +95,7 @@ class AssistantMessageType(StrEnum):
     HUMAN = "human"
     AI_MESSAGE = "ai/message"
     AI_THINKING = "ai/thinking"
+    AI_NAVIGATION = "ai/navigation"
     AI_ERROR = "ai/error"
     TOOL_CALL = "tool_call"
     TOOL = "tool"
@@ -97,6 +108,7 @@ class HumanMessage(BaseModel):
         description="The unique UUID of the message",
     )
     type: Literal["human"] = AssistantMessageType.HUMAN.value
+    timestamp: datetime | None = Field(default=None)
     content: str
     ui_context: Optional[UIContext] = Field(
         default=None, description="The UI context when the message was sent"
@@ -120,23 +132,8 @@ class AiMessage(AiMessageChunk):
     timestamp: datetime | None = Field(default=None)
 
 
-class THINKING_MESSAGES(StrEnum):
-    THINKING = "thinking"
-    ANSWERING = "answering"
-    # Tool-specific
-    SEARCH_DOCS = "search_docs"
-    ANALYZE_RESULTS = "analyze_results"
-
-    # For dynamic messages that don't have a translation in the frontend
-    CUSTOM = "custom"
-
-
 class AiThinkingMessage(BaseModel):
     type: Literal["ai/thinking"] = AssistantMessageType.AI_THINKING.value
-    code: str = Field(
-        default=THINKING_MESSAGES.CUSTOM,
-        description="Thinking content. If empty, signals end of thinking.",
-    )
     content: str = Field(
         default="",
         description=(
@@ -167,3 +164,55 @@ AIMessageUnion = (
     AiMessage | AiErrorMessage | AiThinkingMessage | ChatTitleMessage | AiMessageChunk
 )
 AssistantMessageUnion = HumanMessage | AIMessageUnion
+
+
+class TableNavigationType(BaseModel):
+    type: Literal["database-table"]
+    database_id: int
+    table_id: int
+    table_name: str
+
+    def to_localized_string(self):
+        return _("table %(table_name)s") % {"table_name": self.table_name}
+
+
+class ViewNavigationType(BaseModel):
+    type: Literal["database-view"]
+    database_id: int
+    table_id: int
+    view_id: int
+    view_name: str
+
+    def to_localized_string(self):
+        return _("view %(view_name)s") % {"view_name": self.view_name}
+
+
+class WorkspaceNavigationType(BaseModel):
+    type: Literal["workspace"]
+
+    def to_localized_string(self):
+        return _("home")
+
+
+AnyNavigationType = Annotated[
+    TableNavigationType | WorkspaceNavigationType | ViewNavigationType,
+    Field(discriminator="type"),
+]
+
+
+class AiNavigationMessage(BaseModel):
+    type: Literal["ai/navigation"] = "ai/navigation"
+    location: AnyNavigationType
+
+
+class ToolsUpgradeResponse(BaseModel):
+    observation: str
+    new_tools: list[dspy.Tool | Callable[[Any], Any]]
+
+
+class ToolSignature(dspy.Signature):
+    """Signature for manual tool handling."""
+
+    question: str = dspy.InputField()
+    tools: list[dspy.Tool] = dspy.InputField()
+    outputs: dspy.ToolCalls = dspy.OutputField()

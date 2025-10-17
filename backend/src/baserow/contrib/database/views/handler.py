@@ -578,12 +578,12 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         self,
         user: AbstractUser,
         table: Table,
-        _type: str,
-        filters: bool,
-        sortings: bool,
-        decorations: bool,
-        group_bys: bool,
-        limit: int,
+        _type: str | None = None,
+        filters: bool = True,
+        sortings: bool = True,
+        decorations: bool = True,
+        group_bys: bool = True,
+        limit: int | None = None,
     ) -> Iterable[View]:
         """
         Lists available views for a user/table combination.

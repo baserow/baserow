@@ -142,20 +142,15 @@ class AiMessageSerializer(serializers.Serializer):
 
 class AiThinkingSerializer(serializers.Serializer):
     type = serializers.CharField(default=AssistantMessageType.AI_THINKING)
-    code = serializers.CharField(
-        help_text=(
-            "Thinking code. If empty, signals end of thinking. This is used to provide recurring "
-            "messages that have a translation in the frontend (i.e. 'thinking', 'answering', etc.)"
-        )
-    )
     content = serializers.CharField(
-        default="",
-        allow_blank=True,
-        help_text=(
-            "A short description of what the AI is thinking about. It can be used to "
-            "provide a dynamic message that don't have a translation in the frontend."
-        ),
+        default="The AI is thinking...",
+        help_text=("The message to show while the AI is thinking"),
     )
+
+
+class AiNavigationSerializer(serializers.Serializer):
+    type = serializers.CharField(default=AssistantMessageType.AI_NAVIGATION)
+    location = serializers.DictField(help_text=("The location to navigate to."))
 
 
 class AiErrorMessageSerializer(serializers.Serializer):
@@ -185,6 +180,7 @@ TYPE_SERIALIZER_MAP = {
     AssistantMessageType.HUMAN: HumanMessageSerializer,
     AssistantMessageType.AI_MESSAGE: AiMessageSerializer,
     AssistantMessageType.AI_THINKING: AiThinkingSerializer,
+    AssistantMessageType.AI_NAVIGATION: AiNavigationSerializer,
     AssistantMessageType.AI_ERROR: AiErrorMessageSerializer,
 }
 

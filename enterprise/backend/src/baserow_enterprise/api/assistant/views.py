@@ -161,6 +161,13 @@ class AssistantChatView(APIView):
 
         handler = AssistantHandler()
         chat, _ = handler.get_or_create_chat(request.user, workspace, chat_uuid)
+
+        # Clearing the user websocket_id will make sure real-time updates are sent
+        chat.user.web_socket_id = None
+        # FIXME: As long as we don't allow users to change it, temporarily set the
+        # timezone to the one provided in the UI context
+        chat.user.profile.timezone = ui_context.timezone
+
         assistant = handler.get_assistant(chat)
         human_message = HumanMessage(content=data["content"], ui_context=ui_context)
 

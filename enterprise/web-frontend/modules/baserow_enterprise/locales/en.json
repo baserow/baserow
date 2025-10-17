@@ -339,11 +339,11 @@
     "statusWaiting": "Assistant is ready to help",
     "statusRunning": "Running...",
     "placeholder": "Ask me anything...",
-    "send": "Send message",
+    "send": "Send message"
+  },
+  "assistant": {
     "statusThinking": "Thinking...",
-    "statusAnswering": "Answering...",
-    "statusSearchDocs": "Exploring the knowledge base...",
-    "statusAnalyzingKnowledge": "Analyzing sources..."
+    "statusAnswering": "Answering..."
   },
   "assistantChatHistoryContext": {
     "empty": "No chat history available",

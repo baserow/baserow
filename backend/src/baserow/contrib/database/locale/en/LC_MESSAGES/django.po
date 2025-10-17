@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-09-29 14:05+0000\n"
+"POT-Creation-Date: 2025-10-13 19:58+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -335,39 +335,39 @@ msgstr ""
 msgid "Table \"%(table_name)s\" (%(table_id)s) created"
 msgstr ""
 
-#: src/baserow/contrib/database/table/actions.py:104
+#: src/baserow/contrib/database/table/actions.py:107
 msgid "Delete table"
 msgstr ""
 
-#: src/baserow/contrib/database/table/actions.py:105
+#: src/baserow/contrib/database/table/actions.py:108
 #, python-format
 msgid "Table \"%(table_name)s\" (%(table_id)s) deleted"
 msgstr ""
 
-#: src/baserow/contrib/database/table/actions.py:160
+#: src/baserow/contrib/database/table/actions.py:163
 msgid "Order tables"
 msgstr ""
 
-#: src/baserow/contrib/database/table/actions.py:161
+#: src/baserow/contrib/database/table/actions.py:164
 msgid "Tables order changed"
 msgstr ""
 
-#: src/baserow/contrib/database/table/actions.py:224
+#: src/baserow/contrib/database/table/actions.py:227
 msgid "Update table"
 msgstr ""
 
-#: src/baserow/contrib/database/table/actions.py:226
+#: src/baserow/contrib/database/table/actions.py:229
 #, python-format
 msgid ""
 "Table (%(table_id)s) name changed from \"%(original_table_name)s\" to "
 "\"%(table_name)s\""
 msgstr ""
 
-#: src/baserow/contrib/database/table/actions.py:296
+#: src/baserow/contrib/database/table/actions.py:299
 msgid "Duplicate table"
 msgstr ""
 
-#: src/baserow/contrib/database/table/actions.py:298
+#: src/baserow/contrib/database/table/actions.py:301
 #, python-format
 msgid ""
 "Table \"%(table_name)s\" (%(table_id)s) duplicated from "

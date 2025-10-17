@@ -157,6 +157,12 @@
   }
 }
 
+.assistant__status-message {
+  @extend %ellipsis;
+
+  display: inline-block;
+}
+
 .assistant__input-section {
   background: $palette-neutral-25;
 

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-08-26 10:53+0200\n"
+"POT-Creation-Date: 2025-10-17 14:14+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,6 +17,97 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: src/baserow_enterprise/assistant/tools/database/tools.py:63
+msgid "Listing databases..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/database/tools.py:136
+#, python-format
+msgid "Listing tables in %(database_names)s..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/database/tools.py:195
+#, python-format
+msgid "Inspecting %(table_names)s schema..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/database/tools.py:238
+#, python-format
+msgid "Creating database %(database_name)s..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/database/tools.py:303
+#, python-format
+msgid "Creating table %(table_name)s..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/database/tools.py:346
+msgid "Preparing example rows for these new tables..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/database/tools.py:468
+#, python-format
+msgid "Listing rows in %(table_name)s "
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/database/tools.py:593
+#, python-format
+msgid "Listing views in %(table_name)s..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/database/tools.py:656
+#, python-format
+msgid "Creating %(view_type)s view %(view_name)s"
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/database/tools.py:723
+#, python-format
+msgid "Creating filters in %(view_name)s..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/database/utils.py:119
+#, python-format
+msgid "Creating field %(field_name)s..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/database/utils.py:409
+#, python-format
+msgid "Creating rows in %(table_name)s "
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/database/utils.py:450
+#, python-format
+msgid "Updating rows in %(table_name)s "
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/database/utils.py:489
+#, python-format
+msgid "Deleting rows in %(table_name)s "
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/navigation/tools.py:34
+#, python-format
+msgid "Navigating to %(location)s..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/search_docs/tools.py:44
+msgid "Exploring the knowledge base..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/types.py:176
+#, python-format
+msgid "table %(table_name)s"
+msgstr ""
+
+#: src/baserow_enterprise/assistant/types.py:187
+#, python-format
+msgid "view %(view_name)s"
+msgstr ""
+
+#: src/baserow_enterprise/assistant/types.py:194
+msgid "home"
+msgstr ""
 
 #: src/baserow_enterprise/audit_log/job_types.py:36
 msgid "User Email"

@@ -5,18 +5,9 @@ import Vue from 'vue'
 const MESSAGE_TYPE = {
   MESSAGE: 'ai/message',
   THINKING: 'ai/thinking',
+  NAVIGATION: 'ai/navigation',
   ERROR: 'ai/error',
   CHAT_TITLE: 'chat/title',
-}
-
-export const THINKING_MESSAGES = {
-  THINKING: 'thinking',
-  RUNNING: 'running',
-  ANSWERING: 'answering',
-  // Tool related messages
-  SEARCH_DOCS: 'search_docs',
-
-  CUSTOM: 'custom', // Messages without a predefined translation
 }
 
 export const state = () => ({
@@ -24,6 +15,7 @@ export const state = () => ({
   messages: [],
   chats: [],
   isLoadingChats: false,
+  uiLocation: null,
 })
 
 export const mutations = {
@@ -39,12 +31,8 @@ export const mutations = {
     Vue.set(chat, 'running', value)
   },
 
-  SET_ASSISTANT_RUNNING_MESSAGE(state, { chat, code, message = '' }) {
-    Vue.set(
-      chat,
-      'runningMessage',
-      code === THINKING_MESSAGES.CUSTOM ? message : code
-    )
+  SET_ASSISTANT_RUNNING_MESSAGE(state, { chat, message = '' }) {
+    Vue.set(chat, 'runningMessage', message)
   },
 
   SET_MESSAGES(state, messages) {
@@ -102,6 +90,10 @@ export const mutations = {
     if (chat) {
       Object.assign(chat, updates)
     }
+  },
+
+  SET_UI_LOCATION(state, location) {
+    state.uiLocation = location || null
   },
 }
 
@@ -165,7 +157,7 @@ export const actions = {
       case MESSAGE_TYPE.MESSAGE:
         commit('SET_ASSISTANT_RUNNING_MESSAGE', {
           chat,
-          code: THINKING_MESSAGES.ANSWERING,
+          message: this.$i18n.t('assistant.statusAnswering'),
         })
         commit('UPDATE_MESSAGE', {
           id,
@@ -179,9 +171,11 @@ export const actions = {
       case MESSAGE_TYPE.THINKING:
         commit('SET_ASSISTANT_RUNNING_MESSAGE', {
           chat,
-          code: update.code,
           message: update.content,
         })
+        break
+      case MESSAGE_TYPE.NAVIGATION:
+        commit('SET_UI_LOCATION', update.location)
         break
       case MESSAGE_TYPE.CHAT_TITLE:
         commit('UPDATE_CHAT', {
@@ -228,7 +222,7 @@ export const actions = {
     commit('SET_ASSISTANT_RUNNING', { chat, value: true })
     commit('SET_ASSISTANT_RUNNING_MESSAGE', {
       chat,
-      code: THINKING_MESSAGES.THINKING,
+      message: this.$i18n.t('assistant.statusThinking'),
     })
     const uiContext = getters.uiContext
 
@@ -318,6 +312,10 @@ export const getters = {
       uiContext.view = { id: view.id, name: view.name, type: view.type }
     }
     return uiContext
+  },
+
+  uiLocation: (state) => {
+    return state.uiLocation
   },
 }
 
