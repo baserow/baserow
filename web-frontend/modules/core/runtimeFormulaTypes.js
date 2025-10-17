@@ -3,6 +3,7 @@ import {
   NumberBaserowRuntimeFormulaArgumentType,
   TextBaserowRuntimeFormulaArgumentType,
   DateTimeBaserowRuntimeFormulaArgumentType,
+  ObjectBaserowRuntimeFormulaArgumentType,
 } from '@baserow/modules/core/runtimeFormulaArgumentTypes'
 import {
   InvalidFormulaArgumentType,
@@ -280,7 +281,7 @@ export class RuntimeAdd extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ['1+1 = 2', "'a' + 'b' = 'ab'"]
+    return ['1+1+1 = 3', "'a' + 'b' = 'ab'"]
   }
 }
 
@@ -817,5 +818,123 @@ export class RuntimeToday extends RuntimeFormulaFunction {
 
   getExamples() {
     return ["today() = '2025-10-16'"]
+  }
+}
+
+export class RuntimeGetProperty extends RuntimeFormulaFunction {
+  static getType() {
+    return 'get_property'
+  }
+
+  get args() {
+    return [
+      new ObjectBaserowRuntimeFormulaArgumentType(),
+      new TextBaserowRuntimeFormulaArgumentType(),
+    ]
+  }
+
+  execute(context, args) {
+    return new args[0][args[1]]()
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.getPropertyDescription')
+  }
+
+  getExamples() {
+    return ['get_property(\'{"cherry": "red"}\', "fruit")']
+  }
+}
+
+export class RuntimeRandomInt extends RuntimeFormulaFunction {
+  static getType() {
+    return 'random_int'
+  }
+
+  get args() {
+    return [
+      new NumberBaserowRuntimeFormulaArgumentType(),
+      new NumberBaserowRuntimeFormulaArgumentType(),
+    ]
+  }
+
+  execute(context, args) {
+    const min = Math.ceil(args[0])
+    const max = Math.floor(args[1])
+    return Math.floor(Math.random() * (max - min) + min)
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.randomIntDescription')
+  }
+
+  getExamples() {
+    return ['random_int(10, 20) = 17']
+  }
+}
+
+export class RuntimeRandomFloat extends RuntimeFormulaFunction {
+  static getType() {
+    return 'random_float'
+  }
+
+  get args() {
+    return [
+      new NumberBaserowRuntimeFormulaArgumentType(),
+      new NumberBaserowRuntimeFormulaArgumentType(),
+    ]
+  }
+
+  execute(context, args) {
+    return Math.random() * (args[1] - args[0]) + args[0]
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.randomFloatDescription')
+  }
+
+  getExamples() {
+    return ['random_float(10, 20) = 18.410550297490616']
+  }
+}
+
+export class RuntimeRandomBool extends RuntimeFormulaFunction {
+  static getType() {
+    return 'random_bool'
+  }
+
+  execute(context, args) {
+    return Math.random() < 0.5
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.randomBoolDescription')
+  }
+
+  getExamples() {
+    return ['random_bool() = true']
+  }
+}
+
+export class RuntimeGenerateUUID extends RuntimeFormulaFunction {
+  static getType() {
+    return 'generate_uuid'
+  }
+
+  execute(context, args) {
+    return crypto.randomUUID()
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.generateUUIDDescription')
+  }
+
+  getExamples() {
+    return ["generate_uuid() = '9b772ad6-08bc-4d19-958d-7f1c21a4f4ef'"]
   }
 }

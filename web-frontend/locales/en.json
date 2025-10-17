@@ -665,6 +665,11 @@
     "hourDescription": "Returns the hour from the date time argument.",
     "minuteDescription": "Returns the minute from the date time argument.",
     "secondDescription": "Returns the second from the date time argument.",
-    "todayDescription": "Returns the current date."    
+    "todayDescription": "Returns the current date.",
+    "getPropertyDescription": "Returns the property from the object.",
+    "randomIntDescription": "Returns a random integer from the range specified by the arguments.",
+    "randomFloatDescription": "Returns a random float from the range specified by the arguments.",
+    "randomBoolDescription": "Returns a random boolean of true or false.",
+    "generateUUIDDescription": "Returns a random UUID4 string."
   }
 }

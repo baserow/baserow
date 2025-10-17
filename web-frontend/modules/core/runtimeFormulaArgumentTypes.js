@@ -2,6 +2,7 @@ import {
   ensureString,
   ensureNumeric,
   ensureDateTime,
+  ensureObject,
 } from '@baserow/modules/core/utils/validator'
 
 export class BaserowRuntimeFormulaArgumentType {
@@ -55,5 +56,15 @@ export class DateTimeBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFor
 
   parse(value) {
     return ensureDateTime(value)
+  }
+}
+
+export class ObjectBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFormulaArgumentType {
+  test(value) {
+    return value instanceof Object
+  }
+
+  parse(value) {
+    return ensureObject(value)
   }
 }

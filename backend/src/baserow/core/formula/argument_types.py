@@ -3,6 +3,7 @@ from django.core.exceptions import ValidationError
 from baserow.core.formula.validator import (
     ensure_datetime,
     ensure_numeric,
+    ensure_object,
     ensure_string,
 )
 
@@ -65,3 +66,11 @@ class DateTimeBaserowRuntimeFormulaArgumentType(BaserowRuntimeFormulaArgumentTyp
 
     def parse(self, value):
         return ensure_datetime(value)
+
+
+class DictBaserowRuntimeFormulaArgumentType(BaserowRuntimeFormulaArgumentType):
+    def test(self, value):
+        return ensure_object(value)
+
+    def parse(self, value):
+        return ensure_object(value)

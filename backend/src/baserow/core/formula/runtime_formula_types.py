@@ -1,23 +1,22 @@
-from zoneinfo import ZoneInfo
-from functools import reduce
 import operator
+import random
+import uuid
+from functools import reduce
 from typing import Optional
+from zoneinfo import ZoneInfo
 
 from django.utils import timezone
 
 from baserow.core.formula.argument_types import (
+    AddableBaserowRuntimeFormulaArgumentType,
     DateTimeBaserowRuntimeFormulaArgumentType,
+    DictBaserowRuntimeFormulaArgumentType,
     NumberBaserowRuntimeFormulaArgumentType,
     SubtractableBaserowRuntimeFormulaArgumentType,
     TextBaserowRuntimeFormulaArgumentType,
-    AddableBaserowRuntimeFormulaArgumentType,
-)
-from baserow.core.formula.types import (
-    FormulaArg
 )
 from baserow.core.formula.registries import RuntimeFormulaFunction
-from baserow.core.formula.types import FormulaArgs, FormulaContext
-from baserow.core.formula.validator import ensure_string
+from baserow.core.formula.types import FormulaArg, FormulaArgs, FormulaContext
 
 
 class RuntimeConcat(RuntimeFormulaFunction):
@@ -346,3 +345,53 @@ class RuntimeToday(RuntimeFormulaFunction):
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
         return timezone.localdate()
+
+
+class RuntimeGetProperty(RuntimeFormulaFunction):
+    type = "get_property"
+
+    args = [
+        DictBaserowRuntimeFormulaArgumentType(),
+        TextBaserowRuntimeFormulaArgumentType(),
+    ]
+
+    def execute(self, context: FormulaContext, args: FormulaArgs):
+        return args[0].get(args[1])
+
+
+class RuntimeRandomInt(RuntimeFormulaFunction):
+    type = "random_int"
+
+    args = [
+        NumberBaserowRuntimeFormulaArgumentType(),
+        NumberBaserowRuntimeFormulaArgumentType(),
+    ]
+
+    def execute(self, context: FormulaContext, args: FormulaArgs):
+        return random.randint(int(args[0]), int(args[1]))  # nosec: B311
+
+
+class RuntimeRandomFloat(RuntimeFormulaFunction):
+    type = "random_float"
+
+    args = [
+        NumberBaserowRuntimeFormulaArgumentType(),
+        NumberBaserowRuntimeFormulaArgumentType(),
+    ]
+
+    def execute(self, context: FormulaContext, args: FormulaArgs):
+        return random.uniform(float(args[0]), float(args[1]))  # nosec: B311
+
+
+class RuntimeRandomBool(RuntimeFormulaFunction):
+    type = "random_bool"
+
+    def execute(self, context: FormulaContext, args: FormulaArgs):
+        return random.choice([True, False])  # nosec: B311
+
+
+class RuntimeGenerateUUID(RuntimeFormulaFunction):
+    type = "generate_uuid"
+
+    def execute(self, context: FormulaContext, args: FormulaArgs):
+        return str(uuid.uuid4())

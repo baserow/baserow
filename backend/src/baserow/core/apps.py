@@ -43,7 +43,9 @@ class CoreConfig(AppConfig):
             RuntimeDay,
             RuntimeDivide,
             RuntimeEqual,
+            RuntimeGenerateUUID,
             RuntimeGet,
+            RuntimeGetProperty,
             RuntimeGreaterThan,
             RuntimeGreaterThanOrEqual,
             RuntimeHour,
@@ -57,6 +59,9 @@ class CoreConfig(AppConfig):
             RuntimeMultiply,
             RuntimeNotEqual,
             RuntimeNow,
+            RuntimeRandomBool,
+            RuntimeRandomFloat,
+            RuntimeRandomInt,
             RuntimeRound,
             RuntimeSecond,
             RuntimeToday,
@@ -90,6 +95,11 @@ class CoreConfig(AppConfig):
         formula_runtime_function_registry.register(RuntimeSecond())
         formula_runtime_function_registry.register(RuntimeNow())
         formula_runtime_function_registry.register(RuntimeToday())
+        formula_runtime_function_registry.register(RuntimeGetProperty())
+        formula_runtime_function_registry.register(RuntimeRandomInt())
+        formula_runtime_function_registry.register(RuntimeRandomFloat())
+        formula_runtime_function_registry.register(RuntimeRandomBool())
+        formula_runtime_function_registry.register(RuntimeGenerateUUID())
 
         from baserow.core.permission_manager import (
             AllowIfTemplatePermissionManagerType,
