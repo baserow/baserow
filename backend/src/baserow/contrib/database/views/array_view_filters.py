@@ -18,6 +18,7 @@ from baserow.contrib.database.fields.filter_support.base import (
 )
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.formula import (
+    BaserowFormulaMultipleCollaboratorsType,
     BaserowFormulaNumberType,
     BaserowFormulaTextType,
 )
@@ -53,6 +54,7 @@ class HasEmptyValueViewFilterType(ViewFilterType):
             FormulaFieldType.array_of(BaserowFormulaSingleSelectType.type),
             FormulaFieldType.array_of(BaserowFormulaNumberType.type),
             FormulaFieldType.array_of(BaserowFormulaMultipleSelectType.type),
+            FormulaFieldType.array_of(BaserowFormulaMultipleCollaboratorsType.type),
         ),
     ]
 
@@ -121,6 +123,7 @@ class HasValueEqualViewFilterType(ComparisonHasValueFilter):
             FormulaFieldType.array_of(BaserowFormulaSingleSelectType.type),
             FormulaFieldType.array_of(BaserowFormulaNumberType.type),
             FormulaFieldType.array_of(BaserowFormulaMultipleSelectType.type),
+            FormulaFieldType.array_of(BaserowFormulaMultipleCollaboratorsType.type),
         ),
     ]
 
@@ -153,6 +156,7 @@ class HasValueContainsViewFilterType(ViewFilterType):
             FormulaFieldType.array_of(BaserowFormulaSingleSelectType.type),
             FormulaFieldType.array_of(BaserowFormulaNumberType.type),
             FormulaFieldType.array_of(BaserowFormulaMultipleSelectType.type),
+            FormulaFieldType.array_of(BaserowFormulaMultipleCollaboratorsType.type),
         ),
     ]
 
@@ -185,6 +189,7 @@ class HasValueContainsWordViewFilterType(ViewFilterType):
             FormulaFieldType.array_of(BaserowFormulaURLType.type),
             FormulaFieldType.array_of(BaserowFormulaSingleSelectType.type),
             FormulaFieldType.array_of(BaserowFormulaMultipleSelectType.type),
+            FormulaFieldType.array_of(BaserowFormulaMultipleCollaboratorsType.type),
         ),
     ]
 
