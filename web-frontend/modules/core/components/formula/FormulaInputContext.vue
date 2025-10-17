@@ -1,5 +1,10 @@
 <template>
-  <Context ref="context" class="formula-input-context">
+  <Context
+    ref="context"
+    class="formula-input-context"
+    overflow-scroll
+    max-height-if-outside-viewport
+  >
     <NodeExplorer
       :node-selected="nodeSelected"
       :mode="mode"
