@@ -1,4 +1,4 @@
-from typing import Any, Callable, TypedDict
+from typing import TYPE_CHECKING, Any, Callable, TypedDict
 
 from django.contrib.auth.models import AbstractUser
 from django.utils.translation import gettext as _
@@ -6,9 +6,12 @@ from django.utils.translation import gettext as _
 import dspy
 
 from baserow.core.models import Workspace
-from baserow_enterprise.assistant.tools.registries import AssistantToolType, ToolHelpers
+from baserow_enterprise.assistant.tools.registries import AssistantToolType
 
 from .handler import KnowledgeBaseHandler
+
+if TYPE_CHECKING:
+    from baserow_enterprise.assistant.assistant import ToolHelpers
 
 MAX_SOURCES = 3
 
@@ -28,7 +31,7 @@ class SearchDocsToolOutput(TypedDict):
 
 
 def get_search_docs_tool(
-    user: AbstractUser, workspace: Workspace, tool_helpers: ToolHelpers
+    user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
 ) -> Callable[[str], SearchDocsToolOutput]:
     """
     Returns a function that searches the Baserow documentation for a given query.
@@ -80,6 +83,6 @@ class SearchDocsToolType(AssistantToolType):
 
     @classmethod
     def get_tool(
-        cls, user: AbstractUser, workspace: Workspace, tool_helpers: ToolHelpers
+        cls, user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
     ) -> Callable[[Any], Any]:
         return get_search_docs_tool(user, workspace, tool_helpers)

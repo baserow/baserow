@@ -159,7 +159,6 @@ The markdown table below contains the text related functions.
 Boolean functions not working well with fields as arguments
 
 Formula functions, for example, isblank(), or when_empty work with simple values like text, number, or date fields. Computed fields like Link-to-table, look-up, and rollup fields can contain multiple items which makes them arrays or lists.
-
 To create formulas to make a Boolean test on data in field C, taking data from field A if it’s TRUE, otherwise taking data from field B if it’s FALSE, you need to convert any array to text using the join() function. For example: `if(isblank(join(field('Organization'),'')), field('Notes'), field('Name'))`.
 
 Using join() to convert the list to text, handles the empty scenario correctly. This formula checks if the Organization field (a link-to-table field) has a value. If it’s true, it shows the content of the Name field; otherwise, it displays the content of the Notes field.
@@ -220,7 +219,7 @@ Need to calculate a new date based on a date/time interval? Use the date_interva
 
 This is the end of the formula documentation and explanation
 
---------------------------------------
+-----------------------
 
 In the JSON below, you will fine the fields of the table where the formula is created. When referencing a field using the `field` function, you're only allowed to reference these fields, the ones that are in the table. Field names can't be made up. Below an array of the fields in the table in JSON format, where each item represents a field with some additional options.
 
