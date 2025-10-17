@@ -20,12 +20,23 @@ export function isPrintableUnicodeCharacterKeyPress(event) {
 }
 
 /**
+ * Detects if the user is on a Mac platform
+ * @returns {boolean} True if the user is on Mac, false otherwise
+ */
+export const isMac = () => {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+    return false
+  }
+  const platform = navigator.platform || ''
+  return platform.toUpperCase().includes('MAC')
+}
+
+/**
  * This function is a helper which determines whether the pressed key
  * is the CMD key on Mac or the CTRL key on Windows/Linux.
  */
 export const isOsSpecificModifierPressed = (event) => {
-  const isMac = navigator.platform.toUpperCase().includes('MAC')
-  return isMac ? event.metaKey : event.ctrlKey
+  return isMac() ? event.metaKey : event.ctrlKey
 }
 
 export const keyboardShortcutsToPriorityEventBus = (event, priorityBus) => {
