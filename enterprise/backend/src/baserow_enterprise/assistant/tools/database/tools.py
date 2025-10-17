@@ -1,4 +1,4 @@
-from typing import Any, Callable, Literal, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Literal, Tuple
 
 from django.contrib.auth.models import AbstractUser
 from django.contrib.contenttypes.models import ContentType
@@ -6,13 +6,21 @@ from django.db import transaction
 from django.utils.translation import gettext as _
 
 import dspy
+from baserow_premium.prompts import get_generate_formula_prompt
 from loguru import logger
 from pydantic import create_model
 
-from baserow.contrib.database.fields.actions import UpdateFieldActionType
+from baserow.contrib.database.api.formula.serializers import TypeFormulaResultSerializer
+from baserow.contrib.database.fields.actions import (
+    CreateFieldActionType,
+    DeleteFieldActionType,
+    UpdateFieldActionType,
+)
+from baserow.contrib.database.fields.models import FormulaField
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.models import Database
 from baserow.contrib.database.table.actions import CreateTableActionType
+from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.views.actions import (
     CreateViewActionType,
     CreateViewFilterActionType,
@@ -22,7 +30,7 @@ from baserow.contrib.database.views.handler import ViewHandler
 from baserow.core.actions import CreateApplicationActionType
 from baserow.core.models import Workspace
 from baserow.core.service import CoreService
-from baserow_enterprise.assistant.tools.registries import AssistantToolType, ToolHelpers
+from baserow_enterprise.assistant.tools.registries import AssistantToolType
 from baserow_enterprise.assistant.types import (
     TableNavigationType,
     ToolSignature,
@@ -44,9 +52,12 @@ from .types import (
     view_item_registry,
 )
 
+if TYPE_CHECKING:
+    from baserow_enterprise.assistant.assistant import ToolHelpers
+
 
 def get_list_databases_tool(
-    user: AbstractUser, workspace: Workspace, tool_helpers: ToolHelpers
+    user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
 ) -> Callable[[], list[DatabaseItem]]:
     """
     Returns a function that lists all the databases the user has access to in the
@@ -85,13 +96,13 @@ class ListDatabasesToolType(AssistantToolType):
 
     @classmethod
     def get_tool(
-        cls, user: AbstractUser, workspace: Workspace, tool_helpers: ToolHelpers
+        cls, user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
     ) -> Callable[[Any], Any]:
         return get_list_databases_tool(user, workspace, tool_helpers)
 
 
 def get_list_tables_tool(
-    user: AbstractUser, workspace: Workspace, tool_helpers: ToolHelpers
+    user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
 ) -> Callable[[int], list[str]]:
     """
     Returns a function that lists all the tables in a given database the user has
@@ -154,13 +165,13 @@ class ListTablesToolType(AssistantToolType):
 
     @classmethod
     def get_tool(
-        cls, user: AbstractUser, workspace: Workspace, tool_helpers: ToolHelpers
+        cls, user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
     ) -> Callable[[Any], Any]:
         return get_list_tables_tool(user, workspace, tool_helpers)
 
 
 def get_tables_schema_tool(
-    user: AbstractUser, workspace: Workspace, tool_helpers: ToolHelpers
+    user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
 ) -> Callable[[int], list[str]]:
     """
     Returns a function that lists all the fields in a given table the user has
@@ -210,13 +221,13 @@ class GetTablesSchemaToolType(AssistantToolType):
 
     @classmethod
     def get_tool(
-        cls, user: AbstractUser, workspace: Workspace, tool_helpers: ToolHelpers
+        cls, user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
     ) -> Callable[[Any], Any]:
         return get_tables_schema_tool(user, workspace, tool_helpers)
 
 
 def get_create_database_tool(
-    user: AbstractUser, workspace: Workspace, tool_helpers: ToolHelpers
+    user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
 ) -> Callable[[str], dict[str, Any]]:
     """
     Returns a function that creates a database in the current workspace.
@@ -258,13 +269,13 @@ class CreateDatabaseToolType(AssistantToolType):
 
     @classmethod
     def get_tool(
-        cls, user: AbstractUser, workspace: Workspace, tool_helpers: ToolHelpers
+        cls, user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
     ) -> Callable[[Any], Any]:
         return get_create_database_tool(user, workspace, tool_helpers)
 
 
 def get_create_tables_tool(
-    user: AbstractUser, workspace: Workspace, tool_helpers: ToolHelpers
+    user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
 ) -> Callable[[list[TableItemCreate]], list[dict[str, Any]]]:
     """
     Returns a function that creates a set of tables in a given database the user has
@@ -387,7 +398,7 @@ class CreateTablesToolType(AssistantToolType):
 
     @classmethod
     def get_tool(
-        cls, user: AbstractUser, workspace: Workspace, tool_helpers: ToolHelpers
+        cls, user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
     ) -> Callable[[Any], Any]:
         return get_create_tables_tool(user, workspace, tool_helpers)
 
@@ -395,7 +406,7 @@ class CreateTablesToolType(AssistantToolType):
 def get_create_fields_tool(
     user: AbstractUser,
     workspace: Workspace,
-    tool_helpers: ToolHelpers,
+    tool_helpers: "ToolHelpers",
 ) -> Callable[[int, list[AnyFieldItemCreate]], list[dict[str, Any]]]:
     """
     Returns a function that creates fields in a given table the user has access to
@@ -434,13 +445,13 @@ class CreateFieldsToolType(AssistantToolType):
 
     @classmethod
     def get_tool(
-        cls, user: AbstractUser, workspace: Workspace, tool_helpers: ToolHelpers
+        cls, user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
     ) -> Callable[[Any], Any]:
         return get_create_fields_tool(user, workspace, tool_helpers)
 
 
 def get_list_rows_tool(
-    user: AbstractUser, workspace: Workspace, tool_helpers: ToolHelpers
+    user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
 ) -> Callable[[int, int, int, list[int] | None], list[dict[str, Any]]]:
     """
     Returns a function that lists rows in a given table the user has access to in the
@@ -493,7 +504,7 @@ class ListRowsToolType(AssistantToolType):
 
     @classmethod
     def get_tool(
-        cls, user: AbstractUser, workspace: Workspace, tool_helpers: ToolHelpers
+        cls, user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
     ) -> Callable[[Any], Any]:
         return get_list_rows_tool(user, workspace, tool_helpers)
 
@@ -501,7 +512,7 @@ class ListRowsToolType(AssistantToolType):
 def get_rows_meta_tool(
     user: AbstractUser,
     workspace: Workspace,
-    tool_helpers: ToolHelpers,
+    tool_helpers: "ToolHelpers",
 ) -> Callable[[int, list[dict[str, Any]]], list[Any]]:
     """
     Returns a meta-tool that, given a table ID, returns an observation that says that
@@ -564,13 +575,13 @@ class GetRowsToolsToolType(AssistantToolType):
 
     @classmethod
     def get_tool(
-        cls, user: AbstractUser, workspace: Workspace, tool_helpers: ToolHelpers
+        cls, user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
     ) -> Callable[[Any], Any]:
         return get_rows_meta_tool(user, workspace, tool_helpers)
 
 
 def get_list_views_tool(
-    user: AbstractUser, workspace: Workspace, tool_helpers: ToolHelpers
+    user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
 ) -> Callable[[int], list[dict[str, Any]]]:
     """
     Returns a function that lists all the views in a given table the user has
@@ -617,13 +628,13 @@ class ListViewsToolType(AssistantToolType):
 
     @classmethod
     def get_tool(
-        cls, user: AbstractUser, workspace: Workspace, tool_helpers: ToolHelpers
+        cls, user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
     ) -> Callable[[Any], Any]:
         return get_list_views_tool(user, workspace, tool_helpers)
 
 
 def get_create_views_tool(
-    user: AbstractUser, workspace: Workspace, tool_helpers: ToolHelpers
+    user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
 ) -> Callable[[int, list[str]], list[str]]:
     """
     Returns a function that creates views in a given table the user has access to
@@ -689,13 +700,13 @@ class CreateViewsToolType(AssistantToolType):
 
     @classmethod
     def get_tool(
-        cls, user: AbstractUser, workspace: Workspace, tool_helpers: ToolHelpers
+        cls, user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
     ) -> Callable[[Any], Any]:
         return get_create_views_tool(user, workspace, tool_helpers)
 
 
 def get_create_view_filters_tool(
-    user: AbstractUser, workspace: Workspace, tool_helpers: ToolHelpers
+    user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
 ) -> Callable[[int, list[str]], list[str]]:
     """
     Returns a function that creates views in a given table the user has access to
@@ -763,6 +774,175 @@ class CreateViewFiltersToolType(AssistantToolType):
 
     @classmethod
     def get_tool(
-        cls, user: AbstractUser, workspace: Workspace, tool_helpers: ToolHelpers
+        cls, user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
     ) -> Callable[[Any], Any]:
         return get_create_view_filters_tool(user, workspace, tool_helpers)
+
+
+class FormulaGenerationSignature(dspy.Signature):
+    """
+    Generates a Baserow formula based on the provided description and table schema.
+    """
+
+    description: str = dspy.InputField(
+        desc="A brief description of what the formula should do."
+    )
+    tables_schema: dict = dspy.InputField(
+        desc="The schema of all the tables in the database."
+    )
+    current_table_id: int = dspy.InputField(
+        desc="The ID of the table where the field will be created."
+    )
+    formula_field_name: str = dspy.InputField(
+        desc="The name of the formula field to be created."
+    )
+    formula_documentation: str = dspy.InputField(
+        desc="Documentation about Baserow formulas and their syntax."
+    )
+    valid_formula: bool = dspy.OutputField(
+        desc="Whether the generated formula is valid or not."
+    )
+    generated_formula: str = dspy.OutputField(
+        desc="The generated formula. Must be a valid Baserow formula."
+    )
+    generated_formula_type: str = dspy.OutputField(
+        desc="The type of the generated formula. Must be one of: text, long_text, "
+        "number, boolean, date, link_row, single_select, multiple_select, duration, array."
+    )
+    error_message: str = dspy.OutputField(
+        desc="If the formula is not valid, an error message explaining why."
+    )
+
+
+def get_formula_type_tool(table: Table, field_name: str) -> Callable[[str], str]:
+    """
+    Returns a function that returns the type of a formula.
+    """
+
+    def get_formula_type(formula: str) -> str:
+        """
+        Returns the type of a formula. Raises an exception if the formula is not valid.
+        **ALWAYS** call this to validate a formula is valid before returning it.
+        """
+
+        nonlocal table, field_name
+
+        field = FormulaField(formula=formula, table=table, name=field_name, order=0)
+        field.recalculate_internal_fields(raise_if_invalid=True)
+
+        result = TypeFormulaResultSerializer(field).data
+        if result["error"]:
+            raise Exception(f"Invalid formula: {result['error']}")
+
+        return result["formula_type"]
+
+    return get_formula_type
+
+
+def get_generate_database_formula_tool(
+    user: AbstractUser,
+    workspace: Workspace,
+    tool_helpers: "ToolHelpers",
+) -> Callable[[str, int], dict[str, str]]:
+    """
+    Returns a function that generates a formula for a given field in a table.
+    """
+
+    def generate_database_formula(
+        table_id: int,
+        field_name: str,
+        description: str,
+        save_to_field: bool = True,
+    ) -> dict[str, str]:
+        """
+        Generate a database formula for a formula field.
+
+        - table_id: The ID of the table where the field will be created.
+        - field_name: The name of the formula field to be created.
+        - description: A brief description of what the formula should do.
+        - save_to_field: Whether to save the generated formula to a field with the given
+          name (default: True). If False, the formula will be generated but not saved
+          into a field.
+        """
+
+        nonlocal user, workspace, tool_helpers
+
+        current_table = Table.objects.get(id=table_id)
+        database_id = current_table.database_id
+        database_table_items = utils.filter_tables(user, workspace).filter(
+            database_id=database_id
+        )
+        database_tables_schema = utils.get_tables_schema(database_table_items, True)
+
+        tool_helpers.update_status(
+            _("Generating formula for %(field_name)s...") % {"field_name": field_name}
+        )
+
+        formula_docs = get_generate_formula_prompt()
+        # Remove the traling part that is used in the prompt template
+        formula_docs = formula_docs.split("-----------------------")[0].strip()
+
+        formula_generator = dspy.ReAct(
+            FormulaGenerationSignature,
+            tools=[get_formula_type_tool(current_table, field_name)],
+            max_iters=5,
+        )
+        result = formula_generator(
+            description=description,
+            tables_schema={"tables": database_tables_schema},
+            current_table_id=current_table.id,
+            formula_field_name=field_name,
+            formula_documentation=formula_docs,
+        )
+
+        if not result.valid_formula:
+            raise Exception(
+                f"Failed to generate a valid formula: {result.error_message}"
+            )
+
+        data = {
+            "formula": result.generated_formula,
+            "formula_type": result.generated_formula_type,
+        }
+
+        if save_to_field:
+            field = current_table.field_set.filter(name=field_name).first()
+            if field:
+                field = field.specific
+
+            with transaction.atomic():
+                # Trash any existing non-formula field so it can be replaced, allowing
+                # the user to easily restore the original field if needed.
+                if field and field_type_registry.get_by_model(field).type != "formula":
+                    DeleteFieldActionType.do(user, field)
+                    field = None
+
+                if field is None:
+                    CreateFieldActionType.do(
+                        user,
+                        current_table,
+                        type_name="formula",
+                        name=field_name,
+                        formula=result.generated_formula,
+                    )
+                else:
+                    # Only update the formula of an existing formula field.
+                    UpdateFieldActionType.do(
+                        user,
+                        field,
+                        formula=result.generated_formula,
+                    )
+
+        return data
+
+    return generate_database_formula
+
+
+class GenerateDatabaseFormulaToolType(AssistantToolType):
+    type = "generate_database_formula"
+
+    @classmethod
+    def get_tool(
+        cls, user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
+    ) -> Callable[[Any], Any]:
+        return get_generate_database_formula_tool(user, workspace, tool_helpers)

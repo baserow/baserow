@@ -8,7 +8,9 @@ from pydantic import Field
 from baserow.contrib.database.fields.models import DateField
 from baserow.contrib.database.fields.models import Field as BaserowField
 from baserow.contrib.database.fields.models import (
+    FormulaField,
     LinkRowField,
+    LookupField,
     MultipleSelectField,
     NumberField,
     RatingField,
@@ -442,6 +444,86 @@ class FileFieldItem(BaseFileFieldItem, FieldItem):
     pass
 
 
+class FormulaFieldItemCreate(FieldItemCreate):
+    type: Literal["formula"] = Field(..., description="Formula field.")
+    formula: str = Field(
+        ...,
+        description="The formula to use in the field. It needs to be generated via the appropriate tool or use '' as placeholder.",
+    )
+
+    def to_django_orm_kwargs(self, table: Table) -> dict[str, any]:
+        return {
+            "name": self.name,
+            "formula": self.formula,
+        }
+
+
+class FormulaFieldItem(FormulaFieldItemCreate, FieldItem):
+    formula_type: str = Field(..., description="The type of the formula.")
+    array_formula_type: str | None = Field(
+        ...,
+        description=("If the formula type is 'array', the type of the array items."),
+    )
+
+    @classmethod
+    def from_django_orm(cls, orm_field: FormulaField) -> "FormulaFieldItem":
+        field = orm_field.specific
+        return cls(
+            id=field.id,
+            name=field.name,
+            type="formula",
+            formula=field.formula,
+            formula_type=field.formula_type,
+            array_formula_type=field.array_formula_type,
+        )
+
+
+class LookupFieldItemCreate(FieldItemCreate):
+    type: Literal["lookup"] = Field(..., description="Lookup field.")
+    through_field: int | str = Field(
+        ..., description="The ID of the link row field to lookup through."
+    )
+    target_field: int | str = Field(
+        ..., description="The ID of the field to lookup on the linked table."
+    )
+
+    def to_django_orm_kwargs(self, table: Table) -> dict[str, any]:
+        data = {"name": self.name}
+        if isinstance(self.through_field, str):
+            data["through_field_name"] = self.through_field
+        else:
+            data["through_field_id"] = self.through_field
+
+        if isinstance(self.target_field, str):
+            data["target_field_name"] = self.target_field
+        else:
+            data["target_field_id"] = self.target_field
+
+        return data
+
+
+class LookupFieldItem(LookupFieldItemCreate, FieldItem):
+    through_field_name: str = Field(
+        ..., description="The name of the link row field to lookup through."
+    )
+    target_field_name: str = Field(
+        ..., description="The name of the field to lookup on the linked table."
+    )
+
+    @classmethod
+    def from_django_orm(cls, orm_field: LookupField) -> "LookupFieldItem":
+        field = orm_field.specific
+        return cls(
+            id=field.id,
+            name=field.name,
+            type="lookup",
+            through_field=field.through_field_id,
+            target_field=field.target_field_id,
+            through_field_name=field.through_field_name,
+            target_field_name=field.target_field_name,
+        )
+
+
 AnyFieldItemCreate = Annotated[
     TextFieldItemCreate
     | LongTextFieldItemCreate
@@ -452,7 +534,9 @@ AnyFieldItemCreate = Annotated[
     | LinkRowFieldItemCreate
     | SingleSelectFieldItemCreate
     | MultipleSelectFieldItemCreate
-    | FileFieldItemCreate,
+    | FileFieldItemCreate
+    | FormulaFieldItemCreate
+    | LookupFieldItemCreate,
     Field(discriminator="type"),
 ]
 
@@ -467,6 +551,8 @@ AnyFieldItem = (
     | SingleSelectFieldItem
     | MultipleSelectFieldItem
     | FileFieldItem
+    | FormulaFieldItem
+    | LookupFieldItem
     | FieldItem
 )
 
@@ -483,6 +569,8 @@ class FieldItemsRegistry:
         "single_select": SingleSelectFieldItem,
         "multiple_select": MultipleSelectFieldItem,
         "file": FileFieldItem,
+        "formula": FormulaFieldItem,
+        "lookup": LookupFieldItem,
     }
 
     def from_django_orm(self, orm_field: Type[BaserowField]) -> FieldItem:

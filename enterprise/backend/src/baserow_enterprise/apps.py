@@ -308,6 +308,7 @@ class BaserowEnterpriseConfig(AppConfig):
             CreateTablesToolType,
             CreateViewFiltersToolType,
             CreateViewsToolType,
+            GenerateDatabaseFormulaToolType,
             GetRowsToolsToolType,
             GetTablesSchemaToolType,
             ListDatabasesToolType,
@@ -330,13 +331,11 @@ class BaserowEnterpriseConfig(AppConfig):
         assistant_tool_registry.register(CreateTablesToolType())
         assistant_tool_registry.register(GetTablesSchemaToolType())
         assistant_tool_registry.register(CreateFieldsToolType())
-
+        assistant_tool_registry.register(GenerateDatabaseFormulaToolType())
         assistant_tool_registry.register(ListRowsToolType())
         assistant_tool_registry.register(GetRowsToolsToolType())
-
         assistant_tool_registry.register(ListViewsToolType())
         assistant_tool_registry.register(CreateViewsToolType())
-
         assistant_tool_registry.register(CreateViewFiltersToolType())
 
         # The signals must always be imported last because they use the registries

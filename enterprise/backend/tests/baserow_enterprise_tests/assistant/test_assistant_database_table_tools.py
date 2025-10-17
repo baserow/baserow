@@ -1,9 +1,14 @@
+from unittest.mock import MagicMock, patch
+
 import pytest
 
+from baserow.contrib.database.fields.models import FormulaField
+from baserow.contrib.database.formula.registries import formula_function_registry
 from baserow.contrib.database.table.models import Table
 from baserow.test_utils.helpers import AnyInt
 from baserow_enterprise.assistant.tools.database.tools import (
     get_create_tables_tool,
+    get_generate_database_formula_tool,
     get_list_tables_tool,
 )
 from baserow_enterprise.assistant.tools.database.types import (
@@ -323,3 +328,317 @@ def test_create_complex_table_tool(data_fixture):
                     option.pop("id")
 
             assert field_item[key] == value
+
+
+@pytest.mark.django_db
+def test_generate_database_formula_no_save(data_fixture):
+    """Test formula generation without saving to a field."""
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database, name="Test Table")
+    data_fixture.create_text_field(table=table, name="text_field", primary=True)
+
+    # Mock the dspy.ReAct to return a valid formula
+    mock_prediction = MagicMock()
+    mock_prediction.valid_formula = True
+    mock_prediction.generated_formula = "'ok'"
+    mock_prediction.generated_formula_type = "text"
+    mock_prediction.error_message = ""
+
+    with patch(
+        "baserow_enterprise.assistant.tools.database.tools.dspy.ReAct"
+    ) as mock_react:
+        mock_react.return_value.return_value = mock_prediction
+
+        tool = get_generate_database_formula_tool(user, workspace, fake_tool_helpers)
+        result = tool(
+            table_id=table.id,
+            field_name="test_formula",
+            description="Return a simple text",
+            save_to_field=False,
+        )
+
+        # Verify formula is returned
+        assert result["formula"] == "'ok'"
+        assert result["formula_type"] == "text"
+
+        # Verify no field was created
+        assert not table.field_set.filter(name="test_formula").exists()
+
+
+@pytest.mark.django_db
+def test_generate_database_formula_create_new_field(data_fixture):
+    """Test formula generation creates a new field when none exists."""
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database, name="Test Table")
+    data_fixture.create_text_field(table=table, name="text_field", primary=True)
+
+    # Mock the dspy.ReAct to return a valid formula
+    mock_prediction = MagicMock()
+    mock_prediction.valid_formula = True
+    mock_prediction.generated_formula = "'ok'"
+    mock_prediction.generated_formula_type = "text"
+    mock_prediction.error_message = ""
+
+    with patch(
+        "baserow_enterprise.assistant.tools.database.tools.dspy.ReAct"
+    ) as mock_react:
+        mock_react.return_value.return_value = mock_prediction
+
+        tool = get_generate_database_formula_tool(user, workspace, fake_tool_helpers)
+        result = tool(
+            table_id=table.id,
+            field_name="test_formula",
+            description="Return a simple text",
+            save_to_field=True,
+        )
+
+        # Verify formula is returned
+        assert result["formula"] == "'ok'"
+        assert result["formula_type"] == "text"
+
+        # Verify field was created
+        assert table.field_set.filter(name="test_formula").exists()
+        field = table.field_set.get(name="test_formula")
+        assert isinstance(field.specific, FormulaField)
+        assert field.specific.formula == "'ok'"
+
+
+@pytest.mark.django_db
+def test_generate_database_formula_update_existing_formula_field(data_fixture):
+    """Test formula generation updates an existing formula field."""
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database, name="Test Table")
+    data_fixture.create_text_field(table=table, name="text_field", primary=True)
+
+    # Create existing formula field
+    existing_field = data_fixture.create_formula_field(
+        table=table, name="test_formula", formula="'old'"
+    )
+    existing_field_id = existing_field.id
+
+    # Mock the dspy.ReAct to return a new formula
+    mock_prediction = MagicMock()
+    mock_prediction.valid_formula = True
+    mock_prediction.generated_formula = "'new'"
+    mock_prediction.generated_formula_type = "text"
+    mock_prediction.error_message = ""
+
+    with patch(
+        "baserow_enterprise.assistant.tools.database.tools.dspy.ReAct"
+    ) as mock_react:
+        mock_react.return_value.return_value = mock_prediction
+
+        tool = get_generate_database_formula_tool(user, workspace, fake_tool_helpers)
+        result = tool(
+            table_id=table.id,
+            field_name="test_formula",
+            description="Return updated text",
+            save_to_field=True,
+        )
+
+        # Verify formula is returned
+        assert result["formula"] == "'new'"
+        assert result["formula_type"] == "text"
+
+        # Verify field was updated (same ID, new formula)
+        field = table.field_set.get(name="test_formula")
+        assert field.id == existing_field_id  # Same field, not recreated
+        assert isinstance(field.specific, FormulaField)
+        assert field.specific.formula == "'new'"
+
+
+@pytest.mark.django_db
+def test_generate_database_formula_replace_non_formula_field(data_fixture):
+    """Test formula generation replaces a non-formula field."""
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database, name="Test Table")
+    data_fixture.create_text_field(table=table, name="text_field", primary=True)
+
+    # Create existing text field with same name
+    existing_text_field = data_fixture.create_text_field(
+        table=table, name="test_formula"
+    )
+    existing_field_id = existing_text_field.id
+
+    # Mock the dspy.ReAct to return a valid formula
+    mock_prediction = MagicMock()
+    mock_prediction.valid_formula = True
+    mock_prediction.generated_formula = "'ok'"
+    mock_prediction.generated_formula_type = "text"
+    mock_prediction.error_message = ""
+
+    with patch(
+        "baserow_enterprise.assistant.tools.database.tools.dspy.ReAct"
+    ) as mock_react:
+        mock_react.return_value.return_value = mock_prediction
+
+        tool = get_generate_database_formula_tool(user, workspace, fake_tool_helpers)
+        result = tool(
+            table_id=table.id,
+            field_name="test_formula",
+            description="Return a simple text",
+            save_to_field=True,
+        )
+
+        # Verify formula is returned
+        assert result["formula"] == "'ok'"
+        assert result["formula_type"] == "text"
+
+        # Verify new formula field was created
+        field = table.field_set.get(name="test_formula", trashed=False)
+        assert field.id != existing_field_id  # Different field ID (old one trashed)
+        assert isinstance(field.specific, FormulaField)
+        assert field.specific.formula == "'ok'"
+
+        # Verify old field was trashed
+        from baserow.contrib.database.fields.models import Field
+
+        old_field = Field.objects_and_trash.get(id=existing_field_id)
+        assert old_field.trashed is True
+
+
+@pytest.mark.django_db
+def test_generate_database_formula_invalid_formula(data_fixture):
+    """Test error handling when formula generation fails."""
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database, name="Test Table")
+    data_fixture.create_text_field(table=table, name="text_field", primary=True)
+
+    # Mock the dspy.ReAct to return an invalid formula
+    mock_prediction = MagicMock()
+    mock_prediction.valid_formula = False
+    mock_prediction.generated_formula = ""
+    mock_prediction.generated_formula_type = ""
+    mock_prediction.error_message = "Formula syntax error: invalid expression"
+
+    with patch(
+        "baserow_enterprise.assistant.tools.database.tools.dspy.ReAct"
+    ) as mock_react:
+        mock_react.return_value.return_value = mock_prediction
+
+        tool = get_generate_database_formula_tool(user, workspace, fake_tool_helpers)
+
+        # Verify exception is raised
+        with pytest.raises(Exception) as exc_info:
+            tool(
+                table_id=table.id,
+                field_name="test_formula",
+                description="Invalid formula test",
+                save_to_field=True,
+            )
+
+        assert "Failed to generate a valid formula" in str(exc_info.value)
+        assert "Formula syntax error: invalid expression" in str(exc_info.value)
+
+        # Verify no field was created
+        assert not table.field_set.filter(name="test_formula").exists()
+
+
+@pytest.mark.django_db
+def test_generate_database_formula_documentation_completeness(data_fixture):
+    """Test that formula documentation contains all required functions."""
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database, name="Test Table")
+    data_fixture.create_text_field(table=table, name="text_field", primary=True)
+
+    # Mock the dspy.ReAct to capture the formula_documentation argument
+    mock_prediction = MagicMock()
+    mock_prediction.valid_formula = True
+    mock_prediction.generated_formula = "'ok'"
+    mock_prediction.generated_formula_type = "text"
+    mock_prediction.error_message = ""
+
+    captured_formula_docs = None
+
+    class MockReAct:
+        def __init__(self, signature, tools=None, max_iters=5):
+            nonlocal captured_formula_docs
+            # Don't capture anything here - wait for the call
+            self.mock_instance = MagicMock(return_value=mock_prediction)
+
+        def __call__(self, **kwargs):
+            nonlocal captured_formula_docs
+            captured_formula_docs = kwargs.get("formula_documentation")
+            return mock_prediction
+
+    with patch(
+        "baserow_enterprise.assistant.tools.database.tools.dspy.ReAct", MockReAct
+    ):
+        tool = get_generate_database_formula_tool(user, workspace, fake_tool_helpers)
+        tool(
+            table_id=table.id,
+            field_name="test_formula",
+            description="Test documentation",
+            save_to_field=False,
+        )
+
+    # Verify formula_documentation was provided
+    assert captured_formula_docs is not None
+    assert len(captured_formula_docs) > 0
+
+    # Known exceptions (internal functions not documented)
+    formula_exceptions = [
+        "tovarchar",
+        "error_to_nan",
+        "bc_to_null",
+        "error_to_null",
+        "array_agg",
+        "array_agg_unnesting",
+        "multiple_select_options_agg",
+        "get_single_select_value",
+        "multiple_select_count",
+        "string_agg_multiple_select_values",
+        "jsonb_extract_path_text",
+        "array_agg_no_nesting",
+        "string_agg_many_to_many_values",
+        "many_to_many_agg",
+        "many_to_many_count",
+    ]
+
+    missing_functions = []
+    present_functions = []
+
+    # Sanity check: baseline count of registered formula functions (snapshot 2025-10-17)
+    assert len(formula_function_registry.registry.keys()) > 110
+
+    for function_name in formula_function_registry.registry.keys():
+        if function_name in formula_exceptions:
+            continue
+
+        if function_name not in captured_formula_docs:
+            missing_functions.append(function_name)
+        else:
+            present_functions.append(function_name)
+
+    if missing_functions:
+        pytest.fail(
+            f"The following functions are missing from formula_documentation:\n"
+            f"{', '.join(missing_functions)}\n\n"
+            f"Present functions: {len(present_functions)}\n"
+            f"Missing functions: {len(missing_functions)}"
+        )
+
+    # Verify at least some expected functions are present
+    expected_common_functions = ["concat", "field", "if", "upper", "lower"]
+    for func in expected_common_functions:
+        assert (
+            func in captured_formula_docs
+        ), f"Expected function '{func}' not found in documentation"

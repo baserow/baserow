@@ -1,16 +1,19 @@
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
 from django.contrib.auth.models import AbstractUser
 from django.utils.translation import gettext as _
 
 from baserow.core.models import Workspace
-from baserow_enterprise.assistant.tools.registries import AssistantToolType, ToolHelpers
+from baserow_enterprise.assistant.tools.registries import AssistantToolType
 
 from .types import AnyNavigationRequestType
 
+if TYPE_CHECKING:
+    from baserow_enterprise.assistant.assistant import ToolHelpers
+
 
 def get_navigation_tool(
-    user: AbstractUser, workspace: Workspace, tool_helpers: ToolHelpers
+    user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
 ) -> Callable[[AnyNavigationRequestType], str]:
     """
     Returns a function that provides navigation instructions to the user based on
