@@ -1,11 +1,19 @@
 from zoneinfo import ZoneInfo
+from functools import reduce
+import operator
+from typing import Optional
 
 from django.utils import timezone
 
 from baserow.core.formula.argument_types import (
     DateTimeBaserowRuntimeFormulaArgumentType,
     NumberBaserowRuntimeFormulaArgumentType,
+    SubtractableBaserowRuntimeFormulaArgumentType,
     TextBaserowRuntimeFormulaArgumentType,
+    AddableBaserowRuntimeFormulaArgumentType,
+)
+from baserow.core.formula.types import (
+    FormulaArg
 )
 from baserow.core.formula.registries import RuntimeFormulaFunction
 from baserow.core.formula.types import FormulaArgs, FormulaContext
@@ -15,11 +23,18 @@ from baserow.core.formula.validator import ensure_string
 class RuntimeConcat(RuntimeFormulaFunction):
     type = "concat"
 
+    def validate_type_of_args(self, args) -> Optional[FormulaArg]:
+        arg_type = AddableBaserowRuntimeFormulaArgumentType()
+        return next(
+            (arg for arg in args if not arg_type.test(arg)),
+            None,
+        )
+
     def validate_number_of_args(self, args):
-        return len(args) >= 2
+        return len(args) > 1
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
-        return "".join([ensure_string(a) for a in args])
+        return "".join([a for a in args])
 
 
 class RuntimeGet(RuntimeFormulaFunction):
@@ -32,31 +47,36 @@ class RuntimeGet(RuntimeFormulaFunction):
 
 class RuntimeAdd(RuntimeFormulaFunction):
     type = "add"
-    # TODO: maybe create a new type that combines Number + String
-    args = [
-        NumberBaserowRuntimeFormulaArgumentType(),
-        NumberBaserowRuntimeFormulaArgumentType(),
-    ]
+
+    def validate_type_of_args(self, args) -> Optional[FormulaArg]:
+        arg_type = AddableBaserowRuntimeFormulaArgumentType()
+        return next(
+            (arg for arg in args if not arg_type.test(arg)),
+            None,
+        )
 
     def validate_number_of_args(self, args):
-        return len(args) == 2
+        return len(args) >= 1
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
-        return args[0] + args[1]
+        return reduce(operator.add, args)
 
 
 class RuntimeMinus(RuntimeFormulaFunction):
     type = "minus"
-    args = [
-        NumberBaserowRuntimeFormulaArgumentType(),
-        NumberBaserowRuntimeFormulaArgumentType(),
-    ]
+
+    def validate_type_of_args(self, args) -> Optional[FormulaArg]:
+        arg_type = SubtractableBaserowRuntimeFormulaArgumentType()
+        return next(
+            (arg for arg in args if not arg_type.test(arg)),
+            None,
+        )
 
     def validate_number_of_args(self, args):
-        return len(args) == 2
+        return len(args) > 1
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
-        return args[0] - args[1]
+        return reduce(operator.sub, args)
 
 
 class RuntimeMultiply(RuntimeFormulaFunction):
