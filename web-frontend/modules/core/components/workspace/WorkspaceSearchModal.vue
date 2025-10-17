@@ -16,17 +16,27 @@
         }"
       >
         <div class="workspace-search__header">
-          <FormInput
-            ref="searchInput"
-            v-model="searchTerm"
-            size="large"
-            icon-left="iconoir-search"
-            :icon-right="searchTerm ? 'iconoir-cancel' : null"
-            :placeholder="$t('workspaceSearch.searchEverything')"
-            class="workspace-search__input form-input--no-border"
-            @keydown="handleKeydown"
-            @icon-right-click="clearSearch"
-          />
+          <div class="workspace-search__search">
+            <i
+              class="workspace-search__icon iconoir-search"
+              :class="{ 'workspace-search__icon--active': focusInput }"
+            ></i>
+            <input
+              ref="searchInput"
+              v-model="searchTerm"
+              class="workspace-search__input"
+              :placeholder="$t('workspaceSearch.searchEverything')"
+              @keydown="handleKeydown"
+              @focusin="focusInput = true"
+              @focusout="focusInput = false"
+            />
+            <a
+              v-show="searchTerm.length > 0"
+              class="workspace-search__close"
+              @click="clearSearch"
+              ><i class="iconoir-cancel"
+            /></a>
+          </div>
         </div>
 
         <div
@@ -85,9 +95,7 @@
                   v-if="activeIndex === index"
                   class="workspace-search__result-enter"
                 >
-                  <kbd class="workspace-search__keys">
-                    <img :src="enterIcon" />
-                  </kbd>
+                  <kbd class="workspace-search__keys"> ↵ </kbd>
                 </div>
               </div>
             </div>
@@ -143,7 +151,8 @@
             </div>
             <div class="workspace-search__shortcuts-right">
               <div class="workspace-search__shortcut">
-                <kbd>esc</kbd> {{ $t('workspaceSearch.close') }}
+                <kbd class="workspace-search__keys">esc</kbd>
+                {{ $t('workspaceSearch.close') }}
               </div>
             </div>
           </div>
@@ -157,7 +166,6 @@
 import debounce from 'lodash/debounce'
 import { mapGetters, mapState } from 'vuex'
 import { searchTypeRegistry } from '@baserow/modules/core/search/types/registry'
-import enterIcon from '@baserow/modules/core/assets/icons/enter.svg'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 
 export default {
@@ -166,6 +174,7 @@ export default {
   data() {
     return {
       searchTerm: '',
+      focusInput: false,
       activeIndex: -1,
       hasMoreResults: false,
       isLoadingMore: false,
@@ -186,10 +195,6 @@ export default {
       'totalResultCount',
       'getAllResults',
     ]),
-
-    enterIcon() {
-      return enterIcon
-    },
 
     hasSearchTerm() {
       return this.searchTerm && this.searchTerm.length >= this.minChars

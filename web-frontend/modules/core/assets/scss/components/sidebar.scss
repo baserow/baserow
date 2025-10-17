@@ -329,19 +329,21 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  height: 32px;
-  line-height: 32px;
+  height: 36px;
+  line-height: 36px;
   width: 100%;
   padding: 0 48px 0 8px;
   background-color: $white;
-  border: 1px solid $palette-neutral-300;
-  border-radius: $rounded-md;
+  border: 1px solid $palette-neutral-400;
   cursor: pointer;
   transition: all 0.2s ease;
+
+  @include rounded($rounded-md);
+  @include elevation($elevation-low);
 }
 
 .sidebar__search-icon {
-  color: $palette-neutral-600;
+  color: $palette-neutral-700;
   font-size: 16px;
   flex-shrink: 0;
 }
@@ -357,20 +359,20 @@
 
 .sidebar__search-shortcut {
   position: absolute;
-  top: 8px;
+  top: calc(50% - 8px);
   right: 8px;
   display: inline-flex;
   align-items: center;
   gap: 2px;
 
   kbd {
-    background-color: $palette-neutral-300;
-    border: 1px solid $palette-neutral-400;
+    border: 0;
+    background-color: $palette-neutral-100;
     border-radius: 3px;
     font-family: inherit;
     font-size: 10px;
-    font-weight: 500;
-    color: $palette-neutral-800;
+    font-weight: 700;
+    color: $palette-neutral-700;
     height: 16px;
     line-height: 16px;
     padding: 0;
