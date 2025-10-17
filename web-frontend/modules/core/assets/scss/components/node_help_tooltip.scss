@@ -1,0 +1,45 @@
+.node-help-tooltip {
+  padding: 20px;
+  max-width: 320px;
+  background: $palette-neutral-100;
+
+  @include rounded($rounded-md);
+
+  &__header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+
+  &__icon {
+    width: 40px;
+    height: 40px;
+    background: $white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 12px;
+    flex-shrink: 0;
+    border: 1px solid $palette-neutral-400;
+
+    @include rounded($rounded-lg);
+    @include elevation($elevation-low);
+  }
+
+  &__icon-symbol {
+    font-size: 18px;
+    color: $palette-neutral-700;
+  }
+
+  &__title {
+    font-size: 16px;
+    font-weight: 500;
+    margin: 0;
+  }
+
+  &__description {
+    font-size: 12px;
+
+    @extend %mb-16;
+  }
+}

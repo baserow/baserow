@@ -1,6 +1,10 @@
 .tabs {
   width: 100%;
   background-color: $white;
+
+  &.tabs--rounded {
+    @include rounded($rounded-md);
+  }
 }
 
 .tabs--full-height {
@@ -17,14 +21,14 @@
   margin: 0;
   gap: 24px;
   font-weight: 500;
-  border-bottom: solid 1px $palette-neutral-100;
+  border-bottom: solid 1px $palette-neutral-200;
   padding-left: 15px;
 
   .tabs--large-offset & {
     padding-left: 40px;
   }
 
-  .tabs--nopadding & {
+  .tabs--header-nopadding & {
     padding-left: 0;
   }
 }
@@ -91,7 +95,11 @@
     height: 100%;
   }
 
-  .tabs--nopadding & {
+  .tabs--content-no-x-padding & {
     padding: 14px 0;
+  }
+
+  .tabs--content-no-padding & {
+    padding: 0;
   }
 }

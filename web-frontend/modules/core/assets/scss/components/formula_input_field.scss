@@ -1,3 +1,39 @@
+.function-name-highlight {
+  color: $palette-cyan-800;
+  font-weight: 500;
+  background-color: $palette-cyan-50;
+  padding: 6px 8px;
+  margin-right: 4px;
+
+  @include rounded;
+}
+
+.operator-highlight {
+  color: $palette-green-800;
+  font-weight: 500;
+  background-color: $palette-green-50;
+  padding: 6px 8px;
+  margin-right: 4px;
+
+  @include rounded;
+}
+
+.text-segment {
+  display: inline;
+  margin-right: 4px;
+}
+
+.function-comma-highlight,
+.function-paren-highlight {
+  color: $palette-cyan-800;
+  font-weight: 500;
+  background-color: $palette-cyan-50;
+  padding: 6px 4px;
+  margin-right: 2px;
+
+  @include rounded;
+}
+
 .formula-input-field {
   height: auto;
   font-size: 13px;
@@ -5,10 +41,22 @@
   padding: 5px 12px;
   line-height: 25px;
 
+  .tiptap {
+    line-height: 2.3;
+  }
+
   &.formula-input-field--large {
     line-height: 25px;
     padding: 10px 12px;
     min-height: 48px;
+  }
+
+  // Remove margin from the last element to avoid trailing space
+  /* stylelint-disable-next-line selector-class-pattern */
+  .ProseMirror {
+    span:last-child {
+      margin-right: 0;
+    }
   }
 }
 
