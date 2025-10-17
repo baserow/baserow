@@ -158,6 +158,7 @@ import debounce from 'lodash/debounce'
 import { mapGetters, mapState } from 'vuex'
 import { searchTypeRegistry } from '@baserow/modules/core/search/types/registry'
 import enterIcon from '@baserow/modules/core/assets/icons/enter.svg'
+import { notifyIf } from '@baserow/modules/core/utils/error'
 
 export default {
   name: 'WorkspaceSearchModal',
@@ -330,17 +331,24 @@ export default {
       }
 
       this.currentPage = 1
-      const result = await this.$store.dispatch('workspaceSearch/search', {
-        workspaceId: this.currentWorkspace.id,
-        searchTerm,
-        limit: this.pageSize * this.initialLoadPages,
-        offset: 0,
-        append: false,
-      })
+      try {
+        const result = await this.$store.dispatch('workspaceSearch/search', {
+          workspaceId: this.currentWorkspace.id,
+          searchTerm,
+          limit: this.pageSize * this.initialLoadPages,
+          offset: 0,
+          append: false,
+        })
 
-      this.hasMoreResults = result.has_more || false
-      this.activeIndex = 0
-      this.isSearching = false
+        this.hasMoreResults = result.has_more || false
+        this.activeIndex = 0
+      } catch (error) {
+        notifyIf(error)
+        this.$store.dispatch('workspaceSearch/clearSearch')
+        this.hasMoreResults = false
+      } finally {
+        this.isSearching = false
+      }
     }, 400),
 
     async loadMoreResults() {
@@ -351,16 +359,22 @@ export default {
       this.isLoadingMore = true
       const offset = this.totalResultCount
 
-      const result = await this.$store.dispatch('workspaceSearch/search', {
-        workspaceId: this.currentWorkspace.id,
-        searchTerm: this.searchTerm,
-        limit: this.pageSize * this.scrollLoadPages,
-        offset,
-        append: true,
-      })
+      try {
+        const result = await this.$store.dispatch('workspaceSearch/search', {
+          workspaceId: this.currentWorkspace.id,
+          searchTerm: this.searchTerm,
+          limit: this.pageSize * this.scrollLoadPages,
+          offset,
+          append: true,
+        })
 
-      this.hasMoreResults = result.has_more || false
-      this.isLoadingMore = false
+        this.hasMoreResults = result.has_more || false
+      } catch (error) {
+        notifyIf(error)
+        this.hasMoreResults = false
+      } finally {
+        this.isLoadingMore = false
+      }
     },
 
     handleScroll(event) {
