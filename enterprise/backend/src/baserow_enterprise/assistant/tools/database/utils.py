@@ -1,10 +1,10 @@
 from dataclasses import dataclass
 from itertools import groupby
-from typing import Any, Callable, Literal, Type, Union
+from typing import TYPE_CHECKING, Any, Callable, Literal, Type, Union
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Q, QuerySet
 from django.utils.translation import gettext as _
 
 from pydantic import ConfigDict, Field, create_model
@@ -32,7 +32,6 @@ from baserow_enterprise.assistant.tools.database.types.table import (
     BaseTableItem,
     TableItem,
 )
-from baserow_enterprise.assistant.tools.registries import ToolHelpers
 
 from .types import (
     AnyFieldItem,
@@ -43,10 +42,13 @@ from .types import (
     field_item_registry,
 )
 
+if TYPE_CHECKING:
+    from baserow_enterprise.assistant.assistant import ToolHelpers
+
 NoChange = Literal["__NO_CHANGE__"]
 
 
-def filter_tables(user, workspace: Workspace) -> list[Table]:
+def filter_tables(user, workspace: Workspace) -> QuerySet[Table]:
     return TableHandler().list_workspace_tables(user, workspace)
 
 
@@ -109,7 +111,7 @@ def create_fields(
     user,
     table: Table,
     field_items: list[AnyFieldItemCreate],
-    tool_helpers: ToolHelpers,
+    tool_helpers: "ToolHelpers",
 ) -> list[AnyFieldItem]:
     created_fields = []
     for field_item in field_items:
@@ -381,7 +383,7 @@ def get_view(user, view_id: int):
 
 
 def get_table_rows_tools(
-    user, workspace: Workspace, tool_helpers: ToolHelpers, table: Table
+    user, workspace: Workspace, tool_helpers: "ToolHelpers", table: Table
 ):
     import dspy  # local import to save memory when not used
     from dspy.adapters.types.tool import _resolve_json_schema_reference

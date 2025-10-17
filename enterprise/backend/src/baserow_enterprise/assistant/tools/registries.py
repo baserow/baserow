@@ -1,8 +1,6 @@
-from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable
 
 from django.contrib.auth.models import AbstractUser
-from django.utils import translation
 
 from baserow.core.exceptions import (
     InstanceTypeAlreadyRegistered,
@@ -10,19 +8,9 @@ from baserow.core.exceptions import (
 )
 from baserow.core.models import Workspace
 from baserow.core.registries import Instance, Registry
-from baserow_enterprise.assistant.tools.navigation.utils import unsafe_navigate_to
-from baserow_enterprise.assistant.types import AiThinkingMessage
 
 if TYPE_CHECKING:
-    from baserow_enterprise.assistant.tools.navigation.types import (
-        AnyNavigationRequestType,
-    )
-
-
-@dataclass
-class ToolHelpers:
-    update_status: Callable[[str], None]
-    navigate_to: Callable[["AnyNavigationRequestType"], str]
+    from baserow_enterprise.assistant.assistant import ToolHelpers
 
 
 class AssistantToolType(Instance):
@@ -82,7 +70,7 @@ class AssistantToolType(Instance):
 
     @classmethod
     def get_tool(
-        cls, user: AbstractUser, workspace: Workspace, tool_helpers: ToolHelpers
+        cls, user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
     ) -> Callable[[Any], Any]:
         """
         Returns the actual tool function to be called to pass to the dspy react agent.
@@ -111,31 +99,8 @@ class AssistantToolRegistry(Registry[AssistantToolType]):
     already_registered_exception_class = AssistantToolAlreadyRegistered
 
     def list_all_usable_tools(
-        self, user: AbstractUser, workspace: Workspace
+        self, user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
     ) -> list[AssistantToolType]:
-        def update_status_localized(status: str):
-            """
-            Sends a localized message to the frontend to update the assistant status.
-
-            :param status: The status message to send.
-            """
-
-            from dspy.dsp.utils.settings import settings
-            from dspy.streaming.messages import sync_send_to_stream
-
-            nonlocal user
-
-            with translation.override(user.profile.language):
-                stream = settings.send_stream
-
-                if stream is not None:
-                    sync_send_to_stream(stream, AiThinkingMessage(content=status))
-
-        tool_helpers = ToolHelpers(
-            update_status=update_status_localized,
-            navigate_to=unsafe_navigate_to,
-        )
-
         return [
             tool_type.get_tool(user, workspace, tool_helpers)
             for tool_type in self.get_all()

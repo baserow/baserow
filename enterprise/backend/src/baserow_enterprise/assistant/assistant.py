@@ -1,10 +1,22 @@
+from dataclasses import dataclass
 from functools import lru_cache
-from typing import Any, AsyncGenerator, TypedDict
+from typing import Any, AsyncGenerator, Callable, TypedDict
 
 from django.conf import settings
+from django.utils import translation
+
+import dspy
+from dspy.dsp.utils.settings import settings as dspy_settings
+from dspy.primitives.prediction import Prediction
+from dspy.streaming import StreamListener, StreamResponse
+from dspy.streaming.messages import sync_send_to_stream
+from dspy.utils.callback import BaseCallback
+from litellm import get_supported_openai_params
 
 from baserow.api.sessions import get_client_undo_redo_action_group_id
 from baserow_enterprise.assistant.exceptions import AssistantModelNotSupportedError
+from baserow_enterprise.assistant.tools.navigation.types import AnyNavigationRequestType
+from baserow_enterprise.assistant.tools.navigation.utils import unsafe_navigate_to
 from baserow_enterprise.assistant.tools.registries import assistant_tool_registry
 
 from .adapter import get_chat_adapter
@@ -19,6 +31,25 @@ from .types import (
     HumanMessage,
     UIContext,
 )
+
+
+@dataclass
+class ToolHelpers:
+    update_status: Callable[[str], None]
+    navigate_to: Callable[["AnyNavigationRequestType"], str]
+
+
+class ChatSignature(dspy.Signature):
+    question: str = dspy.InputField()
+    history: dspy.History = dspy.InputField()
+    ui_context: UIContext | None = dspy.InputField(
+        default=None,
+        desc=(
+            "The frontend UI content the user is currently in. "
+            "Whenever make sense, use it to ground your answer."
+        ),
+    )
+    answer: str = dspy.OutputField()
 
 
 class AssistantMessagePair(TypedDict):
@@ -140,8 +171,9 @@ class Assistant:
     def _init_assistant(self):
         from .react import ReAct  # local import to save memory when not used
 
+        tool_helpers = self.get_tool_helpers()
         tools = assistant_tool_registry.list_all_usable_tools(
-            self._user, self._workspace
+            self._user, self._workspace, tool_helpers
         )
         self._assistant = ReAct(get_chat_signature(), tools=tools)
         self.history = None
@@ -277,6 +309,25 @@ class Assistant:
             raise AssistantModelNotSupportedError(
                 f"The model '{lm.model}' is not supported or accessible: {e}"
             )
+
+    def get_tool_helpers(self) -> ToolHelpers:
+        def update_status_localized(status: str):
+            """
+            Sends a localized message to the frontend to update the assistant status.
+
+            :param status: The status message to send.
+            """
+
+            with translation.override(self._user.profile.language):
+                stream = dspy_settings.send_stream
+
+                if stream is not None:
+                    sync_send_to_stream(stream, AiThinkingMessage(content=status))
+
+        return ToolHelpers(
+            update_status=update_status_localized,
+            navigate_to=unsafe_navigate_to,
+        )
 
     async def astream_messages(
         self, human_message: HumanMessage
