@@ -11,7 +11,7 @@ Replace the first part of your `docker-compose.dev.yml` with the following:
 ```
 services:
   db:
-    image: postgres:13
+    image: pgvector/pgvector:pg13
     ports:
       - "127.0.0.1:5432:5432"
     environment:
@@ -31,7 +31,7 @@ services:
       - local
 
   db-replica-1:
-    image: postgres:13
+    image: pgvector/pgvector:pg13
     ports:
       - "127.0.0.1:5433:5432"
     environment:
@@ -49,7 +49,7 @@ services:
       - local
 
   db-replica-2:
-    image: postgres:13
+    image: pgvector/pgvector:pg13
     ports:
       - "127.0.0.1:5434:5432"
     environment:
