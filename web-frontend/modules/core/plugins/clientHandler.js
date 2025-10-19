@@ -106,6 +106,10 @@ export class ClientErrorMap {
         app.i18n.t('clientHandler.failedToUndoRedoDueToConflictTitle'),
         app.i18n.t('clientHandler.failedToUndoRedoDueToConflictDescription')
       ),
+      ERROR_CANNOT_UNDO_RESTORE: new ResponseErrorMessage(
+        app.i18n.t('clientHandler.cannotUndoRestoreTitle'),
+        app.i18n.t('clientHandler.cannotUndoRestoreDescription')
+    ),
       ERROR_MAXIMUM_SNAPSHOTS_REACHED: new ResponseErrorMessage(
         app.i18n.t('clientHandler.maximumSnapshotsReachedTitle'),
         app.i18n.t('clientHandler.maximumSnapshotsReachedDescription')

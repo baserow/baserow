@@ -4,7 +4,12 @@ from typing import Any, Dict, Optional
 from django.contrib.auth.models import AbstractUser
 from django.utils.translation import gettext_lazy as _
 
-from baserow.core.action.registries import ActionType, ActionTypeDescription
+from baserow.core.action.models import Action
+from baserow.core.action.registries import (
+    ActionType,
+    ActionTypeDescription,
+    UndoableActionType,
+)
 from baserow.core.action.scopes import (
     WORKSPACE_ACTION_CONTEXT,
     WorkspaceActionScopeType,
@@ -12,6 +17,7 @@ from baserow.core.action.scopes import (
 from baserow.core.exceptions import ApplicationDoesNotExist, WorkspaceDoesNotExist
 from baserow.core.models import Application, Workspace
 from baserow.core.trash.handler import TrashHandler
+from baserow.core.trash.exceptions import CannotUndoRestoreError
 
 
 class EmptyTrashActionType(ActionType):
@@ -88,7 +94,7 @@ class EmptyTrashActionType(ActionType):
         return super().get_long_description(params_dict, *args, **kwargs)
 
 
-class RestoreFromTrashActionType(ActionType):
+class RestoreFromTrashActionType(UndoableActionType):
     type = "restore_from_trash"
     description = ActionTypeDescription(
         _("Restore from trash"),
@@ -140,3 +146,43 @@ class RestoreFromTrashActionType(ActionType):
     @classmethod
     def scope(cls, workspace_id: int):
         return WorkspaceActionScopeType.value(workspace_id)
+
+    @classmethod
+    def undo(cls, user: AbstractUser, params: Params, action_to_undo: Action):
+        """
+        Undo the restore by trashing the item again.
+        Raises CannotUndoRestoreError if the item cannot be returned to trash.
+        """
+        from baserow.core.trash.registries import trash_item_type_registry
+
+        try:
+            # Get the trashable item type
+            trashable_item_type = trash_item_type_registry.get(params.item_type)
+
+            # Look up the restored (non-trashed) item
+            item = trashable_item_type.model_class.objects.get(id=params.item_id)
+
+            # Get the workspace and application if needed
+            workspace = Workspace.objects.get(id=params.workspace_id)
+            application = getattr(item, "application", None)
+
+            # Trash the item again
+            TrashHandler.trash(user, workspace, application, item)
+        except Exception as e:
+            # Raise our specific error so the frontend can handle it properly
+            raise CannotUndoRestoreError(
+                f"Cannot undo restore operation for {params.item_type} (ID: {params.item_id}). "
+                f"The item may have been modified or is no longer in the expected state."
+            )
+
+    @classmethod
+    def redo(cls, user: AbstractUser, params: Params, action_to_redo: Action):
+        """
+        Redo the restore by restoring the item from trash again.
+        """
+        TrashHandler.restore_item(
+            user,
+            params.item_type,
+            params.item_id,
+            params.parent_item_id,
+        )
