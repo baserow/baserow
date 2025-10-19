@@ -2,7 +2,7 @@
 
 > Any questions, problems or suggestions with this guide? Ask a question in our
 > [community](https://community.baserow.io/) or contribute the change yourself at
-> https://gitlab.com/baserow/baserow/-/tree/develop/docs .
+> https://github.com/baserow/baserow/tree/develop/docs .
 
 > Docker version 19.03 is the minimum required to build Baserow. It is strongly
 > advised however that you install the latest version of Docker available.
@@ -19,7 +19,7 @@ If you want to use your own container orchestration software like Kubernetes the
 images let you run and scale these different parts of Baserow independently. 
 
 For an example of how to use these images see the
-[`docker-compose.yml`](https://gitlab.com/baserow/baserow/-/blob/master/docker-compose.yml) 
+[`docker-compose.yml`](https://github.com/baserow/baserow/blob/master/docker-compose.yml) 
 in the root of our repository. 
 
 ## All Services needed to run Baserow
@@ -48,7 +48,7 @@ images:
   `BASEROW_CADDY_ADDRESSES` environment variable used in other installation methods 
   has no affect.
 * You must set a `SECRET_KEY` environment variable for the backend gunicorn server.
-* See our example [`Caddyfile`](https://gitlab.com/baserow/baserow/-/blob/master/Caddyfile)
+* See our example [`Caddyfile`](https://github.com/baserow/baserow/blob/master/Caddyfile)
   for an example on how to setup a reverse proxy correctly with Baserow. In summary you
   need to:
   * Redirect `/api/` and `/ws/` requests to the backend gunicorn service without 

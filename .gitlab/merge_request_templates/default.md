@@ -9,7 +9,7 @@
 - [ ] A changelog entry has been added to `changelog/entries/unreleased` using `changelog/src/changelog.py`
 - [ ] New/updated **Premium/Enterprise features** are separated correctly in the premium or enterprise folder
 - [ ] The latest **Chrome and Firefox** have been used to test any new frontend features
-- [ ] [Documentation](https://gitlab.com/baserow/baserow/-/tree/develop/docs) has been
+- [ ] [Documentation](https://github.com/baserow/baserow/blob/develop/docs) has been
   updated
 - [ ] [Quality Standards](https://gitlab.com/baserow/baserow/-/blob/develop/CONTRIBUTING.md#quality-standards)
   are met

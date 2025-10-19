@@ -95,7 +95,7 @@ $ sudo -i
 # Clone the baserow project
 $ mkdir /baserow
 $ cd /baserow
-$ git clone --branch master https://gitlab.com/baserow/baserow.git
+$ git clone --branch master https://github.com/baserow/baserow.git
 ```
 
 The password used for the `baserow` user does not have to be the same as the one used

@@ -14,5 +14,5 @@
 
 ## Add your resource
 
-Please edit this file in the repository at https://gitlab.com/baserow/baserow and create
-a merge request to add your external resource to this list.
+Please edit this file in the repository at https://github.com/baserow/baserow and create
+a pull request to add your external resource to this list.

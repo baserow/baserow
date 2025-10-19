@@ -31,8 +31,8 @@ guide for more details.
 
 ## Supported tags and Dockerfile Links
 
-* [`X.Y.Z`](https://gitlab.com/baserow/baserow/-/blob/master/deploy/web-frontend/Dockerfile)
+* [`X.Y.Z`](https://github.com/baserow/baserow/blob/master/web-frontend/Dockerfile)
   Tagged by Baserow version.
-* [`latest`](https://gitlab.com/baserow/baserow/-/blob/master/web-frontend/Dockerfile)
+* [`latest`](https://github.com/baserow/baserow/blob/master/web-frontend/Dockerfile)
 * [`develop-latest`](https://gitlab.com/baserow/baserow/-/blob/develop/web-frontend/Dockerfile)
   This is a bleeding edge image from our development branch, use at your own risk.

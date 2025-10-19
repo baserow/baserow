@@ -7,7 +7,7 @@ automatic style fixers to make your life as easy as possible.
 > This guide assumes you have a basic understanding of git, python, virtualenvs,
 > postgres and command line tools.
 
-1. First checkout a fresh copy of Baserow: `git clone git@gitlab.com:baserow/baserow.git`
+1. First checkout a fresh copy of Baserow: `git clone git@github.com:baserow/baserow.git`
    (or your personal fork of the project)
 1. `cd baserow`
 1. `./config/vscode/apply_standard_baserow_vscode_config.sh`

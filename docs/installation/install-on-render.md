@@ -2,7 +2,7 @@
 
 > Any questions, problems or suggestions with this guide? Ask a question in our
 > [community](https://community.baserow.io/) or contribute the change yourself at
-> https://gitlab.com/baserow/baserow/-/tree/develop/docs .
+> https://github.com/baserow/baserow/tree/develop/docs .
 
 [Render](https://render.com) is a modern alternative to Heroku, a platform as a service.
 Render enables you to build, run and operate applications entirely in the cloud. We have
@@ -14,9 +14,9 @@ plan and the paid Postgres plan provided by Render.
 > Currently, we only support running Baserow on the $25 per month "Standard" Render
 > plan additionally with their $7 per month Postgres plan for performance reasons.
 
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://gitlab.com/baserow/baserow/tree/master)
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/baserow/baserow/tree/master)
 The button above can be used to install Baserow on [Render](https://render.com) with one
-click. You may need to manually enter the `https://gitlab.com/baserow/baserow/`
+click. You may need to manually enter the `https://github.com/baserow/baserow/`
 repository URL and choose the branch
 `master`.
 

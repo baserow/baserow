@@ -179,7 +179,7 @@ write changelog entries which don't cause merge conflicts.
 Every time a merge request is created and requires a changelog, the changelog generator
 should be used to generate such changelog.
 
-See [here](https://gitlab.com/baserow/baserow/-/blob/master/changelog/README.md) for more details.
+See [here](https://github.com/baserow/baserow/blob/master/changelog/README.md) for more details.
 
 ## Thanks!
 

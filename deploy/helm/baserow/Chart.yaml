@@ -4,7 +4,7 @@ description: The open platform to create scalable databases and applications—w
 type: application
 version: 1.0.35
 appVersion: "1.35.3"
-home: https://gitlab.com/baserow/baserow/-/tree/develop/deploy/helm/baserow?ref_type=heads
+home: https://github.com/baserow/baserow/blob/develop/deploy/helm/baserow?ref_type=heads
 icon: https://baserow.io/img/favicon_192.png
 sources:
   - https://gitlab.com/baserow/baserow
@@ -77,5 +77,5 @@ annotations:
     - name: source
       url: https://gitlab.com/baserow/baserow
     - name: helm
-      url: https://gitlab.com/baserow/baserow/-/tree/develop/deploy/helm/baserow?ref_type=heads
+      url: https://github.com/baserow/baserow/blob/develop/deploy/helm/baserow?ref_type=heads
   artifacthub.io/quality: production

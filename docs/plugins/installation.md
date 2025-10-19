@@ -40,7 +40,7 @@ FROM baserow/baserow:1.35.3
 
 # You can install a plugin found in a git repo:
 RUN /baserow/plugins/install_plugin.sh \
-    --git https://gitlab.com/example/example_baserow_plugin.git
+    --git https://github.com/example/example_baserow_plugin.git
     
 # Or you can download a tar.gz directly from an url 
 RUN /baserow/plugins/install_plugin.sh \
@@ -63,7 +63,7 @@ RUN /baserow/plugins/install_plugin.sh \
 # downloaded plugin. Then you can replace your nonsense --hash value with the printed
 # one and build again.
 RUN /baserow/plugins/install_plugin.sh \
-    --git https://gitlab.com/example/example_baserow_plugin.git \
+    --git https://github.com/example/example_baserow_plugin.git \
     --hash hash_of_plugin_2
 ```
 
@@ -87,7 +87,7 @@ This method installs the plugin into an existing container, and it's data volume
 ```bash
 docker exec baserow \
   ./baserow.sh install-plugin \
-  --git https://gitlab.com/example/example_baserow_plugin.git \
+  --git https://github.com/example/example_baserow_plugin.git \
   --hash hash_of_plugin_1
 ```
 

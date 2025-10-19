@@ -13,7 +13,7 @@ Baserow can be deployed to AWS in the following ways:
    horizontally scalable but easy to
    set up deployment. **See below for a detailed guide.**
 2. Using
-   this [docker-compose](https://gitlab.com/baserow/baserow/-/blob/develop/docker-compose.no-caddy.yml)
+   this [docker-compose](https://github.com/baserow/baserow/blob/develop/docker-compose.no-caddy.yml)
    file or our [sample K8S configuration](./install-with-k8s.md) as a starting point to
    configure ECS/Fargate tasks for more advanced, production ready, one service per
    container model. **See below for a detailed guide**
@@ -434,7 +434,7 @@ new cluster for Baserow and then proceed to make the following task definitions.
 > If you are familiar with K8S then [this sample config](./install-with-k8s.md) gives an
 > overview of the services.
 >
-Alternatively [this docker-compose](https://gitlab.com/baserow/baserow/-/blob/develop/docker-compose.no-caddy.yml)
+Alternatively [this docker-compose](https://github.com/baserow/baserow/blob/develop/docker-compose.no-caddy.yml)
 > can also be used as reference
 
 #### 6) The backend WSGI service

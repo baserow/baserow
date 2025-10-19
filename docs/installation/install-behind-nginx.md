@@ -5,7 +5,7 @@ configure it to pass requests through to Baserow.
 
 We strongly recommend you use our `baserow/baserow:1.35.3` image or the example
 `docker-compose.yml` files (excluding the `.no-caddy.yml` variant) provided in
-our [git repository](https://gitlab.com/baserow/baserow/-/tree/master/deploy/nginx/).
+our [git repository](https://github.com/baserow/baserow/tree/master/deploy/nginx/).
 
 These come with a pre-configured, simple and lightweight Caddy http server which 
 simplifies your life by:
@@ -20,14 +20,14 @@ simplifies your life by:
 >
 > * Your own container setup with our single service `baserow/backend:1.35.3`
     and `baserow/web-frontend:1.35.3` images.
-> * Or our `docker-compose.no-caddy.yml` example file in our [git repository](https://gitlab.com/baserow/baserow/-/tree/master/deploy/nginx/).
+> * Or our `docker-compose.no-caddy.yml` example file in our [git repository](https://github.com/baserow/baserow/tree/master/deploy/nginx/).
 > 
 > Then you should use **Option 2: Without our embedded Caddy** section instead.
 
 ## Option 1: With our embedded Caddy
 
 > You can find a Dockerized working example of using Nginx with Baserow in our git repo in
-> the [deploy/nginx/recommended](https://gitlab.com/baserow/baserow/-/tree/master/deploy/nginx/)
+> the [deploy/nginx/recommended](https://github.com/baserow/baserow/tree/master/deploy/nginx/)
 > folder.
 
 Follow this option if you are using:
@@ -103,7 +103,7 @@ You should now be able to access Baserow on you configured subdomain.
 ## Option 2: Without our embedded Caddy
 
 > You can find a Dockerized working example of using Nginx with Baserow in our git repo in
-> the [deploy/nginx/no-caddy](https://gitlab.com/baserow/baserow/-/tree/master/deploy/nginx/)
+> the [deploy/nginx/no-caddy](https://github.com/baserow/baserow/tree/master/deploy/nginx/)
 > folder.
 
 Follow this option if you are using:

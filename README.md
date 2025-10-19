@@ -1,12 +1,16 @@
-## Baserow is an open-source no-code database tool and an Airtable alternative.
+## Baserow is an open-source no-code platform and the best alternative to Airtable
 
-Create your own online database without technical experience. Our user-friendly no-code
-tool gives you the powers of a developer without leaving your browser.
+It lets you easily build databases, applications, automations, and dashboards — all in
+one secure, self-hostable environment. Empower your team to create powerful tools
+without writing a single line of code.
 
 * A spreadsheet database hybrid combining ease of use and powerful data organization.
+* Create applications and portals, and publish them on your own domain.
+* Automate repetitive workflows with automations (coming soon).
+* Visualize your data with dashboards.
 * Easily self-hosted with no storage restrictions or sign-up on https://baserow.io to
   get started immediately.
-* Alternative to Airtable.
+* Best Alternative to Airtable.
 * Open-core with all non-premium and non-enterprise features under
   the [MIT License](https://choosealicense.com/licenses/mit/) allowing commercial and
   private use.
@@ -14,17 +18,25 @@ tool gives you the powers of a developer without leaving your browser.
 * Uses popular frameworks and tools like [Django](https://www.djangoproject.com/),
   [Vue.js](https://vuejs.org/) and [PostgreSQL](https://www.postgresql.org/).
 
-[![Deploy to Heroku](https://www.herokucdn.com/deploy/button.svg)](https://www.heroku.com/deploy/?template=https://github.com/bram2w/baserow/tree/master)
+[![Deploy to Heroku](https://www.herokucdn.com/deploy/button.svg)](https://www.heroku.com/deploy/?template=https://github.com/baserow/baserow/tree/master)
 
 ```bash
 docker run -v baserow_data:/baserow/data -p 80:80 -p 443:443 baserow/baserow:1.35.3
 ```
 
-![Baserow screenshot](docs/assets/screenshot.png "Baserow screenshot")
+![Baserow database screenshot](docs/assets/screenshot.png "Baserow database screenshot")
+
+![Baserow form screenshot](docs/assets/screenshot_form.png "Baserow form view screenshot")
+
+![Baserow kanban screenshot](docs/assets/screenshot_kanban.png "Baserow kanban view screenshot")
+
+![Baserow application builder](docs/assets/screenshot_application_builder.png "Baserow application builder screenshot")
+
+![Baserow application builder](docs/assets/screenshot_automations.png "Baserow automations screenshot")
+(coming soon)
+
 
 ## Get Involved
-
-**We're hiring remotely**! More information at https://baserow.io/jobs.
 
 Join our forum at https://community.baserow.io/. See
 [CONTRIBUTING.md](./CONTRIBUTING.md) on how to become a contributor.
@@ -32,11 +44,12 @@ Join our forum at https://community.baserow.io/. See
 ## Installation
 
 * [**Docker**](docs/installation/install-with-docker.md)
-* [**Ubuntu**](docs/installation/install-on-ubuntu.md)
+* [**Helm**](docs/installation/install-with-helm.md)
 * [**Docker Compose** ](docs/installation/install-with-docker-compose.md)
 * [**Heroku**: Easily install and scale up Baserow on Heroku.](docs/installation/install-on-heroku.md)
 * [**Render**: Easily install and scale up Baserow on Render.](docs/installation/install-on-render.md)
 * [**Digital Ocean**: Easily install and scale up Baserow on Digital Ocean.](docs/installation/install-on-digital-ocean.md)
+* [**AWS**: Install in a scalable way on AWS](docs/installation/install-on-aws.md)
 * [**Cloudron**: Install and update Baserow on your own Cloudron server.](docs/installation/install-on-cloudron.md)
 * [**Railway**: Install Baserow via Railway.](docs/installation/install-on-railway.md)
 * [**Elestio**: Fully managed by Elestio.](https://elest.io/open-source/baserow)
@@ -48,20 +61,12 @@ or [here](./docs/index.md) inside the repository. The API docs can be found here
 https://api.baserow.io/api/redoc/ or if you are looking for the OpenAPI schema here
 https://api.baserow.io/api/schema.json.
 
-## Become a sponsor
-
-If you would like to get new features faster, then you might want to consider becoming a
-sponsor. By becoming a sponsor we can spend more time on Baserow which means faster
-development.
-
-[Become a GitHub Sponsor](https://github.com/sponsors/bram2w)
-
 ## Development environment
 
 If you want to contribute to Baserow you can setup a development environment like so:
 
 ```
-$ git clone https://gitlab.com/baserow/baserow.git
+$ git clone https://github.com/baserow/baserow.git
 $ cd baserow
 $ ./dev.sh --build
 ```
@@ -74,6 +79,12 @@ More detailed instructions and more information about the development environmen
 found
 at [https://baserow.io/docs/development/development-environment](./docs/development/development-environment.md)
 .
+
+## Why Baserow?
+
+Unlike proprietary tools like Airtable, Baserow gives you **full data ownership**,
+**infinite scalability**, and **no vendor lock-in** — all while keeping the simplicity
+of a spreadsheet interface.
 
 ## Plugin development
 
@@ -91,7 +102,7 @@ Distributes under the MIT license. See `LICENSE` for more information.
 
 Version: 1.35.3
 
-The official repository can be found at https://gitlab.com/baserow/baserow.
+The official repository can be found at https://github.com/baserow/baserow.
 
 The changelog can be found [here](./changelog.md).
 

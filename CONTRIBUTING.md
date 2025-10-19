@@ -10,8 +10,7 @@ get back to you as soon as possible with proposed issues.
 ## We develop with GitLab
 
 We use GitLab to host code, to track issues and to make feature requests. The official
-repository can be found on https://gitlab.com/baserow/baserow/. There is a mirror 
-repository on GitHub, but this is not the official one.
+repository can be found on https://github.com/baserow/baserow/. 
 
 ## The merge request process
 
@@ -49,10 +48,9 @@ project. Feel free to contact us if that is a concern.
 
 ## Bug reports
 
-We use GitLab issues to track public bugs. You can report a bug by opening a new issue
-at https://gitlab.com/baserow/baserow/-/issues and selecting the Bug issue type. You may 
-also send the bug to us via email or via the contact form at https://baserow.io/contact 
-instead if you prefer.
+We use GitHub issues to track public bugs. You can report a bug by opening a new issue
+at https://github.com/baserow/baserow/issues and selecting the Bug issue type. You may 
+also reach out to us via the community on https://community.baserow.io.
 
 **Great Bug Reports** tend to have:
 

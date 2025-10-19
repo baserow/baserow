@@ -2,7 +2,7 @@
 
 > Any questions, problems or suggestions with this guide? Ask a question in our
 > [community](https://community.baserow.io/) or contribute the change yourself at
-> https://gitlab.com/baserow/baserow/-/tree/develop/docs .
+> https://github.com/baserow/baserow/tree/develop/docs .
 
 > Docker version 19.03 is the minimum required to use Baserow. It is strongly
 > advised however that you install the latest version of Docker available.

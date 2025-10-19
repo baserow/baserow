@@ -22,16 +22,16 @@ docker run -v baserow_data:/baserow/data -p 80:80 -p 443:443 baserow/baserow:1.3
 
 * **Maintained By**: [baserow.io](https://baserow.io/contact)
 * **Get Support At**: [The Baserow Community Forums](https://community.baserow.io)
-* **Source Code Available At**: [gitlab.com/baserow/baserow](https://gitlab.com/baserow/baserow)
+* **Source Code Available At**: [github.com/baserow/baserow](https://github.com/baserow/baserow)
 * **Docs At**: [baserow.io/docs](https://baserow.io/docs)
 * **License**: Open-Core with all non-premium and non-enterprise code under the MIT
   license.
 
 ## Supported tags and Dockerfile Links
 
-* [`X.Y.Z`](https://gitlab.com/baserow/baserow/-/blob/master/deploy/all-in-one/Dockerfile)
+* [`X.Y.Z`](https://github.com/baserow/baserow/blob/master/deploy/all-in-one/Dockerfile)
   Tagged by Baserow version.
-* [`latest`](https://gitlab.com/baserow/baserow/-/blob/master/deploy/all-in-one/Dockerfile)
+* [`latest`](https://github.com/baserow/baserow/blob/master/deploy/all-in-one/Dockerfile)
 * [`develop-latest`](https://gitlab.com/baserow/baserow/-/blob/develop/deploy/all-in-one/Dockerfile) 
   This is a bleeding edge image from our development branch, use at your own risk.
 

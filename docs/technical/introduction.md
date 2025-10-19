@@ -11,7 +11,7 @@ Baserow consists of two main components:
    backend and is made in [NuxtJS](https://nuxtjs.org/) and
    [Vue.js](https://vuejs.org/). It communicates to the backend via the REST API.
    
-![server_diagram](https://gitlab.com/baserow/baserow/-/raw/master/docs/assets/diagrams/server-architecture.png "Server Architecture")
+![server_diagram](https://raw.githubusercontent.com/baserow/baserow/refs/heads/master/docs/assets/diagrams/server-architecture.png "Server Architecture")
 
 ## Backend
 
