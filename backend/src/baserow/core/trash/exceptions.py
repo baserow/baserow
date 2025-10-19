@@ -61,3 +61,11 @@ class TrashItemRestorationDisallowed(Exception):
     Raised when an item cannot be restored from the trash due to specific conditions.
     This could be due to the item being in a state that does not allow restoration.
     """
+
+
+class CannotUndoRestoreError(Exception):
+    """
+    Raised when attempting to undo a restore operation but the item cannot be 
+    returned to trash due to a state mismatch. This typically occurs when the 
+    item has been modified or is no longer in the expected state after restoration.
+    """

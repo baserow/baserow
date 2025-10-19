@@ -11,6 +11,7 @@ from loguru import logger
 from opentelemetry import trace
 
 from baserow.core.exceptions import LockConflict
+from baserow.core.trash.exceptions import CannotUndoRestoreError
 from baserow.core.telemetry.utils import baserow_trace, baserow_trace_methods
 
 from .models import Action
@@ -133,6 +134,8 @@ class ActionHandler(metaclass=baserow_trace_methods(tracer)):
                 for action in actions_being_undone:
                     cls._undo_action(user, action, undone_at)
         except LockConflict:
+            raise
+        except CannotUndoRestoreError:
             raise
         except Exception:
             # if any single action fails, rollback and set the same error for all.

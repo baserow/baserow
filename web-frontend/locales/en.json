@@ -420,6 +420,8 @@
     "failedToLockTableDueToConflictDescription": "Another operation is currently updating or using this table, please wait until it finishes before trying again.",
     "failedToUndoRedoDueToConflictTitle": "Can't undo/redo",
     "failedToUndoRedoDueToConflictDescription": "Another operation is currently running blocking your undo or redo, please wait until it finishes before trying again.",
+    "cannotUndoRestoreTitle": "Cannot undo restore",
+    "cannotUndoRestoreDescription": "Cannot undo restore operation. The item cannot be returned to trash due to a state mismatch. This may occur if the item was modified after restoration.",
     "maximumSnapshotsReachedTitle": "Snapshots limit reached",
     "maximumSnapshotsReachedDescription": "The maximum number of snapshots in a workspace has been reached.",
     "snapshotBeingCreatedTitle": "A snapshot is already being created",

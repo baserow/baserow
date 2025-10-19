@@ -56,6 +56,7 @@ from baserow.core.exceptions import (
 )
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Settings, Template, WorkspaceInvitation
+from baserow.core.trash.exceptions import CannotUndoRestoreError
 from baserow.core.user.actions import (
     ChangeUserPasswordActionType,
     CreateUserActionType,
@@ -84,6 +85,7 @@ from baserow.core.user.utils import generate_session_tokens_for_user
 from .errors import (
     ERROR_ALREADY_EXISTS,
     ERROR_AUTH_PROVIDER_DISABLED,
+    ERROR_CANNOT_UNDO_RESTORE,
     ERROR_CLIENT_SESSION_ID_HEADER_NOT_SET,
     ERROR_DEACTIVATED_USER,
     ERROR_DISABLED_RESET_PASSWORD,
@@ -660,6 +662,7 @@ class DashboardView(APIView):
 UNDO_REDO_EXCEPTIONS_MAP = {
     ClientSessionIdHeaderNotSetException: ERROR_CLIENT_SESSION_ID_HEADER_NOT_SET,
     LockConflict: ERROR_UNDO_REDO_LOCK_CONFLICT,
+    CannotUndoRestoreError: ERROR_CANNOT_UNDO_RESTORE,
 }
 
 
