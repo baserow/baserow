@@ -1,0 +1,23 @@
+name: 💡 Feature Request
+description: Suggest an idea or feature for Baserow.
+labels: ["needs feedback ⚠️", "feature request 💡"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        If you have a vague idea or want feedback, please use the community forum first:
+        https://community.baserow.io/
+
+  - type: textarea
+    id: feature-description
+    attributes:
+      label: Feature description
+      description: What is the desired new feature?
+    validations:
+      required: true
+
+  - type: textarea
+    id: examples
+    attributes:
+      label: Examples
+      description: Are there any examples of this feature in other software?
