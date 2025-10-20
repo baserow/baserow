@@ -373,7 +373,6 @@ jobs:
           docker run \
             --name=baserow_backend_test_container \
             --network="${{ job.services.db.network }}" \
-#            -e PYTEST_SPLITS=10 \
             -e PYTEST_SPLITS=100 \
             -e PYTEST_SPLIT_GROUP=${{ matrix.group }} \
             -e DATABASE_HOST=db \
@@ -420,7 +419,6 @@ jobs:
       fail-fast: false
       matrix:
         shard: [1]
-#        shard: [1, 2, 3, 4]
     steps:
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
@@ -435,7 +433,6 @@ jobs:
           docker run \
             --name=webfrontend_test \
             -e JEST_SHARD_INDEX=${{ matrix.shard }} \
-#            -e JEST_SHARD_TOTAL=4 \
             -e JEST_SHARD_TOTAL=40 \
             ${{ needs.build-frontend.outputs.image }} ci-test | tee reports/stdout.txt
           docker cp webfrontend_test:/baserow/reports/. ./reports
@@ -539,7 +536,6 @@ jobs:
       fail-fast: false
       matrix:
         shard: [1]
-#        shard: [1, 2, 3, 4]
     services:
       db:
         image: pgvector/pgvector:pg13
@@ -664,7 +660,6 @@ jobs:
           PRIVATE_BACKEND_URL: http://backend:8000
         run: |
           cd e2e-tests
-#          CI=1 npx playwright test --timeout=30000 --grep-invert=@slow --shard=${{ matrix.shard }}/4 --project=firefox
           CI=1 npx playwright test --timeout=30000 --grep-invert=@slow --shard=${{ matrix.shard }}/40 --project=firefox
 
       - name: Upload E2E test results
@@ -780,7 +775,6 @@ jobs:
       - [test-backend]
       - [test-e2e]
       - backend-lint
-#    if: github.ref_name == 'develop' || github.ref_name == 'master'
     permissions:
       contents: read
       packages: write
@@ -818,7 +812,6 @@ jobs:
       - [test-frontend]
       - [test-e2e]
       - frontend-lint
-#    if: github.ref_name == 'develop' || github.ref_name == 'master'
     permissions:
       contents: read
       packages: write
@@ -855,7 +848,6 @@ jobs:
     needs:
       - build-final-backend
       - build-final-web-frontend
-#    if: github.ref_name == 'develop' || github.ref_name == 'master'
     permissions:
       contents: read
       packages: write
@@ -893,7 +885,6 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - build-final-all-in-one
-#    if: github.ref_name == 'develop' || github.ref_name == 'master'
     permissions:
       contents: read
       packages: write
