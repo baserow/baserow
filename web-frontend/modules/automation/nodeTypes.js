@@ -730,6 +730,7 @@ export class CoreRouterNodeType extends ActionNodeTypeMixin(
    */
   getOutputNodes({ workflow, router }) {
     const edgeUids = this.getEdges({ node: router }).map((edge) => edge.uid)
+    // TODO
     return this.app.store.getters['automationWorkflowNode/getNodes'](
       workflow
     ).filter(

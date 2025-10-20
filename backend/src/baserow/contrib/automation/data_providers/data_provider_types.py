@@ -82,6 +82,7 @@ class CurrentIterationDataProviderType(AutomationDataProviderType):
             )
             raise InvalidFormulaContext(message) from exc
 
+        print("context", dispatch_context.current_iterations)
         try:
             current_iteration = dispatch_context.current_iterations[parent_node_id]
         except KeyError as exc:

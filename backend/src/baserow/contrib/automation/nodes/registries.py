@@ -6,11 +6,7 @@ from baserow.contrib.automation.automation_dispatch_context import (
     AutomationDispatchContext,
 )
 from baserow.contrib.automation.formula_importer import import_formula
-from baserow.contrib.automation.nodes.exceptions import (
-    AutomationNodeBeforeInvalid,
-    AutomationNodeNotInWorkflow,
-    AutomationNodeNotReplaceable,
-)
+from baserow.contrib.automation.nodes.exceptions import AutomationNodeNotReplaceable
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.types import AutomationNodeDict
 from baserow.core.integrations.models import Integration
@@ -58,9 +54,6 @@ class AutomationNodeType(
     def allowed_fields(self):
         return super().allowed_fields + [
             "label",
-            "previous_node_id",
-            "parent_node_id",
-            "previous_node_output",
             "service",
         ]
 
@@ -140,9 +133,6 @@ class AutomationNodeType(
         storage=None,
         cache=None,
     ):
-        if prop_name == "order":
-            return str(node.order)
-
         if prop_name == "service":
             service = node.service.specific
             return service.get_type().export_serialized(
@@ -175,12 +165,6 @@ class AutomationNodeType(
         :param id_mapping: the id mapping dict.
         :return: the deserialized version for this property.
         """
-
-        if prop_name in ["previous_node_id", "parent_node_id"] and value:
-            return id_mapping["automation_workflow_nodes"][value]
-
-        if prop_name == "previous_node_output" and value:
-            return id_mapping["automation_edge_outputs"].get(value, value)
 
         if prop_name == "service" and value:
             integration = None
@@ -270,21 +254,8 @@ class AutomationNodeType(
 
         values["service"] = service
 
-        if instance:
-            workflow = instance.workflow
-
-        else:
-            workflow = values["workflow"]
-
-        if (previous_node_id := values.get("previous_node_id", None)) is not None:
-            values["previous_node"] = AutomationNodeHandler().get_node(previous_node_id)
-            if workflow.id != values["previous_node"].workflow_id:
-                raise AutomationNodeNotInWorkflow(values["previous_node"].id)
-
-        if (parent_node_id := values.get("parent_node_id", None)) is not None:
-            values["parent_node"] = AutomationNodeHandler().get_node(parent_node_id)
-            if workflow.id != values["parent_node"].workflow_id:
-                raise AutomationNodeNotInWorkflow(values["parent_node"].id)
+        if (position_node_id := values.get("position_node_id", None)) is not None:
+            values["position_node"] = AutomationNodeHandler().get_node(position_node_id)
 
         return values
 

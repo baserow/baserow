@@ -126,19 +126,19 @@ def test_run_workflow_with_router_action(data_fixture):
     database = data_fixture.create_database_application(workspace=workspace)
     trigger_table = data_fixture.create_database_table(database=database)
     workflow = data_fixture.create_automation_workflow(
-        user=user, state=WorkflowState.LIVE
+        user=user,
+        state=WorkflowState.LIVE,
+        trigger_service_kwargs={"table": trigger_table, "integration": integration},
     )
+
     trigger = workflow.get_trigger()
-    trigger_service = trigger.service.specific
-    trigger_service.table = trigger_table
-    trigger_service.integration = integration
-    trigger_service.save()
-    router_service = data_fixture.create_core_router_service()
+
     router_node = data_fixture.create_core_router_action_node(
-        workflow=workflow, service=router_service
+        workflow=workflow,
     )
+
     data_fixture.create_core_router_service_edge(
-        service=router_service, label="Edge 1", condition="'false'"
+        service=router_node.service, label="Edge 1", condition="'false'"
     )
 
     action_table = data_fixture.create_database_table(database=database)
@@ -146,26 +146,38 @@ def test_run_workflow_with_router_action(data_fixture):
     action_table_row = action_table.get_model().objects.create(
         **{f"field_{action_table_field.id}": "Horse"}
     )
+    edge2 = data_fixture.create_core_router_service_edge(
+        service=router_node.service,
+        label="Edge 2",
+        condition="'true'",
+        skip_output_node=True,
+    )
     edge2_output_node = data_fixture.create_local_baserow_update_row_action_node(
         workflow=workflow,
-        previous_node=router_node,
-        service=data_fixture.create_local_baserow_upsert_row_service(
-            table=action_table,
-            integration=integration,
-            row_id=action_table_row.id,
-        ),
+        position_node=router_node,
+        position="south",
+        output=edge2.uid,
+        service_kwargs={
+            "table": action_table,
+            "integration": integration,
+            "row_id": action_table_row.id,
+        },
     )
     edge2_output_node.service.field_mappings.create(
         field=action_table_field, value="'Badger'"
     )
-    edge2 = data_fixture.create_core_router_service_edge(
-        service=router_service,
-        label="Edge 2",
-        condition="'true'",
-        output_node=edge2_output_node,
+
+    workflow.assert_reference(
+        {
+            "0": "rows_created",
+            "rows_created": {"next": {"": ["router"]}},
+            "router": {
+                "next": {"Edge 1": ["Edge 1 output node"], "Edge 2": ["update_row"]}
+            },
+            "Edge 1 output node": {},
+            "update_row": {},
+        }
     )
-    edge2_output_node.previous_node_output = edge2.uid
-    edge2_output_node.save()
 
     dispatch_context = AutomationDispatchContext(workflow, {})
     AutomationNodeHandler().dispatch_node(workflow.get_trigger(), dispatch_context)
@@ -238,7 +250,9 @@ def iterator_graph_fixture(data_fixture):
 
     iterator_node = data_fixture.create_core_iterator_action_node(
         workflow=workflow,
-        previous_node=trigger,
+        position_node=trigger,
+        position="south",
+        output="",
         service_kwargs={
             "source": f'get("previous_node.{trigger.id}")',
             "integration": integration,
@@ -247,7 +261,10 @@ def iterator_graph_fixture(data_fixture):
 
     action_node = data_fixture.create_local_baserow_create_row_action_node(
         workflow=workflow,
-        parent_node=iterator_node,
+        position_node=iterator_node,
+        position="child",
+        output="",
+        label="First action",
         service_kwargs={"table": action_table, "integration": integration},
     )
     action_node.service.specific.field_mappings.create(
@@ -257,7 +274,10 @@ def iterator_graph_fixture(data_fixture):
 
     action2_node = data_fixture.create_local_baserow_create_row_action_node(
         workflow=workflow,
-        previous_node=iterator_node,
+        position_node=iterator_node,
+        position="south",
+        output="",
+        label="After iterator",
         service_kwargs={"table": action2_table, "integration": integration},
     )
     action2_node.service.specific.field_mappings.create(
@@ -267,8 +287,10 @@ def iterator_graph_fixture(data_fixture):
 
     action3_node = data_fixture.create_local_baserow_create_row_action_node(
         workflow=workflow,
-        previous_node=action_node,
-        parent_node=iterator_node,
+        position_node=action_node,
+        position="south",
+        output="",
+        label="Second action",
         service_kwargs={"table": action3_table, "integration": integration},
     )
     action3_node.service.specific.field_mappings.create(
@@ -297,6 +319,17 @@ def test_run_workflow_with_iterator_action(iterator_graph_fixture):
     action2_table_fields = iterator_graph_fixture["action2_table_fields"]
     action3_table = iterator_graph_fixture["action3_table"]
     action3_table_fields = iterator_graph_fixture["action3_table_fields"]
+
+    workflow.assert_reference(
+        {
+            "0": "rows_created",
+            "rows_created": {"next": {"": ["iterator"]}},
+            "iterator": {"child": ["First action"], "next": {"": ["After iterator"]}},
+            "First action": {"next": {"": ["Second action"]}},
+            "Second action": {},
+            "After iterator": {},
+        }
+    )
 
     dispatch_context = AutomationDispatchContext(
         workflow,
@@ -335,11 +368,21 @@ def test_run_workflow_with_iterator_action_simulate(iterator_graph_fixture):
     action2_table = iterator_graph_fixture["action2_table"]
     action3_table = iterator_graph_fixture["action3_table"]
 
+    workflow.assert_reference(
+        {
+            "0": "rows_created",
+            "rows_created": {"next": {"": ["iterator"]}},
+            "iterator": {"child": ["First action"], "next": {"": ["After iterator"]}},
+            "First action": {"next": {"": ["Second action"]}},
+            "Second action": {},
+            "After iterator": {},
+        }
+    )
+
     dispatch_context = AutomationDispatchContext(
         workflow,
         simulate_until_node=action_node,
     )
-
     AutomationNodeHandler().dispatch_node(workflow.get_trigger(), dispatch_context)
 
     # At this point only nodes until the action_node should have been executed
