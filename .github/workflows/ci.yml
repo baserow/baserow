@@ -869,8 +869,8 @@ jobs:
           file: deploy/all-in-one/Dockerfile
           push: true
           build-args: |
-            FROM_BACKEND=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/backend:ci-tested-${{ github.sha }}
-            FROM_WEBFRONTEND=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/web-frontend:ci-tested-${{ github.sha }}
+            FROM_BACKEND_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/backend:ci-tested-${{ github.sha }}
+            FROM_WEBFRONTEND_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/web-frontend:ci-tested-${{ github.sha }}
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/baserow:ci-tested-${{ github.sha }}
           cache-to: type=inline
@@ -906,7 +906,7 @@ jobs:
           file: deploy/cloudron/Dockerfile
           push: true
           build-args: |
-            FROM_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/baserow:ci-tested-${{ github.sha }}
+            FROM_ALL_IN_ONE_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/baserow:ci-tested-${{ github.sha }}
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/cloudron:ci-tested-${{ github.sha }}
           cache-to: type=inline
