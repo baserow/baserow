@@ -39,6 +39,7 @@ from baserow.contrib.database.api.constants import (
     ADHOC_FILTERS_API_PARAMS,
     INCLUDE_OPERATION_METADATA,
     SEARCH_MODE_API_PARAM,
+    EXCLUDE_COUNT_API_PARAM,
 )
 from baserow.contrib.database.api.fields.errors import (
     ERROR_FIELD_DATA_CONSTRAINT,
@@ -307,6 +308,7 @@ class RowsView(APIView):
                 description="Includes all the filters and sorts of the provided view.",
             ),
             SEARCH_MODE_API_PARAM,
+            EXCLUDE_COUNT_API_PARAM,
         ],
         tags=["Database table rows"],
         operation_id="list_database_table_rows",
