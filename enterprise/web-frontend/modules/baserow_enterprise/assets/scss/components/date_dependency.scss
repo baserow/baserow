@@ -1,7 +1,9 @@
 
 .date-dependency__circle {
   r: 4px;
-  fill: $palette-neutral-0;
+  stroke: $palette-neutral-600;
+  stroke-width: 1px;
+  fill: $palette-neutral-100;
   visibility: hidden;
   cursor: move;
   pointer-events: all;
@@ -27,6 +29,8 @@
 .date-dependency__bounding-box {
   pointer-events: none;
   display: none;
+  fill: $palette-yellow-500;
+  opacity: 0.01;
 }
 
 
@@ -44,7 +48,7 @@
   stroke-width: 1px;
   stroke-linejoin: round;
   stroke-linecap: round;
-  pointer-events: all;
+  pointer-events: stroke;
 
   &--creating {
     fill: none;
@@ -54,6 +58,13 @@
   }
 
 }
+
+.date-dependency__text {
+      fill: $palette-red-500;
+      stroke-dasharray: none;
+      stroke-width: 0;
+    }
+
 
 .date-dependency__remove-connection {
   stroke: $palette-red-400;
@@ -84,13 +95,10 @@
 
   &--invalid {
     stroke: $palette-red-500;
-    stroke-dasharray: 5 2;
+    stroke-dasharray: 5 4;
 
     .date-dependency__text {
       visibility: hidden;
-      stroke-width: 0;
-      fill: $palette-red-500;
-      stroke-dasharray: none;
     }
   }
 
@@ -102,22 +110,20 @@
     }
 
     .date-dependency__path {
-      stroke-width: 2px;
+      stroke-width: 3px;
     }
 
     .date-dependency__text {
       visibility: visible;
     }
-
   }
-
-
 }
 
 .date-dependency__bounding-box-activator {
   visibility: hidden;
   display: none;
   position: absolute;
+  fill: none;
 }
 
 
@@ -144,18 +150,13 @@
       display: block;
       visibility: visible;
       pointer-events: all;
-      fill: $palette-yellow-500;
-      opacity: 0.01;
     }
 
     .date-dependency__bounding-box-activator {
       display: block;
       visibility: visible;
-      fill: none;
       pointer-events: all;
-      position: absolute;
     }
-
   }
 }
 
@@ -163,5 +164,4 @@
   pointer-events: none !important;
   display: none !important;
   visibility: hidden;
-
 }

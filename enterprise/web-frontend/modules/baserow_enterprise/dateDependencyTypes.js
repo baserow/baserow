@@ -1,8 +1,24 @@
+import _ from 'lodash'
 import { Registerable } from '@baserow/modules/core/registry'
 import DateDependencyMenuItem from '@baserow_enterprise/components/dateDependency/DateDependencyMenuItem'
 import TimelineFieldRuleType from '@baserow_premium/timelineFieldRuleType'
 import { FF_DATE_DEPENDENCY } from '@baserow/modules/core/plugins/featureFlags'
 import DateDependencyConnection from '@baserow_enterprise/components/dateDependency/DateDependencyConnection'
+
+// Date dependency on timeline views
+// seconds for a full day
+export const FULL_DAY = 86400
+// pixels to offset a handler for a row
+export const HANDLER_POINT_OFFSET = 16
+// round corner radius in px
+export const ROUND_RADIUS = 10
+
+// arrow size
+export const ARROW_HEIGHT = 8
+export const ARROW_WIDTH = 5
+
+// a minor adjustment for y coordinate to cover padding/margin of an element
+export const ADJUST_FOR_PADDING = 3
 
 export const DependencyLinkRowRoles = {
   PREDECESSORS: 'predecessors',
@@ -96,5 +112,216 @@ export class DateDependencyTimelineComponent extends TimelineFieldRuleType {
     ) {
       return DateDependencyConnection
     }
+  }
+}
+
+/**
+ * Helper class to handle point data and drawing operations in svg.
+ */
+export class Point {
+  constructor(x, y) {
+    this.x = x
+    this.y = y
+  }
+
+  setX(x) {
+    this.x = x
+    return this
+  }
+
+  movX(dx) {
+    return this.setX(this.x + dx)
+  }
+
+  movY(dy) {
+    return this.setY(this.y + dy)
+  }
+
+  setY(y) {
+    this.y = y
+    return this
+  }
+
+  get coordX() {
+    return this.x.toFixed()
+  }
+
+  get coordY() {
+    return this.y.toFixed()
+  }
+
+  commandDrawLine() {
+    return `L ${this.commandPoint()}`
+  }
+
+  commandMove() {
+    return `M ${this.commandPoint()}`
+  }
+
+  commandPoint() {
+    return ` ${this.coordX},${this.coordY} `
+  }
+
+  commandRoundRightDown(radius = ROUND_RADIUS) {
+    const init = _.clone(this)
+    this.movX(radius).movY(radius)
+
+    return `C ${init.x} ${init.y + radius},  ${init.x} ${init.y + radius}, ${
+      this.coordX
+    } ${this.coordY}`
+  }
+
+  commandRoundLeftDown(radius = ROUND_RADIUS) {
+    const init = _.clone(this)
+    this.movX(-radius).movY(radius)
+
+    return `C ${init.x} ${init.y + radius},  ${init.x} ${init.y + radius}, ${
+      this.coordX
+    } ${this.coordY}`
+  }
+
+  commandRoundRightUp(radius = ROUND_RADIUS) {
+    const init = _.clone(this)
+    this.movX(radius).movY(-radius)
+
+    return `C ${init.x} ${init.y - radius},  ${init.x} ${init.y - radius}, ${
+      this.coordX
+    } ${this.coordY}`
+  }
+
+  commandRoundLeftUp(radius = ROUND_RADIUS) {
+    const init = _.clone(this)
+    this.movX(-radius).movY(-radius)
+
+    return `C ${init.x} ${init.y - radius},  ${init.x} ${init.y - radius}, ${
+      this.coordX
+    } ${this.coordY}`
+  }
+
+  /**
+   * Creates an arrow pointing to the left
+   *
+   *  /
+   *  \
+   *
+   * @param arrowWidth
+   * @param arrowHeight
+   * @returns {string}
+   */
+  commandHorizontalArrowEndLeft(
+    arrowWidth = ARROW_WIDTH,
+    arrowHeight = ARROW_HEIGHT
+  ) {
+    const arrow = _.clone(this)
+    const commands = []
+    arrow.movX(arrowWidth).movY(-arrowHeight / 2)
+    commands.push(arrow.commandMove())
+    arrow.movX(-arrowWidth).movY(arrowHeight / 2)
+    commands.push(arrow.commandDrawLine())
+    arrow.movX(arrowWidth).movY(arrowHeight / 2)
+    commands.push(arrow.commandDrawLine())
+
+    return commands.join(' ')
+  }
+
+  /**
+   * Creates an arrow pointing to the right
+   *
+   *  \
+   *  /
+   *
+   * @param arrowWidth
+   * @param arrowHeight
+   * @returns {string}
+   */
+  commandHorizontalArrowEndRight(
+    arrowWidth = ARROW_WIDTH,
+    arrowHeight = ARROW_HEIGHT
+  ) {
+    const arrow = _.clone(this)
+    const commands = []
+    arrow.movX(-arrowWidth).movY(-arrowHeight / 2)
+    commands.push(arrow.commandMove())
+    arrow.movX(arrowWidth).movY(arrowHeight / 2)
+    commands.push(arrow.commandDrawLine())
+    arrow.movX(-arrowWidth).movY(arrowHeight / 2)
+    commands.push(arrow.commandDrawLine())
+
+    return commands.join(' ')
+  }
+}
+
+/**
+ * Helper class to handle date dependency rows
+ */
+export class DateDependencyRow {
+  constructor(rule, row) {
+    this.rule = rule
+    this.row = row
+  }
+
+  get startDate() {
+    return Date.parse(this.getFieldValue('start_date_field_id'))
+  }
+
+  get endDate() {
+    return Date.parse(this.getFieldValue('end_date_field_id'))
+  }
+
+  get duration() {
+    return this.getFieldValue('duration_field_id')
+  }
+
+  get linkrow() {
+    return this.getFieldValue('dependency_linkrow_field_id')
+  }
+
+  getFieldValue(ruleFieldName) {
+    const fieldName = this.getFieldName(this.rule[ruleFieldName])
+    if (fieldName === null) {
+      return
+    }
+    return this.row[fieldName]
+  }
+
+  getFieldName(fieldId) {
+    return fieldId ? `field_${fieldId}` : null
+  }
+
+  getErrorMessage() {
+    if (!this.startDate) {
+      return 'dateDependency.invalidStartDateEmpty'
+    }
+    if (!this.endDate) {
+      return 'dateDependency.invalidEndDateEmpty'
+    }
+    if (this.endDate < this.startDate) {
+      return 'dateDependency.invalidEndDateBeforeStartDate'
+    }
+    if (!this.duration) {
+      return 'dateDependency.invalidDurationEmpty'
+    }
+    if (this.duration < FULL_DAY) {
+      return 'dateDependency.invalidDurationValue'
+    }
+    // date diff is in milliseconds, so we convert it to seconds
+    if (this.duration !== (this.endDate - this.startDate) / 1000 + FULL_DAY) {
+      return 'dateDependency.invalidDurationMismatch'
+    }
+  }
+
+  isValid() {
+    const startDate = this.startDate
+    const endDate = this.endDate
+
+    return (
+      _.isInteger(startDate) &&
+      _.isInteger(endDate) &&
+      _.isInteger(this.duration) &&
+      this.duration >= FULL_DAY &&
+      startDate < endDate &&
+      // date diff is in milliseconds, so we convert it to seconds
+      (endDate - startDate) / 1000 === this.duration - FULL_DAY
+    )
   }
 }

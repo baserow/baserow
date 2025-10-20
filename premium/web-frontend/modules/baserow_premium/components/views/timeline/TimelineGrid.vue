@@ -115,6 +115,24 @@ export default {
     TimelineGridRow,
     TimelineGridShowRowButton,
   },
+  provide: function () {
+    const that = this
+    return {
+      getRowPosition: (rowItem) => {
+        if (!rowItem.item) {
+          return
+        }
+        const pos = that.getRowStyleProps(rowItem.item)
+        const out = {
+          left: pos.leftPadding + pos.left,
+          top: rowItem.position.top,
+          width: pos.width,
+          height: that.rowHeight,
+        }
+        return out
+      },
+    }
+  },
   props: {
     columnsBuffer: {
       type: Array,
