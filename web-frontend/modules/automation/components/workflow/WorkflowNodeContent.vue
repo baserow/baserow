@@ -93,6 +93,7 @@
     <WorkflowNodeContext
       ref="replaceNodeContext"
       :node="node"
+      :only-trigger="nodeType.isTrigger"
       @change="emit('replace-node', { node: node, type: $event })"
     />
   </div>
@@ -104,7 +105,6 @@ import { useVueFlow } from '@vue2-flow/core'
 import { useStore, useContext, inject, computed } from '@nuxtjs/composition-api'
 import WorkflowNodeContext from '@baserow/modules/automation/components/workflow/WorkflowNodeContext'
 import flushPromises from 'flush-promises'
-import { CoreRouterNodeType } from '@baserow/modules/automation/nodeTypes'
 
 const { onMove } = useVueFlow()
 const props = defineProps({
@@ -223,11 +223,7 @@ const isInteractionReady = computed(() => {
  */
 const displayLabel = computed(() => {
   return props.debug
-    ? `ID: ${props.node.id} | Prev: ${
-        props.node.previous_node_id || '-'
-      } | Out: ${
-        props.node.previous_node_output.substring(0, 5) || '-'
-      } | Par: ${props.node.parent_node_id || '-'}`
+    ? `ID: ${props.node.id}`
     : nodeType.value.getLabel({
         automation: automation.value,
         node: props.node,
@@ -268,12 +264,15 @@ const getDeleteErrorMessage = computed(() => {
  * @returns {string} - The label to display before the node label.
  */
 const getDataBeforeLabel = computed(() => {
-  const previousNode = store.getters['automationWorkflowNode/getPreviousNode'](
+  /* const previousNode = store.getters['automationWorkflowNode/getPreviousNode'](
     workflow.value,
     props.node
-  )
+  ) */
+  return nodeType.value.isTrigger
+    ? app.i18n.t('workflowNode.beforeLabelTrigger')
+    : app.i18n.t('workflowNode.beforeLabelAction')
   // TODO use a generic way to handle that not specific to router node
-  const previousNodeIsRouter =
+  /* const previousNodeIsRouter =
     previousNode?.type === CoreRouterNodeType.getType()
   const isOutputNode = props.node.previous_node_output.length > 0
   switch (true) {
@@ -285,6 +284,6 @@ const getDataBeforeLabel = computed(() => {
       return app.i18n.t('workflowNode.beforeLabelConditionDefault')
     default:
       return app.i18n.t('workflowNode.beforeLabelAction')
-  }
+  } */
 })
 </script>

@@ -30,7 +30,7 @@ def test_periodic_trigger_service_type_generate_schema(data_fixture):
     user = data_fixture.create_user()
     automation = data_fixture.create_automation_application(user=user)
     workflow = data_fixture.create_automation_workflow(
-        automation=automation, state=WorkflowState.LIVE
+        automation=automation, state=WorkflowState.LIVE, create_trigger=False
     )
     trigger_node = data_fixture.create_periodic_trigger_node(
         workflow=workflow,
@@ -52,7 +52,7 @@ def test_periodic_trigger_node_creation_and_property_updates(data_fixture):
     user = data_fixture.create_user()
     automation = data_fixture.create_automation_application(user=user)
     workflow = data_fixture.create_automation_workflow(
-        automation=automation, state=WorkflowState.LIVE
+        automation=automation, state=WorkflowState.LIVE, create_trigger=False
     )
 
     node_handler = AutomationNodeHandler()
@@ -107,7 +107,7 @@ def test_call_periodic_services_that_are_not_published(
     user = data_fixture.create_user()
     automation = data_fixture.create_automation_application(user=user)
     workflow = data_fixture.create_automation_workflow(
-        automation=automation, state=WorkflowState.DRAFT
+        automation=automation, state=WorkflowState.DRAFT, create_trigger=False
     )
     data_fixture.create_periodic_trigger_node(
         workflow=workflow,
@@ -134,7 +134,7 @@ def test_call_periodic_services_that_are_paused(mock_start_workflow, data_fixtur
     user = data_fixture.create_user()
     automation = data_fixture.create_automation_application(user=user)
     workflow = data_fixture.create_automation_workflow(
-        automation=automation, state=WorkflowState.PAUSED
+        automation=automation, state=WorkflowState.PAUSED, create_trigger=False
     )
     data_fixture.create_periodic_trigger_node(
         workflow=workflow,
@@ -161,7 +161,7 @@ def test_call_periodic_services_that_are_locked(mock_start_workflow, data_fixtur
     user = data_fixture.create_user()
     automation = data_fixture.create_automation_application(user=user)
     workflow = data_fixture.create_automation_workflow(
-        automation=automation, state=WorkflowState.LIVE
+        automation=automation, state=WorkflowState.LIVE, create_trigger=False
     )
     trigger = data_fixture.create_periodic_trigger_node(
         workflow=workflow,
@@ -195,7 +195,7 @@ def test_call_multiple_periodic_services_that_are_due(
     user = data_fixture.create_user()
     automation = data_fixture.create_automation_application(user=user)
     workflow_1 = data_fixture.create_automation_workflow(
-        automation=automation, state=WorkflowState.LIVE
+        automation=automation, state=WorkflowState.LIVE, create_trigger=False
     )
     data_fixture.create_periodic_trigger_node(
         workflow=workflow_1,
@@ -205,7 +205,7 @@ def test_call_multiple_periodic_services_that_are_due(
         },
     )
     workflow_2 = data_fixture.create_automation_workflow(
-        automation=automation, state=WorkflowState.LIVE
+        automation=automation, state=WorkflowState.LIVE, create_trigger=False
     )
     data_fixture.create_periodic_trigger_node(
         workflow=workflow_2,
@@ -599,7 +599,7 @@ def test_call_periodic_services_that_are_due(
     user = data_fixture.create_user()
     automation = data_fixture.create_automation_application(user=user)
     workflow = data_fixture.create_automation_workflow(
-        automation=automation, state=WorkflowState.LIVE
+        automation=automation, state=WorkflowState.LIVE, create_trigger=False
     )
     trigger = data_fixture.create_periodic_trigger_node(
         workflow=workflow,

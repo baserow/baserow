@@ -13,7 +13,6 @@ from baserow.contrib.automation.nodes.node_types import (
     CorePeriodicTriggerNodeType,
     LocalBaserowRowsCreatedNodeTriggerType,
 )
-from baserow.contrib.automation.nodes.types import AutomationNodeDict
 from baserow.contrib.automation.workflows.constants import (
     ALLOW_TEST_RUN_MINUTES,
     WorkflowState,
@@ -269,6 +268,36 @@ def test_duplicate_workflow(data_fixture):
 
 
 @pytest.mark.django_db
+def test_duplicate_workflow_with_nodes(data_fixture):
+    workflow = data_fixture.create_automation_workflow(name="test")
+    data_fixture.create_core_router_action_node_with_edges(
+        workflow=workflow,
+        position_node=workflow.get_trigger(),
+    )
+
+    reference = {
+        "0": "rows_created",
+        "fallback node": {},
+        "output edge 1": {},
+        "output edge 2": {},
+        "router": {
+            "next": {
+                "Default": ["fallback node"],
+                "Do that": ["output edge 2"],
+                "Do this": ["output edge 1"],
+            }
+        },
+        "rows_created": {"next": {"": ["router"]}},
+    }
+
+    workflow.assert_reference(reference)
+
+    workflow_clone = AutomationWorkflowHandler().duplicate_workflow(workflow)
+
+    workflow_clone.assert_reference(reference)
+
+
+@pytest.mark.django_db
 def test_import_workflow_only(data_fixture):
     automation = data_fixture.create_automation_application()
 
@@ -303,27 +332,6 @@ def test_export_prepared_values(data_fixture):
         "allow_test_run_until": None,
         "state": WorkflowState.DRAFT,
     }
-
-
-def test_sort_serialized_nodes_by_priority():
-    serialized_nodes = [
-        AutomationNodeDict(id=1, parent_node_id=None, order=0),
-        AutomationNodeDict(id=2, parent_node_id=1, order=0),
-        AutomationNodeDict(id=3, parent_node_id=1, order=1),
-        AutomationNodeDict(id=4, parent_node_id=1, order=2),
-        AutomationNodeDict(id=5, parent_node_id=None, order=1),
-        AutomationNodeDict(id=6, parent_node_id=None, order=2),
-    ]
-    assert AutomationWorkflowHandler()._sort_serialized_nodes_by_priority(
-        serialized_nodes
-    ) == [
-        AutomationNodeDict(id=1, parent_node_id=None, order=0),
-        AutomationNodeDict(id=5, parent_node_id=None, order=1),
-        AutomationNodeDict(id=6, parent_node_id=None, order=2),
-        AutomationNodeDict(id=2, parent_node_id=1, order=0),
-        AutomationNodeDict(id=3, parent_node_id=1, order=1),
-        AutomationNodeDict(id=4, parent_node_id=1, order=2),
-    ]
 
 
 @pytest.mark.django_db

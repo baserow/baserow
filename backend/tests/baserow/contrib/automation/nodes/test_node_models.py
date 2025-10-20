@@ -30,7 +30,7 @@ def test_get_previous_service_outputs(data_fixture):
     trigger = workflow.get_trigger()
 
     router_a = data_fixture.create_core_router_action_node(
-        workflow=workflow, previous_node=trigger
+        workflow=workflow, label="router a"
     )
     router_a_edge_1 = data_fixture.create_core_router_service_edge(
         service=router_a.service,
@@ -47,8 +47,10 @@ def test_get_previous_service_outputs(data_fixture):
 
     router_b = data_fixture.create_core_router_action_node(
         workflow=workflow,
-        previous_node=router_a,
-        previous_node_output=router_a_edge_1.uid,
+        position_node=router_a,
+        position="south",
+        output=router_a_edge_1.uid,
+        label="router b",
     )
 
     data_fixture.create_core_router_service_edge(
@@ -65,19 +67,47 @@ def test_get_previous_service_outputs(data_fixture):
     )
 
     data_fixture.create_local_baserow_create_row_action_node(
-        workflow=workflow, previous_node=router_a
+        workflow=workflow,
+        position_node=router_a,
+        position="south",
+        output="",
+        label="action a",
     )
 
     data_fixture.create_local_baserow_create_row_action_node(
-        workflow=workflow, previous_node=router_b
+        workflow=workflow,
+        position_node=router_b,
+        position="south",
+        output="",
+        label="action b",
     )
     node_c_2 = data_fixture.create_local_baserow_create_row_action_node(
         workflow=workflow,
-        previous_node=router_b,
-        previous_node_output=router_b_edge_2.uid,
+        position_node=router_b,
+        position="south",
+        output=router_b_edge_2.uid,
+        label="action b on edge",
+    )
+
+    # TODO add a container
+
+    workflow.assert_reference(
+        {
+            "0": "rows_created",
+            "rows_created": {"next": {"": ["router a"]}},
+            "router a": {"next": {"": ["action a"], "Router A, Edge 1": ["router b"]}},
+            "action a": {},
+            "router b": {
+                "next": {"": ["action b"], "Router B, Edge 2": ["action b on edge"]}
+            },
+            "action b": {},
+            "action b on edge": {},
+        }
     )
 
     result = node_c_2.get_previous_service_outputs()
+
+    print(result)
 
     assert result == {
         trigger.service_id: "",

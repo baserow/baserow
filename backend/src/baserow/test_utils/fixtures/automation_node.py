@@ -36,12 +36,6 @@ class CoreRouterWithEdges:
 
 class AutomationNodeFixtures:
     def create_automation_node(self, user=None, **kwargs):
-        workflow = kwargs.pop("workflow", None)
-        if not workflow:
-            if user is None:
-                user = self.create_user()
-            workflow = self.create_automation_workflow(user)
-
         _node_type = kwargs.pop("type", None)
         if _node_type is None:
             node_type = automation_node_type_registry.get("create_row")
@@ -50,6 +44,14 @@ class AutomationNodeFixtures:
         else:
             node_type = _node_type
 
+        workflow = kwargs.pop("workflow", None)
+        if not workflow:
+            if user is None:
+                user = self.create_user()
+            workflow = self.create_automation_workflow(
+                user, create_trigger=not node_type.is_workflow_trigger
+            )
+
         if "service" not in kwargs:
             service_kwargs = kwargs.pop("service_kwargs", {})
             service_type = service_type_registry.get(node_type.service_type)
@@ -57,13 +59,26 @@ class AutomationNodeFixtures:
                 service_type.model_class, **service_kwargs
             )
 
-        if "order" not in kwargs:
-            kwargs["order"] = AutomationNode.get_last_order(workflow)
+        [
+            last_position_node,
+            last_position,
+            last_output,
+        ] = workflow.get_graph().get_last_position()
+
+        # By default the node is placed at the end of the graph if not position is
+        # provided
+        position_node = kwargs.pop("position_node", last_position_node)
+        position = kwargs.pop("position", last_position)
+        output = kwargs.pop("output", last_output)
 
         with local_cache.context():  # We make sure the cache is empty
-            return AutomationNodeHandler().create_node(
+            created_node = AutomationNodeHandler().create_node(
                 node_type, workflow=workflow, **kwargs
             )
+            # insert the node in the graph
+            workflow.get_graph().insert(created_node, position_node, position, output)
+
+        return created_node
 
     def create_local_baserow_rows_created_trigger_node(self, user=None, **kwargs):
         return self.create_automation_node(
@@ -119,20 +134,29 @@ class AutomationNodeFixtures:
             user=user, service=service, **kwargs
         )
         workflow = router.workflow
+
         edge1 = self.create_core_router_service_edge(
-            service=service, label="Do this", condition="'true'"
+            service=service,
+            label="Do this",
+            condition="'true'",
+            output_label="output edge 1",
         )
-        edge1_output = workflow.automation_workflow_nodes.get(
-            previous_node_output=edge1.uid
-        ).specific
         edge2 = self.create_core_router_service_edge(
-            service=service, label="Do that", condition="'true'"
+            service=service,
+            label="Do that",
+            condition="'true'",
+            output_label="output edge 2",
         )
-        edge2_output = workflow.automation_workflow_nodes.get(
-            previous_node_output=edge2.uid
-        ).specific
+
+        edge1_output = workflow.get_graph().get_node_at_position(
+            position_node=router, position="south", output=edge1.uid
+        )
+        edge2_output = workflow.get_graph().get_node_at_position(
+            position_node=router, position="south", output=edge2.uid
+        )
+
         fallback_output_node = self.create_local_baserow_create_row_action_node(
-            workflow=workflow, previous_node=router, previous_node_output=""
+            workflow=workflow, position_node=router, label="fallback node"
         )
 
         return CoreRouterWithEdges(

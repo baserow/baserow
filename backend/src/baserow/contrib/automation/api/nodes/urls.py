@@ -5,7 +5,6 @@ from baserow.contrib.automation.api.nodes.views import (
     AutomationNodeView,
     DuplicateAutomationNodeView,
     MoveAutomationNodeView,
-    OrderAutomationNodesView,
     ReplaceAutomationNodeView,
     SimulateDispatchAutomationNodeView,
 )
@@ -22,11 +21,6 @@ urlpatterns = [
         r"node/(?P<node_id>[0-9]+)/$",
         AutomationNodeView.as_view(),
         name="item",
-    ),
-    re_path(
-        r"workflow/(?P<workflow_id>[0-9]+)/order/$",
-        OrderAutomationNodesView.as_view(),
-        name="order",
     ),
     re_path(
         r"node/(?P<node_id>[0-9]+)/duplicate/$",

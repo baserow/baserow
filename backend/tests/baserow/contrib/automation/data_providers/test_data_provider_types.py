@@ -15,7 +15,7 @@ from baserow.core.services.types import DispatchResult
 def test_previous_node_data_provider_get_data_chunk(data_fixture):
     user = data_fixture.create_user()
     workflow = data_fixture.create_automation_workflow(user=user)
-    trigger = workflow.get_trigger(specific=False)
+    trigger = workflow.get_trigger()
     first_action = data_fixture.create_local_baserow_create_row_action_node(
         workflow=workflow,
     )
@@ -85,7 +85,7 @@ def test_previous_node_data_provider_import_path(data_fixture):
 def test_current_iteration_data_provider_get_data_chunk(data_fixture):
     user = data_fixture.create_user()
     workflow = data_fixture.create_automation_workflow(user=user)
-    trigger = workflow.get_trigger(specific=False)
+    trigger = workflow.get_trigger()
     iterator = data_fixture.create_core_iterator_action_node(
         workflow=workflow,
     )

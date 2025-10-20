@@ -18,6 +18,7 @@
 
     <template #node-workflow-node>
       <WorkflowNode
+        v-if="trigger"
         :key="updateKey"
         :node="trigger"
         :debug="workflowDebug"
@@ -29,6 +30,16 @@
         @select-node="emit('input', $event.id)"
         @move-node="emit('move-node', $event)"
       />
+      <div v-else :style="{ position: 'relative' }">
+        <div ref="createTriggerContextAnchor" :style="{ position: 'relative' }">
+          Choose a trigger
+        </div>
+        <WorkflowNodeContext
+          ref="createTriggerContext"
+          :only-trigger="true"
+          @change="emit('add-node', { type: $event })"
+        />
+      </div>
     </template>
   </VueFlow>
 </template>
@@ -37,9 +48,10 @@
 import { VueFlow, useVueFlow } from '@vue2-flow/core'
 import { Background } from '@vue2-flow/background'
 import { Controls } from '@vue2-flow/controls'
-import { ref, watch, toRefs, onMounted } from 'vue'
+import { ref, watch, toRefs, onMounted, nextTick } from 'vue'
 import { inject, computed } from '@nuxtjs/composition-api'
 import WorkflowNode from '@baserow/modules/automation/components/workflow/WorkflowNode'
+import WorkflowNodeContext from '@baserow/modules/automation/components/workflow/WorkflowNodeContext'
 
 const props = defineProps({
   nodes: {
@@ -68,8 +80,17 @@ const panOnScroll = ref(true)
 const zoomOnDoubleClick = ref(false)
 const updateKey = ref(1)
 
+const createTriggerContext = ref(null)
+const createTriggerContextAnchor = ref(null)
+
+const workflow = inject('workflow')
+
 const trigger = computed(() => {
-  return props.nodes.find((node) => node.previous_node_id === null)
+  console.log('current graph', JSON.stringify(workflow.value.graph))
+  if (workflow.value.graph['0']) {
+    return props.nodes.find((node) => node.id === workflow.value.graph[0])
+  }
+  return null
 })
 
 const vueFlowNodes = computed(() => {
@@ -106,8 +127,19 @@ watch(
  * When the component is mounted, we emit the first node's ID. This is
  * to ensure that the first node (the trigger) is selected by default.
  */
-onMounted(() => {
-  emit('input', props.nodes[0].id)
+onMounted(async () => {
+  if (props.nodes.length) {
+    emit('input', props.nodes[0].id)
+  } else {
+    await nextTick()
+    console.log(createTriggerContextAnchor.value)
+    createTriggerContext.value.toggle(
+      createTriggerContextAnchor.value,
+      'bottom',
+      'right',
+      0
+    )
+  }
 })
 
 /**

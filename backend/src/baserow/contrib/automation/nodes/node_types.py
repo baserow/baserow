@@ -2,8 +2,7 @@ from typing import Any, Dict, List, Optional, Union
 
 from django.contrib.auth.models import AbstractUser
 from django.db import router
-from django.db.models import CharField, Q, QuerySet
-from django.db.models.functions import Cast
+from django.db.models import Q, QuerySet
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
@@ -52,13 +51,9 @@ from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowRowsUpdatedServiceType,
     LocalBaserowUpsertRowServiceType,
 )
-from baserow.core.db import specific_iterator
 from baserow.core.registry import Instance
 from baserow.core.services.models import Service
 from baserow.core.services.registries import service_type_registry
-from baserow.contrib.automation.nodes.exceptions import (
-    AutomationNodeBeforeInvalid,
-)
 
 
 class AutomationNodeActionNodeType(AutomationNodeType):
@@ -71,16 +66,6 @@ class AutomationNodeActionNodeType(AutomationNodeType):
         instance: AutomationNode = None,
     ) -> Dict[str, Any]:
         """ """
-
-        print(values)
-        if (
-            not instance
-            and "previous_node_id" not in values
-            and "parent_node_id" not in values
-        ):
-            raise AutomationNodeBeforeInvalid(
-                "You cannot create an automation node before a trigger."
-            )
 
         return super().prepare_values(values, user, instance)
 
@@ -155,7 +140,7 @@ class CoreRouterActionNodeType(AutomationNodeActionNodeType):
     is_fixed = True
 
     def get_output_nodes(
-        self, node: CoreRouterActionNode, specific: bool = False
+        self, node: CoreRouterActionNode
     ) -> Union[List[AutomationActionNode], QuerySet[AutomationActionNode]]:
         """
         Given a router node, this method returns the output nodes that are
@@ -166,31 +151,20 @@ class CoreRouterActionNodeType(AutomationNodeActionNodeType):
             router node's edges.
         """
 
-        queryset = (
-            node.workflow.automation_workflow_nodes.select_related("content_type")
-            .filter(previous_node_id=node.id)
-            .filter(
-                Q(previous_node_output="")
-                | Q(
-                    previous_node_output__in=node.service.specific.edges.values_list(
-                        Cast("uid", output_field=CharField()), flat=True
-                    )
-                ),
-            )
-        )
-        return specific_iterator(queryset) if specific else queryset
+        return node.workflow.get_graph().get_next_nodes(node)
 
     def before_delete(self, node: CoreRouterActionNode):
-        output_nodes_count = self.get_output_nodes(node).count()
-        if output_nodes_count != 0:
+        output_nodes = self.get_output_nodes(node)
+
+        if output_nodes:
             raise AutomationNodeNotDeletable(
                 "Router nodes cannot be deleted if they "
                 "have one or more output nodes associated with them."
             )
 
     def before_replace(self, node: CoreRouterActionNode, new_node_type: Instance):
-        output_nodes_count = self.get_output_nodes(node).count()
-        if output_nodes_count != 0:
+        output_nodes = self.get_output_nodes(node)
+        if output_nodes:
             raise AutomationNodeNotReplaceable(
                 "Router nodes cannot be replaced if they "
                 "have one or more output nodes associated with them."
@@ -233,16 +207,16 @@ class CoreRouterActionNodeType(AutomationNodeActionNodeType):
             persisted_uids = [str(edge.uid) for edge in service.edges.only("uid")]
             removed_uids = list(set(persisted_uids) - set(prepared_uids))
 
-            output_nodes_with_removed_uids = AutomationNode.objects.filter(
-                previous_node_id=instance.id, previous_node_output__in=removed_uids
-            ).exists()
+            for removed_uid in removed_uids:
+                if instance.workflow.get_graph().get_node_at_position(
+                    instance, "south", removed_uid
+                ):
+                    raise AutomationNodeMisconfiguredService(
+                        "One or more branches have been removed from the router node, "
+                        "but they still point to output nodes. These nodes must be "
+                        "trashed before the router can be updated."
+                    )
 
-            if output_nodes_with_removed_uids:
-                raise AutomationNodeMisconfiguredService(
-                    "One or more branches have been removed from the router node, "
-                    "but they still point to output nodes. These nodes must be "
-                    "trashed before the router can be updated."
-                )
         return super().prepare_values(values, user, instance)
 
 
@@ -271,6 +245,22 @@ class AutomationNodeTriggerType(AutomationNodeType):
             "Triggers can not be created, deleted or duplicated, "
             "they can only be replaced with a different type."
         )
+
+    def prepare_values(
+        self,
+        values: Dict[str, Any],
+        user: AbstractUser,
+        instance: AutomationNode = None,
+    ) -> Dict[str, Any]:
+        """ """
+
+        # if instance is None:
+        # Triggers are not directly created by users. When a workflow is created,
+        # the trigger node is created automatically, so users are only able to change
+        # the trigger node type, not create a new one.
+        # raise AutomationTriggerModificationDisallowed()
+
+        return super().prepare_values(values, user, instance)
 
     def on_event(
         self,

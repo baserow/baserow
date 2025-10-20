@@ -30,9 +30,9 @@
         @add-node="
           emit('add-node', {
             type: $event,
-            previousNodeId: isChild ? null : node.id,
-            previousNodeOutput: edgeUid,
-            parentNodeId: isChild ? node.id : node.parent_node_id,
+            position: isChild ? 'child' : 'south',
+            output: edgeUid,
+            positionNode: node,
           })
         "
       />
@@ -122,6 +122,7 @@ const isDropZoneDisabled = computed(() => {
   }
 
   // Disable drop zone where the dragged node is currently located.
+  // TODO
   if (
     draggedNode.value.previous_node_id === afterNodeId &&
     draggedNode.value.previous_node_output === afterNodeOutput
@@ -141,13 +142,19 @@ const handleDragLeave = () => {
 
 const handleDrop = () => {
   isDragOver.value = false
-  const afterNodeId = props.isChild ? null : props.node.id
+
+  emit('move-node', {
+    positionNodeId: props.node.id,
+    position: props.isChild ? 'child' : 'south',
+    output: props.edgeUid,
+  })
+  /* const positionNodeId = props.isChild ? props.node.parent_node_id : props.node.id
   const parentNodeId = props.isChild ? props.node.id : props.node.parent_node_id
   emit('move-node', {
-    afterNodeId,
+    positionNodeId,
     afterNodeOutput: props.edgeUid,
     parentNodeId,
-  })
+  }) */
 }
 
 const nextNodesOnEdge = computed(() => {

@@ -1,9 +1,10 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from django.db import models
 
 from baserow.contrib.automation.constants import WORKFLOW_NAME_MAX_LEN
 from baserow.contrib.automation.workflows.constants import WorkflowState
+from baserow.core.cache import local_cache
 from baserow.core.jobs.mixins import (
     JobWithUndoRedoIds,
     JobWithUserIpAddress,
@@ -76,6 +77,8 @@ class AutomationWorkflow(
 
     allow_test_run_until = models.DateTimeField(null=True, blank=True)
 
+    graph = models.JSONField(default=dict, help_text="Contains the node graph.")
+
     objects = AutomationWorkflowTrashManager()
     objects_and_trash = models.Manager()
 
@@ -91,31 +94,23 @@ class AutomationWorkflow(
         queryset = AutomationWorkflow.objects.filter(automation=automation)
         return cls.get_highest_order_of_queryset(queryset) + 1
 
-    @classmethod
-    def get_last_node_id(
-        cls, workflow: "AutomationWorkflow", parent_node_id: Optional[int] = None
-    ) -> Optional[int]:
-        from baserow.contrib.automation.nodes.models import AutomationNode
-
-        last_node = (
-            AutomationNode.objects.filter(
-                workflow=workflow, parent_node_id=parent_node_id
-            )
-            .order_by("order")
-            .only("id")
-            .last()
-        )
-        return last_node.id if last_node else None
-
-    def get_trigger(self, specific: bool = True) -> "AutomationTriggerNode":
-        node = self.automation_workflow_nodes.get(
-            previous_node_id=None, parent_node_id=None
-        )
-        return node.specific if specific else node
+    def get_trigger(self) -> "AutomationTriggerNode":
+        return self.get_graph().get_node_at_position(None, "south", "")
 
     def can_immediately_be_tested(self):
         service = self.get_trigger().service.specific
         return service.get_type().can_immediately_be_tested(service)
+
+    def get_graph(self):
+        from .graph_handler import NodeGraphHandler
+
+        # always return the same instance to avoid using different graphs from different
+        # instances of the same workflow
+
+        return local_cache.get(
+            f"automation_workflow__{self.id}",
+            lambda: NodeGraphHandler(self),
+        )
 
     @property
     def is_published(self) -> bool:
@@ -131,14 +126,29 @@ class AutomationWorkflow(
 
         return workflow.state == WorkflowState.LIVE
 
-    def print(self):
-        for node in self.automation_workflow_nodes.all():
-            print(
-                f"Node {node.id} ({node.get_type().type})",
-                node.previous_node_id,
-                node.previous_node_output,
-                node.parent_node_id,
-            )
+    def print(self, message=None, original=False):
+        import pprint
+
+        if message:
+            print(message)
+
+        if original:
+            pprint.pprint(self.get_graph().graph, indent=2)
+        else:
+            pprint.pprint(self.get_graph().labeled_graph(), indent=2)
+
+    def assert_reference(self, reference):
+        import pprint
+
+        try:
+            assert (
+                self.get_graph().labeled_graph() == reference  # nosec B101
+            ), "Failed to match the reference."
+        except AssertionError:
+            print("Failed to match the reference:")
+            pprint.pprint(reference, indent=2)
+            self.print("Current graph:")
+            raise
 
 
 class DuplicateAutomationWorkflowJob(
