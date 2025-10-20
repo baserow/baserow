@@ -11,11 +11,15 @@ from rest_framework.views import APIView
 
 from baserow.api.decorators import (
     map_exceptions,
+    require_request_data_type,
     validate_body,
-    validate_body_custom_fields,
 )
 from baserow.api.schemas import CLIENT_SESSION_ID_SCHEMA_PARAMETER, get_error_schema
-from baserow.api.utils import DiscriminatorCustomFieldsMappingSerializer
+from baserow.api.utils import (
+    DiscriminatorCustomFieldsMappingSerializer,
+    type_from_data_or_registry,
+    validate_data_custom_fields,
+)
 from baserow.contrib.automation.api.nodes.errors import (
     ERROR_AUTOMATION_NODE_BEFORE_INVALID,
     ERROR_AUTOMATION_NODE_DOES_NOT_EXIST,
@@ -58,6 +62,7 @@ from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeSimulateDispatchError,
     AutomationTriggerModificationDisallowed,
 )
+from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.nodes.service import AutomationNodeService
 from baserow.contrib.automation.workflows.exceptions import (
@@ -219,12 +224,22 @@ class AutomationNodeView(APIView):
             AutomationNodeMisconfiguredService: ERROR_AUTOMATION_NODE_MISCONFIGURED_SERVICE,
         }
     )
-    @validate_body_custom_fields(
-        automation_node_type_registry,
-        base_serializer_class=UpdateAutomationNodeSerializer,
-        partial=True,
-    )
-    def patch(self, request, data: Dict, node_id: int):
+    @require_request_data_type(dict)
+    def patch(self, request, node_id: int):
+        node = AutomationNodeHandler().get_node(node_id)
+        node_type = type_from_data_or_registry(
+            request.data, automation_node_type_registry, node
+        )
+
+        data = validate_data_custom_fields(
+            node_type.type,
+            automation_node_type_registry,
+            request.data,
+            base_serializer_class=UpdateAutomationNodeSerializer,
+            partial=True,
+            return_validated=True,
+        )
+
         node = UpdateAutomationNodeActionType.do(request.user, node_id, data)
 
         serializer = automation_node_type_registry.get_serializer(
@@ -480,6 +495,7 @@ class MoveAutomationNodeView(APIView):
             node_id,
             data["previous_node_id"],
             data["previous_node_output"],
+            data["parent_node_id"],
         )
         return Response(
             automation_node_type_registry.get_serializer(

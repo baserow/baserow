@@ -51,10 +51,10 @@ def test_create_node(api_client, data_fixture):
         "order": AnyStr(),
         "previous_node_id": trigger.id,
         "previous_node_output": "",
+        "parent_node_id": None,
         "service": AnyDict(),
         "type": "create_row",
         "workflow": AnyInt(),
-        "simulate_until_node": False,
     }
 
 
@@ -81,10 +81,10 @@ def test_create_node_before(api_client, data_fixture):
         "order": AnyStr(),
         "previous_node_id": trigger.id,
         "previous_node_output": "",
+        "parent_node_id": None,
         "service": AnyDict(),
         "type": "create_row",
         "workflow": workflow.id,
-        "simulate_until_node": False,
     }
 
     new_node = AutomationNode.objects.get(id=response.json()["id"])
@@ -107,13 +107,13 @@ def test_create_node_before_router_edge_output(api_client, data_fixture):
         service=service, label="Edge 1", condition="'true'"
     )
     edge1_output = AutomationNode.objects.get(
-        previous_node_id=router.id, previous_node_output=edge1.uid
+        previous_node=router, previous_node_output=edge1.uid
     )
     edge2 = data_fixture.create_core_router_service_edge(
         service=service, label="Edge 2", condition="'true'"
     )
     edge2_output = AutomationNode.objects.get(
-        previous_node_id=router.id, previous_node_output=edge2.uid
+        previous_node=router, previous_node_output=edge2.uid
     )
 
     url = reverse(API_URL_LIST, kwargs={"workflow_id": workflow.id})
@@ -305,10 +305,10 @@ def test_get_nodes(api_client, data_fixture):
             "order": AnyStr(),
             "previous_node_id": None,
             "previous_node_output": "",
+            "parent_node_id": None,
             "service": AnyDict(),
             "type": "rows_created",
             "workflow": workflow.id,
-            "simulate_until_node": False,
         },
         {
             "id": node.id,
@@ -316,10 +316,10 @@ def test_get_nodes(api_client, data_fixture):
             "order": AnyStr(),
             "previous_node_id": trigger.id,
             "previous_node_output": "",
+            "parent_node_id": None,
             "service": AnyDict(),
             "type": "create_row",
             "workflow": node.workflow.id,
-            "simulate_until_node": True,
         },
     ]
 
@@ -539,23 +539,23 @@ def test_update_node(api_client, data_fixture):
     trigger = workflow.get_trigger(specific=False)
     node = data_fixture.create_automation_node(user=user, workflow=workflow)
 
-    assert node.previous_node_output == ""
+    assert node.label == ""
 
     api_kwargs = get_api_kwargs(token)
     update_url = reverse(API_URL_ITEM, kwargs={"node_id": node.id})
-    payload = {"previous_node_output": "foo", "type": "create_row"}
+    payload = {"label": "foo", "previous_node_output": "foo"}
     response = api_client.patch(update_url, payload, **api_kwargs)
     assert response.status_code == HTTP_200_OK
     assert response.json() == {
         "id": node.id,
-        "label": "",
+        "label": "foo",
         "order": AnyStr(),
         "service": AnyDict(),
         "previous_node_id": trigger.id,
-        "previous_node_output": "foo",
-        "type": "create_row",
+        "previous_node_output": "",
+        "parent_node_id": None,
+        "type": node.get_type().type,
         "workflow": workflow.id,
-        "simulate_until_node": False,
     }
 
 
@@ -583,10 +583,12 @@ def test_update_node_undo_redo(api_client, data_fixture):
 
     api_kwargs = get_api_kwargs(token)
     update_url = reverse(API_URL_ITEM, kwargs={"node_id": node.id})
-    payload = {"previous_node_output": "foo", "type": "update_row"}
+    payload = {"label": "foo"}
+
     response = api_client.patch(update_url, payload, **api_kwargs)
+
     assert response.status_code == HTTP_200_OK
-    assert response.json()["previous_node_output"] == "foo"
+    assert response.json()["label"] == "foo"
 
     payload = {
         "scopes": {
@@ -598,12 +600,12 @@ def test_update_node_undo_redo(api_client, data_fixture):
     }
     response = api_client.patch(reverse(API_URL_UNDO), payload, **api_kwargs)
     assert response.status_code == HTTP_200_OK
-    assert node.previous_node_output == ""
+    assert node.label == ""
 
     response = api_client.patch(reverse(API_URL_REDO), payload, **api_kwargs)
     assert response.status_code == HTTP_200_OK
     node.refresh_from_db()
-    assert node.previous_node_output == "foo"
+    assert node.label == "foo"
 
 
 @pytest.mark.django_db
@@ -660,10 +662,10 @@ def test_replace_node_type_with_replaceable_type(
         "type": replaceable_type,
         "workflow": workflow.id,
         "previous_node_id": trigger.id,
+        "parent_node_id": None,
         "order": AnyStr(),
         "service": AnyDict(),
         "previous_node_output": "",
-        "simulate_until_node": False,
     }
 
 
@@ -686,6 +688,7 @@ def test_create_router_node(api_client, data_fixture):
         "label": "",
         "previous_node_id": trigger.id,
         "previous_node_output": "",
+        "parent_node_id": None,
         "service": {
             "sample_data": None,
             "context_data": None,
@@ -721,7 +724,6 @@ def test_create_router_node(api_client, data_fixture):
             "type": "router",
         },
         "type": "router",
-        "simulate_until_node": False,
         "workflow": workflow.id,
     }
 
@@ -1136,10 +1138,10 @@ def test_move_movable_node(node_type, api_client, data_fixture):
         "order": AnyStr(),
         "previous_node_id": trigger.id,
         "previous_node_output": node.previous_node_output,
+        "parent_node_id": None,
         "service": AnyDict(),
         "type": node_type.type,
         "workflow": workflow.id,
-        "simulate_until_node": False,
     }
     before_node.refresh_from_db()
     assert before_node.previous_node_id == node.id

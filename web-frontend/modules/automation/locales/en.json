@@ -88,6 +88,8 @@
     "lastPublished": "Last published"
   },
   "dataProviderType": {
+    "currentIteration": "Current iteration",
+    "item": "Item",
     "previousNode": "Previous node"
   },
   "nodeSidePanel": {
@@ -118,6 +120,7 @@
     "httpRequestLabel": "Send an HTTP request",
     "smtpEmailLabel": "Send an email",
     "routerLabel": "Follow 1 of {edgeCount} branches",
+    "iterationLabel": "Iterate on items",
     "routerDefaultEdgeLabelFallback": "Default",
     "routerWithOutputNodesDeleteError": "Cannot be deleted until its {outputCount} output nodes are removed.",
     "routerWithOutputNodesReplaceError": "Cannot be replaced until its {outputCount} output nodes are removed.",
@@ -134,12 +137,10 @@
     "beforeLabelConditionDefault": "If no condition(s) are met",
     "moreEdit": "Edit",
     "moreReplace": "Replace",
-    "nodeOptions": "Node options",
-    "displayLabelDebug": "ID: {id} | Prev: {previousNodeId} | {outputUid}"
+    "nodeOptions": "Node options"
   },
   "workflowAddNode": {
-    "displayTitle": "Create automation node",
-    "displayTitleDebug": "ID: {id} | {outputUid}"
+    "displayTitle": "Create automation node"
   },
   "workflowNodeContext": {
     "searchPlaceholderTrigger": "Search for a trigger...",
@@ -181,12 +182,12 @@
     "sampleDataLabel": "Output",
     "triggerNodeAwaitingEvent": "This trigger node is waiting for an event.",
     "errorNodeNotConfigured": "The Node must be configured before it can be tested.",
-    "errorPreviousNodeNotConfigured": "All previous nodes must be configured.",
-    "errorPreviousNodesNotTested": "All previous nodes must be tested.",
-    "buttonLabelShowPayload": "Show payload",
+    "errorPreviousNodeNotConfigured": "The previous node -{node}- must be configured.",
+    "errorPreviousNodesNotTested": "The previous node -{node}- must be tested first.",
     "buttonLabelTest": "Test event",
     "buttonLabelTestAgain": "Test event again",
     "testNodeDescription": "Test this event to confirm the configuration is correct. Data from this test can be used in later steps.",
+    "buttonLabelShowPayload": "Show payload",
     "sampleDataModalTitle": "Payload for {nodeLabel}",
     "sampleDataModalSubTitle": "JSON payload",
     "sampleDataCopy": "Copy",

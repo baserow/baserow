@@ -3,6 +3,7 @@ from uuid import uuid4
 from baserow.contrib.integrations.core.models import (
     CoreHTTPRequestService,
     CoreHTTPTriggerService,
+    CoreIteratorService,
     CoreRouterService,
     CoreSMTPEmailService,
 )
@@ -99,20 +100,26 @@ class ServiceFixtures:
         service = self.create_service(CoreSMTPEmailService, **kwargs)
         return service
 
+    def create_core_iterator_service(self, **kwargs):
+        return self.create_service(CoreIteratorService, **kwargs)
+
     def create_core_router_service(self, **kwargs):
         return self.create_service(CoreRouterService, **kwargs)
 
     def create_core_router_service_edge(self, service: CoreRouterService, **kwargs):
         output_node = kwargs.pop("output_node", None)
         skip_output_node = kwargs.pop("skip_output_node", False)
+
         edge = service.edges.create(**kwargs)
+
         if output_node is None and not skip_output_node:
             router_node = service.automation_workflow_node
             self.create_local_baserow_create_row_action_node(
                 previous_node_output=edge.uid,
-                previous_node_id=router_node.id,
+                previous_node=router_node,
                 workflow=router_node.workflow,
             )
+
         return edge
 
     def create_core_http_trigger_service(self, **kwargs) -> CoreSMTPEmailService:

@@ -121,26 +121,44 @@ const actions = {
   },
   async create(
     { commit, dispatch, getters },
-    { workflow, type, previousNodeId = null, previousNodeOutput = null }
+    {
+      workflow,
+      type,
+      previousNodeId = null,
+      previousNodeOutput = '',
+      parentNodeId = null,
+    }
   ) {
     // Using the `previousNodeId` and `previousNodeOutput` to determine
     // what the `beforeId` should be. We will have `beforeId` if we're
     // creating a node after `previousNodeId`, and `previousNodeId` has
     // a node that follows it.
     const nodeType = this.$registry.get('node', type)
-    const previousNode = getters.findById(workflow, previousNodeId)
-    const nextNodes = getters.getNextNodes(
-      workflow,
-      previousNode,
-      previousNodeOutput
-    )
 
-    const beforeNode = nextNodes.length > 0 ? nextNodes[0] : null
+    let beforeNode = null
+
+    if (previousNodeId) {
+      const previousNode = getters.findById(workflow, previousNodeId)
+      const nextNodes = getters.getNextNodes(
+        workflow,
+        previousNode,
+        previousNodeOutput
+      )
+
+      beforeNode = nextNodes.length > 0 ? nextNodes[0] : null
+    } else {
+      const parentNode = getters.findById(workflow, parentNodeId)
+      const children = getters.getChildren(workflow, parentNode)
+
+      beforeNode = children.length > 0 ? children[0] : null
+    }
+
     const beforeId = beforeNode?.id || null
     const beforeOldValues = beforeNode
       ? {
           previous_node_id: beforeNode.previous_node_id,
           previous_node_output: beforeNode.previous_node_output,
+          parent_node_id: beforeNode.parent_node_id,
         }
       : {}
 
@@ -150,6 +168,7 @@ const actions = {
       type,
       previous_node_id: previousNodeId,
       previous_node_output: previousNodeOutput,
+      parent_node_id: parentNodeId,
       workflow: workflow.id,
     })
     commit('ADD_ITEM', { workflow, node: tempNode })
@@ -166,7 +185,14 @@ const actions = {
     try {
       const { data: node } = await AutomationWorkflowNodeService(
         this.$client
-      ).create(workflow.id, type, beforeId, previousNodeId, previousNodeOutput)
+      ).create(
+        workflow.id,
+        type,
+        beforeId,
+        previousNodeId,
+        previousNodeOutput,
+        parentNodeId
+      )
 
       // Remove temp node and add real one
       commit('DELETE_ITEM', { workflow, nodeId: tempNode.id })
@@ -369,26 +395,48 @@ const actions = {
     })
   },
   async move({ commit, dispatch, getters }, { workflow, moveData }) {
-    const { originNodeId, afterNodeId, afterNodeOutput } = moveData
+    const { movedNodeId, afterNodeId, afterNodeOutput, parentNodeId } = moveData
 
-    const originNode = getters.findById(workflow, originNodeId)
-    const originSnapshot = { ...originNode }
+    const movedNode = getters.findById(workflow, movedNodeId)
+    const originSnapshot = { ...movedNode }
     const originNextNodesSnapshot = getters
-      .getNextNodes(workflow, originNode)
+      .getNextNodes(workflow, movedNode)
       .map((n) => ({
         id: n.id,
         previous_node_id: n.previous_node_id,
         previous_node_output: n.previous_node_output,
       }))
 
-    const afterNode = getters.findById(workflow, afterNodeId)
-    const afterNextNodesSnapshot = getters
-      .getNextNodes(workflow, afterNode)
-      .map((n) => ({
-        id: n.id,
-        previous_node_id: n.previous_node_id,
-        previous_node_output: n.previous_node_output,
-      }))
+    // We move the node after this node if any
+    const afterNode = afterNodeId
+      ? getters.findById(workflow, afterNodeId)
+      : null
+
+    // We move the node as a child of this node if any
+    const parentNode = parentNodeId
+      ? getters.findById(workflow, parentNodeId)
+      : null
+
+    let afterNextNodesSnapshot
+    if (afterNode === null) {
+      // We are moving the node as first child of a container
+      // So the immediate children of this node are the 'next nodes'
+      afterNextNodesSnapshot = getters
+        .getChildren(workflow, parentNode)
+        .map((n) => ({
+          id: n.id,
+          previous_node_id: n.previous_node_id,
+          previous_node_output: n.previous_node_output,
+        }))
+    } else {
+      afterNextNodesSnapshot = getters
+        .getNextNodes(workflow, afterNode)
+        .map((n) => ({
+          id: n.id,
+          previous_node_id: n.previous_node_id,
+          previous_node_output: n.previous_node_output,
+        }))
+    }
 
     try {
       // We start by moving the dragged node's next nodes, pre-move, so that
@@ -396,10 +444,10 @@ const actions = {
       // node id and output.
       dispatch('updateNextNodesValues', {
         workflow,
-        nodeId: originNode.id,
+        nodeId: movedNode.id,
         valuesToUpdate: {
-          previous_node_id: originNode.previous_node_id,
-          previous_node_output: originNode.previous_node_output,
+          previous_node_id: movedNode.previous_node_id,
+          previous_node_output: movedNode.previous_node_output,
         },
       })
 
@@ -408,9 +456,10 @@ const actions = {
       // blank string if we're moving the node to a specific output.
       dispatch('updateNextNodesValues', {
         workflow,
-        nodeId: afterNode.id,
+        nodeId: afterNode ? afterNode.id : null,
+        parentNodeId: parentNode ? parentNode.id : null,
         valuesToUpdate: {
-          previous_node_id: originNode.id,
+          previous_node_id: movedNode.id,
           ...(afterNodeOutput ? { previous_node_output: '' } : {}),
         },
         outputUid: afterNodeOutput,
@@ -420,17 +469,19 @@ const actions = {
       // node and output.
       commit('UPDATE_ITEM', {
         workflow,
-        node: originNode,
+        node: movedNode,
         values: {
           previous_node_id: afterNodeId,
           previous_node_output: afterNodeOutput,
+          parent_node_id: parentNodeId,
         },
       })
 
       // Perform the backend update.
-      await AutomationWorkflowNodeService(this.$client).move(originNodeId, {
+      await AutomationWorkflowNodeService(this.$client).move(movedNodeId, {
         previous_node_id: afterNodeId,
         previous_node_output: afterNodeOutput,
+        parent_node_id: parentNodeId,
       })
     } catch (error) {
       // Something went wrong, revert our changes.
@@ -456,14 +507,11 @@ const actions = {
           },
         })
       })
-      // Move `originNode` back to its original position.
+      // Move `movedNode` back to its original position.
       commit('UPDATE_ITEM', {
         workflow,
-        node: originSnapshot,
-        values: {
-          previous_node_id: originSnapshot.previous_node_id,
-          previous_node_output: originSnapshot.previous_node_output,
-        },
+        node: movedNode,
+        values: originSnapshot,
       })
 
       throw error
@@ -500,12 +548,43 @@ const actions = {
    * This used when a node is replaced, or moved, as the next nodes need to
    * be updated to reflect the new previous node id and output.
    */
-  updateNextNodesValues(
+  _updateNextNodesValues(
     { commit, getters },
-    { workflow, nodeId, valuesToUpdate, outputUid = null }
+    { workflow, nodeId, valuesToUpdate, outputUid = null, parentNodeId = null }
   ) {
     const node = getters.findById(workflow, nodeId)
     const nextNodes = getters.getNextNodes(workflow, node, outputUid)
+    nextNodes.forEach((nextNode) => {
+      commit('UPDATE_ITEM', {
+        workflow,
+        node: nextNode,
+        values: valuesToUpdate,
+      })
+    })
+  },
+  /**
+   * Updates all the next nodes of a given node with the provided values.
+   * This used when a node is replaced, or moved, as the next nodes need to
+   * be updated to reflect the new previous node id and output.
+   */
+  updateNextNodesValues(
+    { commit, getters },
+    {
+      workflow,
+      nodeId = null,
+      parentNodeId = null,
+      valuesToUpdate,
+      outputUid = null,
+    }
+  ) {
+    let nextNodes
+    if (nodeId) {
+      const node = getters.findById(workflow, nodeId)
+      nextNodes = getters.getNextNodes(workflow, node, outputUid)
+    } else {
+      const parentNode = getters.findById(workflow, parentNodeId)
+      nextNodes = getters.getChildren(workflow, parentNode)
+    }
     nextNodes.forEach((nextNode) => {
       commit('UPDATE_ITEM', {
         workflow,
@@ -541,6 +620,30 @@ const getters = {
   getDraggingNodeId(state) {
     return state.draggingNodeId
   },
+  getParent: (state, getters) => (workflow, targetNode) => {
+    if (targetNode.parent_node_id) {
+      return getters.findById(workflow, targetNode.parent_node_id)
+    }
+    return null
+  },
+  getAncestors: (state, getters) => (workflow, targetNode) => {
+    const parent = getters.getParent(workflow, targetNode)
+    if (parent) {
+      return [...getters.getAncestors(workflow, parent), parent]
+    }
+    return []
+  },
+  /**
+   * Returns the immediate children of the given targetNode. For now we support only
+   * one child but may be later we can support more.
+   */
+  getChildren: (state, getters) => (workflow, targetNode) => {
+    const nodes = getters.getNodesOrdered(workflow)
+    return nodes.filter(
+      (node) =>
+        node.parent_node_id === targetNode.id && node.previous_node_id === null
+    )
+  },
   getNextNodes:
     (state, getters) =>
     (workflow, targetNode, outputUid = null) => {
@@ -567,12 +670,19 @@ const getters = {
     ) => {
       const getPreviousForNode = (node) => {
         const previousNode = getters.getPreviousNode(workflow, node)
+
         if (previousNode) {
           return [...getPreviousForNode(previousNode), previousNode]
-        } else {
-          return []
         }
+        const parent = getters.getParent(workflow, node)
+
+        if (parent) {
+          return [...getPreviousForNode(parent), parent]
+        }
+
+        return []
       }
+
       const previous = includeSelf
         ? [...getPreviousForNode(targetNode), targetNode]
         : getPreviousForNode(targetNode)

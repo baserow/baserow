@@ -53,9 +53,15 @@ class CreateAutomationNodeActionType(UndoableActionType):
         before = (
             AutomationNodeService().get_node(user, before_id) if before_id else None
         )
+        parent_node_id = data.pop("parent_node_id", None)
+        parent = (
+            AutomationNodeService().get_node(user, parent_node_id)
+            if parent_node_id
+            else None
+        )
 
         node = AutomationNodeService().create_node(
-            user, node_type, workflow, before, **data
+            user, node_type, workflow, before, parent, **data
         )
 
         cls.register_action(
@@ -502,10 +508,12 @@ class MoveAutomationNodeActionType(UndoableActionType):
         node_type: str
         origin_previous_node_id: int
         origin_previous_node_output: str
+        origin_parent_node_id: int
         origin_new_next_nodes_values: List[NextAutomationNodeValues]
         origin_old_next_nodes_values: List[NextAutomationNodeValues]
         destination_previous_node_id: int
         destination_previous_node_output: str
+        destination_parent_node_id: int
         destination_new_next_nodes_values: List[NextAutomationNodeValues]
         destination_old_next_nodes_values: List[NextAutomationNodeValues]
 
@@ -516,9 +524,14 @@ class MoveAutomationNodeActionType(UndoableActionType):
         node_id: int,
         new_previous_node_id: int,
         new_previous_node_output: Optional[str] = None,
+        new_parent_node_id: int | None = None,
     ) -> AutomationActionNode:
         move = AutomationNodeService().move_node(
-            user, node_id, new_previous_node_id, new_previous_node_output
+            user,
+            node_id,
+            new_previous_node_id,
+            new_previous_node_output,
+            new_parent_node_id,
         )
         workflow = move.node.workflow
         cls.register_action(
@@ -531,10 +544,12 @@ class MoveAutomationNodeActionType(UndoableActionType):
                 move.node.get_type().type,
                 move.origin_previous_node_id,
                 move.origin_previous_node_output,
+                move.origin_parent_node_id,
                 move.origin_new_next_nodes_values,
                 move.origin_old_next_nodes_values,
                 move.destination_previous_node_id,
                 move.destination_previous_node_output,
+                move.destination_parent_node_id,
                 move.destination_new_next_nodes_values,
                 move.destination_old_next_nodes_values,
             ),
@@ -560,6 +575,7 @@ class MoveAutomationNodeActionType(UndoableActionType):
             params.node_id,
             previous_node_id=params.origin_previous_node_id,
             previous_node_output=params.origin_previous_node_output,
+            parent_node_id=params.origin_parent_node_id,
         )
 
         # Pluck out the workflow, we need it to send our signals for next nodes.
@@ -588,6 +604,7 @@ class MoveAutomationNodeActionType(UndoableActionType):
             params.node_id,
             previous_node_id=params.destination_previous_node_id,
             previous_node_output=params.destination_previous_node_output,
+            parent_node_id=params.destination_parent_node_id,
         )
 
         # Pluck out the workflow, we need it to send our signals for next nodes.

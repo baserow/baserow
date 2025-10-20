@@ -26,6 +26,7 @@
       :node-selected="nodeSelected"
       :loading="dataExplorerLoading"
       :application-context="applicationContext"
+      :allow-node-selection="allowNodeSelection"
       @node-selected="dataExplorerItemSelected"
       @node-unselected="unSelectNode()"
       @mousedown.native="onDataExplorerMouseDown"
@@ -93,6 +94,11 @@ export default {
       required: true,
     },
     small: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
+    allowNodeSelection: {
       type: Boolean,
       required: false,
       default: false,
