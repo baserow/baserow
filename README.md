@@ -1,5 +1,14 @@
 ## Baserow is an open-source no-code platform and the best alternative to Airtable
 
+### 🚨 Repository Migration Notice
+
+Baserow has moved from GitLab to GitHub. All issues have been successfully migrated,
+but merged and closed merge requests (PRs) were not imported. You can still browse the
+old repository and its history at: https://gitlab.com/baserow/baserow.
+
+Please use this GitHub repository  for all new issues, discussions, and contributions
+going forward at: https://github.com/baserow/baserow.
+
 It lets you easily build databases, applications, automations, and dashboards — all in
 one secure, self-hostable environment. Empower your team to create powerful tools
 without writing a single line of code.
