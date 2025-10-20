@@ -2247,9 +2247,15 @@ class LocalBaserowRowsSignalServiceType(
             RowSerializer,
             is_response=True,
         )
+
+        data_to_process = {
+            "results": serializer(rows, many=True).data,
+            "has_next_page": False,
+        }
+
         self._process_event(
             self.model_class.objects.filter(table=table),
-            serializer(rows, many=True).data,
+            data_to_process,
             user=user,
         )
 

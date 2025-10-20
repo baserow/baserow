@@ -54,9 +54,6 @@ def test_run_workflow_dispatch_error_creates_workflow_history(
     )
     published_workflow.automation.published_from = original_workflow
     published_workflow.automation.save()
-    data_fixture.create_local_baserow_rows_created_trigger_node(
-        workflow=published_workflow
-    )
 
     mock_dispatch_node.side_effect = DispatchException("mock dispatch error")
 
@@ -88,9 +85,6 @@ def test_run_workflow_unexpected_error_creates_workflow_history(
     )
     published_workflow.automation.published_from = original_workflow
     published_workflow.automation.save()
-    data_fixture.create_local_baserow_rows_created_trigger_node(
-        workflow=published_workflow
-    )
 
     mock_dispatch_node.side_effect = ValueError("mock unexpected error")
 
@@ -147,9 +141,6 @@ def test_run_workflow_disables_workflow_if_too_many_errors(
     )
     published_workflow.automation.published_from = original_workflow
     published_workflow.automation.save()
-    data_fixture.create_local_baserow_rows_created_trigger_node(
-        workflow=published_workflow
-    )
 
     # The first 3 runs should just be an error
     for i in range(3):
@@ -194,19 +185,19 @@ def test_run_workflow_disables_workflow_if_too_many_consecutive_errors(
     )
     published_workflow.automation.published_from = original_workflow
     published_workflow.automation.save()
-    data_fixture.create_local_baserow_rows_created_trigger_node(
-        workflow=published_workflow
-    )
 
     start_workflow_celery_task(published_workflow.id, False, None)
 
     mock_dispatch_node.assert_not_called()
 
     histories = AutomationWorkflowHistory.objects.filter(workflow=original_workflow)
+
     assert len(histories) == 1
+
     history = histories[0]
     assert history.workflow == original_workflow
     assert history.status == "disabled"
+
     error_msg = "mock too many errors"
     assert history.message == error_msg
 

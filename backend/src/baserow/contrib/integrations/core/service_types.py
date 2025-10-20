@@ -909,9 +909,7 @@ class CoreRouterServiceType(CoreServiceType):
         Responsible for importing the router service and its edges.
 
         For each edge that we find, generate a new unique ID and store it in the
-        `id_mapping` dictionary under the key "automation_edge_outputs". Any nodes
-        with a `previous_node_output` that matches the edge's UID will be updated to
-        use the new unique ID in their own deserialization.
+        `id_mapping` dictionary under the key "automation_edge_outputs".
         """
 
         for edge in serialized_values["edges"]:
@@ -1159,6 +1157,11 @@ class CoreRouterServiceType(CoreServiceType):
                 }
 
         return super().get_sample_data(service, dispatch_context)
+
+    def get_edges(self, service):
+        return {str(e.uid): {"label": e.label} for e in service.edges.all()} | {
+            "": {"label": service.default_edge_label}
+        }
 
 
 class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):

@@ -17,7 +17,6 @@ from baserow.contrib.automation.nodes.node_types import (
     LocalBaserowRowsCreatedNodeTriggerType,
 )
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
-from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.test_utils.helpers import AnyDict, AnyInt, AnyStr
 from tests.baserow.contrib.automation.api.utils import get_api_kwargs
 
@@ -37,32 +36,7 @@ API_URL_REDO = "api:user:redo"
 def test_create_node(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workflow = data_fixture.create_automation_workflow(user)
-    trigger = workflow.get_trigger(specific=False)
-    url = reverse(API_URL_LIST, kwargs={"workflow_id": workflow.id})
-    response = api_client.post(
-        url,
-        {"type": "create_row"},
-        **get_api_kwargs(token),
-    )
-    assert response.status_code == HTTP_200_OK
-    assert response.json() == {
-        "id": AnyInt(),
-        "label": "",
-        "order": AnyStr(),
-        "previous_node_id": trigger.id,
-        "previous_node_output": "",
-        "parent_node_id": None,
-        "service": AnyDict(),
-        "type": "create_row",
-        "workflow": AnyInt(),
-    }
-
-
-@pytest.mark.django_db
-def test_create_node_before(api_client, data_fixture):
-    user, token = data_fixture.create_user_and_token()
-    workflow = data_fixture.create_automation_workflow(user)
-    trigger = workflow.get_trigger(specific=False)
+    trigger = workflow.get_trigger()
     node_before = data_fixture.create_local_baserow_create_row_action_node(
         workflow=workflow
     )
@@ -70,7 +44,12 @@ def test_create_node_before(api_client, data_fixture):
     url = reverse(API_URL_LIST, kwargs={"workflow_id": workflow.id})
     response = api_client.post(
         url,
-        {"type": "create_row", "before_id": node_before.id},
+        {
+            "type": "update_row",
+            "position_node_id": trigger.id,
+            "position": "south",
+            "output": "",
+        },
         **get_api_kwargs(token),
     )
 
@@ -78,71 +57,29 @@ def test_create_node_before(api_client, data_fixture):
     assert response.json() == {
         "id": AnyInt(),
         "label": "",
-        "order": AnyStr(),
-        "previous_node_id": trigger.id,
-        "previous_node_output": "",
-        "parent_node_id": None,
         "service": AnyDict(),
-        "type": "create_row",
+        "type": "update_row",
         "workflow": workflow.id,
     }
 
-    new_node = AutomationNode.objects.get(id=response.json()["id"])
-    nodes = AutomationNode.objects.all()
+    AutomationNode.objects.get(id=response.json()["id"])
 
-    assert nodes[0].id == trigger.id
-    assert nodes[1].id == new_node.id
-    assert nodes[2].id == node_before.id
+    workflow.refresh_from_db()
+    workflow.assert_reference(
+        {
+            "0": "rows_created",
+            "create_row": {},
+            "rows_created": {"next": {"": ["update_row"]}},
+            "update_row": {"next": {"": ["create_row"]}},
+        }
+    )
 
 
 @pytest.mark.django_db
-def test_create_node_before_router_edge_output(api_client, data_fixture):
-    user, token = data_fixture.create_user_and_token()
-    workflow = data_fixture.create_automation_workflow(user)
-    service = data_fixture.create_core_router_service()
-    router = data_fixture.create_core_router_action_node(
-        service=service, workflow=workflow
-    )
-    edge1 = data_fixture.create_core_router_service_edge(
-        service=service, label="Edge 1", condition="'true'"
-    )
-    edge1_output = AutomationNode.objects.get(
-        previous_node=router, previous_node_output=edge1.uid
-    )
-    edge2 = data_fixture.create_core_router_service_edge(
-        service=service, label="Edge 2", condition="'true'"
-    )
-    edge2_output = AutomationNode.objects.get(
-        previous_node=router, previous_node_output=edge2.uid
-    )
-
-    url = reverse(API_URL_LIST, kwargs={"workflow_id": workflow.id})
-    response = api_client.post(
-        url,
-        {"type": "router", "before_id": edge2_output.id},
-        **get_api_kwargs(token),
-    )
-    assert response.status_code == HTTP_200_OK
-    response_json = response.json()
-    assert response_json["previous_node_id"] == router.id
-    assert response_json["previous_node_output"] == str(edge2.uid)
-
-    # edge1's output should be *unaffected*.
-    edge1_output.refresh_from_db()
-    assert edge1_output.previous_node_id == router.id
-    assert edge1_output.previous_node_output == str(edge1.uid)
-
-    # edge2's output is now after the node we just created.
-    edge2_output.refresh_from_db()
-    assert edge2_output.previous_node_id == response_json["id"]
-    assert edge2_output.previous_node_output == ""
-
-
-@pytest.mark.django_db
-def test_create_node_before_invalid(api_client, data_fixture):
+def test_create_node_position_node_invalid(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workflow_a = data_fixture.create_automation_workflow(user)
-    trigger_a = workflow_a.get_trigger(specific=False)
+    trigger_a = workflow_a.get_trigger()
     workflow_b = data_fixture.create_automation_workflow(user)
     node2_b = data_fixture.create_local_baserow_create_row_action_node(
         workflow=workflow_b
@@ -152,39 +89,33 @@ def test_create_node_before_invalid(api_client, data_fixture):
 
     response = api_client.post(
         url,
-        {"type": "create_row", "before_id": trigger_a.id},
+        {
+            "type": "create_row",
+            "position_node_id": 99999999999,
+            "position": "south",
+            "output": "",
+        },
         **get_api_kwargs(token),
     )
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json() == {
-        "error": "ERROR_AUTOMATION_NODE_BEFORE_INVALID",
-        "detail": "You cannot create an automation node before a trigger.",
+        "error": "ERROR_AUTOMATION_NODE_POSITION_NODE_INVALID",
+        "detail": f"The position node id {99999999999} doesn't exist",
     }
 
     response = api_client.post(
         url,
-        {"type": "create_row", "before_id": node2_b.id},
+        {
+            "type": "create_row",
+            "position_node_id": node2_b.id,
+            "position": "south",
+            "output": "",
+        },
         **get_api_kwargs(token),
     )
     assert response.json() == {
-        "error": "ERROR_AUTOMATION_NODE_BEFORE_INVALID",
-        "detail": "The `before` node must belong to the same workflow "
-        "as the one supplied.",
-    }
-
-
-@pytest.mark.django_db
-def test_create_node_before_does_not_exist(api_client, data_fixture):
-    user, token = data_fixture.create_user_and_token()
-    workflow = data_fixture.create_automation_workflow(user)
-    response = api_client.post(
-        reverse(API_URL_LIST, kwargs={"workflow_id": workflow.id}),
-        {"type": "create_row", "before_id": 9999999999},
-        **get_api_kwargs(token),
-    )
-    assert response.json() == {
-        "error": "ERROR_AUTOMATION_NODE_DOES_NOT_EXIST",
-        "detail": "The requested node does not exist.",
+        "error": "ERROR_AUTOMATION_NODE_POSITION_NODE_INVALID",
+        "detail": f"The position node id {node2_b.id} doesn't exist",
     }
 
 
@@ -218,11 +149,15 @@ def test_create_node_invalid_body(api_client, data_fixture):
 def test_create_node_invalid_workflow(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
 
-    assert AutomationWorkflow.objects.filter(pk=999).count() == 0
-    url = reverse(API_URL_LIST, kwargs={"workflow_id": 999})
+    url = reverse(API_URL_LIST, kwargs={"workflow_id": 0})
     response = api_client.post(
         url,
-        {"type": "create_row"},
+        {
+            "type": "create_row",
+            "position_node_id": 0,
+            "position": "south",
+            "output": "",
+        },
         **get_api_kwargs(token),
     )
 
@@ -234,26 +169,6 @@ def test_create_node_invalid_workflow(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_create_trigger_node_disallowed(api_client, data_fixture):
-    user, token = data_fixture.create_user_and_token()
-    workflow = data_fixture.create_automation_workflow(user, name="test")
-
-    url = reverse(API_URL_LIST, kwargs={"workflow_id": workflow.id})
-    response = api_client.post(
-        url,
-        {"type": "rows_created"},
-        **get_api_kwargs(token),
-    )
-
-    assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json() == {
-        "error": "ERROR_AUTOMATION_TRIGGER_NODE_MODIFICATION_DISALLOWED",
-        "detail": "Triggers can not be created, deleted or duplicated, "
-        "they can only be replaced with a different type.",
-    }
-
-
-@pytest.mark.django_db
 def test_create_node_undo_redo(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workflow = data_fixture.create_automation_workflow(user, name="test")
@@ -261,7 +176,17 @@ def test_create_node_undo_redo(api_client, data_fixture):
 
     url = reverse(API_URL_LIST, kwargs={"workflow_id": workflow.id})
     api_kwargs = get_api_kwargs(token)
-    response = api_client.post(url, {"type": "create_row"}, **api_kwargs)
+
+    response = api_client.post(
+        url,
+        {
+            "type": "create_row",
+            "position_node_id": workflow.get_trigger().id,
+            "position": "south",
+            "output": "",
+        },
+        **api_kwargs,
+    )
     assert response.status_code == HTTP_200_OK
 
     assert workflow.automation_workflow_nodes.count() == 2
@@ -274,6 +199,7 @@ def test_create_node_undo_redo(api_client, data_fixture):
             "workflow": workflow.id,
         },
     }
+
     response = api_client.patch(reverse(API_URL_UNDO), payload, **api_kwargs)
     assert response.status_code == HTTP_200_OK
     assert workflow.automation_workflow_nodes.count() == 1
@@ -287,12 +213,8 @@ def test_create_node_undo_redo(api_client, data_fixture):
 def test_get_nodes(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workflow = data_fixture.create_automation_workflow(user)
-    trigger = workflow.get_trigger(specific=False)
+    trigger = workflow.get_trigger()
     node = data_fixture.create_automation_node(workflow=workflow)
-
-    # Simulate one node
-    workflow.simulate_until_node = node
-    workflow.save()
 
     url = reverse(API_URL_LIST, kwargs={"workflow_id": node.workflow.id})
     response = api_client.get(url, **get_api_kwargs(token))
@@ -302,10 +224,6 @@ def test_get_nodes(api_client, data_fixture):
         {
             "id": trigger.id,
             "label": trigger.label,
-            "order": AnyStr(),
-            "previous_node_id": None,
-            "previous_node_output": "",
-            "parent_node_id": None,
             "service": AnyDict(),
             "type": "rows_created",
             "workflow": workflow.id,
@@ -313,10 +231,6 @@ def test_get_nodes(api_client, data_fixture):
         {
             "id": node.id,
             "label": node.label,
-            "order": AnyStr(),
-            "previous_node_id": trigger.id,
-            "previous_node_output": "",
-            "parent_node_id": None,
             "service": AnyDict(),
             "type": "create_row",
             "workflow": node.workflow.id,
@@ -335,92 +249,6 @@ def test_get_node_invalid_workflow(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_order_nodes(api_client, data_fixture):
-    user, token = data_fixture.create_user_and_token()
-    workflow = data_fixture.create_automation_workflow(user)
-    trigger = workflow.get_trigger(specific=False)
-    node_1 = data_fixture.create_automation_node(user=user, workflow=workflow)
-    node_2 = data_fixture.create_automation_node(user=user, workflow=workflow)
-
-    list_url = reverse(API_URL_LIST, kwargs={"workflow_id": workflow.id})
-    api_kwargs = get_api_kwargs(token)
-    response = api_client.get(list_url, **api_kwargs)
-    assert [n["id"] for n in response.json()] == [trigger.id, node_1.id, node_2.id]
-
-    order_url = reverse(API_URL_ORDER, kwargs={"workflow_id": workflow.id})
-    payload = {"node_ids": [trigger.id, node_2.id, node_1.id]}
-    response = api_client.post(order_url, payload, **api_kwargs)
-    assert response.status_code == HTTP_204_NO_CONTENT
-
-    response = api_client.get(list_url, **api_kwargs)
-    assert [n["id"] for n in response.json()] == [trigger.id, node_2.id, node_1.id]
-
-
-@pytest.mark.django_db
-def test_order_nodes_invalid_node(api_client, data_fixture):
-    user, token = data_fixture.create_user_and_token()
-    workflow_1 = data_fixture.create_automation_workflow(user)
-
-    # Create a node that belongs to another workflow
-    workflow_2 = data_fixture.create_automation_workflow(user)
-    node = data_fixture.create_automation_node(user=user, workflow=workflow_2)
-
-    order_url = reverse(API_URL_ORDER, kwargs={"workflow_id": workflow_1.id})
-    payload = {"node_ids": [node.id]}
-    response = api_client.post(
-        order_url,
-        payload,
-        **get_api_kwargs(token),
-    )
-    assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json() == {
-        "detail": f"The node id {node.id} does not belong to the workflow.",
-        "error": "ERROR_AUTOMATION_NODE_NOT_IN_WORKFLOW",
-    }
-
-
-@pytest.mark.django_db
-def test_order_nodes_undo_redo(api_client, data_fixture):
-    user, token = data_fixture.create_user_and_token()
-    automation = data_fixture.create_automation_application(user=user)
-    workflow = data_fixture.create_automation_workflow(user, automation=automation)
-    trigger = workflow.get_trigger(specific=False)
-    node_1 = data_fixture.create_automation_node(user=user, workflow=workflow)
-    node_2 = data_fixture.create_automation_node(user=user, workflow=workflow)
-
-    api_kwargs = get_api_kwargs(token)
-
-    order_url = reverse(API_URL_ORDER, kwargs={"workflow_id": workflow.id})
-    payload = {"node_ids": [node_2.id, node_1.id]}
-    response = api_client.post(order_url, payload, **api_kwargs)
-    assert response.status_code == HTTP_204_NO_CONTENT
-
-    list_url = reverse(API_URL_LIST, kwargs={"workflow_id": workflow.id})
-    response = api_client.get(list_url, **api_kwargs)
-    assert [n["id"] for n in response.json()] == [trigger.id, node_2.id, node_1.id]
-
-    payload = {
-        "scopes": {
-            "workspace": workflow.automation.workspace.id,
-            "application": workflow.automation.id,
-            "root": True,
-            "workflow": workflow.id,
-        },
-    }
-    response = api_client.patch(reverse(API_URL_UNDO), payload, **api_kwargs)
-    assert response.status_code == HTTP_200_OK
-
-    response = api_client.get(list_url, **api_kwargs)
-    assert [n["id"] for n in response.json()] == [trigger.id, node_1.id, node_2.id]
-
-    response = api_client.patch(reverse(API_URL_REDO), payload, **api_kwargs)
-    assert response.status_code == HTTP_200_OK
-
-    response = api_client.get(list_url, **api_kwargs)
-    assert [n["id"] for n in response.json()] == [trigger.id, node_2.id, node_1.id]
-
-
-@pytest.mark.django_db
 def test_delete_node(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workflow = data_fixture.create_automation_workflow(user)
@@ -435,7 +263,7 @@ def test_delete_node(api_client, data_fixture):
 def test_delete_trigger_node_disallowed(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workflow = data_fixture.create_automation_workflow(user)
-    trigger = workflow.get_trigger(specific=False)
+    trigger = workflow.get_trigger()
 
     delete_url = reverse(API_URL_ITEM, kwargs={"node_id": trigger.id})
     response = api_client.delete(delete_url, **get_api_kwargs(token))
@@ -489,22 +317,35 @@ def test_delete_node_undo_redo(api_client, data_fixture):
 def test_duplicate_node(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workflow = data_fixture.create_automation_workflow(user)
-    action = data_fixture.create_local_baserow_create_row_action_node(workflow=workflow)
+    action = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow, label="To duplicate"
+    )
 
     duplicate_url = reverse(API_URL_DUPLICATE, kwargs={"node_id": action.id})
+
     response = api_client.post(duplicate_url, **get_api_kwargs(token))
+
     assert response.status_code == HTTP_200_OK
     response_json = response.json()
     assert response_json["id"] != action.id
-    assert response_json["previous_node_output"] == ""
-    assert response_json["previous_node_id"] == action.id
+
+    workflow.refresh_from_db()
+
+    workflow.assert_reference(
+        {
+            "0": "rows_created",
+            "rows_created": {"next": {"": ["To duplicate"]}},
+            "To duplicate": {"next": {"": ["To duplicate-"]}},
+            "To duplicate-": {},
+        }
+    )
 
 
 @pytest.mark.django_db
 def test_duplicate_trigger_node_disallowed(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workflow = data_fixture.create_automation_workflow(user)
-    trigger = workflow.get_trigger(specific=False)
+    trigger = workflow.get_trigger()
 
     api_kwargs = get_api_kwargs(token)
     duplicate_url = reverse(API_URL_DUPLICATE, kwargs={"node_id": trigger.id})
@@ -536,24 +377,20 @@ def test_duplicate_node_invalid_node(api_client, data_fixture):
 def test_update_node(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workflow = data_fixture.create_automation_workflow(user)
-    trigger = workflow.get_trigger(specific=False)
+    trigger = workflow.get_trigger()
     node = data_fixture.create_automation_node(user=user, workflow=workflow)
 
     assert node.label == ""
 
     api_kwargs = get_api_kwargs(token)
     update_url = reverse(API_URL_ITEM, kwargs={"node_id": node.id})
-    payload = {"label": "foo", "previous_node_output": "foo"}
+    payload = {"label": "foo"}
     response = api_client.patch(update_url, payload, **api_kwargs)
     assert response.status_code == HTTP_200_OK
     assert response.json() == {
         "id": node.id,
         "label": "foo",
-        "order": AnyStr(),
         "service": AnyDict(),
-        "previous_node_id": trigger.id,
-        "previous_node_output": "",
-        "parent_node_id": None,
         "type": node.get_type().type,
         "workflow": workflow.id,
     }
@@ -609,14 +446,11 @@ def test_update_node_undo_redo(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(
-    "irreplaceable_types",
-    (["create_row", "rows_created"], ["rows_created", "create_row"]),
-)
 def test_replace_node_type_with_irreplaceable_type(
-    api_client, data_fixture, irreplaceable_types
+    api_client,
+    data_fixture,
 ):
-    original_type, irreplaceable_type = irreplaceable_types
+    original_type, irreplaceable_type = ["create_row", "rows_created"]
     user, token = data_fixture.create_user_and_token()
     workflow = data_fixture.create_automation_workflow(user)
     node = data_fixture.create_automation_node(
@@ -636,36 +470,57 @@ def test_replace_node_type_with_irreplaceable_type(
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(
-    "replaceable_types",
-    (["update_row", "delete_row"], ["rows_created", "rows_updated"]),
-)
-def test_replace_node_type_with_replaceable_type(
-    api_client, data_fixture, replaceable_types
+def test_replace_node_type_with_replaceable_type_trigger(
+    api_client,
+    data_fixture,
 ):
-    original_type, replaceable_type = replaceable_types
+    original_type, replaceable_type = ["rows_created", "rows_updated"]
     user, token = data_fixture.create_user_and_token()
-    workflow = data_fixture.create_automation_workflow(user)
-    trigger = workflow.get_trigger(specific=False)
-    node = data_fixture.create_automation_node(
-        user=user, type=original_type, workflow=workflow
-    )
+    workflow = data_fixture.create_automation_workflow(user, trigger_type=original_type)
+    trigger = workflow.get_trigger()
+
     response = api_client.post(
-        reverse(API_URL_REPLACE, kwargs={"node_id": node.id}),
+        reverse(API_URL_REPLACE, kwargs={"node_id": trigger.id}),
         {"new_type": replaceable_type},
         **get_api_kwargs(token),
     )
+
     assert response.status_code == HTTP_200_OK
     assert response.json() == {
         "id": AnyInt(),
         "label": "",
         "type": replaceable_type,
         "workflow": workflow.id,
-        "previous_node_id": trigger.id,
-        "parent_node_id": None,
-        "order": AnyStr(),
         "service": AnyDict(),
-        "previous_node_output": "",
+    }
+
+
+@pytest.mark.django_db
+def test_replace_node_type_with_replaceable_type(
+    api_client,
+    data_fixture,
+):
+    original_type, replaceable_type = ["update_row", "delete_row"]
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user)
+    trigger = workflow.get_trigger()
+    node = data_fixture.create_automation_node(
+        user=user, type=original_type, workflow=workflow
+    )
+
+    response = api_client.post(
+        reverse(API_URL_REPLACE, kwargs={"node_id": node.id}),
+        {"new_type": replaceable_type},
+        **get_api_kwargs(token),
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json() == {
+        "id": AnyInt(),
+        "label": "",
+        "type": replaceable_type,
+        "workflow": workflow.id,
+        "service": AnyDict(),
     }
 
 
@@ -673,22 +528,25 @@ def test_replace_node_type_with_replaceable_type(
 def test_create_router_node(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workflow = data_fixture.create_automation_workflow(user)
-    trigger = workflow.get_trigger(specific=False)
+    trigger = workflow.get_trigger()
 
     url = reverse(API_URL_LIST, kwargs={"workflow_id": workflow.id})
+
     response = api_client.post(
         url,
-        {"type": "router"},
+        {
+            "type": "router",
+            "position_node_id": trigger.id,
+            "position": "south",
+            "output": "",
+        },
         **get_api_kwargs(token),
     )
+
     assert response.status_code == HTTP_200_OK
     assert response.json() == {
         "id": AnyInt(),
-        "order": AnyStr(),
         "label": "",
-        "previous_node_id": trigger.id,
-        "previous_node_output": "",
-        "parent_node_id": None,
         "service": {
             "sample_data": None,
             "context_data": None,
@@ -740,12 +598,13 @@ def test_updating_router_node_removing_edge_without_output_allowed(
         workflow=workflow, service=service
     )
     first_edge = data_fixture.create_core_router_service_edge(
-        service=service, label="Do this", condition="'true'"
+        service=service, label="Do this", condition="'true'", skip_output_node=True
     )
-    AutomationNode.objects.filter(previous_node_output=first_edge.uid).delete()
+
     second_edge = data_fixture.create_core_router_service_edge(
         service=service, label="Do that", condition="'true'"
     )
+
     response = api_client.patch(
         reverse(API_URL_ITEM, kwargs={"node_id": router.id}),
         {
@@ -763,6 +622,7 @@ def test_updating_router_node_removing_edge_without_output_allowed(
         },
         **get_api_kwargs(token),
     )
+
     assert response.status_code == HTTP_200_OK
     response_json = response.json()
     assert response_json["service"]["edges"] == [
@@ -789,7 +649,12 @@ def test_updating_router_node_with_edge_removals_when_they_have_output_nodes_dis
     edge = data_fixture.create_core_router_service_edge(
         service=service, label="Do this", condition="'true'"
     )
-    assert AutomationNode.objects.filter(previous_node_output=edge.uid).exists()
+
+    assert (
+        workflow.get_graph().get_node_at_position(router, "south", str(edge.uid))
+        is not None
+    )
+
     response = api_client.patch(
         reverse(API_URL_ITEM, kwargs={"node_id": router.id}),
         {"service": {"edges": [], "type": "router"}, "type": "router"},
@@ -815,7 +680,12 @@ def test_deleting_router_node_with_output_nodes_disallowed(api_client, data_fixt
     edge = data_fixture.create_core_router_service_edge(
         service=service, label="Do this", condition="'true'"
     )
-    assert AutomationNode.objects.filter(previous_node_output=edge.uid).exists()
+
+    assert (
+        workflow.get_graph().get_node_at_position(router, "south", str(edge.uid))
+        is not None
+    )
+
     response = api_client.delete(
         reverse(API_URL_ITEM, kwargs={"node_id": router.id}),
         **get_api_kwargs(token),
@@ -839,7 +709,12 @@ def test_replacing_router_node_with_output_nodes_disallowed(api_client, data_fix
     edge = data_fixture.create_core_router_service_edge(
         service=service, label="Do this", condition="'true'"
     )
-    assert AutomationNode.objects.filter(previous_node_output=edge.uid).exists()
+
+    assert (
+        workflow.get_graph().get_node_at_position(router, "south", str(edge.uid))
+        is not None
+    )
+
     response = api_client.post(
         reverse(API_URL_REPLACE, kwargs={"node_id": router.id}),
         {"new_type": "create_row"},
@@ -950,10 +825,6 @@ def test_simulate_dispatch_trigger_node_with_sample_data(
     mock_async_start_workflow, api_client, data_fixture
 ):
     user, token = data_fixture.create_user_and_token()
-    workflow = data_fixture.create_automation_workflow(
-        user=user,
-        trigger_type=LocalBaserowRowsCreatedNodeTriggerType.type,
-    )
 
     # Create a trigger node with service
     table, fields, _ = data_fixture.build_table(
@@ -962,13 +833,15 @@ def test_simulate_dispatch_trigger_node_with_sample_data(
         rows=[["Blueberry Muffin"]],
     )
 
-    trigger_service = data_fixture.create_local_baserow_rows_created_service(
-        table=table,
-        integration=data_fixture.create_local_baserow_integration(user=user),
+    workflow = data_fixture.create_automation_workflow(
+        user=user,
+        trigger_type=LocalBaserowRowsCreatedNodeTriggerType.type,
+        trigger_service_kwargs={
+            "table": table,
+            "integration": data_fixture.create_local_baserow_integration(user=user),
+        },
     )
-    trigger_node = data_fixture.create_automation_node(
-        user=user, workflow=workflow, type="rows_created", service=trigger_service
-    )
+    trigger_node = workflow.get_trigger()
 
     # Initially, the sample_data should be empty
     assert trigger_node.workflow.simulate_until_node is None
@@ -1110,17 +983,19 @@ def test_simulate_dispatch_action_node_with_sample_data(
 @pytest.mark.parametrize(
     "node_type",
     [
-        node_type
+        node_type.type
         for node_type in automation_node_type_registry.get_all()
-        if not node_type.is_fixed
+        if not node_type.is_fixed and not node_type.is_workflow_trigger
     ],
 )
 def test_move_movable_node(node_type, api_client, data_fixture):
+    node_type = automation_node_type_registry.get(node_type)
+
     user, token = data_fixture.create_user_and_token()
     workflow = data_fixture.create_automation_workflow(user)
-    trigger = workflow.get_trigger(specific=False)
+    trigger = workflow.get_trigger()
     before_node = data_fixture.create_local_baserow_create_row_action_node(
-        workflow=workflow
+        workflow=workflow, label="before"
     )
     node = data_fixture.create_automation_node(
         workflow=workflow,
@@ -1128,48 +1003,51 @@ def test_move_movable_node(node_type, api_client, data_fixture):
     )
     response = api_client.post(
         reverse(API_URL_MOVE, kwargs={"node_id": node.id}),
-        {"previous_node_id": trigger.id, "previous_node_output": ""},
+        {"position_node_id": trigger.id, "position": "south", "output": ""},
         **get_api_kwargs(token),
     )
-    assert response.status_code == HTTP_200_OK
-    assert response.json() == {
-        "id": node.id,
-        "label": node.label,
-        "order": AnyStr(),
-        "previous_node_id": trigger.id,
-        "previous_node_output": node.previous_node_output,
-        "parent_node_id": None,
-        "service": AnyDict(),
-        "type": node_type.type,
-        "workflow": workflow.id,
-    }
-    before_node.refresh_from_db()
-    assert before_node.previous_node_id == node.id
+    assert response.status_code == HTTP_202_ACCEPTED
+
+    workflow.refresh_from_db()
+
+    workflow.assert_reference(
+        {
+            "0": "rows_created",
+            "rows_created": {"next": {"": [node_type.type]}},
+            node_type.type: {"next": {"": ["before"]}},
+            "before": {"next": {"": []}},
+        }
+    )
 
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
     "node_type",
     [
-        node_type
+        node_type.type
         for node_type in automation_node_type_registry.get_all()
-        if node_type.is_fixed
+        if node_type.is_fixed and not node_type.is_workflow_trigger
     ],
 )
 def test_move_fixed_node(node_type, api_client, data_fixture):
+    node_type = automation_node_type_registry.get(node_type)
+
     user, token = data_fixture.create_user_and_token()
     workflow = data_fixture.create_automation_workflow(user)
-    trigger = workflow.get_trigger(specific=False)
+    trigger = workflow.get_trigger()
+
     before_node = data_fixture.create_local_baserow_create_row_action_node(
         workflow=workflow
     )
+
     node = data_fixture.create_automation_node(
         workflow=workflow,
         type=node_type.type,
     )
+
     response = api_client.post(
         reverse(API_URL_MOVE, kwargs={"node_id": node.id}),
-        {"previous_node_id": trigger.id, "previous_node_output": ""},
+        {"position_node_id": trigger.id, "position": "south", "output": ""},
         **get_api_kwargs(token),
     )
     assert response.status_code == HTTP_400_BAD_REQUEST
@@ -1178,5 +1056,3 @@ def test_move_fixed_node(node_type, api_client, data_fixture):
         "error": "ERROR_AUTOMATION_NODE_NOT_MOVABLE",
         "detail": "This automation node cannot be moved.",
     }
-    before_node.refresh_from_db()
-    assert before_node.previous_node_id == trigger.id

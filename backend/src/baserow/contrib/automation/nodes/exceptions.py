@@ -29,11 +29,9 @@ class AutomationNodeDoesNotExist(AutomationNodeError):
         )
 
 
-class AutomationNodeBeforeInvalid(Exception):
+class AutomationNodePositionNodeInvalid(Exception):
     """
-    Raised when trying to create an automation node `before` another, but it is invalid.
-    This can happen if the `before` is a trigger, or if `before.workflow` belongs to a
-    different workflow to the one supplied.
+    Raised when trying to use an invalid position node.
     """
 
 
@@ -72,4 +70,10 @@ class AutomationNodeNotMovable(AutomationNodeError):
     """
     Raised when an automation node is not movable. This can happen if
     the node's type dictates that it cannot be moved due to its state.
+    """
+
+
+class AutomationNodeMissingOutput(AutomationNodeError):
+    """
+    Raised when the target output is missing in the position node.
     """

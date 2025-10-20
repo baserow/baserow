@@ -43,7 +43,6 @@ import {
   HistoryEditorSidePanelType,
   NodeEditorSidePanelType,
 } from '@baserow/modules/automation/editorSidePanelTypes'
-import { PeriodicTriggerServiceType } from '@baserow/modules/automation/serviceTypes'
 import { AutomationSearchType } from '@baserow/modules/automation/searchTypes'
 import { searchTypeRegistry } from '@baserow/modules/core/search/types/registry'
 import { AutomationGuidedTourType } from '@baserow/modules/automation/guidedTourTypes'
@@ -134,7 +133,6 @@ export default (context) => {
       new LocalBaserowAggregateRowsActionNodeType(context)
     )
     app.$registry.register('node', new CorePeriodicTriggerNodeType(context))
-    app.$registry.register('service', new PeriodicTriggerServiceType(context))
     app.$registry.register(
       'job',
       new DuplicateAutomationWorkflowJobType(context)

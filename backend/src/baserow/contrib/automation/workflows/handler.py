@@ -396,6 +396,7 @@ class AutomationWorkflowHandler:
             order=workflow.order,
             nodes=serialized_nodes,
             state=workflow.state,
+            graph=workflow.graph,
         )
 
     def _ops_count_for_import_workflow(
@@ -408,19 +409,6 @@ class AutomationWorkflowHandler:
 
         # Return zero for now, since we don't have Triggers and Actions yet.
         return 0
-
-    def _sort_serialized_nodes_by_priority(
-        self, serialized_nodes: List[AutomationNodeDict]
-    ) -> List[AutomationNodeDict]:
-        """
-        Sorts the serialized nodes so that root-level nodes (those without a parent)
-        are first, and then sorts by their `order` ASC.
-        """
-
-        def _node_priority_sort(n):
-            return n.get("parent_node_id") is not None, n.get("order", 0)
-
-        return sorted(serialized_nodes, key=_node_priority_sort)
 
     def import_nodes(
         self,
@@ -451,36 +439,24 @@ class AutomationWorkflowHandler:
         from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 
         imported_nodes = []
-        prioritized_nodes = self._sort_serialized_nodes_by_priority(serialized_nodes)
 
-        # True if we have imported at least one node on last iteration
-        was_imported = True
-        while was_imported:
-            was_imported = False
-            workflow_node_mapping = id_mapping.get("automation_workflow_nodes", {})
+        for serialized_node in serialized_nodes:
+            # check that the node has not already been imported in a
+            # previous pass or if the parent doesn't exist yet.
+            imported_node = AutomationNodeHandler().import_node(
+                workflow,
+                serialized_node,
+                id_mapping,
+                import_export_config=import_export_config,
+                files_zip=files_zip,
+                storage=storage,
+                cache=cache,
+            )
 
-            for serialized_node in prioritized_nodes:
-                parent_node_id = serialized_node["parent_node_id"]
-                # check that the node has not already been imported in a
-                # previous pass or if the parent doesn't exist yet.
-                if serialized_node["id"] not in workflow_node_mapping and (
-                    parent_node_id is None or parent_node_id in workflow_node_mapping
-                ):
-                    imported_node = AutomationNodeHandler().import_node(
-                        workflow,
-                        serialized_node,
-                        id_mapping,
-                        import_export_config=import_export_config,
-                        files_zip=files_zip,
-                        storage=storage,
-                        cache=cache,
-                    )
+            imported_nodes.append(imported_node)
 
-                    imported_nodes.append(imported_node)
-
-                    was_imported = True
-                    if progress:
-                        progress.increment(state=IMPORT_SERIALIZED_IMPORTING)
+            if progress:
+                progress.increment(state=IMPORT_SERIALIZED_IMPORTING)
 
         return imported_nodes
 
@@ -543,6 +519,8 @@ class AutomationWorkflowHandler:
                 cache=cache,
             )
 
+        self.migrate_graph(workflow_instance, id_mapping)
+
         return [i[0] for i in imported_workflows]
 
     def import_workflow(
@@ -601,6 +579,7 @@ class AutomationWorkflowHandler:
             name=serialized_workflow["name"],
             order=serialized_workflow["order"],
             state=serialized_workflow["state"] or WorkflowState.DRAFT,
+            graph=serialized_workflow.get("graph", {}),
         )
 
         id_mapping["automation_workflows"][
@@ -611,6 +590,40 @@ class AutomationWorkflowHandler:
             progress.increment(state=IMPORT_SERIALIZED_IMPORTING)
 
         return workflow_instance
+
+    def migrate_graph(self, workflow, id_mapping):
+        """
+        Updates the node IDs and edge UIDs in the graph from the id_mapping.
+        """
+
+        migrated = {}
+
+        def map_node(nid):
+            return id_mapping["automation_workflow_nodes"][int(nid)]
+
+        def map_output(uid):
+            if uid == "":
+                return ""
+            return id_mapping["automation_edge_outputs"][uid]
+
+        for key, info in workflow.graph.items():
+            if key == "0":
+                migrated["0"] = id_mapping["automation_workflow_nodes"][info]
+
+            else:
+                migrated[str(map_node(key))] = {}
+                if "next" in info:
+                    migrated[str(map_node(key))]["next"] = {
+                        map_output(uid): [map_node(nid) for nid in nids]
+                        for uid, nids in info["next"].items()
+                    }
+                if "child" in info:
+                    migrated[str(map_node(key))]["child"] = [
+                        map_node(nid) for nid in info["child"]
+                    ]
+
+        workflow.graph = migrated
+        workflow.save()
 
     def clean_up_previously_published_automations(
         self, workflow: AutomationWorkflow

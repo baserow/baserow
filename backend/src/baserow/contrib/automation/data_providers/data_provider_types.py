@@ -25,10 +25,20 @@ class PreviousNodeProviderType(AutomationDataProviderType):
     ):
         previous_node_id, *rest = path
 
+        previous_node_id = int(previous_node_id)
+
+        try:
+            previous_node = AutomationNodeHandler().get_node(previous_node_id)
+        except AutomationNodeDoesNotExist as exc:
+            message = "The previous node doesn't exist"
+            raise InvalidFormulaContext(message) from exc
+
         try:
             previous_node_results = dispatch_context.previous_nodes_results[
-                int(previous_node_id)
+                int(previous_node.id)
             ]
+            if previous_node.service.get_type().returns_list:
+                previous_node_results = previous_node_results["results"]
         except KeyError as exc:
             message = (
                 "The previous node id is not present in the dispatch context results"

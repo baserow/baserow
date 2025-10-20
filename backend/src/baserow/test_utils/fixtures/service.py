@@ -109,15 +109,19 @@ class ServiceFixtures:
     def create_core_router_service_edge(self, service: CoreRouterService, **kwargs):
         output_node = kwargs.pop("output_node", None)
         skip_output_node = kwargs.pop("skip_output_node", False)
+        edge_label = kwargs.get("label", "Edge")
+        output_label = kwargs.pop("output_label", f"{edge_label} output node")
 
         edge = service.edges.create(**kwargs)
 
         if output_node is None and not skip_output_node:
             router_node = service.automation_workflow_node
             self.create_local_baserow_create_row_action_node(
-                previous_node_output=edge.uid,
-                previous_node=router_node,
+                position_node=router_node,
+                output=edge.uid,
+                position="south",
                 workflow=router_node.workflow,
+                label=output_label,
             )
 
         return edge

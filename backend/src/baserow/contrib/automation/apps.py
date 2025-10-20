@@ -16,7 +16,6 @@ class AutomationConfig(AppConfig):
             DeleteAutomationNodeActionType,
             DuplicateAutomationNodeActionType,
             MoveAutomationNodeActionType,
-            OrderAutomationNodesActionType,
             ReplaceAutomationNodeActionType,
             UpdateAutomationNodeActionType,
         )
@@ -141,7 +140,6 @@ class AutomationConfig(AppConfig):
             action_type_registry.register(CreateAutomationNodeActionType())
             action_type_registry.register(UpdateAutomationNodeActionType())
             action_type_registry.register(DeleteAutomationNodeActionType())
-            action_type_registry.register(OrderAutomationNodesActionType())
             action_type_registry.register(DuplicateAutomationNodeActionType())
             action_type_registry.register(ReplaceAutomationNodeActionType())
             action_type_registry.register(MoveAutomationNodeActionType())

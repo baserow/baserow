@@ -140,7 +140,7 @@ export default {
       if (!this.workflow) {
         return []
       }
-      return this.$store.getters['automationWorkflowNode/getNodesOrdered'](
+      return this.$store.getters['automationWorkflowNode/getNodes'](
         this.workflow
       )
     },
@@ -178,20 +178,15 @@ export default {
     handleDebugToggle(newDebugState) {
       this.workflowDebug = newDebugState
     },
-    async handleAddNode({
-      type,
-      previousNodeId,
-      previousNodeOutput,
-      parentNodeId,
-    }) {
+    async handleAddNode({ type, positionNode, position, output }) {
       try {
         this.isAddingNode = true
         await this.$store.dispatch('automationWorkflowNode/create', {
           workflow: this.workflow,
           type,
-          previousNodeId,
-          previousNodeOutput,
-          parentNodeId,
+          positionNode,
+          position,
+          output,
         })
       } catch (err) {
         console.error('Failed to add node:', `${err}`)
@@ -202,7 +197,6 @@ export default {
     },
     async handleRemoveNode(nodeId) {
       if (!this.workflow) {
-        console.error('workflow is not available to remove a node.')
         return
       }
       try {

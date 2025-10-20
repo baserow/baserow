@@ -94,7 +94,11 @@ const isLoading = computed(() => {
 const nodeType = computed(() => app.$registry.get('node', props.node.type))
 
 const sampleData = computed(() => {
-  return nodeType.value.getSampleData(props.node)
+  const sample = nodeType.value.getSampleData(props.node)
+  if (nodeType.value.serviceType.returnsList && sample) {
+    return sample.results
+  }
+  return sample
 })
 
 const hasSampleData = computed(() => {

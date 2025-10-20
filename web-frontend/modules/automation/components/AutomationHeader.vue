@@ -87,6 +87,7 @@
           :icon="testRunEnabled ? 'iconoir-cancel' : 'iconoir-play'"
           type="secondary"
           data-highlight="automation-test-run"
+          :disabled="testRunDisabled"
           @click="toggleTestRun"
           >{{
             testRunEnabled
@@ -116,6 +117,8 @@ import { HistoryEditorSidePanelType } from '@baserow/modules/automation/editorSi
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { WORKFLOW_STATES } from '@baserow/modules/automation/components/enums'
 
+import NodeGraphHandler from '@baserow/modules/automation/utils/nodeGraphHandler'
+
 export default defineComponent({
   name: 'AutomationHeader',
   components: {},
@@ -142,6 +145,10 @@ export default defineComponent({
       } catch (error) {
         return null
       }
+    })
+
+    const testRunDisabled = computed(() => {
+      return !new NodeGraphHandler(workflow.value).hasNodes()
     })
 
     const testRunEnabled = computed(() => {
@@ -274,6 +281,7 @@ export default defineComponent({
       selectedWorkflow,
       workflow,
       activeSidePanel,
+      testRunDisabled,
     }
   },
 })

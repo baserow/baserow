@@ -13,6 +13,22 @@ $connectorHeight: 32px;
   }
 }
 
+.workflow-editor__trigger-selector {
+  background: $white;
+  border: 1.5px solid $palette-neutral-200;
+
+  @include elevation($elevation-low);
+  @include rounded($rounded-xl);
+}
+
+.workflow-editor__trigger-selector-title {
+  font-size: 16px;
+  font-weight: 500;
+  color: $palette-neutral-1200;
+  text-align: center;
+  padding-top: 20px;
+}
+
 .workflow-connector {
   color: $palette-neutral-400;
 }

@@ -8,6 +8,7 @@ import CoreHTTPRequestServiceForm from '@baserow/modules/integrations/core/compo
 import CoreSMTPEmailServiceForm from '@baserow/modules/integrations/core/components/services/CoreSMTPEmailServiceForm'
 import CoreRouterServiceForm from '@baserow/modules/integrations/core/components/services/CoreRouterServiceForm'
 import CoreIteratorServiceForm from '@baserow/modules/integrations/core/components/services/CoreIteratorServiceForm'
+import CorePeriodicServiceForm from '@baserow/modules/integrations/core/components/services/CorePeriodicServiceForm.vue'
 
 export class CoreHTTPRequestServiceType extends WorkflowActionServiceTypeMixin(
   ServiceType
@@ -237,5 +238,36 @@ export class CoreIteratorServiceType extends WorkflowActionServiceTypeMixin(
 
   getOrder() {
     return 5
+  }
+}
+
+export class PeriodicTriggerServiceType extends TriggerServiceTypeMixin(
+  ServiceType
+) {
+  static getType() {
+    return 'periodic'
+  }
+
+  get name() {
+    return this.app.i18n.t('serviceType.corePeriodic')
+  }
+
+  get description() {
+    return this.app.i18n.t('serviceType.corePeriodicDescription')
+  }
+
+  get formComponent() {
+    return CorePeriodicServiceForm
+  }
+
+  getDataSchema(service) {
+    return service.schema
+  }
+
+  getErrorMessage({ service }) {
+    if (!service?.interval) {
+      return this.app.i18n.t('serviceType.corePeriodicErrorIntervalMissing')
+    }
+    return super.getErrorMessage({ service })
   }
 }

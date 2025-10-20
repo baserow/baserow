@@ -454,6 +454,10 @@ export class LocalBaserowDeleteRowWorkflowServiceType extends WorkflowActionServ
 export class LocalBaserowTriggerServiceType extends TriggerServiceTypeMixin(
   LocalBaserowTableServiceType
 ) {
+  get returnsList() {
+    return true
+  }
+
   getErrorMessage({ service }) {
     if (service !== undefined) {
       if (!service.table_id) {

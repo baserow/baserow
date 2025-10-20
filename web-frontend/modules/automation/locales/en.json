@@ -1,4 +1,3 @@
-
 {
   "welcomeGuidedTourStep": {
     "title": "Welcome to Baserow Automations!",
@@ -124,6 +123,8 @@
     "routerDefaultEdgeLabelFallback": "Default",
     "routerWithOutputNodesDeleteError": "Cannot be deleted until its {outputCount} output nodes are removed.",
     "routerWithOutputNodesReplaceError": "Cannot be replaced until its {outputCount} output nodes are removed.",
+    "iteratorWithChildrenNodesDeleteError": "Cannot be deleted until its child nodes are removed.",
+    "iteratorWithChildrenNodesReplaceError": "Cannot be replaced until its child nodes are removed.",
     "periodicTriggerLabel": "Periodic trigger"
   },
   "workflowNode": {
@@ -178,9 +179,12 @@
     "deactivatedTitle": "Periodic trigger deactivated",
     "deactivatedText": "This periodic trigger has been automatically deactivated due to consecutive failures."
   },
+  "workflowEditor": {
+    "chooseEvent": "Choose an event..."
+  },
   "simulateDispatch": {
     "sampleDataLabel": "Output",
-    "triggerNodeAwaitingEvent": "This trigger node is waiting for an event.",
+    "triggerNodeAwaitingEvent": "The node is waiting. Please manually trigger the event to populate the payload and complete the test.",
     "errorNodeNotConfigured": "The Node must be configured before it can be tested.",
     "errorPreviousNodeNotConfigured": "The previous node -{node}- must be configured.",
     "errorPreviousNodesNotTested": "The previous node -{node}- must be tested first.",

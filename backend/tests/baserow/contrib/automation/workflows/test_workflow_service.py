@@ -72,10 +72,10 @@ def test_create_workflow_user_not_in_workspace(data_fixture):
 def test_create_workflow(data_fixture):
     user = data_fixture.create_user()
     automation = data_fixture.create_automation_application(user=user)
+
     workflow = AutomationWorkflowService().create_workflow(user, automation.id, "foo")
-    assert workflow.automation_workflow_nodes.count() == 1
-    node = workflow.automation_workflow_nodes.get().specific
-    assert node.get_type().is_workflow_trigger
+
+    assert workflow.automation_workflow_nodes.count() == 0
 
 
 @patch(f"{SERVICES_PATH}.automation_workflow_deleted")

@@ -10,6 +10,10 @@ export const TriggerNodeTypeMixin = (Base) =>
       return true
     }
 
+    getBeforeLabel({ workflow, node }) {
+      return this.app.i18n.t('workflowNode.beforeLabelTrigger')
+    }
+
     /**
      * Triggers cannot be deleted, so by default we return an error message.
      * @param workflow - the workflow that contains the node.

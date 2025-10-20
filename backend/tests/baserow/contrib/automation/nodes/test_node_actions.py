@@ -18,7 +18,6 @@ from baserow.contrib.automation.nodes.node_types import (
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.nodes.trash_types import AutomationNodeTrashableItemType
 from baserow.core.action.handler import ActionHandler
-from baserow.core.cache import local_cache
 from baserow.core.trash.handler import TrashHandler
 
 
@@ -31,50 +30,72 @@ def test_create_node_action(data_fixture):
     automation = data_fixture.create_automation_application(workspace=workspace)
     workflow = data_fixture.create_automation_workflow(user, automation=automation)
     node_before = data_fixture.create_automation_node(
-        workflow=workflow,
-        type=LocalBaserowCreateRowNodeType.type,
+        workflow=workflow, type=LocalBaserowCreateRowNodeType.type, label="Node before"
     )
     node_after = data_fixture.create_automation_node(
         workflow=workflow,
         type=LocalBaserowCreateRowNodeType.type,
         previous_node=node_before,
+        label="Node after",
     )
     node_type = automation_node_type_registry.get(LocalBaserowCreateRowNodeType.type)
 
-    with local_cache.context():
-        node = CreateAutomationNodeActionType.do(
-            user,
-            node_type,
-            workflow,
-            data={"before_id": node_after.id},
-        )
+    workflow.assert_reference(
+        {
+            "0": "rows_created",
+            "rows_created": {"next": {"": ["Node before"]}},
+            "Node before": {"next": {"": ["Node after"]}},
+            "Node after": {},
+        }
+    )
 
-    # The node is created
-    node_after.refresh_from_db()
-    assert node.previous_node_id == node_before.id
-    assert node_after.previous_node_id == node.id
+    node = CreateAutomationNodeActionType.do(
+        user,
+        node_type,
+        workflow,
+        dict(position_node_id=node_before.id, position="south", output=""),
+    )
 
-    with local_cache.context():
-        ActionHandler.undo(
-            user, [WorkflowActionScopeType.value(workflow.id)], session_id
-        )
+    workflow.assert_reference(
+        {
+            "0": "rows_created",
+            "rows_created": {"next": {"": ["Node before"]}},
+            "Node before": {"next": {"": ["create_row"]}},
+            "create_row": {"next": {"": ["Node after"]}},
+            "Node after": {},
+        }
+    )
+
+    ActionHandler.undo(user, [WorkflowActionScopeType.value(workflow.id)], session_id)
+
+    workflow.assert_reference(
+        {
+            "0": "rows_created",
+            "Node after": {},
+            "Node before": {"next": {"": ["Node after"]}},
+            "rows_created": {"next": {"": ["Node before"]}},
+        }
+    )
 
     # The node is trashed
     node.refresh_from_db(fields=["trashed"])
-    node_after.refresh_from_db()
     assert node.trashed
-    assert node_after.previous_node_id == node_before.id
 
-    with local_cache.context():
-        ActionHandler.redo(
-            user, [WorkflowActionScopeType.value(workflow.id)], session_id
-        )
+    ActionHandler.redo(user, [WorkflowActionScopeType.value(workflow.id)], session_id)
 
     # The node is restored
     node.refresh_from_db(fields=["trashed"])
-    node_after.refresh_from_db()
     assert not node.trashed
-    assert node_after.previous_node_id == node.id
+
+    workflow.assert_reference(
+        {
+            "0": "rows_created",
+            "rows_created": {"next": {"": ["Node before"]}},
+            "Node before": {"next": {"": ["create_row"]}},
+            "create_row": {"next": {"": ["Node after"]}},
+            "Node after": {},
+        }
+    )
 
 
 @pytest.mark.django_db
@@ -86,24 +107,38 @@ def test_replace_automation_action_node_type(data_fixture):
     automation = data_fixture.create_automation_application(workspace=workspace)
     workflow = data_fixture.create_automation_workflow(user, automation=automation)
     node = data_fixture.create_automation_node(
-        workflow=workflow,
-        type=LocalBaserowCreateRowNodeType.type,
+        workflow=workflow, type=LocalBaserowCreateRowNodeType.type, label="To replace"
     )
     node_after = data_fixture.create_automation_node(
-        workflow=workflow, type=LocalBaserowCreateRowNodeType.type
+        workflow=workflow, type=LocalBaserowCreateRowNodeType.type, label="After"
     )
 
-    with local_cache.context():
-        replaced_node = ReplaceAutomationNodeActionType.do(
-            user, node.id, LocalBaserowUpdateRowNodeType.type
-        )
+    workflow.assert_reference(
+        {
+            "0": "rows_created",
+            "After": {},
+            "To replace": {"next": {"": ["After"]}},
+            "rows_created": {"next": {"": ["To replace"]}},
+        }
+    )
+
+    replaced_node = ReplaceAutomationNodeActionType.do(
+        user, node.id, LocalBaserowUpdateRowNodeType.type
+    )
+
+    workflow.assert_reference(
+        {
+            "0": "rows_created",
+            "After": {},
+            "rows_created": {"next": {"": ["update_row"]}},
+            "update_row": {"next": {"": ["After"]}},
+        }
+    )
 
     # The original node is trashed, we have a new node of the new type.
     node.refresh_from_db(fields=["trashed"])
-    node_after.refresh_from_db()
     assert node.trashed
     assert isinstance(replaced_node, LocalBaserowUpdateRowNodeType.model_class)
-    assert node_after.previous_node_id == replaced_node.id
 
     # Confirm that the `node` trash entry exists, and it is
     # `managed` to prevent users from restoring it manually.
@@ -113,18 +148,23 @@ def test_replace_automation_action_node_type(data_fixture):
     )
     assert original_trash_entry.managed
 
-    with local_cache.context():
-        ActionHandler.undo(
-            user, [WorkflowActionScopeType.value(workflow.id)], session_id
-        )
+    ActionHandler.undo(user, [WorkflowActionScopeType.value(workflow.id)], session_id)
+
+    workflow.assert_reference(
+        {
+            "0": "rows_created",
+            "After": {},
+            "To replace": {"next": {"": ["After"]}},
+            "rows_created": {"next": {"": ["To replace"]}},
+        }
+    )
 
     # The original node is restored, the new node is trashed.
     node.refresh_from_db(fields=["trashed"])
-    node_after.refresh_from_db()
     assert not node.trashed
+
     replaced_node.refresh_from_db(fields=["trashed"])
     assert replaced_node.trashed
-    assert node_after.previous_node_id == node.id
 
     # Confirm that the `replaced_node` trash entry exists, and it
     # is `managed` to prevent users from restoring it manually.
@@ -134,18 +174,22 @@ def test_replace_automation_action_node_type(data_fixture):
     )
     assert replaced_trash_entry.managed
 
-    with local_cache.context():
-        ActionHandler.redo(
-            user, [WorkflowActionScopeType.value(workflow.id)], session_id
-        )
+    ActionHandler.redo(user, [WorkflowActionScopeType.value(workflow.id)], session_id)
 
+    workflow.assert_reference(
+        {
+            "0": "rows_created",
+            "After": {},
+            "rows_created": {"next": {"": ["update_row"]}},
+            "update_row": {"next": {"": ["After"]}},
+        }
+    )
     # The original node is trashed again, the new node is restored.
     node.refresh_from_db(fields=["trashed"])
-    node_after.refresh_from_db()
     assert node.trashed
+
     replaced_node.refresh_from_db(fields=["trashed"])
     assert not replaced_node.trashed
-    assert node_after.previous_node_id == replaced_node.id
 
     # Confirm that the `node` trash entry still exists, and it
     # is `managed` to prevent users from restoring it manually.
@@ -167,25 +211,36 @@ def test_replace_automation_trigger_node_type(data_fixture):
     original_trigger = workflow.get_trigger()
     action_node = data_fixture.create_automation_node(
         workflow=workflow,
-        previous_node=original_trigger,
         type=LocalBaserowCreateRowNodeType.type,
     )
 
-    with local_cache.context():
-        replaced_trigger = ReplaceAutomationNodeActionType.do(
-            user, original_trigger.id, LocalBaserowRowsUpdatedNodeTriggerType.type
-        )
+    workflow.assert_reference(
+        {
+            "0": "rows_created",
+            "rows_created": {"next": {"": ["create_row"]}},
+            "create_row": {},
+        }
+    )
+
+    replaced_trigger = ReplaceAutomationNodeActionType.do(
+        user, original_trigger.id, LocalBaserowRowsUpdatedNodeTriggerType.type
+    )
+
+    workflow.assert_reference(
+        {
+            "0": "rows_updated",
+            "rows_updated": {"next": {"": ["create_row"]}},
+            "create_row": {},
+        }
+    )
 
     # The original trigger is trashed, we have a new trigger of the new type.
     original_trigger.refresh_from_db(fields=["trashed"])
-    action_node.refresh_from_db()
 
     assert original_trigger.trashed
     assert isinstance(
         replaced_trigger, LocalBaserowRowsUpdatedNodeTriggerType.model_class
     )
-
-    assert action_node.previous_node_id == replaced_trigger.id
 
     # Confirm that the `original_trigger` trash entry exists, and
     # it is `managed` to prevent users from restoring it manually.
@@ -195,18 +250,22 @@ def test_replace_automation_trigger_node_type(data_fixture):
     )
     assert original_trash_entry.managed
 
-    with local_cache.context():
-        ActionHandler.undo(
-            user, [WorkflowActionScopeType.value(workflow.id)], session_id
-        )
+    ActionHandler.undo(user, [WorkflowActionScopeType.value(workflow.id)], session_id)
+
+    workflow.assert_reference(
+        {
+            "0": "rows_created",
+            "rows_created": {"next": {"": ["create_row"]}},
+            "create_row": {},
+        }
+    )
 
     # The original trigger is restored, the new trigger is trashed.
     original_trigger.refresh_from_db(fields=["trashed"])
-    action_node.refresh_from_db()
     assert not original_trigger.trashed
+
     replaced_trigger.refresh_from_db(fields=["trashed"])
     assert replaced_trigger.trashed
-    assert action_node.previous_node_id == original_trigger.id
 
     # Confirm that the `replaced_trigger` trash entry exists, and
     # it is `managed` to prevent users from restoring it manually.
@@ -216,18 +275,22 @@ def test_replace_automation_trigger_node_type(data_fixture):
     )
     assert replaced_trash_entry.managed
 
-    with local_cache.context():
-        ActionHandler.redo(
-            user, [WorkflowActionScopeType.value(workflow.id)], session_id
-        )
+    ActionHandler.redo(user, [WorkflowActionScopeType.value(workflow.id)], session_id)
+
+    workflow.assert_reference(
+        {
+            "0": "rows_updated",
+            "rows_updated": {"next": {"": ["create_row"]}},
+            "create_row": {},
+        }
+    )
 
     # The original trigger is trashed again, the new trigger is restored.
     original_trigger.refresh_from_db(fields=["trashed"])
-    action_node.refresh_from_db()
     assert original_trigger.trashed
+
     replaced_trigger.refresh_from_db(fields=["trashed"])
     assert not replaced_trigger.trashed
-    assert action_node.previous_node_id == replaced_trigger.id
 
     # Confirm that the `original_trigger` trash entry still exists,
     # and it is `managed` to prevent users from restoring it manually.
@@ -247,48 +310,69 @@ def test_delete_node_action(data_fixture):
     automation = data_fixture.create_automation_application(workspace=workspace)
     workflow = data_fixture.create_automation_workflow(user, automation=automation)
     node_before = data_fixture.create_automation_node(
-        workflow=workflow,
-        type=LocalBaserowCreateRowNodeType.type,
+        workflow=workflow, type=LocalBaserowCreateRowNodeType.type, label="Before"
     )
     node = data_fixture.create_automation_node(
-        workflow=workflow,
-        type=LocalBaserowCreateRowNodeType.type,
-        previous_node=node_before,
+        workflow=workflow, type=LocalBaserowCreateRowNodeType.type, label="To delete"
     )
     node_after = data_fixture.create_automation_node(
-        workflow=workflow, type=LocalBaserowCreateRowNodeType.type, previous_node=node
+        workflow=workflow, type=LocalBaserowCreateRowNodeType.type, label="After"
     )
 
-    with local_cache.context():
-        DeleteAutomationNodeActionType.do(user, node.id)
+    workflow.assert_reference(
+        {
+            "0": "rows_created",
+            "After": {},
+            "Before": {"next": {"": ["To delete"]}},
+            "To delete": {"next": {"": ["After"]}},
+            "rows_created": {"next": {"": ["Before"]}},
+        }
+    )
+
+    DeleteAutomationNodeActionType.do(user, node.id)
+
+    workflow.assert_reference(
+        {
+            "0": "rows_created",
+            "After": {},
+            "Before": {"next": {"": ["After"]}},
+            "rows_created": {"next": {"": ["Before"]}},
+        }
+    )
 
     # The node is trashed
     node.refresh_from_db(fields=["trashed"])
-    node_after.refresh_from_db()
     assert node.trashed
-    assert node_after.previous_node_id == node_before.id
 
-    with local_cache.context():
-        ActionHandler.undo(
-            user, [WorkflowActionScopeType.value(workflow.id)], session_id
-        )
+    ActionHandler.undo(user, [WorkflowActionScopeType.value(workflow.id)], session_id)
+
+    workflow.assert_reference(
+        {
+            "0": "rows_created",
+            "After": {},
+            "Before": {"next": {"": ["To delete"]}},
+            "To delete": {"next": {"": ["After"]}},
+            "rows_created": {"next": {"": ["Before"]}},
+        }
+    )
 
     # The original node is restored
     node.refresh_from_db(fields=["trashed"])
-    node_after.refresh_from_db()
     assert not node.trashed
-    assert node_after.previous_node_id == node.id
 
-    with local_cache.context():
-        ActionHandler.redo(
-            user, [WorkflowActionScopeType.value(workflow.id)], session_id
-        )
+    ActionHandler.redo(user, [WorkflowActionScopeType.value(workflow.id)], session_id)
+    workflow.assert_reference(
+        {
+            "0": "rows_created",
+            "After": {},
+            "Before": {"next": {"": ["After"]}},
+            "rows_created": {"next": {"": ["Before"]}},
+        }
+    )
 
     # The node is trashed again
     node.refresh_from_db(fields=["trashed"])
-    node_after.refresh_from_db()
     assert node.trashed
-    assert node_after.previous_node_id == node_before.id
 
 
 @pytest.mark.django_db
@@ -300,35 +384,61 @@ def test_delete_node_action_after_nothing(data_fixture):
     automation = data_fixture.create_automation_application(workspace=workspace)
     workflow = data_fixture.create_automation_workflow(user, automation=automation)
     node_before = data_fixture.create_automation_node(
-        workflow=workflow,
-        type=LocalBaserowCreateRowNodeType.type,
+        workflow=workflow, type=LocalBaserowCreateRowNodeType.type, label="Before"
     )
     node = data_fixture.create_automation_node(
         workflow=workflow,
         type=LocalBaserowCreateRowNodeType.type,
         previous_node=node_before,
+        label="To delete",
+    )
+    workflow.assert_reference(
+        {
+            "0": "rows_created",
+            "Before": {"next": {"": ["To delete"]}},
+            "To delete": {},
+            "rows_created": {"next": {"": ["Before"]}},
+        }
     )
 
-    with local_cache.context():
-        DeleteAutomationNodeActionType.do(user, node.id)
+    DeleteAutomationNodeActionType.do(user, node.id)
+
+    workflow.assert_reference(
+        {
+            "0": "rows_created",
+            "Before": {"next": {"": []}},
+            "rows_created": {"next": {"": ["Before"]}},
+        }
+    )
 
     # The node is trashed
     node.refresh_from_db(fields=["trashed"])
     assert node.trashed
 
-    with local_cache.context():
-        ActionHandler.undo(
-            user, [WorkflowActionScopeType.value(workflow.id)], session_id
-        )
+    ActionHandler.undo(user, [WorkflowActionScopeType.value(workflow.id)], session_id)
+
+    workflow.assert_reference(
+        {
+            "0": "rows_created",
+            "Before": {"next": {"": ["To delete"]}},
+            "To delete": {},
+            "rows_created": {"next": {"": ["Before"]}},
+        }
+    )
 
     # The original node is restored
     node.refresh_from_db(fields=["trashed"])
     assert not node.trashed
 
-    with local_cache.context():
-        ActionHandler.redo(
-            user, [WorkflowActionScopeType.value(workflow.id)], session_id
-        )
+    ActionHandler.redo(user, [WorkflowActionScopeType.value(workflow.id)], session_id)
+
+    workflow.assert_reference(
+        {
+            "0": "rows_created",
+            "Before": {"next": {"": []}},
+            "rows_created": {"next": {"": ["Before"]}},
+        }
+    )
 
     # The node is trashed again
     node.refresh_from_db(fields=["trashed"])
@@ -344,44 +454,60 @@ def test_duplicate_node_action(data_fixture):
     automation = data_fixture.create_automation_application(workspace=workspace)
     workflow = data_fixture.create_automation_workflow(user, automation=automation)
     source_node = data_fixture.create_local_baserow_create_row_action_node(
-        workflow=workflow,
+        workflow=workflow, label="Source"
     )
     after_source_node = data_fixture.create_local_baserow_create_row_action_node(
-        workflow=workflow,
+        workflow=workflow, label="After"
+    )
+    workflow.assert_reference(
+        {
+            "0": "rows_created",
+            "rows_created": {"next": {"": ["Source"]}},
+            "Source": {"next": {"": ["After"]}},
+            "After": {},
+        }
     )
 
-    with local_cache.context():
-        duplicated_node = DuplicateAutomationNodeActionType.do(user, source_node.id)
+    duplicated_node = DuplicateAutomationNodeActionType.do(user, source_node.id)
 
-    # The node is duplicated
-    assert duplicated_node.previous_node_id == source_node.id
-    after_source_node.refresh_from_db()
-    assert after_source_node.previous_node_id == duplicated_node.id
-    assert after_source_node.previous_node_output == ""
+    workflow.assert_reference(
+        {
+            "0": "rows_created",
+            "rows_created": {"next": {"": ["Source"]}},
+            "Source": {"next": {"": ["Source-"]}},
+            "Source-": {"next": {"": ["After"]}},
+            "After": {},
+        }
+    )
 
-    with local_cache.context():
-        ActionHandler.undo(
-            user, [WorkflowActionScopeType.value(workflow.id)], session_id
-        )
+    ActionHandler.undo(user, [WorkflowActionScopeType.value(workflow.id)], session_id)
 
-    # The duplicated node is trashed
-    duplicated_node.refresh_from_db(fields=["trashed"])
+    duplicated_node.refresh_from_db()
     assert duplicated_node.trashed
-    after_source_node.refresh_from_db()
-    assert after_source_node.previous_node_id == source_node.id
-    assert after_source_node.previous_node_output == ""
 
-    with local_cache.context():
-        ActionHandler.redo(
-            user, [WorkflowActionScopeType.value(workflow.id)], session_id
-        )
+    workflow.assert_reference(
+        {
+            "0": "rows_created",
+            "rows_created": {"next": {"": ["Source"]}},
+            "Source": {"next": {"": ["After"]}},
+            "After": {},
+        }
+    )
 
-    # The duplicated node is restored
-    duplicated_node.refresh_from_db(fields=["trashed"])
+    ActionHandler.redo(user, [WorkflowActionScopeType.value(workflow.id)], session_id)
+
+    duplicated_node.refresh_from_db()
     assert not duplicated_node.trashed
-    after_source_node.refresh_from_db()
-    assert after_source_node.previous_node_id == duplicated_node.id
-    assert after_source_node.previous_node_output == ""
+
+    workflow.assert_reference(
+        {
+            "0": "rows_created",
+            "rows_created": {"next": {"": ["Source"]}},
+            "Source": {"next": {"": ["Source-"]}},
+            "Source-": {"next": {"": ["After"]}},
+            "After": {},
+        }
+    )
 
 
 @pytest.mark.django_db
@@ -402,50 +528,85 @@ def test_duplicate_node_action_with_multiple_outputs(data_fixture):
     edge2_output = core_router_with_edges.edge2_output
     fallback_output_node = core_router_with_edges.fallback_output_node
 
-    with local_cache.context():
-        duplicated_node = DuplicateAutomationNodeActionType.do(user, source_node.id)
+    workflow.assert_reference(
+        {
+            "0": "rows_created",
+            "router": {
+                "next": {
+                    "Default": ["fallback node"],
+                    "Do that": ["output edge 2"],
+                    "Do this": ["output edge 1"],
+                }
+            },
+            "rows_created": {"next": {"": ["router"]}},
+            "fallback node": {},
+            "output edge 1": {},
+            "output edge 2": {},
+        }
+    )
 
-    # The node is duplicated
-    assert duplicated_node.previous_node_id == source_node.id
+    duplicated_node = DuplicateAutomationNodeActionType.do(user, source_node.id)
+    duplicated_node.label = "Duplicated router"
+    duplicated_node.save()
 
-    # The edge1/edge2 outputs are intact.
-    edge1_output.refresh_from_db()
-    assert edge1_output.previous_node_id == source_node.id
-    assert edge1_output.previous_node_output == str(edge1.uid)
-    edge2_output.refresh_from_db()
-    assert edge2_output.previous_node_id == source_node.id
-    assert edge2_output.previous_node_output == str(edge2.uid)
+    assert duplicated_node.id != source_node.id
 
-    # The original fallback output node is now after our duplicated router.
-    fallback_output_node.refresh_from_db()
-    assert fallback_output_node.previous_node_id == duplicated_node.id
-    assert fallback_output_node.previous_node_output == ""
+    workflow.assert_reference(
+        {
+            "0": "rows_created",
+            "rows_created": {"next": {"": ["router"]}},
+            "router": {
+                "next": {
+                    "Default": ["Duplicated router"],
+                    "Do that": ["output edge 2"],
+                    "Do this": ["output edge 1"],
+                }
+            },
+            "Duplicated router": {"next": {"Default": ["fallback node"]}},
+            "fallback node": {},
+            "output edge 1": {},
+            "output edge 2": {},
+        }
+    )
 
-    with local_cache.context():
-        ActionHandler.undo(
-            user, [WorkflowActionScopeType.value(workflow.id)], session_id
-        )
+    ActionHandler.undo(user, [WorkflowActionScopeType.value(workflow.id)], session_id)
 
-    # The duplicated node is trashed
-    duplicated_node.refresh_from_db(fields=["trashed"])
-    assert duplicated_node.trashed
-    fallback_output_node.refresh_from_db()
-    # The original fallback output node is now after our source router, again.
-    assert fallback_output_node.previous_node_id == source_node.id
-    assert fallback_output_node.previous_node_output == ""
+    workflow.assert_reference(
+        {
+            "0": "rows_created",
+            "router": {
+                "next": {
+                    "Default": ["fallback node"],
+                    "Do that": ["output edge 2"],
+                    "Do this": ["output edge 1"],
+                }
+            },
+            "rows_created": {"next": {"": ["router"]}},
+            "fallback node": {},
+            "output edge 1": {},
+            "output edge 2": {},
+        }
+    )
 
-    with local_cache.context():
-        ActionHandler.redo(
-            user, [WorkflowActionScopeType.value(workflow.id)], session_id
-        )
+    ActionHandler.redo(user, [WorkflowActionScopeType.value(workflow.id)], session_id)
 
-    # The duplicated node is restored
-    duplicated_node.refresh_from_db(fields=["trashed"])
-    assert not duplicated_node.trashed
-    fallback_output_node.refresh_from_db()
-    # The original fallback output node is now after our duplicated router, again.
-    assert fallback_output_node.previous_node_id == duplicated_node.id
-    assert fallback_output_node.previous_node_output == ""
+    workflow.assert_reference(
+        {
+            "0": "rows_created",
+            "rows_created": {"next": {"": ["router"]}},
+            "router": {
+                "next": {
+                    "Default": ["Duplicated router"],
+                    "Do that": ["output edge 2"],
+                    "Do this": ["output edge 1"],
+                }
+            },
+            "Duplicated router": {"next": {"Default": ["fallback node"]}},
+            "fallback node": {},
+            "output edge 1": {},
+            "output edge 2": {},
+        }
+    )
 
 
 @pytest.mark.django_db
@@ -456,42 +617,64 @@ def test_move_node_action(data_fixture):
     workspace = data_fixture.create_workspace(user=user)
     automation = data_fixture.create_automation_application(workspace=workspace)
     workflow = data_fixture.create_automation_workflow(user, automation=automation)
-    after_node = data_fixture.create_local_baserow_create_row_action_node(
-        workflow=workflow,
+    first_action = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow, label="first action"
     )
-    previous_node = data_fixture.create_local_baserow_create_row_action_node(
-        workflow=workflow,
+    second_action = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow, label="second action"
     )
     node = data_fixture.create_local_baserow_create_row_action_node(
-        workflow=workflow,
+        workflow=workflow, label="moved node"
     )
 
-    with local_cache.context():
-        moved_node = MoveAutomationNodeActionType.do(user, node.id, after_node.id)
+    workflow.assert_reference(
+        {
+            "0": "rows_created",
+            "rows_created": {"next": {"": ["first action"]}},
+            "first action": {"next": {"": ["second action"]}},
+            "second action": {"next": {"": ["moved node"]}},
+            "moved node": {},
+        }
+    )
 
-    assert moved_node.previous_node_id == after_node.id
-    previous_node.refresh_from_db()
-    assert previous_node.previous_node_id == moved_node.id
+    moved_node = MoveAutomationNodeActionType.do(
+        user, node.id, first_action.id, "south", ""
+    )
 
-    with local_cache.context():
-        ActionHandler.undo(
-            user, [WorkflowActionScopeType.value(workflow.id)], session_id
-        )
+    assert moved_node == node
+    workflow.assert_reference(
+        {
+            "0": "rows_created",
+            "rows_created": {"next": {"": ["first action"]}},
+            "first action": {"next": {"": ["moved node"]}},
+            "moved node": {"next": {"": ["second action"]}},
+            "second action": {"next": {"": []}},
+        }
+    )
 
-    moved_node.refresh_from_db()
-    assert moved_node.previous_node_id == previous_node.id
-    previous_node.refresh_from_db()
-    assert previous_node.previous_node_id == after_node.id
+    ActionHandler.undo(user, [WorkflowActionScopeType.value(workflow.id)], session_id)
 
-    with local_cache.context():
-        ActionHandler.redo(
-            user, [WorkflowActionScopeType.value(workflow.id)], session_id
-        )
+    workflow.assert_reference(
+        {
+            "0": "rows_created",
+            "rows_created": {"next": {"": ["first action"]}},
+            "first action": {"next": {"": ["second action"]}},
+            "second action": {"next": {"": ["moved node"]}},
+            "moved node": {},
+        }
+    )
 
-    moved_node.refresh_from_db()
-    assert moved_node.previous_node_id == after_node.id
-    previous_node.refresh_from_db()
-    assert previous_node.previous_node_id == moved_node.id
+    ActionHandler.redo(user, [WorkflowActionScopeType.value(workflow.id)], session_id)
+
+    workflow.assert_reference(
+        {
+            "0": "rows_created",
+            "rows_created": {"next": {"": ["first action"]}},
+            "first action": {"next": {"": ["moved node"]}},
+            "moved node": {"next": {"": ["second action"]}},
+            "second action": {"next": {"": []}},
+        }
+    )
 
 
 @pytest.mark.django_db
@@ -512,30 +695,81 @@ def test_move_node_action_to_output(data_fixture):
     edge2 = core_router_with_edges.edge2
     edge2_output = core_router_with_edges.edge2_output  # <- from here
 
-    with local_cache.context():
-        moved_node = MoveAutomationNodeActionType.do(
-            user, edge2_output.id, router.id, edge1_output.previous_node_output
-        )
+    workflow.assert_reference(
+        {
+            "0": "rows_created",
+            "rows_created": {"next": {"": ["router"]}},
+            "router": {
+                "next": {
+                    "Default": ["fallback node"],
+                    "Do that": ["output edge 2"],
+                    "Do this": ["output edge 1"],
+                }
+            },
+            "fallback node": {},
+            "output edge 2": {},
+            "output edge 1": {},
+        }
+    )
+
+    moved_node = MoveAutomationNodeActionType.do(
+        user, edge2_output.id, router.id, "south", str(edge1.uid)
+    )
 
     # The node we're trying to move is `edge2_output`
-    assert moved_node == edge2_output
-    assert moved_node.previous_node_id == router.id
-    assert moved_node.previous_node_output == str(edge1.uid)
+    assert moved_node.id == edge2_output.id
 
-    with local_cache.context():
-        ActionHandler.undo(
-            user, [WorkflowActionScopeType.value(workflow.id)], session_id
-        )
+    workflow.assert_reference(
+        {
+            "0": "rows_created",
+            "rows_created": {"next": {"": ["router"]}},
+            "router": {
+                "next": {
+                    "Do this": ["output edge 2"],
+                    "Do that": [],
+                    "Default": ["fallback node"],
+                }
+            },
+            "output edge 2": {"next": {"": ["output edge 1"]}},
+            "output edge 1": {},
+            "fallback node": {},
+        }
+    )
 
-    moved_node.refresh_from_db()
-    assert moved_node.previous_node_id == router.id
-    assert moved_node.previous_node_output == str(edge2.uid)
+    ActionHandler.undo(user, [WorkflowActionScopeType.value(workflow.id)], session_id)
 
-    with local_cache.context():
-        ActionHandler.redo(
-            user, [WorkflowActionScopeType.value(workflow.id)], session_id
-        )
+    workflow.assert_reference(
+        {
+            "0": "rows_created",
+            "rows_created": {"next": {"": ["router"]}},
+            "router": {
+                "next": {
+                    "Default": ["fallback node"],
+                    "Do that": ["output edge 2"],
+                    "Do this": ["output edge 1"],
+                }
+            },
+            "fallback node": {},
+            "output edge 1": {},
+            "output edge 2": {},
+        }
+    )
 
-    moved_node.refresh_from_db()
-    assert moved_node.previous_node_id == router.id
-    assert moved_node.previous_node_output == str(edge1.uid)
+    ActionHandler.redo(user, [WorkflowActionScopeType.value(workflow.id)], session_id)
+
+    workflow.assert_reference(
+        {
+            "0": "rows_created",
+            "rows_created": {"next": {"": ["router"]}},
+            "router": {
+                "next": {
+                    "Do this": ["output edge 2"],
+                    "Do that": [],
+                    "Default": ["fallback node"],
+                }
+            },
+            "output edge 2": {"next": {"": ["output edge 1"]}},
+            "output edge 1": {},
+            "fallback node": {},
+        }
+    )

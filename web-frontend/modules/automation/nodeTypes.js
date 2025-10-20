@@ -58,6 +58,13 @@ export class NodeType extends Registerable {
   }
 
   /**
+   * Returns the text to be displayed on the graph just before the node.
+   */
+  getBeforeLabel({ workflow, node }) {
+    return this.app.i18n.t('workflowNode.beforeLabelAction')
+  }
+
+  /**
    * The node type's description.
    * The description is derived from the service type's description.
    * @returns {string} - The node's description.
@@ -611,6 +618,46 @@ export class CoreIteratorNodeType extends containerNodeTypeMixin(
   get serviceType() {
     return this.app.$registry.get('service', CoreIteratorServiceType.getType())
   }
+
+  /**
+   * Responsible for checking if the router node can be deleted. It can't be
+   * if it has output nodes connected to its edges.
+   * @param workflow - The workflow the router belongs to.
+   * @param node - The router node for which the deletability is being checked.
+   * @returns {string} - An error message if the router cannot be deleted.
+   */
+  getDeleteErrorMessage({ workflow, node }) {
+    const children = this.app.store.getters[
+      'automationWorkflowNode/getChildren'
+    ](workflow, node)
+    const count = children.length
+    if (count) {
+      return this.app.i18n.t('nodeType.iteratorWithChildrenNodesDeleteError', {
+        count,
+      })
+    }
+    return ''
+  }
+
+  /**
+   * Responsible for checking if the router node can be replaced. It can't be
+   * if it has output nodes connected to its edges.
+   * @param workflow - The workflow the router belongs to.
+   * @param node - The router node for which the replaceability is being checked.
+   * @returns {string} - An error message if the router cannot be replaced.
+   */
+  getReplaceErrorMessage({ workflow, node }) {
+    const children = this.app.store.getters[
+      'automationWorkflowNode/getChildren'
+    ](workflow, node)
+    const count = children.length
+    if (count) {
+      return this.app.i18n.t('nodeType.iteratorWithChildrenNodesReplaceError', {
+        count,
+      })
+    }
+    return ''
+  }
 }
 
 export class CoreSMTPEmailNodeType extends ActionNodeTypeMixin(NodeType) {
@@ -646,6 +693,27 @@ export class CoreRouterNodeType extends ActionNodeTypeMixin(
    */
   get isFixed() {
     return true
+  }
+
+  getBeforeLabel({ workflow, node }) {
+    /* const previousNode = store.getters['automationWorkflowNode/getPreviousNode'](
+    workflow.value,
+    props.node
+  ) */
+    /* const previousNodeIsRouter =
+    previousNode?.type === CoreRouterNodeType.getType()
+  const isOutputNode = props.node.previous_node_output.length > 0
+  switch (true) {
+    case nodeType.value.isTrigger:
+      return app.i18n.t('workflowNode.beforeLabelTrigger')
+    case isOutputNode:
+      return app.i18n.t('workflowNode.beforeLabelCondition')
+    case previousNodeIsRouter && !isOutputNode:
+      return app.i18n.t('workflowNode.beforeLabelConditionDefault')
+    default:
+      return app.i18n.t('workflowNode.beforeLabelAction')
+  } */
+    return this.app.i18n.t('workflowNode.beforeLabelAction')
   }
 
   getOrder() {
@@ -729,13 +797,9 @@ export class CoreRouterNodeType extends ActionNodeTypeMixin(
    * @returns {Array} - An array of output nodes that are connected to the router's edges.
    */
   getOutputNodes({ workflow, router }) {
-    const edgeUids = this.getEdges({ node: router }).map((edge) => edge.uid)
-    return this.app.store.getters['automationWorkflowNode/getNodes'](
-      workflow
-    ).filter(
-      (node) =>
-        node.previous_node_id === router.id &&
-        edgeUids.includes(node.previous_node_output)
+    return this.app.store.getters['automationWorkflowNode/getNextNodes'](
+      workflow,
+      router
     )
   }
 

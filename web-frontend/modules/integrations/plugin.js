@@ -23,6 +23,7 @@ import {
 } from '@baserow/modules/integrations/localBaserow/serviceTypes'
 import {
   CoreHTTPRequestServiceType,
+  PeriodicTriggerServiceType,
   CoreRouterServiceType,
   CoreSMTPEmailServiceType,
   CoreHTTPTriggerServiceType,
@@ -77,6 +78,8 @@ export default (context) => {
   app.$registry.register('service', new CoreRouterServiceType(context))
   app.$registry.register('service', new CoreHTTPTriggerServiceType(context))
   app.$registry.register('service', new CoreIteratorServiceType(context))
+
+  app.$registry.register('service', new PeriodicTriggerServiceType(context))
 
   if (app.$featureFlagIsEnabled(FF_AUTOMATION)) {
     app.$registry.register(

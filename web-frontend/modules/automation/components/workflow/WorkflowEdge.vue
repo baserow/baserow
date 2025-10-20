@@ -30,9 +30,9 @@
         @add-node="
           emit('add-node', {
             type: $event,
-            previousNodeId: isChild ? null : node.id,
-            previousNodeOutput: edgeUid,
-            parentNodeId: isChild ? node.id : node.parent_node_id,
+            position: isChild ? 'child' : 'south',
+            output: edgeUid,
+            positionNode: node,
           })
         "
       />
@@ -113,19 +113,25 @@ const isDropZoneDisabled = computed(() => {
     return false
   }
 
-  const afterNodeId = props.node.id
-  const afterNodeOutput = props.edgeUid
-
   // Disable drop zone immediately below the dragged node.
-  if (afterNodeId === draggedNode.value.id) {
+  if (props.node.id === draggedNode.value.id) {
     return true
   }
 
-  // Disable drop zone where the dragged node is currently located.
   if (
-    draggedNode.value.previous_node_id === afterNodeId &&
-    draggedNode.value.previous_node_output === afterNodeOutput
+    nextNodesOnEdge.value.map(({ id }) => id).includes(draggedNode.value.id)
   ) {
+    // the dragged node is already the next node
+    return true
+  }
+
+  const ancestors = store.getters['automationWorkflowNode/getAncestors'](
+    workflow.value,
+    props.node
+  ).map(({ id }) => id)
+
+  if (ancestors.includes(draggedNode.value.id)) {
+    // We can't include a container in itself
     return true
   }
 
@@ -141,12 +147,11 @@ const handleDragLeave = () => {
 
 const handleDrop = () => {
   isDragOver.value = false
-  const afterNodeId = props.isChild ? null : props.node.id
-  const parentNodeId = props.isChild ? props.node.id : props.node.parent_node_id
+
   emit('move-node', {
-    afterNodeId,
-    afterNodeOutput: props.edgeUid,
-    parentNodeId,
+    positionNodeId: props.node.id,
+    position: props.isChild ? 'child' : 'south',
+    output: props.edgeUid,
   })
 }
 
