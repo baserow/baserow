@@ -399,6 +399,7 @@ jobs:
         with:
           files: reports/report.xml
           check_name: Backend Tests (Group ${{ matrix.group }})
+          comment_mode: off
 
   test-frontend:
     name: Web-Frontend Tests (Shard ${{ matrix.shard }})
@@ -451,6 +452,7 @@ jobs:
         with:
           files: reports/junit.xml
           check_name: Web-Frontend Tests (Shard ${{ matrix.shard }})
+          comment_mode: off
 
   test-zapier:
     name: Zapier Integration Tests
