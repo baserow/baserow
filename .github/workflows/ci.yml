@@ -772,8 +772,8 @@ jobs:
     name: Build Final Backend Image
     runs-on: ubuntu-latest
     needs:
-      - [test-backend]
-      - [test-e2e]
+      - test-backend
+      - test-e2e
       - backend-lint
     permissions:
       contents: read
@@ -809,8 +809,8 @@ jobs:
     name: Build Final Web-Frontend Image
     runs-on: ubuntu-latest
     needs:
-      - [test-frontend]
-      - [test-e2e]
+      - test-frontend
+      - test-e2e
       - frontend-lint
     permissions:
       contents: read
