@@ -23,6 +23,7 @@ class AutomationConfig(AppConfig):
         from baserow.contrib.automation.nodes.node_types import (
             CoreHttpRequestNodeType,
             CoreHTTPTriggerNodeType,
+            CoreIteratorNodeType,
             CorePeriodicTriggerNodeType,
             CoreRouterActionNodeType,
             CoreSMTPEmailNodeType,
@@ -88,9 +89,6 @@ class AutomationConfig(AppConfig):
         from baserow.contrib.automation.workflows.trash_types import (
             AutomationWorkflowTrashableItemType,
         )
-        from baserow.contrib.integrations.core.service_types import (
-            CorePeriodicServiceType,
-        )
         from baserow.core.action.registries import (
             action_scope_registry,
             action_type_registry,
@@ -101,7 +99,6 @@ class AutomationConfig(AppConfig):
             object_scope_type_registry,
             operation_type_registry,
         )
-        from baserow.core.services.registries import service_type_registry
         from baserow.core.trash.registries import trash_item_type_registry
 
         if feature_flag_is_enabled(FF_AUTOMATION):
@@ -151,8 +148,6 @@ class AutomationConfig(AppConfig):
 
             action_scope_registry.register(WorkflowActionScopeType())
 
-            service_type_registry.register(CorePeriodicServiceType())
-
             automation_node_type_registry.register(LocalBaserowCreateRowNodeType())
             automation_node_type_registry.register(LocalBaserowUpdateRowNodeType())
             automation_node_type_registry.register(LocalBaserowDeleteRowNodeType())
@@ -160,6 +155,7 @@ class AutomationConfig(AppConfig):
             automation_node_type_registry.register(LocalBaserowListRowsNodeType())
             automation_node_type_registry.register(LocalBaserowAggregateRowsNodeType())
             automation_node_type_registry.register(CoreHttpRequestNodeType())
+            automation_node_type_registry.register(CoreIteratorNodeType())
             automation_node_type_registry.register(CoreSMTPEmailNodeType())
             automation_node_type_registry.register(CoreRouterActionNodeType())
             automation_node_type_registry.register(
@@ -181,6 +177,7 @@ class AutomationConfig(AppConfig):
             )
 
             from baserow.contrib.automation.data_providers.data_provider_types import (
+                CurrentIterationDataProviderType,
                 PreviousNodeProviderType,
             )
             from baserow.contrib.automation.data_providers.registries import (
@@ -188,6 +185,9 @@ class AutomationConfig(AppConfig):
             )
 
             automation_data_provider_type_registry.register(PreviousNodeProviderType())
+            automation_data_provider_type_registry.register(
+                CurrentIterationDataProviderType()
+            )
 
             from baserow.contrib.automation.nodes.permission_manager import (
                 AutomationNodePermissionManager,

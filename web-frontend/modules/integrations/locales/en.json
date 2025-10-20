@@ -42,6 +42,8 @@
     "coreRouterEdgeConditionRequired": "A branch condition is required.",
     "coreRouterDescription": "Routes the workflow to the next branch based on a condition.",
     "coreSMTPEmailDescription": "Sends an email using SMTP configuration.",
+    "coreIteration": "Iterator",
+    "coreIterationDescription": "Iterate on items.",
     "errorFromEmailMissing": "Missing From Email property",
     "errorToEmailsMissing": "Missing To Emails property",
     "misconfigured": "Misconfigured",
@@ -54,7 +56,8 @@
     "errorNoAggregationTypeSelected": "No aggregation type selected",
     "corePeriodic": "Periodic trigger",
     "corePeriodicDescription": "Triggers the workflow on a periodic basis at specified intervals",
-    "corePeriodicErrorIntervalMissing": "An interval is required."
+    "corePeriodicErrorIntervalMissing": "An interval is required.",
+    "errorIterationSourceMissing": "Missing source property"
   },
   "userSourceType": {
     "localBaserow": "Baserow table authentication"
@@ -185,6 +188,10 @@
     "bodyTypeHtml": "HTML",
     "body": "Body",
     "bodyPlaceholder": "Your email content..."
+  },
+  "coreIterationServiceForm": {
+    "source": "Source",
+    "sourcePlaceholder": "Choose a source..."
   },
   "routerForm": {
     "defaultEdgeLabelLabel": "Default branch label",

@@ -1,0 +1,40 @@
+.workflow-node {
+  pointer-events: none;
+}
+
+.workflow-node,
+.workflow-node__children {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.workflow-node__edges {
+  display: flex;
+  gap: 15px;
+}
+
+.workflow-node__children {
+  border: 2px dashed $palette-neutral-400;
+  margin-top: -40px;
+  padding: 40px 15px $connectorHeight;
+  min-width: 520px;
+
+  @include rounded($rounded-md);
+}
+
+.workflow-node__children-wrapper {
+  // Must be positioned to compute the connector offsets properly
+  position: relative;
+}
+
+.workflow-node__connectors {
+  position: relative;
+  width: 100%;
+  height: $connectorHeight;
+
+  &--multiple {
+    height: $connectorHeight * 2;
+  }
+}

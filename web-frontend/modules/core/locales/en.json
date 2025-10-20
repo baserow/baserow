@@ -762,6 +762,10 @@
     "noMatchingNodesText": "No matching results were found.",
     "noProvidersText": "No data providers were found. To get started you can, for example, add a data source or page parameter."
   },
+  "dataExplorerNode": {
+    "showMore": "Show more repetitions",
+    "selectNode": "Select"
+  },
   "richTextEditorBubbleMenu": {
     "bold": "Bold",
     "italic": "Italic",
@@ -842,9 +846,6 @@
   "imageInput": {
     "labelDescription": "Select an image to upload...",
     "labelButton": "Upload"
-  },
-  "dataExplorerNode": {
-    "showMore": "Show more repetitions"
   },
   "user": {
     "isStaff": "Is staff",

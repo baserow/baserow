@@ -311,10 +311,6 @@ export class CoreHTTPRequestWorkflowActionType extends WorkflowActionServiceType
     return 'http_request'
   }
 
-  get icon() {
-    return 'iconoir-cloud-upload'
-  }
-
   get serviceType() {
     return this.app.$registry.get(
       'service',
@@ -332,10 +328,6 @@ export class CoreSMTPEmailWorkflowActionType extends WorkflowActionServiceType {
     return 'smtp_email'
   }
 
-  get icon() {
-    return 'iconoir-send-mail'
-  }
-
   get serviceType() {
     return this.app.$registry.get('service', CoreSMTPEmailServiceType.getType())
   }
@@ -351,7 +343,7 @@ export class CreateRowWorkflowActionType extends WorkflowActionServiceType {
   }
 
   get icon() {
-    return 'baserow-icon-plus'
+    return this.serviceType.icon
   }
 
   get serviceType() {
@@ -367,10 +359,6 @@ export class UpdateRowWorkflowActionType extends WorkflowActionServiceType {
     return 'update_row'
   }
 
-  get icon() {
-    return 'iconoir-edit-pencil'
-  }
-
   get serviceType() {
     return this.app.$registry.get(
       'service',
@@ -382,10 +370,6 @@ export class UpdateRowWorkflowActionType extends WorkflowActionServiceType {
 export class DeleteRowWorkflowActionType extends WorkflowActionServiceType {
   static getType() {
     return 'delete_row'
-  }
-
-  get icon() {
-    return 'iconoir-bin'
   }
 
   get serviceType() {

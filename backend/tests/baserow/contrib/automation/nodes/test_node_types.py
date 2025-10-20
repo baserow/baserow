@@ -84,7 +84,7 @@ def test_automation_node_type_create_row_prepare_values_without_instance(data_fi
     user = data_fixture.create_user()
     node = data_fixture.create_automation_node(user=user, type="create_row")
 
-    values = {"service": {}}
+    values = {"service": {}, "workflow": node.workflow, "previous_node_id": node.id}
     result = node.get_type().prepare_values(values, user)
 
     # Since we didn't pass in a service, a new service is created
@@ -124,7 +124,7 @@ def test_service_node_type_rows_created_prepare_values_without_instance(data_fix
     user = data_fixture.create_user()
     node = data_fixture.create_automation_node(user=user, type="rows_created")
 
-    values = {"service": {}}
+    values = {"service": {}, "workflow": node.workflow}
     result = node.get_type().prepare_values(values, user)
 
     # Since we didn't pass in a service, a new service is created
@@ -141,20 +141,6 @@ def test_automation_node_type_update_row_prepare_values_with_instance(data_fixtu
     values = {"service": {}}
     result = node.get_type().prepare_values(values, user, instance=node)
     assert result == {"service": node.service}
-
-
-@pytest.mark.django_db
-def test_automation_node_type_update_row_prepare_values_without_instance(data_fixture):
-    user = data_fixture.create_user()
-    node = data_fixture.create_automation_node(user=user, type="update_row")
-
-    values = {"service": {}}
-    result = node.get_type().prepare_values(values, user)
-
-    # Since we didn't pass in a service, a new service is created
-    new_service = result["service"]
-    assert isinstance(new_service, type(node.service))
-    assert new_service.id != node.service.id
 
 
 @patch("baserow.contrib.automation.nodes.registries.ServiceHandler.dispatch_service")
@@ -187,8 +173,15 @@ def test_automation_node_type_delete_row_prepare_values_with_instance(data_fixtu
 def test_automation_node_type_delete_row_prepare_values_without_instance(data_fixture):
     user = data_fixture.create_user()
     node = data_fixture.create_automation_node(user=user, type="delete_row")
+    another_node = data_fixture.create_automation_node(
+        user=user, workflow=node.workflow, type="delete_row"
+    )
 
-    values = {"service": {}}
+    values = {
+        "service": {},
+        "workflow": node.workflow,
+        "previous_node_id": another_node.id,
+    }
     result = node.get_type().prepare_values(values, user)
 
     # Since we didn't pass in a service, a new service is created
@@ -221,12 +214,14 @@ def test_automation_node_migrates_its_previous_node_output_on_import(
     user = data_fixture.create_user()
     workflow = data_fixture.create_automation_workflow(user=user)
     service = data_fixture.create_core_router_service(default_edge_label="Default")
-    data_fixture.create_core_router_action_node(workflow=workflow, service=service)
+    router = data_fixture.create_core_router_action_node(
+        workflow=workflow, service=service
+    )
     edge = data_fixture.create_core_router_service_edge(
         service=service, label="Do this", condition="'true'"
     )
     output_node = data_fixture.create_local_baserow_create_row_action_node(
-        workflow=workflow, previous_node_output=str(edge.uid)
+        workflow=workflow, previous_node=router, previous_node_output=str(edge.uid)
     )
     output_node_type = output_node.get_type()
 

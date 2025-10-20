@@ -19,6 +19,10 @@ export class ServiceType extends Registerable {
     return null
   }
 
+  get icon() {
+    return 'iconoir-question-mark'
+  }
+
   /**
    * Whether the service is valid.
    * @param service - The service object.
@@ -42,6 +46,16 @@ export class ServiceType extends Registerable {
    */
   getDataSchema(applicationContext, service) {
     throw new Error('Must be set on the type.')
+  }
+
+  /**
+   * Returns sample data for the given service.
+   */
+  getSampleData(service) {
+    if (service.sample_data) {
+      return service.sample_data?.data
+    }
+    return null
   }
 
   /**

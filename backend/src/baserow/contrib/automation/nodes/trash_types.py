@@ -38,9 +38,12 @@ class AutomationNodeTrashableItemType(TrashableItemType):
         requesting_user: AbstractUser,
         trash_entry: TrashEntry,
     ):
+        item_to_trash.workflow.print()
         # Determine if this node has a node after it. If it does, we'll
         # need to update its previous_node_id after `item_to_trash` is trashed.
         next_nodes = list(item_to_trash.get_next_nodes())
+
+        print("next nodes", next_nodes)
 
         super().trash(item_to_trash, requesting_user, trash_entry)
 
@@ -48,7 +51,9 @@ class AutomationNodeTrashableItemType(TrashableItemType):
         # follow this node, to point to the node before `item_to_trash`, and ensure
         # that the previous_node_output is set to the output of the node before.
         AutomationNodeHandler().update_previous_node(
-            item_to_trash.previous_node, next_nodes, item_to_trash.previous_node_output
+            item_to_trash.previous_node,
+            next_nodes,
+            previous_node_output=item_to_trash.previous_node_output,
         )
 
     def restore(
