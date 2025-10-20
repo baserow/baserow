@@ -15,32 +15,59 @@
       @remove-node="emit('remove-node', $event)"
       @replace-node="emit('replace-node', $event)"
     />
-    <WorkflowConnector
-      v-for="coords in coordsPerEdge"
-      :key="coords[0]"
-      :coords="coords[1]"
-    />
+    <div v-if="nodeType.isContainer" class="workflow-node__children">
+      <div ref="children" class="workflow-node__children-wrapper">
+        <div class="workflow-node__connectors">
+          <WorkflowConnector :coords="childEdgeCoords" />
+        </div>
+        <div class="workflow-node__edges">
+          <WorkflowEdge
+            ref="child-edge"
+            class="workflow-node__edge"
+            :node="node"
+            :is-child="true"
+            :has-siblings="false"
+            :selected-node-id="selectedNodeId"
+            :debug="debug"
+            :read-only="readOnly"
+            @add-node="emit('add-node', $event)"
+            @select-node="emit('select-node', $event)"
+            @remove-node="emit('remove-node', $event)"
+            @replace-node="emit('replace-node', $event)"
+            @move-node="emit('move-node', $event)"
+          />
+        </div>
+      </div>
+    </div>
+    <div
+      class="workflow-node__connectors"
+      :class="{ 'workflow-node__connectors--multiple': hasMultipleEdges }"
+    >
+      <WorkflowConnector
+        v-for="coords in coordsPerEdge"
+        :key="coords[0]"
+        :coords="coords[1]"
+      />
+    </div>
     <div class="workflow-node__edges">
-      <div
+      <WorkflowEdge
         v-for="edge in nodeEdges"
         :ref="`edge-${edge.uid}`"
         :key="edge.uid"
         class="workflow-node__edge"
-      >
-        <WorkflowEdge
-          :node="node"
-          :edge="edge"
-          :has-siblings="nodeEdges.length > 1"
-          :selected-node-id="selectedNodeId"
-          :debug="debug"
-          :read-only="readOnly"
-          @add-node="emit('add-node', $event)"
-          @select-node="emit('select-node', $event)"
-          @remove-node="emit('remove-node', $event)"
-          @replace-node="emit('replace-node', $event)"
-          @move-node="emit('move-node', $event)"
-        />
-      </div>
+        :node="node"
+        :edge-uid="edge.uid"
+        :edge-label="edge.label"
+        :has-siblings="nodeEdges.length > 1"
+        :selected-node-id="selectedNodeId"
+        :debug="debug"
+        :read-only="readOnly"
+        @add-node="emit('add-node', $event)"
+        @select-node="emit('select-node', $event)"
+        @remove-node="emit('remove-node', $event)"
+        @replace-node="emit('replace-node', $event)"
+        @move-node="emit('move-node', $event)"
+      />
     </div>
   </div>
 </template>
@@ -55,6 +82,8 @@ import {
 import WorkflowNodeContent from '@baserow/modules/automation/components/workflow/WorkflowNodeContent'
 import WorkflowEdge from '@baserow/modules/automation/components/workflow/WorkflowEdge'
 import WorkflowConnector from '@baserow/modules/automation/components/workflow/WorkflowConnector'
+
+const connectorHeight = 32
 
 const props = defineProps({
   node: {
@@ -90,10 +119,23 @@ const instance = getCurrentInstance()
 const refs = instance.proxy.$refs
 
 const workflowNode = ref()
+const children = ref()
 const nodeComponent = ref()
 
 const nodeType = computed(() => app.$registry.get('node', props.node.type))
 const nodeEdges = computed(() => nodeType.value.getEdges({ node: props.node }))
+
+const hasMultipleEdges = computed(() => nodeEdges.value.length > 1)
+
+const computeEdgeCoords = (wrapper, edgeElt, multiple = false) => {
+  const startX = edgeElt.offsetLeft + edgeElt.offsetWidth / 2
+  const endX = wrapper.offsetWidth / 2
+
+  const startY = multiple ? connectorHeight * 2 : connectorHeight
+  const endY = 0
+
+  return { startX, endX, startY, endY }
+}
 
 /**
  * Compute all connector coordinates per edge
@@ -103,16 +145,21 @@ const coordsPerEdge = computed(() => {
 
   return nodeEdges.value.map((edge) => {
     const wrap = workflowNode.value
-    const elt = nodeComponent.value.$el
+    const edgeElt = refs[`edge-${edge.uid}`][0].$el
 
-    const edgeElt = refs[`edge-${edge.uid}`][0]
-
-    const startX = edgeElt.offsetLeft + edgeElt.offsetWidth / 2
-    const startY = elt.offsetHeight + 40
-    const endX = wrap.offsetWidth / 2
-    const endY = elt.offsetHeight
-
-    return [edge.uid, { startX, startY, endY, endX }]
+    return [edge.uid, computeEdgeCoords(wrap, edgeElt, hasMultipleEdges.value)]
   })
+})
+
+const childEdgeCoords = computed(() => {
+  if (nodeType.value.isContainer) {
+    if (!children.value) return { startX: 0, startY: 0, endX: 0, endY: 0 }
+
+    const wrap = children.value
+    const edgeElt = refs['child-edge'].$el
+
+    return computeEdgeCoords(wrap, edgeElt)
+  }
+  return null
 })
 </script>

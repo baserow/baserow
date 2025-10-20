@@ -174,7 +174,7 @@ export class DataProviderType extends Registerable {
   _toNode(applicationContext, pathParts, schema) {
     const identifier = pathParts.at(-1)
     const name = this.getPathTitle(applicationContext, pathParts)
-    const order = schema?.order || null
+    const order = schema?.order ?? null
 
     if (schema === null) {
       return {
@@ -219,6 +219,7 @@ export class DataProviderType extends Registerable {
       return {
         name,
         identifier,
+        order,
         icon: this.getIconForNode(schema),
         type: 'array',
         nodes: schema.items

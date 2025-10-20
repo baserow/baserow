@@ -5,6 +5,7 @@ import pytest
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeBeforeInvalid,
     AutomationNodeDoesNotExist,
+    AutomationNodeNotInWorkflow,
     AutomationNodeNotMovable,
 )
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
@@ -18,26 +19,29 @@ from baserow.contrib.automation.nodes.trash_types import AutomationNodeTrashable
 from baserow.contrib.automation.nodes.types import NextAutomationNodeValues
 from baserow.core.exceptions import UserNotInWorkspace
 from baserow.core.trash.handler import TrashHandler
+from baserow.test_utils.fixtures import Fixtures
 
 SERVICE_PATH = "baserow.contrib.automation.nodes.service"
 
 
 @patch(f"{SERVICE_PATH}.automation_node_created")
 @pytest.mark.django_db
-def test_create_node(mocked_signal, data_fixture):
+def test_create_node(mocked_signal, data_fixture: Fixtures):
     user = data_fixture.create_user()
     workflow = data_fixture.create_automation_workflow(user)
     node_type = automation_node_type_registry.get("create_row")
 
     service = AutomationNodeService()
-    node = service.create_node(user, node_type, workflow)
+    node = service.create_node(
+        user, node_type, workflow, previous_node_id=workflow.get_trigger().id
+    )
 
     assert isinstance(node, LocalBaserowCreateRowActionNode)
     mocked_signal.send.assert_called_once_with(service, node=node, user=user)
 
 
 @pytest.mark.django_db
-def test_create_node_before_invalid(data_fixture):
+def test_create_node_before_invalid(data_fixture: Fixtures):
     user = data_fixture.create_user()
     workflow = data_fixture.create_automation_workflow(user)
     workflow_b = data_fixture.create_automation_workflow(user)
@@ -48,24 +52,45 @@ def test_create_node_before_invalid(data_fixture):
 
     node_type = automation_node_type_registry.get("create_row")
 
-    with pytest.raises(AutomationNodeBeforeInvalid) as exc:
+    with pytest.raises(AutomationNodeNotInWorkflow) as exc:
         AutomationNodeService().create_node(
-            user, node_type, workflow=workflow, before=node2_b
+            user, node_type, workflow=workflow, previous_node_id=node2_b.id
         )
     assert (
-        exc.value.args[0]
-        == "The `before` node must belong to the same workflow as the one supplied."
+        exc.value.args[0] == f"The node {node2_b.id} does not belong to the workflow."
     )
 
     with pytest.raises(AutomationNodeBeforeInvalid) as exc:
         AutomationNodeService().create_node(
-            user, node_type, workflow=workflow_b, before=node1_b
+            user,
+            node_type,
+            workflow=workflow_b,
         )
     assert exc.value.args[0] == "You cannot create an automation node before a trigger."
 
 
 @pytest.mark.django_db
-def test_create_node_permission_error(data_fixture):
+def test_create_node_parent_invalid(data_fixture: Fixtures):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user)
+    workflow_b = data_fixture.create_automation_workflow(user)
+    node1_b = workflow_b.get_trigger(specific=False)
+    node2_b = data_fixture.create_core_iterator_action_node(workflow=workflow_b)
+
+    node_type = automation_node_type_registry.get("create_row")
+
+    with pytest.raises(AutomationNodeNotInWorkflow) as exc:
+        AutomationNodeService().create_node(
+            user, node_type, workflow=workflow, parent=node2_b
+        )
+
+    assert (
+        exc.value.args[0] == f"The node {node2_b.id} does not belong to the workflow."
+    )
+
+
+@pytest.mark.django_db
+def test_create_node_permission_error(data_fixture: Fixtures):
     workflow = data_fixture.create_automation_workflow()
     node_type = automation_node_type_registry.get("create_row")
     another_user = data_fixture.create_user()
@@ -80,7 +105,7 @@ def test_create_node_permission_error(data_fixture):
 
 
 @pytest.mark.django_db
-def test_get_node(data_fixture):
+def test_get_node(data_fixture: Fixtures):
     user = data_fixture.create_user()
     workflow = data_fixture.create_automation_workflow(user)
     node = data_fixture.create_automation_node(user=user, workflow=workflow)
@@ -91,7 +116,7 @@ def test_get_node(data_fixture):
 
 
 @pytest.mark.django_db
-def test_get_node_invalid_node_id(data_fixture):
+def test_get_node_invalid_node_id(data_fixture: Fixtures):
     user, _ = data_fixture.create_user_and_token()
 
     with pytest.raises(AutomationNodeDoesNotExist) as e:
@@ -101,7 +126,7 @@ def test_get_node_invalid_node_id(data_fixture):
 
 
 @pytest.mark.django_db
-def test_get_node_permission_error(data_fixture):
+def test_get_node_permission_error(data_fixture: Fixtures):
     user, _ = data_fixture.create_user_and_token()
     another_user, _ = data_fixture.create_user_and_token()
     node = data_fixture.create_automation_node(user=user)
@@ -116,7 +141,7 @@ def test_get_node_permission_error(data_fixture):
 
 
 @pytest.mark.django_db
-def test_get_nodes(data_fixture):
+def test_get_nodes(data_fixture: Fixtures):
     user, _ = data_fixture.create_user_and_token()
     workflow = data_fixture.create_automation_workflow(user)
     trigger = workflow.get_trigger()
@@ -125,7 +150,7 @@ def test_get_nodes(data_fixture):
 
 
 @pytest.mark.django_db
-def test_get_nodes_permission_error(data_fixture):
+def test_get_nodes_permission_error(data_fixture: Fixtures):
     user, _ = data_fixture.create_user_and_token()
     another_user, _ = data_fixture.create_user_and_token()
     workflow = data_fixture.create_automation_workflow(user)
@@ -141,17 +166,17 @@ def test_get_nodes_permission_error(data_fixture):
 
 @patch(f"{SERVICE_PATH}.automation_node_updated")
 @pytest.mark.django_db
-def test_update_node(mocked_signal, data_fixture):
+def test_update_node(mocked_signal, data_fixture: Fixtures):
     user, _ = data_fixture.create_user_and_token()
     workflow = data_fixture.create_automation_workflow(user)
     node = data_fixture.create_automation_node(user=user, workflow=workflow)
     assert node.previous_node_output == ""
 
     service = AutomationNodeService()
-    updated_node = service.update_node(user, node.id, previous_node_output="foo")
+    updated_node = service.update_node(user, node.id, label="foo")
 
     node.refresh_from_db()
-    assert node.previous_node_output == "foo"
+    assert node.label == "foo"
 
     mocked_signal.send.assert_called_once_with(
         service, user=user, node=updated_node.node
@@ -159,7 +184,7 @@ def test_update_node(mocked_signal, data_fixture):
 
 
 @pytest.mark.django_db
-def test_update_node_invalid_node_id(data_fixture):
+def test_update_node_invalid_node_id(data_fixture: Fixtures):
     user, _ = data_fixture.create_user_and_token()
 
     with pytest.raises(AutomationNodeDoesNotExist) as e:
@@ -169,7 +194,7 @@ def test_update_node_invalid_node_id(data_fixture):
 
 
 @pytest.mark.django_db
-def test_update_node_permission_error(data_fixture):
+def test_update_node_permission_error(data_fixture: Fixtures):
     user, _ = data_fixture.create_user_and_token()
     another_user, _ = data_fixture.create_user_and_token()
     node = data_fixture.create_automation_node(user=user)
@@ -187,7 +212,7 @@ def test_update_node_permission_error(data_fixture):
 
 @patch(f"{SERVICE_PATH}.automation_node_deleted")
 @pytest.mark.django_db
-def test_delete_node(mocked_signal, data_fixture):
+def test_delete_node(mocked_signal, data_fixture: Fixtures):
     user, _ = data_fixture.create_user_and_token()
     workflow = data_fixture.create_automation_workflow(user)
     node = data_fixture.create_automation_node(user=user, workflow=workflow)
@@ -209,7 +234,7 @@ def test_delete_node(mocked_signal, data_fixture):
 
 
 @pytest.mark.django_db
-def test_delete_node_with_managed_trash_entry(data_fixture):
+def test_delete_node_with_managed_trash_entry(data_fixture: Fixtures):
     user = data_fixture.create_user()
     workflow = data_fixture.create_automation_workflow(user)
     node = data_fixture.create_automation_node(user=user, workflow=workflow)
@@ -228,7 +253,7 @@ def test_delete_node_with_managed_trash_entry(data_fixture):
 
 
 @pytest.mark.django_db
-def test_delete_node_invalid_node_id(data_fixture):
+def test_delete_node_invalid_node_id(data_fixture: Fixtures):
     user, _ = data_fixture.create_user_and_token()
 
     with pytest.raises(AutomationNodeDoesNotExist) as e:
@@ -238,7 +263,7 @@ def test_delete_node_invalid_node_id(data_fixture):
 
 
 @pytest.mark.django_db
-def test_delete_node_permission_error(data_fixture):
+def test_delete_node_permission_error(data_fixture: Fixtures):
     user, _ = data_fixture.create_user_and_token()
     another_user, _ = data_fixture.create_user_and_token()
     node = data_fixture.create_automation_node(user=user)
@@ -254,7 +279,7 @@ def test_delete_node_permission_error(data_fixture):
 
 @patch(f"{SERVICE_PATH}.automation_nodes_reordered")
 @pytest.mark.django_db
-def test_order_nodes(mocked_signal, data_fixture):
+def test_order_nodes(mocked_signal, data_fixture: Fixtures):
     user, _ = data_fixture.create_user_and_token()
     workflow = data_fixture.create_automation_workflow(user)
     trigger = workflow.get_trigger(specific=False)
@@ -276,7 +301,7 @@ def test_order_nodes(mocked_signal, data_fixture):
 
 
 @pytest.mark.django_db
-def test_order_nodes_permission_error(data_fixture):
+def test_order_nodes_permission_error(data_fixture: Fixtures):
     user, _ = data_fixture.create_user_and_token()
     another_user, _ = data_fixture.create_user_and_token()
     workflow = data_fixture.create_automation_workflow(user)
@@ -296,7 +321,7 @@ def test_order_nodes_permission_error(data_fixture):
 
 @patch(f"{SERVICE_PATH}.automation_node_created")
 @pytest.mark.django_db
-def test_duplicate_node(mocked_signal, data_fixture):
+def test_duplicate_node(mocked_signal, data_fixture: Fixtures):
     user, _ = data_fixture.create_user_and_token()
     workflow = data_fixture.create_automation_workflow(user)
     node = data_fixture.create_automation_node(workflow=workflow)
@@ -315,7 +340,7 @@ def test_duplicate_node(mocked_signal, data_fixture):
 
 
 @pytest.mark.django_db
-def test_duplicate_node_permission_error(data_fixture):
+def test_duplicate_node_permission_error(data_fixture: Fixtures):
     user = data_fixture.create_user()
     another_user, _ = data_fixture.create_user_and_token()
     workflow = data_fixture.create_automation_workflow(user)
@@ -331,7 +356,7 @@ def test_duplicate_node_permission_error(data_fixture):
 
 
 @pytest.mark.django_db
-def test_replace_simple_node(data_fixture):
+def test_replace_simple_node(data_fixture: Fixtures):
     user = data_fixture.create_user()
     workflow = data_fixture.create_automation_workflow(user)
     trigger = workflow.get_trigger(specific=False)
@@ -352,7 +377,7 @@ def test_replace_simple_node(data_fixture):
 
 
 @pytest.mark.django_db
-def test_replace_node_in_first(data_fixture):
+def test_replace_node_in_first(data_fixture: Fixtures):
     user = data_fixture.create_user()
     workflow = data_fixture.create_automation_workflow(user)
     trigger = workflow.get_trigger(specific=False)
@@ -380,7 +405,7 @@ def test_replace_node_in_first(data_fixture):
 
 
 @pytest.mark.django_db
-def test_replace_node_in_middle(data_fixture):
+def test_replace_node_in_middle(data_fixture: Fixtures):
     user = data_fixture.create_user()
     workflow = data_fixture.create_automation_workflow(user)
     trigger = workflow.get_trigger(specific=False)
@@ -407,7 +432,7 @@ def test_replace_node_in_middle(data_fixture):
 
 
 @pytest.mark.django_db
-def test_replace_node_in_last(data_fixture):
+def test_replace_node_in_last(data_fixture: Fixtures):
     user = data_fixture.create_user()
     workflow = data_fixture.create_automation_workflow(user)
     trigger = workflow.get_trigger(specific=False)
@@ -417,8 +442,9 @@ def test_replace_node_in_last(data_fixture):
 
     node_type = automation_node_type_registry.get("update_row")
 
-    service = AutomationNodeService()
-    replace_result = service.replace_node(user, last_node.id, node_type.type)
+    replace_result = AutomationNodeService().replace_node(
+        user, last_node.id, node_type.type
+    )
 
     first_node.refresh_from_db()
     second_node.refresh_from_db()
@@ -436,7 +462,7 @@ def test_replace_node_in_last(data_fixture):
 
 
 @pytest.mark.django_db
-def test_move_fixed_node_throws_exception(data_fixture):
+def test_move_fixed_node_throws_exception(data_fixture: Fixtures):
     user = data_fixture.create_user()
     workflow = data_fixture.create_automation_workflow(user)
     trigger = workflow.get_trigger(specific=False)
@@ -447,7 +473,7 @@ def test_move_fixed_node_throws_exception(data_fixture):
 
 
 @pytest.mark.django_db
-def test_move_simple_node(data_fixture):
+def test_move_simple_node(data_fixture: Fixtures):
     user = data_fixture.create_user()
     workflow = data_fixture.create_automation_workflow(user)
     action1 = data_fixture.create_automation_node(workflow=workflow)
@@ -471,28 +497,40 @@ def test_move_simple_node(data_fixture):
     # Before the move, at the origin, `action4` was after `action3`
     assert move_result.origin_old_next_nodes_values == [
         NextAutomationNodeValues(
-            id=action4.id, previous_node_id=action3.id, previous_node_output=""
+            id=action4.id,
+            previous_node_id=action3.id,
+            previous_node_output="",
+            parent_node_id=None,
         )
     ]
 
     # After the move, at the origin, `action4` is now after `action2`
     assert move_result.origin_new_next_nodes_values == [
         NextAutomationNodeValues(
-            id=action4.id, previous_node_id=action2.id, previous_node_output=""
+            id=action4.id,
+            previous_node_id=action2.id,
+            previous_node_output="",
+            parent_node_id=None,
         )
     ]
 
     # Before the move, at the destination, `action2` was after `action1`.
     assert move_result.destination_old_next_nodes_values == [
         NextAutomationNodeValues(
-            id=action2.id, previous_node_id=action1.id, previous_node_output=""
+            id=action2.id,
+            previous_node_id=action1.id,
+            previous_node_output="",
+            parent_node_id=None,
         )
     ]
 
     # After the move, at the destination, `action2` is now after `action3`.
     assert move_result.destination_new_next_nodes_values == [
         NextAutomationNodeValues(
-            id=action2.id, previous_node_id=action3.id, previous_node_output=""
+            id=action2.id,
+            previous_node_id=action3.id,
+            previous_node_output="",
+            parent_node_id=None,
         )
     ]
 
@@ -502,7 +540,7 @@ def test_move_simple_node(data_fixture):
 
 
 @pytest.mark.django_db
-def test_move_node_to_edge_above_existing_output(data_fixture):
+def test_move_node_to_edge_above_existing_output(data_fixture: Fixtures):
     user = data_fixture.create_user()
     workflow = data_fixture.create_automation_workflow(user)
     core_router_with_edges = data_fixture.create_core_router_action_node_with_edges(
@@ -515,6 +553,8 @@ def test_move_node_to_edge_above_existing_output(data_fixture):
     edge2 = core_router_with_edges.edge2
     edge2_output = core_router_with_edges.edge2_output  # <- from here
 
+    assert edge2_output.previous_node_id == router.id
+
     # move `edge2_output` to be *above* `edge1_output` inside `edge1`
     move_result = AutomationNodeService().move_node(
         user, edge2_output.id, router.id, edge1_output.previous_node_output
@@ -525,7 +565,7 @@ def test_move_node_to_edge_above_existing_output(data_fixture):
     assert move_result.node.previous_node_id == router.id
     assert move_result.node.previous_node_output == str(edge1.uid)
 
-    # The node's origin previous node was `action2`
+    # The node's origin previous node was `edge2`
     assert move_result.origin_previous_node_id == router.id
     assert move_result.origin_previous_node_output == str(edge2.uid)
 
@@ -541,6 +581,7 @@ def test_move_node_to_edge_above_existing_output(data_fixture):
             id=edge1_output.id,
             previous_node_id=router.id,
             previous_node_output=str(edge1.uid),
+            parent_node_id=None,
         )
     ]
 
@@ -550,5 +591,6 @@ def test_move_node_to_edge_above_existing_output(data_fixture):
             id=edge1_output.id,
             previous_node_id=edge2_output.id,
             previous_node_output="",
+            parent_node_id=None,
         )
     ]

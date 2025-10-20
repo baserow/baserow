@@ -237,27 +237,6 @@ services:
     networks:
       local:
 
-  embeddings:
-    build:
-      context: ./embeddings
-      dockerfile: Dockerfile
-    ports:
-      - "${HOST_PUBLISH_IP:-127.0.0.1}:7999:80"
-    networks:
-      local:
-    restart: unless-stopped
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "python",
-          "-c",
-          "import requests; requests.get('http://localhost/health').raise_for_status()",
-          ]
-      interval: 1m30s
-      timeout: 10s
-      retries: 3
-
   # When switching between dev and local the media files in the media volume will be
   # owned by different users. Ensure that we chown them to the user appropriate for the
   # environment here.

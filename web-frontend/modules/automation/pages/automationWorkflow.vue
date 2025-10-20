@@ -1,5 +1,5 @@
 <template>
-  <div class="automation-app">
+  <div class="automation-workflow">
     <AutomationHeader
       v-if="automation"
       :automation="automation"
@@ -46,6 +46,7 @@ import AutomationHeader from '@baserow/modules/automation/components/AutomationH
 import WorkflowEditor from '@baserow/modules/automation/components/workflow/WorkflowEditor'
 import EditorSidePanels from '@baserow/modules/automation/components/workflow/EditorSidePanels'
 import { AutomationApplicationType } from '@baserow/modules/automation/applicationTypes'
+import { notifyIf } from '@baserow/modules/core/utils/error'
 
 export default {
   name: 'AutomationWorkflow',
@@ -177,7 +178,12 @@ export default {
     handleDebugToggle(newDebugState) {
       this.workflowDebug = newDebugState
     },
-    async handleAddNode({ type, previousNodeId, previousNodeOutput }) {
+    async handleAddNode({
+      type,
+      previousNodeId,
+      previousNodeOutput,
+      parentNodeId,
+    }) {
       try {
         this.isAddingNode = true
         await this.$store.dispatch('automationWorkflowNode/create', {
@@ -185,9 +191,11 @@ export default {
           type,
           previousNodeId,
           previousNodeOutput,
+          parentNodeId,
         })
       } catch (err) {
-        console.error('Failed to add node:', err)
+        console.error('Failed to add node:', `${err}`)
+        notifyIf(err, 'automation')
       } finally {
         this.isAddingNode = false
       }
@@ -204,14 +212,20 @@ export default {
         })
       } catch (err) {
         console.error('Failed to delete node:', err)
+        notifyIf(err, 'automation')
       }
     },
     async handleReplaceNode({ node, type }) {
-      await this.$store.dispatch('automationWorkflowNode/replace', {
-        workflow: this.workflow,
-        nodeId: parseInt(node.id),
-        newType: type,
-      })
+      try {
+        await this.$store.dispatch('automationWorkflowNode/replace', {
+          workflow: this.workflow,
+          nodeId: parseInt(node.id),
+          newType: type,
+        })
+      } catch (err) {
+        console.error('Failed to replace node:', err)
+        notifyIf(err, 'automation')
+      }
     },
     onRouteChange(_, from, next) {
       const automation = this.$store.getters['application/get'](
@@ -236,19 +250,26 @@ export default {
       next()
     },
     async handleMoveNode(moveData) {
-      const originNodeId =
+      const movedNodeId =
         this.$store.getters['automationWorkflowNode/getDraggingNodeId']
+
       this.$store.dispatch('automationWorkflowNode/setDraggingNodeId', null)
-      if (!originNodeId) {
+
+      if (!movedNodeId) {
         return
       }
-      await this.$store.dispatch('automationWorkflowNode/move', {
-        workflow: this.workflow,
-        moveData: {
-          originNodeId,
-          ...moveData,
-        },
-      })
+      try {
+        await this.$store.dispatch('automationWorkflowNode/move', {
+          workflow: this.workflow,
+          moveData: {
+            movedNodeId,
+            ...moveData,
+          },
+        })
+      } catch (err) {
+        console.error('Failed to move node:', err)
+        notifyIf(err, 'automation')
+      }
     },
   },
 }

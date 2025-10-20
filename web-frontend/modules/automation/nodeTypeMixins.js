@@ -31,3 +31,8 @@ export const UtilityNodeMixin = (Base) =>
   class extends Base {
     isUtilityNode = true
   }
+
+export const containerNodeTypeMixin = (Base) =>
+  class extends Base {
+    isContainer = true
+  }

@@ -5,6 +5,7 @@ from django.contrib.auth.models import AbstractUser
 from baserow.contrib.automation.models import AutomationWorkflow
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeBeforeInvalid,
+    AutomationNodeNotInWorkflow,
     AutomationNodeNotMovable,
     AutomationTriggerModificationDisallowed,
 )
@@ -107,6 +108,7 @@ class AutomationNodeService:
         node_type: AutomationNodeType,
         workflow: AutomationWorkflow,
         before: Optional[AutomationNode] = None,
+        parent: Optional[AutomationNode] = None,
         order: Optional[str] = None,
         **kwargs,
     ) -> AutomationNode:
@@ -117,6 +119,7 @@ class AutomationNodeService:
         :param node_type: The type of the automation node.
         :param workflow: The workflow the automation node is associated with.
         :param before: If set, the new node is inserted before this node.
+        :param parent: If set, the new node is inserted as child of this node.
         :param order: The order of the new node. If not set, it will be determined
             automatically based on the existing nodes in the workflow.
         :param kwargs: Additional attributes of the automation node.
@@ -138,23 +141,51 @@ class AutomationNodeService:
         )
 
         # If we've been given a `before` node, validate it.
+        """if parent:
+            if workflow.id != parent.workflow_id:
+                raise AutomationNodeNotInWorkflow(parent.id)
+            # TODO, parent node must be a container
+
+        previous_node = None
+        previous_node_output = ""
+
+        # If we've been given a `before` node, validate it.
         if before:
             if workflow.id != before.workflow_id:
                 raise AutomationNodeBeforeInvalid(
                     "The `before` node must belong to the same workflow "
                     "as the one supplied."
                 )
-            if not before.previous_node_id:
+            if not before.previous_node_id and not before.parent_node_id:
                 # You can't create a node before a trigger node. Even if `node_type` is
                 # a trigger, API consumers must delete `before` and then try again.
                 raise AutomationNodeBeforeInvalid(
                     "You cannot create an automation node before a trigger."
                 )
 
+            previous_node = before.previous_node
+            previous_node_output = before.previous_node_output"""
+
+        kwargs["workflow"] = workflow
+
+        if parent:
+            kwargs["parent_node_id"] = parent.id
+
+        if before:
+            kwargs["previous_node_id"] = before.previous_node_id
+            kwargs["previous_node_output"] = before.previous_node_output
+            kwargs["parent_node_id"] = before.parent_node_id
+
         prepared_values = node_type.prepare_values(kwargs, user)
 
         new_node = self.handler.create_node(
-            node_type, order=order, workflow=workflow, before=before, **prepared_values
+            node_type,
+            order=order,
+            # workflow=workflow,
+            # previous_node=previous_node,
+            # previous_node_output=previous_node_output,
+            # parent_node=parent,
+            **prepared_values,
         )
         node_type.after_create(new_node)
 
@@ -167,7 +198,12 @@ class AutomationNodeService:
         return new_node
 
     def update_node(
-        self, user: AbstractUser, node_id: int, **kwargs
+        self,
+        user: AbstractUser,
+        node_id: int,
+        # previous_node_id: int = None,
+        # parent_node_id: int = None,
+        **kwargs,
     ) -> UpdatedAutomationNode:
         """
         Updates fields of a node.
@@ -370,45 +406,50 @@ class AutomationNodeService:
         :return: The replaced automation node.
         """
 
-        node = self.get_node(user, node_id)
-        node_type: AutomationNodeType = node.get_type()
+        node_to_replace = self.get_node(user, node_id)
+        node_type: AutomationNodeType = node_to_replace.get_type()
 
         CoreHandler().check_permissions(
             user,
             CreateAutomationNodeOperationType.type,
-            workspace=node.workflow.automation.workspace,
-            context=node.workflow,
+            workspace=node_to_replace.workflow.automation.workspace,
+            context=node_to_replace.workflow,
         )
 
         new_node_type = automation_node_type_registry.get(new_node_type_str)
-        node_type.before_replace(node, new_node_type)
+        node_type.before_replace(node_to_replace, new_node_type)
 
         prepared_values = new_node_type.prepare_values(
-            {},
+            {
+                "parent_node_id": node_to_replace.parent_node_id,
+                "previous_node_id": node_to_replace.previous_node_id,
+                "previous_node_output": node_to_replace.previous_node_output,
+                "workflow": node_to_replace.workflow,
+            },
             user,
         )
 
         new_node = self.handler.create_node(
             new_node_type,
-            workflow=node.workflow,
-            before=node,
-            order=node.order,
+            order=node_to_replace.order,
             **prepared_values,
         )
+
+        node_to_replace.refresh_from_db()
 
         new_node_type.after_create(new_node)
 
         # After the node creation, the replaced node has changed
-        node.refresh_from_db()
+        node_to_replace.refresh_from_db()
 
         # Trash the old node, assigning it a specific trash operation
         # type so that we know it was replaced when restoring it.
-        automation = node.workflow.automation
+        automation = node_to_replace.workflow.automation
         TrashHandler.trash(
             user,
             automation.workspace,
             automation,
-            node,
+            node_to_replace,
             trash_operation_type=ReplaceAutomationNodeTrashOperationType.type,
         )
 
@@ -416,23 +457,23 @@ class AutomationNodeService:
             self,
             workflow=new_node.workflow,
             restored_node=new_node,
-            deleted_node=node,
+            deleted_node=node_to_replace,
             user=user,
         )
 
         return ReplacedAutomationNode(
             node=new_node,
-            original_node_id=node.id,
+            original_node_id=node_to_replace.id,
             original_node_type=node_type.type,
         )
 
     def move_node(
         self,
         user: AbstractUser,
-        node_id: int,
-        new_previous_node_id: int,
+        node_id_to_move: int,
+        new_previous_node_id: int | None,
         new_previous_output: Optional[str] = None,
-        new_order: Optional[float] = None,
+        new_parent_node_id: int | None = None,
     ) -> AutomationNodeMove:
         """
         Moves an existing automation node to a new position in the workflow.
@@ -448,29 +489,39 @@ class AutomationNodeService:
         :return: The move operation details.
         """
 
-        node = self.get_node(user, node_id)
-        node_type: AutomationNodeType = node.get_type()
+        node_to_move = self.get_node(user, node_id_to_move)
+        node_type: AutomationNodeType = node_to_move.get_type()
 
         CoreHandler().check_permissions(
             user,
             UpdateAutomationNodeOperationType.type,
-            workspace=node.workflow.automation.workspace,
-            context=node,
+            workspace=node_to_move.workflow.automation.workspace,
+            context=node_to_move,
         )
 
         # If a node type cannot move, raise an exception.
         if node_type.is_fixed:
             raise AutomationNodeNotMovable("This automation node cannot be moved.")
 
-        after_node = self.get_node(user, new_previous_node_id)
-        move = self.handler.move_node(node, after_node, new_previous_output, new_order)
+        new_previous_node = (
+            self.get_node(user, new_previous_node_id) if new_previous_node_id else None
+        )
+        if new_previous_node:
+            new_parent_node = new_previous_node.parent_node
+        else:
+            # new_parent_node_id can't be null here as we don't have a previous node
+            new_parent_node = self.get_node(user, new_parent_node_id)
+
+        move = self.handler.move_node(
+            node_to_move, new_previous_node, new_previous_output, new_parent_node
+        )
 
         updated_nodes = [move.node] + move.next_node_updates
         automation_nodes_updated.send(
             self,
             user=user,
             nodes=updated_nodes,
-            workflow=node.workflow,
+            workflow=node_to_move.workflow,
         )
 
         return move
