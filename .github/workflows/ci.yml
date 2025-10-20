@@ -22,6 +22,24 @@ env:
   DEVELOP_BRANCH_NAME: develop
 
 jobs:
+  check-build-and-publish:
+    name: Check build and publish
+    runs-on: ubuntu-latest
+    outputs:
+      should_build_and_publish: ${{ steps.setflag.outputs.should_build_and_publish }}
+    steps:
+      - id: setflag
+        shell: bash
+        run: |
+          if [[ -n "${{ secrets.RELEASE_DOCKER_REPOSITORY }}" && \
+                -n "${{ secrets.RELEASE_DOCKER_REGISTRY }}" && \
+                -n "${{ secrets.RELEASE_DOCKER_USERNAME }}" && \
+                -n "${{ secrets.RELEASE_DOCKER_PASSWORD }}" ]]; then
+            echo "should_build_and_publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_build_and_publish=false" >> "$GITHUB_OUTPUT"
+          fi
+
   # ==========================================================================
   # BUILD STAGE - Build Docker images for backend and frontend
   # ==========================================================================
@@ -768,13 +786,19 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           MERGE_COVERAGE_FILES: false
 
+  # ==========================================================================
+  # Build and publish stage - builds production grade images and publishes
+  # ==========================================================================
+
   build-final-backend:
     name: Build Final Backend Image
     runs-on: ubuntu-latest
+    if: needs.check-build-and-publish.outputs.should_build_and_publish == 'true'  # && (github.ref_name == 'develop' || github.ref_name == 'master')
     needs:
       - test-backend
       - test-e2e
       - backend-lint
+      - check-build-and-publish
     permissions:
       contents: read
       packages: write
@@ -808,10 +832,12 @@ jobs:
   build-final-web-frontend:
     name: Build Final Web-Frontend Image
     runs-on: ubuntu-latest
+    if: needs.check-build-and-publish.outputs.should_build_and_publish == 'true'  # && (github.ref_name == 'develop' || github.ref_name == 'master')
     needs:
       - test-frontend
       - test-e2e
       - frontend-lint
+      - check-build-and-publish
     permissions:
       contents: read
       packages: write
@@ -845,9 +871,11 @@ jobs:
   build-final-all-in-one:
     name: Build All-in-One Image
     runs-on: ubuntu-latest
+    if: needs.check-build-and-publish.outputs.should_build_and_publish == 'true'  # && (github.ref_name == 'develop' || github.ref_name == 'master')
     needs:
       - build-final-backend
       - build-final-web-frontend
+      - check-build-and-publish
     permissions:
       contents: read
       packages: write
@@ -883,8 +911,10 @@ jobs:
   build-cloudron:
     name: Build Cloudron Image
     runs-on: ubuntu-latest
+    if: needs.check-build-and-publish.outputs.should_build_and_publish == 'true'  # && (github.ref_name == 'develop' || github.ref_name == 'master')
     needs:
       - build-final-all-in-one
+      - check-build-and-publish
     permissions:
       contents: read
       packages: write
@@ -915,3 +945,163 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.title=cloudron
             org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
+
+  publish-develop-latest-backend:
+    name: Publish develop-latest backend image
+    runs-on: ubuntu-latest
+    if: needs.check-build-and-publish.outputs.should_build_and_publish == 'true'  # && github.ref_name == 'develop'
+    needs:
+      - build-final-backend
+      - check-build-and-publish
+    env:
+      RELEASE_DOCKER_REGISTRY: ${{ secrets.RELEASE_DOCKER_REGISTRY }}
+      RELEASE_DOCKER_REPOSITORY: ${{ secrets.RELEASE_DOCKER_REPOSITORY }}
+      RELEASE_DOCKER_USERNAME: ${{ secrets.RELEASE_DOCKER_USERNAME }}
+      RELEASE_DOCKER_PASSWORD: ${{ secrets.RELEASE_DOCKER_PASSWORD }}
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.RELEASE_DOCKER_REGISTRY }}
+          username: ${{ env.RELEASE_DOCKER_USERNAME }}
+          password: ${{ env.RELEASE_DOCKER_PASSWORD }}
+
+      - name: Create and push develop-latest image on Docker Hub
+        run: |
+          SOURCE=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/backend:ci-tested-${{ github.sha }}
+          TARGET=${{ env.RELEASE_DOCKER_REPOSITORY }}/backend:develop-latest
+          echo "Publishing $SOURCE → $TARGET"
+          docker buildx imagetools create -t $TARGET $SOURCE
+
+  publish-webfrontend-develop-latest-image:
+    name: Publish develop-latest web-frontend image
+    runs-on: ubuntu-latest
+    if: needs.check-build-and-publish.outputs.should_build_and_publish == 'true'  # && github.ref_name == 'develop'
+    needs:
+      - build-final-web-frontend
+      - check-build-and-publish
+    env:
+      RELEASE_DOCKER_REGISTRY: ${{ secrets.RELEASE_DOCKER_REGISTRY }}
+      RELEASE_DOCKER_REPOSITORY: ${{ secrets.RELEASE_DOCKER_REPOSITORY }}
+      RELEASE_DOCKER_USERNAME: ${{ secrets.RELEASE_DOCKER_USERNAME }}
+      RELEASE_DOCKER_PASSWORD: ${{ secrets.RELEASE_DOCKER_PASSWORD }}
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.RELEASE_DOCKER_REGISTRY }}
+          username: ${{ env.RELEASE_DOCKER_USERNAME }}
+          password: ${{ env.RELEASE_DOCKER_PASSWORD }}
+
+      - name: Create and push develop-latest image on Docker Hub
+        run: |
+          SOURCE=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/web-frontend:ci-tested-${{ github.sha }}
+          TARGET=${{ env.RELEASE_DOCKER_REPOSITORY }}/web-frontend:develop-latest
+          echo "Publishing $SOURCE → $TARGET"
+          docker buildx imagetools create -t $TARGET $SOURCE
+
+  publish-all-in-one-develop-latest-image:
+    name: Publish develop-latest all-in-one image
+    runs-on: ubuntu-latest
+    if: needs.check-build-and-publish.outputs.should_build_and_publish == 'true'  # && github.ref_name == 'develop'
+    needs:
+      - build-final-all-in-one
+      - check-build-and-publish
+    env:
+      RELEASE_DOCKER_REGISTRY: ${{ secrets.RELEASE_DOCKER_REGISTRY }}
+      RELEASE_DOCKER_REPOSITORY: ${{ secrets.RELEASE_DOCKER_REPOSITORY }}
+      RELEASE_DOCKER_USERNAME: ${{ secrets.RELEASE_DOCKER_USERNAME }}
+      RELEASE_DOCKER_PASSWORD: ${{ secrets.RELEASE_DOCKER_PASSWORD }}
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.RELEASE_DOCKER_REGISTRY }}
+          username: ${{ env.RELEASE_DOCKER_USERNAME }}
+          password: ${{ env.RELEASE_DOCKER_PASSWORD }}
+
+      - name: Create and push develop-latest image on Docker Hub
+        run: |
+          SOURCE=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/baserow:ci-tested-${{ github.sha }}
+          TARGET=${{ env.RELEASE_DOCKER_REPOSITORY }}/baserow:develop-latest
+          echo "Publishing $SOURCE → $TARGET"
+          docker buildx imagetools create -t $TARGET $SOURCE
+
+  publish-cloudron-develop-latest-image:
+    name: Publish develop-latest Cloudron image
+    runs-on: ubuntu-latest
+    if: needs.check-build-and-publish.outputs.should_build_and_publish == 'true'  # && github.ref_name == 'develop'
+    needs:
+      - build-cloudron
+      - check-build-and-publish
+    env:
+      RELEASE_DOCKER_REGISTRY: ${{ secrets.RELEASE_DOCKER_REGISTRY }}
+      RELEASE_DOCKER_REPOSITORY: ${{ secrets.RELEASE_DOCKER_REPOSITORY }}
+      RELEASE_DOCKER_USERNAME: ${{ secrets.RELEASE_DOCKER_USERNAME }}
+      RELEASE_DOCKER_PASSWORD: ${{ secrets.RELEASE_DOCKER_PASSWORD }}
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.RELEASE_DOCKER_REGISTRY }}
+          username: ${{ env.RELEASE_DOCKER_USERNAME }}
+          password: ${{ env.RELEASE_DOCKER_PASSWORD }}
+
+      - name: Create and push develop-latest image on Docker Hub
+        run: |
+          SOURCE=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/cloudron:ci-tested-${{ github.sha }}
+          TARGET=${{ env.RELEASE_DOCKER_REPOSITORY }}/cloudron:develop-latest
+          echo "Publishing $SOURCE → $TARGET"
+          docker buildx imagetools create -t $TARGET $SOURCE
