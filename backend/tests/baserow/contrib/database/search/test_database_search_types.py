@@ -96,7 +96,6 @@ def test_field_definition_search_type_basic_functionality(data_fixture):
 
     results = search_type.execute_search(user, workspace, context)
 
-    print(results)
     assert len(results) == 2
     assert results[0].id == field.id
     assert results[1].id == field2.id

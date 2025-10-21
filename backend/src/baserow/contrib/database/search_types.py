@@ -206,7 +206,12 @@ class FieldDefinitionSearchType(DatabaseSearchableItemType):
         search_q = self.build_search_query(context.query)
         if search_q:
             queryset = queryset.filter(search_q)
-        return queryset.annotate(search_type=Value(self.type, output_field=CharField()))
+        return queryset.annotate(
+            search_type=Value(self.type, output_field=CharField()),
+            title=F("name"),
+            subtitle=self.build_subtitle_annotation(),
+            payload=self.build_payload(),
+        ).order_by("id")
 
     def build_subtitle_annotation(self):
         return Concat(

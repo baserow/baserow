@@ -97,3 +97,11 @@ export const getters = {
     return Array.isArray(state.results) ? state.results : []
   },
 }
+
+export default {
+  namespaced: true,
+  state,
+  getters,
+  actions,
+  mutations,
+}

@@ -212,11 +212,11 @@ export default {
     },
 
     allResults() {
-      return this.getAllResults
+      return this.getAllResults || []
     },
 
     maxIndex() {
-      return Math.max(0, this.allResults.length - 1)
+      return Math.max(0, (this.allResults || []).length - 1)
     },
   },
 
@@ -416,6 +416,10 @@ export default {
     },
 
     moveSelection(direction) {
+      if (!this.allResults || this.allResults.length === 0) {
+        return
+      }
+
       const newIndex = this.activeIndex + direction
       if (newIndex < 0) {
         this.activeIndex = 0
@@ -429,7 +433,11 @@ export default {
 
     scrollToActiveItem() {
       this.$nextTick(() => {
-        if (this.activeIndex >= 0 && this.allResults.length > 0) {
+        if (
+          this.activeIndex >= 0 &&
+          this.allResults &&
+          this.allResults.length > 0
+        ) {
           const resultItems = this.$el.querySelectorAll(
             '.workspace-search__result-item'
           )
@@ -447,7 +455,7 @@ export default {
     },
 
     selectActiveItem() {
-      if (this.hasResults) {
+      if (this.hasResults && this.allResults && this.allResults.length > 0) {
         if (
           this.activeIndex >= 0 &&
           this.activeIndex < this.allResults.length
