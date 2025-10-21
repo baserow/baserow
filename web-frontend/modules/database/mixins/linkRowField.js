@@ -19,7 +19,7 @@ export default {
     presetsForNewRowInLinkedTable() {
       const presets = {}
       const value = this.primaryFieldLinkRowValue
-      if (value) {
+      if (value && Boolean(value.id)) {
         presets[`field_${this.field.link_row_related_field_id}`] = [value]
       }
       return presets

@@ -1,0 +1,8 @@
+{
+    "type": "bug",
+    "message": "Allow create new entry in linked table using pop-up window",
+    "domain": "database",
+    "issue_number": 4104,
+    "bullet_points": [],
+    "created_at": "2025-10-21"
+}
