@@ -162,6 +162,15 @@ export default {
       }
     },
   },
+  watch: {
+    presets: {
+      handler(newPresets) {
+        console.log('presets changed:', newPresets)
+      },
+      immediate: true,
+      deep: true,
+    },
+  },
   methods: {
     show(defaults = {}, ...args) {
       const row = {}

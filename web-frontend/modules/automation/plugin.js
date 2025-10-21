@@ -33,6 +33,7 @@ import {
   CoreSMTPEmailNodeType,
   CoreRouterNodeType,
   CorePeriodicTriggerNodeType,
+  AiAgentNodeType,
 } from '@baserow/modules/automation/nodeTypes'
 import {
   DuplicateAutomationWorkflowJobType,
@@ -116,6 +117,7 @@ export default (context) => {
     app.$registry.register('node', new CoreSMTPEmailNodeType(context))
     app.$registry.register('node', new CoreRouterNodeType(context))
     app.$registry.register('node', new CoreIteratorNodeType(context))
+    app.$registry.register('node', new AiAgentNodeType(context))
     app.$registry.register(
       'node',
       new LocalBaserowDeleteRowActionNodeType(context)

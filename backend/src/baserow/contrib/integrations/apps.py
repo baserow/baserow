@@ -53,4 +53,10 @@ class IntegrationsConfig(AppConfig):
         service_type_registry.register(CoreIteratorServiceType())
         service_type_registry.register(CorePeriodicServiceType())
 
+        from baserow.contrib.integrations.ai.integration_types import LMIntegrationType
+        from baserow.contrib.integrations.ai.service_types import AiAgentServiceType
+
+        integration_type_registry.register(LMIntegrationType())
+        service_type_registry.register(AiAgentServiceType())
+
         import baserow.contrib.integrations.signals  # noqa: F403, F401

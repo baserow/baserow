@@ -5,7 +5,8 @@
   },
   "integrationType": {
     "localBaserow": "Local Baserow",
-    "smtp": "SMTP Email"
+    "smtp": "SMTP Email",
+    "lm": "AI Language Model"
   },
   "localBaserowIntegrationType": {
     "localBaserowSummary": "Local Baserow - {name}, {username}",
@@ -57,7 +58,13 @@
     "corePeriodic": "Periodic trigger",
     "corePeriodicDescription": "Triggers the workflow on a periodic basis at specified intervals",
     "corePeriodicErrorIntervalMissing": "An interval is required.",
-    "errorIterationSourceMissing": "Missing source property"
+    "errorIterationSourceMissing": "Missing source property",
+    "errorIntegrationMissing": "Missing AI Model Integration",
+    "errorSignatureMissing": "Missing function signature",
+    "errorSignatureInvalid": "Invalid signature: At least one input and one output field are required",
+    "errorPromptMissing": "Missing prompt",
+    "aiAgent": "AI Agent",
+    "aiAgentDescription": "Calls an AI agent with defined inputs and outputs"
   },
   "userSourceType": {
     "localBaserow": "Baserow table authentication"
@@ -230,5 +237,71 @@
     "monthHelper": "This workflow will run every month on the specified day and time in your local timezone ({timezone})",
     "deactivatedTitle": "Periodic trigger deactivated",
     "deactivatedText": "This periodic trigger has been automatically deactivated due to consecutive failures."
+  },
+  "aiAgentForm": {
+    "integrationDropdownLabel": "AI Model Integration",
+    "lmIntegrationPlaceholder": "Select an AI Model integration...",
+    "prompt": "Prompt",
+    "promptPlaceholder": "Enter the prompt to send to the AI agent...",
+    "temperature": "Temperature",
+    "temperaturePlaceholder": "Enter the temperature (e.g., 0.7)...",
+    "maxTokens": "Max Tokens",
+    "maxTokensPlaceholder": "Enter the maximum number of tokens (e.g., 4000)...",
+    "signature": "Function Signature",
+    "signaturePlaceholder": "Define input and outputs for AI agent...",
+    "promptValuesTitle": "Input Values",
+    "promptValuesDescription": "Provide values for each input field defined in your signature. You can use formulas to reference data from previous nodes."
+  },
+  "aiAgentSignatureBuilder": {
+    "inputsTitle": "Inputs",
+    "inputsDescription": "Define the input fields for the AI agent.",
+    "outputsTitle": "Outputs",
+    "outputsDescription": "Define the output fields that your AI agent will produce.",
+    "fieldName": "Field Name",
+    "fieldType": "Field Type",
+    "fieldDescription": "Description",
+    "fieldDescriptionPlaceholder": "Optional description for this field...",
+    "fieldValue": "Value",
+    "choiceOptions": "Choice Options",
+    "choiceOptionPlaceholder": "Enter an option...",
+    "addOption": "add option",
+    "addInput": "Add Input Field",
+    "addOutput": "Add Output Field",
+    "unnamedField": "(Unnamed field)",
+    "noInputsYet": "No input fields defined yet. Click the button below to add your first input field.",
+    "noOutputsYet": "No output fields defined yet. Click the button below to add your first output field.",
+    "stringFieldType": "String",
+    "numberFieldType": "Number",
+    "booleanFieldType": "Boolean",
+    "choiceFieldType": "Choice",
+    "stringFieldTypeDescription": "Text input field",
+    "numberFieldTypeDescription": "Numeric input field",
+    "booleanFieldTypeDescription": "True or False value",
+    "choiceFieldTypeDescription": "Dropdown with predefined options",
+    "stringValuePlaceholder": "Enter a value or use a formula...",
+    "numberValuePlaceholder": "Enter a number or use a formula...",
+    "errorFieldNameRequired": "Field name is required",
+    "errorFieldTypeRequired": "Field type is required",
+    "errorChoiceOptionsRequired": "At least one option is required for choice fields",
+    "errorDuplicateFieldName": "Field name must be unique",
+    "errorInvalidFieldName": "Field name must start with a letter or underscore and contain only letters, numbers, and underscores",
+    "errorValueRequired": "Value is required for input fields",
+    "errorNoValidSignature": "Invalid signature: At least one valid input field and one valid output field are required."
+  },
+  "aiAgentPromptBuilder": {
+    "noInputsDefined": "No input fields defined yet. Add input fields in the signature section above to provide values here.",
+    "stringPlaceholder": "Enter a value or use a formula...",
+    "numberPlaceholder": "Enter a number or use a formula..."
+  },
+  "lmForm": {
+    "model": "Model",
+    "modelPlaceholder": "Select a model...",
+    "apiKey": "API Key",
+    "apiKeyPlaceholder": "Enter your API key for the AI model...",
+    "apiBaseUrl": "API Base URL",
+    "apiBaseUrlPlaceholder": "Enter the base URL for the AI model API..."
+  },
+  "lmIntegrationType": {
+    "lmSummary": "AI Model - {model}"
   }
 }

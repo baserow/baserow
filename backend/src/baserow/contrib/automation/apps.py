@@ -20,6 +20,7 @@ class AutomationConfig(AppConfig):
             UpdateAutomationNodeActionType,
         )
         from baserow.contrib.automation.nodes.node_types import (
+            AiAgentNodeType,
             CoreHttpRequestNodeType,
             CoreHTTPTriggerNodeType,
             CoreIteratorNodeType,
@@ -155,6 +156,7 @@ class AutomationConfig(AppConfig):
             automation_node_type_registry.register(CoreHttpRequestNodeType())
             automation_node_type_registry.register(CoreIteratorNodeType())
             automation_node_type_registry.register(CoreSMTPEmailNodeType())
+            automation_node_type_registry.register(AiAgentNodeType())
             automation_node_type_registry.register(CoreRouterActionNodeType())
             automation_node_type_registry.register(
                 LocalBaserowRowsCreatedNodeTriggerType()

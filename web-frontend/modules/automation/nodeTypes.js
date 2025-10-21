@@ -24,6 +24,7 @@ import {
   CoreHTTPTriggerServiceType,
   CoreIteratorServiceType,
 } from '@baserow/modules/integrations/core/serviceTypes'
+import { AiAgentServiceType } from '@baserow/modules/integrations/ai/serviceTypes'
 import { uuid } from '@baserow/modules/core/utils/string'
 
 export class NodeType extends Registerable {
@@ -815,5 +816,26 @@ export class CoreRouterNodeType extends ActionNodeTypeMixin(
           this.app.i18n.t('nodeType.routerDefaultEdgeLabelFallback'),
       },
     ]
+  }
+}
+export class AiAgentNodeType extends ActionNodeTypeMixin(NodeType) {
+  static getType() {
+    return 'ai_agent'
+  }
+
+  getOrder() {
+    return 8
+  }
+
+  get iconClass() {
+    return 'iconoir-sparks'
+  }
+
+  get name() {
+    return this.app.i18n.t('nodeType.aiAgent')
+  }
+
+  get serviceType() {
+    return this.app.$registry.get('service', AiAgentServiceType.getType())
   }
 }

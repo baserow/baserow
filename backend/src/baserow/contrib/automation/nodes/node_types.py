@@ -16,6 +16,8 @@ from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeTriggerMustBeFirstNode,
 )
 from baserow.contrib.automation.nodes.models import (
+    AiAgentActionNode,
+    AutomationActionNode,
     AutomationNode,
     AutomationTriggerNode,
     CoreHTTPRequestActionNode,
@@ -38,6 +40,7 @@ from baserow.contrib.automation.nodes.registries import AutomationNodeType
 from baserow.contrib.automation.nodes.types import NodePositionType
 from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
+from baserow.contrib.integrations.ai.service_types import AiAgentServiceType
 from baserow.contrib.integrations.core.service_types import (
     CoreHTTPRequestServiceType,
     CoreHTTPTriggerServiceType,
@@ -385,3 +388,9 @@ class CoreHTTPTriggerNodeType(AutomationNodeTriggerType):
     type = "http_trigger"
     model_class = CoreHTTPTriggerNode
     service_type = CoreHTTPTriggerServiceType.type
+
+
+class AiAgentNodeType(AutomationNodeActionNodeType):
+    type = "ai_agent"
+    model_class = AiAgentActionNode
+    service_type = AiAgentServiceType.type

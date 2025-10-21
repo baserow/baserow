@@ -303,6 +303,7 @@ class BaserowEnterpriseConfig(AppConfig):
         notification_type_registry.register(TwoWaySyncDeactivatedNotificationType())
 
         from baserow_enterprise.assistant.tools import (
+            AnalyzeCsvFileToolType,
             CreateDatabaseToolType,
             CreateFieldsToolType,
             CreateTablesToolType,
@@ -311,10 +312,12 @@ class BaserowEnterpriseConfig(AppConfig):
             GenerateDatabaseFormulaToolType,
             GetRowsToolsToolType,
             GetTablesSchemaToolType,
+            ImportCsvRowsToolType,
             ListDatabasesToolType,
             ListRowsToolType,
             ListTablesToolType,
             ListViewsToolType,
+            MatchCsvToTableSchemaToolType,
             NavigationToolType,
             SearchDocsToolType,
         )
@@ -337,6 +340,11 @@ class BaserowEnterpriseConfig(AppConfig):
         assistant_tool_registry.register(ListViewsToolType())
         assistant_tool_registry.register(CreateViewsToolType())
         assistant_tool_registry.register(CreateViewFiltersToolType())
+
+        # CSV import tools
+        assistant_tool_registry.register(AnalyzeCsvFileToolType())
+        assistant_tool_registry.register(MatchCsvToTableSchemaToolType())
+        assistant_tool_registry.register(ImportCsvRowsToolType())
 
         # The signals must always be imported last because they use the registries
         # which need to be filled first.

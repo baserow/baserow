@@ -21,12 +21,14 @@
 }
 
 .automation-workflow__side-panel {
-  flex-basis: 360px;
+  flex: 24 1 0px;
   padding: 16px;
   overflow: hidden;
   background-color: $white;
   border-left: 1px solid $palette-neutral-200;
   overflow-y: auto;
+  max-width: 500px;
+  min-width: 300px;
 }
 
 .automation-workflow__editor {
