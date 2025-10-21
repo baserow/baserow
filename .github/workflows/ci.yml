@@ -41,7 +41,7 @@ jobs:
             echo "should_build_and_publish=false" >> "$GITHUB_OUTPUT"
           fi
 
-          if [[ -n "${{ secrets.GITLAB_SAAS_TRIGGER_TOKEN }}" ]]; then
+          if [[ -n "${{ secrets.GITLAB_SAAS_PAT }}" ]]; then
             echo "should_trigger_saas=true" >> "$GITHUB_OUTPUT"
           else
             echo "should_trigger_saas=false" >> "$GITHUB_OUTPUT"
@@ -1118,26 +1118,71 @@ jobs:
     needs:
       - build-final-backend
       - build-final-web-frontend
+      - build-final-all-in-one
       - check-build-and-publish
     if: needs.check-build-and-publish.outputs.should_build_and_publish == 'true' && needs.check-build-and-publish.outputs.should_trigger_saas == 'true' # && github.ref_name == 'develop'
     env:
-      GITLAB_SAAS_PROJECT_ID: "10858056"  # baserow/baserow-saas
-      GITLAB_API_URL: "https://gitlab.com/api/v4/projects"
-      GITLAB_TRIGGER_TOKEN: ${{ secrets.GITLAB_SAAS_TRIGGER_TOKEN }}
+      GITLAB_SAAS_PAT: ${{ secrets.GITLAB_SAAS_PAT }}
+      GIT_USER_NAME: "Baserow CI"
+      GIT_USER_EMAIL: "ci@baserow.io"
     steps:
-      - name: Trigger SaaS GitLab Pipeline
-        shell: bash
+      - name: Checkout core repo
+        uses: actions/checkout@v4
+
+      - name: Clone SaaS repository from GitLab
         run: |
-          echo "Triggering SaaS pipeline on GitLab..."
+          echo "🔄 Cloning baserow-saas..."
+          git clone -b develop https://oauth2:${GITLAB_SAAS_PAT}@gitlab.com/baserow/baserow-saas.git saas
+          cd saas
 
-          curl --fail -X POST \
-            -F "token=${GITLAB_TRIGGER_TOKEN}" \
-            -F "ref=develop" \
-            -F "variables[UPSTREAM_SHA]=${{ github.sha }}" \
-            -F "variables[UPSTREAM_SHORT_SHA]=$(echo ${{ github.sha }} | cut -c1-8)" \
-            -F "variables[TESTED_BACKEND_CI_IMAGE]=ghcr.io/${{ github.repository }}/backend:ci-tested-${{ github.sha }}" \
-            -F "variables[TESTED_WEBFRONTEND_CI_IMAGE]=ghcr.io/${{ github.repository }}/web-frontend:ci-tested-${{ github.sha }}" \
-            -F "variables[CI_IMAGE_REPO]=ghcr.io/${{ github.repository }}" \
-            --url "${GITLAB_API_URL}/${GITLAB_SAAS_PROJECT_ID}/trigger/pipeline"
+      - name: Update image version files
+        working-directory: saas
+        run: |
+          echo "🧩 Generating updated image references..."
 
-          echo "✅ Successfully triggered GitLab SaaS pipeline."
+          BACKEND_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/backend:ci-tested-${{ github.sha }}"
+          BACKEND_DEV_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/backend_dev:ci-${{ github.sha }}"
+          WEB_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/web-frontend:ci-tested-${{ github.sha }}"
+          WEB_DEV_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/web-frontend_dev:ci-${{ github.sha }}"
+          ALL_IN_ONE_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/baserow:ci-tested-${{ github.sha }}"
+
+          echo "$BACKEND_IMAGE" > plugins/saas/backend/build_from_image.version
+          echo "$BACKEND_DEV_IMAGE" > plugins/saas/backend/build_from_dev_image.version
+          echo "$WEB_IMAGE" > plugins/saas/web-frontend/build_from_image.version
+          echo "$WEB_DEV_IMAGE" > plugins/saas/web-frontend/build_from_dev_image.version
+          echo "$ALL_IN_ONE_IMAGE" > all_in_one_image.version
+
+          echo "✅ Updated image references:"
+          cat plugins/saas/backend/build_from_image.version
+          cat plugins/saas/web-frontend/build_from_image.version
+          cat all_in_one_image.version
+
+      - name: Commit and push changes to GitLab
+        working-directory: saas
+        run: |
+          echo "📝 Committing and pushing changes to GitLab..."
+
+          git config user.name "${GIT_USER_NAME}"
+          git config user.email "${GIT_USER_EMAIL}"
+
+          git add \
+            plugins/saas/backend/build_from_image.version \
+            plugins/saas/backend/build_from_dev_image.version \
+            plugins/saas/web-frontend/build_from_image.version \
+            plugins/saas/web-frontend/build_from_dev_image.version \
+            all_in_one_image.version
+
+          if git diff-index --quiet HEAD --; then
+            echo "No changes detected — skipping commit."
+            exit 0
+          fi
+
+          COMMIT_MSG="Automatic core image bump:
+          - backend: ${BACKEND_IMAGE}
+          - web-frontend: ${WEB_IMAGE}
+          - all-in-one: ${ALL_IN_ONE_IMAGE}"
+
+          git commit -m "$COMMIT_MSG"
+          git push origin develop
+
+          echo "✅ Successfully pushed updates to baserow-saas."
