@@ -31,7 +31,7 @@ jobs:
         id: get-project
         uses: actions/github-script@v7
         env:
-          GITHUB_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.DATABASE_PROJECT_WORKFLOW_TOKEN }}
         with:
           script: |
             const projectNumber = 3;
@@ -40,7 +40,7 @@ jobs:
             // Get project ID
             const projectQuery = `
               query($owner: String!, $number: Int!) {
-                user(login: $owner) {
+                organization(login: $owner) {
                   projectV2(number: $number) {
                     id
                   }
@@ -53,12 +53,12 @@ jobs:
               number: projectNumber
             });
 
-            return projectData.user.projectV2;
+            return projectData.organization.projectV2;
 
       - name: Add Issue to Project on Label
         uses: actions/github-script@v7
         env:
-          GITHUB_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.DATABASE_PROJECT_WORKFLOW_TOKEN }}
         with:
           script: |
             const projectData = ${{ steps.get-project.outputs.result }};
