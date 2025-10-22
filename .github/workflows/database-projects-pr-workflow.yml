@@ -1,0 +1,481 @@
+name: Update Database Project PR and Issue Status
+
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review, converted_to_draft]
+  pull_request_review:
+    types: [submitted]
+
+jobs:
+  update-status:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get Project and Field IDs
+        id: get-project-info
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.DATABASE_PROJECT_WORKFLOW_TOKEN }}
+          script: |
+            const projectNumber = 3;
+            const owner = context.repo.owner;
+
+            // Get project ID and fields
+            const projectQuery = `
+              query($owner: String!, $number: Int!) {
+                organization(login: $owner) {
+                  projectV2(number: $number) {
+                    id
+                    fields(first: 20) {
+                      nodes {
+                        ... on ProjectV2SingleSelectField {
+                          id
+                          name
+                          options {
+                            id
+                            name
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            `;
+
+            const projectData = await github.graphql(projectQuery, {
+              owner,
+              number: projectNumber
+            });
+
+            const project = projectData.organization.projectV2;
+
+            // Find Status and Review Status fields
+            const statusField = project.fields.nodes.find(f => f.name === 'Status');
+            const reviewStatusField = project.fields.nodes.find(f => f.name === 'Review Status');
+
+            return {
+              projectId: project.id,
+              statusField: {
+                id: statusField.id,
+                options: {
+                  'In Progress': statusField.options.find(o => o.name === 'In Progress').id,
+                  'In Review': statusField.options.find(o => o.name === 'In Review').id,
+                  'In Testing': statusField.options.find(o => o.name === 'In Testing').id,
+                  'Done': statusField.options.find(o => o.name === 'Done').id
+                }
+              },
+              reviewStatusField: {
+                id: reviewStatusField.id,
+                options: {
+                  'Waiting': reviewStatusField.options.find(o => o.name === 'Waiting').id,
+                  'Feedback': reviewStatusField.options.find(o => o.name === 'Feedback').id,
+                  'Merge': reviewStatusField.options.find(o => o.name === 'Merge').id
+                }
+              }
+            };
+
+      - name: Update PR and Issue Status
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.DATABASE_PROJECT_WORKFLOW_TOKEN }}
+          script: |
+            const projectInfo = ${{ steps.get-project-info.outputs.result }};
+            const pr = context.payload.pull_request;
+            const eventType = context.payload.action;
+
+            console.log(`Processing ${eventType} event for PR #${pr.number}`);
+
+            // Helper function to get project item ID for an issue or PR
+            async function getProjectItem(contentId) {
+              const query = `
+                query($contentId: ID!, $projectId: ID!) {
+                  node(id: $contentId) {
+                    ... on Issue {
+                      projectItems(first: 10) {
+                        nodes {
+                          id
+                          project { id }
+                        }
+                      }
+                    }
+                    ... on PullRequest {
+                      projectItems(first: 10) {
+                        nodes {
+                          id
+                          project { id }
+                        }
+                      }
+                    }
+                  }
+                }
+              `;
+
+              const result = await github.graphql(query, {
+                contentId,
+                projectId: projectInfo.projectId
+              });
+
+              const item = result.node.projectItems.nodes.find(
+                i => i.project.id === projectInfo.projectId
+              );
+
+              return item ? item.id : null;
+            }
+
+            // Helper function to add item to project if not already there
+            async function ensureInProject(contentId) {
+              let itemId = await getProjectItem(contentId);
+
+              if (!itemId) {
+                console.log(`Adding item to project...`);
+                const addMutation = `
+                  mutation($projectId: ID!, $contentId: ID!) {
+                    addProjectV2ItemById(input: {
+                      projectId: $projectId
+                      contentId: $contentId
+                    }) {
+                      item { id }
+                    }
+                  }
+                `;
+
+                const result = await github.graphql(addMutation, {
+                  projectId: projectInfo.projectId,
+                  contentId: contentId
+                });
+
+                itemId = result.addProjectV2ItemById.item.id;
+              }
+
+              return itemId;
+            }
+
+            // Helper function to update field value
+            async function updateFieldValue(itemId, fieldId, optionId) {
+              const mutation = `
+                mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) {
+                  updateProjectV2ItemFieldValue(input: {
+                    projectId: $projectId
+                    itemId: $itemId
+                    fieldId: $fieldId
+                    value: $value
+                  }) {
+                    projectV2Item { id }
+                  }
+                }
+              `;
+
+              await github.graphql(mutation, {
+                projectId: projectInfo.projectId,
+                itemId: itemId,
+                fieldId: fieldId,
+                value: { singleSelectOptionId: optionId }
+              });
+            }
+
+            // Helper function to get linked issues
+            async function getLinkedIssues(prNumber) {
+              const query = `
+                query($owner: String!, $repo: String!, $prNumber: Int!) {
+                  repository(owner: $owner, name: $repo) {
+                    pullRequest(number: $prNumber) {
+                      closingIssuesReferences(first: 10) {
+                        nodes {
+                          id
+                          number
+                        }
+                      }
+                    }
+                  }
+                }
+              `;
+
+              const result = await github.graphql(query, {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                prNumber: prNumber
+              });
+
+              return result.repository.pullRequest.closingIssuesReferences.nodes;
+            }
+
+            // Helper function to get other PRs for an issue
+            async function getOtherPRsForIssue(issueNumber, excludePrNumber) {
+              const query = `
+                query($owner: String!, $repo: String!, $issueNumber: Int!) {
+                  repository(owner: $owner, name: $repo) {
+                    issue(number: $issueNumber) {
+                      timelineItems(itemTypes: CROSS_REFERENCED_EVENT, first: 50) {
+                        nodes {
+                          ... on CrossReferencedEvent {
+                            source {
+                              ... on PullRequest {
+                                number
+                                isDraft
+                                state
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              `;
+
+              const result = await github.graphql(query, {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issueNumber: issueNumber
+              });
+
+              const prs = result.repository.issue.timelineItems.nodes
+                .map(n => n.source)
+                .filter(s => s && s.number && s.number !== excludePrNumber && s.state === 'OPEN');
+
+              return prs;
+            }
+
+            // Ensure PR is in the project
+            const prItemId = await ensureInProject(pr.node_id);
+            console.log(`PR item ID: ${prItemId}`);
+
+            // Get linked issues
+            const linkedIssues = await getLinkedIssues(pr.number);
+            console.log(`Found ${linkedIssues.length} linked issues`);
+
+            // Handle different event types
+            if (eventType === 'opened' || eventType === 'reopened' || eventType === 'converted_to_draft') {
+              // Set PR and linked issues to "In Progress"
+              console.log('Setting status to In Progress');
+              await updateFieldValue(
+                prItemId,
+                projectInfo.statusField.id,
+                projectInfo.statusField.options['In Progress']
+              );
+
+              for (const issue of linkedIssues) {
+                const issueItemId = await ensureInProject(issue.id);
+                await updateFieldValue(
+                  issueItemId,
+                  projectInfo.statusField.id,
+                  projectInfo.statusField.options['In Progress']
+                );
+              }
+            }
+
+            if (eventType === 'ready_for_review') {
+              // Set PR to "In Review" and Review Status to "Waiting"
+              console.log('Setting PR to In Review with Review Status: Waiting');
+              await updateFieldValue(
+                prItemId,
+                projectInfo.statusField.id,
+                projectInfo.statusField.options['In Review']
+              );
+              await updateFieldValue(
+                prItemId,
+                projectInfo.reviewStatusField.id,
+                projectInfo.reviewStatusField.options['Waiting']
+              );
+
+              // Check if issues have other draft PRs
+              for (const issue of linkedIssues) {
+                const issueItemId = await ensureInProject(issue.id);
+                const otherPRs = await getOtherPRsForIssue(issue.number, pr.number);
+                const hasDraftPRs = otherPRs.some(p => p.isDraft);
+
+                if (!hasDraftPRs) {
+                  console.log(`Setting issue #${issue.number} to In Review (no other draft PRs)`);
+                  await updateFieldValue(
+                    issueItemId,
+                    projectInfo.statusField.id,
+                    projectInfo.statusField.options['In Review']
+                  );
+                }
+              }
+            }
+
+      - name: Handle Review Submission
+        if: github.event_name == 'pull_request_review'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.DATABASE_PROJECT_WORKFLOW_TOKEN }}
+          script: |
+            const projectInfo = ${{ steps.get-project-info.outputs.result }};
+            const pr = context.payload.pull_request;
+            const review = context.payload.review;
+
+            console.log(`Processing review ${review.state} for PR #${pr.number}`);
+
+            // Helper functions (same as above)
+            async function getProjectItem(contentId) {
+              const query = `
+                query($contentId: ID!, $projectId: ID!) {
+                  node(id: $contentId) {
+                    ... on Issue {
+                      projectItems(first: 10) {
+                        nodes {
+                          id
+                          project { id }
+                        }
+                      }
+                    }
+                    ... on PullRequest {
+                      projectItems(first: 10) {
+                        nodes {
+                          id
+                          project { id }
+                        }
+                      }
+                    }
+                  }
+                }
+              `;
+
+              const result = await github.graphql(query, {
+                contentId,
+                projectId: projectInfo.projectId
+              });
+
+              const item = result.node.projectItems.nodes.find(
+                i => i.project.id === projectInfo.projectId
+              );
+
+              return item ? item.id : null;
+            }
+
+            async function ensureInProject(contentId) {
+              let itemId = await getProjectItem(contentId);
+
+              if (!itemId) {
+                const addMutation = `
+                  mutation($projectId: ID!, $contentId: ID!) {
+                    addProjectV2ItemById(input: {
+                      projectId: $projectId
+                      contentId: $contentId
+                    }) {
+                      item { id }
+                    }
+                  }
+                `;
+
+                const result = await github.graphql(addMutation, {
+                  projectId: projectInfo.projectId,
+                  contentId: contentId
+                });
+
+                itemId = result.addProjectV2ItemById.item.id;
+              }
+
+              return itemId;
+            }
+
+            async function updateFieldValue(itemId, fieldId, optionId) {
+              const mutation = `
+                mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) {
+                  updateProjectV2ItemFieldValue(input: {
+                    projectId: $projectId
+                    itemId: $itemId
+                    fieldId: $fieldId
+                    value: $value
+                  }) {
+                    projectV2Item { id }
+                  }
+                }
+              `;
+
+              await github.graphql(mutation, {
+                projectId: projectInfo.projectId,
+                itemId: itemId,
+                fieldId: fieldId,
+                value: { singleSelectOptionId: optionId }
+              });
+            }
+
+            async function getLinkedIssues(prNumber) {
+              const query = `
+                query($owner: String!, $repo: String!, $prNumber: Int!) {
+                  repository(owner: $owner, name: $repo) {
+                    pullRequest(number: $prNumber) {
+                      closingIssuesReferences(first: 10) {
+                        nodes {
+                          id
+                          number
+                        }
+                      }
+                    }
+                  }
+                }
+              `;
+
+              const result = await github.graphql(query, {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                prNumber: prNumber
+              });
+
+              return result.repository.pullRequest.closingIssuesReferences.nodes;
+            }
+
+            // Get all reviews for the PR
+            const reviews = await github.rest.pulls.listReviews({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number
+            });
+
+            // Get latest review from each reviewer
+            const latestReviews = {};
+            for (const r of reviews.data) {
+              if (!latestReviews[r.user.login] || new Date(r.submitted_at) > new Date(latestReviews[r.user.login].submitted_at)) {
+                latestReviews[r.user.login] = r;
+              }
+            }
+
+            const reviewStates = Object.values(latestReviews).map(r => r.state);
+            const approvedCount = reviewStates.filter(s => s === 'APPROVED').length;
+            const changesRequestedCount = reviewStates.filter(s => s === 'CHANGES_REQUESTED').length;
+            const commentedCount = reviewStates.filter(s => s === 'COMMENTED').length;
+
+            console.log(`Reviews: ${approvedCount} approved, ${changesRequestedCount} changes requested, ${commentedCount} commented`);
+
+            const prItemId = await ensureInProject(pr.node_id);
+            const linkedIssues = await getLinkedIssues(pr.number);
+
+            // Determine status based on reviews
+            if (review.state === 'CHANGES_REQUESTED' || (review.state === 'COMMENTED' && review.body)) {
+              // Set Review Status to "Feedback"
+              console.log('Setting Review Status to Feedback');
+              await updateFieldValue(
+                prItemId,
+                projectInfo.reviewStatusField.id,
+                projectInfo.reviewStatusField.options['Feedback']
+              );
+            } else if (approvedCount === 1 && reviewStates.length >= 1) {
+              // First approval - set to "In Testing"
+              console.log('Setting status to In Testing (first approval)');
+              await updateFieldValue(
+                prItemId,
+                projectInfo.statusField.id,
+                projectInfo.statusField.options['In Testing']
+              );
+
+              // Update linked issues if no other PRs
+              for (const issue of linkedIssues) {
+                const issueItemId = await ensureInProject(issue.id);
+                // For simplicity, always update issue when first PR approval happens
+                await updateFieldValue(
+                  issueItemId,
+                  projectInfo.statusField.id,
+                  projectInfo.statusField.options['In Testing']
+                );
+              }
+            } else if (approvedCount >= 2 && changesRequestedCount === 0) {
+              // All reviewers approved - set Review Status to "Merge"
+              console.log('Setting Review Status to Merge (all approved)');
+              await updateFieldValue(
+                prItemId,
+                projectInfo.reviewStatusField.id,
+                projectInfo.reviewStatusField.options['Merge']
+              );
+            }
