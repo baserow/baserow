@@ -1,5 +1,15 @@
-from baserow.contrib.automation.nodes.exceptions import AutomationNodeMissingOutput
+from typing import Any, Dict, List
+
+from baserow.contrib.automation.nodes.exceptions import (
+    AutomationNodeDoesNotExist,
+    AutomationNodeFirstNodeMustBeTrigger,
+    AutomationNodeMissingOutput,
+    AutomationNodeNotFoundInGraph,
+    AutomationNodeTriggerAlreadyExists,
+    AutomationNodeTriggerMustBeFirstNode,
+)
 from baserow.contrib.automation.nodes.models import AutomationNode
+from baserow.contrib.automation.nodes.types import NodePositionTriplet, NodePositionType
 
 
 def _replace(list_, item_to_replace, replacement):
@@ -30,10 +40,10 @@ class NodeGraphHandler:
                 "": [4],
             }
         },
-        "3": {"next": {"": ["output edge 1"]}},
+        "3": {},
         "5": {},
         "4": {"next": {"": [6]}},
-        "6": {"child": [7]}
+        "6": {"children": [7]}
         "7": {}
     }
     ```
@@ -44,10 +54,10 @@ class NodeGraphHandler:
     For each node, `next` is the dict keyed by edge UUIDs and valued by the list of
     node ID on this edge. For now only one node is possible per output.
 
-    `child` is an array of children for the container node.
+    `children` is an array of children for the container node.
 
     This graph structure use triplet of position to identify the position of a node.
-    A triplet looks like [position_node, position, output].
+    A triplet looks like [reference_node, position, output].
 
     For instance:
     - [<AutomationNode(42)>, 'south', ''] refers to the node placed at the
@@ -72,12 +82,10 @@ class NodeGraphHandler:
 
         self.workflow.save(update_fields=["graph"])
 
-    def get_info(self, node):
+    def get_info(self, node: AutomationNode | str | int) -> Dict[str, Any]:
         """
         Returns the info dict for the given node.
         """
-
-        from baserow.contrib.automation.nodes.models import AutomationNode
 
         node_id = node
         if isinstance(node, AutomationNode):
@@ -85,25 +93,28 @@ class NodeGraphHandler:
 
         return self.graph[str(node_id)]
 
-    def _get_node_map(self):
+    def _get_node_map(self) -> Dict[int, AutomationNode]:
         from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 
         return {n.id: n for n in AutomationNodeHandler().get_nodes(self.workflow)}
 
-    def get_node(self, node_id):
+    def get_node(self, node_id: str | int) -> AutomationNode:
         """
         Return the node instance for the given node ID.
         """
 
+        if int(node_id) not in self._get_node_map():
+            raise AutomationNodeDoesNotExist(node_id)
+
         return self._get_node_map()[int(node_id)]
 
     def get_node_at_position(
-        self, position_node: AutomationNode, position: str, output: str
-    ):
+        self, reference_node: AutomationNode, position: NodePositionType, output: str
+    ) -> AutomationNode:
         """
         Returns the node at the given position in the graph.
 
-        :param position_node: The node used as reference for the position.
+        :param reference_node: The node used as reference for the position.
         :param position: The direction relative to the reference node.
         :param output: The output of the reference node to use.
         """
@@ -112,24 +123,21 @@ class NodeGraphHandler:
 
         if position == "south":
             # First node
-            if position_node is None:
+            if reference_node is None:
                 return self.get_node(self.graph["0"])
 
-            next_nodes = self.get_info(position_node).get("next", {}).get(output, [])
+            next_nodes = self.get_info(reference_node).get("next", {}).get(output, [])
             if next_nodes:
                 return self.get_node(next_nodes[0])
 
         elif position == "child":
-            children = self.get_info(position_node).get("child", [])
+            children = self.get_info(reference_node).get("children", [])
             if children:
                 return self.get_node(children[0])
 
-        else:
-            raise Exception("Unexpected position")
-
         return None
 
-    def get_last_position(self):
+    def get_last_position(self) -> NodePositionTriplet:
         """
         Return the last position of the graph if we follow the default edge ("") of
         each node. Mostly used to place nodes in tests.
@@ -147,7 +155,7 @@ class NodeGraphHandler:
 
         return search_last(self.graph["0"])
 
-    def get_position(self, node: AutomationNode):
+    def get_position(self, node: AutomationNode) -> NodePositionTriplet:
         """
         Returns the position of the given node.
         """
@@ -164,12 +172,14 @@ class NodeGraphHandler:
                 if node.id in next_nodes:
                     return [node_id, "south", output_uid]
 
-            if node.id in node_info.get("child", []):
+            if node.id in node_info.get("children", []):
                 return [node_id, "child", ""]
 
-        raise Exception("Node not found in the graph")
+        raise AutomationNodeNotFoundInGraph(f"Node {node.id} not found in the graph")
 
-    def get_previous_positions(self, target_node: AutomationNode):
+    def get_previous_positions(
+        self, target_node: AutomationNode
+    ) -> NodePositionTriplet:
         """
         Generates the list of all positions to get to the target node.
         """
@@ -189,7 +199,7 @@ class NodeGraphHandler:
             next_positions.extend(
                 [[node_id, "south", uid] for uid in node_info.get("next", {}).keys()]
             )
-            if "child" in node_info:
+            if "children" in node_info:
                 next_positions.append([node_id, "child", ""])
 
             for next_position in next_positions:
@@ -213,14 +223,27 @@ class NodeGraphHandler:
 
         return [x for sublist in node_info.get("next", {}).values() for x in sublist]
 
-    def get_next_nodes(self, node):
+    def get_next_nodes(self, node) -> List[AutomationNode]:
         """
         Get all next nodes regardless of their output.
         """
 
         return [self.get_node(n) for n in self._get_all_next_nodes(node)]
 
-    def insert(self, node, position_node, position, output):
+    def get_children(self, node) -> List[AutomationNode]:
+        """
+        Returns the node children.
+        """
+
+        return [self.get_node(cid) for cid in self.get_info(node).get("children", [])]
+
+    def insert(
+        self,
+        node: AutomationNode,
+        reference_node: AutomationNode,
+        position: NodePositionType,
+        output: str,
+    ):
         """
         Insert a node at the given position. Rewire all necessary nodes.
         """
@@ -233,12 +256,12 @@ class NodeGraphHandler:
 
         new_next = None
 
-        if position_node is None:
+        if reference_node is None:
             if "0" in self.graph:
-                raise Exception("Trigger already there")
+                raise AutomationNodeTriggerAlreadyExists("Trigger already there")
 
             if not node.get_type().is_workflow_trigger:
-                raise Exception("This is not a trigger")
+                raise AutomationNodeFirstNodeMustBeTrigger("This is not a trigger")
 
             # this is the first node and it's a trigger
             graph["0"] = node.id
@@ -247,30 +270,26 @@ class NodeGraphHandler:
             return
 
         if node.get_type().is_workflow_trigger:
-            raise Exception("Trigger must be the first node")
+            raise AutomationNodeTriggerMustBeFirstNode("Trigger must be the first node")
 
         if position == "south":
-            if output not in position_node.service.get_type().get_edges(
-                position_node.service.specific
+            if output not in reference_node.service.get_type().get_edges(
+                reference_node.service.specific
             ):
                 raise AutomationNodeMissingOutput(
-                    f"Output {output} doesn't exist on node {position_node.id}"
+                    f"Output {output} doesn't exist on node {reference_node.id}"
                 )
 
-            if output in self.get_info(position_node).get("next", {}):
-                new_next = self.get_info(position_node)["next"][output]
+            if output in self.get_info(reference_node).get("next", {}):
+                new_next = self.get_info(reference_node)["next"][output]
 
-            self.get_info(position_node).setdefault("next", {})[output] = [node.id]
+            self.get_info(reference_node).setdefault("next", {})[output] = [node.id]
 
         elif position == "child":
-            if "child" in self.get_info(position_node):
-                new_next = self.get_info(position_node)["child"]
+            if "children" in self.get_info(reference_node):
+                new_next = self.get_info(reference_node)["children"]
 
-            self.get_info(position_node)["child"] = [node.id]
-            # TODO check one of the parent isn't the node itself
-
-        else:
-            raise Exception("Unknown position")
+            self.get_info(reference_node)["children"] = [node.id]
 
         if new_next:
             node_info["next"] = {"": new_next}
@@ -280,8 +299,13 @@ class NodeGraphHandler:
 
         self._update_graph()
 
-    def remove(self, node_to_delete, keep_info=False):
-        """Remove the given node."""
+    def remove(self, node_to_delete: AutomationNode, keep_info=False):
+        """
+        Remove the given node.
+
+        :param node_to_delete: The node to delete.
+        :param keep_info: doesn't delete the info dict from the graph yet if True.
+        """
 
         graph = self.workflow.graph
 
@@ -291,14 +315,9 @@ class NodeGraphHandler:
 
         next_node_ids = self._get_all_next_nodes(node_to_delete)
 
-        # TODO can't remove a trigger
-        # TODO cant't remove a node with children
-        # TODO cant't remove a node with next nodes
-
         node_position_id, position, output = self.get_position(node_to_delete)
 
         if position == "south":
-            # TODO remove trigger
             graph[node_position_id]["next"][output] = _replace(
                 graph[node_position_id]["next"][output],
                 node_to_delete.id,
@@ -306,25 +325,23 @@ class NodeGraphHandler:
             )
         elif position == "child":
             next_nodes = self._get_all_next_nodes(node_to_delete)
-            graph[node_position_id]["child"] = _replace(
-                graph[node_position_id]["child"],
+            graph[node_position_id]["children"] = _replace(
+                graph[node_position_id]["children"],
                 node_to_delete.id,
                 next_nodes,
             )
-        else:
-            raise Exception("Unknown position")
 
         if not keep_info:
             del graph[str(node_to_delete.id)]
 
         self._update_graph()
 
-    def replace(self, node_to_replace, new_node):
+    def replace(self, node_to_replace: AutomationNode, new_node: AutomationNode):
         """
         Replace a node with another at the same position.
         """
 
-        position_node_id, position, output = self.get_position(node_to_replace)
+        reference_node_id, position, output = self.get_position(node_to_replace)
 
         node_to_replace_id = str(node_to_replace.id)
         new_node_id = str(new_node.id)
@@ -332,28 +349,32 @@ class NodeGraphHandler:
         self.graph[new_node_id] = self.graph[node_to_replace_id]
 
         if position == "south":
-            if position_node_id is None:
+            if reference_node_id is None:
                 self.graph["0"] = new_node.id
             else:
-                self.graph[position_node_id]["next"][output] = _replace(
-                    self.graph[position_node_id]["next"][output],
+                self.graph[reference_node_id]["next"][output] = _replace(
+                    self.graph[reference_node_id]["next"][output],
                     node_to_replace.id,
                     new_node.id,
                 )
         elif position == "child":
-            self.graph[position_node_id]["child"] = _replace(
-                self.graph[position_node_id]["child"],
+            self.graph[reference_node_id]["children"] = _replace(
+                self.graph[reference_node_id]["children"],
                 node_to_replace.id,
                 new_node.id,
             )
-        else:
-            raise Exception("Unknown position")
 
         del self.graph[node_to_replace_id]
 
         self._update_graph()
 
-    def move(self, node_to_move, position_node, position, output):
+    def move(
+        self,
+        node_to_move: AutomationNode,
+        reference_node: AutomationNode | None,
+        position: NodePositionType,
+        output: str,
+    ):
         """
         Move a node at another given position.
         """
@@ -361,7 +382,40 @@ class NodeGraphHandler:
         output = str(output)  # When it's an UUID
 
         self.remove(node_to_move, keep_info=True)
-        self.insert(node_to_move, position_node, position, output)
+        self.insert(node_to_move, reference_node, position, output)
+
+    def migrate_graph(self, id_mapping):
+        """
+        Updates the node IDs and edge UIDs in the graph from the id_mapping.
+        """
+
+        migrated = {}
+
+        def map_node(nid):
+            return id_mapping["automation_workflow_nodes"][int(nid)]
+
+        def map_output(uid):
+            if uid == "":
+                return ""
+            return id_mapping["automation_edge_outputs"][uid]
+
+        for key, info in self.graph.items():
+            if key == "0":
+                migrated["0"] = id_mapping["automation_workflow_nodes"][info]
+
+            else:
+                migrated[str(map_node(key))] = {}
+                if "next" in info:
+                    migrated[str(map_node(key))]["next"] = {
+                        map_output(uid): [map_node(nid) for nid in nids]
+                        for uid, nids in info["next"].items()
+                    }
+                if "children" in info:
+                    migrated[str(map_node(key))]["children"] = [
+                        map_node(nid) for nid in info["children"]
+                    ]
+
+        self._update_graph()
 
     def labeled_graph(self):
         """
@@ -386,9 +440,9 @@ class NodeGraphHandler:
                 result[key] = label(node_info)
             else:
                 result[label(key)] = {}
-                if "child" in node_info:
-                    result[label(key)]["child"] = [
-                        label(id) for id in node_info["child"]
+                if "children" in node_info:
+                    result[label(key)]["children"] = [
+                        label(id) for id in node_info["children"]
                     ]
                 if "next" in node_info:
                     service = self.get_node(key).service.specific

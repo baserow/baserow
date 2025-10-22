@@ -4,6 +4,45 @@ import django.db.models.deletion
 from django.db import migrations, models
 
 
+def find(list_, predicate):
+    return next((n for n in list_ if predicate(n)), None)
+
+
+def add_node_to_graph(graph, nodes, current_node):
+    graph[str(current_node.id)] = {}
+
+    next_nodes = [n for n in nodes if n.previous_node_id == current_node.id]
+    if next_nodes:
+        graph[str(current_node.id)]["next"] = {
+            n.previous_node_output: [n.id] for n in next_nodes
+        }
+
+    for next_node in next_nodes:
+        add_node_to_graph(graph, nodes, next_node)
+
+
+def forward(apps, schema_editor):
+    Workflow = apps.get_model("automation", "automationworkflow")
+    AutomationNode = apps.get_model("automation", "automationnode")
+
+    all_nodes = list(AutomationNode.objects.filter(trashed=False))
+
+    for workflow in Workflow.objects.all():
+        graph = {}
+
+        nodes = [n for n in all_nodes if n.workflow_id == workflow.id]
+        trigger = find(nodes, lambda n: n.previous_node_id is None)
+
+        if trigger:
+            graph["0"] = trigger.id
+            add_node_to_graph(graph, nodes, trigger)
+
+        print("updated graph", graph)
+
+        workflow.graph = graph
+        workflow.save(update_fields=["graph"])
+
+
 class Migration(migrations.Migration):
     dependencies = [
         ("automation", "0020_corehttptriggernode"),
@@ -47,4 +86,5 @@ class Migration(migrations.Migration):
             name="graph",
             field=models.JSONField(default=dict, help_text="Contains the node graph."),
         ),
+        migrations.RunPython(forward, migrations.RunPython.noop),
     ]

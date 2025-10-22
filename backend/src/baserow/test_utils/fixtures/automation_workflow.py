@@ -50,7 +50,7 @@ class AutomationWorkflowFixtures:
                 workflow=workflow,
                 type=trigger_type.type,
                 service=service,
-                position_node_id=None,
+                reference_node_id=None,
                 position="south",
                 output="",
             )

@@ -5,8 +5,7 @@ from django.contrib.auth.models import AbstractUser
 from baserow.contrib.automation.models import AutomationWorkflow
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeDoesNotExist,
-    AutomationNodeNotMovable,
-    AutomationNodePositionNodeInvalid,
+    AutomationNodeReferenceNodeInvalid,
     AutomationTriggerModificationDisallowed,
 )
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
@@ -31,6 +30,7 @@ from baserow.contrib.automation.nodes.signals import (
 )
 from baserow.contrib.automation.nodes.types import (
     AutomationNodeMove,
+    NodePositionType,
     ReplacedAutomationNode,
     UpdatedAutomationNode,
 )
@@ -102,8 +102,8 @@ class AutomationNodeService:
         user: AbstractUser,
         node_type: AutomationNodeType,
         workflow: AutomationWorkflow,
-        position_node_id: int | None = None,
-        position: str = "south",  # south, child
+        reference_node_id: int | None = None,
+        position: NodePositionType = "south",  # south, child
         output: str = "",
         **kwargs,
     ) -> AutomationNode:
@@ -113,9 +113,9 @@ class AutomationNodeService:
         :param user: The user trying to create the automation node.
         :param node_type: The type of the automation node.
         :param workflow: The workflow the automation node is associated with.
-        :param position_node_id: The node the position is relative to.
-        :param position: The position relative to the position node.
-        :param output: The output of the position node.
+        :param reference_node_id: The node reference node for the position.
+        :param position: The position relative to the reference node.
+        :param output: The output of the reference node.
         :param kwargs: Additional attributes of the automation node.
         :raises AutomationTriggerModificationDisallowed: If the node_type is a trigger.
         :return: The created automation node.
@@ -129,17 +129,17 @@ class AutomationNodeService:
         )
 
         try:
-            position_node = (
-                self.handler.get_node(position_node_id) if position_node_id else None
+            reference_node = (
+                self.handler.get_node(reference_node_id) if reference_node_id else None
             )
         except AutomationNodeDoesNotExist as e:
-            raise AutomationNodePositionNodeInvalid(
-                f"The position node id {position_node_id} doesn't exist"
+            raise AutomationNodeReferenceNodeInvalid(
+                f"The reference node id {reference_node_id} doesn't exist"
             ) from e
 
-        if position_node and position_node.workflow_id != workflow.id:
-            raise AutomationNodePositionNodeInvalid(
-                f"The position node id {position_node_id} doesn't exist"
+        if reference_node and reference_node.workflow_id != workflow.id:
+            raise AutomationNodeReferenceNodeInvalid(
+                f"The reference node id {reference_node_id} doesn't exist"
             )
 
         prepared_values = node_type.prepare_values(kwargs, user)
@@ -152,7 +152,7 @@ class AutomationNodeService:
 
         node_type.after_create(new_node)
 
-        workflow.get_graph().insert(new_node, position_node, position, output)
+        workflow.get_graph().insert(new_node, reference_node, position, output)
 
         automation_node_created.send(
             self,
@@ -236,6 +236,8 @@ class AutomationNodeService:
         )
 
         automation = workflow.automation
+
+        node.get_type().before_delete(node.specific)
 
         TrashHandler.trash(
             user,
@@ -381,18 +383,18 @@ class AutomationNodeService:
         self,
         user: AbstractUser,
         node_id_to_move: int,
-        position_node_id: int | None,
-        position,
-        output,
+        reference_node_id: int | None,
+        position: NodePositionType,
+        output: str,
     ) -> AutomationNodeMove:
         """
         Moves an existing automation node to a new position in the workflow.
 
         :param user: The user trying to move the node.
         :param node_id_to_move: The ID of the node to move.
-        :param position_node_id: The node the new position is relative to.
-        :param position: The new position relative to the position node.
-        :param output: The new output of the position node.
+        :param reference_node_id: The node the new position is relative to.
+        :param position: The new position relative to the reference node.
+        :param output: The new output of the reference node.
         :raises AutomationNodeNotMovable: If the node cannot be moved.
         :return: The move operation details.
         """
@@ -409,34 +411,32 @@ class AutomationNodeService:
             context=node_to_move,
         )
 
-        # If a node type cannot move, raise an exception.
-        if node_type.is_fixed:
-            raise AutomationNodeNotMovable("This automation node cannot be moved.")
-
-        position_node = (
-            self.get_node(user, position_node_id) if position_node_id else None
+        reference_node = (
+            self.get_node(user, reference_node_id) if reference_node_id else None
         )
+
+        node_type.before_move(node_to_move, reference_node, position, output)
 
         # We extract the current node position to restore it if we undo the operation.
         [
-            previous_position_node_id,
+            previous_reference_node_id,
             previous_position,
             previous_output,
         ] = workflow.get_graph().get_position(node_to_move)
 
-        previous_position_node = (
-            self.get_node(user, previous_position_node_id)
-            if previous_position_node_id
+        previous_reference_node = (
+            self.get_node(user, previous_reference_node_id)
+            if previous_reference_node_id
             else None
         )
 
-        workflow.get_graph().move(node_to_move, position_node, position, output)
+        workflow.get_graph().move(node_to_move, reference_node, position, output)
 
         automation_workflow_updated.send(self, workflow=workflow, user=user)
 
         return AutomationNodeMove(
             node=node_to_move,
-            previous_position_node=previous_position_node,
+            previous_reference_node=previous_reference_node,
             previous_position=previous_position,
             previous_output=previous_output,
         )

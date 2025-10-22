@@ -53,7 +53,6 @@ class CoreIteratorService(Service):
     """
 
     source = FormulaField(
-        blank=True,
         help_text="The path of the array.",
     )
 

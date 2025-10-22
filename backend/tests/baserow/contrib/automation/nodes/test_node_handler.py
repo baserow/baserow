@@ -458,8 +458,9 @@ def test_simulate_dispatch_node_dispatches_correct_edge_node(data_fixture):
 
     router_b = data_fixture.create_core_router_action_node(
         workflow=workflow,
-        previous_node=router_a,
-        previous_node_output=router_a_edge_1.uid,
+        reference_node=router_a,
+        position="south",
+        output=router_a_edge_1.uid,
         label="Router B",
     )
     router_b_edge_1 = data_fixture.create_core_router_service_edge(
@@ -481,7 +482,7 @@ def test_simulate_dispatch_node_dispatches_correct_edge_node(data_fixture):
     node_b = data_fixture.create_local_baserow_create_row_action_node(
         workflow=workflow,
         service=node_b_service,
-        position_node=router_a,
+        reference_node=router_a,
         label="Create row A",
     )
 
@@ -491,7 +492,7 @@ def test_simulate_dispatch_node_dispatches_correct_edge_node(data_fixture):
     node_c_1 = data_fixture.create_local_baserow_create_row_action_node(
         workflow=workflow,
         service=node_c_1_service,
-        position_node=router_b,
+        reference_node=router_b,
         label="Create row B",
     )
     node_c_2_service = create_action_node_service(
@@ -500,7 +501,7 @@ def test_simulate_dispatch_node_dispatches_correct_edge_node(data_fixture):
     node_c_2 = data_fixture.create_local_baserow_create_row_action_node(
         workflow=workflow,
         service=node_c_2_service,
-        position_node=router_b,
+        reference_node=router_b,
         position="south",
         output=str(router_b_edge_2.uid),
         label="Create row B, on edge",

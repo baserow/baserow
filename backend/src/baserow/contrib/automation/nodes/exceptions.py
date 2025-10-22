@@ -29,10 +29,28 @@ class AutomationNodeDoesNotExist(AutomationNodeError):
         )
 
 
-class AutomationNodePositionNodeInvalid(Exception):
+class AutomationNodeNotFoundInGraph(Exception):
     """
-    Raised when trying to use an invalid position node.
+    Raised when we try to access a node that doesn't exist in the graph.
     """
+
+
+class AutomationNodeReferenceNodeInvalid(Exception):
+    """
+    Raised when trying to use an invalid reference node.
+    """
+
+
+class AutomationNodeTriggerAlreadyExists(AutomationNodeError):
+    """When we try to create a trigger node when it already exists"""
+
+
+class AutomationNodeFirstNodeMustBeTrigger(AutomationNodeError):
+    """When we try to create a non trigger node as first node of the graph"""
+
+
+class AutomationNodeTriggerMustBeFirstNode(AutomationNodeError):
+    """When we try to create a trigger node as non first node of the graph"""
 
 
 class AutomationNodeMisconfiguredService(AutomationNodeError):
@@ -75,5 +93,5 @@ class AutomationNodeNotMovable(AutomationNodeError):
 
 class AutomationNodeMissingOutput(AutomationNodeError):
     """
-    Raised when the target output is missing in the position node.
+    Raised when the target output is missing in the reference node.
     """

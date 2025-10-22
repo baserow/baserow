@@ -18,7 +18,7 @@ import { inject, computed, useContext } from '@nuxtjs/composition-api'
 import FormulaInputField from '@baserow/modules/core/components/formula/FormulaInputField'
 
 const props = defineProps({
-  value: { type: Object, required: false, default: () => ({}) },
+  value: { type: [Object, String], required: false, default: () => ({}) },
   dataProvidersAllowed: { type: Array, required: false, default: () => [] },
 })
 

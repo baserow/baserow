@@ -46,7 +46,7 @@ def test_create_node(api_client, data_fixture):
         url,
         {
             "type": "update_row",
-            "position_node_id": trigger.id,
+            "reference_node_id": trigger.id,
             "position": "south",
             "output": "",
         },
@@ -76,7 +76,7 @@ def test_create_node(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_create_node_position_node_invalid(api_client, data_fixture):
+def test_create_node_reference_node_invalid(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workflow_a = data_fixture.create_automation_workflow(user)
     trigger_a = workflow_a.get_trigger()
@@ -91,7 +91,7 @@ def test_create_node_position_node_invalid(api_client, data_fixture):
         url,
         {
             "type": "create_row",
-            "position_node_id": 99999999999,
+            "reference_node_id": 99999999999,
             "position": "south",
             "output": "",
         },
@@ -99,23 +99,23 @@ def test_create_node_position_node_invalid(api_client, data_fixture):
     )
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json() == {
-        "error": "ERROR_AUTOMATION_NODE_POSITION_NODE_INVALID",
-        "detail": f"The position node id {99999999999} doesn't exist",
+        "error": "ERROR_AUTOMATION_NODE_REFERENCE_NODE_INVALID",
+        "detail": f"The reference node id {99999999999} doesn't exist",
     }
 
     response = api_client.post(
         url,
         {
             "type": "create_row",
-            "position_node_id": node2_b.id,
+            "reference_node_id": node2_b.id,
             "position": "south",
             "output": "",
         },
         **get_api_kwargs(token),
     )
     assert response.json() == {
-        "error": "ERROR_AUTOMATION_NODE_POSITION_NODE_INVALID",
-        "detail": f"The position node id {node2_b.id} doesn't exist",
+        "error": "ERROR_AUTOMATION_NODE_REFERENCE_NODE_INVALID",
+        "detail": f"The reference node id {node2_b.id} doesn't exist",
     }
 
 
@@ -154,7 +154,7 @@ def test_create_node_invalid_workflow(api_client, data_fixture):
         url,
         {
             "type": "create_row",
-            "position_node_id": 0,
+            "reference_node_id": 0,
             "position": "south",
             "output": "",
         },
@@ -181,7 +181,7 @@ def test_create_node_undo_redo(api_client, data_fixture):
         url,
         {
             "type": "create_row",
-            "position_node_id": workflow.get_trigger().id,
+            "reference_node_id": workflow.get_trigger().id,
             "position": "south",
             "output": "",
         },
@@ -402,7 +402,7 @@ def test_update_node_invalid_node(api_client, data_fixture):
 
     api_kwargs = get_api_kwargs(token)
     update_url = reverse(API_URL_ITEM, kwargs={"node_id": 100})
-    payload = {"previous_node_output": "foo", "type": "update_row"}
+    payload = {"type": "update_row"}
     response = api_client.patch(update_url, payload, **api_kwargs)
 
     assert response.status_code == HTTP_404_NOT_FOUND
@@ -536,7 +536,7 @@ def test_create_router_node(api_client, data_fixture):
         url,
         {
             "type": "router",
-            "position_node_id": trigger.id,
+            "reference_node_id": trigger.id,
             "position": "south",
             "output": "",
         },
@@ -1003,7 +1003,7 @@ def test_move_movable_node(node_type, api_client, data_fixture):
     )
     response = api_client.post(
         reverse(API_URL_MOVE, kwargs={"node_id": node.id}),
-        {"position_node_id": trigger.id, "position": "south", "output": ""},
+        {"reference_node_id": trigger.id, "position": "south", "output": ""},
         **get_api_kwargs(token),
     )
     assert response.status_code == HTTP_202_ACCEPTED
@@ -1047,7 +1047,7 @@ def test_move_fixed_node(node_type, api_client, data_fixture):
 
     response = api_client.post(
         reverse(API_URL_MOVE, kwargs={"node_id": node.id}),
-        {"position_node_id": trigger.id, "position": "south", "output": ""},
+        {"reference_node_id": trigger.id, "position": "south", "output": ""},
         **get_api_kwargs(token),
     )
     assert response.status_code == HTTP_400_BAD_REQUEST

@@ -16,7 +16,7 @@ export default class NodeGraphHandler {
   }
 
   getNode(nodeId) {
-    return this.nodeMap[nodeId]
+    return this.nodeMap[nodeId] || null
   }
 
   getInfo(node) {
@@ -38,7 +38,7 @@ export default class NodeGraphHandler {
   }
 
   getChildren(targetNode) {
-    return (this.getInfo(targetNode)?.child || [])
+    return (this.getInfo(targetNode)?.children || [])
       .map((id) => this.getNode(id))
       .filter((node) => node)
   }
@@ -52,11 +52,12 @@ export default class NodeGraphHandler {
         .map(([, nodes]) => nodes)
         .flat()
         .map((id) => this.getNode(id))
+        .filter((node) => node)
     }
     return []
   }
 
-  getNodeAtPosition(positionNode, position, output) {
+  getNodeAtPosition(referenceNode, position, output) {
     output = String(output)
 
     let nextNodes
@@ -64,18 +65,18 @@ export default class NodeGraphHandler {
     switch (position) {
       case 'south':
         // First node
-        if (positionNode === null) {
+        if (referenceNode === null) {
           return this.getNode(this.graph['0'])
         }
 
-        nextNodes = this.getInfo(positionNode)?.next?.[output] || []
+        nextNodes = this.getInfo(referenceNode)?.next?.[output] || []
         if (nextNodes.length > 0) {
           return this.getNode(nextNodes[0])
         }
         break
 
       case 'child':
-        nextNodes = this.getInfo(positionNode)?.child || []
+        nextNodes = this.getInfo(referenceNode)?.children || []
         if (nextNodes.length > 0) {
           return this.getNode(nextNodes[0])
         }
@@ -108,7 +109,7 @@ export default class NodeGraphHandler {
         }
       }
 
-      if (nodeInfo.child?.length) {
+      if (nodeInfo.children?.length) {
         nextPositions.push([nodeId, 'child', ''])
       }
 
@@ -123,6 +124,9 @@ export default class NodeGraphHandler {
     }
 
     const result = explore([null, 'south', ''], [])
+    if (!result) {
+      return []
+    }
     return result.map(([nid, p, o]) => [this.getNode(nid), p, o])
   }
 
@@ -140,8 +144,8 @@ export default class NodeGraphHandler {
           return [previousNode, 'south', outputFound[0]]
         }
       }
-      if (value.child) {
-        if (value.child.includes(node.id)) {
+      if (value.children) {
+        if (value.children.includes(node.id)) {
           const parentNode = this.getNode(nodeId)
           return [parentNode, 'child', '']
         }
@@ -150,8 +154,8 @@ export default class NodeGraphHandler {
     throw new Error('Node not found in graph')
   }
 
-  insert(node, positionNode, position, output) {
-    if (!positionNode) {
+  insert(node, referenceNode, position, output) {
+    if (!referenceNode) {
       // We are creating the trigger
       let next = null
       if (this.graph['0']) {
@@ -163,23 +167,23 @@ export default class NodeGraphHandler {
       let newNodeNext
       switch (position) {
         case 'south':
-          if (!this.graph[positionNode.id].next) {
-            this.graph[positionNode.id].next = {}
+          if (!this.graph[referenceNode.id].next) {
+            this.graph[referenceNode.id].next = {}
           }
-          if (!this.graph[positionNode.id].next[output]) {
-            this.graph[positionNode.id].next[output] = []
+          if (!this.graph[referenceNode.id].next[output]) {
+            this.graph[referenceNode.id].next[output] = []
           }
 
-          newNodeNext = this.graph[positionNode.id].next[output]
-          this.graph[positionNode.id].next[output] = [node.id]
+          newNodeNext = this.graph[referenceNode.id].next[output]
+          this.graph[referenceNode.id].next[output] = [node.id]
 
           break
         case 'child':
-          if (!this.graph[positionNode.id].child) {
-            this.graph[positionNode.id].child = []
+          if (!this.graph[referenceNode.id].children) {
+            this.graph[referenceNode.id].children = []
           }
-          newNodeNext = this.graph[positionNode.id].child
-          this.graph[positionNode.id].child = [node.id]
+          newNodeNext = this.graph[referenceNode.id].children
+          this.graph[referenceNode.id].children = [node.id]
 
           break
         default:
@@ -192,19 +196,19 @@ export default class NodeGraphHandler {
   }
 
   remove(node) {
-    const [previousPositionNode, position, output] = this.getNodePosition(node)
+    const [previousReferenceNode, position, output] = this.getNodePosition(node)
 
     const nodeInfo = this.graph[node.id]
-    const previousPositionNodeInfo = previousPositionNode
-      ? this.graph[previousPositionNode.id]
+    const previousReferenceNodeInfo = previousReferenceNode
+      ? this.graph[previousReferenceNode.id]
       : null
 
     switch (position) {
       case 'south':
-        if (previousPositionNodeInfo) {
+        if (previousReferenceNodeInfo) {
           // We move next nodes of removed node to the previous node
-          previousPositionNodeInfo.next[output] = replace(
-            previousPositionNodeInfo.next[output],
+          previousReferenceNodeInfo.next[output] = replace(
+            previousReferenceNodeInfo.next[output],
             node.id,
             Object.values(nodeInfo.next || {}).flat()
           )
@@ -218,8 +222,8 @@ export default class NodeGraphHandler {
         }
         break
       case 'child':
-        previousPositionNodeInfo.child = replace(
-          previousPositionNodeInfo.child,
+        previousReferenceNodeInfo.children = replace(
+          previousReferenceNodeInfo.children,
           node.id,
           Object.values(nodeInfo.next || {}).flat()
         )
@@ -231,19 +235,20 @@ export default class NodeGraphHandler {
     delete this.graph[node.id]
   }
 
-  move(nodeToMove, positionNode, position, output) {
-    const previousChild = this.graph[nodeToMove.id].child
+  move(nodeToMove, referenceNode, position, output) {
+    const previousChildren = this.graph[nodeToMove.id].children
 
     this.remove(nodeToMove)
-    this.insert(nodeToMove, positionNode, position, output)
+    this.insert(nodeToMove, referenceNode, position, output)
 
-    this.graph[nodeToMove.id].child = previousChild
+    this.graph[nodeToMove.id].children = previousChildren
   }
 
   replace(nodeToReplace, newNode) {
-    const [positionNode, position, output] = this.getNodePosition(nodeToReplace)
+    const [referenceNode, position, output] =
+      this.getNodePosition(nodeToReplace)
 
     this.remove(nodeToReplace)
-    this.insert(newNode, positionNode, position, output)
+    this.insert(newNode, referenceNode, position, output)
   }
 }

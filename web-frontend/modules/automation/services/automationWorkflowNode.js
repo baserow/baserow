@@ -1,9 +1,9 @@
 export default (client) => {
   return {
-    create(workflowId, type, positionNode, position, output) {
+    create(workflowId, type, referenceNode, position, output) {
       const payload = { type }
-      if (positionNode) {
-        payload.position_node_id = positionNode.id
+      if (referenceNode) {
+        payload.reference_node_id = referenceNode.id
         payload.position = position
         payload.output = output
       }

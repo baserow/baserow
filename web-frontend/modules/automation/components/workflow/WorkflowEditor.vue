@@ -127,7 +127,7 @@ watch(
 watch(
   currentGraph,
   () => {
-    triggerUpdate()
+    updateKey.value += 1
   },
   { deep: false }
 )

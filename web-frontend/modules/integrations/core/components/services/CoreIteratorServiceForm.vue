@@ -32,7 +32,7 @@ export default {
     return {
       allowedValues: ['source'],
       values: {
-        source: '',
+        source: {},
       },
     }
   },

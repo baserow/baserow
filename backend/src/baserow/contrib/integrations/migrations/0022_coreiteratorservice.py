@@ -9,7 +9,7 @@ import baserow.core.formula.field
 class Migration(migrations.Migration):
     dependencies = [
         ("core", "0102_service_sample_data"),
-        ("integrations", "0020_corehttptriggerservice"),
+        ("integrations", "0021_migrate_to_formula_field_objects"),
     ]
 
     operations = [

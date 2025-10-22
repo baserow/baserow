@@ -60,14 +60,14 @@ class AutomationNodeFixtures:
             )
 
         [
-            last_position_node,
+            last_reference_node,
             last_position,
             last_output,
         ] = workflow.get_graph().get_last_position()
 
         # By default the node is placed at the end of the graph if not position is
         # provided
-        position_node = kwargs.pop("position_node", last_position_node)
+        reference_node = kwargs.pop("reference_node", last_reference_node)
         position = kwargs.pop("position", last_position)
         output = kwargs.pop("output", last_output)
 
@@ -76,7 +76,7 @@ class AutomationNodeFixtures:
                 node_type, workflow=workflow, **kwargs
             )
             # insert the node in the graph
-            workflow.get_graph().insert(created_node, position_node, position, output)
+            workflow.get_graph().insert(created_node, reference_node, position, output)
 
         return created_node
 
@@ -149,14 +149,14 @@ class AutomationNodeFixtures:
         )
 
         edge1_output = workflow.get_graph().get_node_at_position(
-            position_node=router, position="south", output=edge1.uid
+            reference_node=router, position="south", output=edge1.uid
         )
         edge2_output = workflow.get_graph().get_node_at_position(
-            position_node=router, position="south", output=edge2.uid
+            reference_node=router, position="south", output=edge2.uid
         )
 
         fallback_output_node = self.create_local_baserow_create_row_action_node(
-            workflow=workflow, position_node=router, label="fallback node"
+            workflow=workflow, reference_node=router, label="fallback node"
         )
 
         return CoreRouterWithEdges(

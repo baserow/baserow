@@ -154,7 +154,7 @@ def test_run_workflow_with_router_action(data_fixture):
     )
     edge2_output_node = data_fixture.create_local_baserow_update_row_action_node(
         workflow=workflow,
-        position_node=router_node,
+        reference_node=router_node,
         position="south",
         output=edge2.uid,
         service_kwargs={
@@ -252,7 +252,7 @@ def iterator_graph_fixture(data_fixture):
 
     iterator_node = data_fixture.create_core_iterator_action_node(
         workflow=workflow,
-        position_node=trigger,
+        reference_node=trigger,
         position="south",
         output="",
         service_kwargs={
@@ -263,7 +263,7 @@ def iterator_graph_fixture(data_fixture):
 
     action_node = data_fixture.create_local_baserow_create_row_action_node(
         workflow=workflow,
-        position_node=iterator_node,
+        reference_node=iterator_node,
         position="child",
         output="",
         label="First action",
@@ -276,7 +276,7 @@ def iterator_graph_fixture(data_fixture):
 
     action2_node = data_fixture.create_local_baserow_create_row_action_node(
         workflow=workflow,
-        position_node=iterator_node,
+        reference_node=iterator_node,
         position="south",
         output="",
         label="After iterator",
@@ -289,7 +289,7 @@ def iterator_graph_fixture(data_fixture):
 
     action3_node = data_fixture.create_local_baserow_create_row_action_node(
         workflow=workflow,
-        position_node=action_node,
+        reference_node=action_node,
         position="south",
         output="",
         label="Second action",
@@ -326,7 +326,10 @@ def test_run_workflow_with_iterator_action(iterator_graph_fixture):
         {
             "0": "rows_created",
             "rows_created": {"next": {"": ["iterator"]}},
-            "iterator": {"child": ["First action"], "next": {"": ["After iterator"]}},
+            "iterator": {
+                "children": ["First action"],
+                "next": {"": ["After iterator"]},
+            },
             "First action": {"next": {"": ["Second action"]}},
             "Second action": {},
             "After iterator": {},
@@ -376,7 +379,10 @@ def test_run_workflow_with_iterator_action_simulate(iterator_graph_fixture):
         {
             "0": "rows_created",
             "rows_created": {"next": {"": ["iterator"]}},
-            "iterator": {"child": ["First action"], "next": {"": ["After iterator"]}},
+            "iterator": {
+                "children": ["First action"],
+                "next": {"": ["After iterator"]},
+            },
             "First action": {"next": {"": ["Second action"]}},
             "Second action": {},
             "After iterator": {},

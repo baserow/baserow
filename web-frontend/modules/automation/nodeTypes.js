@@ -639,6 +639,14 @@ export class CoreIteratorNodeType extends containerNodeTypeMixin(
     return ''
   }
 
+  getBeforeLabel({ workflow, node, position, output }) {
+    if (position === 'child') {
+      return this.app.i18n.t('workflowNode.beforeLabelRepeat')
+    }
+
+    return super.getBeforeLabel({ workflow, node, position, output })
+  }
+
   /**
    * Responsible for checking if the router node can be replaced. It can't be
    * if it has output nodes connected to its edges.
@@ -695,25 +703,11 @@ export class CoreRouterNodeType extends ActionNodeTypeMixin(
     return true
   }
 
-  getBeforeLabel({ workflow, node }) {
-    /* const previousNode = store.getters['automationWorkflowNode/getPreviousNode'](
-    workflow.value,
-    props.node
-  ) */
-    /* const previousNodeIsRouter =
-    previousNode?.type === CoreRouterNodeType.getType()
-  const isOutputNode = props.node.previous_node_output.length > 0
-  switch (true) {
-    case nodeType.value.isTrigger:
-      return app.i18n.t('workflowNode.beforeLabelTrigger')
-    case isOutputNode:
-      return app.i18n.t('workflowNode.beforeLabelCondition')
-    case previousNodeIsRouter && !isOutputNode:
-      return app.i18n.t('workflowNode.beforeLabelConditionDefault')
-    default:
-      return app.i18n.t('workflowNode.beforeLabelAction')
-  } */
-    return this.app.i18n.t('workflowNode.beforeLabelAction')
+  getBeforeLabel({ workflow, node, position, output }) {
+    if (output.length > 0) {
+      return this.app.i18n.t('workflowNode.beforeLabelCondition')
+    }
+    return this.app.i18n.t('workflowNode.beforeLabelConditionDefault')
   }
 
   getOrder() {

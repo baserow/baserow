@@ -1593,9 +1593,7 @@ class CoreIteratorServiceType(ServiceType):
         return {
             "source": FormulaSerializerField(
                 help_text=CoreIteratorService._meta.get_field("source").help_text,
-                allow_blank=True,
                 required=False,
-                default="",
             ),
         }
 
@@ -1648,4 +1646,4 @@ class CoreIteratorServiceType(ServiceType):
         self,
         data: Any,
     ) -> DispatchResult:
-        return DispatchResult(data)
+        return DispatchResult(data=data)

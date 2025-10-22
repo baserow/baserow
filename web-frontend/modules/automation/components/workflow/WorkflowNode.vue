@@ -4,7 +4,7 @@
       ref="nodeComponent"
       :node="node"
       :data-highlight="
-        node.previous_node_id === null
+        nodeType.is_workflow_trigger
           ? 'automation-trigger'
           : 'automation-action'
       "

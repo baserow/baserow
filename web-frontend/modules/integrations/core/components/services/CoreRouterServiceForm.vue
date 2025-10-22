@@ -160,7 +160,7 @@ export default {
           this.$t('routerForm.edgeDefaultName'),
           this.v$.values.edges.$model.map(({ label }) => label)
         ),
-        condition: '',
+        condition: { formula: '', mode: 'simple' },
         uid: uuid(),
       })
     },

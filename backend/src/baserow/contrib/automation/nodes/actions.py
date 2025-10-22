@@ -12,6 +12,7 @@ from baserow.contrib.automation.nodes.models import AutomationActionNode, Automa
 from baserow.contrib.automation.nodes.node_types import AutomationNodeType
 from baserow.contrib.automation.nodes.service import AutomationNodeService
 from baserow.contrib.automation.nodes.trash_types import AutomationNodeTrashableItemType
+from baserow.contrib.automation.nodes.types import NodePositionType
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.core.action.models import Action
 from baserow.core.action.registries import ActionTypeDescription, UndoableActionType
@@ -383,11 +384,11 @@ class MoveAutomationNodeActionType(UndoableActionType):
         workflow_id: int
         node_id: int
         node_type: str
-        origin_position_node_id: int
-        origin_position: str
+        origin_reference_node_id: int
+        origin_position: NodePositionType
         origin_output: str
-        destination_position_node_id: int
-        destination_position: str
+        destination_reference_node_id: int
+        destination_position: NodePositionType
         destination_output: str
 
     @classmethod
@@ -395,14 +396,14 @@ class MoveAutomationNodeActionType(UndoableActionType):
         cls,
         user: AbstractUser,
         node_id: int,
-        position_node_id: int | None,
-        position,
-        output,
+        reference_node_id: int | None,
+        position: NodePositionType,
+        output: str,
     ) -> AutomationActionNode:
         move = AutomationNodeService().move_node(
             user,
             node_id,
-            position_node_id,
+            reference_node_id,
             position,
             output,
         )
@@ -416,10 +417,10 @@ class MoveAutomationNodeActionType(UndoableActionType):
                 workflow.id,
                 node.id,
                 node.get_type().type,
-                move.previous_position_node.id,
+                move.previous_reference_node.id,
                 move.previous_position,
                 move.previous_output,
-                position_node_id,
+                reference_node_id,
                 position,
                 output,
             ),
@@ -442,7 +443,7 @@ class MoveAutomationNodeActionType(UndoableActionType):
         AutomationNodeService().move_node(
             user,
             params.node_id,
-            params.origin_position_node_id,
+            params.origin_reference_node_id,
             params.origin_position,
             params.origin_output,
         )
@@ -457,7 +458,7 @@ class MoveAutomationNodeActionType(UndoableActionType):
         AutomationNodeService().move_node(
             user,
             params.node_id,
-            params.destination_position_node_id,
+            params.destination_reference_node_id,
             params.destination_position,
             params.destination_output,
         )

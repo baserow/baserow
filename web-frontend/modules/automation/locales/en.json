@@ -136,6 +136,7 @@
     "beforeLabelAction": "Then",
     "beforeLabelCondition": "If condition is met",
     "beforeLabelConditionDefault": "If no condition(s) are met",
+    "beforeLabelRepeat": "For each item",
     "moreEdit": "Edit",
     "moreReplace": "Replace",
     "nodeOptions": "Node options"

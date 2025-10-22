@@ -114,11 +114,7 @@ class AutomationNodeHandler:
         :param specific: Whether to return specific node instances.
         """
 
-        nodes = self.get_nodes(node.workflow, specific=specific)
-
-        child_ids = node.workflow.get_graph().get_info(node).get("child", [])
-
-        return [n for n in nodes if n.id in child_ids]
+        return node.workflow.get_graph().get_children(node)
 
     def get_next_nodes(
         self,

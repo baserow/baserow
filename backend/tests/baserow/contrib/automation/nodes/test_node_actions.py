@@ -53,7 +53,7 @@ def test_create_node_action(data_fixture):
         user,
         node_type,
         workflow,
-        dict(position_node_id=node_before.id, position="south", output=""),
+        dict(reference_node_id=node_before.id, position="south", output=""),
     )
 
     workflow.assert_reference(

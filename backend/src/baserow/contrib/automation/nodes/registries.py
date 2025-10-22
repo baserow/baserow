@@ -8,7 +8,7 @@ from baserow.contrib.automation.automation_dispatch_context import (
 from baserow.contrib.automation.formula_importer import import_formula
 from baserow.contrib.automation.nodes.exceptions import AutomationNodeNotReplaceable
 from baserow.contrib.automation.nodes.models import AutomationNode
-from baserow.contrib.automation.nodes.types import AutomationNodeDict
+from baserow.contrib.automation.nodes.types import AutomationNodeDict, NodePositionType
 from baserow.core.integrations.models import Integration
 from baserow.core.registry import (
     CustomFieldsRegistryMixin,
@@ -36,9 +36,6 @@ class AutomationNodeType(
     service_type = None
     parent_property_name = "workflow"
     id_mapping_name = "automation_workflow_nodes"
-
-    # Whether this node type is allowed to be moved in a workflow.
-    is_fixed = False
 
     # Whether this node type is a trigger. Triggers start workflows.
     is_workflow_trigger = False
@@ -80,6 +77,15 @@ class AutomationNodeType(
                 "Automation nodes can only be updated with a type of the same "
                 "category. Triggers cannot be updated with actions, and vice-versa."
             )
+
+    def before_move(
+        self,
+        node: AutomationNode,
+        reference_node: AutomationNode | None,
+        position: NodePositionType,
+        output: str,
+    ):
+        """Called before the node is moved."""
 
     def after_create(self, node: AutomationNode) -> None:
         """
@@ -254,8 +260,10 @@ class AutomationNodeType(
 
         values["service"] = service
 
-        if (position_node_id := values.get("position_node_id", None)) is not None:
-            values["position_node"] = AutomationNodeHandler().get_node(position_node_id)
+        if (reference_node_id := values.get("reference_node_id", None)) is not None:
+            values["reference_node"] = AutomationNodeHandler().get_node(
+                reference_node_id
+            )
 
         return values
 

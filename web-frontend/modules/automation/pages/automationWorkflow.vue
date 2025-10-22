@@ -178,13 +178,13 @@ export default {
     handleDebugToggle(newDebugState) {
       this.workflowDebug = newDebugState
     },
-    async handleAddNode({ type, positionNode, position, output }) {
+    async handleAddNode({ type, referenceNode, position, output }) {
       try {
         this.isAddingNode = true
         await this.$store.dispatch('automationWorkflowNode/create', {
           workflow: this.workflow,
           type,
-          positionNode,
+          referenceNode,
           position,
           output,
         })

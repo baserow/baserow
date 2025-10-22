@@ -10,6 +10,7 @@ from baserow.api.services.serializers import (
 )
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
+from baserow.contrib.automation.nodes.types import NodePosition
 
 
 class AutomationNodeSerializer(serializers.ModelSerializer):
@@ -47,14 +48,16 @@ class CreateAutomationNodeSerializer(serializers.ModelSerializer):
         required=True,
         help_text="The type of the automation node",
     )
-    position_node_id = serializers.IntegerField(
+    reference_node_id = serializers.IntegerField(
         required=False,
-        help_text="If provided, creates the node before the node with the given id.",
+        help_text="If provided, creates the node relatively to the node with the "
+        "given id.",
     )
-    position = serializers.CharField(
+    position = serializers.ChoiceField(
+        choices=NodePosition.choices,
         required=False,
         allow_blank=True,
-        help_text="The unique ID of the branch this node is an output for.",
+        help_text="The position of the new node relatively to the reference node.",
     )
     output = serializers.CharField(
         required=False,
@@ -67,7 +70,7 @@ class CreateAutomationNodeSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "type",
-            "position_node_id",
+            "reference_node_id",
             "position",
             "output",
         )
@@ -95,14 +98,15 @@ class ReplaceAutomationNodeSerializer(serializers.Serializer):
 
 
 class MoveAutomationNodeSerializer(serializers.Serializer):
-    position_node_id = serializers.IntegerField(
+    reference_node_id = serializers.IntegerField(
         required=False,
-        help_text="The target position node.",
+        help_text="The reference node.",
     )
-    position = serializers.CharField(
+    position = serializers.ChoiceField(
+        choices=NodePosition.choices,
         required=False,
         allow_blank=True,
-        help_text="The new position node.",
+        help_text="The new position relative to the reference node.",
     )
     output = serializers.CharField(
         required=False,

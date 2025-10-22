@@ -283,11 +283,11 @@ export default {
         'form_data',
       ],
       values: {
-        url: '',
+        url: {},
         http_method: 'GET',
         timeout: 60,
         body_type: 'none',
-        body_content: '',
+        body_content: {},
         query_params: [],
         headers: [],
         form_data: [],
@@ -319,7 +319,7 @@ export default {
     createHeader() {
       this.v$.values.headers.$model.push({
         key: `header${this.v$.values.headers.$model.length + 1}`,
-        value: '',
+        value: { formula: '', mode: 'simple' },
         id: uuid(),
       })
     },
@@ -331,7 +331,7 @@ export default {
     createQueryParam() {
       this.v$.values.query_params.$model.push({
         key: `param${this.v$.values.query_params.$model.length + 1}`,
-        value: '',
+        value: { formula: '', mode: 'simple' },
         id: uuid(),
       })
     },
@@ -342,7 +342,7 @@ export default {
     createFormData() {
       this.v$.values.form_data.$model.push({
         key: `form${this.v$.values.form_data.$model.length + 1}`,
-        value: '',
+        value: { formula: '', mode: 'simple' },
         id: uuid(),
       })
     },

@@ -9,6 +9,7 @@ from django.utils.translation import gettext as _
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeMisconfiguredService,
     AutomationNodeNotDeletable,
+    AutomationNodeNotMovable,
     AutomationNodeNotReplaceable,
 )
 from baserow.contrib.automation.nodes.models import (
@@ -32,6 +33,7 @@ from baserow.contrib.automation.nodes.models import (
     LocalBaserowUpdateRowActionNode,
 )
 from baserow.contrib.automation.nodes.registries import AutomationNodeType
+from baserow.contrib.automation.nodes.types import NodePositionType
 from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.contrib.integrations.core.service_types import (
     CoreHTTPRequestServiceType,
@@ -114,6 +116,20 @@ class CoreIteratorNodeType(AutomationNodeActionNodeType):
     model_class = CoreIteratorActionNode
     service_type = CoreIteratorServiceType.type
 
+    def before_delete(self, node: CoreRouterActionNode):
+        if node.workflow.get_graph().get_children(node):
+            raise AutomationNodeNotDeletable(
+                "Iterator nodes cannot be deleted if they "
+                "have one or more children nodes associated with them."
+            )
+
+    def before_replace(self, node: CoreRouterActionNode, new_node_type: Instance):
+        if node.workflow.get_graph().get_children(node):
+            raise AutomationNodeNotReplaceable(
+                "Router nodes cannot be replaced if they "
+                "have one or more children nodes associated with them."
+            )
+
 
 class CoreSMTPEmailNodeType(AutomationNodeActionNodeType):
     type = "smtp_email"
@@ -125,9 +141,6 @@ class CoreRouterActionNodeType(AutomationNodeActionNodeType):
     type = "router"
     model_class = CoreRouterActionNode
     service_type = CoreRouterServiceType.type
-
-    # Routers cannot be moved in the workflow to a new position.
-    is_fixed = True
 
     def get_output_nodes(
         self, node: CoreRouterActionNode
@@ -158,6 +171,22 @@ class CoreRouterActionNodeType(AutomationNodeActionNodeType):
             raise AutomationNodeNotReplaceable(
                 "Router nodes cannot be replaced if they "
                 "have one or more output nodes associated with them."
+            )
+
+    def before_move(
+        self,
+        node: AutomationTriggerNode,
+        reference_node: AutomationNode | None,
+        position: NodePositionType,
+        output: str,
+    ):
+        """
+        Check the container node is not moved inside it self.
+        """
+
+        if node in reference_node.get_previous_nodes():
+            raise AutomationNodeNotMovable(
+                "An iterator node cannot be moved inside itself"
             )
 
     def after_create(self, node: CoreRouterActionNode):
@@ -211,9 +240,6 @@ class CoreRouterActionNodeType(AutomationNodeActionNodeType):
 
 
 class AutomationNodeTriggerType(AutomationNodeType):
-    # Triggers cannot be moved in the workflow to a new position.
-    is_fixed = True
-
     is_workflow_trigger = True
 
     def after_register(self):
@@ -223,6 +249,15 @@ class AutomationNodeTriggerType(AutomationNodeType):
     def before_unregister(self):
         service_type_registry.get(self.service_type).stop_listening()
         return super().before_unregister()
+
+    def before_move(
+        self,
+        node: AutomationTriggerNode,
+        reference_node: AutomationNode | None,
+        position: NodePositionType,
+        output: str,
+    ):
+        raise AutomationNodeNotMovable("Trigger nodes cannot be moved.")
 
     def before_delete(self, node: AutomationTriggerNode):
         """

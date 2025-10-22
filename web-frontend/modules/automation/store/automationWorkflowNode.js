@@ -97,10 +97,10 @@ const actions = {
   },
   async graphInsert(
     { commit, dispatch, getters },
-    { workflow, node, positionNode, position, output }
+    { workflow, node, referenceNode, position, output }
   ) {
     const graphHandler = new NodeGraphHandler(workflow)
-    graphHandler.insert(node, positionNode, position, output)
+    graphHandler.insert(node, referenceNode, position, output)
 
     await dispatch(
       'automationWorkflow/forceUpdate',
@@ -126,10 +126,10 @@ const actions = {
   },
   async graphMove(
     { commit, dispatch, getters },
-    { workflow, nodeToMove, positionNode, position, output }
+    { workflow, nodeToMove, referenceNode, position, output }
   ) {
     const graphHandler = new NodeGraphHandler(workflow)
-    graphHandler.move(nodeToMove, positionNode, position, output)
+    graphHandler.move(nodeToMove, referenceNode, position, output)
 
     await dispatch(
       'automationWorkflow/forceUpdate',
@@ -158,7 +158,7 @@ const actions = {
   },
   async create(
     { commit, dispatch, getters },
-    { workflow, type, positionNode, position, output }
+    { workflow, type, referenceNode, position, output }
   ) {
     // Using the `previousNodeId` and `previousNodeOutput` to determine
     // what the `beforeId` should be. We will have `beforeId` if we're
@@ -179,7 +179,7 @@ const actions = {
     dispatch('graphInsert', {
       workflow,
       node: tempNode,
-      positionNode,
+      referenceNode,
       position,
       output,
     })
@@ -187,7 +187,7 @@ const actions = {
     try {
       const { data: node } = await AutomationWorkflowNodeService(
         this.$client
-      ).create(workflow.id, type, positionNode, position, output)
+      ).create(workflow.id, type, referenceNode, position, output)
 
       commit('ADD_ITEM', { workflow, node })
 
@@ -372,17 +372,17 @@ const actions = {
     })
   },
   async move({ commit, dispatch, getters }, { workflow, moveData }) {
-    const { movedNodeId, positionNodeId, position, output } = moveData
+    const { movedNodeId, referenceNodeId, position, output } = moveData
     const movedNode = getters.findById(workflow, movedNodeId)
-    const positionNode = getters.findById(workflow, positionNodeId)
+    const referenceNode = getters.findById(workflow, referenceNodeId)
 
-    const [previousPositionNode, previousPosition, previousOutput] =
-      getters.getNodePosition(workflow, movedNode)
+    const [previousReferenceNode, previousPosition, previousOutput] =
+      new NodeGraphHandler(workflow).getNodePosition(movedNode)
 
     dispatch('graphMove', {
       workflow,
       nodeToMove: movedNode,
-      positionNode,
+      referenceNode,
       position,
       output,
     })
@@ -390,7 +390,7 @@ const actions = {
     try {
       // Perform the backend update.
       await AutomationWorkflowNodeService(this.$client).move(movedNodeId, {
-        position_node_id: positionNodeId,
+        reference_node_id: referenceNodeId,
         position,
         output,
       })
@@ -399,7 +399,7 @@ const actions = {
       dispatch('graphMove', {
         workflow,
         nodeToMove: movedNode,
-        positionNode: previousPositionNode,
+        referenceNode: previousReferenceNode,
         position: previousPosition,
         output: previousOutput,
       })
@@ -485,29 +485,6 @@ const getters = {
     }
     return null
   },
-  getNodePosition: (state, getters) => (workflow, node) => {
-    if (workflow.graph['0'] === node.id) {
-      return [null, 'south', '']
-    }
-    for (const [nodeId, value] of Object.entries(workflow.graph)) {
-      if (value.next) {
-        const outputFound = Object.entries(value.next).find(([, nextOnEdge]) =>
-          nextOnEdge.includes(node.id)
-        )
-        if (outputFound) {
-          const previousNode = getters.findById(workflow, nodeId)
-          return [previousNode, 'south', outputFound[0]]
-        }
-      }
-      if (value.child) {
-        if (value.child.includes(node.id)) {
-          const parentNode = getters.findById(workflow, nodeId)
-          return [parentNode, 'child', '']
-        }
-      }
-    }
-    throw new Error('Node not found in graph')
-  },
   getSelected: (state) => (workflow) => {
     if (!workflow) return null
     return workflow.nodeMap?.[workflow.selectedNodeId] || null
@@ -530,27 +507,6 @@ const getters = {
     (workflow, targetNode, outputUid = null) => {
       return new NodeGraphHandler(workflow).getNextNodes(targetNode, outputUid)
     },
-  getPreviousNode: (state, getters) => (workflow, node) => {
-    const found = Object.entries(workflow.graph).find(([nodeId, value]) => {
-      if (value.next) {
-        try {
-          const outputFound = Object.values(value.next).find((nextOnEdge) =>
-            nextOnEdge.includes(node.id)
-          )
-          if (outputFound) {
-            return true
-          }
-        } catch (e) {
-          return false
-        }
-      }
-      return false
-    })
-    if (found) {
-      return getters.findById(workflow, found[0])
-    }
-    return null
-  },
   getAncestors: (state, getters) => (workflow, targetNode) => {
     const positions = new NodeGraphHandler(workflow).getPreviousPositions(
       targetNode

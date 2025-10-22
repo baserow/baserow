@@ -47,7 +47,7 @@ def test_get_previous_service_outputs(data_fixture):
 
     router_b = data_fixture.create_core_router_action_node(
         workflow=workflow,
-        position_node=router_a,
+        reference_node=router_a,
         position="south",
         output=router_a_edge_1.uid,
         label="router b",
@@ -68,7 +68,7 @@ def test_get_previous_service_outputs(data_fixture):
 
     data_fixture.create_local_baserow_create_row_action_node(
         workflow=workflow,
-        position_node=router_a,
+        reference_node=router_a,
         position="south",
         output="",
         label="action a",
@@ -76,14 +76,14 @@ def test_get_previous_service_outputs(data_fixture):
 
     data_fixture.create_local_baserow_create_row_action_node(
         workflow=workflow,
-        position_node=router_b,
+        reference_node=router_b,
         position="south",
         output="",
         label="action b",
     )
     node_c_2 = data_fixture.create_local_baserow_create_row_action_node(
         workflow=workflow,
-        position_node=router_b,
+        reference_node=router_b,
         position="south",
         output=router_b_edge_2.uid,
         label="action b on edge",

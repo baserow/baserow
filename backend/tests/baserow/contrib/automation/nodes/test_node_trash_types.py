@@ -78,7 +78,7 @@ def test_trashing_and_restoring_node_updates_graph_with_router(data_fixture):
     second_router = data_fixture.create_core_router_action_node(
         workflow=workflow,
         label="Second router",
-        position_node=initial_router,
+        reference_node=initial_router,
         position="south",
         output=initial_router_edge.uid,
     )

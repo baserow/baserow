@@ -32,7 +32,7 @@
             type: $event,
             position: isChild ? 'child' : 'south',
             output: edgeUid,
-            positionNode: node,
+            referenceNode: node,
           })
         "
       />
@@ -149,7 +149,7 @@ const handleDrop = () => {
   isDragOver.value = false
 
   emit('move-node', {
-    positionNodeId: props.node.id,
+    referenceNodeId: props.node.id,
     position: props.isChild ? 'child' : 'south',
     output: props.edgeUid,
   })

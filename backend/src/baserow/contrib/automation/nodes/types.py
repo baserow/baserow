@@ -1,9 +1,21 @@
 from dataclasses import dataclass
-from typing import Any, NewType, TypedDict
+from typing import Any, Literal, NewType, TypeAlias, TypedDict
+
+from django.db import models
 
 from baserow.contrib.automation.nodes.models import AutomationActionNode, AutomationNode
 
 AutomationNodeForUpdate = NewType("AutomationNodeForUpdate", AutomationNode)
+
+
+class NodePosition(models.TextChoices):
+    SOUTH = "south", "South"
+    CHILD = "child", "Child"
+
+
+NodePositionType = Literal["south", "child"]
+
+NodePositionTriplet: TypeAlias = tuple[AutomationNode | None, NodePositionType, str]
 
 
 @dataclass
@@ -24,8 +36,8 @@ class ReplacedAutomationNode:
 class AutomationNodeMove:
     # The node we're trying to move.
     node: AutomationActionNode
-    previous_position_node: AutomationActionNode | None
-    previous_position: str
+    previous_reference_node: AutomationActionNode | None
+    previous_position: NodePositionType
     previous_output: str
 
 

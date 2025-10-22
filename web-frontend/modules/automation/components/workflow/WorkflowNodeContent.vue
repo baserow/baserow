@@ -105,6 +105,7 @@ import { useVueFlow } from '@vue2-flow/core'
 import { useStore, useContext, inject, computed } from '@nuxtjs/composition-api'
 import WorkflowNodeContext from '@baserow/modules/automation/components/workflow/WorkflowNodeContext'
 import flushPromises from 'flush-promises'
+import NodeGraphHandler from '@baserow/modules/automation/utils/nodeGraphHandler'
 
 const { onMove } = useVueFlow()
 const props = defineProps({
@@ -257,16 +258,23 @@ const getDeleteErrorMessage = computed(() => {
 
 /**
  * This computed property determines the label that should be displayed
- * before the node label in the workflow editor. It checks the previous node
- * in the workflow to determine if it is a router node or if the current node
- * is an output node. Based on these conditions, it returns the appropriate
- * label for the node.
- * @returns {string} - The label to display before the node label.
+ * before the node label in the workflow editor.
+ * @returns {string} - The label to display before the node.
  */
 const getDataBeforeLabel = computed(() => {
-  return nodeType.value.getBeforeLabel({
+  const [referenceNode, position, output] = new NodeGraphHandler(
+    workflow.value
+  ).getNodePosition(props.node)
+
+  if (referenceNode === null) {
+    return app.i18n.t('workflowNode.beforeLabelTrigger')
+  }
+  const referenceNodeType = app.$registry.get('node', referenceNode.type)
+  return referenceNodeType.getBeforeLabel({
     workflow: workflow.value,
-    node: props.node,
+    node: referenceNode,
+    position,
+    output,
   })
 })
 </script>

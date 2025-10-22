@@ -82,7 +82,7 @@ def test_automation_node_type_create_row_prepare_values_without_instance(data_fi
     user = data_fixture.create_user()
     node = data_fixture.create_automation_node(user=user, type="create_row")
 
-    values = {"service": {}, "workflow": node.workflow, "previous_node_id": node.id}
+    values = {"service": {}, "workflow": node.workflow}
     result = node.get_type().prepare_values(values, user)
 
     # Since we didn't pass in a service, a new service is created
@@ -183,7 +183,6 @@ def test_automation_node_type_delete_row_prepare_values_without_instance(data_fi
     values = {
         "service": {},
         "workflow": node.workflow,
-        "previous_node_id": another_node.id,
     }
     result = node.get_type().prepare_values(values, user)
 

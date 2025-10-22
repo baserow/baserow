@@ -15,7 +15,7 @@ from baserow.core.models import TrashEntry
 from baserow.core.trash.exceptions import TrashItemRestorationDisallowed
 from baserow.core.trash.registries import TrashableItemType
 
-from .exceptions import AutomationNodeMissingOutput
+from .exceptions import AutomationNodeDoesNotExist, AutomationNodeMissingOutput
 
 
 class AutomationNodeTrashableItemType(TrashableItemType):
@@ -66,23 +66,27 @@ class AutomationNodeTrashableItemType(TrashableItemType):
             trash_entry.trash_operation_type
             != ReplaceAutomationNodeTrashOperationType.type
         ):
-            position_node_id, position, output = trash_entry.additional_restoration_data
+            (
+                reference_node_id,
+                position,
+                output,
+            ) = trash_entry.additional_restoration_data
 
-            # TODO check the position node still exists otherwise we should move the
-            # node at
-            # the end of the graph
-
-            position_node = (
-                AutomationNodeHandler().get_node(position_node_id)
-                if position_node_id
-                else None
-            )
-
-            automation_node_created.send(self, node=trashed_item, user=None)
+            try:
+                reference_node = (
+                    AutomationNodeHandler().get_node(reference_node_id)
+                    if reference_node_id
+                    else None
+                )
+            except AutomationNodeDoesNotExist as exc:
+                raise TrashItemRestorationDisallowed(
+                    "This automation node cannot be "
+                    "restored as its reference node has been deleted."
+                ) from exc
 
             try:
                 workflow.get_graph().insert(
-                    trashed_item, position_node, position, output
+                    trashed_item, reference_node, position, output
                 )
             except AutomationNodeMissingOutput as e:
                 raise TrashItemRestorationDisallowed(
@@ -90,6 +94,7 @@ class AutomationNodeTrashableItemType(TrashableItemType):
                     "restored as its branch has been deleted."
                 ) from e
 
+            automation_node_created.send(self, node=trashed_item, user=None)
             automation_workflow_updated.send(self, workflow=workflow, user=None)
 
     def permanently_delete_item(

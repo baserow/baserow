@@ -272,7 +272,7 @@ def test_duplicate_workflow_with_nodes(data_fixture):
     workflow = data_fixture.create_automation_workflow(name="test")
     data_fixture.create_core_router_action_node_with_edges(
         workflow=workflow,
-        position_node=workflow.get_trigger(),
+        reference_node=workflow.get_trigger(),
     )
 
     reference = {

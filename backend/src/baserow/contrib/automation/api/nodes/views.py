@@ -27,7 +27,7 @@ from baserow.contrib.automation.api.nodes.errors import (
     ERROR_AUTOMATION_NODE_NOT_IN_WORKFLOW,
     ERROR_AUTOMATION_NODE_NOT_MOVABLE,
     ERROR_AUTOMATION_NODE_NOT_REPLACEABLE,
-    ERROR_AUTOMATION_NODE_POSITION_NODE_INVALID,
+    ERROR_AUTOMATION_NODE_REFERENCE_NODE_INVALID,
     ERROR_AUTOMATION_NODE_SIMULATE_DISPATCH,
     ERROR_AUTOMATION_TRIGGER_NODE_MODIFICATION_DISALLOWED,
 )
@@ -56,7 +56,7 @@ from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeNotInWorkflow,
     AutomationNodeNotMovable,
     AutomationNodeNotReplaceable,
-    AutomationNodePositionNodeInvalid,
+    AutomationNodeReferenceNodeInvalid,
     AutomationNodeSimulateDispatchError,
     AutomationTriggerModificationDisallowed,
 )
@@ -114,7 +114,7 @@ class AutomationNodesView(APIView):
     @map_exceptions(
         {
             AutomationWorkflowDoesNotExist: ERROR_AUTOMATION_WORKFLOW_DOES_NOT_EXIST,
-            AutomationNodePositionNodeInvalid: ERROR_AUTOMATION_NODE_POSITION_NODE_INVALID,
+            AutomationNodeReferenceNodeInvalid: ERROR_AUTOMATION_NODE_REFERENCE_NODE_INVALID,
             AutomationNodeDoesNotExist: ERROR_AUTOMATION_NODE_DOES_NOT_EXIST,
             AutomationTriggerModificationDisallowed: ERROR_AUTOMATION_TRIGGER_NODE_MODIFICATION_DISALLOWED,
         }

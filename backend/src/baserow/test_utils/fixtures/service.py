@@ -117,7 +117,7 @@ class ServiceFixtures:
         if output_node is None and not skip_output_node:
             router_node = service.automation_workflow_node
             self.create_local_baserow_create_row_action_node(
-                position_node=router_node,
+                reference_node=router_node,
                 output=edge.uid,
                 position="south",
                 workflow=router_node.workflow,

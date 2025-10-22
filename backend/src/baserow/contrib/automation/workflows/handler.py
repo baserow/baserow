@@ -519,7 +519,7 @@ class AutomationWorkflowHandler:
                 cache=cache,
             )
 
-        self.migrate_graph(workflow_instance, id_mapping)
+        workflow_instance.get_graph().migrate_graph(id_mapping)
 
         return [i[0] for i in imported_workflows]
 
@@ -590,40 +590,6 @@ class AutomationWorkflowHandler:
             progress.increment(state=IMPORT_SERIALIZED_IMPORTING)
 
         return workflow_instance
-
-    def migrate_graph(self, workflow, id_mapping):
-        """
-        Updates the node IDs and edge UIDs in the graph from the id_mapping.
-        """
-
-        migrated = {}
-
-        def map_node(nid):
-            return id_mapping["automation_workflow_nodes"][int(nid)]
-
-        def map_output(uid):
-            if uid == "":
-                return ""
-            return id_mapping["automation_edge_outputs"][uid]
-
-        for key, info in workflow.graph.items():
-            if key == "0":
-                migrated["0"] = id_mapping["automation_workflow_nodes"][info]
-
-            else:
-                migrated[str(map_node(key))] = {}
-                if "next" in info:
-                    migrated[str(map_node(key))]["next"] = {
-                        map_output(uid): [map_node(nid) for nid in nids]
-                        for uid, nids in info["next"].items()
-                    }
-                if "child" in info:
-                    migrated[str(map_node(key))]["child"] = [
-                        map_node(nid) for nid in info["child"]
-                    ]
-
-        workflow.graph = migrated
-        workflow.save()
 
     def clean_up_previously_published_automations(
         self, workflow: AutomationWorkflow
