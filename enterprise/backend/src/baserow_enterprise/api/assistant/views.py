@@ -289,6 +289,7 @@ class AssistantChatMessageFeedbackView(APIView):
         LicenseHandler.raise_if_user_doesnt_have_feature(
             ASSISTANT, request.user, message.chat.workspace
         )
+
         try:
             prediction: AssistantChatPrediction = message.prediction
         except AttributeError:

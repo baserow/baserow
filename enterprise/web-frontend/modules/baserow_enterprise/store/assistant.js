@@ -290,13 +290,14 @@ export const actions = {
         feedback?.trim()
       )
     } catch (error) {
-      // Ignore error and revert the optimistic update
+      // Revert the optimistic update
       commit('UPDATE_MESSAGE', {
         id: messageId,
         updates: {
           human_sentiment: originalSentiment,
         },
       })
+      throw error
     }
   },
 }

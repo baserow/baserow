@@ -3,6 +3,7 @@
     <div class="assistant__actions-header">
       <template v-if="message.can_submit_feedback">
         <button
+          v-if="!message.human_sentiment || message.human_sentiment === 'LIKE'"
           ref="thumbUpButton"
           class="assistant__feedback-button assistant__feedback-button--thumb-up"
           :class="{
@@ -15,6 +16,9 @@
         </button>
 
         <button
+          v-if="
+            !message.human_sentiment || message.human_sentiment === 'DISLIKE'
+          "
           ref="thumbDownButton"
           class="assistant__feedback-button assistant__feedback-button--thumb-down"
           :class="{
@@ -25,6 +29,13 @@
         >
           <i class="iconoir-thumbs-down"></i>
         </button>
+
+        <button
+          class="assistant__feedback-button assistant__feedback-button--copy"
+          @click="handleCopy"
+        >
+          <i class="iconoir-copy"></i>
+        </button>
       </template>
     </div>
 
@@ -34,10 +45,11 @@
       class="assistant__feedback-context"
       @shown="$nextTick($refs.feedbackTextarea.focus)"
     >
-      <div class="assistant__feedback-context-content">
-        <p class="assistant__feedback-context-title">
-          {{ $t('assistantMessageActions.feedbackContextTitle') }}
-        </p>
+      <FormGroup
+        class="assistant__feedback-context-content"
+        small-label
+        :label="$t('assistantMessageActions.feedbackContextTitle')"
+      >
         <FormTextarea
           ref="feedbackTextarea"
           v-model="feedbackText"
@@ -65,7 +77,7 @@
             {{ $t('action.submit') }}
           </Button>
         </div>
-      </div>
+      </FormGroup>
     </Context>
   </div>
 </template>
@@ -74,6 +86,7 @@
 import Context from '@baserow/modules/core/components/Context'
 import FormTextarea from '@baserow/modules/core/components/FormTextarea'
 import { mapActions } from 'vuex'
+import { notifyIf } from '@baserow/modules/core/utils/error'
 
 export default {
   name: 'AssistantMessageActions',
@@ -96,8 +109,15 @@ export default {
 
   methods: {
     ...mapActions({
-      submitFeedback: 'assistant/submitFeedback',
+      _submitFeedback: 'assistant/submitFeedback',
     }),
+    async submitFeedback(payload) {
+      try {
+        return await this._submitFeedback(payload)
+      } catch (error) {
+        notifyIf(error)
+      }
+    },
     handleThumbsUp() {
       // Toggle positive feedback
       this.submitFeedback({
@@ -154,6 +174,24 @@ export default {
         feedback: this.feedbackText.trim(),
       })
       this.$refs.feedbackContext.hide()
+    },
+
+    handleCopy() {
+      const content = this.message.content || ''
+      navigator.clipboard
+        .writeText(content)
+        .then(() => {
+          this.$store.dispatch('toast/info', {
+            title: this.$t('assistantMessageActions.copiedToClipboard'),
+            message: this.$t('assistantMessageActions.copiedContentToast'),
+          })
+        })
+        .catch((error) => {
+          console.error('Failed to copy to clipboard:', error)
+          this.$store.dispatch('toast/error', {
+            title: this.$t('assistantMessageActions.copyFailed'),
+          })
+        })
     },
   },
 }

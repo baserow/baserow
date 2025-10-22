@@ -354,7 +354,10 @@
   },
   "assistantMessageActions": {
     "feedbackContextTitle": "Help us improve",
-    "feedbackContextPlaceholder": "What could we improve? (optional)"
+    "feedbackContextPlaceholder": "What could we improve? (optional)",
+    "copiedToClipboard": "Copied to clipboard",
+    "copiedContentToast": "The Assistant's response content has been copied to your clipboard",
+    "copyFailed": "Failed to copy to clipboard"
   },
   "chatwootSupportSidebarWorkspace": {
     "directSupport": "Direct support"

@@ -665,8 +665,7 @@
 .assistant__actions-header {
   display: flex;
   align-items: center;
-  justify-content: end;
-  gap: 8px;
+  justify-content: flex-start;
 }
 
 // Feedback buttons (inline in header)
@@ -686,44 +685,28 @@
     font-size: 13px;
   }
 
-  &--thumb-up {
-    &:hover {
-      color: $palette-green-400;
-    }
-
-    &.assistant__feedback-button--active {
-      background: $palette-green-50;
-      color: $palette-green-600;
-    }
+  &:hover {
+    color: $palette-neutral-700;
   }
 
-  &--thumb-down {
-    &:hover {
-      color: $palette-red-400;
-    }
-
-    &.assistant__feedback-button--active {
-      background: $palette-red-50;
-      color: $palette-red-600;
-    }
+  &--active {
+    color: $palette-neutral-1200;
   }
 }
 
 // Feedback Context (popup near thumb down)
 .assistant__feedback-context {
   min-width: 280px;
-  max-width: 320px;
+
+  textarea {
+    width: 100%;
+    min-height: 52px;
+    resize: vertical;
+  }
 }
 
 .assistant__feedback-context-content {
   padding: 12px;
-}
-
-.assistant__feedback-context-title {
-  margin: 0 0 10px;
-  font-size: 13px;
-  font-weight: 500;
-  color: $palette-neutral-1000;
 }
 
 .assistant__feedback-context-actions {
