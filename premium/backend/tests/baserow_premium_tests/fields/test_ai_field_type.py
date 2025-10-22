@@ -1156,3 +1156,40 @@ def test_formula_field_can_reference_ai_choice_output_without_error(
     )
 
     assert formula_field is not None
+
+
+@pytest.mark.django_db
+@pytest.mark.field_ai
+def test_ai_field_can_be_used_in_lookup_expression(premium_data_fixture):
+    premium_data_fixture.register_fake_generate_ai_type()
+    user = premium_data_fixture.create_user()
+
+    source_table = premium_data_fixture.create_database_table(user=user, name="Source")
+    ai_field = premium_data_fixture.create_ai_field(
+        table=source_table,
+        order=0,
+        name="ai_text",
+        ai_output_type="text",
+        ai_generative_ai_type="test_generative_ai",
+        ai_generative_ai_model="test_1",
+        ai_prompt="'Hello World'",
+    )
+
+    target_table = premium_data_fixture.create_database_table(user=user, name="Target")
+    link_row_field = premium_data_fixture.create_link_row_field(
+        table=target_table,
+        order=0,
+        name="link_to_source",
+        link_row_table=source_table,
+    )
+
+    formula_field = FieldHandler().create_field(
+        user=user,
+        table=target_table,
+        type_name="formula",
+        name="lookup_ai_field",
+        formula="lookup('link_to_source', 'ai_text')",
+    )
+
+    assert formula_field is not None
+    assert formula_field.formula_type == "array"
