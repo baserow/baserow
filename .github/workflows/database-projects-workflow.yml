@@ -70,7 +70,7 @@ jobs:
 
             // Check if issue has required labels
             const hasRequiredLabel = issue.labels.some(label =>
-              label.name === 'domain::database' || label.name === 'domain::core'
+              label.name.startsWith('domain::database') || label.name.startsWith('domain::core')
             );
 
             if (!hasRequiredLabel) {
