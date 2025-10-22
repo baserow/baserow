@@ -17,6 +17,9 @@ from baserow.core.formula.argument_types import (
 )
 from baserow.core.formula.registries import RuntimeFormulaFunction
 from baserow.core.formula.types import FormulaArg, FormulaArgs, FormulaContext
+from baserow.core.formula.validator import (
+    ensure_string,
+)
 
 
 class RuntimeConcat(RuntimeFormulaFunction):
@@ -33,7 +36,7 @@ class RuntimeConcat(RuntimeFormulaFunction):
         return len(args) > 1
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
-        return "".join([a for a in args])
+        return "".join([ensure_string(a) for a in args])
 
 
 class RuntimeGet(RuntimeFormulaFunction):

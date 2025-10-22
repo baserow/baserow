@@ -70,7 +70,11 @@ class DateTimeBaserowRuntimeFormulaArgumentType(BaserowRuntimeFormulaArgumentTyp
 
 class DictBaserowRuntimeFormulaArgumentType(BaserowRuntimeFormulaArgumentType):
     def test(self, value):
-        return ensure_object(value)
+        try:
+            ensure_object(value)
+            return True
+        except ValidationError:
+            return False
 
     def parse(self, value):
         return ensure_object(value)
