@@ -222,12 +222,19 @@ jobs:
     needs:
       - build-backend
       - detect-changes
-    # Only run if backend files changed or always on develop/master
-    if: needs.detect-changes.outputs.backend == 'true' || github.ref_name == 'develop' || github.ref_name == 'master'
     permissions:
       contents: read
       packages: read
     steps:
+      - name: Exit early if backend not changed and not develop/master
+        run: |
+          if [[ "${{ needs.detect-changes.outputs.backend }}" != "true" && \
+                "${{ github.ref_name }}" != "develop" && \
+                "${{ github.ref_name }}" != "master" ]]; then
+            echo "No backend changes detected — skipping backend lint."
+            exit 0
+          fi
+
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -244,11 +251,19 @@ jobs:
     needs:
       - build-frontend
       - detect-changes
-    if: needs.detect-changes.outputs.frontend == 'true' || github.ref_name == 'develop' || github.ref_name == 'master'
     permissions:
       contents: read
       packages: read
     steps:
+      - name: Exit early if frontend not changed and not develop/master
+        run: |
+          if [[ "${{ needs.detect-changes.outputs.frontend }}" != "true" && \
+                "${{ github.ref_name }}" != "develop" && \
+                "${{ github.ref_name }}" != "master" ]]; then
+            echo "No backend changes detected — skipping backend lint."
+            exit 0
+          fi
+
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -266,10 +281,18 @@ jobs:
       - backend-lint
       - frontend-lint
       - detect-changes
-    if: needs.detect-changes.outputs.dockerfiles == 'true' || github.ref_name == 'develop' || github.ref_name == 'master'
     permissions:
       contents: read
     steps:
+      - name: Exit early if dockerfiles not changed and not develop/master
+        run: |
+          if [[ "${{ needs.detect-changes.outputs.dockerfiles }}" != "true" && \
+                "${{ github.ref_name }}" != "develop" && \
+                "${{ github.ref_name }}" != "master" ]]; then
+            echo "No backend changes detected — skipping backend lint."
+            exit 0
+          fi
+
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -313,7 +336,6 @@ jobs:
       - build-backend
       - backend-lint
       - detect-changes
-    if: needs.detect-changes.outputs.backend == 'true' || github.ref_name == 'develop' || github.ref_name == 'master'
     permissions:
       contents: read
       packages: read
@@ -330,6 +352,15 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     steps:
+      - name: Exit early if backend not changed and not develop/master
+        run: |
+          if [[ "${{ needs.detect-changes.outputs.backend }}" != "true" && \
+                "${{ github.ref_name }}" != "develop" && \
+                "${{ github.ref_name }}" != "master" ]]; then
+            echo "No backend changes detected — skipping backend lint."
+            exit 0
+          fi
+
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -361,7 +392,6 @@ jobs:
       - build-backend
       - backend-lint
       - detect-changes
-    if: needs.detect-changes.outputs.backend == 'true' || github.ref_name == 'develop' || github.ref_name == 'master'
     permissions:
       contents: read
       packages: read
@@ -384,6 +414,15 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     steps:
+      - name: Exit early if backend not changed and not develop/master
+        run: |
+          if [[ "${{ needs.detect-changes.outputs.backend }}" != "true" && \
+                "${{ github.ref_name }}" != "develop" && \
+                "${{ github.ref_name }}" != "master" ]]; then
+            echo "No backend changes detected — skipping backend lint."
+            exit 0
+          fi
+
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -433,7 +472,6 @@ jobs:
       - build-frontend
       - frontend-lint
       - detect-changes
-    if: needs.detect-changes.outputs.frontend == 'true' || github.ref_name == 'develop' || github.ref_name == 'master'
     permissions:
       contents: read
       packages: read
@@ -444,6 +482,15 @@ jobs:
       matrix:
         shard: [1, 2, 3, 4]
     steps:
+      - name: Exit early if frontend not changed and not develop/master
+        run: |
+          if [[ "${{ needs.detect-changes.outputs.frontend }}" != "true" && \
+                "${{ github.ref_name }}" != "develop" && \
+                "${{ github.ref_name }}" != "master" ]]; then
+            echo "No backend changes detected — skipping backend lint."
+            exit 0
+          fi
+
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -486,10 +533,18 @@ jobs:
       - backend-lint
       - frontend-lint
       - detect-changes
-    if: needs.detect-changes.outputs.zapier == 'true' || github.ref_name == 'develop' || github.ref_name == 'master'
     permissions:
       contents: read
     steps:
+      - name: Exit early if zapier not changed and not develop/master
+        run: |
+          if [[ "${{ needs.detect-changes.outputs.zapier }}" != "true" && \
+                "${{ github.ref_name }}" != "develop" && \
+                "${{ github.ref_name }}" != "master" ]]; then
+            echo "No backend changes detected — skipping backend lint."
+            exit 0
+          fi
+
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -511,10 +566,18 @@ jobs:
       - backend-lint
       - frontend-lint
       - detect-changes
-    if: needs.detect-changes.outputs.mjml == 'true' || github.ref_name == 'develop' || github.ref_name == 'master'
     permissions:
       contents: read
     steps:
+      - name: Exit early if mjml not changed and not develop/master
+        run: |
+          if [[ "${{ needs.detect-changes.outputs.mjml }}" != "true" && \
+                "${{ github.ref_name }}" != "develop" && \
+                "${{ github.ref_name }}" != "master" ]]; then
+            echo "No backend changes detected — skipping backend lint."
+            exit 0
+          fi
+
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -545,7 +608,6 @@ jobs:
     name: E2E Tests (Shard ${{ matrix.shard }})
     timeout-minutes: 60
     runs-on: ubuntu-latest
-    if: needs.detect-changes.outputs.backend == 'true' || needs.detect-changes.outputs.frontend == 'true' || needs.detect-changes.outputs.dockerfiles == 'true' || github.ref_name == 'develop' || github.ref_name == 'master'
     needs:
       - build-backend
       - build-frontend
@@ -586,6 +648,17 @@ jobs:
         ports:
           - 9090:9090
     steps:
+      - name: Exit early if no relevant changes
+        run: |
+          if [[ "${{ needs.detect-changes.outputs.backend }}" != "true" && \
+                "${{ needs.detect-changes.outputs.frontend }}" != "true" && \
+                "${{ needs.detect-changes.outputs.dockerfiles }}" != "true" && \
+                "${{ github.ref_name }}" != "develop" && \
+                "${{ github.ref_name }}" != "master" ]]; then
+            echo "No backend, frontend, or Dockerfile changes detected — skipping job."
+            exit 0
+          fi
+
       - name: Checkout code
         uses: actions/checkout@v4
 
