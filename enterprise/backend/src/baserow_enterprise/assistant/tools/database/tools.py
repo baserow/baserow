@@ -5,7 +5,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
 from django.utils.translation import gettext as _
 
-from baserow_premium.prompts import get_generate_formula_prompt
+from baserow_premium.prompts import get_formula_docs
 from loguru import logger
 from pydantic import create_model
 
@@ -877,12 +877,10 @@ def get_generate_database_formula_tool(
         database_tables_schema = utils.get_tables_schema(database_table_items, True)
 
         tool_helpers.update_status(
-            _("Generating formula for %(field_name)s...") % {"field_name": field_name}
+            _("Generating formula %(field_name)s...") % {"field_name": field_name}
         )
 
-        formula_docs = get_generate_formula_prompt()
-        # Remove the traling part that is used in the prompt template
-        formula_docs = formula_docs.split("-----------------------")[0].strip()
+        formula_docs = get_formula_docs()
 
         formula_generator = dspy.ReAct(
             FormulaGenerationSignature,

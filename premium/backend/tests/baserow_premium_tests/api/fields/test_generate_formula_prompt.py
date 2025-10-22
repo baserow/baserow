@@ -1,10 +1,10 @@
-from baserow_premium.prompts import get_generate_formula_prompt
+from baserow_premium.prompts import get_formula_docs
 
 from baserow.contrib.database.formula.registries import formula_function_registry
 
 
 def test_if_prompt_contains_all_formula_functions():
-    prompt = get_generate_formula_prompt()
+    prompt = get_formula_docs()
 
     # These functions are for internal usage, and are not in the web-frontend
     # documentation.
