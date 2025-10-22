@@ -62,11 +62,11 @@ jobs:
             const projectData = ${{ steps.get-project.outputs.result }};
 
             // Get issue data based on trigger type
-            const issue = github.event_name === 'workflow_dispatch'
+            const issue = context.eventName === 'workflow_dispatch'
               ? ${{ steps.get-issue.outputs.result }}
               : context.payload.issue;
 
-            console.log('Event name:', github.event_name);
+            console.log('Event name:', context.eventName);
             console.log('Issue defined:', !!issue);
             if (!issue) {
               console.log('ERROR: Issue is undefined');
