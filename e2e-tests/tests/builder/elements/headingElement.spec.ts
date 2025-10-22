@@ -22,7 +22,7 @@ test.describe("Builder page heading element test suite", () => {
     await builderElementModal.addElementByName("Heading");
 
     await expect(
-      page.locator(".heading-element").getByText("Missing title...")
+      page.locator(".heading-element").getByText("Empty title...")
     ).toBeVisible();
   });
 

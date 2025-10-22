@@ -20,7 +20,7 @@ test.describe("Builder page button element test suite", () => {
     await builderElementModal.addElementByName("Button");
 
     await expect(
-      page.locator(".button-element").getByText("Missing button text...")
+      page.locator(".button-element").getByText("Empty button text...")
     ).toBeVisible();
   });
 
