@@ -66,13 +66,6 @@ jobs:
               ? ${{ steps.get-issue.outputs.result }}
               : context.payload.issue;
 
-            console.log('Event name:', context.eventName);
-            console.log('Issue defined:', !!issue);
-            if (!issue) {
-              console.log('ERROR: Issue is undefined');
-              return;
-            }
-
             // Check if issue has required labels
             const hasRequiredLabel = issue.labels.some(label =>
               label.name.startsWith('domain::database') || label.name.startsWith('domain::core')
