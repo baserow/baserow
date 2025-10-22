@@ -3,11 +3,30 @@ name: Update Database Team Project Fields
 on:
   issues:
     types: [labeled, opened]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: 'Issue number to process'
+        required: true
+        type: number
 
 jobs:
   update-project-fields:
     runs-on: ubuntu-latest
     steps:
+      - name: Get Issue Data (for manual trigger)
+        if: github.event_name == 'workflow_dispatch'
+        id: get-issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = await github.rest.issues.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: ${{ github.event.inputs.issue_number }}
+            });
+            return issue.data;
+
       - name: Get Project Data
         id: get-project
         uses: actions/github-script@v7
@@ -37,14 +56,29 @@ jobs:
             return projectData.user.projectV2;
 
       - name: Add Issue to Project on Label
-        if: github.event_name == 'issues' && (contains(github.event.issue.labels.*.name, 'domain::database') || contains(github.event.issue.labels.*.name, 'domain::core'))
         uses: actions/github-script@v7
         env:
           GITHUB_TOKEN: ${{ secrets.PROJECT_TOKEN }}
         with:
           script: |
             const projectData = ${{ steps.get-project.outputs.result }};
-            const issueNodeId = context.payload.issue.node_id;
+
+            // Get issue data based on trigger type
+            const issue = github.event_name === 'workflow_dispatch'
+              ? ${{ steps.get-issue.outputs.result }}
+              : context.payload.issue;
+
+            // Check if issue has required labels
+            const hasRequiredLabel = issue.labels.some(label =>
+              label.name === 'domain::database' || label.name === 'domain::core'
+            );
+
+            if (!hasRequiredLabel) {
+              console.log('Issue does not have required labels (domain::database or domain::core)');
+              return;
+            }
+
+            const issueNodeId = issue.node_id;
 
             // Check if issue is already in project
             const checkQuery = `
