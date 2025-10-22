@@ -63,16 +63,16 @@
     <FormGroup
       small-label
       :label="$t('fieldAISubForm.prompt')"
-      :error="fieldHasErrors('ai_prompt')"
+      :error="v$.values.ai_prompt?.formula.$error"
       required
     >
       <div style="max-width: 366px">
         <FormulaInputField
-          v-model="v$.values.ai_prompt.$model"
+          :value="formulaStr"
           :data-providers="dataProviders"
           :application-context="applicationContext"
           :placeholder="$t('fieldAISubForm.promptPlaceholder')"
-          @input="v$.values.ai_prompt.$touch()"
+          @input="updatedFormulaStr"
         ></FormulaInputField>
       </div>
       <template #error> {{ $t('error.requiredField') }}</template>
@@ -111,7 +111,7 @@ export default {
     return {
       allowedValues: ['ai_prompt', 'ai_file_field_id', 'ai_output_type'],
       values: {
-        ai_prompt: '',
+        ai_prompt: { formula: '' },
         ai_output_type: TextAIFieldOutputType.getType(),
         ai_file_field_id: null,
       },
@@ -119,6 +119,14 @@ export default {
     }
   },
   computed: {
+    /**
+     * Extract the formula string from the value object, the FormulaInputField
+     * component only needs the formula string itself.
+     * @returns {String} The formula string.
+     */
+    formulaStr() {
+      return this.values.ai_prompt.formula
+    },
     // Return the reactive object that can be updated in runtime.
     workspace() {
       return this.$store.getters['workspace/get'](this.database.workspace.id)
@@ -164,6 +172,15 @@ export default {
     },
   },
   methods: {
+    /**
+     * When `FormulaInputField` emits a new formula string, we need to emit the
+     * entire value object with the updated formula string.
+     * @param {String} newFormulaStr The new formula string.
+     */
+    updatedFormulaStr(newFormulaStr) {
+      this.v$.values.ai_prompt.formula.$model = newFormulaStr
+      this.$emit('input', { formula: newFormulaStr })
+    },
     setFileFieldSupported(generativeAIType) {
       if (generativeAIType) {
         const modelType = this.$registry.get(
@@ -183,7 +200,7 @@ export default {
   validations() {
     return {
       values: {
-        ai_prompt: { required },
+        ai_prompt: { formula: { required } },
         ai_file_field_id: {},
         ai_output_type: {},
       },
