@@ -104,8 +104,8 @@ jobs:
             // Handle workflow_dispatch differently
             let pr, eventType;
             if (context.eventName === 'workflow_dispatch') {
-              const prNumber = ${{ github.event.inputs.pr_number }};
-              eventType = '${{ github.event.inputs.action }}';
+              const prNumber = ${{ github.event.inputs.pr_number || 0 }};
+              eventType = '${{ github.event.inputs.action || '' }}';
 
               // Fetch PR data
               const prQuery = `
