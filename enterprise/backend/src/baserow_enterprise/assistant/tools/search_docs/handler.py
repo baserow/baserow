@@ -5,7 +5,6 @@ from django.conf import settings
 from django.core import serializers
 from django.db.models import Q
 
-import dspy
 from httpx import Client as httpxClient
 from pgvector.django import L2Distance
 
@@ -62,11 +61,13 @@ class BaserowEmbedder:
 
 
 class VectorHandler:
-    def __init__(self, embedder: dspy.Embedder | None = None):
+    def __init__(self, embedder=None):
         self._embedder = embedder
 
     @property
-    def embedder(self) -> dspy.Embedder:
+    def embedder(self):
+        import dspy  # local import to save memory when not used
+
         if self._embedder is None:
             self._embedder = dspy.Embedder(
                 BaserowEmbedder(settings.BASEROW_EMBEDDINGS_API_URL)

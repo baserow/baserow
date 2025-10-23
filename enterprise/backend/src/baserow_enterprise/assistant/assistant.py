@@ -3,19 +3,12 @@ from typing import Any, AsyncGenerator, TypedDict
 
 from django.conf import settings
 
-import dspy
-from dspy.primitives.prediction import Prediction
-from dspy.streaming import StreamListener, StreamResponse
-from dspy.utils.callback import BaseCallback
-from litellm import get_supported_openai_params
-
 from baserow.api.sessions import get_client_undo_redo_action_group_id
 from baserow_enterprise.assistant.exceptions import AssistantModelNotSupportedError
 from baserow_enterprise.assistant.tools.registries import assistant_tool_registry
 
-from .adapter import ChatAdapter
+from .adapter import get_chat_adapter
 from .models import AssistantChat, AssistantChatMessage, AssistantChatPrediction
-from .react import ReAct
 from .types import (
     AiMessage,
     AiMessageChunk,
@@ -28,90 +21,100 @@ from .types import (
 )
 
 
-class ChatSignature(dspy.Signature):
-    question: str = dspy.InputField()
-    history: dspy.History = dspy.InputField()
-    ui_context: UIContext | None = dspy.InputField(
-        default=None,
-        desc=(
-            "The frontend UI content the user is currently in. "
-            "Whenever make sense, use it to ground your answer."
-        ),
-    )
-    answer: str = dspy.OutputField()
-
-
 class AssistantMessagePair(TypedDict):
     question: str
     answer: str
 
 
-class AssistantCallbacks(BaseCallback):
-    def __init__(self):
-        self.tool_calls = {}
-        self.sources = []
+def get_assistant_callbacks():
+    from dspy.utils.callback import BaseCallback
 
-    def extend_sources(self, sources: list[str]) -> None:
-        """
-        Extends the current list of sources with new ones, avoiding duplicates.
+    class AssistantCallbacks(BaseCallback):
+        def __init__(self):
+            self.tool_calls = {}
+            self.sources = []
 
-        :param sources: The list of new source URLs to add.
-        :return: None
-        """
+        def extend_sources(self, sources: list[str]) -> None:
+            """
+            Extends the current list of sources with new ones, avoiding duplicates.
 
-        self.sources.extend([s for s in sources if s not in self.sources])
+            :param sources: The list of new source URLs to add.
+            :return: None
+            """
 
-    def on_tool_start(
-        self,
-        call_id: str,
-        instance: Any,
-        inputs: dict[str, Any],
-    ) -> None:
-        """
-        Called when a tool starts. It records the tool call and invokes the
-        corresponding tool's on_tool_start method if it exists.
+            self.sources.extend([s for s in sources if s not in self.sources])
 
-        :param call_id: The unique identifier of the tool call.
-        :param instance: The instance of the tool being called.
-        :param inputs: The inputs provided to the tool.
-        """
+        def on_tool_start(
+            self,
+            call_id: str,
+            instance: Any,
+            inputs: dict[str, Any],
+        ) -> None:
+            """
+            Called when a tool starts. It records the tool call and invokes the
+            corresponding tool's on_tool_start method if it exists.
 
-        try:
-            assistant_tool_registry.get(instance.name).on_tool_start(
-                call_id, instance, inputs
+            :param call_id: The unique identifier of the tool call.
+            :param instance: The instance of the tool being called.
+            :param inputs: The inputs provided to the tool.
+            """
+
+            try:
+                assistant_tool_registry.get(instance.name).on_tool_start(
+                    call_id, instance, inputs
+                )
+                self.tool_calls[call_id] = (instance, inputs)
+            except assistant_tool_registry.does_not_exist_exception_class:
+                pass
+
+        def on_tool_end(
+            self,
+            call_id: str,
+            outputs: dict[str, Any] | None,
+            exception: Exception | None = None,
+        ) -> None:
+            """
+            Called when a tool ends. It invokes the corresponding tool's on_tool_end
+            method if it exists and updates the sources if the tool produced any.
+
+            :param call_id: The unique identifier of the tool call.
+            :param outputs: The outputs returned by the tool, or None if there was an
+                exception.
+            :param exception: The exception raised by the tool, or None if it was
+                successful.
+            """
+
+            if call_id not in self.tool_calls:
+                return
+
+            instance, inputs = self.tool_calls.pop(call_id)
+            assistant_tool_registry.get(instance.name).on_tool_end(
+                call_id, instance, inputs, outputs, exception
             )
-            self.tool_calls[call_id] = (instance, inputs)
-        except assistant_tool_registry.does_not_exist_exception_class:
-            pass
 
-    def on_tool_end(
-        self,
-        call_id: str,
-        outputs: dict[str, Any] | None,
-        exception: Exception | None = None,
-    ) -> None:
-        """
-        Called when a tool ends. It invokes the corresponding tool's on_tool_end
-        method if it exists and updates the sources if the tool produced any.
+            # If the tool produced sources, add them to the overall list of sources.
+            if isinstance(outputs, dict) and "sources" in outputs:
+                self.extend_sources(outputs["sources"])
 
-        :param call_id: The unique identifier of the tool call.
-        :param outputs: The outputs returned by the tool, or None if there was an
-            exception.
-        :param exception: The exception raised by the tool, or None if it was
-            successful.
-        """
+    return AssistantCallbacks()
 
-        if call_id not in self.tool_calls:
-            return
 
-        instance, inputs = self.tool_calls.pop(call_id)
-        assistant_tool_registry.get(instance.name).on_tool_end(
-            call_id, instance, inputs, outputs, exception
+def get_chat_signature():
+    import dspy  # local import to save memory when not used
+
+    class ChatSignature(dspy.Signature):
+        question: str = dspy.InputField()
+        history: dspy.History = dspy.InputField()
+        ui_context: UIContext | None = dspy.InputField(
+            default=None,
+            desc=(
+                "The frontend UI content the user is currently in. "
+                "Whenever make sense, use it to ground your answer."
+            ),
         )
+        answer: str = dspy.OutputField()
 
-        # If the tool produced sources, add them to the overall list of sources.
-        if isinstance(outputs, dict) and "sources" in outputs:
-            self.extend_sources(outputs["sources"])
+    return ChatSignature
 
 
 class Assistant:
@@ -120,17 +123,27 @@ class Assistant:
         self._user = chat.user
         self._workspace = chat.workspace
 
+        self._init_lm_client()
+        self._init_assistant()
+
+    def _init_lm_client(self):
+        import dspy  # local import to save memory when not used
+
         lm_model = settings.BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL
+
         self._lm_client = dspy.LM(
             model=lm_model,
             cache=not settings.DEBUG,
             max_retries=5,
         )
 
+    def _init_assistant(self):
+        from .react import ReAct  # local import to save memory when not used
+
         tools = assistant_tool_registry.list_all_usable_tools(
             self._user, self._workspace
         )
-        self._assistant = ReAct(ChatSignature, tools=tools)
+        self._assistant = ReAct(get_chat_signature(), tools=tools)
         self.history = None
 
     async def acreate_chat_message(
@@ -216,6 +229,8 @@ class Assistant:
         :return: None
         """
 
+        import dspy  # local import to save memory when not used
+
         last_saved_messages: list[AssistantChatMessage] = [
             msg async for msg in self._chat.messages.order_by("-created_on")[:limit]
         ]
@@ -243,6 +258,9 @@ class Assistant:
 
     @lru_cache(maxsize=1)
     def check_llm_ready_or_raise(self):
+        import dspy  # local import to save memory when not used
+        from litellm import get_supported_openai_params
+
         lm = self._lm_client
         params = get_supported_openai_params(lm.model)
         if params is None or "tools" not in params:
@@ -270,13 +288,17 @@ class Assistant:
         :return: An async generator that yields the response messages.
         """
 
-        callback_manager = AssistantCallbacks()
+        import dspy  # local import to save memory when not used
+        from dspy.primitives.prediction import Prediction
+        from dspy.streaming import StreamListener, StreamResponse
+
+        callback_manager = get_assistant_callbacks()
 
         with dspy.context(
             lm=self._lm_client,
             cache=not settings.DEBUG,
             callbacks=[*dspy.settings.config.callbacks, callback_manager],
-            adapter=ChatAdapter(),
+            adapter=get_chat_adapter(),
         ):
             if self.history is None:
                 await self.aload_chat_history()

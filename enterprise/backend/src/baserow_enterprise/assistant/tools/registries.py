@@ -4,9 +4,6 @@ from typing import TYPE_CHECKING, Any, Callable
 from django.contrib.auth.models import AbstractUser
 from django.utils import translation
 
-from dspy.dsp.utils.settings import settings
-from dspy.streaming.messages import sync_send_to_stream
-
 from baserow.core.exceptions import (
     InstanceTypeAlreadyRegistered,
     InstanceTypeDoesNotExist,
@@ -122,6 +119,9 @@ class AssistantToolRegistry(Registry[AssistantToolType]):
 
             :param status: The status message to send.
             """
+
+            from dspy.dsp.utils.settings import settings
+            from dspy.streaming.messages import sync_send_to_stream
 
             nonlocal user
 

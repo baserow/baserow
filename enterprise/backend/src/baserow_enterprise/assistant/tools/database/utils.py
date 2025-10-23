@@ -7,8 +7,6 @@ from django.db import transaction
 from django.db.models import Q
 from django.utils.translation import gettext as _
 
-import dspy
-from dspy.adapters.types.tool import _resolve_json_schema_reference
 from pydantic import ConfigDict, Field, create_model
 
 from baserow.contrib.database.fields.actions import CreateFieldActionType
@@ -385,6 +383,9 @@ def get_view(user, view_id: int):
 def get_table_rows_tools(
     user, workspace: Workspace, tool_helpers: ToolHelpers, table: Table
 ):
+    import dspy  # local import to save memory when not used
+    from dspy.adapters.types.tool import _resolve_json_schema_reference
+
     row_model_for_create = get_create_row_model(table)
     row_model_for_update = get_update_row_model(table)
     row_model_for_response = create_model(

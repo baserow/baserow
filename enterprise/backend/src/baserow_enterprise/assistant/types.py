@@ -4,7 +4,6 @@ from typing import Annotated, Any, Callable, Literal, Optional
 
 from django.utils.translation import gettext as _
 
-import dspy
 from pydantic import BaseModel as PydanticBaseModel
 from pydantic import ConfigDict, Field
 
@@ -223,12 +222,17 @@ class AiNavigationMessage(BaseModel):
 
 class ToolsUpgradeResponse(BaseModel):
     observation: str
-    new_tools: list[dspy.Tool | Callable[[Any], Any]]
+    new_tools: list[Callable[[Any], Any]]
 
 
-class ToolSignature(dspy.Signature):
-    """Signature for manual tool handling."""
+def get_tool_signature():
+    import dspy  # local import to save memory when not used
 
-    question: str = dspy.InputField()
-    tools: list[dspy.Tool] = dspy.InputField()
-    outputs: dspy.ToolCalls = dspy.OutputField()
+    class ToolSignature(dspy.Signature):
+        """Signature for manual tool handling."""
+
+        question: str = dspy.InputField()
+        tools: list[dspy.Tool] = dspy.InputField()
+        outputs: dspy.ToolCalls = dspy.OutputField()
+
+    return ToolSignature

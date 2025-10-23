@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Callable, Literal
+from typing import Any, Callable, Literal
 
 import dspy
 from dspy.adapters.types.tool import Tool
@@ -10,10 +10,6 @@ from loguru import logger
 
 from .types import ToolsUpgradeResponse
 
-if TYPE_CHECKING:
-    from dspy.signatures.signature import Signature
-
-
 # Variant of dspy.predict.react.ReAct that accepts a "meta-tool":
 # a callable that can produce tools at runtime (e.g. per-table schemas).
 # This lets a single ReAct instance handle many different table signatures
@@ -21,9 +17,7 @@ if TYPE_CHECKING:
 
 
 class ReAct(Module):
-    def __init__(
-        self, signature: type["Signature"], tools: list[Callable], max_iters: int = 100
-    ):
+    def __init__(self, signature, tools: list[Callable], max_iters: int = 100):
         """
         ReAct stands for "Reasoning and Acting," a popular paradigm for building
         tool-using agents. In this approach, the language model is iteratively provided

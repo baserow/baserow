@@ -3,8 +3,6 @@ from typing import Any, Callable, TypedDict
 from django.contrib.auth.models import AbstractUser
 from django.utils.translation import gettext as _
 
-import dspy
-
 from baserow.core.models import Workspace
 from baserow_enterprise.assistant.tools.registries import AssistantToolType, ToolHelpers
 
@@ -13,13 +11,18 @@ from .handler import KnowledgeBaseHandler
 MAX_SOURCES = 3
 
 
-class SearchDocsSignature(dspy.Signature):
-    question: str = dspy.InputField()
-    context: list[str] = dspy.InputField()
-    response: str = dspy.OutputField()
-    sources: list[str] = dspy.OutputField(
-        desc=f"List of unique and relevant source URLs. Max {MAX_SOURCES}."
-    )
+def get_search_predictor():
+    import dspy  # local import to save memory when not used
+
+    class SearchDocsSignature(dspy.Signature):
+        question: str = dspy.InputField()
+        context: list[str] = dspy.InputField()
+        response: str = dspy.OutputField()
+        sources: list[str] = dspy.OutputField(
+            desc=f"List of unique and relevant source URLs. Max {MAX_SOURCES}."
+        )
+
+    return dspy.ChainOfThought(SearchDocsSignature)
 
 
 class SearchDocsToolOutput(TypedDict):
@@ -39,9 +42,19 @@ def get_search_docs_tool(
         Search Baserow documentation.
         """
 
+        import dspy  # local import to save memory when not used
+
         nonlocal tool_helpers
 
         tool_helpers.update_status(_("Exploring the knowledge base..."))
+
+        class SearchDocsRAG(dspy.Module):
+            def __init__(self):
+                self.respond = get_search_predictor()
+
+            def forward(self, question):
+                context = KnowledgeBaseHandler().search(question, num_results=10)
+                return self.respond(context=context, question=question)
 
         tool = SearchDocsRAG()
         result = tool(query)
@@ -59,15 +72,6 @@ def get_search_docs_tool(
         )
 
     return search_docs
-
-
-class SearchDocsRAG(dspy.Module):
-    def __init__(self):
-        self.respond = dspy.ChainOfThought(SearchDocsSignature)
-
-    def forward(self, question):
-        context = KnowledgeBaseHandler().search(question, num_results=10)
-        return self.respond(context=context, question=question)
 
 
 class SearchDocsToolType(AssistantToolType):

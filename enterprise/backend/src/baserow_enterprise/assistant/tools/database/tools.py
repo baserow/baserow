@@ -5,7 +5,6 @@ from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
 from django.utils.translation import gettext as _
 
-import dspy
 from loguru import logger
 from pydantic import create_model
 
@@ -25,9 +24,9 @@ from baserow.core.service import CoreService
 from baserow_enterprise.assistant.tools.registries import AssistantToolType, ToolHelpers
 from baserow_enterprise.assistant.types import (
     TableNavigationType,
-    ToolSignature,
     ToolsUpgradeResponse,
     ViewNavigationType,
+    get_tool_signature,
 )
 
 from . import utils
@@ -284,6 +283,8 @@ def get_create_tables_tool(
         - if add_sample_rows is True (default), add some example rows to each table
         """
 
+        import dspy  # local import to save memory when not used
+
         nonlocal user, workspace, tool_helpers
 
         if not tables:
@@ -354,7 +355,7 @@ def get_create_tables_tool(
                     f"- Create 5 example rows for table_{created_table.id}. Fill every relationship with valid data when possible."
                 )
 
-            predictor = dspy.Predict(ToolSignature)
+            predictor = dspy.Predict(get_tool_signature())
             result = predictor(
                 question=("\n".join(instructions)),
                 tools=list(tools.values()),
