@@ -1062,4 +1062,10 @@ jobs:
                   console.log(`PR not ready to merge - MergeState: ${fullPR.mergeStateStatus}, Reviewers: ${approvedCount}/${totalReviewers}, Current Review Status: ${reviewStatusValue ? reviewStatusValue.name : 'None'} - No change needed`);
                 }
               }
+
+              // Fail the check if not all reviewers have approved
+              if (!allReviewersApproved) {
+                const missingReviews = totalReviewers - approvedCount;
+                core.setFailed(`❌ Cannot merge: ${missingReviews} more reviewer(s) need to approve (${approvedCount}/${totalReviewers} approved, ${requestedReviewers} pending)`);
+              }
             }
