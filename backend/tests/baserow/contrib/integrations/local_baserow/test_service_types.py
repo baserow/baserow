@@ -1050,7 +1050,7 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
             "default": None,
             "searchable": True,
             "sortable": True,
-            "filterable": False,
+            "filterable": True,
             "original_type": "ai",
             "metadata": {},
             "type": "string",
@@ -1060,7 +1060,7 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
             "default": None,
             "searchable": True,
             "sortable": True,
-            "filterable": False,
+            "filterable": True,
             "original_type": "ai",
             "metadata": {},
             "properties": {

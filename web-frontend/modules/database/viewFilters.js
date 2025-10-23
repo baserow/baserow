@@ -128,12 +128,29 @@ export class ViewFilterType extends Registerable {
   }
 
   /**
-   * Returns if a given field is compatible with this view filter or not. Uses the
-   * list provided by getCompatibleFieldTypes to calculate this.
+   * Returns if a given field is compatible with this view filter or not.
+   *
+   * Checks compatibility in two ways:
+   * 1. Static list from getCompatibleFieldTypes()
+   * 2. Dynamic hook on field type via isCompatibleWithFilter()
+   *
+   * This mirrors the backend pattern where filters initiate the check
+   * and field types can dynamically declare compatibility.
    */
   fieldIsCompatible(field) {
-    const valuesMap = this.getCompatibleFieldTypes().map((type) => [type, true])
-    return this.getCompatibleFieldValue(field, valuesMap, false)
+    // First check if field type is in the static compatible list
+    const valuesMap = this.compatibleFieldTypes.map((type) => [type, true])
+    if (this.getCompatibleFieldValue(field, valuesMap, false)) {
+      return true
+    }
+
+    // Then check if field type declares dynamic compatibility via hook
+    const fieldType = this.app?.$registry?.get('field', field.type)
+    if (fieldType && typeof fieldType.isCompatibleWithFilter === 'function') {
+      return fieldType.isCompatibleWithFilter(field, this)
+    }
+
+    return false
   }
 
   /**

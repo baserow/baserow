@@ -1,3 +1,5 @@
+from unittest.mock import Mock, PropertyMock
+
 from django.shortcuts import reverse
 
 import pytest
@@ -1193,3 +1195,14 @@ def test_ai_field_can_be_used_in_lookup_expression(premium_data_fixture):
 
     assert formula_field is not None
     assert formula_field.formula_type == "array"
+
+
+@pytest.mark.django_db
+@pytest.mark.field_ai
+def test_ai_field_type_check_can_filter_by(premium_data_fixture):
+    ai_field_type = field_type_registry.get("ai")
+    mock_field = Mock(type="ai", specific_class=AIField)
+    mock_field.ai_output_type = "text"
+    type(mock_field).specific = PropertyMock(return_value=mock_field)
+
+    assert ai_field_type.check_can_filter_by(mock_field) is True

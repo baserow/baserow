@@ -304,7 +304,6 @@ COMPATIBLE_FIELD_TYPE_VIEW_FILTER_TYPES = {
         "is_even_and_whole",
     ],
     "password": ["empty", "not_empty"],
-    "ai": [],
 }
 
 
@@ -1216,7 +1215,14 @@ def test_field_type_prepare_db_value_with_invalid_values(data_fixture):
             field_type.prepare_value_for_db(field, test_payload)
 
 
-@pytest.mark.parametrize("field_type", field_type_registry.get_all())
+@pytest.mark.parametrize(
+    "field_type",
+    [
+        ft
+        for ft in field_type_registry.get_all()
+        if ft.type in COMPATIBLE_FIELD_TYPE_VIEW_FILTER_TYPES
+    ],
+)
 @patch("baserow.contrib.database.fields.registries.FieldTypeRegistry.get_by_model")
 def test_field_type_check_can_filter_by(mock_get_by_model, field_type):
     mock_get_by_model.return_value = field_type
