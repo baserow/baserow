@@ -1004,6 +1004,9 @@ class ViewFilterType(Instance):
         field types or compatibility checking functions defined in
         self.allowed_field_types.
 
+        Also allows field types to declare their own compatibility by implementing
+        is_compatible_with_filter_type() method.
+
         :param field: The field to check.
         :return: True if the field is compatible, False otherwise.
         """
@@ -1011,6 +1014,10 @@ class ViewFilterType(Instance):
         from baserow.contrib.database.fields.registries import field_type_registry
 
         field_type = field_type_registry.get_by_model(field.specific_class)
+
+        if hasattr(field_type, "is_compatible_with_filter_type"):
+            if field_type.is_compatible_with_filter_type(field, self):
+                return True
 
         return any(
             callable(t) and t(field) or t == field_type.type
