@@ -88,7 +88,7 @@ jobs:
             // Helper function to get project item ID for an issue or PR
             async function getProjectItem(contentId) {
               const query = `
-                query($contentId: ID!, $projectId: ID!) {
+                query($contentId: ID!) {
                   node(id: $contentId) {
                     ... on Issue {
                       projectItems(first: 10) {
@@ -111,8 +111,7 @@ jobs:
               `;
 
               const result = await github.graphql(query, {
-                contentId,
-                projectId: projectInfo.projectId
+                contentId
               });
 
               const item = result.node.projectItems.nodes.find(
@@ -336,7 +335,7 @@ jobs:
             // Helper functions (same as above)
             async function getProjectItem(contentId) {
               const query = `
-                query($contentId: ID!, $projectId: ID!) {
+                query($contentId: ID!) {
                   node(id: $contentId) {
                     ... on Issue {
                       projectItems(first: 10) {
@@ -359,8 +358,7 @@ jobs:
               `;
 
               const result = await github.graphql(query, {
-                contentId,
-                projectId: projectInfo.projectId
+                contentId
               });
 
               const item = result.node.projectItems.nodes.find(
