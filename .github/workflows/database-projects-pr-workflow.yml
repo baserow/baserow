@@ -1,4 +1,4 @@
-name: Update Database Project PR and Issue Status
+name: Require All Reviewers Approval
 
 on:
   pull_request:
@@ -819,7 +819,7 @@ jobs:
               }
             }
 
-      - name: Check Merge Status
+      - name: Require All Reviewers Approval
         if: github.event_name == 'pull_request' || github.event_name == 'check_suite'
         uses: actions/github-script@v7
         with:
