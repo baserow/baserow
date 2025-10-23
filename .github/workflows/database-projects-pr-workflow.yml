@@ -259,6 +259,7 @@ jobs:
                         nodes {
                           id
                           number
+                          title
                         }
                       }
                     }
@@ -684,6 +685,7 @@ jobs:
                         nodes {
                           id
                           number
+                          title
                         }
                       }
                     }
