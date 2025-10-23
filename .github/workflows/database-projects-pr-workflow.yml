@@ -953,21 +953,58 @@ jobs:
 
             const prItemId = await ensureInProject(fullPR.id);
 
+            // Get all reviews to check if all reviewers have approved
+            const reviews = await github.rest.pulls.listReviews({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number
+            });
+
+            // Get latest review from each reviewer
+            const latestReviews = {};
+            for (const r of reviews.data) {
+              if (!latestReviews[r.user.login] || new Date(r.submitted_at) > new Date(latestReviews[r.user.login].submitted_at)) {
+                latestReviews[r.user.login] = r;
+              }
+            }
+
+            const reviewStates = Object.values(latestReviews).map(r => r.state);
+            const approvedCount = reviewStates.filter(s => s === 'APPROVED').length;
+            const changesRequestedCount = reviewStates.filter(s => s === 'CHANGES_REQUESTED').length;
+
+            // Get requested reviewers (those who haven't reviewed yet)
+            const prDetails = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number
+            });
+
+            const requestedReviewers = prDetails.data.requested_reviewers.length;
+            const totalReviewers = Object.keys(latestReviews).length + requestedReviewers;
+
+            console.log(`Review counts - Total: ${totalReviewers}, Approved: ${approvedCount}, Changes Requested: ${changesRequestedCount}, Pending: ${requestedReviewers}`);
+
             // Determine Review Status based on merge readiness
             // CLEAN = ready to merge (all checks passed, approved, no conflicts)
             // BLOCKED = cannot merge (needs reviews, failing CI, or other blocks)
             // BEHIND = needs to be updated with base branch
             // UNSTABLE = checks are running or some failed
 
-            if (fullPR.mergeStateStatus === 'CLEAN' && fullPR.reviewDecision === 'APPROVED') {
-              // Everything is ready - set to Merge
-              console.log('PR is ready to merge - Setting Review Status to Merge');
+            // Check if ALL reviewers have approved (no pending reviews and no changes requested)
+            const allReviewersApproved = totalReviewers > 0 &&
+                                         approvedCount === totalReviewers &&
+                                         changesRequestedCount === 0 &&
+                                         requestedReviewers === 0;
+
+            if (fullPR.mergeStateStatus === 'CLEAN' && allReviewersApproved) {
+              // Everything is ready - all reviewers approved, CI passed, no conflicts
+              console.log('PR is ready to merge (all reviewers approved, CI passed) - Setting Review Status to Merge');
               await updateFieldValue(
                 prItemId,
                 projectInfo.reviewStatusField.id,
                 projectInfo.reviewStatusField.options['Merge']
               );
-            } else if (fullPR.mergeStateStatus === 'BLOCKED' || fullPR.mergeStateStatus === 'BEHIND' || fullPR.mergeStateStatus === 'UNSTABLE') {
+            } else if (fullPR.mergeStateStatus === 'BLOCKED' || fullPR.mergeStateStatus === 'BEHIND' || fullPR.mergeStateStatus === 'UNSTABLE' || !allReviewersApproved) {
               // Get current review status to determine what to set
               const currentStatusQuery = `
                 query($contentId: ID!) {
@@ -1012,14 +1049,17 @@ jobs:
 
                 // If it was "Merge" but now blocked, set to "Waiting"
                 if (reviewStatusValue && reviewStatusValue.name === 'Merge') {
-                  console.log(`PR lost merge readiness (${fullPR.mergeStateStatus}) - Setting Review Status to Waiting`);
+                  const reasons = [];
+                  if (!allReviewersApproved) reasons.push(`not all reviewers approved (${approvedCount}/${totalReviewers})`);
+                  if (fullPR.mergeStateStatus !== 'CLEAN') reasons.push(`merge state: ${fullPR.mergeStateStatus}`);
+                  console.log(`PR lost merge readiness (${reasons.join(', ')}) - Setting Review Status to Waiting`);
                   await updateFieldValue(
                     prItemId,
                     projectInfo.reviewStatusField.id,
                     projectInfo.reviewStatusField.options['Waiting']
                   );
                 } else {
-                  console.log(`PR is ${fullPR.mergeStateStatus}, current Review Status: ${reviewStatusValue ? reviewStatusValue.name : 'None'} - No change needed`);
+                  console.log(`PR not ready to merge - MergeState: ${fullPR.mergeStateStatus}, Reviewers: ${approvedCount}/${totalReviewers}, Current Review Status: ${reviewStatusValue ? reviewStatusValue.name : 'None'} - No change needed`);
                 }
               }
             }
