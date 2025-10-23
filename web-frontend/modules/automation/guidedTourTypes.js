@@ -35,7 +35,7 @@ class TriggerGuidedTourStep extends GuidedTourStep {
   }
 
   get position() {
-    return 'bottom-center'
+    return 'left-top'
   }
 }
 
@@ -49,11 +49,11 @@ class ActionGuidedTourStep extends GuidedTourStep {
   }
 
   get selectors() {
-    return ['[data-highlight="automation-add-node-btn"]']
+    return ['[data-highlight="automation-trigger"]']
   }
 
   get position() {
-    return 'bottom-center'
+    return 'right-top'
   }
 }
 

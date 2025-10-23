@@ -50,14 +50,14 @@ class CreateAutomationNodeSerializer(serializers.ModelSerializer):
     )
     reference_node_id = serializers.IntegerField(
         required=False,
-        help_text="If provided, creates the node relatively to the node with the "
+        help_text="If provided, creates the node relative to the node with the "
         "given id.",
     )
     position = serializers.ChoiceField(
         choices=NodePosition.choices,
         required=False,
         allow_blank=True,
-        help_text="The position of the new node relatively to the reference node.",
+        help_text="The position of the new node relative to the reference node.",
     )
     output = serializers.CharField(
         required=False,

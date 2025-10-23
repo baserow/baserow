@@ -523,13 +523,14 @@ const getters = {
     (
       workflow,
       targetNode,
-      { targetFirst = false, includeSelf = false } = {}
+      { targetFirst = false, includeSelf = false, predicate = () => true } = {}
     ) => {
       const positions = new NodeGraphHandler(workflow).getPreviousPositions(
         targetNode
       )
 
       const previousNodes = positions
+        .filter((position) => predicate(...position))
         .map(([prevNode]) => prevNode)
         .filter((node) => node)
 

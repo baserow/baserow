@@ -1612,11 +1612,14 @@ class CoreIteratorServiceType(ServiceType):
             schema_builder.add_object(service.sample_data["data"])
             schema = schema_builder.to_schema()
 
-            return {
-                "title": self.get_schema_name(service),
-                "type": "array",
-                "items": schema["items"],
-            }
+            # Sometimes there is no items if the array is empty
+            if "items" in schema:
+                return {
+                    **schema,
+                    "title": self.get_schema_name(service),
+                }
+            else:
+                return None
         else:
             return None
 

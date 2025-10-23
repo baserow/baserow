@@ -23,11 +23,13 @@ export class PreviousNodeDataProviderType extends DataProviderType {
 
     const previousNodes = this.app.store.getters[
       'automationWorkflowNode/getPreviousNodes'
-    ](workflow, currentNode)
+    ](workflow, currentNode, {
+      predicate: (referenceNode, position, output) => position !== 'child',
+    })
 
     const previousNodeSchema = _.chain(previousNodes)
       // Retrieve the associated schema for each node
-      .map((previousNode, index) => [
+      .map((previousNode) => [
         previousNode,
         this.getNodeSchema({ automation, node: previousNode }),
       ])
