@@ -30,32 +30,28 @@
         />
       </g>
 
-      <g v-for="(rowItem, rindex) in rows" :key="`row-${rindex}`">
+      <g v-for="(rowItem, rindex) in renderableRows" :key="`row-${rindex}`">
+        {{ rowItem }}
         <g
-          v-for="(connection, cindex) in getConnectionsForRow(rowItem)"
+          v-for="(connection, cindex) in connections[rowItem.item.id]"
           :key="`row-connection-${cindex}`"
-          :class="{
-            'date-dependency__connection-group--invalid':
-              !connection.connection.isValid,
-          }"
           class="date-dependency__connection-group"
         >
           <path
             class="date-dependency__path"
+            :class="{
+              'date-dependency__path--invalid': !connection.connection.isValid,
+            }"
             :d="connection.connection.path"
             @dblclick="onConnectionRemove(connection, $event)"
-          />
-
-          <path
-            v-if="connection.connection.showRemovePath"
-            class="date-dependency__remove-connection"
-            :d="connection.connection.removePath"
-            @click="onConnectionRemove(connection, $event)"
           />
 
           <text
             v-if="connection.connection.message"
             class="date-dependency__text"
+            :class="{
+              'date-dependency__text--invalid': !connection.connection.isValid,
+            }"
             :x="connection.connection.anchorPoint.x + 6"
             :y="connection.connection.anchorPoint.y"
           >
@@ -94,11 +90,12 @@
 <script>
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import {
-  Point,
+  ADJUST_FOR_PADDING,
   DateDependencyRow,
   HANDLER_POINT_OFFSET,
-  ADJUST_FOR_PADDING,
+  Point,
   ROUND_RADIUS,
+  ROW_HANDLE_DIRECTIONS,
 } from '@baserow_enterprise/dateDependencyTypes'
 import _ from 'lodash'
 
@@ -122,15 +119,29 @@ export default {
     }
   },
   computed: {
+    renderableRows() {
+      return this.rows.filter((rowItem) => {
+        return !!rowItem.item?.id
+      })
+    },
     dropZones() {
       const dropZones = []
-      this.rows.forEach((row) => {
-        if (row.item) {
-          const position = this.getRowPosition(row)
-          dropZones.push({ row, position })
-        }
+      this.renderableRows.forEach((row) => {
+        const position = this.getRowPosition(row)
+        dropZones.push({ row, position })
       })
       return dropZones
+    },
+
+    connections() {
+      const connectons = {}
+      this.renderableRows.forEach((rowItem) => {
+        const rowConnections = this.getConnectionsForRow(rowItem)
+        if (rowConnections) {
+          connectons[rowItem.item.id] = rowConnections
+        }
+      })
+      return connectons
     },
   },
   methods: {
@@ -145,8 +156,8 @@ export default {
       if (!rowPosition) {
         return out
       }
-      const DIRECTIONS = ['NE', 'SE', 'NW', 'SW', 'E', 'W']
-      for (const direction of DIRECTIONS) {
+
+      for (const direction of ROW_HANDLE_DIRECTIONS) {
         const callable = this[`getPointBearing${direction}`]
         const point = callable(rowPosition)
         out.push(point)
@@ -211,14 +222,16 @@ export default {
         return
       }
       const parentRow = new DateDependencyRow(rule, _parentRow.item)
-
       const parentValid = parentRow.isValid()
       const childValid = child.isValid()
+
+      const anyFetching = child.isFetching() || parentRow.isFetching()
       const connectionValid = this.isConnectionValid(child, parentRow)
       const message = this.$t(this.getConnectionErrorMessage(child, parentRow))
       const connectionPath = this.getConnectionPath(child.row, parent)
       const connection = {
-        isValid: connectionValid && parentValid && childValid,
+        // if any row is being fetched, we ignore connection validity
+        isValid: anyFetching || (connectionValid && parentValid && childValid),
         isHighlighted: false,
         message,
         showMessage: true,
@@ -292,22 +305,12 @@ export default {
       const { startPoint, endPoint, anchorPoint, path, bearingName } =
         this.getConnectionBearingPath(startPosition, endPosition)
 
-      const moveAnchorPoint = _.clone(anchorPoint)
-      const removeCommands = [
-        moveAnchorPoint.movX(-5).movY(-5).commandMove(),
-        moveAnchorPoint.movX(10).movY(10).commandDrawLine(),
-        moveAnchorPoint.movX(-10).movY(0).commandMove(),
-        moveAnchorPoint.movX(10).movY(-10).commandDrawLine(),
-      ]
-
       return {
         path,
         startPoint,
         endPoint,
         anchorPoint,
-        showRemovePath: true,
         bearingName,
-        removePath: removeCommands.join(' '),
       }
     },
 
@@ -452,38 +455,70 @@ export default {
      * @param childPosition
      */
     getConnectionBearingNW(parentPosition, childPosition) {
-      const startPoint = this.getPointBearingNW(parentPosition)
-      const endPoint = this.getPointBearingE(childPosition)
+      const parentEnd = parentPosition.left + parentPosition.width
+      const childEnd = childPosition.left + childPosition.width
+      let startPoint, endPoint, path
 
-      const { anchorPoint, commands } = this.getConnectionPathCommandsNW(
-        startPoint,
-        endPoint
-      )
+      if (parentPosition.left > childPosition.left && parentEnd > childEnd) {
+        startPoint = this.getPointBearingNW(parentPosition)
+        endPoint = this.getPointBearingE(childPosition)
+        path = this.getConnectionPathCommandsNW(startPoint, endPoint)
+      } else {
+        startPoint = this.getPointBearingNW(parentPosition)
+        endPoint = this.getPointBearingE(childPosition)
+        path = this.getConnectionPathCommandsNW(startPoint, endPoint)
+      }
 
       return {
         startPoint,
         endPoint,
-        anchorPoint,
-        path: commands.join(' '),
+        anchorPoint: path.anchorPoint,
+        path: path.commands.join(' '),
       }
     },
+
     getConnectionPathCommandsNW(startPoint, endPoint) {
       if (!startPoint || !endPoint) {
         return { anchorPoint: new Point(0, 0), commands: [] }
       }
+      const complexPath = startPoint.x < endPoint.x
 
       const movePoint = _.clone(startPoint)
       const commands = [movePoint.commandMove()]
+      let anchorPoint, yDiff
 
-      commands.push(movePoint.setY(endPoint.y + ROUND_RADIUS).commandDrawLine())
-      commands.push(movePoint.commandRoundLeftUp())
-      const yDiff = Math.abs(endPoint.y - startPoint.y)
-      const anchorPoint = _.clone(movePoint)
-      anchorPoint.setX(startPoint.x)
-      anchorPoint.movY(yDiff / 2)
+      if (complexPath) {
+        commands.push(
+          movePoint.setY(endPoint.y + ROUND_RADIUS * 2).commandDrawLine()
+        )
 
-      commands.push(endPoint.commandDrawLine())
-      commands.push(endPoint.commandHorizontalArrowEndLeft())
+        yDiff = Math.abs(endPoint.y - startPoint.y)
+        anchorPoint = _.clone(movePoint)
+        anchorPoint.setX(startPoint.x)
+        anchorPoint.movY(yDiff / 2)
+
+        commands.push(
+          movePoint.setX(endPoint.x + ROUND_RADIUS).commandDrawLine()
+        )
+        commands.push(
+          movePoint.setY(endPoint.y + ROUND_RADIUS).commandDrawLine()
+        )
+
+        commands.push(movePoint.commandRoundLeftUp())
+        commands.push(endPoint.commandHorizontalArrowEndLeft())
+      } else {
+        commands.push(
+          movePoint.setY(endPoint.y + ROUND_RADIUS).commandDrawLine()
+        )
+        commands.push(movePoint.commandRoundLeftUp())
+        yDiff = Math.abs(endPoint.y - startPoint.y)
+        anchorPoint = _.clone(movePoint)
+        anchorPoint.setX(startPoint.x)
+        anchorPoint.movY(yDiff / 2)
+
+        commands.push(endPoint.commandDrawLine())
+        commands.push(endPoint.commandHorizontalArrowEndLeft())
+      }
 
       return { anchorPoint, commands }
     },
@@ -501,18 +536,27 @@ export default {
      * @param childPosition
      */
     getConnectionBearingSW(parentPosition, childPosition) {
-      const startPoint = this.getPointBearingSW(parentPosition)
-      const endPoint = this.getPointBearingE(childPosition)
-      const { anchorPoint, commands } = this.getConnectionPathCommandsSW(
-        startPoint,
-        endPoint
-      )
+      const parentEnd = parentPosition.left + parentPosition.width
+      const childEnd = childPosition.left + childPosition.width
+      let startPoint, endPoint, path
+
+      if (parentPosition.left > childPosition.left && parentEnd > childEnd) {
+        startPoint = this.getPointBearingSW(parentPosition)
+        endPoint = this.getPointBearingW(childPosition)
+
+        path = this.getConnectionPathCommandsSE(startPoint, endPoint)
+      } else {
+        startPoint = this.getPointBearingSW(parentPosition)
+        endPoint = this.getPointBearingE(childPosition)
+
+        path = this.getConnectionPathCommandsSW(startPoint, endPoint)
+      }
 
       return {
         startPoint,
         endPoint,
-        anchorPoint,
-        path: commands.join(' '),
+        anchorPoint: path.anchorPoint,
+        path: path.commands.join(' '),
       }
     },
 
@@ -741,6 +785,9 @@ export default {
     },
 
     async addConnection(parentRowId, childRowId) {
+      if (parentRowId === childRowId) {
+        return
+      }
       const row = this.getRowFromBuffer(childRowId)?.item
       if (!row) {
         return

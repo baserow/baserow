@@ -19,6 +19,7 @@ export const ARROW_WIDTH = 5
 
 // a minor adjustment for y coordinate to cover padding/margin of an element
 export const ADJUST_FOR_PADDING = 3
+export const ROW_HANDLE_DIRECTIONS = ['NE', 'SE', 'NW', 'SW', 'E', 'W']
 
 export const DependencyLinkRowRoles = {
   PREDECESSORS: 'predecessors',
@@ -86,7 +87,7 @@ export const DependencyBufferType = {
   },
 }
 
-export class DateDepencencyContextItemType extends Registerable {
+export class DateDependencyContextItemType extends Registerable {
   static getType() {
     return 'date_dependency'
   }
@@ -308,6 +309,10 @@ export class DateDependencyRow {
     if (this.duration !== (this.endDate - this.startDate) / 1000 + FULL_DAY) {
       return 'dateDependency.invalidDurationMismatch'
     }
+  }
+
+  isFetching() {
+    return this.row._.fetching
   }
 
   isValid() {

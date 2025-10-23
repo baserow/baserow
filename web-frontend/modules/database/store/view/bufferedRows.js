@@ -799,6 +799,7 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
           const updateRowsData = [
             Object.assign({ id: row.id }, updateRequestValues),
           ]
+          commit('SET_ROW_FETCHING', { row, value: true })
           const { data } = await RowService(this.$client).batchUpdate(
             table.id,
             updateRowsData
@@ -844,6 +845,8 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
           values: { ...oldValues },
         })
         throw error
+      } finally {
+        commit('SET_ROW_FETCHING', { row, value: false })
       }
     },
     /**

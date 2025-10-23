@@ -201,9 +201,12 @@ export default {
     },
     linkrowFields() {
       const tableId = this.table.id
-      return this.getFieldsForType(this.fields, 'link_row', (x) => {
+      const fields = this.getFieldsForType(this.fields, 'link_row', (x) => {
         return x.link_row_table_id === tableId
       })
+      // Empty row allows to deselect link row field
+      fields.unshift({ id: null, name: '' })
+      return fields
     },
   },
   methods: {

@@ -5,7 +5,7 @@
   stroke-width: 1px;
   fill: $palette-neutral-100;
   visibility: hidden;
-  cursor: move;
+  cursor: grab;
   pointer-events: all;
 
   &:hover {
@@ -17,7 +17,7 @@
     r: 6px;
     fill: $palette-green-500;
     stroke-width: 2px;
-    pointer-events: none !important;
+    pointer-events: none;
   }
 
   &--end {
@@ -57,13 +57,26 @@
     pointer-events: none;
   }
 
+  &--invalid {
+    stroke: $palette-red-500;
+    stroke-dasharray: 5 4;
+  }
+
+  &:hover {
+    stroke-width: 3px;
+  }
+
 }
 
 .date-dependency__text {
-      fill: $palette-red-500;
-      stroke-dasharray: none;
-      stroke-width: 0;
-    }
+  stroke-dasharray: none;
+  stroke-width: 0;
+  visibility: hidden;
+
+  &--invalid {
+    fill: $palette-red-500;
+  }
+}
 
 
 .date-dependency__remove-connection {
@@ -93,27 +106,10 @@
   fill: none;
   pointer-events: none;
 
-  &--invalid {
-    stroke: $palette-red-500;
-    stroke-dasharray: 5 4;
-
-    .date-dependency__text {
-      visibility: hidden;
-    }
-  }
-
   &:hover {
     stroke-width: 4px;
 
-    .date-dependency__remove-connection {
-      visibility: visible;
-    }
-
-    .date-dependency__path {
-      stroke-width: 3px;
-    }
-
-    .date-dependency__text {
+    text {
       visibility: visible;
     }
   }
@@ -139,8 +135,12 @@
     pointer-events: none;
   }
 
+  // By default we disable all events in svg, because it overlays timeline container.
+  // However, we want events in svg enabled when user creates a path. We want to
+  // handle drop event inside row boxes, which are svg elements covering timeline rows.
   &--draggable {
     pointer-events: all;
+    cursor: grabbing;
 
     svg {
       pointer-events: all;
@@ -161,7 +161,7 @@
 }
 
 .date-dependency--no-events {
-  pointer-events: none !important;
-  display: none !important;
+  pointer-events: none;
+  display: none;
   visibility: hidden;
 }

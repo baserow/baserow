@@ -84,7 +84,7 @@ import {
 } from '@baserow_enterprise/paidFeatures'
 import { FieldPermissionsContextItemType } from '@baserow_enterprise/fieldContextItemTypes'
 import {
-  DateDepencencyContextItemType,
+  DateDependencyContextItemType,
   DateDependencyTimelineComponent,
 } from '@baserow_enterprise/dateDependencyTypes'
 import { CustomCodeBuilderSettingType } from '@baserow_enterprise/builderSettingTypes'
@@ -259,7 +259,7 @@ export default (context) => {
   }
   app.$registry.register(
     'fieldContextItem',
-    new DateDepencencyContextItemType(context)
+    new DateDependencyContextItemType(context)
   )
 
   // Register builder page decorator namespace and types
