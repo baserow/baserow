@@ -2,9 +2,11 @@ name: Update Database Project PR and Issue Status
 
 on:
   pull_request:
-    types: [opened, reopened, ready_for_review, converted_to_draft, review_requested]
+    types: [opened, reopened, ready_for_review, converted_to_draft, review_requested, synchronize]
   pull_request_review:
     types: [submitted]
+  check_suite:
+    types: [completed]
   workflow_dispatch:
     inputs:
       pr_number:
@@ -814,5 +816,210 @@ jobs:
                   projectInfo.reviewStatusField.id,
                   projectInfo.reviewStatusField.options['Merge']
                 );
+              }
+            }
+
+      - name: Check Merge Status
+        if: github.event_name == 'pull_request' || github.event_name == 'check_suite'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.DATABASE_PROJECT_WORKFLOW_TOKEN }}
+          script: |
+            const projectInfo = ${{ steps.get-project-info.outputs.result }};
+
+            // Get PR data depending on event type
+            let pr;
+            if (context.eventName === 'check_suite') {
+              // For check_suite events, get PRs associated with this check suite
+              const prs = context.payload.check_suite.pull_requests;
+              if (!prs || prs.length === 0) {
+                console.log('No PRs associated with this check suite');
+                return;
+              }
+              pr = prs[0]; // Handle first PR
+              console.log(`Check suite completed for PR #${pr.number}`);
+            } else {
+              pr = context.payload.pull_request;
+              console.log(`Processing merge status check for PR #${pr.number}`);
+            }
+
+            // Helper functions
+            async function getProjectItem(contentId) {
+              const query = `
+                query($contentId: ID!) {
+                  node(id: $contentId) {
+                    ... on PullRequest {
+                      projectItems(first: 10) {
+                        nodes {
+                          id
+                          project { id }
+                        }
+                      }
+                    }
+                  }
+                }
+              `;
+
+              const result = await github.graphql(query, {
+                contentId
+              });
+
+              const item = result.node.projectItems.nodes.find(
+                i => i.project.id === projectInfo.projectId
+              );
+
+              return item ? item.id : null;
+            }
+
+            async function ensureInProject(contentId) {
+              let itemId = await getProjectItem(contentId);
+
+              if (!itemId) {
+                const addMutation = `
+                  mutation($projectId: ID!, $contentId: ID!) {
+                    addProjectV2ItemById(input: {
+                      projectId: $projectId
+                      contentId: $contentId
+                    }) {
+                      item { id }
+                    }
+                  }
+                `;
+
+                const result = await github.graphql(addMutation, {
+                  projectId: projectInfo.projectId,
+                  contentId: contentId
+                });
+
+                itemId = result.addProjectV2ItemById.item.id;
+              }
+
+              return itemId;
+            }
+
+            async function updateFieldValue(itemId, fieldId, optionId) {
+              const mutation = `
+                mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) {
+                  updateProjectV2ItemFieldValue(input: {
+                    projectId: $projectId
+                    itemId: $itemId
+                    fieldId: $fieldId
+                    value: $value
+                  }) {
+                    projectV2Item { id }
+                  }
+                }
+              `;
+
+              await github.graphql(mutation, {
+                projectId: projectInfo.projectId,
+                itemId: itemId,
+                fieldId: fieldId,
+                value: { singleSelectOptionId: optionId }
+              });
+            }
+
+            // Get full PR details including merge status
+            const prQuery = `
+              query($owner: String!, $repo: String!, $number: Int!) {
+                repository(owner: $owner, name: $repo) {
+                  pullRequest(number: $number) {
+                    id
+                    number
+                    mergeable
+                    mergeStateStatus
+                    reviewDecision
+                    isDraft
+                  }
+                }
+              }
+            `;
+
+            const prData = await github.graphql(prQuery, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              number: pr.number
+            });
+
+            const fullPR = prData.repository.pullRequest;
+
+            console.log(`PR Status - Mergeable: ${fullPR.mergeable}, MergeState: ${fullPR.mergeStateStatus}, ReviewDecision: ${fullPR.reviewDecision}, Draft: ${fullPR.isDraft}`);
+
+            // Only update if PR is not draft
+            if (fullPR.isDraft) {
+              console.log('PR is draft, skipping merge status check');
+              return;
+            }
+
+            const prItemId = await ensureInProject(fullPR.id);
+
+            // Determine Review Status based on merge readiness
+            // CLEAN = ready to merge (all checks passed, approved, no conflicts)
+            // BLOCKED = cannot merge (needs reviews, failing CI, or other blocks)
+            // BEHIND = needs to be updated with base branch
+            // UNSTABLE = checks are running or some failed
+
+            if (fullPR.mergeStateStatus === 'CLEAN' && fullPR.reviewDecision === 'APPROVED') {
+              // Everything is ready - set to Merge
+              console.log('PR is ready to merge - Setting Review Status to Merge');
+              await updateFieldValue(
+                prItemId,
+                projectInfo.reviewStatusField.id,
+                projectInfo.reviewStatusField.options['Merge']
+              );
+            } else if (fullPR.mergeStateStatus === 'BLOCKED' || fullPR.mergeStateStatus === 'BEHIND' || fullPR.mergeStateStatus === 'UNSTABLE') {
+              // Get current review status to determine what to set
+              const currentStatusQuery = `
+                query($contentId: ID!) {
+                  node(id: $contentId) {
+                    ... on PullRequest {
+                      projectItems(first: 10) {
+                        nodes {
+                          id
+                          project { id }
+                          fieldValues(first: 20) {
+                            nodes {
+                              ... on ProjectV2ItemFieldSingleSelectValue {
+                                field {
+                                  ... on ProjectV2SingleSelectField {
+                                    id
+                                    name
+                                  }
+                                }
+                                name
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              `;
+
+              const statusData = await github.graphql(currentStatusQuery, {
+                contentId: fullPR.id
+              });
+
+              const projectItem = statusData.node.projectItems.nodes.find(
+                i => i.project.id === projectInfo.projectId
+              );
+
+              if (projectItem) {
+                const reviewStatusValue = projectItem.fieldValues.nodes.find(
+                  fv => fv.field && fv.field.name === 'Review Status'
+                );
+
+                // If it was "Merge" but now blocked, set to "Waiting"
+                if (reviewStatusValue && reviewStatusValue.name === 'Merge') {
+                  console.log(`PR lost merge readiness (${fullPR.mergeStateStatus}) - Setting Review Status to Waiting`);
+                  await updateFieldValue(
+                    prItemId,
+                    projectInfo.reviewStatusField.id,
+                    projectInfo.reviewStatusField.options['Waiting']
+                  );
+                } else {
+                  console.log(`PR is ${fullPR.mergeStateStatus}, current Review Status: ${reviewStatusValue ? reviewStatusValue.name : 'None'} - No change needed`);
+                }
               }
             }
