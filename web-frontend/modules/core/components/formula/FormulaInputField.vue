@@ -285,7 +285,7 @@ export default {
     isRawMode(newValue) {
       if (newValue) {
         // When switching to raw mode, preserve current value
-        this.rawFormulaValue = this.value || ''
+        this.rawFormulaValue = this.value
         this.isFormulaInvalid = false
         this.$emit('mode-changed', 'raw')
       } else {
@@ -297,28 +297,12 @@ export default {
 
     mode: {
       handler(newMode) {
-        // Sync isRawMode with the mode prop
-        const shouldBeRaw = newMode === 'raw'
-        if (this.isRawMode !== shouldBeRaw) {
-          this.isRawMode = shouldBeRaw
-          if (shouldBeRaw) {
-            this.rawFormulaValue = this.value
-            // Clear any validation errors when switching to raw mode
-            this.isFormulaInvalid = false
-          }
-        }
+        this.isRawMode = newMode === 'raw'
       },
       immediate: true,
     },
   },
   mounted() {
-    if (this.mode === 'raw') {
-      this.isRawMode = true
-      this.rawFormulaValue = this.value
-      // Clear any validation errors for raw formulas
-      this.isFormulaInvalid = false
-    }
-    
     this.content = this.toContent(this.value)
     this.editor = new Editor({
       content: this.htmlContent,
