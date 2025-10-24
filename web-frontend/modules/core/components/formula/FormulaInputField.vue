@@ -132,7 +132,7 @@ export default {
       dataNodeSelected: null,
       isFocused: false,
       ignoreNextBlur: false,
-      isRawMode: false,
+      isRawMode: this.mode === 'raw',
       rawFormulaValue: '',
     }
   },
@@ -295,15 +295,15 @@ export default {
       }
     },
 
-    mode: {
-      handler(newMode) {
-        this.isRawMode = newMode === 'raw'
-      },
-      immediate: true,
+    mode(newMode) {
+      this.isRawMode = newMode === 'raw'
     },
   },
   mounted() {
-    this.content = this.toContent(this.value)
+    if (!this.isRawMode) {
+      this.content = this.toContent(this.value)
+    }
+
     this.editor = new Editor({
       content: this.htmlContent,
       editable: !this.disabled,
