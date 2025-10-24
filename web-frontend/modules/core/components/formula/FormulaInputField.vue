@@ -11,6 +11,7 @@
   </Alert>
   <div v-else>
     <EditorContent
+      v-if="!isRawMode"
       :id="forInput"
       ref="editor"
       class="form-input formula-input-field"
@@ -19,8 +20,23 @@
       :editor="editor"
       @data-component-clicked="dataComponentClicked"
     />
+    <input
+      v-else
+      v-model="rawFormulaValue"
+      type="text"
+      class="form-input"
+      :disabled="disabled"
+      :placeholder="placeholder"
+      @input="emitRawChange"
+    />
+    <div v-if="enableRawMode" class="margin-top-1">
+      <label class="checkbox">
+        <input v-model="isRawMode" type="checkbox" :disabled="disabled" />
+        <span>Raw Formula Mode</span>
+      </label>
+    </div>
     <DataExplorer
-      v-if="isFocused"
+      v-if="isFocused && !isRawMode"
       ref="dataExplorer"
       :nodes="nodes"
       :node-selected="nodeSelected"
@@ -97,6 +113,16 @@ export default {
       required: false,
       default: false,
     },
+    enableRawMode: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
+    mode: {
+      type: String,
+      required: false,
+      default: 'simple',
+    },
   },
   data() {
     return {
@@ -106,6 +132,9 @@ export default {
       dataNodeSelected: null,
       isFocused: false,
       ignoreNextBlur: false,
+      isRawMode: false,
+      rawFormulaValue: '',
+      syncingFromProp: false,
     }
   },
   computed: {
@@ -165,6 +194,9 @@ export default {
       }
     },
     wrapperContent() {
+      if (this.isRawMode || !this.editor) {
+        return null
+      }
       return this.editor.getJSON()
     },
     nodes() {
@@ -185,6 +217,11 @@ export default {
         this.$refs.dataExplorer?.hide()
         this.unSelectNode()
       } else {
+        // Don't show data explorer in raw mode
+        if (this.isRawMode) {
+          return
+        }
+
         // Wait for the data explorer to appear in the DOM.
         await this.$nextTick()
 
@@ -221,6 +258,12 @@ export default {
       }
     },
     value(value) {
+      // In raw mode, just update the raw value directly
+      if (this.isRawMode) {
+        this.rawFormulaValue = value
+        return
+      }
+
       if (!_.isEqual(value, this.toFormula(this.wrapperContent))) {
         const content = this.toContent(value)
 
@@ -238,6 +281,47 @@ export default {
         }
       },
       deep: true,
+    },
+
+    isRawMode(newValue, oldValue) {
+      // Don't emit if we're syncing from prop changes
+      if (this.syncingFromProp) {
+        return
+      }
+      
+      if (newValue) {
+        // When switching to raw mode, preserve current value
+        this.rawFormulaValue = this.value || ''
+        this.isFormulaInvalid = false
+        this.$emit('mode-changed', 'raw')
+      } else {
+        // When switching to simple mode, emit the current raw value
+        this.$emit('input', this.rawFormulaValue)
+        // this.$emit('mode-changed', 'simple')
+        this.$nextTick(() => {
+          this.$emit('input', this.rawFormulaValue)
+        })
+      }
+    },
+
+    mode: {
+      handler(newMode) {
+        // Sync isRawMode with the mode prop
+        const shouldBeRaw = newMode === 'raw'
+        if (this.isRawMode !== shouldBeRaw) {
+          this.syncingFromProp = true
+          this.isRawMode = shouldBeRaw
+          if (shouldBeRaw) {
+            this.rawFormulaValue = this.value || ''
+            // Clear any validation errors when switching to raw mode
+            this.isFormulaInvalid = false
+          }
+          this.$nextTick(() => {
+            this.syncingFromProp = false
+          })
+        }
+      },
+      immediate: true,
     },
   },
   mounted() {
@@ -266,9 +350,12 @@ export default {
       this.$emit('input', '')
     },
     emitChange() {
-      if (!this.isFormulaInvalid) {
-        this.$emit('input', this.toFormula(this.wrapperContent))
+      if (this.isFormulaInvalid) {
+        return
       }
+
+      const formulaValue = this.toFormula(this.wrapperContent)
+      this.$emit('input', formulaValue)
     },
     onUpdate() {
       this.unSelectNode()
@@ -360,6 +447,12 @@ export default {
       if (this.dataNodeSelected) {
         this.dataNodeSelected.attrs.isSelected = false
         this.dataNodeSelected = null
+      }
+    },
+    emitRawChange() {
+      this.$emit('input', this.rawFormulaValue)
+      if (this.enableRawMode) {
+        this.$emit('mode-changed', 'raw')
       }
     },
   },

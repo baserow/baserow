@@ -4,7 +4,7 @@ from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowTableServiceFilter,
     LocalBaserowTableServiceSort,
 )
-from baserow.core.formula.serializers import OptionalFormulaSerializerField
+from baserow.core.formula.serializers import FormulaSerializerField, OptionalFormulaSerializerField
 
 
 class LocalBaserowTableServiceSortSerializer(serializers.ModelSerializer):
@@ -116,31 +116,4 @@ class LocalBaserowTableServiceFieldMappingSerializer(serializers.Serializer):
         help_text="Indicates whether the field mapping is enabled or not."
     )
 
-    # value = FormulaSerializerField(allow_blank=True)
-
-    # The FormulaSerializerField always validates the value as a formula.
-    # This means that if I manually send an invalid string literal, the
-    # validation will cause the request to fail.
-    #
-    # I've replaced it with OptionalFormulaSerializerField which allows the
-    # value to be a literal string. This makes it easier for me to test
-    # without crashing the backend when I accidentally enter an "invalid formula".
-    value = OptionalFormulaSerializerField(
-        allow_blank=True,
-        required=False,
-        default="",
-        is_formula_field_name="value_is_formula",
-    )
-
-    value_is_formula = serializers.BooleanField(required=False, default=True)
-
-    def to_internal_value(self, data):
-        value = super().to_internal_value(data)
-
-        # value_is_formula is not an actual model field; it is used
-        # only to help test the updated value field.
-        #
-        # Remove this field so it's not later used, e.g in bulk_create()
-        value.pop("value_is_formula", None)
-
-        return value
+    value = FormulaSerializerField()
