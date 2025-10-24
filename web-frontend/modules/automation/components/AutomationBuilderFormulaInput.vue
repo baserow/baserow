@@ -23,14 +23,13 @@ const props = defineProps({
 })
 
 const applicationContext = inject('applicationContext')
-
-const currentMode = ref(props.value.mode || 'simple')
+const currentMode = ref(props.value.mode)
 
 watch(() => props.value.mode, (newMode) => {
-  if (newMode && newMode !== currentMode.value) {
+  if (newMode) {
     currentMode.value = newMode
   }
-}, { immediate: true })
+})
 
 const { app } = useContext()
 const dataProviders = computed(() => {

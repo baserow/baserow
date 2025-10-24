@@ -134,7 +134,6 @@ export default {
       ignoreNextBlur: false,
       isRawMode: false,
       rawFormulaValue: '',
-      syncingFromProp: false,
     }
   },
   computed: {
@@ -283,12 +282,7 @@ export default {
       deep: true,
     },
 
-    isRawMode(newValue, oldValue) {
-      // Don't emit if we're syncing from prop changes
-      if (this.syncingFromProp) {
-        return
-      }
-      
+    isRawMode(newValue) {
       if (newValue) {
         // When switching to raw mode, preserve current value
         this.rawFormulaValue = this.value || ''
@@ -296,11 +290,8 @@ export default {
         this.$emit('mode-changed', 'raw')
       } else {
         // When switching to simple mode, emit the current raw value
+        this.$emit('mode-changed', 'simple')
         this.$emit('input', this.rawFormulaValue)
-        // this.$emit('mode-changed', 'simple')
-        this.$nextTick(() => {
-          this.$emit('input', this.rawFormulaValue)
-        })
       }
     },
 
@@ -309,22 +300,25 @@ export default {
         // Sync isRawMode with the mode prop
         const shouldBeRaw = newMode === 'raw'
         if (this.isRawMode !== shouldBeRaw) {
-          this.syncingFromProp = true
           this.isRawMode = shouldBeRaw
           if (shouldBeRaw) {
-            this.rawFormulaValue = this.value || ''
+            this.rawFormulaValue = this.value
             // Clear any validation errors when switching to raw mode
             this.isFormulaInvalid = false
           }
-          this.$nextTick(() => {
-            this.syncingFromProp = false
-          })
         }
       },
       immediate: true,
     },
   },
   mounted() {
+    if (this.mode === 'raw') {
+      this.isRawMode = true
+      this.rawFormulaValue = this.value
+      // Clear any validation errors for raw formulas
+      this.isFormulaInvalid = false
+    }
+    
     this.content = this.toContent(this.value)
     this.editor = new Editor({
       content: this.htmlContent,
@@ -451,9 +445,6 @@ export default {
     },
     emitRawChange() {
       this.$emit('input', this.rawFormulaValue)
-      if (this.enableRawMode) {
-        this.$emit('mode-changed', 'raw')
-      }
     },
   },
 }
