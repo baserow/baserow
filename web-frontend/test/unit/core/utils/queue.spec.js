@@ -7,43 +7,38 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-describe('test GroupTaskQueue when immediately filling the queue', () => {
-  test('test GroupTaskQueue when immediately filling the queue', async () => {
-    let executed1 = false
-    let executed2 = false
+describe('GroupTaskQueue runs tasks strictly in order', () => {
+  test('tasks run in order', async () => {
+    const queue = new GroupTaskQueue<number>();
+    const events: string[] = [];
 
-    const queue = new GroupTaskQueue()
-    queue.add(async () => {
-      await sleep(20)
-      executed1 = true
-    })
-    queue.add(async () => {
-      await sleep(20)
-      executed2 = true
-    })
+    const p1 = queue.add(async () => {
+      events.push('task1-start');
+      await Promise.resolve(); // simulate async
+      events.push('task1-end');
+      return 1;
+    });
 
-    expect(executed1).toBe(false)
-    expect(executed2).toBe(false)
+    const p2 = queue.add(async () => {
+      events.push('task2-start');
+      await Promise.resolve();
+      events.push('task2-end');
+      return 2;
+    });
 
-    jest.advanceTimersByTime(15)
-    await flushPromises()
+    const results = await Promise.all([p1, p2]);
 
-    expect(executed1).toBe(false)
-    expect(executed2).toBe(false)
+    expect(results).toEqual([1, 2]);
+    expect(events).toEqual([
+      'task1-start',
+      'task1-end',
+      'task2-start',
+      'task2-end',
+    ]);
+  });
+});
 
-    jest.advanceTimersByTime(10)
-    await flushPromises()
 
-    expect(executed1).toBe(true)
-    expect(executed2).toBe(false)
-
-    jest.advanceTimersByTime(20)
-    await flushPromises()
-
-    expect(executed1).toBe(true)
-    expect(executed2).toBe(true)
-  })
-})
 describe('test GroupTaskQueue adding to queue on the fly', () => {
   test('test GroupTaskQueue adding to queue on the fly', async () => {
     let executed1 = false

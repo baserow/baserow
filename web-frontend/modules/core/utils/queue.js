@@ -43,7 +43,8 @@ export class TaskQueue {
       throw new Error(`Task with id ${taskId} not found`)
     }
     this.start()
-    await task.wait
+ // Return the task's wait promise so the caller receives the task result
+   return task.wait
   }
 
   /**
