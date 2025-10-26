@@ -60,6 +60,7 @@
         v-show="!collapsed"
         v-if="hasSelectedWorkspace"
         :selected-workspace="selectedWorkspace"
+        :right-sidebar-open="rightSidebarOpen"
         @open-workspace-search="$emit('open-workspace-search')"
       ></SidebarMenu>
 
@@ -127,6 +128,11 @@ export default {
       type: Number,
       required: false,
       default: 240,
+    },
+    rightSidebarOpen: {
+      type: Boolean,
+      required: false,
+      default: false,
     },
   },
   data() {

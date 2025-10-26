@@ -10,6 +10,7 @@
           :applications="applications"
           :collapsed="isCollapsed"
           :width="col1Width"
+          :right-sidebar-open="col3Visible"
           @set-col1-width="col1Width = $event"
           @open-workspace-search="openWorkspaceSearch"
         ></Sidebar>
@@ -37,6 +38,16 @@
         :min="52"
         :max="300"
         @move="resizeCol1($event)"
+      ></HorizontalResize>
+      <HorizontalResize
+        v-if="col3Visible"
+        class="layout__resize"
+        :width="col3Width"
+        :style="{ right: col3Width - 3 + 'px' }"
+        :min="300"
+        :max="500"
+        :right="true"
+        @move="resizeCol3($event)"
       ></HorizontalResize>
       <component
         :is="component"
@@ -199,6 +210,9 @@ export default {
     },
     resizeCol1(event) {
       this.col1Width = event
+    },
+    resizeCol3(event) {
+      this.col3Width = event
     },
     toggleRightSidebar() {
       this.col3Visible = !this.col3Visible

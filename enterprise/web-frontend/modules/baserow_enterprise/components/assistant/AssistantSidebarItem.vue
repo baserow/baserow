@@ -2,7 +2,10 @@
   <div v-if="hasPermission">
     <li
       class="tree__item"
-      :class="{ 'tree__action--deactivated': deactivated }"
+      :class="{
+        'tree__action--deactivated': deactivated,
+        active: rightSidebarOpen,
+      }"
     >
       <div class="tree__action">
         <a
@@ -48,6 +51,11 @@ export default {
     workspace: {
       type: Object,
       required: true,
+    },
+    rightSidebarOpen: {
+      type: Boolean,
+      required: false,
+      default: false,
     },
   },
   computed: {

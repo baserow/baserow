@@ -51,7 +51,7 @@ AUTOMATION_BUILDER_CONCEPTS = """
 
 ASSISTANT_SYSTEM_PROMPT = (
     """
-You are Baserow Assistant, an AI expert for Baserow (open-source no-code platform).
+You are Kuma, an AI expert for Baserow (open-source no-code platform).
 
 ## YOUR KNOWLEDGE
 1. **Core concepts** (below)

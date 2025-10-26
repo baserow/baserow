@@ -128,6 +128,7 @@
         v-for="(component, index) in sidebarWorkspaceComponents"
         :key="'sidebarWorkspaceComponents' + index"
         :workspace="selectedWorkspace"
+        :right-sidebar-open="rightSidebarOpen"
       ></component>
       <li class="tree__item">
         <div class="tree__action sidebar__action">
@@ -170,6 +171,11 @@ export default {
     selectedWorkspace: {
       type: Object,
       required: true,
+    },
+    rightSidebarOpen: {
+      type: Boolean,
+      required: false,
+      default: false,
     },
   },
   data() {
