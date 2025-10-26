@@ -16,7 +16,6 @@ from baserow.contrib.automation.nodes.node_types import (
     CorePeriodicTriggerNodeType,
     LocalBaserowRowsCreatedNodeTriggerType,
 )
-from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.test_utils.helpers import AnyDict, AnyInt, AnyStr
 from tests.baserow.contrib.automation.api.utils import get_api_kwargs
 
@@ -977,82 +976,3 @@ def test_simulate_dispatch_action_node_with_sample_data(
 
     workflow.refresh_from_db()
     assert workflow.simulate_until_node_id == action_node.id
-
-
-@pytest.mark.django_db
-@pytest.mark.parametrize(
-    "node_type",
-    [
-        node_type.type
-        for node_type in automation_node_type_registry.get_all()
-        if not node_type.is_fixed and not node_type.is_workflow_trigger
-    ],
-)
-def test_move_movable_node(node_type, api_client, data_fixture):
-    node_type = automation_node_type_registry.get(node_type)
-
-    user, token = data_fixture.create_user_and_token()
-    workflow = data_fixture.create_automation_workflow(user)
-    trigger = workflow.get_trigger()
-    before_node = data_fixture.create_local_baserow_create_row_action_node(
-        workflow=workflow, label="before"
-    )
-    node = data_fixture.create_automation_node(
-        workflow=workflow,
-        type=node_type.type,
-    )
-    response = api_client.post(
-        reverse(API_URL_MOVE, kwargs={"node_id": node.id}),
-        {"reference_node_id": trigger.id, "position": "south", "output": ""},
-        **get_api_kwargs(token),
-    )
-    assert response.status_code == HTTP_202_ACCEPTED
-
-    workflow.refresh_from_db()
-
-    workflow.assert_reference(
-        {
-            "0": "rows_created",
-            "rows_created": {"next": {"": [node_type.type]}},
-            node_type.type: {"next": {"": ["before"]}},
-            "before": {"next": {"": []}},
-        }
-    )
-
-
-@pytest.mark.django_db
-@pytest.mark.parametrize(
-    "node_type",
-    [
-        node_type.type
-        for node_type in automation_node_type_registry.get_all()
-        if node_type.is_fixed and not node_type.is_workflow_trigger
-    ],
-)
-def test_move_fixed_node(node_type, api_client, data_fixture):
-    node_type = automation_node_type_registry.get(node_type)
-
-    user, token = data_fixture.create_user_and_token()
-    workflow = data_fixture.create_automation_workflow(user)
-    trigger = workflow.get_trigger()
-
-    before_node = data_fixture.create_local_baserow_create_row_action_node(
-        workflow=workflow
-    )
-
-    node = data_fixture.create_automation_node(
-        workflow=workflow,
-        type=node_type.type,
-    )
-
-    response = api_client.post(
-        reverse(API_URL_MOVE, kwargs={"node_id": node.id}),
-        {"reference_node_id": trigger.id, "position": "south", "output": ""},
-        **get_api_kwargs(token),
-    )
-    assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json() == {
-        "error": "ERROR_AUTOMATION_NODE_NOT_MOVABLE",
-        "detail": "This automation node cannot be moved.",
-    }

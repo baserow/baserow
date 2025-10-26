@@ -3,17 +3,9 @@
     "title": "Welcome to Baserow Automations!",
     "content": "Let's take a quick tour. You'll see how to set up triggers, add actions, test your workflow, and publish it — no coding required."
   },
-  "triggerGuidedTourStep": {
-    "title": "Workflows start with a trigger",
-    "content": "Every workflow begins with a trigger. By default, this is an interval trigger, but you can replace it with other types to suit your needs. Triggers can be replaced, but not deleted."
-  },
-  "actionGuidedTourStep": {
-    "title": "Workflows then execute actions",
-    "content": "Add one or more actions after your trigger to define what the workflow should do. Click the highlighted button to get started."
-  },
-  "nodeSidepanelGuidedTourStep": {
-    "title": "Configure your steps",
-    "content": "Select a trigger or action to configure it in the side panel. Each step's settings can be adjusted here."
+  "graphGuidedTourStep": {
+    "title": "Manage your workflow graph here",
+    "content": "Create a trigger and actions here to define what the workflow should do. Select a trigger or action to configure it in the side panel."
   },
   "testRunGuidedTourStep": {
     "title": "Test your workflow",
@@ -39,7 +31,7 @@
     "createAutomationWorkflow": "New workflow"
   },
   "createAutomationWorkflowModal": {
-    "header": "Create workflow",
+    "headQer": "Create workflow",
     "submit": "Add workflow"
   },
   "automationWorkflowForm": {

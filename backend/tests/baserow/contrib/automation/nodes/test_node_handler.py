@@ -519,16 +519,18 @@ def test_simulate_dispatch_node_dispatches_correct_edge_node(data_fixture):
         {
             "0": "rows_created",
             "rows_created": {"next": {"": ["Router A"]}},
-            "Router A": {"next": {"": ["Create row A"]}},
+            "Router A": {
+                "next": {"": ["Create row A"], "Router A, Edge 1": ["Router B"]}
+            },
+            "Create row A": {},
+            "Create row B": {},
+            "Create row B, on edge": {},
             "Router B": {
                 "next": {
                     "": ["Create row B"],
                     "Router B, Edge 2": ["Create row B, on edge"],
                 }
             },
-            "Create row A": {"next": {"": ["Router B"]}},
-            "Create row B": {},
-            "Create row B, on edge": {},
         }
     )
 

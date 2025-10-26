@@ -116,32 +116,6 @@ class AutomationNodeHandler:
 
         return node.workflow.get_graph().get_children(node)
 
-    def get_next_nodes(
-        self,
-        workflow,
-        node: AutomationNode,
-        output_uid: str = "",
-        specific: bool = True,
-    ) -> Iterable["AutomationNode"]:
-        """
-        Returns all nodes which follow the given node in the workflow. A list of nodes
-        is returned as there can be multiple nodes that follow this one, for example
-        when there are multiple branches in the workflow.
-
-        :param workflow: filter nodes for this workflow.
-        :param node: The target node.
-        :param output_uid: filter nodes only for this output uid.
-        :param specific: If True, returns the specific node type.
-        """
-
-        next_nodes = (
-            node.workflow.get_graph().get_info(node).get("next", {}).get(output_uid, [])
-        )
-
-        nodes = self.get_nodes(workflow, specific=specific)
-
-        return [n for n in nodes if n.id in next_nodes]
-
     def get_node(
         self, node_id: int, base_queryset: Optional[QuerySet] = None
     ) -> AutomationNode:

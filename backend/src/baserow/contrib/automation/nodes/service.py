@@ -415,6 +415,7 @@ class AutomationNodeService:
             self.get_node(user, reference_node_id) if reference_node_id else None
         )
 
+        print("beformove")
         node_type.before_move(node_to_move, reference_node, position, output)
 
         # We extract the current node position to restore it if we undo the operation.

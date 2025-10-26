@@ -205,6 +205,8 @@ def test_automation_application_import(data_fixture):
     create_row_node = action_node.specific
     assert isinstance(create_row_node, LocalBaserowCreateRowActionNode)
 
+    workflow.print(original=True)
+
     workflow.assert_reference(
         {
             "0": "rows_created",

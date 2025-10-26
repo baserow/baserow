@@ -122,7 +122,7 @@ class AutomationNode(
         return {node.service_id: str(out) for [node, _, out] in previous_positions}
 
     def get_next_nodes(
-        self, output_uid: str | None = None, specific: bool = True
+        self, output_uid: str | None = None
     ) -> Iterable["AutomationNode"]:
         """
         Returns all nodes which directly follow this node in the workflow.
@@ -130,14 +130,9 @@ class AutomationNode(
         for example when there are multiple branches in the workflow.
 
         :param output_uid: filter nodes only for this output uid.
-        :param specific: If True, returns the specific node type.
         """
 
-        from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
-
-        return AutomationNodeHandler().get_next_nodes(
-            self.workflow, self, output_uid=output_uid, specific=specific
-        )
+        return self.workflow.get_graph().get_next_nodes(self, output_uid)
 
     def get_children(self, specific=True):
         """

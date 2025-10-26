@@ -434,7 +434,7 @@ def test_move_fixed_node_throws_exception(data_fixture: Fixtures):
     with pytest.raises(AutomationNodeNotMovable) as exc:
         AutomationNodeService().move_node(user, trigger.id, action1.id, "south", "")
 
-    assert exc.value.args[0] == "This automation node cannot be moved."
+    assert exc.value.args[0] == "Trigger nodes cannot be moved."
 
 
 @pytest.mark.django_db

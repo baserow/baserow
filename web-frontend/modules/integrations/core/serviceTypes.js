@@ -217,11 +217,7 @@ export class CoreIteratorServiceType extends WorkflowActionServiceTypeMixin(
   }
 
   getErrorMessage({ service }) {
-    if (
-      service !== undefined &&
-      service.source !== undefined &&
-      !service.source
-    ) {
+    if (!service?.source?.formula) {
       return this.app.i18n.t('serviceType.errorIterationSourceMissing')
     }
 

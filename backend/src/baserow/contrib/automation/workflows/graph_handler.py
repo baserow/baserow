@@ -75,21 +75,27 @@ class NodeGraphHandler:
     def graph(self):
         return self.workflow.graph
 
-    def _update_graph(self):
+    def _update_graph(self, graph=None):
         """
         Save the workflow graph.
         """
 
+        if graph is not None:
+            self.workflow.graph = graph
+
         self.workflow.save(update_fields=["graph"])
 
-    def get_info(self, node: AutomationNode | str | int) -> Dict[str, Any]:
+    def get_info(self, node: AutomationNode | str | int | None) -> Dict[str, Any]:
         """
         Returns the info dict for the given node.
         """
 
-        node_id = node
-        if isinstance(node, AutomationNode):
+        if node is None:
+            node_id = self.graph["0"]
+        elif isinstance(node, AutomationNode):
             node_id = node.id
+        else:
+            node_id = node
 
         return self.graph[str(node_id)]
 
@@ -102,6 +108,8 @@ class NodeGraphHandler:
         """
         Return the node instance for the given node ID.
         """
+
+        print(node_id, int(node_id), self._get_node_map()),
 
         if int(node_id) not in self._get_node_map():
             raise AutomationNodeDoesNotExist(node_id)
@@ -214,7 +222,7 @@ class NodeGraphHandler:
             for [nid, p, o] in explore([None, "south", ""], [])
         ]
 
-    def _get_all_next_nodes(self, node):
+    def _get_all_next_nodes(self, node: AutomationNode):
         """
         Collects all next node of the give node regardless of their output.
         """
@@ -223,12 +231,21 @@ class NodeGraphHandler:
 
         return [x for sublist in node_info.get("next", {}).values() for x in sublist]
 
-    def get_next_nodes(self, node) -> List[AutomationNode]:
+    def get_next_nodes(
+        self, node: AutomationNode, output: str | None = None
+    ) -> List[AutomationNode]:
         """
-        Get all next nodes regardless of their output.
+        Get next nodes on the given output if output is set or all outputs if not..
         """
 
-        return [self.get_node(n) for n in self._get_all_next_nodes(node)]
+        node_info = self.get_info(node)
+
+        return [
+            self.get_node(x)
+            for uid, sublist in node_info.get("next", {}).items()
+            for x in sublist
+            if uid is None or uid == output
+        ]
 
     def get_children(self, node) -> List[AutomationNode]:
         """
@@ -415,7 +432,7 @@ class NodeGraphHandler:
                         map_node(nid) for nid in info["children"]
                     ]
 
-        self._update_graph()
+        self._update_graph(migrated)
 
     def labeled_graph(self):
         """

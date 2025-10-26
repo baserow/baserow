@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 from django.contrib.auth.models import AbstractUser
 from django.db import router
@@ -13,7 +13,6 @@ from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeNotReplaceable,
 )
 from baserow.contrib.automation.nodes.models import (
-    AutomationActionNode,
     AutomationNode,
     AutomationTriggerNode,
     CoreHTTPRequestActionNode,
@@ -130,6 +129,22 @@ class CoreIteratorNodeType(AutomationNodeActionNodeType):
                 "have one or more children nodes associated with them."
             )
 
+    def before_move(
+        self,
+        node: AutomationTriggerNode,
+        reference_node: AutomationNode | None,
+        position: NodePositionType,
+        output: str,
+    ):
+        """
+        Check the container node is not moved inside it self.
+        """
+
+        if node in reference_node.get_previous_nodes():
+            raise AutomationNodeNotMovable(
+                "An iterator node cannot be moved inside itself"
+            )
+
 
 class CoreSMTPEmailNodeType(AutomationNodeActionNodeType):
     type = "smtp_email"
@@ -142,32 +157,30 @@ class CoreRouterActionNodeType(AutomationNodeActionNodeType):
     model_class = CoreRouterActionNode
     service_type = CoreRouterServiceType.type
 
-    def get_output_nodes(
-        self, node: CoreRouterActionNode
-    ) -> Union[List[AutomationActionNode], QuerySet[AutomationActionNode]]:
+    def has_node_on_edge(self, node: CoreRouterActionNode) -> bool:
         """
-        Given a router node, this method returns the output nodes that are
-        along the edges of the router node.
+        Given a router node, this method returns True if one fo its edge has a node.
+
         :param node: The router node instance.
-        :param specific: Whether to return the specific node instances.
-        :return: An iterable of output nodes that are connected to the
-            router node's edges.
         """
 
-        return node.workflow.get_graph().get_next_nodes(node)
+        for edge_uid in node.service.get_type().get_edges(node.service.specific).keys():
+            if edge_uid != "" and node.workflow.get_graph().get_next_nodes(
+                node, edge_uid
+            ):
+                return True
+
+        return False
 
     def before_delete(self, node: CoreRouterActionNode):
-        output_nodes = self.get_output_nodes(node)
-
-        if output_nodes:
+        if self.has_node_on_edge(node):
             raise AutomationNodeNotDeletable(
                 "Router nodes cannot be deleted if they "
                 "have one or more output nodes associated with them."
             )
 
     def before_replace(self, node: CoreRouterActionNode, new_node_type: Instance):
-        output_nodes = self.get_output_nodes(node)
-        if output_nodes:
+        if self.has_node_on_edge(node):
             raise AutomationNodeNotReplaceable(
                 "Router nodes cannot be replaced if they "
                 "have one or more output nodes associated with them."
@@ -184,9 +197,10 @@ class CoreRouterActionNodeType(AutomationNodeActionNodeType):
         Check the container node is not moved inside it self.
         """
 
-        if node in reference_node.get_previous_nodes():
+        if self.has_node_on_edge(node):
             raise AutomationNodeNotMovable(
-                "An iterator node cannot be moved inside itself"
+                "Router nodes cannot be moved if they "
+                "have one or more output nodes associated with them."
             )
 
     def after_create(self, node: CoreRouterActionNode):

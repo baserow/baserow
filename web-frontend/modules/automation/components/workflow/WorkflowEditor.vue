@@ -30,7 +30,7 @@
         @select-node="emit('input', $event.id)"
         @move-node="emit('move-node', $event)"
       />
-      <div v-else data-highlight="automation-trigger">
+      <div v-else>
         <div class="workflow-editor__trigger-selector" @scroll.stop>
           <h2 class="workflow-editor__trigger-selector-title">
             {{ $t('workflowEditor.chooseEvent') }}

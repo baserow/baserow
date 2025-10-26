@@ -38,6 +38,7 @@ def test_core_iterator_service_type_schema(data_fixture):
 
     service_type = service.get_type()
     assert service_type.generate_schema(service) == {
+        "$schema": AnyStr(),
         "title": AnyStr(),
         "type": "array",
         "items": {
@@ -46,3 +47,28 @@ def test_core_iterator_service_type_schema(data_fixture):
             "required": ["test"],
         },
     }
+
+
+@pytest.mark.django_db
+def test_core_iterator_service_types_simple_schema(data_fixture):
+    service = data_fixture.create_core_iterator_service(
+        sample_data={"data": ["string"]}
+    )
+
+    service_type = service.get_type()
+    assert service_type.generate_schema(service) == {
+        "$schema": AnyStr(),
+        "title": AnyStr(),
+        "type": "array",
+        "items": {
+            "type": "string",
+        },
+    }
+
+
+@pytest.mark.django_db
+def test_core_iterator_service_type_empty_schema(data_fixture):
+    service = data_fixture.create_core_iterator_service(sample_data={"data": []})
+
+    service_type = service.get_type()
+    assert service_type.generate_schema(service) is None

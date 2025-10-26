@@ -4,7 +4,11 @@ from unittest.mock import MagicMock, patch
 from django.urls import reverse
 
 import pytest
-from rest_framework.status import HTTP_204_NO_CONTENT
+from rest_framework.status import (
+    HTTP_202_ACCEPTED,
+    HTTP_204_NO_CONTENT,
+    HTTP_400_BAD_REQUEST,
+)
 
 from baserow.contrib.automation.automation_dispatch_context import (
     AutomationDispatchContext,
@@ -15,6 +19,10 @@ from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.contrib.automation.workflows.service import AutomationWorkflowService
 from baserow.core.handler import CoreHandler
 from baserow.core.services.types import DispatchResult
+from tests.baserow.contrib.automation.api.utils import get_api_kwargs
+
+API_URL_BASE = "api:automation:nodes"
+API_URL_MOVE = f"{API_URL_BASE}:move"
 
 
 def test_automation_node_type_is_replaceable_with():
@@ -255,6 +263,36 @@ def test_on_event_excludes_disabled_workflows(mock_async_start_workflow, data_fi
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    "node_type",
+    [
+        node_type.type
+        for node_type in automation_node_type_registry.get_all()
+        if node_type.is_workflow_trigger
+    ],
+)
+def test_trigger_cant_be_moved(node_type, api_client, data_fixture):
+    node_type = automation_node_type_registry.get(node_type)
+
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user, trigger_type=node_type)
+    trigger = workflow.get_trigger()
+    node_after = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow, label="before"
+    )
+    response = api_client.post(
+        reverse(API_URL_MOVE, kwargs={"node_id": trigger.id}),
+        {"reference_node_id": node_after.id, "position": "south", "output": ""},
+        **get_api_kwargs(token),
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "error": "ERROR_AUTOMATION_NODE_NOT_MOVABLE",
+        "detail": "Trigger nodes cannot be moved.",
+    }
+
+
+@pytest.mark.django_db
 def test_duplicating_router_node(data_fixture):
     user = data_fixture.create_user()
     workflow = data_fixture.create_automation_workflow(user=user)
@@ -284,15 +322,7 @@ def test_duplicating_router_node(data_fixture):
         }
     )
 
-    router_type = router.get_type()
-    source_router_outputs = router_type.get_output_nodes(router)
-
-    assert len(source_router_outputs) == 3
-    assert edge1_output in source_router_outputs
-    assert edge2_output in source_router_outputs
-    assert fallback_output_node in source_router_outputs
-
-    duplicated_router = AutomationNodeService().duplicate_node(user, router.id)
+    AutomationNodeService().duplicate_node(user, router.id)
 
     workflow.assert_reference(
         {
@@ -312,14 +342,67 @@ def test_duplicating_router_node(data_fixture):
         }
     )
 
-    source_router_outputs = router_type.get_output_nodes(router)
-    assert len(source_router_outputs) == 3
 
-    assert edge1_output in source_router_outputs
-    assert edge2_output in source_router_outputs
-    assert duplicated_router in source_router_outputs
+@pytest.mark.django_db
+def test_moving_router_node_allowed_with_next_on_default_edge(api_client, data_fixture):
+    node_type = automation_node_type_registry.get("router")
 
-    assert fallback_output_node not in source_router_outputs
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user)
+    trigger = workflow.get_trigger()
+    before_node = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow, label="before"
+    )
+    node = data_fixture.create_automation_node(
+        workflow=workflow,
+        type=node_type.type,
+    )
+    after_node = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow,
+        label="after",
+        reference_node=node,
+    )
+    response = api_client.post(
+        reverse(API_URL_MOVE, kwargs={"node_id": node.id}),
+        {"reference_node_id": trigger.id, "position": "south", "output": ""},
+        **get_api_kwargs(token),
+    )
+
+    assert response.status_code == HTTP_202_ACCEPTED
+
+
+@pytest.mark.django_db
+def test_moving_router_node_not_allowed_with_next_on_edge(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user)
+    trigger = workflow.get_trigger()
+    before_node = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow, label="before"
+    )
+    router = data_fixture.create_core_router_action_node(
+        workflow=workflow,
+    )
+    edge1 = data_fixture.create_core_router_service_edge(
+        service=router.service,
+        label="Do this",
+        condition="'true'",
+        output_label="output edge 1",
+    )
+    after_node = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow, label="after", reference_node=router, output=edge1.uid
+    )
+    response = api_client.post(
+        reverse(API_URL_MOVE, kwargs={"node_id": router.id}),
+        {"reference_node_id": trigger.id, "position": "south", "output": ""},
+        **get_api_kwargs(token),
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "error": "ERROR_AUTOMATION_NODE_NOT_MOVABLE",
+        "detail": "Router nodes cannot be moved if they "
+        "have one or more output nodes associated with them.",
+    }
 
 
 @pytest.mark.django_db
