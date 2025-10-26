@@ -50,6 +50,7 @@ class CreateAutomationNodeSerializer(serializers.ModelSerializer):
     )
     reference_node_id = serializers.IntegerField(
         required=False,
+        allow_null=True,
         help_text="If provided, creates the node relative to the node with the "
         "given id.",
     )

@@ -3,8 +3,17 @@ import { expect, test } from "../baserowTest";
 import { createAutomationNode } from "../../fixtures/automation/automationNode";
 
 test.describe("Automation node test suite", () => {
-  test.beforeEach(async ({ automationWorkflowPage }) => {
+  let trigger;
+  test.beforeEach(async ({ automationWorkflowPage, page }) => {
     await automationWorkflowPage.goto();
+
+    trigger = await createAutomationNode(
+      automationWorkflowPage.automationWorkflow,
+      "periodic"
+    );
+
+    const startsWhen = page.getByText("Configure");
+    await expect(startsWhen).toBeVisible();
   });
 
   test("Can create an automation node", async ({ page }) => {
@@ -28,14 +37,13 @@ test.describe("Automation node test suite", () => {
     page,
     automationWorkflowPage,
   }) => {
-    await createAutomationNode(
+    const createNode = await createAutomationNode(
       automationWorkflowPage.automationWorkflow,
-      "create_row"
+      "create_row",
+      trigger.id,
+      "south",
+      ""
     );
-
-    // TODO: Remove this manual reload once real-time events have been
-    // implemented for automations.
-    await page.reload();
 
     const nodeDiv = page.getByRole("heading", {
       name: "Create a row",
@@ -46,12 +54,14 @@ test.describe("Automation node test suite", () => {
     // Let's select the node
     await nodeDiv.click();
 
+    await page.locator(".vue-flow__controls-fitview").click();
+
     const nodeMenuButton = page
       .locator(".workflow-node-content--selected")
       .getByRole("button", { name: "Node options" });
     await nodeMenuButton.click();
 
-    const deleteNodeButton = page.getByRole("button", { name: "Delete" });
+    const deleteNodeButton = page.getByText("Delete");
     await deleteNodeButton.waitFor({ state: "visible" });
     deleteNodeButton.click();
 

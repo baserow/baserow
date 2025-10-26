@@ -26,12 +26,10 @@ test.describe("Automation workflow test suite", () => {
       "Ensure the default automation name is displayed in the sidebar."
     ).toBeVisible();
 
-    const createNodeButton = page.getByRole("button", {
-      name: "Create automation node",
-    });
+    const chooseTriggerTitle = page.getByText("Choose an event...");
     await expect(
-      createNodeButton,
-      "Ensure the button to create a node is visible."
+      chooseTriggerTitle,
+      "Ensure the trigger chooser is visible."
     ).toBeVisible();
   });
 
@@ -55,12 +53,10 @@ test.describe("Automation workflow test suite", () => {
       "Ensure the duplicated workflow is displayed in the sidebar."
     ).toBeVisible();
 
-    const createNodeButton = page.getByRole("button", {
-      name: "Create automation node",
-    });
+    const chooseTriggerTitle = page.getByText("Choose an event...");
     await expect(
-      createNodeButton,
-      "Ensure the button to create a node is visible."
+      chooseTriggerTitle,
+      "Ensure the trigger chooser is visible."
     ).toBeVisible();
   });
 
@@ -85,7 +81,7 @@ test.describe("Automation workflow test suite", () => {
     await editable.fill(newWorkflowName);
 
     // Click outside to cause a blur event so that the name is saved
-    await page.locator("body").click();
+    await page.locator("body").click({ position: { x: 10, y: 10 } });
 
     const workflowLink = page.getByRole("link", { name: "Workflow" });
     await expect(
@@ -93,12 +89,10 @@ test.describe("Automation workflow test suite", () => {
       "Ensure the renamed workflow is displayed in the sidebar."
     ).toBeVisible();
 
-    const createNodeButton = page.getByRole("button", {
-      name: "Create automation node",
-    });
+    const chooseTriggerTitle = page.getByText("Choose an event...");
     await expect(
-      createNodeButton,
-      "Ensure the button to create a node is visible."
+      chooseTriggerTitle,
+      "Ensure the trigger chooser is visible."
     ).toBeVisible();
   });
 
@@ -110,7 +104,9 @@ test.describe("Automation workflow test suite", () => {
     await workflow.hover();
     await page.locator(".tree__sub > .tree__options").first().click();
 
-    const deleteLink = await page.locator(".context__menu").getByText("Delete");
+    const deleteLink = await page
+      .locator(".context__menu")
+      .getByText("Delete", { exact: true });
     await deleteLink.click();
     await expect(deleteLink).toBeHidden();
 

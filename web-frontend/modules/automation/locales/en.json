@@ -31,7 +31,7 @@
     "createAutomationWorkflow": "New workflow"
   },
   "createAutomationWorkflowModal": {
-    "headQer": "Create workflow",
+    "header": "Create workflow",
     "submit": "Add workflow"
   },
   "automationWorkflowForm": {

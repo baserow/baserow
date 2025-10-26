@@ -22,12 +22,10 @@ test.describe("Automation application test suite", () => {
       "Ensure the default Workflow has been created and is visible."
     ).toBeVisible();
 
-    const createNodeButton = page.getByRole("button", {
-      name: "Create automation node",
-    });
+    const chooseTriggerTitle = page.getByText("Choose an event...");
     await expect(
-      createNodeButton,
-      "Ensure the button to create a node is visible."
+      chooseTriggerTitle,
+      "Ensure the trigger chooser is visible."
     ).toBeVisible();
   });
 
@@ -51,12 +49,10 @@ test.describe("Automation application test suite", () => {
       "Ensure the default Workflow has been created and is visible."
     ).toBeVisible();
 
-    const createNodeButton = page.getByRole("button", {
-      name: "Create automation node",
-    });
+    const chooseTriggerTitle = page.getByText("Choose an event...");
     await expect(
-      createNodeButton,
-      "Ensure the button to create a node is visible."
+      chooseTriggerTitle,
+      "Ensure the trigger chooser is visible."
     ).toBeVisible();
   });
 });

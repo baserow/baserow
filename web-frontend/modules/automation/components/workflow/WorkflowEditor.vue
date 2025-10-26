@@ -30,7 +30,7 @@
         @select-node="emit('input', $event.id)"
         @move-node="emit('move-node', $event)"
       />
-      <div v-else>
+      <template v-else>
         <div class="workflow-editor__trigger-selector" @scroll.stop>
           <h2 class="workflow-editor__trigger-selector-title">
             {{ $t('workflowEditor.chooseEvent') }}
@@ -40,7 +40,7 @@
             @change="emit('add-node', { type: $event })"
           />
         </div>
-      </div>
+      </template>
     </template>
   </VueFlow>
 </template>
