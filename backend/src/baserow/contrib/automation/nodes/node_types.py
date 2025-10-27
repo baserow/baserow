@@ -61,6 +61,40 @@ class AutomationNodeActionNodeType(AutomationNodeType):
     is_workflow_action = True
 
 
+class ContainerNodeTypeMixin:
+    is_container = True
+
+    def before_delete(self, node: "ContainerNodeTypeMixin"):
+        if node.workflow.get_graph().get_children(node):
+            raise AutomationNodeNotDeletable(
+                "Container nodes cannot be deleted if they "
+                "have one or more children nodes associated with them."
+            )
+
+    def before_replace(self, node: "ContainerNodeTypeMixin", new_node_type: Instance):
+        if node.workflow.get_graph().get_children(node):
+            raise AutomationNodeNotReplaceable(
+                "Container nodes cannot be replaced if they "
+                "have one or more children nodes associated with them."
+            )
+
+    def before_move(
+        self,
+        node: "ContainerNodeTypeMixin",
+        reference_node: AutomationNode | None,
+        position: NodePositionType,
+        output: str,
+    ):
+        """
+        Check the container node is not moved inside it self.
+        """
+
+        if node in reference_node.get_previous_nodes():
+            raise AutomationNodeNotMovable(
+                "A container node cannot be moved inside itself"
+            )
+
+
 class LocalBaserowUpsertRowNodeType(AutomationNodeActionNodeType):
     type = "upsert_row"
     service_type = LocalBaserowUpsertRowServiceType.type
@@ -110,40 +144,10 @@ class CoreHttpRequestNodeType(AutomationNodeActionNodeType):
     service_type = CoreHTTPRequestServiceType.type
 
 
-class CoreIteratorNodeType(AutomationNodeActionNodeType):
+class CoreIteratorNodeType(ContainerNodeTypeMixin, AutomationNodeActionNodeType):
     type = "iterator"
     model_class = CoreIteratorActionNode
     service_type = CoreIteratorServiceType.type
-
-    def before_delete(self, node: CoreRouterActionNode):
-        if node.workflow.get_graph().get_children(node):
-            raise AutomationNodeNotDeletable(
-                "Iterator nodes cannot be deleted if they "
-                "have one or more children nodes associated with them."
-            )
-
-    def before_replace(self, node: CoreRouterActionNode, new_node_type: Instance):
-        if node.workflow.get_graph().get_children(node):
-            raise AutomationNodeNotReplaceable(
-                "Router nodes cannot be replaced if they "
-                "have one or more children nodes associated with them."
-            )
-
-    def before_move(
-        self,
-        node: AutomationTriggerNode,
-        reference_node: AutomationNode | None,
-        position: NodePositionType,
-        output: str,
-    ):
-        """
-        Check the container node is not moved inside it self.
-        """
-
-        if node in reference_node.get_previous_nodes():
-            raise AutomationNodeNotMovable(
-                "An iterator node cannot be moved inside itself"
-            )
 
 
 class CoreSMTPEmailNodeType(AutomationNodeActionNodeType):
@@ -272,18 +276,6 @@ class AutomationNodeTriggerType(AutomationNodeType):
         output: str,
     ):
         raise AutomationNodeNotMovable("Trigger nodes cannot be moved.")
-
-    def before_delete(self, node: AutomationTriggerNode):
-        """
-        Trigger nodes cannot be deleted.
-        :param node: The node instance to check.
-        :raises: AutomationNodeNotDeletable
-        """
-
-        raise AutomationNodeNotDeletable(
-            "Triggers can not be created, deleted or duplicated, "
-            "they can only be replaced with a different type."
-        )
 
     def on_event(
         self,

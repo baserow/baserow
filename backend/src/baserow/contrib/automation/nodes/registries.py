@@ -44,6 +44,8 @@ class AutomationNodeType(
     # Actions are executed as part of workflows.
     is_workflow_action = False
 
+    is_container = False
+
     class SerializedDict(AutomationNodeDict):
         ...
 

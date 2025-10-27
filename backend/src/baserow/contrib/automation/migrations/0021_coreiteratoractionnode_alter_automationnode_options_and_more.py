@@ -37,10 +37,23 @@ def forward(apps, schema_editor):
             graph["0"] = trigger.id
             add_node_to_graph(graph, nodes, trigger)
 
-        print("updated graph", graph)
-
         workflow.graph = graph
         workflow.save(update_fields=["graph"])
+
+
+def reverse(apps, schema_editor):
+    Workflow = apps.get_model("automation", "automationworkflow")
+    AutomationNode = apps.get_model("automation", "automationnode")
+
+    for workflow in Workflow.objects.all():
+        graph = workflow.graph
+        for key, info in graph:
+            if key == "0":
+                continue
+            for output, nodes in info.get("next", {}):
+                AutomationNode.objects.filter(id__in=nodes).update(
+                    previous_node_id=key, previous_output=output
+                )
 
 
 class Migration(migrations.Migration):
@@ -87,4 +100,12 @@ class Migration(migrations.Migration):
             field=models.JSONField(default=dict, help_text="Contains the node graph."),
         ),
         migrations.RunPython(forward, migrations.RunPython.noop),
+        migrations.RemoveField(
+            model_name="automationnode",
+            name="previous_node",
+        ),
+        migrations.RemoveField(
+            model_name="automationnode",
+            name="previous_node_output",
+        ),
     ]

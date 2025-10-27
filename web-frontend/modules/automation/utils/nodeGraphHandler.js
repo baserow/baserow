@@ -91,6 +91,11 @@ export default class NodeGraphHandler {
   getPreviousPositions(targetNode) {
     const explore = (currentPosition, path) => {
       const node = this.getNodeAtPosition(...currentPosition)
+
+      if (node === null) {
+        return null
+      }
+
       const nodeId = String(node.id)
 
       if (nodeId === String(targetNode.id)) {

@@ -152,6 +152,11 @@ class AutomationNodeService:
 
         node_type.after_create(new_node)
 
+        if position == "child" and not reference_node.get_type().is_container:
+            raise AutomationNodeReferenceNodeInvalid(
+                f"The reference node {reference_node_id} can't have child"
+            )
+
         workflow.get_graph().insert(new_node, reference_node, position, output)
 
         automation_node_created.send(
@@ -415,7 +420,11 @@ class AutomationNodeService:
             self.get_node(user, reference_node_id) if reference_node_id else None
         )
 
-        print("beformove")
+        if position == "child" and not reference_node.get_type().is_container:
+            raise AutomationNodeReferenceNodeInvalid(
+                f"The reference node {reference_node_id} can't have child"
+            )
+
         node_type.before_move(node_to_move, reference_node, position, output)
 
         # We extract the current node position to restore it if we undo the operation.

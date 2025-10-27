@@ -81,9 +81,6 @@ class ServiceType(
     # Does this service return a list of record?
     returns_list = False
 
-    # Is this a service that triggers events?
-    is_trigger: bool = False
-
     # What parent object is responsible for dispatching this `ServiceType`?
     # It could be via a `DataSource`, in which case `DATA` should be
     # chosen, or via a `WorkflowAction`, in which case `ACTION`
@@ -528,9 +525,6 @@ class ListServiceTypeMixin:
 
 
 class TriggerServiceTypeMixin(ABC):
-    # Is this a service that triggers events?
-    is_trigger: bool = True
-
     # The callable function which should be called when the event occurs.
     on_event: Callable = lambda *args: None
 

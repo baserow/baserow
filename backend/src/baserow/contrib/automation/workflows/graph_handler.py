@@ -109,8 +109,6 @@ class NodeGraphHandler:
         Return the node instance for the given node ID.
         """
 
-        print(node_id, int(node_id), self._get_node_map()),
-
         if int(node_id) not in self._get_node_map():
             raise AutomationNodeDoesNotExist(node_id)
 
@@ -275,7 +273,9 @@ class NodeGraphHandler:
 
         if reference_node is None:
             if "0" in self.graph:
-                raise AutomationNodeTriggerAlreadyExists("Trigger already there")
+                raise AutomationNodeTriggerAlreadyExists(
+                    "A trigger already exists for this workflow"
+                )
 
             if not node.get_type().is_workflow_trigger:
                 raise AutomationNodeFirstNodeMustBeTrigger("This is not a trigger")
@@ -334,7 +334,14 @@ class NodeGraphHandler:
 
         node_position_id, position, output = self.get_position(node_to_delete)
 
-        if position == "south":
+        if node_position_id is None:
+            if self.get_info(node_to_delete.id).get("next"):
+                raise AutomationNodeFirstNodeMustBeTrigger(
+                    "You can't remove a trigger with following nodes."
+                )
+            # Let's remove the trigger
+            del graph["0"]
+        elif position == "south":
             graph[node_position_id]["next"][output] = _replace(
                 graph[node_position_id]["next"][output],
                 node_to_delete.id,

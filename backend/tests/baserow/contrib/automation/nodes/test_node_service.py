@@ -79,6 +79,32 @@ def test_create_node_as_child(mocked_signal, data_fixture: Fixtures):
     mocked_signal.send.assert_called_once_with(service, node=node, user=user)
 
 
+@patch(f"{SERVICE_PATH}.automation_node_created")
+@pytest.mark.django_db
+def test_create_node_as_child_not_in_container(mocked_signal, data_fixture: Fixtures):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user)
+    create_row = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow
+    )
+
+    node_type = automation_node_type_registry.get("create_row")
+
+    service = AutomationNodeService()
+
+    with pytest.raises(AutomationNodeReferenceNodeInvalid) as exc:
+        service.create_node(
+            user,
+            node_type,
+            workflow,
+            reference_node_id=create_row.id,
+            position="child",
+            output="",
+        )
+
+    assert exc.value.args[0] == f"The reference node {create_row.id} can't have child"
+
+
 @pytest.mark.django_db
 def test_create_node_reference_node_invalid(data_fixture: Fixtures):
     user = data_fixture.create_user()
@@ -519,3 +545,62 @@ def test_move_node_to_edge_above_existing_output(data_fixture: Fixtures):
     assert move_result.previous_reference_node == router
     assert move_result.previous_position == "south"
     assert move_result.previous_output == str(edge2.uid)
+
+
+@pytest.mark.django_db
+def test_move_node_in_container(data_fixture: Fixtures):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user)
+    action1 = data_fixture.create_automation_node(workflow=workflow, label="action1")
+
+    iterator = data_fixture.create_core_iterator_action_node(
+        workflow=workflow
+    )  # <-inside here
+    action2 = data_fixture.create_automation_node(workflow=workflow, label="action2")
+    action3 = data_fixture.create_automation_node(
+        workflow=workflow, label="action3"
+    )  # <- from here
+    action4 = data_fixture.create_automation_node(workflow=workflow, label="action4")
+
+    # move `action3` to be the first child of iterator
+    move_result = AutomationNodeService().move_node(
+        user, action3.id, reference_node_id=iterator.id, position="child", output=""
+    )
+
+    workflow.assert_reference(
+        {
+            "0": "rows_created",
+            "rows_created": {"next": {"": ["action1"]}},
+            "action1": {"next": {"": ["iterator"]}},
+            "iterator": {"children": ["action3"], "next": {"": ["action2"]}},
+            "action3": {},
+            "action2": {"next": {"": ["action4"]}},
+            "action4": {},
+        }
+    )
+
+    # The node we're trying to move is `action3`
+    assert move_result.node == action3
+    assert move_result.previous_reference_node == iterator
+    assert move_result.previous_position == "child"
+    assert move_result.previous_output == ""
+
+
+@pytest.mark.django_db
+def test_move_node_in_invalid_container(data_fixture: Fixtures):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user)
+    action1 = data_fixture.create_automation_node(workflow=workflow, label="action1")
+
+    action2 = data_fixture.create_automation_node(workflow=workflow, label="action2")
+    action3 = data_fixture.create_automation_node(
+        workflow=workflow, label="action3"
+    )  # <- from here
+    action4 = data_fixture.create_automation_node(workflow=workflow, label="action4")
+
+    with pytest.raises(AutomationNodeReferenceNodeInvalid) as exc:
+        AutomationNodeService().move_node(
+            user, action3.id, reference_node_id=action2.id, position="child", output=""
+        )
+
+    assert exc.value.args[0] == f"The reference node {action2.id} can't have child"
