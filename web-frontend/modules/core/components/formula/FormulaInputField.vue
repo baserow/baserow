@@ -26,7 +26,6 @@
       type="text"
       class="form-input formula-input-field formula-input-field__advanced-input"
       :class="classes"
-      
       role="textbox"
       :disabled="disabled"
       :placeholder="placeholder"
@@ -39,7 +38,7 @@
         <span>Advanced Formula Mode</span>
       </label>
     </div>
-   
+
     <DataExplorer
       v-if="isFocused && !isAdvancedMode"
       ref="dataExplorer"
