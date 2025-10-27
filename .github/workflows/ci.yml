@@ -400,7 +400,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [1]
+        group: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
     services:
       db:
         image: pgvector/pgvector:pg13
@@ -436,7 +436,7 @@ jobs:
           docker run \
             --name=baserow_backend_test_container \
             --network="${{ job.services.db.network }}" \
-            -e PYTEST_SPLITS=100 \
+            -e PYTEST_SPLITS=10 \
             -e PYTEST_SPLIT_GROUP=${{ matrix.group }} \
             -e DATABASE_HOST=db \
             -e DATABASE_PORT=5432 \
@@ -858,30 +858,6 @@ jobs:
             echo "::error::No .coverage file found after combining coverage!"
             exit 1
           fi
-
-      - name: Debug workspace and coverage paths
-        run: |
-          echo "GITHUB_WORKSPACE = $GITHUB_WORKSPACE"
-          echo "Current working directory:"
-          pwd
-          echo
-          echo "Contents of current directory:"
-          ls -la
-          echo
-          echo "Contents of GITHUB_WORKSPACE:"
-          ls -la "$GITHUB_WORKSPACE"
-          echo
-          echo "Checking file type of .coverage if it exists:"
-          file "$GITHUB_WORKSPACE/.coverage" || echo "No .coverage file found"
-          echo
-          echo "Showing top-level structure recursively (2 levels deep):"
-          find "$GITHUB_WORKSPACE" -maxdepth 2 -type f -print
-
-      - name: Verify coverage JSON manually
-        run: |
-          cd "$GITHUB_WORKSPACE"
-          coverage json -o coverage.json
-          head -n 20 coverage.json
 
       - name: Upload combined coverage report
         uses: actions/upload-artifact@v4
