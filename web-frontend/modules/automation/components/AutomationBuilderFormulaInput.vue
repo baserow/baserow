@@ -5,7 +5,7 @@
     :value="formulaStr"
     :data-providers="dataProviders"
     :application-context="applicationContext"
-    :enable-raw-mode="true"
+    :enable-advanced-mode="true"
     :mode="currentMode"
     @input="updatedFormulaStr"
     @mode-changed="updateMode"

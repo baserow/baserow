@@ -11,7 +11,7 @@
   </Alert>
   <div v-else>
     <EditorContent
-      v-if="!isRawMode"
+      v-if="!isAdvancedMode"
       :id="forInput"
       ref="editor"
       class="form-input formula-input-field"
@@ -22,21 +22,21 @@
     />
     <input
       v-else
-      v-model="rawFormulaValue"
+      v-model="advancedFormulaValue"
       type="text"
       class="form-input"
       :disabled="disabled"
       :placeholder="placeholder"
-      @input="emitRawChange"
+      @input="emitAdvancedChange"
     />
-    <div v-if="enableRawMode" class="margin-top-1">
+    <div v-if="enableAdvancedMode" class="margin-top-1">
       <label class="checkbox">
-        <input v-model="isRawMode" type="checkbox" :disabled="disabled" />
-        <span>Raw Formula Mode</span>
+        <input v-model="isAdvancedMode" type="checkbox" :disabled="disabled" />
+        <span>Advanced Formula Mode</span>
       </label>
     </div>
     <DataExplorer
-      v-if="isFocused && !isRawMode"
+      v-if="isFocused && !isAdvancedMode"
       ref="dataExplorer"
       :nodes="nodes"
       :node-selected="nodeSelected"
@@ -113,7 +113,7 @@ export default {
       required: false,
       default: false,
     },
-    enableRawMode: {
+    enableAdvancedMode: {
       type: Boolean,
       required: false,
       default: false,
@@ -132,8 +132,8 @@ export default {
       dataNodeSelected: null,
       isFocused: false,
       ignoreNextBlur: false,
-      isRawMode: this.mode === 'raw',
-      rawFormulaValue: '',
+      isAdvancedMode: this.mode === 'advanced',
+      advancedFormulaValue: '',
     }
   },
   computed: {
@@ -193,7 +193,7 @@ export default {
       }
     },
     wrapperContent() {
-      if (this.isRawMode || !this.editor) {
+      if (this.isAdvancedMode || !this.editor) {
         return null
       }
       return this.editor.getJSON()
@@ -216,8 +216,8 @@ export default {
         this.$refs.dataExplorer?.hide()
         this.unSelectNode()
       } else {
-        // Don't show data explorer in raw mode
-        if (this.isRawMode) {
+        // Don't show data explorer in Advanced mode
+        if (this.isAdvancedMode) {
           return
         }
 
@@ -257,9 +257,9 @@ export default {
       }
     },
     value(value) {
-      // In raw mode, just update the raw value directly
-      if (this.isRawMode) {
-        this.rawFormulaValue = value
+      // In advanced mode, just update the value directly
+      if (this.isAdvancedMode) {
+        this.advancedFormulaValue = value
         return
       }
 
@@ -282,25 +282,25 @@ export default {
       deep: true,
     },
 
-    isRawMode(newValue) {
+    isAdvancedMode(newValue) {
       if (newValue) {
-        // When switching to raw mode, preserve current value
-        this.rawFormulaValue = this.value
+        // When switching to advanced mode, preserve current value
+        this.advancedFormulaValue = this.value
         this.isFormulaInvalid = false
-        this.$emit('mode-changed', 'raw')
+        this.$emit('mode-changed', 'advanced')
       } else {
-        // When switching to simple mode, emit the current raw value
+        // When switching to simple mode, emit the current value
         this.$emit('mode-changed', 'simple')
-        this.$emit('input', this.rawFormulaValue)
+        this.$emit('input', this.advancedFormulaValue)
       }
     },
 
     mode(newMode) {
-      this.isRawMode = newMode === 'raw'
+      this.isAdvancedMode = newMode === 'advanced'
     },
   },
   mounted() {
-    if (!this.isRawMode) {
+    if (!this.isAdvancedMode) {
       this.content = this.toContent(this.value)
     }
 
@@ -427,8 +427,8 @@ export default {
         this.dataNodeSelected = null
       }
     },
-    emitRawChange() {
-      this.$emit('input', this.rawFormulaValue)
+    emitAdvancedChange() {
+      this.$emit('input', this.advancedFormulaValue)
     },
   },
 }
