@@ -132,14 +132,23 @@ def test_local_baserow_table_service_filterable_mixin_import_export(data_fixture
         page=page, table=table, integration=integration
     )
     data_fixture.create_local_baserow_table_service_filter(
-        service=data_source.service, field=text_field, value="'foobar'", order=0
+        service=data_source.service,
+        field=text_field,
+        value="'foobar'",
+        order=0,
+        value_is_formula=True,
     )
     data_fixture.create_local_baserow_table_service_filter(
-        service=data_source.service, field=text_field, value="123", order=1
+        service=data_source.service,
+        field=text_field,
+        value="123",
+        order=1,
+        value_is_formula=True,
     )
     data_fixture.create_local_baserow_table_service_filter(
         service=data_source.service,
         field=single_select_field,
+        value_is_formula=False,
         value=str(single_option.id),
         order=2,
     )
@@ -181,7 +190,11 @@ def test_local_baserow_table_service_filterable_mixin_import_export(data_fixture
     imported_page = imported_builder.visible_pages.get()
     imported_datasource = imported_page.datasource_set.get()
     imported_filters = [
-        {"field_id": sf.field_id, "value": sf.value}
+        {
+            "field_id": sf.field_id,
+            "value": sf.value,
+            "value_is_formula": sf.value_is_formula,
+        }
         for sf in imported_datasource.service.service_filters.all()
     ]
 
@@ -189,10 +202,12 @@ def test_local_baserow_table_service_filterable_mixin_import_export(data_fixture
         {
             "field_id": imported_text_field.id,
             "value": {"mode": "simple", "version": "0.1", "formula": "'foobar'"},
+            "value_is_formula": True,
         },
         {
             "field_id": imported_text_field.id,
             "value": {"mode": "simple", "version": "0.1", "formula": "123"},
+            "value_is_formula": True,
         },
         {
             "field_id": imported_single_select_field.id,
@@ -201,6 +216,59 @@ def test_local_baserow_table_service_filterable_mixin_import_export(data_fixture
                 "version": "0.1",
                 "formula": str(imported_select_option.id),
             },
+            "value_is_formula": False,
+        },
+    ]
+
+
+@pytest.mark.django_db()
+def test_local_baserow_table_service_filterable_mixin_compat():
+    mixin = LocalBaserowTableServiceFilterableMixin()
+
+    id_mapping = {
+        "database_field_select_options": {1: 42},
+        "database_fields": {1: 41, 2: 42, 3: 43, 4: 44},
+    }
+
+    value_to_test = [
+        {"field_id": 1, "value": "'Formula as string'", "value_is_formula": True},
+        {"field_id": 2, "value": "1", "value_is_formula": False},
+        {"field_id": 3, "value": "", "value_is_formula": True},
+        {
+            "field_id": 4,
+            "value": {"mode": "simple", "version": "0.1", "formula": "'foobar'"},
+            "value_is_formula": True,
+        },
+    ]
+
+    result = json.loads(
+        json.dumps(mixin.deserialize_filters(value_to_test, id_mapping))
+    )
+
+    assert result == [
+        {
+            "field_id": 41,
+            "value": {
+                "formula": "'Formula as string'",
+                "mode": "simple",
+                "version": "0.1",
+            },
+            "value_is_formula": True,
+        },
+        {
+            "field_id": 42,
+            "value": {"formula": "42", "mode": "simple", "version": "0.1"},
+            "value_is_formula": False,
+        },
+        {
+            "field_id": 43,
+            "value": {"formula": "", "mode": "simple", "version": "0.1"},
+            "value_is_formula": True,
+        },
+        {
+            "field_id": 44,
+            "value": {"mode": "simple", "version": "0.1", "formula": "'foobar'"},
+            "value_is_formula": True,
         },
     ]
 

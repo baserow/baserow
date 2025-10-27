@@ -78,9 +78,29 @@ BaserowFormulaMode = Literal["simple", "advanced", "raw"]
 
 
 class BaserowFormulaObject(TypedDict):
-    version: str
-    mode: BaserowFormulaMode
     formula: BaserowFormula
+    mode: BaserowFormulaMode
+    version: str
+
+    @classmethod
+    def create(
+        cls,
+        formula: str = "",
+        mode: BaserowFormulaMode = BASEROW_FORMULA_MODE_SIMPLE,
+        version: str = "0.1",
+    ) -> "BaserowFormulaObject":
+        return BaserowFormulaObject(formula=formula, mode=mode, version=version)
+
+    @classmethod
+    def to_formula(cls, value) -> "BaserowFormulaObject":
+        """
+        Return a formula object even if it was a string.
+        """
+
+        if isinstance(value, dict):
+            return value
+        else:
+            return cls.create(formula=value)
 
 
 class BaserowFormulaMinified(TypedDict):

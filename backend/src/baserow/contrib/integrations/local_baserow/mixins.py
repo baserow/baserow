@@ -130,26 +130,32 @@ class LocalBaserowTableServiceFilterableMixin:
         :return: the deserialized version for the filter.
         """
 
-        return [
-            {
-                **f,
-                "field_id": (
-                    id_mapping["database_fields"][f["field_id"]]
-                    if "database_fields" in id_mapping
-                    else f["field_id"]
-                ),
-                "value": (
-                    id_mapping["database_field_select_options"].get(
-                        int(f["value"]["formula"]), f["value"]["formula"]
+        result = []
+
+        for f in value:
+            formula = BaserowFormulaObject.to_formula(f["value"])
+            field_id = id_mapping.get("database_fields", {}).get(
+                f["field_id"], f["field_id"]
+            )
+
+            if (
+                f["value_is_formula"]
+                or not formula["formula"].isdigit()
+                or "database_field_select_options" not in id_mapping
+            ):
+                val = formula
+            else:
+                val = BaserowFormulaObject.create(
+                    formula=str(
+                        id_mapping["database_field_select_options"].get(
+                            int(formula["formula"]), formula["formula"]
+                        )
                     )
-                    if "database_field_select_options" in id_mapping
-                    and f["value"]["formula"].isdigit()
-                    and not f["value_is_formula"]
-                    else f["value"]["formula"]
-                ),
-            }
-            for f in value
-        ]
+                )
+
+            result.append({**f, "field_id": field_id, "value": val})
+
+        return result
 
     def create_instance_from_serialized(
         self,
