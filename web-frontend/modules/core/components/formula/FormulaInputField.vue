@@ -24,17 +24,22 @@
       v-else
       v-model="advancedFormulaValue"
       type="text"
-      class="form-input"
+      class="form-input formula-input-field formula-input-field__advanced-input"
+      :class="classes"
+      
+      role="textbox"
       :disabled="disabled"
       :placeholder="placeholder"
       @input="emitAdvancedChange"
     />
+
     <div v-if="enableAdvancedMode" class="margin-top-1">
       <label class="checkbox">
         <input v-model="isAdvancedMode" type="checkbox" :disabled="disabled" />
         <span>Advanced Formula Mode</span>
       </label>
     </div>
+   
     <DataExplorer
       v-if="isFocused && !isAdvancedMode"
       ref="dataExplorer"
@@ -289,8 +294,9 @@ export default {
         this.isFormulaInvalid = false
         this.$emit('mode-changed', 'advanced')
       } else {
-        // When switching to simple mode, emit the current value
+        // When switching to simple mode, clear the value to avoid formula parsing errors
         this.$emit('mode-changed', 'simple')
+        this.advancedFormulaValue = "''"
         this.$emit('input', this.advancedFormulaValue)
       }
     },

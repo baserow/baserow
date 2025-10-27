@@ -39,3 +39,13 @@
   pointer-events: none;
   height: 0;
 }
+
+.formula-input-field__advanced-input {
+  width: 100%;
+  padding: 12px 16px;
+  line-height: 100%;
+
+  &::placeholder {
+    color: $color-neutral-500;
+  }
+}
