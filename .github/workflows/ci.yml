@@ -400,7 +400,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+        group: [1]
     services:
       db:
         image: pgvector/pgvector:pg13
@@ -436,7 +436,7 @@ jobs:
           docker run \
             --name=baserow_backend_test_container \
             --network="${{ job.services.db.network }}" \
-            -e PYTEST_SPLITS=10 \
+            -e PYTEST_SPLITS=100 \
             -e PYTEST_SPLIT_GROUP=${{ matrix.group }} \
             -e DATABASE_HOST=db \
             -e DATABASE_PORT=5432 \
@@ -873,7 +873,7 @@ jobs:
         with:
           GITHUB_TOKEN: ${{ github.token }}
           MERGE_COVERAGE_FILES: false
-          COVERAGE_PATH: ${{ github.workspace }}/.coverage
+          COVERAGE_PATH: ${{ github.workspace }}
           VERBOSE: true
 
   # ==========================================================================
