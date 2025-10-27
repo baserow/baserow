@@ -37,13 +37,15 @@ export class GuidedTourStep {
     title = null,
     content = null,
     selector = null,
-    position = 'right-top'
+    position = 'right-top',
+    highlightPadding = 2
   ) {
     this.app = app
     this._title = title
     this._content = content
     this._selector = selector
     this._position = position
+    this._highlightPadding = highlightPadding
   }
 
   /**
@@ -94,6 +96,10 @@ export class GuidedTourStep {
    */
   get skipIfNotFirst() {
     return false
+  }
+
+  get highlightPadding() {
+    return this._highlightPadding
   }
 
   /**

@@ -37,6 +37,10 @@ class GraphGuidedTourStep extends GuidedTourStep {
   get position() {
     return 'center'
   }
+
+  get highlightPadding() {
+    return 0
+  }
 }
 
 class HistoryGuidedTourStep extends GuidedTourStep {

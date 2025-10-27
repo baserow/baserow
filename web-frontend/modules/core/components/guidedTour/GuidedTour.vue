@@ -4,7 +4,11 @@
     class="guided-tour-step__container"
     @click.stop
   >
-    <Highlight ref="highlight" :get-parent="getParent">
+    <Highlight
+      ref="highlight"
+      :get-parent="getParent"
+      :padding="currentStep.highlightPadding ?? 2"
+    >
       <GuidedTourStep
         v-if="currentStep"
         :step="stepIndex + 1"

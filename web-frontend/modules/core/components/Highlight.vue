@@ -27,6 +27,11 @@ export default {
       required: false,
       default: null,
     },
+    padding: {
+      type: Number,
+      required: false,
+      default: 2,
+    },
   },
   data() {
     return {
@@ -106,11 +111,10 @@ export default {
         const elements = this.getElements(this.selector)
         const parentRect = this._getParent().getBoundingClientRect()
         const elementRect = getCombinedBoundingClientRect(elements)
-        const padding = 2
-        position.top = elementRect.top - parentRect.top - padding + 'px'
-        position.left = elementRect.left - parentRect.left - padding + 'px'
-        position.width = elementRect.width + padding * 2 + 'px'
-        position.height = elementRect.height + padding * 2 + 'px'
+        position.top = elementRect.top - parentRect.top - this.padding + 'px'
+        position.left = elementRect.left - parentRect.left - this.padding + 'px'
+        position.width = elementRect.width + this.padding * 2 + 'px'
+        position.height = elementRect.height + this.padding * 2 + 'px'
       } else {
         position.top = '50%'
         position.left = '50%'
