@@ -118,5 +118,4 @@ class LocalBaserowTableServiceFieldMappingSerializer(serializers.Serializer):
     enabled = serializers.BooleanField(
         help_text="Indicates whether the field mapping is enabled or not."
     )
-
     value = FormulaSerializerField()

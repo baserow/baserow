@@ -35,7 +35,7 @@
     <div v-if="enableAdvancedMode" class="margin-top-1">
       <label class="checkbox">
         <input v-model="isAdvancedMode" type="checkbox" :disabled="disabled" />
-        <span>Advanced Formula Mode</span>
+        <span>{{ $t('formulaInputField.advancedFormulaMode') }}</span>
       </label>
     </div>
 
