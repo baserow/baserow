@@ -25,11 +25,14 @@ const props = defineProps({
 const applicationContext = inject('applicationContext')
 const currentMode = ref(props.value.mode)
 
-watch(() => props.value.mode, (newMode) => {
-  if (newMode) {
-    currentMode.value = newMode
+watch(
+  () => props.value.mode,
+  (newMode) => {
+    if (newMode) {
+      currentMode.value = newMode
+    }
   }
-})
+)
 
 const { app } = useContext()
 const dataProviders = computed(() => {
@@ -55,7 +58,9 @@ const formulaStr = computed(() => {
 const emit = defineEmits(['input'])
 const updatedFormulaStr = (newFormulaStr) => {
   emit('input', {
-    ...props.value, formula: newFormulaStr, mode: currentMode.value
+    ...props.value,
+    formula: newFormulaStr,
+    mode: currentMode.value,
   })
 }
 
