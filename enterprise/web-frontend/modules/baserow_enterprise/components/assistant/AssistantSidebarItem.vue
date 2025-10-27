@@ -2,10 +2,7 @@
   <div v-if="hasPermission">
     <li
       class="tree__item"
-      :class="{
-        'tree__action--deactivated': deactivated,
-        active: rightSidebarOpen,
-      }"
+      :class="{ 'tree__action--deactivated': deactivated }"
     >
       <div class="tree__action">
         <a
@@ -29,6 +26,10 @@
           <span class="tree__link-text">{{
             $t('assistantSidebarItem.title')
           }}</span>
+          <i
+            v-show="rightSidebarOpen"
+            class="tree__icon-right iconoir-view-columns-3"
+          ></i>
         </a>
       </div>
       <PaidFeaturesModal
