@@ -159,7 +159,7 @@ class CoreRouterActionNodeType(AutomationNodeActionNodeType):
 
     def has_node_on_edge(self, node: CoreRouterActionNode) -> bool:
         """
-        Given a router node, this method returns True if one fo its edge has a node.
+        Given a router node, this method returns whether one of its edges has a node.
 
         :param node: The router node instance.
         """

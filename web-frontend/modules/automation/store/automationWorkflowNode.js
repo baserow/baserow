@@ -326,7 +326,7 @@ const actions = {
     const originalNode = clone(node)
 
     const initialGraph = clone(workflow.graph)
-    dispatch('graphRemove', {
+    await dispatch('graphRemove', {
       workflow,
       node,
     })

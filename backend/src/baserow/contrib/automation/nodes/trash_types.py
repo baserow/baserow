@@ -45,8 +45,10 @@ class AutomationNodeTrashableItemType(TrashableItemType):
             != ReplaceAutomationNodeTrashOperationType.type
         ):
             item_to_trash.workflow.get_graph().remove(item_to_trash)
+            item_to_trash.workflow.refresh_from_db()
+
             automation_workflow_updated.send(
-                self, workflow=item_to_trash.workflow, user=None
+                self, workflow=item_to_trash.workflow, user=requesting_user
             )
 
         AutomationNodeHandler().invalidate_node_cache(item_to_trash.workflow)
