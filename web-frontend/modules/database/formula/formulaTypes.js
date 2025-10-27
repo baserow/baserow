@@ -70,6 +70,7 @@ import ViewFilterTypeBoolean from '@baserow/modules/database/components/view/Vie
 import {
   genericHasAllValuesEqualFilter,
   genericHasValueContainsFilter,
+  genericHasValueContainsWordFilter,
 } from '@baserow/modules/database/utils/fieldFilters'
 import ViewFilterTypeDuration from '@baserow/modules/database/components/view/ViewFilterTypeDuration'
 import ViewFilterTypeMultipleSelectOptions from '@baserow/modules/database/components/view/ViewFilterTypeMultipleSelectOptions'
@@ -1066,9 +1067,9 @@ export class BaserowFormulaMultipleSelectType extends mix(
 
 export class BaserowFormulaMultipleCollaboratorsType extends mix(
   hasEmptyValueFilterMixin,
-  hasValueEqualFilterMixin,
-  hasValueContainsFilterMixin,
-  hasValueContainsWordFilterMixin,
+  hasNestedSelectOptionValueContainsFilterMixin,
+  hasNestedSelectOptionValueContainsWordFilterMixin,
+  hasMultipleSelectOptionIdEqualMixin,
   BaserowFormulaTypeDefinition
 ) {
   static getType() {
@@ -1113,6 +1114,24 @@ export class BaserowFormulaMultipleCollaboratorsType extends mix(
 
   canGroupByInView() {
     return false
+  }
+
+  _getHasValueEqualFilterFunctionForRowValues(rowValueIdSets, filterValues) {
+    return rowValueIdSets.some((rowValueIdSet) =>
+      rowValueIdSet.isSupersetOf(new Set(filterValues))
+    )
+  }
+
+  _getHasValueContainsFilterFunction(cellValue, filterValue) {
+    return cellValue.some((v) =>
+      genericHasValueContainsFilter(v?.value || [], filterValue, 'name')
+    )
+  }
+
+  _getHasValueContainsWordFilterFunction(cellValue, filterValue) {
+    return cellValue.some((v) =>
+      genericHasValueContainsWordFilter(v?.value || [], filterValue, 'name')
+    )
   }
 }
 

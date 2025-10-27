@@ -100,7 +100,11 @@ export function genericHasValueEqualFilter(cellValue, filterValue) {
   return false
 }
 
-export function genericHasValueContainsFilter(cellValue, filterValue) {
+export function genericHasValueContainsFilter(
+  cellValue,
+  filterValue,
+  valueField = 'value'
+) {
   if (!Array.isArray(cellValue)) {
     return false
   }
@@ -108,8 +112,7 @@ export function genericHasValueContainsFilter(cellValue, filterValue) {
   filterValue = String(filterValue).toLowerCase().trim()
 
   for (let i = 0; i < cellValue.length; i++) {
-    const value = String(cellValue[i].value).toLowerCase().trim()
-
+    const value = String(cellValue[i][valueField]).toLowerCase().trim()
     if (value.includes(filterValue)) {
       return true
     }
@@ -118,7 +121,11 @@ export function genericHasValueContainsFilter(cellValue, filterValue) {
   return false
 }
 
-export function genericHasValueContainsWordFilter(cellValue, filterValue) {
+export function genericHasValueContainsWordFilter(
+  cellValue,
+  filterValue,
+  valueField = 'value'
+) {
   if (!Array.isArray(cellValue)) {
     return false
   }
@@ -127,10 +134,10 @@ export function genericHasValueContainsWordFilter(cellValue, filterValue) {
   filterValue = filterValue.replace(/[-[\]{}()*+?.,\\^$|#]/g, '\\$&')
 
   for (let i = 0; i < cellValue.length; i++) {
-    if (cellValue[i].value == null) {
+    if (cellValue[i][valueField] == null) {
       continue
     }
-    const value = String(cellValue[i].value).toLowerCase().trim()
+    const value = String(cellValue[i][valueField]).toLowerCase().trim()
     if (value.match(new RegExp(`\\b${filterValue}\\b`))) {
       return true
     }

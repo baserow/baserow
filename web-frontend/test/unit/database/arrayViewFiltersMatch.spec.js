@@ -2196,11 +2196,114 @@ const MultipleCollaboratorsEmptyCases = [
   },
 ]
 
+const MultipleCollaboratorsArrayFiltersCases = [
+  {
+    rowValue: [],
+    filterValue: {
+      hasValueEqual: '1',
+      hasValueContains: 'fo',
+      hasValueContainsWord: 'foo',
+    },
+    // expected is false, because there's no empty value in the list
+    expected: {
+      hasEmptyValue: false,
+      hasValueEqual: false,
+      hasValueContains: false,
+      hasValueContainsWord: false,
+    },
+  },
+  {
+    rowValue: [{ id: 1, value: [] }],
+    filterValue: {
+      hasValueEqual: '1',
+      hasValueContains: 'fo',
+      hasValueContainsWord: 'foo',
+    },
+    expected: {
+      hasEmptyValue: true,
+      hasValueEqual: false,
+      hasValueContains: false,
+      hasValueContainsWord: false,
+    },
+  },
+  {
+    rowValue: [
+      {
+        id: 2,
+        value: [
+          { id: 1, name: 'foo' },
+          { id: 2, name: 'bar' },
+        ],
+      },
+      { id: 3, value: [{ id: 2, name: 'bar' }] },
+    ],
+    filterValue: {
+      hasValueEqual: '1',
+      hasValueContains: 'fo',
+      hasValueContainsWord: 'foo',
+    },
+    expected: {
+      hasEmptyValue: false,
+      hasValueEqual: true,
+      hasValueContains: true,
+      hasValueContainsWord: true,
+    },
+  },
+  {
+    rowValue: [
+      { id: 2, value: [{ id: 1, name: 'foo' }] },
+      { id: 1, value: [] },
+    ],
+    filterValue: {
+      hasValueEqual: '2',
+      hasValueContains: 'fo',
+      hasValueContainsWord: 'foo',
+    },
+    expected: {
+      hasEmptyValue: true,
+      hasValueEqual: false,
+      hasValueContains: true,
+      hasValueContainsWord: true,
+    },
+  },
+
+  {
+    rowValue: [
+      {
+        id: 2,
+        value: [
+          { id: 1, name: 'foo' },
+          { id: 2, name: 'bar' },
+        ],
+      },
+      { id: 3, value: [{ id: 2, name: 'bar' }] },
+    ],
+    filterValue: {
+      hasValueEqual: '100',
+      hasValueContains: 'za',
+      hasValueContainsWord: 'zap!',
+    },
+    expected: {
+      hasEmptyValue: false,
+      hasValueEqual: false,
+      hasValueContains: false,
+      hasValueContainsWord: false,
+    },
+  },
+]
+
 describe('Multiple collaborators view filters', () => {
   let testApp = null
+  let fieldType = null
+  const field = {
+    type: 'lookup',
+    formula_type: 'array',
+    array_formula_type: 'multiple_collaborators',
+  }
 
   beforeAll(() => {
     testApp = new TestApp()
+    fieldType = new FormulaFieldType({ app: testApp.getApp() })
   })
 
   afterEach(() => {
@@ -2210,14 +2313,8 @@ describe('Multiple collaborators view filters', () => {
   test.each(MultipleCollaboratorsEmptyCases)(
     'Multiple collaborators is empty.',
     (values) => {
-      const fieldType = new FormulaFieldType({ app: testApp })
-      const field = {
-        type: 'lookup',
-        formula_type: 'array',
-        array_formula_type: 'multiple_collaborators',
-      }
       const result = new EmptyViewFilterType({
-        app: testApp,
+        app: testApp.getApp(),
       }).matches(values.rowValue, '', field, fieldType)
       expect(result).toBe(values.expected)
     }
@@ -2226,16 +2323,120 @@ describe('Multiple collaborators view filters', () => {
   test.each(MultipleCollaboratorsEmptyCases)(
     'Multiple collaborators is not empty.',
     (values) => {
-      const fieldType = new FormulaFieldType({ app: testApp })
-      const field = {
-        type: 'lookup',
-        formula_type: 'array',
-        array_formula_type: 'multiple_collaborators',
-      }
       const result = new NotEmptyViewFilterType({
-        app: testApp,
+        app: testApp.getApp(),
       }).matches(values.rowValue, '', field, fieldType)
       expect(result).toBe(!values.expected)
+    }
+  )
+
+  test.each(MultipleCollaboratorsArrayFiltersCases)(
+    'Multiple collaborators has empty value empty %j.',
+    (values) => {
+      const result = new HasEmptyValueViewFilterType({
+        app: testApp.getApp(),
+      }).matches(values.rowValue, '', field, fieldType)
+      expect(result).toBe(values.expected.hasEmptyValue)
+    }
+  )
+
+  test.each(MultipleCollaboratorsArrayFiltersCases)(
+    'Multiple collaborators has not empty value empty %j.',
+    (values) => {
+      const result = new HasNotEmptyValueViewFilterType({
+        app: testApp.getApp(),
+      }).matches(values.rowValue, '', field, fieldType)
+      expect(result).toBe(!values.expected.hasEmptyValue)
+    }
+  )
+
+  test.each(MultipleCollaboratorsArrayFiltersCases)(
+    'Multiple collaborators has value equal %j.',
+    (values) => {
+      const result = new HasValueEqualViewFilterType({
+        app: testApp.getApp(),
+      }).matches(
+        values.rowValue,
+        values.filterValue.hasValueEqual,
+        field,
+        fieldType
+      )
+      expect(result).toBe(values.expected.hasValueEqual)
+    }
+  )
+
+  test.each(MultipleCollaboratorsArrayFiltersCases)(
+    'Multiple collaborators has not value equal %j.',
+    (values) => {
+      const result = new HasNotValueEqualViewFilterType({
+        app: testApp.getApp(),
+      }).matches(
+        values.rowValue,
+        values.filterValue.hasValueEqual,
+        field,
+        fieldType
+      )
+      expect(result).toBe(!values.expected.hasValueEqual)
+    }
+  )
+
+  test.each(MultipleCollaboratorsArrayFiltersCases)(
+    'Multiple collaborators has value contains %j.',
+    (values) => {
+      const result = new HasValueContainsViewFilterType({
+        app: testApp.getApp(),
+      }).matches(
+        values.rowValue,
+        values.filterValue.hasValueContains,
+        field,
+        fieldType
+      )
+      expect(result).toBe(values.expected.hasValueContains)
+    }
+  )
+
+  test.each(MultipleCollaboratorsArrayFiltersCases)(
+    'Multiple collaborators has not value contains %j.',
+    (values) => {
+      const result = new HasNotValueContainsViewFilterType({
+        app: testApp.getApp(),
+      }).matches(
+        values.rowValue,
+        values.filterValue.hasValueContains,
+        field,
+        fieldType
+      )
+      expect(result).toBe(!values.expected.hasValueContains)
+    }
+  )
+
+  test.each(MultipleCollaboratorsArrayFiltersCases)(
+    'Multiple collaborators has value contains word %j.',
+    (values) => {
+      const result = new HasValueContainsWordViewFilterType({
+        app: testApp.getApp(),
+      }).matches(
+        values.rowValue,
+        values.filterValue.hasValueContainsWord,
+        field,
+        fieldType
+      )
+      expect(result).toBe(values.expected.hasValueContainsWord)
+    }
+  )
+
+  test.each(MultipleCollaboratorsArrayFiltersCases)(
+    'Multiple collaborators has not value contains word %j.',
+    (values) => {
+      const result = new HasNotValueContainsWordViewFilterType({
+        app: testApp.getApp(),
+      }).matches(
+        values.rowValue,
+        values.filterValue.hasValueContainsWord,
+        field,
+        fieldType
+      )
+      expect(result).toBe(!values.expected.hasValueContainsWord)
     }
   )
 })
