@@ -17,9 +17,7 @@ from baserow.core.formula.argument_types import (
 )
 from baserow.core.formula.registries import RuntimeFormulaFunction
 from baserow.core.formula.types import FormulaArg, FormulaArgs, FormulaContext
-from baserow.core.formula.validator import (
-    ensure_string,
-)
+from baserow.core.formula.validator import ensure_string
 
 
 class RuntimeConcat(RuntimeFormulaFunction):

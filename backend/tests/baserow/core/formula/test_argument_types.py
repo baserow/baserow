@@ -1,14 +1,14 @@
-import pytest
-
 from datetime import date, datetime
 
+import pytest
+
 from baserow.core.formula.argument_types import (
-    NumberBaserowRuntimeFormulaArgumentType,
-    TextBaserowRuntimeFormulaArgumentType,
     AddableBaserowRuntimeFormulaArgumentType,
-    SubtractableBaserowRuntimeFormulaArgumentType,
     DateTimeBaserowRuntimeFormulaArgumentType,
     DictBaserowRuntimeFormulaArgumentType,
+    NumberBaserowRuntimeFormulaArgumentType,
+    SubtractableBaserowRuntimeFormulaArgumentType,
+    TextBaserowRuntimeFormulaArgumentType,
 )
 
 
@@ -27,7 +27,7 @@ from baserow.core.formula.argument_types import (
         (" 1 ", False),
         ("", False),
         (None, False),
-    ]
+    ],
 )
 def test_number_test_method(value, expected):
     assert NumberBaserowRuntimeFormulaArgumentType().test(value) is expected
@@ -42,7 +42,7 @@ def test_number_test_method(value, expected):
         ("0", 0),
         (15.6, 15.6),
         ("15.6", 15.6),
-    ]
+    ],
 )
 def test_number_parse_method(value, expected):
     assert NumberBaserowRuntimeFormulaArgumentType().parse(value) == expected
@@ -63,7 +63,7 @@ def test_number_parse_method(value, expected):
         ({}, True),
         ([], True),
         (None, True),
-    ]
+    ],
 )
 def test_text_test_method(value, expected):
     assert TextBaserowRuntimeFormulaArgumentType().test(value) is expected
@@ -80,8 +80,8 @@ def test_text_test_method(value, expected):
         ("15.6", "15.6"),
         ({"foo": "bar"}, '{"foo": "bar"}'),
         (["a", "b"], "a,b"),
-        (None, "")
-    ]
+        (None, ""),
+    ],
 )
 def test_text_parse_method(value, expected):
     assert TextBaserowRuntimeFormulaArgumentType().parse(value) == expected
@@ -102,7 +102,7 @@ def test_text_parse_method(value, expected):
         ("", True),
         ({}, False),
         (None, False),
-    ]
+    ],
 )
 def test_addable_test_method(value, expected):
     assert AddableBaserowRuntimeFormulaArgumentType().test(value) == expected
@@ -122,7 +122,7 @@ def test_addable_test_method(value, expected):
         [],
         "",
         {},
-    ]
+    ],
 )
 def test_addable_parse_method(value):
     assert AddableBaserowRuntimeFormulaArgumentType().parse(value) == value
@@ -143,7 +143,7 @@ def test_addable_parse_method(value):
         ("16.25", False),
         ({}, False),
         (None, False),
-    ]
+    ],
 )
 def test_subtractable_test_method(value, expected):
     assert SubtractableBaserowRuntimeFormulaArgumentType().test(value) == expected
@@ -157,7 +157,7 @@ def test_subtractable_test_method(value, expected):
         0,
         10,
         16.25,
-    ]
+    ],
 )
 def test_subtractable_parse_method(value):
     assert SubtractableBaserowRuntimeFormulaArgumentType().parse(value) == value
@@ -186,7 +186,7 @@ def test_subtractable_parse_method(value):
         ("16.25", False),
         ([], False),
         ({}, False),
-    ]
+    ],
 )
 def test_datetime_test_method(value, expected):
     assert DateTimeBaserowRuntimeFormulaArgumentType().test(value) == expected
@@ -196,13 +196,28 @@ def test_datetime_test_method(value, expected):
     "value,expected",
     [
         # A date is converted to datetime with hour/minute/second to 0
-        ("2025-12-31", datetime(year=2025, month=12, day=31, hour=0, minute=0, second=0)),
-        ("2025-12-31 14:22", datetime(year=2025, month=12, day=31, hour=14, minute=22, second=0)),
-        ("2025-12-31 14:22:11", datetime(year=2025, month=12, day=31, hour=14, minute=22, second=11)),
-        (date(year=2025, month=10, day=22), datetime(year=2025, month=10, day=22, hour=0, minute=0, second=0)),
-        (datetime(year=2025, month=10, day=22, hour=1, minute=2, second=3), datetime(year=2025, month=10, day=22, hour=1, minute=2, second=3)),
+        (
+            "2025-12-31",
+            datetime(year=2025, month=12, day=31, hour=0, minute=0, second=0),
+        ),
+        (
+            "2025-12-31 14:22",
+            datetime(year=2025, month=12, day=31, hour=14, minute=22, second=0),
+        ),
+        (
+            "2025-12-31 14:22:11",
+            datetime(year=2025, month=12, day=31, hour=14, minute=22, second=11),
+        ),
+        (
+            date(year=2025, month=10, day=22),
+            datetime(year=2025, month=10, day=22, hour=0, minute=0, second=0),
+        ),
+        (
+            datetime(year=2025, month=10, day=22, hour=1, minute=2, second=3),
+            datetime(year=2025, month=10, day=22, hour=1, minute=2, second=3),
+        ),
         (None, None),
-    ]
+    ],
 )
 def test_datetime_parse_method(value, expected):
     assert DateTimeBaserowRuntimeFormulaArgumentType().parse(value) == expected
@@ -220,9 +235,9 @@ def test_datetime_parse_method(value, expected):
         ([], False),
         (0, False),
         (100, False),
-        ("foo", False),        
+        ("foo", False),
         (None, False),
-    ]
+    ],
 )
 def test_dict_test_method(value, expected):
     assert DictBaserowRuntimeFormulaArgumentType().test(value) == expected
@@ -234,7 +249,7 @@ def test_dict_test_method(value, expected):
         ({}, {}),
         ('{"foo": "bar"}', {"foo": "bar"}),
         ({"foo": "bar"}, {"foo": "bar"}),
-    ]
+    ],
 )
 def test_dict_parse_method(value, expected):
     assert DictBaserowRuntimeFormulaArgumentType().parse(value) == expected

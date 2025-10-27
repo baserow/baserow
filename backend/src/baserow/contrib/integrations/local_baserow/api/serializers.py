@@ -4,7 +4,10 @@ from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowTableServiceFilter,
     LocalBaserowTableServiceSort,
 )
-from baserow.core.formula.serializers import FormulaSerializerField, OptionalFormulaSerializerField
+from baserow.core.formula.serializers import (
+    FormulaSerializerField,
+    OptionalFormulaSerializerField,
+)
 
 
 class LocalBaserowTableServiceSortSerializer(serializers.ModelSerializer):

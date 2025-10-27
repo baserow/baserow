@@ -2,9 +2,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from baserow.core.formula.runtime_formula_types import (
-    RuntimeConcat,
-)
+from baserow.core.formula.runtime_formula_types import RuntimeConcat
 
 
 @pytest.mark.parametrize(
