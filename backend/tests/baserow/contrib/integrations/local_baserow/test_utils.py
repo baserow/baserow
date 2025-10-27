@@ -391,7 +391,16 @@ def test_prepare_file_for_db_with_existing_file(data_fixture):
 
 
 @pytest.mark.django_db
+@responses.activate
 def test_prepare_file_for_db_with_mix(data_fixture, fake):
+    picsum_url = "https://picsum.photos/300/200"
+    responses.add(
+        responses.GET,
+        picsum_url,
+        status=200,
+        body=fake.image((300, 200)),
+    )
+
     user = data_fixture.create_user()
     user_file = data_fixture.create_user_file(
         original_name=f"a.txt",
@@ -407,7 +416,7 @@ def test_prepare_file_for_db_with_mix(data_fixture, fake):
         {
             "__file__": True,
             "name": "filename",
-            "url": "https://picsum.photos/300/200",
+            "url": picsum_url,
         },
         {
             "__file__": True,
@@ -432,7 +441,7 @@ def test_prepare_file_for_db_with_mix(data_fixture, fake):
             "image_height": 200,
             "image_width": 300,
             "is_image": True,
-            "mime_type": "image/jpeg",
+            "mime_type": "image/png",
             "name": AnyStr(),
             "size": AnyInt(),
             "uploaded_at": AnyStr(),
