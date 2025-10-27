@@ -186,8 +186,7 @@ export default {
             message: this.$t('assistantMessageActions.copiedContentToast'),
           })
         })
-        .catch((error) => {
-          console.error('Failed to copy to clipboard:', error)
+        .catch(() => {
           this.$store.dispatch('toast/error', {
             title: this.$t('assistantMessageActions.copyFailed'),
           })
