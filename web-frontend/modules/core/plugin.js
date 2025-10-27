@@ -91,8 +91,17 @@ import ko from '@baserow/modules/core/locales/ko.json'
 import { DefaultErrorPageType } from '@baserow/modules/core/errorPageTypes'
 import {
   RuntimeAdd,
+  RuntimeMinus,
+  RuntimeMultiply,
+  RuntimeDivide,
+  RuntimeGreaterThan,
+  RuntimeGreaterThanOrEqual,
+  RuntimeLessThan,
+  RuntimeLessThanOrEqual,
   RuntimeConcat,
   RuntimeGet,
+  RuntimeEqual,
+  RuntimeNotEqual,
   RuntimeUpper,
   RuntimeLower,
   RuntimeCapitalize,
@@ -252,6 +261,21 @@ export default (context, inject) => {
   registry.register('runtimeFormulaFunction', new RuntimeConcat(context))
   registry.register('runtimeFormulaFunction', new RuntimeGet(context))
   registry.register('runtimeFormulaFunction', new RuntimeAdd(context))
+  registry.register('runtimeFormulaFunction', new RuntimeMinus(context))
+  registry.register('runtimeFormulaFunction', new RuntimeMultiply(context))
+  registry.register('runtimeFormulaFunction', new RuntimeDivide(context))
+  registry.register('runtimeFormulaFunction', new RuntimeGreaterThan(context))
+  registry.register(
+    'runtimeFormulaFunction',
+    new RuntimeGreaterThanOrEqual(context)
+  )
+  registry.register('runtimeFormulaFunction', new RuntimeLessThan(context))
+  registry.register(
+    'runtimeFormulaFunction',
+    new RuntimeLessThanOrEqual(context)
+  )
+  registry.register('runtimeFormulaFunction', new RuntimeEqual(context))
+  registry.register('runtimeFormulaFunction', new RuntimeNotEqual(context))
   registry.register('runtimeFormulaFunction', new RuntimeUpper(context))
   registry.register('runtimeFormulaFunction', new RuntimeLower(context))
   registry.register('runtimeFormulaFunction', new RuntimeCapitalize(context))

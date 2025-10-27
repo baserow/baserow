@@ -1,5 +1,5 @@
 <template>
-  <Alert v-if="isFormulaInvalid" type="error">
+  <Alert v-if="isFormulaInvalid && mode == 'simple'" type="error">
     <p>
       {{ $t('formulaInputField.errorInvalidFormula') }}
     </p>
@@ -20,11 +20,10 @@
       :editor="editor"
       @data-component-clicked="dataComponentClicked"
     />
-    <input
+    <FormInput
       v-else
       v-model="advancedFormulaValue"
       type="text"
-      class="form-input formula-input-field formula-input-field__advanced-input"
       :class="classes"
       role="textbox"
       :disabled="disabled"
@@ -34,8 +33,13 @@
 
     <div v-if="enableAdvancedMode" class="margin-top-1">
       <label class="checkbox">
-        <input v-model="isAdvancedMode" type="checkbox" :disabled="disabled" />
-        <span>{{ $t('formulaInputField.advancedFormulaMode') }}</span>
+        <Checkbox
+          :checked="isAdvancedMode"
+          :disabled="disabled"
+          @input="toggleMode()"
+        >
+          {{ $t('formulaInputField.advancedFormulaMode') }}
+        </Checkbox>
       </label>
     </div>
 
@@ -67,6 +71,7 @@ import { mergeAttributes } from '@tiptap/core'
 import DataExplorer from '@baserow/modules/core/components/dataExplorer/DataExplorer'
 import { RuntimeGet } from '@baserow/modules/core/runtimeFormulaTypes'
 import { isElement, onClickOutside } from '@baserow/modules/core/utils/dom'
+import { isFormulaValid } from '@baserow/modules/core/formula'
 
 export default {
   name: 'FormulaInputField',
@@ -136,14 +141,17 @@ export default {
       dataNodeSelected: null,
       isFocused: false,
       ignoreNextBlur: false,
-      isAdvancedMode: this.mode === 'advanced',
-      advancedFormulaValue: '',
+      advancedFormulaValue: this.value,
     }
   },
   computed: {
+    isAdvancedMode() {
+      return this.mode === 'advanced'
+    },
     classes() {
       return {
         'form-input--disabled': this.disabled,
+        'form-input--error': this.isFormulaInvalid,
         'formula-input-field--small': this.small,
         'formula-input-field--focused': !this.disabled && this.isFocused,
         'formula-input-field--disabled': this.disabled,
@@ -185,6 +193,10 @@ export default {
       ]
     },
     htmlContent() {
+      if (this.isAdvancedMode) {
+        return ''
+      }
+
       try {
         if (!this.content) {
           return generateHTML(this.toContent(''), this.extensions)
@@ -291,17 +303,11 @@ export default {
         // When switching to advanced mode, preserve current value
         this.advancedFormulaValue = this.value
         this.isFormulaInvalid = false
-        this.$emit('mode-changed', 'advanced')
       } else {
         // When switching to simple mode, clear the value to avoid formula parsing errors
-        this.$emit('mode-changed', 'simple')
-        this.advancedFormulaValue = "''"
+        this.advancedFormulaValue = ''
         this.$emit('input', this.advancedFormulaValue)
       }
-    },
-
-    mode(newMode) {
-      this.isAdvancedMode = newMode === 'advanced'
     },
   },
   mounted() {
@@ -339,6 +345,9 @@ export default {
 
       const formulaValue = this.toFormula(this.wrapperContent)
       this.$emit('input', formulaValue)
+    },
+    toggleMode() {
+      this.$emit('mode-changed', this.mode === 'simple' ? 'advanced' : 'simple')
     },
     onUpdate() {
       this.unSelectNode()
@@ -433,7 +442,12 @@ export default {
       }
     },
     emitAdvancedChange() {
-      this.$emit('input', this.advancedFormulaValue)
+      if (isFormulaValid(this.advancedFormulaValue)) {
+        this.isFormulaInvalid = false
+        this.$emit('input', this.advancedFormulaValue)
+      } else {
+        this.isFormulaInvalid = true
+      }
     },
   },
 }

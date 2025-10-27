@@ -112,9 +112,6 @@ class FormulaSerializerField(serializers.JSONField):
         if not data["formula"]:
             return data
 
-        if data.get("mode") == BASEROW_FORMULA_MODE_ADVANCED:
-            return data
-
         try:
             get_parse_tree_for_formula(data["formula"])
             return data

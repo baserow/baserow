@@ -363,6 +363,32 @@ export class RuntimeDivide extends RuntimeFormulaFunction {
   }
 }
 
+export class RuntimeEqual extends RuntimeFormulaFunction {
+  static getType() {
+    return 'equal'
+  }
+
+  get args() {
+    return [
+      new NumberBaserowRuntimeFormulaArgumentType(),
+      new NumberBaserowRuntimeFormulaArgumentType(),
+    ]
+  }
+
+  execute(context, [a, b]) {
+    return a === b
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.equalDescription')
+  }
+
+  getExamples() {
+    return ['2=3 = false']
+  }
+}
+
 export class RuntimeNotEqual extends RuntimeFormulaFunction {
   static getType() {
     return 'not_equal'
@@ -464,6 +490,32 @@ export class RuntimeGreaterThanOrEqual extends RuntimeFormulaFunction {
 
   getExamples() {
     return ['3>=3 = true']
+  }
+}
+
+export class RuntimeLessThanOrEqual extends RuntimeFormulaFunction {
+  static getType() {
+    return 'less_than'
+  }
+
+  get args() {
+    return [
+      new NumberBaserowRuntimeFormulaArgumentType(),
+      new NumberBaserowRuntimeFormulaArgumentType(),
+    ]
+  }
+
+  execute(context, [a, b]) {
+    return a <= b
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.lessThanDescription')
+  }
+
+  getExamples() {
+    return ['3<=3 = true']
   }
 }
 

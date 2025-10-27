@@ -27,3 +27,16 @@ export const resolveFormula = (
     return ''
   }
 }
+
+export const isFormulaValid = (formula) => {
+  if (!formula) {
+    return true
+  }
+
+  try {
+    parseBaserowFormula(formula)
+    return true
+  } catch (err) {
+    return false
+  }
+}

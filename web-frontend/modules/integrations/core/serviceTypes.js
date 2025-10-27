@@ -112,7 +112,7 @@ export class CoreRouterServiceType extends WorkflowActionServiceTypeMixin(
   getEdgeErrorMessage(edge) {
     if (!edge.label.length) {
       return this.app.i18n.t('serviceType.coreRouterEdgeLabelRequired')
-    } else if (!edge.condition.length) {
+    } else if (!edge.condition.formula.length) {
       return this.app.i18n.t('serviceType.coreRouterEdgeConditionRequired')
     }
     return null

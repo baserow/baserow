@@ -2,11 +2,14 @@
   <FormulaInputField
     v-bind="$attrs"
     required
+    enable-advanced-mode
     :value="formulaStr"
+    :mode="formulaMode"
     :data-explorer-loading="dataExplorerLoading"
     :data-providers="dataProviders"
     :application-context="applicationContext"
     @input="updatedFormulaStr"
+    @mode-changed="updateMode"
   />
 </template>
 
@@ -51,6 +54,9 @@ export default {
     formulaStr() {
       return this.value.formula
     },
+    formulaMode() {
+      return this.value.mode
+    },
     dataSourceLoading() {
       return this.$store.getters['dataSource/getLoading'](this.elementPage)
     },
@@ -90,6 +96,9 @@ export default {
      */
     updatedFormulaStr(newFormulaStr) {
       this.$emit('input', { ...this.value, formula: newFormulaStr })
+    },
+    updateMode(newMode) {
+      this.$emit('input', { ...this.value, mode: newMode })
     },
   },
 }
