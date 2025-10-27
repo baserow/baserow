@@ -5,14 +5,6 @@ from typing import Any, AsyncGenerator, Callable, TypedDict
 from django.conf import settings
 from django.utils import translation
 
-import dspy
-from dspy.dsp.utils.settings import settings as dspy_settings
-from dspy.primitives.prediction import Prediction
-from dspy.streaming import StreamListener, StreamResponse
-from dspy.streaming.messages import sync_send_to_stream
-from dspy.utils.callback import BaseCallback
-from litellm import get_supported_openai_params
-
 from baserow.api.sessions import get_client_undo_redo_action_group_id
 from baserow_enterprise.assistant.exceptions import AssistantModelNotSupportedError
 from baserow_enterprise.assistant.tools.navigation.types import AnyNavigationRequestType
@@ -37,19 +29,6 @@ from .types import (
 class ToolHelpers:
     update_status: Callable[[str], None]
     navigate_to: Callable[["AnyNavigationRequestType"], str]
-
-
-class ChatSignature(dspy.Signature):
-    question: str = dspy.InputField()
-    history: dspy.History = dspy.InputField()
-    ui_context: UIContext | None = dspy.InputField(
-        default=None,
-        desc=(
-            "The frontend UI content the user is currently in. "
-            "Whenever make sense, use it to ground your answer."
-        ),
-    )
-    answer: str = dspy.OutputField()
 
 
 class AssistantMessagePair(TypedDict):
@@ -311,6 +290,9 @@ class Assistant:
             )
 
     def get_tool_helpers(self) -> ToolHelpers:
+        from dspy.dsp.utils.settings import settings as dspy_settings
+        from dspy.streaming.messages import sync_send_to_stream
+
         def update_status_localized(status: str):
             """
             Sends a localized message to the frontend to update the assistant status.

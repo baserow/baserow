@@ -1,11 +1,13 @@
 from typing import Any, Callable, Literal
 
-import dspy
-from dspy.adapters.types.tool import Tool
-from dspy.predict.react import _fmt_exc
-from dspy.primitives.module import Module
-from dspy.signatures.signature import ensure_signature
-from litellm import ContextWindowExceededError
+# This file is only imported when the assistant/react.py module is used,
+# so the flake8 plugin will not complain about global imports of dspy and litell
+import dspy  # noqa: BAI001
+from dspy.adapters.types.tool import Tool  # noqa: BAI001
+from dspy.predict.react import _fmt_exc  # noqa: BAI001
+from dspy.primitives.module import Module  # noqa: BAI001
+from dspy.signatures.signature import ensure_signature  # noqa: BAI001
+from litellm import ContextWindowExceededError  # noqa: BAI001
 from loguru import logger
 
 from .types import ToolsUpgradeResponse

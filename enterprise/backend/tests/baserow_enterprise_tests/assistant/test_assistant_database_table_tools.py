@@ -347,9 +347,7 @@ def test_generate_database_formula_no_save(data_fixture):
     mock_prediction.generated_formula_type = "text"
     mock_prediction.error_message = ""
 
-    with patch(
-        "baserow_enterprise.assistant.tools.database.tools.dspy.ReAct"
-    ) as mock_react:
+    with patch("dspy.ReAct") as mock_react:
         mock_react.return_value.return_value = mock_prediction
 
         tool = get_generate_database_formula_tool(user, workspace, fake_tool_helpers)
@@ -385,9 +383,7 @@ def test_generate_database_formula_create_new_field(data_fixture):
     mock_prediction.generated_formula_type = "text"
     mock_prediction.error_message = ""
 
-    with patch(
-        "baserow_enterprise.assistant.tools.database.tools.dspy.ReAct"
-    ) as mock_react:
+    with patch("dspy.ReAct") as mock_react:
         mock_react.return_value.return_value = mock_prediction
 
         tool = get_generate_database_formula_tool(user, workspace, fake_tool_helpers)
@@ -432,9 +428,7 @@ def test_generate_database_formula_update_existing_formula_field(data_fixture):
     mock_prediction.generated_formula_type = "text"
     mock_prediction.error_message = ""
 
-    with patch(
-        "baserow_enterprise.assistant.tools.database.tools.dspy.ReAct"
-    ) as mock_react:
+    with patch("dspy.ReAct") as mock_react:
         mock_react.return_value.return_value = mock_prediction
 
         tool = get_generate_database_formula_tool(user, workspace, fake_tool_helpers)
@@ -479,9 +473,7 @@ def test_generate_database_formula_replace_non_formula_field(data_fixture):
     mock_prediction.generated_formula_type = "text"
     mock_prediction.error_message = ""
 
-    with patch(
-        "baserow_enterprise.assistant.tools.database.tools.dspy.ReAct"
-    ) as mock_react:
+    with patch("dspy.ReAct") as mock_react:
         mock_react.return_value.return_value = mock_prediction
 
         tool = get_generate_database_formula_tool(user, workspace, fake_tool_helpers)
@@ -526,9 +518,7 @@ def test_generate_database_formula_invalid_formula(data_fixture):
     mock_prediction.generated_formula_type = ""
     mock_prediction.error_message = "Formula syntax error: invalid expression"
 
-    with patch(
-        "baserow_enterprise.assistant.tools.database.tools.dspy.ReAct"
-    ) as mock_react:
+    with patch("dspy.ReAct") as mock_react:
         mock_react.return_value.return_value = mock_prediction
 
         tool = get_generate_database_formula_tool(user, workspace, fake_tool_helpers)
@@ -579,9 +569,7 @@ def test_generate_database_formula_documentation_completeness(data_fixture):
             captured_formula_docs = kwargs.get("formula_documentation")
             return mock_prediction
 
-    with patch(
-        "baserow_enterprise.assistant.tools.database.tools.dspy.ReAct", MockReAct
-    ):
+    with patch("dspy.ReAct", MockReAct):
         tool = get_generate_database_formula_tool(user, workspace, fake_tool_helpers)
         tool(
             table_id=table.id,

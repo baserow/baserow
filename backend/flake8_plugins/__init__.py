@@ -1,1 +1,1 @@
-from .flake8_baserow import DocstringPlugin, BaserowPsycopgChecker
+from .flake8_baserow import DocstringPlugin, BaserowPsycopgChecker, BaserowAIImportsChecker
