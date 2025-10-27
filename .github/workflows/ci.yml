@@ -846,9 +846,18 @@ jobs:
         run: |
           echo "Listing downloaded files:"
           find reports-download -type f
-          cp reports-download/.coverage* . 2>/dev/null || echo "No coverage files found"
-          coverage combine
-          coverage report
+          cp reports-download/.coverage* $GITHUB_WORKSPACE/ 2>/dev/null || echo "No coverage files found"
+          cd $GITHUB_WORKSPACE
+          coverage combine || echo "::warning::No coverage data to combine"
+          coverage report || echo "::warning::No coverage report generated"
+          ls -la .coverage* || true
+
+      - name: Verify .coverage file exists
+        run: |
+          if [ ! -f $GITHUB_WORKSPACE/.coverage ]; then
+            echo "::error::No .coverage file found after combining coverage!"
+            exit 1
+          fi
 
       - name: Upload combined coverage report
         uses: actions/upload-artifact@v4
@@ -864,6 +873,8 @@ jobs:
         with:
           GITHUB_TOKEN: ${{ github.token }}
           MERGE_COVERAGE_FILES: false
+          COVERAGE_PATH: ${{ github.workspace }}/.coverage
+          VERBOSE: true
 
   # ==========================================================================
   # Build and publish stage - builds production grade images and publishes
