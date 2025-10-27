@@ -19,7 +19,6 @@ from baserow.contrib.database.fields.models import FormulaField
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.models import Database
 from baserow.contrib.database.table.actions import CreateTableActionType
-from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.views.actions import (
     CreateViewActionType,
     CreateViewFilterActionType,
@@ -780,19 +779,22 @@ class CreateViewFiltersToolType(AssistantToolType):
         return get_create_view_filters_tool(user, workspace, tool_helpers)
 
 
-def get_formula_type_tool(table: Table, field_name: str) -> Callable[[str], str]:
+def get_formula_type_tool(
+    user: AbstractUser, workspace: Workspace
+) -> Callable[[str], str]:
     """
     Returns a function that returns the type of a formula.
     """
 
-    def get_formula_type(formula: str) -> str:
+    def get_formula_type(table_id: int, field_name: str, formula: str) -> str:
         """
         Returns the type of a formula. Raises an exception if the formula is not valid.
         **ALWAYS** call this to validate a formula is valid before returning it.
         """
 
-        nonlocal table, field_name
+        nonlocal user, workspace
 
+        table = utils.filter_tables(user, workspace).get(id=table_id)
         field = FormulaField(formula=formula, table=table, name=field_name, order=0)
         field.recalculate_internal_fields(raise_if_invalid=True)
 
@@ -827,40 +829,42 @@ def get_generate_database_formula_tool(
         tables_schema: dict = dspy.InputField(
             desc="The schema of all the tables in the database."
         )
-        current_table_id: int = dspy.InputField(
-            desc="The ID of the table where the field will be created."
-        )
-        formula_field_name: str = dspy.InputField(
-            desc="The name of the formula field to be created."
-        )
         formula_documentation: str = dspy.InputField(
             desc="Documentation about Baserow formulas and their syntax."
         )
-        valid_formula: bool = dspy.OutputField(
-            desc="Whether the generated formula is valid or not."
+        table_id: int = dspy.OutputField(
+            desc=(
+                "The ID of the table the formula is intended for. "
+                "Should be the same as current_table_id, unless the formula can "
+                "only be created in a different table."
+            )
         )
-        generated_formula: str = dspy.OutputField(
+        field_name: str = dspy.OutputField(
+            desc="The name of the formula field to be created. For a new field, it must be unique in the table."
+        )
+        formula: str = dspy.OutputField(
             desc="The generated formula. Must be a valid Baserow formula."
         )
-        generated_formula_type: str = dspy.OutputField(
+        formula_type: str = dspy.OutputField(
             desc="The type of the generated formula. Must be one of: text, long_text, "
             "number, boolean, date, link_row, single_select, multiple_select, duration, array."
+        )
+        is_formula_valid: bool = dspy.OutputField(
+            desc="Whether the generated formula is valid or not."
         )
         error_message: str = dspy.OutputField(
             desc="If the formula is not valid, an error message explaining why."
         )
 
     def generate_database_formula(
-        table_id: int,
-        field_name: str,
+        database_id: int,
         description: str,
         save_to_field: bool = True,
     ) -> dict[str, str]:
         """
         Generate a database formula for a formula field.
 
-        - table_id: The ID of the table where the field will be created.
-        - field_name: The name of the formula field to be created.
+        - table_id: The database ID where the formula field is located.
         - description: A brief description of what the formula should do.
         - save_to_field: Whether to save the generated formula to a field with the given
           name (default: True). If False, the formula will be generated but not saved
@@ -869,44 +873,44 @@ def get_generate_database_formula_tool(
 
         nonlocal user, workspace, tool_helpers
 
-        current_table = Table.objects.get(id=table_id)
-        database_id = current_table.database_id
-        database_table_items = utils.filter_tables(user, workspace).filter(
+        database_tables = utils.filter_tables(user, workspace).filter(
             database_id=database_id
         )
-        database_tables_schema = utils.get_tables_schema(database_table_items, True)
+        database_tables_schema = utils.get_tables_schema(database_tables, True)
 
-        tool_helpers.update_status(
-            _("Generating formula %(field_name)s...") % {"field_name": field_name}
-        )
+        tool_helpers.update_status(_("Generating formula..."))
 
         formula_docs = get_formula_docs()
 
         formula_generator = dspy.ReAct(
             FormulaGenerationSignature,
-            tools=[get_formula_type_tool(current_table, field_name)],
-            max_iters=5,
+            tools=[get_formula_type_tool(user, workspace)],
+            max_iters=10,
         )
         result = formula_generator(
             description=description,
             tables_schema={"tables": database_tables_schema},
-            current_table_id=current_table.id,
-            formula_field_name=field_name,
             formula_documentation=formula_docs,
         )
 
-        if not result.valid_formula:
+        if not result.is_formula_valid:
+            raise Exception(f"Error generating formula: {result.error_message}")
+
+        table = next((t for t in database_tables if t.id == result.table_id), None)
+        if table is None:
             raise Exception(
-                f"Failed to generate a valid formula: {result.error_message}"
+                "The generated formula is intended for a different table "
+                f"than the current one. Table with ID {result.table_id} not found."
             )
 
         data = {
-            "formula": result.generated_formula,
-            "formula_type": result.generated_formula_type,
+            "formula": result.formula,
+            "formula_type": result.formula_type,
         }
+        field_name = result.field_name
 
         if save_to_field:
-            field = current_table.field_set.filter(name=field_name).first()
+            field = table.field_set.filter(name=field_name).first()
             if field:
                 field = field.specific
 
@@ -920,18 +924,29 @@ def get_generate_database_formula_tool(
                 if field is None:
                     CreateFieldActionType.do(
                         user,
-                        current_table,
+                        table,
                         type_name="formula",
                         name=field_name,
-                        formula=result.generated_formula,
+                        formula=result.formula,
                     )
+                    operation = "field created"
                 else:
                     # Only update the formula of an existing formula field.
                     UpdateFieldActionType.do(
                         user,
                         field,
-                        formula=result.generated_formula,
+                        formula=result.formula,
                     )
+                    operation = "field updated"
+
+                data.update(
+                    {
+                        "table_id": table.id,
+                        "table_name": table.name,
+                        "field_name": result.field_name,
+                        "operation": operation,
+                    }
+                )
 
         return data
 

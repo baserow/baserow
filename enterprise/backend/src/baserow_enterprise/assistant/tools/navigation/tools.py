@@ -27,6 +27,8 @@ def get_navigation_tool(
         Use when:
         - the user asks to open, go, to be brought to something
         - the user asks to see something from their workspace
+        - if something new has been created in a previously existing database or table,
+        like a view, a field or some rows
         """
 
         nonlocal user, workspace

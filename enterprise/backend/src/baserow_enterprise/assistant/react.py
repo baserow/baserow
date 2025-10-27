@@ -76,6 +76,9 @@ class ReAct(Module):
                 "After each tool call, you receive a resulting observation, which gets appended to your trajectory.\n",
                 "When writing next_thought, you may reason about the current situation and plan for future steps.",
                 "When selecting the next_tool_name and its next_tool_args, the tool must be one of:\n",
+                "Always DO the task with tools, never EXPLAIN how to do it. Return instructions only when you lack the necessary tools to complete the request.\n",
+                "Never assume a tool cannot be used based on your prior knowledge. If a tool exists that can help you, you MUST use it.\n",
+                "If you create new resources outside of your current visible context, like tables, views, fields or rows, you can navigate to them using the navigation tool.\n",
             ]
         )
 
