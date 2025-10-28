@@ -130,24 +130,30 @@ export class ViewFilterType extends Registerable {
   /**
    * Returns if a given field is compatible with this view filter or not.
    *
-   * Checks compatibility in two ways:
-   * 1. Static list from getCompatibleFieldTypes()
-   * 2. Dynamic hook on field type via isCompatibleWithFilter()
-   *
-   * This mirrors the backend pattern where filters initiate the check
-   * and field types can dynamically declare compatibility.
+   * Checks compatibility by resolving the field's canonical filter type via
+   * getCompatibleFilterFieldType(field) and then matching against
+   * this.compatibleFieldTypes (strings or predicates).
    */
   fieldIsCompatible(field) {
-    // First check if field type is in the static compatible list
-    const valuesMap = this.compatibleFieldTypes.map((type) => [type, true])
-    if (this.getCompatibleFieldValue(field, valuesMap, false)) {
-      return true
-    }
+    // Resolve the canonical field type for filter compatibility.
+    const fieldType = this.app.$registry.get('field', field.type)
+    const canonicalFieldType = fieldType
+      ? fieldType.getCompatibleFilterFieldType(field)
+      : fieldType
 
-    // Then check if field type declares dynamic compatibility via hook
-    const fieldType = this.app?.$registry?.get('field', field.type)
-    if (fieldType && typeof fieldType.isCompatibleWithFilter === 'function') {
-      return fieldType.isCompatibleWithFilter(field, this)
+    const compareType = canonicalFieldType
+      ? canonicalFieldType.constructor.getType()
+      : field.type
+
+    // Check static compatible list and predicates
+    for (const typeOrFunc of this.compatibleFieldTypes) {
+      if (typeOrFunc instanceof Function) {
+        if (typeOrFunc(field)) {
+          return true
+        }
+      } else if (compareType === typeOrFunc) {
+        return true
+      }
     }
 
     return false
@@ -169,12 +175,21 @@ export class ViewFilterType extends Registerable {
    * @returns {any} The value that is compatible with the field or the notFoundValue.
    */
   getCompatibleFieldValue(field, valuesMap, notFoundValue = null) {
+    // Resolve the canonical field type for filter compatibility.
+    const fieldType = this.app?.$registry?.get('field', field.type)
+    const canonicalFieldType = fieldType
+      ? fieldType.getCompatibleFilterFieldType(field)
+      : fieldType
+    const compareType = canonicalFieldType
+      ? canonicalFieldType.constructor.getType()
+      : field.type
+
     for (const [typeOrFunc, value] of valuesMap) {
       if (typeOrFunc instanceof Function) {
         if (typeOrFunc(field)) {
           return value
         }
-      } else if (field.type === typeOrFunc) {
+      } else if (compareType === typeOrFunc) {
         return value
       }
     }

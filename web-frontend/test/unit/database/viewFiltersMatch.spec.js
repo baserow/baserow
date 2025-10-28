@@ -2695,7 +2695,7 @@ describe('All Tests', () => {
       values.filterType
     )
     const fieldType = new FormulaFieldType({ app: testApp._app })
-    const field = { formula_type: 'url', formula: '' }
+    const field = { formula_type: 'url', formula: '', type: 'formula' }
     const result = filterClass.matches(
       values.rowValue !== undefined
         ? values.rowValue

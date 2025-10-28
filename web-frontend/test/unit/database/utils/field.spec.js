@@ -3,8 +3,19 @@ import {
   hasCompatibleFilterTypes,
 } from '@baserow/modules/database/utils/field'
 import { EqualViewFilterType } from '@baserow/modules/database/viewFilters'
+import { TestApp } from '@baserow/test/helpers/testApp'
 
 describe('test field utils', () => {
+  let testApp = null
+
+  beforeAll(() => {
+    testApp = new TestApp()
+  })
+
+  afterEach((done) => {
+    testApp.afterEach().then(done)
+  })
+
   describe('getPrimaryOrFirstField', () => {
     it('should find the primary field in a list of fields', () => {
       const fields = [
@@ -53,7 +64,7 @@ describe('test field utils', () => {
         type: 'multiple_collaborators',
         primary: false,
       }
-      const filterType = new EqualViewFilterType()
+      const filterType = new EqualViewFilterType({ app: testApp._app })
       expect(hasCompatibleFilterTypes(field, [filterType])).toBeFalsy()
     })
 
@@ -63,7 +74,7 @@ describe('test field utils', () => {
         type: 'text',
         primary: false,
       }
-      const filterType = new EqualViewFilterType()
+      const filterType = new EqualViewFilterType({ app: testApp._app })
       expect(hasCompatibleFilterTypes(field, [filterType])).toBeTruthy()
     })
   })

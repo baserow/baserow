@@ -170,25 +170,13 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         baserow_field_type = self.get_baserow_field_type(field)
         return baserow_field_type.parse_filter_value(field, model_field, value)
 
-    def is_compatible_with_filter_type(self, field, filter_type):
+    def get_compatible_filter_field_type(self, field):
         """
-        Hook method that allows this field type to declare compatibility with filters.
-        This is called by ViewFilterType.field_is_compatible() to allow premium
-        field types to inject compatibility without core knowing about them.
-
-        AI fields delegate to their underlying field type (LongTextFieldType or
-        SingleSelectFieldType) to check compatibility.
-
-        :param field: The field instance to check
-        :param filter_type: The ViewFilterType instance to check compatibility with
-        :return: True if this field is compatible with the filter, False otherwise
+        For AI fields, return the underlying core field type used for filtering.
         """
 
         ai_field_instance = field.specific if hasattr(field, "specific") else field
-        baserow_field_type = self.get_baserow_field_type(ai_field_instance)
-        return any(
-            ft == baserow_field_type.type for ft in filter_type.compatible_field_types
-        )
+        return self.get_baserow_field_type(ai_field_instance)
 
     def contains_word_query(self, field_name, value, model_field, field):
         baserow_field_type = self.get_baserow_field_type(field)
