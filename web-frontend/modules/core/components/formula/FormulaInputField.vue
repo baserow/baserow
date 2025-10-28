@@ -31,7 +31,7 @@
       @input="emitAdvancedChange"
     />
 
-    <div v-if="enableAdvancedMode" class="margin-top-1">
+    <div v-if="showAdvancedCheckbox" class="margin-top-1">
       <label class="checkbox">
         <Checkbox
           :checked="isAdvancedMode"
@@ -72,6 +72,7 @@ import DataExplorer from '@baserow/modules/core/components/dataExplorer/DataExpl
 import { RuntimeGet } from '@baserow/modules/core/runtimeFormulaTypes'
 import { isElement, onClickOutside } from '@baserow/modules/core/utils/dom'
 import { isFormulaValid } from '@baserow/modules/core/formula'
+import { FF_ADVANCED_FORMULA } from '@baserow/modules/core/plugins/featureFlags'
 
 export default {
   name: 'FormulaInputField',
@@ -221,6 +222,12 @@ export default {
     },
     nodeSelected() {
       return this.dataNodeSelected?.attrs?.path || null
+    },
+    showAdvancedCheckbox() {
+      return (
+        this.enableAdvancedMode &&
+        this.$featureFlagIsEnabled(FF_ADVANCED_FORMULA)
+      )
     },
   },
   watch: {

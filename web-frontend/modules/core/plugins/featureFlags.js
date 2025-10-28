@@ -3,6 +3,7 @@ export const FF_AUTOMATION = 'automation'
 export const FF_ASSISTANT = 'assistant'
 export const FF_WORKSPACE_SEARCH = 'workspace-search'
 export const FF_DATE_DEPENDENCY = 'date_dependency'
+export const FF_ADVANCED_FORMULA = 'advanced-formula'
 
 /**
  * A comma separated list of feature flags used to enable in-progress or not ready
