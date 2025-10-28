@@ -1304,7 +1304,7 @@ export class HeadingElementType extends ElementType {
    * is empty to indicate an error, otherwise return false.
    */
   getErrorMessage({ workspace, page, element, builder }) {
-    if (element.value.formula.length === 0) {
+    if (!element.value.formula) {
       return this.app.i18n.t('elementType.errorValueMissing')
     }
     return super.getErrorMessage({
@@ -1357,7 +1357,7 @@ export class TextElementType extends ElementType {
    * is empty to indicate an error, otherwise return false.
    */
   getErrorMessage({ workspace, page, element, builder }) {
-    if (element.value.formula.length === 0) {
+    if (!element.value.formula) {
       return this.app.i18n.t('elementType.errorValueMissing')
     }
     return super.getErrorMessage({
@@ -1414,7 +1414,7 @@ export class LinkElementType extends ElementType {
    */
   getErrorMessage({ workspace, page, element, builder }) {
     // A Link without any text isn't usable
-    if (element.value.formula.length === 0) {
+    if (!element.value.formula) {
       return this.app.i18n.t('elementType.errorValueMissing')
     }
 
@@ -1577,7 +1577,7 @@ export class ButtonElementType extends ElementType {
    */
   getErrorMessage({ workspace, page, element, builder }) {
     // If Button without any label should be considered invalid
-    if (element.value.formula.length === 0) {
+    if (!element.value.formula) {
       return this.app.i18n.t('elementType.errorValueMissing')
     }
 
