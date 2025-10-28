@@ -319,6 +319,10 @@ export class FieldType extends Registerable {
     return null
   }
 
+  getCompatibleFilterFieldType(field) {
+    return this
+  }
+
   /**
    * In some cases, for example with the kanban view or the gallery view, we want to
    * only show the visible cards. In order to calculate the correct position of

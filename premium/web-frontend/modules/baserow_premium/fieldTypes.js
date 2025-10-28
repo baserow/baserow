@@ -223,36 +223,12 @@ export class AIFieldType extends FieldType {
     return this.getBaserowFieldType(field).prepareValueForPaste(field, value)
   }
 
-  /**
-   * Hook method called by ViewFilterType.fieldIsCompatible() to determine if this
-   * field type supports a given filter.
-   *
-   * This implements the same pattern as the backend's is_compatible_with_filter_type
-   * hook - allowing premium field types to declare filter compatibility without
-   * core being aware of them.
-   *
-   * AI fields delegate to their underlying field type based on output type:
-   * - text output → long_text field type
-   * - choice output → single_select field type (not yet supported)
-   *
-   * We check if the filter's compatible field types include the underlying type.
-   *
-   * @param {Object} field - The field instance being checked
-   * @param {ViewFilterType} filterType - The filter type being checked
-   * @return {boolean} - True if this field is compatible with the filter
-   */
-  isCompatibleWithFilter(field, filterType) {
-    // Only support text output type
+  getCompatibleFilterFieldType(field) {
+    // Only support text output type; otherwise default to this type
     if (field.ai_output_type !== 'text') {
-      return false
+      return this
     }
-
-    // Get the underlying field type that AI delegates to based on output type
-    const baserowFieldType = this.getBaserowFieldType(field)
-    const underlyingType = baserowFieldType.getType()
-
-    // Check if the filter is compatible with the underlying field type
-    return filterType.compatibleFieldTypes.includes(underlyingType)
+    return this.getBaserowFieldType(field)
   }
 }
 

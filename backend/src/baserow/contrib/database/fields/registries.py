@@ -1674,6 +1674,19 @@ class FieldType(
 
         return len(compatible_vft) > 0
 
+    def get_compatible_filter_field_type(self, field: Field) -> "FieldType":
+        """
+        Returns the canonical field type to use when determining compatibility with
+        view filters. By default this returns self, but field types that should be
+        treated as another field type for filtering can override this and return that
+        other field type instance.
+
+        :param field: The concrete field instance being checked.
+        :return: The FieldType that should be used for filter compatibility.
+        """
+
+        return self
+
     def check_can_order_by(self, field: Field, sort_type: str) -> bool:
         """
         Override this method if this field type can sometimes be ordered or sometimes
