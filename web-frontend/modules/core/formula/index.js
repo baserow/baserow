@@ -23,7 +23,6 @@ export const resolveFormula = (
     const tree = parseBaserowFormula(formulaCtx.formula)
     return new JavascriptExecutor(functions, RuntimeFormulaContext).visit(tree)
   } catch (err) {
-    console.log('Error while parsing or executing formula:', err)
     return ''
   }
 }
