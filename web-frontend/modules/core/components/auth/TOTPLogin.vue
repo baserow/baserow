@@ -159,8 +159,7 @@ export default {
       } catch (error) {
         this.loadingVerifyCode = false
         this.$refs.authCodeInput.reset()
-        const title = this.$t('totpLogin.verificationFailed')
-        this.$store.dispatch('toast/error', { title })
+        this.handleError(error)
       }
     },
     async verifyBackupCode(code) {
@@ -176,6 +175,27 @@ export default {
         this.$emit('success')
       } catch (error) {
         this.loadingVerifyBackupCode = false
+        this.handleError(error)
+      }
+    },
+    handleError(error) {
+      const data = error.response.data
+      if (error.response.status === 429) {
+        const title = this.$t('totpLogin.rateLimit')
+        this.$store.dispatch('toast/error', { title })
+        return
+      }
+      if (error.response.status !== 401) {
+        return
+      }
+      if (
+        data.detail &&
+        data.detail === 'Authentication credentials were not provided.'
+      ) {
+        const title = this.$t('totpLogin.loginExpired')
+        this.$store.dispatch('toast/error', { title })
+        this.$emit('expired')
+      } else {
         const title = this.$t('totpLogin.verificationFailed')
         this.$store.dispatch('toast/error', { title })
       }

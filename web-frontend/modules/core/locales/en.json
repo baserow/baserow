@@ -16,7 +16,7 @@
     "close": "Close",
     "types": {
       "applications": "Applications",
-      "tables": "Tables", 
+      "tables": "Tables",
       "fields": "Fields",
       "rows": "Rows"
     }
@@ -115,7 +115,9 @@
     "totpDescription": "Enter the code from your authenticator app.",
     "verify": "Verify",
     "useBackupCode": "Use backup code",
-    "verificationFailed": "Verification failed"
+    "verificationFailed": "Verification failed",
+    "loginExpired": "Login expired. Please provide your password again.",
+    "rateLimit": "Too many attempts."
   },
   "settingsModal": {
     "title": "My settings"
@@ -1065,6 +1067,9 @@
   "enableWithQRCode": {
     "scanQRCode": "Scan QR code",
     "scanQRCodeDescription": "Scan the code with an app like Google Authenticator, Authy or Microsoft Authenticator.",
+    "clickToCopy": "Alternatively, click here to copy the code.",
+    "secretCopiedTitle": "Secret copied",
+    "secretCopiedMessage": "TOTP secret copied to clipboard.",
     "enterCode": "Enter the code shown",
     "enterCodeDescription": "Enter a 6-digit code shown by the app to confirm that you have set it up correctly.",
     "verificationFailed": "Verification failed",

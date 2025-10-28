@@ -3,6 +3,7 @@ import secrets
 import string
 from abc import ABC, abstractmethod
 from base64 import b64encode
+from datetime import datetime, timedelta, timezone
 from io import BytesIO
 
 from django.conf import settings
@@ -117,6 +118,12 @@ class TOTPAuthProviderType(TwoFactorAuthProviderType):
             raise TwoFactorAuthAlreadyConfigured
 
         if provider and kwargs.get("code"):
+            secret_valid_until = provider.created_on + timedelta(minutes=30)
+            now = datetime.now(tz=timezone.utc)
+            if now > secret_valid_until:
+                provider.delete()
+                raise VerificationFailed
+
             code = kwargs.get("code")
             totp = pyotp.TOTP(provider.secret)
 

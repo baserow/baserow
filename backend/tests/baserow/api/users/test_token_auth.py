@@ -20,6 +20,7 @@ from baserow.core.registries import Plugin, plugin_registry
 from baserow.core.user.handler import UserHandler
 from baserow.core.user.utils import generate_session_tokens_for_user
 from baserow.core.utils import generate_hash
+from baserow.test_utils.helpers import AnyStr
 
 User = get_user_model()
 
@@ -276,6 +277,24 @@ def test_token_password_auth_disabled(api_client, data_fixture):
         "error": "ERROR_AUTH_PROVIDER_DISABLED",
         "detail": "Authentication provider is disabled.",
     }
+
+
+@pytest.mark.django_db
+def test_token_auth_2fa_required(api_client, data_fixture):
+    data_fixture.create_password_provider(enabled=True)
+    user, token = data_fixture.create_user_and_token(
+        email="test@localhost", password="test"
+    )
+    data_fixture.configure_totp(user)
+
+    response = api_client.post(
+        reverse("api:user:token_auth"),
+        {"email": "test@localhost", "password": "test"},
+        format="json",
+    )
+
+    assert response.status_code == HTTP_200_OK, response.json()
+    assert response.json() == {"two_factor_auth": "totp", "token": AnyStr()}
 
 
 @pytest.mark.django_db

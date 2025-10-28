@@ -6,6 +6,7 @@
       :email="twoFactorEmail"
       :token="twoFaToken"
       @success="success"
+      @expired="twoFactorExpired"
     />
     <EmailNotVerified
       v-else-if="displayEmailNotVerified"
@@ -190,6 +191,11 @@ export default {
       this.twoFactorRequired = true
       this.twoFactorEmail = email
       this.twoFaToken = token
+    },
+    twoFactorExpired() {
+      this.twoFaToken = null
+      this.twoFactorRequired = false
+      this.twoFactorComponent = null
     },
   },
 }
