@@ -150,7 +150,9 @@ class LocalBaserowTableServiceFilterableMixin:
                         id_mapping["database_field_select_options"].get(
                             int(formula["formula"]), formula["formula"]
                         )
-                    )
+                    ),
+                    mode=formula["mode"],
+                    version=formula["version"],
                 )
 
             result.append({**f, "field_id": field_id, "value": val})

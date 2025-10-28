@@ -47,12 +47,12 @@ def reverse(apps, schema_editor):
 
     for workflow in Workflow.objects.all():
         graph = workflow.graph
-        for key, info in graph:
+        for key, info in graph.items():
             if key == "0":
                 continue
-            for output, nodes in info.get("next", {}):
+            for output, nodes in info.get("next", {}).items():
                 AutomationNode.objects.filter(id__in=nodes).update(
-                    previous_node_id=key, previous_output=output
+                    previous_node_id=key, previous_node_output=output
                 )
 
 
@@ -99,7 +99,7 @@ class Migration(migrations.Migration):
             name="graph",
             field=models.JSONField(default=dict, help_text="Contains the node graph."),
         ),
-        migrations.RunPython(forward, migrations.RunPython.noop),
+        migrations.RunPython(forward, reverse),
         migrations.RemoveField(
             model_name="automationnode",
             name="previous_node",

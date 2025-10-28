@@ -581,6 +581,56 @@ def test_move_node_in_container(data_fixture: Fixtures):
 
     # The node we're trying to move is `action3`
     assert move_result.node == action3
+    assert move_result.previous_reference_node == action2
+    assert move_result.previous_position == "south"
+    assert move_result.previous_output == ""
+
+
+@pytest.mark.django_db
+def test_move_node_outside_of_container(data_fixture: Fixtures):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user)
+    action1 = data_fixture.create_automation_node(workflow=workflow, label="action1")
+
+    iterator = data_fixture.create_core_iterator_action_node(workflow=workflow)
+    action2 = data_fixture.create_automation_node(
+        workflow=workflow, label="action2", reference_node=iterator, position="child"
+    )  # <- from here
+    action3 = data_fixture.create_automation_node(workflow=workflow, label="action3")
+    # <- to here
+    action4 = data_fixture.create_automation_node(workflow=workflow, label="action4")
+
+    workflow.assert_reference(
+        {
+            "0": "rows_created",
+            "rows_created": {"next": {"": ["action1"]}},
+            "action1": {"next": {"": ["iterator"]}},
+            "iterator": {"children": ["action2"], "next": {"": ["action3"]}},
+            "action2": {},
+            "action3": {"next": {"": ["action4"]}},
+            "action4": {},
+        }
+    )
+
+    # move `action3` to be the first child of iterator
+    move_result = AutomationNodeService().move_node(
+        user, action2.id, reference_node_id=action3.id, position="south", output=""
+    )
+
+    workflow.assert_reference(
+        {
+            "0": "rows_created",
+            "rows_created": {"next": {"": ["action1"]}},
+            "action1": {"next": {"": ["iterator"]}},
+            "iterator": {"children": [], "next": {"": ["action3"]}},
+            "action2": {"next": {"": ["action4"]}},
+            "action3": {"next": {"": ["action2"]}},
+            "action4": {},
+        }
+    )
+
+    # The node we're trying to move is `action3`
+    assert move_result.node == action2
     assert move_result.previous_reference_node == iterator
     assert move_result.previous_position == "child"
     assert move_result.previous_output == ""

@@ -29,6 +29,7 @@ from baserow.contrib.automation.api.nodes.errors import (
     ERROR_AUTOMATION_NODE_NOT_REPLACEABLE,
     ERROR_AUTOMATION_NODE_REFERENCE_NODE_INVALID,
     ERROR_AUTOMATION_NODE_SIMULATE_DISPATCH,
+    ERROR_AUTOMATION_TRIGGER_MUST_BE_FIRST_NODE,
     ERROR_AUTOMATION_TRIGGER_NODE_MODIFICATION_DISALLOWED,
 )
 from baserow.contrib.automation.api.nodes.serializers import (
@@ -51,6 +52,7 @@ from baserow.contrib.automation.nodes.actions import (
 )
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeDoesNotExist,
+    AutomationNodeFirstNodeMustBeTrigger,
     AutomationNodeMisconfiguredService,
     AutomationNodeNotDeletable,
     AutomationNodeNotInWorkflow,
@@ -270,11 +272,11 @@ class AutomationNodeView(APIView):
         {
             AutomationNodeDoesNotExist: ERROR_AUTOMATION_NODE_DOES_NOT_EXIST,
             AutomationNodeNotDeletable: ERROR_AUTOMATION_NODE_NOT_DELETABLE,
+            AutomationNodeFirstNodeMustBeTrigger: ERROR_AUTOMATION_TRIGGER_MUST_BE_FIRST_NODE,
         }
     )
     @transaction.atomic
     def delete(self, request, node_id: int):
-        # TODO cant' remove trigger
         node = AutomationNodeService().get_node(request.user, node_id)
 
         node.get_type().before_delete(node)
@@ -444,6 +446,7 @@ class MoveAutomationNodeView(APIView):
             AutomationNodeDoesNotExist: ERROR_AUTOMATION_NODE_DOES_NOT_EXIST,
             AutomationNodeNotMovable: ERROR_AUTOMATION_NODE_NOT_MOVABLE,
             AutomationNodeNotInWorkflow: ERROR_AUTOMATION_NODE_NOT_IN_WORKFLOW,
+            AutomationNodeFirstNodeMustBeTrigger: ERROR_AUTOMATION_TRIGGER_MUST_BE_FIRST_NODE,
         }
     )
     @validate_body(MoveAutomationNodeSerializer)

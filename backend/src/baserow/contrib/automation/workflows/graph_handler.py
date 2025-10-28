@@ -337,7 +337,7 @@ class NodeGraphHandler:
         if node_position_id is None:
             if self.get_info(node_to_delete.id).get("next"):
                 raise AutomationNodeFirstNodeMustBeTrigger(
-                    "You can't remove a trigger with following nodes."
+                    "You can't remove a trigger followed by other nodes."
                 )
             # Let's remove the trigger
             del graph["0"]

@@ -263,14 +263,15 @@ def test_delete_trigger_node_disallowed(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workflow = data_fixture.create_automation_workflow(user)
     trigger = workflow.get_trigger()
+    data_fixture.create_local_baserow_create_row_action_node(workflow=workflow)
 
     delete_url = reverse(API_URL_ITEM, kwargs={"node_id": trigger.id})
     response = api_client.delete(delete_url, **get_api_kwargs(token))
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json() == {
-        "error": "ERROR_AUTOMATION_NODE_NOT_DELETABLE",
-        "detail": "Triggers can not be created, deleted or duplicated, "
-        "they can only be replaced with a different type.",
+        "error": "ERROR_AUTOMATION_TRIGGER_MUST_BE_FIRST_NODE",
+        "detail": "This operation is disallowed because a trigger must be the "
+        "first node of the workflow",
     }
 
 
@@ -352,8 +353,7 @@ def test_duplicate_trigger_node_disallowed(api_client, data_fixture):
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json() == {
         "error": "ERROR_AUTOMATION_TRIGGER_NODE_MODIFICATION_DISALLOWED",
-        "detail": "Triggers can not be created, deleted or duplicated, "
-        "they can only be replaced with a different type.",
+        "detail": "Triggers can not be moved or duplicated.",
     }
 
 
