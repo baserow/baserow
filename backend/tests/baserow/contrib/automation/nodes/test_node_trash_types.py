@@ -29,11 +29,11 @@ def test_trashing_and_restoring_node_updates_graph(data_fixture):
     automation = workflow.automation
     trash_entry = TrashHandler.trash(user, automation.workspace, automation, first)
 
-    assert trash_entry.additional_restoration_data == [
+    assert trash_entry.additional_restoration_data == (
         str(trigger.id),
         "south",
         "",
-    ]
+    )
 
     workflow.assert_reference(
         {
@@ -105,11 +105,11 @@ def test_trashing_and_restoring_node_updates_graph_with_router(data_fixture):
         user, automation.workspace, automation, second_router
     )
 
-    assert trash_entry.additional_restoration_data == [
+    assert trash_entry.additional_restoration_data == (
         str(initial_router.id),
         "south",
         str(initial_router_edge.uid),
-    ]
+    )
 
     workflow.assert_reference(
         {

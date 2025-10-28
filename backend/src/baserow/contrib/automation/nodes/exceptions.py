@@ -29,13 +29,13 @@ class AutomationNodeDoesNotExist(AutomationNodeError):
         )
 
 
-class AutomationNodeNotFoundInGraph(Exception):
+class AutomationNodeNotFoundInGraph(AutomationNodeError):
     """
     Raised when we try to access a node that doesn't exist in the graph.
     """
 
 
-class AutomationNodeReferenceNodeInvalid(Exception):
+class AutomationNodeReferenceNodeInvalid(AutomationNodeError):
     """
     Raised when trying to use an invalid reference node.
     """
@@ -55,14 +55,6 @@ class AutomationNodeTriggerMustBeFirstNode(AutomationNodeError):
 
 class AutomationNodeMisconfiguredService(AutomationNodeError):
     """When the node's service is misconfigured."""
-
-
-class AutomationTriggerModificationDisallowed(AutomationNodeError):
-    """
-    Raised when trying to create, delete or duplicate a trigger node. There can only
-    be one trigger node per workflow, and it is created automatically when the workflow
-    is created. Users can only change the trigger node type, not create a new one.
-    """
 
 
 class AutomationNodeNotDeletable(AutomationNodeError):

@@ -21,6 +21,7 @@ from baserow.api.utils import (
     validate_data_custom_fields,
 )
 from baserow.contrib.automation.api.nodes.errors import (
+    ERROR_AUTOMATION_FIRST_NODE_MUST_BE_TRIGGER,
     ERROR_AUTOMATION_NODE_DOES_NOT_EXIST,
     ERROR_AUTOMATION_NODE_MISCONFIGURED_SERVICE,
     ERROR_AUTOMATION_NODE_NOT_DELETABLE,
@@ -29,8 +30,9 @@ from baserow.contrib.automation.api.nodes.errors import (
     ERROR_AUTOMATION_NODE_NOT_REPLACEABLE,
     ERROR_AUTOMATION_NODE_REFERENCE_NODE_INVALID,
     ERROR_AUTOMATION_NODE_SIMULATE_DISPATCH,
+    ERROR_AUTOMATION_TRIGGER_ALREADY_EXISTS,
     ERROR_AUTOMATION_TRIGGER_MUST_BE_FIRST_NODE,
-    ERROR_AUTOMATION_TRIGGER_NODE_MODIFICATION_DISALLOWED,
+    ERROR_AUTOMATION_UNEXPECTED_ERROR,
 )
 from baserow.contrib.automation.api.nodes.serializers import (
     AutomationNodeSerializer,
@@ -52,6 +54,7 @@ from baserow.contrib.automation.nodes.actions import (
 )
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeDoesNotExist,
+    AutomationNodeError,
     AutomationNodeFirstNodeMustBeTrigger,
     AutomationNodeMisconfiguredService,
     AutomationNodeNotDeletable,
@@ -60,7 +63,8 @@ from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeNotReplaceable,
     AutomationNodeReferenceNodeInvalid,
     AutomationNodeSimulateDispatchError,
-    AutomationTriggerModificationDisallowed,
+    AutomationNodeTriggerAlreadyExists,
+    AutomationNodeTriggerMustBeFirstNode,
 )
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
@@ -118,7 +122,10 @@ class AutomationNodesView(APIView):
             AutomationWorkflowDoesNotExist: ERROR_AUTOMATION_WORKFLOW_DOES_NOT_EXIST,
             AutomationNodeReferenceNodeInvalid: ERROR_AUTOMATION_NODE_REFERENCE_NODE_INVALID,
             AutomationNodeDoesNotExist: ERROR_AUTOMATION_NODE_DOES_NOT_EXIST,
-            AutomationTriggerModificationDisallowed: ERROR_AUTOMATION_TRIGGER_NODE_MODIFICATION_DISALLOWED,
+            AutomationNodeTriggerAlreadyExists: ERROR_AUTOMATION_TRIGGER_ALREADY_EXISTS,
+            AutomationNodeFirstNodeMustBeTrigger: ERROR_AUTOMATION_FIRST_NODE_MUST_BE_TRIGGER,
+            AutomationNodeTriggerMustBeFirstNode: ERROR_AUTOMATION_TRIGGER_MUST_BE_FIRST_NODE,
+            AutomationNodeError: ERROR_AUTOMATION_UNEXPECTED_ERROR,
         }
     )
     @validate_body(CreateAutomationNodeSerializer)
@@ -273,6 +280,7 @@ class AutomationNodeView(APIView):
             AutomationNodeDoesNotExist: ERROR_AUTOMATION_NODE_DOES_NOT_EXIST,
             AutomationNodeNotDeletable: ERROR_AUTOMATION_NODE_NOT_DELETABLE,
             AutomationNodeFirstNodeMustBeTrigger: ERROR_AUTOMATION_TRIGGER_MUST_BE_FIRST_NODE,
+            AutomationNodeError: ERROR_AUTOMATION_UNEXPECTED_ERROR,
         }
     )
     @transaction.atomic
@@ -317,7 +325,10 @@ class DuplicateAutomationNodeView(APIView):
     @map_exceptions(
         {
             AutomationNodeDoesNotExist: ERROR_AUTOMATION_NODE_DOES_NOT_EXIST,
-            AutomationTriggerModificationDisallowed: ERROR_AUTOMATION_TRIGGER_NODE_MODIFICATION_DISALLOWED,
+            AutomationNodeTriggerMustBeFirstNode: ERROR_AUTOMATION_TRIGGER_MUST_BE_FIRST_NODE,
+            AutomationNodeTriggerAlreadyExists: ERROR_AUTOMATION_TRIGGER_ALREADY_EXISTS,
+            AutomationNodeFirstNodeMustBeTrigger: ERROR_AUTOMATION_FIRST_NODE_MUST_BE_TRIGGER,
+            AutomationNodeError: ERROR_AUTOMATION_UNEXPECTED_ERROR,
         }
     )
     def post(self, request, node_id: int):
@@ -362,6 +373,7 @@ class ReplaceAutomationNodeView(APIView):
             AutomationNodeDoesNotExist: ERROR_AUTOMATION_NODE_DOES_NOT_EXIST,
             AutomationNodeNotReplaceable: ERROR_AUTOMATION_NODE_NOT_REPLACEABLE,
             AutomationNodeNotInWorkflow: ERROR_AUTOMATION_NODE_NOT_IN_WORKFLOW,
+            AutomationNodeError: ERROR_AUTOMATION_UNEXPECTED_ERROR,
         }
     )
     @validate_body(ReplaceAutomationNodeSerializer)
@@ -446,7 +458,10 @@ class MoveAutomationNodeView(APIView):
             AutomationNodeDoesNotExist: ERROR_AUTOMATION_NODE_DOES_NOT_EXIST,
             AutomationNodeNotMovable: ERROR_AUTOMATION_NODE_NOT_MOVABLE,
             AutomationNodeNotInWorkflow: ERROR_AUTOMATION_NODE_NOT_IN_WORKFLOW,
-            AutomationNodeFirstNodeMustBeTrigger: ERROR_AUTOMATION_TRIGGER_MUST_BE_FIRST_NODE,
+            AutomationNodeFirstNodeMustBeTrigger: ERROR_AUTOMATION_FIRST_NODE_MUST_BE_TRIGGER,
+            AutomationNodeTriggerMustBeFirstNode: ERROR_AUTOMATION_TRIGGER_MUST_BE_FIRST_NODE,
+            AutomationNodeReferenceNodeInvalid: ERROR_AUTOMATION_NODE_REFERENCE_NODE_INVALID,
+            AutomationNodeError: ERROR_AUTOMATION_UNEXPECTED_ERROR,
         }
     )
     @validate_body(MoveAutomationNodeSerializer)

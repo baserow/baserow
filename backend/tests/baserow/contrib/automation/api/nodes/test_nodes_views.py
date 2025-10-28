@@ -99,7 +99,7 @@ def test_create_node_reference_node_invalid(api_client, data_fixture):
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json() == {
         "error": "ERROR_AUTOMATION_NODE_REFERENCE_NODE_INVALID",
-        "detail": f"The reference node id {99999999999} doesn't exist",
+        "detail": "The reference node 99999999999 doesn't exist",
     }
 
     response = api_client.post(
@@ -114,7 +114,7 @@ def test_create_node_reference_node_invalid(api_client, data_fixture):
     )
     assert response.json() == {
         "error": "ERROR_AUTOMATION_NODE_REFERENCE_NODE_INVALID",
-        "detail": f"The reference node id {node2_b.id} doesn't exist",
+        "detail": f"The reference node {node2_b.id} doesn't exist",
     }
 
 
@@ -269,9 +269,8 @@ def test_delete_trigger_node_disallowed(api_client, data_fixture):
     response = api_client.delete(delete_url, **get_api_kwargs(token))
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json() == {
-        "error": "ERROR_AUTOMATION_TRIGGER_MUST_BE_FIRST_NODE",
-        "detail": "This operation is disallowed because a trigger must be the "
-        "first node of the workflow",
+        "error": "ERROR_AUTOMATION_NODE_NOT_DELETABLE",
+        "detail": "Trigger nodes cannot be deleted if they are followed nodes.",
     }
 
 
@@ -352,8 +351,8 @@ def test_duplicate_trigger_node_disallowed(api_client, data_fixture):
     response = api_client.post(duplicate_url, **api_kwargs)
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json() == {
-        "error": "ERROR_AUTOMATION_TRIGGER_NODE_MODIFICATION_DISALLOWED",
-        "detail": "Triggers can not be moved or duplicated.",
+        "error": "ERROR_AUTOMATION_TRIGGER_ALREADY_EXISTS",
+        "detail": "This workflow already has a trigger",
     }
 
 

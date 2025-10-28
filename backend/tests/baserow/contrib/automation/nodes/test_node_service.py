@@ -79,9 +79,8 @@ def test_create_node_as_child(mocked_signal, data_fixture: Fixtures):
     mocked_signal.send.assert_called_once_with(service, node=node, user=user)
 
 
-@patch(f"{SERVICE_PATH}.automation_node_created")
 @pytest.mark.django_db
-def test_create_node_as_child_not_in_container(mocked_signal, data_fixture: Fixtures):
+def test_create_node_as_child_not_in_container(data_fixture: Fixtures):
     user = data_fixture.create_user()
     workflow = data_fixture.create_automation_workflow(user)
     create_row = data_fixture.create_local_baserow_create_row_action_node(
@@ -125,7 +124,7 @@ def test_create_node_reference_node_invalid(data_fixture: Fixtures):
             output="",
         )
 
-    assert exc.value.args[0] == f"The reference node id {node2_b.id} doesn't exist"
+    assert exc.value.args[0] == f"The reference node {node2_b.id} doesn't exist"
 
 
 @pytest.mark.django_db
@@ -521,7 +520,7 @@ def test_move_node_to_edge_above_existing_output(data_fixture: Fixtures):
         edge2_output.id,
         reference_node_id=router.id,
         position="south",
-        output=edge1.uid,
+        output=str(edge1.uid),
     )
 
     workflow.assert_reference(
@@ -637,16 +636,40 @@ def test_move_node_outside_of_container(data_fixture: Fixtures):
 
 
 @pytest.mark.django_db
-def test_move_node_in_invalid_container(data_fixture: Fixtures):
+def test_move_node_invalid_reference_node(data_fixture: Fixtures):
     user = data_fixture.create_user()
     workflow = data_fixture.create_automation_workflow(user)
     action1 = data_fixture.create_automation_node(workflow=workflow, label="action1")
 
     action2 = data_fixture.create_automation_node(workflow=workflow, label="action2")
-    action3 = data_fixture.create_automation_node(
-        workflow=workflow, label="action3"
-    )  # <- from here
+    action3 = data_fixture.create_automation_node(workflow=workflow, label="action3")
     action4 = data_fixture.create_automation_node(workflow=workflow, label="action4")
+
+    workflow_b = data_fixture.create_automation_workflow(user)
+    node1_b = workflow_b.get_trigger()
+
+    with pytest.raises(AutomationNodeReferenceNodeInvalid) as exc:
+        AutomationNodeService().move_node(
+            user, action3.id, reference_node_id=99999999, position="south", output=""
+        )
+
+    assert exc.value.args[0] == "The reference node 99999999 doesn't exist"
+
+    with pytest.raises(AutomationNodeReferenceNodeInvalid) as exc:
+        AutomationNodeService().move_node(
+            user, action3.id, reference_node_id=action3.id, position="south", output=""
+        )
+
+    assert (
+        exc.value.args[0] == "The reference node and the moved node must be different"
+    )
+
+    with pytest.raises(AutomationNodeReferenceNodeInvalid) as exc:
+        AutomationNodeService().move_node(
+            user, action3.id, reference_node_id=node1_b.id, position="south", output=""
+        )
+
+    assert exc.value.args[0] == f"The reference node {node1_b.id} doesn't exist"
 
     with pytest.raises(AutomationNodeReferenceNodeInvalid) as exc:
         AutomationNodeService().move_node(

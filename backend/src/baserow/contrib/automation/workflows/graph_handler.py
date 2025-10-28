@@ -2,11 +2,7 @@ from typing import Any, Dict, List
 
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeDoesNotExist,
-    AutomationNodeFirstNodeMustBeTrigger,
-    AutomationNodeMissingOutput,
     AutomationNodeNotFoundInGraph,
-    AutomationNodeTriggerAlreadyExists,
-    AutomationNodeTriggerMustBeFirstNode,
 )
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.types import NodePositionTriplet, NodePositionType
@@ -92,7 +88,8 @@ class NodeGraphHandler:
 
         if node is None:
             node_id = self.graph["0"]
-        elif isinstance(node, AutomationNode):
+
+        elif hasattr(node, "id"):
             node_id = node.id
         else:
             node_id = node
@@ -130,7 +127,10 @@ class NodeGraphHandler:
         if position == "south":
             # First node
             if reference_node is None:
-                return self.get_node(self.graph["0"])
+                if "0" in self.graph:
+                    return self.get_node(self.graph["0"])
+                else:
+                    return None
 
             next_nodes = self.get_info(reference_node).get("next", {}).get(output, [])
             if next_nodes:
@@ -150,12 +150,12 @@ class NodeGraphHandler:
         """
 
         if self.graph.get("0") is None:
-            return [None, "south", ""]
+            return (None, "south", "")
 
         def search_last(node_id):
             next_nodes = self.get_info(node_id).get("next", {}).get("", [])
             if not next_nodes:
-                return [self.get_node(node_id), "south", ""]
+                return (self.get_node(node_id), "south", "")
             else:
                 return search_last(next_nodes[0])
 
@@ -168,7 +168,7 @@ class NodeGraphHandler:
 
         if node.id == self.graph.get("0", None):
             # it's the trigger
-            return [None, "south", ""]
+            return (None, "south", "")
 
         for node_id, node_info in self.graph.items():
             if node_id == "0" or node_id == str(node.id):
@@ -176,10 +176,10 @@ class NodeGraphHandler:
 
             for output_uid, next_nodes in node_info.get("next", {}).items():
                 if node.id in next_nodes:
-                    return [node_id, "south", output_uid]
+                    return (node_id, "south", output_uid)
 
             if node.id in node_info.get("children", []):
-                return [node_id, "child", ""]
+                return (node_id, "child", "")
 
         raise AutomationNodeNotFoundInGraph(f"Node {node.id} not found in the graph")
 
@@ -203,10 +203,14 @@ class NodeGraphHandler:
             next_positions = []
             # Collect all possible positions
             next_positions.extend(
-                [[node_id, "south", uid] for uid in node_info.get("next", {}).keys()]
+                [
+                    (node_id, "south", uid)
+                    for uid, nodes in node_info.get("next", {}).items()
+                    if nodes
+                ]
             )
-            if "children" in node_info:
-                next_positions.append([node_id, "child", ""])
+            if node_info.get("children"):
+                next_positions.append((node_id, "child", ""))
 
             for next_position in next_positions:
                 found = explore(next_position, path + [next_position])
@@ -215,10 +219,11 @@ class NodeGraphHandler:
 
             return None
 
-        return [
-            [self.get_node(nid), p, o]
-            for [nid, p, o] in explore([None, "south", ""], [])
-        ]
+        full_path = explore((None, "south", ""), [])
+        if full_path is not None:
+            return [(self.get_node(nid), p, o) for [nid, p, o] in full_path]
+
+        return None
 
     def _get_all_next_nodes(self, node: AutomationNode):
         """
@@ -227,7 +232,9 @@ class NodeGraphHandler:
 
         node_info = self.get_info(node)
 
-        return [x for sublist in node_info.get("next", {}).values() for x in sublist]
+        return [
+            x for sublist in node_info.get("next", {}).values() for x in sublist
+        ] + node_info.get("children", [])
 
     def get_next_nodes(
         self, node: AutomationNode, output: str | None = None
@@ -242,7 +249,7 @@ class NodeGraphHandler:
             self.get_node(x)
             for uid, sublist in node_info.get("next", {}).items()
             for x in sublist
-            if uid is None or uid == output
+            if output is None or uid == output
         ]
 
     def get_children(self, node) -> List[AutomationNode]:
@@ -272,31 +279,19 @@ class NodeGraphHandler:
         new_next = None
 
         if reference_node is None:
-            if "0" in self.graph:
-                raise AutomationNodeTriggerAlreadyExists(
-                    "A trigger already exists for this workflow"
-                )
+            if "0" in graph:
+                new_next = [graph["0"]]
 
-            if not node.get_type().is_workflow_trigger:
-                raise AutomationNodeFirstNodeMustBeTrigger("This is not a trigger")
-
-            # this is the first node and it's a trigger
+            # This is the first node of the graph
             graph["0"] = node.id
+
+            if new_next:
+                node_info["next"] = {"": new_next}
 
             self._update_graph()
             return
 
-        if node.get_type().is_workflow_trigger:
-            raise AutomationNodeTriggerMustBeFirstNode("Trigger must be the first node")
-
         if position == "south":
-            if output not in reference_node.service.get_type().get_edges(
-                reference_node.service.specific
-            ):
-                raise AutomationNodeMissingOutput(
-                    f"Output {output} doesn't exist on node {reference_node.id}"
-                )
-
             if output in self.get_info(reference_node).get("next", {}):
                 new_next = self.get_info(reference_node)["next"][output]
 
@@ -335,12 +330,12 @@ class NodeGraphHandler:
         node_position_id, position, output = self.get_position(node_to_delete)
 
         if node_position_id is None:
-            if self.get_info(node_to_delete.id).get("next"):
-                raise AutomationNodeFirstNodeMustBeTrigger(
-                    "You can't remove a trigger followed by other nodes."
-                )
-            # Let's remove the trigger
-            del graph["0"]
+            next_nodes = self._get_all_next_nodes(node_to_delete)
+            if next_nodes:
+                graph["0"] = next_nodes[0]
+            else:
+                del graph["0"]
+
         elif position == "south":
             graph[node_position_id]["next"][output] = _replace(
                 graph[node_position_id]["next"][output],
@@ -441,6 +436,14 @@ class NodeGraphHandler:
 
         self._update_graph(migrated)
 
+    def _get_edge_label(self, node, uid):
+        """
+        Returns the label of the given edge uid for the given node.
+        """
+
+        edges = node.service.get_type().get_edges(node.service.specific)
+        return edges[uid]["label"]
+
     def labeled_graph(self):
         """
         Generate a graph representation that doesn't depends on the node IDs and that is
@@ -469,10 +472,10 @@ class NodeGraphHandler:
                         label(id) for id in node_info["children"]
                     ]
                 if "next" in node_info:
-                    service = self.get_node(key).service.specific
-                    edges = service.get_type().get_edges(service)
                     result[label(key)]["next"] = {
-                        edges[o]["label"]: [label(id) for id in n]
+                        self._get_edge_label(self.get_node(key), o): [
+                            label(id) for id in n
+                        ]
                         for o, n in node_info["next"].items()
                     }
 

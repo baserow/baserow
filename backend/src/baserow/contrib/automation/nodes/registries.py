@@ -9,6 +9,7 @@ from baserow.contrib.automation.formula_importer import import_formula
 from baserow.contrib.automation.nodes.exceptions import AutomationNodeNotReplaceable
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.types import AutomationNodeDict, NodePositionType
+from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.core.integrations.models import Integration
 from baserow.core.registry import (
     CustomFieldsRegistryMixin,
@@ -88,6 +89,18 @@ class AutomationNodeType(
         output: str,
     ):
         """Called before the node is moved."""
+
+    def before_create(
+        self,
+        workflow: AutomationWorkflow,
+        reference_node: AutomationNode | None,
+        position: NodePositionType,
+        output: str,
+    ):
+        """
+        A hook called just before a node is created. Can be
+        overridden by subclasses to implement specific logic.
+        """
 
     def after_create(self, node: AutomationNode) -> None:
         """

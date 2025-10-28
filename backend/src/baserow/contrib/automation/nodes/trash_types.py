@@ -15,7 +15,7 @@ from baserow.core.models import TrashEntry
 from baserow.core.trash.exceptions import TrashItemRestorationDisallowed
 from baserow.core.trash.registries import TrashableItemType
 
-from .exceptions import AutomationNodeDoesNotExist, AutomationNodeMissingOutput
+from .exceptions import AutomationNodeDoesNotExist
 
 
 class AutomationNodeTrashableItemType(TrashableItemType):
@@ -86,15 +86,20 @@ class AutomationNodeTrashableItemType(TrashableItemType):
                     "restored as its reference node has been deleted."
                 ) from exc
 
-            try:
-                workflow.get_graph().insert(
-                    trashed_item, reference_node, position, output
+            # Does the output still exists?
+            if (
+                reference_node is not None
+                and output
+                not in reference_node.service.get_type().get_edges(
+                    reference_node.service.specific
                 )
-            except AutomationNodeMissingOutput as e:
+            ):
                 raise TrashItemRestorationDisallowed(
                     "This automation node cannot be "
                     "restored as its branch has been deleted."
-                ) from e
+                )
+
+            workflow.get_graph().insert(trashed_item, reference_node, position, output)
 
             automation_node_created.send(self, node=trashed_item, user=None)
             automation_workflow_updated.send(self, workflow=workflow, user=None)

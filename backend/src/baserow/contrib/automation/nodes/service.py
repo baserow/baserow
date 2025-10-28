@@ -5,8 +5,8 @@ from django.contrib.auth.models import AbstractUser
 from baserow.contrib.automation.models import AutomationWorkflow
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeDoesNotExist,
+    AutomationNodeMissingOutput,
     AutomationNodeReferenceNodeInvalid,
-    AutomationTriggerModificationDisallowed,
 )
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.models import AutomationNode
@@ -97,6 +97,37 @@ class AutomationNodeService:
             workflow, specific=specific, base_queryset=user_nodes
         )
 
+    def _check_position(
+        self,
+        workflow: AutomationWorkflow,
+        reference_node: AutomationNode | None,
+        position: NodePositionType,
+        output: str,
+    ):
+        """
+        Validates the position.
+        """
+
+        if reference_node is None:
+            return
+
+        if reference_node.workflow_id != workflow.id:
+            raise AutomationNodeReferenceNodeInvalid(
+                f"The reference node {reference_node.id} doesn't exist"
+            )
+
+        if output not in reference_node.service.get_type().get_edges(
+            reference_node.service.specific
+        ):
+            raise AutomationNodeMissingOutput(
+                f"Output {output} doesn't exist on node {reference_node.id}"
+            )
+
+        if position == "child" and not reference_node.get_type().is_container:
+            raise AutomationNodeReferenceNodeInvalid(
+                f"The reference node {reference_node.id} can't have child"
+            )
+
     def create_node(
         self,
         user: AbstractUser,
@@ -117,7 +148,6 @@ class AutomationNodeService:
         :param position: The position relative to the reference node.
         :param output: The output of the reference node.
         :param kwargs: Additional attributes of the automation node.
-        :raises AutomationTriggerModificationDisallowed: If the node_type is a trigger.
         :return: The created automation node.
         """
 
@@ -134,13 +164,12 @@ class AutomationNodeService:
             )
         except AutomationNodeDoesNotExist as e:
             raise AutomationNodeReferenceNodeInvalid(
-                f"The reference node id {reference_node_id} doesn't exist"
+                f"The reference node {reference_node_id} doesn't exist"
             ) from e
 
-        if reference_node and reference_node.workflow_id != workflow.id:
-            raise AutomationNodeReferenceNodeInvalid(
-                f"The reference node id {reference_node_id} doesn't exist"
-            )
+        self._check_position(workflow, reference_node, position, output)
+
+        node_type.before_create(workflow, reference_node, position, output)
 
         prepared_values = node_type.prepare_values(kwargs, user)
 
@@ -151,11 +180,6 @@ class AutomationNodeService:
         )
 
         node_type.after_create(new_node)
-
-        if position == "child" and not reference_node.get_type().is_container:
-            raise AutomationNodeReferenceNodeInvalid(
-                f"The reference node {reference_node_id} can't have child"
-            )
 
         workflow.get_graph().insert(new_node, reference_node, position, output)
 
@@ -227,7 +251,6 @@ class AutomationNodeService:
         :param user: The user trying to delete the node.
         :param node_id: The ID of the node to delete.
         :return: The deleted node.
-        :raises AutomationTriggerModificationDisallowed: If the node is a trigger.
         """
 
         node = self.handler.get_node(node_id)
@@ -272,7 +295,6 @@ class AutomationNodeService:
         :param source_node_id: The id of the node that is being duplicated.
         :raises ValueError: When the provided node is not an instance of
             AutomationNode.
-        :raises AutomationTriggerModificationDisallowed: If the node is a trigger.
         :return: The duplicated node.
         """
 
@@ -286,9 +308,7 @@ class AutomationNodeService:
             context=source_node,
         )
 
-        # If we received a trigger node, we cannot duplicate it.
-        if source_node.get_type().is_workflow_trigger:
-            raise AutomationTriggerModificationDisallowed()
+        source_node.get_type().before_create(workflow, source_node, "south", "")
 
         duplicated_node = self.handler.duplicate_node(source_node)
 
@@ -415,14 +435,20 @@ class AutomationNodeService:
             workspace=node_to_move.workflow.automation.workspace,
             context=node_to_move,
         )
-
-        reference_node = (
-            self.get_node(user, reference_node_id) if reference_node_id else None
-        )
-
-        if position == "child" and not reference_node.get_type().is_container:
+        try:
+            reference_node = (
+                self.handler.get_node(reference_node_id) if reference_node_id else None
+            )
+        except AutomationNodeDoesNotExist as e:
             raise AutomationNodeReferenceNodeInvalid(
-                f"The reference node {reference_node_id} can't have child"
+                f"The reference node {reference_node_id} doesn't exist"
+            ) from e
+
+        self._check_position(workflow, reference_node, position, output)
+
+        if reference_node.id == node_to_move.id:
+            raise AutomationNodeReferenceNodeInvalid(
+                "The reference node and the moved node must be different"
             )
 
         node_type.before_move(node_to_move, reference_node, position, output)

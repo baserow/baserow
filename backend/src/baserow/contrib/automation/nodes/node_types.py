@@ -7,10 +7,13 @@ from django.utils import timezone
 from django.utils.translation import gettext as _
 
 from baserow.contrib.automation.nodes.exceptions import (
+    AutomationNodeFirstNodeMustBeTrigger,
     AutomationNodeMisconfiguredService,
     AutomationNodeNotDeletable,
     AutomationNodeNotMovable,
     AutomationNodeNotReplaceable,
+    AutomationNodeTriggerAlreadyExists,
+    AutomationNodeTriggerMustBeFirstNode,
 )
 from baserow.contrib.automation.nodes.models import (
     AutomationNode,
@@ -34,6 +37,7 @@ from baserow.contrib.automation.nodes.models import (
 from baserow.contrib.automation.nodes.registries import AutomationNodeType
 from baserow.contrib.automation.nodes.types import NodePositionType
 from baserow.contrib.automation.workflows.constants import WorkflowState
+from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.contrib.integrations.core.service_types import (
     CoreHTTPRequestServiceType,
     CoreHTTPTriggerServiceType,
@@ -60,6 +64,14 @@ from baserow.core.services.registries import service_type_registry
 class AutomationNodeActionNodeType(AutomationNodeType):
     is_workflow_action = True
 
+    def before_create(self, workflow, reference_node, position, output):
+        if reference_node is None:
+            raise AutomationNodeFirstNodeMustBeTrigger()
+
+    def before_move(self, node, reference_node, position, output):
+        if reference_node is None:
+            raise AutomationNodeFirstNodeMustBeTrigger()
+
 
 class ContainerNodeTypeMixin:
     is_container = True
@@ -78,6 +90,8 @@ class ContainerNodeTypeMixin:
                 "have one or more children nodes associated with them."
             )
 
+        super().before_replace(node, new_node_type)
+
     def before_move(
         self,
         node: "ContainerNodeTypeMixin",
@@ -93,6 +107,8 @@ class ContainerNodeTypeMixin:
             raise AutomationNodeNotMovable(
                 "A container node cannot be moved inside itself"
             )
+
+        super().before_move(node, reference_node, position, output)
 
 
 class LocalBaserowUpsertRowNodeType(AutomationNodeActionNodeType):
@@ -183,12 +199,16 @@ class CoreRouterActionNodeType(AutomationNodeActionNodeType):
                 "have one or more output nodes associated with them."
             )
 
+        super().before_delete(node)
+
     def before_replace(self, node: CoreRouterActionNode, new_node_type: Instance):
         if self.has_node_on_edge(node):
             raise AutomationNodeNotReplaceable(
                 "Router nodes cannot be replaced if they "
                 "have one or more output nodes associated with them."
             )
+
+        super().before_replace(node, new_node_type)
 
     def before_move(
         self,
@@ -206,6 +226,8 @@ class CoreRouterActionNodeType(AutomationNodeActionNodeType):
                 "Router nodes cannot be moved if they "
                 "have one or more output nodes associated with them."
             )
+
+        super().before_move(node, reference_node, position, output)
 
     def after_create(self, node: CoreRouterActionNode):
         """
@@ -267,6 +289,25 @@ class AutomationNodeTriggerType(AutomationNodeType):
     def before_unregister(self):
         service_type_registry.get(self.service_type).stop_listening()
         return super().before_unregister()
+
+    def before_create(
+        self,
+        workflow: AutomationWorkflow,
+        reference_node: AutomationNode,
+        position: str,
+        output: str,
+    ):
+        if workflow.get_graph().get_node_at_position(None, "south", ""):
+            raise AutomationNodeTriggerAlreadyExists()
+
+        if reference_node is not None:
+            raise AutomationNodeTriggerMustBeFirstNode()
+
+    def before_delete(self, node: AutomationNode):
+        if node.workflow.get_graph().get_next_nodes(node):
+            raise AutomationNodeNotDeletable(
+                "Trigger nodes cannot be deleted if they are followed nodes."
+            )
 
     def before_move(
         self,
