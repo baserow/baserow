@@ -51,7 +51,7 @@ export const RATING_STYLES = {
 }
 
 export const FORMULA_TYPE = {
-  FORMULA: 'formula',
+  FUNCTION: 'function',
   OPERATOR: 'operator',
 }
 

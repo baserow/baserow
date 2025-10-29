@@ -179,7 +179,7 @@ export class RuntimeConcat extends RuntimeFormulaFunction {
   }
 
   static getFormulaType() {
-    return FORMULA_TYPE.FORMULA
+    return FORMULA_TYPE.FUNCTION
   }
 
   static getCategoryType() {
@@ -220,7 +220,7 @@ export class RuntimeGet extends RuntimeFormulaFunction {
   }
 
   static getFormulaType() {
-    return FORMULA_TYPE.FORMULA
+    return FORMULA_TYPE.FUNCTION
   }
 
   static getCategoryType() {
@@ -645,7 +645,7 @@ export class RuntimeUpper extends RuntimeFormulaFunction {
   }
 
   static getFormulaType() {
-    return FORMULA_TYPE.FORMULA
+    return FORMULA_TYPE.FUNCTION
   }
 
   static getCategoryType() {
@@ -676,7 +676,7 @@ export class RuntimeLower extends RuntimeFormulaFunction {
   }
 
   static getFormulaType() {
-    return FORMULA_TYPE.FORMULA
+    return FORMULA_TYPE.FUNCTION
   }
 
   static getCategoryType() {
@@ -707,7 +707,7 @@ export class RuntimeCapitalize extends RuntimeFormulaFunction {
   }
 
   static getFormulaType() {
-    return FORMULA_TYPE.FORMULA
+    return FORMULA_TYPE.FUNCTION
   }
 
   static getCategoryType() {
@@ -744,7 +744,7 @@ export class RuntimeRound extends RuntimeFormulaFunction {
   }
 
   static getFormulaType() {
-    return FORMULA_TYPE.FORMULA
+    return FORMULA_TYPE.FUNCTION
   }
 
   static getCategoryType() {
@@ -786,7 +786,7 @@ export class RuntimeIsEven extends RuntimeFormulaFunction {
   }
 
   static getFormulaType() {
-    return FORMULA_TYPE.FORMULA
+    return FORMULA_TYPE.FUNCTION
   }
 
   static getCategoryType() {
@@ -817,7 +817,7 @@ export class RuntimeIsOdd extends RuntimeFormulaFunction {
   }
 
   static getFormulaType() {
-    return FORMULA_TYPE.FORMULA
+    return FORMULA_TYPE.FUNCTION
   }
 
   static getCategoryType() {
@@ -848,7 +848,7 @@ export class RuntimeDateTimeFormat extends RuntimeFormulaFunction {
   }
 
   static getFormulaType() {
-    return FORMULA_TYPE.FORMULA
+    return FORMULA_TYPE.FUNCTION
   }
 
   static getCategoryType() {
@@ -888,7 +888,7 @@ export class RuntimeDay extends RuntimeFormulaFunction {
   }
 
   static getFormulaType() {
-    return FORMULA_TYPE.FORMULA
+    return FORMULA_TYPE.FUNCTION
   }
 
   static getCategoryType() {
@@ -919,7 +919,7 @@ export class RuntimeMonth extends RuntimeFormulaFunction {
   }
 
   static getFormulaType() {
-    return FORMULA_TYPE.FORMULA
+    return FORMULA_TYPE.FUNCTION
   }
 
   static getCategoryType() {
@@ -950,7 +950,7 @@ export class RuntimeYear extends RuntimeFormulaFunction {
   }
 
   static getFormulaType() {
-    return FORMULA_TYPE.FORMULA
+    return FORMULA_TYPE.FUNCTION
   }
 
   static getCategoryType() {
@@ -981,7 +981,7 @@ export class RuntimeHour extends RuntimeFormulaFunction {
   }
 
   static getFormulaType() {
-    return FORMULA_TYPE.FORMULA
+    return FORMULA_TYPE.FUNCTION
   }
 
   static getCategoryType() {
@@ -1012,7 +1012,7 @@ export class RuntimeMinute extends RuntimeFormulaFunction {
   }
 
   static getFormulaType() {
-    return FORMULA_TYPE.FORMULA
+    return FORMULA_TYPE.FUNCTION
   }
 
   static getCategoryType() {
@@ -1043,7 +1043,7 @@ export class RuntimeSecond extends RuntimeFormulaFunction {
   }
 
   static getFormulaType() {
-    return FORMULA_TYPE.FORMULA
+    return FORMULA_TYPE.FUNCTION
   }
 
   static getCategoryType() {
@@ -1074,7 +1074,7 @@ export class RuntimeNow extends RuntimeFormulaFunction {
   }
 
   static getFormulaType() {
-    return FORMULA_TYPE.FORMULA
+    return FORMULA_TYPE.FUNCTION
   }
 
   static getCategoryType() {
@@ -1092,7 +1092,7 @@ export class RuntimeToday extends RuntimeFormulaFunction {
   }
 
   static getFormulaType() {
-    return FORMULA_TYPE.FORMULA
+    return FORMULA_TYPE.FUNCTION
   }
 
   static getCategoryType() {
@@ -1119,7 +1119,7 @@ export class RuntimeGetProperty extends RuntimeFormulaFunction {
   }
 
   static getFormulaType() {
-    return FORMULA_TYPE.FORMULA
+    return FORMULA_TYPE.FUNCTION
   }
 
   static getCategoryType() {
@@ -1153,7 +1153,7 @@ export class RuntimeRandomInt extends RuntimeFormulaFunction {
   }
 
   static getFormulaType() {
-    return FORMULA_TYPE.FORMULA
+    return FORMULA_TYPE.FUNCTION
   }
 
   static getCategoryType() {
@@ -1189,7 +1189,7 @@ export class RuntimeRandomFloat extends RuntimeFormulaFunction {
   }
 
   static getFormulaType() {
-    return FORMULA_TYPE.FORMULA
+    return FORMULA_TYPE.FUNCTION
   }
 
   static getCategoryType() {
@@ -1223,7 +1223,7 @@ export class RuntimeRandomBool extends RuntimeFormulaFunction {
   }
 
   static getFormulaType() {
-    return FORMULA_TYPE.FORMULA
+    return FORMULA_TYPE.FUNCTION
   }
 
   static getCategoryType() {
@@ -1250,7 +1250,7 @@ export class RuntimeGenerateUUID extends RuntimeFormulaFunction {
   }
 
   static getFormulaType() {
-    return FORMULA_TYPE.FORMULA
+    return FORMULA_TYPE.FUNCTION
   }
 
   static getCategoryType() {
