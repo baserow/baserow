@@ -247,9 +247,9 @@ export class TagsCollectionFieldType extends CollectionFieldType {
 
   getProps(field, { resolveFormula, applicationContext }) {
     const values = ensureArray(resolveFormula(field.values))
-    const colors = field.colors_is_formula
-      ? ensureArray(resolveFormula(field.colors))
-      : [field.colors]
+
+    const colors = ensureArray(resolveFormula(field.colors))
+
     const tags = values.map((value, index) => ({
       value,
       color: colors[index % colors.length],

@@ -269,7 +269,7 @@ class JSONFormulaField(models.JSONField):
         :return: A `BaserowFormulaObject`.
         """
 
-        if isinstance(value, str):
+        if not isinstance(value, dict):
             return BaserowFormulaObject(
                 mode=BASEROW_FORMULA_MODE_SIMPLE,
                 version=BASEROW_FORMULA_VERSION_INITIAL,
@@ -390,7 +390,7 @@ class JSONFormulaField(models.JSONField):
         :return: A `BaserowFormulaMinified`.
         """
 
-        if isinstance(value, str):
+        if not isinstance(value, dict):
             return BaserowFormulaMinified(
                 m=BASEROW_FORMULA_MODE_SIMPLE,
                 v=BASEROW_FORMULA_VERSION_INITIAL,

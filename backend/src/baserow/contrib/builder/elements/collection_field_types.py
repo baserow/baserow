@@ -9,10 +9,7 @@ from baserow.contrib.builder.elements.models import CollectionField, LinkElement
 from baserow.contrib.builder.elements.registries import CollectionFieldType
 from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
 from baserow.core.constants import RatingStyleChoices
-from baserow.core.formula.serializers import (
-    FormulaSerializerField,
-    OptionalFormulaSerializerField,
-)
+from baserow.core.formula.serializers import FormulaSerializerField
 from baserow.core.formula.types import BaserowFormulaObject
 from baserow.core.registry import Instance
 
@@ -236,12 +233,16 @@ class TagsCollectionFieldType(CollectionFieldType):
 
     @property
     def serializer_field_overrides(self):
+        from baserow.contrib.builder.api.elements.serializers import (
+            CollectionFieldOptionalFormulaSerializerField,
+        )
+
         return {
             "values": FormulaSerializerField(
                 help_text="The formula for the tags values",
                 required=False,
             ),
-            "colors": OptionalFormulaSerializerField(
+            "colors": CollectionFieldOptionalFormulaSerializerField(
                 help_text="The formula or value for the tags colors",
                 required=False,
                 is_formula_field_name="colors_is_formula",

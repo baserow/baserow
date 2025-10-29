@@ -32,6 +32,7 @@ from baserow.contrib.builder.workflow_actions.registries import (
 )
 from baserow.core.exceptions import InstanceTypeDoesNotExist
 from baserow.core.formula.serializers import FormulaSerializerField
+from baserow.core.formula.types import BASEROW_FORMULA_MODE_RAW
 
 
 class ElementSerializer(serializers.ModelSerializer):
@@ -482,3 +483,40 @@ class NestedMenuItemsMixin(serializers.Serializer):
         return MenuItemSerializer(
             root_items, many=True, context={"all_items": menu_items}
         ).data
+
+
+@extend_schema_field(OpenApiTypes.STR)
+class CollectionFieldOptionalFormulaSerializerField(FormulaSerializerField):
+    """
+    This field can be used to store a formula which mode depends on a field aside. If
+    `is_formula_field_name` property is `True`,
+    then the value will be treated as a simple formula otherwise, the value
+    will be treated as raw formula.
+    """
+
+    def __init__(self, *args, is_formula_field_name=None, **kwargs):
+        self.is_formula_field_name = is_formula_field_name
+        super().__init__(*args, **kwargs)
+
+    def to_representation(self, value):
+        value = super().to_representation(value)
+
+        is_formula = getattr(self.parent.instance, "config", {}).get(
+            self.is_formula_field_name, False
+        )
+
+        if not is_formula:
+            # We force the type to raw as it's not a formula
+            # For compat with unmigrated values.
+            value["mode"] = "raw"
+
+        return value
+
+    def to_internal_value(self, data):
+        data = super().to_internal_value(data)
+
+        is_formula = self.parent.data.get(self.is_formula_field_name, False)
+        if not is_formula:
+            data["mode"] = BASEROW_FORMULA_MODE_RAW
+
+        return data

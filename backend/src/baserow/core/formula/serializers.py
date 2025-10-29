@@ -109,7 +109,7 @@ class FormulaSerializerField(serializers.JSONField):
                 mode=BASEROW_FORMULA_MODE_SIMPLE,
             )
 
-        if not data["formula"]:
+        if not data["formula"] or data["mode"] == BASEROW_FORMULA_MODE_RAW:
             return data
 
         try:

@@ -19,6 +19,11 @@ export const resolveFormula = (
     return ''
   }
 
+  if (formulaCtx.mode === 'raw') {
+    // We don't need to resolve the formula for raw mode.
+    return formulaCtx.formula
+  }
+
   try {
     const tree = parseBaserowFormula(formulaCtx.formula)
     return new JavascriptExecutor(functions, RuntimeFormulaContext).visit(tree)
