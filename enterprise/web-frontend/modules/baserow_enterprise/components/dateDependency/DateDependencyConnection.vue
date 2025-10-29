@@ -1,6 +1,15 @@
 <template>
-  <div ref="container" class="date-dependency__timeline-container">
+  <div
+    v-if="rule.dependency_linkrow_field_id"
+    ref="container"
+    class="date-dependency__timeline-container"
+    :class="{
+      'date-dependency__timeline-container--draggable': !!drawConnection,
+    }"
+  >
     <svg
+      class="date-dependency__drawable"
+      :class="{ 'date-dependency__drawable--draggable': !!drawConnection }"
       :width="width"
       :height="height"
       @mousedown="onDragStart($event)"
@@ -536,11 +545,9 @@ export default {
      * @param childPosition
      */
     getConnectionBearingSW(parentPosition, childPosition) {
-      const parentEnd = parentPosition.left + parentPosition.width
-      const childEnd = childPosition.left + childPosition.width
       let startPoint, endPoint, path
 
-      if (parentPosition.left > childPosition.left && parentEnd > childEnd) {
+      if (parentPosition.left >= childPosition.left) {
         startPoint = this.getPointBearingSW(parentPosition)
         endPoint = this.getPointBearingW(childPosition)
 
@@ -880,68 +887,11 @@ export default {
     },
 
     /**
-     * Enable dragging elements
-     *
-     * @param rowId
-     */
-    dragSetupElements(rowId) {
-      if (!rowId) {
-        return
-      }
-
-      this.$refs.container.classList.add(
-        'date-dependency__timeline-container--draggable'
-      )
-      document
-        .getElementById(`row-${rowId}-activator`)
-        ?.classList.add('date-dependency--no-events')
-      document
-        .getElementById(`row-${rowId}-droppable`)
-        ?.classList.add('date-dependency--no-events')
-
-      const fields = this.fields
-      const rule = this.rule
-      const field = fields.filter(
-        (_field) => _field.id === rule.dependency_linkrow_field_id
-      )[0]
-
-      const fieldName = `field_${field.id}`
-
-      const noEvents = []
-
-      // disable drop zones in direct children
-      this.rows.forEach((rowItem) => {
-        const row = rowItem.item
-        if (
-          row[fieldName].find((rowValue) => {
-            return rowValue.id === rowId
-          })
-        ) {
-          const childRowId = row.id
-          noEvents.push(document.getElementById(`row-${childRowId}-activator`))
-          noEvents.push(document.getElementById(`row-${childRowId}-droppable`))
-        }
-      })
-
-      noEvents.forEach((elm) => {
-        elm.classList.add('date-dependency--no-events')
-      })
-    },
-
-    /**
      * Cleanup after drag is finished.
      *
      * @param rowId
      */
-    dragClearElements(rowId) {
-      this.$refs.container.classList.remove(
-        'date-dependency__timeline-container--draggable'
-      )
-      Array.from(
-        document.getElementsByClassName('date-dependency--no-events')
-      ).forEach((elm) => {
-        elm.classList.remove('date-dependency--no-events')
-      })
+    dragClearElements() {
       this.dragPoint.x = 0
       this.dragPoint.y = 0
       this.dragStartPoint = null
@@ -957,12 +907,10 @@ export default {
       const startPoint = new Point(event.offsetX, event.offsetY)
       startPoint.rowId = rowId
       this.dragStartPoint = startPoint
-
-      this.dragSetupElements(rowId)
     },
     async onDragEnd(event) {
       const rowId = Number.parseInt(this.dragStartPoint?.rowId)
-      this.dragClearElements(rowId)
+      this.dragClearElements()
       if (!rowId || Number.isNaN(rowId)) {
         return
       }

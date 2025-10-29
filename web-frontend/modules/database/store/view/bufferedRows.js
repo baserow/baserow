@@ -1254,7 +1254,7 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
       return state.fetching
     },
     getRow: (state) => (id) => {
-      return state.rows.find((row) => row.id === id)
+      return state.rows.find((row) => row?.id === id)
     },
     getRows(state) {
       return state.rows
