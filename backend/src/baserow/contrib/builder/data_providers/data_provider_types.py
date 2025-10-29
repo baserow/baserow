@@ -180,7 +180,9 @@ class DataSourceDataProviderType(BuilderDataProviderType):
         if data_source.service.get_type().returns_list:
             dispatch_result = dispatch_result["results"]
 
-        return get_value_at_path(dispatch_result, rest)
+        return data_source.service.get_type().get_value_at_path(
+            data_source.service.specific, dispatch_result, rest
+        )
 
     def import_path(self, path, id_mapping, **kwargs):
         """
@@ -482,8 +484,11 @@ class PreviousActionProviderType(BuilderDataProviderType):
             cache_key = self.get_dispatch_action_cache_key(
                 dispatch_id, workflow_action.id
             )
-            return get_value_at_path(cache.get(cache_key), rest)
+            return workflow_action.service.get_type().get_value_at_path(
+                workflow_action.service.specific, cache.get(cache_key), rest
+            )
         else:
+            # Frontend actions
             return get_value_at_path(previous_action_results[previous_action_id], rest)
 
     def post_dispatch(

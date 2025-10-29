@@ -45,7 +45,9 @@ class PreviousNodeProviderType(AutomationDataProviderType):
             )
             raise InvalidFormulaContext(message) from exc
         else:
-            return get_value_at_path(previous_node_results, rest)
+            return previous_node.service.get_type().get_value_at_path(
+                previous_node.service.specific, previous_node_results, rest
+            )
 
     def import_path(self, path, id_mapping, **kwargs):
         """
@@ -100,7 +102,7 @@ class CurrentIterationDataProviderType(AutomationDataProviderType):
             )
             raise InvalidFormulaContext(message) from exc
 
-        current_item = parent_node_results[current_iteration]
+        current_item = parent_node_results["results"][current_iteration]
         data = {"index": current_iteration, "item": current_item}
 
         return get_value_at_path(data, rest)

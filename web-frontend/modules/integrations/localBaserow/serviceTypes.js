@@ -15,6 +15,7 @@ import LocalBaserowSignalTriggerServiceForm from '@baserow/modules/integrations/
 import LocalBaserowGetRowForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowGetRowForm'
 import LocalBaserowListRowsForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowListRowsForm'
 import LocalBaserowAggregateRowsForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowAggregateRowsForm'
+import { getValueAtPath } from '@baserow/modules/core/utils/object'
 
 export class LocalBaserowTableServiceType extends ServiceType {
   get integrationType() {
@@ -77,6 +78,24 @@ export class LocalBaserowTableServiceType extends ServiceType {
     }
 
     return description
+  }
+
+  getValueAtPath(service, content, path) {
+    const schema = this.getDataSchema(service)
+
+    const [field, ...rest] = path
+    let humanName = field
+
+    if (schema) {
+      if (this.returnsList) {
+        if (schema.items?.properties?.[field]?.metadata?.name) {
+          humanName = schema.items.properties[field].metadata.name
+        }
+      } else if (schema.properties[field]?.metadata) {
+        humanName = schema.properties[field].metadata.name
+      }
+    }
+    return getValueAtPath(content, [humanName, ...rest].join('.'))
   }
 }
 
@@ -268,12 +287,17 @@ export class LocalBaserowListRowsServiceType extends DataSourceLocalBaserowTable
   }
 
   getRecordName(service, record) {
-    // We skip row_id and order properties here, so we keep only first key
-    // that should be the primary field
-    // [{ field_1234: 'The name of the record', id: 0, __idx__: 0 }]
-    // NOTE: This is assuming that the first field is the primary field.
-    const field = Object.keys(record).find((key) => key.startsWith('field_'))
-    return record[field]
+    const schema = this.getDataSchema(service)
+    if (!schema?.items?.properties) {
+      return ''
+    }
+
+    // Search the primary field using the metadata in the schema
+    const primaryField = Object.values(schema.items.properties).find(
+      ({ metadata }) => metadata?.primary
+    )
+
+    return record[primaryField.title]
   }
 
   getOrder() {

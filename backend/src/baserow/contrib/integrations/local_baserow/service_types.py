@@ -203,6 +203,59 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
     class SerializedDict(ServiceDict):
         table_id: int
 
+    def _convert_allowed_field_names(self, service, allowed_fields):
+        """
+        Convert the `field_x` to human fields.
+        """
+
+        for field_obj in self.get_table_field_objects(service):
+            allowed_fields = [
+                f if f != field_obj["field"].db_column else field_obj["field"].name
+                for f in allowed_fields
+            ]
+        return allowed_fields
+
+    def sanitize_result(self, service, result, allowed_field_names):
+        """
+        Remove the non public fields from the result.
+        """
+
+        allowed_field_names = self._convert_allowed_field_names(
+            service, allowed_field_names
+        )
+
+        return super().sanitize_result(service, result, allowed_field_names)
+
+    def get_value_at_path(self, service: Service, context: Any, path: List[str]):
+        """
+        Convert the field name to a human name.
+        """
+
+        if self.returns_list:
+            if len(path) < 2:
+                return super().get_value_at_path(service, context, path)
+
+            row_index, db_column, *rest = path
+        else:
+            if len(path) < 1:
+                return super().get_value_at_path(service, context, path)
+
+            db_column, *rest = path
+
+        human_name = db_column
+
+        for field_obj in self.get_table_field_objects(service) or []:
+            if field_obj["field"].db_column == db_column:
+                human_name = field_obj["field"].name
+                break
+
+        if self.returns_list:
+            return super().get_value_at_path(
+                service, context, [row_index, human_name, *rest]
+            )
+        else:
+            return super().get_value_at_path(service, context, [human_name, *rest])
+
     def build_queryset(
         self,
         service: LocalBaserowTableService,
@@ -1052,6 +1105,7 @@ class LocalBaserowListRowsUserServiceType(
             RowSerializer,
             is_response=True,
             field_ids=field_ids,
+            user_field_names=True,
         )
 
         return DispatchResult(
@@ -1591,6 +1645,7 @@ class LocalBaserowGetRowUserServiceType(
             RowSerializer,
             is_response=True,
             field_ids=field_ids,
+            user_field_names=True,
         )
 
         serialized_row = serializer(dispatch_data["data"]).data
@@ -2081,6 +2136,7 @@ class LocalBaserowUpsertRowServiceType(
             RowSerializer,
             is_response=True,
             field_ids=field_ids,
+            user_field_names=True,
         )
         serialized_row = serializer(dispatch_data["data"]).data
 
@@ -2243,9 +2299,7 @@ class LocalBaserowRowsSignalServiceType(
         **kwargs,
     ):
         serializer = get_row_serializer_class(
-            model,
-            RowSerializer,
-            is_response=True,
+            model, RowSerializer, is_response=True, user_field_names=True
         )
 
         data_to_process = {

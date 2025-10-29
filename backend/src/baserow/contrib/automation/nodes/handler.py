@@ -369,11 +369,7 @@ class AutomationNodeHandler:
                     return
 
             if children := node.get_children():
-                node_data = (
-                    dispatch_result.data
-                    if isinstance(dispatch_result.data, list)
-                    else [dispatch_result.data]
-                )
+                node_data = dispatch_result.data["results"]
 
                 if dispatch_context.simulate_until_node:
                     iterations = [0]

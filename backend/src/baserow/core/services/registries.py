@@ -33,6 +33,7 @@ from baserow.core.registry import (
 )
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.types import DispatchResult, FormulaToResolve
+from baserow.core.utils import get_value_at_path
 
 from .exceptions import (
     DispatchException,
@@ -311,6 +312,14 @@ class ServiceType(
 
         return resolved_values
 
+    def get_value_at_path(self, service: Service, context: Any, path: List[str]):
+        """
+        Offers the opportunity to hook into way data are extracted from the context for
+        a given path.
+        """
+
+        return get_value_at_path(context, path)
+
     def dispatch_transform(
         self,
         data: Any,
@@ -383,6 +392,34 @@ class ServiceType(
             service.save()
 
         return serialized_data
+
+    def remove_unused_field_names(
+        self,
+        row: Dict[str, Any],
+        field_names: List[str],
+    ) -> Dict[str, Any]:
+        """
+        Given a row dictionary, return a version of it that only contains keys
+        existing in the field_names list.
+        """
+
+        return {key: value for key, value in row.items() if key in field_names}
+
+    def sanitize_result(self, service, result, allowed_field_names):
+        """
+        Remove the non public fields from the result.
+        """
+
+        if self.returns_list:
+            return {
+                **result,
+                "results": [
+                    self.remove_unused_field_names(row, allowed_field_names)
+                    for row in result["results"]
+                ],
+            }
+        else:
+            return self.remove_unused_field_names(result, allowed_field_names)
 
     def get_schema_name(self, service: Service) -> str:
         """

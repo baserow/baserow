@@ -93,6 +93,8 @@ import elementImageSimpleContainer from '@baserow/modules/builder/assets/icons/e
 import elementImageTable from '@baserow/modules/builder/assets/icons/element-table.svg'
 import elementImageText from '@baserow/modules/builder/assets/icons/element-text.svg'
 
+import _ from 'lodash'
+
 export class ElementType extends Registerable {
   get name() {
     return null
@@ -761,6 +763,110 @@ export class ElementType extends Registerable {
     return this.app.store.getters['element/getAncestors'](page, element).some(
       ({ type }) => type === ancestorType
     )
+  }
+
+  /**
+   * Returns all collection ancestors of the given element. If allowSameElement is true,
+   * also return the element itself if it's a collection element.
+   * We get the right most chain of collection element starting from the first one
+   * that has a data source.
+   */
+  getCollectionAncestry({ page, element, allowSameElement }) {
+    const allCollectionAncestry = this.app.store.getters[
+      'element/getAncestors'
+    ](page, element, {
+      predicate: (ancestor) =>
+        this.app.$registry.get('element', ancestor.type).isCollectionElement,
+      includeSelf: allowSameElement,
+    })
+
+    // Choose the right-most index of the ancestry which points
+    // to a data source. If `allowSameElement` is `true`, this could
+    // result in `element`'s `data_source_id`, rather than its parent
+    // element's `data_source_id`.
+    const lastIndex = _.findLastIndex(
+      allCollectionAncestry,
+      (ancestor) => ancestor.data_source_id !== null
+    )
+
+    return allCollectionAncestry.slice(lastIndex)
+  }
+
+  /**
+   * Returns the current content (used by the current data provider) for the given
+   * element. The content is extracted from the element with an actual data source
+   * and refined using the current `recordIndexPath`, the schema properties of
+   * intermediate collection element and finally the path given as parameter.
+   */
+  getElementCurrentContent(applicationContext, path = []) {
+    const {
+      builder,
+      page,
+      element,
+      allowSameElement = true,
+      recordIndexPath,
+    } = applicationContext
+
+    const collectionAncestry = this.getCollectionAncestry({
+      element,
+      page,
+      allowSameElement,
+    })
+
+    const mainElement = collectionAncestry[0] // The element with the data source
+
+    if (
+      !collectionAncestry.length ||
+      !mainElement.data_source_id ||
+      !collectionAncestry
+        .slice(1)
+        .every(({ schema_property: schemaProperty }) => schemaProperty)
+    ) {
+      return null
+    }
+
+    const mainElementType = this.app.$registry.get('element', mainElement.type)
+
+    const mainDataSource = mainElementType.getDataSourceForElement({
+      builder,
+      page,
+      element: mainElement,
+    })
+
+    const mainDataSourceType = this.app.$registry.get(
+      'service',
+      mainDataSource.type
+    )
+
+    const dataPaths = collectionAncestry
+      .map(({ schema_property: schemaProperty }) => schemaProperty || null)
+      .flatMap((x, i) =>
+        i < recordIndexPath.length ? [x, recordIndexPath[i]] : [x]
+      )
+      .filter((v) => v !== null)
+
+    const fullDataPath = [...dataPaths, ...path]
+
+    const contentRows = mainElementType.getElementContentInStore(mainElement)
+
+    if (fullDataPath.length) {
+      if (mainDataSourceType.returnsList) {
+        // directly consume the first path item as it's the row index
+        // and the getValueAtPath is only able to support property level.
+        return mainDataSourceType.getValueAtPath(
+          mainDataSource,
+          contentRows[fullDataPath[0]],
+          fullDataPath.slice(1)
+        )
+      }
+      return mainDataSourceType.getValueAtPath(
+        mainDataSource,
+        contentRows,
+        fullDataPath
+      )
+    }
+
+    return contentRows
   }
 }
 

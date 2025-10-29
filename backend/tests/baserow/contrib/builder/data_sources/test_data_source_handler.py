@@ -280,8 +280,8 @@ def test_dispatch_data_source(data_fixture):
     assert result == {
         "id": rows[1].id,
         "order": AnyStr(),
-        fields[0].db_column: "Audi",
-        fields[1].db_column: "Orange",
+        fields[0].name: "Audi",
+        fields[1].name: "Orange",
     }
 
 
@@ -342,15 +342,15 @@ def test_dispatch_data_sources(data_fixture):
     assert result[data_source.id] == {
         "id": rows[1].id,
         "order": AnyStr(),
-        fields[0].db_column: "Audi",
-        fields[1].db_column: "Orange",
+        fields[0].name: "Audi",
+        fields[1].name: "Orange",
     }
 
     assert result[data_source2.id] == {
         "id": rows[2].id,
         "order": AnyStr(),
-        fields[0].db_column: "Volkswagen",
-        fields[1].db_column: "White",
+        fields[0].name: "Volkswagen",
+        fields[1].name: "White",
     }
 
     assert isinstance(result[data_source3.id], Exception)
@@ -595,14 +595,14 @@ def test_dispatch_data_source_doesnt_return_formula_field_names(
             {
                 "id": 1,
                 "order": "1.00000000000000000000",
-                f"field_{fields[0].id}": "Paneer Tikka",
-                f"field_{fields[1].id}": "5",
+                fields[0].name: "Paneer Tikka",
+                fields[1].name: "5",
             },
             {
                 "id": 2,
                 "order": "2.00000000000000000000",
-                f"field_{fields[0].id}": "Gobi Manchurian",
-                f"field_{fields[1].id}": "8",
+                fields[0].name: "Gobi Manchurian",
+                fields[1].name: "8",
             },
         ],
     }

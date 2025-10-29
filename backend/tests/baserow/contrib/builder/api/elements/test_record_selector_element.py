@@ -126,4 +126,4 @@ def test_record_selector_element_form_submission(api_client, data_fixture):
     assert "id" in response.json()
     # The created item should have "field_1" set to the first item of the
     # record selector list
-    assert response.json()[f"field_{fields[0].id}"] == f"{rows[0].id}"
+    assert response.json()[fields[0].name] == f"{rows[0].id}"

@@ -66,6 +66,7 @@ from baserow.core.services.exceptions import (
 from baserow.core.services.models import Service
 from baserow.core.services.registries import (
     DispatchTypes,
+    ListServiceTypeMixin,
     ServiceType,
     TriggerServiceTypeMixin,
 )
@@ -1566,7 +1567,7 @@ class CoreHTTPTriggerServiceType(TriggerServiceTypeMixin, ServiceType):
         return values
 
 
-class CoreIteratorServiceType(ServiceType):
+class CoreIteratorServiceType(ListServiceTypeMixin, ServiceType):
     type = "iterator"
     model_class = CoreIteratorService
     dispatch_types = DispatchTypes.ACTION
@@ -1609,7 +1610,7 @@ class CoreIteratorServiceType(ServiceType):
             allowed_fields is None or "items" in allowed_fields
         ):
             schema_builder = SchemaBuilder()
-            schema_builder.add_object(service.sample_data["data"])
+            schema_builder.add_object(service.sample_data["data"]["results"])
             schema = schema_builder.to_schema()
 
             # Sometimes there is no items if the array is empty
@@ -1643,7 +1644,7 @@ class CoreIteratorServiceType(ServiceType):
         resolved_values: Dict[str, Any],
         dispatch_context: DispatchContext,
     ) -> Any:
-        return resolved_values["source"]
+        return {"results": resolved_values["source"], "has_next_page": False}
 
     def dispatch_transform(
         self,

@@ -120,9 +120,23 @@ export class DataSourceDataProviderType extends DataProviderType {
       'dataSource/getPagesDataSourceById'
     ](pages, parseInt(dataSourceId))
 
-    const content = this.getDataSourceContent(applicationContext, dataSource)
+    const rawContent = this.getDataSourceContent(applicationContext, dataSource)
 
-    return content ? getValueAtPath(content, rest.join('.')) : null
+    const serviceType = this.app.$registry.get('service', dataSource.type)
+
+    let content = rawContent
+    let path = rest
+
+    if (serviceType.returnsList) {
+      // if it returns a list let's consume the next path token which is the row
+      const [row, ...afterRow] = rest
+      content = getValueAtPath(content, row)
+      path = afterRow
+    }
+
+    return content
+      ? serviceType.getValueAtPath(dataSource, content, path)
+      : null
   }
 
   getDataSourceContent(applicationContext, dataSource) {
@@ -437,77 +451,11 @@ export class CurrentRecordDataProviderType extends DataProviderType {
   }
 
   getDataChunk(applicationContext, path) {
-    const content = this.getDataContent(applicationContext)
-    return getValueAtPath(content, path.join('.'))
-  }
+    const { element } = applicationContext
 
-  getCollectionAncestors({ page, element, allowSameElement }) {
-    const allCollectionAncestry = this.app.store.getters[
-      'element/getAncestors'
-    ](page, element, {
-      predicate: (ancestor) =>
-        this.app.$registry.get('element', ancestor.type).isCollectionElement,
-      includeSelf: allowSameElement,
-    })
+    const elementType = this.app.$registry.get('element', element.type)
 
-    // Choose the right-most index of the ancestry which points
-    // to a data source. If `allowSameElement` is `true`, this could
-    // result in `element`'s `data_source_id`, rather than its parent
-    // element's `data_source_id`.
-    const lastIndex = _.findLastIndex(
-      allCollectionAncestry,
-      (ancestor) => ancestor.data_source_id !== null
-    )
-
-    return allCollectionAncestry.slice(lastIndex)
-  }
-
-  getDataContent(applicationContext) {
-    // `recordIndexPath` defaults to `[0]` if it's not present, which can happen in
-    // places where it can't be provided, such as the elements context.
-    const {
-      page,
-      element,
-      recordIndexPath = [0],
-      allowSameElement = false,
-    } = applicationContext
-
-    const collectionAncestry = this.getCollectionAncestors({
-      page,
-      element,
-      allowSameElement,
-    })
-
-    const elementWithContent = collectionAncestry.at(-1)
-    const contentRows =
-      this.app.store.getters['elementContent/getElementContent'](
-        elementWithContent
-      )
-
-    // Copy the record index path, as we'll be shifting the first element.
-    const mappedRecordIndex = [...recordIndexPath]
-    const dataPaths = collectionAncestry
-      .map((ancestor, index) => {
-        if (ancestor.data_source_id) {
-          // If we have a data source id, and no schema property, or
-          // we have a data source id and a schema property
-          return [mappedRecordIndex.shift()]
-        } else {
-          // We have just a schema property
-          return [ancestor.schema_property, mappedRecordIndex.shift()]
-        }
-      })
-      .flat()
-
-    // Get the value at the dataPaths path. If the formula is invalid,
-    // as the ds/property has changed, and the value can't be found,
-    // we'll return an empty object.
-    const row = getValueAtPath(contentRows, dataPaths) || {}
-
-    // Add the index value
-    row[this.indexKey] = dataPaths.at(-1)
-
-    return row
+    return elementType.getElementCurrentContent(applicationContext, path)
   }
 
   getDataSourceSchema(dataSource) {
@@ -539,9 +487,11 @@ export class CurrentRecordDataProviderType extends DataProviderType {
   ) {
     const pages = [page, this.app.store.getters['page/getSharedPage'](builder)]
 
+    const elementType = this.app.$registry.get('element', element.type)
+
     // Find the first collection ancestor with a `data_source`. If we
     // find one, this is what we'll use to generate the schema.
-    const collectionAncestors = this.getCollectionAncestors({
+    const collectionAncestors = elementType.getCollectionAncestry({
       page,
       element,
       allowSameElement,
@@ -573,8 +523,7 @@ export class CurrentRecordDataProviderType extends DataProviderType {
   getDataSchema(applicationContext) {
     // `allowSameElement` is set if we want to consider the current element in the
     // collection ancestry list. If so it will be used to get the data source id if
-    // it's the first collection element. For instance, we don't
-    //
+    // it's the first collection element.
     // `followSameElementSchemaProperties` can be passed in the `applicationContext`
     // to control whether we wish to fetch schema property for the current element
     // or not.
@@ -870,7 +819,21 @@ export class PreviousActionDataProviderType extends DataProviderType {
 
   getDataChunk(applicationContext, path) {
     const content = this.getDataContent(applicationContext)
-    return getValueAtPath(content, path.join('.'))
+
+    const [workflowActionId, ...rest] = path
+
+    const workflowAction = this.app.store.getters[
+      'builderWorkflowAction/getWorkflowActionById'
+    ](applicationContext.page, workflowActionId)
+
+    const actionType = this.app.$registry.get(
+      'workflowAction',
+      workflowAction.type
+    )
+
+    return content
+      ? actionType.getValueAtPath(workflowAction, content, rest)
+      : null
   }
 
   getWorkflowActionSchema(workflowAction) {

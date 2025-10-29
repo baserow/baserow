@@ -172,6 +172,21 @@ export const CollectionElementTypeMixin = (Base) =>
       return Boolean(element.data_source_id || element.schema_property)
     }
 
+    getElementContentInStore(element) {
+      return (
+        this.app.store.getters['elementContent/getElementContent'](element) ||
+        []
+      )
+    }
+
+    getDataSourceForElement({ builder, page, element }) {
+      const sharedPage = this.app.store.getters['page/getSharedPage'](builder)
+      return this.app.store.getters['dataSource/getPagesDataSourceById'](
+        [sharedPage, page],
+        element.data_source_id
+      )
+    }
+
     /**
      * Collection elements by default will have three permutations of display names:
      *

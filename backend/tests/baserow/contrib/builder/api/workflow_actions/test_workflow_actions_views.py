@@ -600,8 +600,8 @@ def test_dispatch_local_baserow_create_row_workflow_action(api_client, data_fixt
     response_json = response.json()
 
     assert "id" in response_json
-    assert response_json[color_field.db_column] == "Brown"
-    assert animal_field.db_column not in response_json
+    assert response_json[color_field.name] == "Brown"
+    assert animal_field.name not in response_json
 
 
 @pytest.mark.django_db
@@ -658,8 +658,8 @@ def test_dispatch_local_baserow_update_row_workflow_action(api_client, data_fixt
     response_json = response.json()
     assert response_json["id"] == first_row.id
 
-    assert response_json[color_field.db_column] == "Blue"
-    assert animal_field.db_column not in response_json
+    assert response_json[color_field.name] == "Blue"
+    assert animal_field.name not in response_json
 
 
 @pytest.mark.django_db
@@ -719,7 +719,7 @@ def test_dispatch_local_baserow_upsert_row_workflow_action_with_current_record(
     assert response.status_code == HTTP_200_OK
     response_json = response.json()
     assert "id" not in response_json
-    assert response_json[index.db_column] == "Index 123"
+    assert response_json[index.name] == "Index 123"
 
 
 @pytest.mark.django_db(transaction=True)
@@ -832,7 +832,7 @@ def test_dispatch_local_baserow_upsert_row_workflow_action_with_unmatching_index
 
         assert response.status_code == HTTP_200_OK
         row3 = model.objects.get(pk=rows[2].id)
-        assert getattr(row3, f"field_{field.id}") == f"Updated row {rows[2].id}"
+        assert getattr(row3, field.db_column) == f"Updated row {rows[2].id}"
 
         payload = {
             "metadata": json.dumps(
@@ -853,7 +853,7 @@ def test_dispatch_local_baserow_upsert_row_workflow_action_with_unmatching_index
         )
         assert response.status_code == HTTP_200_OK
         row4 = model.objects.get(pk=rows[3].id)
-        assert getattr(row4, f"field_{field.id}") == f"Updated row {rows[3].id}"
+        assert getattr(row4, field.db_column) == f"Updated row {rows[3].id}"
 
 
 @pytest.mark.django_db
@@ -983,8 +983,8 @@ def test_dispatch_local_baserow_update_row_workflow_action_using_formula_with_da
 
     assert response.status_code == HTTP_200_OK
     response_json = response.json()
-    assert response_json[color_field.db_column] == "Orange"
-    assert response_json[animal_field.db_column] == f"{rows[1].id}"
+    assert response_json[color_field.name] == "Orange"
+    assert response_json[animal_field.name] == f"{rows[1].id}"
 
 
 @pytest.mark.django_db
@@ -1265,7 +1265,7 @@ def test_notification_action_can_access_the_field_of_previous_action(
     #
     # Conversely, the other DB columns aren't returned, since they aren't used.
     assert response.json() == {
-        fields[0].db_column: "Palak Paneer",
+        fields[0].name: "Palak Paneer",
     }
 
 

@@ -278,18 +278,6 @@ class DataSourceService:
             self, data_source_id=data_source.id, page=page, user=user
         )
 
-    def remove_unused_field_names(
-        self,
-        row: Dict[str, Any],
-        field_names: List[str],
-    ) -> Dict[str, Any]:
-        """
-        Given a row dictionary, return a version of it that only contains keys
-        existing in the field_names list.
-        """
-
-        return {key: value for key, value in row.items() if key in field_names}
-
     def dispatch_data_sources(
         self,
         user,
@@ -330,22 +318,17 @@ class DataSourceService:
                 new_results[data_source.id] = results[data_source.id]
                 continue
 
-            field_names = dispatch_context.public_allowed_properties.get(
+            allowed_field_names = dispatch_context.public_allowed_properties.get(
                 "external", {}
             ).get(data_source.service.id, [])
 
-            if data_source.service.get_type().returns_list:
-                new_results[data_source.id] = {
-                    **results[data_source.id],
-                    "results": [
-                        self.remove_unused_field_names(row, field_names)
-                        for row in results[data_source.id]["results"]
-                    ],
-                }
-            else:
-                new_results[data_source.id] = self.remove_unused_field_names(
-                    results[data_source.id], field_names
-                )
+            new_results[
+                data_source.id
+            ] = data_source.service.get_type().sanitize_result(
+                data_source.service.specific,
+                results[data_source.id],
+                allowed_field_names,
+            )
 
         return new_results
 

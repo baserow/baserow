@@ -23,6 +23,7 @@ export default {
       getReset: 'elementContent/getReset',
       getPagesDataSourceById: 'dataSource/getPagesDataSourceById',
       getSharedPage: 'page/getSharedPage',
+      getElementAncestors: 'element/getAncestors',
     }),
     reset() {
       return this.getReset(this.element)
@@ -52,8 +53,11 @@ export default {
       })
     },
     elementContent() {
-      return this.getElementContent(this.element, this.applicationContext)
+      return (
+        this.elementType.getElementCurrentContent(this.applicationContext) || []
+      )
     },
+
     hasMorePage() {
       return this.getHasMorePage(this.element)
     },

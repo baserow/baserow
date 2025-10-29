@@ -434,7 +434,7 @@ def test_local_baserow_upsert_row_service_dispatch_transform(
     assert dict(serialized_row.data) == {
         "id": dispatch_data["data"].id,
         "order": "1.00000000000000000000",
-        ingredient.db_column: str(2),
+        ingredient.name: str(2),
     }
 
 
@@ -552,11 +552,11 @@ def test_local_baserow_upsert_row_service_dispatch_data_convert_value(data_fixtu
         "id": 1,
         "order": "1.00000000000000000000",
         # The string 'true' was converted to a boolean value
-        table.field_set.get(name="boolean").db_column: True,
+        table.field_set.get(name="boolean").name: True,
         # The string 'text' is unchanged
-        table.field_set.get(name="text").db_column: "text",
+        table.field_set.get(name="text").name: "text",
         # The string '1' is converted to a list with a single item
-        table.field_set.get(name="array").db_column: [
+        table.field_set.get(name="array").name: [
             {"id": 1, "value": "unnamed row 1", "order": AnyStr()}
         ],
     }
@@ -802,6 +802,7 @@ def test_dispatch_transform_passes_field_ids(
         RowSerializer,
         is_response=True,
         field_ids=expected,
+        user_field_names=True,
     )
 
 

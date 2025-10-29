@@ -219,8 +219,8 @@ def test_local_baserow_get_row_service_dispatch_transform(data_fixture):
 
     assert result.data == {
         "id": rows[1].id,
-        fields[0].db_column: "Audi",
-        fields[1].db_column: "Orange",
+        fields[0].name: "Audi",
+        fields[1].name: "Orange",
         "order": AnyStr(),
     }
 
@@ -332,7 +332,7 @@ def test_local_baserow_get_row_service_dispatch_data_with_service_integer_search
 
     assert result.data == {
         "id": rows[2].id,
-        fields[0].db_column: "42",
+        fields[0].name: "42",
         "order": AnyStr(),
     }
 
@@ -794,6 +794,7 @@ def test_dispatch_transform_passes_field_ids(mock_get_serializer, field_names):
         RowSerializer,
         is_response=True,
         field_ids=None,
+        user_field_names=True,
     )
 
 

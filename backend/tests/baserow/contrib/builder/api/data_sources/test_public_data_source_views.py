@@ -184,7 +184,8 @@ def test_dispatch_data_sources_list_rows_with_elements(
         table=data_source_fixture["table"],
     )
 
-    field_id = data_source_fixture["fields"][0].id
+    field = data_source_fixture["fields"][0]
+    field_id = field.id
 
     # Create an element that uses a formula referencing the data source
     data_fixture.create_builder_table_element(
@@ -212,7 +213,7 @@ def test_dispatch_data_sources_list_rows_with_elements(
     )
 
     expected_results = [
-        {f"field_{field_id}": getattr(row, f"field_{field_id}"), "id": row.id}
+        {field.name: getattr(row, f"field_{field_id}"), "id": row.id}
         for row in data_source_fixture["rows"]
     ]
 
@@ -290,7 +291,9 @@ def test_dispatch_data_sources_get_row_with_elements(
     assert response.status_code == HTTP_200_OK
     assert response.json() == {
         str(data_source.id): {
-            f"field_{field_id}": getattr(rows[db_row_id], f"field_{field_id}"),
+            data_source_fixture["fields"][0].name: getattr(
+                rows[db_row_id], f"field_{field_id}"
+            ),
             "id": rows[db_row_id].id,
         }
     }
@@ -390,7 +393,7 @@ def test_dispatch_data_sources_get_and_list_rows_with_elements(
     assert response.status_code == HTTP_200_OK
     assert response.json() == {
         str(data_source_1.id): {
-            f"field_{fields_1[0].id}": getattr(rows_1[0], f"field_{fields_1[0].id}"),
+            fields_1[0].name: getattr(rows_1[0], f"field_{fields_1[0].id}"),
             "id": rows_1[0].id,
         },
         # Although this Data Source has 2 Fields/Columns, only one is returned
@@ -399,9 +402,7 @@ def test_dispatch_data_sources_get_and_list_rows_with_elements(
             "has_next_page": False,
             "results": [
                 {
-                    f"field_{fields_2[0].id}": getattr(
-                        rows_2[0], f"field_{fields_2[0].id}"
-                    ),
+                    fields_2[0].name: getattr(rows_2[0], f"field_{fields_2[0].id}"),
                     "id": rows_2[0].id,
                 },
             ],
@@ -461,7 +462,8 @@ def test_dispatch_data_sources_list_rows_with_elements_and_role(
         table=data_source_element_roles_fixture["table"],
     )
 
-    field_id = data_source_element_roles_fixture["fields"][0].id
+    field = data_source_element_roles_fixture["fields"][0]
+    field_id = field.id
     field_name = f"field_{field_id}"
 
     # Create an element that uses a formula referencing the data source
@@ -499,7 +501,7 @@ def test_dispatch_data_sources_list_rows_with_elements_and_role(
             # to see the data source fields.
 
             expected_results.append(
-                {field_name: getattr(row, field_name), "id": row.id}
+                {field.name: getattr(row, field_name), "id": row.id}
             )
 
     assert response.status_code == HTTP_200_OK
@@ -555,9 +557,9 @@ def test_dispatch_data_sources_page_visibility_all_returns_elements(
         str(data_source.id): {
             "has_next_page": False,
             "results": [
-                {f"field_{field.id}": "Apple"},
-                {f"field_{field.id}": "Banana"},
-                {f"field_{field.id}": "Cherry"},
+                {field.name: "Apple"},
+                {field.name: "Banana"},
+                {field.name: "Cherry"},
             ],
         },
     }
@@ -632,9 +634,9 @@ def test_dispatch_data_sources_page_visibility_logged_in_allow_all_returns_eleme
         str(data_source.id): {
             "has_next_page": False,
             "results": [
-                {f"field_{field.id}": "Apple"},
-                {f"field_{field.id}": "Banana"},
-                {f"field_{field.id}": "Cherry"},
+                {field.name: "Apple"},
+                {field.name: "Banana"},
+                {field.name: "Cherry"},
             ],
         },
     }
@@ -813,9 +815,9 @@ def test_dispatch_data_sources_page_visibility_logged_in_allow_all_except(
 
     if is_allowed:
         expected_results = [
-            {f"field_{field.id}": "Apple"},
-            {f"field_{field.id}": "Banana"},
-            {f"field_{field.id}": "Cherry"},
+            {field.name: "Apple"},
+            {field.name: "Banana"},
+            {field.name: "Cherry"},
         ]
     else:
         expected_results = []

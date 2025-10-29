@@ -160,10 +160,6 @@ export default {
         this.selectedDataSource
       )
     },
-    elementHasContent() {
-      const { element } = this.applicationContext
-      return this.$store.getters['elementContent/getElementContent'](element)
-    },
     ...mapGetters({
       getElementSelected: 'element/getSelected',
     }),

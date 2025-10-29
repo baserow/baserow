@@ -436,8 +436,8 @@ def test_dispatch_data_source(data_fixture):
     assert result == {
         "id": rows[1].id,
         "order": AnyStr(),
-        fields[0].db_column: "Audi",
-        fields[1].db_column: "Orange",
+        fields[0].name: "Audi",
+        fields[1].name: "Orange",
     }
 
 
@@ -498,15 +498,15 @@ def test_dispatch_page_data_sources(data_fixture):
     assert result[data_source.id] == {
         "id": rows[1].id,
         "order": AnyStr(),
-        fields[0].db_column: "Audi",
-        fields[1].db_column: "Orange",
+        fields[0].name: "Audi",
+        fields[1].name: "Orange",
     }
 
     assert result[data_source2.id] == {
         "id": rows[2].id,
         "order": AnyStr(),
-        fields[0].db_column: "Volkswagen",
-        fields[1].db_column: "White",
+        fields[0].name: "Volkswagen",
+        fields[1].name: "White",
     }
 
     assert isinstance(result[data_source3.id], Exception)
@@ -576,77 +576,6 @@ def test_dispatch_data_source_improperly_configured(data_fixture):
 
     with pytest.raises(ServiceImproperlyConfiguredDispatchException):
         DataSourceService().dispatch_data_source(user, data_source, dispatch_context)
-
-
-@pytest.mark.parametrize(
-    "row,field_names,updated_row",
-    [
-        (
-            {"id": 1, "order": "1.000", "field_100": "foo"},
-            ["field_100"],
-            {"field_100": "foo"},
-        ),
-        (
-            {"id": 1, "order": "1.000", "field_100": "foo"},
-            ["field_99", "field_100", "field_101"],
-            {"field_100": "foo"},
-        ),
-        (
-            {
-                "id": 2,
-                "order": "1.000",
-                "field_200": {"id": 500, "value": "Delhi", "color": "dark-blue"},
-            },
-            ["field_200"],
-            {"field_200": {"id": 500, "value": "Delhi", "color": "dark-blue"}},
-        ),
-        # Expect an empty dict because field_names is empty
-        (
-            {"id": 4, "order": "1.000", "field_300": "foo"},
-            [],
-            {},
-        ),
-        # Expect an empty dict because field_names doesn't contain "field_400"
-        (
-            {"id": 3, "order": "1.000", "field_400": "foo"},
-            ["field_301"],
-            {},
-        ),
-        # Expect an empty dict because field_names doesn't contain "field_500"
-        (
-            # Multiple select will appear as a nested dict
-            {
-                "id": 5,
-                "order": "1.000",
-                "field_500": {"id": 501, "value": "Delhi", "color": "dark-blue"},
-            },
-            [],
-            {},
-        ),
-        # Expect an empty dict because field_names doesn't contain "field_500"
-        (
-            {
-                "id": 5,
-                "order": "1.000",
-                "field_500": {"id": 501, "value": "Delhi", "color": "dark-blue"},
-            },
-            ["field_502"],
-            {},
-        ),
-    ],
-)
-def test_remove_unused_field_names(row, field_names, updated_row):
-    """
-    Test the remove_unused_field_names() method.
-
-    Given a dispatched row, it should a modified version of the row.
-
-    The method should only return the row contents if its key exists in the
-    field_names list.
-    """
-
-    result = DataSourceService().remove_unused_field_names(row, field_names)
-    assert result == updated_row
 
 
 @pytest.mark.django_db
@@ -890,7 +819,4 @@ def test_dispatch_data_sources_skips_exceptions_in_results(data_fixture):
         )
         result = service.dispatch_data_sources(user, data_sources, dispatch_context)
 
-    assert result == {
-        data_source_1.id: {"results": [{"field_1": "foo"}]},
-        data_source_2.id: expected_error,
-    }
+    assert result[data_source_2.id] == expected_error

@@ -913,13 +913,13 @@ def test_public_dispatch_data_source_view_returns_all_fields(
         "results": [
             {
                 "id": rows[0].id,
-                f"field_{fields[0].id}": "Paneer Tikka",
-                f"field_{fields[1].id}": "5",
+                fields[0].name: "Paneer Tikka",
+                fields[1].name: "5",
             },
             {
                 "id": rows[1].id,
-                f"field_{fields[0].id}": "Gobi Manchurian",
-                f"field_{fields[1].id}": "8",
+                fields[0].name: "Gobi Manchurian",
+                fields[1].name: "8",
             },
         ],
     }
@@ -982,10 +982,10 @@ def test_public_dispatch_data_source_view_returns_some_fields(
         "has_next_page": False,
         "results": [
             {
-                f"field_{fields[0].id}": "Paneer Tikka",
+                fields[0].name: "Paneer Tikka",
             },
             {
-                f"field_{fields[0].id}": "Gobi Manchurian",
+                fields[0].name: "Gobi Manchurian",
             },
         ],
     }
@@ -1158,7 +1158,8 @@ def test_public_dispatch_data_sources_list_rows_with_elements_and_role(
         table=data_source_element_roles_fixture["table"],
     )
 
-    field_id = data_source_element_roles_fixture["fields"][0].id
+    field = data_source_element_roles_fixture["fields"][0]
+    field_id = field.id
 
     # Create an element that uses a formula referencing the data source
     data_fixture.create_builder_table_element(
@@ -1194,7 +1195,7 @@ def test_public_dispatch_data_sources_list_rows_with_elements_and_role(
         if expect_fields:
             # Field should only be visible if the user's role allows them
             # to see the data source fields.
-            result[f"field_{field_id}"] = getattr(row, f"field_{field_id}")
+            result[field.name] = getattr(row, f"field_{field_id}")
 
         expected_results.append(result)
 
@@ -1376,7 +1377,7 @@ def test_public_dispatch_data_sources_list_rows_with_page_visibility_all(
     rows = data_source_element_roles_fixture["rows"]
 
     if expect_fields:
-        field_name = f"field_{field_id}"
+        field_name = data_source_element_roles_fixture["fields"][0].name
         assert response.json() == {
             str(data_source.id): {
                 "has_next_page": False,
@@ -1523,7 +1524,8 @@ def test_public_dispatch_data_sources_get_row_with_page_visibility_all(
     )
 
     # Create an element that uses a formula referencing the data source
-    field_id = data_source_element_roles_fixture["fields"][0].id
+    field = data_source_element_roles_fixture["fields"][0]
+    field_id = field.id
     data_fixture.create_builder_heading_element(
         page=page,
         value=f"get('data_source.{data_source.id}.field_{field_id}')",
@@ -1548,7 +1550,7 @@ def test_public_dispatch_data_sources_get_row_with_page_visibility_all(
 
     if expect_fields:
         assert response.json() == {
-            str(data_source.id): {f"field_{field_id}": "Apple"},
+            str(data_source.id): {field.name: "Apple"},
         }
     else:
         assert response.json() == {str(data_source.id): {}}
@@ -1690,7 +1692,7 @@ def test_public_dispatch_data_sources_list_rows_with_page_visibility_logged_in(
     rows = data_source_element_roles_fixture["rows"]
 
     if expect_fields:
-        field_name = f"field_{field_id}"
+        field_name = data_source_element_roles_fixture["fields"][0].name
         assert response.json() == {
             str(data_source.id): {
                 "has_next_page": False,
@@ -1838,7 +1840,9 @@ def test_public_dispatch_data_sources_get_row_with_page_visibility_logged_in(
 
     if expect_fields:
         assert response.json() == {
-            str(data_source.id): {f"field_{field_id}": "Apple"},
+            str(data_source.id): {
+                data_source_element_roles_fixture["fields"][0].name: "Apple"
+            },
         }
     else:
         assert response.json() == {str(data_source.id): {}}

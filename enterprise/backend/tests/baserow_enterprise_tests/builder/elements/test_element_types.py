@@ -280,7 +280,7 @@ def test_dispatch_local_baserow_update_row_workflow_action_with_file(
     assert response.status_code == HTTP_200_OK
     response_json = response.json()
 
-    assert response_json[file_field.db_column] == [
+    assert response_json[file_field.name] == [
         {
             "image_height": 256,
             "image_width": 256,

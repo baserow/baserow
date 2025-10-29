@@ -1166,8 +1166,8 @@ def test_public_dispatch_data_source_with_ab_user_using_user_source(
     assert response.json() == {
         "id": 2,
         "order": AnyStr(),
-        fields[0].db_column: "Audi",
-        fields[1].db_column: "Orange",
+        fields[0].name: "Audi",
+        fields[1].name: "Orange",
     }
 
 

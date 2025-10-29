@@ -13,7 +13,7 @@ def test_core_iterator_service_type_dispatch_data_simple_value(data_fixture):
 
     dispatch_result = service_type.dispatch(service, dispatch_context)
 
-    assert dispatch_result.data == [2]
+    assert dispatch_result.data == {"results": [2], "has_next_page": False}
 
 
 @pytest.mark.django_db
@@ -27,13 +27,21 @@ def test_core_iterator_service_type_dispatch_data_array(data_fixture):
 
     dispatch_result = service_type.dispatch(service, dispatch_context)
 
-    assert dispatch_result.data == [{"test": "data"}, {"test": "data2"}]
+    assert dispatch_result.data == {
+        "results": [{"test": "data"}, {"test": "data2"}],
+        "has_next_page": False,
+    }
 
 
 @pytest.mark.django_db
 def test_core_iterator_service_type_schema(data_fixture):
     service = data_fixture.create_core_iterator_service(
-        sample_data={"data": [{"test": "data"}, {"test": "data2"}]}
+        sample_data={
+            "data": {
+                "results": [{"test": "data"}, {"test": "data2"}],
+                "has_next_page": False,
+            }
+        }
     )
 
     service_type = service.get_type()
@@ -52,7 +60,7 @@ def test_core_iterator_service_type_schema(data_fixture):
 @pytest.mark.django_db
 def test_core_iterator_service_types_simple_schema(data_fixture):
     service = data_fixture.create_core_iterator_service(
-        sample_data={"data": ["string"]}
+        sample_data={"data": {"results": ["string"]}}
     )
 
     service_type = service.get_type()
@@ -68,7 +76,9 @@ def test_core_iterator_service_types_simple_schema(data_fixture):
 
 @pytest.mark.django_db
 def test_core_iterator_service_type_empty_schema(data_fixture):
-    service = data_fixture.create_core_iterator_service(sample_data={"data": []})
+    service = data_fixture.create_core_iterator_service(
+        sample_data={"data": {"results": []}}
+    )
 
     service_type = service.get_type()
     assert service_type.generate_schema(service) is None

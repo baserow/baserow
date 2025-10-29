@@ -1,4 +1,5 @@
 import { Registerable } from '@baserow/modules/core/registry'
+import { getValueAtPath } from '@baserow/modules/core/utils/object'
 
 export class WorkflowActionType extends Registerable {
   get form() {
@@ -29,6 +30,13 @@ export class WorkflowActionType extends Registerable {
    */
   getDataSchema(applicationContext, workflowAction) {
     throw new Error('Must be set on the type.')
+  }
+
+  /**
+   * Allow to customize way data are accessed from workflow action
+   */
+  getValueAtPath(workflowAction, content, path) {
+    return getValueAtPath(content, path.join('.'))
   }
 
   /**

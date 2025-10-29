@@ -314,7 +314,7 @@ def test_simulate_dispatch_node_action(data_fixture):
 
     assert action_node.service.sample_data == {
         "data": {
-            f"field_{fields[0].id}": "A new row",
+            fields[0].name: "A new row",
             "id": row.id,
             "order": str(row.order),
         },
@@ -346,7 +346,7 @@ def test_simulate_dispatch_node_action_with_update_sample_data(
 
     assert action_node.service.sample_data == {
         "data": {
-            f"field_{fields[0].id}": "A new row",
+            fields[0].name: "A new row",
             "id": AnyInt(),
             "order": AnyStr(),
         },
@@ -387,7 +387,7 @@ def test_simulate_dispatch_node_action_with_simulate_until_node(data_fixture):
     row = table.get_model().objects.first()
     assert action_node_1.service.sample_data == {
         "data": {
-            f"field_{fields[0].id}": "A new row",
+            fields[0].name: "A new row",
             "id": row.id,
             "order": str(row.order),
         },
@@ -544,9 +544,9 @@ def test_simulate_dispatch_node_dispatches_correct_edge_node(data_fixture):
 
     node_c_2.refresh_from_db()
     node_c_2.service.refresh_from_db()
-    field_id = node_c_2.service.specific.table.field_set.all()[0].id
+    field = node_c_2.service.specific.table.field_set.all()[0]
     assert node_c_2.service.sample_data == {
-        "data": {f"field_{field_id}": "cherry", "id": AnyInt(), "order": AnyStr()},
+        "data": {field.name: "cherry", "id": AnyInt(), "order": AnyStr()},
         "output_uid": AnyStr(),
         "status": 200,
     }

@@ -104,11 +104,13 @@ def test_current_iteration_data_provider_get_data_chunk(data_fixture):
     dispatch_context = AutomationDispatchContext(workflow)
 
     dispatch_context.after_dispatch(
-        trigger, DispatchResult(data=[{"field_1": "Horse"}, {"field_1": "Duck"}])
+        trigger,
+        DispatchResult(data={"results": [{"field_1": "Horse"}, {"field_1": "Duck"}]}),
     )
 
     dispatch_context.after_dispatch(
-        iterator, DispatchResult(data=[{"field_1": "Horse"}, {"field_1": "Duck"}])
+        iterator,
+        DispatchResult(data={"results": [{"field_1": "Horse"}, {"field_1": "Duck"}]}),
     )
 
     dispatch_context.set_current_iteration(iterator, 0)

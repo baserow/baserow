@@ -239,14 +239,14 @@ def test_local_baserow_list_rows_service_dispatch_transform(data_fixture):
     assert [dict(r) for r in result.data["results"]] == [
         {
             "id": rows[0].id,
-            fields[0].db_column: "BMW",
-            fields[1].db_column: "Blue",
+            fields[0].name: "BMW",
+            fields[1].name: "Blue",
             "order": AnyStr(),
         },
         {
             "id": rows[1].id,
-            fields[0].db_column: "Audi",
-            fields[1].db_column: "Orange",
+            fields[0].name: "Audi",
+            fields[1].name: "Orange",
             "order": AnyStr(),
         },
     ]
@@ -1146,6 +1146,7 @@ def test_dispatch_transform_passes_field_ids(mock_get_serializer, field_names):
         RowSerializer,
         is_response=True,
         field_ids=None,
+        user_field_names=True,
     )
 
 
