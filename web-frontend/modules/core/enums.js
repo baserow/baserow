@@ -49,3 +49,31 @@ export const RATING_STYLES = {
   FLAG: 'flag',
   SMILE: 'smile',
 }
+
+export const FORMULA_TYPE = {
+  FORMULA: 'formula',
+  OPERATOR: 'operator',
+}
+
+export const FORMULA_CATEGORY = {
+  TEXT: {
+    category: 'categoryText',
+    iconClass: 'baserow-icon-text',
+  },
+  NUMBER: {
+    category: 'categoryNumber',
+    iconClass: 'baserow-icon-hashtag',
+  },
+  BOOLEAN: {
+    category: 'categoryBoolean',
+    iconClass: 'baserow-icon-circle-checked',
+  },
+  DATE: {
+    category: 'categoryDate',
+    iconClass: 'iconoir-calendar',
+  },
+  FILE: {
+    category: 'categoryFile',
+    iconClass: 'baserow-icon-file',
+  },
+}

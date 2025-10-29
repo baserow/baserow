@@ -13,9 +13,24 @@ import { Node, VueNodeViewRenderer } from '@tiptap/vue-2'
 import { ensureString } from '@baserow/modules/core/utils/validator'
 import GetFormulaComponent from '@baserow/modules/core/components/formula/GetFormulaComponent'
 import { mergeAttributes } from '@tiptap/core'
+import { FORMULA_CATEGORY, FORMULA_TYPE } from '@baserow/modules/core/enums'
 import _ from 'lodash'
 
 export class RuntimeFormulaFunction extends Registerable {
+  /**
+   * Must return an object containing the category name and icon class of the formula.
+   */
+  static getCategoryType() {
+    throw new Error('The category type of a formula function must be set.')
+  }
+
+  /**
+   * Must return a string indicating the valid formula type.
+   */
+  static getFormulaType() {
+    throw new Error('The formula type of a formula function must be set.')
+  }
+
   /**
    * Should define the arguments the function has. If null then we don't know what
    * arguments the function has any anything is accepted.
@@ -147,11 +162,28 @@ export class RuntimeFormulaFunction extends Registerable {
         'example usage of the function.'
     )
   }
+
+  getCategory() {
+    const { i18n } = this.app
+    return i18n.t(`runtimeFormulaTypes.${this.getCategoryType().category}`)
+  }
+
+  getIconClass() {
+    return this.getCategoryType().iconClass
+  }
 }
 
 export class RuntimeConcat extends RuntimeFormulaFunction {
   static getType() {
     return 'concat'
+  }
+
+  static getFormulaType() {
+    return FORMULA_TYPE.FORMULA
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.TEXT
   }
 
   execute(context, args) {
@@ -185,6 +217,14 @@ export class RuntimeConcat extends RuntimeFormulaFunction {
 export class RuntimeGet extends RuntimeFormulaFunction {
   static getType() {
     return 'get'
+  }
+
+  static getFormulaType() {
+    return FORMULA_TYPE.FORMULA
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.TEXT
   }
 
   get args() {
@@ -264,6 +304,14 @@ export class RuntimeAdd extends RuntimeFormulaFunction {
     return 'add'
   }
 
+  static getFormulaType() {
+    return FORMULA_TYPE.OPERATOR
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.NUMBER
+  }
+
   get args() {
     return [
       new NumberBaserowRuntimeFormulaArgumentType(),
@@ -281,13 +329,21 @@ export class RuntimeAdd extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ['1+1+1 = 3', "'a' + 'b' = 'ab'"]
+    return ['add(1, 1) = 2', '2 + 3 = 5', "'a' + 'b' = 'ab'"]
   }
 }
 
 export class RuntimeMinus extends RuntimeFormulaFunction {
   static getType() {
     return 'minus'
+  }
+
+  static getFormulaType() {
+    return FORMULA_TYPE.OPERATOR
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.NUMBER
   }
 
   get args() {
@@ -307,13 +363,21 @@ export class RuntimeMinus extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ['3-1 = 2']
+    return ['minus(5, 3) = 2', '3 - 2 = 1']
   }
 }
 
 export class RuntimeMultiply extends RuntimeFormulaFunction {
   static getType() {
     return 'multiply'
+  }
+
+  static getFormulaType() {
+    return FORMULA_TYPE.OPERATOR
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.NUMBER
   }
 
   get args() {
@@ -333,13 +397,21 @@ export class RuntimeMultiply extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ['2*3 = 6', "'a' * 3 = 'aaa'"]
+    return ['multiply(3, 4) = 12', '2 * 3 = 6', "'a' * 3 = 'aaa'"]
   }
 }
 
 export class RuntimeDivide extends RuntimeFormulaFunction {
   static getType() {
     return 'divide'
+  }
+
+  static getFormulaType() {
+    return FORMULA_TYPE.OPERATOR
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.NUMBER
   }
 
   get args() {
@@ -359,13 +431,21 @@ export class RuntimeDivide extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ['6/3 = 2']
+    return ['divide(10, 5) = 2', '6 / 2 = 3']
   }
 }
 
 export class RuntimeEqual extends RuntimeFormulaFunction {
   static getType() {
     return 'equal'
+  }
+
+  static getFormulaType() {
+    return FORMULA_TYPE.OPERATOR
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.BOOLEAN
   }
 
   get args() {
@@ -385,13 +465,21 @@ export class RuntimeEqual extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ['2=3 = false']
+    return ['equal(4, 4) = true', '2 = 3 = false']
   }
 }
 
 export class RuntimeNotEqual extends RuntimeFormulaFunction {
   static getType() {
     return 'not_equal'
+  }
+
+  static getFormulaType() {
+    return FORMULA_TYPE.OPERATOR
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.BOOLEAN
   }
 
   get args() {
@@ -411,13 +499,21 @@ export class RuntimeNotEqual extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ['2!=3 = true']
+    return ['not_equal(3, 3) = false', '2 != 3 = true']
   }
 }
 
 export class RuntimeGreaterThan extends RuntimeFormulaFunction {
   static getType() {
     return 'greater_than'
+  }
+
+  static getFormulaType() {
+    return FORMULA_TYPE.OPERATOR
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.BOOLEAN
   }
 
   get args() {
@@ -437,13 +533,21 @@ export class RuntimeGreaterThan extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ['3>2 = true']
+    return ['greater_than(2, 3) = false', '5 > 4 = true']
   }
 }
 
 export class RuntimeLessThan extends RuntimeFormulaFunction {
   static getType() {
     return 'less_than'
+  }
+
+  static getFormulaType() {
+    return FORMULA_TYPE.OPERATOR
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.BOOLEAN
   }
 
   get args() {
@@ -463,13 +567,21 @@ export class RuntimeLessThan extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ['2<3 = true']
+    return ['less_than(5 < 4) = false', '2 < 3 = true']
   }
 }
 
 export class RuntimeGreaterThanOrEqual extends RuntimeFormulaFunction {
   static getType() {
     return 'greater_than_or_equal'
+  }
+
+  static getFormulaType() {
+    return FORMULA_TYPE.OPERATOR
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.BOOLEAN
   }
 
   get args() {
@@ -489,13 +601,21 @@ export class RuntimeGreaterThanOrEqual extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ['3>=3 = true']
+    return ['greater_than_or_equal(4, 3) = true', '3 >= 2 = false']
   }
 }
 
 export class RuntimeLessThanOrEqual extends RuntimeFormulaFunction {
   static getType() {
     return 'less_than'
+  }
+
+  static getFormulaType() {
+    return FORMULA_TYPE.OPERATOR
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.BOOLEAN
   }
 
   get args() {
@@ -515,13 +635,21 @@ export class RuntimeLessThanOrEqual extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ['3<=3 = true']
+    return ['less_than_or_equal(5, 4) = false', '3 <= 3 = true']
   }
 }
 
 export class RuntimeUpper extends RuntimeFormulaFunction {
   static getType() {
     return 'upper'
+  }
+
+  static getFormulaType() {
+    return FORMULA_TYPE.FORMULA
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.TEXT
   }
 
   get args() {
@@ -547,6 +675,14 @@ export class RuntimeLower extends RuntimeFormulaFunction {
     return 'lower'
   }
 
+  static getFormulaType() {
+    return FORMULA_TYPE.FORMULA
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.TEXT
+  }
+
   get args() {
     return [new TextBaserowRuntimeFormulaArgumentType()]
   }
@@ -568,6 +704,14 @@ export class RuntimeLower extends RuntimeFormulaFunction {
 export class RuntimeCapitalize extends RuntimeFormulaFunction {
   static getType() {
     return 'capitalize'
+  }
+
+  static getFormulaType() {
+    return FORMULA_TYPE.FORMULA
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.TEXT
   }
 
   get args() {
@@ -597,6 +741,14 @@ export class RuntimeCapitalize extends RuntimeFormulaFunction {
 export class RuntimeRound extends RuntimeFormulaFunction {
   static getType() {
     return 'round'
+  }
+
+  static getFormulaType() {
+    return FORMULA_TYPE.FORMULA
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.NUMBER
   }
 
   get args() {
@@ -633,6 +785,14 @@ export class RuntimeIsEven extends RuntimeFormulaFunction {
     return 'is_even'
   }
 
+  static getFormulaType() {
+    return FORMULA_TYPE.FORMULA
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.BOOLEAN
+  }
+
   get args() {
     return [new NumberBaserowRuntimeFormulaArgumentType()]
   }
@@ -656,6 +816,14 @@ export class RuntimeIsOdd extends RuntimeFormulaFunction {
     return 'is_odd'
   }
 
+  static getFormulaType() {
+    return FORMULA_TYPE.FORMULA
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.BOOLEAN
+  }
+
   get args() {
     return [new NumberBaserowRuntimeFormulaArgumentType()]
   }
@@ -677,6 +845,14 @@ export class RuntimeIsOdd extends RuntimeFormulaFunction {
 export class RuntimeDateTimeFormat extends RuntimeFormulaFunction {
   static getType() {
     return 'datetime_format'
+  }
+
+  static getFormulaType() {
+    return FORMULA_TYPE.FORMULA
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.DATE
   }
 
   get args() {
@@ -711,6 +887,14 @@ export class RuntimeDay extends RuntimeFormulaFunction {
     return 'day'
   }
 
+  static getFormulaType() {
+    return FORMULA_TYPE.FORMULA
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.DATE
+  }
+
   get args() {
     return [new DateTimeBaserowRuntimeFormulaArgumentType()]
   }
@@ -732,6 +916,14 @@ export class RuntimeDay extends RuntimeFormulaFunction {
 export class RuntimeMonth extends RuntimeFormulaFunction {
   static getType() {
     return 'month'
+  }
+
+  static getFormulaType() {
+    return FORMULA_TYPE.FORMULA
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.DATE
   }
 
   get args() {
@@ -757,6 +949,14 @@ export class RuntimeYear extends RuntimeFormulaFunction {
     return 'year'
   }
 
+  static getFormulaType() {
+    return FORMULA_TYPE.FORMULA
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.DATE
+  }
+
   get args() {
     return [new DateTimeBaserowRuntimeFormulaArgumentType()]
   }
@@ -778,6 +978,14 @@ export class RuntimeYear extends RuntimeFormulaFunction {
 export class RuntimeHour extends RuntimeFormulaFunction {
   static getType() {
     return 'hour'
+  }
+
+  static getFormulaType() {
+    return FORMULA_TYPE.FORMULA
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.DATE
   }
 
   get args() {
@@ -803,6 +1011,14 @@ export class RuntimeMinute extends RuntimeFormulaFunction {
     return 'minute'
   }
 
+  static getFormulaType() {
+    return FORMULA_TYPE.FORMULA
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.DATE
+  }
+
   get args() {
     return [new DateTimeBaserowRuntimeFormulaArgumentType()]
   }
@@ -824,6 +1040,14 @@ export class RuntimeMinute extends RuntimeFormulaFunction {
 export class RuntimeSecond extends RuntimeFormulaFunction {
   static getType() {
     return 'second'
+  }
+
+  static getFormulaType() {
+    return FORMULA_TYPE.FORMULA
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.DATE
   }
 
   get args() {
@@ -849,6 +1073,14 @@ export class RuntimeNow extends RuntimeFormulaFunction {
     return 'now'
   }
 
+  static getFormulaType() {
+    return FORMULA_TYPE.FORMULA
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.DATE
+  }
+
   execute(context, args) {
     return new Date()
   }
@@ -857,6 +1089,14 @@ export class RuntimeNow extends RuntimeFormulaFunction {
 export class RuntimeToday extends RuntimeFormulaFunction {
   static getType() {
     return 'today'
+  }
+
+  static getFormulaType() {
+    return FORMULA_TYPE.FORMULA
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.DATE
   }
 
   execute(context, args) {
@@ -876,6 +1116,14 @@ export class RuntimeToday extends RuntimeFormulaFunction {
 export class RuntimeGetProperty extends RuntimeFormulaFunction {
   static getType() {
     return 'get_property'
+  }
+
+  static getFormulaType() {
+    return FORMULA_TYPE.FORMULA
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.TEXT
   }
 
   get args() {
@@ -902,6 +1150,14 @@ export class RuntimeGetProperty extends RuntimeFormulaFunction {
 export class RuntimeRandomInt extends RuntimeFormulaFunction {
   static getType() {
     return 'random_int'
+  }
+
+  static getFormulaType() {
+    return FORMULA_TYPE.FORMULA
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.NUMBER
   }
 
   get args() {
@@ -932,6 +1188,14 @@ export class RuntimeRandomFloat extends RuntimeFormulaFunction {
     return 'random_float'
   }
 
+  static getFormulaType() {
+    return FORMULA_TYPE.FORMULA
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.NUMBER
+  }
+
   get args() {
     return [
       new NumberBaserowRuntimeFormulaArgumentType(),
@@ -958,6 +1222,14 @@ export class RuntimeRandomBool extends RuntimeFormulaFunction {
     return 'random_bool'
   }
 
+  static getFormulaType() {
+    return FORMULA_TYPE.FORMULA
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.BOOLEAN
+  }
+
   execute(context, args) {
     return Math.random() < 0.5
   }
@@ -975,6 +1247,14 @@ export class RuntimeRandomBool extends RuntimeFormulaFunction {
 export class RuntimeGenerateUUID extends RuntimeFormulaFunction {
   static getType() {
     return 'generate_uuid'
+  }
+
+  static getFormulaType() {
+    return FORMULA_TYPE.FORMULA
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.TEXT
   }
 
   execute(context, args) {
