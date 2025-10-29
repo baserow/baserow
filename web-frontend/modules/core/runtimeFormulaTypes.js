@@ -171,6 +171,15 @@ export class RuntimeFormulaFunction extends Registerable {
   getIconClass() {
     return this.getCategoryType().iconClass
   }
+
+  /**
+   * If the formula type is 'operator', returns the correct literal
+   * operator symbol. Otherwise returns null.
+   * @returns {string|null}
+   */
+  get getOperatorSymbol() {
+    return null
+  }
 }
 
 export class RuntimeConcat extends RuntimeFormulaFunction {
@@ -312,6 +321,10 @@ export class RuntimeAdd extends RuntimeFormulaFunction {
     return FORMULA_CATEGORY.NUMBER
   }
 
+  get getOperatorSymbol() {
+    return '+'
+  }
+
   get args() {
     return [
       new NumberBaserowRuntimeFormulaArgumentType(),
@@ -329,7 +342,7 @@ export class RuntimeAdd extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ['add(1, 1) = 2', '2 + 3 = 5', "'a' + 'b' = 'ab'"]
+    return ['2 + 3 = 5']
   }
 }
 
@@ -344,6 +357,10 @@ export class RuntimeMinus extends RuntimeFormulaFunction {
 
   static getCategoryType() {
     return FORMULA_CATEGORY.NUMBER
+  }
+
+  get getOperatorSymbol() {
+    return '-'
   }
 
   get args() {
@@ -363,7 +380,7 @@ export class RuntimeMinus extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ['minus(5, 3) = 2', '3 - 2 = 1']
+    return ['3 - 2 = 1']
   }
 }
 
@@ -378,6 +395,10 @@ export class RuntimeMultiply extends RuntimeFormulaFunction {
 
   static getCategoryType() {
     return FORMULA_CATEGORY.NUMBER
+  }
+
+  get getOperatorSymbol() {
+    return '*'
   }
 
   get args() {
@@ -397,7 +418,7 @@ export class RuntimeMultiply extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ['multiply(3, 4) = 12', '2 * 3 = 6', "'a' * 3 = 'aaa'"]
+    return ['2 * 3 = 6']
   }
 }
 
@@ -414,6 +435,10 @@ export class RuntimeDivide extends RuntimeFormulaFunction {
     return FORMULA_CATEGORY.NUMBER
   }
 
+  get getOperatorSymbol() {
+    return '/'
+  }
+
   get args() {
     return [
       new NumberBaserowRuntimeFormulaArgumentType(),
@@ -422,7 +447,7 @@ export class RuntimeDivide extends RuntimeFormulaFunction {
   }
 
   execute(context, [a, b]) {
-    return a * b
+    return a / b
   }
 
   getDescription() {
@@ -431,7 +456,7 @@ export class RuntimeDivide extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ['divide(10, 5) = 2', '6 / 2 = 3']
+    return ['6 / 2 = 3']
   }
 }
 
@@ -446,6 +471,10 @@ export class RuntimeEqual extends RuntimeFormulaFunction {
 
   static getCategoryType() {
     return FORMULA_CATEGORY.BOOLEAN
+  }
+
+  get getOperatorSymbol() {
+    return '='
   }
 
   get args() {
@@ -465,7 +494,7 @@ export class RuntimeEqual extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ['equal(4, 4) = true', '2 = 3 = false']
+    return ['2 = 3 = false']
   }
 }
 
@@ -480,6 +509,10 @@ export class RuntimeNotEqual extends RuntimeFormulaFunction {
 
   static getCategoryType() {
     return FORMULA_CATEGORY.BOOLEAN
+  }
+
+  get getOperatorSymbol() {
+    return '!='
   }
 
   get args() {
@@ -499,7 +532,7 @@ export class RuntimeNotEqual extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ['not_equal(3, 3) = false', '2 != 3 = true']
+    return ['2 != 3 = true']
   }
 }
 
@@ -514,6 +547,10 @@ export class RuntimeGreaterThan extends RuntimeFormulaFunction {
 
   static getCategoryType() {
     return FORMULA_CATEGORY.BOOLEAN
+  }
+
+  get getOperatorSymbol() {
+    return '>'
   }
 
   get args() {
@@ -533,7 +570,7 @@ export class RuntimeGreaterThan extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ['greater_than(2, 3) = false', '5 > 4 = true']
+    return ['5 > 4 = true']
   }
 }
 
@@ -548,6 +585,10 @@ export class RuntimeLessThan extends RuntimeFormulaFunction {
 
   static getCategoryType() {
     return FORMULA_CATEGORY.BOOLEAN
+  }
+
+  get getOperatorSymbol() {
+    return '<'
   }
 
   get args() {
@@ -567,7 +608,7 @@ export class RuntimeLessThan extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ['less_than(5 < 4) = false', '2 < 3 = true']
+    return ['2 < 3 = true']
   }
 }
 
@@ -584,6 +625,10 @@ export class RuntimeGreaterThanOrEqual extends RuntimeFormulaFunction {
     return FORMULA_CATEGORY.BOOLEAN
   }
 
+  get getOperatorSymbol() {
+    return '>='
+  }
+
   get args() {
     return [
       new NumberBaserowRuntimeFormulaArgumentType(),
@@ -592,7 +637,7 @@ export class RuntimeGreaterThanOrEqual extends RuntimeFormulaFunction {
   }
 
   execute(context, [a, b]) {
-    return a < b
+    return a >= b
   }
 
   getDescription() {
@@ -601,7 +646,7 @@ export class RuntimeGreaterThanOrEqual extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ['greater_than_or_equal(4, 3) = true', '3 >= 2 = false']
+    return ['3 >= 2 = false']
   }
 }
 
@@ -616,6 +661,10 @@ export class RuntimeLessThanOrEqual extends RuntimeFormulaFunction {
 
   static getCategoryType() {
     return FORMULA_CATEGORY.BOOLEAN
+  }
+
+  get getOperatorSymbol() {
+    return '<='
   }
 
   get args() {
@@ -635,7 +684,7 @@ export class RuntimeLessThanOrEqual extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ['less_than_or_equal(5, 4) = false', '3 <= 3 = true']
+    return ['3 <= 3 = true']
   }
 }
 
