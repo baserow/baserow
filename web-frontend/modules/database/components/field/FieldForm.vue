@@ -40,6 +40,13 @@
               <DropdownItem
                 v-for="(fieldType, type) in fieldTypes"
                 :key="type"
+                v-tooltip="
+                  !fieldType.isDeactivated(workspace.id) &&
+                  !fieldType.isEnabled(workspace)
+                    ? fieldType.getDisabledTooltip(workspace)
+                    : null
+                "
+                tooltip-position="top"
                 :icon="fieldType.iconClass"
                 :name="fieldType.getName()"
                 :alias="fieldType.getAlias()"
@@ -49,7 +56,7 @@
                   !fieldType.isEnabled(workspace) ||
                   fieldType.isDeactivated(workspace.id)
                 "
-                @click="clickOnDeactivatedItem($event, fieldType)"
+                @click="clickOnItem($event, fieldType)"
               >
                 <i class="select__item-icon" :class="fieldType.iconClass" />
                 <span
@@ -75,6 +82,24 @@
                   v-bind="
                     fieldType.getDeactivatedClickModal(workspace.id)
                       ? fieldType.getDeactivatedClickModal(workspace.id)[1]
+                      : null
+                  "
+                  :workspace="workspace"
+                ></component>
+                <component
+                  :is="
+                    fieldType.getDisabledClickModal(workspace)
+                      ? fieldType.getDisabledClickModal(workspace)[0]
+                      : null
+                  "
+                  :ref="'disabledClickModal-' + fieldType.type"
+                  :v-if="
+                    !fieldType.isEnabled(workspace) &&
+                    fieldType.getDisabledClickModal(workspace)
+                  "
+                  v-bind="
+                    fieldType.getDisabledClickModal(workspace)
+                      ? fieldType.getDisabledClickModal(workspace)[1]
                       : null
                   "
                   :workspace="workspace"
@@ -394,9 +419,11 @@ export default {
       this.$emit('keydown-enter')
       this.submit()
     },
-    clickOnDeactivatedItem(event, fieldType) {
+    clickOnItem(event, fieldType) {
       if (fieldType.isDeactivated(this.workspace.id)) {
         this.$refs[`deactivatedClickModal-${fieldType.type}`][0].show()
+      } else if (!fieldType.isEnabled(this.workspace)) {
+        this.$refs[`disabledClickModal-${fieldType.type}`][0].show()
       }
     },
     /**

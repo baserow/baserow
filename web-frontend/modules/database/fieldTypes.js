@@ -961,6 +961,21 @@ export class FieldType extends Registerable {
   }
 
   /**
+   * Can return a modal vue component that's opened when the user clicks in this
+   * field type, but `isEnabled` is false. Should return [component, props as {}]
+   */
+  getDisabledClickModal(workspace) {
+    return null
+  }
+
+  /**
+   * Can return a tooltip text that's shown on hover when the `isEnabled` is False.
+   */
+  getDisabledTooltip(workspace) {
+    return null
+  }
+
+  /**
    * Indicates whether the field is visible, but in a deactivated state.
    */
   isDeactivated(workspaceId) {

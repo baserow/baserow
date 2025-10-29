@@ -350,7 +350,7 @@
     "label": "Prompt",
     "labelDescription": "Describe the formula you would like to generate",
     "generate": "Generate",
-    "noModels": "Your Baserow instance and workspace doesn't have any AI models configured. Click on the three dots next to your workspace, then on settings to configure them."
+    "noModels": "Your Baserow instance and workspace doesn't have any AI models configured. Navigate to the homepage, click on the name of your workspace, then on settings to configure them."
   },
   "formulaFieldAI": {
     "generateWithAI": "Generate using AI",
