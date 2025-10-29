@@ -1,0 +1,9 @@
+{
+  "type": "bug",
+  "message": "Allow setting custom base URL for OpenAI.",
+  "domain": "core",
+  "issue_number": 4108,
+  "issue_origin": "github",
+  "bullet_points": [],
+  "created_at": "2025-10-29"
+}

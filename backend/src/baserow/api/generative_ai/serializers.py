@@ -9,7 +9,7 @@ class GenerativeAIModelsSerializer(serializers.Serializer):
     )
 
 
-class OpenAISettingsSerializer(GenerativeAIModelsSerializer):
+class BaseOpenAISettingsSerializer(GenerativeAIModelsSerializer):
     api_key = serializers.CharField(
         allow_blank=True,
         required=False,
@@ -19,6 +19,16 @@ class OpenAISettingsSerializer(GenerativeAIModelsSerializer):
         allow_blank=True,
         required=False,
         help_text="The organization that the OpenAI API key belongs to.",
+    )
+
+
+class OpenAISettingsSerializer(BaseOpenAISettingsSerializer):
+    base_url = serializers.URLField(
+        allow_blank=True,
+        required=False,
+        help_text="https://api.openai.com/v1 by default, but can be changed to "
+        "https://eu.api.openai.com/v1, https://<your-resource-name>.openai.azure.com,"
+        "or any other OpenAI compatible API.",
     )
 
 
@@ -48,7 +58,7 @@ class OllamaSettingsSerializer(GenerativeAIModelsSerializer):
     )
 
 
-class OpenRouterSettingsSerializer(OpenAISettingsSerializer):
+class OpenRouterSettingsSerializer(BaseOpenAISettingsSerializer):
     api_key = serializers.CharField(
         allow_blank=True,
         required=False,

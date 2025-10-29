@@ -37,6 +37,9 @@ class BaseOpenAIGenerativeAIModelType(GenerativeAIModelType):
             or settings.BASEROW_OPENAI_ORGANIZATION
         )
 
+    def get_base_url(self, workspace=None, settings_override=None):
+        return None
+
     def is_enabled(self, workspace=None, settings_override=None):
         api_key = self.get_api_key(workspace, settings_override)
         return bool(api_key) and bool(
@@ -48,12 +51,13 @@ class BaseOpenAIGenerativeAIModelType(GenerativeAIModelType):
     def get_client(self, workspace=None, settings_override=None):
         api_key = self.get_api_key(workspace, settings_override)
         organization = self.get_organization(workspace, settings_override)
-        return OpenAI(api_key=api_key, organization=organization)
+        base_url = self.get_base_url(workspace, settings_override)
+        return OpenAI(api_key=api_key, organization=organization, base_url=base_url)
 
     def get_settings_serializer(self):
-        from baserow.api.generative_ai.serializers import OpenAISettingsSerializer
+        from baserow.api.generative_ai.serializers import BaseOpenAISettingsSerializer
 
-        return OpenAISettingsSerializer
+        return BaseOpenAISettingsSerializer
 
     def prompt(
         self, model, prompt, workspace=None, temperature=None, settings_override=None
@@ -78,6 +82,17 @@ class OpenAIGenerativeAIModelType(
     GenerativeAIWithFilesModelType, BaseOpenAIGenerativeAIModelType
 ):
     type = "openai"
+
+    def get_settings_serializer(self):
+        from baserow.api.generative_ai.serializers import OpenAISettingsSerializer
+
+        return OpenAISettingsSerializer
+
+    def get_base_url(self, workspace=None, settings_override=None):
+        return (
+            self.get_workspace_setting(workspace, "base_url", settings_override)
+            or settings.BASEROW_OPENAI_BASE_URL
+        )
 
     def is_file_compatible(self, file_name: str) -> bool:
         # See supported files at:
@@ -377,14 +392,8 @@ class OpenRouterGenerativeAIModelType(BaseOpenAIGenerativeAIModelType):
             or settings.BASEROW_OPENROUTER_ORGANIZATION
         )
 
-    def get_client(self, workspace=None, settings_override=None):
-        api_key = self.get_api_key(workspace, settings_override)
-        organization = self.get_organization(workspace, settings_override)
-        return OpenAI(
-            api_key=api_key,
-            organization=organization,
-            base_url="https://openrouter.ai/api/v1",
-        )
+    def get_base_url(self, workspace=None, settings_override=None):
+        return "https://openrouter.ai/api/v1"
 
     def get_settings_serializer(self):
         from baserow.api.generative_ai.serializers import OpenRouterSettingsSerializer
