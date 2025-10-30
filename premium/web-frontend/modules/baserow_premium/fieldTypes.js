@@ -224,10 +224,6 @@ export class AIFieldType extends FieldType {
   }
 
   getCompatibleFilterFieldType(field) {
-    // Only support text output type; otherwise default to this type
-    if (field.ai_output_type !== 'text') {
-      return this
-    }
     return this.getBaserowFieldType(field)
   }
 }

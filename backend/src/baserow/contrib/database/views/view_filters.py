@@ -1104,7 +1104,8 @@ class SingleSelectEqualViewFilterType(ViewFilterType):
             return Q()
 
         field_type = field_type_registry.get_by_model(field)
-        filter_function = self.filter_functions[field_type.type]
+        effective_field_type = field_type.get_compatible_filter_field_type(field)
+        filter_function = self.filter_functions[effective_field_type.type]
         return filter_function(field_name, value, model_field, field)
 
     def set_import_serialized_value(self, value, id_mapping):
@@ -1160,7 +1161,8 @@ class SingleSelectIsAnyOfViewFilterType(ViewFilterType):
             return self.default_filter_on_exception()
 
         field_type = field_type_registry.get_by_model(field)
-        filter_function = self.filter_functions[field_type.type]
+        effective_field_type = field_type.get_compatible_filter_field_type(field)
+        filter_function = self.filter_functions[effective_field_type.type]
         return filter_function(field_name, option_ids, model_field, field)
 
     def set_import_serialized_value(self, value: str | None, id_mapping: dict) -> str:
@@ -1419,7 +1421,8 @@ class MultipleSelectHasViewFilterType(ManyToManyHasBaseViewFilter):
             return self.default_filter_on_exception()
 
         field_type = field_type_registry.get_by_model(field)
-        filter_function = self.filter_functions[field_type.type]
+        effective_field_type = field_type.get_compatible_filter_field_type(field)
+        filter_function = self.filter_functions[effective_field_type.type]
         return filter_function(field_name, option_ids, model_field, field)
 
     def set_import_serialized_value(self, value: str | None, id_mapping: dict) -> str:
