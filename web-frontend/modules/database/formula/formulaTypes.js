@@ -524,7 +524,11 @@ export class BaserowFormulaDateType extends mix(
   }
 }
 
-export class BaserowFormulaDurationType extends BaserowFormulaTypeDefinition {
+export class BaserowFormulaDurationType extends mix(
+  hasEmptyValueFilterMixin,
+  hasNumericValueComparableToFilterMixin,
+  BaserowFormulaTypeDefinition
+) {
   static getType() {
     return 'duration'
   }

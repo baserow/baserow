@@ -8,7 +8,10 @@ import {
 } from '@baserow/modules/database/viewFilters'
 import viewFilterTypeText from '@baserow/modules/database/components/view/ViewFilterTypeText.vue'
 import ViewFilterTypeMultipleSelectOptions from '@baserow/modules/database/components/view/ViewFilterTypeMultipleSelectOptions'
-import { BaserowFormulaNumberType } from '@baserow/modules/database/formula/formulaTypes'
+import {
+  BaserowFormulaDurationType,
+  BaserowFormulaNumberType,
+} from '@baserow/modules/database/formula/formulaTypes'
 import { ComparisonOperator } from '@baserow/modules/database//utils/fieldFilters'
 import { mix } from '@baserow/modules/core/mixins'
 
@@ -25,6 +28,7 @@ const HasEmptyValueViewFilterTypeMixin = {
       FormulaFieldType.compatibleWithFormulaTypes(
         'array(multiple_collaborators)'
       ),
+      FormulaFieldType.compatibleWithFormulaTypes('array(duration)'),
     ]
   },
 }
@@ -86,7 +90,8 @@ const HasValueEqualViewFilterTypeMixin = {
         FormulaFieldType.arrayOf('number'),
         FormulaFieldType.arrayOf('single_select'),
         FormulaFieldType.arrayOf('multiple_select'),
-        FormulaFieldType.arrayOf('multiple_collaborators')
+        FormulaFieldType.arrayOf('multiple_collaborators'),
+        FormulaFieldType.arrayOf('duration')
       ),
     ]
   },
@@ -372,13 +377,15 @@ export class HasValueHigherThanViewFilterType extends ViewFilterType {
   }
 
   getInputComponent(field) {
-    return ViewFilterTypeNumber
+    const fieldType = this.app.$registry.get('field', field.type)
+    return fieldType.getFilterInputComponent(field, this) || viewFilterTypeText
   }
 
   getCompatibleFieldTypes() {
     return [
       FormulaFieldType.compatibleWithFormulaTypes(
-        FormulaFieldType.arrayOf(BaserowFormulaNumberType.getType())
+        FormulaFieldType.arrayOf(BaserowFormulaNumberType.getType()),
+        FormulaFieldType.arrayOf(BaserowFormulaDurationType.getType())
       ),
     ]
   }
@@ -432,13 +439,17 @@ export class HasValueHigherThanOrEqualViewFilterType extends ViewFilterType {
   }
 
   getInputComponent(field) {
-    return ViewFilterTypeNumber
+    const fieldType = this.app.$registry.get('field', field.type)
+    return (
+      fieldType.getFilterInputComponent(field, this) || ViewFilterTypeNumber
+    )
   }
 
   getCompatibleFieldTypes() {
     return [
       FormulaFieldType.compatibleWithFormulaTypes(
-        FormulaFieldType.arrayOf(BaserowFormulaNumberType.getType())
+        FormulaFieldType.arrayOf(BaserowFormulaNumberType.getType()),
+        FormulaFieldType.arrayOf(BaserowFormulaDurationType.getType())
       ),
     ]
   }
@@ -492,13 +503,17 @@ export class HasValueLowerThanViewFilterType extends ViewFilterType {
   }
 
   getInputComponent(field) {
-    return ViewFilterTypeNumber
+    const fieldType = this.app.$registry.get('field', field.type)
+    return (
+      fieldType.getFilterInputComponent(field, this) || ViewFilterTypeNumber
+    )
   }
 
   getCompatibleFieldTypes() {
     return [
       FormulaFieldType.compatibleWithFormulaTypes(
-        FormulaFieldType.arrayOf(BaserowFormulaNumberType.getType())
+        FormulaFieldType.arrayOf(BaserowFormulaNumberType.getType()),
+        FormulaFieldType.arrayOf(BaserowFormulaDurationType.getType())
       ),
     ]
   }
@@ -552,13 +567,17 @@ export class HasValueLowerThanOrEqualViewFilterType extends ViewFilterType {
   }
 
   getInputComponent(field) {
-    return ViewFilterTypeNumber
+    const fieldType = this.app.$registry.get('field', field.type)
+    return (
+      fieldType.getFilterInputComponent(field, this) || ViewFilterTypeNumber
+    )
   }
 
   getCompatibleFieldTypes() {
     return [
       FormulaFieldType.compatibleWithFormulaTypes(
-        FormulaFieldType.arrayOf(BaserowFormulaNumberType.getType())
+        FormulaFieldType.arrayOf(BaserowFormulaNumberType.getType()),
+        FormulaFieldType.arrayOf(BaserowFormulaDurationType.getType())
       ),
     ]
   }

@@ -477,6 +477,7 @@ class DatabaseConfig(AppConfig):
             HasNotValueHigherThanFilterType,
             HasNotValueLowerOrEqualTHanFilterType,
             HasNotValueLowerThanFilterType,
+            HasValueComparableToFilter,
             HasValueContainsViewFilterType,
             HasValueContainsWordViewFilterType,
             HasValueEqualViewFilterType,
@@ -484,7 +485,6 @@ class DatabaseConfig(AppConfig):
             HasValueLengthIsLowerThanViewFilterType,
             HasValueLowerOrEqualThanFilter,
             HasValueLowerThanFilter,
-            hasValueComparableToFilter,
         )
 
         view_filter_type_registry.register(HasValueEqualViewFilterType())
@@ -501,7 +501,7 @@ class DatabaseConfig(AppConfig):
         view_filter_type_registry.register(HasNoneSelectOptionEqualViewFilterType())
         view_filter_type_registry.register(HasValueLowerThanFilter())
         view_filter_type_registry.register(HasValueLowerOrEqualThanFilter())
-        view_filter_type_registry.register(hasValueComparableToFilter())
+        view_filter_type_registry.register(HasValueComparableToFilter())
         view_filter_type_registry.register(HasValueHigherOrEqualThanFilter())
         view_filter_type_registry.register(HasNotValueHigherOrEqualTHanFilterType())
         view_filter_type_registry.register(HasNotValueHigherThanFilterType())

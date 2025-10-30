@@ -269,3 +269,42 @@ class JSONArrayCompareNumericValueExpr(BaserowFilterExpression):
         data = super().get_template_data(sql_value)
         data["comparison_op"] = self.comparison_op.value
         return data
+
+
+class JSONArrayCompareIntervalValueExpr(BaserowFilterExpression):
+    """
+    Base class for expressions that compare an interval value in a JSON array.
+    Together with the field_name and value, a comparison operator must be provided to be
+    used in the template.
+    """
+
+    def __init__(
+        self,
+        field_name: F,
+        value: Value,
+        comparison_op: ComparisonOperator,
+        output_field: Field,
+    ):
+        super().__init__(field_name, value, output_field)
+        if not isinstance(comparison_op, ComparisonOperator):
+            raise ValueError(
+                f"comparison_op must be a ComparisonOperator, not {type(comparison_op)}"
+            )
+        self.comparison_op = comparison_op
+
+    # fmt: off
+    template = (
+        f"""
+            EXISTS(
+                SELECT 1
+                FROM JSONB_ARRAY_ELEMENTS(%(field_name)s) as filtered_field
+                WHERE (filtered_field ->> 'value')::interval %(comparison_op)s make_interval(secs=>%(value)s)
+            )
+            """  # nosec B608 %(value)s %(comparison_op)s
+    )
+    # fmt: on
+
+    def get_template_data(self, sql_value) -> dict:
+        data = super().get_template_data(sql_value)
+        data["comparison_op"] = self.comparison_op.value
+        return data

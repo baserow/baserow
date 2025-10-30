@@ -60,6 +60,7 @@ from baserow.contrib.database.formula.ast.tree import (
 )
 from baserow.contrib.database.formula.expression_generator.django_expressions import (
     ComparisonOperator,
+    JSONArrayCompareIntervalValueExpr,
     JSONArrayCompareNumericValueExpr,
 )
 from baserow.contrib.database.formula.registries import formula_function_registry
@@ -811,6 +812,31 @@ class BaserowFormulaDurationType(
     def get_order_by_in_array_expr(self, field, field_name, order_direction):
         return JSONBSingleKeyArrayExpression(
             field_name, "value", "interval", output_field=models.DurationField()
+        )
+
+    def get_has_numeric_value_comparable_to_filter_query(
+        self,
+        field_name: str,
+        value: str,
+        model_field: models.Field,
+        field: "Field",
+        comparison_op: ComparisonOperator,
+    ) -> "OptionallyAnnotatedQ":
+        try:
+            value = int(value)
+        except (TypeError, ValueError):
+            return Q()
+
+        return get_array_json_filter_expression(
+            JSONArrayCompareIntervalValueExpr,
+            field_name,
+            Value(value),
+            comparison_op=comparison_op,
+        )
+
+    def get_in_array_is_query(self, field_name, value, model_field, field):
+        return self.get_has_numeric_value_comparable_to_filter_query(
+            field_name, value, model_field, field, ComparisonOperator.EQUAL
         )
 
 

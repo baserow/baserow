@@ -29,6 +29,7 @@ from baserow.contrib.database.formula.types.formula_types import (
     BaserowFormulaBooleanType,
     BaserowFormulaCharType,
     BaserowFormulaDateType,
+    BaserowFormulaDurationType,
     BaserowFormulaMultipleSelectType,
     BaserowFormulaSingleSelectType,
     BaserowFormulaURLType,
@@ -55,6 +56,7 @@ class HasEmptyValueViewFilterType(ViewFilterType):
             FormulaFieldType.array_of(BaserowFormulaNumberType.type),
             FormulaFieldType.array_of(BaserowFormulaMultipleSelectType.type),
             FormulaFieldType.array_of(BaserowFormulaMultipleCollaboratorsType.type),
+            FormulaFieldType.array_of(BaserowFormulaDurationType.type),
         ),
     ]
 
@@ -124,6 +126,7 @@ class HasValueEqualViewFilterType(ComparisonHasValueFilter):
             FormulaFieldType.array_of(BaserowFormulaNumberType.type),
             FormulaFieldType.array_of(BaserowFormulaMultipleSelectType.type),
             FormulaFieldType.array_of(BaserowFormulaMultipleCollaboratorsType.type),
+            FormulaFieldType.array_of(BaserowFormulaDurationType.type),
         ),
     ]
 
@@ -287,11 +290,12 @@ class HasNoneSelectOptionEqualViewFilterType(
     type = "has_none_select_option_equal"
 
 
-class hasValueComparableToFilter(ComparisonHasValueFilter):
+class HasValueComparableToFilter(ComparisonHasValueFilter):
     type = "has_value_higher"
     compatible_field_types = [
         FormulaFieldType.compatible_with_formula_types(
-            FormulaFieldType.array_of(BaserowFormulaNumberType.type)
+            FormulaFieldType.array_of(BaserowFormulaNumberType.type),
+            FormulaFieldType.array_of(BaserowFormulaDurationType.type),
         ),
     ]
 
@@ -305,7 +309,7 @@ class hasValueComparableToFilter(ComparisonHasValueFilter):
 
 
 class HasNotValueHigherThanFilterType(
-    NotViewFilterTypeMixin, hasValueComparableToFilter
+    NotViewFilterTypeMixin, HasValueComparableToFilter
 ):
     type = "has_not_value_higher"
 
@@ -314,7 +318,8 @@ class HasValueHigherOrEqualThanFilter(ComparisonHasValueFilter):
     type = "has_value_higher_or_equal"
     compatible_field_types = [
         FormulaFieldType.compatible_with_formula_types(
-            FormulaFieldType.array_of(BaserowFormulaNumberType.type)
+            FormulaFieldType.array_of(BaserowFormulaNumberType.type),
+            FormulaFieldType.array_of(BaserowFormulaDurationType.type),
         ),
     ]
 
@@ -341,7 +346,8 @@ class HasValueLowerThanFilter(ComparisonHasValueFilter):
     type = "has_value_lower"
     compatible_field_types = [
         FormulaFieldType.compatible_with_formula_types(
-            FormulaFieldType.array_of(BaserowFormulaNumberType.type)
+            FormulaFieldType.array_of(BaserowFormulaNumberType.type),
+            FormulaFieldType.array_of(BaserowFormulaDurationType.type),
         ),
     ]
 
@@ -362,7 +368,8 @@ class HasValueLowerOrEqualThanFilter(ComparisonHasValueFilter):
     type = "has_value_lower_or_equal"
     compatible_field_types = [
         FormulaFieldType.compatible_with_formula_types(
-            FormulaFieldType.array_of(BaserowFormulaNumberType.type)
+            FormulaFieldType.array_of(BaserowFormulaNumberType.type),
+            FormulaFieldType.array_of(BaserowFormulaDurationType.type),
         ),
     ]
 
