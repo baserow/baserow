@@ -32,13 +32,14 @@ export const resolveFormula = (
   }
 }
 
-export const isFormulaValid = (formula) => {
+export const isFormulaValid = (formula, functions) => {
   if (!formula) {
     return true
   }
 
   try {
-    parseBaserowFormula(formula)
+    const tree = parseBaserowFormula(formula)
+    new JavascriptExecutor(functions).visit(tree)
     return true
   } catch (err) {
     return false

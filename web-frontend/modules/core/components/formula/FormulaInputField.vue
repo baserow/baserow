@@ -455,7 +455,8 @@ export default {
       }
     },
     emitAdvancedChange() {
-      if (isFormulaValid(this.advancedFormulaValue)) {
+      const functions = new RuntimeFunctionCollection(this.$registry)
+      if (isFormulaValid(this.advancedFormulaValue, functions)) {
         this.isFormulaInvalid = false
         this.$emit('input', this.advancedFormulaValue)
       } else {
