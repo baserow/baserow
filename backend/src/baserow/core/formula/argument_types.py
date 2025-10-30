@@ -78,3 +78,12 @@ class DictBaserowRuntimeFormulaArgumentType(BaserowRuntimeFormulaArgumentType):
 
     def parse(self, value):
         return ensure_object(value)
+
+
+class BooleanBaserowRuntimeFormulaArgumentType(BaserowRuntimeFormulaArgumentType):
+    def test(self, value):
+        return isinstance(value, bool)
+
+    def parse(self, value):
+        from baserow.core.formula.validator import ensure_boolean
+        return ensure_boolean(value)
