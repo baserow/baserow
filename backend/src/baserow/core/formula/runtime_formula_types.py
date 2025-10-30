@@ -9,6 +9,7 @@ from django.utils import timezone
 
 from baserow.core.formula.argument_types import (
     AddableBaserowRuntimeFormulaArgumentType,
+    BooleanBaserowRuntimeFormulaArgumentType,
     DateTimeBaserowRuntimeFormulaArgumentType,
     DictBaserowRuntimeFormulaArgumentType,
     NumberBaserowRuntimeFormulaArgumentType,
@@ -396,3 +397,17 @@ class RuntimeGenerateUUID(RuntimeFormulaFunction):
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
         return str(uuid.uuid4())
+
+
+class RuntimeIf(RuntimeFormulaFunction):
+    type = "if"
+
+    def validate_type_of_args(self, args) -> Optional[FormulaArg]:
+        arg_type = BooleanBaserowRuntimeFormulaArgumentType()
+        if not arg_type.test(args[0]):
+            return args[0]
+
+        return None
+
+    def execute(self, context: FormulaContext, args: FormulaArgs):
+        return args[1] if args[0] else args[2]

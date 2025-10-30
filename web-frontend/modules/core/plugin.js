@@ -108,7 +108,6 @@ import {
   RuntimeRound,
   RuntimeIsEven,
   RuntimeIsOdd,
-  RuntimeDateTimeFormat,
   RuntimeDay,
   RuntimeMonth,
   RuntimeYear,
@@ -122,6 +121,7 @@ import {
   RuntimeRandomFloat,
   RuntimeRandomBool,
   RuntimeGenerateUUID,
+  RuntimeIf,
 } from '@baserow/modules/core/runtimeFormulaTypes'
 
 import priorityBus from '@baserow/modules/core/plugins/priorityBus'
@@ -282,10 +282,6 @@ export default (context, inject) => {
   registry.register('runtimeFormulaFunction', new RuntimeRound(context))
   registry.register('runtimeFormulaFunction', new RuntimeIsEven(context))
   registry.register('runtimeFormulaFunction', new RuntimeIsOdd(context))
-  registry.register(
-    'runtimeFormulaFunction',
-    new RuntimeDateTimeFormat(context)
-  )
   registry.register('runtimeFormulaFunction', new RuntimeDay(context))
   registry.register('runtimeFormulaFunction', new RuntimeMonth(context))
   registry.register('runtimeFormulaFunction', new RuntimeYear(context))
@@ -299,6 +295,7 @@ export default (context, inject) => {
   registry.register('runtimeFormulaFunction', new RuntimeRandomFloat(context))
   registry.register('runtimeFormulaFunction', new RuntimeRandomBool(context))
   registry.register('runtimeFormulaFunction', new RuntimeGenerateUUID(context))
+  registry.register('runtimeFormulaFunction', new RuntimeIf(context))
 
   registry.register('roles', new AdminRoleType(context))
   registry.register('roles', new MemberRoleType(context))

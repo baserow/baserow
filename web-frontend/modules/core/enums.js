@@ -76,4 +76,8 @@ export const FORMULA_CATEGORY = {
     category: 'categoryFile',
     iconClass: 'baserow-icon-file',
   },
+  CONDITION: {
+    category: 'categoryCondition',
+    iconClass: 'iconoir-code-brackets-square',
+  },
 }

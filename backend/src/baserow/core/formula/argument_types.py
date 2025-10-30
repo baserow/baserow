@@ -86,4 +86,5 @@ class BooleanBaserowRuntimeFormulaArgumentType(BaserowRuntimeFormulaArgumentType
 
     def parse(self, value):
         from baserow.core.formula.validator import ensure_boolean
+
         return ensure_boolean(value)

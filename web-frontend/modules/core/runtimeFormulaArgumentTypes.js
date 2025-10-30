@@ -3,6 +3,7 @@ import {
   ensureNumeric,
   ensureDateTime,
   ensureObject,
+  ensureBoolean,
 } from '@baserow/modules/core/utils/validator'
 
 export class BaserowRuntimeFormulaArgumentType {
@@ -55,7 +56,7 @@ export class DateTimeBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFor
       return true
     }
     try {
-      ensureDateTime(value, { useStrict: false})
+      ensureDateTime(value, { useStrict: false })
       return true
     } catch (e) {
       return false
@@ -63,7 +64,7 @@ export class DateTimeBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFor
   }
 
   parse(value) {
-    return ensureDateTime(value, { useStrict: false})
+    return ensureDateTime(value, { useStrict: false })
   }
 }
 
@@ -83,5 +84,15 @@ export class ObjectBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFormu
 
   parse(value) {
     return ensureObject(value)
+  }
+}
+
+export class BooleanBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFormulaArgumentType {
+  test(value) {
+    return typeof value === 'boolean'
+  }
+
+  parse(value) {
+    return ensureBoolean(value)
   }
 }

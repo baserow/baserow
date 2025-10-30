@@ -671,11 +671,13 @@
     "randomFloatDescription": "Returns a random float from the range specified by the arguments.",
     "randomBoolDescription": "Returns a random boolean of true or false.",
     "generateUUIDDescription": "Returns a random UUID4 string.",
+    "ifDescription": "If the first argument is true, returns the second argument, otherwise returns the third argument.",
     "formulaTypeFormula": "Formula",
     "formulaTypeOperator": "Operator",
     "categoryText": "Text",
     "categoryNumber": "Number",
     "categoryBoolean": "Boolean",
-    "categoryDate": "Date"
+    "categoryDate": "Date",
+    "caregoryCondition": "Condition"
   }
 }

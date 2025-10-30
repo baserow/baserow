@@ -258,13 +258,13 @@ export const ensureObject = (value) => {
   if (value instanceof Object) {
     return value
   }
-  
+
   if (value === null || value === undefined) {
     throw new TypeError(
       'Value is not a valid object or convertible to an object.'
     )
   }
-  
+
   // If it's a string, try to parse it as JSON
   if (typeof value === 'string') {
     try {
@@ -273,7 +273,7 @@ export const ensureObject = (value) => {
       throw new TypeError('Value is not a valid JSON.')
     }
   }
-  
+
   throw new TypeError(
     'Value is not a valid object or convertible to an object.'
   )

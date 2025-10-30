@@ -49,6 +49,7 @@ class CoreConfig(AppConfig):
             RuntimeGreaterThan,
             RuntimeGreaterThanOrEqual,
             RuntimeHour,
+            RuntimeIf,
             RuntimeIsEven,
             RuntimeIsOdd,
             RuntimeLessThan,
@@ -100,6 +101,7 @@ class CoreConfig(AppConfig):
         formula_runtime_function_registry.register(RuntimeRandomFloat())
         formula_runtime_function_registry.register(RuntimeRandomBool())
         formula_runtime_function_registry.register(RuntimeGenerateUUID())
+        formula_runtime_function_registry.register(RuntimeIf())
 
         from baserow.core.permission_manager import (
             AllowIfTemplatePermissionManagerType,
