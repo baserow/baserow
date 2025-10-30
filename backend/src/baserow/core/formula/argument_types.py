@@ -1,6 +1,7 @@
 from django.core.exceptions import ValidationError
 
 from baserow.core.formula.validator import (
+    ensure_boolean,
     ensure_datetime,
     ensure_numeric,
     ensure_object,
@@ -85,6 +86,4 @@ class BooleanBaserowRuntimeFormulaArgumentType(BaserowRuntimeFormulaArgumentType
         return isinstance(value, bool)
 
     def parse(self, value):
-        from baserow.core.formula.validator import ensure_boolean
-
         return ensure_boolean(value)
