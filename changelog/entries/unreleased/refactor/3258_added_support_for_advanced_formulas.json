@@ -1,0 +1,9 @@
+{
+    "type": "refactor",
+    "message": "Added support for Advanced Formulas.",
+    "domain": "builder",
+    "issue_number": 3258,
+    "issue_origin": "github",
+    "bullet_points": [],
+    "created_at": "2025-10-30"
+}
