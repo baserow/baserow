@@ -1,11 +1,13 @@
+from unittest.mock import Mock
+
 import pytest
+from udspy.module.callbacks import ModuleContext, is_module_callback
 
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow_enterprise.assistant.tools.database.tools import (
     get_list_rows_tool,
     get_rows_meta_tool,
 )
-from baserow_enterprise.assistant.types import ToolsUpgradeResponse
 
 from .utils import fake_tool_helpers
 
@@ -213,19 +215,21 @@ def test_create_rows(data_fixture):
     assert callable(meta_tool)
 
     tools_upgrade = meta_tool([table.id], ["create"])
-    assert isinstance(tools_upgrade, ToolsUpgradeResponse)
-    assert f"list_rows_in_table_{table.id}" not in tools_upgrade.observation
-    assert f"create_rows_in_table_{table.id}" in tools_upgrade.observation
-    assert (
-        f"update_rows_in_table_{table.id}_by_row_ids" not in tools_upgrade.observation
-    )
-    assert (
-        f"delete_rows_in_table_{table.id}_by_row_ids" not in tools_upgrade.observation
-    )
-    assert len(tools_upgrade.new_tools) == 1
+    assert is_module_callback(tools_upgrade)
 
-    create_table_rows = tools_upgrade.new_tools[0]
-    assert create_table_rows.name == f"create_rows_in_table_{table.id}"
+    mock_module = Mock()
+    mock_module._tools = []
+    mock_module.init_module = Mock()
+    tools_upgrade(ModuleContext(module=mock_module))
+    assert mock_module.init_module.called
+
+    added_tools = mock_module.init_module.call_args[1]["tools"]
+    added_tools_names = [tool.name for tool in added_tools]
+    assert len(added_tools) == 1
+    assert f"create_rows_in_table_{table.id}" in added_tools_names
+
+    # create_table_rows = tools_upgrade.new_tools[0]
+    # assert create_table_rows.name == f"create_rows_in_table_{table.id}"
 
     table_model = table.get_model()
     assert table_model.objects.count() == 3
@@ -260,6 +264,7 @@ def test_create_rows(data_fixture):
         "Single link to B": None,
         "link": [],
     }
+    create_table_rows = added_tools[0]
     result = create_table_rows(rows=[row_1, row_2])
     created_row_ids = result["created_row_ids"]
     assert len(created_row_ids) == 2
@@ -277,19 +282,19 @@ def test_update_rows(data_fixture):
 
     meta_tool = get_rows_meta_tool(user, workspace, tool_helpers)
     assert callable(meta_tool)
-
     tools_upgrade = meta_tool([table.id], ["update"])
-    assert isinstance(tools_upgrade, ToolsUpgradeResponse)
-    assert f"list_rows_in_table_{table.id}" not in tools_upgrade.observation
-    assert f"create_rows_in_table_{table.id}" not in tools_upgrade.observation
-    assert f"update_rows_in_table_{table.id}_by_row_ids" in tools_upgrade.observation
-    assert (
-        f"delete_rows_in_table_{table.id}_by_row_ids" not in tools_upgrade.observation
-    )
-    assert len(tools_upgrade.new_tools) == 1
+    assert is_module_callback(tools_upgrade)
 
-    update_table_rows = tools_upgrade.new_tools[0]
-    assert update_table_rows.name == f"update_rows_in_table_{table.id}_by_row_ids"
+    mock_module = Mock()
+    mock_module._tools = []
+    mock_module.init_module = Mock()
+    tools_upgrade(ModuleContext(module=mock_module))
+    assert mock_module.init_module.called
+
+    added_tools = mock_module.init_module.call_args[1]["tools"]
+    added_tools_names = [tool.name for tool in added_tools]
+    assert len(added_tools) == 1
+    assert f"update_rows_in_table_{table.id}_by_row_ids" in added_tools_names
 
     table_model = table.get_model()
     assert table_model.objects.count() == 3
@@ -323,6 +328,7 @@ def test_update_rows(data_fixture):
         "link": "__NO_CHANGE__",
     }
 
+    update_table_rows = added_tools[0]
     result = update_table_rows(rows=[row_1_updates, row_2_updates])
     updated_row_ids = result["updated_row_ids"]
     assert len(updated_row_ids) == 2
@@ -372,17 +378,17 @@ def test_delete_rows(data_fixture):
     assert callable(meta_tool)
 
     tools_upgrade = meta_tool([table.id], ["delete"])
-    assert isinstance(tools_upgrade, ToolsUpgradeResponse)
-    assert f"list_rows_in_table_{table.id}" not in tools_upgrade.observation
-    assert f"create_rows_in_table_{table.id}" not in tools_upgrade.observation
-    assert (
-        f"update_rows_in_table_{table.id}_by_row_ids" not in tools_upgrade.observation
-    )
-    assert f"delete_rows_in_table_{table.id}_by_row_ids" in tools_upgrade.observation
-    assert len(tools_upgrade.new_tools) == 1
-
-    delete_table_rows = tools_upgrade.new_tools[0]
-    assert delete_table_rows.name == f"delete_rows_in_table_{table.id}_by_row_ids"
+    assert is_module_callback(tools_upgrade)
+    mock_module = Mock()
+    mock_module._tools = []
+    mock_module.init_module = Mock()
+    tools_upgrade(ModuleContext(module=mock_module))
+    assert mock_module.init_module.called
+    added_tools = mock_module.init_module.call_args[1]["tools"]
+    added_tools_names = [tool.name for tool in added_tools]
+    assert len(added_tools) == 1
+    assert f"delete_rows_in_table_{table.id}_by_row_ids" in added_tools_names
+    delete_table_rows = added_tools[0]
 
     table_model = table.get_model()
     assert table_model.objects.count() == 3

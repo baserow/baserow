@@ -2,12 +2,15 @@ from dataclasses import dataclass
 from itertools import groupby
 from typing import TYPE_CHECKING, Any, Callable, Literal, Type, Union
 
+from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Q, QuerySet
 from django.utils.translation import gettext as _
 
+import udspy
 from pydantic import ConfigDict, Field, create_model
+from udspy.utils import minimize_schema, resolve_json_schema_reference
 
 from baserow.contrib.database.fields.actions import CreateFieldActionType
 from baserow.contrib.database.fields.field_types import LinkRowFieldType
@@ -25,7 +28,9 @@ from baserow.contrib.database.table.models import (
     GeneratedTableModel,
     Table,
 )
+from baserow.contrib.database.views.actions import CreateViewFilterActionType
 from baserow.contrib.database.views.handler import ViewHandler
+from baserow.contrib.database.views.models import View, ViewFilter
 from baserow.core.db import specific_iterator
 from baserow.core.models import Workspace
 from baserow_enterprise.assistant.tools.database.types.table import (
@@ -36,6 +41,7 @@ from baserow_enterprise.assistant.tools.database.types.table import (
 from .types import (
     AnyFieldItem,
     AnyFieldItemCreate,
+    AnyViewFilterItemCreate,
     BaseModel,
     Date,
     Datetime,
@@ -48,11 +54,13 @@ if TYPE_CHECKING:
 NoChange = Literal["__NO_CHANGE__"]
 
 
-def filter_tables(user, workspace: Workspace) -> QuerySet[Table]:
+def filter_tables(user: AbstractUser, workspace: Workspace) -> QuerySet[Table]:
     return TableHandler().list_workspace_tables(user, workspace)
 
 
-def list_tables(user, workspace: Workspace, database_id: int) -> list[BaseTableItem]:
+def list_tables(
+    user: AbstractUser, workspace: Workspace, database_id: int
+) -> list[BaseTableItem]:
     tables_qs = filter_tables(user, workspace).filter(database_id=database_id)
 
     return [BaseTableItem(id=table.id, name=table.name) for table in tables_qs]
@@ -108,7 +116,7 @@ def get_tables_schema(
 
 
 def create_fields(
-    user,
+    user: AbstractUser,
     table: Table,
     field_items: list[AnyFieldItemCreate],
     tool_helpers: "ToolHelpers",
@@ -383,11 +391,8 @@ def get_view(user, view_id: int):
 
 
 def get_table_rows_tools(
-    user, workspace: Workspace, tool_helpers: "ToolHelpers", table: Table
+    user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers", table: Table
 ):
-    import dspy  # local import to save memory when not used
-    from dspy.adapters.types.tool import _resolve_json_schema_reference
-
     row_model_for_create = get_create_row_model(table)
     row_model_for_update = get_update_row_model(table)
     row_model_for_response = create_model(
@@ -421,13 +426,13 @@ def get_table_rows_tools(
 
         return {"created_row_ids": [r.id for r in orm_rows]}
 
-    create_row_model_schema = _resolve_json_schema_reference(
-        row_model_for_create.model_json_schema()
+    create_row_model_schema = minimize_schema(
+        resolve_json_schema_reference(row_model_for_create.model_json_schema())
     )
-    create_rows_tool = dspy.Tool(
+    create_rows_tool = udspy.Tool(
         func=_create_rows,
         name=f"create_rows_in_table_{table.id}",
-        desc=f"Creates new rows in the table {table.name} (ID: {table.id}). Max 20 rows at a time.",
+        description=f"Creates new rows in the table {table.name} (ID: {table.id}). Max 20 rows at a time.",
         args={
             "rows": {
                 "items": create_row_model_schema,
@@ -462,13 +467,13 @@ def get_table_rows_tools(
 
         return {"updated_row_ids": [r.id for r in orm_rows]}
 
-    update_row_model_schema = _resolve_json_schema_reference(
-        row_model_for_update.model_json_schema()
+    update_row_model_schema = minimize_schema(
+        resolve_json_schema_reference(row_model_for_update.model_json_schema())
     )
-    update_rows_tool = dspy.Tool(
+    update_rows_tool = udspy.Tool(
         func=_update_rows,
         name=f"update_rows_in_table_{table.id}_by_row_ids",
-        desc=f"Updates existing rows in the table {table.name} (ID: {table.id}), identified by their row IDs. Max 20 at a time.",
+        description=f"Updates existing rows in the table {table.name} (ID: {table.id}), identified by their row IDs. Max 20 at a time.",
         args={
             "rows": {
                 "items": update_row_model_schema,
@@ -497,10 +502,10 @@ def get_table_rows_tools(
 
         return {"deleted_row_ids": row_ids}
 
-    delete_rows_tool = dspy.Tool(
+    delete_rows_tool = udspy.Tool(
         func=_delete_rows,
         name=f"delete_rows_in_table_{table.id}_by_row_ids",
-        desc=f"Deletes rows in the table {table.name} (ID: {table.id}). Max 20 at a time.",
+        description=f"Deletes rows in the table {table.name} (ID: {table.id}). Max 20 at a time.",
         args={
             "row_ids": {
                 "items": {"type": "integer"},
@@ -515,3 +520,35 @@ def get_table_rows_tools(
         "update": update_rows_tool,
         "delete": delete_rows_tool,
     }
+
+
+def create_view_filter(
+    user: AbstractUser,
+    orm_view: View,
+    table_fields: list[Field],
+    view_filter_item: AnyViewFilterItemCreate,
+) -> ViewFilter:
+    """
+    Creates a view filter from the given view filter item.
+    """
+
+    field = table_fields.get(view_filter_item.field_id)
+    if field is None:
+        raise ValueError("Field not found for filter")
+    field_type = field_type_registry.get_by_model(field.specific_class)
+    if field_type.type != view_filter_item.type:
+        raise ValueError("Field type mismatch for filter")
+
+    filter_type = view_filter_item.get_django_orm_type(field)
+    filter_value = view_filter_item.get_django_orm_value(
+        field, timezone=user.profile.timezone
+    )
+
+    return CreateViewFilterActionType.do(
+        user,
+        orm_view,
+        field,
+        filter_type,
+        filter_value,
+        filter_group_id=None,
+    )

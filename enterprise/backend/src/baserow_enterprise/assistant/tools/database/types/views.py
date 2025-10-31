@@ -18,10 +18,11 @@ from baserow_enterprise.assistant.types import BaseModel
 class ViewItemCreate(BaseModel):
     name: str = Field(
         ...,
-        description="A sensible name for the view (i.e. 'All tasks', 'Completed tasks', etc.).",
+        description="A sensible name for the view (i.e. 'Pending payments', 'Completed tasks', etc.).",
     )
     public: bool = Field(
-        ..., description="Whether the view is publicly accessible. Default is False."
+        ...,
+        description="Whether the view is publicly accessible. False unless specified.",
     )
 
     def to_django_orm_kwargs(self, table: Table) -> dict[str, any]:
@@ -61,7 +62,7 @@ class GridFieldOption(BaseModel):
 class GridViewItemCreate(ViewItemCreate):
     type: Literal["grid"] = Field(..., description="A grid view.")
     row_height: Literal["small", "medium", "large"] = Field(
-        ...,
+        default="small",
         description=(
             "The height of the rows in the view. Can be 'small', 'medium' or 'large'. Default is 'small'."
         ),

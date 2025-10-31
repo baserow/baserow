@@ -5,23 +5,26 @@ from typing import Any, AsyncGenerator, Callable, TypedDict
 from django.conf import settings
 from django.utils import translation
 
+import udspy
+from udspy.callback import BaseCallback
+
 from baserow.api.sessions import get_client_undo_redo_action_group_id
 from baserow_enterprise.assistant.exceptions import AssistantModelNotSupportedError
 from baserow_enterprise.assistant.tools.navigation.types import AnyNavigationRequestType
 from baserow_enterprise.assistant.tools.navigation.utils import unsafe_navigate_to
 from baserow_enterprise.assistant.tools.registries import assistant_tool_registry
 
-from .adapter import get_chat_adapter
 from .models import AssistantChat, AssistantChatMessage, AssistantChatPrediction
+from .prompts import ASSISTANT_SYSTEM_PROMPT
 from .types import (
     AiMessage,
     AiMessageChunk,
     AiNavigationMessage,
+    AiReasoningChunk,
     AiThinkingMessage,
     AssistantMessageUnion,
     ChatTitleMessage,
     HumanMessage,
-    UIContext,
 )
 
 
@@ -37,8 +40,6 @@ class AssistantMessagePair(TypedDict):
 
 
 def get_assistant_callbacks():
-    from dspy.utils.callback import BaseCallback
-
     class AssistantCallbacks(BaseCallback):
         def __init__(self):
             self.tool_calls = {}
@@ -109,22 +110,19 @@ def get_assistant_callbacks():
     return AssistantCallbacks()
 
 
-def get_chat_signature():
-    import dspy  # local import to save memory when not used
+class ChatSignature(udspy.Signature):
+    __doc__ = f"{ASSISTANT_SYSTEM_PROMPT}\n TASK INSTRUCTIONS: \n"
 
-    class ChatSignature(dspy.Signature):
-        question: str = dspy.InputField()
-        history: dspy.History = dspy.InputField()
-        ui_context: UIContext | None = dspy.InputField(
-            default=None,
-            desc=(
-                "The frontend UI content the user is currently in. "
-                "Whenever make sense, use it to ground your answer."
-            ),
-        )
-        answer: str = dspy.OutputField()
-
-    return ChatSignature
+    question: str = udspy.InputField()
+    ui_context: dict[str, Any] | None = udspy.InputField(
+        default=None,
+        desc=(
+            "The context the user is currently in. "
+            "It contains information about the user, the workspace, open table, view, etc."
+            "Whenever make sense, use it to ground your answer."
+        ),
+    )
+    answer: str = udspy.OutputField()
 
 
 class Assistant:
@@ -137,25 +135,15 @@ class Assistant:
         self._init_assistant()
 
     def _init_lm_client(self):
-        import dspy  # local import to save memory when not used
-
         lm_model = settings.BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL
-
-        self._lm_client = dspy.LM(
-            model=lm_model,
-            cache=not settings.DEBUG,
-            max_retries=5,
-            max_tokens=32000,
-        )
+        self._lm_client = udspy.LM(model=lm_model)
 
     def _init_assistant(self):
-        from .react import ReAct  # local import to save memory when not used
-
         tool_helpers = self.get_tool_helpers()
         tools = assistant_tool_registry.list_all_usable_tools(
             self._user, self._workspace, tool_helpers
         )
-        self._assistant = ReAct(get_chat_signature(), tools=tools)
+        self._assistant = udspy.ReAct(ChatSignature, tools=tools, max_iters=20)
         self.history = None
 
     async def acreate_chat_message(
@@ -233,7 +221,7 @@ class Assistant:
 
     async def aload_chat_history(self, limit=20):
         """
-        Loads the chat history into a dspy.History object. It only loads complete
+        Loads the chat history into a udspy.History object. It only loads complete
         message pairs (human + AI). The history will be in chronological order and must
         respect the module signature (question, answer).
 
@@ -241,14 +229,13 @@ class Assistant:
         :return: None
         """
 
-        import dspy  # local import to save memory when not used
-
         last_saved_messages: list[AssistantChatMessage] = [
             msg async for msg in self._chat.messages.order_by("-created_on")[:limit]
         ]
 
-        messages = []
+        self.history = udspy.History()
         while len(last_saved_messages) >= 2:
+            # Pop the oldest message pair to respect chronological order.
             first_message = last_saved_messages.pop()
             next_message = last_saved_messages[-1]
             if (
@@ -257,43 +244,20 @@ class Assistant:
             ):
                 continue
 
-            human_question = first_message
+            self.history.add_user_message(first_message.content)
             ai_answer = last_saved_messages.pop()
-            messages.append(
-                AssistantMessagePair(
-                    question=human_question.content,
-                    answer=ai_answer.content,
-                )
-            )
-
-        self.history = dspy.History(messages=messages)
+            self.history.add_assistant_message(ai_answer.content)
 
     @lru_cache(maxsize=1)
     def check_llm_ready_or_raise(self):
-        import dspy  # local import to save memory when not used
-        from litellm import get_supported_openai_params
-
-        lm = self._lm_client
-        params = get_supported_openai_params(lm.model)
-        if params is None or "tools" not in params:
-            raise AssistantModelNotSupportedError(
-                f"The model '{lm.model}' is not supported or could not be found. "
-                "Please make sure the model name is correct, it can use tools, "
-                "and that your API key has access to it."
-            )
-
         try:
-            with dspy.context(lm=lm):
-                lm("Say ok if you can read this.")
+            self._lm_client("Say ok if you can read this.")
         except Exception as e:
             raise AssistantModelNotSupportedError(
-                f"The model '{lm.model}' is not supported or accessible: {e}"
+                f"The model '{self._lm_client.model}' is not supported or accessible: {e}"
             )
 
     def get_tool_helpers(self) -> ToolHelpers:
-        from dspy.dsp.utils.settings import settings as dspy_settings
-        from dspy.streaming.messages import sync_send_to_stream
-
         def update_status_localized(status: str):
             """
             Sends a localized message to the frontend to update the assistant status.
@@ -302,14 +266,60 @@ class Assistant:
             """
 
             with translation.override(self._user.profile.language):
-                stream = dspy_settings.send_stream
-
-                if stream is not None:
-                    sync_send_to_stream(stream, AiThinkingMessage(content=status))
+                udspy.emit_event(AiThinkingMessage(content=status))
 
         return ToolHelpers(
             update_status=update_status_localized,
             navigate_to=unsafe_navigate_to,
+        )
+
+    async def _generate_chat_title(
+        self, user_message: HumanMessage, ai_msg: AiMessage
+    ) -> str:
+        """
+        Generates a title for the chat based on the user message and AI response.
+        """
+
+        title_generator = udspy.Predict(
+            udspy.Signature.from_string(
+                "user_message, ai_response -> chat_title",
+                "Create a short title for the following chat conversation.",
+            )
+        )
+        rsp = await title_generator.aforward(
+            user_message=user_message.content,
+            ai_response=ai_msg.content[:300],
+        )
+        return rsp.chat_title
+
+    async def _acreate_ai_message_response(
+        self,
+        human_msg: HumanMessage,
+        final_prediction: udspy.Prediction,
+        sources: list[str],
+    ) -> AiMessage:
+        ai_msg = await self.acreate_chat_message(
+            AssistantChatMessage.Role.AI,
+            final_prediction.answer,
+            artifacts={"sources": sources},
+            action_group_id=get_client_undo_redo_action_group_id(self._user),
+        )
+        await AssistantChatPrediction.objects.acreate(
+            human_message=human_msg,
+            ai_response=ai_msg,
+            prediction={
+                "model": self._lm_client.model,
+                "trajectory": final_prediction.trajectory,
+                "reasoning": final_prediction.reasoning,
+            },
+        )
+
+        # Yield final complete message
+        return AiMessage(
+            id=ai_msg.id,
+            content=final_prediction.answer,
+            sources=sources,
+            can_submit_feedback=True,
         )
 
     async def astream_messages(
@@ -322,86 +332,59 @@ class Assistant:
         :return: An async generator that yields the response messages.
         """
 
-        import dspy  # local import to save memory when not used
-        from dspy.primitives.prediction import Prediction
-        from dspy.streaming import StreamListener, StreamResponse
+        assistant_callbacks = get_assistant_callbacks()
 
-        callback_manager = get_assistant_callbacks()
-
-        with dspy.context(
+        with udspy.settings.context(
             lm=self._lm_client,
-            cache=not settings.DEBUG,
-            callbacks=[*dspy.settings.config.callbacks, callback_manager],
-            adapter=get_chat_adapter(),
+            callbacks=[*udspy.settings.callbacks, assistant_callbacks],
         ):
             if self.history is None:
                 await self.aload_chat_history()
 
-            # Follow the stream of all output fields
-            stream_listeners = [
-                StreamListener(signature_field_name="answer"),
-            ]
-
-            stream_predict = dspy.streamify(
-                self._assistant,
-                stream_listeners=stream_listeners,
-            )
-            output_stream = stream_predict(
+            output_stream = self._assistant.astream(
                 history=self.history,
                 question=human_message.content,
-                ui_context=human_message.ui_context.model_dump_json(
-                    exclude_none=True, indent=2
-                ),
+                ui_context=human_message.ui_context.model_dump_json(exclude_none=True),
             )
 
             human_msg = await self.acreate_chat_message(
                 AssistantChatMessage.Role.HUMAN, human_message.content
             )
 
-            answer = ""
-            async for stream_chunk in output_stream:
-                if isinstance(stream_chunk, StreamResponse):
-                    # Accumulate chunks per field to deliver full, real‐time updates.
-                    if stream_chunk.signature_field_name == "answer":
-                        answer += stream_chunk.chunk
-                        yield AiMessageChunk(
-                            content=answer, sources=callback_manager.sources
-                        )
-                elif isinstance(stream_chunk, (AiThinkingMessage, AiNavigationMessage)):
-                    # forward thinking/navigation messages as-is to the frontend
-                    yield stream_chunk
-                elif isinstance(stream_chunk, Prediction):
-                    # At the end of the prediction, save the AI message and the
-                    # prediction details for future analysis and feedback.
-                    ai_msg = await self.acreate_chat_message(
-                        AssistantChatMessage.Role.AI,
-                        answer,
-                        artifacts={"sources": callback_manager.sources},
-                        action_group_id=get_client_undo_redo_action_group_id(
-                            self._user
-                        ),
-                    )
-                    await AssistantChatPrediction.objects.acreate(
-                        human_message=human_msg,
-                        ai_response=ai_msg,
-                        prediction={
-                            "model": self._lm_client.model,
-                            "trajectory": stream_chunk.trajectory,
-                            "reasoning": stream_chunk.reasoning,
-                        },
-                    )
-                    # In case the streaming didn't work, make sure we yield at least one
-                    # final message with the complete answer.
-                    yield AiMessage(
-                        id=ai_msg.id,
-                        content=stream_chunk.answer,
-                        sources=callback_manager.sources,
-                        can_submit_feedback=True,
-                    )
+            stream_reasoning = False
+            async for event in output_stream:
+                if isinstance(event, (AiThinkingMessage, AiNavigationMessage)):
+                    # Start streaming reasoning from now on, since we are calling tools
+                    # and updating the UI status
+                    stream_reasoning = True
+                    yield event
+                    continue
 
-            if not self._chat.title:
-                title_generator = dspy.Predict("question -> chat_title")
-                rsp = await title_generator.acall(question=human_message.content)
-                self._chat.title = rsp.chat_title
-                yield ChatTitleMessage(content=self._chat.title)
-                await self._chat.asave(update_fields=["title", "updated_on"])
+                if isinstance(event, udspy.OutputStreamChunk):
+                    # Stream the final answer chunks
+                    if event.field_name == "answer":
+                        yield AiMessageChunk(
+                            content=event.content,
+                            sources=assistant_callbacks.sources,
+                        )
+                        continue
+
+                if isinstance(event, udspy.Prediction):
+                    if "next_thought" in event and stream_reasoning:
+                        yield AiReasoningChunk(content=event.next_thought)
+
+                    elif event.module is self._assistant:
+                        ai_msg = await self._acreate_ai_message_response(
+                            human_msg, event, assistant_callbacks.sources
+                        )
+                        yield ai_msg
+
+                        if not self._chat.title:
+                            chat_title = await self._generate_chat_title(
+                                human_message, ai_msg
+                            )
+                            yield ChatTitleMessage(content=chat_title)
+                            self._chat.title = chat_title
+                            await self._chat.asave(
+                                update_fields=["title", "updated_on"]
+                            )

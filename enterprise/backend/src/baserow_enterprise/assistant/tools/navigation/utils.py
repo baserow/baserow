@@ -10,10 +10,7 @@ def unsafe_navigate_to(location: AnyNavigationType) -> str:
     :param navigation_type: The type of navigation to perform.
     """
 
-    from dspy.dsp.utils.settings import settings
-    from dspy.streaming.messages import sync_send_to_stream
+    from udspy.streaming import emit_event
 
-    stream = settings.send_stream
-    if stream is not None:
-        sync_send_to_stream(stream, AiNavigationMessage(location=location))
+    emit_event(AiNavigationMessage(location=location))
     return "Navigated successfully."

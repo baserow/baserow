@@ -4,6 +4,7 @@ from django.contrib.auth.models import AbstractUser
 from django.db import transaction
 from django.utils.translation import gettext as _
 
+import udspy
 from baserow_premium.prompts import get_formula_docs
 from loguru import logger
 from pydantic import create_model
@@ -20,30 +21,24 @@ from baserow.contrib.database.models import Database
 from baserow.contrib.database.table.actions import CreateTableActionType
 from baserow.contrib.database.views.actions import (
     CreateViewActionType,
-    CreateViewFilterActionType,
     UpdateViewFieldOptionsActionType,
 )
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.core.models import Workspace
 from baserow.core.service import CoreService
 from baserow_enterprise.assistant.tools.registries import AssistantToolType
-from baserow_enterprise.assistant.types import (
-    TableNavigationType,
-    ToolsUpgradeResponse,
-    ViewNavigationType,
-    get_tool_signature,
-)
+from baserow_enterprise.assistant.types import TableNavigationType, ViewNavigationType
 
 from . import utils
 from .types import (
     AnyFieldItem,
     AnyFieldItemCreate,
     AnyViewFilterItem,
-    AnyViewFilterItemCreate,
     AnyViewItemCreate,
     BaseTableItem,
     ListTablesFilterArg,
     TableItemCreate,
+    ViewFiltersArgs,
     view_item_registry,
 )
 
@@ -197,8 +192,6 @@ def get_create_tables_tool(
         - if add_sample_rows is True (default), add some example rows to each table
         """
 
-        import dspy  # local import to save memory when not used
-
         nonlocal user, workspace, tool_helpers
 
         if not tables:
@@ -255,37 +248,26 @@ def get_create_tables_tool(
         )
 
         if add_sample_rows:
-            tools = {}
             instructions = []
             tool_helpers.update_status(
                 _("Preparing example rows for these new tables...")
             )
+            tools = []
             for table, created_table in zip(tables, created_tables):
                 create_rows_tool = utils.get_table_rows_tools(
                     user, workspace, tool_helpers, created_table
                 )["create"]
-                tools[create_rows_tool.name] = create_rows_tool
+                tools.append(create_rows_tool)
                 instructions.append(
-                    f"- Create 5 example rows for table_{created_table.id}. Fill every relationship with valid data when possible."
+                    f"- Create 5 example rows with realistic data for {created_table.name} (Id: {created_table.id}). "
+                    "Fill every relationship with valid data when possible."
                 )
 
-            predictor = dspy.Predict(get_tool_signature())
-            result = predictor(
-                question=("\n".join(instructions)),
-                tools=list(tools.values()),
+            predictor = udspy.ReAct(
+                "instructions -> result", tools=tools, max_iters=len(tables * 2)
             )
-            for call in result.outputs.tool_calls:
-                with transaction.atomic():
-                    try:
-                        result = tools[call.name](**call.args)
-                        notes.append(
-                            f"Rows created for table_{created_table.id}: {result}"
-                        )
-                    except Exception as e:
-                        notes.append(
-                            f"Error creating example rows for table_{created_table.id}: {e}\n."
-                            f"Please retry recreating rows for table_{created_table.id} manually."
-                        )
+            result = predictor(instructions=("\n".join(instructions)))
+            notes.append(result)
 
         return {
             "created_tables": [
@@ -433,43 +415,47 @@ def get_rows_meta_tool(
         create/update/delete rows.
         """
 
-        nonlocal user, workspace, tool_helpers
+        @udspy.module_callback
+        def load_rows_tools(context):
+            nonlocal user, workspace, tool_helpers
 
-        observation = ["New tools are now available.\n"]
+            observation = ["New tools are now available.\n"]
 
-        new_tools = []
-        tables = utils.filter_tables(user, workspace).filter(id__in=table_ids)
-        for table in tables:
-            table_tools = utils.get_table_rows_tools(
-                user, workspace, tool_helpers, table
-            )
-
-            observation.append(f"Table '{table.name}' (ID: {table.id}):")
-
-            if "create" in operations:
-                create_rows = table_tools["create"]
-                new_tools.append(create_rows)
-                observation.append(f"- Use {create_rows.name} to create new rows.")
-
-            if "update" in operations:
-                update_rows = table_tools["update"]
-                new_tools.append(update_rows)
-                observation.append(
-                    f"- Use {update_rows.name} to update existing rows by their IDs."
+            new_tools = []
+            tables = utils.filter_tables(user, workspace).filter(id__in=table_ids)
+            for table in tables:
+                table_tools = utils.get_table_rows_tools(
+                    user, workspace, tool_helpers, table
                 )
 
-            if "delete" in operations:
-                delete_rows = table_tools["delete"]
-                new_tools.append(delete_rows)
-                observation.append(
-                    f"- Use {delete_rows.name} to delete rows by their IDs."
-                )
+                observation.append(f"Table '{table.name}' (ID: {table.id}):")
 
-            observation.append("")
+                if "create" in operations:
+                    create_rows = table_tools["create"]
+                    new_tools.append(create_rows)
+                    observation.append(f"- Use {create_rows.name} to create new rows.")
 
-        return ToolsUpgradeResponse(
-            observation="\n".join(observation), new_tools=new_tools
-        )
+                if "update" in operations:
+                    update_rows = table_tools["update"]
+                    new_tools.append(update_rows)
+                    observation.append(
+                        f"- Use {update_rows.name} to update existing rows by their IDs."
+                    )
+
+                if "delete" in operations:
+                    delete_rows = table_tools["delete"]
+                    new_tools.append(delete_rows)
+                    observation.append(
+                        f"- Use {delete_rows.name} to delete rows by their IDs."
+                    )
+
+                observation.append("")
+
+            # Re-initialize the module with the new tools for the next iteration
+            context.module.init_module(tools=context.module._tools + new_tools)
+            return "\n".join(observation)
+
+        return load_rows_tools
 
     return get_rows_tools
 
@@ -582,6 +568,7 @@ def get_create_views_tool(
                 field_options = view.field_options_to_django_orm()
                 if field_options:
                     UpdateViewFieldOptionsActionType.do(user, orm_view, field_options)
+
                 created_views.append({"id": orm_view.id, **view.model_dump()})
 
         tool_helpers.navigate_to(
@@ -618,7 +605,7 @@ def get_create_view_filters_tool(
     """
 
     def create_view_filters(
-        view_id: int, filters: list[AnyViewFilterItemCreate]
+        view_filters: list[ViewFiltersArgs],
     ) -> list[AnyViewFilterItem]:
         """
         Creates filters in the specified view.
@@ -630,45 +617,34 @@ def get_create_view_filters_tool(
 
         nonlocal user, workspace, tool_helpers
 
-        if not filters:
+        if not view_filters:
             return []
 
-        orm_view = utils.get_view(user, view_id)
-        tool_helpers.update_status(
-            _("Creating filters in %(view_name)s...") % {"view_name": orm_view.name}
-        )
+        created_view_filters = []
+        for vf in view_filters:
+            orm_view = utils.get_view(user, vf.view_id)
+            tool_helpers.update_status(
+                _("Creating filters in %(view_name)s...") % {"view_name": orm_view.name}
+            )
 
-        fields = {f.id: f for f in orm_view.table.field_set.all()}
+            fields = {f.id: f for f in orm_view.table.field_set.all()}
+            created_filters = []
+            with transaction.atomic():
+                for filter in vf.filters:
+                    try:
+                        orm_filter = utils.create_view_filter(
+                            user, orm_view, fields, filter
+                        )
+                    except ValueError as e:
+                        logger.warning(f"Skipping filter creation: {e}")
+                        continue
 
-        created_filters = []
-        with transaction.atomic():
-            for filter in filters:
-                field = fields.get(filter.field_id)
-                if field is None:
-                    logger.info("Skipping filter creation due to missing field")
-                    continue
-                field_type = field_type_registry.get_by_model(field.specific_class)
-                if field_type.type != filter.type:
-                    logger.info("Skipping filter creation due to type mismatch")
-                    continue
+                    created_filters.append({"id": orm_filter.id, **filter.model_dump()})
+            created_view_filters.append(
+                {"view_id": vf.view_id, "filters": created_filters}
+            )
 
-                filter_type = filter.get_django_orm_type(field)
-                filter_value = filter.get_django_orm_value(
-                    field, timezone=user.profile.timezone
-                )
-
-                orm_filter = CreateViewFilterActionType.do(
-                    user,
-                    orm_view,
-                    field,
-                    filter_type,
-                    filter_value,
-                    filter_group_id=None,
-                )
-
-                created_filters.append({"id": orm_filter.id, **filter.model_dump()})
-
-        return {"created_view_filters": created_filters}
+        return {"created_view_filters": created_view_filters}
 
     return create_view_filters
 
@@ -711,6 +687,45 @@ def get_formula_type_tool(
     return get_formula_type
 
 
+class FormulaGenerationSignature(udspy.Signature):
+    """
+    Generates a Baserow formula based on the provided description and table schema.
+    """
+
+    description: str = udspy.InputField(
+        desc="A brief description of what the formula should do."
+    )
+    tables_schema: dict = udspy.InputField(
+        desc="The schema of all the tables in the database."
+    )
+    formula_documentation: str = udspy.InputField(
+        desc="Documentation about Baserow formulas and their syntax."
+    )
+    table_id: int = udspy.OutputField(
+        desc=(
+            "The ID of the table the formula is intended for. "
+            "Should be the same as current_table_id, unless the formula can "
+            "only be created in a different table."
+        )
+    )
+    field_name: str = udspy.OutputField(
+        desc="The name of the formula field to be created. For a new field, it must be unique in the table."
+    )
+    formula: str = udspy.OutputField(
+        desc="The generated formula. Must be a valid Baserow formula."
+    )
+    formula_type: str = udspy.OutputField(
+        desc="The type of the generated formula. Must be one of: text, long_text, "
+        "number, boolean, date, link_row, single_select, multiple_select, duration, array."
+    )
+    is_formula_valid: bool = udspy.OutputField(
+        desc="Whether the generated formula is valid or not."
+    )
+    error_message: str = udspy.OutputField(
+        desc="If the formula is not valid, an error message explaining why."
+    )
+
+
 def get_generate_database_formula_tool(
     user: AbstractUser,
     workspace: Workspace,
@@ -720,53 +735,15 @@ def get_generate_database_formula_tool(
     Returns a function that generates a formula for a given field in a table.
     """
 
-    import dspy  # local import to save memory when not used
-
-    class FormulaGenerationSignature(dspy.Signature):
-        """
-        Generates a Baserow formula based on the provided description and table schema.
-        """
-
-        description: str = dspy.InputField(
-            desc="A brief description of what the formula should do."
-        )
-        tables_schema: dict = dspy.InputField(
-            desc="The schema of all the tables in the database."
-        )
-        formula_documentation: str = dspy.InputField(
-            desc="Documentation about Baserow formulas and their syntax."
-        )
-        table_id: int = dspy.OutputField(
-            desc=(
-                "The ID of the table the formula is intended for. "
-                "Should be the same as current_table_id, unless the formula can "
-                "only be created in a different table."
-            )
-        )
-        field_name: str = dspy.OutputField(
-            desc="The name of the formula field to be created. For a new field, it must be unique in the table."
-        )
-        formula: str = dspy.OutputField(
-            desc="The generated formula. Must be a valid Baserow formula."
-        )
-        formula_type: str = dspy.OutputField(
-            desc="The type of the generated formula. Must be one of: text, long_text, "
-            "number, boolean, date, link_row, single_select, multiple_select, duration, array."
-        )
-        is_formula_valid: bool = dspy.OutputField(
-            desc="Whether the generated formula is valid or not."
-        )
-        error_message: str = dspy.OutputField(
-            desc="If the formula is not valid, an error message explaining why."
-        )
-
     def generate_database_formula(
         database_id: int,
         description: str,
         save_to_field: bool = True,
     ) -> dict[str, str]:
         """
-        Generate a database formula for a formula field.
+        Generate a database formula for a formula field. No need to inspect the schema
+        before, this tool will do it automatically and find the best table and fields to
+        use.
 
         - table_id: The database ID where the formula field is located.
         - description: A brief description of what the formula should do.
@@ -780,16 +757,18 @@ def get_generate_database_formula_tool(
         database_tables = utils.filter_tables(user, workspace).filter(
             database_id=database_id
         )
-        database_tables_schema = utils.get_tables_schema(database_tables, True)
+        database_tables_schema = [
+            t.model_dump() for t in utils.get_tables_schema(database_tables, True)
+        ]
 
         tool_helpers.update_status(_("Generating formula..."))
 
         formula_docs = get_formula_docs()
 
-        formula_generator = dspy.ReAct(
+        formula_generator = udspy.ReAct(
             FormulaGenerationSignature,
             tools=[get_formula_type_tool(user, workspace)],
-            max_iters=10,
+            max_iters=20,
         )
         result = formula_generator(
             description=description,
@@ -842,6 +821,15 @@ def get_generate_database_formula_tool(
                         formula=result.formula,
                     )
                     operation = "field updated"
+
+                tool_helpers.navigate_to(
+                    TableNavigationType(
+                        type="database-table",
+                        database_id=table.database_id,
+                        table_id=table.id,
+                        table_name=table.name,
+                    )
+                )
 
                 data.update(
                     {

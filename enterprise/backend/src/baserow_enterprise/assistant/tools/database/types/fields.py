@@ -68,8 +68,8 @@ class BaseLongTextFieldItem(FieldItemCreate):
         description="Multi-line text field. Ideal for descriptions, notes and long-form content.",
     )
     rich_text: bool = Field(
-        ...,
-        description="Whether the long text field supports rich text. Default is True.",
+        default=True,
+        description="Whether the long text field supports rich text.",
     )
 
     def to_django_orm_kwargs(self, table: Table) -> dict[str, any]:
@@ -101,12 +101,10 @@ class BaseNumberFieldItem(FieldItemCreate):
     type: Literal["number"] = Field(
         ..., description="Numeric field, with decimals and optional prefix/suffix."
     )
-    decimal_places: int = Field(
-        ..., description="The number of decimal places. Default is 2."
-    )
+    decimal_places: int = Field(default=2, description="The number of decimal places.")
     suffix: str = Field(
-        ...,
-        description="An optional suffix to display after the number. Default is empty.",
+        default="",
+        description="An optional suffix to display after the number.",
     )
 
     def to_django_orm_kwargs(self, table: Table) -> dict[str, any]:
@@ -140,7 +138,7 @@ class BaseRatingFieldItem(FieldItemCreate):
         ..., description="Rating field. Ideal for reviews or scores."
     )
     max_value: int = Field(
-        ..., description="The maximum value of the rating field. Default is 5."
+        default=5, description="The maximum value of the rating field."
     )
 
     def to_django_orm_kwargs(self, table: Table) -> dict[str, any]:
@@ -182,7 +180,7 @@ class BooleanFieldItem(BaseBooleanFieldItem, FieldItem):
 class BaseDateFieldItem(FieldItemCreate):
     type: Literal["date"] = Field(..., description="Date or datetime field.")
     include_time: bool = Field(
-        ..., description="Whether the date field includes time. Default is False."
+        default=False, description="Whether the date field includes time."
     )
 
     def to_django_orm_kwargs(self, table: Table) -> dict[str, any]:
@@ -216,13 +214,6 @@ class BaseLinkRowFieldItem(FieldItemCreate):
     linked_table: str | int = Field(
         ..., description="The ID or the name of the table this field links to."
     )
-    has_link_back: bool = Field(
-        ...,
-        description="Whether the linked table should also have a link row field back to this table. Default is True.",
-    )
-    multiple: bool = Field(
-        ..., description="Whether multiple links are allowed. Default is True."
-    )
 
     def to_django_orm_kwargs(self, table: Table) -> dict[str, any]:
         if isinstance(self.linked_table, str):
@@ -238,12 +229,7 @@ class BaseLinkRowFieldItem(FieldItemCreate):
                 "Ensure you provide a valid table name or ID."
             )
 
-        return {
-            "name": self.name,
-            "link_row_table": link_row_table,
-            "link_row_multiple_relationships": self.multiple,
-            "has_related_field": self.has_link_back and table != link_row_table,
-        }
+        return {"name": self.name, "link_row_table": link_row_table}
 
 
 class LinkRowFieldItemCreate(BaseLinkRowFieldItem):
@@ -260,8 +246,6 @@ class LinkRowFieldItem(BaseLinkRowFieldItem, FieldItem):
             name=orm_field.name,
             type="link_row",
             linked_table=orm_field.link_row_table_id,
-            multiple=orm_field.link_row_multiple_relationships,
-            has_link_back=orm_field.link_row_related_field_id is not None,
         )
 
 

@@ -4,7 +4,8 @@ import Vue from 'vue'
 
 const MESSAGE_TYPE = {
   MESSAGE: 'ai/message',
-  THINKING: 'ai/thinking',
+  THINKING: 'ai/thinking', // Update the status bar in the UI
+  REASONING: 'ai/reasoning', // Show reasoning steps before the final answer
   NAVIGATION: 'ai/navigation',
   ERROR: 'ai/error',
   CHAT_TITLE: 'chat/title',
@@ -69,6 +70,7 @@ export const mutations = {
       status: chat.status,
       loading: false,
       running: false,
+      reasoning: false,
     }))
   },
 
@@ -169,6 +171,19 @@ export const actions = {
             sources: update.sources,
             can_submit_feedback: update.can_submit_feedback,
             loading: false,
+            reasoning: false,
+          },
+        })
+        break
+      case MESSAGE_TYPE.REASONING:
+        commit('UPDATE_MESSAGE', {
+          id,
+          updates: {
+            id: update.id || id,
+            content: update.content,
+            can_submit_feedback: false,
+            loading: false,
+            reasoning: true,
           },
         })
         break
@@ -194,6 +209,7 @@ export const actions = {
             content: update.content,
             loading: false,
             error: true,
+            reasoning: false,
             can_submit_feedback: false,
           },
         })
@@ -224,6 +240,7 @@ export const actions = {
       role: 'ai',
       content: '',
       loading: true,
+      reasoning: false,
     }
     commit('ADD_MESSAGE', aiMessage)
     commit('SET_ASSISTANT_RUNNING', { chat, value: true })
@@ -262,6 +279,7 @@ export const actions = {
             'Oops! Something went wrong on the server. Please try again.',
           loading: false,
           error: true,
+          reasoning: false,
         },
       })
     } finally {

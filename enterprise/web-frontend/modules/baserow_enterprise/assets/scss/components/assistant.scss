@@ -308,7 +308,7 @@
     height: 8px;
     border-radius: 50%;
     background-color: $palette-neutral-800;
-    animation: typing-bounce 1.4s infinite ease-in-out;
+    animation: assistant-typing-bounce 1.4s infinite ease-in-out;
 
     &:nth-child(1) {
       animation-delay: -0.32s;
@@ -320,7 +320,7 @@
   }
 }
 
-@keyframes typing-bounce {
+@keyframes assistant-typing-bounce {
   0%,
   80%,
   100% {
@@ -333,6 +333,7 @@
     opacity: 1;
   }
 }
+
 
 .assistant__message {
   display: flex;
@@ -371,7 +372,12 @@
   overflow-wrap: break-word;
   max-width: 100%;
   min-width: 0;
-  display: block;
+  display: flex;
+  gap: 12px;
+
+  & span.loading {
+    margin-top: 4px;
+  }
 
   .assistant__message--human & {
     background-color: $palette-neutral-100;
@@ -380,6 +386,12 @@
 
   .assistant__message--error & {
     background-color: $palette-red-200;
+  }
+
+  .assistant__message--reasoning & {
+    color: #16829c;
+    background-color: $palette-cyan-50;
+    border-color: $palette-cyan-50;
   }
 }
 
@@ -553,6 +565,14 @@
   .assistant__message--human & code {
     background-color: rgba(255, 255, 255, 0.2);
   }
+}
+
+.assistant__reasoning-indicator {
+  @include loading-spinner(#16829c, 14px);
+
+  display: inline-block;
+  margin-right: 8px;
+  vertical-align: middle;
 }
 
 .assistant__chat-history-spacer {

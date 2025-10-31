@@ -271,8 +271,6 @@ def test_create_complex_table_tool(data_fixture):
             type="link_row",
             name="Related Items",
             linked_table=table.id,
-            has_link_back=False,
-            multiple=True,
         ),
         RatingFieldItemCreate(
             type="rating",
@@ -340,7 +338,7 @@ def test_generate_database_formula_no_save(data_fixture):
     table = data_fixture.create_database_table(database=database, name="Test Table")
     data_fixture.create_text_field(table=table, name="text_field", primary=True)
 
-    # Mock the dspy.ReAct to return a valid formula
+    # Mock the udspy.ReAct to return a valid formula
     mock_prediction = MagicMock()
     mock_prediction.is_formula_valid = True
     mock_prediction.formula = "'ok'"
@@ -349,7 +347,7 @@ def test_generate_database_formula_no_save(data_fixture):
     mock_prediction.table_id = table.id
     mock_prediction.error_message = ""
 
-    with patch("dspy.ReAct") as mock_react:
+    with patch("udspy.ReAct") as mock_react:
         mock_react.return_value.return_value = mock_prediction
 
         tool = get_generate_database_formula_tool(user, workspace, fake_tool_helpers)
@@ -377,7 +375,7 @@ def test_generate_database_formula_create_new_field(data_fixture):
     table = data_fixture.create_database_table(database=database, name="Test Table")
     data_fixture.create_text_field(table=table, name="text_field", primary=True)
 
-    # Mock the dspy.ReAct to return a valid formula
+    # Mock the udspy.ReAct to return a valid formula
     mock_prediction = MagicMock()
     mock_prediction.is_formula_valid = True
     mock_prediction.formula = "'ok'"
@@ -386,7 +384,7 @@ def test_generate_database_formula_create_new_field(data_fixture):
     mock_prediction.table_id = table.id
     mock_prediction.error_message = ""
 
-    with patch("dspy.ReAct") as mock_react:
+    with patch("udspy.ReAct") as mock_react:
         mock_react.return_value.return_value = mock_prediction
 
         tool = get_generate_database_formula_tool(user, workspace, fake_tool_helpers)
@@ -427,7 +425,7 @@ def test_generate_database_formula_update_existing_formula_field(data_fixture):
     )
     existing_field_id = existing_field.id
 
-    # Mock the dspy.ReAct to return a new formula
+    # Mock the udspy.ReAct to return a new formula
     mock_prediction = MagicMock()
     mock_prediction.is_formula_valid = True
     mock_prediction.formula = "'new'"
@@ -436,7 +434,7 @@ def test_generate_database_formula_update_existing_formula_field(data_fixture):
     mock_prediction.table_id = table.id
     mock_prediction.error_message = ""
 
-    with patch("dspy.ReAct") as mock_react:
+    with patch("udspy.ReAct") as mock_react:
         mock_react.return_value.return_value = mock_prediction
 
         tool = get_generate_database_formula_tool(user, workspace, fake_tool_helpers)
@@ -477,7 +475,7 @@ def test_generate_database_formula_replace_non_formula_field(data_fixture):
     )
     existing_field_id = existing_text_field.id
 
-    # Mock the dspy.ReAct to return a valid formula
+    # Mock the udspy.ReAct to return a valid formula
     mock_prediction = MagicMock()
     mock_prediction.is_formula_valid = True
     mock_prediction.formula = "'ok'"
@@ -486,7 +484,7 @@ def test_generate_database_formula_replace_non_formula_field(data_fixture):
     mock_prediction.table_id = table.id
     mock_prediction.error_message = ""
 
-    with patch("dspy.ReAct") as mock_react:
+    with patch("udspy.ReAct") as mock_react:
         mock_react.return_value.return_value = mock_prediction
 
         tool = get_generate_database_formula_tool(user, workspace, fake_tool_helpers)
@@ -527,7 +525,7 @@ def test_generate_database_formula_invalid_formula(data_fixture):
     table = data_fixture.create_database_table(database=database, name="Test Table")
     data_fixture.create_text_field(table=table, name="text_field", primary=True)
 
-    # Mock the dspy.ReAct to return an invalid formula
+    # Mock the udspy.ReAct to return an invalid formula
     mock_prediction = MagicMock()
     mock_prediction.is_formula_valid = False
     mock_prediction.formula = ""
@@ -536,7 +534,7 @@ def test_generate_database_formula_invalid_formula(data_fixture):
     mock_prediction.table_id = table.id
     mock_prediction.error_message = "Formula syntax error: invalid expression"
 
-    with patch("dspy.ReAct") as mock_react:
+    with patch("udspy.ReAct") as mock_react:
         mock_react.return_value.return_value = mock_prediction
 
         tool = get_generate_database_formula_tool(user, workspace, fake_tool_helpers)
@@ -566,7 +564,7 @@ def test_generate_database_formula_documentation_completeness(data_fixture):
     table = data_fixture.create_database_table(database=database, name="Test Table")
     data_fixture.create_text_field(table=table, name="text_field", primary=True)
 
-    # Mock the dspy.ReAct to capture the formula_documentation argument
+    # Mock the udspy.ReAct to capture the formula_documentation argument
     mock_prediction = MagicMock()
     mock_prediction.is_formula_valid = True
     mock_prediction.formula = "'ok'"
@@ -588,7 +586,7 @@ def test_generate_database_formula_documentation_completeness(data_fixture):
             captured_formula_docs = kwargs.get("formula_documentation")
             return mock_prediction
 
-    with patch("dspy.ReAct", MockReAct):
+    with patch("udspy.ReAct", MockReAct):
         tool = get_generate_database_formula_tool(user, workspace, fake_tool_helpers)
         tool(
             database_id=database.id,

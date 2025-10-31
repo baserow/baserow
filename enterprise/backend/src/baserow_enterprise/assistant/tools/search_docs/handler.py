@@ -66,12 +66,8 @@ class VectorHandler:
 
     @property
     def embedder(self):
-        import dspy  # local import to save memory when not used
-
         if self._embedder is None:
-            self._embedder = dspy.Embedder(
-                BaserowEmbedder(settings.BASEROW_EMBEDDINGS_API_URL)
-            )
+            self._embedder = BaserowEmbedder(settings.BASEROW_EMBEDDINGS_API_URL)
         return self._embedder
 
     def embed_texts(self, texts: list[str]) -> list[list[float]]:

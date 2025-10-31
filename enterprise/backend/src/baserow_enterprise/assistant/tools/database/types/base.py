@@ -1,15 +1,13 @@
 from datetime import date, datetime
 
-from pydantic import Field
-
 from baserow_enterprise.assistant.types import BaseModel
 
 
 # Somehow LLMs struggle with dates
 class Date(BaseModel):
-    year: int = Field(..., description="year (i.e. 2025).")
-    month: int = Field(..., description="month (1-12).")
-    day: int = Field(..., description="day (1-31).")
+    year: int
+    month: int
+    day: int
 
     def to_django_orm(self):
         return date(self.year, self.month, self.day).isoformat()
@@ -21,8 +19,8 @@ class Date(BaseModel):
 
 
 class Datetime(Date):
-    hour: int = Field(..., description="hour (0-23).")
-    minute: int = Field(..., description="minute (0-59).")
+    hour: int
+    minute: int
 
     def to_django_orm(self):
         return datetime(

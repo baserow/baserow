@@ -161,6 +161,13 @@ class AiThinkingSerializer(serializers.Serializer):
     )
 
 
+class AiReasoningSerializer(serializers.Serializer):
+    type = serializers.CharField(default=AssistantMessageType.AI_REASONING)
+    content = serializers.CharField(
+        help_text="The reasoning content of the AI message."
+    )
+
+
 class AiNavigationSerializer(serializers.Serializer):
     type = serializers.CharField(default=AssistantMessageType.AI_NAVIGATION)
     location = serializers.DictField(help_text=("The location to navigate to."))
@@ -192,7 +199,8 @@ TYPE_SERIALIZER_MAP = {
     AssistantMessageType.CHAT_TITLE: ChatTitleMessageSerializer,
     AssistantMessageType.HUMAN: HumanMessageSerializer,
     AssistantMessageType.AI_MESSAGE: AiMessageSerializer,
-    AssistantMessageType.AI_THINKING: AiThinkingSerializer,
+    AssistantMessageType.AI_THINKING: AiThinkingSerializer,  # Update the satus bar in the UI
+    AssistantMessageType.AI_REASONING: AiReasoningSerializer,  # Show reasoning steps before the final answer
     AssistantMessageType.AI_NAVIGATION: AiNavigationSerializer,
     AssistantMessageType.AI_ERROR: AiErrorMessageSerializer,
 }

@@ -555,3 +555,8 @@ AnyViewFilterItem = Annotated[
     | MultipleSelectIsAnyViewFilterItem,
     Field(discriminator="type"),
 ]
+
+
+class ViewFiltersArgs(BaseModel):
+    view_id: int
+    filters: list[AnyViewFilterItemCreate]

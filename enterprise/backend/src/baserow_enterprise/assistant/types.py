@@ -1,9 +1,10 @@
 from datetime import datetime, timezone
 from enum import StrEnum
-from typing import Annotated, Any, Callable, Literal, Optional
+from typing import Annotated, Literal, Optional
 
 from django.utils.translation import gettext as _
 
+import udspy
 from pydantic import BaseModel as PydanticBaseModel
 from pydantic import ConfigDict, Field
 
@@ -93,7 +94,8 @@ class UIContext(BaseModel):
 class AssistantMessageType(StrEnum):
     HUMAN = "human"
     AI_MESSAGE = "ai/message"
-    AI_THINKING = "ai/thinking"
+    AI_THINKING = "ai/thinking"  # Update the status bar in the UI
+    AI_REASONING = "ai/reasoning"  # Show reasoning steps before the final answer
     AI_NAVIGATION = "ai/navigation"
     AI_ERROR = "ai/error"
     TOOL_CALL = "tool_call"
@@ -123,6 +125,11 @@ class AiMessageChunk(BaseModel):
     )
 
 
+class AiReasoningChunk(BaseModel):
+    type: Literal["ai/reasoning"] = "ai/reasoning"
+    content: str = Field(description="The reasoning content of the AI message chunk")
+
+
 class AiMessage(AiMessageChunk):
     id: int | None = Field(
         default=None,
@@ -145,7 +152,7 @@ class AiMessage(AiMessageChunk):
     )
 
 
-class AiThinkingMessage(BaseModel):
+class AiThinkingMessage(BaseModel, udspy.StreamEvent):
     type: Literal["ai/thinking"] = AssistantMessageType.AI_THINKING.value
     content: str = Field(
         default="",
@@ -176,7 +183,12 @@ class AiErrorMessage(BaseModel):
 
 
 AIMessageUnion = (
-    AiMessage | AiErrorMessage | AiThinkingMessage | ChatTitleMessage | AiMessageChunk
+    AiMessage
+    | AiErrorMessage
+    | AiThinkingMessage
+    | ChatTitleMessage
+    | AiMessageChunk
+    | AiReasoningChunk
 )
 AssistantMessageUnion = HumanMessage | AIMessageUnion
 
@@ -228,24 +240,6 @@ AnyNavigationType = Annotated[
 ]
 
 
-class AiNavigationMessage(BaseModel):
+class AiNavigationMessage(BaseModel, udspy.StreamEvent):
     type: Literal["ai/navigation"] = "ai/navigation"
     location: AnyNavigationType
-
-
-class ToolsUpgradeResponse(BaseModel):
-    observation: str
-    new_tools: list[Callable[[Any], Any]]
-
-
-def get_tool_signature():
-    import dspy  # local import to save memory when not used
-
-    class ToolSignature(dspy.Signature):
-        """Signature for manual tool handling."""
-
-        question: str = dspy.InputField()
-        tools: list[dspy.Tool] = dspy.InputField()
-        outputs: dspy.ToolCalls = dspy.OutputField()
-
-    return ToolSignature

@@ -12,8 +12,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from asgiref.sync import async_to_sync
-from dspy.primitives.prediction import Prediction
-from dspy.streaming import StreamResponse
+from udspy import OutputStreamChunk, Prediction
 
 from baserow_enterprise.assistant.assistant import Assistant, get_assistant_callbacks
 from baserow_enterprise.assistant.models import AssistantChat, AssistantChatMessage
@@ -171,7 +170,7 @@ class TestAssistantChatHistory:
     def test_aload_chat_history_formats_as_question_answer_pairs(
         self, enterprise_data_fixture
     ):
-        """Test that chat history is loaded as question/answer pairs for DSPy"""
+        """Test that chat history is loaded as user/assistant message pairs for UDSPy"""
 
         user = enterprise_data_fixture.create_user()
         workspace = enterprise_data_fixture.create_workspace(user=user)
@@ -202,23 +201,27 @@ class TestAssistantChatHistory:
         assistant = Assistant(chat)
         async_to_sync(assistant.aload_chat_history)()
 
-        # History should contain question/answer pairs
+        # History should contain user/assistant message pairs
         assert assistant.history is not None
-        assert len(assistant.history.messages) == 2
+        assert len(assistant.history.messages) == 4
 
         # First pair
-        assert assistant.history.messages[0]["question"] == "What is Baserow?"
+        assert assistant.history.messages[0]["content"] == "What is Baserow?"
+        assert assistant.history.messages[0]["role"] == "user"
         assert (
-            assistant.history.messages[0]["answer"]
+            assistant.history.messages[1]["content"]
             == "Baserow is a no-code database platform."
         )
+        assert assistant.history.messages[1]["role"] == "assistant"
 
         # Second pair
-        assert assistant.history.messages[1]["question"] == "How do I create a table?"
+        assert assistant.history.messages[2]["content"] == "How do I create a table?"
+        assert assistant.history.messages[2]["role"] == "user"
         assert (
-            assistant.history.messages[1]["answer"]
+            assistant.history.messages[3]["content"]
             == "You can create a table by clicking the + button."
         )
+        assert assistant.history.messages[3]["role"] == "assistant"
 
     def test_aload_chat_history_respects_limit(self, enterprise_data_fixture):
         """Test that history loading respects the limit parameter"""
@@ -241,12 +244,10 @@ class TestAssistantChatHistory:
             )
 
         assistant = Assistant(chat)
-        async_to_sync(assistant.aload_chat_history)(
-            limit=6
-        )  # Last 6 messages = 3 pairs
+        async_to_sync(assistant.aload_chat_history)(limit=6)  # Last 6 messages
 
-        # Should only load the most recent 3 pairs
-        assert len(assistant.history.messages) <= 3
+        # Should only load the most recent 6 messages (3 pairs)
+        assert len(assistant.history.messages) == 6
 
     def test_aload_chat_history_handles_incomplete_pairs(self, enterprise_data_fixture):
         """
@@ -275,19 +276,22 @@ class TestAssistantChatHistory:
         assistant = Assistant(chat)
         async_to_sync(assistant.aload_chat_history)()
 
-        # Should only include the complete pair
-        assert len(assistant.history.messages) == 1
-        assert assistant.history.messages[0]["question"] == "Question 1"
+        # Should only include the complete pair (2 messages: user + assistant)
+        assert len(assistant.history.messages) == 2
+        assert assistant.history.messages[0]["content"] == "Question 1"
+        assert assistant.history.messages[0]["role"] == "user"
+        assert assistant.history.messages[1]["content"] == "Answer 1"
+        assert assistant.history.messages[1]["role"] == "assistant"
 
 
 @pytest.mark.django_db
 class TestAssistantMessagePersistence:
     """Test that messages are persisted correctly during streaming"""
 
-    @patch("dspy.streamify")
-    @patch("dspy.LM")
+    @patch("udspy.ReAct.astream")
+    @patch("udspy.LM")
     def test_astream_messages_persists_human_message(
-        self, mock_lm, mock_streamify, enterprise_data_fixture
+        self, mock_lm, mock_astream, enterprise_data_fixture
     ):
         """Test that human messages are persisted to database before streaming"""
 
@@ -300,15 +304,16 @@ class TestAssistantMessagePersistence:
         # Mock the streaming
         async def mock_stream(*args, **kwargs):
             # Yield a simple response
-            yield StreamResponse(
-                signature_field_name="answer",
-                chunk="Hello",
-                predict_name="ReAct",
-                is_last_chunk=False,
+            yield OutputStreamChunk(
+                module=None,
+                field_name="answer",
+                delta="Hello",
+                content="Hello",
+                is_complete=False,
             )
             yield Prediction(answer="Hello", trajectory=[], reasoning="")
 
-        mock_streamify.return_value = MagicMock(return_value=mock_stream())
+        mock_astream.return_value = mock_stream()
 
         # Configure mock LM to return a serializable model name
         mock_lm.return_value.model = "test-model"
@@ -338,10 +343,10 @@ class TestAssistantMessagePersistence:
         ).first()
         assert saved_message.content == "Test message"
 
-    @patch("dspy.streamify")
-    @patch("dspy.LM")
+    @patch("udspy.ReAct.astream")
+    @patch("udspy.LM")
     def test_astream_messages_persists_ai_message_with_sources(
-        self, mock_lm, mock_streamify, enterprise_data_fixture
+        self, mock_lm, mock_astream, enterprise_data_fixture
     ):
         """Test that AI messages are persisted with sources in artifacts"""
 
@@ -351,22 +356,28 @@ class TestAssistantMessagePersistence:
             user=user, workspace=workspace, title="Test Chat"
         )
 
-        # Mock the streaming with a Prediction at the end
-        async def mock_stream(*args, **kwargs):
-            yield StreamResponse(
-                signature_field_name="answer",
-                chunk="Based on docs",
-                predict_name="ReAct",
-                is_last_chunk=False,
-            )
-            yield Prediction(answer="Based on docs", trajectory=[], reasoning="")
-
-        mock_streamify.return_value = MagicMock(return_value=mock_stream())
-
         # Configure mock LM to return a serializable model name
         mock_lm.return_value.model = "test-model"
 
         assistant = Assistant(chat)
+
+        # Mock the streaming with a Prediction at the end
+        async def mock_stream(*args, **kwargs):
+            yield OutputStreamChunk(
+                module=None,
+                field_name="answer",
+                delta="Based on docs",
+                content="Based on docs",
+                is_complete=False,
+            )
+            yield Prediction(
+                module=assistant._assistant,
+                answer="Based on docs",
+                trajectory=[],
+                reasoning="",
+            )
+
+        mock_astream.return_value = mock_stream()
         ui_context = UIContext(
             workspace=WorkspaceUIContext(id=workspace.id, name=workspace.name),
             user=UserUIContext(id=user.id, name=user.first_name, email=user.email),
@@ -388,12 +399,12 @@ class TestAssistantMessagePersistence:
         ).count()
         assert ai_messages == 1
 
-    @patch("dspy.streamify")
-    @patch("dspy.Predict")
+    @patch("udspy.ReAct.astream")
+    @patch("udspy.Predict")
     def test_astream_messages_persists_chat_title(
         self,
         mock_predict_class,
-        mock_streamify,
+        mock_astream,
         enterprise_data_fixture,
     ):
         """Test that chat titles are persisted to the database"""
@@ -404,27 +415,30 @@ class TestAssistantMessagePersistence:
             user=user, workspace=workspace, title=""  # New chat
         )
 
-        # Mock streaming
-        async def mock_stream(*args, **kwargs):
-            yield StreamResponse(
-                signature_field_name="answer",
-                chunk="Hello",
-                predict_name="ReAct",
-                is_last_chunk=False,
-            )
-            yield Prediction(answer="Hello", trajectory=[], reasoning="")
-
-        mock_streamify.return_value = MagicMock(return_value=mock_stream())
-
         # Mock title generator
-        async def mock_title_acall(*args, **kwargs):
+        async def mock_title_aforward(*args, **kwargs):
             return Prediction(chat_title="Greeting")
 
         mock_title_generator = MagicMock()
-        mock_title_generator.acall = mock_title_acall
+        mock_title_generator.aforward = mock_title_aforward
         mock_predict_class.return_value = mock_title_generator
 
         assistant = Assistant(chat)
+
+        # Mock streaming
+        async def mock_stream(*args, **kwargs):
+            yield OutputStreamChunk(
+                module=None,
+                field_name="answer",
+                delta="Hello",
+                content="Hello",
+                is_complete=False,
+            )
+            yield Prediction(
+                module=assistant._assistant, answer="Hello", trajectory=[], reasoning=""
+            )
+
+        mock_astream.return_value = mock_stream()
         ui_context = UIContext(
             workspace=WorkspaceUIContext(id=workspace.id, name=workspace.name),
             user=UserUIContext(id=user.id, name=user.first_name, email=user.email),
@@ -449,10 +463,10 @@ class TestAssistantMessagePersistence:
 class TestAssistantStreaming:
     """Test streaming behavior of the Assistant"""
 
-    @patch("dspy.streamify")
-    @patch("dspy.LM")
+    @patch("udspy.ReAct.astream")
+    @patch("udspy.LM")
     def test_astream_messages_yields_answer_chunks(
-        self, mock_lm, mock_streamify, enterprise_data_fixture
+        self, mock_lm, mock_astream, enterprise_data_fixture
     ):
         """Test that answer chunks are yielded during streaming"""
 
@@ -464,21 +478,23 @@ class TestAssistantStreaming:
 
         # Mock streaming
         async def mock_stream(*args, **kwargs):
-            yield StreamResponse(
-                signature_field_name="answer",
-                chunk="Hello",
-                predict_name="ReAct",
-                is_last_chunk=False,
+            yield OutputStreamChunk(
+                module=None,
+                field_name="answer",
+                delta="Hello",
+                content="Hello",
+                is_complete=False,
             )
-            yield StreamResponse(
-                signature_field_name="answer",
-                chunk=" world",
-                predict_name="ReAct",
-                is_last_chunk=False,
+            yield OutputStreamChunk(
+                module=None,
+                field_name="answer",
+                delta=" world",
+                content="Hello world",
+                is_complete=False,
             )
             yield Prediction(answer="Hello world", trajectory=[], reasoning="")
 
-        mock_streamify.return_value = MagicMock(return_value=mock_stream())
+        mock_astream.return_value = mock_stream()
 
         # Configure mock LM to return a serializable model name
         mock_lm.return_value.model = "test-model"
@@ -500,17 +516,16 @@ class TestAssistantStreaming:
         chunks = async_to_sync(consume_stream)()
 
         # Should receive chunks with accumulated content
-        assert len(chunks) == 3
+        assert len(chunks) == 2
         assert chunks[0].content == "Hello"
         assert chunks[1].content == "Hello world"
-        assert chunks[2].content == "Hello world"  # Final chunk repeats full answer
 
-    @patch("dspy.streamify")
-    @patch("dspy.Predict")
+    @patch("udspy.ReAct.astream")
+    @patch("udspy.Predict")
     def test_astream_messages_yields_title_chunks(
         self,
         mock_predict_class,
-        mock_streamify,
+        mock_astream,
         enterprise_data_fixture,
     ):
         """Test that title chunks are yielded for new chats"""
@@ -521,27 +536,33 @@ class TestAssistantStreaming:
             user=user, workspace=workspace, title=""  # New chat
         )
 
-        # Mock streaming
-        async def mock_stream(*args, **kwargs):
-            yield StreamResponse(
-                signature_field_name="answer",
-                chunk="Answer",
-                predict_name="ReAct",
-                is_last_chunk=False,
-            )
-            yield Prediction(answer="Answer", trajectory=[], reasoning="")
-
-        mock_streamify.return_value = MagicMock(return_value=mock_stream())
-
         # Mock title generator
-        async def mock_title_acall(*args, **kwargs):
+        async def mock_title_aforward(*args, **kwargs):
             return Prediction(chat_title="Title")
 
         mock_title_generator = MagicMock()
-        mock_title_generator.acall = mock_title_acall
+        mock_title_generator.aforward = mock_title_aforward
         mock_predict_class.return_value = mock_title_generator
 
         assistant = Assistant(chat)
+
+        # Mock streaming
+        async def mock_stream(*args, **kwargs):
+            yield OutputStreamChunk(
+                module=None,
+                field_name="answer",
+                delta="Answer",
+                content="Answer",
+                is_complete=False,
+            )
+            yield Prediction(
+                module=assistant._assistant,
+                answer="Answer",
+                trajectory=[],
+                reasoning="",
+            )
+
+        mock_astream.return_value = mock_stream()
         ui_context = UIContext(
             workspace=WorkspaceUIContext(id=workspace.id, name=workspace.name),
             user=UserUIContext(id=user.id, name=user.first_name, email=user.email),
@@ -561,10 +582,10 @@ class TestAssistantStreaming:
         assert len(title_messages) == 1
         assert title_messages[0].content == "Title"
 
-    @patch("dspy.streamify")
-    @patch("dspy.LM")
+    @patch("udspy.ReAct.astream")
+    @patch("udspy.LM")
     def test_astream_messages_yields_thinking_messages(
-        self, mock_lm, mock_streamify, enterprise_data_fixture
+        self, mock_lm, mock_astream, enterprise_data_fixture
     ):
         """Test that thinking messages from tools are yielded"""
 
@@ -577,15 +598,16 @@ class TestAssistantStreaming:
         # Mock streaming
         async def mock_stream(*args, **kwargs):
             yield AiThinkingMessage(content="thinking")
-            yield StreamResponse(
-                signature_field_name="answer",
-                chunk="Answer",
-                predict_name="ReAct",
-                is_last_chunk=False,
+            yield OutputStreamChunk(
+                module=None,
+                field_name="answer",
+                delta="Answer",
+                content="Answer",
+                is_complete=False,
             )
             yield Prediction(answer="Answer", trajectory=[], reasoning="")
 
-        mock_streamify.return_value = MagicMock(return_value=mock_stream())
+        mock_astream.return_value = mock_stream()
 
         # Configure mock LM to return a serializable model name
         mock_lm.return_value.model = "test-model"

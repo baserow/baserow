@@ -3,6 +3,8 @@ from typing import TYPE_CHECKING, Any, Callable, TypedDict
 from django.contrib.auth.models import AbstractUser
 from django.utils.translation import gettext as _
 
+import udspy
+
 from baserow.core.models import Workspace
 from baserow_enterprise.assistant.tools.registries import AssistantToolType
 
@@ -14,18 +16,22 @@ if TYPE_CHECKING:
 MAX_SOURCES = 3
 
 
-def get_search_predictor():
-    import dspy  # local import to save memory when not used
+class SearchDocsSignature(udspy.Signature):
+    question: str = udspy.InputField()
+    context: list[str] = udspy.InputField()
+    response: str = udspy.OutputField()
+    sources: list[str] = udspy.OutputField(
+        desc=f"List of unique and relevant source URLs. Max {MAX_SOURCES}."
+    )
 
-    class SearchDocsSignature(dspy.Signature):
-        question: str = dspy.InputField()
-        context: list[str] = dspy.InputField()
-        response: str = dspy.OutputField()
-        sources: list[str] = dspy.OutputField(
-            desc=f"List of unique and relevant source URLs. Max {MAX_SOURCES}."
-        )
 
-    return dspy.ChainOfThought(SearchDocsSignature)
+class SearchDocsRAG(udspy.Module):
+    def __init__(self):
+        self.respond = SearchDocsSignature
+
+    def forward(self, question):
+        context = KnowledgeBaseHandler().search(question, num_results=10)
+        return self.respond(context=context, question=question)
 
 
 class SearchDocsToolOutput(TypedDict):
@@ -45,19 +51,9 @@ def get_search_docs_tool(
         Search Baserow documentation.
         """
 
-        import dspy  # local import to save memory when not used
-
         nonlocal tool_helpers
 
         tool_helpers.update_status(_("Exploring the knowledge base..."))
-
-        class SearchDocsRAG(dspy.Module):
-            def __init__(self):
-                self.respond = get_search_predictor()
-
-            def forward(self, question):
-                context = KnowledgeBaseHandler().search(question, num_results=10)
-                return self.respond(context=context, question=question)
 
         tool = SearchDocsRAG()
         result = tool(query)
