@@ -65,7 +65,6 @@ class AiAgentServiceType(ServiceType):
                 help_text=AiAgentService._meta.get_field("prompt").help_text,
                 required=False,
                 allow_null=True,
-                allow_blank=True,
             ),
         }
 
