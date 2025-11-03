@@ -1,6 +1,6 @@
 import { Registerable } from '@baserow/modules/core/registry'
-import TOTPLogin from '@baserow/modules/core/components/auth/TOTPLogin.vue'
-import EnableTOTP from '@baserow/modules/core/components/settings/twoFactorAuth/EnableTOTP.vue'
+import TOTPLogin from '@baserow/modules/core/components/auth/TOTPLogin'
+import EnableTOTP from '@baserow/modules/core/components/settings/twoFactorAuth/EnableTOTP'
 
 export class TwoFactorAuthType extends Registerable {
   get name() {

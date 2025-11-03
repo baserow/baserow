@@ -81,7 +81,7 @@ import {
   isRelativeUrl,
   addQueryParamsToRedirectUrl,
 } from '@baserow/modules/core/utils/url'
-import TOTPLogin from '@baserow/modules/core/components/auth/TOTPLogin.vue'
+import TOTPLogin from '@baserow/modules/core/components/auth/TOTPLogin'
 
 export default {
   components: {
