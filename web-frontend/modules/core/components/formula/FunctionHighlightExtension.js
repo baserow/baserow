@@ -248,6 +248,35 @@ export const FunctionHighlightExtension = Extension.create({
                   }
                 }
 
+                // Helper function to check if a position is inside a string literal
+                const isInsideString = (textContent, position) => {
+                  let inSingleQuote = false
+                  let inDoubleQuote = false
+                  let escaped = false
+
+                  for (let idx = 0; idx < position; idx++) {
+                    const ch = textContent[idx]
+
+                    if (escaped) {
+                      escaped = false
+                      continue
+                    }
+
+                    if (ch === '\\') {
+                      escaped = true
+                      continue
+                    }
+
+                    if (ch === "'" && !inDoubleQuote) {
+                      inSingleQuote = !inSingleQuote
+                    } else if (ch === '"' && !inSingleQuote) {
+                      inDoubleQuote = !inDoubleQuote
+                    }
+                  }
+
+                  return inSingleQuote || inDoubleQuote
+                }
+
                 // Add segments for closing parentheses and commas
                 for (let i = 0; i < text.length; i++) {
                   const docPos = pos + i
@@ -269,7 +298,8 @@ export const FunctionHighlightExtension = Extension.create({
                     } else if (
                       char === ',' &&
                       contentIndex > funcRange.openParen &&
-                      contentIndex < funcRange.closeParen
+                      contentIndex < funcRange.closeParen &&
+                      !isInsideString(text, i)
                     ) {
                       segments.push({
                         start: i,
