@@ -189,7 +189,6 @@ const actions = {
           // range for paging, all results are set at once. We default to an
           // empty array if the property doesn't exist, this will happen if
           // the property has been removed since the initial configuration.
-          // const propertyValue = data[element.schema_property] || []
           commit('SET_CONTENT', {
             element,
             value: data,

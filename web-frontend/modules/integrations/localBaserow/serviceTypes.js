@@ -88,11 +88,11 @@ export class LocalBaserowTableServiceType extends ServiceType {
 
     if (schema) {
       if (this.returnsList) {
-        if (schema.items?.properties?.[field]?.metadata?.name) {
-          humanName = schema.items.properties[field].metadata.name
+        if (schema.items?.properties?.[field]?.title) {
+          humanName = schema.items.properties[field].title
         }
-      } else if (schema.properties[field]?.metadata) {
-        humanName = schema.properties[field].metadata.name
+      } else if (schema.properties[field]?.title) {
+        humanName = schema.properties[field].title
       }
     }
     return getValueAtPath(content, [humanName, ...rest].join('.'))

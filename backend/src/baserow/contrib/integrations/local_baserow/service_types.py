@@ -208,12 +208,11 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
         Convert the `field_x` to human fields.
         """
 
-        for field_obj in self.get_table_field_objects(service):
-            allowed_fields = [
-                f if f != field_obj["field"].db_column else field_obj["field"].name
-                for f in allowed_fields
-            ]
-        return allowed_fields
+        mapping = {
+            field_obj["field"].db_column: field_obj["field"].name
+            for field_obj in self.get_table_field_objects(service)
+        }
+        return [mapping.get(f, f) for f in allowed_fields]
 
     def sanitize_result(self, service, result, allowed_field_names):
         """

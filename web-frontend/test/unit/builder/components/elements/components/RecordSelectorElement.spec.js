@@ -44,8 +44,15 @@ describe('RecordSelectorElement', () => {
           type: 'local_baserow_list_rows',
           table_id: 1,
           schema: {
+            type: 'array',
             items: {
-              properties: [{ metadata: { primary: true, title: 'Name' } }],
+              properties: {
+                field_1: {
+                  metadata: { primary: true },
+                  title: 'Name',
+                },
+                field_2: { metadata: {}, title: 'Other' },
+              },
             },
           },
         },
@@ -148,12 +155,14 @@ describe('RecordSelectorElement', () => {
           type: 'local_baserow_list_rows',
           table_id: 1,
           schema: {
+            type: 'array',
             items: {
               properties: {
                 field_1: {
-                  metadata: { primary: true, title: 'Name' },
+                  metadata: { primary: true },
+                  title: 'Name',
                 },
-                field_2: { metadata: { title: 'Other' } },
+                field_2: { metadata: {}, title: 'Other' },
               },
             },
           },
@@ -180,7 +189,7 @@ describe('RecordSelectorElement', () => {
       type: 'record_selector',
       data_source_id: page.dataSources[0].id,
       items_per_page: 5,
-      option_name_suffix: { formula: "'Suffix'" },
+      option_name_suffix: { formula: "'Suffix'", mode: 'simple' },
     }
     store.dispatch('element/forceCreate', { page, element })
 
@@ -215,7 +224,9 @@ describe('RecordSelectorElement', () => {
       .at(0)
       .find('.ab-dropdown__selected')
       .trigger('click')
+
     await flushPromises()
+
     expect(wrapper.element).toMatchSnapshot()
     expect(wrapper.find("span[title='First - Suffix']").exists()).toBeTruthy()
     expect(wrapper.find("span[title='Second - Suffix']").exists()).toBeTruthy()
