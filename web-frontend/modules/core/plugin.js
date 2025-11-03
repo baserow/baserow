@@ -108,6 +108,7 @@ import {
   RuntimeRound,
   RuntimeIsEven,
   RuntimeIsOdd,
+  RuntimeDateTimeFormat,
   RuntimeDay,
   RuntimeMonth,
   RuntimeYear,
@@ -282,6 +283,10 @@ export default (context, inject) => {
   registry.register('runtimeFormulaFunction', new RuntimeRound(context))
   registry.register('runtimeFormulaFunction', new RuntimeIsEven(context))
   registry.register('runtimeFormulaFunction', new RuntimeIsOdd(context))
+  registry.register(
+    'runtimeFormulaFunction',
+    new RuntimeDateTimeFormat(context)
+  )
   registry.register('runtimeFormulaFunction', new RuntimeDay(context))
   registry.register('runtimeFormulaFunction', new RuntimeMonth(context))
   registry.register('runtimeFormulaFunction', new RuntimeYear(context))
