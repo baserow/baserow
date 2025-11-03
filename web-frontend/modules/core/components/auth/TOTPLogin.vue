@@ -163,11 +163,10 @@ export default {
         this.$store.dispatch('auth/loginWithData', { data })
         this.$emit('success')
       } catch (error) {
+        this.loadingVerifyCode = false
         this.$refs.authCodeInput.reset()
         const title = this.$t('totpLogin.verificationFailed')
         this.$store.dispatch('toast/error', { title })
-      } finally {
-        this.loadingVerifyCode = false
       }
     },
     async verifyBackupCode(code) {
@@ -182,10 +181,9 @@ export default {
         this.$store.dispatch('auth/loginWithData', { data })
         this.$emit('success')
       } catch (error) {
+        this.loadingVerifyBackupCode = false
         const title = this.$t('totpLogin.verificationFailed')
         this.$store.dispatch('toast/error', { title })
-      } finally {
-        this.loadingVerifyBackupCode = false
       }
     },
   },

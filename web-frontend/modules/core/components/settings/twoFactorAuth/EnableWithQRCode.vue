@@ -81,11 +81,10 @@ export default {
         this.$store.dispatch('toast/success', { title })
         this.$emit('verified', data.backup_codes)
       } catch (error) {
+        this.checkCodeLoading = false
         this.$refs.authCodeInput.reset()
         const title = this.$t('enableWithQRCode.verificationFailed')
         this.$store.dispatch('toast/error', { title })
-      } finally {
-        this.checkCodeLoading = false
       }
     },
   },
