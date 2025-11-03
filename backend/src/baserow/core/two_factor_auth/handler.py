@@ -75,7 +75,7 @@ class TwoFactorAuthHandler:
         """
         Configures the provider type for the user.
 
-        :param provider_type: The two-factor auth type of the provider.
+        :param provider_type_str: The two-factor auth type of the provider.
         :param user: The user configuring the authentication.
         :param kwargs: Additional attributes of the provider.
         :return: The created two-factor auth provider model.
@@ -116,7 +116,7 @@ class TwoFactorAuthHandler:
         """
         Verifies 2fa of the provider type.
 
-        :param provider_type: The two-factor auth type of the provider.
+        :param provider_type_str: The two-factor auth type of the provider.
         :param kwargs: Additional verification attributes of the provider.
         :return: If the verification request is accepted.
         """
