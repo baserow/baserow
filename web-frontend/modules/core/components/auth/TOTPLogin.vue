@@ -81,7 +81,11 @@
       <div class="totp-login__description">
         {{ $t('totpLogin.totpDescription') }}
       </div>
-      <AuthCodeInput class="totp-login__code" @all-filled="verify" />
+      <AuthCodeInput
+        ref="authCodeInput"
+        class="totp-login__code"
+        @all-filled="verify"
+      />
       <Button
         class="totp-login__submit"
         type="primary"
@@ -159,6 +163,7 @@ export default {
         this.$store.dispatch('auth/loginWithData', { data })
         this.$emit('success')
       } catch (error) {
+        this.$refs.authCodeInput.reset()
         const title = this.$t('totpLogin.verificationFailed')
         this.$store.dispatch('toast/error', { title })
       } finally {

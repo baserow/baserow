@@ -28,6 +28,7 @@
           {{ $t('enableWithQRCode.enterCodeDescription') }}
         </div>
         <AuthCodeInput
+          ref="authCodeInput"
           :class="{ 'loading-spinner': checkCodeLoading }"
           @all-filled="checkCode"
         />
@@ -80,6 +81,7 @@ export default {
         this.$store.dispatch('toast/success', { title })
         this.$emit('verified', data.backup_codes)
       } catch (error) {
+        this.$refs.authCodeInput.reset()
         const title = this.$t('enableWithQRCode.verificationFailed')
         this.$store.dispatch('toast/error', { title })
       } finally {
