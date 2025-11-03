@@ -1,8 +1,305 @@
 import { Extension } from '@tiptap/core'
 import { Plugin, PluginKey } from 'prosemirror-state'
 import { Decoration, DecorationSet } from 'prosemirror-view'
+import {
+  findClosedStringRanges,
+  isInsideClosedString,
+  isAfterUnclosedQuote,
+  matchesAt,
+  findClosingParen,
+} from './FormulaExtensionHelpers'
 
 const functionHighlightPluginKey = new PluginKey('functionHighlight')
+
+// ============================================================================
+// Function Detection
+// ============================================================================
+
+/**
+ * Finds all complete function ranges in the document
+ */
+const findFunctionRanges = (documentContent, functionNames, stringRanges) => {
+  const functionRanges = []
+
+  for (let i = 0; i < documentContent.length; i++) {
+    const content = documentContent[i]
+    if (content.type !== 'text') continue
+
+    // Skip if we're inside a string literal (closed or unclosed)
+    if (
+      isInsideClosedString(documentContent, i, stringRanges) ||
+      isAfterUnclosedQuote(documentContent, i)
+    ) {
+      continue
+    }
+
+    for (const functionName of functionNames) {
+      if (matchesAt(documentContent, i, functionName)) {
+        const functionStart = i
+        let j = i + functionName.length
+
+        // Skip whitespace after function name
+        while (
+          j < documentContent.length &&
+          documentContent[j].type === 'text' &&
+          /\s/.test(documentContent[j].char)
+        ) {
+          j++
+        }
+
+        // Check for opening parenthesis
+        if (
+          j < documentContent.length &&
+          documentContent[j].type === 'text' &&
+          documentContent[j].char === '('
+        ) {
+          const openParenPos = j
+          const closeParen = findClosingParen(
+            documentContent,
+            j + 1,
+            stringRanges
+          )
+
+          // Only add function range if it's complete
+          if (closeParen !== -1) {
+            functionRanges.push({
+              name: functionName,
+              start: functionStart,
+              openParen: openParenPos,
+              closeParen,
+              end: closeParen + 1,
+            })
+          }
+        }
+      }
+    }
+  }
+
+  return functionRanges
+}
+
+// ============================================================================
+// Segment Building
+// ============================================================================
+
+/**
+ * Finds the content index for a document position
+ */
+const findContentIndex = (documentContent, docPos) => {
+  return documentContent.findIndex(
+    (c) => c.docPos === docPos && c.type === 'text'
+  )
+}
+
+/**
+ * Builds highlighting segments for a text node
+ */
+const buildSegments = (
+  text,
+  pos,
+  documentContent,
+  functionRanges,
+  operators,
+  stringRanges
+) => {
+  const segments = []
+
+  // Build function name segments
+  for (const funcRange of functionRanges) {
+    let funcStartInText = -1
+    let funcEndInText = -1
+
+    for (let i = 0; i < text.length; i++) {
+      const contentIndex = findContentIndex(documentContent, pos + i)
+      if (contentIndex === -1) continue
+
+      if (
+        contentIndex >= funcRange.start &&
+        contentIndex <= funcRange.openParen
+      ) {
+        if (funcStartInText === -1) funcStartInText = i
+        funcEndInText = i + 1
+      }
+    }
+
+    if (funcStartInText !== -1 && funcEndInText !== -1) {
+      segments.push({
+        start: funcStartInText,
+        end: funcEndInText,
+        type: 'function',
+        functionId: funcRange.start,
+      })
+    }
+  }
+
+  // Build segments for closing parentheses and commas
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i]
+    const contentIndex = findContentIndex(documentContent, pos + i)
+
+    for (const funcRange of functionRanges) {
+      if (contentIndex === -1) continue
+
+      // Highlight closing paren
+      if (contentIndex === funcRange.closeParen) {
+        segments.push({
+          start: i,
+          end: i + 1,
+          type: 'function-paren',
+        })
+      } else if (
+        char === ',' &&
+        contentIndex > funcRange.openParen &&
+        contentIndex < funcRange.closeParen &&
+        !isInsideClosedString(documentContent, contentIndex, stringRanges) &&
+        !isAfterUnclosedQuote(documentContent, contentIndex)
+      ) {
+        segments.push({
+          start: i,
+          end: i + 1,
+          type: 'function-comma',
+        })
+      }
+    }
+  }
+
+  // Build operator segments
+  if (operators.length > 0) {
+    const operatorValues = operators
+      .map((op) => (typeof op === 'string' ? op : op?.operator))
+      .filter((op) => op && typeof op === 'string' && op.trim())
+
+    if (operatorValues.length > 0) {
+      const escapedOperators = operatorValues
+        .map((op) => op.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+        .sort((a, b) => b.length - a.length)
+
+      const operatorPattern = new RegExp(`(${escapedOperators.join('|')})`, 'g')
+
+      let operatorMatch
+      while ((operatorMatch = operatorPattern.exec(text)) !== null) {
+        const contentIndex = findContentIndex(
+          documentContent,
+          pos + operatorMatch.index
+        )
+
+        if (
+          contentIndex !== -1 &&
+          !isInsideClosedString(documentContent, contentIndex, stringRanges) &&
+          !isAfterUnclosedQuote(documentContent, contentIndex)
+        ) {
+          addToSegments(
+            segments,
+            operatorMatch.index,
+            operatorMatch.index + operatorMatch[0].length,
+            'operator'
+          )
+        }
+      }
+    }
+  }
+
+  return segments
+}
+
+/**
+ * Merges overlapping segments
+ */
+const addToSegments = (segments, start, end, type, metadata = {}) => {
+  // Don't merge function segments - each function should have its own span
+  if (type === 'function') {
+    segments.push({ start, end, type, ...metadata })
+    return
+  }
+
+  const existing = segments.find(
+    (s) =>
+      s.type === type &&
+      ((s.start <= start && s.end >= start) ||
+        (s.start <= end && s.end >= end) ||
+        (start <= s.start && end >= s.start))
+  )
+
+  if (existing) {
+    existing.start = Math.min(existing.start, start)
+    existing.end = Math.max(existing.end, end)
+  } else {
+    segments.push({ start, end, type, ...metadata })
+  }
+}
+
+/**
+ * Gets the CSS class for a segment type
+ */
+const getSegmentClassName = (segmentType) => {
+  switch (segmentType) {
+    case 'function':
+      return 'function-name-highlight'
+    case 'function-paren':
+      return 'function-paren-highlight'
+    case 'function-comma':
+      return 'function-comma-highlight'
+    case 'operator':
+      return 'operator-highlight'
+    default:
+      return 'text-segment'
+  }
+}
+
+/**
+ * Applies decorations for segments
+ */
+const applySegmentDecorations = (segments, text, pos, decorations) => {
+  let lastIndex = 0
+
+  segments.forEach((segment) => {
+    // Add decoration for text before this segment
+    if (lastIndex < segment.start) {
+      const beforeText = text.slice(lastIndex, segment.start)
+      if (beforeText.trim()) {
+        decorations.push(
+          Decoration.inline(pos + lastIndex, pos + segment.start, {
+            class: 'text-segment',
+          })
+        )
+      }
+    }
+
+    // Add decoration for the segment itself
+    decorations.push(
+      Decoration.inline(pos + segment.start, pos + segment.end, {
+        class: getSegmentClassName(segment.type),
+      })
+    )
+
+    lastIndex = segment.end
+  })
+
+  // Add decoration for remaining text
+  if (lastIndex < text.length) {
+    const remainingText = text.slice(lastIndex)
+    if (remainingText.trim()) {
+      decorations.push(
+        Decoration.inline(pos + lastIndex, pos + text.length, {
+          class: 'text-segment',
+        })
+      )
+    }
+  }
+
+  // If no segments, decorate entire text
+  if (segments.length === 0 && text.trim()) {
+    decorations.push(
+      Decoration.inline(pos, pos + text.length, {
+        class: 'text-segment',
+      })
+    )
+  }
+}
+
+// ============================================================================
+// Main Extension
+// ============================================================================
 /**
  * @name FunctionHighlightExtension
  * @description Provides syntax highlighting for the formula editor. This Tiptap
@@ -24,104 +321,6 @@ export const FunctionHighlightExtension = Extension.create({
   addProseMirrorPlugins() {
     const functionNames = this.options.functionNames
     const operators = this.options.operators
-
-    const matchesAt = (content, index, pattern) => {
-      for (let i = 0; i < pattern.length; i++) {
-        if (
-          index + i >= content.length ||
-          content[index + i].type !== 'text' ||
-          content[index + i].char.toLowerCase() !== pattern[i].toLowerCase()
-        ) {
-          return false
-        }
-      }
-      return true
-    }
-
-    const addToSegments = (segments, start, end, type, metadata = {}) => {
-      // Don't merge function segments - each function should have its own span
-      if (type === 'function') {
-        segments.push({ start, end, type, ...metadata })
-        return
-      }
-
-      const existing = segments.find(
-        (s) =>
-          s.type === type &&
-          ((s.start <= start && s.end >= start) ||
-            (s.start <= end && s.end >= end) ||
-            (start <= s.start && end >= s.start))
-      )
-
-      if (existing) {
-        existing.start = Math.min(existing.start, start)
-        existing.end = Math.max(existing.end, end)
-      } else {
-        segments.push({ start, end, type, ...metadata })
-      }
-    }
-
-    const applySegmentDecorations = (segments, text, pos, decorations) => {
-      let lastIndex = 0
-
-      segments.forEach((segment) => {
-        if (lastIndex < segment.start) {
-          const beforeText = text.slice(lastIndex, segment.start)
-          if (beforeText.trim()) {
-            decorations.push(
-              Decoration.inline(pos + lastIndex, pos + segment.start, {
-                class: 'text-segment',
-              })
-            )
-          }
-        }
-
-        let className
-        switch (segment.type) {
-          case 'function':
-            className = 'function-name-highlight'
-            break
-          case 'function-paren':
-            className = 'function-paren-highlight'
-            break
-          case 'function-comma':
-            className = 'function-comma-highlight'
-            break
-          case 'operator':
-            className = 'operator-highlight'
-            break
-          default:
-            className = 'text-segment'
-        }
-
-        decorations.push(
-          Decoration.inline(pos + segment.start, pos + segment.end, {
-            class: className,
-          })
-        )
-
-        lastIndex = segment.end
-      })
-
-      if (lastIndex < text.length) {
-        const remainingText = text.slice(lastIndex)
-        if (remainingText.trim()) {
-          decorations.push(
-            Decoration.inline(pos + lastIndex, pos + text.length, {
-              class: 'text-segment',
-            })
-          )
-        }
-      }
-
-      if (segments.length === 0 && text.trim()) {
-        decorations.push(
-          Decoration.inline(pos, pos + text.length, {
-            class: 'text-segment',
-          })
-        )
-      }
-    }
 
     return [
       new Plugin({
@@ -155,297 +354,26 @@ export const FunctionHighlightExtension = Extension.create({
               }
             })
 
-            // Helper function to find all closed string literal ranges
-            const findClosedStringRanges = (content) => {
-              const ranges = []
-              let i = 0
-
-              while (i < content.length) {
-                if (content[i].type !== 'text') {
-                  i++
-                  continue
-                }
-
-                const ch = content[i].char
-                if (ch === '"' || ch === "'") {
-                  const quoteChar = ch
-                  const startIdx = i
-                  let escaped = false
-                  i++
-
-                  // Find the closing quote
-                  while (i < content.length) {
-                    if (content[i].type !== 'text') {
-                      i++
-                      continue
-                    }
-
-                    const currentChar = content[i].char
-
-                    if (escaped) {
-                      escaped = false
-                      i++
-                      continue
-                    }
-
-                    if (currentChar === '\\') {
-                      escaped = true
-                      i++
-                      continue
-                    }
-
-                    if (currentChar === quoteChar) {
-                      // Found closing quote
-                      ranges.push({ start: startIdx, end: i })
-                      i++
-                      break
-                    }
-
-                    i++
-                  }
-                } else {
-                  i++
-                }
-              }
-
-              return ranges
-            }
-
-            // Helper function to check if a position is inside a closed string literal
-            const isInsideClosedString = (content, index, stringRanges) => {
-              return stringRanges.some(
-                (range) => index > range.start && index < range.end
-              )
-            }
-
-            // Helper function to check if we're after an unclosed quote
-            const isAfterUnclosedQuote = (content, index) => {
-              let inSingleQuote = false
-              let inDoubleQuote = false
-              let escaped = false
-
-              for (let idx = 0; idx < index; idx++) {
-                if (content[idx].type !== 'text') continue
-                const ch = content[idx].char
-
-                if (escaped) {
-                  escaped = false
-                  continue
-                }
-
-                if (ch === '\\') {
-                  escaped = true
-                  continue
-                }
-
-                if (ch === "'" && !inDoubleQuote) {
-                  inSingleQuote = !inSingleQuote
-                } else if (ch === '"' && !inSingleQuote) {
-                  inDoubleQuote = !inDoubleQuote
-                }
-              }
-
-              return inSingleQuote || inDoubleQuote
-            }
-
             const stringRanges = findClosedStringRanges(documentContent)
-
-            const functionRanges = []
-
-            for (let i = 0; i < documentContent.length; i++) {
-              const content = documentContent[i]
-              if (content.type !== 'text') continue
-
-              // Skip if we're inside a string literal (closed or unclosed)
-              if (
-                isInsideClosedString(documentContent, i, stringRanges) ||
-                isAfterUnclosedQuote(documentContent, i)
-              )
-                continue
-
-              for (const functionName of functionNames) {
-                if (matchesAt(documentContent, i, functionName)) {
-                  const functionStart = i
-                  let j = i + functionName.length
-
-                  while (
-                    j < documentContent.length &&
-                    documentContent[j].type === 'text' &&
-                    /\s/.test(documentContent[j].char)
-                  ) {
-                    j++
-                  }
-
-                  if (
-                    j < documentContent.length &&
-                    documentContent[j].type === 'text' &&
-                    documentContent[j].char === '('
-                  ) {
-                    const openParenPos = j
-                    let parenCount = 1
-                    let k = j + 1
-
-                    while (k < documentContent.length && parenCount > 0) {
-                      if (documentContent[k].type === 'text') {
-                        // Only ignore parentheses that are inside CLOSED strings
-                        if (
-                          !isInsideClosedString(
-                            documentContent,
-                            k,
-                            stringRanges
-                          )
-                        ) {
-                          if (documentContent[k].char === '(') {
-                            parenCount++
-                          } else if (documentContent[k].char === ')') {
-                            parenCount--
-                          }
-                        }
-                      }
-                      k++
-                    }
-
-                    // Only add function range if it's complete (has matching closing paren)
-                    if (parenCount === 0) {
-                      functionRanges.push({
-                        name: functionName,
-                        start: functionStart,
-                        openParen: openParenPos,
-                        closeParen: k - 1,
-                        end: k,
-                      })
-                    }
-                  }
-                }
-              }
-            }
+            const functionRanges = findFunctionRanges(
+              documentContent,
+              functionNames,
+              stringRanges
+            )
 
             doc.descendants((node, pos) => {
               if (node.isText && node.text) {
-                const text = node.text
-                const segments = []
-
-                // Build function segments for this text node
-                for (const funcRange of functionRanges) {
-                  let funcStartInText = -1
-                  let funcEndInText = -1
-
-                  // Find where this function intersects with the current text node
-                  for (let i = 0; i < text.length; i++) {
-                    const docPos = pos + i
-                    const contentIndex = documentContent.findIndex(
-                      (c) => c.docPos === docPos && c.type === 'text'
-                    )
-
-                    if (contentIndex === -1) continue
-
-                    // Check if this character is part of the function name or opening parenthesis
-                    if (
-                      contentIndex >= funcRange.start &&
-                      contentIndex <= funcRange.openParen
-                    ) {
-                      if (funcStartInText === -1) funcStartInText = i
-                      funcEndInText = i + 1
-                    }
-                  }
-
-                  // Add segment for the complete function name + opening parenthesis
-                  if (funcStartInText !== -1 && funcEndInText !== -1) {
-                    segments.push({
-                      start: funcStartInText,
-                      end: funcEndInText,
-                      type: 'function',
-                      functionId: funcRange.start,
-                    })
-                  }
-                }
-
-                // Add segments for closing parentheses and commas
-                for (let i = 0; i < text.length; i++) {
-                  const docPos = pos + i
-                  const char = text[i]
-
-                  for (const funcRange of functionRanges) {
-                    const contentIndex = documentContent.findIndex(
-                      (c) => c.docPos === docPos && c.type === 'text'
-                    )
-
-                    if (contentIndex === -1) continue
-
-                    // Highlight closing paren
-                    if (contentIndex === funcRange.closeParen) {
-                      segments.push({
-                        start: i,
-                        end: i + 1,
-                        type: 'function-paren',
-                      })
-                    } else if (
-                      char === ',' &&
-                      contentIndex > funcRange.openParen &&
-                      contentIndex < funcRange.closeParen &&
-                      !isInsideClosedString(
-                        documentContent,
-                        contentIndex,
-                        stringRanges
-                      ) &&
-                      !isAfterUnclosedQuote(documentContent, contentIndex)
-                    ) {
-                      segments.push({
-                        start: i,
-                        end: i + 1,
-                        type: 'function-comma',
-                      })
-                    }
-                  }
-                }
-
-                if (operators.length > 0) {
-                  const operatorValues = operators
-                    .map((op) => (typeof op === 'string' ? op : op?.operator))
-                    .filter((op) => op && typeof op === 'string' && op.trim())
-
-                  if (operatorValues.length > 0) {
-                    const escapedOperators = operatorValues
-                      .map((op) => op.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-                      .sort((a, b) => b.length - a.length)
-
-                    const operatorPattern = new RegExp(
-                      `(${escapedOperators.join('|')})`,
-                      'g'
-                    )
-                    let operatorMatch
-                    while (
-                      (operatorMatch = operatorPattern.exec(text)) !== null
-                    ) {
-                      // Find the content index for this operator position
-                      const docPos = pos + operatorMatch.index
-                      const contentIndex = documentContent.findIndex(
-                        (c) => c.docPos === docPos && c.type === 'text'
-                      )
-
-                      // Skip if this operator is inside a string literal
-                      if (
-                        contentIndex !== -1 &&
-                        !isInsideClosedString(
-                          documentContent,
-                          contentIndex,
-                          stringRanges
-                        ) &&
-                        !isAfterUnclosedQuote(documentContent, contentIndex)
-                      ) {
-                        addToSegments(
-                          segments,
-                          operatorMatch.index,
-                          operatorMatch.index + operatorMatch[0].length,
-                          'operator'
-                        )
-                      }
-                    }
-                  }
-                }
+                const segments = buildSegments(
+                  node.text,
+                  pos,
+                  documentContent,
+                  functionRanges,
+                  operators,
+                  stringRanges
+                )
 
                 segments.sort((a, b) => a.start - b.start)
-                applySegmentDecorations(segments, text, pos, decorations)
+                applySegmentDecorations(segments, node.text, pos, decorations)
               }
             })
 

@@ -1,5 +1,10 @@
 import { Extension } from '@tiptap/core'
 import { Plugin, PluginKey } from '@tiptap/pm/state'
+import {
+  findClosedStringRangesInNodeMap,
+  isInsideClosedStringInNodeMap,
+  isAfterUnclosedQuoteInNodeMap,
+} from './FormulaExtensionHelpers'
 
 const functionDeletionPluginKey = new PluginKey('functionDeletion')
 
@@ -49,127 +54,7 @@ export const FunctionDeletionExtension = Extension.create({
         })
       })
 
-      // Helper function to find all closed string literal ranges
-      const findClosedStringRanges = (nodeMap) => {
-        const ranges = []
-        let currentPos = 0
-
-        for (const item of nodeMap) {
-          if (item.isText && item.text) {
-            let i = 0
-            while (i < item.text.length) {
-              const ch = item.text[i]
-              const charPos = item.pos + i
-
-              if (ch === '"' || ch === "'") {
-                const quoteChar = ch
-                const startPos = charPos
-                let escaped = false
-                i++
-
-                // Find the closing quote in this or subsequent nodes
-                let found = false
-                for (
-                  let nodeIdx = nodeMap.indexOf(item);
-                  nodeIdx < nodeMap.length;
-                  nodeIdx++
-                ) {
-                  const searchItem = nodeMap[nodeIdx]
-                  if (!searchItem.isText || !searchItem.text) {
-                    if (nodeIdx > nodeMap.indexOf(item)) break
-                    continue
-                  }
-
-                  const startIdx = nodeIdx === nodeMap.indexOf(item) ? i : 0
-                  for (let k = startIdx; k < searchItem.text.length; k++) {
-                    const currentChar = searchItem.text[k]
-                    const currentCharPos = searchItem.pos + k
-
-                    if (escaped) {
-                      escaped = false
-                      continue
-                    }
-
-                    if (currentChar === '\\') {
-                      escaped = true
-                      continue
-                    }
-
-                    if (currentChar === quoteChar) {
-                      ranges.push({ start: startPos, end: currentCharPos })
-                      i =
-                        nodeIdx === nodeMap.indexOf(item)
-                          ? k + 1
-                          : item.text.length
-                      found = true
-                      break
-                    }
-                  }
-
-                  if (found) break
-                }
-
-                if (!found) {
-                  // No closing quote found, skip to next char
-                  break
-                }
-              } else {
-                i++
-              }
-            }
-          }
-        }
-
-        return ranges
-      }
-
-      // Helper function to check if a position is inside a closed string literal
-      const isInsideClosedString = (nodeMap, targetPos, stringRanges) => {
-        return stringRanges.some(
-          (range) => targetPos > range.start && targetPos < range.end
-        )
-      }
-
-      // Helper function to check if we're after an unclosed quote
-      const isAfterUnclosedQuote = (nodeMap, targetPos) => {
-        let inSingleQuote = false
-        let inDoubleQuote = false
-        let escaped = false
-
-        for (const item of nodeMap) {
-          if (item.isText && item.text) {
-            for (let idx = 0; idx < item.text.length; idx++) {
-              const currentPos = item.pos + idx
-
-              if (currentPos >= targetPos) {
-                return inSingleQuote || inDoubleQuote
-              }
-
-              const ch = item.text[idx]
-
-              if (escaped) {
-                escaped = false
-                continue
-              }
-
-              if (ch === '\\') {
-                escaped = true
-                continue
-              }
-
-              if (ch === "'" && !inDoubleQuote) {
-                inSingleQuote = !inSingleQuote
-              } else if (ch === '"' && !inSingleQuote) {
-                inDoubleQuote = !inDoubleQuote
-              }
-            }
-          }
-        }
-
-        return inSingleQuote || inDoubleQuote
-      }
-
-      const stringRanges = findClosedStringRanges(nodeMap)
+      const stringRanges = findClosedStringRangesInNodeMap(nodeMap)
 
       const candidates = []
 
@@ -188,8 +73,12 @@ export const FunctionDeletionExtension = Extension.create({
 
             // Skip if this function name is inside a string literal (closed or unclosed)
             if (
-              isInsideClosedString(nodeMap, matchStart, stringRanges) ||
-              isAfterUnclosedQuote(nodeMap, matchStart)
+              isInsideClosedStringInNodeMap(
+                nodeMap,
+                matchStart,
+                stringRanges
+              ) ||
+              isAfterUnclosedQuoteInNodeMap(nodeMap, matchStart)
             )
               continue
 
@@ -215,7 +104,11 @@ export const FunctionDeletionExtension = Extension.create({
 
                   // Only ignore parentheses that are inside CLOSED strings
                   if (
-                    !isInsideClosedString(nodeMap, currentPos, stringRanges)
+                    !isInsideClosedStringInNodeMap(
+                      nodeMap,
+                      currentPos,
+                      stringRanges
+                    )
                   ) {
                     if (char === '(') {
                       openParens++
