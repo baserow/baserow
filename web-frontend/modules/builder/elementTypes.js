@@ -804,7 +804,9 @@ export class ElementType extends Registerable {
       page,
       element,
       allowSameElement = true,
-      recordIndexPath,
+      // The default value is used when we try to resolve the name in element menu for
+      // instance.
+      recordIndexPath = [0],
     } = applicationContext
 
     const collectionAncestry = this.getCollectionAncestry({
