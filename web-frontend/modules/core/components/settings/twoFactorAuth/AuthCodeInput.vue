@@ -8,6 +8,7 @@
       class="auth-code-input__input"
       :class="{ 'auth-code-input__input--filled': number1 }"
       @keyup="handleKeyUp"
+      @keydown="handleKeyDown"
     />
     <input
       v-model="number2"
@@ -17,6 +18,7 @@
       class="auth-code-input__input"
       :class="{ 'auth-code-input__input--filled': number2 }"
       @keyup="handleKeyUp"
+      @keydown="handleKeyDown"
     />
     <input
       v-model="number3"
@@ -26,6 +28,7 @@
       class="auth-code-input__input"
       :class="{ 'auth-code-input__input--filled': number3 }"
       @keyup="handleKeyUp"
+      @keydown="handleKeyDown"
     />
     <input
       v-model="number4"
@@ -35,6 +38,7 @@
       class="auth-code-input__input"
       :class="{ 'auth-code-input__input--filled': number4 }"
       @keyup="handleKeyUp"
+      @keydown="handleKeyDown"
     />
     <input
       v-model="number5"
@@ -44,6 +48,7 @@
       class="auth-code-input__input"
       :class="{ 'auth-code-input__input--filled': number5 }"
       @keyup="handleKeyUp"
+      @keydown="handleKeyDown"
     />
     <input
       v-model="number6"
@@ -53,6 +58,7 @@
       class="auth-code-input__input"
       :class="{ 'auth-code-input__input--filled': number6 }"
       @keyup="handleKeyUp"
+      @keydown="handleKeyDown"
     />
   </div>
 </template>
@@ -139,6 +145,18 @@ export default {
     sanitizeInput(value) {
       const sanitized = value.replace(/\D/g, '').slice(0, 1)
       return sanitized
+    },
+    handleKeyDown(event) {
+      const input = event.target
+      const value = input.value
+
+      // Handle backspace - move to previous input if current is empty
+      if (event.key === 'Backspace' && !value) {
+        const previousInput = input.previousElementSibling
+        if (previousInput && previousInput.tagName === 'INPUT') {
+          previousInput.focus()
+        }
+      }
     },
     handleKeyUp(event) {
       const input = event.target
