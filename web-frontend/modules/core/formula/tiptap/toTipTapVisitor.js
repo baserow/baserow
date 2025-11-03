@@ -115,34 +115,73 @@ export class ToTipTapVisitor extends BaserowFormulaVisitor {
     if (!node || !node.type) {
       const content = []
 
-      // Add function name and opening parenthesis
-      content.push({ type: 'text', text: `${functionName}(` })
+      // Check if this is an operator and should use symbol instead of function name
+      const isOperator = formulaFunctionType.getOperatorSymbol
 
-      // Add the processed arguments (which may include components like GetFormulaComponent)
-      args.forEach((arg, index) => {
-        if (index > 0) {
-          content.push({ type: 'text', text: ', ' })
-        }
+      if (isOperator && args.length === 2) {
+        // For binary operators, display as: arg1 symbol arg2
+        const [leftArg, rightArg] = args
 
-        // Check if the argument is a complex node or a simple value
-        if (arg.type === 'text' && typeof arg.text === 'string') {
-          // Don't add quotes for boolean or numeric values
-          const isBoolean = arg.text === 'true' || arg.text === 'false'
-          const isNumber = !isNaN(Number(arg.text))
-
+        // Add left argument
+        if (leftArg.type === 'text' && typeof leftArg.text === 'string') {
+          const isBoolean = leftArg.text === 'true' || leftArg.text === 'false'
+          const isNumber = !isNaN(Number(leftArg.text))
           if (isBoolean || isNumber) {
-            content.push(arg)
+            content.push(leftArg)
           } else {
-            // For actual string literals, add quotes
-            content.push({ type: 'text', text: `"${arg.text}"` })
+            content.push({ type: 'text', text: `"${leftArg.text}"` })
           }
-        } else if (arg) {
-          content.push(arg)
+        } else if (leftArg) {
+          content.push(leftArg)
         }
-      })
 
-      // Add closing parenthesis
-      content.push({ type: 'text', text: ')' })
+        // Add operator symbol
+        content.push({
+          type: 'text',
+          text: ` ${formulaFunctionType.getOperatorSymbol} `,
+        })
+
+        // Add right argument
+        if (rightArg.type === 'text' && typeof rightArg.text === 'string') {
+          const isBoolean =
+            rightArg.text === 'true' || rightArg.text === 'false'
+          const isNumber = !isNaN(Number(rightArg.text))
+          if (isBoolean || isNumber) {
+            content.push(rightArg)
+          } else {
+            content.push({ type: 'text', text: `"${rightArg.text}"` })
+          }
+        } else if (rightArg) {
+          content.push(rightArg)
+        }
+      } else {
+        // For functions, display as: functionName(arg1, arg2, ...)
+        content.push({ type: 'text', text: `${functionName}(` })
+
+        args.forEach((arg, index) => {
+          if (index > 0) {
+            content.push({ type: 'text', text: ', ' })
+          }
+
+          // Check if the argument is a complex node or a simple value
+          if (arg.type === 'text' && typeof arg.text === 'string') {
+            // Don't add quotes for boolean or numeric values
+            const isBoolean = arg.text === 'true' || arg.text === 'false'
+            const isNumber = !isNaN(Number(arg.text))
+
+            if (isBoolean || isNumber) {
+              content.push(arg)
+            } else {
+              // For actual string literals, add quotes
+              content.push({ type: 'text', text: `"${arg.text}"` })
+            }
+          } else if (arg) {
+            content.push(arg)
+          }
+        })
+
+        content.push({ type: 'text', text: ')' })
+      }
 
       // In advanced mode, return inline content without wrapper
       if (this.mode === 'advanced') {
