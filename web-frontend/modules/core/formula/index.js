@@ -414,7 +414,5 @@ export const buildFormulaFunctionNodes = (app) => {
       nodes: operatorCategories,
     })
   }
-
-  console.log('nodes', nodes)
   return nodes
 }
