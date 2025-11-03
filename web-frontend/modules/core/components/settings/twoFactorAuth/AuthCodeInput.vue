@@ -7,7 +7,7 @@
       maxlength="1"
       inputmode="numeric"
       class="auth-code-input__input"
-      :class="{ 'auth-code-input__input--filled': number1 }"
+      :class="{ 'auth-code-input__input--filled': allFilled }"
       @keyup="handleKeyUp"
       @keydown="handleKeyDown"
     />
@@ -17,7 +17,7 @@
       maxlength="1"
       inputmode="numeric"
       class="auth-code-input__input"
-      :class="{ 'auth-code-input__input--filled': number2 }"
+      :class="{ 'auth-code-input__input--filled': allFilled }"
       @keyup="handleKeyUp"
       @keydown="handleKeyDown"
     />
@@ -27,7 +27,7 @@
       maxlength="1"
       inputmode="numeric"
       class="auth-code-input__input"
-      :class="{ 'auth-code-input__input--filled': number3 }"
+      :class="{ 'auth-code-input__input--filled': allFilled }"
       @keyup="handleKeyUp"
       @keydown="handleKeyDown"
     />
@@ -37,7 +37,7 @@
       maxlength="1"
       inputmode="numeric"
       class="auth-code-input__input"
-      :class="{ 'auth-code-input__input--filled': number4 }"
+      :class="{ 'auth-code-input__input--filled': allFilled }"
       @keyup="handleKeyUp"
       @keydown="handleKeyDown"
     />
@@ -47,7 +47,7 @@
       maxlength="1"
       inputmode="numeric"
       class="auth-code-input__input"
-      :class="{ 'auth-code-input__input--filled': number5 }"
+      :class="{ 'auth-code-input__input--filled': allFilled }"
       @keyup="handleKeyUp"
       @keydown="handleKeyDown"
     />
@@ -57,7 +57,7 @@
       maxlength="1"
       inputmode="numeric"
       class="auth-code-input__input"
-      :class="{ 'auth-code-input__input--filled': number6 }"
+      :class="{ 'auth-code-input__input--filled': allFilled }"
       @keyup="handleKeyUp"
       @keydown="handleKeyDown"
     />
