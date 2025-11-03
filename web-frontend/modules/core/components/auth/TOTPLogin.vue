@@ -133,8 +133,6 @@ export default {
     const values = reactive({
       values: {
         backupCode: '',
-        errorTitle: null,
-        errorDescription: null,
       },
     })
 
@@ -154,6 +152,8 @@ export default {
       enterBackupCode: false,
       loadingVerifyCode: false,
       loadingVerifyBackupCode: false,
+      errorTitle: null,
+      errorDescription: null,
     }
   },
   watch: {

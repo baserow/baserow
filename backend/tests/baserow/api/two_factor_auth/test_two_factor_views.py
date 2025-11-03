@@ -59,7 +59,7 @@ def test_configuration_2fa_view_totp_not_enabled(api_client, data_fixture):
     assert response.status_code == HTTP_200_OK
     assert response_json == {
         "backup_codes": [],
-        "enabled": False,
+        "is_enabled": False,
         "provisioning_qr_code": AnyStr(),
         "provisioning_url": AnyStr(),
         "type": "totp",
@@ -81,7 +81,7 @@ def test_configuration_2fa_view_totp_enabled(api_client, data_fixture):
     assert response.status_code == HTTP_200_OK
     assert response_json == {
         "backup_codes": [],
-        "enabled": True,
+        "is_enabled": True,
         "provisioning_qr_code": "",
         "provisioning_url": "",
         "type": "totp",
@@ -188,7 +188,7 @@ def test_configure_totp_2fa_view(api_client, data_fixture):
     assert response.status_code == HTTP_200_OK, response_json
     assert response_json == {
         "backup_codes": [],
-        "enabled": False,
+        "is_enabled": False,
         "provisioning_qr_code": AnyStr(),
         "provisioning_url": AnyStr(),
         "type": "totp",
@@ -214,7 +214,7 @@ def test_configure_totp_2fa_view(api_client, data_fixture):
     assert response.status_code == HTTP_200_OK, response_json
     assert response_json == {
         "backup_codes": AnyList(),
-        "enabled": True,
+        "is_enabled": True,
         "provisioning_qr_code": "",
         "provisioning_url": "",
         "type": "totp",
@@ -239,7 +239,7 @@ def test_configure_totp_2fa_view_confirmation_failed_invalidcode(
     assert response.status_code == HTTP_200_OK, response_json
     assert response_json == {
         "backup_codes": [],
-        "enabled": False,
+        "is_enabled": False,
         "provisioning_qr_code": AnyStr(),
         "provisioning_url": AnyStr(),
         "type": "totp",
@@ -295,7 +295,7 @@ def test_configure_totp_2fa_view_replaces_previous_configuration(
     assert response.status_code == HTTP_200_OK, response_json
     assert response_json == {
         "backup_codes": [],
-        "enabled": False,
+        "is_enabled": False,
         "provisioning_qr_code": AnyStr(),
         "provisioning_url": AnyStr(),
         "type": "totp",
@@ -316,7 +316,7 @@ def test_configure_totp_2fa_view_replaces_previous_configuration(
     assert response.status_code == HTTP_200_OK, response_json2
     assert response_json2 == {
         "backup_codes": [],
-        "enabled": False,
+        "is_enabled": False,
         "provisioning_qr_code": AnyStr(),
         "provisioning_url": AnyStr(),
         "type": "totp",

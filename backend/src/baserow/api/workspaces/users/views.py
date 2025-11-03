@@ -1,4 +1,5 @@
 from django.db import transaction
+from django.db.models import Prefetch
 
 from drf_spectacular.openapi import OpenApiParameter, OpenApiTypes
 from drf_spectacular.utils import extend_schema
@@ -29,6 +30,7 @@ from baserow.api.workspaces.users.errors import (
     ERROR_CANNOT_DELETE_YOURSELF_FROM_GROUP,
     ERROR_GROUP_USER_DOES_NOT_EXIST,
 )
+from baserow.core.db import specific_queryset
 from baserow.core.exceptions import (
     CannotDeleteYourselfFromWorkspace,
     UserInvalidWorkspacePermissionsError,
@@ -39,6 +41,7 @@ from baserow.core.exceptions import (
 from baserow.core.handler import CoreHandler
 from baserow.core.models import WorkspaceUser
 from baserow.core.operations import ListWorkspaceUsersWorkspaceOperationType
+from baserow.core.two_factor_auth.models import TwoFactorAuthProviderModel
 
 from .generated_serializers import ListWorkspaceUsersWithMemberDataSerializer
 from .serializers import (
@@ -123,8 +126,17 @@ class WorkspaceUsersView(APIView, SearchableViewMixin, SortableViewMixin):
             context=workspace,
         )
 
-        qs = WorkspaceUser.objects.filter(workspace=workspace).select_related(
-            "workspace", "user", "user__profile"
+        qs = (
+            WorkspaceUser.objects.filter(workspace=workspace)
+            .select_related("workspace", "user", "user__profile")
+            .prefetch_related(
+                Prefetch(
+                    "user__two_factor_auth_providers",
+                    queryset=specific_queryset(
+                        TwoFactorAuthProviderModel.objects.all()
+                    ),
+                )
+            )
         )
 
         qs = self.apply_search(search, qs)

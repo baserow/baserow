@@ -66,7 +66,7 @@ export default {
         const { data } = await TwoFactorAuthService(
           this.$client
         ).getConfiguration()
-        if (data.enabled) {
+        if (data.is_enabled) {
           this.state = 'enabled'
           this.provider = data
         }

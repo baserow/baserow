@@ -69,6 +69,39 @@ def test_list_workspace_users(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_list_workspace_users_2fa_enabled(api_client, data_fixture):
+    user_1, token_1 = data_fixture.create_user_and_token(email="test1@test.nl")
+    user_2, token_2 = data_fixture.create_user_and_token(email="test2@test.nl")
+    user_3, token_3 = data_fixture.create_user_and_token(email="test3@test.nl")
+    data_fixture.configure_base_totp(user_1)
+    data_fixture.configure_totp(user_2)
+
+    workspace_1 = data_fixture.create_workspace()
+    data_fixture.create_user_workspace(
+        workspace=workspace_1, user=user_1, permissions="ADMIN"
+    )
+    data_fixture.create_user_workspace(
+        workspace=workspace_1, user=user_2, permissions="MEMBER"
+    )
+    data_fixture.create_user_workspace(
+        workspace=workspace_1, user=user_3, permissions="MEMBER"
+    )
+
+    response = api_client.get(
+        reverse("api:workspaces:users:list", kwargs={"workspace_id": workspace_1.id}),
+        HTTP_AUTHORIZATION=f"JWT {token_1}",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_200_OK
+    assert len(response_json) == 3
+    assert response_json[0]["two_factor_auth"]["type"] == "totp"
+    assert response_json[1]["two_factor_auth"]["type"] == "totp"
+    assert response_json[0]["two_factor_auth"]["is_enabled"] is False
+    assert response_json[1]["two_factor_auth"]["is_enabled"] is True
+    assert response_json[2]["two_factor_auth"] == {}
+
+
+@pytest.mark.django_db
 def test_update_workspace_user(api_client, data_fixture):
     user_1, token_1 = data_fixture.create_user_and_token(email="test1@test.nl")
     user_2, token_2 = data_fixture.create_user_and_token(email="test2@test.nl")

@@ -708,7 +708,8 @@
         "highestRole": "Highest Role",
         "highestRoleHelpText": "The highest role this user assigned to them directly or from a team, on anything in this workspace",
         "highestRoleInstanceHelpText": "The highest role this user has in the instance",
-        "teams": "Teams"
+        "teams": "Teams",
+        "2fa": "2FA"
       },
       "actions": {
         "copyEmail": "Copy email",
@@ -996,6 +997,10 @@
   "editUserModal": {
     "delete": "Delete user",
     "edit": "Edit { username }"
+  },
+  "twoFactorAuthField": {
+    "enabled": "Enabled",
+    "disabled": "Disabled"
   },
   "adminDashboard": {
     "title": "Dashboard",

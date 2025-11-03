@@ -20,8 +20,8 @@ export class EnterpriseMembersPagePluginType extends MembersPagePluginType {
       context
     )
 
-    const roleColumnIndex = columns.findIndex(
-      (column) => column.key === 'permissions'
+    const insertBeforeColumnIndex = columns.findIndex(
+      (column) => column.key === 'two_factor_auth'
     )
     const highestRoleColumn = new CrudTableColumn(
       'highest_role_uid',
@@ -46,8 +46,8 @@ export class EnterpriseMembersPagePluginType extends MembersPagePluginType {
       {},
       20
     )
-    columns.splice(roleColumnIndex, 0, highestRoleColumn)
-    columns.splice(roleColumnIndex, 0, teamsColumn)
+    columns.splice(insertBeforeColumnIndex, 0, highestRoleColumn)
+    columns.splice(insertBeforeColumnIndex, 0, teamsColumn)
 
     return columns
   }

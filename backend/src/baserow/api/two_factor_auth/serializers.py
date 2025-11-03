@@ -8,13 +8,14 @@ from baserow.core.two_factor_auth.registries import two_factor_auth_type_registr
 
 class TwoFactorAuthSerializer(serializers.ModelSerializer):
     type = serializers.SerializerMethodField(read_only=True)
+    is_enabled = serializers.BooleanField(read_only=True)
 
     def get_type(self, instance):
         return instance.get_type().type
 
     class Meta:
         model = TwoFactorAuthProviderModel
-        fields = ["type"]
+        fields = ["type", "is_enabled"]
 
 
 class CreateTwoFactorAuthSerializer(serializers.ModelSerializer):
