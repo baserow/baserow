@@ -30,7 +30,7 @@
       </FormGroup>
 
       <div class="actions actions--right actions--gap">
-        <Button type="secondary" size="large" @click="$emit('cancel')">
+        <Button tag="a" type="secondary" size="large" @click="$emit('cancel')">
           {{ $t('disableTwoFactorAuth.cancel') }}
         </Button>
         <Button
