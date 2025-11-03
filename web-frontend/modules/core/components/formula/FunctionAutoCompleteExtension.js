@@ -23,6 +23,88 @@ export const FunctionAutoCompleteExtension = Extension.create({
   addProseMirrorPlugins() {
     const functionNames = this.options.functionNames
 
+    // Helper function to check if cursor is inside a string literal
+    // (closed or after an unclosed quote)
+    const isInsideString = (text) => {
+      const ranges = []
+      let i = 0
+
+      // Find all closed string ranges
+      while (i < text.length) {
+        const ch = text[i]
+
+        if (ch === '"' || ch === "'") {
+          const quoteChar = ch
+          const startIdx = i
+          let escaped = false
+          i++
+
+          // Find the closing quote
+          while (i < text.length) {
+            const currentChar = text[i]
+
+            if (escaped) {
+              escaped = false
+              i++
+              continue
+            }
+
+            if (currentChar === '\\') {
+              escaped = true
+              i++
+              continue
+            }
+
+            if (currentChar === quoteChar) {
+              // Found closing quote
+              ranges.push({ start: startIdx, end: i })
+              i++
+              break
+            }
+
+            i++
+          }
+        } else {
+          i++
+        }
+      }
+
+      // Check if the last position is inside any closed string range
+      const lastPos = text.length - 1
+      if (
+        ranges.some((range) => lastPos > range.start && lastPos < range.end)
+      ) {
+        return true
+      }
+
+      // Also check if we're after an unclosed quote
+      let inSingleQuote = false
+      let inDoubleQuote = false
+      let escaped = false
+
+      for (let idx = 0; idx < text.length; idx++) {
+        const ch = text[idx]
+
+        if (escaped) {
+          escaped = false
+          continue
+        }
+
+        if (ch === '\\') {
+          escaped = true
+          continue
+        }
+
+        if (ch === "'" && !inDoubleQuote) {
+          inSingleQuote = !inSingleQuote
+        } else if (ch === '"' && !inSingleQuote) {
+          inDoubleQuote = !inDoubleQuote
+        }
+      }
+
+      return inSingleQuote || inDoubleQuote
+    }
+
     return [
       new Plugin({
         key: functionAutoCompletePluginKey,
@@ -34,6 +116,11 @@ export const FunctionAutoCompleteExtension = Extension.create({
             if (text === '(') {
               const textBefore =
                 doc.textBetween(Math.max(0, from - 20), to) + text
+
+              // Check if we're inside a string literal
+              if (isInsideString(textBefore)) {
+                return false
+              }
 
               if (functionNames.length === 0) {
                 return false

@@ -155,11 +155,113 @@ export const FunctionHighlightExtension = Extension.create({
               }
             })
 
+            // Helper function to find all closed string literal ranges
+            const findClosedStringRanges = (content) => {
+              const ranges = []
+              let i = 0
+
+              while (i < content.length) {
+                if (content[i].type !== 'text') {
+                  i++
+                  continue
+                }
+
+                const ch = content[i].char
+                if (ch === '"' || ch === "'") {
+                  const quoteChar = ch
+                  const startIdx = i
+                  let escaped = false
+                  i++
+
+                  // Find the closing quote
+                  while (i < content.length) {
+                    if (content[i].type !== 'text') {
+                      i++
+                      continue
+                    }
+
+                    const currentChar = content[i].char
+
+                    if (escaped) {
+                      escaped = false
+                      i++
+                      continue
+                    }
+
+                    if (currentChar === '\\') {
+                      escaped = true
+                      i++
+                      continue
+                    }
+
+                    if (currentChar === quoteChar) {
+                      // Found closing quote
+                      ranges.push({ start: startIdx, end: i })
+                      i++
+                      break
+                    }
+
+                    i++
+                  }
+                } else {
+                  i++
+                }
+              }
+
+              return ranges
+            }
+
+            // Helper function to check if a position is inside a closed string literal
+            const isInsideClosedString = (content, index, stringRanges) => {
+              return stringRanges.some(
+                (range) => index > range.start && index < range.end
+              )
+            }
+
+            // Helper function to check if we're after an unclosed quote
+            const isAfterUnclosedQuote = (content, index) => {
+              let inSingleQuote = false
+              let inDoubleQuote = false
+              let escaped = false
+
+              for (let idx = 0; idx < index; idx++) {
+                if (content[idx].type !== 'text') continue
+                const ch = content[idx].char
+
+                if (escaped) {
+                  escaped = false
+                  continue
+                }
+
+                if (ch === '\\') {
+                  escaped = true
+                  continue
+                }
+
+                if (ch === "'" && !inDoubleQuote) {
+                  inSingleQuote = !inSingleQuote
+                } else if (ch === '"' && !inSingleQuote) {
+                  inDoubleQuote = !inDoubleQuote
+                }
+              }
+
+              return inSingleQuote || inDoubleQuote
+            }
+
+            const stringRanges = findClosedStringRanges(documentContent)
+
             const functionRanges = []
 
             for (let i = 0; i < documentContent.length; i++) {
               const content = documentContent[i]
               if (content.type !== 'text') continue
+
+              // Skip if we're inside a string literal (closed or unclosed)
+              if (
+                isInsideClosedString(documentContent, i, stringRanges) ||
+                isAfterUnclosedQuote(documentContent, i)
+              )
+                continue
 
               for (const functionName of functionNames) {
                 if (matchesAt(documentContent, i, functionName)) {
@@ -185,15 +287,25 @@ export const FunctionHighlightExtension = Extension.create({
 
                     while (k < documentContent.length && parenCount > 0) {
                       if (documentContent[k].type === 'text') {
-                        if (documentContent[k].char === '(') {
-                          parenCount++
-                        } else if (documentContent[k].char === ')') {
-                          parenCount--
+                        // Only ignore parentheses that are inside CLOSED strings
+                        if (
+                          !isInsideClosedString(
+                            documentContent,
+                            k,
+                            stringRanges
+                          )
+                        ) {
+                          if (documentContent[k].char === '(') {
+                            parenCount++
+                          } else if (documentContent[k].char === ')') {
+                            parenCount--
+                          }
                         }
                       }
                       k++
                     }
 
+                    // Only add function range if it's complete (has matching closing paren)
                     if (parenCount === 0) {
                       functionRanges.push({
                         name: functionName,
@@ -248,35 +360,6 @@ export const FunctionHighlightExtension = Extension.create({
                   }
                 }
 
-                // Helper function to check if a position is inside a string literal
-                const isInsideString = (textContent, position) => {
-                  let inSingleQuote = false
-                  let inDoubleQuote = false
-                  let escaped = false
-
-                  for (let idx = 0; idx < position; idx++) {
-                    const ch = textContent[idx]
-
-                    if (escaped) {
-                      escaped = false
-                      continue
-                    }
-
-                    if (ch === '\\') {
-                      escaped = true
-                      continue
-                    }
-
-                    if (ch === "'" && !inDoubleQuote) {
-                      inSingleQuote = !inSingleQuote
-                    } else if (ch === '"' && !inSingleQuote) {
-                      inDoubleQuote = !inDoubleQuote
-                    }
-                  }
-
-                  return inSingleQuote || inDoubleQuote
-                }
-
                 // Add segments for closing parentheses and commas
                 for (let i = 0; i < text.length; i++) {
                   const docPos = pos + i
@@ -289,6 +372,7 @@ export const FunctionHighlightExtension = Extension.create({
 
                     if (contentIndex === -1) continue
 
+                    // Highlight closing paren
                     if (contentIndex === funcRange.closeParen) {
                       segments.push({
                         start: i,
@@ -299,7 +383,12 @@ export const FunctionHighlightExtension = Extension.create({
                       char === ',' &&
                       contentIndex > funcRange.openParen &&
                       contentIndex < funcRange.closeParen &&
-                      !isInsideString(text, i)
+                      !isInsideClosedString(
+                        documentContent,
+                        contentIndex,
+                        stringRanges
+                      ) &&
+                      !isAfterUnclosedQuote(documentContent, contentIndex)
                     ) {
                       segments.push({
                         start: i,
@@ -328,12 +417,29 @@ export const FunctionHighlightExtension = Extension.create({
                     while (
                       (operatorMatch = operatorPattern.exec(text)) !== null
                     ) {
-                      addToSegments(
-                        segments,
-                        operatorMatch.index,
-                        operatorMatch.index + operatorMatch[0].length,
-                        'operator'
+                      // Find the content index for this operator position
+                      const docPos = pos + operatorMatch.index
+                      const contentIndex = documentContent.findIndex(
+                        (c) => c.docPos === docPos && c.type === 'text'
                       )
+
+                      // Skip if this operator is inside a string literal
+                      if (
+                        contentIndex !== -1 &&
+                        !isInsideClosedString(
+                          documentContent,
+                          contentIndex,
+                          stringRanges
+                        ) &&
+                        !isAfterUnclosedQuote(documentContent, contentIndex)
+                      ) {
+                        addToSegments(
+                          segments,
+                          operatorMatch.index,
+                          operatorMatch.index + operatorMatch[0].length,
+                          'operator'
+                        )
+                      }
                     }
                   }
                 }
