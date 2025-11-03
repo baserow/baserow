@@ -5,12 +5,17 @@
   },
   "integrationType": {
     "localBaserow": "Local Baserow",
-    "smtp": "SMTP Email"
+    "smtp": "SMTP Email",
+    "ai": "AI"
   },
   "localBaserowIntegrationType": {
     "localBaserowSummary": "Local Baserow - {name}, {username}",
     "localBaserowNoUser": "Local Baserow - Not configured",
-    "localBaserowWarning": "Authorizing your account gives everyone who has edit permissions to the application full access to the data you have access to. It’s possible to create a second user, give the right permissions and use that one."
+    "localBaserowWarning": "Authorizing your account gives everyone who has edit permissions to the application full access to the data you have access to. It's possible to create a second user, give the right permissions and use that one."
+  },
+  "aiIntegrationType": {
+    "inheritingWorkspace": "Inheriting workspace AI settings",
+    "overridingProviders": "Overriding {count} provider | Overriding {count} providers"
   },
   "serviceType": {
     "localBaserowGetRow": "Get single row",
@@ -57,14 +62,49 @@
     "corePeriodic": "Periodic trigger",
     "corePeriodicDescription": "Triggers the workflow on a periodic basis at specified intervals",
     "corePeriodicErrorIntervalMissing": "An interval is required.",
-    "errorIterationSourceMissing": "Missing source property"
+    "errorIterationSourceMissing": "Missing source property",
+    "aiAgent": "AI Agent",
+    "aiAgentDescription": "Execute AI prompts using configured generative AI models.",
+    "errorNoIntegrationSelected": "No integration selected",
+    "errorNoAIProviderSelected": "No AI provider selected",
+    "errorNoAIModelSelected": "No AI model selected",
+    "errorNoPromptProvided": "No prompt provided",
+    "errorNoChoicesProvided": "No choices provided for choice output type"
   },
   "userSourceType": {
     "localBaserow": "Baserow table authentication"
   },
   "localBaserowForm": {
     "user": "User",
-    "userMessage": "By creating this connection, you’re authorizing the application to use your account to make changes in your local Baserow workspace."
+    "userMessage": "By creating this connection, you're authorizing the application to use your account to make changes in your local Baserow workspace."
+  },
+  "aiForm": {
+    "description": "Configure AI provider settings for this integration. By default, workspace AI settings are inherited.",
+    "workspaceSettingsTitle": "Workspace AI Settings",
+    "workspaceSettingsDescription": "This integration inherits AI provider settings from your workspace by default. You can override specific providers below.",
+    "overrideWorkspaceSettings": "Override workspace settings for this provider",
+    "inherited": "Inherited",
+    "overridden": "Overridden"
+  },
+  "aiAgentServiceForm": {
+    "integrationLabel": "AI Integration",
+    "providerLabel": "AI Provider",
+    "providerPlaceholder": "Select an AI provider...",
+    "modelLabel": "AI Model",
+    "modelPlaceholder": "Select a model...",
+    "outputTypeLabel": "Output Type",
+    "outputTypeHelp": "Choose how the AI should format its response.",
+    "outputTypeText": "Text",
+    "outputTypeChoice": "Choice",
+    "temperatureLabel": "Temperature",
+    "temperaturePlaceholder": "e.g. 0.7",
+    "temperatureHelp": "Controls randomness. Lower values (0-0.3) are more focused and deterministic. Higher values (0.7-2.0) are more creative and varied.",
+    "promptLabel": "Prompt",
+    "promptPlaceholder": "Enter your prompt here...",
+    "choicesLabel": "Choices",
+    "choicePlaceholder": "Enter a choice option...",
+    "addChoice": "Add choice",
+    "choicesRequired": "At least one choice is required"
   },
   "localBaserowGetRowForm": {
     "rowFieldLabel": "Row ID",

@@ -84,7 +84,20 @@ class GenerativeAIWithFilesModelType(ABC):
 
 
 class GenerativeAIModelType(Instance):
-    def get_workspace_setting(self, workspace, key):
+    def get_workspace_setting(self, workspace, key, settings_override=None):
+        """
+        Get a setting for this AI model type.
+
+        :param workspace: The workspace to get settings from.
+        :param key: The setting key to retrieve.
+        :param settings_override: Optional dict of settings to use instead of workspace
+            settings. Format: {"api_key": "...", "models": [...]}
+        :return: The setting value or None.
+        """
+
+        if settings_override is not None and key in settings_override:
+            return settings_override[key]
+
         if not isinstance(workspace, Workspace):
             return None
 

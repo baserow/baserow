@@ -10,6 +10,7 @@ import ko from '@baserow/modules/integrations/locales/ko.json'
 import { FF_AUTOMATION } from '@baserow/modules/core/plugins/featureFlags'
 import { LocalBaserowIntegrationType } from '@baserow/modules/integrations/localBaserow/integrationTypes'
 import { SMTPIntegrationType } from '@baserow/modules/integrations/core/integrationTypes'
+import { AIIntegrationType } from '@baserow/modules/integrations/ai/integrationTypes'
 import {
   LocalBaserowGetRowServiceType,
   LocalBaserowListRowsServiceType,
@@ -29,6 +30,7 @@ import {
   CoreHTTPTriggerServiceType,
   CoreIteratorServiceType,
 } from '@baserow/modules/integrations/core/serviceTypes'
+import { AIAgentServiceType } from '@baserow/modules/integrations/ai/serviceTypes'
 
 export default (context) => {
   const { app, isDev } = context
@@ -51,6 +53,7 @@ export default (context) => {
     new LocalBaserowIntegrationType(context)
   )
   app.$registry.register('integration', new SMTPIntegrationType(context))
+  app.$registry.register('integration', new AIIntegrationType(context))
 
   app.$registry.register('service', new LocalBaserowGetRowServiceType(context))
   app.$registry.register(
@@ -78,6 +81,7 @@ export default (context) => {
   app.$registry.register('service', new CoreRouterServiceType(context))
   app.$registry.register('service', new CoreHTTPTriggerServiceType(context))
   app.$registry.register('service', new CoreIteratorServiceType(context))
+  app.$registry.register('service', new AIAgentServiceType(context))
 
   app.$registry.register('service', new PeriodicTriggerServiceType(context))
 

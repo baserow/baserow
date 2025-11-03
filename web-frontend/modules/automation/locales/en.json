@@ -117,7 +117,8 @@
     "routerWithOutputNodesReplaceError": "Cannot be replaced until its {outputCount} output nodes are removed.",
     "iteratorWithChildrenNodesDeleteError": "Cannot be deleted until its child nodes are removed.",
     "iteratorWithChildrenNodesReplaceError": "Cannot be replaced until its child nodes are removed.",
-    "periodicTriggerLabel": "Periodic trigger"
+    "periodicTriggerLabel": "Periodic trigger",
+    "aiAgent": "AI Agent"
   },
   "workflowNode": {
     "actionDelete": "Delete",

@@ -19,29 +19,35 @@ from .registries import GenerativeAIModelType, GenerativeAIWithFilesModelType
 
 
 class BaseOpenAIGenerativeAIModelType(GenerativeAIModelType):
-    def get_api_key(self, workspace=None):
+    def get_api_key(self, workspace=None, settings_override=None):
         return (
-            self.get_workspace_setting(workspace, "api_key")
+            self.get_workspace_setting(workspace, "api_key", settings_override)
             or settings.BASEROW_OPENAI_API_KEY
         )
 
-    def get_enabled_models(self, workspace=None):
-        workspace_models = self.get_workspace_setting(workspace, "models")
+    def get_enabled_models(self, workspace=None, settings_override=None):
+        workspace_models = self.get_workspace_setting(
+            workspace, "models", settings_override
+        )
         return workspace_models or settings.BASEROW_OPENAI_MODELS
 
-    def get_organization(self, workspace=None):
+    def get_organization(self, workspace=None, settings_override=None):
         return (
-            self.get_workspace_setting(workspace, "organization")
+            self.get_workspace_setting(workspace, "organization", settings_override)
             or settings.BASEROW_OPENAI_ORGANIZATION
         )
 
-    def is_enabled(self, workspace=None):
-        api_key = self.get_api_key(workspace)
-        return bool(api_key) and bool(self.get_enabled_models(workspace=workspace))
+    def is_enabled(self, workspace=None, settings_override=None):
+        api_key = self.get_api_key(workspace, settings_override)
+        return bool(api_key) and bool(
+            self.get_enabled_models(
+                workspace=workspace, settings_override=settings_override
+            )
+        )
 
-    def get_client(self, workspace=None):
-        api_key = self.get_api_key(workspace)
-        organization = self.get_organization(workspace)
+    def get_client(self, workspace=None, settings_override=None):
+        api_key = self.get_api_key(workspace, settings_override)
+        organization = self.get_organization(workspace, settings_override)
         return OpenAI(api_key=api_key, organization=organization)
 
     def get_settings_serializer(self):
@@ -49,9 +55,11 @@ class BaseOpenAIGenerativeAIModelType(GenerativeAIModelType):
 
         return OpenAISettingsSerializer
 
-    def prompt(self, model, prompt, workspace=None, temperature=None):
+    def prompt(
+        self, model, prompt, workspace=None, temperature=None, settings_override=None
+    ):
         try:
-            client = self.get_client(workspace)
+            client = self.get_client(workspace, settings_override)
             kwargs = {}
             if temperature:
                 kwargs["temperature"] = temperature
@@ -185,22 +193,28 @@ class OpenAIGenerativeAIModelType(
 class AnthropicGenerativeAIModelType(GenerativeAIModelType):
     type = "anthropic"
 
-    def get_api_key(self, workspace=None):
+    def get_api_key(self, workspace=None, settings_override=None):
         return (
-            self.get_workspace_setting(workspace, "api_key")
+            self.get_workspace_setting(workspace, "api_key", settings_override)
             or settings.BASEROW_ANTHROPIC_API_KEY
         )
 
-    def get_enabled_models(self, workspace=None):
-        workspace_models = self.get_workspace_setting(workspace, "models")
+    def get_enabled_models(self, workspace=None, settings_override=None):
+        workspace_models = self.get_workspace_setting(
+            workspace, "models", settings_override
+        )
         return workspace_models or settings.BASEROW_ANTHROPIC_MODELS
 
-    def is_enabled(self, workspace=None):
-        api_key = self.get_api_key(workspace)
-        return bool(api_key) and bool(self.get_enabled_models(workspace=workspace))
+    def is_enabled(self, workspace=None, settings_override=None):
+        api_key = self.get_api_key(workspace, settings_override)
+        return bool(api_key) and bool(
+            self.get_enabled_models(
+                workspace=workspace, settings_override=settings_override
+            )
+        )
 
-    def get_client(self, workspace=None):
-        api_key = self.get_api_key(workspace)
+    def get_client(self, workspace=None, settings_override=None):
+        api_key = self.get_api_key(workspace, settings_override)
         return Anthropic(api_key=api_key)
 
     def get_settings_serializer(self):
@@ -208,9 +222,11 @@ class AnthropicGenerativeAIModelType(GenerativeAIModelType):
 
         return AnthropicSettingsSerializer
 
-    def prompt(self, model, prompt, workspace=None, temperature=None):
+    def prompt(
+        self, model, prompt, workspace=None, temperature=None, settings_override=None
+    ):
         try:
-            client = self.get_client(workspace)
+            client = self.get_client(workspace, settings_override)
             kwargs = {}
             if temperature:
                 # Because some LLMs can have a temperature of 2, this is the maximum by
@@ -234,22 +250,28 @@ class AnthropicGenerativeAIModelType(GenerativeAIModelType):
 class MistralGenerativeAIModelType(GenerativeAIModelType):
     type = "mistral"
 
-    def get_api_key(self, workspace=None):
+    def get_api_key(self, workspace=None, settings_override=None):
         return (
-            self.get_workspace_setting(workspace, "api_key")
+            self.get_workspace_setting(workspace, "api_key", settings_override)
             or settings.BASEROW_MISTRAL_API_KEY
         )
 
-    def get_enabled_models(self, workspace=None):
-        workspace_models = self.get_workspace_setting(workspace, "models")
+    def get_enabled_models(self, workspace=None, settings_override=None):
+        workspace_models = self.get_workspace_setting(
+            workspace, "models", settings_override
+        )
         return workspace_models or settings.BASEROW_MISTRAL_MODELS
 
-    def is_enabled(self, workspace=None):
-        api_key = self.get_api_key(workspace)
-        return bool(api_key) and bool(self.get_enabled_models(workspace=workspace))
+    def is_enabled(self, workspace=None, settings_override=None):
+        api_key = self.get_api_key(workspace, settings_override)
+        return bool(api_key) and bool(
+            self.get_enabled_models(
+                workspace=workspace, settings_override=settings_override
+            )
+        )
 
-    def get_client(self, workspace=None):
-        api_key = self.get_api_key(workspace)
+    def get_client(self, workspace=None, settings_override=None):
+        api_key = self.get_api_key(workspace, settings_override)
         return Mistral(api_key=api_key)
 
     def get_settings_serializer(self):
@@ -257,9 +279,11 @@ class MistralGenerativeAIModelType(GenerativeAIModelType):
 
         return MistralSettingsSerializer
 
-    def prompt(self, model, prompt, workspace=None, temperature=None):
+    def prompt(
+        self, model, prompt, workspace=None, temperature=None, settings_override=None
+    ):
         try:
-            client = self.get_client(workspace)
+            client = self.get_client(workspace, settings_override)
             kwargs = {}
             if temperature:
                 # Because some LLMs can have a temperature of 2, this is the maximum by
@@ -281,26 +305,32 @@ class MistralGenerativeAIModelType(GenerativeAIModelType):
 class OllamaGenerativeAIModelType(GenerativeAIModelType):
     type = "ollama"
 
-    def get_host(self, workspace=None):
+    def get_host(self, workspace=None, settings_override=None):
         return (
-            self.get_workspace_setting(workspace, "host")
+            self.get_workspace_setting(workspace, "host", settings_override)
             or settings.BASEROW_OLLAMA_HOST
         )
 
-    def get_enabled_models(self, workspace=None):
-        workspace_models = self.get_workspace_setting(workspace, "models")
+    def get_enabled_models(self, workspace=None, settings_override=None):
+        workspace_models = self.get_workspace_setting(
+            workspace, "models", settings_override
+        )
         return workspace_models or settings.BASEROW_OLLAMA_MODELS
 
-    def is_enabled(self, workspace=None):
-        ollama_host = self.get_host(workspace)
-        return bool(ollama_host) and bool(self.get_enabled_models(workspace))
+    def is_enabled(self, workspace=None, settings_override=None):
+        ollama_host = self.get_host(workspace, settings_override)
+        return bool(ollama_host) and bool(
+            self.get_enabled_models(workspace, settings_override)
+        )
 
-    def get_client(self, workspace=None):
-        ollama_host = self.get_host(workspace)
+    def get_client(self, workspace=None, settings_override=None):
+        ollama_host = self.get_host(workspace, settings_override)
         return OllamaClient(host=ollama_host)
 
-    def prompt(self, model, prompt, workspace=None, temperature=None):
-        client = self.get_client(workspace)
+    def prompt(
+        self, model, prompt, workspace=None, temperature=None, settings_override=None
+    ):
+        client = self.get_client(workspace, settings_override)
         options = {}
         if temperature:
             # Because some LLMs can have a temperature of 2, this is the maximum by
@@ -329,25 +359,27 @@ class OpenRouterGenerativeAIModelType(BaseOpenAIGenerativeAIModelType):
 
     type = "openrouter"
 
-    def get_api_key(self, workspace=None):
+    def get_api_key(self, workspace=None, settings_override=None):
         return (
-            self.get_workspace_setting(workspace, "api_key")
+            self.get_workspace_setting(workspace, "api_key", settings_override)
             or settings.BASEROW_OPENROUTER_API_KEY
         )
 
-    def get_enabled_models(self, workspace=None):
-        workspace_models = self.get_workspace_setting(workspace, "models")
+    def get_enabled_models(self, workspace=None, settings_override=None):
+        workspace_models = self.get_workspace_setting(
+            workspace, "models", settings_override
+        )
         return workspace_models or settings.BASEROW_OPENROUTER_MODELS
 
-    def get_organization(self, workspace=None):
+    def get_organization(self, workspace=None, settings_override=None):
         return (
-            self.get_workspace_setting(workspace, "organization")
+            self.get_workspace_setting(workspace, "organization", settings_override)
             or settings.BASEROW_OPENROUTER_ORGANIZATION
         )
 
-    def get_client(self, workspace=None):
-        api_key = self.get_api_key(workspace)
-        organization = self.get_organization(workspace)
+    def get_client(self, workspace=None, settings_override=None):
+        api_key = self.get_api_key(workspace, settings_override)
+        organization = self.get_organization(workspace, settings_override)
         return OpenAI(
             api_key=api_key,
             organization=organization,

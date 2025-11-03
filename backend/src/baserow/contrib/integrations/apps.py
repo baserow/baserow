@@ -5,6 +5,7 @@ class IntegrationsConfig(AppConfig):
     name = "baserow.contrib.integrations"
 
     def ready(self):
+        from baserow.contrib.integrations.ai.integration_types import AIIntegrationType
         from baserow.contrib.integrations.core.integration_types import (
             SMTPIntegrationType,
         )
@@ -16,6 +17,7 @@ class IntegrationsConfig(AppConfig):
 
         integration_type_registry.register(LocalBaserowIntegrationType())
         integration_type_registry.register(SMTPIntegrationType())
+        integration_type_registry.register(AIIntegrationType())
 
         from baserow.contrib.integrations.local_baserow.service_types import (
             LocalBaserowAggregateRowsUserServiceType,
@@ -52,5 +54,9 @@ class IntegrationsConfig(AppConfig):
         service_type_registry.register(CoreHTTPTriggerServiceType())
         service_type_registry.register(CoreIteratorServiceType())
         service_type_registry.register(CorePeriodicServiceType())
+
+        from baserow.contrib.integrations.ai.service_types import AIAgentServiceType
+
+        service_type_registry.register(AIAgentServiceType())
 
         import baserow.contrib.integrations.signals  # noqa: F403, F401

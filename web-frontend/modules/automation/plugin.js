@@ -34,6 +34,7 @@ import {
   CoreRouterNodeType,
   CorePeriodicTriggerNodeType,
 } from '@baserow/modules/automation/nodeTypes'
+import { AIAgentActionNodeType } from '@baserow/modules/integrations/ai/nodeTypes'
 import {
   DuplicateAutomationWorkflowJobType,
   PublishAutomationWorkflowJobType,
@@ -133,6 +134,7 @@ export default (context) => {
       new LocalBaserowAggregateRowsActionNodeType(context)
     )
     app.$registry.register('node', new CorePeriodicTriggerNodeType(context))
+    app.$registry.register('node', new AIAgentActionNodeType(context))
     app.$registry.register(
       'job',
       new DuplicateAutomationWorkflowJobType(context)
