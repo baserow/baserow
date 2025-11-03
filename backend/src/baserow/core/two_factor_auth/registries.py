@@ -42,18 +42,50 @@ class TwoFactorAuthProviderType(
     def configure(
         self, user: AbstractUser, provider, **kwargs
     ) -> TwoFactorAuthProviderModel:
+        """
+        Method to configure or enable auth provider
+        for the user.
+
+        :param user: The user that configures the 2fa.
+        :param provider: The provider instance to modify
+            if it exists.
+        """
+
         raise NotImplementedError
 
     @abstractmethod
     def is_enabled(self, provider) -> bool:
+        """
+        Determines whether the given provider is
+        completely configured and in use.
+
+        :param provider: The provider instance to check.
+        """
+
         raise NotImplementedError
 
     @abstractmethod
     def verify(self, **kwargs) -> bool:
+        """
+        Determines whether the user should be logged
+        in based on the provider's parameters.
+
+        Returns True if the authentication is successful
+        and raises VerificationFailed if not.
+        """
+
         raise NotImplementedError
 
     @abstractmethod
     def disable(self, provider, user):
+        """
+        Disables existing 2fa provider for the user.
+
+        :param provider: The enabled provider to disable.
+        :param user: The user associated with the
+            provider.
+        """
+
         raise NotImplementedError
 
 

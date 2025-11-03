@@ -81,6 +81,9 @@ class TwoFactorAuthHandler:
         :return: The created two-factor auth provider model.
         """
 
+        # Two-factor auth is only for password-based accounts.
+        # Accounts that don't have password set are accounts
+        # created via SSO.
         if user.password == "":  # nosec
             raise TwoFactorAuthCannotBeConfigured
 
