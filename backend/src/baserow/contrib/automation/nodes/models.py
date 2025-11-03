@@ -121,6 +121,18 @@ class AutomationNode(
 
         return {node.service_id: str(out) for [node, _, out] in previous_positions}
 
+    def get_parent_nodes(self):
+        """
+        Returns the ancestors of this node which are the container nodes that contain
+        the current node instance.
+        """
+
+        return [
+            position[0]
+            for position in self.workflow.get_graph().get_previous_positions(self)
+            if position[1] == "child"
+        ]
+
     def get_next_nodes(
         self, output_uid: str | None = None
     ) -> Iterable["AutomationNode"]:

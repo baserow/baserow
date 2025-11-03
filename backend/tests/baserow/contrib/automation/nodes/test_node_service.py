@@ -636,6 +636,85 @@ def test_move_node_outside_of_container(data_fixture: Fixtures):
 
 
 @pytest.mark.django_db
+def test_move_container_after_itself(data_fixture: Fixtures):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user)
+    action1 = data_fixture.create_automation_node(workflow=workflow, label="action1")
+
+    iterator = data_fixture.create_core_iterator_action_node(workflow=workflow)
+    action2 = data_fixture.create_automation_node(workflow=workflow, label="action2")
+    action3 = data_fixture.create_automation_node(workflow=workflow, label="action3")
+    action4 = data_fixture.create_automation_node(workflow=workflow, label="action4")
+
+    # move `action3` to be the first child of iterator
+    move_result = AutomationNodeService().move_node(
+        user, iterator.id, reference_node_id=action4.id, position="south", output=""
+    )
+
+    workflow.assert_reference(
+        {
+            "0": "rows_created",
+            "rows_created": {"next": {"": ["action1"]}},
+            "action1": {"next": {"": ["action2"]}},
+            "action2": {"next": {"": ["action3"]}},
+            "action3": {"next": {"": ["action4"]}},
+            "action4": {"next": {"": ["iterator"]}},
+            "iterator": {},
+        }
+    )
+
+
+@pytest.mark.django_db
+def test_move_container_inside_itself_should_fail(data_fixture: Fixtures):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user)
+    action1 = data_fixture.create_automation_node(workflow=workflow, label="action1")
+
+    iterator = data_fixture.create_core_iterator_action_node(workflow=workflow)
+    iterator2 = data_fixture.create_core_iterator_action_node(
+        workflow=workflow, reference_node=iterator, position="child"
+    )
+    action2 = data_fixture.create_automation_node(
+        workflow=workflow, label="action2", reference_node=iterator2, position="child"
+    )
+    action3 = data_fixture.create_automation_node(
+        workflow=workflow, label="action3", reference_node=action2, position="south"
+    )
+    action4 = data_fixture.create_automation_node(
+        workflow=workflow, label="action4", reference_node=iterator2, position="south"
+    )
+
+    with pytest.raises(AutomationNodeNotMovable) as exc:
+        AutomationNodeService().move_node(
+            user, iterator.id, reference_node_id=action3.id, position="south", output=""
+        )
+
+    assert exc.value.args[0] == "A container node cannot be moved inside itself"
+
+    with pytest.raises(AutomationNodeNotMovable) as exc:
+        AutomationNodeService().move_node(
+            user,
+            iterator.id,
+            reference_node_id=iterator2.id,
+            position="south",
+            output="",
+        )
+
+    assert exc.value.args[0] == "A container node cannot be moved inside itself"
+
+    with pytest.raises(AutomationNodeNotMovable) as exc:
+        AutomationNodeService().move_node(
+            user,
+            iterator.id,
+            reference_node_id=iterator2.id,
+            position="child",
+            output="",
+        )
+
+    assert exc.value.args[0] == "A container node cannot be moved inside itself"
+
+
+@pytest.mark.django_db
 def test_move_node_invalid_reference_node(data_fixture: Fixtures):
     user = data_fixture.create_user()
     workflow = data_fixture.create_automation_workflow(user)
