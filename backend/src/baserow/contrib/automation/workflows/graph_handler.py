@@ -232,9 +232,7 @@ class NodeGraphHandler:
 
         node_info = self.get_info(node)
 
-        return [
-            x for sublist in node_info.get("next", {}).values() for x in sublist
-        ] + node_info.get("children", [])
+        return [x for sublist in node_info.get("next", {}).values() for x in sublist]
 
     def get_next_nodes(
         self, node: AutomationNode, output: str | None = None
