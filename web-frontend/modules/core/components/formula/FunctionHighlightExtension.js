@@ -34,7 +34,7 @@ const findFunctionRanges = (documentContent, functionNames, stringRanges) => {
     }
 
     for (const functionName of functionNames) {
-      if (matchesAt(documentContent, i, functionName)) {
+      if (matchesAt(documentContent, i, functionName, true)) {
         const functionStart = i
         let j = i + functionName.length
 

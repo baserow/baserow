@@ -350,9 +350,27 @@ export const isInsideStringInText = (text) => {
  * @param {Array} content - Array of content items
  * @param {number} index - Starting position
  * @param {string} pattern - Pattern to match
+ * @param {boolean} checkWordBoundary - If true, ensures the match is at a word boundary
  * @returns {boolean} True if pattern matches at this position
  */
-export const matchesAt = (content, index, pattern) => {
+export const matchesAt = (
+  content,
+  index,
+  pattern,
+  checkWordBoundary = false
+) => {
+  // If checkWordBoundary is true, verify the character before is not alphanumeric
+  if (checkWordBoundary && index > 0) {
+    const prevItem = content[index - 1]
+    if (prevItem && prevItem.type === 'text') {
+      const prevChar = prevItem.char
+      // Check if previous character is alphanumeric or underscore
+      if (/[a-zA-Z0-9_]/.test(prevChar)) {
+        return false
+      }
+    }
+  }
+
   for (let i = 0; i < pattern.length; i++) {
     if (
       index + i >= content.length ||

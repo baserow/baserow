@@ -191,8 +191,10 @@ export default {
             names = names.concat(extract(children))
           }
         }
+
         return names
       }
+
       return extract(this.nodesHierarchy)
     },
     operators() {
