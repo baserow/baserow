@@ -16,7 +16,7 @@ from baserow.contrib.builder.data_sources.builder_dispatch_context import (
 from baserow.contrib.builder.elements.element_types import NavigationElementManager
 from baserow.contrib.builder.formula_importer import import_formula
 from baserow.contrib.builder.workflow_actions.models import (
-    AiAgentWorkflowAction,
+    AIAgentWorkflowAction,
     CoreHTTPRequestWorkflowAction,
     CoreSMTPEmailWorkflowAction,
     LocalBaserowCreateRowWorkflowAction,
@@ -481,9 +481,9 @@ class CoreSMTPEmailActionType(BuilderWorkflowServiceActionType):
         return {"service": service}
 
 
-class AiAgentWorkflowActionType(BuilderWorkflowServiceActionType):
+class AIAgentWorkflowActionType(BuilderWorkflowServiceActionType):
     type = "ai_agent"
-    model_class = AiAgentWorkflowAction
+    model_class = AIAgentWorkflowAction
     service_type = AIAgentServiceType.type
 
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, int]:

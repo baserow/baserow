@@ -277,7 +277,7 @@ class BuilderConfig(AppConfig):
 
         from .workflow_actions.registries import builder_workflow_action_type_registry
         from .workflow_actions.workflow_action_types import (
-            AiAgentWorkflowActionType,
+            AIAgentWorkflowActionType,
             CoreHttpRequestActionType,
             CoreSMTPEmailActionType,
             CreateRowWorkflowActionType,
@@ -300,7 +300,7 @@ class BuilderConfig(AppConfig):
         )
         builder_workflow_action_type_registry.register(CoreHttpRequestActionType())
         builder_workflow_action_type_registry.register(CoreSMTPEmailActionType())
-        builder_workflow_action_type_registry.register(AiAgentWorkflowActionType())
+        builder_workflow_action_type_registry.register(AIAgentWorkflowActionType())
 
         from .elements.collection_field_types import (
             BooleanCollectionFieldType,

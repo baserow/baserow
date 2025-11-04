@@ -123,5 +123,5 @@ class CoreSMTPEmailWorkflowAction(BuilderWorkflowServiceAction):
     ...
 
 
-class AiAgentWorkflowAction(BuilderWorkflowServiceAction):
+class AIAgentWorkflowAction(BuilderWorkflowServiceAction):
     ...

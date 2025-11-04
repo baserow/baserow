@@ -228,9 +228,6 @@ export default {
       if (this.providerOverrides[type]) {
         const settings = this.getProviderSettings(type)
         const providerValidations = {}
-
-        console.log(settings)
-
         settings.forEach((setting) => {
           providerValidations[setting.key] = setting.optional
             ? {}

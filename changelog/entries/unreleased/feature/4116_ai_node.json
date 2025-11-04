@@ -1,7 +1,7 @@
 {
   "type": "feature",
-  "message": "Added AI action node.",
-  "domain": "database",
+  "message": "Added the AI agent workflow action.",
+  "domain": "builder",
   "issue_number": 4116,
   "issue_origin": "github",
   "bullet_points": [],
