@@ -1,14 +1,16 @@
 <template>
   <div>
-    <EditorContent
-      :id="forInput"
-      ref="editor"
-      class="form-input formula-input-field"
-      role="textbox"
-      :class="classes"
-      :editor="editor"
-      @data-node-clicked="dataNodeClicked"
-    />
+    <div class="formula-input-field__editor" @click="handleEditorClick">
+      <EditorContent
+        :id="forInput"
+        ref="editor"
+        class="form-input formula-input-field"
+        role="textbox"
+        :class="classes"
+        :editor="editor"
+        @data-node-clicked="dataNodeClicked"
+      />
+    </div>
 
     <FormulaInputContext
       v-if="isFocused && !readOnly"
@@ -485,6 +487,11 @@ export default {
     },
     dataNodeClicked(node) {
       this.editor.commands.selectNode(node)
+    },
+    handleEditorClick() {
+      if (this.editor && !this.disabled && !this.readOnly) {
+        this.editor.commands.showContext()
+      }
     },
     handleModeChange(newMode) {
       // If switching from advanced to simple, clear the content
