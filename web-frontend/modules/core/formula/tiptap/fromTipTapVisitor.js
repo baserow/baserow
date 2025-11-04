@@ -120,7 +120,8 @@ export class FromTipTapVisitor {
     for (let i = 0; i < content.length; i++) {
       const node = content[i]
       if (node.type === 'text') {
-        fullContent += node.text
+        // Remove zero-width spaces used for cursor positioning
+        fullContent += node.text.replace(/\u200B/g, '')
       } else {
         fullContent += this.visit(node)
       }
@@ -139,8 +140,10 @@ export class FromTipTapVisitor {
   }
 
   visitText(node) {
-    if (this.mode === 'simple') return `'${node.text.replace(/'/g, "\\'")}'`
-    return node.text
+    // Remove zero-width spaces used for cursor positioning
+    const cleanText = node.text.replace(/\u200B/g, '')
+    if (this.mode === 'simple') return `'${cleanText.replace(/'/g, "\\'")}'`
+    return cleanText
   }
 
   visitFunction(node) {

@@ -256,7 +256,8 @@ const applySegmentDecorations = (segments, text, pos, decorations) => {
     // Add decoration for text before this segment
     if (lastIndex < segment.start) {
       const beforeText = text.slice(lastIndex, segment.start)
-      if (beforeText.trim()) {
+      // Create text-segment even for whitespace-only text to provide visual cursor placement
+      if (beforeText) {
         decorations.push(
           Decoration.inline(pos + lastIndex, pos + segment.start, {
             class: 'text-segment',
@@ -278,7 +279,8 @@ const applySegmentDecorations = (segments, text, pos, decorations) => {
   // Add decoration for remaining text
   if (lastIndex < text.length) {
     const remainingText = text.slice(lastIndex)
-    if (remainingText.trim()) {
+    // Create text-segment even for whitespace-only text to provide visual cursor placement
+    if (remainingText) {
       decorations.push(
         Decoration.inline(pos + lastIndex, pos + text.length, {
           class: 'text-segment',
@@ -288,7 +290,7 @@ const applySegmentDecorations = (segments, text, pos, decorations) => {
   }
 
   // If no segments, decorate entire text
-  if (segments.length === 0 && text.trim()) {
+  if (segments.length === 0 && text) {
     decorations.push(
       Decoration.inline(pos, pos + text.length, {
         class: 'text-segment',

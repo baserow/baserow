@@ -59,14 +59,16 @@ export const FormulaInsertionExtension = Extension.create({
         (node) =>
         ({ editor, commands }) => {
           const functionName = node.name
-          const functionText = functionName + '()'
+          // Insert zero-width space so cursor can be positioned in the text-segment
+          const functionText = functionName + '(\u200B)'
 
           const { state } = editor
           const startPos = state.selection.from
 
           commands.insertContent(functionText)
 
-          const cursorPos = startPos + functionName.length + 1
+          // Position cursor after the zero-width space (in the text-segment)
+          const cursorPos = startPos + functionName.length + 2
 
           commands.setTextSelection({ from: cursorPos, to: cursorPos })
 

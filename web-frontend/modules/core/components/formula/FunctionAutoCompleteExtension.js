@@ -10,7 +10,7 @@ const functionAutoCompletePluginKey = new PluginKey('functionAutoComplete')
  * closing parentheses for function calls. When a user types a recognized function
  * name followed by an opening parenthesis `(`, this extension inserts the matching
  * closing parenthesis `)` and places the cursor in between them, ready for argument
- * input.
+ * input. It also adds spacing after commas to position the cursor in a text-segment.
  */
 export const FunctionAutoCompleteExtension = Extension.create({
   name: 'functionAutoComplete',
@@ -56,15 +56,39 @@ export const FunctionAutoCompleteExtension = Extension.create({
 
                 tr.insertText(text, from, to)
 
-                tr.insertText(')', from + 1)
+                // Insert zero-width space and closing parenthesis
+                tr.insertText('\u200B)', from + 1)
 
+                // Position cursor after the zero-width space (in the text-segment)
                 tr.setSelection(
-                  state.selection.constructor.near(tr.doc.resolve(from + 1))
+                  state.selection.constructor.near(tr.doc.resolve(from + 2))
                 )
 
                 view.dispatch(tr)
                 return true
               }
+            }
+
+            // Handle comma input to add space and position cursor in text-segment
+            if (text === ',') {
+              // Check if we're inside a string literal
+              const textBefore = doc.textBetween(Math.max(0, from - 20), to)
+              if (isInsideStringInText(textBefore + text)) {
+                return false
+              }
+
+              const tr = state.tr
+
+              // Insert comma followed by zero-width space
+              tr.insertText(',\u200B', from, to)
+
+              // Position cursor after the zero-width space (in the text-segment)
+              tr.setSelection(
+                state.selection.constructor.near(tr.doc.resolve(from + 2))
+              )
+
+              view.dispatch(tr)
+              return true
             }
 
             return false
