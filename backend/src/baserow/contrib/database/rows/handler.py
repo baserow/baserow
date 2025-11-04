@@ -34,6 +34,7 @@ from opentelemetry import metrics, trace
 from baserow.contrib.database.field_rules.handlers import FieldRuleHandler
 from baserow.contrib.database.fields.dependencies.handler import FieldDependencyHandler
 from baserow.contrib.database.fields.dependencies.update_collector import (
+    ContextProxy,
     FieldUpdateCollector,
 )
 from baserow.contrib.database.fields.exceptions import (
@@ -1154,15 +1155,18 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             deleted_m2m_rels_per_link_field=deleted_m2m_rels_per_link_field,
         )
         updated_fields = []
-        for dependant_fields_group in all_dependent_fields_grouped_by_depth:
+        for depth, dependant_fields_group in enumerate(
+            all_dependent_fields_grouped_by_depth
+        ):
             for (
                 dependant_field,
                 dependant_field_type,
                 path_to_starting_table,
             ) in dependant_fields_group:
                 updated_fields.append(dependant_field)
+
                 dependant_field_type.row_of_dependency_updated(
-                    dependant_field,
+                    ContextProxy(dependant_field, depth),
                     updated_rows,
                     update_collector,
                     field_cache,
@@ -1458,12 +1462,13 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
 
         row_ids = [row.id for row in created_rows]
         table = model.baserow_table
+        field_ids = []
+        fields = []
         update_collector = FieldUpdateCollector(table, starting_row_ids=row_ids)
 
         field_cache = FieldCache()
         field_cache.cache_model(model)
-        field_ids = []
-        fields = []
+
         for field_object in model._field_objects.values():
             field_type = field_object["type"]
             field = field_object["field"]
@@ -1486,7 +1491,9 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             )
         )
 
-        for dependant_fields_group in all_dependent_fields_grouped_by_depth:
+        for depth, dependant_fields_group in enumerate(
+            all_dependent_fields_grouped_by_depth
+        ):
             for (
                 dependant_field,
                 dependant_field_type,
@@ -1494,7 +1501,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             ) in dependant_fields_group:
                 dependant_fields.append(dependant_field)
                 dependant_field_type.row_of_dependency_created(
-                    dependant_field,
+                    ContextProxy(dependant_field, depth),
                     created_rows,
                     update_collector,
                     field_cache,

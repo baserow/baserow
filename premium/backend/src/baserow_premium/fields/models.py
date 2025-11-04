@@ -1,3 +1,4 @@
+from django.contrib.auth import get_user_model
 from django.db import models
 
 from baserow.contrib.database.fields.models import Field
@@ -5,6 +6,8 @@ from baserow.core.formula.field import FormulaField as ModelFormulaField
 
 from .ai_field_output_types import TextAIFieldOutputType
 from .registries import ai_field_output_registry
+
+User = get_user_model()
 
 
 class AIField(Field):
@@ -19,6 +22,19 @@ class AIField(Field):
     ai_prompt = ModelFormulaField(default="")
     ai_file_field = models.ForeignKey(
         Field, null=True, on_delete=models.SET_NULL, related_name="ai_field"
+    )
+    ai_auto_update = models.BooleanField(
+        default=False,
+        db_default=False,
+        null=False,
+        help_text="If set, and the prompt refers other fields, a change on those fields will trigger a recalculation of this field.",
+    )
+    ai_auto_update_user = models.ForeignKey(
+        User,
+        null=True,
+        on_delete=models.SET_NULL,
+        help_text="The user on whose behalf the field is auto-updated. The user must "
+        "have a licence to use AI field.",
     )
 
     def __getattr__(self, name):

@@ -5,6 +5,7 @@ from baserow_premium.fields.field_types import AIFieldType
 from baserow_premium.fields.models import AIField
 from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST, HTTP_404_NOT_FOUND
 
+from baserow.contrib.database.fields.dependencies.models import FieldDependency
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.rows.handler import RowHandler
@@ -349,6 +350,7 @@ def test_update_to_ai_field_with_all_parameters(premium_data_fixture, api_client
             "ai_generative_ai_model": "test_1",
             "ai_temperature": None,
             "ai_prompt": "'Who are you?'",
+            "ai_auto_update": True,
         },
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
@@ -360,6 +362,7 @@ def test_update_to_ai_field_with_all_parameters(premium_data_fixture, api_client
     assert response_json["ai_generative_ai_model"] == "test_1"
     assert response_json["ai_prompt"]["formula"] == "'Who are you?'"
     assert response_json["ai_temperature"] is None
+    assert response_json["ai_auto_update"] is True
 
 
 @pytest.mark.django_db
@@ -387,6 +390,7 @@ def test_update_to_ai_field_without_parameters(premium_data_fixture, api_client)
     assert response_json["ai_generative_ai_model"] == "test_1"
     assert response_json["ai_prompt"]["formula"] == ""
     assert response_json["ai_temperature"] is None
+    assert response_json["ai_auto_update"] is False
 
 
 @pytest.mark.django_db
@@ -1206,3 +1210,101 @@ def test_ai_field_type_check_can_filter_by(premium_data_fixture):
 
     ai_field_type = field_type_registry.get("ai")
     assert ai_field_type.check_can_filter_by(ai_field) is True
+
+
+@pytest.mark.django_db
+@pytest.mark.field_ai
+def test_create_ai_field_with_references(premium_data_fixture):
+    """
+    Test if AI field type handler creates appropriate FieldDependency entries.
+    """
+
+    session_id = "session-id"
+    premium_data_fixture.register_fake_generate_ai_type()
+    user = premium_data_fixture.create_user(session_id=session_id)
+    database = premium_data_fixture.create_database_application(
+        user=user, name="Placeholder"
+    )
+    table = premium_data_fixture.create_database_table(
+        name="Example", database=database
+    )
+    text_field = premium_data_fixture.create_text_field(
+        table=table, order=0, name="text"
+    )
+    other_text_field = premium_data_fixture.create_text_field(
+        table=table, order=0.5, name="other text"
+    )
+    ai_field = FieldHandler().create_field(
+        user=user,
+        table=table,
+        order=2,
+        name="ai_text",
+        type_name="ai",
+        ai_generative_ai_type="test_generative_ai",
+        ai_generative_ai_model="test_1",
+        ai_file_field=None,
+        ai_prompt=f"concat('test:',get('fields.field_{text_field.id}'), get('fields.field_{other_text_field.id}'))",
+    )
+
+    other_ai_field = FieldHandler().create_field(
+        user=user,
+        table=table,
+        type_name="ai",
+        order=3,
+        name="other ai field",
+        ai_generative_ai_type="test_generative_ai",
+        ai_generative_ai_model="test_1",
+        ai_file_field=None,
+        ai_prompt=f"concat('test:',get('fields.field_{ai_field.id}'))",
+    )
+
+    deps = list(FieldDependency.objects.all().order_by("dependant", "dependency"))
+
+    assert len(deps) == 3
+    assert deps[0].dependant_id == ai_field.id
+    assert deps[0].dependency_id == text_field.id
+    assert deps[1].dependant_id == ai_field.id
+    assert deps[1].dependency_id == other_text_field.id
+    assert deps[2].dependency_id == ai_field.id
+    assert deps[2].dependant_id == other_ai_field.id
+
+
+@pytest.mark.django_db
+@pytest.mark.field_ai
+def test_create_ai_field_auto_update_user(premium_data_fixture):
+    """
+    Test if AI field type handler sets the user when auto-update flag is set.
+    """
+
+    session_id = "session-id"
+    premium_data_fixture.register_fake_generate_ai_type()
+    user = premium_data_fixture.create_user(session_id=session_id)
+    database = premium_data_fixture.create_database_application(
+        user=user, name="Placeholder"
+    )
+    table = premium_data_fixture.create_database_table(
+        name="Example", database=database
+    )
+    text_field = premium_data_fixture.create_text_field(
+        table=table, order=0, name="text"
+    )
+    ai_field: AIField = FieldHandler().create_field(
+        user=user,
+        table=table,
+        order=2,
+        name="ai_text",
+        type_name="ai",
+        ai_generative_ai_type="test_generative_ai",
+        ai_generative_ai_model="test_1",
+        ai_file_field=None,
+        ai_prompt=f"concat('test:',get('fields.field_{text_field.id}'))",
+    )
+
+    assert ai_field.ai_auto_update is False
+    assert ai_field.ai_auto_update_user_id is None
+
+    FieldHandler().update_field(user=user, field=ai_field, ai_auto_update=True)
+    ai_field.refresh_from_db()
+
+    assert ai_field.ai_auto_update is True
+    assert ai_field.ai_auto_update_user_id == user.id

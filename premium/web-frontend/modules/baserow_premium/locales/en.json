@@ -338,7 +338,8 @@
     "fileFieldHelp": "The first compatible file in the field will be used as the knowledge base for the prompt. The file has to be a text file with the supported file extension like .txt, .md, .pdf, .docx.",
     "outputType": "Output type",
     "outputTypeTooltip": "Select your desired output format to guide the LLM in generating responses that match your desired options.",
-    "outputTypeChangedWarning": "Clears the generated cell values."
+    "outputTypeChangedWarning": "Clears the generated cell values.",
+    "autoUpdate": "Update, if any of referenced fields is changed"
   },
   "rowEditFieldAI": {
     "generate": "Generate",

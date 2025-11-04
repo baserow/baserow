@@ -1,7 +1,11 @@
+import dataclasses
 from collections import defaultdict
-from typing import Dict, List, Optional, Set, Tuple, cast
+from collections.abc import Callable, Iterable
+from typing import Dict, List, NoReturn, Optional, Self, Set, Tuple, cast
 
 from django.db.models import Expression, Q, Value
+
+from loguru import logger
 
 from baserow.contrib.database.fields.field_cache import FieldCache
 from baserow.contrib.database.fields.models import Field, LinkRowField
@@ -14,6 +18,85 @@ from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.table.signals import table_updated
 
 StartingRowIdsType = Optional[List[int]]
+
+
+@dataclasses.dataclass
+class CollectorCallback:
+    """
+    CollectorCallback class keeps a callback function and a set of params to be
+     used with the callback.
+    """
+
+    # a callback will receive two sets of ids: fields and rows affected
+    callback: Callable[[Iterable[int], Iterable[int]], NoReturn]
+
+    update_field_ids: list | None = None
+    update_row_ids: list | None = None
+
+    def __post_init__(self):
+        if self.update_field_ids is None:
+            self.update_field_ids = []
+        if self.update_row_ids is None:
+            self.update_row_ids = []
+
+    def add_items(
+        self, field_ids: list[int] | None = None, row_ids: list[int] | None = None
+    ) -> Self:
+        """
+        Accumulate new params to existing ones.
+        """
+
+        if field_ids:
+            for field_id in field_ids:
+                if field_id not in self.update_field_ids:
+                    self.update_field_ids.append(field_id)
+        if row_ids:
+            for row_id in row_ids:
+                if row_id not in self.update_row_ids:
+                    self.update_row_ids.append(row_id)
+        return self
+
+    def from_other(self, other: "CollectorCallback") -> Self:
+        """
+        Copy fields/rows from another instance.
+        """
+
+        self.add_items(other.update_field_ids, other.update_row_ids)
+        return self
+
+    def call(self):
+        """
+        Execute the callback.
+        """
+
+        self.callback(self.update_field_ids, self.update_row_ids)
+
+
+@dataclasses.dataclass
+class CollectorFieldContext:
+    """
+    A simple container for values used in ContextProxy
+    """
+
+    depth: int
+    field: Field
+
+
+class ContextProxy:
+    """
+    Allows to pass an original field object and additional context from a collector.
+    """
+
+    def __init__(self, field: Field, depth: int) -> None:
+        self.__proxied = CollectorFieldContext(depth=depth, field=field)
+
+    def __getattr__(self, name):
+        if name.startswith("_"):
+            raise AttributeError(name)
+        try:
+            return getattr(self.__proxied.field, name)
+        except AttributeError:
+            return getattr(self.__proxied, name)
 
 
 class PathBasedUpdateStatementCollector:
@@ -370,6 +453,7 @@ class FieldUpdateCollector:
         # way, we can efficiently call the rebuild_dependencies method in bulk to reduce
         # the number of queries.
         self._rebuild_field_dependencies = set()
+        self._callbacks: dict[str, CollectorCallback] = {}
 
     def _init_update_statement_collector(self):
         return PathBasedUpdateStatementCollector(
@@ -506,6 +590,8 @@ class FieldUpdateCollector:
         if not skip_rebuild_field_dependencies:
             self.apply_rebuild_field_dependencies(field_cache)
 
+        self.run_callbacks()
+
         return updated_fields
 
     def send_additional_field_updated_signals(self):
@@ -556,3 +642,36 @@ class FieldUpdateCollector:
 
     def add_to_rebuild_field_dependencies(self, field: Field):
         self._rebuild_field_dependencies.add(field)
+
+    def add_callback(self, callback_name: str, callback: CollectorCallback):
+        """
+        Registers or adds custom callback to be executed after collection phase. This
+        method can be called multiple times to accumulate multiple params,
+        provided `callback_name` is the same.
+
+        :param callback_name: arbitrary callback name picked by a field type.
+        :param callback: CollectorCallback structure. If there's a callback registered
+          already, new params will be merged with existing ones.
+        """
+
+        if callback_name not in self._callbacks:
+            self._callbacks[callback_name] = callback
+        else:
+            self._callbacks[callback_name].from_other(callback)
+
+    def run_callbacks(self):
+        """
+        Executes current callback lists. This should be called after collection phase
+        is done.
+        """
+
+        callbacks = self._callbacks
+        self._callbacks = {}
+
+        for cb_name, callback in callbacks.items():
+            try:
+                callback.call()
+            except Exception as e:
+                logger.opt(exception=e).warning(
+                    f"FieldUpdateCollector's {cb_name} callback {callback} exception: {e}"
+                )
