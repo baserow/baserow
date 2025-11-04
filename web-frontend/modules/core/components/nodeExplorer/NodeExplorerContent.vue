@@ -129,7 +129,7 @@ export default {
   },
   computed: {
     hasChildren() {
-      const children = this.node.nodes || this.node.items
+      const children = this.node.nodes
       return children && children.length > 0
     },
     sortedNodes() {

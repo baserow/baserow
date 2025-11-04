@@ -71,7 +71,7 @@ const nodesHierarchy = computed(() => {
             example: null,
             order: node.order || null,
             signature: null,
-            nodes: node.nodes ? node.nodes.map(transformNode) : undefined,
+            nodes: node.nodes ? node.nodes.map(transformNode) : [],
           }
         }
 
@@ -86,12 +86,17 @@ const nodesHierarchy = computed(() => {
     }
   }
 
-  if (dataNodes.length > 0) {
+  // Filter out first-level data nodes that have empty nodes arrays
+  const filteredDataNodes = dataNodes.filter(
+    (node) => node.nodes && node.nodes.length > 0
+  )
+
+  if (filteredDataNodes.length > 0) {
     hierarchy.push({
       name: 'Data',
       type: 'data',
       icon: 'iconoir-database',
-      nodes: dataNodes,
+      nodes: filteredDataNodes,
     })
   }
 
