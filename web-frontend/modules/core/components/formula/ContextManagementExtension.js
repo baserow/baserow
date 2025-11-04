@@ -37,7 +37,11 @@ export const ContextManagementExtension = Extension.create({
         ({ editor }) => {
           const { vueComponent } = this.options
 
-          if (!vueComponent || this.options.readOnly || this.options.disabled) {
+          // Read directly from Vue component to get reactive values
+          const disabled = vueComponent?.disabled ?? this.options.disabled
+          const readOnly = vueComponent?.readOnly ?? this.options.readOnly
+
+          if (!vueComponent || readOnly || disabled) {
             return false
           }
 
@@ -53,7 +57,9 @@ export const ContextManagementExtension = Extension.create({
 
               editor.commands.unselectNode()
 
-              const { contextPosition } = this.options
+              // Read directly from Vue component to get reactive value
+              const contextPosition =
+                vueComponent?.contextPosition ?? this.options.contextPosition
               let config
 
               switch (contextPosition) {
@@ -207,15 +213,6 @@ export const ContextManagementExtension = Extension.create({
     this.storage.isFocused = false
     this.storage.ignoreNextBlur = false
     this.storage.clickOutsideEventCancel = null
-
-    this.editor.on('update', ({ editor }) => {
-      const { vueComponent } = this.options
-      if (vueComponent) {
-        this.options.disabled = vueComponent.disabled
-        this.options.readOnly = vueComponent.readOnly
-        this.options.contextPosition = vueComponent.contextPosition
-      }
-    })
   },
 
   onDestroy() {
@@ -263,7 +260,10 @@ export const ContextManagementExtension = Extension.create({
   },
 
   getContextConfig() {
-    const { contextPosition } = this.options
+    const { vueComponent } = this.options
+    // Read directly from Vue component to get reactive value
+    const contextPosition =
+      vueComponent?.contextPosition ?? this.options.contextPosition
 
     switch (contextPosition) {
       case 'left':
@@ -302,12 +302,16 @@ export const ContextManagementExtension = Extension.create({
       return { verticalOffset: 0, horizontalOffset: 0 }
     }
 
+    // Read directly from Vue component to get reactive value
+    const contextPosition =
+      vueComponent?.contextPosition ?? this.options.contextPosition
+
     // Calculate dynamic offsets based on position and dimensions
     const inputRect = vueComponent.$el?.getBoundingClientRect()
     const contextRect =
       vueComponent.$refs?.formulaInputContext?.$el?.getBoundingClientRect()
 
-    switch (this.options.contextPosition) {
+    switch (contextPosition) {
       case 'left':
         return {
           verticalOffset: -inputRect?.height || 0,
