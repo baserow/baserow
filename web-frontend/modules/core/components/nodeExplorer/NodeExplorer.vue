@@ -10,6 +10,7 @@
           :selected-index="activeTabIndex"
           content-no-padding
           rounded
+          full-height
           @update:selectedIndex="resetSearch"
         >
           <Tab
@@ -17,50 +18,58 @@
             :key="hierarchyNode.name"
             :title="hierarchyNode.name"
           >
+            <div class="node-explorer__tab-content">
+              <SelectSearch
+                v-model="search"
+                :placeholder="$t('action.search')"
+                class="margin-bottom-1"
+                @clear="resetSearch"
+              />
+              <div class="node-explorer__scrollable">
+                <div class="node-explorer__content">
+                  <NodeExplorerContent
+                    v-for="node in hierarchyNode.nodes"
+                    :key="node.name"
+                    :node="node"
+                    :open-nodes="openNodes"
+                    :path="node.identifier || node.name"
+                    :search-path="node.identifier || node.name"
+                    :node-selected="nodeSelected"
+                    :search="debouncedSearch"
+                    :allow-node-selection="allowNodeSelection"
+                    @click="$emit('node-selected', $event)"
+                    @toggle="toggleNode"
+                  />
+                </div>
+              </div>
+            </div>
+          </Tab>
+        </Tabs>
+        <template v-else-if="filteredNodesHierarchy.length === 1">
+          <div class="node-explorer__single-tab">
             <SelectSearch
               v-model="search"
               :placeholder="$t('action.search')"
               class="margin-bottom-1"
               @clear="resetSearch"
             />
-            <div class="data-explorer__content">
-              <NodeExplorerContent
-                v-for="node in hierarchyNode.nodes"
-                :key="node.name"
-                :node="node"
-                :open-nodes="openNodes"
-                :path="node.identifier || node.name"
-                :search-path="node.identifier || node.name"
-                :node-selected="nodeSelected"
-                :search="debouncedSearch"
-                :allow-node-selection="allowNodeSelection"
-                @click="$emit('node-selected', $event)"
-                @toggle="toggleNode"
-              />
+            <div class="node-explorer__scrollable">
+              <div class="node-explorer__content">
+                <NodeExplorerContent
+                  v-for="node in filteredNodesHierarchy[0].nodes"
+                  :key="node.name"
+                  :node="node"
+                  :open-nodes="openNodes"
+                  :path="node.identifier || node.name"
+                  :search-path="node.identifier || node.name"
+                  :node-selected="nodeSelected"
+                  :allow-node-selection="allowNodeSelection"
+                  :search="debouncedSearch"
+                  @click="$emit('node-selected', $event)"
+                  @toggle="toggleNode"
+                />
+              </div>
             </div>
-          </Tab>
-        </Tabs>
-        <template v-else-if="filteredNodesHierarchy.length === 1">
-          <SelectSearch
-            v-model="search"
-            :placeholder="$t('action.search')"
-            class="margin-bottom-1"
-            @clear="resetSearch"
-          />
-          <div class="data-explorer__content">
-            <NodeExplorerContent
-              v-for="node in filteredNodesHierarchy[0].nodes"
-              :key="node.name"
-              :node="node"
-              :open-nodes="openNodes"
-              :path="node.identifier || node.name"
-              :search-path="node.identifier || node.name"
-              :node-selected="nodeSelected"
-              :allow-node-selection="allowNodeSelection"
-              :search="debouncedSearch"
-              @click="$emit('node-selected', $event)"
-              @toggle="toggleNode"
-            />
           </div>
         </template>
       </template>

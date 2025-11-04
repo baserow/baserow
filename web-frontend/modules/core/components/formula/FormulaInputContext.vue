@@ -2,7 +2,6 @@
   <Context
     ref="context"
     class="formula-input-context"
-    overflow-scroll
     max-height-if-outside-viewport
   >
     <NodeExplorer

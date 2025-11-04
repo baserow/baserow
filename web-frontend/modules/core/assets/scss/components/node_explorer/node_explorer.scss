@@ -1,7 +1,33 @@
 .node-explorer {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+
+  > div {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+  }
+
   .context__description {
     text-align: center;
     white-space: initial;
     line-height: 20px;
   }
+}
+
+.node-explorer__tab-content,
+.node-explorer__single-tab {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.node-explorer__scrollable {
+  flex: 1;
+  overflow: auto;
+  min-height: 0;
 }
