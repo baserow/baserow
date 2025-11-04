@@ -30,6 +30,7 @@
       :application="automation"
       enable-integration-picker
       :default-values="node.service"
+      :edge-in-use-fn="nodeEdgeInUseFn"
       class="margin-top-2"
       @values-changed="handleNodeChange({ service: $event })"
     />
@@ -59,6 +60,7 @@ import { helpers, maxLength } from '@vuelidate/validators'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 
 const store = useStore()
+
 const { app } = useContext()
 
 provide('formulaComponent', AutomationBuilderFormulaInput)
@@ -188,4 +190,17 @@ const handleNodeChange = async ({
 const nodeLoading = computed(() => {
   return store.getters['automationWorkflowNode/getLoading'](node.value)
 })
+
+/**
+ * Responsible for informing the core router service form if an edge has an
+ * output. As the service form can't refer to automation nodes, we have to
+ * perform the check here, and pass the function as a prop into the form.
+ */
+const nodeEdgeInUseFn = (edge) => {
+  return !!store.getters['automationWorkflowNode/getNextNodes'](
+    workflow.value,
+    node.value,
+    edge.uid
+  ).length
+}
 </script>

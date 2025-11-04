@@ -145,9 +145,18 @@ const coordsPerEdge = computed(() => {
 
   return nodeEdges.value.map((edge) => {
     const wrap = workflowNode.value
-    const edgeElt = refs[`edge-${edge.uid}`][0].$el
+    if (Array.isArray(refs[`edge-${edge.uid}`])) {
+      const edgeElt = refs[`edge-${edge.uid}`][0].$el
 
-    return [edge.uid, computeEdgeCoords(wrap, edgeElt, hasMultipleEdges.value)]
+      return [
+        edge.uid,
+        computeEdgeCoords(wrap, edgeElt, hasMultipleEdges.value),
+      ]
+    } else {
+      // We might have a delay between the edge addition
+      // and the branch being visible
+      return [edge.uid, { startX: 0, startY: 0, endX: 0, endY: 0 }]
+    }
   })
 })
 
