@@ -675,7 +675,7 @@
     "ifDescription": "If the first argument is true, returns the second argument, otherwise returns the third argument.",
     "andDescription": "Returns true if all arguments are true, otherwise returns false.",
     "orDescription": "Returns true if any argument is true, otherwise returns false.",
-    "formulaTypeFormula": "Formula | Functions",
+    "formulaTypeFormula": "Function | Functions",
     "formulaTypeOperator": "Operator | Operators",
     "categoryText": "Text",
     "categoryNumber": "Number",
