@@ -601,7 +601,7 @@ export class CoreHttpRequestNodeType extends ActionNodeTypeMixin(NodeType) {
 }
 
 export class CoreIteratorNodeType extends containerNodeTypeMixin(
-  ActionNodeTypeMixin(NodeType)
+  ActionNodeTypeMixin(UtilityNodeMixin(NodeType))
 ) {
   static getType() {
     return 'iterator'

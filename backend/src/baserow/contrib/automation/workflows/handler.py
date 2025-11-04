@@ -519,7 +519,7 @@ class AutomationWorkflowHandler:
                 cache=cache,
             )
 
-        workflow_instance.get_graph().migrate_graph(id_mapping)
+            workflow_instance.get_graph().migrate_graph(id_mapping)
 
         return [i[0] for i in imported_workflows]
 
