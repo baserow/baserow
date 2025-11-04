@@ -213,6 +213,10 @@ export default {
         const nodeKey = subNode.identifier || subNode.name
         let subNodePath = [...parentPath, nodeKey]
 
+        // Check if this node's name matches the search
+        const nodeNameSanitised = subNode.name.trim().toLowerCase()
+        const nodeMatches = nodeNameSanitised.includes(search)
+
         if (subNode.nodes) {
           // It's not a leaf
           if (subNode.type === 'array') {
@@ -221,21 +225,25 @@ export default {
             // achieve that.
             subNodePath = [...parentPath, nodeKey, '__any__']
           }
+
+          // If this node matches, add it and its parents
+          if (nodeMatches) {
+            const pathsToAdd = this.getPathAndParents(subNodePath.join('.'))
+            acc = new Set([...acc, ...pathsToAdd])
+          }
+
+          // Also search in child nodes
           const subSubNodes = this.matchesSearch(
             subNode.nodes,
             search,
             subNodePath
           )
           acc = new Set([...acc, ...subSubNodes])
-        } else {
-          // It's a leaf we check if the name matches the search
-          const nodeNameSanitised = subNode.name.trim().toLowerCase()
-
-          if (nodeNameSanitised.includes(search)) {
-            // We also add the parents of the node
-            const pathsToAdd = this.getPathAndParents(subNodePath.join('.'))
-            acc = new Set([...acc, ...pathsToAdd])
-          }
+        } else if (nodeMatches) {
+          // It's a leaf and the name matches the search
+          // We also add the parents of the node
+          const pathsToAdd = this.getPathAndParents(subNodePath.join('.'))
+          acc = new Set([...acc, ...pathsToAdd])
         }
         return acc
       }, new Set())
