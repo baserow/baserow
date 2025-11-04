@@ -120,6 +120,7 @@ import {
   DeleteRowWorkflowActionType,
   CoreHTTPRequestWorkflowActionType,
   CoreSMTPEmailWorkflowActionType,
+  AIAgentWorkflowActionType,
 } from '@baserow/modules/builder/workflowActionTypes'
 
 import {
@@ -371,6 +372,10 @@ export default (context) => {
   app.$registry.register(
     'workflowAction',
     new CoreSMTPEmailWorkflowActionType(context)
+  )
+  app.$registry.register(
+    'workflowAction',
+    new AIAgentWorkflowActionType(context)
   )
   app.$registry.register(
     'workflowAction',

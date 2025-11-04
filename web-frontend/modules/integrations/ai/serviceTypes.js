@@ -17,7 +17,7 @@ export class AIAgentServiceType extends WorkflowActionServiceTypeMixin(
   }
 
   get icon() {
-    return 'iconoir-brain'
+    return 'iconoir-sparks'
   }
 
   get formComponent() {
@@ -37,29 +37,33 @@ export class AIAgentServiceType extends WorkflowActionServiceTypeMixin(
   }
 
   getErrorMessage({ service }) {
-    if (service !== undefined) {
-      if (!service.integration_id) {
-        return this.app.i18n.t('serviceType.errorNoIntegrationSelected')
-      }
-      if (!service.ai_generative_ai_type) {
-        return this.app.i18n.t('serviceType.errorNoAIProviderSelected')
-      }
-      if (!service.ai_generative_ai_model) {
-        return this.app.i18n.t('serviceType.errorNoAIModelSelected')
-      }
-      if (!service.ai_prompt) {
-        return this.app.i18n.t('serviceType.errorNoPromptProvided')
-      }
-      if (service.ai_output_type === 'choice') {
-        // Check if choices array is empty or has no valid choices
-        if (
-          !service.ai_choices ||
-          !Array.isArray(service.ai_choices) ||
-          service.ai_choices.length === 0 ||
-          service.ai_choices.every((c) => !c || !c.trim())
-        ) {
-          return this.app.i18n.t('serviceType.errorNoChoicesProvided')
-        }
+    if (service === undefined) {
+      return null
+    }
+
+    if (service.ai_generative_ai_model === undefined) {
+      // we are in public mode so no properties are available let's quit.
+      return null
+    }
+
+    if (!service.ai_generative_ai_type) {
+      return this.app.i18n.t('serviceType.errorNoAIProviderSelected')
+    }
+    if (!service.ai_generative_ai_model) {
+      return this.app.i18n.t('serviceType.errorNoAIModelSelected')
+    }
+    if (!service.ai_prompt.formula) {
+      return this.app.i18n.t('serviceType.errorNoPromptProvided')
+    }
+    if (service.ai_output_type === 'choice') {
+      // Check if choices array is empty or has no valid choices
+      if (
+        !service.ai_choices ||
+        !Array.isArray(service.ai_choices) ||
+        service.ai_choices.length === 0 ||
+        service.ai_choices.every((c) => !c || !c.trim())
+      ) {
+        return this.app.i18n.t('serviceType.errorNoChoicesProvided')
       }
     }
     return super.getErrorMessage({ service })

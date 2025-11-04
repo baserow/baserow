@@ -70,7 +70,7 @@
                 v$.values.ai_settings?.[providerType.type]?.[setting.key]
                   ?.$errors[0]?.$message
               "
-              required
+              :required="!setting.optional"
               class="margin-bottom-2"
             >
               <FormInput
@@ -229,8 +229,12 @@ export default {
         const settings = this.getProviderSettings(type)
         const providerValidations = {}
 
+        console.log(settings)
+
         settings.forEach((setting) => {
-          providerValidations[setting.key] = { required }
+          providerValidations[setting.key] = setting.optional
+            ? {}
+            : { required }
         })
 
         validations.values.ai_settings[type] = providerValidations

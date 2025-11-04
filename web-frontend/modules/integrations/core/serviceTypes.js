@@ -180,6 +180,10 @@ export class CoreHTTPTriggerServiceType extends TriggerServiceTypeMixin(
     return CoreHTTPTriggerServiceForm
   }
 
+  get icon() {
+    return 'iconoir-globe'
+  }
+
   getErrorMessage({ service }) {
     if (service === undefined) {
       return null
@@ -254,6 +258,10 @@ export class PeriodicTriggerServiceType extends TriggerServiceTypeMixin(
 
   get formComponent() {
     return CorePeriodicServiceForm
+  }
+
+  get icon() {
+    return 'iconoir-timer'
   }
 
   getDataSchema(service) {

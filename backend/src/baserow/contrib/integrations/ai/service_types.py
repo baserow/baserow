@@ -31,7 +31,7 @@ class AIAgentServiceType(ServiceType):
     type = "ai_agent"
     model_class = AIAgentService
     integration_type = AIIntegrationType.type
-    dispatch_types = [DispatchTypes.DATA, DispatchTypes.ACTION]
+    dispatch_types = [DispatchTypes.ACTION]
     returns_list = False
 
     allowed_fields = [
@@ -156,13 +156,12 @@ class AIAgentServiceType(ServiceType):
     def formulas_to_resolve(
         self, service: AIAgentService
     ) -> Generator[FormulaToResolve, None, None]:
-        if service.ai_prompt:
-            yield FormulaToResolve(
-                "ai_prompt",
-                service.ai_prompt,
-                ensure_string,
-                'property "ai_prompt"',
-            )
+        yield FormulaToResolve(
+            "ai_prompt",
+            service.ai_prompt,
+            ensure_string,
+            'property "ai_prompt"',
+        )
 
     def resolve_service_formulas(
         self,
@@ -279,8 +278,8 @@ class AIAgentServiceType(ServiceType):
 
         return {"result": result}
 
-    def dispatch_transform(self, dispatch_data: Dict[str, Any]) -> DispatchResult:
-        return DispatchResult(data=dispatch_data)
+    def dispatch_transform(self, data: Dict[str, Any]) -> DispatchResult:
+        return DispatchResult(data=data)
 
     def generate_schema(
         self, service: AIAgentService, allowed_fields: Optional[List[str]] = None
@@ -299,7 +298,3 @@ class AIAgentServiceType(ServiceType):
                 }
             },
         }
-
-    def import_path(self, path: List[str], id_mapping: Dict[int, int]) -> List[str]:
-        # AI service doesn't have complex paths, just return as is.
-        return path

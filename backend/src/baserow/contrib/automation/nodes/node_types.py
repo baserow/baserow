@@ -16,6 +16,7 @@ from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeTriggerMustBeFirstNode,
 )
 from baserow.contrib.automation.nodes.models import (
+    AIAgentActionNode,
     AutomationNode,
     AutomationTriggerNode,
     CoreHTTPRequestActionNode,
@@ -38,6 +39,7 @@ from baserow.contrib.automation.nodes.registries import AutomationNodeType
 from baserow.contrib.automation.nodes.types import NodePositionType
 from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
+from baserow.contrib.integrations.ai.service_types import AIAgentServiceType
 from baserow.contrib.integrations.core.service_types import (
     CoreHTTPRequestServiceType,
     CoreHTTPTriggerServiceType,
@@ -170,6 +172,12 @@ class CoreSMTPEmailNodeType(AutomationNodeActionNodeType):
     type = "smtp_email"
     model_class = CoreSMTPEmailActionNode
     service_type = CoreSMTPEmailServiceType.type
+
+
+class AIAgentActionNodeType(AutomationNodeActionNodeType):
+    type = "ai_agent"
+    model_class = AIAgentActionNode
+    service_type = AIAgentServiceType.type
 
 
 class CoreRouterActionNodeType(AutomationNodeActionNodeType):

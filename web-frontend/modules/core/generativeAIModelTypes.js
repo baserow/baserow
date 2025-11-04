@@ -58,6 +58,7 @@ export class OpenAIModelType extends GenerativeAIModelType {
       {
         key: 'organization',
         label: i18n.t('generativeAIModelType.openaiOrganization'),
+        optional: true,
       },
       modelSettings(
         i18n.t('generativeAIModelType.openaiModelsLabel'),
@@ -200,6 +201,7 @@ export class OpenRouterModelType extends GenerativeAIModelType {
       {
         key: 'organization',
         label: i18n.t('generativeAIModelType.openRouterOrganization'),
+        optional: true,
       },
       modelSettings(
         i18n.t('generativeAIModelType.openRouterModelsLabel'),

@@ -33,8 +33,8 @@ import {
   CoreSMTPEmailNodeType,
   CoreRouterNodeType,
   CorePeriodicTriggerNodeType,
+  AIAgentActionNodeType,
 } from '@baserow/modules/automation/nodeTypes'
-import { AIAgentActionNodeType } from '@baserow/modules/integrations/ai/nodeTypes'
 import {
   DuplicateAutomationWorkflowJobType,
   PublishAutomationWorkflowJobType,

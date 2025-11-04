@@ -27,7 +27,7 @@ class AIIntegrationType(IntegrationType):
 
     serializer_field_names = ["ai_settings"]
     allowed_fields = ["ai_settings"]
-    sensitive_fields = []
+    sensitive_fields = ["ai_settings"]
 
     serializer_field_overrides = {
         "ai_settings": serializers.JSONField(

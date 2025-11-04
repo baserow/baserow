@@ -24,6 +24,7 @@ import {
   CoreHTTPTriggerServiceType,
   CoreIteratorServiceType,
 } from '@baserow/modules/integrations/core/serviceTypes'
+import { AIAgentServiceType } from '@baserow/modules/integrations/ai/serviceTypes'
 import { uuid } from '@baserow/modules/core/utils/string'
 
 export class NodeType extends Registerable {
@@ -371,10 +372,6 @@ export class CorePeriodicTriggerNodeType extends TriggerNodeTypeMixin(
     return 4
   }
 
-  get iconClass() {
-    return 'iconoir-timer'
-  }
-
   get name() {
     return this.app.i18n.t('nodeType.periodicTriggerLabel')
   }
@@ -411,10 +408,6 @@ export class CoreHTTPTriggerNodeType extends TriggerNodeTypeMixin(NodeType) {
 
   get description() {
     return this.app.i18n.t('serviceType.coreHTTPTriggerDescription')
-  }
-
-  get iconClass() {
-    return 'iconoir-globe'
   }
 
   get serviceType() {
@@ -582,10 +575,6 @@ export class CoreHttpRequestNodeType extends ActionNodeTypeMixin(NodeType) {
 
   getOrder() {
     return 7
-  }
-
-  get iconClass() {
-    return 'iconoir-globe'
   }
 
   get name() {
@@ -815,5 +804,27 @@ export class CoreRouterNodeType extends ActionNodeTypeMixin(
           this.app.i18n.t('nodeType.routerDefaultEdgeLabelFallback'),
       },
     ]
+  }
+}
+
+export class AIAgentActionNodeType extends ActionNodeTypeMixin(NodeType) {
+  static getType() {
+    return 'ai_agent'
+  }
+
+  get name() {
+    return this.app.i18n.t('nodeType.aiAgent')
+  }
+
+  get iconClass() {
+    return 'iconoir-sparks'
+  }
+
+  get serviceType() {
+    return this.app.$registry.get('service', AIAgentServiceType.getType())
+  }
+
+  getOrder() {
+    return 8
   }
 }

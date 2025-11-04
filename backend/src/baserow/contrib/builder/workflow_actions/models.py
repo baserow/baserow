@@ -121,3 +121,7 @@ class CoreHTTPRequestWorkflowAction(BuilderWorkflowServiceAction):
 
 class CoreSMTPEmailWorkflowAction(BuilderWorkflowServiceAction):
     ...
+
+
+class AiAgentWorkflowAction(BuilderWorkflowServiceAction):
+    ...

@@ -251,6 +251,7 @@ class DomainHandler:
             include_permission_data=True,
             reduce_disk_space_usage=False,
             exclude_sensitive_data=False,
+            is_publishing=True,
         )
 
         default_storage = get_default_storage()

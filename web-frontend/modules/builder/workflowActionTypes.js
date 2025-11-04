@@ -12,6 +12,7 @@ import {
   LocalBaserowUpdateRowWorkflowServiceType,
   LocalBaserowDeleteRowWorkflowServiceType,
 } from '@baserow/modules/integrations/localBaserow/serviceTypes'
+import { AIAgentServiceType } from '@baserow/modules/integrations/ai/serviceTypes'
 
 import { DataProviderType } from '@baserow/modules/core/dataProviderTypes'
 import resolveElementUrl from '@baserow/modules/builder/utils/urlResolution'
@@ -250,6 +251,10 @@ export class WorkflowActionServiceType extends WorkflowActionType {
     return this.serviceType.name
   }
 
+  get icon() {
+    return this.serviceType.icon
+  }
+
   execute({ workflowAction: { id }, applicationContext, resolveFormula }) {
     const data = DataProviderType.getAllActionDispatchContext(
       this.app.$registry.getAll('builderDataProvider'),
@@ -350,10 +355,6 @@ export class CreateRowWorkflowActionType extends WorkflowActionServiceType {
     return 'create_row'
   }
 
-  get icon() {
-    return this.serviceType.icon
-  }
-
   get serviceType() {
     return this.app.$registry.get(
       'service',
@@ -385,5 +386,19 @@ export class DeleteRowWorkflowActionType extends WorkflowActionServiceType {
       'service',
       LocalBaserowDeleteRowWorkflowServiceType.getType()
     )
+  }
+}
+
+export class AIAgentWorkflowActionType extends WorkflowActionServiceType {
+  static getType() {
+    return 'ai_agent'
+  }
+
+  get name() {
+    return this.app.i18n.t('nodeType.aiAgent')
+  }
+
+  get serviceType() {
+    return this.app.$registry.get('service', AIAgentServiceType.getType())
   }
 }

@@ -1,5 +1,6 @@
 from uuid import uuid4
 
+from baserow.contrib.integrations.ai.models import AIAgentService
 from baserow.contrib.integrations.core.models import (
     CoreHTTPRequestService,
     CoreHTTPTriggerService,
@@ -99,6 +100,9 @@ class ServiceFixtures:
 
         service = self.create_service(CoreSMTPEmailService, **kwargs)
         return service
+
+    def create_ai_agent_service(self, **kwargs):
+        return self.create_service(AIAgentService, **kwargs)
 
     def create_core_iterator_service(self, **kwargs):
         return self.create_service(CoreIteratorService, **kwargs)
