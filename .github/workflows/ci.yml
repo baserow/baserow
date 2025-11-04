@@ -1026,7 +1026,7 @@ jobs:
           file: deploy/cloudron/Dockerfile
           push: true
           build-args: |
-            FROM_ALL_IN_ONE_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/baserow:ci-tested-${{ github.sha }}
+            FROM_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/baserow:ci-tested-${{ github.sha }}
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/cloudron:ci-tested-${{ github.sha }}
           cache-to: type=inline
