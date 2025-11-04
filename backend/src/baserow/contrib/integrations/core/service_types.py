@@ -1407,6 +1407,31 @@ class CoreHTTPTriggerServiceType(TriggerServiceTypeMixin, ServiceType):
             ),
         ]
 
+    def serialize_property(
+        self,
+        service: CoreHTTPTriggerService,
+        prop_name: str,
+        files_zip=None,
+        storage=None,
+        cache=None,
+    ):
+        """
+        Responsible for serializing the trigger's properties.
+
+        :param service: The CoreHTTPTriggerService service.
+        :param prop_name: The property name we're serializing.
+        :param files_zip: The zip file containing the files.
+        :param storage: The storage to use for the files.
+        :param cache: The cache to use for the files.
+        """
+
+        if prop_name == "uid":
+            return str(service.uid)
+
+        return super().serialize_property(
+            service, prop_name, files_zip=files_zip, storage=storage, cache=cache
+        )
+
     def process_webhook_request(
         self, webhook_uid: uuid.uuid4, request_data: Dict[str, Any], simulate: bool
     ) -> None:
