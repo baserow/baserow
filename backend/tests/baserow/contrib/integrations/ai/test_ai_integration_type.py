@@ -209,12 +209,7 @@ def test_ai_integration_export_serialized_exclude_sensitive(data_fixture):
     expected_serialized = {
         "id": AnyInt(),
         "type": "ai",
-        "ai_settings": {
-            "openai": {
-                "api_key": "sk-secret123",
-                "models": ["gpt-4"],
-            }
-        },
+        "ai_settings": None,
         "name": "",
         "order": "1.00000000000000000000",
     }
