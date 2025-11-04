@@ -1,7 +1,7 @@
 <template>
   <form @submit.prevent>
     <FormGroup
-      :label="$t('coreSlackWriteMessageServiceForm.integrationLabel')"
+      :label="$t('slackWriteMessageServiceForm.integrationLabel')"
       small-label
       required
       class="margin-bottom-2"
@@ -15,26 +15,26 @@
     </FormGroup>
     <FormGroup
       class="margin-bottom-2"
-      :label="$t('coreSlackWriteMessageServiceForm.channelLabel')"
+      :label="$t('slackWriteMessageServiceForm.channelLabel')"
       required
       small-label
     >
       <FormInput
         v-model="values.channel"
         icon-left="baserow-icon-hashtag"
-        :placeholder="$t('coreSlackWriteMessageServiceForm.channelPlaceholder')"
+        :placeholder="$t('slackWriteMessageServiceForm.channelPlaceholder')"
       >
       </FormInput>
     </FormGroup>
     <FormGroup
       class="margin-bottom-2"
-      :label="$t('coreSlackWriteMessageServiceForm.messageLabel')"
+      :label="$t('slackWriteMessageServiceForm.messageLabel')"
       required
       small-label
     >
       <InjectedFormulaInput
         v-model="values.text"
-        :placeholder="$t('coreSlackWriteMessageServiceForm.messagePlaceholder')"
+        :placeholder="$t('slackWriteMessageServiceForm.messagePlaceholder')"
       />
     </FormGroup>
   </form>
@@ -42,14 +42,14 @@
 
 <script>
 import form from '@baserow/modules/core/mixins/form'
-import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
+import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput.vue'
 import { useVuelidate } from '@vuelidate/core'
 import { required, maxLength } from '@vuelidate/validators'
-import IntegrationDropdown from '@baserow/modules/core/components/integrations/IntegrationDropdown'
+import IntegrationDropdown from '@baserow/modules/core/components/integrations/IntegrationDropdown.vue'
 import { SlackBotIntegrationType } from '@baserow/modules/integrations/core/integrationTypes'
 
 export default {
-  name: 'CoreSlackWriteMessageServiceForm',
+  name: 'SlackWriteMessageServiceForm',
   components: { IntegrationDropdown, InjectedFormulaInput },
   mixins: [form],
   props: {

@@ -97,13 +97,16 @@
   height: 40px;
   padding: 12px;
   justify-content: center;
-  align-items: center;
   gap: 8px;
   background: $white;
   border: 1px solid $palette-neutral-200;
 
   @include elevation($elevation-low);
   @include rounded($rounded-md);
+
+  &:has(img) {
+    padding: 8px;
+  }
 }
 
 .workflow-node-content__title {

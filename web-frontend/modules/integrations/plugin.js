@@ -30,7 +30,7 @@ import {
   CoreHTTPRequestServiceType,
   PeriodicTriggerServiceType,
   CoreRouterServiceType,
-  CoreSlackWriteMessageServiceType,
+  SlackWriteMessageServiceType,
   CoreSMTPEmailServiceType,
   CoreHTTPTriggerServiceType,
   CoreIteratorServiceType,
@@ -90,10 +90,7 @@ export default (context) => {
   app.$registry.register('service', new AIAgentServiceType(context))
 
   app.$registry.register('service', new PeriodicTriggerServiceType(context))
-  app.$registry.register(
-    'service',
-    new CoreSlackWriteMessageServiceType(context)
-  )
+  app.$registry.register('service', new SlackWriteMessageServiceType(context))
 
   if (app.$featureFlagIsEnabled(FF_AUTOMATION)) {
     app.$registry.register(

@@ -199,7 +199,7 @@
     "tokenLabel": "Bot User Token",
     "tokenPlaceholder": "xoxb-1234-..."
   },
-  "coreSlackWriteMessageServiceForm": {
+  "slackWriteMessageServiceForm": {
     "integrationLabel": "Integration",
     "channelLabel": "Channel",
     "channelPlaceholder": "Enter a channel ID...",

@@ -230,5 +230,5 @@ class AIAgentActionNode(AutomationActionNode):
     ...
 
 
-class CoreSlackWriteMessageActionNode(AutomationActionNode):
+class SlackWriteMessageActionNode(AutomationActionNode):
     ...

@@ -21,7 +21,7 @@ import localBaserowIntegration from '@baserow/modules/integrations/localBaserow/
 import {
   CoreHTTPRequestServiceType,
   CoreRouterServiceType,
-  CoreSlackWriteMessageServiceType,
+  SlackWriteMessageServiceType,
   CoreSMTPEmailServiceType,
   CoreHTTPTriggerServiceType,
   CoreIteratorServiceType,
@@ -848,9 +848,7 @@ export class AIAgentActionNodeType extends ActionNodeTypeMixin(NodeType) {
   }
 }
 
-export class CoreSlackWriteMessageNodeType extends ActionNodeTypeMixin(
-  NodeType
-) {
+export class SlackWriteMessageNodeType extends ActionNodeTypeMixin(NodeType) {
   static getType() {
     return 'slack_write_message'
   }
@@ -883,7 +881,7 @@ export class CoreSlackWriteMessageNodeType extends ActionNodeTypeMixin(
   get serviceType() {
     return this.app.$registry.get(
       'service',
-      CoreSlackWriteMessageServiceType.getType()
+      SlackWriteMessageServiceType.getType()
     )
   }
 }

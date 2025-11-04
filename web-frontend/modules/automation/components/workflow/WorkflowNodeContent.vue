@@ -17,12 +17,14 @@
     <div v-if="isDraggable" class="workflow-node-content__drag-handle"></div>
     <div class="workflow-node-content__icon">
       <i
+        v-if="nodeType.iconClass"
         :class="{
           loading: loading,
           'iconoir-hammer': !loading && !isInteractionReady,
           [nodeType.iconClass]: !loading && isInteractionReady,
         }"
       ></i>
+      <img v-else :alt="nodeType.name" :src="nodeType.image" />
     </div>
 
     <h1 class="workflow-node-content__title">{{ displayLabel }}</h1>

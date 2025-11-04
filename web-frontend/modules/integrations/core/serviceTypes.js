@@ -9,7 +9,7 @@ import CoreSMTPEmailServiceForm from '@baserow/modules/integrations/core/compone
 import CoreRouterServiceForm from '@baserow/modules/integrations/core/components/services/CoreRouterServiceForm'
 import CoreIteratorServiceForm from '@baserow/modules/integrations/core/components/services/CoreIteratorServiceForm'
 import CorePeriodicServiceForm from '@baserow/modules/integrations/core/components/services/CorePeriodicServiceForm.vue'
-import CoreSlackWriteMessageServiceForm from '@baserow/modules/integrations/core/components/services/CoreSlackWriteMessageServiceForm.vue'
+import SlackWriteMessageServiceForm from '@baserow/modules/integrations/slack/components/services/SlackWriteMessageServiceForm.vue'
 
 export class CoreHTTPRequestServiceType extends WorkflowActionServiceTypeMixin(
   ServiceType
@@ -277,7 +277,7 @@ export class PeriodicTriggerServiceType extends TriggerServiceTypeMixin(
   }
 }
 
-export class CoreSlackWriteMessageServiceType extends WorkflowActionServiceTypeMixin(
+export class SlackWriteMessageServiceType extends WorkflowActionServiceTypeMixin(
   ServiceType
 ) {
   static getType() {
@@ -304,7 +304,7 @@ export class CoreSlackWriteMessageServiceType extends WorkflowActionServiceTypeM
   }
 
   get formComponent() {
-    return CoreSlackWriteMessageServiceForm
+    return SlackWriteMessageServiceForm
   }
 
   getOrder() {

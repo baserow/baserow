@@ -255,21 +255,3 @@ class CoreHTTPTriggerService(Service):
         default=False,
         help_text="Defines whether the service is published or not.",
     )
-
-
-class SlackBotIntegration(Integration):
-    token = models.CharField(
-        max_length=255,
-        help_text="The Bot User OAuth Token listed in "
-        "your Slack bot's OAuth & Permissions page.",
-    )
-
-
-class CoreSlackWriteMessageService(Service):
-    channel = models.CharField(
-        max_length=75,
-        help_text="The Slack channel ID where the message will be sent.",
-    )
-    text = FormulaField(
-        help_text="The text content of the Slack message.",
-    )
