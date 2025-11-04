@@ -305,7 +305,7 @@ export class WorkflowActionServiceType extends WorkflowActionType {
     return this.serviceType.getValueAtPath(
       workflowAction.service,
       content,
-      path.join('.')
+      path
     )
   }
 

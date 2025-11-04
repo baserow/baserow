@@ -49,6 +49,7 @@ export class RuntimeFormulaContext {
     try {
       return dataProviderType.getDataChunk(this.applicationContext, rest)
     } catch (e) {
+      console.debug(`DATA PROVIDER DEBUG: ${e}`)
       throw new UnresolvablePathError(dataProviderType.type, rest.join('.'))
     }
   }

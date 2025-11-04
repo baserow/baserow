@@ -824,15 +824,19 @@ export class PreviousActionDataProviderType extends DataProviderType {
 
     const workflowAction = this.app.store.getters[
       'builderWorkflowAction/getWorkflowActionById'
-    ](applicationContext.page, workflowActionId)
+    ](applicationContext.page, parseInt(workflowActionId))
 
     const actionType = this.app.$registry.get(
       'workflowAction',
       workflowAction.type
     )
 
-    return content
-      ? actionType.getValueAtPath(workflowAction, content, rest)
+    return content[workflowActionId]
+      ? actionType.getValueAtPath(
+          workflowAction,
+          content[workflowActionId],
+          rest
+        )
       : null
   }
 
