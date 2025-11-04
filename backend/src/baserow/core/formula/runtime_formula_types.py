@@ -15,6 +15,7 @@ from baserow.core.formula.argument_types import (
     NumberBaserowRuntimeFormulaArgumentType,
     SubtractableBaserowRuntimeFormulaArgumentType,
     TextBaserowRuntimeFormulaArgumentType,
+    TimezoneBaserowRuntimeFormulaArgumentType,
 )
 from baserow.core.formula.registries import RuntimeFormulaFunction
 from baserow.core.formula.types import FormulaArg, FormulaArgs, FormulaContext
@@ -263,13 +264,17 @@ class RuntimeDateTimeFormat(RuntimeFormulaFunction):
     args = [
         DateTimeBaserowRuntimeFormulaArgumentType(),
         TextBaserowRuntimeFormulaArgumentType(),
-        TextBaserowRuntimeFormulaArgumentType(),
+        TimezoneBaserowRuntimeFormulaArgumentType(optional=True),
     ]
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
         datetime_obj = args[0]
         moment_format = args[1]
-        timezone_name = args[2]
+
+        if (len(args)) == 2:
+            timezone_name = context.get_timezone_name()
+        else:
+            timezone_name = args[2]
 
         python_format = convert_date_format_moment_to_python(moment_format)
         result = datetime_obj.astimezone(ZoneInfo(timezone_name)).strftime(

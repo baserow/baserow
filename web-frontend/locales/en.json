@@ -658,7 +658,7 @@
     "roundDescription": "Rounds the first argument to the number of decimal places specified by the second argument.",
     "evenDescription": "Return true if the argument is even, false otherwise.",
     "oddDescription": "Return true if the argument is odd, false otherwise.",
-    "dateTimeDescription": "Formats the date time argument using the format and timezone arguments.",
+    "dateTimeDescription": "Formats the date time argument using the format and timezone arguments. If the timezone is left blank, it will default to the browser's timezone.",
     "dayDescription": "Returns the day from the date time argument.",
     "monthDescription": "Returns the month from the date time argument.",
     "yearDescription": "Returns the year from the date time argument.",

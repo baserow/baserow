@@ -5,6 +5,7 @@ import {
   DateTimeBaserowRuntimeFormulaArgumentType,
   ObjectBaserowRuntimeFormulaArgumentType,
   BooleanBaserowRuntimeFormulaArgumentType,
+  TimezoneBaserowRuntimeFormulaArgumentType,
 } from '@baserow/modules/core/runtimeFormulaArgumentTypes'
 import {
   InvalidFormulaArgumentType,
@@ -86,7 +87,12 @@ export class RuntimeFormulaFunction extends Registerable {
    * @returns {boolean} - If the number is correct.
    */
   validateNumberOfArgs(args) {
-    return this.numArgs === null || args.length === this.numArgs
+    if (this.numArgs === null) return true
+
+    const requiredArgs = this.args.filter((arg) => !arg.optional).length
+    const totalArgs = this.args.length
+
+    return args.length >= requiredArgs && args.length <= totalArgs
   }
 
   /**
@@ -910,12 +916,16 @@ export class RuntimeDateTimeFormat extends RuntimeFormulaFunction {
     return [
       new DateTimeBaserowRuntimeFormulaArgumentType(),
       new TextBaserowRuntimeFormulaArgumentType(),
-      new TextBaserowRuntimeFormulaArgumentType(),
+      new TimezoneBaserowRuntimeFormulaArgumentType({ optional: true }),
     ]
   }
 
   execute(context, args) {
-    const [datetime, momentFormat, timezone] = args
+    const [
+      datetime,
+      momentFormat,
+      timezone = Intl.DateTimeFormat().resolvedOptions().timeZone,
+    ] = args
 
     return moment(datetime).tz(timezone).format(momentFormat)
   }
@@ -927,6 +937,7 @@ export class RuntimeDateTimeFormat extends RuntimeFormulaFunction {
 
   getExamples() {
     return [
+      "datetime_format(now(), 'YYYY-MM-DD') = '2025-11-03'",
       "datetime_format(now(), 'YYYY-MM-DD', 'Europe/Amsterdam') = '2025-11-03'",
       "datetime_format(now(), 'DD/MM/YYYY HH:mm:ss', 'UTC') = '03/11/2025 12:12:09'",
     ]

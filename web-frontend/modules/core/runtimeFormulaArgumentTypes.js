@@ -5,8 +5,13 @@ import {
   ensureObject,
   ensureBoolean,
 } from '@baserow/modules/core/utils/validator'
+import moment from '@baserow/modules/core/moment'
 
 export class BaserowRuntimeFormulaArgumentType {
+  constructor({ optional = false } = {}) {
+    this.optional = optional
+  }
+
   /**
    * This function tests if a given value is compatible with its type
    * @param value -  The value being tests
@@ -32,11 +37,17 @@ export class BaserowRuntimeFormulaArgumentType {
 
 export class NumberBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFormulaArgumentType {
   test(value) {
+    // get() formula can't be resolved in the frontend because we don't have
+    // the data/context. Return true so that the enclosing formula can be resolved.
+    if (value === undefined) {
+      return false
+    }
+
     return !isNaN(value)
   }
 
   parse(value) {
-    return ensureNumeric(value)
+    return ensureNumeric(value, { allowNull: true })
   }
 }
 
@@ -94,5 +105,19 @@ export class BooleanBaserowRuntimeFormulaArgumentType extends BaserowRuntimeForm
 
   parse(value) {
     return ensureBoolean(value)
+  }
+}
+
+export class TimezoneBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFormulaArgumentType {
+  test(value) {
+    if (value == null || typeof value.toString !== 'function') {
+      return false
+    }
+
+    return moment.tz.names().includes(value)
+  }
+
+  parse(value) {
+    return ensureString(value)
   }
 }

@@ -1,4 +1,8 @@
+from typing import Optional
+
 from django.core.exceptions import ValidationError
+
+import pytz
 
 from baserow.core.formula.validator import (
     ensure_boolean,
@@ -10,6 +14,9 @@ from baserow.core.formula.validator import (
 
 
 class BaserowRuntimeFormulaArgumentType:
+    def __init__(self, optional: Optional[bool] = False):
+        self.optional = optional
+
     def test(self, value):
         return True
 
@@ -87,3 +94,14 @@ class BooleanBaserowRuntimeFormulaArgumentType(BaserowRuntimeFormulaArgumentType
 
     def parse(self, value):
         return ensure_boolean(value)
+
+
+class TimezoneBaserowRuntimeFormulaArgumentType(BaserowRuntimeFormulaArgumentType):
+    def test(self, value):
+        if not isinstance(value, str):
+            return False
+
+        return value in pytz.all_timezones
+
+    def parse(self, value):
+        return ensure_string(value)
