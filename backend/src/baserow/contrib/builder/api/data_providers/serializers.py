@@ -1,7 +1,10 @@
+import pytz
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from baserow.contrib.builder.elements.models import Element
+
+IANA_TIMEZONES = [(tz, tz) for tz in pytz.all_timezones]
 
 
 class DispatchDataSourceDataSourceContextSerializer(serializers.Serializer):
@@ -34,3 +37,15 @@ class DispatchDataSourceDataSourceContextSerializer(serializers.Serializer):
                 )
 
         return data
+
+
+class DispatchDataSourceUserContextSerializer(serializers.Serializer):
+    id = serializers.IntegerField(
+        help_text="Current user id.", required=False, allow_null=True
+    )
+    timezone = serializers.ChoiceField(
+        help_text="An IANA timezone name.",
+        required=False,
+        allow_null=True,
+        choices=IANA_TIMEZONES,
+    )

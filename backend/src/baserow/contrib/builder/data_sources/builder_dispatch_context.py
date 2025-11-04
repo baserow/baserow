@@ -127,6 +127,15 @@ class BuilderDispatchContext(DispatchContext):
 
         return self.element.get_type()  # type: ignore
 
+    def get_timezone_name(self) -> str:
+        """
+        Returns the timezone from the user data provider.
+        """
+
+        return self.request_data.get("user", {}).get(
+            "timezone", super().get_timezone_name()
+        )
+
     def range(self, service):
         """
         Return page range from the `offset`, `count` kwargs,

@@ -913,10 +913,18 @@ export class UserDataProviderType extends DataProviderType {
     const { is_authenticated: isAuthenticated, id } =
       this.getDataContent(applicationContext)
 
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+
     if (isAuthenticated) {
-      return id
+      return {
+        id,
+        timezone,
+      }
     } else {
-      return null
+      return {
+        id: null,
+        timezone,
+      }
     }
   }
 

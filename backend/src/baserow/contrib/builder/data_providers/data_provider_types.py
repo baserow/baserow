@@ -593,9 +593,11 @@ class UserDataProviderType(BuilderDataProviderType):
         Returns the serializer used to parse data for this data provider.
         """
 
-        return serializers.IntegerField(
-            help_text="Current user id.", required=False, allow_null=True
+        from baserow.contrib.builder.api.data_providers.serializers import (
+            DispatchDataSourceUserContextSerializer,
         )
+
+        return DispatchDataSourceUserContextSerializer(required=False, allow_null=True)
 
     def translate_default_user_role(self, user: UserSourceUser) -> str:
         """

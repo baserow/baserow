@@ -69,6 +69,14 @@ class AutomationDispatchContext(DispatchContext):
     def data_provider_registry(self):
         return automation_data_provider_type_registry
 
+    def get_timezone_name(self) -> str:
+        """
+        TODO: Get the timezone from the application settings. For now, returns
+            the default of "UTC". See: https://github.com/baserow/baserow/issues/4157
+        """
+
+        return super().get_timezone_name()
+
     def _register_node_result(
         self, node: AutomationNode, dispatch_data: Dict[str, Any]
     ):

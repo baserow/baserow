@@ -469,3 +469,34 @@ def test_builder_dispatch_context_public_allowed_properties_is_cached(
     with django_assert_num_queries(0):
         result = dispatch_context.public_allowed_properties
         assert result == expected_results
+
+
+@pytest.mark.django_db
+def test_get_timezone_name_base(data_fixture):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+
+    fake_request = HttpRequest()
+
+    dispatch_context = BuilderDispatchContext(fake_request, page)
+    # Should default to UTC
+    assert dispatch_context.get_timezone_name() == "UTC"
+
+
+@pytest.mark.django_db
+def test_get_timezone_name_specific(data_fixture):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+
+    fake_request = HttpRequest()
+    fake_request.data = {
+        "metadata": json.dumps(
+            {
+                "user": {"timezone": "Europe/Amsterdam"},
+            }
+        )
+    }
+
+    dispatch_context = BuilderDispatchContext(fake_request, page)
+    # When provided by the frontend, should use the specific timezone
+    assert dispatch_context.get_timezone_name() == "Europe/Amsterdam"
