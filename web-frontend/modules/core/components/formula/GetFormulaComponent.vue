@@ -11,7 +11,7 @@
       v-tooltip="$t('getFormulaComponent.errorTooltip')"
       tooltip-position="top"
       :hide-tooltip="!isInvalid"
-      @click="emitToEditor('data-node-clicked', node)"
+      @click.stop="emitToEditor('data-node-clicked', node)"
     >
       <template v-for="(part, index) in pathParts">
         <i
