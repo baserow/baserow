@@ -93,7 +93,7 @@ const nodesHierarchy = computed(() => {
 
   if (filteredDataNodes.length > 0) {
     hierarchy.push({
-      name: 'Data',
+      name: app.i18n.t('runtimeFormulaTypes.formulaTypeData'),
       type: 'data',
       icon: 'iconoir-database',
       nodes: filteredDataNodes,
