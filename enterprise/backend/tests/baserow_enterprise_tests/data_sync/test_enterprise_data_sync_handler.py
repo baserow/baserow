@@ -49,7 +49,9 @@ def test_update_periodic_data_sync_interval_licence_check(enterprise_data_fixtur
 @pytest.mark.django_db
 @pytest.mark.data_sync
 @override_settings(DEBUG=True)
-def test_update_periodic_data_sync_interval_check_permissions(enterprise_data_fixture):
+def test_update_periodic_data_sync_interval_check_permissions(
+    enterprise_data_fixture, synced_roles
+):
     enterprise_data_fixture.enable_enterprise()
 
     user = enterprise_data_fixture.create_user()
@@ -361,7 +363,9 @@ def test_call_hourly_periodic_data_sync_syncs(enterprise_data_fixture):
 @override_settings(DEBUG=True)
 @patch("baserow_enterprise.data_sync.handler.sync_periodic_data_sync")
 def test_call_periodic_data_sync_syncs_starts_task(
-    mock_sync_periodic_data_sync, enterprise_data_fixture
+    mock_sync_periodic_data_sync,
+    enterprise_data_fixture,
+    synced_roles,
 ):
     enterprise_data_fixture.enable_enterprise()
     user = enterprise_data_fixture.create_user()
@@ -411,7 +415,7 @@ def test_skip_automatically_deactivated_periodic_data_syncs(enterprise_data_fixt
 @pytest.mark.django_db(transaction=True, databases=["default", "default-copy"])
 @pytest.mark.data_sync
 @override_settings(DEBUG=True)
-def test_skip_locked_data_syncs(enterprise_data_fixture):
+def test_skip_locked_data_syncs(enterprise_data_fixture, synced_roles):
     enterprise_data_fixture.enable_enterprise()
     user = enterprise_data_fixture.create_user()
 

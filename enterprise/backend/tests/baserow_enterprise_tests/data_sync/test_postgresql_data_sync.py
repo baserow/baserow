@@ -21,7 +21,7 @@ from baserow.core.db import specific_iterator
 @pytest.mark.django_db(transaction=True)
 @override_settings(DEBUG=True)
 def test_create_row_in_postgresql_table(
-    enterprise_data_fixture, create_postgresql_test_table
+    enterprise_data_fixture, create_postgresql_test_table, synced_roles
 ):
     enterprise_data_fixture.enable_enterprise()
     default_database = settings.DATABASES["default"]
@@ -120,6 +120,7 @@ def test_create_row_in_postgresql_table(
 def test_update_row_in_postgresql_table(
     enterprise_data_fixture,
     create_postgresql_test_table,
+    synced_roles,
 ):
     enterprise_data_fixture.enable_enterprise()
     default_database = settings.DATABASES["default"]
@@ -235,6 +236,7 @@ def test_update_row_in_postgresql_table(
 def test_update_row_in_postgresql_table_with_multiple_primary_keys(
     enterprise_data_fixture,
     create_postgresql_test_table,
+    synced_roles,
 ):
     enterprise_data_fixture.enable_enterprise()
     default_database = settings.DATABASES["default"]
@@ -344,6 +346,7 @@ def test_update_row_in_postgresql_table_with_multiple_primary_keys(
 def test_skip_update_row_in_postgresql_table_if_unique_primary_is_empty(
     enterprise_data_fixture,
     create_postgresql_test_table,
+    synced_roles,
 ):
     enterprise_data_fixture.enable_enterprise()
     default_database = settings.DATABASES["default"]
@@ -431,6 +434,7 @@ def test_skip_update_row_in_postgresql_table_if_unique_primary_is_empty(
 def test_delete_row_in_postgresql_table(
     enterprise_data_fixture,
     create_postgresql_test_table,
+    synced_roles,
 ):
     enterprise_data_fixture.enable_enterprise()
     default_database = settings.DATABASES["default"]
@@ -505,6 +509,7 @@ def test_delete_row_in_postgresql_table(
 def test_skip_delete_row_in_postgresql_table_if_unique_primary_is_empty(
     enterprise_data_fixture,
     create_postgresql_test_table,
+    synced_roles,
 ):
     enterprise_data_fixture.enable_enterprise()
     default_database = settings.DATABASES["default"]
