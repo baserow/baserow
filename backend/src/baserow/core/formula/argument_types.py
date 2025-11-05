@@ -105,3 +105,11 @@ class TimezoneBaserowRuntimeFormulaArgumentType(BaserowRuntimeFormulaArgumentTyp
 
     def parse(self, value):
         return ensure_string(value)
+
+
+class AnyBaserowRuntimeFormulaArgumentType(BaserowRuntimeFormulaArgumentType):
+    def test(self, value):
+        return True
+
+    def parse(self, value):
+        return value

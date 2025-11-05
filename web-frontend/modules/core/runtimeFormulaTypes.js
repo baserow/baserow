@@ -6,6 +6,7 @@ import {
   ObjectBaserowRuntimeFormulaArgumentType,
   BooleanBaserowRuntimeFormulaArgumentType,
   TimezoneBaserowRuntimeFormulaArgumentType,
+  AnyBaserowRuntimeFormulaArgumentType,
 } from '@baserow/modules/core/runtimeFormulaArgumentTypes'
 import {
   InvalidFormulaArgumentType,
@@ -487,8 +488,8 @@ export class RuntimeEqual extends RuntimeFormulaFunction {
 
   get args() {
     return [
-      new NumberBaserowRuntimeFormulaArgumentType(),
-      new NumberBaserowRuntimeFormulaArgumentType(),
+      new AnyBaserowRuntimeFormulaArgumentType(),
+      new AnyBaserowRuntimeFormulaArgumentType(),
     ]
   }
 
@@ -502,7 +503,11 @@ export class RuntimeEqual extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ['2 = 3 = false']
+    return [
+      '2 = 3 = false',
+      '"foo" = "bar" = false',
+      '"foo" = "foo" = true',
+    ]
   }
 }
 
@@ -525,8 +530,8 @@ export class RuntimeNotEqual extends RuntimeFormulaFunction {
 
   get args() {
     return [
-      new NumberBaserowRuntimeFormulaArgumentType(),
-      new NumberBaserowRuntimeFormulaArgumentType(),
+      new AnyBaserowRuntimeFormulaArgumentType(),
+      new AnyBaserowRuntimeFormulaArgumentType(),
     ]
   }
 
@@ -540,7 +545,11 @@ export class RuntimeNotEqual extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ['2 != 3 = true']
+    return [
+      '2 != 3 = true',
+      '"foo" != "foo" = false',
+      '"foo" != "bar" = true',
+    ]
   }
 }
 

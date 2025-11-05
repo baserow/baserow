@@ -121,3 +121,13 @@ export class TimezoneBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFor
     return ensureString(value)
   }
 }
+
+export class AnyBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFormulaArgumentType {
+  test(value) {
+    return true
+  }
+
+  parse(value) {
+    return value
+  }
+}

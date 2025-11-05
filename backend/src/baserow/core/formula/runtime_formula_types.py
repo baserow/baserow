@@ -9,6 +9,7 @@ from django.utils import timezone
 
 from baserow.core.formula.argument_types import (
     AddableBaserowRuntimeFormulaArgumentType,
+    AnyBaserowRuntimeFormulaArgumentType,
     BooleanBaserowRuntimeFormulaArgumentType,
     DateTimeBaserowRuntimeFormulaArgumentType,
     DictBaserowRuntimeFormulaArgumentType,
@@ -113,8 +114,8 @@ class RuntimeDivide(RuntimeFormulaFunction):
 class RuntimeEqual(RuntimeFormulaFunction):
     type = "equal"
     args = [
-        NumberBaserowRuntimeFormulaArgumentType(),
-        NumberBaserowRuntimeFormulaArgumentType(),
+        AnyBaserowRuntimeFormulaArgumentType(),
+        AnyBaserowRuntimeFormulaArgumentType(),
     ]
 
     def validate_number_of_args(self, args):
@@ -127,8 +128,8 @@ class RuntimeEqual(RuntimeFormulaFunction):
 class RuntimeNotEqual(RuntimeFormulaFunction):
     type = "not_equal"
     args = [
-        NumberBaserowRuntimeFormulaArgumentType(),
-        NumberBaserowRuntimeFormulaArgumentType(),
+        AnyBaserowRuntimeFormulaArgumentType(),
+        AnyBaserowRuntimeFormulaArgumentType(),
     ]
 
     def validate_number_of_args(self, args):
