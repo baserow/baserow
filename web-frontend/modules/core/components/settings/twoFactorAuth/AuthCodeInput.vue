@@ -1,5 +1,8 @@
 <template>
-  <div class="auth-code-input">
+  <div
+    class="auth-code-input"
+    :class="{ 'auth-code-input--full-width': fullWidth }"
+  >
     <input
       ref="input1"
       v-model="number1"
@@ -67,6 +70,13 @@
 <script>
 export default {
   name: 'AuthCodeInput',
+  props: {
+    fullWidth: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
+  },
   data() {
     return {
       values: {

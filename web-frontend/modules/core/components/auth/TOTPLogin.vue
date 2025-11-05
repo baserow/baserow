@@ -65,18 +65,21 @@
         </p>
         <AuthCodeInput
           ref="authCodeInput"
-          class="totp-login__code mb-32"
+          class="mb-32"
+          :full-width="true"
           @all-filled="verify"
         />
-        <Button
-          class="totp-login__submit"
-          type="primary"
-          full-width
-          size="large"
-          :loading="loadingVerifyCode"
-          @click="verify"
-          >{{ $t('totpLogin.verify') }}</Button
-        >
+        <div class="mb-32">
+          <Button
+            class="mb-32"
+            type="primary"
+            full-width
+            size="large"
+            :loading="loadingVerifyCode"
+            @click="verify"
+            >{{ $t('totpLogin.verify') }}</Button
+          >
+        </div>
         <div>
           <ul class="auth__action-links">
             <li class="auth__action-link">

@@ -1,11 +1,16 @@
 .auth-code-input {
-  display: flex;
-  flex-direction: row;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 12px;
+  width: 100%;
+  max-width: 324px;
+
+  &.auth-code-input--full-width {
+    max-width: 100%;
+  }
 }
 
 .auth-code-input__input {
-  width: 44px;
   height: 52px;
   font-size: 18px;
   color: $palette-neutral-900;
