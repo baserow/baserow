@@ -14,7 +14,7 @@ import pytest
 from asgiref.sync import async_to_sync
 from udspy import OutputStreamChunk, Prediction
 
-from baserow_enterprise.assistant.assistant import Assistant, get_assistant_callbacks
+from baserow_enterprise.assistant.assistant import Assistant, AssistantCallbacks
 from baserow_enterprise.assistant.models import AssistantChat, AssistantChatMessage
 from baserow_enterprise.assistant.types import (
     AiMessageChunk,
@@ -37,7 +37,7 @@ class TestAssistantCallbacks:
     def test_extend_sources_deduplicates(self):
         """Test that sources are deduplicated when extended"""
 
-        callbacks = get_assistant_callbacks()
+        callbacks = AssistantCallbacks()
 
         # Add initial sources
         callbacks.extend_sources(
@@ -63,7 +63,7 @@ class TestAssistantCallbacks:
     def test_extend_sources_preserves_order(self):
         """Test that source order is preserved (first occurrence wins)"""
 
-        callbacks = get_assistant_callbacks()
+        callbacks = AssistantCallbacks()
 
         callbacks.extend_sources(["https://example.com/a"])
         callbacks.extend_sources(["https://example.com/b"])
@@ -75,7 +75,7 @@ class TestAssistantCallbacks:
     def test_on_tool_end_extracts_sources_from_outputs(self):
         """Test that sources are extracted from tool outputs"""
 
-        callbacks = get_assistant_callbacks()
+        callbacks = AssistantCallbacks()
 
         # Mock tool instance and inputs
         tool_instance = MagicMock()
@@ -106,7 +106,7 @@ class TestAssistantCallbacks:
     def test_on_tool_end_handles_missing_sources(self):
         """Test that tool outputs without sources don't cause errors"""
 
-        callbacks = get_assistant_callbacks()
+        callbacks = AssistantCallbacks()
 
         tool_instance = MagicMock()
         tool_instance.name = "some_tool"

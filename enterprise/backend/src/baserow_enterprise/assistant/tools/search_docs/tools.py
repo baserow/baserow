@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Callable, TypedDict
+from typing import TYPE_CHECKING, Annotated, Any, Callable
 
 from django.contrib.auth.models import AbstractUser
 from django.utils.translation import gettext as _
@@ -17,58 +17,73 @@ MAX_SOURCES = 3
 
 
 class SearchDocsSignature(udspy.Signature):
+    """
+    Search the Baserow documentation for relevant information to answer user questions.
+    Never fabricate answers or URLs. Always copy instructions exactly as they appear in
+    the documentation, without rephrasing.
+    """
+
     question: str = udspy.InputField()
     context: list[str] = udspy.InputField()
     response: str = udspy.OutputField()
     sources: list[str] = udspy.OutputField(
         desc=f"List of unique and relevant source URLs. Max {MAX_SOURCES}."
     )
+    reliability: float = udspy.OutputField(
+        desc=(
+            "The reliability score of the response, from 0 to 1. "
+            "1 means the answer is fully supported by the provided context. "
+            "0 means the answer is not supported by the provided context."
+        )
+    )
 
 
 class SearchDocsRAG(udspy.Module):
     def __init__(self):
-        self.respond = SearchDocsSignature
+        self.rag = udspy.ChainOfThought(SearchDocsSignature)
 
-    def forward(self, question):
+    def forward(self, question: str, *args, **kwargs):
         context = KnowledgeBaseHandler().search(question, num_results=10)
-        return self.respond(context=context, question=question)
-
-
-class SearchDocsToolOutput(TypedDict):
-    response: str
-    sources: list[str]
+        return self.rag(context=context, question=question)
 
 
 def get_search_docs_tool(
     user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
-) -> Callable[[str], SearchDocsToolOutput]:
+) -> Callable[[str], dict[str, Any]]:
     """
     Returns a function that searches the Baserow documentation for a given query.
     """
 
-    def search_docs(query: str) -> SearchDocsToolOutput:
+    def search_docs(
+        question: Annotated[
+            str, "The English version of the user question, using Baserow vocabulary."
+        ]
+    ) -> dict[str, Any]:
         """
-        Search Baserow documentation.
+        Search Baserow documentation for relevant information. Make sure the question
+        is in English and uses Baserow-specific terminology to get the best results.
         """
 
         nonlocal tool_helpers
 
         tool_helpers.update_status(_("Exploring the knowledge base..."))
 
-        tool = SearchDocsRAG()
-        result = tool(query)
+        search_tool = SearchDocsRAG()
+        answer = search_tool(question=question)
+        # Somehow sources can be objects with an "url" attribute instead of strings,
+        # let's fix that
+        fixed_sources = []
+        for src in answer.sources[:MAX_SOURCES]:
+            if isinstance(src, str):
+                fixed_sources.append(src)
+            elif isinstance(src, dict) and "url" in src:
+                fixed_sources.append(src["url"])
 
-        sources = []
-        for source in result.sources:
-            if source not in sources:
-                sources.append(source)
-            if len(sources) >= MAX_SOURCES:
-                break
-
-        return SearchDocsToolOutput(
-            response=result.response,
-            sources=sources,
-        )
+        return {
+            "response": answer.response,
+            "sources": fixed_sources,
+            "reliability": answer.reliability,
+        }
 
     return search_docs
 

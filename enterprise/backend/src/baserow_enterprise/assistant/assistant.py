@@ -39,75 +39,78 @@ class AssistantMessagePair(TypedDict):
     answer: str
 
 
-def get_assistant_callbacks():
-    class AssistantCallbacks(BaseCallback):
-        def __init__(self):
-            self.tool_calls = {}
-            self.sources = []
+class AssistantCallbacks(BaseCallback):
+    def __init__(self, tool_helpers: ToolHelpers | None = None):
+        self.tool_helpers = tool_helpers
+        self.tool_calls = {}
+        self.sources = []
 
-        def extend_sources(self, sources: list[str]) -> None:
-            """
-            Extends the current list of sources with new ones, avoiding duplicates.
+    def extend_sources(self, sources: list[str]) -> None:
+        """
+        Extends the current list of sources with new ones, avoiding duplicates.
 
-            :param sources: The list of new source URLs to add.
-            :return: None
-            """
+        :param sources: The list of new source URLs to add.
+        :return: None
+        """
 
-            self.sources.extend([s for s in sources if s not in self.sources])
+        self.sources.extend([s for s in sources if s not in self.sources])
 
-        def on_tool_start(
-            self,
-            call_id: str,
-            instance: Any,
-            inputs: dict[str, Any],
-        ) -> None:
-            """
-            Called when a tool starts. It records the tool call and invokes the
-            corresponding tool's on_tool_start method if it exists.
+    def on_tool_start(
+        self,
+        call_id: str,
+        instance: Any,
+        inputs: dict[str, Any],
+    ) -> None:
+        """
+        Called when a tool starts. It records the tool call and invokes the
+        corresponding tool's on_tool_start method if it exists.
 
-            :param call_id: The unique identifier of the tool call.
-            :param instance: The instance of the tool being called.
-            :param inputs: The inputs provided to the tool.
-            """
+        :param call_id: The unique identifier of the tool call.
+        :param instance: The instance of the tool being called.
+        :param inputs: The inputs provided to the tool.
+        """
 
-            try:
-                assistant_tool_registry.get(instance.name).on_tool_start(
-                    call_id, instance, inputs
-                )
-                self.tool_calls[call_id] = (instance, inputs)
-            except assistant_tool_registry.does_not_exist_exception_class:
-                pass
+        try:
+            assistant_tool_registry.get(instance.name).on_tool_start(
+                call_id, instance, inputs
+            )
+            self.tool_calls[call_id] = (instance, inputs)
+        except assistant_tool_registry.does_not_exist_exception_class:
+            pass
 
-        def on_tool_end(
-            self,
-            call_id: str,
-            outputs: dict[str, Any] | None,
-            exception: Exception | None = None,
-        ) -> None:
-            """
-            Called when a tool ends. It invokes the corresponding tool's on_tool_end
-            method if it exists and updates the sources if the tool produced any.
+    def on_tool_end(
+        self,
+        call_id: str,
+        outputs: dict[str, Any] | None,
+        exception: Exception | None = None,
+    ) -> None:
+        """
+        Called when a tool ends. It invokes the corresponding tool's on_tool_end
+        method if it exists and updates the sources if the tool produced any.
 
-            :param call_id: The unique identifier of the tool call.
-            :param outputs: The outputs returned by the tool, or None if there was an
-                exception.
-            :param exception: The exception raised by the tool, or None if it was
-                successful.
-            """
+        :param call_id: The unique identifier of the tool call.
+        :param outputs: The outputs returned by the tool, or None if there was an
+            exception.
+        :param exception: The exception raised by the tool, or None if it was
+            successful.
+        """
 
-            if call_id not in self.tool_calls:
-                return
+        if call_id not in self.tool_calls:
+            return
 
-            instance, inputs = self.tool_calls.pop(call_id)
-            assistant_tool_registry.get(instance.name).on_tool_end(
-                call_id, instance, inputs, outputs, exception
+        instance, inputs = self.tool_calls.pop(call_id)
+        assistant_tool_registry.get(instance.name).on_tool_end(
+            call_id, instance, inputs, outputs, exception
+        )
+
+        if exception is not None and self.tool_helpers is not None:
+            self.tool_helpers.update_status(
+                f"Calling the {instance.name} tool encountered an error."
             )
 
-            # If the tool produced sources, add them to the overall list of sources.
-            if isinstance(outputs, dict) and "sources" in outputs:
-                self.extend_sources(outputs["sources"])
-
-    return AssistantCallbacks()
+        # If the tool produced sources, add them to the overall list of sources.
+        if isinstance(outputs, dict) and "sources" in outputs:
+            self.extend_sources(outputs["sources"])
 
 
 class ChatSignature(udspy.Signature):
@@ -139,10 +142,11 @@ class Assistant:
         self._lm_client = udspy.LM(model=lm_model)
 
     def _init_assistant(self):
-        tool_helpers = self.get_tool_helpers()
+        self.tool_helpers = self.get_tool_helpers()
         tools = assistant_tool_registry.list_all_usable_tools(
-            self._user, self._workspace, tool_helpers
+            self._user, self._workspace, self.tool_helpers
         )
+        self.callbacks = AssistantCallbacks(self.tool_helpers)
         self._assistant = udspy.ReAct(ChatSignature, tools=tools, max_iters=20)
         self.history = None
 
@@ -219,7 +223,7 @@ class Assistant:
                 )
         return list(reversed(messages))
 
-    async def aload_chat_history(self, limit=20):
+    async def aload_chat_history(self, limit=30):
         """
         Loads the chat history into a udspy.History object. It only loads complete
         message pairs (human + AI). The history will be in chronological order and must
@@ -332,18 +336,24 @@ class Assistant:
         :return: An async generator that yields the response messages.
         """
 
-        assistant_callbacks = get_assistant_callbacks()
-
         with udspy.settings.context(
             lm=self._lm_client,
-            callbacks=[*udspy.settings.callbacks, assistant_callbacks],
+            callbacks=[*udspy.settings.callbacks, self.callbacks],
         ):
             if self.history is None:
                 await self.aload_chat_history()
 
+            user_question = human_message.content
+            if self.history.messages:  # Enhance question context based on chat history
+                predictor = udspy.Predict("question, context -> enhanced_question")
+                user_question = (
+                    await predictor.aforward(
+                        question=user_question, context=self.history.messages
+                    )
+                ).enhanced_question
+
             output_stream = self._assistant.astream(
-                history=self.history,
-                question=human_message.content,
+                question=user_question,
                 ui_context=human_message.ui_context.model_dump_json(exclude_none=True),
             )
 
@@ -365,7 +375,7 @@ class Assistant:
                     if event.field_name == "answer":
                         yield AiMessageChunk(
                             content=event.content,
-                            sources=assistant_callbacks.sources,
+                            sources=self.callbacks.sources,
                         )
                         continue
 
@@ -375,7 +385,7 @@ class Assistant:
 
                     elif event.module is self._assistant:
                         ai_msg = await self._acreate_ai_message_response(
-                            human_msg, event, assistant_callbacks.sources
+                            human_msg, event, self.callbacks.sources
                         )
                         yield ai_msg
 

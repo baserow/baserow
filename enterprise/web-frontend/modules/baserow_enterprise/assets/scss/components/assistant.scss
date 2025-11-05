@@ -362,6 +362,11 @@
   }
 }
 
+.assistant__message-text-container {
+  display: flex;
+  gap: 12px;
+}
+
 .assistant__message-bubble {
   background-color: $white;
   border: 1px solid $palette-neutral-200;
@@ -372,8 +377,6 @@
   overflow-wrap: break-word;
   max-width: 100%;
   min-width: 0;
-  display: flex;
-  gap: 12px;
 
   & span.loading {
     margin-top: 4px;
