@@ -75,7 +75,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { nextTick, ref, watch } from 'vue'
 import {
   useContext,
   computed,
@@ -124,6 +124,7 @@ const refs = instance.proxy.$refs
 const workflowNode = ref()
 const children = ref()
 const nodeComponent = ref()
+const coordsPerEdge = ref([])
 
 const nodeType = computed(() => app.$registry.get('node', props.node.type))
 const nodeEdges = computed(() => nodeType.value.getEdges({ node: props.node }))
@@ -141,27 +142,30 @@ const computeEdgeCoords = (wrapper, edgeElt, multiple = false) => {
 }
 
 /**
- * Compute all connector coordinates per edge
+ * Compute all connector coordinates per edge on edge changes
  */
-const coordsPerEdge = computed(() => {
-  if (!workflowNode.value || !nodeComponent.value) return []
+watch(
+  nodeEdges,
+  async () => {
+    await nextTick()
+    coordsPerEdge.value = nodeEdges.value.map((edge) => {
+      const wrap = workflowNode.value
+      if (Array.isArray(refs[`edge-${edge.uid}`])) {
+        const edgeElt = refs[`edge-${edge.uid}`][0].$el
 
-  return nodeEdges.value.map((edge) => {
-    const wrap = workflowNode.value
-    if (Array.isArray(refs[`edge-${edge.uid}`])) {
-      const edgeElt = refs[`edge-${edge.uid}`][0].$el
-
-      return [
-        edge.uid,
-        computeEdgeCoords(wrap, edgeElt, hasMultipleEdges.value),
-      ]
-    } else {
-      // We might have a delay between the edge addition
-      // and the branch being visible
-      return [edge.uid, { startX: 0, startY: 0, endX: 0, endY: 0 }]
-    }
-  })
-})
+        return [
+          edge.uid,
+          computeEdgeCoords(wrap, edgeElt, hasMultipleEdges.value),
+        ]
+      } else {
+        // We might have a delay between the edge addition
+        // and the branch being visible
+        return [edge.uid, { startX: 0, startY: 0, endX: 0, endY: 0 }]
+      }
+    })
+  },
+  { immediate: true }
+)
 
 const childEdgeCoords = computed(() => {
   if (nodeType.value.isContainer) {
