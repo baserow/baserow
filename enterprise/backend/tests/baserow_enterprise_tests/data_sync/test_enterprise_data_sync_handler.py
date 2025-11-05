@@ -33,7 +33,9 @@ from baserow_enterprise.data_sync.notification_types import (
 @pytest.mark.django_db
 @pytest.mark.data_sync
 @override_settings(DEBUG=True)
-def test_update_periodic_data_sync_interval_licence_check(enterprise_data_fixture):
+def test_update_periodic_data_sync_interval_licence_check(
+    enterprise_data_fixture, synced_roles
+):
     user = enterprise_data_fixture.create_user()
     data_sync = enterprise_data_fixture.create_ical_data_sync(user=user)
 
@@ -69,7 +71,9 @@ def test_update_periodic_data_sync_interval_check_permissions(
 @pytest.mark.django_db
 @pytest.mark.data_sync
 @override_settings(DEBUG=True)
-def test_update_periodic_data_sync_interval_create(enterprise_data_fixture):
+def test_update_periodic_data_sync_interval_create(
+    enterprise_data_fixture, synced_roles
+):
     enterprise_data_fixture.enable_enterprise()
 
     user = enterprise_data_fixture.create_user()
@@ -108,7 +112,9 @@ def test_update_periodic_data_sync_interval_create(enterprise_data_fixture):
 @pytest.mark.django_db
 @pytest.mark.data_sync
 @override_settings(DEBUG=True)
-def test_update_periodic_data_sync_interval_update(enterprise_data_fixture):
+def test_update_periodic_data_sync_interval_update(
+    enterprise_data_fixture, synced_roles
+):
     enterprise_data_fixture.enable_enterprise()
 
     user = enterprise_data_fixture.create_user()
@@ -155,7 +161,7 @@ def test_update_periodic_data_sync_interval_update(enterprise_data_fixture):
 @pytest.mark.data_sync
 @override_settings(DEBUG=True)
 def test_update_periodic_data_sync_interval_update_automatically_disabled(
-    enterprise_data_fixture,
+    enterprise_data_fixture, synced_roles
 ):
     enterprise_data_fixture.enable_enterprise()
 
@@ -183,7 +189,7 @@ def test_update_periodic_data_sync_interval_update_automatically_disabled(
 @pytest.mark.django_db
 @pytest.mark.data_sync
 @override_settings(DEBUG=True)
-def test_call_daily_periodic_data_sync_syncs(enterprise_data_fixture):
+def test_call_daily_periodic_data_sync_syncs(enterprise_data_fixture, synced_roles):
     enterprise_data_fixture.enable_enterprise()
     user = enterprise_data_fixture.create_user()
 
@@ -272,7 +278,7 @@ def test_call_daily_periodic_data_sync_syncs(enterprise_data_fixture):
 @pytest.mark.django_db
 @pytest.mark.data_sync
 @override_settings(DEBUG=True)
-def test_call_hourly_periodic_data_sync_syncs(enterprise_data_fixture):
+def test_call_hourly_periodic_data_sync_syncs(enterprise_data_fixture, synced_roles):
     enterprise_data_fixture.enable_enterprise()
     user = enterprise_data_fixture.create_user()
 
@@ -390,7 +396,9 @@ def test_call_periodic_data_sync_syncs_starts_task(
 @pytest.mark.django_db
 @pytest.mark.data_sync
 @override_settings(DEBUG=True)
-def test_skip_automatically_deactivated_periodic_data_syncs(enterprise_data_fixture):
+def test_skip_automatically_deactivated_periodic_data_syncs(
+    enterprise_data_fixture, synced_roles
+):
     enterprise_data_fixture.enable_enterprise()
     user = enterprise_data_fixture.create_user()
 
@@ -490,7 +498,7 @@ def test_skip_syncing_data_syncs(
 @pytest.mark.django_db
 @pytest.mark.data_sync
 @override_settings(DEBUG=True)
-def test_sync_periodic_data_sync_deactivated(enterprise_data_fixture):
+def test_sync_periodic_data_sync_deactivated(enterprise_data_fixture, synced_roles):
     enterprise_data_fixture.enable_enterprise()
     user = enterprise_data_fixture.create_user()
 
@@ -515,7 +523,7 @@ def test_sync_periodic_data_sync_deactivated(enterprise_data_fixture):
 @pytest.mark.django_db
 @pytest.mark.data_sync
 @override_settings(DEBUG=True)
-def test_sync_periodic_data_sync_already_syncing(enterprise_data_fixture):
+def test_sync_periodic_data_sync_already_syncing(enterprise_data_fixture, synced_roles):
     enterprise_data_fixture.enable_enterprise()
     user = enterprise_data_fixture.create_user()
 
@@ -545,7 +553,7 @@ def test_sync_periodic_data_sync_already_syncing(enterprise_data_fixture):
 @override_settings(DEBUG=True)
 @responses.activate
 def test_sync_periodic_data_sync_consecutive_failed_count_increases(
-    enterprise_data_fixture,
+    enterprise_data_fixture, synced_roles
 ):
     responses.add(
         responses.GET,
@@ -579,7 +587,7 @@ def test_sync_periodic_data_sync_consecutive_failed_count_increases(
 )
 @responses.activate
 def test_sync_periodic_data_sync_consecutive_failed_count_reset(
-    enterprise_data_fixture,
+    enterprise_data_fixture, synced_roles
 ):
     responses.add(
         responses.GET,
@@ -616,7 +624,9 @@ END:VCALENDAR""",
 @pytest.mark.data_sync
 @override_settings(DEBUG=True)
 @responses.activate
-def test_sync_periodic_data_sync_deactivated_max_failure(enterprise_data_fixture):
+def test_sync_periodic_data_sync_deactivated_max_failure(
+    enterprise_data_fixture, synced_roles
+):
     responses.add(
         responses.GET,
         "https://baserow.io/ical.ics",
@@ -698,7 +708,9 @@ def test_sync_periodic_data_sync_deactivated_max_failure_notification_send(
 @pytest.mark.django_db
 @pytest.mark.data_sync
 @override_settings(DEBUG=True)
-def test_sync_periodic_data_sync_authorized_user_is_none(enterprise_data_fixture):
+def test_sync_periodic_data_sync_authorized_user_is_none(
+    enterprise_data_fixture, synced_roles
+):
     enterprise_data_fixture.enable_enterprise()
     user = enterprise_data_fixture.create_user()
 
@@ -723,7 +735,7 @@ def test_sync_periodic_data_sync_authorized_user_is_none(enterprise_data_fixture
 @pytest.mark.data_sync
 @override_settings(DEBUG=True)
 @responses.activate
-def test_sync_periodic_data_sync(enterprise_data_fixture):
+def test_sync_periodic_data_sync(enterprise_data_fixture, synced_roles):
     responses.add(
         responses.GET,
         "https://baserow.io/ical.ics",
@@ -838,7 +850,10 @@ def test_periodic_sync_failure_deactivation_shows_failure_message(
 @override_settings(DEBUG=True)
 @patch("baserow.contrib.database.table.signals.table_created.send")
 def test_create_two_way_data_sync_table(
-    send_mock, enterprise_data_fixture, create_postgresql_test_table
+    send_mock,
+    enterprise_data_fixture,
+    create_postgresql_test_table,
+    synced_roles,
 ):
     enterprise_data_fixture.enable_enterprise()
 
@@ -879,7 +894,7 @@ def test_create_two_way_data_sync_table(
 @override_settings(DEBUG=True)
 @patch("baserow.contrib.database.table.signals.table_created.send")
 def test_create_two_way_data_sync_table_and_add_properties(
-    send_mock, enterprise_data_fixture, create_postgresql_test_table
+    send_mock, enterprise_data_fixture, create_postgresql_test_table, synced_roles
 ):
     enterprise_data_fixture.enable_enterprise()
 
@@ -931,7 +946,7 @@ def test_create_two_way_data_sync_table_and_add_properties(
 @override_settings(DEBUG=True)
 @patch("baserow.contrib.database.table.signals.table_created.send")
 def test_create_and_unset_two_way_data_sync_table(
-    send_mock, enterprise_data_fixture, create_postgresql_test_table
+    send_mock, enterprise_data_fixture, create_postgresql_test_table, synced_roles
 ):
     enterprise_data_fixture.enable_enterprise()
 
@@ -983,7 +998,10 @@ def test_create_and_unset_two_way_data_sync_table(
 @override_settings(DEBUG=True)
 @patch("baserow.contrib.database.table.signals.table_created.send")
 def test_create_and_set_two_way_data_sync_table(
-    send_mock, enterprise_data_fixture, create_postgresql_test_table
+    send_mock,
+    enterprise_data_fixture,
+    create_postgresql_test_table,
+    synced_roles,
 ):
     enterprise_data_fixture.enable_enterprise()
 
