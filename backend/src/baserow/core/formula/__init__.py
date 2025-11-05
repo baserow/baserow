@@ -44,7 +44,10 @@ def resolve_formula(
 
     # If we receive a blank formula string, don't attempt to parse it.
     if not formula["formula"]:
-        return ""
+        return formula["formula"]
+
+    if formula["mode"] == "raw":
+        return formula["formula"]
 
     tree = get_parse_tree_for_formula(formula["formula"])
     return BaserowPythonExecutor(functions, formula_context).visit(tree)

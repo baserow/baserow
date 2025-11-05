@@ -1059,6 +1059,7 @@ class InstanceWithFormulaMixin:
         formula_gen = self.formula_generator(instance)
         for formula in formula_gen:
             new_formula = import_formula(formula, id_mapping, **kwargs)
+            print("import", formula, new_formula, id_mapping)
             if new_formula != formula:
                 updated_models.add(formula_gen.send(new_formula))
 

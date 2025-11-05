@@ -16,7 +16,7 @@ export const resolveFormula = (
   RuntimeFormulaContext
 ) => {
   if (!formulaCtx.formula) {
-    return ''
+    return formulaCtx.formula
   }
 
   if (formulaCtx.mode === 'raw') {
@@ -29,7 +29,7 @@ export const resolveFormula = (
     return new JavascriptExecutor(functions, RuntimeFormulaContext).visit(tree)
   } catch (err) {
     console.debug(`FORMULA DEBUG: ${err}`)
-    return ''
+    return null
   }
 }
 

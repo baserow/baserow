@@ -47,6 +47,8 @@ class BaserowFormulaImporter(BaserowFormulaVisitor, ABC):
     def _do_func_import(self, function_argument_expressions, function_name: str):
         args = [expr.accept(self) for expr in function_argument_expressions]
 
+        print("yeay", function_name, args)
+
         # If it's a get function then let's update the path
         if function_name == "get" and isinstance(
             function_argument_expressions[0], BaserowFormula.StringLiteralContext
@@ -57,6 +59,7 @@ class BaserowFormulaImporter(BaserowFormulaVisitor, ABC):
             data_provider_type = self.get_data_provider_type_registry().get(
                 data_provider_name
             )
+            print("func import", data_provider_name)
             unquoted_arg_list = data_provider_type.import_path(
                 path, self.id_mapping, **self.extra_context
             )

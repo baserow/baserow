@@ -440,9 +440,11 @@ class AutomationWorkflowHandler:
 
         imported_nodes = []
 
+        # TODO order node in graph
+
+        # check that the node has not already been imported in a
+        # previous pass or if the parent doesn't exist yet.
         for serialized_node in serialized_nodes:
-            # check that the node has not already been imported in a
-            # previous pass or if the parent doesn't exist yet.
             imported_node = AutomationNodeHandler().import_node(
                 workflow,
                 serialized_node,

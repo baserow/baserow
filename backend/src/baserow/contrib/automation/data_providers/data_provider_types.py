@@ -70,6 +70,8 @@ class PreviousNodeProviderType(AutomationDataProviderType):
 
         previous_node_id, *rest = path
 
+        print("in import_path", previous_node_id, rest, id_mapping)
+
         try:
             new_node_id = id_mapping["automation_workflow_nodes"][int(previous_node_id)]
             node = AutomationNodeHandler().get_node(new_node_id)
