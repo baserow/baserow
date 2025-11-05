@@ -22,6 +22,8 @@ class CTEUpdateReturningIdsQueryCompiler(SQLUpdateCompiler):
 
     def execute_sql(self, result_type):
         cursor = super(SQLUpdateCompiler, self).execute_sql(result_type)
+        if cursor is None:
+            return []
         return [res[0] for res in cursor.fetchall()]
 
 

@@ -1808,8 +1808,8 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             and not field_object["field"].read_only
         ]
 
-        # Sort by order then by id
-        fields.sort(key=lambda f: (f.order, f.id))
+        # Sort by primary first (descending), then by order, then by id
+        fields.sort(key=lambda f: (not f.primary, f.order, f.id))
 
         for index, row in enumerate(data):
             # Check row length
