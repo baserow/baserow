@@ -23,6 +23,7 @@ import {
 import FormulaInputField from '@baserow/modules/core/components/formula/FormulaInputField'
 import { DataSourceDataProviderType } from '@baserow/modules/builder/dataProviderTypes'
 import { buildFormulaFunctionNodes } from '@baserow/modules/core/formula'
+import { getDataNodesFromDataProvider } from '@baserow/modules/core/utils/dataProviders'
 
 const props = defineProps({
   value: {
@@ -66,42 +67,9 @@ const dataProviders = computed(() => {
 const nodesHierarchy = computed(() => {
   const hierarchy = []
 
-  // Add data nodes from dataProviders
-  const dataNodes = []
-  for (const dataProvider of dataProviders.value) {
-    if (dataProvider && typeof dataProvider.getNodes === 'function') {
-      const providerNodes = dataProvider.getNodes(applicationContext)
-      if (providerNodes) {
-        // Transform provider nodes to match FormulaInputField expected structure
-        const transformNode = (node) => {
-          return {
-            name: node.name || node.title,
-            type: 'data', // All nodes should be of type 'data'
-            identifier: node.identifier || node.name,
-            description: node.description || null,
-            icon: node.icon || 'iconoir-database',
-            highlightingColor: null,
-            example: null,
-            order: node.order || null,
-            signature: null,
-            nodes: node.nodes ? node.nodes.map(transformNode) : [],
-          }
-        }
-
-        // Ensure providerNodes is an array before processing
-        if (Array.isArray(providerNodes)) {
-          dataNodes.push(...providerNodes.map(transformNode))
-        } else if (typeof providerNodes === 'object') {
-          // If it's a single object, transform and add it
-          dataNodes.push(transformNode(providerNodes))
-        }
-      }
-    }
-  }
-
-  // Filter out first-level data nodes that have empty nodes arrays
-  const filteredDataNodes = dataNodes.filter(
-    (node) => node.nodes && node.nodes.length > 0
+  const filteredDataNodes = getDataNodesFromDataProvider(
+    dataProviders.value,
+    applicationContext
   )
 
   if (filteredDataNodes.length > 0) {
