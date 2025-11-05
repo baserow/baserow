@@ -228,7 +228,10 @@ export class RuntimeConcat extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ["concat('Hello,', ' World!') = 'Hello, world!'"]
+    return [
+      "concat('Hello,', ' World!') = 'Hello, world!'",
+      "concat(get('data_source.1.0.field_1'), ' bar') = 'foo bar'",
+    ]
   }
 }
 
@@ -881,7 +884,10 @@ export class RuntimeIsEven extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ['is_even(12) = true']
+    return [
+      'is_even(12) = true',
+      'is_even(13) = false',
+    ]
   }
 }
 
@@ -912,7 +918,10 @@ export class RuntimeIsOdd extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ['is_odd(11) = true']
+    return [
+      'is_odd(11) = true',
+      'is_odd(12) = false',
+    ]
   }
 }
 
@@ -1113,7 +1122,7 @@ export class RuntimeMinute extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ["minute('2025-10-16T11:05:38') = '05'"]
+    return ["minute('2025-10-16T11:05:38') = '5'"]
   }
 }
 
@@ -1399,8 +1408,8 @@ export class RuntimeIf extends RuntimeFormulaFunction {
 
   getExamples() {
     return [
-      'if(true, true, false)',
-      "if(random_bool(), 'Random bool is true', 'Random bool is false')",
+      'if(true, true, false) = true',
+      "if(random_bool(), 'Random bool is true', 'Random bool is false') = 'Random bool is false'",
     ]
   }
 }
