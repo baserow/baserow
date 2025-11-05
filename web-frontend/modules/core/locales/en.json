@@ -116,7 +116,9 @@
     "verify": "Verify",
     "useBackupCode": "Use backup code",
     "verificationFailed": "Verification failed",
-    "loginExpired": "Login expired. Please provide your password again.",
+    "verificationFailedDescription": "The entered code is not correct.",
+    "loginExpired": "Login expired",
+    "loginExpiredDescription": "Please provide your password again.",
     "rateLimit": "Too many attempts."
   },
   "settingsModal": {

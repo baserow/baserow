@@ -160,9 +160,7 @@ export default {
       this.values.number4 = ''
       this.values.number5 = ''
       this.values.number6 = ''
-      this.$nextTick(() => {
-        this.$refs.input1.focus()
-      })
+      this.$refs.input1.focus()
     },
     sanitizeInput(value) {
       const sanitized = value.replace(/\D/g, '').slice(0, 1)

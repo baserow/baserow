@@ -193,11 +193,13 @@ export default {
         data.detail === 'Authentication credentials were not provided.'
       ) {
         const title = this.$t('totpLogin.loginExpired')
-        this.$store.dispatch('toast/error', { title })
+        const message = this.$t('totpLogin.loginExpiredDescription')
+        this.$store.dispatch('toast/error', { title, message })
         this.$emit('expired')
       } else {
         const title = this.$t('totpLogin.verificationFailed')
-        this.$store.dispatch('toast/error', { title })
+        const message = this.$t('totpLogin.verificationFailedDescription')
+        this.$store.dispatch('toast/error', { title, message })
       }
     },
   },
