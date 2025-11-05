@@ -23,6 +23,7 @@ from rest_framework.exceptions import ValidationError
 from baserow.contrib.builder.formula_importer import import_formula
 from baserow.contrib.builder.mixins import BuilderInstanceWithFormulaMixin
 from baserow.contrib.builder.pages.models import Page
+from baserow.core.formula.types import BaserowFormulaObject
 from baserow.core.models import Workspace
 from baserow.core.registry import (
     CustomFieldsInstanceMixin,
@@ -586,7 +587,7 @@ class CollectionFieldType(
 
         for formula_field in self.simple_formula_fields:
             formula = collection_field.config.get(formula_field, "")
-            new_formula = yield formula
+            new_formula = yield BaserowFormulaObject.to_formula(formula)
             if new_formula is not None:
                 collection_field.config[formula_field] = new_formula
                 yield collection_field

@@ -49,6 +49,7 @@ from baserow.contrib.integrations.core.models import (
     HTTPHeader,
     HTTPQueryParam,
 )
+from baserow.core.formula.types import BaserowFormulaObject
 from baserow.core.formula.validator import (
     ensure_array,
     ensure_boolean,
@@ -261,21 +262,21 @@ class CoreHTTPRequestServiceType(CoreServiceType):
 
         # Return form_data formulas
         for fdata in service.form_data.all():
-            new_formula = yield fdata.value
+            new_formula = yield BaserowFormulaObject.to_formula(fdata.value)
             if new_formula is not None:
                 fdata.value = new_formula
                 yield fdata
 
         # Return headers formulas
         for header in service.headers.all():
-            new_formula = yield header.value
+            new_formula = yield BaserowFormulaObject.to_formula(header.value)
             if new_formula is not None:
                 header.value = new_formula
                 yield header
 
         # Return headers formulas
         for query_param in service.query_params.all():
-            new_formula = yield query_param.value
+            new_formula = yield BaserowFormulaObject.to_formula(query_param.value)
             if new_formula is not None:
                 query_param.value = new_formula
                 yield query_param

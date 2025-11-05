@@ -434,6 +434,27 @@ class NodeGraphHandler:
 
         self._update_graph(migrated)
 
+    def unfold_graph(self, current_node_id=None):
+        """
+        Returns the node of the graph ordered to respect node order  execution.
+        """
+
+        if current_node_id is None:
+            if self.graph["0"]:
+                yield from self.unfold_graph(self.graph["0"])
+        else:
+            yield current_node_id
+            info = self.get_info(current_node_id)
+
+            if next_nodes := info.get("next", {}):
+                for node_ids in next_nodes.values():
+                    for node_id in node_ids:
+                        yield from self.unfold_graph(self.get_node(node_id))
+
+            if children := info.get("children", []):
+                for node_id in children:
+                    yield from self.unfold_graph(self.get_node(node_id))
+
     def _get_edge_label(self, node, uid):
         """
         Returns the label of the given edge uid for the given node.

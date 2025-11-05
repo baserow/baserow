@@ -20,7 +20,7 @@ class BuilderFormulaImporter(BaserowFormulaImporter):
 
 def import_formula(
     formula: Union[str, BaserowFormulaObject], id_mapping: Dict[str, str], **kwargs
-) -> str:
+) -> BaserowFormulaObject:
     """
     When a formula is used in a service, it must be migrated when we import it because
     it could contain IDs referencing other objects. For example, the formula
@@ -45,11 +45,17 @@ def import_formula(
     :return: The updated formula (same type as input - string or object).
     """
 
-    # Figure out what our formula string is.
-    formula_str = formula if isinstance(formula, str) else formula["formula"]
+    formula = BaserowFormulaObject.to_formula(formula)
 
-    if not formula_str:
-        return formula_str
+    if formula["mode"] == "raw" or not formula["formula"]:
+        return formula
 
-    tree = get_parse_tree_for_formula(formula_str)
-    return BuilderFormulaImporter(id_mapping, **kwargs).visit(tree)
+    tree = get_parse_tree_for_formula(formula["formula"])
+    new_formula = BuilderFormulaImporter(id_mapping, **kwargs).visit(tree)
+
+    if new_formula != formula["formula"]:
+        # We create a new instance to show it's a different formula
+        formula = dict(formula)
+        formula["formula"] = new_formula
+
+    return formula

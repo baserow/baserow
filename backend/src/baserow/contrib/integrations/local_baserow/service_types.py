@@ -103,6 +103,7 @@ from baserow.contrib.integrations.local_baserow.utils import (
     guess_json_type_from_response_serializer_field,
 )
 from baserow.core.cache import global_cache
+from baserow.core.formula.types import BaserowFormulaObject
 from baserow.core.handler import CoreHandler
 from baserow.core.registry import Instance
 from baserow.core.services.dispatch_context import DispatchContext
@@ -1801,7 +1802,7 @@ class LocalBaserowUpsertRowServiceType(
 
         # Return field_mapping formulas
         for field_mapping in service.field_mappings.all():
-            new_formula = yield field_mapping.value
+            new_formula = yield BaserowFormulaObject.to_formula(field_mapping.value)
             if new_formula is not None:
                 field_mapping.value = new_formula
                 yield field_mapping

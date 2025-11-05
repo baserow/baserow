@@ -1032,8 +1032,10 @@ class InstanceWithFormulaMixin:
         """
 
         for formula_field in self.simple_formula_fields:
-            formula: Union[str, BaserowFormulaObject] = getattr(instance, formula_field)
-            new_formula = yield formula if isinstance(formula, str) else formula
+            formula: BaserowFormulaObject = BaserowFormulaObject.to_formula(
+                getattr(instance, formula_field)
+            )
+            new_formula = yield formula
             if new_formula is not None:
                 setattr(instance, formula_field, new_formula)
                 yield instance
@@ -1059,7 +1061,6 @@ class InstanceWithFormulaMixin:
         formula_gen = self.formula_generator(instance)
         for formula in formula_gen:
             new_formula = import_formula(formula, id_mapping, **kwargs)
-            print("import", formula, new_formula, id_mapping)
             if new_formula != formula:
                 updated_models.add(formula_gen.send(new_formula))
 

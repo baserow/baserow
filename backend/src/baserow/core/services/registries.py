@@ -477,9 +477,6 @@ class ServiceType(
         import_formula: Callable[[str, Dict[str, Any]], str] = None,
         **kwargs,
     ):
-        if import_formula is None:
-            raise ValueError("Missing import formula function.")
-
         created_instance = super().import_serialized(
             parent,
             serialized_values,
@@ -488,11 +485,12 @@ class ServiceType(
             **kwargs,
         )
 
-        updated_models = self.import_formulas(
-            created_instance, id_mapping, import_formula, **kwargs
-        )
+        if import_formula is not None:
+            updated_models = self.import_formulas(
+                created_instance, id_mapping, import_formula, **kwargs
+            )
 
-        [m.save() for m in updated_models]
+            [m.save() for m in updated_models]
 
         return created_instance
 

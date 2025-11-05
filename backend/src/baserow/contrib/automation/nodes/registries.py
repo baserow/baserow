@@ -5,7 +5,6 @@ from django.contrib.auth.models import AbstractUser
 from baserow.contrib.automation.automation_dispatch_context import (
     AutomationDispatchContext,
 )
-from baserow.contrib.automation.formula_importer import import_formula
 from baserow.contrib.automation.nodes.exceptions import AutomationNodeNotReplaceable
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.types import AutomationNodeDict, NodePositionType
@@ -204,7 +203,7 @@ class AutomationNodeType(
                 storage=storage,
                 cache=cache,
                 files_zip=files_zip,
-                import_formula=import_formula,
+                # We don't migrate formulas here but later after the node import
                 import_export_config=kwargs.get("import_export_config"),
             )
         return super().deserialize_property(

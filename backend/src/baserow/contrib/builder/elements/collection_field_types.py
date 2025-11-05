@@ -186,7 +186,9 @@ class LinkCollectionFieldType(CollectionFieldType):
         for index, page_parameter in enumerate(
             collection_field.config.get("page_parameters") or []
         ):
-            new_formula = yield page_parameter.get("value")
+            new_formula = yield BaserowFormulaObject.to_formula(
+                page_parameter.get("value")
+            )
             if new_formula is not None:
                 collection_field.config["page_parameters"][index]["value"] = new_formula
                 yield collection_field
@@ -194,7 +196,9 @@ class LinkCollectionFieldType(CollectionFieldType):
         for index, query_parameter in enumerate(
             collection_field.config.get("query_parameters") or []
         ):
-            new_formula = yield query_parameter.get("value")
+            new_formula = yield BaserowFormulaObject.to_formula(
+                query_parameter.get("value")
+            )
             if new_formula is not None:
                 collection_field.config["query_parameters"][index][
                     "value"
@@ -266,11 +270,18 @@ class TagsCollectionFieldType(CollectionFieldType):
 
         yield from super().formula_generator(collection_field)
 
-        if collection_field.config.get("colors_is_formula"):
-            new_formula = yield collection_field.config.get("colors", "")
-            if new_formula is not None:
-                collection_field.config["colors"] = new_formula
-                yield collection_field
+        is_formula = collection_field.config.get("colors_is_formula", False)
+        colors = BaserowFormulaObject.to_formula(
+            collection_field.config.get("colors", "")
+        )
+
+        if not is_formula:
+            colors["mode"] = "raw"
+
+        new_formula = yield colors
+        if new_formula is not None:
+            collection_field.config["colors"] = new_formula
+            yield collection_field
 
 
 class ButtonCollectionFieldType(CollectionFieldType):

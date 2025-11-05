@@ -137,13 +137,17 @@ class OpenPageWorkflowActionType(BuilderWorkflowActionType):
         yield from super().formula_generator(workflow_action)
 
         for index, page_parameter in enumerate(workflow_action.page_parameters):
-            new_formula = yield page_parameter.get("value")
+            new_formula = yield BaserowFormulaObject.to_formula(
+                page_parameter.get("value")
+            )
             if new_formula is not None:
                 workflow_action.page_parameters[index]["value"] = new_formula
                 yield workflow_action
 
         for index, query_parameter in enumerate(workflow_action.query_parameters or []):
-            new_formula = yield query_parameter.get("value")
+            new_formula = yield BaserowFormulaObject.to_formula(
+                query_parameter.get("value")
+            )
             if new_formula is not None:
                 workflow_action.query_parameters[index]["value"] = new_formula
                 yield workflow_action

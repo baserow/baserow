@@ -117,12 +117,17 @@ export function isPromise(p) {
  * @param {any} defaultValue The value to return if the path is not found
  * @return {Object} The value held by the path
  */
-export function getValueAtPath(obj, path) {
+export function getValueAtPath(context, path) {
   function _getValueAtPath(obj, keys) {
     const [first, ...rest] = keys
     if (first === undefined || first === null) {
       return obj
     }
+
+    if (obj === null || obj === undefined) {
+      throw new Error(`Path '${path}' not found in context '${obj}'`)
+    }
+
     if (first in obj) {
       return _getValueAtPath(obj[first], rest)
     }
@@ -141,7 +146,7 @@ export function getValueAtPath(obj, path) {
     return null
   }
   const keys = typeof path === 'string' ? _.toPath(path) : path
-  return _getValueAtPath(obj, keys)
+  return _getValueAtPath(context, keys)
 }
 
 /**

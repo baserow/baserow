@@ -440,25 +440,16 @@ class AutomationWorkflowHandler:
 
         imported_nodes = []
 
-        # TODO order node in graph
-
-        # check that the node has not already been imported in a
-        # previous pass or if the parent doesn't exist yet.
-        for serialized_node in serialized_nodes:
-            imported_node = AutomationNodeHandler().import_node(
-                workflow,
-                serialized_node,
-                id_mapping,
-                import_export_config=import_export_config,
-                files_zip=files_zip,
-                storage=storage,
-                cache=cache,
-            )
-
-            imported_nodes.append(imported_node)
-
-            if progress:
-                progress.increment(state=IMPORT_SERIALIZED_IMPORTING)
+        imported_nodes = AutomationNodeHandler().import_nodes(
+            workflow,
+            serialized_nodes,
+            id_mapping,
+            import_export_config=import_export_config,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
+            progress=progress,
+        )
 
         return imported_nodes
 

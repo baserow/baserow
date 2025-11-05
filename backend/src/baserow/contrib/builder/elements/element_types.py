@@ -1007,21 +1007,13 @@ class LinkElementType(ElementType):
         yield from super().formula_generator(element)
 
         for index, data in enumerate(element.page_parameters):
-            new_formula = (
-                yield data["value"]
-                if isinstance(data["value"], str)
-                else data["value"]["formula"]
-            )
+            new_formula = yield BaserowFormulaObject.to_formula(data["value"])
             if new_formula is not None:
                 element.page_parameters[index]["value"] = new_formula
                 yield element
 
         for index, data in enumerate(element.query_parameters or []):
-            new_formula = (
-                yield data["value"]
-                if isinstance(data["value"], str)
-                else data["value"]["formula"]
-            )
+            new_formula = yield BaserowFormulaObject.to_formula(data["value"])
             if new_formula is not None:
                 element.query_parameters[index]["value"] = new_formula
                 yield element
@@ -2503,20 +2495,21 @@ class MenuElementType(ElementType):
 
         for item in element.menu_items.all():
             for index, data in enumerate(item.page_parameters or []):
-                new_formula = yield data["value"]
+                new_formula = yield BaserowFormulaObject.to_formula(data["value"])
                 if new_formula is not None:
                     item.page_parameters[index]["value"] = new_formula
                     yield item
 
             for index, data in enumerate(item.query_parameters or []):
-                new_formula = yield data["value"]
+                new_formula = yield BaserowFormulaObject.to_formula(data["value"])
                 if new_formula is not None:
                     item.query_parameters[index]["value"] = new_formula
                     yield item
 
             for formula_field in NavigationElementManager.simple_formula_fields:
-                formula = getattr(item, formula_field, "")
-                new_formula = yield formula
+                new_formula = yield BaserowFormulaObject.to_formula(
+                    getattr(item, formula_field, "")
+                )
                 if new_formula is not None:
                     setattr(item, formula_field, new_formula)
                     yield item

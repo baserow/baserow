@@ -96,7 +96,9 @@ def test_get_builder_used_property_names_returns_all_property_names(data_fixture
             {
                 "name": "FieldA",
                 "type": "text",
-                "config": {"value": f"get('current_record.field_{fields[0].id}')"},
+                "config": {
+                    "value": f"get('current_record.field_{fields[0].id}') = 'test'"
+                },
             },
             {
                 "name": "FieldB",

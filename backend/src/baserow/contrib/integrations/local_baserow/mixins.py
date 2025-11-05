@@ -303,13 +303,18 @@ class LocalBaserowTableServiceFilterableMixin:
         yield from super().formula_generator(service)
 
         for service_filter in service.service_filters_with_untrashed_fields:
-            if service_filter.value_is_formula:
-                # Service types like LocalBaserowGetRow do not have a value attribute.
-                new_formula = yield service_filter.value
-                if new_formula is not None:
-                    # Set the new formula for the Service Filter
-                    service_filter.value = new_formula
-                    yield service_filter
+            is_formula = service_filter.value_is_formula
+            formula = BaserowFormulaObject.to_formula(service_filter.value)
+
+            if not is_formula:
+                formula["mode"] = "raw"
+
+            # Service types like LocalBaserowGetRow do not have a value attribute.
+            new_formula = yield formula
+            if new_formula is not None:
+                # Set the new formula for the Service Filter
+                service_filter.value = new_formula
+                yield service_filter
 
     def get_table_queryset(
         self,

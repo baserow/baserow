@@ -82,6 +82,9 @@ class FormulaFieldVisitor(BaserowFormulaImporter):
                 # we can ignore it. Maybe the related data source is gone.
                 pass
 
+    def visitBinaryOp(self, ctx: BaserowFormula.BinaryOpContext):
+        return self.visitChildren(ctx)
+
 
 def get_element_property_names(
     elements: List[Element],

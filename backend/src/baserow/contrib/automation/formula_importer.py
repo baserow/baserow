@@ -32,18 +32,17 @@ def import_formula(
     :return: The updated path.
     """
 
-    print("inside auto formula importer", formula, id_mapping)
-
-    # if isinstance(formula, str):
     formula = BaserowFormulaObject.to_formula(formula)
-
-    # Figure out what our formula string is.
-    # formula_str = formula if isinstance(formula, str) else formula["formula"]
 
     if formula["mode"] == "raw" or not formula["formula"]:
         return formula
 
     tree = get_parse_tree_for_formula(formula["formula"])
-    formula["formula"] = AutomationFormulaImporter(id_mapping, **kwargs).visit(tree)
+    new_formula = AutomationFormulaImporter(id_mapping, **kwargs).visit(tree)
+
+    if new_formula != formula["formula"]:
+        # We create a new instance to show it's a different formula
+        formula = dict(formula)
+        formula["formula"] = new_formula
 
     return formula

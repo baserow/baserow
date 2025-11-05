@@ -3,7 +3,10 @@ import pytest
 from baserow.contrib.builder.pages.service import PageService
 from baserow.core.formula import BaserowFormulaObject
 from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
-from baserow.core.formula.types import BASEROW_FORMULA_MODE_SIMPLE
+from baserow.core.formula.types import (
+    BASEROW_FORMULA_MODE_RAW,
+    BASEROW_FORMULA_MODE_SIMPLE,
+)
 
 
 @pytest.mark.django_db
@@ -90,6 +93,6 @@ def test_import_export_tags_collection_field_type(data_fixture):
         "colors": BaserowFormulaObject(
             formula="#d06060ff",
             version=BASEROW_FORMULA_VERSION_INITIAL,
-            mode=BASEROW_FORMULA_MODE_SIMPLE,
+            mode=BASEROW_FORMULA_MODE_RAW,
         ),
     }
