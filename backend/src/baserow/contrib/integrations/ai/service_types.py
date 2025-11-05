@@ -92,7 +92,7 @@ class AIAgentServiceType(ServiceType):
             help_text="The prompt to send to the AI model. Can be a formula.",
         ),
         "ai_choices": serializers.ListField(
-            child=serializers.CharField(),
+            child=serializers.CharField(allow_blank=True),
             required=False,
             default=list,
             help_text="List of choice options for 'choice' output type.",

@@ -15,7 +15,7 @@
   },
   "aiIntegrationType": {
     "inheritingWorkspace": "Inheriting workspace AI settings",
-    "overridingProviders": "Overriding {count} provider | Overriding {count} providers"
+    "overridingProviders": "Overriding {count} provider|Overriding {count} providers"
   },
   "serviceType": {
     "localBaserowGetRow": "Get single row",
@@ -87,13 +87,13 @@
     "overridden": "Overridden"
   },
   "aiAgentServiceForm": {
-    "integrationLabel": "AI Integration",
+    "integrationLabel": "Integration",
     "providerLabel": "AI Provider",
     "providerPlaceholder": "Select an AI provider...",
     "modelLabel": "AI Model",
     "modelPlaceholder": "Select a model...",
     "outputTypeLabel": "Output Type",
-    "outputTypeHelp": "Choose how the AI should format its response.",
+    "outputTypeHelp": "Choose how the AI should format its response. If you define choices, you force the model to respond only with one of those choices.",
     "outputTypeText": "Text",
     "outputTypeChoice": "Choice",
     "temperatureLabel": "Temperature",

@@ -58,39 +58,6 @@
 
       <FormGroup
         small-label
-        :label="$t('aiAgentServiceForm.outputTypeLabel')"
-        required
-        class="margin-bottom-2"
-      >
-        <RadioGroup
-          v-model="values.ai_output_type"
-          :options="outputTypeOptions"
-        />
-        <template #helper>
-          {{ $t('aiAgentServiceForm.outputTypeHelp') }}
-        </template>
-      </FormGroup>
-
-      <FormGroup
-        small-label
-        :label="$t('aiAgentServiceForm.temperatureLabel')"
-        class="margin-bottom-2"
-      >
-        <FormInput
-          v-model.number="values.ai_temperature"
-          type="number"
-          :min="0"
-          :max="maxTemperature"
-          :step="0.1"
-          :placeholder="$t('aiAgentServiceForm.temperaturePlaceholder')"
-        />
-        <template #helper>
-          {{ $t('aiAgentServiceForm.temperatureHelp') }}
-        </template>
-      </FormGroup>
-
-      <FormGroup
-        small-label
         :label="$t('aiAgentServiceForm.promptLabel')"
         :error="v$.values.ai_prompt.$error"
         required
@@ -104,6 +71,21 @@
           <span v-if="!v$.values.ai_prompt.required" class="error">
             {{ $t('error.requiredField') }}
           </span>
+        </template>
+      </FormGroup>
+
+      <FormGroup
+        small-label
+        :label="$t('aiAgentServiceForm.outputTypeLabel')"
+        required
+        class="margin-bottom-2"
+      >
+        <RadioGroup
+          v-model="values.ai_output_type"
+          :options="outputTypeOptions"
+        />
+        <template #helper>
+          {{ $t('aiAgentServiceForm.outputTypeHelp') }}
         </template>
       </FormGroup>
 
@@ -140,6 +122,24 @@
           <span v-if="!v$.values.ai_choices.hasValidChoice" class="error">
             {{ $t('aiAgentServiceForm.choicesRequired') }}
           </span>
+        </template>
+      </FormGroup>
+
+      <FormGroup
+        small-label
+        :label="$t('aiAgentServiceForm.temperatureLabel')"
+        class="margin-bottom-2"
+      >
+        <FormInput
+          v-model.number="values.ai_temperature"
+          type="number"
+          :min="0"
+          :max="maxTemperature"
+          :step="0.1"
+          :placeholder="$t('aiAgentServiceForm.temperaturePlaceholder')"
+        />
+        <template #helper>
+          {{ $t('aiAgentServiceForm.temperatureHelp') }}
         </template>
       </FormGroup>
     </template>

@@ -2,7 +2,6 @@ from typing import Iterable, Optional
 
 from django.contrib.auth.models import AbstractUser
 
-
 from baserow.contrib.automation.models import AutomationWorkflow
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeDoesNotExist,

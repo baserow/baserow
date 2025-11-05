@@ -32,8 +32,6 @@ from baserow.core.services.models import Service
 from baserow.core.storage import ExportZipFile
 from baserow.core.utils import ChildProgressBuilder, MirrorDict, extract_allowed
 
-from .signals import automation_node_updated
-
 
 class AutomationNodeHandler:
     allowed_fields = [

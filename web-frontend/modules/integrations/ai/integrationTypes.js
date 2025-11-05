@@ -10,6 +10,10 @@ export class AIIntegrationType extends IntegrationType {
     return this.app.i18n.t('integrationType.ai')
   }
 
+  get iconClass() {
+    return 'iconoir-spark'
+  }
+
   getSummary(integration) {
     const aiSettings = integration.ai_settings || {}
     const overrideCount = Object.keys(aiSettings).length
@@ -18,9 +22,10 @@ export class AIIntegrationType extends IntegrationType {
       return this.app.i18n.t('aiIntegrationType.inheritingWorkspace')
     }
 
-    return this.app.i18n.t('aiIntegrationType.overridingProviders', {
-      count: overrideCount,
-    })
+    return this.app.i18n.tc(
+      'aiIntegrationType.overridingProviders',
+      overrideCount
+    )
   }
 
   get formComponent() {
