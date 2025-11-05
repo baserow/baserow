@@ -25,11 +25,16 @@
 }
 
 
-.date-dependency__bounding-box {
+.date-dependency__drop-zone {
   pointer-events: none;
   display: none;
-  fill: $palette-yellow-500;
-  opacity: 0.01;
+  fill:transparent;
+
+    &--droppable {
+      display: block;
+      visibility: visible;
+      pointer-events: all;
+    }
 }
 
 
@@ -53,7 +58,7 @@
   &--creating {
     fill: none;
     stroke-dasharray: 4 1;
-    stroke: $palette-red-400;
+    stroke: $palette-blue-400;
     pointer-events: none;
   }
 
@@ -94,14 +99,6 @@
   }
 }
 
-.date-dependency__bounding-box-activator {
-  visibility: hidden;
-  display: none;
-  position: absolute;
-  fill: none;
-}
-
-
 .date-dependency__timeline-container {
   position: absolute;
   top: 0;
@@ -119,26 +116,8 @@
 .date-dependency__drawable {
   pointer-events: none;
 
-
-  // By default we disable all events in svg, because it overlays timeline container.
-  // However, we want events in svg enabled when user creates a path. We want to
-  // handle drop event inside row boxes, which are svg elements covering timeline rows.
   &--draggable {
     pointer-events: all;
-
-    .date-dependency__bounding-box {
-      display: block;
-      visibility: visible;
-      pointer-events: all;
-    }
-
-    .date-dependency__bounding-box-activator {
-      display: block;
-      visibility: visible;
-      pointer-events: all;
-
-
-    }
   }
 
 }

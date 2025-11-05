@@ -31,6 +31,7 @@ ROW_DEPENDENCY_GRAPH_QUERY = sql.SQL(
                              0                    AS level,
                              ARRAY [u.updated_id] AS path
                       FROM updated u
+                      JOIN {table_name} t ON t.id = u.updated_id AND NOT t.trashed
                       UNION ALL
                       -- Recursively find parents
                       SELECT ip.{to_field_name} AS parent_id
@@ -40,6 +41,7 @@ ROW_DEPENDENCY_GRAPH_QUERY = sql.SQL(
                       FROM ancestors a
                           JOIN {relation_table_name} ip
                       ON ip.{from_field_name} = a.id
+                      JOIN {table_name} t ON t.id = a.id AND NOT t.trashed
                       WHERE NOT (ip.{to_field_name} = ANY (a.path)) -- Prevent cycles
         ),
         -- one starting row can have multiple roots
@@ -47,9 +49,10 @@ ROW_DEPENDENCY_GRAPH_QUERY = sql.SQL(
                          a.id,
                          a.original_id
                   FROM ancestors a
-                           left outer join {relation_table_name} ip
-                  on ip.{from_field_name} = a.id
-                  where ip.id is null
+                           LEFT OUTER JOIN {relation_table_name} ip
+                  ON ip.{from_field_name} = a.id
+                 JOIN {table_name} t ON t.id = a.id AND NOT t.trashed
+                  WHERE ip.id IS NULL
                   ORDER BY original_id, level ASC),
         -- Find all descendants starting from roots
         descendants AS (
@@ -60,6 +63,7 @@ ROW_DEPENDENCY_GRAPH_QUERY = sql.SQL(
                    0                 AS level,
                    ARRAY [r.root_id] AS path
             FROM roots r
+                JOIN {table_name} t ON t.id = r.root_id AND NOT t.trashed
             UNION ALL
             -- Recursively find children
             SELECT d.root_id,
@@ -70,6 +74,7 @@ ROW_DEPENDENCY_GRAPH_QUERY = sql.SQL(
             FROM descendants d
                 JOIN {relation_table_name} ip
             ON ip.{to_field_name} = d.id
+            JOIN {table_name} t ON t.id = d.id AND NOT t.trashed
             WHERE NOT (ip.{from_field_name} = ANY (d.path)) -- Prevent cycles
         ),
 -- Combine all nodes in the dependency trees
@@ -96,8 +101,7 @@ ROW_DEPENDENCY_GRAPH_QUERY = sql.SQL(
     END AS  node_type
 
 FROM complete_tree ct
-JOIN {table_name} i ON i.id = ct.id
-WHERE NOT i.trashed
+JOIN {table_name} i ON i.id = ct.id AND NOT i.trashed
 ORDER BY ct.original_id, ct.level desc, ct.id;
     """
 )  # noqa STR100

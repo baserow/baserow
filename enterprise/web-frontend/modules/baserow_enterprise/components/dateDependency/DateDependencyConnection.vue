@@ -18,29 +18,17 @@
     >
       <g v-for="dz in dropZones" :key="dz.row.item.id">
         <rect
-          :id="`row-${dz.row.item.id}-activator`"
-          class="date-dependency__bounding-box-activator"
+          :id="`row-${dz.row.item.id}-droppable`"
+          class="date-dependency__drop-zone"
           :x="dz.position.left - 10"
           :y="dz.position.top - 10"
           :width="dz.position.width + 20"
           :height="dz.position.height + 20"
-        />
-
-        <rect
-          :id="`row-${dz.row.item.id}-droppable`"
-          class="date-dependency__bounding-box"
-          :x="dz.position.left"
-          :y="dz.position.top"
-          :width="dz.position.width"
-          :height="dz.position.height"
           :data-row-id="dz.row.item.id"
-          rx="5"
-          ry="5"
         />
       </g>
 
       <g v-for="(rowItem, rindex) in renderableRows" :key="`row-${rindex}`">
-        {{ rowItem }}
         <g
           v-for="(connection, cindex) in connections[rowItem.item.id]"
           :key="`row-connection-${cindex}`"
@@ -143,21 +131,21 @@ export default {
     },
 
     connections() {
-      const connectons = {}
+      const connections = {}
       this.renderableRows.forEach((rowItem) => {
         const rowConnections = this.getConnectionsForRow(rowItem)
         if (rowConnections) {
-          connectons[rowItem.item.id] = rowConnections
+          connections[rowItem.item.id] = rowConnections
         }
       })
-      return connectons
+      return connections
     },
   },
   methods: {
     getRowFromBuffer(rowId) {
-      return this.rows.filter((row) => {
+      return this.rows.find((row) => {
         return !!row.item && row.item?.id === rowId
-      })[0]
+      })
     },
     getHandlePointsForRow(rowItem) {
       const out = []
@@ -236,7 +224,8 @@ export default {
 
       const anyFetching = child.isFetching() || parentRow.isFetching()
       const connectionValid = this.isConnectionValid(child, parentRow)
-      const message = this.$t(this.getConnectionErrorMessage(child, parentRow))
+      const errorMessage = this.getConnectionErrorMessage(child, parentRow)
+      const message = errorMessage ? this.$t(errorMessage) : null
       const connectionPath = this.getConnectionPath(child.row, parent)
       const connection = {
         // if any row is being fetched, we ignore connection validity
@@ -805,9 +794,9 @@ export default {
       const table = this.view.table
       const fields = this.fields
       const rule = this.rule
-      const field = fields.filter(
+      const field = fields.find(
         (_field) => _field.id === rule.dependency_linkrow_field_id
-      )[0]
+      )
 
       const fieldName = `field_${field.id}`
       const value = _.clone(row[fieldName])
@@ -858,9 +847,9 @@ export default {
       const table = this.view.table
       const fields = this.fields
       const rule = this.rule
-      const field = fields.filter(
+      const field = fields.find(
         (_field) => _field.id === rule.dependency_linkrow_field_id
-      )[0]
+      )
 
       const fieldName = `field_${field.id}`
       const value = _.clone(row[fieldName])
@@ -896,11 +885,27 @@ export default {
       this.dragPoint.y = 0
       this.dragStartPoint = null
       this.drawConnection = null
+      Array.from(
+        document.getElementsByClassName('date-dependency__drop-zone--droppable')
+      ).forEach((el) => {
+        el.classList.remove('date-dependency__drop-zone--droppable')
+      })
     },
+
+    dragStartElements() {
+      Array.from(
+        document.getElementsByClassName('date-dependency__drop-zone')
+      ).forEach((el) => {
+        el.classList.add('date-dependency__drop-zone--droppable')
+      })
+    },
+
     onDragStart(event) {
       if (this.dragStartPoint) {
         return
       }
+      this.dragStartElements()
+
       this.dragPoint.x = event.offsetX
       this.dragPoint.y = event.offsetY
       const rowId = Number.parseInt(event.target.dataset.rowId)
@@ -933,7 +938,7 @@ export default {
           this.dragStartPoint,
           this.dragPoint
         )
-        const path = commands.join('')
+        const path = commands.join(' ')
         this.drawConnection = path
       }
     },
