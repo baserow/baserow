@@ -503,11 +503,7 @@ export class RuntimeEqual extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return [
-      '2 = 3 = false',
-      '"foo" = "bar" = false',
-      '"foo" = "foo" = true',
-    ]
+    return ['2 = 3 = false', '"foo" = "bar" = false', '"foo" = "foo" = true']
   }
 }
 
@@ -545,11 +541,7 @@ export class RuntimeNotEqual extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return [
-      '2 != 3 = true',
-      '"foo" != "foo" = false',
-      '"foo" != "bar" = true',
-    ]
+    return ['2 != 3 = true', '"foo" != "foo" = false', '"foo" != "bar" = true']
   }
 }
 
