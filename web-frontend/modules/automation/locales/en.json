@@ -188,9 +188,11 @@
     "buttonLabelTestAgain": "Test event again",
     "testNodeDescription": "Test this event to confirm the configuration is correct. Data from this test can be used in later steps.",
     "buttonLabelShowPayload": "Show payload",
+    "buttonLabelShowError": "Show error",
     "sampleDataModalTitle": "Payload for {nodeLabel}",
     "sampleDataModalSubTitle": "JSON payload",
     "sampleDataCopy": "Copy",
+    "errorOccurred": "An error occurred...",
     "sampleDataCopied": "Payload copied to clipboard"
   }
 }

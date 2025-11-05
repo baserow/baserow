@@ -52,10 +52,7 @@ export class ServiceType extends Registerable {
    * Returns sample data for the given service.
    */
   getSampleData(service) {
-    if (service.sample_data) {
-      return service.sample_data?.data
-    }
-    return null
+    return service.sample_data || null
   }
 
   /**

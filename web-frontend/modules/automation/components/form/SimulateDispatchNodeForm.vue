@@ -22,9 +22,18 @@
       {{ $t('simulateDispatch.triggerNodeAwaitingEvent') }}
     </div>
 
-    <div v-if="hasSampleData && !isSimulating">
+    <div
+      v-if="hasSampleData && !isSimulating"
+      :class="{
+        'simulate-dispatch-node__sample-data--error': isErrorSample,
+      }"
+    >
       <div class="simulate-dispatch-node__sample-data-label">
-        {{ $t('simulateDispatch.sampleDataLabel') }}
+        {{
+          isErrorSample
+            ? $t('simulateDispatch.errorOccurred')
+            : $t('simulateDispatch.sampleDataLabel')
+        }}
       </div>
       <div class="simulate-dispatch-node__sample-data-code">
         <pre><code>{{ sampleData }}</code></pre>
@@ -38,12 +47,17 @@
       icon="iconoir-code-brackets simulate-dispatch-node__button-icon"
       @click="showSampleDataModal"
     >
-      {{ $t('simulateDispatch.buttonLabelShowPayload') }}
+      {{
+        isErrorSample
+          ? $t('simulateDispatch.buttonLabelShowError')
+          : $t('simulateDispatch.buttonLabelShowPayload')
+      }}
     </Button>
 
     <SampleDataModal
+      v-if="sampleData"
       ref="sampleDataModalRef"
-      :sample-data="sampleData || {}"
+      :sample-data="sampleData"
       :title="sampleDataModalTitle"
     />
   </div>
@@ -95,14 +109,23 @@ const nodeType = computed(() => app.$registry.get('node', props.node.type))
 
 const sampleData = computed(() => {
   const sample = nodeType.value.getSampleData(props.node)
-  if (nodeType.value.serviceType.returnsList && sample) {
-    return sample.results
+
+  if (sample?._error) {
+    return sample._error
   }
-  return sample
+  if (nodeType.value.serviceType.returnsList && sample?.data) {
+    return sample.data.results
+  }
+  return sample?.data
 })
 
 const hasSampleData = computed(() => {
   return Boolean(sampleData.value)
+})
+
+const isErrorSample = computed(() => {
+  const sample = nodeType.value.getSampleData(props.node)
+  return Boolean(sample?._error)
 })
 
 /**
@@ -130,7 +153,7 @@ const cantBeTestedReason = computed(() => {
       })
     }
 
-    if (!previousNodeType.getSampleData(previousNode)) {
+    if (!previousNodeType.getSampleData(previousNode)?.data) {
       return app.i18n.t('simulateDispatch.errorPreviousNodesNotTested', {
         node: nodeLabel,
       })

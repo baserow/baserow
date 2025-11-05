@@ -356,8 +356,6 @@ class ServiceType(
         :return: The service dispatch result if any.
         """
 
-        resolved_values = self.resolve_service_formulas(service, dispatch_context)
-
         # If simulated, try to return existing sample data
         if (
             dispatch_context.use_sample_data
@@ -370,22 +368,31 @@ class ServiceType(
         ):
             return DispatchResult(**sample_data)
 
-        data = self.dispatch_data(service, resolved_values, dispatch_context)
-        serialized_data = self.dispatch_transform(data)
+        try:
+            resolved_values = self.resolve_service_formulas(service, dispatch_context)
+            data = self.dispatch_data(service, resolved_values, dispatch_context)
+            serialized_data = self.dispatch_transform(data)
+        except Exception as e:
+            if dispatch_context.use_sample_data and (
+                dispatch_context.update_sample_data_for is None
+                or service in dispatch_context.update_sample_data_for
+            ):
+                service.sample_data = {"_error": str(e)}
+                service.save()
+            raise
+        else:
+            if dispatch_context.use_sample_data and (
+                dispatch_context.update_sample_data_for is None
+                or service in dispatch_context.update_sample_data_for
+            ):
+                sample_data = {}
+                for field in fields(serialized_data):
+                    value = getattr(serialized_data, field.name)
+                    sample_data[field.name] = value
 
-        if dispatch_context.use_sample_data and (
-            dispatch_context.update_sample_data_for is None
-            or service in dispatch_context.update_sample_data_for
-        ):
-            sample_data = {}
-            for field in fields(serialized_data):
-                value = getattr(serialized_data, field.name)
-                sample_data[field.name] = value
-
-            service.sample_data = sample_data
-            service.save()
-
-        return serialized_data
+                service.sample_data = sample_data
+                service.save()
+            return serialized_data
 
     def remove_unused_field_names(
         self,

@@ -22,6 +22,7 @@ from baserow.core.output_parsers import StrictEnumOutputParser
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
+    UnexpectedDispatchException,
 )
 from baserow.core.services.registries import DispatchTypes, ServiceType
 from baserow.core.services.types import DispatchResult, FormulaToResolve, ServiceDict
@@ -163,16 +164,12 @@ class AIAgentServiceType(ServiceType):
             'property "ai_prompt"',
         )
 
-    def resolve_service_formulas(
+    def dispatch_data(
         self,
         service: AIAgentService,
+        resolved_values: Dict[str, Any],
         dispatch_context: DispatchContext,
     ) -> Dict[str, Any]:
-        if not service.integration_id:
-            raise ServiceImproperlyConfiguredDispatchException(
-                "The integration property is missing."
-            )
-
         if not service.ai_generative_ai_type:
             raise ServiceImproperlyConfiguredDispatchException(
                 "The AI provider type is missing."
@@ -185,7 +182,9 @@ class AIAgentServiceType(ServiceType):
 
         # Check if prompt formula is set (FormulaField returns empty string when not
         # set)
-        if not service.ai_prompt or str(service.ai_prompt).strip() == "":
+        prompt = resolved_values.get("ai_prompt", "")
+
+        if not prompt:
             raise ServiceImproperlyConfiguredDispatchException("The prompt is missing.")
 
         if service.ai_output_type == AIOutputType.CHOICE:
@@ -200,15 +199,6 @@ class AIAgentServiceType(ServiceType):
                     "At least one non-empty choice is required when output type is 'choice'."
                 )
 
-        return super().resolve_service_formulas(service, dispatch_context)
-
-    def dispatch_data(
-        self,
-        service: AIAgentService,
-        resolved_values: Dict[str, Any],
-        dispatch_context: DispatchContext,
-    ) -> Dict[str, Any]:
-        prompt = resolved_values.get("ai_prompt", "")
         ai_model_type = generative_ai_model_type_registry.get(
             service.ai_generative_ai_type
         )
@@ -263,7 +253,7 @@ class AIAgentServiceType(ServiceType):
                 **kwargs,
             )
         except GenerativeAIPromptError as e:
-            raise ServiceImproperlyConfiguredDispatchException(
+            raise UnexpectedDispatchException(
                 f"AI prompt execution failed: {str(e)}"
             ) from e
 

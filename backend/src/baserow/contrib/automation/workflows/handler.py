@@ -950,3 +950,8 @@ class AutomationWorkflowHandler:
                 history.message = history_message
                 history.status = history_status
                 history.save()
+            else:
+                # sample_data was updated as it's a simulation we should tell to
+                # the frontend
+                simulate_until_node.service.refresh_from_db(fields=["sample_data"])
+                automation_node_updated.send(self, user=None, node=simulate_until_node)

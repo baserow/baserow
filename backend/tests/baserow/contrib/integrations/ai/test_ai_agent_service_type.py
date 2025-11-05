@@ -12,6 +12,7 @@ from baserow.core.generative_ai.exceptions import GenerativeAIPromptError
 from baserow.core.integrations.service import IntegrationService
 from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
+    UnexpectedDispatchException,
 )
 from baserow.core.services.handler import ServiceHandler
 from baserow.test_utils.helpers import AnyInt
@@ -312,42 +313,6 @@ def test_ai_agent_service_dispatch_with_formula(data_fixture, settings):
 
 
 @pytest.mark.django_db
-def test_ai_agent_service_dispatch_missing_integration(data_fixture, settings):
-    settings.BASEROW_OPENAI_API_KEY = "sk-test"
-    settings.BASEROW_OPENAI_MODELS = ["gpt-4"]
-
-    user = data_fixture.create_user()
-    application = data_fixture.create_builder_application(user=user)
-
-    integration_type = AIIntegrationType()
-    integration = (
-        IntegrationService()
-        .create_integration(user, integration_type, application=application)
-        .specific
-    )
-
-    service = ServiceHandler().create_service(
-        AIAgentServiceType(),
-        integration_id=integration.id,
-        ai_generative_ai_type="openai",
-        ai_generative_ai_model="gpt-4",
-        ai_output_type="text",
-        ai_prompt="'Test'",
-    )
-
-    service.integration_id = None
-    service.save()
-
-    service_type = service.get_type()
-    dispatch_context = FakeDispatchContext()
-
-    with pytest.raises(ServiceImproperlyConfiguredDispatchException) as exc_info:
-        service_type.dispatch(service, dispatch_context)
-
-    assert "integration property is missing" in str(exc_info.value)
-
-
-@pytest.mark.django_db
 def test_ai_agent_service_dispatch_missing_provider(data_fixture, settings):
     settings.BASEROW_OPENAI_API_KEY = "sk-test"
 
@@ -480,7 +445,7 @@ def test_ai_agent_service_dispatch_ai_error(data_fixture, settings):
     service_type = service.get_type()
     dispatch_context = FakeDispatchContext()
 
-    with pytest.raises(ServiceImproperlyConfiguredDispatchException) as exc_info:
+    with pytest.raises(UnexpectedDispatchException) as exc_info:
         with mock_ai_prompt(should_fail=True):
             service_type.dispatch(service, dispatch_context)
 

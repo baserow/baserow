@@ -27,7 +27,7 @@ export default {
   mixins: [modal],
   props: {
     sampleData: {
-      type: [Object, Array],
+      type: null,
       required: true,
     },
     title: {

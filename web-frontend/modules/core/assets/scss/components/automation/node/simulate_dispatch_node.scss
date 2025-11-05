@@ -12,6 +12,10 @@
 .simulate-dispatch-node__sample-data-label {
   font-weight: 500;
   margin-bottom: 10px;
+
+  .simulate-dispatch-node__sample-data--error & {
+    color: $palette-red-600;
+  }
 }
 
 .simulate-dispatch-node__sample-data-code {
@@ -29,6 +33,10 @@
     font-size: 12px;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  .simulate-dispatch-node__sample-data--error & {
+    background-color: $palette-red-50;
   }
 }
 

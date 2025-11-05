@@ -378,10 +378,6 @@ class AutomationNodeHandler:
             # Return early if this is a simulated dispatch
             if until_node := dispatch_context.simulate_until_node:
                 if until_node.id == node.id:
-                    # sample_data was updated as it's a simulation we should tell to
-                    # the frontend
-                    node.service.refresh_from_db(fields=["sample_data"])
-                    automation_node_updated.send(self, user=None, node=node)
                     return
 
             if children := node.get_children():
