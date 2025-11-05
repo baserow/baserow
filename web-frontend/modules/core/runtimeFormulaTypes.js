@@ -564,8 +564,8 @@ export class RuntimeGreaterThan extends RuntimeFormulaFunction {
 
   get args() {
     return [
-      new NumberBaserowRuntimeFormulaArgumentType(),
-      new NumberBaserowRuntimeFormulaArgumentType(),
+      new AnyBaserowRuntimeFormulaArgumentType(),
+      new AnyBaserowRuntimeFormulaArgumentType(),
     ]
   }
 
@@ -579,7 +579,11 @@ export class RuntimeGreaterThan extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ['5 > 4 = true']
+    return [
+      '5 > 4 = true',
+      '"a" > "b" = false',
+      '"Ambarella" > "fig" = false',
+    ]
   }
 }
 
@@ -602,8 +606,8 @@ export class RuntimeLessThan extends RuntimeFormulaFunction {
 
   get args() {
     return [
-      new NumberBaserowRuntimeFormulaArgumentType(),
-      new NumberBaserowRuntimeFormulaArgumentType(),
+      new AnyBaserowRuntimeFormulaArgumentType(),
+      new AnyBaserowRuntimeFormulaArgumentType(),
     ]
   }
 
@@ -617,7 +621,11 @@ export class RuntimeLessThan extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ['2 < 3 = true']
+    return [
+      '2 < 3 = true',
+      '"b" < "a" = false',
+      '"Ambarella" < "fig" = true',
+    ]
   }
 }
 
@@ -640,8 +648,8 @@ export class RuntimeGreaterThanOrEqual extends RuntimeFormulaFunction {
 
   get args() {
     return [
-      new NumberBaserowRuntimeFormulaArgumentType(),
-      new NumberBaserowRuntimeFormulaArgumentType(),
+      new AnyBaserowRuntimeFormulaArgumentType(),
+      new AnyBaserowRuntimeFormulaArgumentType(),
     ]
   }
 
@@ -655,13 +663,17 @@ export class RuntimeGreaterThanOrEqual extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ['3 >= 2 = false']
+    return [
+      '3 >= 2 = false',
+      '"b" >= "a" = true',
+      '"Ambarella" >= "fig" = false',
+    ]
   }
 }
 
 export class RuntimeLessThanOrEqual extends RuntimeFormulaFunction {
   static getType() {
-    return 'less_than'
+    return 'less_than_or_equal'
   }
 
   static getFormulaType() {
@@ -678,8 +690,8 @@ export class RuntimeLessThanOrEqual extends RuntimeFormulaFunction {
 
   get args() {
     return [
-      new NumberBaserowRuntimeFormulaArgumentType(),
-      new NumberBaserowRuntimeFormulaArgumentType(),
+      new AnyBaserowRuntimeFormulaArgumentType(),
+      new AnyBaserowRuntimeFormulaArgumentType(),
     ]
   }
 
@@ -693,7 +705,11 @@ export class RuntimeLessThanOrEqual extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ['3 <= 3 = true']
+    return [
+      '3 <= 3 = true',
+      '"a" <= "b" = false',
+      '"fig" <= "Ambarella" = false',
+    ]
   }
 }
 

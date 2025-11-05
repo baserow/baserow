@@ -142,8 +142,8 @@ class RuntimeNotEqual(RuntimeFormulaFunction):
 class RuntimeGreaterThan(RuntimeFormulaFunction):
     type = "greater_than"
     args = [
-        NumberBaserowRuntimeFormulaArgumentType(),
-        NumberBaserowRuntimeFormulaArgumentType(),
+        AnyBaserowRuntimeFormulaArgumentType(),
+        AnyBaserowRuntimeFormulaArgumentType(),
     ]
 
     def validate_number_of_args(self, args):
@@ -156,8 +156,8 @@ class RuntimeGreaterThan(RuntimeFormulaFunction):
 class RuntimeLessThan(RuntimeFormulaFunction):
     type = "less_than"
     args = [
-        NumberBaserowRuntimeFormulaArgumentType(),
-        NumberBaserowRuntimeFormulaArgumentType(),
+        AnyBaserowRuntimeFormulaArgumentType(),
+        AnyBaserowRuntimeFormulaArgumentType(),
     ]
 
     def validate_number_of_args(self, args):
@@ -170,8 +170,8 @@ class RuntimeLessThan(RuntimeFormulaFunction):
 class RuntimeGreaterThanOrEqual(RuntimeFormulaFunction):
     type = "greater_than_or_equal"
     args = [
-        NumberBaserowRuntimeFormulaArgumentType(),
-        NumberBaserowRuntimeFormulaArgumentType(),
+        AnyBaserowRuntimeFormulaArgumentType(),
+        AnyBaserowRuntimeFormulaArgumentType(),
     ]
 
     def validate_number_of_args(self, args):
@@ -184,8 +184,8 @@ class RuntimeGreaterThanOrEqual(RuntimeFormulaFunction):
 class RuntimeLessThanOrEqual(RuntimeFormulaFunction):
     type = "less_than_or_equal"
     args = [
-        NumberBaserowRuntimeFormulaArgumentType(),
-        NumberBaserowRuntimeFormulaArgumentType(),
+        AnyBaserowRuntimeFormulaArgumentType(),
+        AnyBaserowRuntimeFormulaArgumentType(),
     ]
 
     def validate_number_of_args(self, args):
