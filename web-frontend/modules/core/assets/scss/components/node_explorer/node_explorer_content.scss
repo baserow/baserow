@@ -6,6 +6,10 @@
   margin-left: 5px;
 }
 
+.node-explorer-content__name {
+  flex: 1;
+}
+
 .node-explorer-content__content {
   @extend %ellipsis;
 
@@ -34,6 +38,10 @@
     &:hover {
       background-color: initial;
     }
+
+    .node-explorer-content__name {
+      color: $palette-neutral-900;
+    }
   }
 
   .node-explorer-content--level-0 .node-explorer-content--level-1 & {
@@ -47,10 +55,6 @@
 
 .node-explorer-content--level-0 {
   margin-bottom: 8px;
-}
-
-.node-explorer-content__name {
-  flex: 1;
 }
 
 .node-explorer-content__array-node-more {
