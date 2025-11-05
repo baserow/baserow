@@ -337,15 +337,17 @@ export class RuntimeAdd extends RuntimeFormulaFunction {
     return '+'
   }
 
-  get args() {
-    return [
-      new NumberBaserowRuntimeFormulaArgumentType(),
-      new NumberBaserowRuntimeFormulaArgumentType(),
-    ]
+  validateNumberOfArgs(args) {
+    return args.length > 1
   }
 
-  execute(context, [a, b]) {
-    return a + b
+  validateTypeOfArgs(args) {
+    const argType = new NumberBaserowRuntimeFormulaArgumentType()
+    return args.find(arg => !argType.test(arg)) ?? null
+  }
+
+  execute(context, args) {
+    return args.reduce((a, b) => a + b)
   }
 
   getDescription() {
@@ -354,7 +356,10 @@ export class RuntimeAdd extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ['2 + 3 = 5']
+    return [
+      '2 + 3 = 5',
+      '1 + 2 + 3 = 6',
+    ]
   }
 }
 
@@ -375,15 +380,17 @@ export class RuntimeMinus extends RuntimeFormulaFunction {
     return '-'
   }
 
-  get args() {
-    return [
-      new NumberBaserowRuntimeFormulaArgumentType(),
-      new NumberBaserowRuntimeFormulaArgumentType(),
-    ]
+  validateNumberOfArgs(args) {
+    return args.length > 1
   }
 
-  execute(context, [a, b]) {
-    return a - b
+  validateTypeOfArgs(args) {
+    const argType = new NumberBaserowRuntimeFormulaArgumentType()
+    return args.find(arg => !argType.test(arg)) ?? null
+  }
+
+  execute(context, args) {
+    return args.reduce((a, b) => a - b)
   }
 
   getDescription() {
@@ -392,7 +399,10 @@ export class RuntimeMinus extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ['3 - 2 = 1']
+    return [
+      '3 - 2 = 1',
+      '5 - 2 - 1 = 2',
+    ]
   }
 }
 
@@ -413,15 +423,17 @@ export class RuntimeMultiply extends RuntimeFormulaFunction {
     return '*'
   }
 
-  get args() {
-    return [
-      new NumberBaserowRuntimeFormulaArgumentType(),
-      new NumberBaserowRuntimeFormulaArgumentType(),
-    ]
+  validateNumberOfArgs(args) {
+    return args.length > 1
   }
 
-  execute(context, [a, b]) {
-    return a * b
+  validateTypeOfArgs(args) {
+    const argType = new NumberBaserowRuntimeFormulaArgumentType()
+    return args.find(arg => !argType.test(arg)) ?? null
+  }
+
+  execute(context, args) {
+    return args.reduce((a, b) => a * b)
   }
 
   getDescription() {
@@ -430,7 +442,10 @@ export class RuntimeMultiply extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ['2 * 3 = 6']
+    return [
+      '2 * 3 = 6',
+      '2 * 3 * 3 = 18',
+    ]
   }
 }
 
@@ -451,15 +466,17 @@ export class RuntimeDivide extends RuntimeFormulaFunction {
     return '/'
   }
 
-  get args() {
-    return [
-      new NumberBaserowRuntimeFormulaArgumentType(),
-      new NumberBaserowRuntimeFormulaArgumentType(),
-    ]
+  validateNumberOfArgs(args) {
+    return args.length > 1
   }
 
-  execute(context, [a, b]) {
-    return a / b
+  validateTypeOfArgs(args) {
+    const argType = new NumberBaserowRuntimeFormulaArgumentType()
+    return args.find(arg => !argType.test(arg)) ?? null
+  }
+
+  execute(context, args) {
+    return args.reduce((a, b) => a / b)
   }
 
   getDescription() {
@@ -468,7 +485,10 @@ export class RuntimeDivide extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ['6 / 2 = 3']
+    return [
+      '6 / 2 = 3',
+      '15 / 2 / 2 = 3.75',
+    ]
   }
 }
 
@@ -836,7 +856,7 @@ export class RuntimeRound extends RuntimeFormulaFunction {
   }
 
   execute(context, args) {
-    // Default to 2 decimal places?
+    // Default to 2 decimal places
     let decimalPlaces = 2
 
     if (args.length === 2) {
@@ -1263,7 +1283,7 @@ export class RuntimeRandomInt extends RuntimeFormulaFunction {
   execute(context, args) {
     const min = Math.ceil(args[0])
     const max = Math.floor(args[1])
-    return Math.floor(Math.random() * (max - min) + min)
+    return Math.floor(Math.random() * (max - min + 1) + min)
   }
 
   getDescription() {

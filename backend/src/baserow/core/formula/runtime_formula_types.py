@@ -60,7 +60,7 @@ class RuntimeAdd(RuntimeFormulaFunction):
         )
 
     def validate_number_of_args(self, args):
-        return len(args) >= 1
+        return len(args) > 1
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
         return reduce(operator.add, args)
@@ -85,30 +85,36 @@ class RuntimeMinus(RuntimeFormulaFunction):
 
 class RuntimeMultiply(RuntimeFormulaFunction):
     type = "multiply"
-    args = [
-        NumberBaserowRuntimeFormulaArgumentType(),
-        NumberBaserowRuntimeFormulaArgumentType(),
-    ]
+    
+    def validate_type_of_args(self, args) -> Optional[FormulaArg]:
+        arg_type = NumberBaserowRuntimeFormulaArgumentType()
+        return next(
+            (arg for arg in args if not arg_type.test(arg)),
+            None,
+        )
 
     def validate_number_of_args(self, args):
-        return len(args) == 2
+        return len(args) > 1
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
-        return args[0] * args[1]
+        return reduce(operator.mul, args)
 
 
 class RuntimeDivide(RuntimeFormulaFunction):
     type = "divide"
-    args = [
-        NumberBaserowRuntimeFormulaArgumentType(),
-        NumberBaserowRuntimeFormulaArgumentType(),
-    ]
+
+    def validate_type_of_args(self, args) -> Optional[FormulaArg]:
+        arg_type = NumberBaserowRuntimeFormulaArgumentType()
+        return next(
+            (arg for arg in args if not arg_type.test(arg)),
+            None,
+        )
 
     def validate_number_of_args(self, args):
-        return len(args) == 2
+        return len(args) > 1
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
-        return args[0] / args[1]
+        return reduce(operator.truediv, args)
 
 
 class RuntimeEqual(RuntimeFormulaFunction):
@@ -117,9 +123,6 @@ class RuntimeEqual(RuntimeFormulaFunction):
         AnyBaserowRuntimeFormulaArgumentType(),
         AnyBaserowRuntimeFormulaArgumentType(),
     ]
-
-    def validate_number_of_args(self, args):
-        return len(args) == 2
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
         return args[0] == args[1]
@@ -132,9 +135,6 @@ class RuntimeNotEqual(RuntimeFormulaFunction):
         AnyBaserowRuntimeFormulaArgumentType(),
     ]
 
-    def validate_number_of_args(self, args):
-        return len(args) == 2
-
     def execute(self, context: FormulaContext, args: FormulaArgs):
         return args[0] != args[1]
 
@@ -145,9 +145,6 @@ class RuntimeGreaterThan(RuntimeFormulaFunction):
         AnyBaserowRuntimeFormulaArgumentType(),
         AnyBaserowRuntimeFormulaArgumentType(),
     ]
-
-    def validate_number_of_args(self, args):
-        return len(args) == 2
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
         return args[0] > args[1]
@@ -160,9 +157,6 @@ class RuntimeLessThan(RuntimeFormulaFunction):
         AnyBaserowRuntimeFormulaArgumentType(),
     ]
 
-    def validate_number_of_args(self, args):
-        return len(args) == 2
-
     def execute(self, context: FormulaContext, args: FormulaArgs):
         return args[0] < args[1]
 
@@ -174,9 +168,6 @@ class RuntimeGreaterThanOrEqual(RuntimeFormulaFunction):
         AnyBaserowRuntimeFormulaArgumentType(),
     ]
 
-    def validate_number_of_args(self, args):
-        return len(args) == 2
-
     def execute(self, context: FormulaContext, args: FormulaArgs):
         return args[0] >= args[1]
 
@@ -187,9 +178,6 @@ class RuntimeLessThanOrEqual(RuntimeFormulaFunction):
         AnyBaserowRuntimeFormulaArgumentType(),
         AnyBaserowRuntimeFormulaArgumentType(),
     ]
-
-    def validate_number_of_args(self, args):
-        return len(args) == 2
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
         return args[0] <= args[1]
@@ -272,7 +260,7 @@ class RuntimeDateTimeFormat(RuntimeFormulaFunction):
         datetime_obj = args[0]
         moment_format = args[1]
 
-        if (len(args)) == 2:
+        if len(args) == 2:
             timezone_name = context.get_timezone_name()
         else:
             timezone_name = args[2]
@@ -400,6 +388,9 @@ class RuntimeRandomFloat(RuntimeFormulaFunction):
 class RuntimeRandomBool(RuntimeFormulaFunction):
     type = "random_bool"
 
+    def validate_number_of_args(self, args):
+        return len(args) == 0
+
     def execute(self, context: FormulaContext, args: FormulaArgs):
         return random.choice([True, False])  # nosec: B311
 
@@ -407,12 +398,18 @@ class RuntimeRandomBool(RuntimeFormulaFunction):
 class RuntimeGenerateUUID(RuntimeFormulaFunction):
     type = "generate_uuid"
 
+    def validate_number_of_args(self, args):
+        return len(args) == 0
+
     def execute(self, context: FormulaContext, args: FormulaArgs):
         return str(uuid.uuid4())
 
 
 class RuntimeIf(RuntimeFormulaFunction):
     type = "if"
+
+    def validate_number_of_args(self, args):
+        return len(args) == 3
 
     def validate_type_of_args(self, args) -> Optional[FormulaArg]:
         arg_type = BooleanBaserowRuntimeFormulaArgumentType()
