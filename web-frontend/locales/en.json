@@ -677,6 +677,7 @@
     "orDescription": "Returns true if any argument is true, otherwise returns false.",
     "formulaTypeFormula": "Function | Functions",
     "formulaTypeOperator": "Operator | Operators",
+    "formulaTypeData": "Data",
     "categoryText": "Text",
     "categoryNumber": "Number",
     "categoryBoolean": "Boolean",

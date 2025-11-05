@@ -220,67 +220,6 @@ export default {
       }
       return extract(this.nodesHierarchy)
     },
-    functionSignatures() {
-      const extract = (nodes) => {
-        let functions = []
-        if (!nodes) {
-          return functions
-        }
-        for (const node of nodes) {
-          if (node.type === 'function' && node.signature) {
-            functions.push({
-              name: node.name,
-              signature: node.signature,
-              returnType: node.returnType,
-            })
-          }
-          const children = node.nodes
-          if (children) {
-            functions = functions.concat(extract(children))
-          }
-        }
-        return functions
-      }
-      return extract(this.nodesHierarchy)
-    },
-    dataNodes() {
-      const extract = (nodes, path = []) => {
-        let dataNodes = []
-        if (!nodes) {
-          return dataNodes
-        }
-        for (const node of nodes) {
-          const currentPath = [...path]
-
-          // Use identifier if available, otherwise use name
-          const nodeKey = node.identifier || node.name
-          if (nodeKey) {
-            currentPath.push(nodeKey)
-          }
-
-          // If this node has a returnType, it's a data field (not a container)
-          if (node.returnType) {
-            dataNodes.push({
-              path: currentPath.join('.'),
-              returnType: node.returnType,
-              type: node.type,
-            })
-          }
-
-          const children = node.nodes
-          if (children) {
-            dataNodes = dataNodes.concat(extract(children, currentPath))
-          }
-        }
-        return dataNodes
-      }
-
-      // Start extraction from the Data section
-      const dataSection = this.nodesHierarchy.find(
-        (section) => section.name === 'Data' && section.type === 'data'
-      )
-      return dataSection ? extract(dataSection.nodes) : []
-    },
     extensions() {
       const DocumentNode = Document.extend()
       const TextNode = Text.extend({ inline: true })
