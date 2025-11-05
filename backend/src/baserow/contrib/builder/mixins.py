@@ -17,7 +17,6 @@ class BuilderInstanceWithFormulaMixin(InstanceWithFormulaMixin):
             if not formula_str:
                 continue
 
-            print("resolve formula", formula_str)
             try:
                 tree = get_parse_tree_for_formula(formula_str)
             except BaserowFormulaSyntaxError:
