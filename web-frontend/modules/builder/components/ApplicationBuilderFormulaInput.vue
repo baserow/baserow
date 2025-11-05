@@ -85,7 +85,6 @@ const nodesHierarchy = computed(() => {
             order: node.order || null,
             signature: null,
             nodes: node.nodes ? node.nodes.map(transformNode) : [],
-            returnType: node.returnType || null,
           }
         }
 
