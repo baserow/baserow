@@ -2,6 +2,7 @@ from typing import Iterable, Optional
 
 from django.contrib.auth.models import AbstractUser
 
+
 from baserow.contrib.automation.models import AutomationWorkflow
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeDoesNotExist,
@@ -36,6 +37,7 @@ from baserow.contrib.automation.nodes.types import (
 )
 from baserow.contrib.automation.workflows.signals import automation_workflow_updated
 from baserow.core.handler import CoreHandler
+from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.trash.handler import TrashHandler
 
 
@@ -172,6 +174,18 @@ class AutomationNodeService:
         node_type.before_create(workflow, reference_node, position, output)
 
         prepared_values = node_type.prepare_values(kwargs, user)
+
+        # Preselect first integration if exactly one exists
+        if node_type.get_service_type().integration_type:
+            integrations_of_type = [
+                i
+                for i in IntegrationHandler().get_integrations(workflow.automation)
+                if i.get_type().type == node_type.get_service_type().integration_type
+            ]
+
+            if len(integrations_of_type) == 1:
+                prepared_values["service"].integration = integrations_of_type[0]
+                prepared_values["service"].save()
 
         new_node = self.handler.create_node(
             node_type,

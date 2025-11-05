@@ -258,6 +258,7 @@ class AutomationNodeType(
             # as part of creating a new node. If this happens, we need
             # to create a new service.
             service = ServiceHandler().create_service(service_type)
+
         else:
             service = instance.service.specific
 
