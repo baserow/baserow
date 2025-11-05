@@ -46,6 +46,7 @@
             child.identifier || child.name
           }`"
           :node-selected="nodeSelected"
+          :allow-node-selection="allowNodeSelection"
           :search="search"
           @click="$emit('click', $event)"
           @toggle="$emit('toggle', $event)"
@@ -194,10 +195,8 @@ export default {
         if (this.search === null && this.path) {
           this.$emit('toggle', this.path)
         }
-      } else if (node.type === 'data') {
-        this.$emit('click', { path: this.path, node })
       } else {
-        this.$emit('click', { path: null, node })
+        this.$emit('click', { path: this.path, node })
       }
     },
     getIcon(node) {

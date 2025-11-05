@@ -367,6 +367,9 @@ export default {
         case 'data':
           this.editor.commands.insertDataComponent(path)
           break
+        case 'array':
+          this.editor.commands.insertDataComponent(path)
+          break
         case 'function':
           this.editor.commands.insertFunction(node)
           break
