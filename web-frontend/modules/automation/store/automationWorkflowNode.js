@@ -414,17 +414,6 @@ const actions = {
       return
     }
 
-    // Find what comes after the node we're duplicating
-    const nextNodes = getters.getNextNodes(workflow, nodeToDuplicate)
-
-    const beforeNode = nextNodes.length > 0 ? nextNodes[0] : null
-    const beforeOldValues = beforeNode
-      ? {
-          previous_node_id: beforeNode.previous_node_id,
-          previous_node_output: beforeNode.previous_node_output,
-        }
-      : {}
-
     // Get the node type to properly initialize the node
     const nodeType = this.$registry.get('node', nodeToDuplicate.type)
 
@@ -432,43 +421,37 @@ const actions = {
     const tempNode = nodeType.getDefaultValues({
       ...nodeToDuplicate, // Copy all properties from the original
       id: uuid(), // But give it a new ID
-      previous_node_id: nodeToDuplicate.id, // And link it after the original
-      previous_node_output: '',
       workflow: workflow.id,
     })
 
     commit('ADD_ITEM', { workflow, node: tempNode })
 
-    // Apply optimistic beforeNode update.
-    if (beforeNode) {
-      commit('UPDATE_ITEM', {
-        workflow,
-        node: beforeNode,
-        values: { previous_node_id: tempNode.id, previous_node_output: '' },
-      })
-    }
+    const initialGraph = clone(workflow.graph)
+
+    // Insert the duplicated node after the original node using 'south' position
+    await dispatch('graphInsert', {
+      workflow,
+      node: tempNode,
+      referenceNode: nodeToDuplicate,
+      position: 'south',
+      output: '', // Default output for creating after a node
+    })
 
     try {
       const { data: node } = await AutomationWorkflowNodeService(
         this.$client
       ).duplicate(nodeId)
 
-      // Remove temp node and add real one
-      commit('DELETE_ITEM', { workflow, nodeId: tempNode.id })
       commit('ADD_ITEM', { workflow, node })
 
-      // If we have a `beforeNode`, we need to update its `previous_node_id`
-      // and `previous_node_output`. The former so that it points to our newly
-      // created node, and the latter so that it has a blank output.
-      // This all happens in the backend, but we need the store to reflect the
-      // change immediately.
-      if (beforeNode) {
-        commit('UPDATE_ITEM', {
-          workflow,
-          node: beforeNode,
-          values: { previous_node_id: node.id, previous_node_output: '' },
-        })
-      }
+      await dispatch('graphReplace', {
+        workflow,
+        nodeToReplace: tempNode,
+        newNode: node,
+      })
+
+      // Remove temp node and add real one
+      commit('DELETE_ITEM', { workflow, nodeId: tempNode.id })
 
       setTimeout(() => {
         const populatedNode = getters.findById(workflow, node.id)
@@ -477,16 +460,16 @@ const actions = {
 
       return node
     } catch (error) {
-      // If API fails, remove the temporary node
-      commit('DELETE_ITEM', { workflow, nodeId: tempNode.id })
-      // And restore the previous `beforeNode` values.
-      if (beforeNode) {
-        commit('UPDATE_ITEM', {
+      // If API fails, restore the initial graph
+      await dispatch(
+        'automationWorkflow/forceUpdate',
+        {
           workflow,
-          node: beforeNode,
-          values: beforeOldValues,
-        })
-      }
+          values: { graph: initialGraph },
+        },
+        { root: true }
+      )
+      commit('DELETE_ITEM', { workflow, nodeId: tempNode.id })
       throw error
     }
   },
