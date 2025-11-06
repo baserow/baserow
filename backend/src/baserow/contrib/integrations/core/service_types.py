@@ -1297,6 +1297,20 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
         :param now: The current datetime.
         """
 
+        # Truncate to minute precision for consistent interval calculations
+        # Note: we replace the seconds and microseconds due to jitter that
+        # can exist between when the Celery task is scheduled, and when the
+        # services were actually processed. For example:
+        #
+        # Assuming `interval=minute` and `minute=2` (i.e. run every two minutes):
+        # - Celery runs at 12:00:00.500 (half a second delay)
+        # - Service is triggered, last_periodic_run = 12:00:00.500
+        # Next checks:
+        #   - At 12:01:00.400: Is 12:00:00.500 <= 11:59:00.400? NO
+        #   - At 12:02:00.300: Is 12:00:00.500 <= 12:00:00.300? NO (500ms > 300ms!)
+        #   - At 12:03:00.200: Is 12:00:00.500 <= 12:01:00.200? YES
+        now = now.replace(second=0, microsecond=0)
+
         query_conditions = Q()
         is_null = Q(last_periodic_run__isnull=True)
 
@@ -1370,19 +1384,7 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
             self._get_payload(now),
         )
 
-        # Update the 'due' services with when they last ran.
-        # Note: we replace the seconds and microseconds due to jitter that
-        # can exist between when the Celery task is scheduled, and when the
-        # services were actually processed. For example:
-        #
-        # Assuming `interval=minute` and `minute=2` (i.e. run every two minutes):
-        # - Celery runs at 12:00:00.500 (half a second delay)
-        # - Service is triggered, last_periodic_run = 12:00:00.500
-        # Next checks:
-        #   - At 12:01:00.400: Is 12:00:00.500 <= 11:59:00.400? NO
-        #   - At 12:02:00.300: Is 12:00:00.500 <= 12:00:00.300? NO (500ms > 300ms!)
-        #   - At 12:03:00.200: Is 12:00:00.500 <= 12:01:00.200? YES
-        periodic_services.update(last_periodic_run=now.replace(second=0, microsecond=0))
+        periodic_services.update(last_periodic_run=now)
 
     def get_schema_name(self, service: CorePeriodicService) -> str:
         return f"Periodic{service.id}Schema"
