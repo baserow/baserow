@@ -41,14 +41,12 @@ def get_list_builders_tool(
         nonlocal user, workspace, tool_helpers
 
         tool_helpers.update_status(
-            _(
-                "Listing %(builder_types)s..."
-                % {
-                    "builder_types": f"{builder_types[0]}s"
-                    if builder_types and len(builder_types) == 1
-                    else "builders"
-                }
-            )
+            _("Listing %(builder_types)ss...")
+            % {
+                "builder_types": builder_types[0]
+                if builder_types and len(builder_types) == 1
+                else "builder"
+            }
         )
 
         applications_qs = CoreService().list_applications_in_workspace(

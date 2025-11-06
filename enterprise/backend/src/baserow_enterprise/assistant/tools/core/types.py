@@ -26,6 +26,7 @@ class BuilderItemCreate(BaseModel):
         }
         return type_mapping[self.type]
 
+    @classmethod
     def from_django_orm(cls, orm_app: BaserowApplication) -> "BuilderItem":
         """Creates a BuilderItem instance from a Django ORM Application instance."""
 

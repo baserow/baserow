@@ -82,6 +82,7 @@ def get_create_workflows_tool(
                         "state": orm_workflow.state,
                     }
                 )
+        # Navigate to the last created workflow
         tool_helpers.navigate_to(
             WorkflowNavigationType(
                 type="automation-workflow",
