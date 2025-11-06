@@ -59,14 +59,14 @@ const nodesHierarchy = computed(() => {
     applicationContext
   )
 
-  if (filteredDataNodes.length > 0) {
-    hierarchy.push({
-      name: app.i18n.t('runtimeFormulaTypes.formulaTypeData'),
-      type: 'data',
-      icon: 'iconoir-database',
-      nodes: filteredDataNodes,
-    })
-  }
+  hierarchy.push({
+    name: app.i18n.t('runtimeFormulaTypes.formulaTypeData'),
+    type: 'data',
+    icon: 'iconoir-database',
+    nodes: filteredDataNodes,
+    empty: filteredDataNodes.length === 0,
+    emptyText: app.i18n.t('runtimeFormulaTypes.formulaTypeDataEmpty'),
+  })
 
   // Add functions and operators from the registry
   const formulaNodes = buildFormulaFunctionNodes(app)

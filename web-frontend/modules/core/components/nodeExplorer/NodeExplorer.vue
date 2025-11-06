@@ -19,76 +19,35 @@
             :title="hierarchyNode.name"
           >
             <div class="node-explorer__tab-content">
-              <SelectSearch
+              <NodeExplorerTab
                 v-model="search"
-                :placeholder="$t('action.search')"
-                class="margin-bottom-1"
-                @clear="resetSearch"
+                :hierarchy-node="hierarchyNode"
+                :empty-results="emptyResults"
+                :open-nodes="openNodes"
+                :node-selected="nodeSelected"
+                :debounced-search="debouncedSearch"
+                :allow-node-selection="allowNodeSelection"
+                @reset-search="resetSearch"
+                @node-selected="$emit('node-selected', $event)"
+                @toggle="toggleNode"
               />
-              <div class="node-explorer__scrollable">
-                <div v-if="emptyResults" class="node-explorer__content--empty">
-                  <span>{{ $t('nodeExplorer.noResults') }}</span>
-                  <Button
-                    size="small"
-                    tag="a"
-                    type="secondary"
-                    @click.stop="resetSearch"
-                    >{{ $t('nodeExplorer.resetSearch') }}</Button
-                  >
-                </div>
-                <div v-else class="node-explorer__content">
-                  <NodeExplorerContent
-                    v-for="node in hierarchyNode.nodes"
-                    :key="node.name"
-                    :node="node"
-                    :open-nodes="openNodes"
-                    :path="node.identifier || node.name"
-                    :search-path="node.identifier || node.name"
-                    :node-selected="nodeSelected"
-                    :search="debouncedSearch"
-                    :allow-node-selection="allowNodeSelection"
-                    @click="$emit('node-selected', $event)"
-                    @toggle="toggleNode"
-                  />
-                </div>
-              </div>
             </div>
           </Tab>
         </Tabs>
         <template v-else-if="filteredNodesHierarchy.length === 1">
           <div class="node-explorer__single-tab">
-            <SelectSearch
+            <NodeExplorerTab
               v-model="search"
-              :placeholder="$t('action.search')"
-              class="margin-bottom-1"
-              @clear="resetSearch"
+              :hierarchy-node="filteredNodesHierarchy[0]"
+              :empty-results="emptyResults"
+              :open-nodes="openNodes"
+              :node-selected="nodeSelected"
+              :debounced-search="debouncedSearch"
+              :allow-node-selection="allowNodeSelection"
+              @reset-search="resetSearch"
+              @node-selected="$emit('node-selected', $event)"
+              @toggle="toggleNode"
             />
-            <div class="node-explorer__scrollable">
-              <div v-if="emptyResults" class="node-explorer__content--empty">
-                {{ $t('nodeExplorer.noResults') }}
-                <ButtonText
-                  tag="a"
-                  class="margin-top-1"
-                  @click.stop="resetSearch"
-                  >{{ $t('nodeExplorer.resetSearch') }}</ButtonText
-                >
-              </div>
-              <div v-else class="node-explorer__content">
-                <NodeExplorerContent
-                  v-for="node in filteredNodesHierarchy[0].nodes"
-                  :key="node.name"
-                  :node="node"
-                  :open-nodes="openNodes"
-                  :path="node.identifier || node.name"
-                  :search-path="node.identifier || node.name"
-                  :node-selected="nodeSelected"
-                  :allow-node-selection="allowNodeSelection"
-                  :search="debouncedSearch"
-                  @click="$emit('node-selected', $event)"
-                  @toggle="toggleNode"
-                />
-              </div>
-            </div>
           </div>
         </template>
       </template>
@@ -97,20 +56,14 @@
 </template>
 
 <script>
-import SelectSearch from '@baserow/modules/core/components/SelectSearch'
-import NodeExplorerContent from '@baserow/modules/core/components/nodeExplorer/NodeExplorerContent'
-import Button from '@baserow/modules/core/components/Button'
-import ButtonText from '@baserow/modules/core/components/ButtonText'
+import NodeExplorerTab from '@baserow/modules/core/components/nodeExplorer/NodeExplorerTab'
 
 import _ from 'lodash'
 
 export default {
   name: 'NodeExplorer',
   components: {
-    SelectSearch,
-    NodeExplorerContent,
-    Button,
-    ButtonText,
+    NodeExplorerTab,
   },
   props: {
     mode: {

@@ -26,12 +26,6 @@
   min-height: 0;
 }
 
-.node-explorer__scrollable {
-  flex: 1;
-  overflow: auto;
-  min-height: 0;
-}
-
 .node-explorer__content--empty {
   padding: 24px;
   color: $palette-neutral-900;
@@ -40,4 +34,17 @@
   align-items: center;
   justify-content: center;
   gap: 12px;
+}
+
+.node-explorer-tab {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.node-explorer-tab__scrollable {
+  flex: 1;
+  overflow: auto;
+  min-height: 0;
 }
