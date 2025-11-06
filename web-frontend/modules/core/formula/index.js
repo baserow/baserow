@@ -60,11 +60,13 @@ export const getFormulaFunctions = (app) => {
 /**
  * Get formula functions organized by category
  * @param {Object} app The app instance with registry
+ * @param {Object} i18n The i18n instance (optional, will be extracted from app if not provided)
  * @returns {Array} Array of category nodes with their functions
  */
-export const getFormulaFunctionsByCategory = (app) => {
+export const getFormulaFunctionsByCategory = (app, i18n = null) => {
   const functions = getFormulaFunctions(app)
-  const { i18n } = app
+  // Support both Option API (this.$t) and Composition API (app.i18n)
+  const i18nInstance = i18n || app.i18n || app
   const categorizedFunctions = {}
   const categorizedOperators = {}
 
@@ -115,7 +117,14 @@ export const getFormulaFunctionsByCategory = (app) => {
 
       if (categoryType.category) {
         // Get translated category name using i18n
-        category = i18n.t(`runtimeFormulaTypes.${categoryType.category}`)
+        // Support both i18n.t and $t methods
+        const translateMethod = i18nInstance.t || i18nInstance.$t
+        if (translateMethod) {
+          category = translateMethod.call(
+            i18nInstance,
+            `runtimeFormulaTypes.${categoryType.category}`
+          )
+        }
       }
 
       const item = {
@@ -179,13 +188,22 @@ export const getFormulaFunctionsByCategory = (app) => {
 
 /**
  * Build function nodes for FormulaInputField
- * @param {Object} app The app instance with registry
+ * @param {Object} app The app instance with registry or Vue component instance
+ * @param {Object} i18n The i18n instance (optional, will be extracted from app if not provided)
  * @returns {Array} Array of function nodes ready for FormulaInputField
  */
-export const buildFormulaFunctionNodes = (app) => {
-  const { functionNodes, operatorNodes } = getFormulaFunctionsByCategory(app)
+export const buildFormulaFunctionNodes = (app, i18n = null) => {
+  // Support both Option API (this.$t) and Composition API (app.i18n)
+  const i18nInstance = i18n || app.i18n || app
+  const { functionNodes, operatorNodes } = getFormulaFunctionsByCategory(
+    app,
+    i18nInstance
+  )
   const nodes = []
-  const { i18n } = app
+
+  // Get translation methods once at the beginning
+  const tcMethod = i18nInstance.tc || i18nInstance.$tc
+  const tMethod = i18nInstance.t || i18nInstance.$t
 
   // Process regular functions
   if (functionNodes.length > 0) {
@@ -297,9 +315,15 @@ export const buildFormulaFunctionNodes = (app) => {
 
     // Add functions as a top-level section
     nodes.push({
-      name: i18n.tc('runtimeFormulaTypes.formulaTypeFormula', {
-        count: functionNodes.length,
-      }),
+      name: tcMethod
+        ? tcMethod.call(
+            i18nInstance,
+            'runtimeFormulaTypes.formulaTypeFormula',
+            {
+              count: functionNodes.length,
+            }
+          )
+        : tMethod.call(i18nInstance, 'runtimeFormulaTypes.formulaTypeFormula'),
       type: 'function',
       identifier: null,
       order: null,
@@ -407,9 +431,15 @@ export const buildFormulaFunctionNodes = (app) => {
 
     // Add operators as a top-level section
     nodes.push({
-      name: i18n.tc('runtimeFormulaTypes.formulaTypeOperator', {
-        count: operatorNodes.length,
-      }),
+      name: tcMethod
+        ? tcMethod.call(
+            i18nInstance,
+            'runtimeFormulaTypes.formulaTypeOperator',
+            {
+              count: operatorNodes.length,
+            }
+          )
+        : tMethod.call(i18nInstance, 'runtimeFormulaTypes.formulaTypeOperator'),
       type: 'operator',
       nodes: operatorCategories,
     })
