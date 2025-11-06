@@ -18,7 +18,11 @@ from baserow.contrib.builder.data_sources.models import DataSource
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.views.models import SORT_ORDER_ASC
 from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
-from baserow.core.formula.types import BASEROW_FORMULA_MODE_SIMPLE, BaserowFormulaObject
+from baserow.core.formula.types import (
+    BASEROW_FORMULA_MODE_RAW,
+    BASEROW_FORMULA_MODE_SIMPLE,
+    BaserowFormulaObject,
+)
 from baserow.core.services.models import Service
 from baserow.core.user_sources.user_source_user import UserSourceUser
 from baserow.test_utils.helpers import AnyInt, AnyStr, setup_interesting_test_table
@@ -360,7 +364,7 @@ def test_update_data_source_with_filters(api_client, data_fixture):
                     "value": BaserowFormulaObject(
                         formula="foobar",
                         version=BASEROW_FORMULA_VERSION_INITIAL,
-                        mode=BASEROW_FORMULA_MODE_SIMPLE,
+                        mode=BASEROW_FORMULA_MODE_RAW,
                     ),
                     "value_is_formula": False,
                 },
@@ -391,7 +395,7 @@ def test_update_data_source_with_filters(api_client, data_fixture):
             "value": BaserowFormulaObject(
                 formula="foobar",
                 version=BASEROW_FORMULA_VERSION_INITIAL,
-                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                mode=BASEROW_FORMULA_MODE_RAW,
             ),
             "trashed": False,
             "value_is_formula": False,
@@ -436,7 +440,7 @@ def test_update_data_source_with_filters(api_client, data_fixture):
                     "value": BaserowFormulaObject(
                         formula="foobar",
                         version=BASEROW_FORMULA_VERSION_INITIAL,
-                        mode=BASEROW_FORMULA_MODE_SIMPLE,
+                        mode=BASEROW_FORMULA_MODE_RAW,
                     ),
                     "value_is_formula": False,
                 }
@@ -457,7 +461,7 @@ def test_update_data_source_with_filters(api_client, data_fixture):
             "value": BaserowFormulaObject(
                 formula="foobar",
                 version=BASEROW_FORMULA_VERSION_INITIAL,
-                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                mode=BASEROW_FORMULA_MODE_RAW,
             ),
             "trashed": False,
             "value_is_formula": False,
