@@ -200,7 +200,7 @@ class RuntimeRound(RuntimeFormulaFunction):
 
         if len(args) == 2:
             # Avoid negative numbers
-            decimal_places = max(args[1], 0)
+            decimal_places = max(int(args[1]), 0)
 
         return round(args[0], decimal_places)
 
