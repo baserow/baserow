@@ -17,7 +17,7 @@ Baserow can be deployed to AWS in the following ways:
    file or our [sample K8S configuration](./install-with-k8s.md) as a starting point to
    configure ECS/Fargate tasks for more advanced, production ready, one service per
    container model. **See below for a detailed guide**
-3. Using the [Baserow community maintained helm chart](./install-with-helm.md) and EKS.
+3. Using the [Official Baserow helm chart](./install-with-helm.md) and EKS.
 4. Customizing our [sample K8S configuration](./install-with-k8s.md) and using that with
    EKS.
 5. Installing and using docker/docker-compose on an EC2 instance with
@@ -209,7 +209,7 @@ with 2vCPUs and 4 GB of RAM each to start with. In short, you will want to:
 > found [here](./configuration.md).
 
 | Env variable                  | Description                                                                                                                                                                                                                                                                                                                                                                                                                               |
-|-------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `DISABLE_VOLUME_CHECK=true`   | *Must be set to true*. Needed to disable the check designed to help non-technical users who are not configuring an external Postgres and S3. Because we are configuring external services we do not need any volume mounted into the container.                                                                                                                                                                                           |
 | `BASEROW_PUBLIC_URL`          | The public URL or IP that will be used to access baserow in your user's browser. Always should start with http:// https:// even if accessing via an IP address.                                                                                                                                                                                                                                                                           |
 | `DATABASE_HOST`               | The hostname of the Postgres database Baserow will use to store its data in.                                                                                                                                                                                                                                                                                                                                                              |
@@ -371,7 +371,7 @@ in-tool settings, active enterprise licenses, promote other users to being staff
 The `baserow/backend:1.35.3` and `baserow/web-frontend:1.35.3` images allow you to run
 Baserow's various services as separate containers.
 
-These images are used by the community Helm chart, our various docker-compose.yml
+These images are used by the Official Helm chart, our various docker-compose.yml
 example setups and are best for production environments where you want full control and
 flexibility managing Baserow.
 
@@ -456,7 +456,7 @@ This service is our HTTP REST API service. When creating the task definition you
    file to share these is also a good idea.
 
 | Env variable                  | Description                                                                                                                                                                                                                                                                                                                                                                                                                               |
-|-------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `BASEROW_PUBLIC_URL`          | The public URL or IP that will be used to access baserow in your user's browser. Always should start with http:// https:// even if accessing via an IP address.                                                                                                                                                                                                                                                                           |
 | `DATABASE_HOST`               | The hostname of the Postgres database Baserow will use to store its data in.                                                                                                                                                                                                                                                                                                                                                              |
 | `DATABASE_USER`               | The username of the database user Baserow will use to connect to the database at `DATABASE_HOST`.                                                                                                                                                                                                                                                                                                                                         |

@@ -92,6 +92,34 @@ baserow-backend-wsgi:
       onDemandAsk: "http://my-baserow-baserow-backend-wsgi/api/builder/domains/ask-public-domain-exists/"
 ```
 
+## AI and Embeddings Configuration
+
+Baserow supports multiple AI providers for generative AI features and the AI assistant. The embeddings service powers semantic search for the AI assistant's documentation lookup feature.
+
+### Enable Embeddings Service
+
+The AI assistant uses the embeddings service and requires an LLM model to be configured. The embeddings service is automatically configured when enabled.
+
+#### Basic Configuration
+
+```yaml
+baserow-embeddings:
+  enabled: true
+  assistantLLMModel: "groq/openai/gpt-oss-120b"
+
+backendSecrets:
+  # Add the appropriate API key for your chosen model provider
+  GROQ_API_KEY: "gsk_..."
+```
+
+The assistantLLMModel option sets the LLM model to use for the AI assistant it follows the [LiteLLM provider format](https://docs.litellm.ai/docs/providers)
+
+- Examples:
+  - Groq: `groq/openai/gpt-oss-120b` or `groq/llama-3.1-70b-versatile`
+  - OpenAI: `openai/gpt-4o` or `openai/gpt-3.5-turbo`
+  - Anthropic: `anthropic/claude-3-5-sonnet-20241022`
+  - Bedrock: `bedrock/anthropic.claude-3-sonnet-20240229-v1:0`
+
 ## Different Cloud Providers
 
 On different cloud providers, you may need to configure the Object storage, ingress and Load Balancer differently. Below are some examples of how to configure them.
@@ -424,6 +452,29 @@ caddy:
 | `baserow-celery-flower.image.repository` | Docker image repository for the Celery Flower monitoring tool. | `backend`           |
 | `baserow-celery-flower.args`             | Arguments passed to the Celery Flower monitoring tool.         | `["celery-flower"]` |
 | `baserow-celery-flower.replicaCount`     | Number of replicas for the Celery Flower monitoring tool.      | `1`                 |
+
+### Baserow Embeddings Configuration
+
+| Name                                                            | Description                                                     | Value                      |
+| --------------------------------------------------------------- | --------------------------------------------------------------- | -------------------------- |
+| `baserow-embeddings.enabled`                                    | Set to true to enable the Baserow Embeddings service.           | `false`                    |
+| `baserow-embeddings.assistantLLMModel`                          | The LLM model to use for the Embeddings service.                | `groq/openai/gpt-oss-120b` |
+| `baserow-embeddings.image.repository`                           | Docker image repository for the Embeddings service.             | `embeddings`               |
+| `baserow-embeddings.resources`                                  | Resource requests and limits for the Embeddings service.        |                            |
+| `baserow-embeddings.autoscaling.enabled`                        | Enable autoscaling for the Embeddings service.                  | `false`                    |
+| `baserow-embeddings.autoscaling.minReplicas`                    | Minimum number of replicas for autoscaling.                     | `1`                        |
+| `baserow-embeddings.autoscaling.maxReplicas`                    | Maximum number of replicas for autoscaling.                     | `3`                        |
+| `baserow-embeddings.autoscaling.targetCPUUtilizationPercentage` | Target CPU utilization percentage for autoscaling.              | `80`                       |
+| `baserow-embeddings.service.port`                               | Service port for the Embeddings service.                        | `80`                       |
+| `baserow-embeddings.service.targetPort`                         | Target port for the Embeddings service.                         | `80`                       |
+| `baserow-embeddings.readinessProbe.initialDelaySeconds`         | Initial delay for readiness probe.                              | `10`                       |
+| `baserow-embeddings.readinessProbe.periodSeconds`               | Period for readiness probe.                                     | `10`                       |
+| `baserow-embeddings.readinessProbe.timeoutSeconds`              | Timeout for readiness probe.                                    | `5`                        |
+| `baserow-embeddings.livenessProbe.initialDelaySeconds`          | Initial delay for liveness probe.                               | `10`                       |
+| `baserow-embeddings.livenessProbe.periodSeconds`                | Period for liveness probe.                                      | `10`                       |
+| `baserow-embeddings.livenessProbe.timeoutSeconds`               | Timeout for liveness probe.                                     | `5`                        |
+| `baserow-embeddings.pdb.create`                                 | Enable/disable a Pod Disruption Budget creation.                | `false`                    |
+| `baserow-embeddings.pdb.minAvailable`                           | Minimum number/percentage of pods that should remain scheduled. | `75%`                      |
 
 ### Ingress Configuration
 

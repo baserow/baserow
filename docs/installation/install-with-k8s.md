@@ -1,8 +1,8 @@
 # Install with K8S
 
-## Community Maintained Helm Chart
+## Official Baserow Helm Chart
 
-We recommend you use the [community maintained helm chart](./install-with-helm.md) to
+We recommend you use the [official baserow helm chart](./install-with-helm.md) to
 install Baserow on K8S.
 
 ## Raw K8S starting point
