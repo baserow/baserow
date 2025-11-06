@@ -251,6 +251,7 @@ def test_call_multiple_periodic_services_that_are_due(
         ),
         (
             {
+                # Compat: no `minute` is provided, so it defaults to "1" (every minute).
                 "interval": PERIODIC_INTERVAL_MINUTE,
                 "last_periodic_run": datetime(
                     2025, 2, 15, 10, 30, 30, tzinfo=timezone.utc
@@ -263,6 +264,7 @@ def test_call_multiple_periodic_services_that_are_due(
         ),
         (
             {
+                # Compat: no `minute` is provided, so it defaults to "1" (every minute).
                 "interval": PERIODIC_INTERVAL_MINUTE,
                 "last_periodic_run": datetime(
                     2025, 2, 15, 10, 30, 0, tzinfo=timezone.utc
@@ -275,18 +277,7 @@ def test_call_multiple_periodic_services_that_are_due(
         ),
         (
             {
-                "interval": PERIODIC_INTERVAL_MINUTE,
-                "last_periodic_run": datetime(
-                    2025, 2, 15, 10, 29, 59, tzinfo=timezone.utc
-                ),
-            },
-            "2025-02-15 10:30:45",
-            # 2025-02-15 10:30:45 - 2025-2-15-10 29:59 = 46 seconds, so should not be
-            # triggered.
-            False,
-        ),
-        (
-            {
+                # Compat: no `minute` is provided, so it defaults to "1" (every minute).
                 "interval": PERIODIC_INTERVAL_MINUTE,
                 "last_periodic_run": datetime(
                     2025, 2, 15, 10, 28, 59, tzinfo=timezone.utc
@@ -299,6 +290,7 @@ def test_call_multiple_periodic_services_that_are_due(
         ),
         (
             {
+                # Compat: no `minute` is provided, so it defaults to "1" (every minute).
                 "interval": PERIODIC_INTERVAL_MINUTE,
                 "last_periodic_run": datetime(
                     2025, 1, 16, 2, 59, 59, tzinfo=timezone.utc
@@ -306,6 +298,30 @@ def test_call_multiple_periodic_services_that_are_due(
             },
             "2025-02-15 10:30:45",
             # Almost a month ago, so it should be triggered.
+            True,
+        ),
+        (
+            {
+                "minute": 5,
+                "interval": PERIODIC_INTERVAL_MINUTE,
+                "last_periodic_run": datetime(
+                    2025, 11, 6, 12, 0, 0, tzinfo=timezone.utc
+                ),
+            },
+            "2025-11-06 12:03:00",
+            # It's been 3 minutes, so it should not be triggered.
+            False,
+        ),
+        (
+            {
+                "minute": 5,
+                "interval": PERIODIC_INTERVAL_MINUTE,
+                "last_periodic_run": datetime(
+                    2025, 11, 6, 12, 0, 0, tzinfo=timezone.utc
+                ),
+            },
+            "2025-11-06 12:05:00",
+            # It's been 5 minutes, so it should be triggered.
             True,
         ),
         # Hour

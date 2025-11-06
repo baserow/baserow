@@ -8,7 +8,8 @@ from typing import Any, Callable, Dict, Generator, List, Optional, Tuple
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives, get_connection
 from django.db import router
-from django.db.models import Q
+from django.db.models import Q, F, ExpressionWrapper, DurationField, Value
+from django.db.models.functions import Coalesce, NullIf
 from django.urls import path
 from django.utils import timezone
 from django.utils.translation import gettext as _
@@ -1300,9 +1301,15 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
         is_null = Q(last_periodic_run__isnull=True)
 
         # MINUTE
-        minute_ago = now - timedelta(minutes=1)
         minute_condition = Q(
-            is_null | Q(last_periodic_run__lt=minute_ago),
+            is_null
+            | Q(
+                last_periodic_run__lte=now
+                - ExpressionWrapper(
+                    Coalesce(NullIf(F("minute"), 0), Value(1)) * timedelta(minutes=1),
+                    output_field=DurationField(),
+                )
+            ),
             interval=PERIODIC_INTERVAL_MINUTE,
         )
         query_conditions |= minute_condition
@@ -1363,7 +1370,19 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
             self._get_payload(now),
         )
 
-        periodic_services.update(last_periodic_run=now)
+        # Update the 'due' services with when they last ran.
+        # Note: we replace the seconds and microseconds due to jitter that
+        # can exist between when the Celery task is scheduled, and when the
+        # services were actually processed. For example:
+        #
+        # Assuming `interval=minute` and `minute=2` (i.e. run every two minutes):
+        # - Celery runs at 12:00:00.500 (half a second delay)
+        # - Service is triggered, last_periodic_run = 12:00:00.500
+        # Next checks:
+        #   - At 12:01:00.400: Is 12:00:00.500 <= 11:59:00.400? NO
+        #   - At 12:02:00.300: Is 12:00:00.500 <= 12:00:00.300? NO (500ms > 300ms!)
+        #   - At 12:03:00.200: Is 12:00:00.500 <= 12:01:00.200? YES
+        periodic_services.update(last_periodic_run=now.replace(second=0, microsecond=0))
 
     def get_schema_name(self, service: CorePeriodicService) -> str:
         return f"Periodic{service.id}Schema"

@@ -9,7 +9,10 @@
       class="margin-bottom-2"
     >
       <Dropdown v-model="values.interval" size="large">
-        <DropdownItem :name="$t('periodicForm.everyMinute')" value="MINUTE" />
+        <DropdownItem
+          :name="$t('periodicForm.everyMinuteDefault')"
+          value="MINUTE"
+        />
         <DropdownItem :name="$t('periodicForm.everyHour')" value="HOUR" />
         <DropdownItem :name="$t('periodicForm.everyDay')" value="DAY" />
         <DropdownItem :name="$t('periodicForm.everyWeek')" value="WEEK" />
@@ -19,6 +22,21 @@
 
     <div v-if="values.interval !== null">
       <div class="flex align-items-start margin-bottom-2">
+        <FormGroup
+          v-if="showMinuteFrequencyField"
+          small-label
+          :label="$t('periodicForm.minuteFrequency')"
+          required
+        >
+          <FormInput
+            v-model="v$.user.minute.$model"
+            size="large"
+            type="number"
+            :min="1"
+            :max="59"
+            :placeholder="$t('periodicForm.minuteFrequencyPlaceholder')"
+          />
+        </FormGroup>
         <FormGroup
           v-if="showHourField"
           small-label
@@ -105,7 +123,7 @@
 
 <script>
 import { useVuelidate } from '@vuelidate/core'
-import { between, required, helpers } from '@vuelidate/validators'
+import { between, required, integer, helpers } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
 
 export default {
@@ -142,6 +160,12 @@ export default {
     }
   },
   computed: {
+    showMinuteFrequencyField() {
+      return this.values.interval === 'MINUTE'
+    },
+    minimumMinuteFrequency() {
+      return this.$config.BASEROW_INTEGRATIONS_PERIODIC_MINUTE_MIN
+    },
     showHourField() {
       return ['DAY', 'WEEK', 'MONTH'].includes(this.values.interval)
     },
@@ -193,9 +217,15 @@ export default {
             this.$t('error.requiredField'),
             required
           ),
+          integer: helpers.withMessage(this.$t('error.integerField'), integer),
           between: helpers.withMessage(
-            this.$t('error.minMaxValueField', { min: 0, max: 59 }),
-            between(0, 59)
+            this.showMinuteFrequencyField
+              ? this.$t('error.minMaxValueField', {
+                  min: this.minimumMinuteFrequency,
+                  max: 59,
+                })
+              : this.$t('error.minMaxValueField', { min: 0, max: 59 }),
+            this.showMinuteFrequencyField ? between(1, 59) : between(0, 59)
           ),
         },
         hour: {
@@ -226,7 +256,21 @@ export default {
     'user.hour': 'syncValuesFromUser',
     'user.day_of_week': 'syncValuesFromUser',
     'user.day_of_month': 'syncValuesFromUser',
-    'values.interval': 'syncValuesFromUser',
+    'values.interval'(newInterval, oldInterval) {
+      // When we change *to* MINUTE, we default to the minimum frequency
+      // that is granted to this Baserow instance type.
+      // When we change *from* MINUTE, reset minute to 0.
+      if (
+        this.user.minute === 0 &&
+        newInterval === 'MINUTE' &&
+        oldInterval !== 'MINUTE'
+      ) {
+        this.user.minute = this.minimumMinuteFrequency
+      } else if (newInterval !== 'MINUTE' && oldInterval === 'MINUTE') {
+        this.user.minute = 0
+      }
+      this.syncValuesFromUser()
+    },
   },
   mounted() {
     this.syncUserFromValues()
@@ -263,6 +307,7 @@ export default {
     syncValuesFromUser() {
       this.v$.$touch()
       if (this.v$.values.interval.$invalid) return
+      if (this.showMinuteFrequencyField && this.v$.user.minute.$invalid) return
       if (this.showMinuteField && this.v$.user.minute.$invalid) return
       if (this.showHourField && this.v$.user.hour.$invalid) return
       if (
@@ -279,12 +324,7 @@ export default {
         day_of_month: dayOfMonth,
       } = this.user
 
-      if (interval === 'MINUTE') {
-        this.values = { ...this.values, interval }
-        return
-      }
-
-      if (interval === 'HOUR') {
+      if (interval === 'MINUTE' || interval === 'HOUR') {
         this.values = { ...this.values, interval, minute }
         return
       }
@@ -345,11 +385,7 @@ export default {
         day_of_month: dayOfMonth,
       } = this.values
 
-      if (interval === 'MINUTE') {
-        return
-      }
-
-      if (interval === 'HOUR') {
+      if (interval === 'MINUTE' || interval === 'HOUR') {
         this.user.minute = minute
         return
       }
