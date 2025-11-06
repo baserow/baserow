@@ -211,7 +211,7 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
 
         mapping = {
             field_obj["field"].db_column: field_obj["field"].name
-            for field_obj in self.get_table_field_objects(service)
+            for field_obj in self.get_table_field_objects(service) or []
         }
         return [mapping.get(f, f) for f in allowed_fields]
 
