@@ -63,7 +63,7 @@
     "corePeriodicDescription": "Triggers the workflow on a periodic basis at specified intervals",
     "corePeriodicErrorIntervalMissing": "An interval is required.",
     "errorIterationSourceMissing": "Missing source property",
-    "aiAgent": "AI Agent",
+    "aiAgent": "AI prompt",
     "aiAgentDescription": "Execute AI prompts using configured generative AI models.",
     "errorNoIntegrationSelected": "No integration selected",
     "errorNoAIProviderSelected": "No AI provider selected",
