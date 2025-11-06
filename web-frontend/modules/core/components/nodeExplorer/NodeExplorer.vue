@@ -26,7 +26,17 @@
                 @clear="resetSearch"
               />
               <div class="node-explorer__scrollable">
-                <div class="node-explorer__content">
+                <div v-if="emptyResults" class="node-explorer__content--empty">
+                  <span>{{ $t('nodeExplorer.noResults') }}</span>
+                  <Button
+                    size="small"
+                    tag="a"
+                    type="secondary"
+                    @click.stop="resetSearch"
+                    >{{ $t('nodeExplorer.resetSearch') }}</Button
+                  >
+                </div>
+                <div v-else class="node-explorer__content">
                   <NodeExplorerContent
                     v-for="node in hierarchyNode.nodes"
                     :key="node.name"
@@ -54,7 +64,16 @@
               @clear="resetSearch"
             />
             <div class="node-explorer__scrollable">
-              <div class="node-explorer__content">
+              <div v-if="emptyResults" class="node-explorer__content--empty">
+                {{ $t('nodeExplorer.noResults') }}
+                <ButtonText
+                  tag="a"
+                  class="margin-top-1"
+                  @click.stop="resetSearch"
+                  >{{ $t('nodeExplorer.resetSearch') }}</ButtonText
+                >
+              </div>
+              <div v-else class="node-explorer__content">
                 <NodeExplorerContent
                   v-for="node in filteredNodesHierarchy[0].nodes"
                   :key="node.name"
@@ -80,6 +99,8 @@
 <script>
 import SelectSearch from '@baserow/modules/core/components/SelectSearch'
 import NodeExplorerContent from '@baserow/modules/core/components/nodeExplorer/NodeExplorerContent'
+import Button from '@baserow/modules/core/components/Button'
+import ButtonText from '@baserow/modules/core/components/ButtonText'
 
 import _ from 'lodash'
 
@@ -88,6 +109,8 @@ export default {
   components: {
     SelectSearch,
     NodeExplorerContent,
+    Button,
+    ButtonText,
   },
   props: {
     mode: {
@@ -169,7 +192,7 @@ export default {
       this.$emit('node-unselected')
       clearTimeout(this.debounceSearch)
       this.debounceSearch = setTimeout(() => {
-        this.debouncedSearch = newSearch.trim().toLowerCase() || null
+        this.debouncedSearch = newSearch ? newSearch.trim().toLowerCase() : null
       }, 300)
     },
     matchingPaths(value) {
