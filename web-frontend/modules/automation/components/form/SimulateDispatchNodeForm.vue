@@ -55,9 +55,8 @@
     </Button>
 
     <SampleDataModal
-      v-if="sampleData"
       ref="sampleDataModalRef"
-      :sample-data="sampleData"
+      :sample-data="sampleData || {}"
       :title="sampleDataModalTitle"
     />
   </div>
