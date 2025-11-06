@@ -420,3 +420,37 @@ class RuntimeIf(RuntimeFormulaFunction):
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
         return args[1] if args[0] else args[2]
+
+
+class RuntimeAnd(RuntimeFormulaFunction):
+    type = "and"
+
+    def validate_number_of_args(self, args):
+        return len(args) >= 1
+
+    def validate_type_of_args(self, args) -> Optional[FormulaArg]:
+        arg_type = BooleanBaserowRuntimeFormulaArgumentType()
+        return next(
+            (arg for arg in args if not arg_type.test(arg)),
+            None,
+        )
+
+    def execute(self, context: FormulaContext, args: FormulaArgs):
+        return all(args)
+
+
+class RuntimeOr(RuntimeFormulaFunction):
+    type = "or"
+
+    def validate_number_of_args(self, args):
+        return len(args) >= 1
+
+    def validate_type_of_args(self, args) -> Optional[FormulaArg]:
+        arg_type = BooleanBaserowRuntimeFormulaArgumentType()
+        return next(
+            (arg for arg in args if not arg_type.test(arg)),
+            None,
+        )
+
+    def execute(self, context: FormulaContext, args: FormulaArgs):
+        return any(args)

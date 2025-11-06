@@ -1433,3 +1433,82 @@ export class RuntimeIf extends RuntimeFormulaFunction {
     ]
   }
 }
+
+export class RuntimeAnd extends RuntimeFormulaFunction {
+  static getType() {
+    return 'and'
+  }
+
+  static getFormulaType() {
+    return FORMULA_TYPE.FUNCTION
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.CONDITION
+  }
+
+  validateNumberOfArgs(args) {
+    return args.length >= 1
+  }
+
+  validateTypeOfArgs(args) {
+    const argType = new BooleanBaserowRuntimeFormulaArgumentType()
+    return args.find(arg => !argType.test(arg)) ?? null
+  }
+
+  execute(context, args) {
+    return args.every(Boolean)
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.andDescription')
+  }
+
+  getExamples() {
+    return [
+      'and(true, true) = true',
+      'and(true, true, false) = false',
+    ]
+  }
+}
+
+export class RuntimeOr extends RuntimeFormulaFunction {
+  static getType() {
+    return 'or'
+  }
+
+  static getFormulaType() {
+    return FORMULA_TYPE.FUNCTION
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.CONDITION
+  }
+
+  validateNumberOfArgs(args) {
+    return args.length >= 1
+  }
+
+  validateTypeOfArgs(args) {
+    const argType = new BooleanBaserowRuntimeFormulaArgumentType()
+    return args.find(arg => !argType.test(arg)) ?? null
+  }
+
+  execute(context, args) {
+    return args.some(Boolean)
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.orDescription')
+  }
+
+  getExamples() {
+    return [
+      'or(true, true) = true',
+      'or(true, true, false) = true',
+      'or(false, false) = false',
+    ]
+  }
+}
