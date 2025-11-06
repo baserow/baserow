@@ -71,12 +71,12 @@
   border-color: $palette-blue-500;
 
   &.formula-input-field--error {
-    border-color: $palette-red-500;
+    border-color: $palette-red-400;
   }
 }
 
 .formula-input-field--error {
-  border-color: $palette-red-500;
+  border-color: $palette-red-400;
 }
 
 .formula-input-field--disabled {

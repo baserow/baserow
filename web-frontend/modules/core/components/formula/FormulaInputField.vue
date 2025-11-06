@@ -136,7 +136,6 @@ export default {
       isFormulaInvalid: false,
       isFocused: false,
       hoveredFunctionNode: null,
-      hasValidationError: false,
       enableAdvancedMode: this.$featureFlagIsEnabled(FF_ADVANCED_FORMULA),
       isHandlingModeChange: false,
     }
@@ -149,8 +148,7 @@ export default {
         'formula-input-field--focused':
           !this.disabled && !this.readOnly && this.isFocused,
         'formula-input-field--disabled': this.disabled,
-        'form-input--error': this.isFormulaInvalid,
-        'formula-input-field--error': this.hasValidationError,
+        'formula-input-field--error': this.isFormulaInvalid,
       }
     },
     placeHolderExt() {
@@ -444,6 +442,7 @@ export default {
         this.editor.commands.clearContent()
         this.$emit('update:mode', newMode)
         this.$emit('input', '')
+        this.isFormulaInvalid = false
         this.isHandlingModeChange = false
       } else {
         // Otherwise (simple to advanced), keep the current formula
