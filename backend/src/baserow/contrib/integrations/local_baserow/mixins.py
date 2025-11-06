@@ -267,7 +267,8 @@ class LocalBaserowTableServiceFilterableMixin:
             model_field = model._meta.get_field(field_name)
             view_filter_type = view_filter_type_registry.get(service_filter.type)
 
-            if service_filter.value_is_formula:
+            # We need this test for compatibility purposes with old values
+            if service_filter.value_is_formula or service_filter.value["mode"] == "raw":
                 try:
                     resolved_value = ensure_string(
                         resolve_formula(
@@ -278,7 +279,8 @@ class LocalBaserowTableServiceFilterableMixin:
                     )
                 except Exception as exc:
                     raise ServiceImproperlyConfiguredDispatchException(
-                        f"The {field_name} service filter formula can't be resolved: {exc}"
+                        f"The {field_name} service filter formula can't be "
+                        "resolved: {exc}"
                     ) from exc
             else:
                 resolved_value = service_filter.value["formula"]

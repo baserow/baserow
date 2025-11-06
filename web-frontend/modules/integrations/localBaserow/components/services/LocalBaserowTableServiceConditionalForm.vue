@@ -39,7 +39,12 @@
               'localBaserowTableServiceConditionalForm.formulaFilterInputPlaceholder'
             )
           "
-          @input="updateFilter({ filter, values: { value: $event.formula } })"
+          @input="
+            updateFilter({
+              filter,
+              values: { value: $event.formula, mode: $event.mode },
+            })
+          "
         />
       </template>
       <template
@@ -173,7 +178,7 @@ export default {
             id: uuidv1(),
             field: field.id,
             type: 'equal',
-            value: { formula: '' },
+            value: { formula: '', mode: 'raw' },
             value_is_formula: false,
           })
           this.$emit('input', newFilters)
@@ -198,10 +203,14 @@ export default {
       const newFilters = this.value.map((filterConf) => {
         if (filterConf.id === filter.id) {
           // Convert the formula value string into our Baserow formula object.
+          const { value_is_formula: valueIsFormula } = { ...filter, ...values }
           return {
             ...filterConf,
             ...values,
-            value: { formula: values.value, mode: 'simple' },
+            value: {
+              formula: values.value,
+              mode: valueIsFormula ? values.mode || 'simple' : 'raw',
+            },
           }
         }
         return filterConf
@@ -222,9 +231,12 @@ export default {
       } else if (filter.value) {
         newValue = `'${filter.value}'`
       }
-      emitUpdate({
-        value: newValue,
-        value_is_formula: !filter.value_is_formula,
+      this.updateFilter({
+        filter,
+        values: {
+          value: newValue,
+          value_is_formula: !filter.value_is_formula,
+        },
       })
     },
     /*
@@ -252,7 +264,12 @@ export default {
      */
     getFormulaObject(filter) {
       const originalFilter = this.value.find((f) => f.id === filter.id)
-      return originalFilter.value
+      return {
+        ...originalFilter.value,
+        mode: originalFilter.value_is_formula
+          ? originalFilter.value.mode || 'simple'
+          : 'raw',
+      }
     },
   },
 }

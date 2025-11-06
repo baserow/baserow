@@ -6,7 +6,6 @@ from baserow.contrib.integrations.local_baserow.models import (
 )
 from baserow.core.formula.serializers import (
     FormulaSerializerField,
-    OptionalFormulaSerializerField,
 )
 
 
@@ -54,9 +53,8 @@ class LocalBaserowTableServiceSortSerializerMixin(serializers.Serializer):
 
 
 class LocalBaserowTableServiceFilterSerializer(serializers.ModelSerializer):
-    value = OptionalFormulaSerializerField(
+    value = FormulaSerializerField(
         help_text="A formula for the filter's value.",
-        is_formula_field_name="value_is_formula",
     )
     value_is_formula = serializers.BooleanField(
         default=False, help_text="Indicates whether the value is a formula or not."
