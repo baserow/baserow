@@ -3,11 +3,9 @@ from datetime import date, datetime
 import pytest
 
 from baserow.core.formula.argument_types import (
-    AddableBaserowRuntimeFormulaArgumentType,
     DateTimeBaserowRuntimeFormulaArgumentType,
     DictBaserowRuntimeFormulaArgumentType,
     NumberBaserowRuntimeFormulaArgumentType,
-    SubtractableBaserowRuntimeFormulaArgumentType,
     TextBaserowRuntimeFormulaArgumentType,
 )
 
@@ -85,82 +83,6 @@ def test_text_test_method(value, expected):
 )
 def test_text_parse_method(value, expected):
     assert TextBaserowRuntimeFormulaArgumentType().parse(value) == expected
-
-
-@pytest.mark.parametrize(
-    "value,expected",
-    [
-        (-5, True),
-        (-5.5, True),
-        ("-5.5", True),
-        (0, True),
-        (10, True),
-        ("10", True),
-        (16.25, True),
-        ("16.25", True),
-        ([], True),
-        ("", True),
-        ({}, False),
-        (None, False),
-    ],
-)
-def test_addable_test_method(value, expected):
-    assert AddableBaserowRuntimeFormulaArgumentType().test(value) == expected
-
-
-@pytest.mark.parametrize(
-    "value",
-    [
-        -5,
-        -5.5,
-        "-5.5",
-        0,
-        10,
-        "10",
-        16.25,
-        "16.25",
-        [],
-        "",
-        {},
-    ],
-)
-def test_addable_parse_method(value):
-    assert AddableBaserowRuntimeFormulaArgumentType().parse(value) == value
-
-
-@pytest.mark.parametrize(
-    "value,expected",
-    [
-        (-5, True),
-        (-5.5, True),
-        (0, True),
-        (10, True),
-        (16.25, True),
-        ([], False),
-        ("", False),
-        ("-5.5", False),
-        ("10", False),
-        ("16.25", False),
-        ({}, False),
-        (None, False),
-    ],
-)
-def test_subtractable_test_method(value, expected):
-    assert SubtractableBaserowRuntimeFormulaArgumentType().test(value) == expected
-
-
-@pytest.mark.parametrize(
-    "value",
-    [
-        -5,
-        -5.5,
-        0,
-        10,
-        16.25,
-    ],
-)
-def test_subtractable_parse_method(value):
-    assert SubtractableBaserowRuntimeFormulaArgumentType().parse(value) == value
 
 
 @pytest.mark.parametrize(

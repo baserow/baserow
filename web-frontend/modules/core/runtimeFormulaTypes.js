@@ -209,7 +209,7 @@ export class RuntimeConcat extends RuntimeFormulaFunction {
   }
 
   validateNumberOfArgs(args) {
-    return args.length >= 2
+    return args.length > 1
   }
 
   toNode(args) {

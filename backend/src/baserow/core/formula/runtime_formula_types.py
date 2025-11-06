@@ -8,13 +8,11 @@ from zoneinfo import ZoneInfo
 from django.utils import timezone
 
 from baserow.core.formula.argument_types import (
-    AddableBaserowRuntimeFormulaArgumentType,
     AnyBaserowRuntimeFormulaArgumentType,
     BooleanBaserowRuntimeFormulaArgumentType,
     DateTimeBaserowRuntimeFormulaArgumentType,
     DictBaserowRuntimeFormulaArgumentType,
     NumberBaserowRuntimeFormulaArgumentType,
-    SubtractableBaserowRuntimeFormulaArgumentType,
     TextBaserowRuntimeFormulaArgumentType,
     TimezoneBaserowRuntimeFormulaArgumentType,
 )
@@ -28,7 +26,7 @@ class RuntimeConcat(RuntimeFormulaFunction):
     type = "concat"
 
     def validate_type_of_args(self, args) -> Optional[FormulaArg]:
-        arg_type = AddableBaserowRuntimeFormulaArgumentType()
+        arg_type = TextBaserowRuntimeFormulaArgumentType()
         return next(
             (arg for arg in args if not arg_type.test(arg)),
             None,
@@ -53,7 +51,7 @@ class RuntimeAdd(RuntimeFormulaFunction):
     type = "add"
 
     def validate_type_of_args(self, args) -> Optional[FormulaArg]:
-        arg_type = AddableBaserowRuntimeFormulaArgumentType()
+        arg_type = NumberBaserowRuntimeFormulaArgumentType()
         return next(
             (arg for arg in args if not arg_type.test(arg)),
             None,
@@ -70,7 +68,7 @@ class RuntimeMinus(RuntimeFormulaFunction):
     type = "minus"
 
     def validate_type_of_args(self, args) -> Optional[FormulaArg]:
-        arg_type = SubtractableBaserowRuntimeFormulaArgumentType()
+        arg_type = NumberBaserowRuntimeFormulaArgumentType()
         return next(
             (arg for arg in args if not arg_type.test(arg)),
             None,

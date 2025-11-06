@@ -48,22 +48,6 @@ class TextBaserowRuntimeFormulaArgumentType(BaserowRuntimeFormulaArgumentType):
         return ensure_string(value)
 
 
-class AddableBaserowRuntimeFormulaArgumentType(BaserowRuntimeFormulaArgumentType):
-    def test(self, value):
-        return hasattr(value, "__add__")
-
-    def parse(self, value):
-        return value
-
-
-class SubtractableBaserowRuntimeFormulaArgumentType(BaserowRuntimeFormulaArgumentType):
-    def test(self, value):
-        return hasattr(value, "__sub__")
-
-    def parse(self, value):
-        return value
-
-
 class DateTimeBaserowRuntimeFormulaArgumentType(BaserowRuntimeFormulaArgumentType):
     def test(self, value):
         try:
