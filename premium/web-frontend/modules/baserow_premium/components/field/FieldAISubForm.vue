@@ -69,11 +69,12 @@
       <div style="max-width: 366px">
         <FormulaInputField
           :value="formulaStr"
-          :data-providers="dataProviders"
-          :application-context="applicationContext"
+          :mode="localMode"
+          :nodes-hierarchy="nodesHierarchy"
           :placeholder="$t('fieldAISubForm.promptPlaceholder')"
           @input="updatedFormulaStr"
-        ></FormulaInputField>
+          @update:mode="updateMode"
+        />
       </div>
       <template #error> {{ $t('error.requiredField') }}</template>
     </FormGroup>
@@ -99,6 +100,8 @@ import fieldSubForm from '@baserow/modules/database/mixins/fieldSubForm'
 import FormulaInputField from '@baserow/modules/core/components/formula/FormulaInputField'
 import SelectAIModelForm from '@baserow/modules/core/components/ai/SelectAIModelForm'
 import { TextAIFieldOutputType } from '@baserow_premium/aiFieldOutputTypes'
+import { buildFormulaFunctionNodes } from '@baserow/modules/core/formula'
+import { getDataNodesFromDataProvider } from '@baserow/modules/core/utils/dataProviders'
 
 export default {
   name: 'FieldAISubForm',
@@ -111,11 +114,12 @@ export default {
     return {
       allowedValues: ['ai_prompt', 'ai_file_field_id', 'ai_output_type'],
       values: {
-        ai_prompt: { formula: '' },
+        ai_prompt: { formula: '', mode: 'simple' },
         ai_output_type: TextAIFieldOutputType.getType(),
         ai_file_field_id: null,
       },
       fileFieldSupported: false,
+      localMode: 'simple',
     }
   },
   computed: {
@@ -146,6 +150,29 @@ export default {
     dataProviders() {
       return [this.$registry.get('databaseDataProvider', 'fields')]
     },
+    nodesHierarchy() {
+      const hierarchy = []
+
+      const filteredDataNodes = getDataNodesFromDataProvider(
+        this.dataProviders,
+        this.applicationContext
+      )
+
+      if (filteredDataNodes.length > 0) {
+        hierarchy.push({
+          name: this.$t('runtimeFormulaTypes.formulaTypeData'),
+          type: 'data',
+          icon: 'iconoir-database',
+          nodes: filteredDataNodes,
+        })
+      }
+
+      // Add functions and operators from the registry
+      const formulaNodes = buildFormulaFunctionNodes(this)
+      hierarchy.push(...formulaNodes)
+
+      return hierarchy
+    },
     isDeactivated() {
       return this.$registry
         .get('field', this.fieldType)
@@ -171,6 +198,16 @@ export default {
       )
     },
   },
+  watch: {
+    'values.ai_prompt.mode': {
+      handler(newMode) {
+        if (newMode && newMode !== this.localMode) {
+          this.localMode = newMode
+        }
+      },
+      immediate: true,
+    },
+  },
   methods: {
     /**
      * When `FormulaInputField` emits a new formula string, we need to emit the
@@ -180,6 +217,17 @@ export default {
     updatedFormulaStr(newFormulaStr) {
       this.v$.values.ai_prompt.formula.$model = newFormulaStr
       this.$emit('input', { formula: newFormulaStr })
+    },
+    /**
+     * When the mode changes, update the local mode value
+     * @param {String} newMode The new mode value
+     */
+    updateMode(newMode) {
+      this.localMode = newMode
+      this.values.ai_prompt = {
+        ...this.values.ai_prompt,
+        mode: newMode,
+      }
     },
     setFileFieldSupported(generativeAIType) {
       if (generativeAIType) {
