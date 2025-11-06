@@ -264,7 +264,9 @@ class DuplicateAutomationNodeActionType(UndoableActionType):
         action_to_undo: Action,
     ):
         # Trash the duplicated node.
-        AutomationNodeService().delete_node(user, params.duplicated_node_id)
+        AutomationNodeService().delete_node(
+            user, params.duplicated_node_id, ignore_user_for_signal=True
+        )
 
     @classmethod
     def redo(

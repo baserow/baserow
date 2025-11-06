@@ -241,9 +241,7 @@ class AutomationNodeService:
         )
 
     def delete_node(
-        self,
-        user: AbstractUser,
-        node_id: int,
+        self, user: AbstractUser | None, node_id: int, ignore_user_for_signal=False
     ) -> AutomationNode:
         """
         Deletes the specified automation node.
@@ -268,7 +266,7 @@ class AutomationNodeService:
         node.get_type().before_delete(node.specific)
 
         TrashHandler.trash(
-            user,
+            user if not ignore_user_for_signal else None,
             automation.workspace,
             automation,
             node,
@@ -278,7 +276,7 @@ class AutomationNodeService:
             self,
             workflow=workflow,
             node_id=node.id,
-            user=user,
+            user=user if not ignore_user_for_signal else None,
         )
 
         return node
