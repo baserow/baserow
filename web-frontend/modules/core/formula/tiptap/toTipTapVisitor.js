@@ -131,6 +131,10 @@ export class ToTipTapVisitor extends BaserowFormulaVisitor {
           } else {
             content.push({ type: 'text', text: `"${leftArg.text}"` })
           }
+        } else if (Array.isArray(leftArg)) {
+          // If arg is an array (from nested function calls in advanced mode),
+          // spread its elements
+          content.push(...leftArg)
         } else if (leftArg) {
           content.push(leftArg)
         }
@@ -151,6 +155,10 @@ export class ToTipTapVisitor extends BaserowFormulaVisitor {
           } else {
             content.push({ type: 'text', text: `"${rightArg.text}"` })
           }
+        } else if (Array.isArray(rightArg)) {
+          // If arg is an array (from nested function calls in advanced mode),
+          // spread its elements
+          content.push(...rightArg)
         } else if (rightArg) {
           content.push(rightArg)
         }
@@ -175,6 +183,10 @@ export class ToTipTapVisitor extends BaserowFormulaVisitor {
               // For actual string literals, add quotes
               content.push({ type: 'text', text: `"${arg.text}"` })
             }
+          } else if (Array.isArray(arg)) {
+            // If arg is an array (from nested function calls in advanced mode),
+            // spread its elements
+            content.push(...arg)
           } else if (arg) {
             content.push(arg)
           }
