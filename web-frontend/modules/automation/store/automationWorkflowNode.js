@@ -473,19 +473,6 @@ const actions = {
       throw error
     }
   },
-
-  async order({ commit }, { workflow, order, oldOrder }) {
-    commit('ORDER_ITEMS', { workflow, order })
-    try {
-      await AutomationWorkflowNodeService(this.$client).order(
-        workflow.id,
-        order
-      )
-    } catch (error) {
-      commit('ORDER_ITEMS', { workflow, order: oldOrder })
-      throw error
-    }
-  },
   select({ commit, dispatch }, { workflow, node }) {
     commit('SELECT_ITEM', { workflow, node })
     dispatch(

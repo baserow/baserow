@@ -294,6 +294,9 @@ const getDataBeforeLabel = computed(() => {
 })
 
 const canBeDuplicated = computed(() => {
-  return !nodeType.value.isTrigger && !nodeType.value.isUtilityNode
+  return nodeType.value.isDuplicable({
+    workflow: workflow.value,
+    node: props.node,
+  })
 })
 </script>

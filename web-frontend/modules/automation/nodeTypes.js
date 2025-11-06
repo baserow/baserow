@@ -159,6 +159,13 @@ export class NodeType extends Registerable {
   }
 
   /**
+   * Returns whether the given node can be duplicated.
+   */
+  isDuplicable({ workflow, node }) {
+    return true
+  }
+
+  /**
    * Returns the error message we should show when a node cannot be deleted.
    * By default, this method is empty, but can be overridden by the node type
    * to provide a custom deletion message.
@@ -655,6 +662,10 @@ export class CoreIteratorNodeType extends containerNodeTypeMixin(
     }
     return ''
   }
+
+  isDuplicable({ workflow, node }) {
+    return false
+  }
 }
 
 export class CoreSMTPEmailNodeType extends ActionNodeTypeMixin(NodeType) {
@@ -804,6 +815,10 @@ export class CoreRouterNodeType extends ActionNodeTypeMixin(
           this.app.i18n.t('nodeType.routerDefaultEdgeLabelFallback'),
       },
     ]
+  }
+
+  isDuplicable({ workflow, node }) {
+    return false
   }
 }
 
