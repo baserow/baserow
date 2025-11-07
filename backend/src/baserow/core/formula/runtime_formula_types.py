@@ -1,7 +1,5 @@
-import operator
 import random
 import uuid
-from functools import reduce
 from typing import Optional
 from zoneinfo import ZoneInfo
 
