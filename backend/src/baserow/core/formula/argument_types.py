@@ -25,6 +25,10 @@ class BaserowRuntimeFormulaArgumentType:
 
 
 class NumberBaserowRuntimeFormulaArgumentType(BaserowRuntimeFormulaArgumentType):
+    def __init__(self, *args, **kwargs):
+        self.cast_to_int = kwargs.pop("cast_to_int", False)
+        super().__init__(*args, **kwargs)
+
     def test(self, value):
         try:
             ensure_numeric(value)
@@ -33,7 +37,8 @@ class NumberBaserowRuntimeFormulaArgumentType(BaserowRuntimeFormulaArgumentType)
             return False
 
     def parse(self, value):
-        return ensure_numeric(value)
+        value = ensure_numeric(value)
+        return int(value) if self.cast_to_int else value
 
 
 class TextBaserowRuntimeFormulaArgumentType(BaserowRuntimeFormulaArgumentType):

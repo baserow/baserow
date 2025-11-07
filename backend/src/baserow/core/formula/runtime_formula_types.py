@@ -193,7 +193,7 @@ class RuntimeRound(RuntimeFormulaFunction):
 
     args = [
         NumberBaserowRuntimeFormulaArgumentType(),
-        NumberBaserowRuntimeFormulaArgumentType(optional=True),
+        NumberBaserowRuntimeFormulaArgumentType(optional=True, cast_to_int=True),
     ]
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
@@ -202,7 +202,7 @@ class RuntimeRound(RuntimeFormulaFunction):
 
         if len(args) == 2:
             # Avoid negative numbers
-            decimal_places = max(int(args[1]), 0)
+            decimal_places = max(args[1], 0)
 
         return round(args[0], decimal_places)
 

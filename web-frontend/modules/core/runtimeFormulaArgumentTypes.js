@@ -36,9 +36,12 @@ export class BaserowRuntimeFormulaArgumentType {
 }
 
 export class NumberBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFormulaArgumentType {
+  constructor(options = {}) {
+    super(options)
+    this.castToInt = options.castToInt ?? false
+  }
+
   test(value) {
-    // get() formula can't be resolved in the frontend because we don't have
-    // the data/context. Return true so that the enclosing formula can be resolved.
     if (value === undefined) {
       return false
     }
@@ -47,7 +50,8 @@ export class NumberBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFormu
   }
 
   parse(value) {
-    return ensureNumeric(value, { allowNull: true })
+    const val = ensureNumeric(value, { allowNull: true })
+    return this.castToInt ? Math.trunc(val) : val
   }
 }
 
