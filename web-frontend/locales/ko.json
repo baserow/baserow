@@ -22,7 +22,8 @@
         "thursday": "목요일",
         "friday": "금요일",
         "saturday": "토요일",
-        "sunday": "일요일"
+        "sunday": "일요일",
+        "value": "값"
     },
     "action": {
         "close": "닫기",
@@ -635,5 +636,40 @@
     },
     "fieldConstraintParametersText": {
         "placeholder": "제약 조건 값을 입력하세요"
+    },
+    "assistantMessageSources": {
+        "sources": "{count} 소스 | {count} 소스"
+    },
+    "runtimeFormulaTypes": {
+        "concatDescription": "인수들을 하나의 텍스트로 결합했습니다.",
+        "getDescription": "Baserow 수식의 계산된 값을 반환합니다.",
+        "addDescription": "두 인수를 서로 더합니다.",
+        "minusDescription": "첫 번째 인수에서 두 번째 인수를 뺍니다.",
+        "multiplyDescription": "두 인수를 서로 곱합니다.",
+        "divideDescription": "첫 번째 인수를 두 번째 인수로 나눕니다.",
+        "equalDescription": "두 인수가 같은지 확인합니다.",
+        "notEqualDescription": "두 인수가 같지 않은지 확인합니다.",
+        "greaterThanDescription": "첫 번째 인수가 두 번째 인수보다 큰지 확인합니다.",
+        "lessThanDescription": "첫 번째 인수가 두 번째 인수보다 작은지 확인합니다.",
+        "greaterThanOrEqualDescription": "첫 번째 인수가 두 번째 인수보다 크거나 같은지 확인합니다.",
+        "upperDescription": "인수를 대문자로 변환합니다.",
+        "lowerDescription": "인수를 소문자로 변환합니다.",
+        "capitalizeDescription": "인수의 첫 글자를 대문자로 시작합니다.",
+        "roundDescription": "첫 번째 인수를 두 번째 인수로 지정된 소수 자릿수까지 반올림합니다.",
+        "evenDescription": "인수가 짝수이면 true를 반환하고, 그렇지 않으면 false를 반환합니다.",
+        "oddDescription": "인수가 홀수이면 true를 반환하고, 그렇지 않으면 false를 반환합니다.",
+        "dateTimeDescription": "format 및 timezone 인수를 사용하여 날짜 시간 인수를 형식화합니다.",
+        "dayDescription": "날짜 시간 인수에서 요일을 반환합니다.",
+        "monthDescription": "날짜 시간 인수에서 월을 반환합니다.",
+        "yearDescription": "날짜 시간 인수에서 연도를 반환합니다.",
+        "hourDescription": "날짜 시간 인수에서 시간을 반환합니다.",
+        "minuteDescription": "날짜 시간 인수에서 분을 반환합니다.",
+        "secondDescription": "날짜 시간 인수에서 초를 반환합니다.",
+        "todayDescription": "현재 날짜를 반환합니다.",
+        "getPropertyDescription": "객체에서 속성을 반환합니다.",
+        "randomIntDescription": "인수로 지정된 범위에서 임의의 정수를 반환합니다.",
+        "randomFloatDescription": "인수로 지정된 범위에서 난수 부동 소수점을 반환합니다.",
+        "randomBoolDescription": "true 또는 false의 무작위 부울 값을 반환합니다.",
+        "generateUUIDDescription": "임의의 UUID4 문자열을 반환합니다."
     }
 }
