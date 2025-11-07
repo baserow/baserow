@@ -1309,8 +1309,8 @@ export class RuntimeRandomBool extends RuntimeFormulaFunction {
     return FORMULA_CATEGORY.BOOLEAN
   }
 
-  validateNumberOfArgs(args) {
-    return args.length === 0
+  get args() {
+    return []
   }
 
   execute(context, args) {
@@ -1340,8 +1340,8 @@ export class RuntimeGenerateUUID extends RuntimeFormulaFunction {
     return FORMULA_CATEGORY.TEXT
   }
 
-  validateNumberOfArgs(args) {
-    return args.length === 0
+  get args() {
+    return []
   }
 
   execute(context, args) {
