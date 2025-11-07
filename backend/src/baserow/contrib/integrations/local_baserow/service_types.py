@@ -226,6 +226,9 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
         return super().sanitize_result(service, result, allowed_field_names)
 
     def prepare_value_path(self, service: Service, path: List[str]):
+        if len(path) < 1:
+            return path
+
         db_column, *rest = path
 
         human_name = db_column

@@ -132,13 +132,17 @@ export class DataSourceDataProviderType extends DataProviderType {
 
     if (serviceType.returnsList) {
       // if it returns a list let's consume the next path token which is the row
-      const [row, ...afterRow] = rest
-      preparedPath = [
-        row,
-        ...serviceType.prepareValuePath(dataSource, afterRow),
-      ]
+      if (rest.length > 2) {
+        const [row, ...afterRow] = rest
+        preparedPath = [
+          row,
+          ...serviceType.prepareValuePath(dataSource, afterRow),
+        ]
+      } else {
+        preparedPath = rest
+      }
     } else {
-      preparedPath = serviceType.prepareValuePath(dataSource, preparedPath)
+      preparedPath = serviceType.prepareValuePath(dataSource, rest)
     }
 
     return getValueAtPath(content, preparedPath)
@@ -456,9 +460,14 @@ export class CurrentRecordDataProviderType extends DataProviderType {
   }
 
   getDataChunk(applicationContext, path) {
-    const { element } = applicationContext
+    const { element, recordIndexPath = [0] } = applicationContext
 
     const elementType = this.app.$registry.get('element', element.type)
+
+    // Special case for the index
+    if (path.length === 1 && path[0] === this.indexKey) {
+      return recordIndexPath.at(-1)
+    }
 
     return elementType.getElementCurrentContent(applicationContext, path)
   }

@@ -841,6 +841,7 @@ export class ElementType extends Registerable {
       mainDataSource.type
     )
 
+    // Create a path joining the record indexes and the schemaProperties
     const dataPaths = collectionAncestry
       .map(({ schema_property: schemaProperty }) => schemaProperty || null)
       .flatMap((x, i) =>
@@ -855,19 +856,24 @@ export class ElementType extends Registerable {
     if (fullDataPath.length) {
       let preparedPath
       if (mainDataSourceType.returnsList) {
-        // directly consume the first path item as it's the row index
-        // and the prepareValuePath is only able to support property level.
-        const [row, ...rest] = fullDataPath
-        preparedPath = [
-          row,
-          mainDataSourceType.prepareValuePath(mainDataSource, rest),
-        ]
+        if (fullDataPath.length >= 2) {
+          // not include the first path item as it's the row index
+          // and the prepareValuePath is only able to support property level.
+          const [row, ...rest] = fullDataPath
+          preparedPath = [
+            row,
+            ...mainDataSourceType.prepareValuePath(mainDataSource, rest),
+          ]
+        } else {
+          preparedPath = fullDataPath
+        }
       } else {
         preparedPath = mainDataSourceType.prepareValuePath(
           mainDataSource,
           fullDataPath
         )
       }
+
       return getValueAtPath(contentRows, preparedPath)
     }
 

@@ -80,12 +80,16 @@ export class LocalBaserowTableServiceType extends ServiceType {
   }
 
   prepareValuePath(service, path) {
+    if (path.length < 1) {
+      return path
+    }
+
     const schema = this.getDataSchema(service)
 
     const [field, ...rest] = path
     let humanName = field
 
-    if (schema && field.startsWith('field_')) {
+    if (schema && field && field.startsWith('field_')) {
       if (this.returnsList) {
         if (schema.items?.properties?.[field]?.title) {
           humanName = schema.items.properties[field].title

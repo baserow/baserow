@@ -47,10 +47,13 @@ class PreviousNodeProviderType(AutomationDataProviderType):
 
         if service.get_type().returns_list:
             previous_node_results = previous_node_results["results"]
-            prepared_path = [
-                rest[0],
-                *service.get_type().prepare_value_path(service, rest[1:]),
-            ]
+            if len(rest) >= 2:
+                prepared_path = [
+                    rest[0],
+                    *service.get_type().prepare_value_path(service, rest[1:]),
+                ]
+            else:
+                prepared_path = rest
         else:
             prepared_path = service.get_type().prepare_value_path(service, rest)
 

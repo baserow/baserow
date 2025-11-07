@@ -181,10 +181,13 @@ class DataSourceDataProviderType(BuilderDataProviderType):
 
         if service.get_type().returns_list:
             dispatch_result = dispatch_result["results"]
-            prepared_path = [
-                rest[0],
-                *service.get_type().prepare_value_path(service, rest[1:]),
-            ]
+            if len(rest) >= 2:
+                prepared_path = [
+                    rest[0],
+                    *service.get_type().prepare_value_path(service, rest[1:]),
+                ]
+            else:
+                prepared_path = rest
         else:
             prepared_path = service.get_type().prepare_value_path(service, rest)
 
