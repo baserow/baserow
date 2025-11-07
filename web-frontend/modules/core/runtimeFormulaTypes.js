@@ -337,17 +337,15 @@ export class RuntimeAdd extends RuntimeFormulaFunction {
     return '+'
   }
 
-  validateNumberOfArgs(args) {
-    return args.length > 1
-  }
-
-  validateTypeOfArgs(args) {
-    const argType = new NumberBaserowRuntimeFormulaArgumentType()
-    return args.find((arg) => !argType.test(arg)) ?? null
+  get args() {
+    return [
+      new NumberBaserowRuntimeFormulaArgumentType(),
+      new NumberBaserowRuntimeFormulaArgumentType(),
+    ]
   }
 
   execute(context, args) {
-    return args.reduce((a, b) => a + b)
+    return args[0] + args[1]
   }
 
   getDescription() {
@@ -377,17 +375,15 @@ export class RuntimeMinus extends RuntimeFormulaFunction {
     return '-'
   }
 
-  validateNumberOfArgs(args) {
-    return args.length > 1
-  }
-
-  validateTypeOfArgs(args) {
-    const argType = new NumberBaserowRuntimeFormulaArgumentType()
-    return args.find((arg) => !argType.test(arg)) ?? null
+  get args() {
+    return [
+      new NumberBaserowRuntimeFormulaArgumentType(),
+      new NumberBaserowRuntimeFormulaArgumentType(),
+    ]
   }
 
   execute(context, args) {
-    return args.reduce((a, b) => a - b)
+    return args[0] - args[1]
   }
 
   getDescription() {
@@ -417,17 +413,15 @@ export class RuntimeMultiply extends RuntimeFormulaFunction {
     return '*'
   }
 
-  validateNumberOfArgs(args) {
-    return args.length > 1
-  }
-
-  validateTypeOfArgs(args) {
-    const argType = new NumberBaserowRuntimeFormulaArgumentType()
-    return args.find((arg) => !argType.test(arg)) ?? null
+  get args() {
+    return [
+      new NumberBaserowRuntimeFormulaArgumentType(),
+      new NumberBaserowRuntimeFormulaArgumentType(),
+    ]
   }
 
   execute(context, args) {
-    return args.reduce((a, b) => a * b)
+    return args[0] * args[1]
   }
 
   getDescription() {
@@ -457,17 +451,15 @@ export class RuntimeDivide extends RuntimeFormulaFunction {
     return '/'
   }
 
-  validateNumberOfArgs(args) {
-    return args.length > 1
-  }
-
-  validateTypeOfArgs(args) {
-    const argType = new NumberBaserowRuntimeFormulaArgumentType()
-    return args.find((arg) => !argType.test(arg)) ?? null
+  get args() {
+    return [
+      new NumberBaserowRuntimeFormulaArgumentType(),
+      new NumberBaserowRuntimeFormulaArgumentType(),
+    ]
   }
 
   execute(context, args) {
-    return args.reduce((a, b) => a / b)
+    return args[0] / args[1]
   }
 
   getDescription() {
@@ -1379,16 +1371,12 @@ export class RuntimeIf extends RuntimeFormulaFunction {
     return FORMULA_CATEGORY.CONDITION
   }
 
-  validateNumberOfArgs(args) {
-    return args.length === 3
-  }
-
-  validateTypeOfArgs(args) {
-    const argType = new BooleanBaserowRuntimeFormulaArgumentType()
-    if (!argType.test(args[0])) {
-      return args[0]
-    }
-    return null
+  get args() {
+    return [
+      new BooleanBaserowRuntimeFormulaArgumentType(),
+      new BooleanBaserowRuntimeFormulaArgumentType(),
+      new BooleanBaserowRuntimeFormulaArgumentType(),
+    ]
   }
 
   execute(context, args) {
@@ -1421,17 +1409,15 @@ export class RuntimeAnd extends RuntimeFormulaFunction {
     return FORMULA_CATEGORY.CONDITION
   }
 
-  validateNumberOfArgs(args) {
-    return args.length >= 1
-  }
-
-  validateTypeOfArgs(args) {
-    const argType = new BooleanBaserowRuntimeFormulaArgumentType()
-    return args.find((arg) => !argType.test(arg)) ?? null
+  get args() {
+    return [
+      new BooleanBaserowRuntimeFormulaArgumentType(),
+      new BooleanBaserowRuntimeFormulaArgumentType(),
+    ]
   }
 
   execute(context, args) {
-    return args.every(Boolean)
+    return args[0] && args[1]
   }
 
   getDescription() {
@@ -1457,17 +1443,15 @@ export class RuntimeOr extends RuntimeFormulaFunction {
     return FORMULA_CATEGORY.CONDITION
   }
 
-  validateNumberOfArgs(args) {
-    return args.length >= 1
-  }
-
-  validateTypeOfArgs(args) {
-    const argType = new BooleanBaserowRuntimeFormulaArgumentType()
-    return args.find((arg) => !argType.test(arg)) ?? null
+  get args() {
+    return [
+      new BooleanBaserowRuntimeFormulaArgumentType(),
+      new BooleanBaserowRuntimeFormulaArgumentType(),
+    ]
   }
 
   execute(context, args) {
-    return args.some(Boolean)
+    return args[0] || args[1]
   }
 
   getDescription() {
