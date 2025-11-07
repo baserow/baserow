@@ -738,7 +738,7 @@ def test_graph_handler_replace(
                 "2": {"next": {"": [3]}},
                 "3": {"children": [7], "next": {"": [4]}},
                 "4": {"next": {"": [5], "randomUid": [9]}},
-                "7": {"next": {"": []}},
+                "7": {},
                 "8": {"children": []},
                 "9": {"next": {"anotherUid": [8]}},
             },

@@ -530,7 +530,6 @@ def test_move_node_to_edge_above_existing_output(data_fixture: Fixtures):
             "router": {
                 "next": {
                     "Do this": ["output edge 2"],
-                    "Do that": [],
                     "Default": ["fallback node"],
                 }
             },
@@ -621,7 +620,7 @@ def test_move_node_outside_of_container(data_fixture: Fixtures):
             "0": "rows_created",
             "rows_created": {"next": {"": ["action1"]}},
             "action1": {"next": {"": ["iterator"]}},
-            "iterator": {"children": [], "next": {"": ["action3"]}},
+            "iterator": {"next": {"": ["action3"]}},
             "action2": {"next": {"": ["action4"]}},
             "action3": {"next": {"": ["action2"]}},
             "action4": {},

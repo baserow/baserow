@@ -340,6 +340,10 @@ class NodeGraphHandler:
                 node_to_delete.id,
                 next_node_ids,
             )
+            if not graph[node_position_id]["next"][output]:
+                del graph[node_position_id]["next"][output]
+            if not graph[node_position_id]["next"]:
+                del graph[node_position_id]["next"]
         elif position == "child":
             next_nodes = self._get_all_next_nodes(node_to_delete)
             graph[node_position_id]["children"] = _replace(
@@ -347,6 +351,8 @@ class NodeGraphHandler:
                 node_to_delete.id,
                 next_nodes,
             )
+            if not graph[node_position_id]["children"]:
+                del graph[node_position_id]["children"]
 
         if not keep_info:
             del graph[str(node_to_delete.id)]

@@ -406,7 +406,7 @@ def test_delete_node_action_after_nothing(data_fixture):
     workflow.assert_reference(
         {
             "0": "rows_created",
-            "Before": {"next": {"": []}},
+            "Before": {},
             "rows_created": {"next": {"": ["Before"]}},
         }
     )
@@ -435,7 +435,7 @@ def test_delete_node_action_after_nothing(data_fixture):
     workflow.assert_reference(
         {
             "0": "rows_created",
-            "Before": {"next": {"": []}},
+            "Before": {},
             "rows_created": {"next": {"": ["Before"]}},
         }
     )
@@ -648,7 +648,7 @@ def test_move_node_action(data_fixture):
             "rows_created": {"next": {"": ["first action"]}},
             "first action": {"next": {"": ["moved node"]}},
             "moved node": {"next": {"": ["second action"]}},
-            "second action": {"next": {"": []}},
+            "second action": {},
         }
     )
 
@@ -672,7 +672,7 @@ def test_move_node_action(data_fixture):
             "rows_created": {"next": {"": ["first action"]}},
             "first action": {"next": {"": ["moved node"]}},
             "moved node": {"next": {"": ["second action"]}},
-            "second action": {"next": {"": []}},
+            "second action": {},
         }
     )
 
@@ -726,7 +726,6 @@ def test_move_node_action_to_output(data_fixture):
             "router": {
                 "next": {
                     "Do this": ["output edge 2"],
-                    "Do that": [],
                     "Default": ["fallback node"],
                 }
             },
@@ -764,7 +763,6 @@ def test_move_node_action_to_output(data_fixture):
             "router": {
                 "next": {
                     "Do this": ["output edge 2"],
-                    "Do that": [],
                     "Default": ["fallback node"],
                 }
             },
