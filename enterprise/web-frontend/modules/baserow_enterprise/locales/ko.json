@@ -623,7 +623,7 @@
         "realtimePushDescription": "Baserow에서 셀 값을 직접 편집하고 실시간으로 데이터 동기화 소스에 푸시합니다. 변경 사항은 (주기적인) 동기화 작업에 의존하기 때문에 실시간으로 가져오지 않습니다. 실수로 변경되는 것을 방지하려면 PostgreSQL 데이터베이스 백업을 생성하는 것이 좋습니다."
     },
     "assistantSidebarItem": {
-        "title": "AI 어시스턴트"
+        "title": "Kuma AI"
     },
     "assistantPanel": {
         "title": "AI 어시스턴트",
@@ -633,8 +633,8 @@
     },
     "assistantWelcomeMessage": {
         "greet": "안녕 {name}",
-        "question": "어떻게 도와드릴까요?",
-        "subtitle": "저는 귀하의 데이터 처리를 지원하기 위해 여기에 있습니다."
+        "question": "제 이름은 쿠마예요!",
+        "subtitle": "짐이 무겁게 느껴지지 않도록 제가 도와드릴게요. 아래 질문 중에서 선택하시거나, 필요하신 내용을 말씀해 주세요!"
     },
     "assistantInputMessage": {
         "statusWaiting": "어시스턴트가 도와드릴 준비가 되었습니다",
@@ -667,5 +667,19 @@
         "includeWeekendsLabel": "기간을 계산할 때 주말을 포함",
         "dependencyFieldForReaderTooltip": "이 필드는 날짜 종속성 필드 규칙에 포함됩니다",
         "fieldInvalidTitle": "날짜 종속성 필드 오류"
+    },
+    "assistant": {
+        "statusThinking": "생각중...",
+        "statusAnswering": "답변중..."
+    },
+    "assistantMessageSources": {
+        "sources": "{count} 소스 | {count} 소스"
+    },
+    "assistantMessageActions": {
+        "feedbackContextTitle": "개선에 도움을 주세요",
+        "feedbackContextPlaceholder": "무엇을 개선할 수 있을까요? (선택 사항)",
+        "copiedToClipboard": "클립보드에 복사됨",
+        "copiedContentToast": "도우미의 응답 내용이 클립보드에 복사되었습니다",
+        "copyFailed": "클립보드에 복사하는 데 실패했습니다"
     }
 }
