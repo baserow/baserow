@@ -50,69 +50,49 @@ class RuntimeGet(RuntimeFormulaFunction):
 class RuntimeAdd(RuntimeFormulaFunction):
     type = "add"
 
-    def validate_type_of_args(self, args) -> Optional[FormulaArg]:
-        arg_type = NumberBaserowRuntimeFormulaArgumentType()
-        return next(
-            (arg for arg in args if not arg_type.test(arg)),
-            None,
-        )
-
-    def validate_number_of_args(self, args):
-        return len(args) > 1
+    args = [
+        NumberBaserowRuntimeFormulaArgumentType(),
+        NumberBaserowRuntimeFormulaArgumentType(),
+    ]
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
-        return reduce(operator.add, args)
+        return args[0] + args[1]
 
 
 class RuntimeMinus(RuntimeFormulaFunction):
     type = "minus"
 
-    def validate_type_of_args(self, args) -> Optional[FormulaArg]:
-        arg_type = NumberBaserowRuntimeFormulaArgumentType()
-        return next(
-            (arg for arg in args if not arg_type.test(arg)),
-            None,
-        )
-
-    def validate_number_of_args(self, args):
-        return len(args) > 1
+    args = [
+        NumberBaserowRuntimeFormulaArgumentType(),
+        NumberBaserowRuntimeFormulaArgumentType(),
+    ]
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
-        return reduce(operator.sub, args)
+        return args[0] - args[1]
 
 
 class RuntimeMultiply(RuntimeFormulaFunction):
     type = "multiply"
 
-    def validate_type_of_args(self, args) -> Optional[FormulaArg]:
-        arg_type = NumberBaserowRuntimeFormulaArgumentType()
-        return next(
-            (arg for arg in args if not arg_type.test(arg)),
-            None,
-        )
-
-    def validate_number_of_args(self, args):
-        return len(args) > 1
+    args = [
+        NumberBaserowRuntimeFormulaArgumentType(),
+        NumberBaserowRuntimeFormulaArgumentType(),
+    ]
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
-        return reduce(operator.mul, args)
+        return args[0] * args[1]
 
 
 class RuntimeDivide(RuntimeFormulaFunction):
     type = "divide"
 
-    def validate_type_of_args(self, args) -> Optional[FormulaArg]:
-        arg_type = NumberBaserowRuntimeFormulaArgumentType()
-        return next(
-            (arg for arg in args if not arg_type.test(arg)),
-            None,
-        )
-
-    def validate_number_of_args(self, args):
-        return len(args) > 1
+    args = [
+        NumberBaserowRuntimeFormulaArgumentType(),
+        NumberBaserowRuntimeFormulaArgumentType(),
+    ]
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
-        return reduce(operator.truediv, args)
+        return args[0] / args[1]
 
 
 class RuntimeEqual(RuntimeFormulaFunction):
@@ -390,8 +370,7 @@ class RuntimeRandomFloat(RuntimeFormulaFunction):
 class RuntimeRandomBool(RuntimeFormulaFunction):
     type = "random_bool"
 
-    def validate_number_of_args(self, args):
-        return len(args) == 0
+    args = []
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
         return random.choice([True, False])  # nosec: B311
@@ -400,8 +379,7 @@ class RuntimeRandomBool(RuntimeFormulaFunction):
 class RuntimeGenerateUUID(RuntimeFormulaFunction):
     type = "generate_uuid"
 
-    def validate_number_of_args(self, args):
-        return len(args) == 0
+    args = []
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
         return str(uuid.uuid4())
@@ -410,15 +388,11 @@ class RuntimeGenerateUUID(RuntimeFormulaFunction):
 class RuntimeIf(RuntimeFormulaFunction):
     type = "if"
 
-    def validate_number_of_args(self, args):
-        return len(args) == 3
-
-    def validate_type_of_args(self, args) -> Optional[FormulaArg]:
-        arg_type = BooleanBaserowRuntimeFormulaArgumentType()
-        if not arg_type.test(args[0]):
-            return args[0]
-
-        return None
+    args = [
+        BooleanBaserowRuntimeFormulaArgumentType(),
+        AnyBaserowRuntimeFormulaArgumentType(),
+        AnyBaserowRuntimeFormulaArgumentType(),
+    ]
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
         return args[1] if args[0] else args[2]
@@ -427,32 +401,22 @@ class RuntimeIf(RuntimeFormulaFunction):
 class RuntimeAnd(RuntimeFormulaFunction):
     type = "and"
 
-    def validate_number_of_args(self, args):
-        return len(args) >= 1
-
-    def validate_type_of_args(self, args) -> Optional[FormulaArg]:
-        arg_type = BooleanBaserowRuntimeFormulaArgumentType()
-        return next(
-            (arg for arg in args if not arg_type.test(arg)),
-            None,
-        )
+    args = [
+        BooleanBaserowRuntimeFormulaArgumentType(),
+        BooleanBaserowRuntimeFormulaArgumentType(),
+    ]
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
-        return all(args)
+        return args[0] and args[1]
 
 
 class RuntimeOr(RuntimeFormulaFunction):
     type = "or"
 
-    def validate_number_of_args(self, args):
-        return len(args) >= 1
-
-    def validate_type_of_args(self, args) -> Optional[FormulaArg]:
-        arg_type = BooleanBaserowRuntimeFormulaArgumentType()
-        return next(
-            (arg for arg in args if not arg_type.test(arg)),
-            None,
-        )
+    args = [
+        BooleanBaserowRuntimeFormulaArgumentType(),
+        BooleanBaserowRuntimeFormulaArgumentType(),
+    ]
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
-        return any(args)
+        return args[0] or args[1]

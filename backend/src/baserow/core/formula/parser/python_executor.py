@@ -90,6 +90,10 @@ class BaserowPythonExecutor(BaserowFormulaVisitor):
             op = "greater_than_or_equal"
         elif ctx.LTE():
             op = "less_than_or_equal"
+        elif ctx.AMP_AMP():
+            op = "and"
+        elif ctx.PIPE_PIPE():
+            op = "or"
         else:
             raise UnknownOperator(ctx.getText())
 

@@ -1156,6 +1156,10 @@ export class RuntimeNow extends RuntimeFormulaFunction {
     return FORMULA_CATEGORY.DATE
   }
 
+  get args() {
+    return []
+  }
+
   execute(context, args) {
     return new Date()
   }
@@ -1176,6 +1180,10 @@ export class RuntimeToday extends RuntimeFormulaFunction {
 
   static getCategoryType() {
     return FORMULA_CATEGORY.DATE
+  }
+
+  get args() {
+    return []
   }
 
   execute(context, args) {
@@ -1374,8 +1382,8 @@ export class RuntimeIf extends RuntimeFormulaFunction {
   get args() {
     return [
       new BooleanBaserowRuntimeFormulaArgumentType(),
-      new BooleanBaserowRuntimeFormulaArgumentType(),
-      new BooleanBaserowRuntimeFormulaArgumentType(),
+      new AnyBaserowRuntimeFormulaArgumentType(),
+      new AnyBaserowRuntimeFormulaArgumentType(),
     ]
   }
 
