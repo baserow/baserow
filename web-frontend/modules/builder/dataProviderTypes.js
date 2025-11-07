@@ -120,23 +120,28 @@ export class DataSourceDataProviderType extends DataProviderType {
       'dataSource/getPagesDataSourceById'
     ](pages, parseInt(dataSourceId))
 
-    const rawContent = this.getDataSourceContent(applicationContext, dataSource)
+    const content = this.getDataSourceContent(applicationContext, dataSource)
+
+    let preparedPath
+
+    if (!content) {
+      return null
+    }
 
     const serviceType = this.app.$registry.get('service', dataSource.type)
-
-    let content = rawContent
-    let path = rest
 
     if (serviceType.returnsList) {
       // if it returns a list let's consume the next path token which is the row
       const [row, ...afterRow] = rest
-      content = getValueAtPath(content, row)
-      path = afterRow
+      preparedPath = [
+        row,
+        ...serviceType.prepareValuePath(dataSource, afterRow),
+      ]
+    } else {
+      preparedPath = serviceType.prepareValuePath(dataSource, preparedPath)
     }
 
-    return content
-      ? serviceType.getValueAtPath(dataSource, content, path)
-      : null
+    return getValueAtPath(content, preparedPath)
   }
 
   getDataSourceContent(applicationContext, dataSource) {
@@ -831,13 +836,14 @@ export class PreviousActionDataProviderType extends DataProviderType {
       workflowAction.type
     )
 
-    return content[workflowActionId]
-      ? actionType.getValueAtPath(
-          workflowAction,
-          content[workflowActionId],
-          rest
-        )
-      : null
+    if (!content[workflowActionId]) {
+      return null
+    }
+
+    return getValueAtPath(
+      content[workflowActionId],
+      actionType.prepareValuePath(workflowAction, rest)
+    )
   }
 
   getWorkflowActionSchema(workflowAction) {

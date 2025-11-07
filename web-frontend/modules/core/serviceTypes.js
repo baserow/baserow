@@ -1,5 +1,4 @@
 import { Registerable } from '@baserow/modules/core/registry'
-import { getValueAtPath } from '@baserow/modules/core/utils/object'
 
 export class ServiceType extends Registerable {
   get name() {
@@ -77,8 +76,8 @@ export class ServiceType extends Registerable {
   /**
    * Allow to customize way data are accessed from service
    */
-  getValueAtPath(service, content, path) {
-    return getValueAtPath(content, path.join('.'))
+  prepareValuePath(service, path) {
+    return path
   }
 
   getOrder() {

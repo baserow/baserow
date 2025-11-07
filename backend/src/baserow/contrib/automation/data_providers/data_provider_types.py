@@ -37,17 +37,24 @@ class PreviousNodeProviderType(AutomationDataProviderType):
             previous_node_results = dispatch_context.previous_nodes_results[
                 int(previous_node.id)
             ]
-            if previous_node.service.get_type().returns_list:
-                previous_node_results = previous_node_results["results"]
         except KeyError as exc:
             message = (
                 "The previous node id is not present in the dispatch context results"
             )
             raise InvalidFormulaContext(message) from exc
+
+        service = previous_node.service.specific
+
+        if service.get_type().returns_list:
+            previous_node_results = previous_node_results["results"]
+            prepared_path = [
+                rest[0],
+                *service.get_type().prepare_value_path(service, rest[1:]),
+            ]
         else:
-            return previous_node.service.get_type().get_value_at_path(
-                previous_node.service.specific, previous_node_results, rest
-            )
+            prepared_path = service.get_type().prepare_value_path(service, rest)
+
+        return get_value_at_path(previous_node_results, prepared_path)
 
     def import_path(self, path, id_mapping, **kwargs):
         """

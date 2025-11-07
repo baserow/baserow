@@ -306,12 +306,8 @@ export class WorkflowActionServiceType extends WorkflowActionType {
     return super.getErrorMessage(workflowAction, applicationContext)
   }
 
-  getValueAtPath(workflowAction, content, path) {
-    return this.serviceType.getValueAtPath(
-      workflowAction.service,
-      content,
-      path
-    )
+  prepareValuePath(workflowAction, path) {
+    return this.serviceType.prepareValuePath(workflowAction.service, path)
   }
 
   get serviceType() {

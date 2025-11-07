@@ -94,6 +94,7 @@ import elementImageTable from '@baserow/modules/builder/assets/icons/element-tab
 import elementImageText from '@baserow/modules/builder/assets/icons/element-text.svg'
 
 import _ from 'lodash'
+import { getValueAtPath } from '../core/utils/object'
 
 export class ElementType extends Registerable {
   get name() {
@@ -852,20 +853,22 @@ export class ElementType extends Registerable {
     const contentRows = mainElementType.getElementContentInStore(mainElement)
 
     if (fullDataPath.length) {
+      let preparedPath
       if (mainDataSourceType.returnsList) {
         // directly consume the first path item as it's the row index
-        // and the getValueAtPath is only able to support property level.
-        return mainDataSourceType.getValueAtPath(
+        // and the prepareValuePath is only able to support property level.
+        const [row, ...rest] = fullDataPath
+        preparedPath = [
+          row,
+          mainDataSourceType.prepareValuePath(mainDataSource, rest),
+        ]
+      } else {
+        preparedPath = mainDataSourceType.prepareValuePath(
           mainDataSource,
-          contentRows[fullDataPath[0]],
-          fullDataPath.slice(1)
+          fullDataPath
         )
       }
-      return mainDataSourceType.getValueAtPath(
-        mainDataSource,
-        contentRows,
-        fullDataPath
-      )
+      return getValueAtPath(contentRows, preparedPath)
     }
 
     return contentRows

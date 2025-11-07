@@ -15,7 +15,6 @@ import LocalBaserowSignalTriggerServiceForm from '@baserow/modules/integrations/
 import LocalBaserowGetRowForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowGetRowForm'
 import LocalBaserowListRowsForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowListRowsForm'
 import LocalBaserowAggregateRowsForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowAggregateRowsForm'
-import { getValueAtPath } from '@baserow/modules/core/utils/object'
 
 export class LocalBaserowTableServiceType extends ServiceType {
   get integrationType() {
@@ -80,7 +79,7 @@ export class LocalBaserowTableServiceType extends ServiceType {
     return description
   }
 
-  getValueAtPath(service, content, path) {
+  prepareValuePath(service, path) {
     const schema = this.getDataSchema(service)
 
     const [field, ...rest] = path
@@ -95,7 +94,7 @@ export class LocalBaserowTableServiceType extends ServiceType {
         humanName = schema.properties[field].title
       }
     }
-    return getValueAtPath(content, [humanName, ...rest].join('.'))
+    return [humanName, ...rest]
   }
 }
 

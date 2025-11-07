@@ -33,7 +33,6 @@ from baserow.core.registry import (
 )
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.types import DispatchResult, FormulaToResolve
-from baserow.core.utils import get_value_at_path
 
 from .exceptions import (
     DispatchException,
@@ -312,13 +311,8 @@ class ServiceType(
 
         return resolved_values
 
-    def get_value_at_path(self, service: Service, context: Any, path: List[str]):
-        """
-        Offers the opportunity to hook into way data are extracted from the context for
-        a given path.
-        """
-
-        return get_value_at_path(context, path)
+    def prepare_value_path(self, service: Service, path: List[str]):
+        return path
 
     def dispatch_transform(
         self,
