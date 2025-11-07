@@ -65,7 +65,6 @@ export class OpenAIModelType extends GenerativeAIModelType {
         key: 'base_url',
         label: i18n.t('generativeAIModelType.openaiBaseUrl'),
         description: i18n.t('generativeAIModelType.openaiBaseUrlDescription'),
-        placeholder: 'https://api.openai.com/v1',
         validations: {
           url: helpers.withMessage(this.app.i18n.t('error.invalidURL'), url),
         },
