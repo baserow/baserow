@@ -104,7 +104,7 @@ export class BooleanBaserowRuntimeFormulaArgumentType extends BaserowRuntimeForm
   }
 
   parse(value) {
-    return ensureBoolean(value)
+    return ensureBoolean(value, { useStrict: false })
   }
 }
 

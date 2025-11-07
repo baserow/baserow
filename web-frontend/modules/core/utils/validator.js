@@ -182,14 +182,20 @@ export const ensureNonEmptyString = (value, options) => {
 /**
  * Ensures that the value is a boolean or convert it.
  * @param {*} value - The value to ensure as a boolean.
+ * @param {boolean} useStrict - Whether to be strict in how the value is interpreted.
  * @returns {boolean} The value as a boolean.
  */
-export const ensureBoolean = (value) => {
+export const ensureBoolean = (value, { useStrict = true }) => {
   if (trueValues.includes(value)) {
     return true
   } else if (falseValues.includes(value)) {
     return false
   }
+
+  if (!useStrict) {
+    return Boolean(value)
+  }
+
   throw new Error('Value is not a valid boolean or convertible to a boolean.')
 }
 

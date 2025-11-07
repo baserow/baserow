@@ -1440,7 +1440,7 @@ export class RuntimeAnd extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ['and(true, true) = true', 'and(true, true, false) = false']
+    return ['true && true = true', 'true && true && false = false']
   }
 }
 
@@ -1477,9 +1477,9 @@ export class RuntimeOr extends RuntimeFormulaFunction {
 
   getExamples() {
     return [
-      'or(true, true) = true',
-      'or(true, true, false) = true',
-      'or(false, false) = false',
+      'true || true = true',
+      'true || true || false = true',
+      'false || false = false',
     ]
   }
 }
