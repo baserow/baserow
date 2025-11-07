@@ -83,19 +83,31 @@ export class LocalBaserowTableServiceType extends ServiceType {
   getValueAtPath(service, content, path) {
     const schema = this.getDataSchema(service)
 
-    const [field, ...rest] = path
-    let humanName = field
+    let field, rest
 
-    if (schema && field.startsWith('field_')) {
-      if (this.returnsList) {
-        if (schema.items?.properties?.[field]?.title) {
-          humanName = schema.items.properties[field].title
-        }
-      } else if (schema.properties[field]?.title) {
+    if (this.returnsList && Array.isArray(content)) {
+      const [rowIndex, fieldName, ...remainingPath] = path
+      field = fieldName
+      rest = remainingPath
+
+      let humanName = field
+      if (schema?.items?.properties?.[field]?.title) {
+        humanName = schema.items.properties[field].title
+      }
+
+      return getValueAtPath(content, [rowIndex, humanName, ...rest].join('.'))
+    } else {
+      ;[field, ...rest] = path
+      let humanName = field
+
+      if (this.returnsList && schema?.items?.properties?.[field]?.title) {
+        humanName = schema.items.properties[field].title
+      } else if (!this.returnsList && schema?.properties?.[field]?.title) {
         humanName = schema.properties[field].title
       }
+
+      return getValueAtPath(content, [humanName, ...rest].join('.'))
     }
-    return getValueAtPath(content, [humanName, ...rest].join('.'))
   }
 }
 

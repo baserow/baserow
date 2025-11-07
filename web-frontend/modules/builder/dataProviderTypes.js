@@ -130,8 +130,10 @@ export class DataSourceDataProviderType extends DataProviderType {
     if (serviceType.returnsList) {
       // if it returns a list let's consume the next path token which is the row
       const [row, ...afterRow] = rest
-      content = getValueAtPath(content, row)
-      path = afterRow
+      if (row !== '*') {
+        content = getValueAtPath(content, row)
+        path = afterRow
+      }
     }
 
     return content
