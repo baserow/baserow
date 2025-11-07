@@ -52,7 +52,9 @@
         "coreRouterDescription": "조건에 따라 워크플로를 다음 브랜치로 라우팅합니다.",
         "corePeriodic": "주기적 트리거",
         "corePeriodicDescription": "지정된 간격으로 주기적으로 워크플로우를 트리거합니다",
-        "corePeriodicErrorIntervalMissing": "간격이 필요합니다."
+        "corePeriodicErrorIntervalMissing": "간격이 필요합니다.",
+        "coreHTTPTrigger": "HTTP 요청 수신",
+        "coreHTTPTriggerDescription": "HTTP 요청이 수신되었을 때 트리거됩니다."
     },
     "userSourceType": {
         "localBaserow": "Baserow 테이블 인증"
@@ -100,9 +102,10 @@
         "filterTypeNotFound": "필터 유형이 호환되지 않습니다.",
         "noCompatibleFilterTypesErrorTitle": "호환 가능한 필터 유형 없음",
         "noCompatibleFilterTypesErrorMessage": "필드 중 호환 가능한 필터 유형이 없습니다",
-        "formulaFilterInputPlaceholder": "텍스트 입력...",
+        "formulaFilterInputPlaceholder": "수식을 선택하세요...",
         "useFormulaForValue": "이 필터에 수식 사용",
-        "useDefaultForValue": "이 필드에 기본 필터 사용"
+        "useDefaultForValue": "이 필드에 기본 필터 사용",
+        "textFilterInputPlaceholder": "텍스트를 입력하세요..."
     },
     "localBaserowTableServiceSortForm": {
         "noSortTitle": "아직 데이터 소스 정렬을 생성하지 않았습니다",
