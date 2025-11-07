@@ -23,7 +23,7 @@
   border-radius: 3px;
   line-height: 24px;
 
-  .node-explorer-content--selected & {
+  .node-explorer-content--selected > & {
     background-color: $palette-blue-50;
 
     .node-explorer-content__selected-icon {
