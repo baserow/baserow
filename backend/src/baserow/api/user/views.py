@@ -102,7 +102,7 @@ from .errors import (
 from .exceptions import ClientSessionIdHeaderNotSetException
 from .schemas import (
     authenticate_user_schema,
-    create_user_response_schema,
+    authenticated_user_response_schema,
     verify_user_schema,
 )
 from .serializers import (
@@ -141,10 +141,12 @@ class ObtainJSONWebToken(TokenObtainPairView):
         operation_id="token_auth",
         description=(
             "Authenticates an existing user based on their email and their password. "
-            "If successful, an access token and a refresh token will be returned."
+            "If successful, an access token and a refresh token will be returned. "
+            "If the account is protected with two-factor authentication, "
+            "temporary token is returned to finish the verification."
         ),
         responses={
-            200: create_user_response_schema,
+            200: authenticated_user_response_schema,
             401: get_error_schema(
                 [
                     "ERROR_INVALID_CREDENTIALS",
@@ -269,7 +271,7 @@ class UserView(APIView):
             "account the initial workspace containing a database is created."
         ),
         responses={
-            200: create_user_response_schema,
+            200: authenticated_user_response_schema,
             400: get_error_schema(
                 [
                     "ERROR_ALREADY_EXISTS",
@@ -556,7 +558,7 @@ class VerifyEmailAddressView(APIView):
             "request is performed by unauthenticated user."
         ),
         responses={
-            200: create_user_response_schema,
+            200: authenticated_user_response_schema,
             400: get_error_schema(
                 [
                     "ERROR_INVALID_VERIFICATION_TOKEN",

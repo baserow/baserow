@@ -307,6 +307,11 @@ def log_in_user(request, user):
     return data
 
 
+class TwoFactorAuthRequiredSerializer(serializers.Serializer):
+    two_factor_auth = serializers.CharField()
+    token = serializers.CharField()
+
+
 @extend_schema_serializer(deprecate_fields=["username"])
 class TokenObtainPairWithUserSerializer(TokenObtainPairSerializer):
     email = NormalizedEmailField(required=False)
@@ -343,10 +348,12 @@ class TokenObtainPairWithUserSerializer(TokenObtainPairSerializer):
             if provider_type.is_enabled(twofa_provider):
                 token = TwoFactorAccessToken.for_user(self.user)
                 token.set_exp(lifetime=timedelta(minutes=2))
-                return {
-                    "two_factor_auth": provider_type.type,
-                    "token": str(token),
-                }
+                return TwoFactorAuthRequiredSerializer(
+                    {
+                        "two_factor_auth": provider_type.type,
+                        "token": str(token),
+                    }
+                ).data
 
         return log_in_user(self.context["request"], self.user)
 

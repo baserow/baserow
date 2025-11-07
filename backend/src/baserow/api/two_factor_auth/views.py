@@ -28,7 +28,7 @@ from baserow.api.two_factor_auth.serializers import (
     VerifyTOTPSerializer,
 )
 from baserow.api.two_factor_auth.tokens import Require2faToken
-from baserow.api.user.schemas import create_user_response_schema
+from baserow.api.user.schemas import authenticated_user_response_schema
 from baserow.api.user.serializers import log_in_user
 from baserow.api.utils import DiscriminatorCustomFieldsMappingSerializer
 from baserow.core.models import User
@@ -184,7 +184,7 @@ class VerifyTOTPAuthView(APIView):
         description=("Verifies TOTP two-factor authentication"),
         request=VerifyTOTPSerializer,
         responses={
-            200: create_user_response_schema,
+            200: authenticated_user_response_schema,
             400: get_error_schema(
                 [
                     "ERROR_REQUEST_BODY_VALIDATION",
