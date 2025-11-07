@@ -1,6 +1,9 @@
 .tabs {
   width: 100%;
   background-color: $white;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
 
   &.tabs--rounded {
     @include rounded($rounded-md);
@@ -8,19 +11,9 @@
 }
 
 .tabs--full-height {
+  height: 100%;
   display: flex;
   flex-direction: column;
-  flex: 1;
-  min-height: 0;
-}
-
-.tabs__content {
-  .tabs--full-height & {
-    flex: 1;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-  }
 }
 
 .tabs__header {
@@ -99,12 +92,14 @@
 .tab {
   padding: 14px 15px;
   position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
 
   .tabs--full-height & {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    min-height: 0;
+    overflow: auto;
+    height: 100%;
   }
 
   .tabs--content-no-x-padding & {

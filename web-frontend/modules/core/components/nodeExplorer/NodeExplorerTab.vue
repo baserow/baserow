@@ -4,7 +4,6 @@
       v-if="!hierarchyNode.empty"
       :value="search"
       :placeholder="$t('action.search')"
-      class="margin-bottom-1"
       @input="$emit('update:search', $event)"
       @clear="$emit('reset-search')"
     />

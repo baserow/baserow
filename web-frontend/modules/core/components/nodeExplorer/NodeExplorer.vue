@@ -18,27 +18,9 @@
             :key="hierarchyNode.name"
             :title="hierarchyNode.name"
           >
-            <div class="node-explorer__tab-content">
-              <NodeExplorerTab
-                v-model="search"
-                :hierarchy-node="hierarchyNode"
-                :empty-results="emptyResults"
-                :open-nodes="openNodes"
-                :node-selected="nodeSelected"
-                :debounced-search="debouncedSearch"
-                :allow-node-selection="allowNodeSelection"
-                @reset-search="resetSearch"
-                @node-selected="$emit('node-selected', $event)"
-                @toggle="toggleNode"
-              />
-            </div>
-          </Tab>
-        </Tabs>
-        <template v-else-if="filteredNodesHierarchy.length === 1">
-          <div class="node-explorer__single-tab">
             <NodeExplorerTab
               v-model="search"
-              :hierarchy-node="filteredNodesHierarchy[0]"
+              :hierarchy-node="hierarchyNode"
               :empty-results="emptyResults"
               :open-nodes="openNodes"
               :node-selected="nodeSelected"
@@ -48,7 +30,21 @@
               @node-selected="$emit('node-selected', $event)"
               @toggle="toggleNode"
             />
-          </div>
+          </Tab>
+        </Tabs>
+        <template v-else-if="filteredNodesHierarchy.length === 1">
+          <NodeExplorerTab
+            v-model="search"
+            :hierarchy-node="filteredNodesHierarchy[0]"
+            :empty-results="emptyResults"
+            :open-nodes="openNodes"
+            :node-selected="nodeSelected"
+            :debounced-search="debouncedSearch"
+            :allow-node-selection="allowNodeSelection"
+            @reset-search="resetSearch"
+            @node-selected="$emit('node-selected', $event)"
+            @toggle="toggleNode"
+          />
         </template>
       </template>
     </div>

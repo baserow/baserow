@@ -40,9 +40,8 @@
         </a>
       </li>
     </ul>
-    <div class="tabs__content">
-      <slot></slot>
-    </div>
+
+    <slot></slot>
   </div>
 </template>
 

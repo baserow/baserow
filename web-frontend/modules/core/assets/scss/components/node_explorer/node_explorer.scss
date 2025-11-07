@@ -18,14 +18,6 @@
   }
 }
 
-.node-explorer__tab-content,
-.node-explorer__single-tab {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
-}
-
 .node-explorer__content--empty {
   padding: 24px;
   color: $palette-neutral-900;
@@ -45,6 +37,6 @@
 
 .node-explorer-tab__scrollable {
   flex: 1;
-  overflow: auto;
   min-height: 0;
+  overflow: hidden auto;
 }
