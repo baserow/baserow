@@ -439,7 +439,8 @@
         "emptyWorkspaceMessage": "새 데이터베이스나 애플리케이션을 생성하여 시작하세요.",
         "addNew": "새로 추가...",
         "noWorkspace": "작업공간 없음",
-        "noWorkspaceDescription": "새 작업공간을 생성하여 시작하세요"
+        "noWorkspaceDescription": "새 작업공간을 생성하여 시작하세요",
+        "starOnGitHub": "GitHub에서 우리를 별표로 표시하세요"
     },
     "dashboardApplication": {
         "createdAt": "생성됨"
@@ -735,7 +736,8 @@
         "submitButton": "빈도 업데이트"
     },
     "formulaInputField": {
-        "errorInvalidFormula": "공식이 유효하지 않습니다."
+        "errorInvalidFormula": "공식이 유효하지 않습니다.",
+        "advancedFormulaMode": "고급 수식 모드"
     },
     "dataExplorer": {
         "noMatchingNodesText": "일치하는 결과가 없습니다.",
@@ -976,5 +978,40 @@
     },
     "importWorkspaceForm": {
         "selectApplicationsToImport": "가져올 애플리케이션을 선택하세요"
+    },
+    "workspaceSearch": {
+        "title": "검색",
+        "searchEverything": "검색...",
+        "searching": "검색 중...",
+        "noResults": "검색 결과가 없습니다",
+        "noResultsSubtitle": "\"{searchTerm}\"와(과) 일치하는 항목을 찾을 수 없습니다",
+        "welcome": "작업 공간의 모든 것을 검색하세요",
+        "welcomeSubtitle": "위의 검색창을 사용하여 애플리케이션, 테이블, 필드 등을 찾아보세요",
+        "navigate": "탐색",
+        "select": "선택",
+        "close": "닫기",
+        "types": {
+            "applications": "애플리케이션",
+            "tables": "테이블",
+            "fields": "필드",
+            "rows": "행"
+        }
+    },
+    "action": {
+        "cancel": "취소",
+        "submit": "제출"
+    },
+    "coreHTTPTriggerServiceForm": {
+        "title": "웹훅 URL",
+        "urlVersion": "버전",
+        "urlVersionPublished": "게시됨",
+        "urlVersionTest": "테스트",
+        "copyUrl": "웹훅 URL 복사",
+        "urlCopied": "웹훅 URL이 클립보드에 복사되었습니다",
+        "description": "이 웹훅은 HTTP 요청을 수신하고 요청 데이터를 페이로드로 사용하여 워크플로를 트리거합니다.",
+        "methodsOptionLabel": "허용된 HTTP 메서드",
+        "methodsOptionDescription": "이 웹훅에 허용되는 HTTP 메서드를 제어합니다. GET을 제외하면 웹훅이 실수로 트리거될 가능성이 줄어듭니다.",
+        "methodsOptionAll": "전체",
+        "methodsOptionExcludeGet": "GET 제외"
     }
 }
