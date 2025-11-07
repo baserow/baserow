@@ -737,7 +737,8 @@
         "link": "링크",
         "tags": "태그",
         "image": "이미지",
-        "rating": "평가"
+        "rating": "평가",
+        "errorValueMissing": "누락된 값 속성"
     },
     "textFieldForm": {
         "fieldValueLabel": "값",
