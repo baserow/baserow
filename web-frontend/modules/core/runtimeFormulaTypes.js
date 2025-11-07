@@ -831,7 +831,7 @@ export class RuntimeRound extends RuntimeFormulaFunction {
   get args() {
     return [
       new NumberBaserowRuntimeFormulaArgumentType(),
-      new NumberBaserowRuntimeFormulaArgumentType({optional: true}),
+      new NumberBaserowRuntimeFormulaArgumentType({ optional: true }),
     ]
   }
 
