@@ -7,6 +7,7 @@
     :mode="localMode"
     :loading="dataExplorerLoading"
     :nodes-hierarchy="nodesHierarchy"
+    :context-position="isInSidePanel ? 'left' : 'bottom'"
     @input="updatedFormulaStr"
     @update:mode="updateMode"
   />
@@ -57,6 +58,10 @@ watch(
 )
 
 const { app, store } = useContext()
+
+const isInSidePanel = computed(() => {
+  return applicationContext?.element !== undefined
+})
 
 const dataProviders = computed(() => {
   return props.dataProvidersAllowed.map((dataProviderName) =>

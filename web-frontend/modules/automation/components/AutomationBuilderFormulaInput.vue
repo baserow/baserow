@@ -4,6 +4,7 @@
     required
     :value="formulaStr"
     :nodes-hierarchy="nodesHierarchy"
+    context-position="left"
     :mode="localMode"
     @update:mode="updateMode"
     @input="updatedFormulaStr"
@@ -45,6 +46,7 @@ watch(
 )
 
 const { app } = useContext()
+
 const dataProviders = computed(() => {
   return props.dataProvidersAllowed.map((dataProviderName) =>
     app.$registry.get('automationDataProvider', dataProviderName)
