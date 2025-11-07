@@ -37,6 +37,7 @@ class CoreConfig(AppConfig):
         from baserow.core.formula.registries import formula_runtime_function_registry
         from baserow.core.formula.runtime_formula_types import (
             RuntimeAdd,
+            RuntimeAnd,
             RuntimeCapitalize,
             RuntimeConcat,
             RuntimeDateTimeFormat,
@@ -50,11 +51,10 @@ class CoreConfig(AppConfig):
             RuntimeGreaterThanOrEqual,
             RuntimeHour,
             RuntimeIf,
-            RuntimeAnd,
-            RuntimeOr,
             RuntimeIsEven,
             RuntimeIsOdd,
             RuntimeLessThan,
+            RuntimeLessThanOrEqual,
             RuntimeLower,
             RuntimeMinus,
             RuntimeMinute,
@@ -62,6 +62,7 @@ class CoreConfig(AppConfig):
             RuntimeMultiply,
             RuntimeNotEqual,
             RuntimeNow,
+            RuntimeOr,
             RuntimeRandomBool,
             RuntimeRandomFloat,
             RuntimeRandomInt,
@@ -80,8 +81,9 @@ class CoreConfig(AppConfig):
         formula_runtime_function_registry.register(RuntimeDivide())
         formula_runtime_function_registry.register(RuntimeEqual())
         formula_runtime_function_registry.register(RuntimeNotEqual())
-        formula_runtime_function_registry.register(RuntimeGreaterThan())
         formula_runtime_function_registry.register(RuntimeLessThan())
+        formula_runtime_function_registry.register(RuntimeLessThanOrEqual())
+        formula_runtime_function_registry.register(RuntimeGreaterThan())
         formula_runtime_function_registry.register(RuntimeGreaterThanOrEqual())
         formula_runtime_function_registry.register(RuntimeUpper())
         formula_runtime_function_registry.register(RuntimeLower())

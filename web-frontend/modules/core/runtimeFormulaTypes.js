@@ -343,7 +343,7 @@ export class RuntimeAdd extends RuntimeFormulaFunction {
 
   validateTypeOfArgs(args) {
     const argType = new NumberBaserowRuntimeFormulaArgumentType()
-    return args.find(arg => !argType.test(arg)) ?? null
+    return args.find((arg) => !argType.test(arg)) ?? null
   }
 
   execute(context, args) {
@@ -356,10 +356,7 @@ export class RuntimeAdd extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return [
-      '2 + 3 = 5',
-      '1 + 2 + 3 = 6',
-    ]
+    return ['2 + 3 = 5', '1 + 2 + 3 = 6']
   }
 }
 
@@ -386,7 +383,7 @@ export class RuntimeMinus extends RuntimeFormulaFunction {
 
   validateTypeOfArgs(args) {
     const argType = new NumberBaserowRuntimeFormulaArgumentType()
-    return args.find(arg => !argType.test(arg)) ?? null
+    return args.find((arg) => !argType.test(arg)) ?? null
   }
 
   execute(context, args) {
@@ -399,10 +396,7 @@ export class RuntimeMinus extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return [
-      '3 - 2 = 1',
-      '5 - 2 - 1 = 2',
-    ]
+    return ['3 - 2 = 1', '5 - 2 - 1 = 2']
   }
 }
 
@@ -429,7 +423,7 @@ export class RuntimeMultiply extends RuntimeFormulaFunction {
 
   validateTypeOfArgs(args) {
     const argType = new NumberBaserowRuntimeFormulaArgumentType()
-    return args.find(arg => !argType.test(arg)) ?? null
+    return args.find((arg) => !argType.test(arg)) ?? null
   }
 
   execute(context, args) {
@@ -442,10 +436,7 @@ export class RuntimeMultiply extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return [
-      '2 * 3 = 6',
-      '2 * 3 * 3 = 18',
-    ]
+    return ['2 * 3 = 6', '2 * 3 * 3 = 18']
   }
 }
 
@@ -472,7 +463,7 @@ export class RuntimeDivide extends RuntimeFormulaFunction {
 
   validateTypeOfArgs(args) {
     const argType = new NumberBaserowRuntimeFormulaArgumentType()
-    return args.find(arg => !argType.test(arg)) ?? null
+    return args.find((arg) => !argType.test(arg)) ?? null
   }
 
   execute(context, args) {
@@ -485,10 +476,7 @@ export class RuntimeDivide extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return [
-      '6 / 2 = 3',
-      '15 / 2 / 2 = 3.75',
-    ]
+    return ['6 / 2 = 3', '15 / 2 / 2 = 3.75']
   }
 }
 
@@ -602,11 +590,7 @@ export class RuntimeGreaterThan extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return [
-      '5 > 4 = true',
-      '"a" > "b" = false',
-      '"Ambarella" > "fig" = false',
-    ]
+    return ['5 > 4 = true', '"a" > "b" = false', '"Ambarella" > "fig" = false']
   }
 }
 
@@ -644,11 +628,7 @@ export class RuntimeLessThan extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return [
-      '2 < 3 = true',
-      '"b" < "a" = false',
-      '"Ambarella" < "fig" = true',
-    ]
+    return ['2 < 3 = true', '"b" < "a" = false', '"Ambarella" < "fig" = true']
   }
 }
 
@@ -851,7 +831,7 @@ export class RuntimeRound extends RuntimeFormulaFunction {
   get args() {
     return [
       new NumberBaserowRuntimeFormulaArgumentType(),
-      new NumberBaserowRuntimeFormulaArgumentType(),
+      new NumberBaserowRuntimeFormulaArgumentType({optional: true}),
     ]
   }
 
@@ -904,10 +884,7 @@ export class RuntimeIsEven extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return [
-      'is_even(12) = true',
-      'is_even(13) = false',
-    ]
+    return ['is_even(12) = true', 'is_even(13) = false']
   }
 }
 
@@ -938,10 +915,7 @@ export class RuntimeIsOdd extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return [
-      'is_odd(11) = true',
-      'is_odd(12) = false',
-    ]
+    return ['is_odd(11) = true', 'is_odd(12) = false']
   }
 }
 
@@ -1453,7 +1427,7 @@ export class RuntimeAnd extends RuntimeFormulaFunction {
 
   validateTypeOfArgs(args) {
     const argType = new BooleanBaserowRuntimeFormulaArgumentType()
-    return args.find(arg => !argType.test(arg)) ?? null
+    return args.find((arg) => !argType.test(arg)) ?? null
   }
 
   execute(context, args) {
@@ -1466,10 +1440,7 @@ export class RuntimeAnd extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return [
-      'and(true, true) = true',
-      'and(true, true, false) = false',
-    ]
+    return ['and(true, true) = true', 'and(true, true, false) = false']
   }
 }
 
@@ -1492,7 +1463,7 @@ export class RuntimeOr extends RuntimeFormulaFunction {
 
   validateTypeOfArgs(args) {
     const argType = new BooleanBaserowRuntimeFormulaArgumentType()
-    return args.find(arg => !argType.test(arg)) ?? null
+    return args.find((arg) => !argType.test(arg)) ?? null
   }
 
   execute(context, args) {

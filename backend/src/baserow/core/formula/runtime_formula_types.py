@@ -83,7 +83,7 @@ class RuntimeMinus(RuntimeFormulaFunction):
 
 class RuntimeMultiply(RuntimeFormulaFunction):
     type = "multiply"
-    
+
     def validate_type_of_args(self, args) -> Optional[FormulaArg]:
         arg_type = NumberBaserowRuntimeFormulaArgumentType()
         return next(
@@ -213,7 +213,7 @@ class RuntimeRound(RuntimeFormulaFunction):
 
     args = [
         NumberBaserowRuntimeFormulaArgumentType(),
-        NumberBaserowRuntimeFormulaArgumentType(),
+        NumberBaserowRuntimeFormulaArgumentType(optional=True),
     ]
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
@@ -222,7 +222,7 @@ class RuntimeRound(RuntimeFormulaFunction):
 
         if len(args) == 2:
             # Avoid negative numbers
-            decimal_places = max(args[1], 0)
+            decimal_places = max(int(args[1]), 0)
 
         return round(args[0], decimal_places)
 
@@ -336,12 +336,16 @@ class RuntimeSecond(RuntimeFormulaFunction):
 class RuntimeNow(RuntimeFormulaFunction):
     type = "now"
 
+    args = []
+
     def execute(self, context: FormulaContext, args: FormulaArgs):
         return timezone.now()
 
 
 class RuntimeToday(RuntimeFormulaFunction):
     type = "today"
+
+    args = []
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
         return timezone.localdate()
