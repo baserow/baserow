@@ -24,11 +24,10 @@ export default {
       return `${this.field.uid}_click`
     },
     workflowActionsInProgress() {
-      const { recordIndexPath } = this.applicationContext
-      const dispatchedById = this.elementType.uniqueElementId(
-        this.element,
-        recordIndexPath
-      )
+      const dispatchedById = this.elementType.uniqueElementId({
+        element: this.element,
+        applicationContext: this.applicationContext,
+      })
       const workflowActions = this.$store.getters[
         'builderWorkflowAction/getElementWorkflowActions'
       ](this.elementPage, this.element.id)

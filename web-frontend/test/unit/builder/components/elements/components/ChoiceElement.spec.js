@@ -23,8 +23,8 @@ describe('ChoiceElement', () => {
   }
 
   const mountComponentForElement = async (element) => {
-    const builder = { id: 1, theme: { primary_color: '#ccc' } }
     const page = { id: 1, elements: [] }
+    const builder = { id: 1, theme: { primary_color: '#ccc' }, pages: [page] }
     const workspace = {}
     const mode = 'public'
     const applicationContext = { builder, page, mode }
@@ -74,6 +74,7 @@ describe('ChoiceElement', () => {
       option_type: 'manual',
       show_as_dropdown: true,
       options: [],
+      page_id: 1,
     })
 
     expect(wrapper.element).toMatchSnapshot()
@@ -92,6 +93,7 @@ describe('ChoiceElement', () => {
         { value: '1', name: 'First' },
         { value: '2', name: 'Second' },
       ],
+      page_id: 1,
     })
 
     expect(wrapper.element).toMatchSnapshot()
@@ -111,6 +113,7 @@ describe('ChoiceElement', () => {
         { value: 'bar_name', name: 'Bar Name' },
         { value: null, name: 'Baz Name' },
       ],
+      page_id: 1,
     })
 
     expect(wrapper.vm.optionsResolved).toEqual([
@@ -136,6 +139,7 @@ describe('ChoiceElement', () => {
         { value: '1', name: 'First' },
         { value: '2', name: 'Second' },
       ],
+      page_id: 1,
     })
 
     expect(wrapper.element).toMatchSnapshot()
@@ -154,6 +158,7 @@ describe('ChoiceElement', () => {
         { value: '1', name: 'First' },
         { value: '2', name: 'Second' },
       ],
+      page_id: 1,
     })
 
     expect(wrapper.element).toMatchSnapshot()

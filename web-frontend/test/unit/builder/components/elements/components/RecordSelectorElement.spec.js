@@ -77,6 +77,7 @@ describe('RecordSelectorElement', () => {
       type: 'record_selector',
       data_source_id: page.dataSources[0].id,
       items_per_page: 5,
+      page_id: page.id,
     }
     store.dispatch('element/forceCreate', { page, element })
 
@@ -190,6 +191,7 @@ describe('RecordSelectorElement', () => {
       data_source_id: page.dataSources[0].id,
       items_per_page: 5,
       option_name_suffix: { formula: "'Suffix'", mode: 'simple' },
+      page_id: page.id,
     }
     store.dispatch('element/forceCreate', { page, element })
 

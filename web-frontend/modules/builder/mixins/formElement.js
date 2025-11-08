@@ -22,10 +22,10 @@ export default {
   },
   computed: {
     uniqueElementId() {
-      return this.elementType.uniqueElementId(
-        this.element,
-        this.applicationContext.recordIndexPath
-      )
+      return this.elementType.uniqueElementId({
+        element: this.element,
+        applicationContext: this.applicationContext,
+      })
     },
     formElementData() {
       return this.$store.getters['formData/getElementFormEntry'](

@@ -1,0 +1,8 @@
+{
+    "type": "bug",
+    "message": "Fix scope issue with form input and repeat elements",
+    "domain": "builder",
+    "issue_number": 4185,
+    "bullet_points": [],
+    "created_at": "2025-11-08"
+}

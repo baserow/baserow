@@ -721,10 +721,12 @@ export class FormDataProviderType extends DataProviderType {
    */
   formElementsInNamespacePath(applicationContext, targetElement) {
     const { page } = applicationContext
+
     const targetNamespacePath =
       this.app.store.getters['element/getElementNamespacePath'](
         targetElement
       ).join('.')
+
     const elements = this.app.store.getters['element/getElementsOrdered'](page)
     return elements.filter((element) => {
       const elementType = this.app.$registry.get('element', element.type)
@@ -736,6 +738,7 @@ export class FormDataProviderType extends DataProviderType {
         this.app.store.getters['element/getElementNamespacePath'](element).join(
           '.'
         )
+
       return targetNamespacePath.startsWith(elementNamespacePath)
     })
   }
@@ -746,19 +749,22 @@ export class FormDataProviderType extends DataProviderType {
   }
 
   getDataContent(applicationContext) {
+    const { element: targetElement } = applicationContext
     const formData = this.app.store.getters['formData/getFormData'](
       applicationContext.page
     )
-    const { element: targetElement, recordIndexPath } = applicationContext
+
     const accessibleFormElements = this.formElementsInNamespacePath(
       applicationContext,
       targetElement
     )
+
     return Object.fromEntries(
       accessibleFormElements.map((element) => {
         const uniqueElementId = this.app.$registry
           .get('element', element.type)
-          .uniqueElementId(element, recordIndexPath)
+          .uniqueElementId({ element, applicationContext })
+
         const formEntry = getValueAtPath(formData, uniqueElementId)
         return [element.id, formEntry?.value]
       })

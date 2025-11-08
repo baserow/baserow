@@ -94,13 +94,12 @@ export default {
      * value is invalid.
      */
     formElementChildrenAreInvalid() {
-      const { recordIndexPath } = this.applicationContext
       return this.getFormElementDescendants.some(
         ({ descendant, descendantType }) => {
-          const uniqueElementId = descendantType.uniqueElementId(
-            descendant,
-            recordIndexPath
-          )
+          const uniqueElementId = descendantType.uniqueElementId({
+            element: descendant,
+            applicationContext: this.applicationContext,
+          })
           return this.$store.getters['formData/getElementInvalid'](
             this.elementPage,
             uniqueElementId
@@ -115,13 +114,12 @@ export default {
      * as touched, or not touched, depending on what we're achieving in validation.
      */
     setFormElementDescendantsTouched(wasTouched) {
-      const { recordIndexPath } = this.applicationContext
       this.getFormElementDescendants.forEach(
         ({ descendant, descendantType }) => {
-          const uniqueElementId = descendantType.uniqueElementId(
-            descendant,
-            recordIndexPath
-          )
+          const uniqueElementId = descendantType.uniqueElementId({
+            element: descendant,
+            applicationContext: this.applicationContext,
+          })
           this.$store.dispatch('formData/setElementTouched', {
             page: this.elementPage,
             wasTouched,
@@ -137,14 +135,13 @@ export default {
      * be left intact.
      */
     resetFormContainerElements() {
-      const { recordIndexPath } = this.applicationContext
       if (this.element.reset_initial_values_post_submission) {
         this.getFormElementDescendants.forEach(
           ({ descendant, descendantType }) => {
-            const uniqueElementId = descendantType.uniqueElementId(
-              descendant,
-              recordIndexPath
-            )
+            const uniqueElementId = descendantType.uniqueElementId({
+              element: descendant,
+              applicationContext: this.applicationContext,
+            })
             const initialValue = descendantType.getInitialFormDataValue(
               descendant,
               this.applicationContext

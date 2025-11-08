@@ -19,10 +19,13 @@ export class Event {
 
   async fire({ workflowActions, applicationContext }) {
     const additionalContext = {}
-    const { element, recordIndexPath, builder, page } = applicationContext
+    const { element, builder, page } = applicationContext
     const pages = [page, this.app.store.getters['page/getSharedPage'](builder)]
     const elementType = this.app.$registry.get('element', element.type)
-    const dispatchedById = elementType.uniqueElementId(element, recordIndexPath)
+    const dispatchedById = elementType.uniqueElementId({
+      element,
+      applicationContext,
+    })
 
     /**
      * The currentDispatchId is used to keep track of chained Workflow Actions.

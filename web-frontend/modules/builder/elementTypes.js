@@ -394,17 +394,11 @@ export class ElementType extends Registerable {
    * @param {Object} page - The page the element belongs to.
    */
   getElementNamespacePath(element, page) {
-    const ancestors = this.app.store.getters['element/getAncestors'](
+    return this.getCollectionAncestry({
       page,
-      element
-    )
-    return ancestors
-      .map((ancestor) => {
-        const elementType = this.app.$registry.get('element', ancestor.type)
-        return elementType.isCollectionElement ? ancestor.id : null
-      })
-      .filter((id) => id !== null)
-      .reverse()
+      element,
+      allowSameElement: false,
+    }).map(({ id }) => id)
   }
 
   /**
@@ -738,8 +732,28 @@ export class ElementType extends Registerable {
    * @returns {String} - The unique element ID.
    *
    */
-  uniqueElementId(element, recordIndexPath) {
-    return [element.id, ...(recordIndexPath || [])].join('.')
+  uniqueElementId({ element, applicationContext }) {
+    const { recordIndexPath, builder, page } = applicationContext
+
+    const elementPage =
+      element.page_id === page.id
+        ? page
+        : this.app.store.getters['page/getById'](builder, element.page_id)
+
+    const collectionAncestorLength = this.getCollectionAncestry({
+      page: elementPage,
+      element,
+      allowSameElement: false,
+    }).length
+
+    // We might be asking the uniqueID for an outside element so we don't
+    // want to consume the whole record path
+    const recordIndexPathForThisElement = (recordIndexPath || []).slice(
+      0,
+      collectionAncestorLength
+    )
+
+    return [element.id, ...recordIndexPathForThisElement].join('.')
   }
 
   /**
