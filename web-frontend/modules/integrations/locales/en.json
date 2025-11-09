@@ -75,8 +75,8 @@
     "errorNoAIModelSelected": "No AI model selected",
     "errorNoPromptProvided": "No prompt provided",
     "errorNoChoicesProvided": "No choices provided for choice output type",
-    "coreSlackWriteMessage": "Send a Slack message",
-    "coreSlackWriteMessageDescription": "Sends a message to a specific Slack #channel"
+    "slackWriteMessage": "Send a Slack message",
+    "slackWriteMessageDescription": "Sends a message to a specific Slack #channel"
   },
   "userSourceType": {
     "localBaserow": "Baserow table authentication"

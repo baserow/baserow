@@ -46,7 +46,8 @@ import InjectedFormulaInput from '@baserow/modules/core/components/formula/Injec
 import { useVuelidate } from '@vuelidate/core'
 import { required, maxLength } from '@vuelidate/validators'
 import IntegrationDropdown from '@baserow/modules/core/components/integrations/IntegrationDropdown.vue'
-import { SlackBotIntegrationType } from '@baserow/modules/integrations/core/integrationTypes'
+
+import { SlackBotIntegrationType } from '@baserow/modules/integrations/slack/integrationTypes'
 
 export default {
   name: 'SlackWriteMessageServiceForm',

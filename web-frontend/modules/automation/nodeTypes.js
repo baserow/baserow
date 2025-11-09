@@ -16,18 +16,18 @@ import {
   LocalBaserowListRowsServiceType,
   LocalBaserowAggregateRowsServiceType,
 } from '@baserow/modules/integrations/localBaserow/serviceTypes'
-import slackIntegration from '@baserow/modules/integrations/core/assets/images/slack.svg'
+import slackIntegration from '@baserow/modules/integrations/slack/assets/images/slack.svg'
 import localBaserowIntegration from '@baserow/modules/integrations/localBaserow/assets/images/localBaserowIntegration.svg'
 import {
   CoreHTTPRequestServiceType,
   CoreRouterServiceType,
-  SlackWriteMessageServiceType,
   CoreSMTPEmailServiceType,
   CoreHTTPTriggerServiceType,
   CoreIteratorServiceType,
 } from '@baserow/modules/integrations/core/serviceTypes'
 import { AIAgentServiceType } from '@baserow/modules/integrations/ai/serviceTypes'
 import { uuid } from '@baserow/modules/core/utils/string'
+import { SlackWriteMessageServiceType } from '@baserow/modules/integrations/slack/serviceTypes'
 
 export class NodeType extends Registerable {
   /**

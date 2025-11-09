@@ -410,5 +410,5 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
                 )
         except ServiceImproperlyConfiguredDispatchException as e:
             raise AutomationNodeMisconfiguredService(
-                f"The node {node.id} has a misconfigured service."
+                f"The node {node.id} is misconfigured and cannot be dispatched. {str(e)}"
             ) from e

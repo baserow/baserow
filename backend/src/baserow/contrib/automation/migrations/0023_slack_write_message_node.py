@@ -8,7 +8,7 @@ class Migration(migrations.Migration):
     dependencies = [
         (
             "automation",
-            "0021_coreiteratoractionnode_alter_automationnode_options_and_more",
+            "0022_aiagentactionnode",
         ),
     ]
 

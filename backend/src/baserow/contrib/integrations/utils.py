@@ -2,6 +2,9 @@ from typing import Callable
 
 from django.conf import settings
 
+import advocate
+import requests
+
 
 def get_http_request_function() -> Callable:
     """
@@ -13,10 +16,6 @@ def get_http_request_function() -> Callable:
     """
 
     if settings.INTEGRATIONS_ALLOW_PRIVATE_ADDRESS is True:
-        from requests import request
-
-        return request
+        return requests.request
     else:
-        from advocate import request
-
-        return request
+        return advocate.request

@@ -9,7 +9,7 @@ import baserow.core.formula.field
 class Migration(migrations.Migration):
     dependencies = [
         ("core", "0106_schemaoperation"),
-        ("integrations", "0022_coreiteratorservice"),
+        ("integrations", "0023_aiagentservice_aiintegration"),
     ]
 
     operations = [

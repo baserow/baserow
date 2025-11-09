@@ -9,12 +9,8 @@ import ko from '@baserow/modules/integrations/locales/ko.json'
 
 import { FF_AUTOMATION } from '@baserow/modules/core/plugins/featureFlags'
 import { LocalBaserowIntegrationType } from '@baserow/modules/integrations/localBaserow/integrationTypes'
-import { SMTPIntegrationType } from '@baserow/modules/integrations/core/integrationTypes'
 import { AIIntegrationType } from '@baserow/modules/integrations/ai/integrationTypes'
-import {
-  SlackBotIntegrationType,
-  SMTPIntegrationType,
-} from '@baserow/modules/integrations/core/integrationTypes'
+import { SMTPIntegrationType } from '@baserow/modules/integrations/core/integrationTypes'
 import {
   LocalBaserowGetRowServiceType,
   LocalBaserowListRowsServiceType,
@@ -30,12 +26,13 @@ import {
   CoreHTTPRequestServiceType,
   PeriodicTriggerServiceType,
   CoreRouterServiceType,
-  SlackWriteMessageServiceType,
   CoreSMTPEmailServiceType,
   CoreHTTPTriggerServiceType,
   CoreIteratorServiceType,
 } from '@baserow/modules/integrations/core/serviceTypes'
 import { AIAgentServiceType } from '@baserow/modules/integrations/ai/serviceTypes'
+import { SlackWriteMessageServiceType } from '@baserow/modules/integrations/slack/serviceTypes'
+import { SlackBotIntegrationType } from '@baserow/modules/integrations/slack/integrationTypes'
 
 export default (context) => {
   const { app, isDev } = context
