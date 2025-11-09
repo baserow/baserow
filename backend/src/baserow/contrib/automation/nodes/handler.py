@@ -4,6 +4,8 @@ from typing import Any, Dict, Iterable, List, Optional, Type, Union
 from django.core.files.storage import Storage
 from django.db.models import QuerySet
 
+from opentelemetry import trace
+
 from baserow.contrib.automation.automation_dispatch_context import (
     AutomationDispatchContext,
 )
@@ -31,9 +33,15 @@ from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
 from baserow.core.storage import ExportZipFile
 from baserow.core.utils import ChildProgressBuilder, MirrorDict, extract_allowed
+from baserow.core.telemetry.utils import baserow_trace_methods
+from baserow.core.utils import MirrorDict, extract_allowed
+
+from .signals import automation_node_updated
+
+tracer = trace.get_tracer(__name__)
 
 
-class AutomationNodeHandler:
+class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
     allowed_fields = [
         "label",
         "service",
@@ -107,11 +115,12 @@ class AutomationNodeHandler:
         local_cache.delete(self._get_node_cache_key(workflow, True))
         local_cache.delete(self._get_node_cache_key(workflow, False))
 
-    def get_children(self, node, specific=True):
+    def get_children(self, node: AutomationNode) -> List[AutomationNode]:
         """
         Returns the direct children of the given node.
 
-        :param specific: Whether to return specific node instances.
+        :param node: The parent node.
+        :return: A list of node instances that are the children of the given node.
         """
 
         return node.workflow.get_graph().get_children(node)
@@ -250,7 +259,7 @@ class AutomationNodeHandler:
     ) -> AutomationNode:
         """
         Creates an instance of AutomationNode using the serialized version
-        previously exported with `.export_node'.
+        previously exported with '.export_node'.
 
         :param workflow: The workflow instance the new node should
             belong to.

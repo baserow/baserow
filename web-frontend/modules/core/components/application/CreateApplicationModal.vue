@@ -2,10 +2,6 @@
   <Modal @show="loading = false">
     <h2 class="box__title">
       {{ $t('action.createNew') }} {{ applicationType.getName() | lowercase }}
-      <DevelopmentBadge
-        v-if="applicationType.developmentStage === DEVELOPMENT_STAGES.ALPHA"
-        :stage="applicationType.developmentStage"
-      ></DevelopmentBadge>
     </h2>
     <Error :error="error"></Error>
     <component
@@ -25,12 +21,10 @@
 import modal from '@baserow/modules/core/mixins/modal'
 import error from '@baserow/modules/core/mixins/error'
 import { getNextAvailableNameInSequence } from '@baserow/modules/core/utils/string'
-import DevelopmentBadge from '@baserow/modules/core/components/DevelopmentBadge'
 import { DEVELOPMENT_STAGES } from '@baserow/modules/core/constants'
 
 export default {
   name: 'CreateApplicationModal',
-  components: { DevelopmentBadge },
   mixins: [modal, error],
   props: {
     applicationType: {

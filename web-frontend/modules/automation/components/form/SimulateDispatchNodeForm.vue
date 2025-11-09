@@ -10,17 +10,17 @@
       {{ buttonLabel }}
     </Button>
 
-    <div v-if="cantBeTestedReason">
-      {{ cantBeTestedReason }}
-    </div>
+    <Alert v-if="cantBeTestedReason" type="info-neutral">
+      <p>{{ cantBeTestedReason }}</p>
+    </Alert>
 
-    <div v-else-if="showTestNodeDescription">
-      {{ $t('simulateDispatch.testNodeDescription') }}
-    </div>
+    <Alert v-else-if="showTestNodeDescription" type="info-neutral">
+      <p>{{ $t('simulateDispatch.testNodeDescription') }}</p>
+    </Alert>
 
-    <div v-else-if="isLoading">
-      {{ $t('simulateDispatch.triggerNodeAwaitingEvent') }}
-    </div>
+    <Alert v-else-if="isLoading" type="info-neutral">
+      <p>{{ $t('simulateDispatch.triggerNodeAwaitingEvent') }}</p>
+    </Alert>
 
     <div
       v-if="hasSampleData && !isSimulating"

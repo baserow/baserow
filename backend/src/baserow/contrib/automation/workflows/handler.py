@@ -11,6 +11,7 @@ from django.db.models import QuerySet
 from django.utils import timezone
 
 from loguru import logger
+from opentelemetry import trace
 
 from baserow.contrib.automation.automation_dispatch_context import (
     AutomationDispatchContext,
@@ -48,6 +49,7 @@ from baserow.core.exceptions import IdDoesNotExist
 from baserow.core.registries import ImportExportConfig
 from baserow.core.services.exceptions import DispatchException
 from baserow.core.storage import ExportZipFile, get_default_storage
+from baserow.core.telemetry.utils import baserow_trace_methods
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import (
     ChildProgressBuilder,
@@ -60,8 +62,10 @@ from baserow.core.utils import (
 WORKFLOW_RATE_LIMIT_CACHE_PREFIX = "automation_workflow_{}"
 AUTOMATION_WORKFLOW_CACHE_LOCK_SECONDS = 5
 
+tracer = trace.get_tracer(__name__)
 
-class AutomationWorkflowHandler:
+
+class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
     allowed_fields = ["name", "allow_test_run_until", "state"]
 
     def get_workflow(

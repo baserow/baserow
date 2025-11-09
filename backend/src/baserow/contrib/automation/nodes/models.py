@@ -146,14 +146,14 @@ class AutomationNode(
 
         return self.workflow.get_graph().get_next_nodes(self, output_uid)
 
-    def get_children(self, specific=True):
+    def get_children(self):
         """
         Returns the direct children of this node if any.
         """
 
         from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 
-        return AutomationNodeHandler().get_children(self, specific=specific)
+        return AutomationNodeHandler().get_children(self)
 
 
 class AutomationActionNode(AutomationNode):

@@ -22,13 +22,6 @@
             <template v-if="applicationGroup.applications.length > 0">
               <div class="tree__heading">
                 {{ applicationGroup.name }}
-                <DevelopmentBadge
-                  v-if="
-                    applicationGroup.developmentStage ===
-                    DEVELOPMENT_STAGES.ALPHA
-                  "
-                  :stage="applicationGroup.developmentStage"
-                ></DevelopmentBadge>
               </div>
               <ul
                 class="tree"
@@ -108,12 +101,10 @@
 <script>
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import CreateApplicationContext from '@baserow/modules/core/components/application/CreateApplicationContext'
-import DevelopmentBadge from '@baserow/modules/core/components/DevelopmentBadge'
-import { DEVELOPMENT_STAGES } from '@baserow/modules/core/constants'
 
 export default {
   name: 'SidebarWithWorkspace',
-  components: { DevelopmentBadge, CreateApplicationContext },
+  components: { CreateApplicationContext },
   props: {
     applications: {
       type: Array,
@@ -125,9 +116,6 @@ export default {
     },
   },
   computed: {
-    DEVELOPMENT_STAGES() {
-      return DEVELOPMENT_STAGES
-    },
     /**
      * Because all the applications that belong to the user are in the store we will
      * filter on the selected workspace here.

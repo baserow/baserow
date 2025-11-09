@@ -250,7 +250,7 @@ class NodeGraphHandler:
             if output is None or uid == output
         ]
 
-    def get_children(self, node) -> List[AutomationNode]:
+    def get_children(self, node: AutomationNode) -> List[AutomationNode]:
         """
         Returns the node children.
         """

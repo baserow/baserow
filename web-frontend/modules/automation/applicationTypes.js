@@ -120,7 +120,7 @@ export class AutomationApplicationType extends ApplicationType {
   }
 
   get developmentStage() {
-    return DEVELOPMENT_STAGES.ALPHA
+    return DEVELOPMENT_STAGES.BETA
   }
 
   getOrder() {

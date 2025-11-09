@@ -303,7 +303,7 @@ export class LocalBaserowRowsCreatedTriggerNodeType extends TriggerNodeTypeMixin
   LocalBaserowSignalTriggerType
 ) {
   static getType() {
-    return 'rows_created'
+    return 'local_baserow_rows_created'
   }
 
   getOrder() {
@@ -326,7 +326,7 @@ export class LocalBaserowRowsUpdatedTriggerNodeType extends TriggerNodeTypeMixin
   LocalBaserowSignalTriggerType
 ) {
   static getType() {
-    return 'rows_updated'
+    return 'local_baserow_rows_updated'
   }
 
   getOrder() {
@@ -349,7 +349,7 @@ export class LocalBaserowRowsDeletedTriggerNodeType extends TriggerNodeTypeMixin
   LocalBaserowSignalTriggerType
 ) {
   static getType() {
-    return 'rows_deleted'
+    return 'local_baserow_rows_deleted'
   }
 
   getOrder() {
@@ -439,7 +439,7 @@ export class LocalBaserowCreateRowActionNodeType extends ActionNodeTypeMixin(
   LocalBaserowNodeType
 ) {
   static getType() {
-    return 'create_row'
+    return 'local_baserow_create_row'
   }
 
   getOrder() {
@@ -462,7 +462,7 @@ export class LocalBaserowUpdateRowActionNodeType extends ActionNodeTypeMixin(
   LocalBaserowNodeType
 ) {
   static getType() {
-    return 'update_row'
+    return 'local_baserow_update_row'
   }
 
   getOrder() {
@@ -485,7 +485,7 @@ export class LocalBaserowDeleteRowActionNodeType extends ActionNodeTypeMixin(
   LocalBaserowNodeType
 ) {
   static getType() {
-    return 'delete_row'
+    return 'local_baserow_delete_row'
   }
 
   getOrder() {
@@ -508,7 +508,7 @@ export class LocalBaserowGetRowActionNodeType extends ActionNodeTypeMixin(
   LocalBaserowNodeType
 ) {
   static getType() {
-    return 'get_row'
+    return 'local_baserow_get_row'
   }
 
   getOrder() {
@@ -531,7 +531,7 @@ export class LocalBaserowListRowsActionNodeType extends ActionNodeTypeMixin(
   LocalBaserowNodeType
 ) {
   static getType() {
-    return 'list_rows'
+    return 'local_baserow_list_rows'
   }
 
   getOrder() {
@@ -558,7 +558,7 @@ export class LocalBaserowAggregateRowsActionNodeType extends ActionNodeTypeMixin
   LocalBaserowNodeType
 ) {
   static getType() {
-    return 'aggregate_rows'
+    return 'local_baserow_aggregate_rows'
   }
 
   getOrder() {
