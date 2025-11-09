@@ -35,7 +35,7 @@ class SlackBotIntegrationType(IntegrationType):
         """
 
         if serialized_values["token"] is None:
-            serialized_values["token"] = ""
+            serialized_values["token"] = ""  # nosec B105
 
         return super().import_serialized(
             application,
