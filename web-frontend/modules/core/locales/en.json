@@ -766,7 +766,7 @@
     "warningTitle": "Warning"
   },
   "integrationEditForm": {
-    "name": "Integration name",
+    "name": "Name",
     "namePlaceholder": "Enter integration name..."
   },
   "integrationDropdown": {

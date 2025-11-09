@@ -1,5 +1,8 @@
 <template>
   <form @submit.prevent>
+    <Alert v-if="!values.integration_id" type="info-neutral">
+      <p>{{ $t('slackWriteMessageServiceForm.alertMessage') }}</p>
+    </Alert>
     <FormGroup
       :label="$t('slackWriteMessageServiceForm.integrationLabel')"
       small-label
@@ -14,6 +17,7 @@
       />
     </FormGroup>
     <FormGroup
+      v-if="values.integration_id"
       class="margin-bottom-2"
       :label="$t('slackWriteMessageServiceForm.channelLabel')"
       required
@@ -27,6 +31,7 @@
       </FormInput>
     </FormGroup>
     <FormGroup
+      v-if="values.integration_id"
       class="margin-bottom-2"
       :label="$t('slackWriteMessageServiceForm.messageLabel')"
       required
