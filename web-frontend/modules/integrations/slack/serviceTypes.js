@@ -23,6 +23,9 @@ export class SlackWriteMessageServiceType extends WorkflowActionServiceTypeMixin
     if (service === undefined) {
       return null
     }
+    if (!service.channel.length) {
+      return this.app.i18n.t('serviceType.slackWriteMessageMissingChannel')
+    }
     return super.getErrorMessage({ service })
   }
 

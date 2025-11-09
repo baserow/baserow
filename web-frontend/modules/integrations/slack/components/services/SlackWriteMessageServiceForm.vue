@@ -20,11 +20,12 @@
       v-if="values.integration_id"
       class="margin-bottom-2"
       :label="$t('slackWriteMessageServiceForm.channelLabel')"
+      :error-message="getFirstErrorMessage('channel')"
       required
       small-label
     >
       <FormInput
-        v-model="values.channel"
+        v-model="v$.values.channel.$model"
         icon-left="baserow-icon-hashtag"
         :placeholder="$t('slackWriteMessageServiceForm.channelPlaceholder')"
       >
@@ -49,7 +50,7 @@
 import form from '@baserow/modules/core/mixins/form'
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput.vue'
 import { useVuelidate } from '@vuelidate/core'
-import { required, maxLength } from '@vuelidate/validators'
+import { required, maxLength, helpers } from '@vuelidate/validators'
 import IntegrationDropdown from '@baserow/modules/core/components/integrations/IntegrationDropdown.vue'
 
 import { SlackBotIntegrationType } from '@baserow/modules/integrations/slack/integrationTypes'
@@ -96,8 +97,14 @@ export default {
   validations() {
     return {
       values: {
-        channel: { required, maxLength: maxLength(100) },
-        text: { required, maxLength: maxLength(4000) },
+        channel: {
+          required,
+          maxLength: maxLength(75),
+          noPrefix: helpers.withMessage(
+            this.$t('slackWriteMessageServiceForm.channelNoPrefix'),
+            (value) => !value || !value.startsWith('#')
+          ),
+        },
         integration_id: { required },
       },
     }

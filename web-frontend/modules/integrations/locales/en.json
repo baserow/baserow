@@ -76,7 +76,8 @@
     "errorNoPromptProvided": "No prompt provided",
     "errorNoChoicesProvided": "No choices provided for choice output type",
     "slackWriteMessage": "Send a Slack message",
-    "slackWriteMessageDescription": "Sends a message to a specific Slack #channel"
+    "slackWriteMessageDescription": "Sends a message to a specific Slack #channel",
+    "slackWriteMessageMissingChannel": "A channel is required."
   },
   "userSourceType": {
     "localBaserow": "Baserow table authentication"
@@ -218,7 +219,8 @@
     "channelLabel": "Channel",
     "channelPlaceholder": "Enter a channel ID...",
     "messageLabel": "Message",
-    "messagePlaceholder": "Enter a message..."
+    "messagePlaceholder": "Enter a message...",
+    "channelNoPrefix": "Remove the '#' before the channel name."
   },
   "localBaserowTableSelector": {
     "viewFieldLabel": "View",

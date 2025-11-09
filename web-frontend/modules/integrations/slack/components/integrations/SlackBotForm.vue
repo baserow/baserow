@@ -44,7 +44,7 @@
           <p class="margin-bottom-2">
             {{ $t('slackBotForm.supportSetupDescription') }}
           </p>
-          <ol class="slack_bot_form__instructions">
+          <ol class="slack-bot-form__instructions">
             <!-- eslint-disable-next-line vue/no-v-html vue/no-v-text-v-html-on-component -->
             <li v-html="$t('slackBotForm.supportSetupStep1')"></li>
             <li>{{ $t('slackBotForm.supportSetupStep2') }}</li>
@@ -75,7 +75,7 @@
           </div>
         </template>
         <template #default>
-          <ol class="slack_bot_form__instructions">
+          <ol class="slack-bot-form__instructions">
             <li>{{ $t('slackBotForm.supportPairingStep1') }}</li>
             <li>{{ $t('slackBotForm.supportPairingStep2') }}</li>
             <!-- eslint-disable-next-line vue/no-v-html vue/no-v-text-v-html-on-component -->
