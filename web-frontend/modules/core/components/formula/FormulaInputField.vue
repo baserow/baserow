@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div ref="formulaInputRoot">
     <div class="formula-input-field__editor" @click="handleEditorClick">
       <EditorContent
         :id="forInput"
@@ -138,6 +138,7 @@ export default {
       hoveredFunctionNode: null,
       enableAdvancedMode: this.$featureFlagIsEnabled(FF_ADVANCED_FORMULA),
       isHandlingModeChange: false,
+      intersectionObserver: null,
     }
   },
   computed: {
@@ -320,11 +321,41 @@ export default {
   },
   mounted() {
     this.createEditor()
+    this.setupIntersectionObserver()
   },
   beforeDestroy() {
     this.editor?.destroy()
+    this.cleanupIntersectionObserver()
   },
   methods: {
+    setupIntersectionObserver() {
+      this.intersectionObserver = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (!entry.isIntersecting && this.isFocused) {
+              this.isFocused = false
+              if (this.editor) {
+                this.editor.commands.blur()
+              }
+            }
+          })
+        },
+        {
+          root: null,
+          threshold: 0,
+        }
+      )
+
+      if (this.$refs.formulaInputRoot) {
+        this.intersectionObserver.observe(this.$refs.formulaInputRoot)
+      }
+    },
+    cleanupIntersectionObserver() {
+      if (this.intersectionObserver) {
+        this.intersectionObserver.disconnect()
+        this.intersectionObserver = null
+      }
+    },
     createEditor(formula = null) {
       // Use provided formula or fall back to the prop value
       this.content = this.toContent(formula || this.value)
