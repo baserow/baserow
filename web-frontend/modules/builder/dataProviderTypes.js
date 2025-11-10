@@ -132,7 +132,7 @@ export class DataSourceDataProviderType extends DataProviderType {
 
     if (serviceType.returnsList) {
       // if it returns a list let's consume the next path token which is the row
-      if (rest.length > 2) {
+      if (rest.length >= 2) {
         const [row, ...afterRow] = rest
         preparedPath = [
           row,
