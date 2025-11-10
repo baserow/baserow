@@ -198,6 +198,73 @@ def test_data_source_data_provider_get_data_chunk(data_fixture):
 
 
 @pytest.mark.django_db
+def test_data_source_data_provider_get_data_chunk_with_list_data_source(data_fixture):
+    user = data_fixture.create_user()
+    table, fields, rows = data_fixture.build_table(
+        user=user,
+        columns=[
+            ("Name", "text"),
+            ("My Color", "text"),
+        ],
+        rows=[
+            ["BMW", "Blue"],
+            ["Audi", "Orange"],
+            ["Volkswagen", "White"],
+            ["Volkswagen", "Green"],
+        ],
+    )
+    builder = data_fixture.create_builder_application(user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        user=user, application=builder
+    )
+    page = data_fixture.create_builder_page(user=user, builder=builder)
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        user=user,
+        page=page,
+        integration=integration,
+        table=table,
+        name="Items",
+    )
+
+    data_source_provider = DataSourceDataProviderType()
+
+    dispatch_context = BuilderDispatchContext(
+        HttpRequest(), page, only_expose_public_allowed_properties=False
+    )
+
+    assert (
+        data_source_provider.get_data_chunk(
+            dispatch_context, [data_source.id, "0", fields[1].db_column]
+        )
+        == "Blue"
+    )
+
+    dispatch_context.reset_call_stack()
+
+    assert (
+        data_source_provider.get_data_chunk(
+            dispatch_context, [data_source.id, "2", fields[1].db_column]
+        )
+        == "White"
+    )
+
+    dispatch_context.reset_call_stack()
+
+    assert (
+        data_source_provider.get_data_chunk(
+            dispatch_context, [data_source.id, "0", "id"]
+        )
+        == rows[0].id
+    )
+
+    dispatch_context.reset_call_stack()
+
+    assert data_source_provider.get_data_chunk(
+        dispatch_context, [data_source.id, "*", fields[1].db_column]
+    ) == ["Blue", "Orange", "White", "Green"]
+
+
+@pytest.mark.django_db
 def test_data_source_data_provider_get_data_chunk_with_formula(data_fixture):
     user = data_fixture.create_user()
     table, fields, rows = data_fixture.build_table(

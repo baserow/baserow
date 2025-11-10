@@ -98,6 +98,7 @@ export class LocalBaserowTableServiceType extends ServiceType {
         humanName = schema.properties[field].title
       }
     }
+
     return [humanName, ...rest]
   }
 }
