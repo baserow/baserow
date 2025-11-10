@@ -394,7 +394,7 @@ class LocalBaserowRowsDeletedNodeTriggerType(AutomationNodeTriggerType):
 class CorePeriodicTriggerNodeType(
     AutomationNodeTriggerType,
 ):
-    type = "periodic_trigger"
+    type = "periodic"
     model_class = CorePeriodicTriggerNode
     service_type = CorePeriodicServiceType.type
 
