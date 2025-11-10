@@ -233,6 +233,10 @@ export class ToTipTapVisitor extends BaserowFormulaVisitor {
       op = 'greater_than_or_equal'
     } else if (ctx.LTE()) {
       op = 'less_than_or_equal'
+    } else if (ctx.AMP_AMP()) {
+      op = 'and'
+    } else if (ctx.PIPE_PIPE()) {
+      op = 'or'
     } else {
       throw new UnknownOperatorError(ctx.getText())
     }
