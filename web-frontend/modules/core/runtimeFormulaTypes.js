@@ -1656,7 +1656,7 @@ export class RuntimeAnd extends RuntimeFormulaFunction {
   }
 
   static getFormulaType() {
-    return FORMULA_TYPE.FUNCTION
+    return FORMULA_TYPE.OPERATOR
   }
 
   static getCategoryType() {
@@ -1699,7 +1699,7 @@ export class RuntimeOr extends RuntimeFormulaFunction {
   }
 
   static getFormulaType() {
-    return FORMULA_TYPE.FUNCTION
+    return FORMULA_TYPE.OPERATOR
   }
 
   static getCategoryType() {
