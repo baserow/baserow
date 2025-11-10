@@ -245,15 +245,15 @@ export default {
         FunctionHelpTooltipExtension.configure({
           vueComponent: this,
         }),
+        FunctionHighlightExtension.configure({
+          functionNames: this.mode === 'advanced' ? this.functionNames : [],
+          operators: this.mode === 'advanced' ? this.operators : [],
+        }),
         ...this.formulaComponents,
       ]
 
       if (this.mode === 'advanced') {
         extensions.push(
-          FunctionHighlightExtension.configure({
-            functionNames: this.functionNames,
-            operators: this.operators,
-          }),
           FunctionAutoCompleteExtension.configure({
             functionNames: this.functionNames,
           }),

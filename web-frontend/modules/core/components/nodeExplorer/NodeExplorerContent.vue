@@ -191,7 +191,6 @@ export default {
         return
       }
       if (this.hasChildren && !isNode) {
-        // En mode recherche, on ne ferme pas les noeuds
         if (this.search === null && this.path) {
           this.$emit('toggle', this.path)
         }

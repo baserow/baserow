@@ -3,6 +3,7 @@
     ref="context"
     class="formula-input-context"
     max-height-if-outside-viewport
+    overflow-scroll
   >
     <NodeExplorer
       :node-selected="nodeSelected"
