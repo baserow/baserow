@@ -38,15 +38,15 @@ APPLICATION_BUILDER_CONCEPTS = """
 AUTOMATION_BUILDER_CONCEPTS = """
 ### AUTOMATIONS (no-code automation builder)
 
-**Structure**: Automation → Workflows → Triggers + Actions + Routers (Nodes)
+**Structure**: Automation → Workflows → Trigger + Actions + Routers (Nodes)
 
 **Key concepts**:
-• **Triggers**: Events that start automations (e.g., row created/updated/deleted)
+• **Trigger**: The single event that starts the workflow (e.g., row created/updated/deleted)
 • **Actions**: Tasks performed (e.g., create/update rows, send emails, call webhooks)
 • **Routers**: Conditional logic (if/else, switch) to control flow
 • **Execution**: Runs in the background; monitor via logs
 • **History**: Track runs, successes, failures
-• **Publishing**: Requires domain configuration
+• **Publishing**: Requires at least one configured action
 """
 
 ASSISTANT_SYSTEM_PROMPT = (

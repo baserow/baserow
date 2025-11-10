@@ -1,12 +1,15 @@
 import pytest
 
+from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 from baserow_enterprise.assistant.tools.automation.tools import (
     get_create_workflows_tool,
     get_list_workflows_tool,
 )
 from baserow_enterprise.assistant.tools.automation.types import (
     CreateRowActionCreate,
+    DeleteRowActionCreate,
     TriggerNodeCreate,
+    UpdateRowActionCreate,
     WorkflowCreate,
 )
 
@@ -162,3 +165,84 @@ def test_create_multiple_workflows(data_fixture):
     assert len(result["created_workflows"]) == 2
     assert result["created_workflows"][0]["name"] == "Workflow 1"
     assert result["created_workflows"][1]["name"] == "Workflow 2"
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize(
+    "trigger,action",
+    [
+        (
+            TriggerNodeCreate(
+                type="rows_created", ref="trigger", label="Rows Created Trigger"
+            ),
+            CreateRowActionCreate(
+                type="create_row",
+                ref="action",
+                previous_node_ref="trigger",
+                label="Create Row Action",
+                table_id=999,
+                values={},
+            ),
+        ),
+        (
+            TriggerNodeCreate(
+                type="rows_updated", ref="trigger", label="Rows Updated Trigger"
+            ),
+            UpdateRowActionCreate(
+                type="update_row",
+                ref="action",
+                previous_node_ref="trigger",
+                label="Update Row Action",
+                table_id=999,
+                row="1",
+                values={},
+            ),
+        ),
+        (
+            TriggerNodeCreate(
+                type="rows_deleted", ref="trigger", label="Rows Deleted Trigger"
+            ),
+            DeleteRowActionCreate(
+                type="delete_row",
+                ref="action",
+                previous_node_ref="trigger",
+                label="Delete Row Action",
+                table_id=999,
+                row="1",
+            ),
+        ),
+    ],
+)
+def test_create_workflow_with_row_triggers_and_actions(data_fixture, trigger, action):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    automation = data_fixture.create_automation_application(
+        user=user, workspace=workspace
+    )
+    database = data_fixture.create_database_application(user=user, workspace=workspace)
+    table = data_fixture.create_database_table(user=user, database=database)
+    table.pk = 999  # To match the action's table_id
+    table.save()
+
+    tool = get_create_workflows_tool(user, workspace, fake_tool_helpers)
+    result = tool(
+        automation_id=automation.id,
+        workflows=[
+            WorkflowCreate(
+                name="Test Row Trigger Workflow",
+                trigger=trigger,
+                nodes=[action],
+            )
+        ],
+    )
+
+    assert len(result["created_workflows"]) == 1
+    assert result["created_workflows"][0]["name"] == "Test Row Trigger Workflow"
+    assert result["created_workflows"][0]["state"] == "draft"
+
+    # Verify workflow was created with correct trigger type
+    workflow_id = result["created_workflows"][0]["id"]
+    workflow = AutomationWorkflowHandler().get_workflow(workflow_id)
+    orm_trigger = workflow.get_trigger()
+    assert orm_trigger is not None
+    assert orm_trigger.service.get_type().type == f"local_baserow_{trigger.type}"

@@ -31,27 +31,15 @@ class WorkflowRouterEdgeCreate(WorkflowEdgeCreate):
     )
 
 
-class IteratorWorkflowEdgeCreate(WorkflowEdgeCreate):
-    """Workflow edge connecting to an iterator node with an output label."""
-
-    type: Literal["iterator"]
-    iterator_label: str = Field(
-        default="",
-        description="The output label for the iterator node edge",
-    )
-
-
 AnyWorkflowEdgeCreate = Annotated[
     WorkflowEdgeCreate,
     WorkflowRouterEdgeCreate,
-    IteratorWorkflowEdgeCreate,
     Field(
         discriminator="type",
         default="edge",
         description=(
-            "The type of workflow edge. Use 'edge' in normal parent <-> child connections. "
+            "The type of workflow edge. Use 'edge' in normal linear (a follows b) connections. "
             "Use 'router_branch' when connecting to a router node with a branch label. "
-            "Use 'iterator' when creating the inner branch of an iterator node."
         ),
     ),
 ]
@@ -68,12 +56,11 @@ class WorkflowCreate(BaseModel):
     nodes: list[AnyNodeCreate] = Field(
         default_factory=list,
         description=(
-            "The action nodes in the workflow. This list cannot be empty."
+            "The nodes executed or evaluated once the trigger fires. "
             "Every node must have only one incoming edge. If the previous node is a router, "
             "the branch label must be specified for non-default branches. "
-            "Always add at least one action node after the trigger, any router branches or an AI agent node. "
+            "Only if explicitly requested, this list can be empty."
         ),
-        min_length=1,
     )
 
 

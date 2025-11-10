@@ -6,6 +6,7 @@ from baserow.contrib.automation.nodes.service import AutomationNodeService
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.contrib.automation.workflows.service import AutomationWorkflowService
 from baserow.core.models import Workspace
+from baserow.core.service import CoreService
 
 from .types import WorkflowCreate
 
@@ -15,7 +16,10 @@ def get_automation(
 ) -> Automation:
     """Get automation with permission check."""
 
-    automation = Automation.objects.get(id=automation_id, workspace=workspace)
+    base_queryset = Automation.objects.filter(workspace=workspace)
+    automation = CoreService().get_application(
+        user, automation_id, base_queryset=base_queryset
+    )
     return automation
 
 
