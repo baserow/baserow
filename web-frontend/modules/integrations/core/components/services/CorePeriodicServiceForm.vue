@@ -225,7 +225,9 @@ export default {
                   max: 59,
                 })
               : this.$t('error.minMaxValueField', { min: 0, max: 59 }),
-            this.showMinuteFrequencyField ? between(1, 59) : between(0, 59)
+            this.showMinuteFrequencyField
+              ? between(this.minimumMinuteFrequency, 59)
+              : between(0, 59)
           ),
         },
         hour: {
