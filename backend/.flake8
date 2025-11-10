@@ -2,9 +2,9 @@
 extend-ignore = E203, W503, F541, E501
 max-doc-length = 88
 per-file-ignores =
-    tests/*: F841, BAI001
-    ../premium/backend/tests/*: F841, BAI001
-    ../enterprise/backend/tests/*: F841, BAI001
+    tests/*: F841
+    ../premium/backend/tests/*: F841
+    ../enterprise/backend/tests/*: F841
     src/baserow/contrib/database/migrations/*: BDC001
     src/baserow/core/migrations/*: BDC001
     src/baserow/core/psycopg.py: BPG001
@@ -19,5 +19,4 @@ exclude =
 extension =
     BDC001 = flake8_baserow:DocstringPlugin
     BPG001 = flake8_baserow:BaserowPsycopgChecker
-    BAI001 = flake8_baserow:BaserowAIImportsChecker
 paths = ./flake8_plugins

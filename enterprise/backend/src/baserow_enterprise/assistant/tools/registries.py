@@ -39,7 +39,7 @@ class AssistantToolType(Instance):
         Called when the tool is started. It can be used to stream status messages.
 
         :param call_id: The unique identifier of the tool call.
-        :param instance: The instance of the dspy tool being called.
+        :param instance: The instance of the udspy tool being called.
         :param inputs: The inputs provided to the tool.
         """
 
@@ -58,7 +58,7 @@ class AssistantToolType(Instance):
         Called when the tool has finished, either successfully or with an exception.
 
         :param call_id: The unique identifier of the tool call.
-        :param instance: The instance of the dspy tool being called.
+        :param instance: The instance of the udspy tool being called.
         :param inputs: The inputs provided to the tool.
         :param outputs: The outputs returned by the tool, or None if there was an
             exception.
@@ -73,7 +73,7 @@ class AssistantToolType(Instance):
         cls, user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
     ) -> Callable[[Any], Any]:
         """
-        Returns the actual tool function to be called to pass to the dspy react agent.
+        Returns the actual tool function to be called to pass to the udspy react agent.
 
         :param user: The user that will be using the tool.
         :param workspace: The workspace the user is currently in.

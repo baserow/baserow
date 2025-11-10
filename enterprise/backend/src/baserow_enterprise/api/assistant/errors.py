@@ -13,7 +13,7 @@ ERROR_ASSISTANT_MODEL_NOT_SUPPORTED = (
     (
         "The specified language model is not supported or the provided API key is missing/invalid. "
         "Ensure you have set the correct provider API key and selected a compatible model in "
-        "`BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL`. See https://docs.litellm.ai/docs/providers for "
+        "`BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL`. See https://baserow.github.io/udspy/ for "
         "supported models, required environment variables, and example configuration."
     ),
 )

@@ -185,14 +185,14 @@ def _get_pydantic_field_definition(
                 return FieldDefinition(
                     Datetime | None,
                     Field(..., description="Datetime or None", title=orm_field.name),
-                    lambda v: v.to_django_orm() if v is not None else None,
+                    lambda v: v.to_django_orm() if v else None,
                     lambda v: Datetime.from_django_orm(v) if v is not None else None,
                 )
             else:
                 return FieldDefinition(
                     Date | None,
                     Field(..., description="Date or None", title=orm_field.name),
-                    lambda v: v.to_django_orm() if v is not None else None,
+                    lambda v: v.to_django_orm() if v else None,
                     lambda v: Date.from_django_orm(v) if v is not None else None,
                 )
         case "single_select":

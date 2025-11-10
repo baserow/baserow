@@ -228,9 +228,6 @@ def test_create_rows(data_fixture):
     assert len(added_tools) == 1
     assert f"create_rows_in_table_{table.id}" in added_tools_names
 
-    # create_table_rows = tools_upgrade.new_tools[0]
-    # assert create_table_rows.name == f"create_rows_in_table_{table.id}"
-
     table_model = table.get_model()
     assert table_model.objects.count() == 3
 

@@ -82,7 +82,7 @@ class VectorHandler:
             return []
 
         embedder = self.embedder
-        # Support both dspy.Embedder (callable) and LangChain-style embedders
+        # Support both embedders as callables and LangChain-style embedders
         if callable(embedder):
             return embedder(texts)
         else:
