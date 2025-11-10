@@ -85,7 +85,11 @@ class DictBaserowRuntimeFormulaArgumentType(BaserowRuntimeFormulaArgumentType):
 
 class BooleanBaserowRuntimeFormulaArgumentType(BaserowRuntimeFormulaArgumentType):
     def test(self, value):
-        return isinstance(value, bool)
+        try:
+            ensure_boolean(value)
+            return True
+        except ValidationError:
+            return False
 
     def parse(self, value):
         return ensure_boolean(value)
