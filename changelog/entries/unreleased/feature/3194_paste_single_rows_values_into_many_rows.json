@@ -1,0 +1,8 @@
+{
+    "type": "feature",
+    "message": "Paste values from a single row into many rows",
+    "domain": "database",
+    "issue_number": 3194,
+    "bullet_points": [],
+    "created_at": "2025-11-10"
+}

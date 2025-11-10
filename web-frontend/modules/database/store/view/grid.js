@@ -2720,23 +2720,32 @@ export const actions = {
     const isSingleCellCopied =
       copiedRowsCount === 1 && copiedCellsInRowsCount === 1
 
+    const selectedRowsCount =
+      getters.getMultiSelectTailRowIndex -
+      getters.getMultiSelectHeadRowIndex +
+      1
+    const selectedFieldsCount =
+      getters.getMultiSelectTailFieldIndex -
+      getters.getMultiSelectHeadFieldIndex +
+      1
+
+    const isSingleRowCopied = copiedRowsCount === 1 && selectedRowsCount > 0
+
     if (isSingleCellCopied) {
       // the textData and jsonData are recreated
       // to fill the entire multi selection
-      const selectedRowsCount =
-        getters.getMultiSelectTailRowIndex -
-        getters.getMultiSelectHeadRowIndex +
-        1
-      const selectedFieldsCount =
-        getters.getMultiSelectTailFieldIndex -
-        getters.getMultiSelectHeadFieldIndex +
-        1
+
       const rowTextArray = Array(selectedFieldsCount).fill(textData[0][0])
       textData = Array(selectedRowsCount).fill(rowTextArray)
 
       if (jsonData) {
         const rowJsonArray = Array(selectedFieldsCount).fill(jsonData[0][0])
         jsonData = Array(selectedRowsCount).fill(rowJsonArray)
+      }
+    } else if (isSingleRowCopied) {
+      textData = Array(selectedRowsCount).fill(textData[0])
+      if (jsonData) {
+        jsonData = Array(selectedRowsCount).fill(jsonData[0])
       }
     }
 
@@ -2755,14 +2764,14 @@ export const actions = {
         fieldHeadIndex + copiedCellsInRowsCount
       ) - 1
 
-    if (isSingleCellCopied) {
+    if (isSingleCellCopied || isSingleRowCopied) {
       // we want the tail indexes to follow the multi select exactly
       rowTailIndex = getters.getMultiSelectTailRowIndex
       fieldTailIndex = getters.getMultiSelectTailFieldIndex
     }
 
     if (
-      !isSingleCellCopied &&
+      !(isSingleCellCopied || isSingleRowCopied) &&
       selectUpdatedCells &&
       !(view.sortings || view.group_bys || view.filters)
     ) {
