@@ -1468,8 +1468,8 @@ export class RuntimeRandomInt extends RuntimeFormulaFunction {
 
   get args() {
     return [
-      new NumberBaserowRuntimeFormulaArgumentType(),
-      new NumberBaserowRuntimeFormulaArgumentType(),
+      new NumberBaserowRuntimeFormulaArgumentType({ castToInt: true }),
+      new NumberBaserowRuntimeFormulaArgumentType({ castToInt: true }),
     ]
   }
 
@@ -1509,8 +1509,8 @@ export class RuntimeRandomFloat extends RuntimeFormulaFunction {
 
   get args() {
     return [
-      new NumberBaserowRuntimeFormulaArgumentType(),
-      new NumberBaserowRuntimeFormulaArgumentType(),
+      new NumberBaserowRuntimeFormulaArgumentType({ castToFloat: true }),
+      new NumberBaserowRuntimeFormulaArgumentType({ castToFloat: true }),
     ]
   }
 

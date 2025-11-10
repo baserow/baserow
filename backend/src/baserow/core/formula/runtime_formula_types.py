@@ -200,7 +200,7 @@ class RuntimeRound(RuntimeFormulaFunction):
 
         if len(args) == 2:
             # Avoid negative numbers
-            decimal_places = max(int(args[1]), 0)
+            decimal_places = max(args[1], 0)
 
         return round(args[0], decimal_places)
 
@@ -345,24 +345,24 @@ class RuntimeRandomInt(RuntimeFormulaFunction):
     type = "random_int"
 
     args = [
-        NumberBaserowRuntimeFormulaArgumentType(),
-        NumberBaserowRuntimeFormulaArgumentType(),
+        NumberBaserowRuntimeFormulaArgumentType(cast_to_int=True),
+        NumberBaserowRuntimeFormulaArgumentType(cast_to_int=True),
     ]
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
-        return random.randint(int(args[0]), int(args[1]))  # nosec: B311
+        return random.randint(args[0], args[1])  # nosec: B311
 
 
 class RuntimeRandomFloat(RuntimeFormulaFunction):
     type = "random_float"
 
     args = [
-        NumberBaserowRuntimeFormulaArgumentType(),
-        NumberBaserowRuntimeFormulaArgumentType(),
+        NumberBaserowRuntimeFormulaArgumentType(cast_to_float=True),
+        NumberBaserowRuntimeFormulaArgumentType(cast_to_float=True),
     ]
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
-        return random.uniform(float(args[0]), float(args[1]))  # nosec: B311
+        return random.uniform(args[0], args[1])  # nosec: B311
 
 
 class RuntimeRandomBool(RuntimeFormulaFunction):
