@@ -8,7 +8,7 @@ from typing import Any, Callable, Dict, Generator, List, Optional, Tuple
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives, get_connection
 from django.db import router
-from django.db.models import Q, F, ExpressionWrapper, DurationField, Value
+from django.db.models import DurationField, ExpressionWrapper, F, Q, Value
 from django.db.models.functions import Coalesce, NullIf
 from django.urls import path
 from django.utils import timezone
