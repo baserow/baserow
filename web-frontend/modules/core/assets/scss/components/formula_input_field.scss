@@ -3,10 +3,9 @@
   font-weight: 500;
   background-color: $palette-cyan-50;
   padding: 4px 8px;
-  font-size: 12px;
   height: 24px;
   display: inline-block;
-  vertical-align: middle;
+  vertical-align: top;
 
   @include rounded;
 }
@@ -15,23 +14,22 @@
   color: $palette-green-800;
   font-weight: 500;
   background-color: $palette-green-50;
-  padding: 0 8px;
-  font-size: 12px;
+  padding: 3px 8px;
   height: 24px;
   box-sizing: border-box;
   display: inline-block;
-  vertical-align: middle;
+  vertical-align: top;
 
   @include rounded;
 }
 
 .text-segment {
   height: 24px;
-  font-size: 12px;
   display: inline-block;
-  vertical-align: middle;
+  vertical-align: top;
   padding: 3px 0;
   margin-right: 4px;
+  line-height: 18px;
 }
 
 .function-comma-highlight {
@@ -44,11 +42,10 @@
   font-weight: 500;
   background-color: $palette-cyan-50;
   padding: 4px 8px;
-  font-size: 12px;
   height: 24px;
   box-sizing: border-box;
   display: inline-block;
-  vertical-align: middle;
+  vertical-align: top;
 
   @include rounded;
 }
@@ -77,6 +74,12 @@
   .ProseMirror {
     span:last-child {
       margin-right: 0;
+    }
+
+    > div {
+      > span:not(.text-segment) {
+        margin: 0 4px 4px 0;
+      }
     }
   }
 }
@@ -108,32 +111,4 @@
   color: $palette-neutral-500;
   pointer-events: none;
   height: 0;
-}
-
-// img.ProseMirror-separator {
-//   visibility: hidden;
-
-//   .ProseMirror-focused & {
-//     visibility: visible;
-//     position: relative;
-//     top: -8px;
-//     margin-bottom: 4px;
-//   }
-// }
-
-// .ProseMirror-trailingBreak {
-//   display: none;
-
-//   .ProseMirror-focused & {
-//     display: block;
-//     margin-bottom: 4px;
-//   }
-// }
-
-.ProseMirror {
-  > div {
-    > span:not(.text-segment) {
-      margin: 0 4px 4px 0;
-    }
-  }
 }
