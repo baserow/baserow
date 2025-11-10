@@ -123,9 +123,10 @@ def test_runtime_get_execute():
     "args,expected",
     [
         ([1, 2], 3),
-        ([1, 2, 3], 6),
-        ([1, 2, 3.14, 4.56], 10.7),
-        ([1, 2, 3, -2], 4),
+        ([2, 3], 5),
+        ([2, 3.14], 5.140000000000001),
+        ([2.43, 3.14], 5.57),
+        ([-4, 23], 19),
     ],
 )
 def test_runtime_add_execute(args, expected):
@@ -165,7 +166,7 @@ def test_runtime_add_validate_type_of_args(arg, expected):
         ([], False),
         (["foo"], False),
         (["foo", "bar"], True),
-        (["foo", "bar", "baz"], True),
+        (["foo", "bar", "baz"], False),
     ],
 )
 def test_runtime_add_validate_number_of_args(args, expected):
@@ -177,9 +178,8 @@ def test_runtime_add_validate_number_of_args(args, expected):
     "args,expected",
     [
         ([3, 1], 2),
-        ([5, 1, 1], 3),
-        ([1, 2, 3.14, 4.56], -8.7),
-        ([1, 2, 3, -2], -2),
+        ([3.14, 4.56], -1.4199999999999995),
+        ([45.25, -2], 47.25),
     ],
 )
 def test_runtime_minus_execute(args, expected):
@@ -219,7 +219,7 @@ def test_runtime_minus_validate_type_of_args(arg, expected):
         ([], False),
         (["foo"], False),
         (["foo", "bar"], True),
-        (["foo", "bar", "baz"], True),
+        (["foo", "bar", "baz"], False),
     ],
 )
 def test_runtime_minus_validate_number_of_args(args, expected):
@@ -231,9 +231,8 @@ def test_runtime_minus_validate_number_of_args(args, expected):
     "args,expected",
     [
         ([3, 1], 3),
-        ([5, 2, 3], 30),
-        ([1, 2, 3.14, 4.56], 28.636799999999997),
-        ([1, 2, 3, -2], -12),
+        ([3.14, 4.56], 14.318399999999999),
+        ([52.14, -2], -104.28),
     ],
 )
 def test_runtime_multiply_execute(args, expected):
@@ -273,7 +272,7 @@ def test_runtime_multiply_validate_type_of_args(arg, expected):
         ([], False),
         (["foo"], False),
         (["foo", "bar"], True),
-        (["foo", "bar", "baz"], True),
+        (["foo", "bar", "baz"], False),
     ],
 )
 def test_runtime_multiply_validate_number_of_args(args, expected):
@@ -285,9 +284,8 @@ def test_runtime_multiply_validate_number_of_args(args, expected):
     "args,expected",
     [
         ([4, 2], 2),
-        ([100, 2, 2], 25),
-        ([1, 2, 3.14, 4.56], 0.03492010280478266),
-        ([1, 2, 3, -2], -0.08333333333333333),
+        ([3.14, 1.56], 2.0128205128205128),
+        ([23.24, -2], -11.62),
     ],
 )
 def test_runtime_divide_execute(args, expected):
@@ -327,7 +325,7 @@ def test_runtime_divide_validate_type_of_args(arg, expected):
         ([], False),
         (["foo"], False),
         (["foo", "bar"], True),
-        (["foo", "bar", "baz"], True),
+        (["foo", "bar", "baz"], False),
     ],
 )
 def test_runtime_divide_validate_number_of_args(args, expected):
@@ -816,7 +814,7 @@ def test_runtime_round_validate_type_of_args(arg, expected):
     "args,expected",
     [
         ([], False),
-        (["foo"], False),
+        (["foo"], True),
         (["foo", "bar"], True),
         (["foo", "bar", "baz"], False),
     ],
