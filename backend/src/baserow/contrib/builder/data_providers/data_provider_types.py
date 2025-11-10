@@ -170,9 +170,6 @@ class DataSourceDataProviderType(BuilderDataProviderType):
             # The data source has probably been deleted
             raise InvalidRuntimeFormula() from exc
 
-        # Declare the call and check for recursion
-        dispatch_context.add_call(data_source.id)
-
         dispatch_result = DataSourceHandler().dispatch_data_source(
             data_source, dispatch_context
         )

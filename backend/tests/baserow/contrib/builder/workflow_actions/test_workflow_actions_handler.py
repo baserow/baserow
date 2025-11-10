@@ -1,5 +1,11 @@
+import json
+from unittest.mock import MagicMock
+
 import pytest
 
+from baserow.contrib.builder.data_sources.builder_dispatch_context import (
+    BuilderDispatchContext,
+)
 from baserow.contrib.builder.workflow_actions.exceptions import (
     WorkflowActionNotInElement,
 )
@@ -15,6 +21,7 @@ from baserow.contrib.builder.workflow_actions.workflow_action_types import (
     OpenPageWorkflowActionType,
 )
 from baserow.core.services.models import Service
+from baserow.test_utils.helpers import AnyInt, AnyStr
 
 
 @pytest.mark.django_db
@@ -229,3 +236,64 @@ def test_order_workflow_actions_different_scopes(data_fixture):
     )
 
     assert page_workflow_action.order == element_workflow_action.order
+
+
+@pytest.mark.django_db
+def test_dispatch_workflow_action_doesnt_trigger_formula_recursion(data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    table, fields, rows = data_fixture.build_table(
+        user=user,
+        columns=[
+            ("Name", "text"),
+            ("My Color", "text"),
+        ],
+        rows=[
+            ["BMW", "Blue"],
+            ["Audi", "Orange"],
+            ["Volkswagen", "White"],
+            ["Volkswagen", "Green"],
+        ],
+    )
+    page = data_fixture.create_builder_page(builder=builder)
+    element = data_fixture.create_builder_button_element(page=page)
+    integration = data_fixture.create_local_baserow_integration(
+        application=builder, user=user, authorized_user=user
+    )
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        integration=integration,
+        page=page,
+        table=table,
+    )
+    service = data_fixture.create_local_baserow_upsert_row_service(
+        table=table,
+        integration=integration,
+    )
+    service.field_mappings.create(
+        field=fields[0],
+        value=f'concat(get("data_source.{data_source.id}.0.{fields[0].db_column}"), '
+        f'get("data_source.{data_source.id}.0.{fields[1].db_column}"))',
+    )
+    workflow_action = data_fixture.create_local_baserow_create_row_workflow_action(
+        page=page, service=service, element=element, event=EventTypes.CLICK
+    )
+
+    fake_request = MagicMock()
+    fake_request.data = {"metadata": json.dumps({})}
+
+    dispatch_context = BuilderDispatchContext(
+        fake_request, page, only_expose_public_allowed_properties=False
+    )
+
+    result = BuilderWorkflowActionHandler().dispatch_workflow_action(
+        workflow_action, dispatch_context
+    )
+
+    assert result.data == {
+        "id": AnyInt(),
+        "order": AnyStr(),
+        "Name": "AudiOrange",
+        "My Color": None,
+    }

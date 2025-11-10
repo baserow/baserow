@@ -240,8 +240,6 @@ def test_data_source_data_provider_get_data_chunk_with_list_data_source(data_fix
         == "Blue"
     )
 
-    dispatch_context.reset_call_stack()
-
     assert (
         data_source_provider.get_data_chunk(
             dispatch_context, [data_source.id, "2", fields[1].db_column]
@@ -249,16 +247,12 @@ def test_data_source_data_provider_get_data_chunk_with_list_data_source(data_fix
         == "White"
     )
 
-    dispatch_context.reset_call_stack()
-
     assert (
         data_source_provider.get_data_chunk(
             dispatch_context, [data_source.id, "0", "id"]
         )
         == rows[0].id
     )
-
-    dispatch_context.reset_call_stack()
 
     assert data_source_provider.get_data_chunk(
         dispatch_context, [data_source.id, "*", fields[1].db_column]

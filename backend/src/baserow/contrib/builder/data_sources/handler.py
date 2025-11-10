@@ -508,16 +508,12 @@ class DataSourceHandler:
                     data_sources_dispatch[data_source.id] = {}
                 continue
 
-            # Add the initial call to the call stack
-            dispatch_context.add_call(data_source.id)
             try:
                 data_sources_dispatch[data_source.id] = self.dispatch_data_source(
                     data_source, dispatch_context
                 )
             except Exception as e:
                 data_sources_dispatch[data_source.id] = e
-            # Reset the stack as we are starting a new dispatch
-            dispatch_context.reset_call_stack()
 
         return data_sources_dispatch
 
@@ -538,21 +534,12 @@ class DataSourceHandler:
             raise ServiceImproperlyConfiguredDispatchException(
                 "The service type is missing."
             )
-
         cache = dispatch_context.cache
-        call_stack = dispatch_context.call_stack
-
+        page = dispatch_context.page
         current_data_source_dispatched = dispatch_context.data_source or data_source
 
-        dispatch_context = dispatch_context.clone(
-            data_source=current_data_source_dispatched,
-        )
-
-        # keep the call stack
-        dispatch_context.call_stack = call_stack
-
         if current_data_source_dispatched != data_source:
-            data_sources = self.get_data_sources_with_cache(dispatch_context.page)
+            data_sources = self.get_data_sources_with_cache(page)
             ordered_ids = [d.id for d in data_sources]
             if ordered_ids.index(current_data_source_dispatched.id) < ordered_ids.index(
                 data_source.id
@@ -561,9 +548,16 @@ class DataSourceHandler:
                     "You can't reference a data source after the current data source"
                 )
 
+        # Clone the dispatch context to keep the call stack as it is
+        cloned_dispatch_context = dispatch_context.clone(
+            data_source=current_data_source_dispatched
+        )
+        # Declare the call and check for recursion
+        cloned_dispatch_context.add_call(data_source.id)
+
         if data_source.id not in cache.setdefault("data_source_contents", {}):
             service_dispatch = self.service_handler.dispatch_service(
-                data_source.service.specific, dispatch_context
+                data_source.service.specific, cloned_dispatch_context
             )
 
             # Cache the dispatch in the formula cache if we have formulas that need
