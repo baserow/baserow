@@ -8,12 +8,32 @@ from baserow_enterprise.assistant.tools.automation.tools import (
 from baserow_enterprise.assistant.tools.automation.types import (
     CreateRowActionCreate,
     DeleteRowActionCreate,
+    RouterNodeCreate,
     TriggerNodeCreate,
     UpdateRowActionCreate,
     WorkflowCreate,
 )
+from baserow_enterprise.assistant.tools.automation.types.node import RouterEdgeCreate
 
 from .utils import fake_tool_helpers
+
+
+@pytest.fixture(autouse=True)
+def mock_formula_generator(monkeypatch):
+    """
+    Mock update_workflow_formulas to avoid LM requirement in tests.
+    Simply skips formula generation entirely.
+    """
+
+    def mock_update_workflow_formulas(workflow, node_mapping, tool_helpers):
+        """Mock that does nothing - skips formula generation."""
+
+        pass
+
+    monkeypatch.setattr(
+        "baserow_enterprise.assistant.tools.automation.utils.update_workflow_formulas",
+        mock_update_workflow_formulas,
+    )
 
 
 @pytest.mark.django_db
@@ -194,7 +214,7 @@ def test_create_multiple_workflows(data_fixture):
                 previous_node_ref="trigger",
                 label="Update Row Action",
                 table_id=999,
-                row="1",
+                row_id="1",
                 values={},
             ),
         ),
@@ -208,7 +228,7 @@ def test_create_multiple_workflows(data_fixture):
                 previous_node_ref="trigger",
                 label="Delete Row Action",
                 table_id=999,
-                row="1",
+                row_id="1",
             ),
         ),
     ],
@@ -246,3 +266,244 @@ def test_create_workflow_with_row_triggers_and_actions(data_fixture, trigger, ac
     orm_trigger = workflow.get_trigger()
     assert orm_trigger is not None
     assert orm_trigger.service.get_type().type == f"local_baserow_{trigger.type}"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_create_row_action_with_field_ids(data_fixture):
+    """Test CreateRowActionCreate uses field IDs in values dict, not field names."""
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    automation = data_fixture.create_automation_application(
+        user=user, workspace=workspace
+    )
+    database = data_fixture.create_database_application(user=user, workspace=workspace)
+    table = data_fixture.create_database_table(user=user, database=database)
+    text_field = data_fixture.create_text_field(table=table, name="Name")
+    number_field = data_fixture.create_number_field(table=table, name="Age")
+
+    tool = get_create_workflows_tool(user, workspace, fake_tool_helpers)
+    result = tool(
+        automation_id=automation.id,
+        workflows=[
+            WorkflowCreate(
+                name="Test Field IDs",
+                trigger=TriggerNodeCreate(
+                    ref="trigger1",
+                    label="Periodic Trigger",
+                    type="periodic",
+                ),
+                nodes=[
+                    CreateRowActionCreate(
+                        ref="action1",
+                        label="Create row with field IDs",
+                        previous_node_ref="trigger1",
+                        type="create_row",
+                        table_id=table.id,
+                        values={
+                            text_field.id: "John Doe",
+                            number_field.id: 25,
+                        },
+                    )
+                ],
+            )
+        ],
+    )
+
+    assert len(result["created_workflows"]) == 1
+    workflow_id = result["created_workflows"][0]["id"]
+    workflow = AutomationWorkflowHandler().get_workflow(workflow_id)
+
+    # Get the action node and verify it was created with the correct table
+    action_nodes = workflow.automation_workflow_nodes.exclude(
+        id=workflow.get_trigger().id
+    )
+    assert action_nodes.count() == 1
+    action_node = action_nodes.first()
+    assert action_node.service.specific.table_id == table.id
+
+
+@pytest.mark.django_db(transaction=True)
+def test_update_row_action_with_row_id_and_field_ids(data_fixture):
+    """Test UpdateRowActionCreate uses row_id parameter and field IDs in values."""
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    automation = data_fixture.create_automation_application(
+        user=user, workspace=workspace
+    )
+    database = data_fixture.create_database_application(user=user, workspace=workspace)
+    table = data_fixture.create_database_table(user=user, database=database)
+    text_field = data_fixture.create_text_field(table=table, name="Status")
+
+    tool = get_create_workflows_tool(user, workspace, fake_tool_helpers)
+    result = tool(
+        automation_id=automation.id,
+        workflows=[
+            WorkflowCreate(
+                name="Test Update Row",
+                trigger=TriggerNodeCreate(
+                    ref="trigger1",
+                    label="Periodic Trigger",
+                    type="periodic",
+                ),
+                nodes=[
+                    UpdateRowActionCreate(
+                        ref="action1",
+                        label="Update row",
+                        previous_node_ref="trigger1",
+                        type="update_row",
+                        table_id=table.id,
+                        row_id="123",
+                        values={text_field.id: "completed"},
+                    )
+                ],
+            )
+        ],
+    )
+
+    assert len(result["created_workflows"]) == 1
+    workflow_id = result["created_workflows"][0]["id"]
+    workflow = AutomationWorkflowHandler().get_workflow(workflow_id)
+
+    # Get the action node and verify it was created with the correct table
+    # Note: row_id formula generation occurs in a separate transaction and may fail
+    # if DSPy is not configured, so we only verify basic service configuration
+    action_nodes = workflow.automation_workflow_nodes.exclude(
+        id=workflow.get_trigger().id
+    )
+    assert action_nodes.count() == 1
+    action_node = action_nodes.first()
+    assert action_node.service.specific.table_id == table.id
+    # Verify the service type is correct for upsert_row (update operation)
+    assert action_node.service.get_type().type == "local_baserow_upsert_row"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_delete_row_action_with_row_id(data_fixture):
+    """Test DeleteRowActionCreate uses row_id parameter."""
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    automation = data_fixture.create_automation_application(
+        user=user, workspace=workspace
+    )
+    database = data_fixture.create_database_application(user=user, workspace=workspace)
+    table = data_fixture.create_database_table(user=user, database=database)
+
+    tool = get_create_workflows_tool(user, workspace, fake_tool_helpers)
+    result = tool(
+        automation_id=automation.id,
+        workflows=[
+            WorkflowCreate(
+                name="Test Delete Row",
+                trigger=TriggerNodeCreate(
+                    ref="trigger1",
+                    label="Periodic Trigger",
+                    type="periodic",
+                ),
+                nodes=[
+                    DeleteRowActionCreate(
+                        ref="action1",
+                        label="Delete row",
+                        previous_node_ref="trigger1",
+                        type="delete_row",
+                        table_id=table.id,
+                        row_id="456",
+                    )
+                ],
+            )
+        ],
+    )
+
+    assert len(result["created_workflows"]) == 1
+    workflow_id = result["created_workflows"][0]["id"]
+    workflow = AutomationWorkflowHandler().get_workflow(workflow_id)
+
+    # Get the action node and verify it was created with the correct table
+    # Note: row_id formula generation occurs in a separate transaction and may fail
+    # if DSPy is not configured, so we only verify basic service configuration
+    action_nodes = workflow.automation_workflow_nodes.exclude(
+        id=workflow.get_trigger().id
+    )
+    assert action_nodes.count() == 1
+    action_node = action_nodes.first()
+    assert action_node.service.specific.table_id == table.id
+    # Verify the service type is correct for delete_row
+    assert action_node.service.get_type().type == "local_baserow_delete_row"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_router_node_with_required_conditions(data_fixture):
+    """Test RouterNodeCreate requires condition field for each edge."""
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    automation = data_fixture.create_automation_application(
+        user=user, workspace=workspace
+    )
+    database = data_fixture.create_database_application(user=user, workspace=workspace)
+    table = data_fixture.create_database_table(user=user, database=database)
+
+    tool = get_create_workflows_tool(user, workspace, fake_tool_helpers)
+    result = tool(
+        automation_id=automation.id,
+        workflows=[
+            WorkflowCreate(
+                name="Test Router with Conditions",
+                trigger=TriggerNodeCreate(
+                    ref="trigger1",
+                    label="Periodic Trigger",
+                    type="periodic",
+                ),
+                nodes=[
+                    RouterNodeCreate(
+                        ref="router1",
+                        label="Router",
+                        previous_node_ref="trigger1",
+                        type="router",
+                        edges=[
+                            RouterEdgeCreate(
+                                label="High Priority",
+                                condition="Priority is high",
+                            ),
+                            RouterEdgeCreate(
+                                label="Low Priority",
+                                condition="Priority is low",
+                            ),
+                        ],
+                    ),
+                    CreateRowActionCreate(
+                        ref="action1",
+                        label="Create row",
+                        previous_node_ref="router1",
+                        type="create_row",
+                        table_id=table.id,
+                        values={},
+                    ),
+                ],
+            )
+        ],
+    )
+
+    assert len(result["created_workflows"]) == 1
+    workflow_id = result["created_workflows"][0]["id"]
+    workflow = AutomationWorkflowHandler().get_workflow(workflow_id)
+
+    # Get the router node and verify it was created with edges
+    router_nodes = workflow.automation_workflow_nodes.filter(
+        service__isnull=False
+    ).exclude(id=workflow.get_trigger().id)
+
+    # Find the router node (service type will be router)
+    router_node = None
+    for node in router_nodes:
+        if "router" in node.service.get_type().type:
+            router_node = node
+            break
+
+    assert router_node is not None, "Router node should be created"
+    # Verify edges were created
+    edges = router_node.service.specific.edges.all()
+    assert edges.count() == 2
+    assert {e.label for e in edges} == {"High Priority", "Low Priority"}

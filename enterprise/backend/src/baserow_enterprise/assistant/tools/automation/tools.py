@@ -58,7 +58,8 @@ def get_create_workflows_tool(
         automation_id: int, workflows: list[WorkflowCreate]
     ) -> dict[str, Any]:
         """
-        Create one or more workflows in an automation.
+        Create one or more workflows in an automation. Always use {{ node.ref }} to
+        reference previous nodes values inside the workflow.
 
         :param automation_id: The automation application ID
         :param workflows: List of workflows to create
@@ -67,14 +68,14 @@ def get_create_workflows_tool(
 
         nonlocal user, workspace, tool_helpers
 
-        tool_helpers.update_status(_("Creating workflows..."))
-
         created = []
 
         automation = utils.get_automation(automation_id, user, workspace)
         for wf in workflows:
             with transaction.atomic():
-                orm_workflow = utils.create_workflow(user, automation, wf)
+                orm_workflow, node_mapping = utils.create_workflow(
+                    user, automation, wf, tool_helpers
+                )
                 created.append(
                     {
                         "id": orm_workflow.id,
@@ -82,6 +83,11 @@ def get_create_workflows_tool(
                         "state": orm_workflow.state,
                     }
                 )
+
+            # In separate transactions, try to update the formulas inside the workflow,
+            # so we don't block the main creation if something goes wrong here.
+            utils.update_workflow_formulas(wf, node_mapping, tool_helpers)
+
         # Navigate to the last created workflow
         tool_helpers.navigate_to(
             WorkflowNavigationType(

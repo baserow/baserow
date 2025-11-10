@@ -2,6 +2,7 @@ from .node import (
     AiAgentNodeCreate,
     CreateRowActionCreate,
     DeleteRowActionCreate,
+    HasFormulasToCreateMixin,
     NodeBase,
     RouterNodeCreate,
     SendEmailActionCreate,
@@ -21,4 +22,5 @@ __all__ = [
     "SendEmailActionCreate",
     "AiAgentNodeCreate",
     "TriggerNodeCreate",
+    "HasFormulasToCreateMixin",
 ]

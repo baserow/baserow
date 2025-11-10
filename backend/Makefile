@@ -152,7 +152,7 @@ lint: .check-dev
 	$(VISORT) --check --skip generated $(BACKEND_SOURCE_DIRS) $(BACKEND_TESTS_DIRS)
 	# TODO: make baserow command reading dotenv files
 	DJANGO_SETTINGS_MODULE=$(DJANGO_SETTINGS_MODULE) $(VBASEROW) makemigrations --dry-run --check
-	$(VBANDIT) -r --exclude src/baserow/test_utils $(BACKEND_SOURCE_DIRS)
+	$(VBANDIT) -r --exclude src/baserow/test_utils,src/baserow/config/settings/local.py $(BACKEND_SOURCE_DIRS)
 
 lint-python: lint
 

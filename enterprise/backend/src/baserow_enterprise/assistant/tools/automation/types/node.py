@@ -1,8 +1,13 @@
+from abc import ABC, abstractmethod
 from typing import Annotated, Any, Literal, Optional
 from uuid import uuid4
 
 from pydantic import Field, PrivateAttr
 
+from baserow.contrib.automation.nodes.models import AutomationNode
+from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
+from baserow.core.services.handler import ServiceHandler
+from baserow.core.services.models import Service
 from baserow_enterprise.assistant.types import BaseModel
 
 
@@ -25,23 +30,51 @@ class Item(BaseModel):
     id: str
 
 
-class PeriodicTriggerSettings(BaseModel):
-    """Periodic trigger interval model."""
+class HasFormulasToCreateMixin(ABC):
+    @abstractmethod
+    def get_formulas_to_create(self, orm_node: AutomationNode) -> dict[str, str]:
+        """
+        Creates and returns a mapping between field names and formulas to be created
+        for the given ORM node. Every value needs to contain instructions or description
+        on how to generate the formula for that field.
+        Prefix optional fields with "[optional]: " in the description to indicate they
+        are not mandatory.
+        """
 
+        pass
+
+    @abstractmethod
+    def update_service_with_formulas(self, service: Service, formulas: dict[str, str]):
+        """
+        Updates the given service instance with the provided formulas mapping.
+        The names in the formulas dict correspond to the field names returned by
+        get_formulas_to_create. Once the LLM has generated the formulas, this method
+        is called to update the service with the generated formulas.
+        """
+
+        pass
+
+
+class PeriodicTriggerSettings(BaseModel):
     interval: Literal["MINUTE", "HOUR", "DAY", "WEEK", "MONTH"] = Field(
         ..., description="The interval for the periodic trigger"
     )
-    minute: Optional[int] = Field(
-        default=0, description="The number of minutes for the periodic trigger"
+    minute: int = Field(
+        default=0,
+        description="The UTC minutes for the periodic trigger.",
     )
-    hour: Optional[int] = Field(
-        default=0, description="The number of hours for the periodic trigger"
+    hour: int = Field(
+        default=0,
+        description=(
+            "The UTC hour for the periodic trigger. "
+            "ALWAYS remove timezone offset from the context."
+        ),
     )
-    day_of_week: Optional[int] = Field(
+    day_of_week: int = Field(
         default=0,
         description="The day of the week for the periodic trigger (0=Monday, 6=Sunday)",
     )
-    day_of_month: Optional[int] = Field(
+    day_of_month: int = Field(
         default=1, description="The day of the month for the periodic trigger (1-31)"
     )
 
@@ -66,7 +99,7 @@ class TriggerNodeCreate(NodeBase, RefCreate):
     # periodic trigger specific
     periodic_interval: Optional[PeriodicTriggerSettings] = Field(
         default=None,
-        description="Configuration for periodic trigger",
+        description="UTC configuration for periodic trigger. ALWAYS remove timezone offset from the context.",
     )
     rows_triggers_settings: Optional[RowsTriggersSettings] = Field(
         default=None,
@@ -143,7 +176,6 @@ class RouterEdgeCreate(BaseModel):
         description="The label of the router branch. Order of branches matters: first matching branch is taken.",
     )
     condition: str = Field(
-        default="",
         description="A brief description of the condition for this branch that will be converted to a formula.",
     )
 
@@ -170,11 +202,28 @@ class RouterNodeBase(NodeBase):
     )
 
 
-class RouterNodeCreate(RouterNodeBase, RefCreate, EdgeCreate):
+class RouterNodeCreate(RouterNodeBase, RefCreate, EdgeCreate, HasFormulasToCreateMixin):
     """Create a router node with branches and link configuration."""
 
     def to_orm_service_dict(self) -> dict[str, Any]:
         return {"edges": [branch.to_orm_service_dict() for branch in self.edges]}
+
+    def get_formulas_to_create(self, orm_node: AutomationNode) -> dict[str, str]:
+        return {edge.label: edge.condition for edge in self.edges}
+
+    def update_service_with_formulas(self, service: Service, formulas: dict[str, str]):
+        orm_edges = service.specific.edges.all()
+        formulas = {k.lower(): v for k, v in formulas.items()}
+        EdgeModel = service.specific.edges.model
+        updates = []
+        for orm_edge in orm_edges:
+            label = orm_edge.label.lower()
+            if label in formulas:
+                orm_edge.condition["type"] = BASEROW_FORMULA_MODE_ADVANCED
+                orm_edge.condition["formula"] = formulas[label]
+                updates.append(orm_edge)
+        if updates:
+            EdgeModel.objects.bulk_update(updates, ["condition"])
 
 
 class RouterNodeItem(RouterNodeBase, Item):
@@ -193,7 +242,9 @@ class SendEmailActionBase(NodeBase):
     body_type: Literal["plain", "html"] = Field(default="plain")
 
 
-class SendEmailActionCreate(SendEmailActionBase, RefCreate, EdgeCreate):
+class SendEmailActionCreate(
+    SendEmailActionBase, RefCreate, EdgeCreate, HasFormulasToCreateMixin
+):
     """Create a send email action with edge configuration."""
 
     def to_orm_service_dict(self) -> dict[str, Any]:
@@ -206,6 +257,54 @@ class SendEmailActionCreate(SendEmailActionBase, RefCreate, EdgeCreate):
             "body_type": f"'{self.body_type}'",
         }
 
+    def get_formulas_to_create(self, orm_node: AutomationNode) -> dict[str, str]:
+        values = {}
+        to_emails_base = (
+            "A comma separated list of email addresses to send the email to."
+        )
+        if self.to_emails:
+            values["to_emails"] = (
+                to_emails_base + f" Value to resolve: {self.to_emails}"
+            )
+        else:
+            values["to_emails"] = "[optional]: " + to_emails_base
+
+        cc_emails_base = "A comma separated list of email addresses to CC the email to."
+        if self.cc_emails:
+            values["cc_emails"] = (
+                cc_emails_base + f" Value to resolve: {self.cc_emails}"
+            )
+        else:
+            values["cc_emails"] = "[optional]: " + cc_emails_base
+
+        bcc_emails_base = (
+            "A comma separated list of email addresses to BCC the email to."
+        )
+        if self.bcc_emails:
+            values["bcc_emails"] = (
+                bcc_emails_base + f" Value to resolve: {self.bcc_emails}"
+            )
+        else:
+            values["bcc_emails"] = "[optional]: " + bcc_emails_base
+
+        values["subject"] = "The subject of the email."
+        if self.subject:
+            values["subject"] += f" Value to resolve: {self.subject}"
+
+        values["body"] = f"The {self.body_type} body content of the email."
+        if self.body:
+            values["body"] += f" Value to resolve: {self.body}"
+        return values
+
+    def update_service_with_formulas(self, service: Service, formulas: dict[str, str]):
+        save = False
+        for field_name, formula in formulas.items():
+            if hasattr(service, field_name):
+                setattr(service, field_name, formula)
+                save = True
+        if save:
+            ServiceHandler().update_service(service.get_type(), service)
+
 
 class SendEmailActionItem(SendEmailActionBase, Item):
     """Existing send email action with ID."""
@@ -216,7 +315,9 @@ class CreateRowActionBase(NodeBase):
 
     type: Literal["create_row"]
     table_id: int
-    values: dict[str, Any]
+    values: dict[int, Any] = Field(
+        ..., description="A mapping of field IDs to values or formulas to update"
+    )
 
 
 class RowActionService:
@@ -226,8 +327,64 @@ class RowActionService:
         }
 
 
+class RowActionFormulaToCreate(HasFormulasToCreateMixin):
+    def get_formulas_to_create(self, orm_node: AutomationNode) -> dict[str, str]:
+        from baserow_enterprise.assistant.tools.automation.utils import (
+            _minimize_json_schema,
+        )
+
+        service = orm_node.service.specific
+        schema = service.get_type().generate_schema(service.specific)
+        values = {"row_id": "the row ID to update"}
+        for v in _minimize_json_schema(schema).values():
+            desc = v["desc"]
+            value = self.values.get(int(v["id"]))
+            if value:
+                desc += f" Value to resolve: {value}"
+            else:
+                desc = "[optional]: " + desc
+            values[int(v["id"])] = {**v, "desc": desc}
+        return values
+
+    def update_service_with_formulas(self, service: Service, formulas: dict[str, str]):
+        row_id_formula = formulas.pop("row_id", None)
+
+        field_mappings = {m.field_id: m for m in service.field_mappings.all()}
+        field_mapping_to_create = []
+        field_mapping_to_update = []
+        FieldMapping = service.field_mappings.model
+        for field_id, formula in formulas.items():
+            if field_id in field_mappings:
+                field_mappings[field_id].value = formula
+                field_mappings[field_id].enabled = True
+                field_mapping_to_update.append(field_mappings[field_id])
+            else:
+                field_mapping_to_create.append(
+                    FieldMapping(
+                        field_id=field_id,
+                        value=formula,
+                        enabled=True,
+                        service_id=service.id,
+                    )
+                )
+        if field_mapping_to_create:
+            service.field_mappings.bulk_create(field_mapping_to_create)
+        if field_mapping_to_update:
+            FieldMapping.objects.bulk_update(
+                field_mapping_to_update, ["value", "enabled"]
+            )
+
+        if row_id_formula:
+            service.row_id = row_id_formula
+            ServiceHandler().update_service(service.get_type(), service)
+
+
 class CreateRowActionCreate(
-    RowActionService, CreateRowActionBase, RefCreate, EdgeCreate
+    RowActionService,
+    CreateRowActionBase,
+    RefCreate,
+    EdgeCreate,
+    RowActionFormulaToCreate,
 ):
     """Create a create row action with edge configuration."""
 
@@ -241,12 +398,18 @@ class UpdateRowActionBase(NodeBase):
 
     type: Literal["update_row"]
     table_id: int
-    row: str = Field(..., description="The row ID or a formula to identify the row")
-    values: dict[str, Any]
+    row_id: str = Field(..., description="The row ID or a formula to identify the row")
+    values: dict[int, Any] = Field(
+        ..., description="A mapping of field IDs to values or formulas to update"
+    )
 
 
 class UpdateRowActionCreate(
-    RowActionService, UpdateRowActionBase, RefCreate, EdgeCreate
+    RowActionService,
+    UpdateRowActionBase,
+    RefCreate,
+    EdgeCreate,
+    RowActionFormulaToCreate,
 ):
     """Create an update row action with edge configuration."""
 
@@ -260,11 +423,15 @@ class DeleteRowActionBase(NodeBase):
 
     type: Literal["delete_row"]
     table_id: int
-    row: str = Field(..., description="The row ID or a formula to identify the row")
+    row_id: str = Field(..., description="The row ID or a formula to identify the row")
 
 
 class DeleteRowActionCreate(
-    RowActionService, DeleteRowActionBase, RefCreate, EdgeCreate
+    RowActionService,
+    DeleteRowActionBase,
+    RefCreate,
+    EdgeCreate,
+    RowActionFormulaToCreate,
 ):
     """Create a delete row action with edge configuration."""
 
@@ -285,20 +452,28 @@ class AiAgentNodeBase(NodeBase):
         default=None,
         description="List of choices if output_type is 'choice'",
     )
-    temperature: float | None = Field(default=None)
     prompt: str
 
 
-class AiAgentNodeCreate(AiAgentNodeBase, RefCreate, EdgeCreate):
+class AiAgentNodeCreate(
+    AiAgentNodeBase, RefCreate, EdgeCreate, HasFormulasToCreateMixin
+):
     """Create an AI Agent action with edge configuration."""
 
     def to_orm_service_dict(self) -> dict[str, Any]:
         return {
             "ai_choices": (self.choices or []) if self.output_type == "choice" else [],
-            "ai_temperature": self.temperature,
             "ai_prompt": f"'{self.prompt}'",
             "ai_output_type": self.output_type,
         }
+
+    def get_formulas_to_create(self, orm_node: AutomationNode) -> dict[str, str]:
+        return {"ai_prompt": self.prompt}
+
+    def update_service_with_formulas(self, service: Service, formulas: dict[str, str]):
+        if "ai_prompt" in formulas:
+            service.ai_prompt = formulas["ai_prompt"]
+            ServiceHandler().update_service(service.get_type(), service)
 
 
 class AiAgentNodeItem(AiAgentNodeBase, Item):
