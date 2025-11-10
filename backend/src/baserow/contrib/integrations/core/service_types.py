@@ -6,6 +6,7 @@ from smtplib import SMTPAuthenticationError, SMTPConnectError, SMTPNotSupportedE
 from typing import Any, Callable, Dict, Generator, List, Optional, Tuple
 
 from django.conf import settings
+from django.contrib.auth.models import AbstractUser
 from django.core.mail import EmailMultiAlternatives, get_connection
 from django.db import router
 from django.db.models import DurationField, ExpressionWrapper, F, Q, Value
@@ -22,6 +23,9 @@ from requests import exceptions as request_exceptions
 from rest_framework import serializers
 
 from baserow.config.celery import app as celery_app
+from baserow.contrib.automation.nodes.exceptions import (
+    AutomationNodeMisconfiguredService,
+)
 from baserow.contrib.integrations.core.api.webhooks.views import CoreHTTPTriggerView
 from baserow.contrib.integrations.core.constants import (
     BODY_TYPE,
@@ -1231,6 +1235,33 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
         hour: int
         day_of_week: int
         day_of_month: int
+
+    def prepare_values(
+        self,
+        values: Dict[str, Any],
+        user: AbstractUser,
+        instance: Optional[CorePeriodicService] = None,
+    ) -> Dict[str, Any]:
+        """
+        Responsible for preparing and validating the periodic service values.
+        If the `interval` is set to `MINUTE`, it ensures that the `minute` value
+        is greater than or equal to the minimum allowed value defined in the settings.
+
+        :param values: The values to prepare.
+        :param user: The user creating or updating the service.
+        :param instance: The existing service instance, if updating.
+        :return: The prepared values.
+        """
+
+        minute = values.get("minute", None)
+        if values.get("interval") == PERIODIC_INTERVAL_MINUTE and minute is not None:
+            if minute < settings.INTEGRATIONS_PERIODIC_MINUTE_MIN:
+                raise AutomationNodeMisconfiguredService(
+                    "The `minute` value must be greater "
+                    f"or equal to {settings.INTEGRATIONS_PERIODIC_MINUTE_MIN}."
+                )
+
+        return super().prepare_values(values, user, instance)
 
     def can_immediately_be_tested(self, service):
         return True
