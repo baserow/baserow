@@ -10,6 +10,7 @@ from baserow.core.formula.parser.generated.BaserowFormulaVisitor import (
     BaserowFormulaVisitor,
 )
 from baserow.core.formula.types import (
+    BASEROW_FORMULA_MODE_RAW,
     BaserowFormulaObject,
     FormulaContext,
     FunctionCollection,
@@ -46,7 +47,7 @@ def resolve_formula(
     if not formula["formula"]:
         return formula["formula"]
 
-    if formula["mode"] == "raw":
+    if formula["mode"] == BASEROW_FORMULA_MODE_RAW:
         return formula["formula"]
 
     tree = get_parse_tree_for_formula(formula["formula"])

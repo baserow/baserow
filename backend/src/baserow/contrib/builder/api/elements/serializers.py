@@ -508,7 +508,7 @@ class CollectionFieldOptionalFormulaSerializerField(FormulaSerializerField):
         if not is_formula:
             # We force the type to raw as it's not a formula
             # For compat with unmigrated values.
-            value["mode"] = "raw"
+            value["mode"] = BASEROW_FORMULA_MODE_RAW
 
         return value
 

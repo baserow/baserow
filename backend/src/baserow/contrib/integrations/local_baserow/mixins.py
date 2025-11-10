@@ -23,6 +23,7 @@ from baserow.contrib.integrations.local_baserow.models import (
 from baserow.core.formula import BaserowFormulaObject, resolve_formula
 from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.formula.serializers import FormulaSerializerField
+from baserow.core.formula.types import BASEROW_FORMULA_MODE_RAW
 from baserow.core.formula.validator import ensure_integer, ensure_string
 from baserow.core.registry import Instance
 from baserow.core.services.dispatch_context import DispatchContext
@@ -268,7 +269,10 @@ class LocalBaserowTableServiceFilterableMixin:
             view_filter_type = view_filter_type_registry.get(service_filter.type)
 
             # We need this test for compatibility purposes with old values
-            if service_filter.value_is_formula or service_filter.value["mode"] == "raw":
+            if (
+                service_filter.value_is_formula
+                or service_filter.value["mode"] == BASEROW_FORMULA_MODE_RAW
+            ):
                 try:
                     resolved_value = ensure_string(
                         resolve_formula(
@@ -309,7 +313,7 @@ class LocalBaserowTableServiceFilterableMixin:
             formula = BaserowFormulaObject.to_formula(service_filter.value)
 
             if not is_formula:
-                formula["mode"] = "raw"
+                formula["mode"] = BASEROW_FORMULA_MODE_RAW
 
             # Service types like LocalBaserowGetRow do not have a value attribute.
             new_formula = yield formula

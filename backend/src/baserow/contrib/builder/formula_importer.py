@@ -4,6 +4,7 @@ from baserow.contrib.builder.data_providers.registries import (
     builder_data_provider_type_registry,
 )
 from baserow.core.formula import BaserowFormulaObject, get_parse_tree_for_formula
+from baserow.core.formula.types import BASEROW_FORMULA_MODE_RAW
 from baserow.core.services.formula_importer import BaserowFormulaImporter
 
 
@@ -47,7 +48,7 @@ def import_formula(
 
     formula = BaserowFormulaObject.to_formula(formula)
 
-    if formula["mode"] == "raw" or not formula["formula"]:
+    if formula["mode"] == BASEROW_FORMULA_MODE_RAW or not formula["formula"]:
         return formula
 
     tree = get_parse_tree_for_formula(formula["formula"])

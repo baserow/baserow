@@ -10,7 +10,7 @@ from baserow.contrib.builder.elements.registries import CollectionFieldType
 from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
 from baserow.core.constants import RatingStyleChoices
 from baserow.core.formula.serializers import FormulaSerializerField
-from baserow.core.formula.types import BaserowFormulaObject
+from baserow.core.formula.types import BASEROW_FORMULA_MODE_RAW, BaserowFormulaObject
 from baserow.core.registry import Instance
 
 
@@ -276,7 +276,7 @@ class TagsCollectionFieldType(CollectionFieldType):
         )
 
         if not is_formula:
-            colors["mode"] = "raw"
+            colors["mode"] = BASEROW_FORMULA_MODE_RAW
 
         new_formula = yield colors
         if new_formula is not None:

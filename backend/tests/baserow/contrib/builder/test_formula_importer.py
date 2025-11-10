@@ -2,9 +2,9 @@ from collections import defaultdict
 from typing import List
 
 import pytest
-from baserow_premium.fields.visitors import BaserowFormulaObject
 
 from baserow.contrib.builder.formula_importer import import_formula
+from baserow.core.formula import BaserowFormulaObject
 from baserow.core.formula.registries import DataProviderType
 from baserow.core.formula.runtime_formula_context import RuntimeFormulaContext
 from baserow.core.utils import MirrorDict
