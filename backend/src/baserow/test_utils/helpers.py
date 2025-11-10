@@ -624,6 +624,20 @@ class AnyInt(int):
         return isinstance(other, int)
 
 
+class AnyFloat(float):
+    """A class that can be used to check if a value is a float."""
+
+    def __eq__(self, other):
+        return isinstance(other, float)
+
+
+class AnyBool:
+    """A class that can be used to check if a value is a boolean."""
+
+    def __eq__(self, other):
+        return isinstance(other, bool)
+
+
 class AnyStr(str):
     """
     A class that can be used to check if a value is an str. Useful in tests when

@@ -1,18 +1,10 @@
+import uuid
 from datetime import datetime
 from unittest.mock import MagicMock
 
 import pytest
 from freezegun import freeze_time
 
-from baserow.core.formula.argument_types import (
-    AnyBaserowRuntimeFormulaArgumentType,
-    BooleanBaserowRuntimeFormulaArgumentType,
-    DateTimeBaserowRuntimeFormulaArgumentType,
-    DictBaserowRuntimeFormulaArgumentType,
-    NumberBaserowRuntimeFormulaArgumentType,
-    TextBaserowRuntimeFormulaArgumentType,
-    TimezoneBaserowRuntimeFormulaArgumentType,
-)
 from baserow.core.formula.runtime_formula_types import (
     RuntimeAdd,
     RuntimeAnd,
@@ -50,6 +42,7 @@ from baserow.core.formula.runtime_formula_types import (
     RuntimeUpper,
     RuntimeYear,
 )
+from baserow.test_utils.helpers import AnyBool, AnyFloat, AnyInt
 
 
 @pytest.mark.parametrize(
@@ -1316,4 +1309,359 @@ def test_runtime_today_execute():
 )
 def test_runtime_today_validate_number_of_args(args, expected):
     result = RuntimeToday().validate_number_of_args(args)
+    assert result is expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        (['{"foo": "bar"}', "foo"], "bar"),
+        (['{"foo": "bar"}', "baz"], None),
+    ],
+)
+def test_runtime_get_property_execute(args, expected):
+    parsed_args = RuntimeGetProperty().parse_args(args)
+    result = RuntimeGetProperty().execute({}, parsed_args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        # Dict (or convertable to dict) types are allowed
+        (['{"foo": "bar"}', "foo"], None),
+        ([{"foo": "bar"}, "foo"], None),
+        # Invalid types for 1st arg (2nd arg is cast to string)
+        (["foo", "foo"], "foo"),
+        ([100, "foo"], 100),
+        ([12.34, "foo"], 12.34),
+        (
+            [datetime(year=2025, month=11, day=6, hour=12, minute=30), "foo"],
+            datetime(year=2025, month=11, day=6, hour=12, minute=30),
+        ),
+        ([None, "foo"], None),
+        ([[], "foo"], []),
+    ],
+)
+def test_runtime_get_property_validate_type_of_args(args, expected):
+    result = RuntimeGetProperty().validate_type_of_args(args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([], False),
+        (["foo"], False),
+        (["foo", "bar"], True),
+        (["foo", "bar", "baz"], False),
+    ],
+)
+def test_runtime_get_property_validate_number_of_args(args, expected):
+    result = RuntimeGetProperty().validate_number_of_args(args)
+    assert result is expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([1, 100], AnyInt()),
+        ([10.24, 100.54], AnyInt()),
+    ],
+)
+def test_runtime_random_int_execute(args, expected):
+    parsed_args = RuntimeRandomInt().parse_args(args)
+    result = RuntimeRandomInt().execute({}, parsed_args)
+    assert result == expected
+    assert result >= args[0] and result <= args[1]
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        # numeric types are allowed
+        ([1, 100], None),
+        ([2.5, 56.64], None),
+        (["3", "4.5"], None),
+        # Invalid types for 1st arg
+        ([{}, 5], {}),
+        (["foo", 5], "foo"),
+        # Invalid types for 2nd arg
+        ([5, {}], {}),
+        ([5, "foo"], "foo"),
+    ],
+)
+def test_runtime_random_int_validate_type_of_args(args, expected):
+    result = RuntimeRandomInt().validate_type_of_args(args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([], False),
+        (["foo"], False),
+        (["foo", "bar"], True),
+        (["foo", "bar", "baz"], False),
+    ],
+)
+def test_runtime_random_int_validate_number_of_args(args, expected):
+    result = RuntimeRandomInt().validate_number_of_args(args)
+    assert result is expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([1, 100], AnyFloat()),
+        ([10.24, 100.54], AnyFloat()),
+    ],
+)
+def test_runtime_random_float_execute(args, expected):
+    parsed_args = RuntimeRandomFloat().parse_args(args)
+    result = RuntimeRandomFloat().execute({}, parsed_args)
+    assert result == expected
+    assert result >= args[0] and result <= args[1]
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        # numeric types are allowed
+        ([1, 100], None),
+        ([2.5, 56.64], None),
+        (["3", "4.5"], None),
+        # Invalid types for 1st arg
+        ([{}, 5], {}),
+        (["foo", 5], "foo"),
+        # Invalid types for 2nd arg
+        ([5, {}], {}),
+        ([5, "foo"], "foo"),
+    ],
+)
+def test_runtime_random_float_validate_type_of_args(args, expected):
+    result = RuntimeRandomFloat().validate_type_of_args(args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([], False),
+        (["foo"], False),
+        (["foo", "bar"], True),
+        (["foo", "bar", "baz"], False),
+    ],
+)
+def test_runtime_random_float_validate_number_of_args(args, expected):
+    result = RuntimeRandomFloat().validate_number_of_args(args)
+    assert result is expected
+
+
+def test_runtime_random_bool_execute():
+    parsed_args = RuntimeRandomBool().parse_args([])
+    result = RuntimeRandomBool().execute({}, parsed_args)
+    assert result == AnyBool()
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([], True),
+        (["foo"], False),
+        (["foo", "bar"], False),
+    ],
+)
+def test_runtime_random_bool_validate_number_of_args(args, expected):
+    result = RuntimeRandomBool().validate_number_of_args(args)
+    assert result is expected
+
+
+def test_runtime_generate_uuid_execute():
+    parsed_args = RuntimeGenerateUUID().parse_args([])
+    result = RuntimeGenerateUUID().execute({}, parsed_args)
+    assert isinstance(result, str)
+
+    parsed = uuid.UUID(result)
+    assert str(parsed) == result
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([], True),
+        (["foo"], False),
+        (["foo", "bar"], False),
+    ],
+)
+def test_runtime_generate_uuid_validate_number_of_args(args, expected):
+    result = RuntimeGenerateUUID().validate_number_of_args(args)
+    assert result is expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([True, "foo", "bar"], "foo"),
+        ([False, "foo", "bar"], "bar"),
+    ],
+)
+def test_runtime_if_execute(args, expected):
+    parsed_args = RuntimeIf().parse_args(args)
+    result = RuntimeIf().execute({}, parsed_args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        # Valid types for 1st arg (2nd and 3rd args can be Any)
+        ([True, "foo", "bar"], None),
+        ([False, "foo", "bar"], None),
+        (["true", "foo", "bar"], None),
+        (["false", "foo", "bar"], None),
+        (["True", "foo", "bar"], None),
+        (["False", "foo", "bar"], None),
+    ],
+)
+def test_runtime_if_validate_type_of_args(args, expected):
+    result = RuntimeIf().validate_type_of_args(args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([], False),
+        (["foo"], False),
+        (["foo", "bar"], False),
+        (["foo", "bar", "baz"], True),
+        (["foo", "bar", "baz", "bat"], False),
+    ],
+)
+def test_runtime_if_validate_number_of_args(args, expected):
+    result = RuntimeIf().validate_number_of_args(args)
+    assert result is expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([True, True], True),
+        ([True, False], False),
+        ([False, False], False),
+    ],
+)
+def test_runtime_and_execute(args, expected):
+    parsed_args = RuntimeAnd().parse_args(args)
+    result = RuntimeAnd().execute({}, parsed_args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        # Valid types for 1st arg
+        ([True, True], None),
+        (["true", True], None),
+        (["True", True], None),
+        ([False, True], None),
+        (["false", True], None),
+        (["False", True], None),
+        # Valid types for 2nd arg
+        ([True, True], None),
+        ([True, "true"], None),
+        ([True, "True"], None),
+        ([True, False], None),
+        ([True, "false"], None),
+        ([True, "False"], None),
+        # Invalid types for 1st or 2nd arg
+        (["foo", True], "foo"),
+        ([{}, True], {}),
+        (["", True], ""),
+        ([100, True], 100),
+        ([True, "foo"], "foo"),
+        ([True, {}], {}),
+        ([True, ""], ""),
+        ([True, 100], 100),
+    ],
+)
+def test_runtime_and_validate_type_of_args(args, expected):
+    result = RuntimeAnd().validate_type_of_args(args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([], False),
+        (["foo"], False),
+        (["foo", "bar"], True),
+        (["foo", "bar", "baz"], False),
+    ],
+)
+def test_runtime_and_validate_number_of_args(args, expected):
+    result = RuntimeAnd().validate_number_of_args(args)
+    assert result is expected
+
+
+##
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([True, True], True),
+        ([True, False], True),
+        ([False, False], False),
+    ],
+)
+def test_runtime_or_execute(args, expected):
+    parsed_args = RuntimeOr().parse_args(args)
+    result = RuntimeOr().execute({}, parsed_args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        # Valid types for 1st arg
+        ([True, True], None),
+        (["true", True], None),
+        (["True", True], None),
+        ([False, True], None),
+        (["false", True], None),
+        (["False", True], None),
+        # Valid types for 2nd arg
+        ([True, True], None),
+        ([True, "true"], None),
+        ([True, "True"], None),
+        ([True, False], None),
+        ([True, "false"], None),
+        ([True, "False"], None),
+        # Invalid types for 1st or 2nd arg
+        (["foo", True], "foo"),
+        ([{}, True], {}),
+        (["", True], ""),
+        ([100, True], 100),
+        ([True, "foo"], "foo"),
+        ([True, {}], {}),
+        ([True, ""], ""),
+        ([True, 100], 100),
+    ],
+)
+def test_runtime_or_validate_type_of_args(args, expected):
+    result = RuntimeOr().validate_type_of_args(args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([], False),
+        (["foo"], False),
+        (["foo", "bar"], True),
+        (["foo", "bar", "baz"], False),
+    ],
+)
+def test_runtime_or_validate_number_of_args(args, expected):
+    result = RuntimeOr().validate_number_of_args(args)
     assert result is expected

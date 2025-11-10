@@ -111,7 +111,7 @@ export class ObjectBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFormu
 export class BooleanBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFormulaArgumentType {
   test(value) {
     try {
-      ensureBoolean(value, {useStrict: false })
+      ensureBoolean(value, { useStrict: false })
       return true
     } catch (e) {
       return false
