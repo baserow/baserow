@@ -26,10 +26,14 @@ API_URL_MOVE = f"{API_URL_BASE}:move"
 
 
 def test_automation_node_type_is_replaceable_with():
-    trigger_node_type = automation_node_type_registry.get("rows_created")
-    update_trigger_node_type = automation_node_type_registry.get("rows_updated")
-    action_node_type = automation_node_type_registry.get("create_row")
-    update_action_node_type = automation_node_type_registry.get("update_row")
+    trigger_node_type = automation_node_type_registry.get("local_baserow_rows_created")
+    update_trigger_node_type = automation_node_type_registry.get(
+        "local_baserow_rows_updated"
+    )
+    action_node_type = automation_node_type_registry.get("local_baserow_create_row")
+    update_action_node_type = automation_node_type_registry.get(
+        "local_baserow_update_row"
+    )
 
     assert trigger_node_type.is_replaceable_with(update_trigger_node_type)
     assert not trigger_node_type.is_replaceable_with(update_action_node_type)
@@ -78,7 +82,9 @@ def test_automation_service_node_trigger_type_on_event(
 @pytest.mark.django_db
 def test_automation_node_type_create_row_prepare_values_with_instance(data_fixture):
     user = data_fixture.create_user()
-    node = data_fixture.create_automation_node(user=user, type="create_row")
+    node = data_fixture.create_automation_node(
+        user=user, type="local_baserow_create_row"
+    )
 
     values = {"service": {}}
     result = node.get_type().prepare_values(values, user, instance=node)
@@ -88,7 +94,9 @@ def test_automation_node_type_create_row_prepare_values_with_instance(data_fixtu
 @pytest.mark.django_db
 def test_automation_node_type_create_row_prepare_values_without_instance(data_fixture):
     user = data_fixture.create_user()
-    node = data_fixture.create_automation_node(user=user, type="create_row")
+    node = data_fixture.create_automation_node(
+        user=user, type="local_baserow_create_row"
+    )
 
     values = {"service": {}, "workflow": node.workflow}
     result = node.get_type().prepare_values(values, user)
@@ -106,7 +114,9 @@ def test_automation_node_type_create_row_dispatch(mock_dispatch, data_fixture):
     mock_dispatch.return_value = mock_dispatch_result
 
     user = data_fixture.create_user()
-    node = data_fixture.create_automation_node(user=user, type="create_row")
+    node = data_fixture.create_automation_node(
+        user=user, type="local_baserow_create_row"
+    )
 
     dispatch_context = AutomationDispatchContext(node.workflow, None)
     result = node.get_type().dispatch(node, dispatch_context)
@@ -116,10 +126,14 @@ def test_automation_node_type_create_row_dispatch(mock_dispatch, data_fixture):
 
 
 @pytest.mark.django_db
-def test_automation_node_type_rows_created_prepare_values_with_instance(data_fixture):
+def test_automation_node_type_local_baserow_rows_created_prepare_values_with_instance(
+    data_fixture,
+):
     user = data_fixture.create_user()
     workflow = data_fixture.create_automation_workflow(user=user, create_trigger=False)
-    node = data_fixture.create_automation_node(workflow=workflow, type="rows_created")
+    node = data_fixture.create_automation_node(
+        workflow=workflow, type="local_baserow_rows_created"
+    )
 
     values = {"service": {}}
     result = node.get_type().prepare_values(values, user, instance=node)
@@ -127,10 +141,14 @@ def test_automation_node_type_rows_created_prepare_values_with_instance(data_fix
 
 
 @pytest.mark.django_db
-def test_service_node_type_rows_created_prepare_values_without_instance(data_fixture):
+def test_service_node_type_local_baserow_rows_created_prepare_values_without_instance(
+    data_fixture,
+):
     user = data_fixture.create_user()
     workflow = data_fixture.create_automation_workflow(user=user, create_trigger=False)
-    node = data_fixture.create_automation_node(workflow=workflow, type="rows_created")
+    node = data_fixture.create_automation_node(
+        workflow=workflow, type="local_baserow_rows_created"
+    )
 
     values = {"service": {}, "workflow": node.workflow}
     result = node.get_type().prepare_values(values, user)
@@ -144,7 +162,9 @@ def test_service_node_type_rows_created_prepare_values_without_instance(data_fix
 @pytest.mark.django_db
 def test_automation_node_type_update_row_prepare_values_with_instance(data_fixture):
     user = data_fixture.create_user()
-    node = data_fixture.create_automation_node(user=user, type="update_row")
+    node = data_fixture.create_automation_node(
+        user=user, type="local_baserow_update_row"
+    )
 
     values = {"service": {}}
     result = node.get_type().prepare_values(values, user, instance=node)
@@ -158,7 +178,9 @@ def test_automation_node_type_update_row_dispatch(mock_dispatch, data_fixture):
     mock_dispatch.return_value = mock_dispatch_result
 
     user = data_fixture.create_user()
-    node = data_fixture.create_automation_node(user=user, type="update_row")
+    node = data_fixture.create_automation_node(
+        user=user, type="local_baserow_update_row"
+    )
 
     dispatch_context = AutomationDispatchContext(node.workflow, None)
     result = node.get_type().dispatch(node, dispatch_context)
@@ -171,7 +193,9 @@ def test_automation_node_type_update_row_dispatch(mock_dispatch, data_fixture):
 def test_automation_node_type_delete_row_prepare_values_with_instance(data_fixture):
     user = data_fixture.create_user()
     workflow = data_fixture.create_automation_workflow(user=user)
-    node = data_fixture.create_automation_node(workflow=workflow, type="delete_row")
+    node = data_fixture.create_automation_node(
+        workflow=workflow, type="local_baserow_delete_row"
+    )
 
     values = {"service": {}}
     result = node.get_type().prepare_values(values, user, instance=node)
@@ -183,9 +207,11 @@ def test_automation_node_type_delete_row_prepare_values_without_instance(data_fi
     user = data_fixture.create_user()
     workflow = data_fixture.create_automation_workflow(user=user)
 
-    node = data_fixture.create_automation_node(workflow=workflow, type="delete_row")
+    node = data_fixture.create_automation_node(
+        workflow=workflow, type="local_baserow_delete_row"
+    )
     another_node = data_fixture.create_automation_node(
-        workflow=workflow, type="delete_row"
+        workflow=workflow, type="local_baserow_delete_row"
     )
 
     values = {
@@ -208,7 +234,9 @@ def test_automation_node_type_delete_row_dispatch(mock_dispatch, data_fixture):
     mock_dispatch.return_value = mock_dispatch_result
 
     user = data_fixture.create_user()
-    node = data_fixture.create_automation_node(user=user, type="delete_row")
+    node = data_fixture.create_automation_node(
+        user=user, type="local_baserow_delete_row"
+    )
 
     dispatch_context = AutomationDispatchContext(node.workflow, None)
     result = node.get_type().dispatch(node, dispatch_context)
@@ -307,8 +335,8 @@ def test_duplicating_router_node(data_fixture):
 
     workflow.assert_reference(
         {
-            "0": "rows_created",
-            "rows_created": {"next": {"": ["router"]}},
+            "0": "local_baserow_rows_created",
+            "local_baserow_rows_created": {"next": {"": ["router"]}},
             "router": {
                 "next": {
                     "Default": ["fallback node"],
@@ -326,8 +354,8 @@ def test_duplicating_router_node(data_fixture):
 
     workflow.assert_reference(
         {
-            "0": "rows_created",
-            "rows_created": {"next": {"": ["router"]}},
+            "0": "local_baserow_rows_created",
+            "local_baserow_rows_created": {"next": {"": ["router"]}},
             "router": {
                 "next": {
                     "Default": ["router-"],

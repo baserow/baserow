@@ -276,7 +276,7 @@ def test_duplicate_workflow_with_nodes(data_fixture):
     )
 
     reference = {
-        "0": "rows_created",
+        "0": "local_baserow_rows_created",
         "fallback node": {},
         "output edge 1": {},
         "output edge 2": {},
@@ -287,7 +287,7 @@ def test_duplicate_workflow_with_nodes(data_fixture):
                 "Do this": ["output edge 1"],
             }
         },
-        "rows_created": {"next": {"": ["router"]}},
+        "local_baserow_rows_created": {"next": {"": ["router"]}},
     }
 
     workflow.assert_reference(reference)

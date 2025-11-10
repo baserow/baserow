@@ -44,7 +44,7 @@ def test_create_node(api_client, data_fixture):
     response = api_client.post(
         url,
         {
-            "type": "update_row",
+            "type": "local_baserow_update_row",
             "reference_node_id": trigger.id,
             "position": "south",
             "output": "",
@@ -57,7 +57,7 @@ def test_create_node(api_client, data_fixture):
         "id": AnyInt(),
         "label": "",
         "service": AnyDict(),
-        "type": "update_row",
+        "type": "local_baserow_update_row",
         "workflow": workflow.id,
     }
 
@@ -66,10 +66,10 @@ def test_create_node(api_client, data_fixture):
     workflow.refresh_from_db()
     workflow.assert_reference(
         {
-            "0": "rows_created",
-            "create_row": {},
-            "rows_created": {"next": {"": ["update_row"]}},
-            "update_row": {"next": {"": ["create_row"]}},
+            "0": "local_baserow_rows_created",
+            "local_baserow_create_row": {},
+            "local_baserow_rows_created": {"next": {"": ["local_baserow_update_row"]}},
+            "local_baserow_update_row": {"next": {"": ["local_baserow_create_row"]}},
         }
     )
 
@@ -89,7 +89,7 @@ def test_create_node_reference_node_invalid(api_client, data_fixture):
     response = api_client.post(
         url,
         {
-            "type": "create_row",
+            "type": "local_baserow_create_row",
             "reference_node_id": 99999999999,
             "position": "south",
             "output": "",
@@ -105,7 +105,7 @@ def test_create_node_reference_node_invalid(api_client, data_fixture):
     response = api_client.post(
         url,
         {
-            "type": "create_row",
+            "type": "local_baserow_create_row",
             "reference_node_id": node2_b.id,
             "position": "south",
             "output": "",
@@ -152,7 +152,7 @@ def test_create_node_invalid_workflow(api_client, data_fixture):
     response = api_client.post(
         url,
         {
-            "type": "create_row",
+            "type": "local_baserow_create_row",
             "reference_node_id": 0,
             "position": "south",
             "output": "",
@@ -179,7 +179,7 @@ def test_create_node_undo_redo(api_client, data_fixture):
     response = api_client.post(
         url,
         {
-            "type": "create_row",
+            "type": "local_baserow_create_row",
             "reference_node_id": workflow.get_trigger().id,
             "position": "south",
             "output": "",
@@ -224,14 +224,14 @@ def test_get_nodes(api_client, data_fixture):
             "id": trigger.id,
             "label": trigger.label,
             "service": AnyDict(),
-            "type": "rows_created",
+            "type": "local_baserow_rows_created",
             "workflow": workflow.id,
         },
         {
             "id": node.id,
             "label": node.label,
             "service": AnyDict(),
-            "type": "create_row",
+            "type": "local_baserow_create_row",
             "workflow": node.workflow.id,
         },
     ]
@@ -332,8 +332,8 @@ def test_duplicate_node(api_client, data_fixture):
 
     workflow.assert_reference(
         {
-            "0": "rows_created",
-            "rows_created": {"next": {"": ["To duplicate"]}},
+            "0": "local_baserow_rows_created",
+            "local_baserow_rows_created": {"next": {"": ["To duplicate"]}},
             "To duplicate": {"next": {"": ["To duplicate-"]}},
             "To duplicate-": {},
         }
@@ -400,7 +400,7 @@ def test_update_node_invalid_node(api_client, data_fixture):
 
     api_kwargs = get_api_kwargs(token)
     update_url = reverse(API_URL_ITEM, kwargs={"node_id": 100})
-    payload = {"type": "update_row"}
+    payload = {"type": "local_baserow_update_row"}
     response = api_client.patch(update_url, payload, **api_kwargs)
 
     assert response.status_code == HTTP_404_NOT_FOUND
@@ -448,7 +448,10 @@ def test_replace_node_type_with_irreplaceable_type(
     api_client,
     data_fixture,
 ):
-    original_type, irreplaceable_type = ["create_row", "rows_created"]
+    original_type, irreplaceable_type = [
+        "local_baserow_create_row",
+        "local_baserow_rows_created",
+    ]
     user, token = data_fixture.create_user_and_token()
     workflow = data_fixture.create_automation_workflow(user)
     node = data_fixture.create_automation_node(
@@ -472,7 +475,10 @@ def test_replace_node_type_with_replaceable_type_trigger(
     api_client,
     data_fixture,
 ):
-    original_type, replaceable_type = ["rows_created", "rows_updated"]
+    original_type, replaceable_type = [
+        "local_baserow_rows_created",
+        "local_baserow_rows_updated",
+    ]
     user, token = data_fixture.create_user_and_token()
     workflow = data_fixture.create_automation_workflow(user, trigger_type=original_type)
     trigger = workflow.get_trigger()
@@ -498,7 +504,10 @@ def test_replace_node_type_with_replaceable_type(
     api_client,
     data_fixture,
 ):
-    original_type, replaceable_type = ["update_row", "delete_row"]
+    original_type, replaceable_type = [
+        "local_baserow_update_row",
+        "local_baserow_delete_row",
+    ]
     user, token = data_fixture.create_user_and_token()
     workflow = data_fixture.create_automation_workflow(user)
     trigger = workflow.get_trigger()
@@ -715,7 +724,7 @@ def test_replacing_router_node_with_output_nodes_disallowed(api_client, data_fix
 
     response = api_client.post(
         reverse(API_URL_REPLACE, kwargs={"node_id": router.id}),
-        {"new_type": "create_row"},
+        {"new_type": "local_baserow_create_row"},
         **get_api_kwargs(token),
     )
     assert response.status_code == HTTP_400_BAD_REQUEST
@@ -900,7 +909,7 @@ def test_simulate_dispatch_action_node(
     action_node = data_fixture.create_automation_node(
         user=user,
         workflow=workflow,
-        type="create_row",
+        type="local_baserow_create_row",
         service=action_service,
     )
 
@@ -956,7 +965,7 @@ def test_simulate_dispatch_action_node_with_sample_data(
     action_node = data_fixture.create_automation_node(
         user=user,
         workflow=workflow,
-        type="create_row",
+        type="local_baserow_create_row",
         service=action_service,
     )
 

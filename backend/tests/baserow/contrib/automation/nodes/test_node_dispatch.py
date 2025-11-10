@@ -169,13 +169,16 @@ def test_run_workflow_with_router_action(data_fixture):
 
     workflow.assert_reference(
         {
-            "0": "rows_created",
-            "rows_created": {"next": {"": ["router"]}},
+            "0": "local_baserow_rows_created",
+            "local_baserow_rows_created": {"next": {"": ["router"]}},
             "router": {
-                "next": {"Edge 1": ["Edge 1 output node"], "Edge 2": ["update_row"]}
+                "next": {
+                    "Edge 1": ["Edge 1 output node"],
+                    "Edge 2": ["local_baserow_update_row"],
+                }
             },
             "Edge 1 output node": {},
-            "update_row": {},
+            "local_baserow_update_row": {},
         }
     )
 
@@ -233,7 +236,7 @@ def iterator_graph_fixture(data_fixture):
     workflow = data_fixture.create_automation_workflow(
         user=user,
         state=WorkflowState.LIVE,
-        trigger_type="rows_created",
+        trigger_type="local_baserow_rows_created",
         trigger_service_kwargs={
             "table": trigger_table,
             "integration": integration,
@@ -324,8 +327,8 @@ def test_run_workflow_with_iterator_action(iterator_graph_fixture):
 
     workflow.assert_reference(
         {
-            "0": "rows_created",
-            "rows_created": {"next": {"": ["iterator"]}},
+            "0": "local_baserow_rows_created",
+            "local_baserow_rows_created": {"next": {"": ["iterator"]}},
             "iterator": {
                 "children": ["First action"],
                 "next": {"": ["After iterator"]},
@@ -377,8 +380,8 @@ def test_run_workflow_with_iterator_action_simulate(iterator_graph_fixture):
 
     workflow.assert_reference(
         {
-            "0": "rows_created",
-            "rows_created": {"next": {"": ["iterator"]}},
+            "0": "local_baserow_rows_created",
+            "local_baserow_rows_created": {"next": {"": ["iterator"]}},
             "iterator": {
                 "children": ["First action"],
                 "next": {"": ["After iterator"]},

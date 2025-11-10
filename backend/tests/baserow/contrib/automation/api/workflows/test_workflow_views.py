@@ -432,7 +432,10 @@ def test_run_workflow_in_test_mode(api_client, data_fixture):
         integration=data_fixture.create_local_baserow_integration(user=user),
     )
     trigger_node = data_fixture.create_automation_node(
-        user=user, workflow=workflow, type="rows_created", service=trigger_service
+        user=user,
+        workflow=workflow,
+        type="local_baserow_rows_created",
+        service=trigger_service,
     )
 
     # Next create an action node
@@ -452,7 +455,7 @@ def test_run_workflow_in_test_mode(api_client, data_fixture):
     action_node = data_fixture.create_automation_node(
         user=user,
         workflow=workflow,
-        type="create_row",
+        type="local_baserow_create_row",
         service=action_service,
     )
 

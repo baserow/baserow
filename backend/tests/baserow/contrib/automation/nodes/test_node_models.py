@@ -93,8 +93,8 @@ def test_get_previous_service_outputs(data_fixture):
 
     workflow.assert_reference(
         {
-            "0": "rows_created",
-            "rows_created": {"next": {"": ["router a"]}},
+            "0": "local_baserow_rows_created",
+            "local_baserow_rows_created": {"next": {"": ["router a"]}},
             "router a": {"next": {"": ["action a"], "Router A, Edge 1": ["router b"]}},
             "action a": {},
             "router b": {

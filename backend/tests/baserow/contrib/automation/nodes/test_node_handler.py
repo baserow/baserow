@@ -21,7 +21,7 @@ def test_create_node(data_fixture):
     user = data_fixture.create_user()
     workflow = data_fixture.create_automation_workflow(create_trigger=False)
 
-    node_type = automation_node_type_registry.get("rows_created")
+    node_type = automation_node_type_registry.get("local_baserow_rows_created")
     prepared_values = node_type.prepare_values({"workflow": workflow}, user)
 
     node = AutomationNodeHandler().create_node(node_type, **prepared_values)
@@ -133,7 +133,7 @@ def test_export_node(data_fixture):
         "id": node.id,
         "label": node.label,
         "service": AnyDict(),
-        "type": "create_row",
+        "type": "local_baserow_create_row",
         "workflow_id": node.workflow.id,
     }
 
@@ -228,7 +228,7 @@ def test_simulate_dispatch_node_trigger(data_fixture):
 
     action_node = data_fixture.create_automation_node(
         workflow=workflow,
-        type="create_row",
+        type="local_baserow_create_row",
     )
 
     # Set initial fake data for the action_node, since we want to test
@@ -282,7 +282,7 @@ def create_action_node(data_fixture):
     action_node = data_fixture.create_automation_node(
         user=user,
         workflow=workflow,
-        type="create_row",
+        type="local_baserow_create_row",
         service=action_service,
     )
 
@@ -364,12 +364,12 @@ def test_simulate_dispatch_node_action_with_simulate_until_node(data_fixture):
 
     action_node_2 = data_fixture.create_automation_node(
         workflow=action_node_1.workflow,
-        type="create_row",
+        type="local_baserow_create_row",
     )
 
     action_node_3 = data_fixture.create_automation_node(
         workflow=action_node_1.workflow,
-        type="create_row",
+        type="local_baserow_create_row",
     )
 
     nodes = [action_node_1, action_node_2, action_node_3]
@@ -517,8 +517,8 @@ def test_simulate_dispatch_node_dispatches_correct_edge_node(data_fixture):
 
     workflow.assert_reference(
         {
-            "0": "rows_created",
-            "rows_created": {"next": {"": ["Router A"]}},
+            "0": "local_baserow_rows_created",
+            "local_baserow_rows_created": {"next": {"": ["Router A"]}},
             "Router A": {
                 "next": {"": ["Create row A"], "Router A, Edge 1": ["Router B"]}
             },

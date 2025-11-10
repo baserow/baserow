@@ -28,6 +28,11 @@ class FakeModel2(object):
     pass
 
 
+class InstanceTypeWithCompatType(Instance):
+    type = "the_new_type_name"
+    compat_type = "the_old_type_name"
+
+
 class TemporaryApplication1(ModelInstanceMixin, Instance):
     type = "temporary_1"
     model_class = FakeModel
@@ -135,6 +140,14 @@ def test_registry_get():
         registry.get_by_model(FakeModel2())
 
     assert registry.get_types() == ["temporary_1"]
+
+
+def test_registry_get_compat_type_name():
+    registry = TemporaryRegistry()
+    compat_instance = InstanceTypeWithCompatType()
+    registry.register(compat_instance)
+    assert registry.get(compat_instance.type) == compat_instance
+    assert registry.get(compat_instance.compat_type) == compat_instance
 
 
 def test_registry_get_by_model_returns_the_most_specific_value():

@@ -33,7 +33,7 @@ SAMPLE_WORKFLOW_IMPORT_REFERENCE = {
             "nodes": [
                 {
                     "id": 1,
-                    "type": "rows_created",
+                    "type": "local_baserow_rows_created",
                     "workflow_id": 1,
                     "service": {
                         "id": 549,
@@ -44,7 +44,7 @@ SAMPLE_WORKFLOW_IMPORT_REFERENCE = {
                 },
                 {
                     "id": 2,
-                    "type": "create_row",
+                    "type": "local_baserow_create_row",
                     "workflow_id": 1,
                     "service": {
                         "id": 550,
@@ -109,7 +109,7 @@ def test_automation_export_serialized(data_fixture):
                     {
                         "id": trigger.id,
                         "label": trigger.label,
-                        "type": "rows_created",
+                        "type": "local_baserow_rows_created",
                         "workflow_id": trigger.workflow_id,
                         "service": {
                             "id": trigger.service_id,
@@ -122,7 +122,7 @@ def test_automation_export_serialized(data_fixture):
                     {
                         "id": first_action.id,
                         "label": first_action.label,
-                        "type": "create_row",
+                        "type": "local_baserow_create_row",
                         "workflow_id": first_action.workflow_id,
                         "service": {
                             "id": first_action.service_id,
@@ -207,9 +207,9 @@ def test_automation_application_import(data_fixture):
 
     workflow.assert_reference(
         {
-            "0": "rows_created",
-            "rows_created": {"next": {"": ["create_row"]}},
-            "create_row": {},
+            "0": "local_baserow_rows_created",
+            "local_baserow_rows_created": {"next": {"": ["local_baserow_create_row"]}},
+            "local_baserow_create_row": {},
         }
     )
 

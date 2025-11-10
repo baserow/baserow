@@ -42,8 +42,8 @@ def test_create_node_action(data_fixture):
 
     workflow.assert_reference(
         {
-            "0": "rows_created",
-            "rows_created": {"next": {"": ["Node before"]}},
+            "0": "local_baserow_rows_created",
+            "local_baserow_rows_created": {"next": {"": ["Node before"]}},
             "Node before": {"next": {"": ["Node after"]}},
             "Node after": {},
         }
@@ -58,10 +58,10 @@ def test_create_node_action(data_fixture):
 
     workflow.assert_reference(
         {
-            "0": "rows_created",
-            "rows_created": {"next": {"": ["Node before"]}},
-            "Node before": {"next": {"": ["create_row"]}},
-            "create_row": {"next": {"": ["Node after"]}},
+            "0": "local_baserow_rows_created",
+            "local_baserow_rows_created": {"next": {"": ["Node before"]}},
+            "Node before": {"next": {"": ["local_baserow_create_row"]}},
+            "local_baserow_create_row": {"next": {"": ["Node after"]}},
             "Node after": {},
         }
     )
@@ -70,10 +70,10 @@ def test_create_node_action(data_fixture):
 
     workflow.assert_reference(
         {
-            "0": "rows_created",
+            "0": "local_baserow_rows_created",
             "Node after": {},
             "Node before": {"next": {"": ["Node after"]}},
-            "rows_created": {"next": {"": ["Node before"]}},
+            "local_baserow_rows_created": {"next": {"": ["Node before"]}},
         }
     )
 
@@ -89,10 +89,10 @@ def test_create_node_action(data_fixture):
 
     workflow.assert_reference(
         {
-            "0": "rows_created",
-            "rows_created": {"next": {"": ["Node before"]}},
-            "Node before": {"next": {"": ["create_row"]}},
-            "create_row": {"next": {"": ["Node after"]}},
+            "0": "local_baserow_rows_created",
+            "local_baserow_rows_created": {"next": {"": ["Node before"]}},
+            "Node before": {"next": {"": ["local_baserow_create_row"]}},
+            "local_baserow_create_row": {"next": {"": ["Node after"]}},
             "Node after": {},
         }
     )
@@ -115,10 +115,10 @@ def test_replace_automation_action_node_type(data_fixture):
 
     workflow.assert_reference(
         {
-            "0": "rows_created",
+            "0": "local_baserow_rows_created",
             "After": {},
             "To replace": {"next": {"": ["After"]}},
-            "rows_created": {"next": {"": ["To replace"]}},
+            "local_baserow_rows_created": {"next": {"": ["To replace"]}},
         }
     )
 
@@ -128,10 +128,10 @@ def test_replace_automation_action_node_type(data_fixture):
 
     workflow.assert_reference(
         {
-            "0": "rows_created",
+            "0": "local_baserow_rows_created",
             "After": {},
-            "rows_created": {"next": {"": ["update_row"]}},
-            "update_row": {"next": {"": ["After"]}},
+            "local_baserow_rows_created": {"next": {"": ["local_baserow_update_row"]}},
+            "local_baserow_update_row": {"next": {"": ["After"]}},
         }
     )
 
@@ -152,10 +152,10 @@ def test_replace_automation_action_node_type(data_fixture):
 
     workflow.assert_reference(
         {
-            "0": "rows_created",
+            "0": "local_baserow_rows_created",
             "After": {},
             "To replace": {"next": {"": ["After"]}},
-            "rows_created": {"next": {"": ["To replace"]}},
+            "local_baserow_rows_created": {"next": {"": ["To replace"]}},
         }
     )
 
@@ -178,10 +178,10 @@ def test_replace_automation_action_node_type(data_fixture):
 
     workflow.assert_reference(
         {
-            "0": "rows_created",
+            "0": "local_baserow_rows_created",
             "After": {},
-            "rows_created": {"next": {"": ["update_row"]}},
-            "update_row": {"next": {"": ["After"]}},
+            "local_baserow_rows_created": {"next": {"": ["local_baserow_update_row"]}},
+            "local_baserow_update_row": {"next": {"": ["After"]}},
         }
     )
     # The original node is trashed again, the new node is restored.
@@ -216,9 +216,9 @@ def test_replace_automation_trigger_node_type(data_fixture):
 
     workflow.assert_reference(
         {
-            "0": "rows_created",
-            "rows_created": {"next": {"": ["create_row"]}},
-            "create_row": {},
+            "0": "local_baserow_rows_created",
+            "local_baserow_rows_created": {"next": {"": ["local_baserow_create_row"]}},
+            "local_baserow_create_row": {},
         }
     )
 
@@ -228,9 +228,9 @@ def test_replace_automation_trigger_node_type(data_fixture):
 
     workflow.assert_reference(
         {
-            "0": "rows_updated",
-            "rows_updated": {"next": {"": ["create_row"]}},
-            "create_row": {},
+            "0": "local_baserow_rows_updated",
+            "local_baserow_rows_updated": {"next": {"": ["local_baserow_create_row"]}},
+            "local_baserow_create_row": {},
         }
     )
 
@@ -254,9 +254,9 @@ def test_replace_automation_trigger_node_type(data_fixture):
 
     workflow.assert_reference(
         {
-            "0": "rows_created",
-            "rows_created": {"next": {"": ["create_row"]}},
-            "create_row": {},
+            "0": "local_baserow_rows_created",
+            "local_baserow_rows_created": {"next": {"": ["local_baserow_create_row"]}},
+            "local_baserow_create_row": {},
         }
     )
 
@@ -279,9 +279,9 @@ def test_replace_automation_trigger_node_type(data_fixture):
 
     workflow.assert_reference(
         {
-            "0": "rows_updated",
-            "rows_updated": {"next": {"": ["create_row"]}},
-            "create_row": {},
+            "0": "local_baserow_rows_updated",
+            "local_baserow_rows_updated": {"next": {"": ["local_baserow_create_row"]}},
+            "local_baserow_create_row": {},
         }
     )
 
@@ -321,11 +321,11 @@ def test_delete_node_action(data_fixture):
 
     workflow.assert_reference(
         {
-            "0": "rows_created",
+            "0": "local_baserow_rows_created",
             "After": {},
             "Before": {"next": {"": ["To delete"]}},
             "To delete": {"next": {"": ["After"]}},
-            "rows_created": {"next": {"": ["Before"]}},
+            "local_baserow_rows_created": {"next": {"": ["Before"]}},
         }
     )
 
@@ -333,10 +333,10 @@ def test_delete_node_action(data_fixture):
 
     workflow.assert_reference(
         {
-            "0": "rows_created",
+            "0": "local_baserow_rows_created",
             "After": {},
             "Before": {"next": {"": ["After"]}},
-            "rows_created": {"next": {"": ["Before"]}},
+            "local_baserow_rows_created": {"next": {"": ["Before"]}},
         }
     )
 
@@ -348,11 +348,11 @@ def test_delete_node_action(data_fixture):
 
     workflow.assert_reference(
         {
-            "0": "rows_created",
+            "0": "local_baserow_rows_created",
             "After": {},
             "Before": {"next": {"": ["To delete"]}},
             "To delete": {"next": {"": ["After"]}},
-            "rows_created": {"next": {"": ["Before"]}},
+            "local_baserow_rows_created": {"next": {"": ["Before"]}},
         }
     )
 
@@ -363,10 +363,10 @@ def test_delete_node_action(data_fixture):
     ActionHandler.redo(user, [WorkflowActionScopeType.value(workflow.id)], session_id)
     workflow.assert_reference(
         {
-            "0": "rows_created",
+            "0": "local_baserow_rows_created",
             "After": {},
             "Before": {"next": {"": ["After"]}},
-            "rows_created": {"next": {"": ["Before"]}},
+            "local_baserow_rows_created": {"next": {"": ["Before"]}},
         }
     )
 
@@ -394,10 +394,10 @@ def test_delete_node_action_after_nothing(data_fixture):
     )
     workflow.assert_reference(
         {
-            "0": "rows_created",
+            "0": "local_baserow_rows_created",
             "Before": {"next": {"": ["To delete"]}},
             "To delete": {},
-            "rows_created": {"next": {"": ["Before"]}},
+            "local_baserow_rows_created": {"next": {"": ["Before"]}},
         }
     )
 
@@ -405,9 +405,9 @@ def test_delete_node_action_after_nothing(data_fixture):
 
     workflow.assert_reference(
         {
-            "0": "rows_created",
+            "0": "local_baserow_rows_created",
             "Before": {},
-            "rows_created": {"next": {"": ["Before"]}},
+            "local_baserow_rows_created": {"next": {"": ["Before"]}},
         }
     )
 
@@ -419,10 +419,10 @@ def test_delete_node_action_after_nothing(data_fixture):
 
     workflow.assert_reference(
         {
-            "0": "rows_created",
+            "0": "local_baserow_rows_created",
             "Before": {"next": {"": ["To delete"]}},
             "To delete": {},
-            "rows_created": {"next": {"": ["Before"]}},
+            "local_baserow_rows_created": {"next": {"": ["Before"]}},
         }
     )
 
@@ -434,9 +434,9 @@ def test_delete_node_action_after_nothing(data_fixture):
 
     workflow.assert_reference(
         {
-            "0": "rows_created",
+            "0": "local_baserow_rows_created",
             "Before": {},
-            "rows_created": {"next": {"": ["Before"]}},
+            "local_baserow_rows_created": {"next": {"": ["Before"]}},
         }
     )
 
@@ -461,8 +461,8 @@ def test_duplicate_node_action(data_fixture):
     )
     workflow.assert_reference(
         {
-            "0": "rows_created",
-            "rows_created": {"next": {"": ["Source"]}},
+            "0": "local_baserow_rows_created",
+            "local_baserow_rows_created": {"next": {"": ["Source"]}},
             "Source": {"next": {"": ["After"]}},
             "After": {},
         }
@@ -472,8 +472,8 @@ def test_duplicate_node_action(data_fixture):
 
     workflow.assert_reference(
         {
-            "0": "rows_created",
-            "rows_created": {"next": {"": ["Source"]}},
+            "0": "local_baserow_rows_created",
+            "local_baserow_rows_created": {"next": {"": ["Source"]}},
             "Source": {"next": {"": ["Source-"]}},
             "Source-": {"next": {"": ["After"]}},
             "After": {},
@@ -487,8 +487,8 @@ def test_duplicate_node_action(data_fixture):
 
     workflow.assert_reference(
         {
-            "0": "rows_created",
-            "rows_created": {"next": {"": ["Source"]}},
+            "0": "local_baserow_rows_created",
+            "local_baserow_rows_created": {"next": {"": ["Source"]}},
             "Source": {"next": {"": ["After"]}},
             "After": {},
         }
@@ -501,8 +501,8 @@ def test_duplicate_node_action(data_fixture):
 
     workflow.assert_reference(
         {
-            "0": "rows_created",
-            "rows_created": {"next": {"": ["Source"]}},
+            "0": "local_baserow_rows_created",
+            "local_baserow_rows_created": {"next": {"": ["Source"]}},
             "Source": {"next": {"": ["Source-"]}},
             "Source-": {"next": {"": ["After"]}},
             "After": {},
@@ -530,7 +530,7 @@ def test_duplicate_node_action_with_multiple_outputs(data_fixture):
 
     workflow.assert_reference(
         {
-            "0": "rows_created",
+            "0": "local_baserow_rows_created",
             "router": {
                 "next": {
                     "Default": ["fallback node"],
@@ -538,7 +538,7 @@ def test_duplicate_node_action_with_multiple_outputs(data_fixture):
                     "Do this": ["output edge 1"],
                 }
             },
-            "rows_created": {"next": {"": ["router"]}},
+            "local_baserow_rows_created": {"next": {"": ["router"]}},
             "fallback node": {},
             "output edge 1": {},
             "output edge 2": {},
@@ -553,8 +553,8 @@ def test_duplicate_node_action_with_multiple_outputs(data_fixture):
 
     workflow.assert_reference(
         {
-            "0": "rows_created",
-            "rows_created": {"next": {"": ["router"]}},
+            "0": "local_baserow_rows_created",
+            "local_baserow_rows_created": {"next": {"": ["router"]}},
             "router": {
                 "next": {
                     "Default": ["Duplicated router"],
@@ -573,7 +573,7 @@ def test_duplicate_node_action_with_multiple_outputs(data_fixture):
 
     workflow.assert_reference(
         {
-            "0": "rows_created",
+            "0": "local_baserow_rows_created",
             "router": {
                 "next": {
                     "Default": ["fallback node"],
@@ -581,7 +581,7 @@ def test_duplicate_node_action_with_multiple_outputs(data_fixture):
                     "Do this": ["output edge 1"],
                 }
             },
-            "rows_created": {"next": {"": ["router"]}},
+            "local_baserow_rows_created": {"next": {"": ["router"]}},
             "fallback node": {},
             "output edge 1": {},
             "output edge 2": {},
@@ -592,8 +592,8 @@ def test_duplicate_node_action_with_multiple_outputs(data_fixture):
 
     workflow.assert_reference(
         {
-            "0": "rows_created",
-            "rows_created": {"next": {"": ["router"]}},
+            "0": "local_baserow_rows_created",
+            "local_baserow_rows_created": {"next": {"": ["router"]}},
             "router": {
                 "next": {
                     "Default": ["Duplicated router"],
@@ -629,8 +629,8 @@ def test_move_node_action(data_fixture):
 
     workflow.assert_reference(
         {
-            "0": "rows_created",
-            "rows_created": {"next": {"": ["first action"]}},
+            "0": "local_baserow_rows_created",
+            "local_baserow_rows_created": {"next": {"": ["first action"]}},
             "first action": {"next": {"": ["second action"]}},
             "second action": {"next": {"": ["moved node"]}},
             "moved node": {},
@@ -644,8 +644,8 @@ def test_move_node_action(data_fixture):
     assert moved_node == node
     workflow.assert_reference(
         {
-            "0": "rows_created",
-            "rows_created": {"next": {"": ["first action"]}},
+            "0": "local_baserow_rows_created",
+            "local_baserow_rows_created": {"next": {"": ["first action"]}},
             "first action": {"next": {"": ["moved node"]}},
             "moved node": {"next": {"": ["second action"]}},
             "second action": {},
@@ -656,8 +656,8 @@ def test_move_node_action(data_fixture):
 
     workflow.assert_reference(
         {
-            "0": "rows_created",
-            "rows_created": {"next": {"": ["first action"]}},
+            "0": "local_baserow_rows_created",
+            "local_baserow_rows_created": {"next": {"": ["first action"]}},
             "first action": {"next": {"": ["second action"]}},
             "second action": {"next": {"": ["moved node"]}},
             "moved node": {},
@@ -668,8 +668,8 @@ def test_move_node_action(data_fixture):
 
     workflow.assert_reference(
         {
-            "0": "rows_created",
-            "rows_created": {"next": {"": ["first action"]}},
+            "0": "local_baserow_rows_created",
+            "local_baserow_rows_created": {"next": {"": ["first action"]}},
             "first action": {"next": {"": ["moved node"]}},
             "moved node": {"next": {"": ["second action"]}},
             "second action": {},
@@ -697,8 +697,8 @@ def test_move_node_action_to_output(data_fixture):
 
     workflow.assert_reference(
         {
-            "0": "rows_created",
-            "rows_created": {"next": {"": ["router"]}},
+            "0": "local_baserow_rows_created",
+            "local_baserow_rows_created": {"next": {"": ["router"]}},
             "router": {
                 "next": {
                     "Default": ["fallback node"],
@@ -721,8 +721,8 @@ def test_move_node_action_to_output(data_fixture):
 
     workflow.assert_reference(
         {
-            "0": "rows_created",
-            "rows_created": {"next": {"": ["router"]}},
+            "0": "local_baserow_rows_created",
+            "local_baserow_rows_created": {"next": {"": ["router"]}},
             "router": {
                 "next": {
                     "Do this": ["output edge 2"],
@@ -739,8 +739,8 @@ def test_move_node_action_to_output(data_fixture):
 
     workflow.assert_reference(
         {
-            "0": "rows_created",
-            "rows_created": {"next": {"": ["router"]}},
+            "0": "local_baserow_rows_created",
+            "local_baserow_rows_created": {"next": {"": ["router"]}},
             "router": {
                 "next": {
                     "Default": ["fallback node"],
@@ -758,8 +758,8 @@ def test_move_node_action_to_output(data_fixture):
 
     workflow.assert_reference(
         {
-            "0": "rows_created",
-            "rows_created": {"next": {"": ["router"]}},
+            "0": "local_baserow_rows_created",
+            "local_baserow_rows_created": {"next": {"": ["router"]}},
             "router": {
                 "next": {
                     "Do this": ["output edge 2"],

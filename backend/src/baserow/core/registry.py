@@ -52,6 +52,10 @@ class Instance(object):
     type: str
     """A unique string that identifies the instance."""
 
+    compat_type: str = ""
+    """ If this instance has been renamed, and we want to support
+        compatibility of the original `type`, implement it with `compat_type`. """
+
     def __init__(self):
         if not self.type:
             raise ImproperlyConfigured("The type of an instance must be set.")
@@ -758,12 +762,28 @@ class Registry(Generic[InstanceSubClass]):
         :rtype: InstanceModelInstance
         """
 
+        # If the `type_name` isn't in the registry, we may raise DoesNotExist.
         if type_name not in self.registry:
-            raise self.does_not_exist_exception_class(
-                type_name, f"The {self.name} type {type_name} does not exist."
-            )
+            # But first, we'll test to see if it matches an Instance's
+            # `compat_name`. If it does, we'll use that Instance's `type`.
+            type_name_via_compat = self.get_by_type_name_by_compat(type_name)
+            if type_name_via_compat:
+                type_name = type_name_via_compat
+            else:
+                raise self.does_not_exist_exception_class(
+                    type_name, f"The {self.name} type {type_name} does not exist."
+                )
 
         return self.registry[type_name]
+
+    def get_by_type_name_by_compat(self, compat_name: str) -> Optional[str]:
+        """
+        Returns a registered instance's `type` by using the compatibility name.
+        """
+
+        for instance in self.get_all():
+            if instance.compat_type == compat_name:
+                return instance.type
 
     def get_by_type(self, instance_type: Type[InstanceSubClass]) -> InstanceSubClass:
         return self.get(instance_type.type)

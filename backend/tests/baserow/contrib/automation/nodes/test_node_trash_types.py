@@ -19,9 +19,9 @@ def test_trashing_and_restoring_node_updates_graph(data_fixture):
 
     workflow.assert_reference(
         {
-            "0": "rows_created",
+            "0": "local_baserow_rows_created",
             "first action": {"next": {"": ["second action"]}},
-            "rows_created": {"next": {"": ["first action"]}},
+            "local_baserow_rows_created": {"next": {"": ["first action"]}},
             "second action": {},
         }
     )
@@ -37,8 +37,8 @@ def test_trashing_and_restoring_node_updates_graph(data_fixture):
 
     workflow.assert_reference(
         {
-            "0": "rows_created",
-            "rows_created": {"next": {"": ["second action"]}},
+            "0": "local_baserow_rows_created",
+            "local_baserow_rows_created": {"next": {"": ["second action"]}},
             "second action": {},
         }
     )
@@ -50,9 +50,9 @@ def test_trashing_and_restoring_node_updates_graph(data_fixture):
     )
     workflow.assert_reference(
         {
-            "0": "rows_created",
+            "0": "local_baserow_rows_created",
             "first action": {"next": {"": ["second action"]}},
-            "rows_created": {"next": {"": ["first action"]}},
+            "local_baserow_rows_created": {"next": {"": ["first action"]}},
             "second action": {},
         }
     )
@@ -91,8 +91,8 @@ def test_trashing_and_restoring_node_updates_graph_with_router(data_fixture):
 
     workflow.assert_reference(
         {
-            "0": "rows_created",
-            "rows_created": {"next": {"": ["First router"]}},
+            "0": "local_baserow_rows_created",
+            "local_baserow_rows_created": {"next": {"": ["First router"]}},
             "First router": {"next": {"To second router": ["Second router"]}},
             "Second router": {"next": {"To create row": ["To create row output node"]}},
             "To create row output node": {},
@@ -113,8 +113,8 @@ def test_trashing_and_restoring_node_updates_graph_with_router(data_fixture):
 
     workflow.assert_reference(
         {
-            "0": "rows_created",
-            "rows_created": {"next": {"": ["First router"]}},
+            "0": "local_baserow_rows_created",
+            "local_baserow_rows_created": {"next": {"": ["First router"]}},
             "First router": {
                 "next": {"To second router": ["To create row output node"]}
             },
@@ -129,11 +129,11 @@ def test_trashing_and_restoring_node_updates_graph_with_router(data_fixture):
     )
     workflow.assert_reference(
         {
-            "0": "rows_created",
+            "0": "local_baserow_rows_created",
             "First router": {"next": {"To second router": ["Second router"]}},
             "Second router": {"next": {"": ["To create row output node"]}},
             "To create row output node": {},
-            "rows_created": {"next": {"": ["First router"]}},
+            "local_baserow_rows_created": {"next": {"": ["First router"]}},
         }
     )
 
@@ -153,8 +153,8 @@ def test_restoring_a_trashed_output_node_after_its_edge_is_destroyed_is_disallow
 
     workflow.assert_reference(
         {
-            "0": "rows_created",
-            "rows_created": {"next": {"": ["router"]}},
+            "0": "local_baserow_rows_created",
+            "local_baserow_rows_created": {"next": {"": ["router"]}},
             "router": {"next": {"Edge 1": ["Edge 1 output node"]}},
             "Edge 1 output node": {},
         }
