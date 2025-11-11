@@ -107,11 +107,40 @@ class GenerateAIValuesJobType(JobType):
         )
 
         model = ai_field.table.get_model()
-        req_row_ids = values["row_ids"]
-        rows = RowHandler().get_rows(model, req_row_ids)
-        if len(rows) != len(req_row_ids):
-            found_rows_ids = [row.id for row in rows]
-            raise RowDoesNotExist(sorted(list(set(req_row_ids) - set(found_rows_ids))))
+        only_empty = values.get("only_empty", False)
+
+        # Validate row_ids if provided (for ROWS mode)
+        req_row_ids = values.get("row_ids")
+        if req_row_ids:
+            rows = RowHandler().get_rows(model, req_row_ids)
+            if len(rows) != len(req_row_ids):
+                found_rows_ids = [row.id for row in rows]
+                raise RowDoesNotExist(sorted(list(set(req_row_ids) - set(found_rows_ids))))
+
+            # Calculate total_rows_count for ROWS mode
+            if only_empty:
+                # Count only rows with empty AI field values
+                queryset = model.objects.filter(id__in=req_row_ids)
+                queryset = queryset.filter(**{f"{ai_field.db_column}__isnull": True}) | queryset.filter(**{ai_field.db_column: ""})
+                values["total_rows_count"] = queryset.count()
+            else:
+                values["total_rows_count"] = len(req_row_ids)
+        else:
+            # Calculate total_rows_count for VIEW or TABLE mode
+            view_id = values.get("view_id")
+            if view_id:
+                # VIEW mode
+                view = ViewHandler().get_view_as_user(user, view_id, table_id=ai_field.table.id)
+                queryset = ViewHandler().get_queryset(view, model=model)
+            else:
+                # TABLE mode
+                queryset = model.objects.all()
+
+            # Filter for only empty values if requested
+            if only_empty:
+                queryset = queryset.filter(**{f"{ai_field.db_column}__isnull": True}) | queryset.filter(**{ai_field.db_column: ""})
+
+            values["total_rows_count"] = queryset.count()
 
         generative_ai_model_type = generative_ai_model_type_registry.get(
             ai_field.ai_generative_ai_type
@@ -166,10 +195,11 @@ class GenerateAIValuesJobType(JobType):
             # If the workspace AI settings have been removed before the task starts,
             # or if the export worker doesn't have the right env vars yet, then it can
             # fail. We therefore want to handle the error gracefully.
+            # Note: rows might be a generator, so we can't pass it directly
             rows_ai_values_generation_error.send(
                 self,
                 user=user,
-                rows=rows,
+                rows=[],
                 field=ai_field,
                 table=ai_field.table,
                 error_message=str(exc),
@@ -228,10 +258,11 @@ class GenerateAIValuesJobType(JobType):
                 value = ai_output_type.parse_output(value, ai_field)
             except Exception as exc:
                 # If the prompt fails once, we should not continue with the other rows.
+                # Note: rows might be a generator, so we can't slice it
                 rows_ai_values_generation_error.send(
                     self,
                     user=user,
-                    rows=rows[i:],
+                    rows=[],
                     field=ai_field,
                     table=table,
                     error_message=str(exc),

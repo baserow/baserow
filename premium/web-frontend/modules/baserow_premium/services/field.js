@@ -17,5 +17,24 @@ export default (client) => {
         }
       )
     },
+    regenerateAIFieldValues(fieldId, { viewId, rowIds, onlyEmpty }) {
+      const payload = {
+        type: 'generate_ai_values',
+        field_id: fieldId,
+        only_empty: onlyEmpty || false,
+      }
+
+      // Only include view_id if provided
+      if (viewId) {
+        payload.view_id = viewId
+      }
+
+      // Only include row_ids if provided and not empty
+      if (rowIds && rowIds.length > 0) {
+        payload.row_ids = rowIds
+      }
+
+      return client.post(`/jobs/`, payload)
+    },
   }
 }
