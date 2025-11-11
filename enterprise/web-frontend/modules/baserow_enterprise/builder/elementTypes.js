@@ -54,7 +54,9 @@ export class AuthFormElementType extends ElementType {
     return [new AfterLoginEvent({ app: this.app })]
   }
 
-  getErrorMessage({ workspace, page, element, builder }) {
+  getErrorMessage(element, applicationContext) {
+    const { builder } = applicationContext
+
     if (!element.user_source_id) {
       return this.$t('elementType.errorUserSourceMissing')
     }
@@ -74,7 +76,7 @@ export class AuthFormElementType extends ElementType {
       return this.app.i18n.t('elementType.errorUserSourceHasNoLoginOption')
     }
 
-    return super.getErrorMessage({ workspace, page, element, builder })
+    return super.getErrorMessage(element, applicationContext)
   }
 }
 

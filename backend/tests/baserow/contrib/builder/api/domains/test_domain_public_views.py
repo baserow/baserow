@@ -408,6 +408,7 @@ def test_get_elements_of_public_builder(api_client, data_fixture):
         "place_in_container": None,
         "css_classes": "",
         "visibility": "all",
+        "visibility_condition": {"formula": "", "mode": "simple", "version": "0.1"},
         "styles": {},
         "style_border_top_color": "border",
         "style_border_top_size": 0,

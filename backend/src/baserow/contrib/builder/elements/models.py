@@ -160,6 +160,10 @@ class Element(
         db_index=True,
     )
 
+    visibility_condition = FormulaField(
+        help_text="Change element visibility depending on a formula value"
+    )
+
     styles = models.JSONField(
         default=dict,
         help_text="The theme overrides for this element",

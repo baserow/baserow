@@ -28,7 +28,11 @@
                 :element="element"
                 :is-first-element="index === 0"
                 :is-copying="copyingElementIndex === index"
-                :application-context-additions="contextAdditions"
+                :application-context-additions="{
+                  recordIndexPath: [],
+                  element,
+                  page: currentPage,
+                }"
                 :show-element-id="showElementId"
                 @move="moveElement($event)"
               />
@@ -65,7 +69,11 @@
                 :element="element"
                 :is-first-element="index === 0 && headerElements.length === 0"
                 :is-copying="copyingElementIndex === index"
-                :application-context-additions="contextAdditions"
+                :application-context-additions="{
+                  recordIndexPath: [],
+                  element,
+                  page: currentPage,
+                }"
                 :show-element-id="showElementId"
                 @move="moveElement($event)"
               />
@@ -94,7 +102,11 @@
                   elements.length === 0
                 "
                 :is-copying="copyingElementIndex === index"
-                :application-context-additions="contextAdditions"
+                :application-context-additions="{
+                  recordIndexPath: [],
+                  element,
+                  page: currentPage,
+                }"
                 :show-element-id="showElementId"
                 @move="moveElement($event)"
               />

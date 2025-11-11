@@ -50,6 +50,10 @@ class ElementSerializer(serializers.ModelSerializer):
     def get_type(self, instance):
         return element_type_registry.get_by_model(instance.specific_class).type
 
+    visibility_condition = FormulaSerializerField(
+        help_text=Element._meta.get_field("visibility_condition").help_text,
+    )
+
     style_background_file = UserFileField(
         allow_null=True,
         help_text="The background image file",
@@ -67,6 +71,7 @@ class ElementSerializer(serializers.ModelSerializer):
             "place_in_container",
             "css_classes",
             "visibility",
+            "visibility_condition",
             "styles",
             "style_border_top_color",
             "style_border_top_size",
@@ -132,6 +137,10 @@ class CreateElementSerializer(serializers.ModelSerializer):
         validators=[image_file_validation],
     )
 
+    visibility_condition = FormulaSerializerField(
+        help_text=Element._meta.get_field("visibility_condition").help_text,
+    )
+
     class Meta:
         model = Element
         fields = (
@@ -142,6 +151,7 @@ class CreateElementSerializer(serializers.ModelSerializer):
             "place_in_container",
             "css_classes",
             "visibility",
+            "visibility_condition",
             "styles",
             "style_border_top_color",
             "style_border_top_size",
@@ -181,11 +191,16 @@ class UpdateElementSerializer(serializers.ModelSerializer):
         validators=[image_file_validation],
     )
 
+    visibility_condition = FormulaSerializerField(
+        help_text=Element._meta.get_field("visibility_condition").help_text,
+    )
+
     class Meta:
         model = Element
         fields = (
             "css_classes",
             "visibility",
+            "visibility_condition",
             "styles",
             "style_border_top_color",
             "style_border_top_size",

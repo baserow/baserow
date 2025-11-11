@@ -42,7 +42,6 @@
       :element="element"
       :mode="mode"
       class="element--read-only"
-      :application-context-additions="applicationContextAdditions"
       :show-element-id="showElementId"
       @move="$emit('move', $event)"
     />
@@ -70,12 +69,7 @@ import AddElementModal from '@baserow/modules/builder/components/elements/AddEle
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { mapActions, mapGetters } from 'vuex'
 import { checkIntermediateElements } from '@baserow/modules/core/utils/dom'
-import {
-  VISIBILITY_NOT_LOGGED,
-  VISIBILITY_LOGGED_IN,
-  ROLE_TYPE_ALLOW_EXCEPT,
-  ROLE_TYPE_DISALLOW_EXCEPT,
-} from '@baserow/modules/builder/constants'
+import applicationContextMixin from '@baserow/modules/builder/mixins/applicationContext'
 
 export default {
   name: 'ElementPreview',
@@ -85,6 +79,7 @@ export default {
     InsertElementButton,
     PageElement,
   },
+  mixins: [applicationContextMixin],
   inject: ['workspace', 'builder', 'mode', 'currentPage', 'pageTopData'],
   props: {
     element: {
@@ -95,11 +90,6 @@ export default {
       type: Boolean,
       required: false,
       default: false,
-    },
-    applicationContextAdditions: {
-      type: Object,
-      required: false,
-      default: null,
     },
     showElementId: {
       type: Boolean,
@@ -135,40 +125,10 @@ export default {
       )
     },
     isVisible() {
-      if (
-        !this.elementType.isVisible({
-          element: this.element,
-          currentPage: this.currentPage,
-        })
-      ) {
-        return false
-      }
-
-      const isAuthenticated = this.$store.getters[
-        'userSourceUser/isAuthenticated'
-      ](this.builder)
-      const user = this.loggedUser(this.builder)
-      const roles = this.element.roles
-      const roleType = this.element.role_type
-
-      const visibility = this.element.visibility
-      if (visibility === VISIBILITY_LOGGED_IN) {
-        if (!isAuthenticated) {
-          return false
-        }
-
-        if (roleType === ROLE_TYPE_ALLOW_EXCEPT) {
-          return !roles.includes(user.role)
-        } else if (roleType === ROLE_TYPE_DISALLOW_EXCEPT) {
-          return roles.includes(user.role)
-        } else {
-          return true
-        }
-      } else if (visibility === VISIBILITY_NOT_LOGGED) {
-        return !isAuthenticated
-      } else {
-        return true
-      }
+      return this.elementType.isVisible({
+        element: this.element,
+        applicationContext: this.applicationContext,
+      })
     },
     DIRECTIONS: () => DIRECTIONS,
     directions() {
@@ -249,12 +209,10 @@ export default {
       )
     },
     errorMessage() {
-      return this.elementType.getErrorMessage({
-        workspace: this.workspace,
-        page: this.elementPage,
-        element: this.element,
-        builder: this.builder,
-      })
+      return this.elementType.getErrorMessage(
+        this.element,
+        this.applicationContext
+      )
     },
   },
   watch: {

@@ -35,9 +35,16 @@ export const ContainerElementTypeMixin = (Base) =>
      * A Container element without any child elements is invalid. Return true
      * if there are no children, otherwise return false.
      */
-    getErrorMessage({ workspace, page, element, builder }) {
+    getErrorMessage(element, applicationContext) {
+      const { builder } = applicationContext
+
+      const elementPage = this.app.store.getters['page/getById'](
+        builder,
+        element.page_id
+      )
+
       const children = this.app.store.getters['element/getChildren'](
-        page,
+        elementPage,
         element
       )
 
@@ -46,12 +53,7 @@ export const ContainerElementTypeMixin = (Base) =>
         return this.app.i18n.t('elementType.errorEmptyContainer')
       }
 
-      return super.getErrorMessage({
-        workspace,
-        page,
-        element,
-        builder,
-      })
+      return super.getErrorMessage(element, applicationContext)
     }
   }
 
@@ -368,10 +370,17 @@ export const CollectionElementTypeMixin = (Base) =>
     /**
      * Check data source errors.
      */
-    getErrorMessage({ workspace, page, element, builder }) {
+    getErrorMessage(element, applicationContext) {
+      const { workspace, builder } = applicationContext
+
+      const elementPage = this.app.store.getters['page/getById'](
+        builder,
+        element.page_id
+      )
+
       const dataSourceErrorMessage = this.getDataSourceErrorMessage({
         workspace,
-        page,
+        page: elementPage,
         element,
         builder,
       })
@@ -380,12 +389,7 @@ export const CollectionElementTypeMixin = (Base) =>
         return dataSourceErrorMessage
       }
 
-      return super.getErrorMessage({
-        workspace,
-        page,
-        element,
-        builder,
-      })
+      return super.getErrorMessage(element, applicationContext)
     }
   }
 
@@ -397,10 +401,13 @@ export const MultiPageElementTypeMixin = (Base) =>
       return true
     }
 
-    isVisible({ element, currentPage }) {
-      if (!super.isVisible({ element, currentPage })) {
+    isVisible({ element, applicationContext }) {
+      if (!super.isVisible({ element, applicationContext })) {
         return false
       }
+
+      const { page: currentPage } = applicationContext
+
       switch (element.share_type) {
         case SHARE_TYPES.ALL:
           return true

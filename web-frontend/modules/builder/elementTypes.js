@@ -65,6 +65,13 @@ import {
 } from '@baserow/modules/builder/elementTypeMixins'
 import { isNumeric, isValidEmail } from '@baserow/modules/core/utils/string'
 
+import {
+  VISIBILITY_NOT_LOGGED,
+  VISIBILITY_LOGGED_IN,
+  ROLE_TYPE_ALLOW_EXCEPT,
+  ROLE_TYPE_DISALLOW_EXCEPT,
+} from '@baserow/modules/builder/constants'
+
 import RatingElementForm from '@baserow/modules/builder/components/elements/components/forms/general/RatingElementForm'
 import RatingElement from '@baserow/modules/builder/components/elements/components/RatingElement.vue'
 import RatingInputElement from '@baserow/modules/builder/components/elements/components/RatingInputElement.vue'
@@ -266,10 +273,48 @@ export class ElementType extends Registerable {
   /**
    * Should return whether this element is visible.
    * @param {Object} element the element to check
-   * @param {Object} currentPage the current displayed page
+   * @param {Object} applicationContext the applicationContext
    * @returns
    */
-  isVisible({ element, currentPage }) {
+  isVisible({ element, applicationContext }) {
+    const { builder } = applicationContext
+
+    const user = this.app.store.getters['userSourceUser/getUser'](builder)
+    const isAuthenticated =
+      this.app.store.getters['userSourceUser/isAuthenticated'](builder)
+
+    const { roles, role_type: roleType, visibility } = element
+
+    if (visibility === VISIBILITY_LOGGED_IN) {
+      if (!isAuthenticated) {
+        return false
+      }
+
+      if (roleType === ROLE_TYPE_ALLOW_EXCEPT && roles.includes(user.role)) {
+        return false
+      }
+
+      if (
+        roleType === ROLE_TYPE_DISALLOW_EXCEPT &&
+        !roles.includes(user.role)
+      ) {
+        return false
+      }
+    }
+
+    if (visibility === VISIBILITY_NOT_LOGGED && isAuthenticated) {
+      return false
+    }
+
+    if (
+      element.visibility_condition?.formula &&
+      !ensureBoolean(
+        this.resolveFormula(element.visibility_condition, applicationContext)
+      )
+    ) {
+      return false
+    }
+
     return true
   }
 
@@ -278,21 +323,22 @@ export class ElementType extends Registerable {
    * them and ensure that they are configured properly. If they are in error,
    * this will propagate into an 'element in error' state.
    */
-  workflowActionsInError({ page, element, builder }) {
+  workflowActionsInError(element, applicationContext) {
+    const { builder } = applicationContext
+    const elementPage = this.app.store.getters['page/getById'](
+      builder,
+      element.page_id
+    )
     const workflowActions = this.app.store.getters[
       'builderWorkflowAction/getElementWorkflowActions'
-    ](page, element.id)
+    ](elementPage, element.id)
 
     return workflowActions.some((workflowAction) => {
       const workflowActionType = this.app.$registry.get(
         'workflowAction',
         workflowAction.type
       )
-      return workflowActionType.isInError(workflowAction, {
-        page,
-        element,
-        builder,
-      })
+      return workflowActionType.isInError(workflowAction, applicationContext)
     })
   }
 
@@ -301,14 +347,16 @@ export class ElementType extends Registerable {
    * @param {object} param An object containing the workspace, page, element, and builder
    * @returns A string that represent the current error.
    */
-  getErrorMessage({ workspace, builder, page, element }) {
+  getErrorMessage(element, applicationContext) {
+    const { workspace } = applicationContext
+
     if (this.isDeactivatedReason({ workspace }) !== null) {
       return this.isDeactivatedReason({ workspace })
     }
 
     if (
       this.getEvents(element).length > 0 &&
-      this.workflowActionsInError({ page, element, builder })
+      this.workflowActionsInError(element, applicationContext)
     ) {
       return this.app.i18n.t('elementType.errorWorkflowActionInError')
     }
@@ -321,8 +369,8 @@ export class ElementType extends Registerable {
    * @param {object} param An object containing the page, element, and builder
    * @returns true if the element is in error
    */
-  isInError(params) {
-    return Boolean(this.getErrorMessage(params))
+  isInError(...params) {
+    return Boolean(this.getErrorMessage(...params))
   }
 
   /**
@@ -972,21 +1020,23 @@ export class FormContainerElementType extends ContainerElementTypeMixin(
     return [new SubmitEvent({ app: this.app })]
   }
 
-  getErrorMessage({ workspace, page, element, builder }) {
+  getErrorMessage(element, applicationContext) {
+    const { builder } = applicationContext
+
+    const elementPage = this.app.store.getters['page/getById'](
+      builder,
+      element.page_id
+    )
+
     const workflowActions = this.app.store.getters[
       'builderWorkflowAction/getElementWorkflowActions'
-    ](page, element.id)
+    ](elementPage, element.id)
 
     if (!workflowActions.length) {
       return this.app.i18n.t('elementType.errorNoWorkflowAction')
     }
 
-    return super.getErrorMessage({
-      workspace,
-      page,
-      element,
-      builder,
-    })
+    return super.getErrorMessage(element, applicationContext)
   }
 }
 
@@ -1183,7 +1233,9 @@ export class TableElementType extends CollectionElementTypeMixin(ElementType) {
    * The table is in error if the configuration is invalid (see collection element
    * mixin) or if one of the fields are in error.
    */
-  getErrorMessage({ workspace, page, element, builder }) {
+  getErrorMessage(element, applicationContext) {
+    const { builder } = applicationContext
+
     const hasCollectionFieldInError = element.fields.some((collectionField) => {
       const collectionFieldType = this.app.$registry.get(
         'collectionField',
@@ -1199,7 +1251,7 @@ export class TableElementType extends CollectionElementTypeMixin(ElementType) {
       return this.app.i18n.t('elementType.errorCollectionFieldInError')
     }
 
-    return super.getErrorMessage({ workspace, page, element, builder })
+    return super.getErrorMessage(element, applicationContext)
   }
 }
 
@@ -1434,16 +1486,11 @@ export class HeadingElementType extends ElementType {
    * A value is mandatory for the Heading element. Return true if the value
    * is empty to indicate an error, otherwise return false.
    */
-  getErrorMessage({ workspace, page, element, builder }) {
+  getErrorMessage(element, applicationContext) {
     if (!element.value.formula) {
       return this.app.i18n.t('elementType.errorValueMissing')
     }
-    return super.getErrorMessage({
-      workspace,
-      page,
-      element,
-      builder,
-    })
+    return super.getErrorMessage(element, applicationContext)
   }
 
   getDisplayName(element, applicationContext) {
@@ -1487,16 +1534,11 @@ export class TextElementType extends ElementType {
    * A value is mandatory for the Text element. Return true if the value
    * is empty to indicate an error, otherwise return false.
    */
-  getErrorMessage({ workspace, page, element, builder }) {
+  getErrorMessage(element, applicationContext) {
     if (!element.value.formula) {
       return this.app.i18n.t('elementType.errorValueMissing')
     }
-    return super.getErrorMessage({
-      workspace,
-      page,
-      element,
-      builder,
-    })
+    return super.getErrorMessage(element, applicationContext)
   }
 
   getDisplayName(element, applicationContext) {
@@ -1543,7 +1585,9 @@ export class LinkElementType extends ElementType {
    * When the Navigate To is a Custom URL, a Destination URL value must be
    * provided.
    */
-  getErrorMessage({ workspace, page, element, builder }) {
+  getErrorMessage(element, applicationContext) {
+    const { builder } = applicationContext
+
     // A Link without any text isn't usable
     if (!element.value.formula) {
       return this.app.i18n.t('elementType.errorValueMissing')
@@ -1567,12 +1611,7 @@ export class LinkElementType extends ElementType {
     ) {
       return this.app.i18n.t('elementType.errorNavigationUrlMissing')
     }
-    return super.getErrorMessage({
-      workspace,
-      page,
-      element,
-      builder,
-    })
+    return super.getErrorMessage(element, applicationContext)
   }
 
   getDisplayName(element, applicationContext) {
@@ -1641,7 +1680,7 @@ export class ImageElementType extends ElementType {
    * to indicate an error when an image source doesn't exist, otherwise
    * return false.
    */
-  getErrorMessage({ workspace, page, element, builder }) {
+  getErrorMessage(element, applicationContext) {
     if (
       element.image_source_type === IMAGE_SOURCE_TYPES.UPLOAD &&
       !element.image_file?.url
@@ -1653,12 +1692,7 @@ export class ImageElementType extends ElementType {
     ) {
       return this.app.i18n.t('elementType.errorImageUrlMissing')
     }
-    return super.getErrorMessage({
-      workspace,
-      page,
-      element,
-      builder,
-    })
+    return super.getErrorMessage(element, applicationContext)
   }
 
   getDisplayName(element, applicationContext) {
@@ -1706,26 +1740,26 @@ export class ButtonElementType extends ElementType {
    * A Button element must have a Workflow Action to be considered valid. Return
    * true if there are no Workflow Actions, otherwise return false.
    */
-  getErrorMessage({ workspace, page, element, builder }) {
+  getErrorMessage(element, applicationContext) {
+    const { builder } = applicationContext
     // If Button without any label should be considered invalid
     if (!element.value.formula) {
       return this.app.i18n.t('elementType.errorValueMissing')
     }
+    const elementPage = this.app.store.getters['page/getById'](
+      builder,
+      element.page_id
+    )
 
     const workflowActions = this.app.store.getters[
       'builderWorkflowAction/getElementWorkflowActions'
-    ](page, element.id)
+    ](elementPage, element.id)
 
     if (!workflowActions.length) {
       return this.app.i18n.t('elementType.errorNoWorkflowAction')
     }
 
-    return super.getErrorMessage({
-      workspace,
-      page,
-      element,
-      builder,
-    })
+    return super.getErrorMessage(element, applicationContext)
   }
 
   getDisplayName(element, applicationContext) {
@@ -1885,7 +1919,7 @@ export class ChoiceElementType extends FormElementType {
     return !(element.required && !validOption)
   }
 
-  getErrorMessage({ workspace, page, element, builder }) {
+  getErrorMessage(element, applicationContext) {
     if (element.option_type === CHOICE_OPTION_TYPES.MANUAL) {
       if (element.options.length === 0) {
         return this.app.i18n.t('elementType.errorOptionsMissing')
@@ -1895,12 +1929,7 @@ export class ChoiceElementType extends FormElementType {
         return this.app.i18n.t('elementType.errorOptionsMissing')
       }
     }
-    return super.getErrorMessage({
-      workspace,
-      page,
-      element,
-      builder,
-    })
+    return super.getErrorMessage(element, applicationContext)
   }
 
   getDataSchema(element) {
@@ -2001,7 +2030,7 @@ export class IFrameElementType extends ElementType {
    * source_type. If the value doesn't exist, return true to indicate an error,
    * otherwise return false.
    */
-  getErrorMessage({ workspace, page, element, builder }) {
+  getErrorMessage(element, applicationContext) {
     if (
       element.source_type === IFRAME_SOURCE_TYPES.URL &&
       !element.url.formula
@@ -2013,12 +2042,7 @@ export class IFrameElementType extends ElementType {
     ) {
       return this.app.i18n.t('elementType.errorIframeContentMissing')
     }
-    return super.getErrorMessage({
-      workspace,
-      page,
-      element,
-      builder,
-    })
+    return super.getErrorMessage(element, applicationContext)
   }
 
   getDisplayName(element, applicationContext) {
@@ -2115,16 +2139,11 @@ export class RecordSelectorElementType extends CollectionElementTypeMixin(
    * @param {Object} element the element to check the error
    * @returns
    */
-  getErrorMessage({ workspace, page, element, builder }) {
+  getErrorMessage(element, applicationContext) {
     if (!element.data_source_id) {
       return this.$t('elementType.errorDataSourceMissing')
     }
-    return super.getErrorMessage({
-      workspace,
-      page,
-      element,
-      builder,
-    })
+    return super.getErrorMessage(element, applicationContext)
   }
 
   getDataSchema(element) {
@@ -2529,32 +2548,38 @@ export class MenuElementType extends ElementType {
       .flat()
   }
 
-  getErrorMessage({ workspace, page, element, builder }) {
+  getErrorMessage(element, applicationContext) {
+    const { builder } = applicationContext
     // There must be at least one menu item
     if (!element.menu_items?.length) {
       return this.app.i18n.t('elementType.errorNoMenuItem')
     }
 
+    const elementPage = this.app.store.getters['page/getById'](
+      builder,
+      element.page_id
+    )
+
     if (
       element.menu_items.some((menuItem) => {
-        return this.getItemMenuError({ builder, page, element, menuItem })
+        return this.getItemMenuError({
+          builder,
+          elementPage,
+          element,
+          menuItem,
+        })
       })
     ) {
       return this.app.i18n.t('elementType.errorMenuItemInError')
     }
 
-    return super.getErrorMessage({
-      workspace,
-      page,
-      element,
-      builder,
-    })
+    return super.getErrorMessage(element, applicationContext)
   }
 
-  getItemMenuError({ builder, page, element, menuItem }) {
+  getItemMenuError({ builder, elementPage, element, menuItem }) {
     const workflowActions = this.app.store.getters[
       'builderWorkflowAction/getElementWorkflowActions'
-    ](page, element.id)
+    ](elementPage, element.id)
 
     if (menuItem.children?.length) {
       if (

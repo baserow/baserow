@@ -1,12 +1,11 @@
-import RuntimeFormulaContext from '@baserow/modules/core/runtimeFormulaContext'
-import { resolveFormula } from '@baserow/modules/core/formula'
 import { resolveColor } from '@baserow/modules/core/utils/colors'
 import applicationContextMixin from '@baserow/modules/builder/mixins/applicationContext'
+import resolveFormulaMixin from '@baserow/modules/builder/mixins/resolveFormula'
 import { ThemeConfigBlockType } from '@baserow/modules/builder/themeConfigBlockTypes'
 
 export default {
   inject: ['workspace', 'builder', 'currentPage', 'elementPage', 'mode'],
-  mixins: [applicationContextMixin],
+  mixins: [applicationContextMixin, resolveFormulaMixin],
   props: {
     element: {
       type: Object,
@@ -36,36 +35,9 @@ export default {
       return this.mode === 'editing'
     },
     elementIsInError() {
-      return this.elementType.isInError({
-        workspace: this.workspace,
-        page: this.elementPage,
-        element: this.element,
-        builder: this.builder,
-      })
+      return this.elementType.isInError(this.element, this.applicationContext)
     },
-    runtimeFormulaContext() {
-      /**
-       * This proxy allow the RuntimeFormulaContextClass to act like a regular object.
-       */
-      return new Proxy(
-        new RuntimeFormulaContext(
-          this.$registry.getAll('builderDataProvider'),
-          this.applicationContext
-        ),
-        {
-          get(target, prop) {
-            return target.get(prop)
-          },
-        }
-      )
-    },
-    formulaFunctions() {
-      return {
-        get: (name) => {
-          return this.$registry.get('runtimeFormulaFunction', name)
-        },
-      }
-    },
+
     themeConfigBlocks() {
       return this.$registry.getOrderedList('themeConfigBlock')
     },
@@ -77,17 +49,6 @@ export default {
     },
   },
   methods: {
-    resolveFormula(formula, formulaContext = null, defaultIfError = '') {
-      try {
-        return resolveFormula(
-          formula,
-          this.formulaFunctions,
-          formulaContext || this.runtimeFormulaContext
-        )
-      } catch (e) {
-        return defaultIfError
-      }
-    },
     async fireEvent(event) {
       if (this.mode !== 'editing') {
         if (this.workflowActionsInProgress) {

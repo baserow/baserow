@@ -6,6 +6,8 @@
       :element="element"
       :mode="mode"
       :application-context-additions="{
+        element,
+        page: currentPage,
         recordIndexPath: [],
       }"
     />
@@ -15,6 +17,8 @@
       :element="element"
       :mode="mode"
       :application-context-additions="{
+        element,
+        page: currentPage,
         recordIndexPath: [],
       }"
     />
@@ -24,6 +28,8 @@
       :element="element"
       :mode="mode"
       :application-context-additions="{
+        element,
+        page: currentPage,
         recordIndexPath: [],
       }"
     />
@@ -39,7 +45,7 @@ import { PAGE_PLACES } from '@baserow/modules/builder/enums'
 export default {
   components: { PageElement },
   mixins: [dimensionMixin],
-  inject: ['builder', 'mode'],
+  inject: ['builder', 'mode', 'currentPage'],
   props: {
     path: {
       type: String,

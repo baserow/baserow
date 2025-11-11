@@ -8,7 +8,14 @@ import {
   RatingElementType,
 } from '@baserow/modules/builder/elementTypes'
 import { TestApp } from '@baserow/test/helpers/testApp'
-
+import {
+  VISIBILITY_NOT_LOGGED,
+  VISIBILITY_LOGGED_IN,
+  ROLE_TYPE_ALLOW_EXCEPT,
+  ROLE_TYPE_DISALLOW_EXCEPT,
+  VISIBILITY_ALL,
+  ROLE_TYPE_ALLOW_ALL,
+} from '@baserow/modules/builder/constants'
 import {
   IFRAME_SOURCE_TYPES,
   IMAGE_SOURCE_TYPES,
@@ -334,7 +341,162 @@ describe('elementTypes tests', () => {
       )
     })
   })
+  describe('elementType isVisible', () => {
+    test('HeadingElementType isVisible', () => {
+      const elementType = testApp.getRegistry().get('element', 'heading')
 
+      const element = {
+        value: { formula: "'Heading'", mode: 'simple' },
+        roles: [],
+        role_type: ROLE_TYPE_ALLOW_ALL,
+        visibility: VISIBILITY_ALL,
+        visibility_condition: { formula: 'true', mode: 'simple' },
+      }
+
+      const applicationContextNotLogged = {
+        builder: { userSourceUser: { authenticated: false } },
+      }
+      const applicationContextLoggedAdmin = {
+        builder: {
+          userSourceUser: {
+            authenticated: true,
+            user: {
+              email: 'fake@email.com',
+              id: 42,
+              username: 'Fake',
+              role: 'admin',
+              user_source_uid: '',
+            },
+          },
+        },
+      }
+      const applicationContextLoggedUser = {
+        builder: {
+          userSourceUser: {
+            authenticated: true,
+            user: {
+              email: 'fake@email.com',
+              id: 42,
+              username: 'Fake',
+              role: 'user',
+              user_source_uid: '',
+            },
+          },
+        },
+      }
+
+      // Nothing should hide it
+      expect(
+        elementType.isVisible({
+          element,
+          applicationContext: applicationContextNotLogged,
+        })
+      ).toBeTruthy()
+
+      let elementTest = {
+        ...element,
+        visibility_condition: {
+          ...element.visibility_condition,
+          formula: 'false',
+        },
+      }
+      // The visibility formula resolves to false
+      expect(
+        elementType.isVisible({
+          element: elementTest,
+          applicationContext: applicationContextNotLogged,
+        })
+      ).toBeFalsy()
+
+      elementTest = {
+        ...element,
+        visibility: VISIBILITY_NOT_LOGGED,
+      }
+      // Not logged only
+      expect(
+        elementType.isVisible({
+          element: elementTest,
+          applicationContext: applicationContextNotLogged,
+        })
+      ).toBeTruthy()
+      expect(
+        elementType.isVisible({
+          element: elementTest,
+          applicationContext: applicationContextLoggedUser,
+        })
+      ).toBeFalsy()
+
+      elementTest = {
+        ...element,
+        visibility: VISIBILITY_LOGGED_IN,
+      }
+      // Logged only
+      expect(
+        elementType.isVisible({
+          element: elementTest,
+          applicationContext: applicationContextNotLogged,
+        })
+      ).toBeFalsy()
+      expect(
+        elementType.isVisible({
+          element: elementTest,
+          applicationContext: applicationContextLoggedUser,
+        })
+      ).toBeTruthy()
+
+      elementTest = {
+        ...element,
+        visibility: VISIBILITY_LOGGED_IN,
+        role_type: ROLE_TYPE_DISALLOW_EXCEPT,
+        roles: ['admin'],
+      }
+      // Logged admin only
+      expect(
+        elementType.isVisible({
+          element: elementTest,
+          applicationContext: applicationContextNotLogged,
+        })
+      ).toBeFalsy()
+      expect(
+        elementType.isVisible({
+          element: elementTest,
+          applicationContext: applicationContextLoggedUser,
+        })
+      ).toBeFalsy()
+      expect(
+        elementType.isVisible({
+          element: elementTest,
+          applicationContext: applicationContextLoggedAdmin,
+        })
+      ).toBeTruthy()
+
+      elementTest = {
+        ...element,
+        visibility: VISIBILITY_LOGGED_IN,
+        role_type: ROLE_TYPE_ALLOW_EXCEPT,
+        roles: ['admin'],
+      }
+      // Logged except admin
+      expect(
+        elementType.isVisible({
+          element: elementTest,
+          applicationContext: applicationContextNotLogged,
+        })
+      ).toBeFalsy()
+      expect(
+        elementType.isVisible({
+          element: elementTest,
+          applicationContext: applicationContextLoggedUser,
+        })
+      ).toBeTruthy()
+      expect(
+        elementType.isVisible({
+          element: elementTest,
+          applicationContext: applicationContextLoggedAdmin,
+        })
+      ).toBeFalsy()
+    })
+  })
   describe('elementType form validation tests', () => {
     test('RatingInputElementType | required | no value', () => {
       const elementType = new RatingInputElementType()
@@ -738,15 +900,21 @@ describe('elementTypes tests', () => {
 
       // Heading with missing value is invalid
       expect(
-        elementType.isInError({ page: {}, element: { value: { formula: '' } } })
+        elementType.isInError(
+          { value: { formula: '' } },
+          { page: {}, element: { value: { formula: '' } } }
+        )
       ).toBe(true)
 
       // Heading with value is valid
       expect(
-        elementType.isInError({
-          page: {},
-          element: { value: { formula: "'Foo Heading'" } },
-        })
+        elementType.isInError(
+          { value: { formula: "'Foo Heading'" } },
+          {
+            page: {},
+            element: { value: { formula: "'Foo Heading'" } },
+          }
+        )
       ).toBe(false)
     })
   })
@@ -757,15 +925,21 @@ describe('elementTypes tests', () => {
 
       // Text with missing value is invalid
       expect(
-        elementType.isInError({ page: {}, element: { value: { formula: '' } } })
+        elementType.isInError(
+          { value: { formula: '' } },
+          { page: {}, element: { value: { formula: '' } } }
+        )
       ).toBe(true)
 
       // Text with value is valid
       expect(
-        elementType.isInError({
-          page: {},
-          element: { value: { formula: "'Foo Text'" } },
-        })
+        elementType.isInError(
+          { value: { formula: "'Foo Text'" } },
+          {
+            page: {},
+            element: { value: { formula: "'Foo Text'" } },
+          }
+        )
       ).toBe(false)
     })
   })
@@ -776,7 +950,10 @@ describe('elementTypes tests', () => {
 
       // Link with missing text is invalid
       expect(
-        elementType.isInError({ element: { value: { formula: '' } } })
+        elementType.isInError(
+          { value: { formula: '' } },
+          { element: { value: { formula: '' } } }
+        )
       ).toBe(true)
 
       // When navigation_type is 'page' the navigate_to_page_id must be set
@@ -785,13 +962,15 @@ describe('elementTypes tests', () => {
         navigate_to_page_id: '',
         value: { formula: "'Foo Link'" },
       }
-      expect(elementType.isInError({ page: {}, element })).toBe(true)
+      expect(elementType.isInError(element, { page: {}, element })).toBe(true)
 
       // Otherwise it is valid
       const page = { id: 10, shared: false, order: 1 }
       const builder = { pages: [page] }
       element.navigate_to_page_id = 10
-      expect(elementType.isInError({ page, builder, element })).toBe(false)
+      expect(elementType.isInError(element, { page, builder, element })).toBe(
+        false
+      )
 
       // When navigation_type is 'custom' the navigate_to_url must be set
       element = {
@@ -799,12 +978,12 @@ describe('elementTypes tests', () => {
         navigate_to_url: { formula: '' },
         value: { formula: "'Test'" },
       }
-      expect(elementType.isInError({ page, element })).toBe(true)
+      expect(elementType.isInError(element, { page, element })).toBe(true)
 
       // Otherwise it is valid
       element.navigate_to_url = { formula: 'http://localhost' }
       element.value = { formula: "'Foo Link'" }
-      expect(elementType.isInError({ page, element })).toBe(false)
+      expect(elementType.isInError(element, { page, element })).toBe(false)
     })
   })
 
@@ -814,20 +993,20 @@ describe('elementTypes tests', () => {
 
       // Image with image_source_type of 'upload' must have an image_file url
       const element = { image_source_type: IMAGE_SOURCE_TYPES.UPLOAD }
-      expect(elementType.isInError({ element })).toBe(true)
+      expect(elementType.isInError(element, { element })).toBe(true)
 
       // Otherwise it is valid
       element.image_file = { url: 'http://localhost' }
-      expect(elementType.isInError({ element })).toBe(false)
+      expect(elementType.isInError(element, { element })).toBe(false)
 
       // Image with image_source_type of 'url' must have an image_url
       delete element.image_file
       element.image_source_type = IMAGE_SOURCE_TYPES.URL
-      expect(elementType.isInError({ element })).toBe(true)
+      expect(elementType.isInError(element, { element })).toBe(true)
 
       // Otherwise it is valid
       element.image_url = { formula: "'http://localhost'" }
-      expect(elementType.isInError({ element })).toBe(false)
+      expect(elementType.isInError(element, { element })).toBe(false)
     })
   })
 
@@ -853,7 +1032,9 @@ describe('elementTypes tests', () => {
       const elementType = testApp.getRegistry().get('element', 'button')
 
       // Button with value and invalid workflowAction is invalid
-      expect(elementType.isInError({ page, element, builder })).toBe(true)
+      expect(elementType.isInError(element, { page, element, builder })).toBe(
+        true
+      )
     })
     test('Returns true if Button Element has errors, false otherwise', () => {
       const page = {
@@ -867,15 +1048,21 @@ describe('elementTypes tests', () => {
       const elementType = testApp.getRegistry().get('element', 'button')
 
       // Button with missing value is invalid
-      expect(elementType.isInError({ page, element, builder })).toBe(true)
+      expect(elementType.isInError(element, { page, element, builder })).toBe(
+        true
+      )
 
       // Button with value but missing workflowActions is invalid
       element.value = { formula: "'click me'" }
-      expect(elementType.isInError({ page, element, builder })).toBe(true)
+      expect(elementType.isInError(element, { page, element, builder })).toBe(
+        true
+      )
 
       // Button with value and workflowAction is valid
       page.workflowActions = [{ element_id: 50, type: 'open_page' }]
-      expect(elementType.isInError({ page, element, builder })).toBe(false)
+      expect(elementType.isInError(element, { page, element, builder })).toBe(
+        false
+      )
     })
   })
 
@@ -889,23 +1076,23 @@ describe('elementTypes tests', () => {
         url: { formula: '' },
         embed: { formula: '' },
       }
-      expect(elementType.isInError({ element })).toBe(true)
+      expect(elementType.isInError(element, { element })).toBe(true)
 
       // Otherwise it is valid
       element.url = { formula: "'http://localhost'" }
-      expect(elementType.isInError({ element })).toBe(false)
+      expect(elementType.isInError(element, { element })).toBe(false)
 
       // IFrame with source_type of 'embed' and missing embed is invalid
       element.source_type = IFRAME_SOURCE_TYPES.EMBED
-      expect(elementType.isInError({ element })).toBe(true)
+      expect(elementType.isInError(element, { element })).toBe(true)
 
       // Otherwise it is valid
       element.embed = { formula: "'http://localhost'" }
-      expect(elementType.isInError({ element })).toBe(false)
+      expect(elementType.isInError(element, { element })).toBe(false)
 
       // Default is to return no errors
       element.source_type = 'foo'
-      expect(elementType.isInError({ element })).toBe(false)
+      expect(elementType.isInError(element, { element })).toBe(false)
     })
   })
 
@@ -939,9 +1126,11 @@ describe('elementTypes tests', () => {
       const elementType = testApp.getRegistry().get('element', 'form_container')
 
       // Form container with value and workflowAction is valid
-      expect(elementType.isInError({ page, element, builder })).toBe(true)
+      expect(elementType.isInError(element, { page, element, builder })).toBe(
+        true
+      )
     })
-    test('Returns true if Form Container Element has errors, false otherwise', () => {
+    test.only('Returns true if Form Container Element has errors, false otherwise', () => {
       const page = {
         id: 1,
         shared: false,
@@ -963,11 +1152,15 @@ describe('elementTypes tests', () => {
       const elementType = testApp.getRegistry().get('element', 'form_container')
 
       // Invalid if we have no workflow actions
-      expect(elementType.isInError({ page, element })).toBe(true)
+      expect(elementType.isInError(element, { page, element, builder })).toBe(
+        true
+      )
 
       // Invalid if we have no children
       page.workflowActions = [{ element_id: 50, type: 'open_page' }]
-      expect(elementType.isInError({ page, element, builder })).toBe(true)
+      expect(elementType.isInError(element, { page, element, builder })).toBe(
+        true
+      )
 
       // Valid as we have all required fields
       const childElement = {
@@ -978,7 +1171,9 @@ describe('elementTypes tests', () => {
       }
       page.elementMap = { 50: element, 51: childElement }
       page.orderedElements = [element, childElement]
-      expect(elementType.isInError({ page, element, builder })).toBe(false)
+      expect(elementType.isInError(element, { page, element, builder })).toBe(
+        false
+      )
     })
   })
 
@@ -1003,7 +1198,9 @@ describe('elementTypes tests', () => {
       }
 
       // Menu element with zero Menu items is invalid.
-      expect(elementType.isInError({ page: {}, element, builder })).toBe(true)
+      expect(
+        elementType.isInError(element, { page: {}, element, builder })
+      ).toBe(true)
 
       const menuItem = {
         type: 'button',
@@ -1012,40 +1209,52 @@ describe('elementTypes tests', () => {
       element.menu_items = [menuItem]
 
       // Button Menu item without workflow actions is invalid.
-      expect(elementType.isInError({ page, element, builder })).toBe(true)
+      expect(elementType.isInError(element, { page, element, builder })).toBe(
+        true
+      )
 
       page.workflowActions = [{ element_id: 50, type: 'open_page' }]
       element.menu_items[0].name = ''
 
       // Button Menu item with empty name is invalid.
-      expect(elementType.isInError({ page, element, builder })).toBe(true)
+      expect(elementType.isInError(element, { page, element, builder })).toBe(
+        true
+      )
 
       element.menu_items[0].type = 'link'
       element.menu_items[0].name = ''
 
       // Link Menu item with empty name is invalid.
-      expect(elementType.isInError({ page, element, builder })).toBe(true)
+      expect(elementType.isInError(element, { page, element, builder })).toBe(
+        true
+      )
 
       element.menu_items[0].name = 'sub link'
       element.menu_items[0].navigation_type = 'page'
       element.menu_items[0].navigate_to_page_id = ''
 
       // Link Menu item - sublink with Page navigation but no page ID is invalid.
-      expect(elementType.isInError({ page, element, builder })).toBe(true)
+      expect(elementType.isInError(element, { page, element, builder })).toBe(
+        true
+      )
 
       element.menu_items[0].name = 'sub link'
       element.menu_items[0].navigation_type = 'custom'
       element.menu_items[0].navigate_to_url = { formula: '' }
 
       // Link Menu item - sublink with custom navigation but no URL is invalid.
-      expect(elementType.isInError({ page, element, builder })).toBe(true)
+      expect(elementType.isInError(element, { page, element, builder })).toBe(
+        true
+      )
 
       // Valid Button Menu item
       element.menu_items[0].type = 'button'
       element.menu_items[0].name = 'foo button'
       page.workflowActions = [{ element_id: 50, type: 'open_page' }]
 
-      expect(elementType.isInError({ page, element, builder })).toBe(false)
+      expect(elementType.isInError(element, { page, element, builder })).toBe(
+        false
+      )
 
       // Valid Link Menu item - page
       element.menu_items[0].type = 'link'
@@ -1053,7 +1262,9 @@ describe('elementTypes tests', () => {
       element.menu_items[0].navigation_type = 'page'
       element.menu_items[0].navigate_to_page_id = 10
 
-      expect(elementType.isInError({ page, element, builder })).toBe(false)
+      expect(elementType.isInError(element, { page, element, builder })).toBe(
+        false
+      )
 
       // Valid Link Menu item - custom
       element.menu_items[0].type = 'link'
@@ -1063,7 +1274,9 @@ describe('elementTypes tests', () => {
         formula: "'https://www.baserow.io'",
       }
 
-      expect(elementType.isInError({ page, element, builder })).toBe(false)
+      expect(elementType.isInError(element, { page, element, builder })).toBe(
+        false
+      )
     })
   })
 

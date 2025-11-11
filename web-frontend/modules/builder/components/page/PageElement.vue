@@ -14,10 +14,6 @@
         :is="component"
         :key="element._.uid"
         :element="element"
-        :application-context-additions="{
-          element,
-          page: elementPage,
-        }"
         class="element"
         :class="elementClasses"
         @move="$emit('move', $event)"
@@ -37,12 +33,6 @@ import {
   BACKGROUND_MODES,
 } from '@baserow/modules/builder/enums'
 import applicationContextMixin from '@baserow/modules/builder/mixins/applicationContext'
-import {
-  VISIBILITY_NOT_LOGGED,
-  VISIBILITY_LOGGED_IN,
-  ROLE_TYPE_ALLOW_EXCEPT,
-  ROLE_TYPE_DISALLOW_EXCEPT,
-} from '@baserow/modules/builder/constants'
 
 import { mapGetters } from 'vuex'
 
@@ -108,52 +98,19 @@ export default {
       return this.element.css_classes.replaceAll('"', '')
     },
     isVisible() {
-      const elementType = this.$registry.get('element', this.element.type)
-      const isInError = elementType.isInError({
-        workspace: this.workspace,
-        page: this.elementPage,
-        element: this.element,
-        builder: this.builder,
-      })
+      const isInError = this.elementType.isInError(
+        this.element,
+        this.applicationContext
+      )
 
       if (this.mode !== 'editing' && isInError) {
         return false
       }
 
-      if (
-        !this.elementType.isVisible({
-          element: this.element,
-          currentPage: this.currentPage,
-        })
-      ) {
-        return false
-      }
-
-      const isAuthenticated = this.$store.getters[
-        'userSourceUser/isAuthenticated'
-      ](this.builder)
-      const user = this.loggedUser(this.builder)
-      const roles = this.element.roles
-      const roleType = this.element.role_type
-
-      const visibility = this.element.visibility
-      if (visibility === VISIBILITY_LOGGED_IN) {
-        if (!isAuthenticated) {
-          return false
-        }
-
-        if (roleType === ROLE_TYPE_ALLOW_EXCEPT) {
-          return !roles.includes(user.role)
-        } else if (roleType === ROLE_TYPE_DISALLOW_EXCEPT) {
-          return roles.includes(user.role)
-        } else {
-          return true
-        }
-      } else if (visibility === VISIBILITY_NOT_LOGGED) {
-        return !isAuthenticated
-      } else {
-        return true
-      }
+      return this.elementType.isVisible({
+        element: this.element,
+        applicationContext: this.applicationContext,
+      })
     },
     wrapperClasses() {
       if (this.element?.parent_element_id) {

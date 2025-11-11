@@ -26,6 +26,7 @@ from baserow.contrib.builder.models import Builder
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.pages.models import Page
 from baserow.core.app_auth_providers.registries import app_auth_provider_type_registry
+from baserow.core.formula.serializers import FormulaSerializerField
 from baserow.core.services.registries import service_type_registry
 from baserow.core.user_sources.models import UserSource
 from baserow.core.user_sources.registries import user_source_type_registry
@@ -100,6 +101,10 @@ class PublicElementSerializer(serializers.ModelSerializer):
     def get_type(self, instance):
         return element_type_registry.get_by_model(instance.specific_class).type
 
+    visibility_condition = FormulaSerializerField(
+        help_text=Element._meta.get_field("visibility_condition").help_text,
+    )
+
     style_background_file = UserFileField(
         allow_null=True,
         help_text="The background image file",
@@ -118,6 +123,7 @@ class PublicElementSerializer(serializers.ModelSerializer):
             "place_in_container",
             "css_classes",
             "visibility",
+            "visibility_condition",
             "styles",
             "style_border_top_color",
             "style_border_top_size",

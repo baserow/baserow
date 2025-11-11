@@ -143,25 +143,26 @@ export class EventsPageSidePanelType extends pageSidePanelType {
    * @returns {string}
    */
   getErrorMessage(applicationContext) {
-    const { page, element, builder } = applicationContext
+    const { element, builder } = applicationContext
 
     // If we don't have an element, then this element type
     // doesn't support events, so it can't be in-error.
     if (element) {
+      const elementPage = this.app.store.getters['page/getById'](
+        builder,
+        element.page_id
+      )
+
       const workflowActions = this.app.store.getters[
         'builderWorkflowAction/getElementWorkflowActions'
-      ](page, element.id)
+      ](elementPage, element.id)
 
       const hasActionInError = workflowActions.some((workflowAction) => {
         const workflowActionType = this.app.$registry.get(
           'workflowAction',
           workflowAction.type
         )
-        return workflowActionType.isInError(workflowAction, {
-          page,
-          element,
-          builder,
-        })
+        return workflowActionType.isInError(workflowAction, applicationContext)
       })
 
       if (hasActionInError) {

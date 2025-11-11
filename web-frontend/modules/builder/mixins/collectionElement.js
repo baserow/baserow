@@ -58,7 +58,6 @@ export default {
       )
       return Array.isArray(elementContent) ? elementContent : []
     },
-
     hasMorePage() {
       return this.getHasMorePage(this.element)
     },
@@ -82,12 +81,7 @@ export default {
       }
     },
     elementIsInError() {
-      return this.elementType.isInError({
-        workspace: this.workspace,
-        page: this.elementPage,
-        element: this.element,
-        builder: this.builder,
-      })
+      return this.elementType.isInError(this.element, this.applicationContext)
     },
   },
   watch: {
