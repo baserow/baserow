@@ -12,10 +12,11 @@ export class FunctionCollection {
 }
 
 export default class JavascriptExecutor extends BaserowFormulaVisitor {
-  constructor(functions, context = {}) {
+  constructor(functions, context = {}, validateArgsType = true) {
     super()
     this.functions = functions
     this.context = context
+    this.validateArgsType = validateArgsType
   }
 
   visitRoot(ctx) {
@@ -65,7 +66,7 @@ export default class JavascriptExecutor extends BaserowFormulaVisitor {
 
     const formulaFunctionType = this.functions.get(functionName)
 
-    formulaFunctionType.validateArgs(args)
+    formulaFunctionType.validateArgs(args, this.validateArgsType)
 
     const argsParsed = formulaFunctionType.parseArgs(args)
 

@@ -71,13 +71,15 @@ export class RuntimeFormulaFunction extends Registerable {
    * @throws InvalidNumberOfArguments - If the number of arguments is incorrect
    * @throws InvalidFormulaArgumentType - If any of the arguments have a wrong type
    */
-  validateArgs(args) {
+  validateArgs(args, validateType = true) {
     if (!this.validateNumberOfArgs(args)) {
       throw new InvalidNumberOfArguments(this, args)
     }
-    const invalidArg = this.validateTypeOfArgs(args)
-    if (invalidArg) {
-      throw new InvalidFormulaArgumentType(this, invalidArg)
+    if (validateType) {
+      const invalidArg = this.validateTypeOfArgs(args)
+      if (invalidArg) {
+        throw new InvalidFormulaArgumentType(this, invalidArg)
+      }
     }
   }
 

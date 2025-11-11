@@ -185,7 +185,7 @@ export const ensureNonEmptyString = (value, options) => {
  * @param {boolean} useStrict - Whether to be strict in how the value is interpreted.
  * @returns {boolean} The value as a boolean.
  */
-export const ensureBoolean = (value, { useStrict = true }) => {
+export const ensureBoolean = (value, { useStrict = true } = {}) => {
   if (trueValues.includes(value)) {
     return true
   } else if (falseValues.includes(value)) {

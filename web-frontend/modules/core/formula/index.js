@@ -41,7 +41,8 @@ export const isFormulaValid = (formula, functions) => {
 
   try {
     const tree = parseBaserowFormula(formula)
-    new JavascriptExecutor(functions).visit(tree)
+    // we don't validate type as we can't without the right context
+    new JavascriptExecutor(functions, {}, false).visit(tree)
     return true
   } catch (err) {
     return false
