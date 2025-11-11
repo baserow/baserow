@@ -25,6 +25,7 @@ import FormulaInputField from '@baserow/modules/core/components/formula/FormulaI
 import { DataSourceDataProviderType } from '@baserow/modules/builder/dataProviderTypes'
 import { buildFormulaFunctionNodes } from '@baserow/modules/core/formula'
 import { getDataNodesFromDataProvider } from '@baserow/modules/core/utils/dataProviders'
+import { useApplicationContext } from '@baserow/modules/builder/mixins/useApplicationContext'
 
 const props = defineProps({
   value: {
@@ -37,9 +38,17 @@ const props = defineProps({
     required: false,
     default: () => [],
   },
+  applicationContextAdditions: {
+    type: Object,
+    required: false,
+    default: undefined,
+  },
 })
 
-const applicationContext = inject('applicationContext')
+const applicationContext = useApplicationContext(
+  props.applicationContextAdditions
+)
+
 const elementPage = inject('elementPage')
 
 const emit = defineEmits(['input'])
@@ -60,7 +69,7 @@ watch(
 const { app, store } = useContext()
 
 const isInSidePanel = computed(() => {
-  return applicationContext?.element !== undefined
+  return applicationContext.value?.element !== undefined
 })
 
 const dataProviders = computed(() => {
@@ -74,7 +83,7 @@ const nodesHierarchy = computed(() => {
 
   const filteredDataNodes = getDataNodesFromDataProvider(
     dataProviders.value,
-    applicationContext
+    applicationContext.value
   )
 
   if (filteredDataNodes.length > 0) {

@@ -103,107 +103,89 @@ const actions = {
 
     const serviceType = this.app.$registry.get('service', dataSource.type)
 
-    // We have a data source, but if it doesn't return a list,
-    // it needs to have a `schema_property` to work correctly.
-    if (!serviceType.returnsList && element.schema_property === null) {
-      // If we previously had a list data source, we might have content,
-      // so rather than leave the content *until a schema property is set*,
-      // clear it.
-      commit('CLEAR_CONTENT', {
-        element,
-      })
-      commit('SET_LOADING', { element, value: false })
-      return
-    }
-
     try {
-      if (!serviceType.isInError(dataSource)) {
-        let rangeToFetch = range
-        if (!replace) {
-          // Let's compute the range that really needs to be fetched if necessary
-          const [offset, count] = range
-          rangeToFetch = rangeDiff(getters.getContentRange(element), [
-            offset,
-            offset + count,
-          ])
+      let rangeToFetch = range
+      if (!replace) {
+        // Let's compute the range that really needs to be fetched if necessary
+        const [offset, count] = range
+        rangeToFetch = rangeDiff(getters.getContentRange(element), [
+          offset,
+          offset + count,
+        ])
 
-          // Everything is already loaded we can quit now
-          if (!rangeToFetch || !getters.getHasMorePage(element)) {
-            commit('SET_LOADING', { element, value: false })
-            return
-          }
-          rangeToFetch = [rangeToFetch[0], rangeToFetch[1] - rangeToFetch[0]]
+        // Everything is already loaded we can quit now
+        if (!rangeToFetch || !getters.getHasMorePage(element)) {
+          commit('SET_LOADING', { element, value: false })
+          return
         }
+        rangeToFetch = [rangeToFetch[0], rangeToFetch[1] - rangeToFetch[0]]
+      }
 
-        let service = DataSourceService
-        if (['preview', 'public'].includes(mode)) {
-          service = PublishedBuilderService
-        }
+      let service = DataSourceService
+      if (['preview', 'public'].includes(mode)) {
+        service = PublishedBuilderService
+      }
 
-        if (!queriesInProgress[element.id]) {
-          queriesInProgress[element.id] = {}
-        }
+      if (!queriesInProgress[element.id]) {
+        queriesInProgress[element.id] = {}
+      }
 
-        if (queriesInProgress[element.id][`${rangeToFetch}`]) {
-          queriesInProgress[element.id][`${rangeToFetch}`].abort()
-        }
+      if (queriesInProgress[element.id][`${rangeToFetch}`]) {
+        queriesInProgress[element.id][`${rangeToFetch}`].abort()
+      }
 
-        commit('SET_LOADING', { element, value: true })
+      commit('SET_LOADING', { element, value: true })
 
-        queriesInProgress[element.id][`${rangeToFetch}`] =
-          global.AbortController ? new AbortController() : null
+      queriesInProgress[element.id][`${rangeToFetch}`] = global.AbortController
+        ? new AbortController()
+        : null
 
-        const { data } = await service(this.app.$client).dispatch(
-          dataSource.id,
-          dispatchContext,
-          { range: rangeToFetch, filters, sortings, search, searchMode },
-          queriesInProgress[element.id][`${rangeToFetch}`]?.signal
-        )
+      const { data } = await service(this.app.$client).dispatch(
+        dataSource.id,
+        dispatchContext,
+        { range: rangeToFetch, filters, sortings, search, searchMode },
+        queriesInProgress[element.id][`${rangeToFetch}`]?.signal
+      )
 
-        delete queriesInProgress[element.id][`${rangeToFetch}`]
+      delete queriesInProgress[element.id][`${rangeToFetch}`]
 
-        // With a list-type data source, the data object will return
-        // a `has_next_page` field for paging to the next set of results.
-        const { has_next_page: hasNextPage = false } = data
+      // With a list-type data source, the data object will return
+      // a `has_next_page` field for paging to the next set of results.
+      const { has_next_page: hasNextPage = false } = data
 
-        if (replace) {
-          commit('CLEAR_CONTENT', {
-            element,
-          })
-        }
-
-        if (serviceType.returnsList) {
-          // The service type returns a list of results, we'll set the content
-          // using the results key and set the range for future paging.
-          commit('SET_CONTENT', {
-            element,
-            value: data.results.map((row) => ({
-              ...row,
-              __recordId__: row[serviceType.getIdProperty(service, row)],
-            })),
-            range,
-          })
-        } else {
-          // The service type returns a single row of results, we'll set the
-          // content using the element's schema property. Not how there's no
-          // range for paging, all results are set at once. We default to an
-          // empty array if the property doesn't exist, this will happen if
-          // the property has been removed since the initial configuration.
-          commit('SET_CONTENT', {
-            element,
-            value: data,
-          })
-        }
-
-        commit('SET_HAS_MORE_PAGE', {
-          element,
-          value: hasNextPage,
-        })
-      } else {
+      if (replace) {
         commit('CLEAR_CONTENT', {
           element,
         })
       }
+
+      if (serviceType.returnsList) {
+        // The service type returns a list of results, we'll set the content
+        // using the results key and set the range for future paging.
+        commit('SET_CONTENT', {
+          element,
+          value: data.results.map((row) => ({
+            ...row,
+            __recordId__: row[serviceType.getIdProperty(service, row)],
+          })),
+          range,
+        })
+      } else {
+        // The service type returns a single row of results, we'll set the
+        // content using the element's schema property. Not how there's no
+        // range for paging, all results are set at once. We default to an
+        // empty array if the property doesn't exist, this will happen if
+        // the property has been removed since the initial configuration.
+        commit('SET_CONTENT', {
+          element,
+          value: data,
+        })
+      }
+
+      commit('SET_HAS_MORE_PAGE', {
+        element,
+        value: hasNextPage,
+      })
     } catch (e) {
       if (!axios.isCancel(e)) {
         // If fetching the content failed, and we're trying to

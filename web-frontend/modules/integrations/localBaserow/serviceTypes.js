@@ -89,7 +89,7 @@ export class LocalBaserowTableServiceType extends ServiceType {
     const [field, ...rest] = path
     let humanName = field
 
-    if (schema && field && field.startsWith('field_')) {
+    if (schema && typeof field === 'string' && field.startsWith('field_')) {
       if (this.returnsList) {
         if (schema.items?.properties?.[field]?.title) {
           humanName = schema.items.properties[field].title

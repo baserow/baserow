@@ -81,7 +81,11 @@
         :placeholder="$t('elementForms.textInputPlaceholder')"
       />
     </FormGroup>
-    <FormSection class="margin-bottom-2" :title="$t('tableElementForm.fields')">
+    <FormSection
+      :key="element.data_source_id"
+      class="margin-bottom-2"
+      :title="$t('tableElementForm.fields')"
+    >
       <template v-if="values.fields?.length">
         <ButtonText
           v-show="selectedDataSourceReturnsList"

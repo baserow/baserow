@@ -53,9 +53,10 @@ export default {
       })
     },
     elementContent() {
-      return (
-        this.elementType.getElementCurrentContent(this.applicationContext) || []
+      const elementContent = this.elementType.getElementCurrentContent(
+        this.applicationContext
       )
+      return Array.isArray(elementContent) ? elementContent : []
     },
 
     hasMorePage() {
@@ -93,12 +94,14 @@ export default {
     reset() {
       this.debouncedReset()
     },
-    'element.schema_property'(newValue, oldValue) {
+    async 'element.schema_property'(newValue, oldValue) {
+      await this.clearElementContent({ element: this.element })
       if (newValue) {
         this.debouncedReset()
       }
     },
-    'element.data_source_id'() {
+    async 'element.data_source_id'() {
+      await this.clearElementContent({ element: this.element })
       this.debouncedReset()
     },
     'element.items_per_page'() {
@@ -128,6 +131,7 @@ export default {
   methods: {
     ...mapActions({
       fetchElementContent: 'elementContent/fetchElementContent',
+      clearElementContent: 'elementContent/clearElementContent',
     }),
     debouncedReset() {
       clearTimeout(this.resetTimeout)
