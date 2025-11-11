@@ -15,6 +15,10 @@
         <p class="auth__head-text">
           {{ $t('totpLogin.backupCodesDescription') }}
         </p>
+        <Alert v-if="errorTitle" type="error">
+          <template #title>{{ errorTitle }}</template>
+          <p>{{ errorDescription }}</p>
+        </Alert>
         <FormGroup
           small-label
           :label="'Backup code'"
@@ -34,15 +38,17 @@
             {{ v$.values.backupCode.$errors[0]?.$message }}
           </template>
         </FormGroup>
-        <Button
-          class="totp-login__submit"
-          type="primary"
-          full-width
-          size="large"
-          :loading="loadingVerifyBackupCode"
-          @click="verifyBackupCode"
-          >{{ $t('totpLogin.authenticate') }}</Button
-        >
+        <div class="mb-32">
+          <Button
+            class="totp-login__submit"
+            type="primary"
+            full-width
+            size="large"
+            :loading="loadingVerifyBackupCode"
+            @click="verifyBackupCode"
+            >{{ $t('totpLogin.authenticate') }}</Button
+          >
+        </div>
         <div>
           <ul class="auth__action-links">
             <li class="auth__action-link">
@@ -63,6 +69,10 @@
         <p class="auth__head-text">
           {{ $t('totpLogin.totpDescription') }}
         </p>
+        <Alert v-if="errorTitle" type="error">
+          <template #title>{{ errorTitle }}</template>
+          <p>{{ errorDescription }}</p>
+        </Alert>
         <AuthCodeInput
           ref="authCodeInput"
           class="mb-32"
@@ -123,6 +133,8 @@ export default {
     const values = reactive({
       values: {
         backupCode: '',
+        errorTitle: null,
+        errorDescription: null,
       },
     })
 
@@ -144,8 +156,16 @@ export default {
       loadingVerifyBackupCode: false,
     }
   },
+  watch: {
+    enterBackupCode() {
+      this.errorTitle = null
+      this.errorDescription = null
+    },
+  },
   methods: {
     async verify(code) {
+      this.errorTitle = null
+      this.errorDescription = null
       this.loadingVerifyCode = true
       try {
         const { data } = await TwoFactorAuthService(this.$client).verify(
@@ -163,6 +183,8 @@ export default {
       }
     },
     async verifyBackupCode(code) {
+      this.errorTitle = null
+      this.errorDescription = null
       this.loadingVerifyBackupCode = true
       try {
         const { data } = await TwoFactorAuthService(this.$client).verify(
@@ -193,13 +215,15 @@ export default {
         data.detail === 'Authentication credentials were not provided.'
       ) {
         const title = this.$t('totpLogin.loginExpired')
-        const message = this.$t('totpLogin.loginExpiredDescription')
-        this.$store.dispatch('toast/error', { title, message })
+        const description = this.$t('totpLogin.loginExpiredDescription')
+        this.errorTitle = title
+        this.errorDescription = description
         this.$emit('expired')
       } else {
         const title = this.$t('totpLogin.verificationFailed')
-        const message = this.$t('totpLogin.verificationFailedDescription')
-        this.$store.dispatch('toast/error', { title, message })
+        const description = this.$t('totpLogin.verificationFailedDescription')
+        this.errorTitle = title
+        this.errorDescription = description
       }
     },
   },

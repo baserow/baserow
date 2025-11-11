@@ -35,6 +35,10 @@
         <div class="enable-with-qr-code__step-description">
           {{ $t('enableWithQRCode.enterCodeDescription') }}
         </div>
+        <Alert v-if="errorTitle" type="error">
+          <template #title>{{ errorTitle }}</template>
+          <p>{{ errorDescription }}</p>
+        </Alert>
         <AuthCodeInput
           ref="authCodeInput"
           :class="{ 'loading-spinner': checkCodeLoading }"
@@ -59,6 +63,8 @@ export default {
       checkCodeLoading: false,
       qr_code: null,
       provisioning_url: null,
+      errorTitle: null,
+      errorDescription: null,
     }
   },
   computed: {
@@ -90,6 +96,8 @@ export default {
       }
     },
     async checkCode(code) {
+      this.errorTitle = null
+      this.errorDescription = null
       this.checkCodeLoading = true
       try {
         const params = { code }
@@ -104,7 +112,11 @@ export default {
         this.checkCodeLoading = false
         this.$refs.authCodeInput.reset()
         const title = this.$t('enableWithQRCode.verificationFailed')
-        this.$store.dispatch('toast/error', { title })
+        const description = this.$t(
+          'enableWithQRCode.verificationFailedDescription'
+        )
+        this.errorTitle = title
+        this.errorDescription = description
       }
     },
     copy() {

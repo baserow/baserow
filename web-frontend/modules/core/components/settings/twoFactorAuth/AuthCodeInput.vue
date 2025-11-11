@@ -152,6 +152,9 @@ export default {
       return this.code.length === 6
     },
   },
+  mounted() {
+    this.reset()
+  },
   methods: {
     reset() {
       this.values.number1 = ''
