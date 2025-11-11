@@ -118,7 +118,7 @@
     "iteratorWithChildrenNodesDeleteError": "Cannot be deleted until its child nodes are removed.",
     "iteratorWithChildrenNodesReplaceError": "Cannot be replaced until its child nodes are removed.",
     "periodicTriggerLabel": "Periodic trigger",
-    "aiAgent": "AI prompt"
+    "aiAgent": "AI prompt",
     "slackWriteMessageName": "Send a Slack message",
     "slackWriteMessageLabel": "Send a message to #{channel}"
   },
