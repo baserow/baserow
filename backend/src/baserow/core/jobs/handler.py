@@ -8,12 +8,7 @@ from django.db.models import Q, QuerySet
 
 from baserow.core.utils import Progress
 
-from .exceptions import (
-    JobCancelled,
-    JobDoesNotExist,
-    JobNotCancellable,
-    MaxJobCountExceeded,
-)
+from .exceptions import JobCancelled, JobDoesNotExist, JobNotCancellable
 from .models import Job
 from .registries import job_type_registry
 from .signals import job_started
@@ -179,20 +174,10 @@ class JobHandler:
 
         job_type = job_type_registry.get(job_type_name)
         model_class = job_type.model_class
-
-        # Check how many job of same type are running simultaneously. If count > max
-        # we don't want to create a new one.
-        running_jobs = model_class.objects.filter(
-            user_id=user.id
-        ).is_pending_or_running()
-        if len(running_jobs) >= job_type.max_count:
-            raise MaxJobCountExceeded(
-                f"You can only launch {job_type.max_count} {job_type_name} job(s) at "
-                "the same time."
-            )
-
         job_values = job_type.prepare_values(kwargs, user)
-        job: AnyJob = model_class.objects.create(user=user, **job_values)
+        job: AnyJob = model_class(user=user, **job_values)
+        job_type.can_schedule_or_raise(job)
+        job.save()
         job_type.after_job_creation(job, kwargs)
 
         if sync:

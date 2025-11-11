@@ -1,8 +1,8 @@
 from django.db import transaction
 
 from baserow_premium.fields.actions import GenerateFormulaWithAIActionType
+from baserow_premium.fields.job_types import GenerateAIValuesJobType
 from baserow_premium.fields.models import AIField
-from baserow_premium.fields.tasks import generate_ai_values_for_rows
 from baserow_premium.license.features import PREMIUM
 from baserow_premium.license.handler import LicenseHandler
 from drf_spectacular.openapi import OpenApiParameter, OpenApiTypes
@@ -22,6 +22,7 @@ from baserow.api.generative_ai.errors import (
     ERROR_MODEL_DOES_NOT_BELONG_TO_TYPE,
     ERROR_OUTPUT_PARSER,
 )
+from baserow.api.jobs.serializers import JobSerializer
 from baserow.api.schemas import (
     CLIENT_SESSION_ID_SCHEMA_PARAMETER,
     CLIENT_UNDO_REDO_ACTION_GROUP_ID_SCHEMA_PARAMETER,
@@ -34,7 +35,6 @@ from baserow.contrib.database.fields.exceptions import FieldDoesNotExist
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.operations import ListFieldsOperationType
 from baserow.contrib.database.rows.exceptions import RowDoesNotExist
-from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.exceptions import TableDoesNotExist
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.core.action.registries import action_type_registry
@@ -44,8 +44,9 @@ from baserow.core.generative_ai.exceptions import (
     GenerativeAITypeDoesNotExist,
     ModelDoesNotBelongToType,
 )
-from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.handler import CoreHandler
+from baserow.core.jobs.handler import JobHandler
+from baserow.core.jobs.registries import job_type_registry
 
 from .serializers import (
     GenerateAIFieldValueViewSerializer,
@@ -118,31 +119,15 @@ class AsyncGenerateAIFieldValuesView(APIView):
             PREMIUM, request.user, workspace
         )
 
-        CoreHandler().check_permissions(
+        job = JobHandler().create_and_start_job(
             request.user,
-            ListFieldsOperationType.type,
-            workspace=workspace,
-            context=ai_field.table,
+            GenerateAIValuesJobType.type,
+            field_id=field_id,
+            row_ids=data["row_ids"],
         )
 
-        model = ai_field.table.get_model()
-        req_row_ids = data["row_ids"]
-        rows = RowHandler().get_rows(model, req_row_ids)
-        if len(rows) != len(req_row_ids):
-            found_rows_ids = [row.id for row in rows]
-            raise RowDoesNotExist(sorted(list(set(req_row_ids) - set(found_rows_ids))))
-
-        generative_ai_model_type = generative_ai_model_type_registry.get(
-            ai_field.ai_generative_ai_type
-        )
-        ai_models = generative_ai_model_type.get_enabled_models(workspace=workspace)
-
-        if ai_field.ai_generative_ai_model not in ai_models:
-            raise ModelDoesNotBelongToType(model_name=ai_field.ai_generative_ai_model)
-
-        generate_ai_values_for_rows.delay(request.user.id, ai_field.id, req_row_ids)
-
-        return Response(status=status.HTTP_202_ACCEPTED)
+        serializer = job_type_registry.get_serializer(job, JobSerializer)
+        return Response(serializer.data, status=status.HTTP_202_ACCEPTED)
 
 
 class GenerateFormulaWithAIView(APIView):

@@ -1,8 +1,17 @@
+from enum import StrEnum
+
 from django.contrib.auth import get_user_model
+from django.contrib.postgres.fields import ArrayField
 from django.db import models
 
 from baserow.contrib.database.fields.models import Field
 from baserow.core.formula.field import FormulaField as ModelFormulaField
+from baserow.core.jobs.mixins import (
+    JobWithUndoRedoIds,
+    JobWithUserIpAddress,
+    JobWithWebsocketId,
+)
+from baserow.core.jobs.models import Job
 
 from .ai_field_output_types import TextAIFieldOutputType
 from .registries import ai_field_output_registry
@@ -48,3 +57,42 @@ class AIField(Field):
             return output_field._meta.get_field(name).default
         except Exception:
             super().__getattr__(name)
+
+
+class GenerateAIValuesJob(
+    JobWithUserIpAddress, JobWithWebsocketId, JobWithUndoRedoIds, Job
+):
+    class MODES(StrEnum):
+        ROWS = "rows"
+        VIEW = "view"
+        TABLE = "table"
+
+    field = models.ForeignKey(
+        Field,
+        on_delete=models.CASCADE,
+        related_name="+",
+        help_text="The AI field to generate values for.",
+    )
+    row_ids = ArrayField(
+        models.IntegerField(),
+        null=True,
+        help_text="If provided, the row IDs to generate AI values for.",
+    )
+    view_id = models.IntegerField(
+        null=True, help_text="If provided, the view ID to generate AI values for."
+    )
+    only_empty = models.BooleanField(
+        default=False, help_text="Whether to only generate values for empty cells."
+    )
+    total_rows_count = models.IntegerField(
+        null=True, help_text="The total number of rows to process."
+    )
+
+    @property
+    def mode(self):
+        if self.row_ids is not None:
+            return self.MODES.ROWS
+        elif self.view_id is not None:
+            return self.MODES.VIEW
+        else:  # Without filters, generate the values for the whole table
+            return self.MODES.TABLE
