@@ -39,7 +39,7 @@ test.describe("Automation node test suite", () => {
   }) => {
     const createNode = await createAutomationNode(
       automationWorkflowPage.automationWorkflow,
-      "create_row",
+      "local_baserow_create_row",
       trigger.id,
       "south",
       ""
