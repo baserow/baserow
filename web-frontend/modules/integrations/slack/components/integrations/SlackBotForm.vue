@@ -9,7 +9,6 @@
     >
       <FormInput
         v-model="values.token"
-        type="password"
         :placeholder="$t('slackBotForm.tokenPlaceholder')"
       />
     </FormGroup>
@@ -23,21 +22,17 @@
       <Expandable card class="margin-bottom-2">
         <template #header="{ toggle, expanded }">
           <div class="flex flex-100 justify-content-space-between">
-            <div>
-              <div>
-                <a @click="toggle">
-                  {{ $t('slackBotForm.supportSetupHeading') }}
-                  <Icon
-                    :icon="
-                      expanded
-                        ? 'iconoir-nav-arrow-down'
-                        : 'iconoir-nav-arrow-right'
-                    "
-                    type="secondary"
-                  />
-                </a>
-              </div>
-            </div>
+            <a @click="toggle">
+              {{ $t('slackBotForm.supportSetupHeading') }}
+              <Icon
+                :icon="
+                  expanded
+                    ? 'iconoir-nav-arrow-down'
+                    : 'iconoir-nav-arrow-right'
+                "
+                type="secondary"
+              />
+            </a>
           </div>
         </template>
         <template #default>
@@ -57,21 +52,17 @@
       <Expandable card class="margin-bottom-2">
         <template #header="{ toggle, expanded }">
           <div class="flex flex-100 justify-content-space-between">
-            <div>
-              <div>
-                <a @click="toggle">
-                  {{ $t('slackBotForm.supportPairingHeading') }}
-                  <Icon
-                    :icon="
-                      expanded
-                        ? 'iconoir-nav-arrow-down'
-                        : 'iconoir-nav-arrow-right'
-                    "
-                    type="secondary"
-                  />
-                </a>
-              </div>
-            </div>
+            <a @click="toggle">
+              {{ $t('slackBotForm.supportPairingHeading') }}
+              <Icon
+                :icon="
+                  expanded
+                    ? 'iconoir-nav-arrow-down'
+                    : 'iconoir-nav-arrow-right'
+                "
+                type="secondary"
+              />
+            </a>
           </div>
         </template>
         <template #default>
