@@ -384,7 +384,6 @@ export default {
       })
     },
     recreateEditor(formula = null) {
-      // If no formula is provided, save the current formula before destroying the editor
       const currentFormula =
         formula ||
         (this.editor ? this.toFormula(this.wrapperContent) : this.value)
