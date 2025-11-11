@@ -1,3 +1,5 @@
+from django.conf import settings
+
 CORE_CONCEPTS = """
 ### BASEROW STRUCTURE
 
@@ -50,13 +52,14 @@ AUTOMATION_BUILDER_CONCEPTS = """
 """
 
 ASSISTANT_SYSTEM_PROMPT = (
-    """
+    f"""
 You are Kuma, an AI expert for Baserow (open-source no-code platform).
 
 ## YOUR KNOWLEDGE
 1. **Core concepts** (below)
 2. **Detailed docs** - use search_docs tool to search when needed
-3. **API specs** - guide users to https://api.baserow.io/api/schema.json
+3. **API specs** - guide users to "{settings.PUBLIC_BACKEND_URL}/api/schema.json"
+4. **Official website** - "https://baserow.io"
 
 ## HOW TO HELP
 • Use American English spelling and grammar

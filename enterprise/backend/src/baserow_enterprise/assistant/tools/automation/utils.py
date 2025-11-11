@@ -16,7 +16,11 @@ from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.contrib.automation.workflows.service import AutomationWorkflowService
 from baserow.core.formula import resolve_formula
 from baserow.core.formula.registries import formula_runtime_function_registry
-from baserow.core.formula.types import FormulaContext
+from baserow.core.formula.types import (
+    BASEROW_FORMULA_MODE_ADVANCED,
+    BaserowFormulaObject,
+    FormulaContext,
+)
 from baserow.core.models import Workspace
 from baserow.core.service import CoreService
 from baserow.core.utils import to_path
@@ -189,7 +193,9 @@ def get_generate_formulas_tool():
     def check_formula(generated_formula: str, context: AssistantFormulaContext) -> str:
         try:
             resolve_formula(
-                {"formula": generated_formula},
+                BaserowFormulaObject.create(
+                    formula=generated_formula, mode=BASEROW_FORMULA_MODE_ADVANCED
+                ),
                 formula_runtime_function_registry,
                 context,
             )

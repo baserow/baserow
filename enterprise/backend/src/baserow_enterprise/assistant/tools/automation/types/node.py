@@ -2,6 +2,8 @@ from abc import ABC, abstractmethod
 from typing import Annotated, Any, Literal, Optional
 from uuid import uuid4
 
+from django.conf import settings
+
 from pydantic import Field, PrivateAttr
 
 from baserow.contrib.automation.nodes.models import AutomationNode
@@ -61,7 +63,11 @@ class PeriodicTriggerSettings(BaseModel):
     )
     minute: int = Field(
         default=0,
-        description="The UTC minutes for the periodic trigger.",
+        description=(
+            "If interval=MINUTE, the number of minutes between each trigger. "
+            f"Minimum is set to {settings.INTEGRATIONS_PERIODIC_MINUTE_MIN} minutes. "
+            "If interval=HOUR, the UTC minute for the periodic trigger. "
+        ),
     )
     hour: int = Field(
         default=0,
@@ -110,7 +116,13 @@ class TriggerNodeCreate(NodeBase, RefCreate):
         """Convert to ORM dict for node creation service."""
 
         if self.type == "periodic" and self.periodic_interval:
-            return self.periodic_interval.model_dump()
+            values = self.periodic_interval.model_dump()
+            if self.periodic_interval.interval == "MINUTE":
+                values["minute"] = max(
+                    settings.INTEGRATIONS_PERIODIC_MINUTE_MIN,
+                    values["minute"],
+                )
+            return values
 
         if (
             self.type in ["rows_created", "rows_updated", "rows_deleted"]
@@ -176,7 +188,11 @@ class RouterEdgeCreate(BaseModel):
         description="The label of the router branch. Order of branches matters: first matching branch is taken.",
     )
     condition: str = Field(
-        description="A brief description of the condition for this branch that will be converted to a formula.",
+        description=(
+            "The condition formula to evaluate for this branch as boolean. "
+            "Use comparison operators and get(...) functions to build the formula with a boolean result. "
+            "Always mentions the field values using get(...) functions."
+        ),
     )
 
     _uid: str = PrivateAttr(default_factory=lambda: str(uuid4()))

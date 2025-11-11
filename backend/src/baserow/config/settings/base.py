@@ -1049,7 +1049,7 @@ INTEGRATIONS_PERIODIC_TASK_CRONTAB = crontab(minute="*")
 # The minimum amount of minutes the periodic task's "minute" interval
 # supports. Self-hosters can run every minute, if they choose to.
 INTEGRATIONS_PERIODIC_MINUTE_MIN = int(
-    os.getenv("BASEROW_INTEGRATIONS_PERIODIC_MINUTE_MIN", 1)
+    os.getenv("BASEROW_INTEGRATIONS_PERIODIC_MINUTE_MIN") or 1
 )
 
 TOTP_ISSUER_NAME = os.getenv("BASEROW_TOTP_ISSUER_NAME", "Baserow")

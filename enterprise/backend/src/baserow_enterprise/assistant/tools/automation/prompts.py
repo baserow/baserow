@@ -13,8 +13,9 @@ equal, not_equal, greater_than, less_than, greater_than_equal, less_than_equal
 
 **get(path)** - Retrieves values from context using path notation
 - Objects: get('user.name')
-- Arrays: get('items[0]'), get('orders[2].total')
-- Nested: get('users[0].address.city')
+- Arrays: get('items.0'), get('orders.2.total')
+- Nested: get('users.0.address.city')
+- All: get('users.*.email') returns a list of emails from all users
 
 **if(condition, true_value, false_value)** - Conditional expression
 - Arguments: a boolean condition, value if true, value if false
@@ -37,12 +38,16 @@ context_metadata: {
     "today": "2025-11-07"
 }
 feedback: ""
-
 Output:
 generated_formula: {
-    "ai_prompt": "concat('Determine the priority level based on ', get('previous_node.1[0].title'), ' and ', get('previous_node.1[0].due_date'), '. Choices are: High, Medium, Low.')"
+    "ai_prompt": "concat(
+        'Determine the priority level based on ',
+        get('previous_node.1.0.title'),
+        ' and ',
+        get('previous_node.1.0.due_date'),
+        '. Choices are: High, Medium, Low.'
+    )"
 }
-
 **Example 2 - Router Conditions:**
 Input:
 fields_to_resolve: {
@@ -55,13 +60,27 @@ context_metadata: {
 feedback: ""
 Output:
 generated_formula: {
-    "condition_1": "greater_than(get('previous_node.1[0].amount'), 1000)"
+    "condition_1": "greater_than(get('previous_node.1.0.amount'), 1000)"
 }
 
 **Task:**
-Given the a dictionary of **fields_to_resolve** and the **context** containing the available data to use,
-generate valid formulas that can be used in the automation node. If not possible to generate valid formulas,
-leave the field out of the output.
-Try your best to create a formula for each field in **fields_to_resolve** whose description does not indicate it is optional.
-If **feedback** contains any reported errors, correct them in the updated formulas if possible or exclude the problematic fields.!
+
+You are given:
+* **fields_to_resolve** — a dictionary where each key is a field name and each value contains instructions to generate a formula.
+* **context** — a dictionary containing the available data.
+* **context_metadata** — a dictionary describing the structure and types within the context.
+* **feedback** — optional information with reported formula errors from previous runs.
+
+**Goal:**
+Generate a dictionary called **generated_formula**, where:
+
+* Keys are the field names from **fields_to_resolve**.
+* Values are valid formulas that can be used in the automation node.
+
+**Rules:**
+
+1. Feel free to skip fields whose description starts with `[optional]`.
+2. Exclude any field if you cannot generate a valid formula for it.
+3. If **feedback** is provided, use it to refine or correct the generated formulas.
+4. Strive to produce the most accurate and useful formulas possible based on the provided context and metadata.
 """

@@ -1,6 +1,9 @@
 import pytest
 
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
+from baserow.core.formula import resolve_formula
+from baserow.core.formula.registries import formula_runtime_function_registry
+from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
 from baserow_enterprise.assistant.tools.automation.tools import (
     get_create_workflows_tool,
     get_list_workflows_tool,
@@ -14,6 +17,7 @@ from baserow_enterprise.assistant.tools.automation.types import (
     WorkflowCreate,
 )
 from baserow_enterprise.assistant.tools.automation.types.node import RouterEdgeCreate
+from baserow_enterprise.assistant.tools.automation.utils import AssistantFormulaContext
 
 from .utils import fake_tool_helpers
 
@@ -507,3 +511,65 @@ def test_router_node_with_required_conditions(data_fixture):
     edges = router_node.service.specific.edges.all()
     assert edges.count() == 2
     assert {e.label for e in edges} == {"High Priority", "Low Priority"}
+
+
+def test_check_formula_with_basic_formulas():
+    """Test that check_formula validates basic formulas correctly."""
+
+    def check_formula(generated_formula: str, context: AssistantFormulaContext) -> str:
+        try:
+            resolve_formula(
+                {"formula": generated_formula, "mode": BASEROW_FORMULA_MODE_ADVANCED},
+                formula_runtime_function_registry,
+                context,
+            )
+        except Exception as exc:
+            raise ValueError(f"Generated formula is invalid: {str(exc)}")
+        return "ok, the formula is valid"
+
+    # Test basic string literal
+    context = AssistantFormulaContext()
+    result = check_formula("'a'", context)
+    assert result == "ok, the formula is valid"
+
+    # Test numeric literal
+    result = check_formula("1", context)
+    assert result == "ok, the formula is valid"
+
+    # Test simple arithmetic
+    result = check_formula("1 + 1", context)
+    assert result == "ok, the formula is valid"
+
+    # Test with context values
+    context = AssistantFormulaContext()
+    context.add_node_context(
+        node_id=1,
+        node_context=[{"name": "John", "age": 30, "active": True}],
+    )
+
+    # Test accessing context values
+    result = check_formula("get('previous_node.1[0].name')", context)
+    assert result == "ok, the formula is valid"
+
+    result = check_formula("get('previous_node.1[0].age')", context)
+    assert result == "ok, the formula is valid"
+
+    result = check_formula("get('previous_node.1[0].active')", context)
+    assert result == "ok, the formula is valid"
+
+    # Test concat with context
+    result = check_formula(
+        "concat('Hello ', get('previous_node.1[0].name'), '!')", context
+    )
+    assert result == "ok, the formula is valid"
+
+    # Test arithmetic with context
+    result = check_formula("get('previous_node.1[0].age') + 5", context)
+    assert result == "ok, the formula is valid"
+
+    # Test invalid formula should raise ValueError
+    try:
+        check_formula("invalid_function()", context)
+        assert False, "Should have raised ValueError"
+    except ValueError as e:
+        assert "Generated formula is invalid" in str(e)
