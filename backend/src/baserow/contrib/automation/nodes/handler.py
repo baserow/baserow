@@ -32,11 +32,8 @@ from baserow.core.services.exceptions import (
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
 from baserow.core.storage import ExportZipFile
-from baserow.core.utils import ChildProgressBuilder, MirrorDict, extract_allowed
 from baserow.core.telemetry.utils import baserow_trace_methods
-from baserow.core.utils import MirrorDict, extract_allowed
-
-from .signals import automation_node_updated
+from baserow.core.utils import ChildProgressBuilder, MirrorDict, extract_allowed
 
 tracer = trace.get_tracer(__name__)
 
