@@ -65,6 +65,8 @@ import {
   PieChartWidgetType,
 } from '@baserow_premium/dashboard/widgetTypes'
 import { SingleSelectFormattingType } from '@baserow_premium/dashboard/chartFieldFormatting'
+import { RegenerateAIFieldValuesJobType } from '@baserow_premium/jobTypes'
+import { RegenerateAIFieldContextItemType } from '@baserow_premium/fieldContextItemTypes'
 import en from '@baserow_premium/locales/en.json'
 import fr from '@baserow_premium/locales/fr.json'
 import nl from '@baserow_premium/locales/nl.json'
@@ -223,6 +225,17 @@ export default (context) => {
     'aiFieldOutputType',
     new ChoiceAIFieldOutputType(context)
   )
+
+  app.$registry.register(
+    'job',
+    new RegenerateAIFieldValuesJobType(context)
+  )
+
+  app.$registry.register(
+    'fieldContextItem',
+    new RegenerateAIFieldContextItemType(context)
+  )
+
   app.$registry.register(
     'groupedAggregation',
     new MinViewAggregationType(context)

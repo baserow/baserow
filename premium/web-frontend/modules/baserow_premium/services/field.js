@@ -17,5 +17,18 @@ export default (client) => {
         }
       )
     },
+    regenerateAIFieldValues(fieldId, { viewId, rowIds, skipPopulated }) {
+      // TODO: Replace with actual AI field regeneration endpoint when backend is ready
+      // POST /database/fields/{fieldId}/regenerate-values/async/
+      // For now, this is a placeholder structure
+      return client.post(
+        `/database/fields/${fieldId}/regenerate-values/async/`,
+        {
+          view_id: viewId || null,
+          row_ids: rowIds || [],
+          skip_populated: skipPopulated || false,
+        }
+      )
+    },
   }
 }
