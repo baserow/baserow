@@ -55,8 +55,10 @@ export class ToTipTapVisitor extends BaserowFormulaVisitor {
         if (processedString) {
           return { type: 'text', text: processedString }
         } else {
-          // An empty string is an empty wrapper
-          return { type: 'wrapper' }
+          // Empty strings cannot be represented as empty text nodes in TipTap
+          // Use a zero-width space to represent them visually
+          // This will be converted back to an empty string when converting to formula
+          return { type: 'text', text: '\u200B' }
         }
       }
     }
