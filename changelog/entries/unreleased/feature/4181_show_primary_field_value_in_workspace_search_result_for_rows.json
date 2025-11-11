@@ -1,0 +1,8 @@
+{
+    "type": "feature",
+    "message": "Show primary field value in workspace search result for RowSearchType",
+    "domain": "database",
+    "issue_number": 4181,
+    "bullet_points": [],
+    "created_at": "2025-11-11"
+}

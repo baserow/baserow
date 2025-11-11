@@ -1,4 +1,5 @@
-from typing import Dict, Iterable, List, Optional
+from collections import defaultdict
+from typing import Dict, Iterable, List, Optional, Tuple
 
 from django.contrib.auth.models import AbstractUser
 from django.contrib.postgres.search import SearchQuery, SearchRank
@@ -407,9 +408,69 @@ class RowSearchType(SearchableItemType):
 
         return qs
 
+    def _fetch_primary_field_values(
+        self, rows_list: List[Dict], table_id_to_table: Dict[int, Table]
+    ) -> Dict[Tuple[int, int], str]:
+        """
+        Fetch primary field values for all rows efficiently.
+        Uses the same approach as link row fields - leverages get_model()
+        and model.__str__() which already handles all field types properly.
+
+        :param rows_list: List of row dicts from search results
+        :param table_id_to_table: Map of table_id -> Table object (already prefetched)
+        :return: {(table_id, row_id): human_readable_value}
+        """
+
+        rows_by_table = defaultdict(list)
+        for r in rows_list:
+            payload = r.get("payload", {})
+            table_id = payload.get("table_id")
+            row_id = payload.get("row_id")
+            if table_id and row_id:
+                rows_by_table[table_id].append(row_id)
+
+        if not rows_by_table:
+            return {}
+
+        primary_values = {}
+
+        for table_id, row_ids in rows_by_table.items():
+            table = table_id_to_table.get(table_id)
+            if not table:
+                continue
+
+            model = table.get_model()
+            rows_qs = model.objects.filter(id__in=row_ids)
+
+            primary_field = next(
+                (
+                    field_obj["field"]
+                    for field_obj in model._field_objects.values()
+                    if field_obj["field"].primary
+                ),
+                None,
+            )
+
+            if primary_field:
+                from baserow.contrib.database.fields.registries import (
+                    field_type_registry,
+                )
+
+                field_type = field_type_registry.get_by_model(primary_field)
+                field_name = f"field_{primary_field.id}"
+
+                rows_qs = field_type.enhance_queryset(
+                    rows_qs, primary_field, field_name
+                )
+
+            for row in rows_qs:
+                primary_values[(table_id, row.id)] = str(row)
+
+        return primary_values
+
     def postprocess(self, rows: Iterable[Dict]) -> List[SearchResult]:
         """
-        Return minimal row results
+        Return minimal row results with primary field values for better UX.
         """
 
         if not rows:
@@ -444,6 +505,7 @@ class RowSearchType(SearchableItemType):
         table_id_to_database_id = {}
         database_id_to_name = {}
         database_id_to_workspace_id = {}
+        table_id_to_table = {}
 
         for f in fields_qs:
             field_id_to_name[f.id] = f.name
@@ -453,6 +515,9 @@ class RowSearchType(SearchableItemType):
                 table_id_to_database_id[f.table_id] = getattr(
                     f.table, "database_id", None
                 )
+                # Reuse the already-fetched table object (via select_related)
+                if f.table_id not in table_id_to_table:
+                    table_id_to_table[f.table_id] = f.table
                 if getattr(f.table, "database_id", None):
                     database = getattr(f.table, "database", None)
                     if database is not None:
@@ -462,6 +527,23 @@ class RowSearchType(SearchableItemType):
                         database_id_to_workspace_id[f.table.database_id] = getattr(
                             database, "workspace_id", None
                         )
+
+        # Ensure we have all tables needed for rows
+        # (In rare cases, rows might reference tables not in table_id_to_table)
+        missing_table_ids = set()
+        for r in rows_list:
+            table_id = r.get("payload", {}).get("table_id")
+            if table_id and table_id not in table_id_to_table:
+                missing_table_ids.add(table_id)
+
+        # Bulk fetch any missing tables
+        if missing_table_ids:
+            missing_tables = Table.objects.filter(id__in=list(missing_table_ids))
+            for table in missing_tables:
+                table_id_to_table[table.id] = table
+
+        # Fetch primary field values for all rows, reusing already-fetched tables
+        primary_values = self._fetch_primary_field_values(rows_list, table_id_to_table)
 
         results_list = []
         for r in rows_list:
@@ -492,11 +574,15 @@ class RowSearchType(SearchableItemType):
             subtitle_suffix = " / ".join(parts) if parts else None
             subtitle = f"Row in {subtitle_suffix}" if subtitle_suffix else None
 
+            # Get primary field value or fallback to "Row #N"
+            primary_value = primary_values.get((table_id_int, int(row_id)))
+            title = primary_value if primary_value else f"Row #{row_id}"
+
             results_list.append(
                 SearchResult(
                     type=self.type,
                     id=object_id,
-                    title=f"Row #{row_id}",
+                    title=title,
                     subtitle=subtitle,
                     description=None,
                     metadata={
@@ -509,6 +595,7 @@ class RowSearchType(SearchableItemType):
                         "table_name": table_name,
                         "field_name": field_name,
                         "rank": rank,
+                        "primary_field_value": primary_value,
                     },
                 )
             )

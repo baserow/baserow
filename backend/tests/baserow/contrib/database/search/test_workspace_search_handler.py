@@ -301,11 +301,18 @@ def test_workspace_row_search_handler_with_interesting_database(data_fixture):
         return [x for x in r["results"] if x["type"] == "database_row"]
 
     def _assert_row_shape(item):
-        assert "title" in item and item["title"].startswith("Row #")
+        # Title should now contain the primary field value, not "Row #"
+        assert (
+            "title" in item
+            and isinstance(item["title"], str)
+            and len(item["title"]) > 0
+        )
         assert "subtitle" in item and " / " in item["subtitle"]
         md = item.get("metadata", {})
         for k in ["workspace_id", "database_id", "table_id", "row_id", "field_id"]:
             assert k in md
+        # Should have primary_field_value in metadata
+        assert "primary_field_value" in md
 
     # Basic text
     res = do_search("text")
