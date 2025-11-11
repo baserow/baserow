@@ -1,8 +1,20 @@
 <template>
   <header class="layout__col-2-1 header header--space-between">
     <ul class="header__filter">
-      <li v-if="isDev" class="header__filter-item">
-        <a data-item-type="settings" class="header__filter-link"
+      <li
+        v-if="
+          $hasPermission(
+            'application.update',
+            automation,
+            automation.workspace.id
+          )
+        "
+        class="header__filter-item"
+      >
+        <a
+          data-item-type="settings"
+          class="header__filter-link"
+          @click="openSettingsModal"
           ><i class="header__filter-icon iconoir-settings"></i>
           <span class="header__filter-name">{{
             $t('automationHeader.settingsBtn')
@@ -105,6 +117,10 @@
         </Button>
       </div>
     </div>
+    <AutomationSettingsModal
+      ref="automationSettingsModal"
+      :automation="automation"
+    />
   </header>
 </template>
 
@@ -118,10 +134,11 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 import { WORKFLOW_STATES } from '@baserow/modules/automation/components/enums'
 
 import NodeGraphHandler from '@baserow/modules/automation/utils/nodeGraphHandler'
+import AutomationSettingsModal from '@baserow/modules/automation/components/settings/AutomationSettingsModal'
 
 export default defineComponent({
   name: 'AutomationHeader',
-  components: {},
+  components: { AutomationSettingsModal },
   props: {
     automation: {
       type: Object,
@@ -263,6 +280,11 @@ export default defineComponent({
       isPublishing.value = false
     }
 
+    const automationSettingsModal = ref(null)
+    const openSettingsModal = () => {
+      automationSettingsModal.value.show()
+    }
+
     return {
       isDev,
       debug,
@@ -282,6 +304,8 @@ export default defineComponent({
       workflow,
       activeSidePanel,
       testRunDisabled,
+      openSettingsModal,
+      automationSettingsModal,
     }
   },
 })

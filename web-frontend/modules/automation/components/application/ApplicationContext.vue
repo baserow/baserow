@@ -5,7 +5,7 @@
       :application="application"
       :workspace="workspace"
     >
-      <template v-if="isDev" #additional-context-items>
+      <template #additional-context-items>
         <li
           v-if="
             $hasPermission(
@@ -36,7 +36,6 @@ import { defineComponent, ref } from 'vue'
 import AutomationSettingsModal from '@baserow/modules/automation/components/settings/AutomationSettingsModal'
 import ApplicationContext from '@baserow/modules/core/components/application/ApplicationContext'
 import applicationContext from '@baserow/modules/core/mixins/applicationContext'
-import { computed } from '@nuxtjs/composition-api'
 
 export default defineComponent({
   components: {
@@ -58,17 +57,12 @@ export default defineComponent({
     const context = ref(null)
     const automationSettingsModal = ref(null)
 
-    const isDev = computed(() => {
-      return process.env.NODE_ENV === 'development'
-    })
-
     const openSettingsModal = () => {
       automationSettingsModal.value.show()
       context.value.hide()
     }
 
     return {
-      isDev,
       context,
       automationSettingsModal,
       openSettingsModal,
