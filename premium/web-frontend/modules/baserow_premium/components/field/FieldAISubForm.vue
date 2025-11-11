@@ -60,6 +60,23 @@
       </template>
     </FormGroup>
 
+    <FormGroup small-label>
+      <template #label>
+        {{ $t('fieldAISubForm.autoUpdate') }}
+        <HelpIcon
+          :tooltip="$t('fieldAISubForm.autoUpdateHelp')"
+          :tooltip-content-classes="['tooltip__content--expandable']"
+        />
+      </template>
+      <div class="control" :style="{ marginTop: '4px' }">
+        <div class="control__elements">
+          <Checkbox v-model="v$.values.ai_auto_update.$model">{{
+            $t('fieldAISubForm.autoUpdateDescription')
+          }}</Checkbox>
+        </div>
+      </div>
+    </FormGroup>
+
     <FormGroup
       small-label
       :label="$t('fieldAISubForm.prompt')"
@@ -77,16 +94,6 @@
         />
       </div>
       <template #error> {{ $t('error.requiredField') }}</template>
-    </FormGroup>
-
-    <FormGroup :small-label="true" :horizontal="true">
-      <div class="control" style="max-width: 366px">
-        <div class="control__elements">
-          <Checkbox v-model="v$.values.ai_auto_update.$model">{{
-            $t('fieldAISubForm.autoUpdate')
-          }}</Checkbox>
-        </div>
-      </div>
     </FormGroup>
 
     <component

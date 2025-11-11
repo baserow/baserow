@@ -5,9 +5,6 @@ from django.test.utils import override_settings
 
 import pytest
 from baserow_premium.fields.tasks import generate_ai_values_for_rows
-from baserow_premium.license.exceptions import FeaturesNotAvailableError
-from baserow_premium.license.features import PREMIUM
-from baserow_premium.license.handler import LicenseHandler
 
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.rows.handler import RowHandler
@@ -260,10 +257,10 @@ def test_generate_ai_field_value_view_generative_ai_with_files(
     assert patched_rows_updated.call_args[1]["updated_field_ids"] == set([field.id])
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @pytest.mark.field_ai
 @override_settings(DEBUG=True)
-@patch("baserow_premium.fields.tasks.generate_ai_values_for_rows_no_user.delay")
+@patch("baserow_premium.fields.tasks.generate_ai_values_for_rows.delay")
 def test_generate_ai_field_value_no_auto_update(patched_task, premium_data_fixture):
     premium_data_fixture.register_fake_generate_ai_type()
     user = premium_data_fixture.create_user(
@@ -298,10 +295,10 @@ def test_generate_ai_field_value_no_auto_update(patched_task, premium_data_fixtu
     assert patched_task.call_count == 0
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @pytest.mark.field_ai
 @override_settings(DEBUG=True)
-@patch("baserow_premium.fields.tasks.generate_ai_values_for_rows_no_user.delay")
+@patch("baserow_premium.fields.tasks.generate_ai_values_for_rows.delay")
 def test_generate_ai_field_value_auto_update(patched_task, premium_data_fixture):
     premium_data_fixture.register_fake_generate_ai_type()
     user = premium_data_fixture.create_user(
@@ -345,15 +342,16 @@ def test_generate_ai_field_value_auto_update(patched_task, premium_data_fixture)
     call_args = patched_task.call_args.args
     # field_id: int, row_ids: list[int]
     assert call_args == (
+        user.id,
         ai_field.id,
         [r.id for r in rows],
     )
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @pytest.mark.field_ai
 @override_settings(DEBUG=True)
-@patch("baserow_premium.fields.tasks.generate_ai_values_for_rows_no_user.delay")
+@patch("baserow_premium.fields.tasks.generate_ai_values_for_rows.delay")
 def test_generate_ai_field_value_auto_update_no_license_user(
     patched_task, premium_data_fixture
 ):
@@ -367,6 +365,8 @@ def test_generate_ai_field_value_auto_update_no_license_user(
     )
     table = premium_data_fixture.create_database_table(name="table", database=database)
     text_field = premium_data_fixture.create_text_field(table=table, name="text")
+    # user has no license, but the license check is done before so this will create
+    # a field with auto update enabled for a user without license.
     ai_field = FieldHandler().create_field(
         table=table,
         user=user,
@@ -391,22 +391,14 @@ def test_generate_ai_field_value_auto_update_no_license_user(
         .created_rows
     )
 
-    assert patched_task.call_count == 1
-
-    call_args = patched_task.call_args.args
-    # field_id: int, row_ids: list[int]
-    assert call_args == (
-        ai_field.id,
-        [r.id for r in rows],
-    )
-
-    row = rows[0]
-    row.refresh_from_db()
-    # no update after all
-    assert getattr(row, ai_field.db_column) is None
+    # On the first attempt the license check will fail and the auto update will be
+    # disabled.
+    assert patched_task.call_count == 0
+    ai_field.refresh_from_db()
+    assert ai_field.ai_auto_update is False
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @pytest.mark.field_ai
 @override_settings(DEBUG=True)
 def test_generate_ai_field_no_user_task_executed(premium_data_fixture):
@@ -456,36 +448,28 @@ def test_generate_ai_field_no_user_task_executed(premium_data_fixture):
     )
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @pytest.mark.field_ai
 @override_settings(DEBUG=True)
-def test_generate_ai_field_auto_update_no_allowed_user(premium_data_fixture):
+def test_generate_ai_field_auto_update_without_user(premium_data_fixture):
     premium_data_fixture.register_fake_generate_ai_type()
     user = premium_data_fixture.create_user(
-        email="test@test.nl", password="password", first_name="Test1"
+        email="test@test.nl",
+        password="password",
+        first_name="Test1",
+        has_active_premium_license=True,
     )
-    license = premium_data_fixture.create_premium_license_user(user=user)
-
     other_user = premium_data_fixture.create_user(
-        email="other@test.nl",
+        email="test2@test.nl",
         password="password",
         first_name="Test2",
-        has_active_premium_license=False,
+        has_active_premium_license=True,
     )
 
+    workspace = premium_data_fixture.create_workspace(users=[user, other_user])
     database = premium_data_fixture.create_database_application(
-        user=user, name="database"
+        workspace=workspace, name="database"
     )
-    workspace = database.workspace
-
-    LicenseHandler.raise_if_user_doesnt_have_feature(
-        user=user, workspace=workspace, feature=PREMIUM
-    )
-
-    with pytest.raises(FeaturesNotAvailableError):
-        LicenseHandler.raise_if_user_doesnt_have_feature(
-            user=other_user, workspace=workspace, feature=PREMIUM
-        )
 
     table = premium_data_fixture.create_database_table(name="table", database=database)
     text_field = premium_data_fixture.create_text_field(table=table, name="text")
@@ -502,13 +486,14 @@ def test_generate_ai_field_auto_update_no_allowed_user(premium_data_fixture):
     )
 
     assert ai_field.ai_auto_update_user_id == user.id
-    ai_field.ai_auto_update_user_id = other_user.id
-    ai_field.save()
+    user.delete()
+    ai_field.refresh_from_db()
+    assert ai_field.ai_auto_update_user_id is None
 
     rows = (
         RowHandler()
         .create_rows(
-            user,
+            other_user,
             table,
             rows_values=[{text_field.db_column: "test text value"}],
             send_webhook_events=False,
@@ -520,5 +505,6 @@ def test_generate_ai_field_auto_update_no_allowed_user(premium_data_fixture):
     row = rows[0]
     row.refresh_from_db()
 
-    # the task will be called, but will exit due to lack of auto-update user
     assert getattr(row, ai_field.db_column) is None
+    ai_field.refresh_from_db()
+    assert ai_field.ai_auto_update is False

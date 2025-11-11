@@ -339,7 +339,9 @@
     "outputType": "Output type",
     "outputTypeTooltip": "Select your desired output format to guide the LLM in generating responses that match your desired options.",
     "outputTypeChangedWarning": "Clears the generated cell values.",
-    "autoUpdate": "Update, if any of referenced fields is changed"
+    "autoUpdate": "Auto update",
+    "autoUpdateHelp": "When enabled, the AI field value will be automatically regenerated when any of the referenced fields in the prompt are updated.",
+    "autoUpdateDescription": "Regenerate when referenced fields change"
   },
   "rowEditFieldAI": {
     "generate": "Generate",

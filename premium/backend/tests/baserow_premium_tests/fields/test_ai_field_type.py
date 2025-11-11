@@ -1308,3 +1308,45 @@ def test_create_ai_field_auto_update_user(premium_data_fixture):
 
     assert ai_field.ai_auto_update is True
     assert ai_field.ai_auto_update_user_id == user.id
+
+
+@pytest.mark.django_db
+@pytest.mark.field_ai
+def test_create_ai_field_auto_doesnt_update_user_if_set(premium_data_fixture):
+    """
+    The user should only be set when the auto_update option is enabled.
+    """
+
+    premium_data_fixture.register_fake_generate_ai_type()
+    user = premium_data_fixture.create_user()
+    other_user = premium_data_fixture.create_user()
+    workspace = premium_data_fixture.create_workspace(users=[user, other_user])
+    database = premium_data_fixture.create_database_application(
+        workspace=workspace, name="Placeholder"
+    )
+    table = premium_data_fixture.create_database_table(
+        name="Example", database=database
+    )
+    text_field = premium_data_fixture.create_text_field(
+        table=table, order=0, name="text"
+    )
+    ai_field: AIField = FieldHandler().create_field(
+        user=user,
+        table=table,
+        order=2,
+        name="ai_text",
+        type_name="ai",
+        ai_generative_ai_type="test_generative_ai",
+        ai_generative_ai_model="test_1",
+        ai_file_field=None,
+        ai_prompt=f"concat('test:',get('fields.field_{text_field.id}'))",
+        ai_auto_update=True,
+    )
+
+    assert ai_field.ai_auto_update_user_id is user.id
+
+    FieldHandler().update_field(user=other_user, field=ai_field, name="different name")
+    ai_field.refresh_from_db()
+
+    assert ai_field.ai_auto_update is True
+    assert ai_field.ai_auto_update_user_id == user.id  # not changed

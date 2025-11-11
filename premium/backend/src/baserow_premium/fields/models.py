@@ -26,15 +26,13 @@ class AIField(Field):
     ai_auto_update = models.BooleanField(
         default=False,
         db_default=False,
-        null=False,
         help_text="If set, and the prompt refers other fields, a change on those fields will trigger a recalculation of this field.",
     )
     ai_auto_update_user = models.ForeignKey(
         User,
         null=True,
         on_delete=models.SET_NULL,
-        help_text="The user on whose behalf the field is auto-updated. The user must "
-        "have a licence to use AI field.",
+        help_text="The user on whose behalf the field is auto-updated.",
     )
 
     def __getattr__(self, name):

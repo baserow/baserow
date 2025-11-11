@@ -1478,6 +1478,7 @@ class FieldType(
         update_collector: "FieldUpdateCollector",
         field_cache: "FieldCache",
         via_path_to_starting_table: List["LinkRowField"],
+        dependency_depth: int = 0,
     ):
         """
         Called when a row or rows are updated in a dependency field (a field that the
@@ -1495,6 +1496,10 @@ class FieldType(
         :param field_cache: An optional field cache to be used when fetching fields.
         :param via_path_to_starting_table: A list of link row fields if any leading
             back to the starting table where the first row was changed.
+        :param dependency_depth: The depth of the dependency chain from the starting
+            field to the field parameter. 0 means the field is a direct dependency of
+            the updated row's field. 1 means the field depends on a field which depends
+            on the updated row's field, etc.
         """
 
     def row_of_dependency_deleted(

@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Any, List, Optional
 
 from django.contrib.auth import get_user_model
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from django.db.models import Expression, F
 from django.utils.functional import lazy
 
@@ -9,6 +9,8 @@ from baserow_premium.api.fields.exceptions import (
     ERROR_GENERATIVE_AI_DOES_NOT_SUPPORT_FILE_FIELD,
 )
 from baserow_premium.fields.exceptions import GenerativeAITypeDoesNotSupportFileField
+from baserow_premium.license.features import PREMIUM
+from baserow_premium.license.handler import LicenseHandler
 from rest_framework import serializers
 
 from baserow.api.generative_ai.errors import (
@@ -19,7 +21,6 @@ from baserow.contrib.database.api.fields.errors import ERROR_FIELD_DOES_NOT_EXIS
 from baserow.contrib.database.fields.dependencies.models import FieldDependency
 from baserow.contrib.database.fields.dependencies.types import FieldDependencies
 from baserow.contrib.database.fields.dependencies.update_collector import (
-    CollectorCallback,
     FieldUpdateCollector,
 )
 from baserow.contrib.database.fields.field_cache import FieldCache
@@ -42,6 +43,7 @@ from baserow.core.generative_ai.registries import (
 
 from .models import AIField
 from .registries import ai_field_output_registry
+from .tasks import generate_ai_values_for_rows
 from .visitors import extract_field_id_dependencies, replace_field_id_references
 
 User = get_user_model()
@@ -355,14 +357,32 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         ]
 
     def _handle_dependent_rows_change(
-        self, update_collector: "FieldUpdateCollector", field, starting_row
+        self,
+        field: AIField,
+        starting_row: "StartingRowType",
     ):
+        """
+        Schedules the recalculation of the AI field for the rows that depend on the
+        starting row via field dependencies.
+        """
+
         if not field.ai_auto_update:
             return
 
-        # If one AI field depends on another AI field, we should wait until the
-        # primary AI field is updated. That update will trigger a subsequent updates
-        if getattr(field, "depth", 0) > 0:
+        try:
+            user = field.ai_auto_update_user
+        except (
+            User.DoesNotExist
+        ):  # If the field comes from the cache might contains stale data
+            user = None
+        # The user than enabled the auto update is no longer available. Let's disable
+        # the auto_update To avoid this from being called over and over again.
+        # TODO: send a notification to the workspace admins?
+        workspace = field.table.database.workspace
+        if not user or not LicenseHandler.user_has_feature(PREMIUM, user, workspace):
+            field.ai_auto_update = False
+            field.ai_auto_update_user = None
+            field.save()
             return
 
         if isinstance(starting_row, list):
@@ -370,19 +390,10 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         else:
             row_ids = [starting_row.id]
 
-        def schedule_callback(field_ids: list[int], row_ids: list[int]):
-            from baserow_premium.fields.tasks import generate_ai_values_for_rows_no_user
-
-            for field_id in field_ids:
-                generate_ai_values_for_rows_no_user.delay(field_id, row_ids)
-
-        update_collector.add_callback(
-            "ai_field_update",
-            CollectorCallback(
-                callback=schedule_callback,
-                update_field_ids=[field.id],
-                update_row_ids=row_ids,
-            ),
+        transaction.on_commit(
+            lambda: generate_ai_values_for_rows.delay(
+                field.ai_auto_update_user_id, field.id, row_ids
+            )
         )
 
     def row_of_dependency_created(
@@ -393,7 +404,7 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         field_cache: "FieldCache",
         via_path_to_starting_table: Optional[List[LinkRowField]],
     ):
-        self._handle_dependent_rows_change(update_collector, field, starting_row)
+        self._handle_dependent_rows_change(field, starting_row)
 
     def row_of_dependency_updated(
         self,
@@ -402,17 +413,13 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         update_collector: "FieldUpdateCollector",
         field_cache: "FieldCache",
         via_path_to_starting_table: List["LinkRowField"],
+        dependency_depth: int = 0,
     ):
-        self._handle_dependent_rows_change(
-            update_collector,
-            field,
-            starting_row,
-        )
-
-    def prepare_values(self, values, user):
-        if values.get("ai_auto_update"):
-            values["ai_auto_update_user_id"] = user.id if user else None
-        return values
+        # For AI fields, a dependency depth higher than 0 means another AI field is
+        # involved, but we need to wait for that field to finish updating before we can
+        # recalculate this one.
+        if dependency_depth == 0:
+            self._handle_dependent_rows_change(field, starting_row)
 
     def before_create(
         self, table, primary, allowed_field_values, order, user, field_kwargs
@@ -427,6 +434,8 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         self._validate_field_kwargs(
             ai_output_type, ai_type, model_type, ai_file_field_id, workspace=workspace
         )
+        if allowed_field_values.get("ai_auto_update"):
+            allowed_field_values["ai_auto_update_user_id"] = user.id if user else None
 
         return super().before_create(
             table, primary, allowed_field_values, order, user, field_kwargs
@@ -456,6 +465,12 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         self._validate_field_kwargs(
             ai_output_type, ai_type, model_type, ai_file_field_id, workspace=workspace
         )
+
+        # Set the auto update user if the auto update is being enabled.
+        if to_field_values.get("ai_auto_update") and (
+            update_field is None or not update_field.ai_auto_update
+        ):
+            to_field_values["ai_auto_update_user_id"] = user.id if user else None
 
         return super().before_update(from_field, to_field_values, user, field_kwargs)
 

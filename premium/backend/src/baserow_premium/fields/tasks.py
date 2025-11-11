@@ -1,11 +1,4 @@
-from django.contrib.auth.models import AbstractUser
-from django.db import transaction
-
 from baserow_premium.generative_ai.managers import AIFileManager
-from baserow_premium.license.exceptions import FeaturesNotAvailableError
-from baserow_premium.license.features import PREMIUM
-from baserow_premium.license.handler import LicenseHandler
-from loguru import logger
 
 from baserow.config.celery import app
 from baserow.contrib.database.fields.handler import FieldHandler
@@ -32,11 +25,6 @@ from .registries import ai_field_output_registry
 
 @app.task(bind=True, queue="export")
 def generate_ai_values_for_rows(self, user_id: int, field_id: int, row_ids: list[int]):
-    """
-    Executes AI field value calculation for a scenario, where we know
-    the requesting user.
-    """
-
     user = User.objects.get(pk=user_id)
 
     ai_field = FieldHandler().get_field(
@@ -55,49 +43,9 @@ def generate_ai_values_for_rows(self, user_id: int, field_id: int, row_ids: list
         context=table,
     )
 
-    run_generate_ai_values_for_rows(self, user, ai_field, row_ids)
-
-
-@app.task(bind=True, queue="export")
-def generate_ai_values_for_rows_no_user(self, field_id: int, row_ids: list[int]):
-    """
-    Executes AI field value calculation for a scenario, where we don't know
-    the requesting user.
-    """
-
-    ai_field: AIField = FieldHandler().get_field(
-        field_id,
-        base_queryset=AIField.objects.all()
-        .select_related("table__database__workspace")
-        .prefetch_related("select_options"),
-    )
-    table = ai_field.table
-    workspace = table.database.workspace
-    user = ai_field.ai_auto_update_user
-
-    if not user or not ai_field.ai_auto_update:
-        return
-    try:
-        LicenseHandler.raise_if_user_doesnt_have_feature(
-            feature=PREMIUM, user=user, workspace=workspace
-        )
-    except FeaturesNotAvailableError:
-        logger.warning(f"No license to use AI field auto-update")
-        return
-
-    run_generate_ai_values_for_rows(self, user, ai_field, row_ids)
-
-
-def run_generate_ai_values_for_rows(
-    sender, user: AbstractUser, ai_field: AIField, row_ids: list[int]
-):
-    table = ai_field.table
-    workspace = table.database.workspace
     model = ai_field.table.get_model()
     req_row_ids = row_ids
-
     rows = RowHandler().get_rows(model, req_row_ids)
-
     if len(rows) != len(req_row_ids):
         found_rows_ids = [row.id for row in rows]
         raise RowDoesNotExist(sorted(list(set(req_row_ids) - set(found_rows_ids))))
@@ -115,7 +63,7 @@ def run_generate_ai_values_for_rows(
         # or if the export worker doesn't have the right env vars yet, then it can
         # fail. We therefore want to handle the error gracefully.
         rows_ai_values_generation_error.send(
-            sender,
+            self,
             user=user,
             rows=rows,
             field=ai_field,
@@ -174,7 +122,7 @@ def run_generate_ai_values_for_rows(
         except Exception as exc:
             # If the prompt fails once, we should not continue with the other rows.
             rows_ai_values_generation_error.send(
-                sender,
+                self,
                 user=user,
                 rows=rows[i:],
                 field=ai_field,
@@ -183,10 +131,11 @@ def run_generate_ai_values_for_rows(
             )
             raise exc
 
-        with transaction.atomic():
-            RowHandler().force_update_rows(
-                user,
-                table,
-                [{"id": row.id, ai_field.db_column: value}],
-                model=model,
-            )
+        RowHandler().update_row_by_id(
+            user,
+            table,
+            row.id,
+            {ai_field.db_column: value},
+            model=model,
+            values_already_prepared=True,
+        )
