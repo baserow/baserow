@@ -634,8 +634,8 @@ def test_runtime_less_than_or_equal_validate_number_of_args(args, expected):
     "args,expected",
     [
         (["apple"], "APPLE"),
-        (["ball"], "BALL"),
-        (["foo bar"], "FOO BAR"),
+        (["bAll"], "BALL"),
+        (["Foo Bar"], "FOO BAR"),
     ],
 )
 def test_runtime_upper_execute(args, expected):
@@ -1575,11 +1575,12 @@ def test_runtime_and_execute(args, expected):
         ([True, False], None),
         ([True, "false"], None),
         ([True, "False"], None),
-        # Invalid types for 1st or 2nd arg
+        # Invalid types for 1st arg
         (["foo", True], "foo"),
         ([{}, True], {}),
         (["", True], ""),
         ([100, True], 100),
+        # Invalid types for 2nd arg
         ([True, "foo"], "foo"),
         ([True, {}], {}),
         ([True, ""], ""),

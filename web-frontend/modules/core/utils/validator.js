@@ -25,6 +25,7 @@ export const ensureNumeric = (value, { allowNull = false } = {}) => {
       return Number(value)
     }
   }
+
   throw new Error(
     `Value '${value}' is not a valid number or convertible to a number.`
   )

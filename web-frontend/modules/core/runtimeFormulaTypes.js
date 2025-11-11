@@ -978,7 +978,7 @@ export class RuntimeRound extends RuntimeFormulaFunction {
       decimalPlaces = Math.max(args[1], 0)
     }
 
-    return args[0].toFixed(decimalPlaces)
+    return Number(args[0].toFixed(decimalPlaces))
   }
 
   getDescription() {

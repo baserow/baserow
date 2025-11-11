@@ -47,7 +47,12 @@ export class NumberBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFormu
       return false
     }
 
-    return !isNaN(value)
+    try {
+      ensureNumeric(value)
+      return true
+    } catch (e) {
+      return false
+    }
   }
 
   parse(value) {
