@@ -1,6 +1,5 @@
 import csv
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
@@ -40,22 +39,12 @@ def write_csv(path: Path, rows: list[dict]):
             w.writerow(r)
 
 
-def mock_embeddings_vectors(n: int, base: float = 0.1):
-    return [
-        [base + i * 0.01] + [0.0] * (DEFAULT_EMBEDDING_DIMENSIONS - 1) for i in range(n)
-    ]
-
-
-def patch_embedder(return_vectors):
-    p = patch("baserow_enterprise.assistant.tools.search_docs.handler.httpxClient")
-    m = p.start()
-    resp = m.return_value.post.return_value
-    resp.json.return_value = {"embeddings": return_vectors}
-    return p
+def fake_embed_texts(texts):
+    return [[0.1] + [0.0] * (DEFAULT_EMBEDDING_DIMENSIONS - 1) for _ in texts]
 
 
 @pytest.mark.django_db
-def test_sync_creates_documents_chunks_and_splits_faq(handler_and_csv):
+def test_sync_creates_documents_chunks_and_splits_faq(handler_and_csv, monkeypatch):
     handler, csv_path = handler_and_csv
 
     rows = [
@@ -104,11 +93,8 @@ def test_sync_creates_documents_chunks_and_splits_faq(handler_and_csv):
     ]
     write_csv(csv_path, rows)
 
-    p = patch_embedder(mock_embeddings_vectors(4))
-    try:
-        handler.sync_knowledge_base()
-    finally:
-        p.stop()
+    monkeypatch.setattr(handler.vector_handler, "embed_texts", fake_embed_texts)
+    handler.sync_knowledge_base()
 
     # Documents created
     assert KnowledgeBaseDocument.objects.filter(
@@ -152,12 +138,8 @@ def test_sync_no_reembedding_when_body_unchanged(handler_and_csv, monkeypatch):
     ]
     write_csv(csv_path, rows)
 
-    # First sync embeds once
-    p1 = patch_embedder(mock_embeddings_vectors(1))
-    try:
-        handler.sync_knowledge_base()
-    finally:
-        p1.stop()
+    monkeypatch.setattr(handler.vector_handler, "embed_texts", fake_embed_texts)
+    handler.sync_knowledge_base()
 
     doc = KnowledgeBaseDocument.objects.get(slug="index", type="baserow_user_docs")
     chunk_before = KnowledgeBaseChunk.objects.get(source_document=doc)
@@ -165,13 +147,7 @@ def test_sync_no_reembedding_when_body_unchanged(handler_and_csv, monkeypatch):
 
     # Second sync with same CSV: ensure embedder is NOT called
     called = {"n": 0}
-
-    def fake_embed(texts):
-        called["n"] += 1
-        return mock_embeddings_vectors(len(texts))
-
-    monkeypatch.setattr(handler.vector_handler, "embed_texts", fake_embed)
-
+    monkeypatch.setattr(handler.vector_handler, "embed_texts", fake_embed_texts)
     handler.sync_knowledge_base()
 
     # No new chunks created; existing remains the same id
@@ -182,7 +158,7 @@ def test_sync_no_reembedding_when_body_unchanged(handler_and_csv, monkeypatch):
 
 
 @pytest.mark.django_db
-def test_sync_reembeds_on_body_change(handler_and_csv):
+def test_sync_reembeds_on_body_change(handler_and_csv, monkeypatch):
     handler, csv_path = handler_and_csv
 
     initial_rows = [
@@ -199,11 +175,8 @@ def test_sync_reembeds_on_body_change(handler_and_csv):
     ]
     write_csv(csv_path, initial_rows)
 
-    p1 = patch_embedder(mock_embeddings_vectors(1, base=0.2))
-    try:
-        handler.sync_knowledge_base()
-    finally:
-        p1.stop()
+    monkeypatch.setattr(handler.vector_handler, "embed_texts", fake_embed_texts)
+    handler.sync_knowledge_base()
 
     doc = KnowledgeBaseDocument.objects.get(slug="index", type="baserow_user_docs")
     old_chunk = KnowledgeBaseChunk.objects.get(source_document=doc)
@@ -225,11 +198,8 @@ def test_sync_reembeds_on_body_change(handler_and_csv):
     ]
     write_csv(csv_path, updated_rows)
 
-    p2 = patch_embedder(mock_embeddings_vectors(1, base=0.3))
-    try:
-        handler.sync_knowledge_base()
-    finally:
-        p2.stop()
+    monkeypatch.setattr(handler.vector_handler, "embed_texts", fake_embed_texts)
+    handler.sync_knowledge_base()
 
     # Chunk should be replaced (deleted + created)
     new_chunk = KnowledgeBaseChunk.objects.get(source_document=doc)
@@ -238,7 +208,9 @@ def test_sync_reembeds_on_body_change(handler_and_csv):
 
 
 @pytest.mark.django_db
-def test_sync_deletes_docs_missing_from_csv_within_same_type(handler_and_csv):
+def test_sync_deletes_docs_missing_from_csv_within_same_type(
+    handler_and_csv, monkeypatch
+):
     handler, csv_path = handler_and_csv
 
     rows1 = [
@@ -275,11 +247,8 @@ def test_sync_deletes_docs_missing_from_csv_within_same_type(handler_and_csv):
     ]
     write_csv(csv_path, rows1)
 
-    p1 = patch_embedder(mock_embeddings_vectors(3))
-    try:
-        handler.sync_knowledge_base()
-    finally:
-        p1.stop()
+    monkeypatch.setattr(handler.vector_handler, "embed_texts", fake_embed_texts)
+    handler.sync_knowledge_base()
 
     assert KnowledgeBaseDocument.objects.filter(
         type="baserow_user_docs", slug="index"
@@ -314,11 +283,8 @@ def test_sync_deletes_docs_missing_from_csv_within_same_type(handler_and_csv):
     ]
     write_csv(csv_path, rows2)
 
-    p2 = patch_embedder(mock_embeddings_vectors(2))
-    try:
-        handler.sync_knowledge_base()
-    finally:
-        p2.stop()
+    monkeypatch.setattr(handler.vector_handler, "embed_texts", fake_embed_texts)
+    handler.sync_knowledge_base()
 
     assert not KnowledgeBaseDocument.objects.filter(
         type="baserow_user_docs", slug="index"
@@ -329,7 +295,7 @@ def test_sync_deletes_docs_missing_from_csv_within_same_type(handler_and_csv):
 
 
 @pytest.mark.django_db
-def test_sync_links_existing_categories(handler_and_csv):
+def test_sync_links_existing_categories(handler_and_csv, monkeypatch):
     handler, csv_path = handler_and_csv
     handler.load_categories(DEFAULT_CATEGORIES)
 
@@ -357,11 +323,8 @@ def test_sync_links_existing_categories(handler_and_csv):
     ]
     write_csv(csv_path, rows)
 
-    p = patch_embedder(mock_embeddings_vectors(2))
-    try:
-        handler.sync_knowledge_base()
-    finally:
-        p.stop()
+    monkeypatch.setattr(handler.vector_handler, "embed_texts", fake_embed_texts)
+    handler.sync_knowledge_base()
 
     assert KnowledgeBaseCategory.objects.filter(name="workspace").exists()
     assert KnowledgeBaseCategory.objects.filter(name="faq").exists()
@@ -370,3 +333,23 @@ def test_sync_links_existing_categories(handler_and_csv):
     d2 = KnowledgeBaseDocument.objects.get(type="faq", slug="faq-1")
     assert d1.category.name == "workspace"
     assert d2.category.name == "faq"
+
+
+@pytest.mark.django_db
+def test_sync_knowledge_base_with_real_file(monkeypatch):
+    handler = KnowledgeBaseHandler()
+    handler.load_categories(DEFAULT_CATEGORIES)
+
+    monkeypatch.setattr(handler.vector_handler, "embed_texts", fake_embed_texts)
+    handler.sync_knowledge_base()
+
+    count_documents = KnowledgeBaseDocument.objects.all().count()
+    count_chunks = KnowledgeBaseChunk.objects.all().count()
+
+    assert count_documents > 100
+    assert count_chunks > 100
+
+    handler.sync_knowledge_base()
+
+    assert count_documents == KnowledgeBaseDocument.objects.all().count()
+    assert count_chunks == KnowledgeBaseChunk.objects.all().count()
