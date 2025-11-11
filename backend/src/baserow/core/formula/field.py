@@ -57,6 +57,9 @@ class FormulaField(models.TextField):
 
         # If the column type is "text", then we haven't yet migrated the schema.
         if self.db_type(connection) == "text":
+            if value is None:
+                return BaserowFormulaObject.create("")
+
             if isinstance(value, int):
                 # A small hack for our backend tests: if we
                 # receive an integer, we convert it to a string.

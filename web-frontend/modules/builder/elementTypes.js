@@ -309,7 +309,8 @@ export class ElementType extends Registerable {
     if (
       element.visibility_condition?.formula &&
       !ensureBoolean(
-        this.resolveFormula(element.visibility_condition, applicationContext)
+        this.resolveFormula(element.visibility_condition, applicationContext),
+        { useStrict: false }
       )
     ) {
       return false
