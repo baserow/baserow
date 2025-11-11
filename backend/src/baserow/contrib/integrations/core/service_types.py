@@ -54,8 +54,8 @@ from baserow.contrib.integrations.core.models import (
     HTTPHeader,
     HTTPQueryParam,
 )
-from baserow.core.formula.types import BaserowFormulaObject
 from baserow.contrib.integrations.utils import get_http_request_function
+from baserow.core.formula.types import BaserowFormulaObject
 from baserow.core.formula.validator import (
     ensure_array,
     ensure_boolean,
