@@ -1,14 +1,16 @@
-from typing import IO, Iterable, Tuple
-from zipfile import ZIP_DEFLATED, ZipFile
+import csv
+from collections import defaultdict
+from pathlib import Path
+from typing import Iterable, Tuple
 
 from django.conf import settings
-from django.core import serializers
-from django.db.models import Q
+from django.db import transaction
 
 from httpx import Client as httpxClient
 from pgvector.django import L2Distance
 
 from baserow_enterprise.assistant.models import (
+    DEFAULT_CATEGORIES,
     KnowledgeBaseCategory,
     KnowledgeBaseChunk,
     KnowledgeBaseDocument,
@@ -152,6 +154,21 @@ class KnowledgeBaseHandler:
 
         KnowledgeBaseChunk.try_init_vector_field()
 
+    def can_have_knowledge_base(self):
+        """
+        Indicates whether it's possible for the knowledge base to be populated. In
+        order to do that, we need a valid embeddings server and PostgreSQL server must
+        support vectors.
+
+        :return: True if there is an embeddings server and pgvector extension is
+            enabled.
+        """
+
+        return (
+            settings.BASEROW_EMBEDDINGS_API_URL != ""
+            and KnowledgeBaseChunk.can_search_vectors()
+        )
+
     def can_search(self) -> bool:
         """
         Returns whether the knowledge base has any documents with status READY that can
@@ -162,8 +179,7 @@ class KnowledgeBaseHandler:
         """
 
         return (
-            settings.BASEROW_EMBEDDINGS_API_URL != ""
-            and KnowledgeBaseChunk.can_search_vectors()
+            self.can_have_knowledge_base()
             and KnowledgeBaseDocument.objects.filter(
                 status=KnowledgeBaseDocument.Status.READY
             ).exists()
@@ -224,121 +240,218 @@ class KnowledgeBaseHandler:
             categories_with_parents, ["parent_id"]
         )
 
-    def dump_knowledge_base(
-        self,
-        buffer_or_filename: IO[str] | str,
-        document_filters: Q | None = None,
-    ) -> int:
+    def sync_knowledge_base(self):
         """
-        Dump the knowledge base into a zip file, containing the serialized
-        representation of the categories, documents and chunks.
+        Sync entries from `website_export.csv` with the knowledgebase documents and
+        chunks. The idea is that this `website_export.csv` file can easily be
+        exported from the production version of saas.
 
-        :param buffer_or_filename: The stream or filename where to write the dump.
-        :param document_filters: Optional filters to apply to the dumped documents.
-        :return: The number of dumped documents.
+        It automatically checks if the entry already exists based, and will create,
+        update or delete accordingly. This will make sure that if a FAQ question is
+        removed from the source, it will also be removed in the documents.
         """
 
-        if document_filters is None:
-            document_filters = Q()
+        # Ensure default categories exist (parents set by load_categories)
+        self.load_categories(DEFAULT_CATEGORIES)
 
-        documents = KnowledgeBaseDocument.objects.filter(
-            document_filters
-        ).select_related("category")
+        csv_path = self._csv_path()
+        with csv_path.open("r", encoding="utf-8", newline="") as f:
+            reader = csv.DictReader(f)
+            rows = [dict(r) for r in reader]
 
-        categories = KnowledgeBaseCategory.objects.filter(
-            id__in=[doc.category_id for doc in documents]
-        ).select_related("parent__parent__parent__parent")
+        if not rows:
+            return
 
-        chunks = KnowledgeBaseChunk.objects.filter(
-            source_document__in=documents
-        ).select_related("source_document")
+        # For `baserow_user_docs`: merge duplicates by (type, slug) by concatenating
+        #   bodies
+        # For `faq`: create a unique slug per row using the CSV `id`.
+        pages = {}  # (doc_type, slug) -> page dict
+        slugs_by_type = defaultdict(set)
+        cat_names = set()
+        faq_type = KnowledgeBaseDocument.DocumentType.FAQ
 
-        def _serialize(items, fields=None, format_type="jsonl"):
-            return serializers.serialize(
-                format_type,
-                list(items),
-                use_natural_foreign_keys=True,
-                use_natural_primary_keys=True,
-                fields=fields,
-            )
+        for row in rows:
+            row_id = row.get("id") or ""
+            base_slug = row.get("slug") or ""
+            title = row.get("title") or row.get("name") or ""
+            body = row.get("markdown_body") or ""
+            category = row.get("category") or ""
+            source_url = row.get("source_url") or ""
+            doc_type = self._csv_type_to_enum(row.get("type"))
 
-        # Avoid serializing the vector field, as it's a copy of the _embedding_array
-        # field and can cause issues if the pgvector extension is not available at
-        # import time.
-        chunk_fields = [
-            f.name
-            for f in KnowledgeBaseChunk._meta.fields
-            if f.name not in (KnowledgeBaseChunk.VECTOR_FIELD_NAME, "id")
-        ]
+            if not (doc_type and base_slug and title):
+                continue
 
-        with ZipFile(
-            buffer_or_filename, mode="w", compression=ZIP_DEFLATED, allowZip64=True
-        ) as zip_file:
-            zip_file.writestr("categories.jsonl", _serialize(categories))
-            zip_file.writestr("documents.jsonl", _serialize(documents))
-            zip_file.writestr("chunks.jsonl", _serialize(chunks, fields=chunk_fields))
+            if doc_type == faq_type:
+                slug = f"{base_slug}-{row_id}"
+            else:
+                slug = base_slug
 
-        return len(documents)
+            key = (doc_type, slug)
+            pages[key] = {
+                "title": title,
+                "body": body,
+                "category": category,
+                "source_url": source_url,
+                "type": doc_type,
+            }
 
-    def load_knowledge_base(
-        self,
-        buffer_or_filename: IO[str] | str,
-    ) -> list[KnowledgeBaseDocument]:
-        """
-        Load a knowledge base from a serialized representation, previously exported with
-        `dump_knowledge_base`. The existing documents with the same slug will be
-        replaced, together with their chunks. The categories will be created if they
-        don't exist yet. Once the knowledge base is loaded, the vector store index will
-        be synced.
+            slugs_by_type[doc_type].add(slug)
+            if category:
+                cat_names.add(category)
 
-        :param buffer_or_filename: The stream or string containing the serialized
-            knowledge base data.
-        :return: The list of loaded KnowledgeBaseDocument instances
-        """
+        if not pages:
+            return
 
-        def _deserialize(
-            stream: IO[str] | str, format_type="jsonl"
-        ) -> Iterable[serializers.base.DeserializedObject]:
-            return serializers.deserialize(
-                format_type, stream, handle_forward_references=True
-            )
+        categories = {
+            c.name: c for c in KnowledgeBaseCategory.objects.filter(name__in=cat_names)
+        }
 
-        categories = []
-        documents = []
-        chunks = []
+        with transaction.atomic():
+            types_in_csv = list(slugs_by_type.keys())
+            existing = {
+                (d.type, d.slug): d
+                for d in KnowledgeBaseDocument.objects.filter(type__in=types_in_csv)
+            }
 
-        with ZipFile(buffer_or_filename, mode="r", allowZip64=True) as zip_file:
-            categories_data = zip_file.read("categories.jsonl").decode("utf-8")
-            for obj in _deserialize(categories_data):
-                categories.append(obj.object)
+            # Deletes the user docs that exist in the KnowledgeBaseDocument,
+            # but do not exist in the CSV file anymore. This covers the scenario
+            # where a page is deleted.
+            for t in types_in_csv:
+                csv_slugs = slugs_by_type[t]
+                to_delete = [
+                    k for k in existing.keys() if k[0] == t and k[1] not in csv_slugs
+                ]
+                if to_delete:
+                    KnowledgeBaseDocument.objects.filter(
+                        type=t, slug__in=[s for (_, s) in to_delete]
+                    ).delete()
+                    for k in to_delete:
+                        existing.pop(k, None)
 
-            self.load_categories(
-                (cat.name, cat.parent.name if cat.parent else None)
-                for cat in categories
-            )
+            create, update = [], []
+            doc_ids_needing_chunks: set[int] = set()
 
-            documents_data = zip_file.read("documents.jsonl").decode("utf-8")
-            for obj in _deserialize(documents_data):
-                documents.append(obj.object)
+            for key, p in pages.items():
+                category = categories.get(p["category"]) if p["category"] else None
+                d = existing.get(key)
+                if d:
+                    changed = False
+                    body_changed = False
+                    if d.title != p["title"]:
+                        d.title = p["title"]
+                        changed = True
+                    if d.raw_content != p["body"]:
+                        d.raw_content = p["body"]
+                        changed = True
+                        body_changed = True
+                    if d.content != p["body"]:
+                        d.content = p["body"]
+                        changed = True
+                        body_changed = True
+                    if d.category_id != (category.id if category else None):
+                        d.category = category
+                        changed = True
+                    if d.process_document:
+                        d.process_document = False
+                        changed = True
+                    if d.status != KnowledgeBaseDocument.Status.READY:
+                        d.status = KnowledgeBaseDocument.Status.READY
+                        changed = True
+                    if d.source_url != p["source_url"]:
+                        d.source_url = p["source_url"]
+                        changed = True
 
-            # Delete existing documents with the same slug to avoid conflicts
-            # This also cascades and deletes their chunks
-            KnowledgeBaseDocument.objects.filter(
-                slug__in=[doc.slug for doc in documents]
+                    if changed:
+                        update.append(d)
+                    if body_changed:
+                        doc_ids_needing_chunks.add(d.id)
+                else:
+                    new_doc = KnowledgeBaseDocument(
+                        title=p["title"],
+                        slug=key[1],
+                        type=key[0],
+                        raw_content=p["body"],
+                        process_document=False,
+                        content=p["body"],
+                        status=KnowledgeBaseDocument.Status.READY,
+                        category=category,
+                        source_url=p["source_url"],
+                    )
+                    create.append(new_doc)
+
+            if create:
+                KnowledgeBaseDocument.objects.bulk_create(create)
+                fresh = KnowledgeBaseDocument.objects.filter(
+                    type__in=types_in_csv, slug__in=[d.slug for d in create]
+                )
+                for d in fresh:
+                    existing[(d.type, d.slug)] = d
+                    doc_ids_needing_chunks.add(d.id)
+
+            if update:
+                KnowledgeBaseDocument.objects.bulk_update(
+                    update,
+                    [
+                        "title",
+                        "raw_content",
+                        "process_document",
+                        "content",
+                        "status",
+                        "category",
+                        "source_url",
+                        "updated_on",
+                    ],
+                )
+
+            # If there are no chunks to rebuild, we can skip the final part because
+            # there is no need to delete and recreate the missing chunks.
+            if not doc_ids_needing_chunks:
+                return
+
+            KnowledgeBaseChunk.objects.filter(
+                source_document_id__in=list(doc_ids_needing_chunks)
             ).delete()
 
-            KnowledgeBaseDocument.objects.bulk_create(documents)
+            chunks, texts = [], []
+            for (t, s), d in existing.items():
+                if d.id not in doc_ids_needing_chunks:
+                    continue
+                body = pages[(t, s)]["body"]
+                chunks.append(
+                    KnowledgeBaseChunk(
+                        source_document=d, index=0, content=body, metadata={}
+                    )
+                )
+                texts.append(body)
 
-            chunks_data = zip_file.read("chunks.jsonl").decode("utf-8")
-            for obj in _deserialize(chunks_data):
-                chunks.append(obj.object)
+            if not chunks:
+                return
 
+            embeddings = self.vector_handler.embed_texts(texts)
             if KnowledgeBaseChunk.can_search_vectors():
-                # If the vector field is available, set it from the _embedding_array
-                # field to ensure data consistency
-                for chunk in chunks:
-                    chunk.embedding = chunk._embedding_array
+                for c, e in zip(chunks, embeddings):
+                    c.embedding = list(e)
+                    c._embedding_array = list(e)
+            else:
+                for c, e in zip(chunks, embeddings):
+                    c._embedding_array = list(e)
 
             KnowledgeBaseChunk.objects.bulk_create(chunks)
 
-        return documents
+    def _csv_path(self):
+        path = Path(__file__).resolve().parents[5] / "website_export.csv"
+
+        if not path.exists():
+            raise FileNotFoundError(f"CSV not found at: {path}")
+
+        return path
+
+    def _csv_type_to_enum(self, csv_value: str | None) -> str:
+        v = (csv_value or "").strip()
+        if not v:
+            return KnowledgeBaseDocument.DocumentType.RAW_DOCUMENT
+        for dt in KnowledgeBaseDocument.DocumentType:
+            if v.lower() == dt.value.lower():
+                return dt.value
+        return KnowledgeBaseDocument.DocumentType.RAW_DOCUMENT

@@ -1,11 +1,8 @@
 import uuid
 from typing import Iterable, NamedTuple
 
-from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db import models
-from django.db.models.signals import post_migrate
-from django.dispatch import receiver
 
 from baserow.core.mixins import BigAutoFieldMixin, CreatedAndUpdatedOnMixin
 from baserow.core.models import Workspace
@@ -192,6 +189,8 @@ DEFAULT_CATEGORIES = [
     DocumentCategory("premium", "billing"),
     DocumentCategory("advanced", "billing"),
     DocumentCategory("enterprise", "billing"),
+    # FAQ
+    DocumentCategory("faq", None),
 ]
 
 
@@ -392,20 +391,3 @@ class KnowledgeBaseChunk(CreatedAndUpdatedOnMixin, EmbeddingMixin):
 
     def natural_key(self):
         return (self.source_document.slug, self.index)
-
-
-@receiver(post_migrate)
-def create_default_knowledge_base_categories(sender, **kwargs):
-    """
-    Create default knowledge base categories if they don't exist. They're needed as
-    document type importers rely on them.
-    """
-
-    from baserow_enterprise.assistant.tools.search_docs.handler import (
-        KnowledgeBaseHandler,
-    )
-
-    if settings.TESTS:
-        return
-
-    KnowledgeBaseHandler().load_categories(DEFAULT_CATEGORIES)

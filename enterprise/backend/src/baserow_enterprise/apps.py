@@ -277,6 +277,14 @@ class BaserowEnterpriseConfig(AppConfig):
             dispatch_uid="sync_default_roles_after_migrate",
         )
 
+        # Make sure that the assistant knowledge base is up to date after running the
+        # migrations.
+        post_migrate.connect(
+            sync_assistant_knowledge_base,
+            sender=self,
+            dispatch_uid="sync_assistant_knowledge_base",
+        )
+
         from baserow_enterprise.teams.receivers import (
             connect_to_post_delete_signals_to_cascade_deletion_to_team_subjects,
         )
@@ -411,3 +419,18 @@ def sync_default_roles_after_migrate(sender, **kwargs):
                         role.operations.remove(
                             *[all_old_operations[op] for op in to_remove],
                         )
+
+
+def sync_assistant_knowledge_base(sender, **kwargs):
+    from baserow_enterprise.assistant.tools.search_docs.handler import (
+        KnowledgeBaseHandler,
+    )
+
+    if KnowledgeBaseHandler().can_have_knowledge_base():
+        KnowledgeBaseHandler().sync_knowledge_base()
+    else:
+        print(
+            "Skipping assistant knowledge base sync because this instance does not "
+            "have the `BASEROW_EMBEDDINGS_API_URL` environment variable "
+            "configured or the PostgreSQL server does not have the pgvector extension."
+        )
