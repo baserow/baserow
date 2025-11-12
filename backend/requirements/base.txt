@@ -545,8 +545,9 @@ pyyaml==6.0.2
     #   langchain
     #   langchain-core
     #   uvicorn
-redis==5.2.1
 qrcode==8.2
+    # via -r base.in
+redis==5.2.1
     # via
     #   -r base.in
     #   celery-redbeat
@@ -674,7 +675,7 @@ tzdata==2025.2
     #   -r base.in
     #   django-celery-beat
     #   kombu
-udspy==0.1.5
+udspy==0.1.6
     # via -r base.in
 unicodecsv==0.14.1
     # via -r base.in
