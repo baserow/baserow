@@ -1075,6 +1075,9 @@
     "notAllowedTitle": "2FA not enabled",
     "notAllowedDescription": "Adding 2FA is only possible to password-based accounts."
   },
+  "nodeHelpTooltip": {
+    "result": "Result: {result}"
+  },
   "enableWithQRCode": {
     "scanQRCode": "Scan QR code",
     "scanQRCodeDescription": "Scan the code with an app like Google Authenticator, Authy or Microsoft Authenticator.",

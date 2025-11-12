@@ -18,16 +18,24 @@
           {{ node.description }}
         </p>
 
-        <div v-if="node.example" class="node-help-tooltip__example">
-          <div class="node-help-tooltip__example-code">
-            <FormulaInputField
-              :value="node.example"
-              :read-only="true"
-              :nodes-hierarchy="nodesHierarchy"
-              mode="advanced"
-            />
-          </div>
-        </div>
+        <FormGroup
+          v-if="node.example"
+          class="node-help-tooltip__example"
+          :label="'Example'"
+          small-label
+          required
+          :helper-text="
+            $t('nodeHelpTooltip.result', { result: node.example.result })
+          "
+        >
+          <FormulaInputField
+            class="node-help-tooltip__example-code"
+            :value="node.example.formula"
+            :read-only="true"
+            :nodes-hierarchy="nodesHierarchy"
+            mode="advanced"
+          />
+        </FormGroup>
       </div>
     </div>
   </Context>

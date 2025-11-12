@@ -239,8 +239,11 @@ export class RuntimeConcat extends RuntimeFormulaFunction {
 
   getExamples() {
     return [
-      "concat('Hello,', ' World!') = 'Hello, world!'",
-      "concat(get('data_source.1.0.field_1'), ' bar') = 'foo bar'",
+      { formula: "concat('Hello,', ' World!')", result: '"Hello, world!"' },
+      {
+        formula: "concat(get('data_source.1.0.field_1'), ' bar')",
+        result: '"foo bar"',
+      },
     ]
   }
 }
@@ -326,7 +329,12 @@ export class RuntimeGet extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ["get('previous_node.1.body')"]
+    return [
+      {
+        formula: "get('previous_node.1.body')",
+        result: "'Hello world'",
+      },
+    ]
   }
 }
 
@@ -364,7 +372,16 @@ export class RuntimeAdd extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ['2 + 3 = 5', '1 + 2 + 3 = 6']
+    return [
+      {
+        formula: '2 + 3',
+        result: '5',
+      },
+      {
+        formula: '1 + 2 + 3',
+        result: '6',
+      },
+    ]
   }
 }
 
@@ -402,7 +419,16 @@ export class RuntimeMinus extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ['3 - 2 = 1', '5 - 2 - 1 = 2']
+    return [
+      {
+        formula: '3 - 2',
+        result: '1',
+      },
+      {
+        formula: '5 - 2 - 1',
+        result: '2',
+      },
+    ]
   }
 }
 
@@ -440,7 +466,16 @@ export class RuntimeMultiply extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ['2 * 3 = 6', '2 * 3 * 3 = 18']
+    return [
+      {
+        formula: '2 * 3',
+        result: '6',
+      },
+      {
+        formula: '2 * 3 * 3',
+        result: '18',
+      },
+    ]
   }
 }
 
@@ -478,7 +513,16 @@ export class RuntimeDivide extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ['6 / 2 = 3', '15 / 2 / 2 = 3.75']
+    return [
+      {
+        formula: '6 / 2',
+        result: '3',
+      },
+      {
+        formula: '15 / 2 / 2',
+        result: '3.75',
+      },
+    ]
   }
 }
 
@@ -516,7 +560,20 @@ export class RuntimeEqual extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ['2 = 3 = false', '"foo" = "bar" = false', '"foo" = "foo" = true']
+    return [
+      {
+        formula: '2 = 3',
+        result: 'false',
+      },
+      {
+        formula: '"foo" = "bar"',
+        result: 'false',
+      },
+      {
+        formula: '"foo" = "foo"',
+        result: 'true',
+      },
+    ]
   }
 }
 
@@ -554,7 +611,20 @@ export class RuntimeNotEqual extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ['2 != 3 = true', '"foo" != "foo" = false', '"foo" != "bar" = true']
+    return [
+      {
+        formula: '2 != 3',
+        result: 'true',
+      },
+      {
+        formula: '"foo" != "foo"',
+        result: 'false',
+      },
+      {
+        formula: '"foo" != "bar"',
+        result: 'true',
+      },
+    ]
   }
 }
 
@@ -592,7 +662,20 @@ export class RuntimeGreaterThan extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ['5 > 4 = true', '"a" > "b" = false', '"Ambarella" > "fig" = false']
+    return [
+      {
+        formula: '5 > 4',
+        result: 'true',
+      },
+      {
+        formula: '"a" > "b"',
+        result: 'false',
+      },
+      {
+        formula: '"Ambarella" > "fig"',
+        result: 'false',
+      },
+    ]
   }
 }
 
@@ -630,7 +713,20 @@ export class RuntimeLessThan extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ['2 < 3 = true', '"b" < "a" = false', '"Ambarella" < "fig" = true']
+    return [
+      {
+        formula: '2 < 3',
+        result: 'true',
+      },
+      {
+        formula: '"b" < "a"',
+        result: 'false',
+      },
+      {
+        formula: '"Ambarella" < "fig"',
+        result: 'true',
+      },
+    ]
   }
 }
 
@@ -669,9 +765,18 @@ export class RuntimeGreaterThanOrEqual extends RuntimeFormulaFunction {
 
   getExamples() {
     return [
-      '3 >= 2 = false',
-      '"b" >= "a" = true',
-      '"Ambarella" >= "fig" = false',
+      {
+        formula: '3 >= 2',
+        result: 'false',
+      },
+      {
+        formula: '"b" >= "a"',
+        result: 'true',
+      },
+      {
+        formula: '"Ambarella" >= "fig"',
+        result: 'false',
+      },
     ]
   }
 }
@@ -711,9 +816,18 @@ export class RuntimeLessThanOrEqual extends RuntimeFormulaFunction {
 
   getExamples() {
     return [
-      '3 <= 3 = true',
-      '"a" <= "b" = false',
-      '"fig" <= "Ambarella" = false',
+      {
+        formula: '3 <= 3',
+        result: 'true',
+      },
+      {
+        formula: '"a" <= "b"',
+        result: 'false',
+      },
+      {
+        formula: '"fig" <= "Ambarella"',
+        result: 'false',
+      },
     ]
   }
 }
@@ -745,7 +859,12 @@ export class RuntimeUpper extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ["upper('Hello, World!') = 'HELLO, WORLD!'"]
+    return [
+      {
+        formula: "upper('Hello, World!')",
+        result: "'HELLO, WORLD!'",
+      },
+    ]
   }
 }
 
@@ -776,7 +895,12 @@ export class RuntimeLower extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ["lower('Hello, World!') = 'hello, world!'"]
+    return [
+      {
+        formula: "lower('Hello, World!')",
+        result: "'hello, world!'",
+      },
+    ]
   }
 }
 
@@ -813,7 +937,12 @@ export class RuntimeCapitalize extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ["capitalize('hello, world!') = 'Hello, world!'"]
+    return [
+      {
+        formula: "capitalize('hello, world!')",
+        result: "'Hello, world!'",
+      },
+    ]
   }
 }
 
@@ -858,7 +987,12 @@ export class RuntimeRound extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ["round('12.345', 2) = '12.35'"]
+    return [
+      {
+        formula: "round('12.345', 2)",
+        result: '12.35',
+      },
+    ]
   }
 }
 
@@ -889,7 +1023,16 @@ export class RuntimeIsEven extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ['is_even(12) = true', 'is_even(13) = false']
+    return [
+      {
+        formula: 'is_even(12)',
+        result: 'true',
+      },
+      {
+        formula: 'is_even(13)',
+        result: 'false',
+      },
+    ]
   }
 }
 
@@ -920,7 +1063,16 @@ export class RuntimeIsOdd extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ['is_odd(11) = true', 'is_odd(12) = false']
+    return [
+      {
+        formula: 'is_odd(11)',
+        result: 'true',
+      },
+      {
+        formula: 'is_odd(12)',
+        result: 'false',
+      },
+    ]
   }
 }
 
@@ -962,9 +1114,18 @@ export class RuntimeDateTimeFormat extends RuntimeFormulaFunction {
 
   getExamples() {
     return [
-      "datetime_format(now(), 'YYYY-MM-DD') = '2025-11-03'",
-      "datetime_format(now(), 'YYYY-MM-DD', 'Europe/Amsterdam') = '2025-11-03'",
-      "datetime_format(now(), 'DD/MM/YYYY HH:mm:ss', 'UTC') = '03/11/2025 12:12:09'",
+      {
+        formula: "datetime_format(now(), 'YYYY-MM-DD')",
+        result: "'2025-11-03'",
+      },
+      {
+        formula: "datetime_format(now(), 'YYYY-MM-DD', 'Europe/Amsterdam')",
+        result: "'2025-11-03'",
+      },
+      {
+        formula: "datetime_format(now(), 'DD/MM/YYYY HH:mm:ss', 'UTC')",
+        result: "'03/11/2025 12:12:09'",
+      },
     ]
   }
 }
@@ -996,7 +1157,12 @@ export class RuntimeDay extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ["day('2025-10-16 11:05:38') = '16'"]
+    return [
+      {
+        formula: "day('2025-10-16 11:05:38')",
+        result: '16',
+      },
+    ]
   }
 }
 
@@ -1028,7 +1194,12 @@ export class RuntimeMonth extends RuntimeFormulaFunction {
 
   getExamples() {
     // Month is 0 indexed
-    return ["month('2025-10-16 11:05:38') = '9'"]
+    return [
+      {
+        formula: "month('2025-10-16 11:05:38')",
+        result: '9',
+      },
+    ]
   }
 }
 
@@ -1059,7 +1230,12 @@ export class RuntimeYear extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ["year('2025-10-16 11:05:38') = '2025'"]
+    return [
+      {
+        formula: "year('2025-10-16 11:05:38')",
+        result: '2025',
+      },
+    ]
   }
 }
 
@@ -1090,7 +1266,12 @@ export class RuntimeHour extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ["hour('2025-10-16 11:05:38') = '11'"]
+    return [
+      {
+        formula: "hour('2025-10-16 11:05:38')",
+        result: '11',
+      },
+    ]
   }
 }
 
@@ -1121,7 +1302,12 @@ export class RuntimeMinute extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ["minute('2025-10-16T11:05:38') = '5'"]
+    return [
+      {
+        formula: "minute('2025-10-16T11:05:38')",
+        result: '5',
+      },
+    ]
   }
 }
 
@@ -1152,7 +1338,12 @@ export class RuntimeSecond extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ["second('2025-10-16 11:05:38') = '38'"]
+    return [
+      {
+        formula: "second('2025-10-16 11:05:38')",
+        result: '38',
+      },
+    ]
   }
 }
 
@@ -1178,7 +1369,12 @@ export class RuntimeNow extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ["now() = '2025-10-16 11:05:38'"]
+    return [
+      {
+        formula: 'now()',
+        result: "'2025-10-16 11:05:38'",
+      },
+    ]
   }
 }
 
@@ -1209,7 +1405,12 @@ export class RuntimeToday extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ["today() = '2025-10-16'"]
+    return [
+      {
+        formula: 'today()',
+        result: "'2025-10-16'",
+      },
+    ]
   }
 }
 
@@ -1243,7 +1444,12 @@ export class RuntimeGetProperty extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ["get_property('{\"cherry\": \"red\"}', 'cherry') = 'red'"]
+    return [
+      {
+        formula: 'get_property(\'{"cherry": "red"}\', \'cherry\')',
+        result: "'red'",
+      },
+    ]
   }
 }
 
@@ -1279,7 +1485,12 @@ export class RuntimeRandomInt extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ['random_int(10, 20) = 17']
+    return [
+      {
+        formula: 'random_int(10, 20)',
+        result: '17',
+      },
+    ]
   }
 }
 
@@ -1313,7 +1524,12 @@ export class RuntimeRandomFloat extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ['random_float(10, 20) = 18.410550297490616']
+    return [
+      {
+        formula: 'random_float(10, 20)',
+        result: '18.410550297490616',
+      },
+    ]
   }
 }
 
@@ -1344,7 +1560,12 @@ export class RuntimeRandomBool extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ['random_bool() = true']
+    return [
+      {
+        formula: 'random_bool()',
+        result: 'true',
+      },
+    ]
   }
 }
 
@@ -1375,7 +1596,12 @@ export class RuntimeGenerateUUID extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ["generate_uuid() = '9b772ad6-08bc-4d19-958d-7f1c21a4f4ef'"]
+    return [
+      {
+        formula: 'generate_uuid()',
+        result: "'9b772ad6-08bc-4d19-958d-7f1c21a4f4ef'",
+      },
+    ]
   }
 }
 
@@ -1411,8 +1637,15 @@ export class RuntimeIf extends RuntimeFormulaFunction {
 
   getExamples() {
     return [
-      'if(true, true, false) = true',
-      "if(random_bool(), 'Random bool is true', 'Random bool is false') = 'Random bool is false'",
+      {
+        formula: 'if(true, true, false)',
+        result: 'true',
+      },
+      {
+        formula:
+          "if(random_bool(), 'Random bool is true', 'Random bool is false')",
+        result: "'Random bool is false'",
+      },
     ]
   }
 }
@@ -1447,7 +1680,16 @@ export class RuntimeAnd extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return ['true && true = true', 'true && true && false = false']
+    return [
+      {
+        formula: 'true && true',
+        result: 'true',
+      },
+      {
+        formula: 'true && true && false',
+        result: 'false',
+      },
+    ]
   }
 }
 
@@ -1482,9 +1724,18 @@ export class RuntimeOr extends RuntimeFormulaFunction {
 
   getExamples() {
     return [
-      'true || true = true',
-      'true || true || false = true',
-      'false || false = false',
+      {
+        formula: 'true || true',
+        result: 'true',
+      },
+      {
+        formula: 'true || true || false',
+        result: 'true',
+      },
+      {
+        formula: 'false || false',
+        result: 'false',
+      },
     ]
   }
 }
