@@ -81,6 +81,7 @@ if TYPE_CHECKING:
     from baserow.contrib.database.fields.dependencies.handler import FieldDependants
     from baserow.contrib.database.fields.dependencies.types import FieldDependencies
     from baserow.contrib.database.fields.dependencies.update_collector import (
+        DependencyContext,
         FieldUpdateCollector,
     )
     from baserow.contrib.database.fields.field_cache import FieldCache
@@ -1446,6 +1447,7 @@ class FieldType(
         update_collector: "FieldUpdateCollector",
         field_cache: "FieldCache",
         via_path_to_starting_table: Optional[List[LinkRowField]],
+        dependency_context: "DependencyContext",
     ):
         """
         Called when a row is created in a dependency field (a field that the field
@@ -1469,6 +1471,7 @@ class FieldType(
             update_collector,
             field_cache,
             via_path_to_starting_table,
+            dependency_context,
         )
 
     def row_of_dependency_updated(
@@ -1478,7 +1481,7 @@ class FieldType(
         update_collector: "FieldUpdateCollector",
         field_cache: "FieldCache",
         via_path_to_starting_table: List["LinkRowField"],
-        dependency_depth: int = 0,
+        dependency_context: "DependencyContext",
     ):
         """
         Called when a row or rows are updated in a dependency field (a field that the
@@ -1496,10 +1499,8 @@ class FieldType(
         :param field_cache: An optional field cache to be used when fetching fields.
         :param via_path_to_starting_table: A list of link row fields if any leading
             back to the starting table where the first row was changed.
-        :param dependency_depth: The depth of the dependency chain from the starting
-            field to the field parameter. 0 means the field is a direct dependency of
-            the updated row's field. 1 means the field depends on a field which depends
-            on the updated row's field, etc.
+        :param dependency_context: A DependencyContext object containing additional
+            information about the dependency and the triggering change.
         """
 
     def row_of_dependency_deleted(
@@ -1509,6 +1510,7 @@ class FieldType(
         update_collector: "FieldUpdateCollector",
         field_cache: "FieldCache",
         via_path_to_starting_table: Optional[List[LinkRowField]],
+        dependency_context: "DependencyContext",
     ):
         """
         Called when a row is deleted in a dependency field (a field that the
@@ -1532,6 +1534,7 @@ class FieldType(
             update_collector,
             field_cache,
             via_path_to_starting_table,
+            dependency_context,
         )
 
     def field_dependency_created(

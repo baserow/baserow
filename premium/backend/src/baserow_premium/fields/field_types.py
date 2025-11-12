@@ -21,6 +21,7 @@ from baserow.contrib.database.api.fields.errors import ERROR_FIELD_DOES_NOT_EXIS
 from baserow.contrib.database.fields.dependencies.models import FieldDependency
 from baserow.contrib.database.fields.dependencies.types import FieldDependencies
 from baserow.contrib.database.fields.dependencies.update_collector import (
+    DependencyContext,
     FieldUpdateCollector,
 )
 from baserow.contrib.database.fields.field_cache import FieldCache
@@ -396,6 +397,18 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
             )
         )
 
+    def row_of_dependency_deleted(
+        self,
+        field: Field,
+        starting_row: "StartingRowType",
+        update_collector: "FieldUpdateCollector",
+        field_cache: "FieldCache",
+        via_path_to_starting_table: Optional[List[LinkRowField]],
+        dependency_context: "DependencyContext",
+    ):
+        # no need to process deletion for AI field, so we just do a noop.
+        return
+
     def row_of_dependency_created(
         self,
         field: AIField,
@@ -403,8 +416,10 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         update_collector: "FieldUpdateCollector",
         field_cache: "FieldCache",
         via_path_to_starting_table: Optional[List[LinkRowField]],
+        dependency_context: DependencyContext,
     ):
-        self._handle_dependent_rows_change(field, starting_row)
+        if dependency_context.depth == 0:
+            self._handle_dependent_rows_change(field, starting_row)
 
     def row_of_dependency_updated(
         self,
@@ -413,12 +428,13 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         update_collector: "FieldUpdateCollector",
         field_cache: "FieldCache",
         via_path_to_starting_table: List["LinkRowField"],
-        dependency_depth: int = 0,
+        dependency_context: DependencyContext,
     ):
         # For AI fields, a dependency depth higher than 0 means another AI field is
         # involved, but we need to wait for that field to finish updating before we can
         # recalculate this one.
-        if dependency_depth == 0:
+        # Note: empty dependency_context is used when
+        if dependency_context.depth == 0:
             self._handle_dependent_rows_change(field, starting_row)
 
     def before_create(

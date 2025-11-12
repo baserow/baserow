@@ -1,3 +1,4 @@
+import dataclasses
 from collections import defaultdict
 from typing import Dict, List, Optional, Set, Tuple, cast
 
@@ -14,6 +15,20 @@ from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.table.signals import table_updated
 
 StartingRowIdsType = Optional[List[int]]
+
+
+@dataclasses.dataclass
+class DependencyContext:
+    """
+    DependencyContext is used to pass additional dependency-related information
+    to callbacks.
+    """
+
+    # The depth of the dependency chain from the starting
+    # field to the field parameter. 0 means the field is a direct dependency of
+    # the updated row's field. 1 means the field depends on a field which depends
+    # on the updated row's field, etc.
+    depth: int = 0
 
 
 class PathBasedUpdateStatementCollector:

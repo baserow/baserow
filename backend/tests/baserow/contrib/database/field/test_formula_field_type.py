@@ -12,6 +12,7 @@ import pytest
 from rest_framework.status import HTTP_200_OK, HTTP_204_NO_CONTENT
 
 from baserow.contrib.database.fields.dependencies.update_collector import (
+    DependencyContext,
     FieldUpdateCollector,
 )
 from baserow.contrib.database.fields.field_cache import FieldCache
@@ -864,23 +865,24 @@ def test_row_dependency_update_functions_do_one_row_updates_for_same_table(
     field_cache = FieldCache()
     field_cache.cache_model(table_model)
 
+    dependency_context = DependencyContext(depth=0)
     formula_field_type.row_of_dependency_updated(
-        formula_field, row, update_collector, field_cache, None
+        formula_field, row, update_collector, field_cache, None, dependency_context
     )
     formula_field_type.row_of_dependency_updated(
-        formula_field, row, update_collector, field_cache, []
+        formula_field, row, update_collector, field_cache, [], dependency_context
     )
     formula_field_type.row_of_dependency_created(
-        formula_field, row, update_collector, field_cache, None
+        formula_field, row, update_collector, field_cache, None, dependency_context
     )
     formula_field_type.row_of_dependency_created(
-        formula_field, row, update_collector, field_cache, []
+        formula_field, row, update_collector, field_cache, [], dependency_context
     )
     formula_field_type.row_of_dependency_deleted(
-        formula_field, row, update_collector, field_cache, None
+        formula_field, row, update_collector, field_cache, None, dependency_context
     )
     formula_field_type.row_of_dependency_deleted(
-        formula_field, row, update_collector, field_cache, []
+        formula_field, row, update_collector, field_cache, [], dependency_context
     )
     # Does one update to update the last_system_or_user_row_update_on column
     with django_assert_num_queries(1):
