@@ -1,12 +1,12 @@
 import { Registerable } from '@baserow/modules/core/registry'
-import RegenerateAIFieldContextItem from '@baserow_premium/components/field/RegenerateAIFieldContextItem'
+import GenerateAIValuesContextItem from '@baserow_premium/components/field/GenerateAIValuesContextItem'
 
-export class RegenerateAIFieldContextItemType extends Registerable {
+export class GenerateAIValuesContextItemType extends Registerable {
   static getType() {
-    return 'regenerate_ai_field'
+    return 'generate_ai_values'
   }
 
   getComponent() {
-    return RegenerateAIFieldContextItem
+    return GenerateAIValuesContextItem
   }
 }

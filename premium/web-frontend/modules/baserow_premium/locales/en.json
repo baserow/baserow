@@ -373,27 +373,21 @@
     "false": "false",
     "other": "Other"
   },
-  "regenerateAIFieldModal": {
-    "title": "Regenerate {name} values",
-    "failedTitle": "Regeneration failed",
-    "failedDescription": "The AI field regeneration has failed. Please try again.",
-    "cancelledTitle": "Regeneration cancelled",
-    "cancelledDescription": "The AI field regeneration has been cancelled."
+  "generateAIValuesModal": {
+    "title": "Generate all AI values"
   },
-  "regenerateAIFieldForm": {
+  "generateAIValuesForm": {
     "scopeLabel": "Scope",
     "entireTable": "Entire table",
     "skipPopulated": "Generate only values for empty cells",
     "warningTitle": "Token Usage Warning",
-    "warningMessage": "Regenerating AI field values will consume API tokens and may take substantial time depending on the number of rows."
+    "warningMessage": "Geenerating all AI values will consume API tokens and may take substantial time depending on the number of rows."
   },
-  "regenerateAIFieldLoadingBar": {
+  "generateAIValuesFormFooter": {
     "generate": "Generate with AI",
     "close": "Close"
   },
   "jobType": {
-    "regenerateAIFieldValues": "Regenerate AI field values",
-    "regenerateAIFieldValuesCompleted": "Regeneration completed",
-    "regenerateAIFieldValuesCompletedMessage": "AI field values have been successfully regenerated."
+    "generateAIValues": "Regenerate AI field values"
   }
 }

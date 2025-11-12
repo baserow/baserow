@@ -31,12 +31,14 @@ from baserow.api.schemas import (
 from baserow.contrib.database.api.fields.errors import ERROR_FIELD_DOES_NOT_EXIST
 from baserow.contrib.database.api.rows.errors import ERROR_ROW_DOES_NOT_EXIST
 from baserow.contrib.database.api.tables.errors import ERROR_TABLE_DOES_NOT_EXIST
+from baserow.contrib.database.api.views.errors import ERROR_VIEW_DOES_NOT_EXIST
 from baserow.contrib.database.fields.exceptions import FieldDoesNotExist
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.operations import ListFieldsOperationType
 from baserow.contrib.database.rows.exceptions import RowDoesNotExist
 from baserow.contrib.database.table.exceptions import TableDoesNotExist
 from baserow.contrib.database.table.handler import TableHandler
+from baserow.contrib.database.views.exceptions import ViewDoesNotExist
 from baserow.core.action.registries import action_type_registry
 from baserow.core.exceptions import UserNotInWorkspace
 from baserow.core.generative_ai.exceptions import (
@@ -102,6 +104,7 @@ class AsyncGenerateAIFieldValuesView(APIView):
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
             GenerativeAITypeDoesNotExist: ERROR_GENERATIVE_AI_DOES_NOT_EXIST,
             ModelDoesNotBelongToType: ERROR_MODEL_DOES_NOT_BELONG_TO_TYPE,
+            ViewDoesNotExist: ERROR_VIEW_DOES_NOT_EXIST,
         }
     )
     @validate_body(GenerateAIFieldValueViewSerializer, return_validated=True)
@@ -119,6 +122,7 @@ class AsyncGenerateAIFieldValuesView(APIView):
             PREMIUM, request.user, workspace
         )
 
+        GenerateAIValuesJobType().get_valid_generative_ai_model_type_or_raise(ai_field)
         job = JobHandler().create_and_start_job(
             request.user,
             GenerateAIValuesJobType.type,

@@ -25,11 +25,12 @@
       >
       <div v-else>{{ $t('rowEditFieldAI.createRowBefore') }}</div>
       <component
-        :is="deactivatedClickComponent"
+        :is="deactivatedClickComponent[0]"
         v-if="isDeactivated"
         ref="clickModal"
         :workspace="workspace"
-        :name="fieldName"
+        name="ai-field"
+        v-bind="deactivatedClickComponent[1]"
       ></component>
     </div>
   </div>

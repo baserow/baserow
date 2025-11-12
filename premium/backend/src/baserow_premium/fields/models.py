@@ -84,9 +84,6 @@ class GenerateAIValuesJob(
     only_empty = models.BooleanField(
         default=False, help_text="Whether to only generate values for empty cells."
     )
-    total_rows_count = models.IntegerField(
-        null=True, help_text="The total number of rows to process."
-    )
 
     @property
     def mode(self):

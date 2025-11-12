@@ -132,7 +132,6 @@ class BaserowPremiumConfig(AppConfig):
         action_type_registry.register(UpdateRowCommentActionType())
         action_type_registry.register(RotateCalendarIcalSlugActionType())
 
-        from .fields.operations import GenerateAIValuesOperationType
         from .row_comments.operations import (
             CreateRowCommentsOperationType,
             DeleteRowCommentsOperationType,
@@ -146,7 +145,6 @@ class BaserowPremiumConfig(AppConfig):
         operation_type_registry.register(CreateRowCommentsOperationType())
         operation_type_registry.register(RestoreRowCommentOperationType())
         operation_type_registry.register(UpdateRowCommentsOperationType())
-        operation_type_registry.register(GenerateAIValuesOperationType())
 
         from baserow.core.trash.registries import trash_item_type_registry
 

@@ -48,11 +48,12 @@
       </template>
     </component>
     <component
-      :is="deactivatedClickComponent"
+      :is="deactivatedClickComponent[0]"
       v-if="isDeactivated && workspace"
       ref="clickModal"
+      v-bind="deactivatedClickComponent[1]"
+      name="ai-field"
       :workspace="workspace"
-      :name="fieldName"
     ></component>
   </div>
 </template>

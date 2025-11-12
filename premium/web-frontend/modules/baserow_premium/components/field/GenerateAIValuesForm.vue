@@ -4,7 +4,7 @@
       <div class="col col-12">
         <FormGroup
           small-label
-          :label="$t('regenerateAIFieldForm.scopeLabel')"
+          :label="$t('generateAIValuesForm.scopeLabel')"
           required
           class="margin-bottom-2"
         >
@@ -14,7 +14,7 @@
             :disabled="loading"
           >
             <DropdownItem
-              :name="$t('regenerateAIFieldForm.entireTable')"
+              :name="$t('generateAIValuesForm.entireTable')"
               :value="null"
             ></DropdownItem>
 
@@ -31,15 +31,15 @@
 
         <FormGroup small-label class="margin-bottom-2">
           <Checkbox v-model="values.skip_populated" :disabled="loading">
-            {{ $t('regenerateAIFieldForm.skipPopulated') }}
+            {{ $t('generateAIValuesForm.skipPopulated') }}
           </Checkbox>
         </FormGroup>
 
         <Alert type="warning" class="margin-bottom-2">
           <template #title>
-            {{ $t('regenerateAIFieldForm.warningTitle') }}
+            {{ $t('generateAIValuesForm.warningTitle') }}
           </template>
-          <p>{{ $t('regenerateAIFieldForm.warningMessage') }}</p>
+          <p>{{ $t('generateAIValuesForm.warningMessage') }}</p>
         </Alert>
       </div>
     </div>
@@ -56,7 +56,7 @@ import Alert from '@baserow/modules/core/components/Alert'
 import FormGroup from '@baserow/modules/core/components/FormGroup'
 
 export default {
-  name: 'RegenerateAIFieldForm',
+  name: 'GenerateAIValuesForm',
   components: {
     FormGroup,
     Dropdown,

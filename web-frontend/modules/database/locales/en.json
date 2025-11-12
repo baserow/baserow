@@ -686,7 +686,7 @@
     "copyCells": "Copy cells",
     "copyCellsWithHeader": "Copy cells with header",
     "generateCellsValues": "Generate values with AI",
-    "regenerateInBulk": "Regenerate values in bulk...",
+    "generateAllAiValues": "Generate all AI values",
     "rowCount": "No rows | 1 row | {count} rows",
     "hiddenRowsInsertedTitle": "Rows added",
     "hiddenRowsInsertedMessage": "{number} newly added rows have been added, but are not visible because of the active filters.",

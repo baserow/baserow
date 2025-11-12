@@ -3,15 +3,23 @@
     <a
       class="context__menu-item-link"
       :class="{
-        disabled: !modelAvailable || !hasPremium,
+        disabled: !modelAvailable,
       }"
       @click.prevent.stop="openModal()"
     >
       <i class="context__menu-item-icon iconoir-magic-wand"></i>
-      {{ $t('gridView.regenerateInBulk') }}
+      {{ $t('gridView.generateAllAiValues') }}
+      <div v-if="!hasPremium" class="deactivated-label">
+        <i class="iconoir-lock"></i>
+      </div>
     </a>
-    <RegenerateAIFieldModal
-      ref="regenerateModal"
+    <PaidFeaturesModal
+      ref="paidFeaturesModal"
+      :workspace="database.workspace"
+      :initial-selected-type="featureName"
+    />
+    <GenerateAIValuesModal
+      ref="generateAIValuesModal"
       :database="database"
       :table="table"
       :field="field"
@@ -22,12 +30,15 @@
 
 <script>
 import PremiumFeatures from '@baserow_premium/features'
-import RegenerateAIFieldModal from '@baserow_premium/components/field/RegenerateAIFieldModal'
+import GenerateAIValuesModal from '@baserow_premium/components/field/GenerateAIValuesModal'
+import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
+import { AIPaidFeature } from '@baserow_premium/paidFeatures'
 
 export default {
-  name: 'RegenerateAIFieldContextItem',
+  name: 'GenerateAIValuesContextItem',
   components: {
-    RegenerateAIFieldModal,
+    GenerateAIValuesModal,
+    PaidFeaturesModal,
   },
   props: {
     field: {
@@ -49,6 +60,9 @@ export default {
     },
   },
   computed: {
+    featureName() {
+      return AIPaidFeature.getType()
+    },
     isAIField() {
       return this.field.type === 'ai'
     },
@@ -76,12 +90,12 @@ export default {
   },
   methods: {
     openModal() {
-      if (!this.modelAvailable || !this.hasPremium) {
-        return
+      if (!this.hasPremium) {
+        this.$refs.paidFeaturesModal.show()
+      } else if (this.modelAvailable) {
+        this.$emit('hide-context')
+        this.$refs.generateAIValuesModal.show()
       }
-
-      this.$emit('hide-context')
-      this.$refs.regenerateModal.show()
     },
   },
 }

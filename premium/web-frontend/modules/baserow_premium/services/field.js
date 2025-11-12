@@ -17,7 +17,7 @@ export default (client) => {
         }
       )
     },
-    regenerateAIFieldValues(fieldId, { viewId, rowIds, onlyEmpty }) {
+    generateAIValues(fieldId, { viewId, rowIds, onlyEmpty }) {
       const payload = {
         type: 'generate_ai_values',
         field_id: fieldId,

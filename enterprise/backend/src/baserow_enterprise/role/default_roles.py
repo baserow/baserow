@@ -1,7 +1,6 @@
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 
-from baserow_premium.fields.operations import GenerateAIValuesOperationType
 from baserow_premium.row_comments.operations import (
     CreateRowCommentsOperationType,
     DeleteRowCommentsOperationType,
@@ -394,7 +393,6 @@ default_roles[EDITOR_ROLE_UID].extend(
         ListTeamSubjectsOperationType,
         ReadTeamSubjectOperationType,
         CanReceiveNotificationOnSubmitFormViewOperationType,
-        GenerateAIValuesOperationType,
     ]
 )
 default_roles[BUILDER_ROLE_UID].extend(

@@ -2,6 +2,9 @@ from baserow_premium.generative_ai.managers import AIFileManager
 from rest_framework import serializers
 
 from baserow.api.errors import ERROR_GROUP_DOES_NOT_EXIST, ERROR_USER_NOT_IN_GROUP
+from baserow.contrib.database.api.fields.errors import ERROR_FIELD_DOES_NOT_EXIST
+from baserow.contrib.database.api.views.errors import ERROR_VIEW_DOES_NOT_EXIST
+from baserow.contrib.database.fields.exceptions import FieldDoesNotExist
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.rows.exceptions import RowDoesNotExist
 from baserow.contrib.database.rows.handler import RowHandler
@@ -9,6 +12,7 @@ from baserow.contrib.database.rows.runtime_formula_contexts import (
     HumanReadableRowContext,
 )
 from baserow.contrib.database.rows.signals import rows_ai_values_generation_error
+from baserow.contrib.database.views.exceptions import ViewDoesNotExist
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.core.exceptions import UserNotInWorkspace, WorkspaceDoesNotExist
 from baserow.core.formula import resolve_formula
@@ -18,53 +22,29 @@ from baserow.core.generative_ai.registries import (
     GenerativeAIWithFilesModelType,
     generative_ai_model_type_registry,
 )
-from baserow.core.handler import CoreHandler
 from baserow.core.jobs.registries import JobType
+from baserow.core.utils import ChildProgressBuilder
 
 from .models import AIField, GenerateAIValuesJob
-from .operations import GenerateAIValuesOperationType
 from .registries import ai_field_output_registry
 
 
 class GenerateAIValuesJobType(JobType):
     type = "generate_ai_values"
     model_class = GenerateAIValuesJob
-    max_count = 1
+    max_count = 5
 
     api_exceptions_map = {
         UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
         WorkspaceDoesNotExist: ERROR_GROUP_DOES_NOT_EXIST,
+        ViewDoesNotExist: ERROR_VIEW_DOES_NOT_EXIST,
+        FieldDoesNotExist: ERROR_FIELD_DOES_NOT_EXIST,
     }
-
-    request_serializer_field_names = ["field_id"]
-    request_serializer_field_overrides = {
-        "field_id": serializers.IntegerField(
-            help_text="The ID of the AI field to generate values for.",
-        ),
-        "row_ids": serializers.ListField(
-            child=serializers.IntegerField(),
-            required=False,
-            help_text="The IDs of the rows to generate AI values for. If not "
-            "provided, all rows in the view or table will be processed.",
-        ),
-        "view_id": serializers.IntegerField(
-            required=False,
-            help_text="The ID of the view to generate AI values for. If not provided, "
-            "the entire table will be processed.",
-        ),
-        "only_empty": serializers.BooleanField(
-            required=False,
-            help_text="Whether to only generate AI values for rows where the "
-            "field is empty.",
-        ),
-    }
-
     serializer_field_names = [
         "field_id",
         "row_ids",
         "view_id",
         "only_empty",
-        "total_rows_count",
     ]
     serializer_field_overrides = {
         "field_id": serializers.IntegerField(
@@ -86,71 +66,58 @@ class GenerateAIValuesJobType(JobType):
             help_text="Whether to only generate AI values for rows where the "
             "field is empty.",
         ),
-        "total_rows_count": serializers.IntegerField(
-            required=False,
-            help_text="The total number of rows to process. NOTE: this is calculated "
-            "when the job is created and it might be inaccurate if the table is modified.",
-        ),
     }
 
     def can_schedule_or_raise(self, job: GenerateAIValuesJob):
-        # TODO: limit per table/view generationn jobs
-        pass
+        # Limit only per table/view generations, not row generations
+        if not job.row_ids:
+            super().can_schedule_or_raise(job)
 
-    def prepare_values(self, values, user):
-        ai_field = FieldHandler().get_field(values["field_id"], field_model=AIField)
-        CoreHandler().check_permissions(
-            user,
-            GenerateAIValuesOperationType.type,
-            workspace=ai_field.table.database.workspace,
-            context=ai_field.table,
-        )
+    def _get_view_queryset(self, user, view_id: int, table_id: int):
+        view = ViewHandler().get_view_as_user(user, view_id, table_id=table_id)
+        model = view.table.get_model()
+        queryset = ViewHandler().get_queryset(view, model=model)
+        return queryset
 
-        model = ai_field.table.get_model()
-        only_empty = values.get("only_empty", False)
+    def _filter_empty_values(self, queryset, ai_field: AIField):
+        return queryset.filter(
+            **{f"{ai_field.db_column}__isnull": True}
+        ) | queryset.filter(**{ai_field.db_column: ""})
 
-        # Validate row_ids if provided (for ROWS mode)
-        req_row_ids = values.get("row_ids")
-        if req_row_ids:
-            rows = RowHandler().get_rows(model, req_row_ids)
-            if len(rows) != len(req_row_ids):
-                found_rows_ids = [row.id for row in rows]
-                raise RowDoesNotExist(sorted(list(set(req_row_ids) - set(found_rows_ids))))
-
-            # Calculate total_rows_count for ROWS mode
-            if only_empty:
-                # Count only rows with empty AI field values
-                queryset = model.objects.filter(id__in=req_row_ids)
-                queryset = queryset.filter(**{f"{ai_field.db_column}__isnull": True}) | queryset.filter(**{ai_field.db_column: ""})
-                values["total_rows_count"] = queryset.count()
-            else:
-                values["total_rows_count"] = len(req_row_ids)
-        else:
-            # Calculate total_rows_count for VIEW or TABLE mode
-            view_id = values.get("view_id")
-            if view_id:
-                # VIEW mode
-                view = ViewHandler().get_view_as_user(user, view_id, table_id=ai_field.table.id)
-                queryset = ViewHandler().get_queryset(view, model=model)
-            else:
-                # TABLE mode
-                queryset = model.objects.all()
-
-            # Filter for only empty values if requested
-            if only_empty:
-                queryset = queryset.filter(**{f"{ai_field.db_column}__isnull": True}) | queryset.filter(**{ai_field.db_column: ""})
-
-            values["total_rows_count"] = queryset.count()
-
+    def get_valid_generative_ai_model_type_or_raise(self, ai_field: AIField):
         generative_ai_model_type = generative_ai_model_type_registry.get(
             ai_field.ai_generative_ai_type
         )
-        ai_models = generative_ai_model_type.get_enabled_models(
-            workspace=ai_field.table.database.workspace
-        )
+        workspace = ai_field.table.database.workspace
+        ai_models = generative_ai_model_type.get_enabled_models(workspace=workspace)
 
         if ai_field.ai_generative_ai_model not in ai_models:
             raise ModelDoesNotBelongToType(model_name=ai_field.ai_generative_ai_model)
+        return generative_ai_model_type
+
+    def prepare_values(self, values, user):
+        ai_field = FieldHandler().get_field(values["field_id"], field_model=AIField)
+
+        model = ai_field.table.get_model()
+        req_row_ids = values.get("row_ids")
+        view_id = values.get("view_id")
+        only_empty = values.get("only_empty", False)
+
+        if req_row_ids:  # ROWS mode
+            rows = RowHandler().get_rows(model, req_row_ids)
+            if len(rows) != len(req_row_ids):
+                found_rows_ids = [row.id for row in rows]
+                raise RowDoesNotExist(
+                    sorted(list(set(req_row_ids) - set(found_rows_ids)))
+                )
+        elif view_id:  # VIEW mode
+            queryset = self._get_view_queryset(user, view_id, ai_field.table.id)
+        else:  # TABLE mode
+            queryset = model.objects.all()
+
+        # Filter for only empty values if requested
+        if only_empty:
+            queryset = self._filter_empty_values(queryset, ai_field)
 
         return values
 
@@ -160,37 +127,24 @@ class GenerateAIValuesJobType(JobType):
         table = ai_field.table
         workspace = table.database.workspace
 
-        CoreHandler().check_permissions(
-            user,
-            GenerateAIValuesOperationType.type,
-            workspace=workspace,
-            context=table,
-        )
         model = table.get_model()
-
         if job.mode == GenerateAIValuesJob.MODES.VIEW:
-            view = ViewHandler().get_view_as_user(user, job.view_id, table_id=table.id)
-            rows = (
-                ViewHandler().get_queryset(view, model=model).iterator(chunk_size=200)
-            )
+            rows = self._get_view_queryset(user, job.view_id, table.id)
         elif job.mode == GenerateAIValuesJob.MODES.TABLE:
-            rows = model.objects.all().iterator(chunk_size=200)
+            rows = model.objects.all()
         elif job.mode == GenerateAIValuesJob.MODES.ROWS:
             req_row_ids = job.row_ids
             rows = RowHandler().get_rows(model, req_row_ids)
         else:
             raise ValueError(f"Unknown mode {job.mode} for GenerateAIValuesJob")
 
-        try:
-            generative_ai_model_type = generative_ai_model_type_registry.get(
-                ai_field.ai_generative_ai_type
-            )
-            ai_models = generative_ai_model_type.get_enabled_models(workspace=workspace)
+        if job.only_empty:
+            rows = self._filter_empty_values(rows, ai_field)
 
-            if ai_field.ai_generative_ai_model not in ai_models:
-                raise ModelDoesNotBelongToType(
-                    model_name=ai_field.ai_generative_ai_model
-                )
+        try:
+            generative_ai_model_type = self.get_valid_generative_ai_model_type_or_raise(
+                ai_field
+            )
         except ModelDoesNotBelongToType as exc:
             # If the workspace AI settings have been removed before the task starts,
             # or if the export worker doesn't have the right env vars yet, then it can
@@ -208,8 +162,12 @@ class GenerateAIValuesJobType(JobType):
 
         ai_output_type = ai_field_output_registry.get(ai_field.ai_output_type)
 
-        # TODO: batch rows processing to reduce number of requests to AI providers
-        for i, row in enumerate(rows):
+        progress_builder = progress.create_child_builder(
+            represents_progress=progress.total
+        )
+        rows_progress = ChildProgressBuilder.build(progress_builder, rows.count())
+
+        for row in rows.iterator(chunk_size=200):
             context = HumanReadableRowContext(row, exclude_field_ids=[ai_field.id])
             message = str(
                 resolve_formula(
@@ -269,8 +227,6 @@ class GenerateAIValuesJobType(JobType):
                 )
                 raise exc
 
-            # TODO: use actions to have undo/redo support
-
             # FIXME: manually set the websocket_id to None for now because the frontend
             # needs to receive the update to stop the loading state
             user.web_socket_id = None
@@ -282,3 +238,4 @@ class GenerateAIValuesJobType(JobType):
                 model=model,
                 values_already_prepared=True,
             )
+            rows_progress.increment()

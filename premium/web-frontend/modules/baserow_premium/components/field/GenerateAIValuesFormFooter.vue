@@ -2,35 +2,35 @@
   <div class="modal-progress__actions">
     <template v-if="job !== null">
       <ProgressBar :value="job.progress_percentage" :status="job.state" />
+
+      <ButtonText
+        v-if="loading || cancelLoading"
+        tag="a"
+        type="secondary"
+        class="modal-progress__cancel-button"
+        :loading="cancelLoading"
+        @click="$emit('cancel-job')"
+      >
+        {{ $t('action.cancel') }}
+      </ButtonText>
     </template>
 
     <Button
-      v-if="job === null || job.state !== 'finished'"
       type="primary"
       size="large"
       :loading="loading"
       :disabled="disabled || loading"
       full-width
-      class="modal-progress__export-button"
+      class="modal-progress__primary-button"
     >
-      {{ $t('regenerateAIFieldLoadingBar.generate') }}
-    </Button>
-    <Button
-      v-else
-      type="primary"
-      size="large"
-      full-width
-      class="modal-progress__export-button"
-      @click="$emit('close')"
-    >
-      {{ $t('regenerateAIFieldLoadingBar.close') }}
+      {{ $t('generateAIValuesFormFooter.generate') }}
     </Button>
   </div>
 </template>
 
 <script>
 export default {
-  name: 'RegenerateAIFieldLoadingBar',
+  name: 'GenerateAIValuesFormFoote',
   props: {
     field: {
       type: Object,
@@ -46,6 +46,10 @@ export default {
       required: true,
     },
     disabled: {
+      type: Boolean,
+      required: true,
+    },
+    cancelLoading: {
       type: Boolean,
       required: true,
     },
