@@ -60,7 +60,10 @@ def fake():
 # This solution is taken from: https://bit.ly/3UJ90co
 @pytest.fixture(scope="session")
 def async_event_loop():
-    loop = asyncio.get_event_loop()
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
     yield loop
     loop.close()
 
