@@ -59,7 +59,7 @@ def test_delete_files_uploaded_by_user_deletes_files_with_yes_flag(data_fixture)
 @pytest.mark.django_db
 def test_delete_files_uploaded_by_user_deletes_thumbnails(data_fixture):
     user = data_fixture.create_user()
-    user_file = data_fixture.create_user_file(uploaded_by=user)
+    data_fixture.create_user_file(uploaded_by=user)
 
     settings.USER_THUMBNAILS_DIRECTORY = "thumbnails"
     settings.USER_THUMBNAILS = {"tiny": [32, 32], "small": [64, 64]}

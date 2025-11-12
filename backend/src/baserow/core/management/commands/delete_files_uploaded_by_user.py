@@ -41,7 +41,7 @@ class Command(BaseCommand):
         count = user_files.count()
 
         self.stdout.write(
-            f"\nFound {user_files.count()} file(s) uploaded by user ID {user_id}\n"
+            f"\nFound {count} file(s) uploaded by user ID {user_id}\n"
         )
 
         if count == 0:
