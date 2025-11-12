@@ -283,3 +283,7 @@
   margin: 0;
   font-size: 12px;
 }
+
+.dashboard__help {
+  @include absolute(auto, 32px, 0, auto);
+}

@@ -3,7 +3,7 @@
     v-if="displayAlert"
     type="blank"
     close-button
-    position="bottom"
+    class="dashboard__help"
     :width="396"
     @close="handleAlertClose"
   >

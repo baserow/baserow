@@ -198,17 +198,15 @@
         ref="createApplicationContext"
         :workspace="selectedWorkspace"
       ></CreateApplicationContext>
-      <DashboardHelp
-        v-if="dashboardHelpComponents.length === 0"
-      ></DashboardHelp>
-      <template v-else>
-        <component
-          :is="component"
-          v-for="(component, index) in dashboardHelpComponents"
-          :key="index"
-        ></component>
-      </template>
     </div>
+    <DashboardHelp v-if="dashboardHelpComponents.length === 0"></DashboardHelp>
+    <template v-else>
+      <component
+        :is="component"
+        v-for="(component, index) in dashboardHelpComponents"
+        :key="index"
+      ></component>
+    </template>
     <TemplateModal
       ref="templateModal"
       :workspace="selectedWorkspace"
