@@ -88,7 +88,7 @@
   border-color: $palette-blue-500;
 
   &.formula-input-field--error {
-    border-color: $palette-red-400;
+    border-color: $palette-red-400 !important;
   }
 }
 
