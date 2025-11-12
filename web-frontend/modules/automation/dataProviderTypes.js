@@ -31,13 +31,14 @@ export class PreviousNodeDataProviderType extends DataProviderType {
       // Retrieve the associated schema for each node
       .map((previousNode, index) => [
         previousNode,
-        {
-          ...this.getNodeSchema({ automation, node: previousNode }),
-          order: index,
-        },
+        this.getNodeSchema({ automation, node: previousNode }),
       ])
       // Remove nodes without schema
       .filter(([_, schema]) => schema)
+      .map(([previousNode, schema], index) => [
+        previousNode,
+        { ...schema, order: index },
+      ])
       // Add an index number to the schema title for each node of the same
       // schema title. For example if we have two "Create a row in Customers"
       // nodes, then the schema titles will be:

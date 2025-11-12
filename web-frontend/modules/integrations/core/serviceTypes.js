@@ -32,7 +32,11 @@ export class CoreHTTPRequestServiceType extends WorkflowActionServiceTypeMixin(
   getErrorMessage({ service }) {
     // We check undefined because the url is not returned in public mode the
     // property is just ignored
-    if (service !== undefined && service.url !== undefined && !service.url) {
+    if (
+      service !== undefined &&
+      service.url !== undefined &&
+      !service.url.formula
+    ) {
       return this.app.i18n.t('serviceType.errorUrlMissing')
     }
 
@@ -75,7 +79,7 @@ export class CoreSMTPEmailServiceType extends WorkflowActionServiceTypeMixin(
     if (
       service !== undefined &&
       service.from_email !== undefined &&
-      !service.from_email
+      !service.from_email.formula
     ) {
       return this.app.i18n.t('serviceType.errorFromEmailMissing')
     }
@@ -83,7 +87,7 @@ export class CoreSMTPEmailServiceType extends WorkflowActionServiceTypeMixin(
     if (
       service !== undefined &&
       service.to_emails !== undefined &&
-      !service.to_emails
+      !service.to_emails.formula
     ) {
       return this.app.i18n.t('serviceType.errorToEmailsMissing')
     }
