@@ -247,8 +247,6 @@ export default {
         } else {
           throw error
         }
-      } finally {
-        this.loading = false
       }
     },
   },
