@@ -2503,13 +2503,13 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
 
     def get_rows(
         self, model: GeneratedTableModel, row_ids: List[int]
-    ) -> List[GeneratedTableModel]:
+    ) -> QuerySet[GeneratedTableModel]:
         """
         Returns a list of rows based on the provided row ids.
 
         :param model: The model that should be used to get the rows.
         :param row_ids: The list of row ids that should be fetched.
-        :return: The list of rows.
+        :return: A queryset of the fetched rows.
         """
 
         return model.objects.filter(id__in=row_ids).enhance_by_fields()

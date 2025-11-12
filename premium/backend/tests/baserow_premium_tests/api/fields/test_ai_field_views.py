@@ -1,5 +1,3 @@
-from unittest.mock import patch
-
 from django.conf import settings
 from django.shortcuts import reverse
 from django.test.utils import override_settings
@@ -285,10 +283,9 @@ def test_generate_ai_field_value_view_generative_ai_model_does_not_belong_to_typ
 @pytest.mark.django_db
 @pytest.mark.field_ai
 @override_settings(DEBUG=True)
-@patch("baserow_premium.fields.tasks.generate_ai_values_for_rows.apply")
-def test_generate_ai_field_value_view_generative_ai(
-    patched_generate_ai_values_for_rows, premium_data_fixture, api_client
-):
+def test_generate_ai_field_value_view_generative_ai(premium_data_fixture, api_client):
+    """Test that the API endpoint creates a job to generate AI field values."""
+
     premium_data_fixture.register_fake_generate_ai_type()
     user, token = premium_data_fixture.create_user_and_token(
         email="test@test.nl",
@@ -305,16 +302,7 @@ def test_generate_ai_field_value_view_generative_ai(
         table=table, name="ai", ai_prompt="'Hello'"
     )
 
-    rows = (
-        RowHandler()
-        .create_rows(
-            user,
-            table,
-            rows_values=[{}],
-        )
-        .created_rows
-    )
-    assert patched_generate_ai_values_for_rows.call_count == 0
+    rows = RowHandler().create_rows(user, table, rows_values=[{}]).created_rows
 
     response = api_client.post(
         reverse(
@@ -326,7 +314,15 @@ def test_generate_ai_field_value_view_generative_ai(
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
     assert response.status_code == HTTP_202_ACCEPTED
-    assert patched_generate_ai_values_for_rows.call_count == 1
+
+    # Verify the response contains job data
+    response_json = response.json()
+    assert "id" in response_json  # Job ID
+    assert response_json["type"] == "generate_ai_values"
+    assert response_json["state"] in [
+        "pending",
+        "finished",
+    ]  # Might complete immediately in tests
 
 
 @pytest.mark.django_db

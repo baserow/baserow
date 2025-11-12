@@ -122,6 +122,13 @@ class AsyncGenerateAIFieldValuesView(APIView):
             PREMIUM, request.user, workspace
         )
 
+        CoreHandler().check_permissions(
+            request.user,
+            ListFieldsOperationType.type,
+            workspace=workspace,
+            context=ai_field.table,
+        )
+
         GenerateAIValuesJobType().get_valid_generative_ai_model_type_or_raise(ai_field)
         job = JobHandler().create_and_start_job(
             request.user,

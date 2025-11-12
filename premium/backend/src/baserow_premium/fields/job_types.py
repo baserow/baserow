@@ -1,3 +1,5 @@
+from django.db.models import QuerySet
+
 from baserow_premium.generative_ai.managers import AIFileManager
 from rest_framework import serializers
 
@@ -6,12 +8,14 @@ from baserow.contrib.database.api.fields.errors import ERROR_FIELD_DOES_NOT_EXIS
 from baserow.contrib.database.api.views.errors import ERROR_VIEW_DOES_NOT_EXIST
 from baserow.contrib.database.fields.exceptions import FieldDoesNotExist
 from baserow.contrib.database.fields.handler import FieldHandler
+from baserow.contrib.database.fields.operations import ListFieldsOperationType
 from baserow.contrib.database.rows.exceptions import RowDoesNotExist
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.rows.runtime_formula_contexts import (
     HumanReadableRowContext,
 )
 from baserow.contrib.database.rows.signals import rows_ai_values_generation_error
+from baserow.contrib.database.table.models import GeneratedTableModel
 from baserow.contrib.database.views.exceptions import ViewDoesNotExist
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.core.exceptions import UserNotInWorkspace, WorkspaceDoesNotExist
@@ -22,6 +26,8 @@ from baserow.core.generative_ai.registries import (
     GenerativeAIWithFilesModelType,
     generative_ai_model_type_registry,
 )
+from baserow.core.handler import CoreHandler
+from baserow.core.jobs.exceptions import MaxJobCountExceeded
 from baserow.core.jobs.registries import JobType
 from baserow.core.utils import ChildProgressBuilder
 
@@ -32,7 +38,7 @@ from .registries import ai_field_output_registry
 class GenerateAIValuesJobType(JobType):
     type = "generate_ai_values"
     model_class = GenerateAIValuesJob
-    max_count = 5
+    max_count = 3
 
     api_exceptions_map = {
         UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
@@ -69,22 +75,82 @@ class GenerateAIValuesJobType(JobType):
     }
 
     def can_schedule_or_raise(self, job: GenerateAIValuesJob):
-        # Limit only per table/view generations, not row generations
-        if not job.row_ids:
-            super().can_schedule_or_raise(job)
+        """
+        Checks whether a new job of this type can be scheduled for the given user. It
+        doesn't limit the number of jobs if specific row IDs are provided. It limits to
+        1 job per table and to max_count jobs in total.
+
+        :param job: The job instance that is going to be scheduled.
+        :raises MaxJobCountExceeded: If the user cannot schedule a new job of this type
+        """
+
+        # No limits when specific row IDs are provided
+        if job.row_ids:
+            return
+
+        running_jobs = (
+            GenerateAIValuesJob.objects.filter(user_id=job.user.id)
+            .is_pending_or_running()
+            .select_related("field")
+        )
+
+        # No more than max_count jobs in total
+        if len(running_jobs) >= self.max_count:
+            raise MaxJobCountExceeded(
+                f"You can only launch {self.max_count} {self.type} job(s) at "
+                "the same time."
+            )
+
+        # No more than 1 job per table
+        for running_job in running_jobs:
+            if running_job.field.table_id == job.field.table_id:
+                raise MaxJobCountExceeded(
+                    f"You can only launch 1 {self.type} job(s) at "
+                    "the same time for the same table."
+                )
 
     def _get_view_queryset(self, user, view_id: int, table_id: int):
-        view = ViewHandler().get_view_as_user(user, view_id, table_id=table_id)
-        model = view.table.get_model()
-        queryset = ViewHandler().get_queryset(view, model=model)
-        return queryset
+        """
+        Returns the queryset for the given view as the given user.
 
-    def _filter_empty_values(self, queryset, ai_field: AIField):
+        :param user: The user for whom the view queryset should be fetched.
+        :param view_id: The id of the view.
+        :param table_id: The id of the table the view belongs to.
+        :return: The queryset for the view.
+        :raises ViewDoesNotExist: If the view does not exist or the user has no access
+            to it.
+        """
+
+        handler = ViewHandler()
+        view = handler.get_view_as_user(user, view_id, table_id=table_id)
+        return handler.get_queryset(view)
+
+    def _filter_empty_values(
+        self, queryset: QuerySet[GeneratedTableModel], ai_field: AIField
+    ) -> QuerySet[GeneratedTableModel]:
+        """
+        Filters the given queryset to only include rows where the given AI field is
+        empty.
+
+        :param queryset: The queryset to filter.
+        :param ai_field: The AI field to check for emptiness.
+        :return: The filtered queryset.
+        """
+
         return queryset.filter(
             **{f"{ai_field.db_column}__isnull": True}
         ) | queryset.filter(**{ai_field.db_column: ""})
 
     def get_valid_generative_ai_model_type_or_raise(self, ai_field: AIField):
+        """
+        Returns the generative AI model type for the given AI field if the model belongs
+        to the type. Otherwise, raises a ModelDoesNotBelongToType exception.
+
+        :param ai_field: The AI field to check.
+        :return: The generative AI model type.
+        :raises ModelDoesNotBelongToType: If the model does not belong to the type.
+        """
+
         generative_ai_model_type = generative_ai_model_type_registry.get(
             ai_field.ai_generative_ai_type
         )
@@ -101,23 +167,23 @@ class GenerateAIValuesJobType(JobType):
         model = ai_field.table.get_model()
         req_row_ids = values.get("row_ids")
         view_id = values.get("view_id")
-        only_empty = values.get("only_empty", False)
 
-        if req_row_ids:  # ROWS mode
+        # Create the job instance without saving it yet, so we can use its mode property
+        unsaved_job = GenerateAIValuesJob(**values)
+
+        if unsaved_job.mode == GenerateAIValuesJob.MODES.ROWS:
             rows = RowHandler().get_rows(model, req_row_ids)
             if len(rows) != len(req_row_ids):
                 found_rows_ids = [row.id for row in rows]
                 raise RowDoesNotExist(
                     sorted(list(set(req_row_ids) - set(found_rows_ids)))
                 )
-        elif view_id:  # VIEW mode
-            queryset = self._get_view_queryset(user, view_id, ai_field.table.id)
-        else:  # TABLE mode
-            queryset = model.objects.all()
-
-        # Filter for only empty values if requested
-        if only_empty:
-            queryset = self._filter_empty_values(queryset, ai_field)
+        elif unsaved_job.mode == GenerateAIValuesJob.MODES.VIEW:
+            rows = self._get_view_queryset(user, view_id, ai_field.table.id)
+        elif unsaved_job.mode == GenerateAIValuesJob.MODES.TABLE:
+            rows = model.objects.all()
+        else:
+            raise ValueError(f"Unknown mode {unsaved_job.mode} for GenerateAIValuesJob")
 
         return values
 
@@ -126,8 +192,15 @@ class GenerateAIValuesJobType(JobType):
         ai_field = FieldHandler().get_field(job.field_id, field_model=AIField)
         table = ai_field.table
         workspace = table.database.workspace
-
         model = table.get_model()
+
+        CoreHandler().check_permissions(
+            job.user,
+            ListFieldsOperationType.type,
+            workspace=workspace,
+            context=ai_field.table,
+        )
+
         if job.mode == GenerateAIValuesJob.MODES.VIEW:
             rows = self._get_view_queryset(user, job.view_id, table.id)
         elif job.mode == GenerateAIValuesJob.MODES.TABLE:

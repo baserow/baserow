@@ -41,10 +41,10 @@ from baserow.core.generative_ai.registries import (
     GenerativeAIWithFilesModelType,
     generative_ai_model_type_registry,
 )
+from baserow.core.jobs.handler import JobHandler
 
 from .models import AIField
 from .registries import ai_field_output_registry
-from .tasks import generate_ai_values_for_rows
 from .visitors import extract_field_id_dependencies, replace_field_id_references
 
 User = get_user_model()
@@ -392,8 +392,8 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
             row_ids = [starting_row.id]
 
         transaction.on_commit(
-            lambda: generate_ai_values_for_rows.delay(
-                field.ai_auto_update_user_id, field.id, row_ids
+            lambda: JobHandler().create_and_start_job(
+                user, "generate_ai_values", field_id=field.id, row_ids=row_ids
             )
         )
 

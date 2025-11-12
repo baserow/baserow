@@ -7,7 +7,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("baserow_premium", "0028_piechartwidget_piechartseriesconfig_and_more"),
+        ("baserow_premium", "0029_ai_field_auto_update"),
         ("core", "0107_twofactorauthprovidermodel_totpauthprovidermodel_and_more"),
         ("database", "0200_fix_to_timestamptz_formula"),
     ]
