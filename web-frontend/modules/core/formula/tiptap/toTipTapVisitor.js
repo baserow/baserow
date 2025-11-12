@@ -51,23 +51,40 @@ export class ToTipTapVisitor extends BaserowFormulaVisitor {
         // Specific element that helps to recognize root concat
         return { type: 'newLine' }
       default: {
-        const processedString = this.processString(ctx)
-        if (processedString) {
-          return { type: 'text', text: processedString }
-        } else {
-          // An empty string is an empty wrapper
-          return { type: 'wrapper' }
+        // For display in the editor, keep the quotes
+        const fullText = ctx.getText()
+        if (this.mode === 'advanced') {
+          // In advanced mode, wrap in text-segment
+          return {
+            type: 'text-segment',
+            content: [{ type: 'text', text: fullText }],
+          }
         }
+        return { type: 'text', text: fullText }
       }
     }
   }
 
   visitDecimalLiteral(ctx) {
+    if (this.mode === 'advanced') {
+      // In advanced mode, wrap in text-segment
+      return {
+        type: 'text-segment',
+        content: [{ type: 'text', text: ctx.getText() }],
+      }
+    }
     return { type: 'text', text: ctx.getText() }
   }
 
   visitBooleanLiteral(ctx) {
     const value = ctx.TRUE() !== null ? 'true' : 'false'
+    if (this.mode === 'advanced') {
+      // In advanced mode, wrap in text-segment
+      return {
+        type: 'text-segment',
+        content: [{ type: 'text', text: value }],
+      }
+    }
     return { type: 'text', text: value }
   }
 
@@ -162,8 +179,61 @@ export class ToTipTapVisitor extends BaserowFormulaVisitor {
         } else if (rightArg) {
           content.push(rightArg)
         }
+      } else if (this.mode === 'advanced') {
+        // For functions in advanced mode, use the function component
+        // Create function component node (just name + opening parenthesis)
+        const functionNode = {
+          type: 'function-formula-component',
+          attrs: {
+            functionName,
+          },
+        }
+
+        // Build the content array with function node + arguments + closing parenthesis
+        const result = [functionNode]
+
+        // Add arguments wrapped in text-segments
+        if (args.length === 0) {
+          // If no arguments, add an empty text-segment for user to type in
+          result.push({
+            type: 'text-segment',
+            content: [],
+          })
+        } else {
+          args.forEach((arg, index) => {
+            if (index > 0) {
+              // Add atomic comma node
+              result.push({ type: 'function-argument-comma' })
+            }
+
+            // Wrap the argument in a text-segment
+            const textSegment = {
+              type: 'text-segment',
+              content: [],
+            }
+
+            // Check if the argument is a complex node or a simple value
+            if (arg.type === 'text' && typeof arg.text === 'string') {
+              // Wrap text arguments in text-segment
+              textSegment.content.push(arg)
+            } else if (Array.isArray(arg)) {
+              // If arg is an array (from nested function calls in advanced mode),
+              // spread its elements into the text-segment
+              textSegment.content.push(...arg)
+            } else if (arg) {
+              textSegment.content.push(arg)
+            }
+
+            result.push(textSegment)
+          })
+        }
+
+        // Add closing parenthesis as atomic node
+        result.push({ type: 'function-closing-paren' })
+
+        return result
       } else {
-        // For functions, display as: functionName(arg1, arg2, ...)
+        // For simple mode, display as: functionName(arg1, arg2, ...)
         content.push({ type: 'text', text: `${functionName}(` })
 
         args.forEach((arg, index) => {
@@ -173,18 +243,10 @@ export class ToTipTapVisitor extends BaserowFormulaVisitor {
 
           // Check if the argument is a complex node or a simple value
           if (arg.type === 'text' && typeof arg.text === 'string') {
-            // Don't add quotes for boolean or numeric values
-            const isBoolean = arg.text === 'true' || arg.text === 'false'
-            const isNumber = !isNaN(Number(arg.text))
-
-            if (isBoolean || isNumber) {
-              content.push(arg)
-            } else {
-              // For actual string literals, add quotes
-              content.push({ type: 'text', text: `"${arg.text}"` })
-            }
+            // Just push the arg as-is, quotes should already be included from parser
+            content.push(arg)
           } else if (Array.isArray(arg)) {
-            // If arg is an array (from nested function calls in advanced mode),
+            // If arg is an array (from nested function calls),
             // spread its elements
             content.push(...arg)
           } else if (arg) {
@@ -251,6 +313,13 @@ export class ToTipTapVisitor extends BaserowFormulaVisitor {
   }
 
   visitIntegerLiteral(ctx) {
+    if (this.mode === 'advanced') {
+      // In advanced mode, wrap in text-segment
+      return {
+        type: 'text-segment',
+        content: [{ type: 'text', text: ctx.getText() }],
+      }
+    }
     return { type: 'text', text: ctx.getText() }
   }
 

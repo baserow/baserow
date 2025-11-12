@@ -218,11 +218,59 @@ export const buildFormulaFunctionNodes = (app, i18n = null) => {
         // Get function signature information
         let signature = null
 
-        // Check if function is variadic by looking at its validateNumberOfArgs implementation
-        const isVariadic =
-          instance.validateNumberOfArgs &&
-          instance.validateNumberOfArgs !==
-            instance.constructor.prototype.validateNumberOfArgs
+        // Determine minimum and maximum arguments
+        let minArgs = 1 // default
+        let isVariadic = false
+
+        // For functions without defined args (like concat), test their validateNumberOfArgs
+        if (!instance.args || instance.args.length === 0) {
+          // Test to find the minimum number of valid arguments
+          if (instance.validateNumberOfArgs) {
+            for (let i = 0; i <= 10; i++) {
+              const testArgs = new Array(i).fill(null)
+              const isValid = instance.validateNumberOfArgs(testArgs)
+              if (isValid) {
+                minArgs = i
+                break
+              }
+            }
+
+            // Check if it's variadic by testing with more args
+            const testExtraArgs = new Array(minArgs + 1).fill(null)
+            if (instance.validateNumberOfArgs(testExtraArgs)) {
+              isVariadic = true
+            }
+          }
+        } else if (instance.args && instance.args.length > 0) {
+          // For functions with defined args, check if it's variadic
+          if (instance.validateNumberOfArgs) {
+            // Test with extra args to see if it's variadic
+            const testExtraArgs = new Array(instance.args.length + 1).fill(null)
+            if (instance.validateNumberOfArgs(testExtraArgs)) {
+              isVariadic = true
+            }
+
+            // Find minimum required args for functions with defined args
+            if (!isVariadic && instance.numArgs === null) {
+              // Test to find minimum required args
+              for (let i = 0; i <= instance.args.length; i++) {
+                const testArgs = new Array(i).fill(null)
+                if (instance.validateNumberOfArgs(testArgs)) {
+                  minArgs = i
+                  break
+                }
+              }
+            } else if (instance.numArgs !== null) {
+              minArgs = instance.numArgs
+            } else {
+              // Default to args length
+              minArgs = instance.args.length
+            }
+          } else {
+            // If no custom validation, use args length
+            minArgs = instance.numArgs ?? instance.args.length
+          }
+        }
 
         if (instance.args && instance.args.length > 0) {
           signature = {
@@ -253,22 +301,25 @@ export const buildFormulaFunctionNodes = (app, i18n = null) => {
               }
             }),
             variadic: isVariadic,
-            minArgs: isVariadic ? 1 : instance.numArgs ?? instance.args.length,
-            maxArgs: isVariadic
-              ? null
-              : instance.numArgs ?? instance.args.length,
+            minArgs,
+            maxArgs: isVariadic ? null : instance.args.length,
           }
         } else {
+          // No args defined (like concat)
+          const paramCount = Math.max(minArgs, 1)
+          const parameters = []
+          for (let i = 0; i < paramCount; i++) {
+            parameters.push({
+              type: 'any',
+              required: true,
+            })
+          }
+
           signature = {
-            parameters: [
-              {
-                type: 'any',
-                required: true,
-              },
-            ],
+            parameters,
             variadic: isVariadic,
-            minArgs: 1,
-            maxArgs: null,
+            minArgs,
+            maxArgs: isVariadic ? null : minArgs,
           }
         }
 

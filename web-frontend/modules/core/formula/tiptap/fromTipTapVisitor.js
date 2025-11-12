@@ -12,6 +12,14 @@ export class FromTipTapVisitor {
         return this.visitDoc(node)
       case 'wrapper':
         return this.visitWrapper(node)
+      case 'function-formula-component':
+        return this.visitFunctionFormulaComponent(node)
+      case 'function-argument-comma':
+        return ','
+      case 'function-closing-paren':
+        return ')'
+      case 'text-segment':
+        return this.visitTextSegment(node)
       default:
         return this.visitFunction(node)
     }
@@ -152,5 +160,21 @@ export class FromTipTapVisitor {
     )
 
     return formulaFunction?.fromNodeToFormula(node)
+  }
+
+  visitFunctionFormulaComponent(node) {
+    const functionName = node.attrs?.functionName || ''
+    // Since the function component now only contains name + opening parenthesis,
+    // we just return the function name and opening parenthesis.
+    // The arguments and closing parenthesis are handled separately as text nodes
+    return `${functionName}(`
+  }
+
+  visitTextSegment(node) {
+    if (!node.content || node.content.length === 0) {
+      return ''
+    }
+    // Visit the content of the text segment
+    return node.content.map(this.visit.bind(this)).join('')
   }
 }

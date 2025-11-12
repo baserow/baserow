@@ -9,7 +9,7 @@ export const FunctionHelpTooltipExtension = Extension.create({
   addOptions() {
     return {
       vueComponent: null,
-      selector: '.function-name-highlight',
+      selector: '.function-formula-component__name',
       showDelay: 120,
       hideDelay: 60,
     }
