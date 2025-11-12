@@ -4,7 +4,6 @@ from uuid import uuid4
 
 from django.http import StreamingHttpResponse
 
-from baserow_premium.license.handler import LicenseHandler
 from drf_spectacular.openapi import OpenApiParameter, OpenApiTypes
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from loguru import logger
@@ -39,7 +38,6 @@ from baserow_enterprise.assistant.types import (
     HumanMessage,
     UIContext,
 )
-from baserow_enterprise.features import ASSISTANT
 
 from .errors import (
     ERROR_ASSISTANT_CHAT_DOES_NOT_EXIST,
@@ -62,7 +60,6 @@ class AssistantChatsView(APIView):
         operation_id="list_assistant_chats",
         description=(
             "List all AI assistant chats for the current user in the specified workspace."
-            "\n\nThis is a **advanced/enterprise** feature."
         ),
         parameters=[
             OpenApiParameter(
@@ -104,10 +101,6 @@ class AssistantChatsView(APIView):
         workspace_id = query_params["workspace_id"]
         workspace = CoreHandler().get_workspace(workspace_id)
 
-        LicenseHandler.raise_if_user_doesnt_have_feature(
-            ASSISTANT, request.user, workspace
-        )
-
         CoreHandler().check_permissions(
             request.user,
             ChatAssistantChatOperationType.type,
@@ -132,7 +125,6 @@ class AssistantChatView(APIView):
         operation_id="send_message_to_assistant_chat",
         description=(
             "Send a message to the specified AI assistant chat and stream back the response.\n\n"
-            "This is an **advanced/enterprise** feature."
         ),
         request=AssistantMessageRequestSerializer,
         responses={
@@ -157,9 +149,6 @@ class AssistantChatView(APIView):
         ui_context = UIContext.from_validate_request(request, data["ui_context"])
         workspace_id = ui_context.workspace.id
         workspace = CoreHandler().get_workspace(workspace_id)
-        LicenseHandler.raise_if_user_doesnt_have_feature(
-            ASSISTANT, request.user, workspace
-        )
         CoreHandler().check_permissions(
             request.user,
             ChatAssistantChatOperationType.type,
@@ -216,10 +205,7 @@ class AssistantChatView(APIView):
     @extend_schema(
         tags=["AI Assistant"],
         operation_id="list_assistant_chat_messages",
-        description=(
-            "List all messages in the specified AI assistant chat.\n\n"
-            "This is an **advanced/enterprise** feature."
-        ),
+        description=("List all messages in the specified AI assistant chat.\n\n"),
         responses={
             200: AssistantChatMessagesSerializer,
             400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
@@ -239,9 +225,6 @@ class AssistantChatView(APIView):
         chat = handler.get_chat(request.user, chat_uuid)
 
         workspace = chat.workspace
-        LicenseHandler.raise_if_user_doesnt_have_feature(
-            ASSISTANT, request.user, workspace
-        )
         CoreHandler().check_permissions(
             request.user,
             ChatAssistantChatOperationType.type,
@@ -263,7 +246,6 @@ class AssistantChatMessageFeedbackView(APIView):
         operation_id="submit_assistant_message_feedback",
         description=(
             "Provide sentiment and feedback for the given AI assistant chat message.\n\n"
-            "This is an **advanced/enterprise** feature."
         ),
         responses={
             200: None,
@@ -286,10 +268,6 @@ class AssistantChatMessageFeedbackView(APIView):
 
         handler = AssistantHandler()
         message = handler.get_chat_message_by_id(request.user, message_id)
-        LicenseHandler.raise_if_user_doesnt_have_feature(
-            ASSISTANT, request.user, message.chat.workspace
-        )
-
         try:
             prediction: AssistantChatPrediction = message.prediction
         except AttributeError:

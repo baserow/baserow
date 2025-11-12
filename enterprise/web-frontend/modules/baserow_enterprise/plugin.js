@@ -73,7 +73,6 @@ import {
   BuilderBrandingPaidFeature,
   BuilderCustomCodePaidFeature,
   BuilderFileInputElementPaidFeature,
-  AssistantPaidFeature,
   CoBrandingPaidFeature,
   DataSyncPaidFeature,
   DateDependencyPaidFeature,
@@ -89,10 +88,7 @@ import {
 } from '@baserow_enterprise/dateDependencyTypes'
 import { CustomCodeBuilderSettingType } from '@baserow_enterprise/builderSettingTypes'
 import { RealtimePushTwoWaySyncStrategyType } from '@baserow_enterprise/twoWaySyncStrategyTypes'
-import {
-  FF_ASSISTANT,
-  FF_DATE_DEPENDENCY,
-} from '@baserow/modules/core/plugins/featureFlags'
+import { FF_DATE_DEPENDENCY } from '@baserow/modules/core/plugins/featureFlags'
 
 export default (context) => {
   const { app, isDev, store } = context
@@ -233,9 +229,6 @@ export default (context) => {
     'paidFeature',
     new FieldLevelPermissionsPaidFeature(context)
   )
-  if (app.$featureFlagIsEnabled(FF_ASSISTANT)) {
-    app.$registry.register('paidFeature', new AssistantPaidFeature(context))
-  }
   app.$registry.register('paidFeature', new SupportPaidFeature(context))
   app.$registry.register('paidFeature', new BuilderBrandingPaidFeature(context))
   app.$registry.register(

@@ -52,13 +52,6 @@
       {{ $t('enterpriseFeatures.fieldLevelPermissions') }}
     </li>
     <li
-      v-if="!hiddenFeatures.includes(enterpriseFeatures.ASSISTANT)"
-      class="premium-features__feature"
-    >
-      <i class="iconoir-sparks premium-features__feature-icon"></i>
-      {{ $t('enterpriseFeatures.assistant') }}
-    </li>
-    <li
       v-if="!hiddenFeatures.includes(enterpriseFeatures.SUPPORT)"
       class="premium-features__feature"
     >

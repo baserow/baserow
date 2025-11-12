@@ -130,6 +130,14 @@ export default {
       handler(newLocation) {
         if (!newLocation) return
 
+        if (newLocation.type === 'database-view') {
+          // Don't navigate to deactivated views
+          const viewType = this.$registry.get('view', newLocation.view_type)
+          if (!viewType || viewType.isDeactivated(this.workspace.id)) {
+            return
+          }
+        }
+
         const router = this.$router
         const store = this.$store
         if (
@@ -141,13 +149,18 @@ export default {
               newLocation.database_id
             )
 
-            return (
+            const isCurrentlyOnTable =
+              this.$route.name === 'database-table' &&
+              parseInt(this.$route.params.tableId) ===
+                parseInt(newLocation.table_id)
+
+            const tableLoaded =
               database &&
-              database.tables.find(
-                (table) => table.id === newLocation.table_id
-              ) &&
-              (!newLocation.view_id ||
-                store.getters['view/get'](newLocation.view_id) !== undefined)
+              database.tables.find((table) => table.id === newLocation.table_id)
+            const viewLoaded = store.getters['view/get'](newLocation.view_id)
+            return (
+              tableLoaded &&
+              (!isCurrentlyOnTable || !newLocation.view_id || viewLoaded)
             )
           }).then(() => {
             router.push({

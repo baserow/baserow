@@ -64,23 +64,6 @@ def test_cannot_list_assistant_chats_without_valid_workspace(
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
-def test_cannot_list_assistant_chats_without_license(
-    api_client, enterprise_data_fixture
-):
-    user, token = enterprise_data_fixture.create_user_and_token()
-    workspace = enterprise_data_fixture.create_workspace(user=user)
-
-    rsp = api_client.get(
-        reverse("assistant:list") + f"?workspace_id={workspace.id}",
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
-    assert rsp.status_code == 402
-    assert rsp.json()["error"] == "ERROR_FEATURE_NOT_AVAILABLE"
-
-
-@pytest.mark.django_db
-@override_settings(DEBUG=True)
 def test_list_assistant_chats(api_client, enterprise_data_fixture):
     user, token = enterprise_data_fixture.create_user_and_token()
     workspace = enterprise_data_fixture.create_workspace(user=user)
@@ -179,28 +162,6 @@ def test_cannot_send_message_without_valid_workspace(
     )
     assert rsp.status_code == 400
     assert rsp.json()["error"] == "ERROR_USER_NOT_IN_GROUP"
-
-
-@pytest.mark.django_db
-@override_settings(DEBUG=True)
-def test_cannot_send_message_without_license(api_client, enterprise_data_fixture):
-    """Test that sending messages requires an enterprise license"""
-
-    user, token = enterprise_data_fixture.create_user_and_token()
-    workspace = enterprise_data_fixture.create_workspace(user=user)
-    chat_uuid = str(uuid4())
-
-    rsp = api_client.post(
-        reverse("assistant:chat_messages", kwargs={"chat_uuid": chat_uuid}),
-        data={
-            "content": "Hello AI",
-            "ui_context": {"workspace": {"id": workspace.id, "name": workspace.name}},
-        },
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
-    assert rsp.status_code == 402
-    assert rsp.json()["error"] == "ERROR_FEATURE_NOT_AVAILABLE"
 
 
 @pytest.mark.django_db()
@@ -401,30 +362,6 @@ def test_cannot_get_messages_without_valid_chat(api_client, enterprise_data_fixt
     )
     assert rsp.status_code == 404
     assert rsp.json()["error"] == "ERROR_ASSISTANT_CHAT_DOES_NOT_EXIST"
-
-
-@pytest.mark.django_db
-@override_settings(DEBUG=True)
-def test_cannot_get_messages_without_license(api_client, enterprise_data_fixture):
-    """Test that getting messages requires an enterprise license"""
-
-    user, token = enterprise_data_fixture.create_user_and_token()
-    workspace = enterprise_data_fixture.create_workspace(user=user)
-
-    # Create a chat
-    chat = AssistantChat.objects.create(
-        user=user, workspace=workspace, title="Test Chat"
-    )
-
-    rsp = api_client.get(
-        reverse(
-            "assistant:chat_messages",
-            kwargs={"chat_uuid": str(chat.uuid)},
-        ),
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
-    assert rsp.status_code == 402
-    assert rsp.json()["error"] == "ERROR_FEATURE_NOT_AVAILABLE"
 
 
 @pytest.mark.django_db
@@ -1928,43 +1865,6 @@ def test_cannot_submit_feedback_for_another_users_message(
 
     assert rsp.status_code == 404
     assert rsp.json()["error"] == "ERROR_ASSISTANT_CHAT_DOES_NOT_EXIST"
-
-
-@pytest.mark.django_db
-@override_settings(DEBUG=True)
-def test_cannot_submit_feedback_without_license(api_client, enterprise_data_fixture):
-    """Test that submitting feedback requires an enterprise license"""
-
-    user, token = enterprise_data_fixture.create_user_and_token()
-    workspace = enterprise_data_fixture.create_workspace(user=user)
-    # Note: NOT enabling enterprise license
-
-    # Create chat and messages
-    chat = AssistantChat.objects.create(
-        user=user, workspace=workspace, title="Test Chat"
-    )
-    human_message = AssistantChatMessage.objects.create(
-        chat=chat, role=AssistantChatMessage.Role.HUMAN, content="Question"
-    )
-    ai_message = AssistantChatMessage.objects.create(
-        chat=chat, role=AssistantChatMessage.Role.AI, content="Answer"
-    )
-    AssistantChatPrediction.objects.create(
-        human_message=human_message,
-        ai_response=ai_message,
-        prediction={"reasoning": "test"},
-    )
-
-    # Try to submit feedback without license
-    rsp = api_client.put(
-        reverse("assistant:message_feedback", kwargs={"message_id": ai_message.id}),
-        data={"sentiment": "LIKE"},
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
-
-    assert rsp.status_code == 402
-    assert rsp.json()["error"] == "ERROR_FEATURE_NOT_AVAILABLE"
 
 
 @pytest.mark.django_db

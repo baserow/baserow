@@ -197,6 +197,7 @@ class ViewNavigationType(BaseModel):
     table_id: int
     view_id: int
     view_name: str
+    view_type: str
 
     def to_localized_string(self):
         return _("view %(view_name)s") % {"view_name": self.view_name}

@@ -591,6 +591,7 @@ def get_create_views_tool(
                 table_id=table.id,
                 view_id=created_views[0]["id"],
                 view_name=created_views[0]["name"],
+                view_type=created_views[0]["type"],
             )
         )
 

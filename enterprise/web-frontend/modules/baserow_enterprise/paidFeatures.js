@@ -156,32 +156,6 @@ export class FieldLevelPermissionsPaidFeature extends PaidFeature {
   }
 }
 
-export class AssistantPaidFeature extends PaidFeature {
-  static getType() {
-    return 'assistant'
-  }
-
-  getPlan() {
-    return 'Advanced'
-  }
-
-  getIconClass() {
-    return 'iconoir-sparks'
-  }
-
-  getName() {
-    return this.app.i18n.t('enterpriseFeatures.assistant')
-  }
-
-  getImage() {
-    return '/img/features/assistant.png'
-  }
-
-  getContent() {
-    return this.app.i18n.t('enterpriseFeatures.assistantContent')
-  }
-}
-
 export class CoBrandingPaidFeature extends PaidFeature {
   static getType() {
     return 'co_branding'
