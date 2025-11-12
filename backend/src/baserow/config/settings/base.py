@@ -27,7 +27,6 @@ from baserow.config.settings.utils import (
     try_float,
     try_int,
 )
-from baserow.core.feature_flags import FF_AUTOMATION
 from baserow.core.telemetry.utils import otel_is_enabled
 from baserow.throttling_types import RateLimit
 from baserow.version import VERSION
@@ -1138,10 +1137,9 @@ PERMISSION_MANAGERS = [
     "write_field_values",
     "role",
     "basic",
+    "automation_workflow",
+    "automation_node",
 ]
-
-if "*" in FEATURE_FLAGS or FF_AUTOMATION.lower() in FEATURE_FLAGS:
-    PERMISSION_MANAGERS.extend(["automation_workflow", "automation_node"])
 
 if "baserow_enterprise" not in INSTALLED_APPS:
     PERMISSION_MANAGERS.remove("write_field_values")

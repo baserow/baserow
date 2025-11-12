@@ -1,7 +1,5 @@
 from django.apps import AppConfig
 
-from baserow.core.feature_flags import FF_AUTOMATION, feature_flag_is_enabled
-
 
 class AutomationConfig(AppConfig):
     name = "baserow.contrib.automation"
@@ -102,122 +100,111 @@ class AutomationConfig(AppConfig):
         )
         from baserow.core.trash.registries import trash_item_type_registry
 
-        if feature_flag_is_enabled(FF_AUTOMATION):
-            application_type_registry.register(AutomationApplicationType())
+        application_type_registry.register(AutomationApplicationType())
 
-            object_scope_type_registry.register(AutomationObjectScopeType())
-            object_scope_type_registry.register(AutomationWorkflowObjectScopeType())
-            object_scope_type_registry.register(AutomationNodeObjectScopeType())
+        object_scope_type_registry.register(AutomationObjectScopeType())
+        object_scope_type_registry.register(AutomationWorkflowObjectScopeType())
+        object_scope_type_registry.register(AutomationNodeObjectScopeType())
 
-            operation_type_registry.register(CreateAutomationWorkflowOperationType())
-            operation_type_registry.register(DeleteAutomationWorkflowOperationType())
-            operation_type_registry.register(DuplicateAutomationWorkflowOperationType())
-            operation_type_registry.register(ReadAutomationWorkflowOperationType())
-            operation_type_registry.register(UpdateAutomationWorkflowOperationType())
-            operation_type_registry.register(ListAutomationWorkflowsOperationType())
-            operation_type_registry.register(OrderAutomationWorkflowsOperationType())
-            operation_type_registry.register(RestoreAutomationWorkflowOperationType())
-            operation_type_registry.register(PublishAutomationWorkflowOperationType())
-            operation_type_registry.register(ListAutomationNodeOperationType())
-            operation_type_registry.register(CreateAutomationNodeOperationType())
-            operation_type_registry.register(UpdateAutomationNodeOperationType())
-            operation_type_registry.register(ReadAutomationNodeOperationType())
-            operation_type_registry.register(DeleteAutomationNodeOperationType())
-            operation_type_registry.register(RestoreAutomationNodeOperationType())
-            operation_type_registry.register(DuplicateAutomationNodeOperationType())
-            operation_type_registry.register(OrderAutomationNodeOperationType())
+        operation_type_registry.register(CreateAutomationWorkflowOperationType())
+        operation_type_registry.register(DeleteAutomationWorkflowOperationType())
+        operation_type_registry.register(DuplicateAutomationWorkflowOperationType())
+        operation_type_registry.register(ReadAutomationWorkflowOperationType())
+        operation_type_registry.register(UpdateAutomationWorkflowOperationType())
+        operation_type_registry.register(ListAutomationWorkflowsOperationType())
+        operation_type_registry.register(OrderAutomationWorkflowsOperationType())
+        operation_type_registry.register(RestoreAutomationWorkflowOperationType())
+        operation_type_registry.register(PublishAutomationWorkflowOperationType())
+        operation_type_registry.register(ListAutomationNodeOperationType())
+        operation_type_registry.register(CreateAutomationNodeOperationType())
+        operation_type_registry.register(UpdateAutomationNodeOperationType())
+        operation_type_registry.register(ReadAutomationNodeOperationType())
+        operation_type_registry.register(DeleteAutomationNodeOperationType())
+        operation_type_registry.register(RestoreAutomationNodeOperationType())
+        operation_type_registry.register(DuplicateAutomationNodeOperationType())
+        operation_type_registry.register(OrderAutomationNodeOperationType())
 
-            job_type_registry.register(DuplicateAutomationWorkflowJobType())
-            job_type_registry.register(PublishAutomationWorkflowJobType())
+        job_type_registry.register(DuplicateAutomationWorkflowJobType())
+        job_type_registry.register(PublishAutomationWorkflowJobType())
 
-            trash_item_type_registry.register(AutomationTrashableItemType())
-            trash_item_type_registry.register(AutomationWorkflowTrashableItemType())
-            trash_item_type_registry.register(AutomationNodeTrashableItemType())
+        trash_item_type_registry.register(AutomationTrashableItemType())
+        trash_item_type_registry.register(AutomationWorkflowTrashableItemType())
+        trash_item_type_registry.register(AutomationNodeTrashableItemType())
 
-            action_type_registry.register(CreateAutomationWorkflowActionType())
-            action_type_registry.register(UpdateAutomationWorkflowActionType())
-            action_type_registry.register(DeleteAutomationWorkflowActionType())
-            action_type_registry.register(DuplicateAutomationWorkflowActionType())
-            action_type_registry.register(OrderAutomationWorkflowActionType())
-            action_type_registry.register(CreateAutomationNodeActionType())
-            action_type_registry.register(UpdateAutomationNodeActionType())
-            action_type_registry.register(DeleteAutomationNodeActionType())
-            action_type_registry.register(DuplicateAutomationNodeActionType())
-            action_type_registry.register(ReplaceAutomationNodeActionType())
-            action_type_registry.register(MoveAutomationNodeActionType())
+        action_type_registry.register(CreateAutomationWorkflowActionType())
+        action_type_registry.register(UpdateAutomationWorkflowActionType())
+        action_type_registry.register(DeleteAutomationWorkflowActionType())
+        action_type_registry.register(DuplicateAutomationWorkflowActionType())
+        action_type_registry.register(OrderAutomationWorkflowActionType())
+        action_type_registry.register(CreateAutomationNodeActionType())
+        action_type_registry.register(UpdateAutomationNodeActionType())
+        action_type_registry.register(DeleteAutomationNodeActionType())
+        action_type_registry.register(DuplicateAutomationNodeActionType())
+        action_type_registry.register(ReplaceAutomationNodeActionType())
+        action_type_registry.register(MoveAutomationNodeActionType())
 
-            action_scope_registry.register(WorkflowActionScopeType())
+        action_scope_registry.register(WorkflowActionScopeType())
 
-            automation_node_type_registry.register(LocalBaserowCreateRowNodeType())
-            automation_node_type_registry.register(LocalBaserowUpdateRowNodeType())
-            automation_node_type_registry.register(LocalBaserowDeleteRowNodeType())
-            automation_node_type_registry.register(LocalBaserowGetRowNodeType())
-            automation_node_type_registry.register(LocalBaserowListRowsNodeType())
-            automation_node_type_registry.register(LocalBaserowAggregateRowsNodeType())
-            automation_node_type_registry.register(CoreHttpRequestNodeType())
-            automation_node_type_registry.register(CoreIteratorNodeType())
-            automation_node_type_registry.register(CoreSMTPEmailNodeType())
-            automation_node_type_registry.register(CoreRouterActionNodeType())
-            automation_node_type_registry.register(
-                LocalBaserowRowsCreatedNodeTriggerType()
-            )
-            automation_node_type_registry.register(
-                LocalBaserowRowsUpdatedNodeTriggerType()
-            )
-            automation_node_type_registry.register(
-                LocalBaserowRowsDeletedNodeTriggerType()
-            )
-            automation_node_type_registry.register(CorePeriodicTriggerNodeType())
-            automation_node_type_registry.register(SlackWriteMessageActionNodeType())
-            automation_node_type_registry.register(CoreHTTPTriggerNodeType())
-            automation_node_type_registry.register(AIAgentActionNodeType())
+        automation_node_type_registry.register(LocalBaserowCreateRowNodeType())
+        automation_node_type_registry.register(LocalBaserowUpdateRowNodeType())
+        automation_node_type_registry.register(LocalBaserowDeleteRowNodeType())
+        automation_node_type_registry.register(LocalBaserowGetRowNodeType())
+        automation_node_type_registry.register(LocalBaserowListRowsNodeType())
+        automation_node_type_registry.register(LocalBaserowAggregateRowsNodeType())
+        automation_node_type_registry.register(CoreHttpRequestNodeType())
+        automation_node_type_registry.register(CoreIteratorNodeType())
+        automation_node_type_registry.register(CoreSMTPEmailNodeType())
+        automation_node_type_registry.register(CoreRouterActionNodeType())
+        automation_node_type_registry.register(LocalBaserowRowsCreatedNodeTriggerType())
+        automation_node_type_registry.register(LocalBaserowRowsUpdatedNodeTriggerType())
+        automation_node_type_registry.register(LocalBaserowRowsDeletedNodeTriggerType())
+        automation_node_type_registry.register(CorePeriodicTriggerNodeType())
+        automation_node_type_registry.register(CoreHTTPTriggerNodeType())
+        automation_node_type_registry.register(AIAgentActionNodeType())
 
-            from baserow.core.trash.registries import trash_operation_type_registry
+        from baserow.core.trash.registries import trash_operation_type_registry
 
-            trash_operation_type_registry.register(
-                ReplaceAutomationNodeTrashOperationType()
-            )
+        trash_operation_type_registry.register(
+            ReplaceAutomationNodeTrashOperationType()
+        )
 
-            from baserow.contrib.automation.data_providers.data_provider_types import (
-                CurrentIterationDataProviderType,
-                PreviousNodeProviderType,
-            )
-            from baserow.contrib.automation.data_providers.registries import (
-                automation_data_provider_type_registry,
-            )
+        from baserow.contrib.automation.data_providers.data_provider_types import (
+            CurrentIterationDataProviderType,
+            PreviousNodeProviderType,
+        )
+        from baserow.contrib.automation.data_providers.registries import (
+            automation_data_provider_type_registry,
+        )
 
-            automation_data_provider_type_registry.register(PreviousNodeProviderType())
-            automation_data_provider_type_registry.register(
-                CurrentIterationDataProviderType()
-            )
+        automation_data_provider_type_registry.register(PreviousNodeProviderType())
+        automation_data_provider_type_registry.register(
+            CurrentIterationDataProviderType()
+        )
 
-            from baserow.contrib.automation.nodes.permission_manager import (
-                AutomationNodePermissionManager,
-            )
-            from baserow.contrib.automation.workflows.permission_manager import (
-                AutomationWorkflowPermissionManager,
-            )
-            from baserow.core.registries import permission_manager_type_registry
+        from baserow.contrib.automation.nodes.permission_manager import (
+            AutomationNodePermissionManager,
+        )
+        from baserow.contrib.automation.workflows.permission_manager import (
+            AutomationWorkflowPermissionManager,
+        )
+        from baserow.core.registries import permission_manager_type_registry
 
-            permission_manager_type_registry.register(
-                AutomationWorkflowPermissionManager()
-            )
-            permission_manager_type_registry.register(AutomationNodePermissionManager())
+        permission_manager_type_registry.register(AutomationWorkflowPermissionManager())
+        permission_manager_type_registry.register(AutomationNodePermissionManager())
 
-            # The signals must always be imported last because they use
-            # the registries which need to be filled first.
-            import baserow.contrib.automation.nodes.ws.signals  # noqa: F403, F401
-            import baserow.contrib.automation.workflows.signals  # noqa: F403, F401
-            import baserow.contrib.automation.workflows.ws.signals  # noqa: F403, F401
-            import baserow.contrib.integrations.tasks  # noqa: F403, F401
-            from baserow.contrib.automation.nodes.receivers import (
-                connect_to_node_pre_delete_signal,
-            )
+        # The signals must always be imported last because they use
+        # the registries which need to be filled first.
+        import baserow.contrib.automation.nodes.ws.signals  # noqa: F403, F401
+        import baserow.contrib.automation.workflows.signals  # noqa: F403, F401
+        import baserow.contrib.automation.workflows.ws.signals  # noqa: F403, F401
+        import baserow.contrib.integrations.tasks  # noqa: F403, F401
+        from baserow.contrib.automation.nodes.receivers import (
+            connect_to_node_pre_delete_signal,
+        )
 
-            connect_to_node_pre_delete_signal()
+        connect_to_node_pre_delete_signal()
 
+        from baserow.contrib.automation.search_types import AutomationSearchType
         from baserow.core.search.registries import workspace_search_registry
-
-        from .search_types import AutomationSearchType
 
         workspace_search_registry.register(AutomationSearchType())

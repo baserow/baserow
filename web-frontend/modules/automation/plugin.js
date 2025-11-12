@@ -40,7 +40,6 @@ import {
   DuplicateAutomationWorkflowJobType,
   PublishAutomationWorkflowJobType,
 } from '@baserow/modules/automation/jobTypes'
-import { FF_AUTOMATION } from '@baserow/modules/core/plugins/featureFlags'
 import {
   HistoryEditorSidePanelType,
   NodeEditorSidePanelType,
@@ -80,88 +79,88 @@ export default (context) => {
     automationApplicationStore
   )
 
-  if (app.$featureFlagIsEnabled(FF_AUTOMATION)) {
-    app.$registry.register(
-      'application',
-      new AutomationApplicationType(context)
-    )
-    app.$registry.register(
-      'automationDataProvider',
-      new PreviousNodeDataProviderType(context)
-    )
-    app.$registry.register(
-      'automationDataProvider',
-      new CurrentIterationDataProviderType(context)
-    )
-    app.$registry.register(
-      'node',
-      new LocalBaserowRowsCreatedTriggerNodeType(context)
-    )
-    app.$registry.register(
-      'node',
-      new LocalBaserowRowsUpdatedTriggerNodeType(context)
-    )
-    app.$registry.register(
-      'node',
-      new LocalBaserowRowsDeletedTriggerNodeType(context)
-    )
-    app.$registry.register('node', new CoreHTTPTriggerNodeType(context))
-    app.$registry.register(
-      'node',
-      new LocalBaserowCreateRowActionNodeType(context)
-    )
-    app.$registry.register(
-      'node',
-      new LocalBaserowUpdateRowActionNodeType(context)
-    )
-    app.$registry.register('node', new CoreHttpRequestNodeType(context))
-    app.$registry.register('node', new CoreSMTPEmailNodeType(context))
-    app.$registry.register('node', new CoreRouterNodeType(context))
-    app.$registry.register('node', new CoreIteratorNodeType(context))
-    app.$registry.register('node', new SlackWriteMessageNodeType(context))
-    app.$registry.register(
-      'node',
-      new LocalBaserowDeleteRowActionNodeType(context)
-    )
-    app.$registry.register(
-      'node',
-      new LocalBaserowGetRowActionNodeType(context)
-    )
-    app.$registry.register(
-      'node',
-      new LocalBaserowListRowsActionNodeType(context)
-    )
-    app.$registry.register(
-      'node',
-      new LocalBaserowAggregateRowsActionNodeType(context)
-    )
-    app.$registry.register('node', new CorePeriodicTriggerNodeType(context))
-    app.$registry.register('node', new AIAgentActionNodeType(context))
-    app.$registry.register(
-      'job',
-      new DuplicateAutomationWorkflowJobType(context)
-    )
-    app.$registry.register('job', new PublishAutomationWorkflowJobType(context))
-    app.$registry.registerNamespace('automationSettings')
-    app.$registry.register(
-      'automationSettings',
-      new GeneralAutomationSettingsType(context)
-    )
-    app.$registry.register(
-      'automationSettings',
-      new IntegrationsAutomationSettingsType(context)
-    )
-    app.$registry.register(
-      'editorSidePanel',
-      new NodeEditorSidePanelType(context)
-    )
-    app.$registry.register(
-      'editorSidePanel',
-      new HistoryEditorSidePanelType(context)
-    )
+  // Automation data providers.
+  app.$registry.register('application', new AutomationApplicationType(context))
+  app.$registry.register(
+    'automationDataProvider',
+    new PreviousNodeDataProviderType(context)
+  )
+  app.$registry.register(
+    'automationDataProvider',
+    new CurrentIterationDataProviderType(context)
+  )
 
-    // Register automation search type
-    searchTypeRegistry.register(new AutomationSearchType())
-    app.$registry.register('guidedTour', new AutomationGuidedTourType(context))
-  }
+  // Automation node types.
+  app.$registry.register(
+    'node',
+    new LocalBaserowRowsCreatedTriggerNodeType(context)
+  )
+  app.$registry.register(
+    'node',
+    new LocalBaserowRowsUpdatedTriggerNodeType(context)
+  )
+  app.$registry.register(
+    'node',
+    new LocalBaserowRowsDeletedTriggerNodeType(context)
+  )
+  app.$registry.register('node', new CoreHTTPTriggerNodeType(context))
+  app.$registry.register(
+    'node',
+    new LocalBaserowCreateRowActionNodeType(context)
+  )
+  app.$registry.register(
+    'node',
+    new LocalBaserowUpdateRowActionNodeType(context)
+  )
+  app.$registry.register('node', new CoreHttpRequestNodeType(context))
+  app.$registry.register('node', new CoreSMTPEmailNodeType(context))
+  app.$registry.register('node', new CoreRouterNodeType(context))
+  app.$registry.register('node', new CoreIteratorNodeType(context))
+  app.$registry.register('node', new SlackWriteMessageNodeType(context))
+  app.$registry.register(
+    'node',
+    new LocalBaserowDeleteRowActionNodeType(context)
+  )
+  app.$registry.register('node', new LocalBaserowGetRowActionNodeType(context))
+  app.$registry.register(
+    'node',
+    new LocalBaserowListRowsActionNodeType(context)
+  )
+  app.$registry.register(
+    'node',
+    new LocalBaserowAggregateRowsActionNodeType(context)
+  )
+  app.$registry.register('node', new CorePeriodicTriggerNodeType(context))
+  app.$registry.register('node', new AIAgentActionNodeType(context))
+
+  // Automation job types.
+  app.$registry.register('job', new DuplicateAutomationWorkflowJobType(context))
+  app.$registry.register('job', new PublishAutomationWorkflowJobType(context))
+
+  // Automation settings.
+  app.$registry.registerNamespace('automationSettings')
+  app.$registry.register(
+    'automationSettings',
+    new GeneralAutomationSettingsType(context)
+  )
+  app.$registry.register(
+    'automationSettings',
+    new IntegrationsAutomationSettingsType(context)
+  )
+
+  // Automation editor side panels.
+  app.$registry.register(
+    'editorSidePanel',
+    new NodeEditorSidePanelType(context)
+  )
+  app.$registry.register(
+    'editorSidePanel',
+    new HistoryEditorSidePanelType(context)
+  )
+
+  // Automation search type
+  searchTypeRegistry.register(new AutomationSearchType())
+
+  // Automation guided tour.
+  app.$registry.register('guidedTour', new AutomationGuidedTourType(context))
 }
