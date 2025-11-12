@@ -515,7 +515,7 @@ export const mockNodesHierarchy = [
         highlightingColor: null,
         icon: null,
         empty: true,
-        emptyText: 'No data sources available',
+        emptyText: 'No data available',
     },
 ]
 
@@ -531,7 +531,7 @@ export const Template = (args, { argTypes }) => ({
     },
     template: `
     <div style="padding: 20px; max-width: 600px;">
-        <FormulaInputField 
+        <FormulaInputField
             v-bind="$props"
             :value="formulaValue"
             :mode="currentMode"
@@ -539,7 +539,7 @@ export const Template = (args, { argTypes }) => ({
             @input="onInput"
             @update:mode="onModeChanged"
         />
-        
+
         <!-- Display emitted formula value -->
         <div style="margin-top: 16px; padding: 12px; background: #f5f5f5; border-radius: 4px; border-left: 4px solid #007bff;">
             <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #333;">Emitted Formula:</h4>

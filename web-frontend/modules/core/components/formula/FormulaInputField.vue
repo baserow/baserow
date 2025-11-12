@@ -3,6 +3,7 @@
     <div class="formula-input-field__editor" @click="handleEditorClick">
       <EditorContent
         :id="forInput"
+        :key="key"
         ref="editor"
         class="form-input formula-input-field"
         role="textbox"
@@ -20,6 +21,7 @@
       :mode="mode"
       :allow-node-selection="allowNodeSelection"
       :enable-advanced-mode="enableAdvancedMode"
+      :nodes-hierarchy="nodesHierarchy"
       @node-selected="handleNodeSelected"
       @node-unselected="unSelectNode"
       @mode-changed="handleModeChange"
@@ -57,6 +59,7 @@ import FormulaInputContext from '@baserow/modules/core/components/formula/Formul
 import { FF_ADVANCED_FORMULA } from '@baserow/modules/core/plugins/featureFlags'
 import { isFormulaValid } from '@baserow/modules/core/formula'
 import NodeHelpTooltip from '@baserow/modules/core/components/nodeExplorer/NodeHelpTooltip'
+import { fixPropertyReactivityForProvide } from '@baserow/modules/core/utils/object'
 
 export default {
   name: 'FormulaInputField',
@@ -65,10 +68,14 @@ export default {
     EditorContent,
     NodeHelpTooltip,
   },
+
   provide() {
-    return {
-      nodesHierarchy: this.nodesHierarchy,
-    }
+    return fixPropertyReactivityForProvide(
+      {},
+      {
+        nodesHierarchy: () => this.nodesHierarchy,
+      }
+    )
   },
   inject: {
     forInput: { from: 'forInput', default: null },
@@ -139,6 +146,7 @@ export default {
       enableAdvancedMode: this.$featureFlagIsEnabled(FF_ADVANCED_FORMULA),
       isHandlingModeChange: false,
       intersectionObserver: null,
+      key: 0,
     }
   },
   computed: {
@@ -283,6 +291,11 @@ export default {
     },
   },
   watch: {
+    nodesHierarchy() {
+      // fixes reactivity issue with components in tiptap by forcing the input to
+      // render.
+      this.key += 1
+    },
     disabled(newValue) {
       this.editor.setOptions({ editable: !newValue && !this.readOnly })
     },

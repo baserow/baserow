@@ -66,12 +66,16 @@ export default {
     NodeExplorer,
   },
   mixins: [context],
-  inject: ['nodesHierarchy'],
   props: {
     nodeSelected: {
       type: String,
       required: false,
       default: null,
+    },
+    nodesHierarchy: {
+      type: Array,
+      required: false,
+      default: () => [],
     },
     loading: {
       type: Boolean,

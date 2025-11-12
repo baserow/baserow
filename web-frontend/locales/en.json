@@ -678,7 +678,7 @@
     "formulaTypeFormula": "Function | Functions",
     "formulaTypeOperator": "Operator | Operators",
     "formulaTypeData": "Data",
-    "formulaTypeDataEmpty": "No data sources available",
+    "formulaTypeDataEmpty": "No data available",
     "categoryText": "Text",
     "categoryNumber": "Number",
     "categoryBoolean": "Boolean",
