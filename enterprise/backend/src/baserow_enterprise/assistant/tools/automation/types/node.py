@@ -235,7 +235,7 @@ class RouterNodeCreate(RouterNodeBase, RefCreate, EdgeCreate, HasFormulasToCreat
         for orm_edge in orm_edges:
             label = orm_edge.label.lower()
             if label in formulas:
-                orm_edge.condition["type"] = BASEROW_FORMULA_MODE_ADVANCED
+                orm_edge.condition["mode"] = BASEROW_FORMULA_MODE_ADVANCED
                 orm_edge.condition["formula"] = formulas[label]
                 updates.append(orm_edge)
         if updates:
