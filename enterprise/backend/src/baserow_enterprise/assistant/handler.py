@@ -3,6 +3,7 @@ from typing import AsyncGenerator
 from uuid import UUID
 
 from django.contrib.auth.models import AbstractUser
+from django.db.models import Count
 
 from baserow.core.models import Workspace
 
@@ -63,9 +64,16 @@ class AssistantHandler:
         List all AI assistant chats for the user in the specified workspace.
         """
 
-        return AssistantChat.objects.filter(
-            workspace_id=workspace_id, user=user
-        ).order_by("-updated_on", "id")
+        return (
+            AssistantChat.objects.filter(
+                workspace_id=workspace_id,
+                user=user,
+            )
+            .exclude(title="")
+            .annotate(message_count=Count("messages"))
+            .filter(message_count__gt=0)
+            .order_by("-updated_on", "id")
+        )
 
     def get_chat_message_by_id(self, user: AbstractUser, message_id: int) -> AiMessage:
         """

@@ -75,7 +75,16 @@ def test_list_assistant_chats(api_client, enterprise_data_fixture):
         for i in range(chats_count)
     ]
     with freeze_time("2024-01-14 12:00:00"):
-        AssistantChat.objects.bulk_create(chats)
+        created_chats = AssistantChat.objects.bulk_create(chats)
+        messages = [
+            AssistantChatMessage(
+                role=AssistantChatMessage.Role.HUMAN,
+                content="What's the weather like?",
+                chat=chat,
+            )
+            for chat in created_chats
+        ]
+    AssistantChatMessage.objects.bulk_create(messages)
 
     rsp = api_client.get(
         reverse("assistant:list") + f"?workspace_id={workspace.id}",
@@ -121,6 +130,50 @@ def test_list_assistant_chats(api_client, enterprise_data_fixture):
     }
     assert data["previous"] is not None
     assert data["next"] is not None
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_not_list_empty_assistant_chats(api_client, enterprise_data_fixture):
+    user, token = enterprise_data_fixture.create_user_and_token()
+    workspace = enterprise_data_fixture.create_workspace(user=user)
+    enterprise_data_fixture.enable_enterprise()
+
+    chats = [
+        AssistantChat(workspace=workspace, user=user, title=""),
+        AssistantChat(workspace=workspace, user=user, title="test"),
+        AssistantChat(workspace=workspace, user=user, title="test2"),
+    ]
+    chats = AssistantChat.objects.bulk_create(chats)
+
+    messages = [
+        AssistantChatMessage(
+            id=1,
+            role=AssistantChatMessage.Role.HUMAN,
+            content="What's the weather like?",
+            chat=chats[0],
+        ),
+        AssistantChatMessage(
+            id=2,
+            role=AssistantChatMessage.Role.HUMAN,
+            content="What's the weather like?",
+            chat=chats[2],
+        ),
+    ]
+    AssistantChatMessage.objects.bulk_create(messages)
+
+    rsp = api_client.get(
+        reverse("assistant:list") + f"?workspace_id={workspace.id}",
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert rsp.status_code == 200
+    data = rsp.json()
+    assert data["count"] == 1
+    assert len(data["results"]) == 1
+    # The first chat does not have a title, and the second one does not have any
+    # messages. They should therefore both be excluded.
+    assert data["results"][0]["uuid"] == str(chats[2].uuid)
 
 
 @pytest.mark.django_db
