@@ -1076,6 +1076,7 @@
     "notAllowedDescription": "Adding 2FA is only possible to password-based accounts."
   },
   "nodeHelpTooltip": {
+    "exampleLabel": "Example",
     "result": "Result: {result}"
   },
   "enableWithQRCode": {

@@ -21,7 +21,7 @@
         <FormGroup
           v-if="node.example"
           class="node-help-tooltip__example"
-          :label="'Example'"
+          :label="$t('nodeHelpTooltip.exampleLabel')"
           small-label
           required
           :helper-text="
