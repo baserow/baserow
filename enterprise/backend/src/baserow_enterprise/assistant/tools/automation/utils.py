@@ -5,6 +5,7 @@ from django.contrib.auth.models import AbstractUser
 from django.db import transaction
 from django.utils.translation import gettext as _
 
+import udspy
 from loguru import logger
 from pydantic import ConfigDict
 
@@ -166,27 +167,25 @@ class AssistantFormulaContext(FormulaContext):
 
 
 def get_generate_formulas_tool():
-    import dspy
-
-    class RuntimeFormulaGenerator(dspy.Signature):
+    class RuntimeFormulaGenerator(udspy.Signature):
         __doc__ = GENERATE_FORMULA_PROMPT
 
-        fields_to_resolve: dict[str, dict[str, str]] = dspy.InputField(
+        fields_to_resolve: dict[str, dict[str, str]] = udspy.InputField(
             desc=(
                 "The fields that need formulas to be generated. "
                 "If prefixed with [optional], the field is not mandatory."
             )
         )
-        context: dict[str, Any] = dspy.InputField(
+        context: dict[str, Any] = udspy.InputField(
             desc="The available context to use in formula generation composed of previous nodes results."
         )
-        context_metadata: dict[str, Any] = dspy.InputField(
+        context_metadata: dict[str, Any] = udspy.InputField(
             desc="Metadata about the context fields, with refs and names to assist in formula generation."
         )
-        feedback: str = dspy.InputField(
+        feedback: str = udspy.InputField(
             desc="Validation errors from previous attempt. Empty if first attempt."
         )
-        generated_formulas: dict[str, Any] = dspy.OutputField()
+        generated_formulas: dict[str, Any] = udspy.OutputField()
 
         model_config = ConfigDict(arbitrary_types_allowed=True)
 
@@ -213,7 +212,7 @@ def get_generate_formulas_tool():
         that fulfills the request, using the provided context object.
         """
 
-        predict = dspy.Predict(RuntimeFormulaGenerator)
+        predict = udspy.Predict(RuntimeFormulaGenerator)
         feedback = ""
         for __ in range(max_retries):
             result = predict(
