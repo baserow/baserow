@@ -29,9 +29,12 @@ export class PreviousNodeDataProviderType extends DataProviderType {
 
     const previousNodeSchema = _.chain(previousNodes)
       // Retrieve the associated schema for each node
-      .map((previousNode) => [
+      .map((previousNode, index) => [
         previousNode,
-        this.getNodeSchema({ automation, node: previousNode }),
+        {
+          ...this.getNodeSchema({ automation, node: previousNode }),
+          order: index,
+        },
       ])
       // Remove nodes without schema
       .filter(([_, schema]) => schema)
@@ -46,7 +49,6 @@ export class PreviousNodeDataProviderType extends DataProviderType {
           {
             ...schema,
             title: `${schema.title}${index ? ` ${index + 1}` : ''}`,
-            order: index,
           },
         ])
       )
