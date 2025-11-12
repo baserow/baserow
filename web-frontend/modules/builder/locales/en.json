@@ -961,7 +961,7 @@
     "errorFetchingRolesTitle": "Could not fetch User Roles",
     "errorFetchingRolesMessage": "There was a problem while fetching User Roles.",
     "visibilityCondition": "Visibility condition",
-    "visibilityConditionHelper": "If the result of this formula is false, the element will be hidden. This condition only affects the element’s visibility. To exclude data from the server response instead, use the user role filtering option above.",
+    "visibilityConditionHelper": "If the result of this formula is true, and the visitor choice above is true, the element will be visible. This condition only affects the element’s visibility. To exclude data from the server response instead, use the user role filtering option above.",
     "visibilityConditionPlaceholder": "Condition..."
   },
   "userDataProviderType": {

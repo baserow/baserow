@@ -1,6 +1,7 @@
 from typing import List, Optional, TypedDict
 
 from baserow.contrib.builder.pages.types import PagePathParams, PageQueryParams
+from baserow.core.formula import BaserowFormulaObject
 from baserow.core.integrations.types import IntegrationDictSubClass
 from baserow.core.services.types import ServiceDictSubClass
 from baserow.core.user_sources.types import UserSourceDictSubClass
@@ -15,6 +16,7 @@ class ElementDict(TypedDict):
     place_in_container: str
     css_classes: str
     visibility: str
+    visibility_condition: BaserowFormulaObject
     role_type: str
     roles: list
     styles: dict

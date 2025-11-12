@@ -35,6 +35,9 @@ from baserow.core.action.models import Action
 from baserow.core.action.registries import action_type_registry
 from baserow.core.actions import CreateApplicationActionType
 from baserow.core.db import specific_iterator
+from baserow.core.formula import BaserowFormulaObject
+from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
+from baserow.core.formula.types import BASEROW_FORMULA_MODE_SIMPLE
 from baserow.core.registries import ImportExportConfig, application_type_registry
 from baserow.core.storage import ExportZipFile
 from baserow.core.trash.handler import TrashHandler
@@ -248,6 +251,11 @@ def test_builder_application_export(data_fixture):
                 "parent_element_id": None,
                 "place_in_container": None,
                 "visibility": "all",
+                "visibility_condition": BaserowFormulaObject(
+                    formula="",
+                    mode=BASEROW_FORMULA_MODE_SIMPLE,
+                    version=BASEROW_FORMULA_VERSION_INITIAL,
+                ),
                 "css_classes": "",
                 "styles": {},
                 "style_border_top_color": "border",
@@ -296,6 +304,11 @@ def test_builder_application_export(data_fixture):
                 "place_in_container": None,
                 "css_classes": "",
                 "visibility": "all",
+                "visibility_condition": BaserowFormulaObject(
+                    formula="",
+                    mode=BASEROW_FORMULA_MODE_SIMPLE,
+                    version=BASEROW_FORMULA_VERSION_INITIAL,
+                ),
                 "styles": {},
                 "style_border_top_color": "border",
                 "style_border_top_size": 0,
@@ -432,6 +445,11 @@ def test_builder_application_export(data_fixture):
                         "place_in_container": None,
                         "css_classes": "",
                         "visibility": "all",
+                        "visibility_condition": BaserowFormulaObject(
+                            formula="",
+                            mode=BASEROW_FORMULA_MODE_SIMPLE,
+                            version=BASEROW_FORMULA_VERSION_INITIAL,
+                        ),
                         "styles": {},
                         "style_border_top_color": "border",
                         "style_border_top_size": 0,
@@ -470,6 +488,11 @@ def test_builder_application_export(data_fixture):
                         "place_in_container": None,
                         "css_classes": "",
                         "visibility": "all",
+                        "visibility_condition": BaserowFormulaObject(
+                            formula="",
+                            mode=BASEROW_FORMULA_MODE_SIMPLE,
+                            version=BASEROW_FORMULA_VERSION_INITIAL,
+                        ),
                         "styles": {},
                         "style_border_top_color": "border",
                         "style_border_top_size": 0,
@@ -507,6 +530,11 @@ def test_builder_application_export(data_fixture):
                         "place_in_container": None,
                         "css_classes": "",
                         "visibility": "all",
+                        "visibility_condition": BaserowFormulaObject(
+                            formula="",
+                            mode=BASEROW_FORMULA_MODE_SIMPLE,
+                            version=BASEROW_FORMULA_VERSION_INITIAL,
+                        ),
                         "styles": {},
                         "style_border_top_color": "border",
                         "style_border_top_size": 0,
@@ -546,6 +574,11 @@ def test_builder_application_export(data_fixture):
                         "place_in_container": "0",
                         "css_classes": "",
                         "visibility": "all",
+                        "visibility_condition": BaserowFormulaObject(
+                            formula="",
+                            mode=BASEROW_FORMULA_MODE_SIMPLE,
+                            version=BASEROW_FORMULA_VERSION_INITIAL,
+                        ),
                         "styles": {},
                         "style_border_top_color": "border",
                         "style_border_top_size": 0,
