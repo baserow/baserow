@@ -20,6 +20,8 @@ export class FromTipTapVisitor {
         return ')'
       case 'operator-formula-component':
         return this.visitOperatorFormulaComponent(node)
+      case 'hardBreak':
+        return this.visitHardBreak(node)
       default:
         return this.visitFunction(node)
     }
@@ -144,8 +146,15 @@ export class FromTipTapVisitor {
 
   visitText(node) {
     // Remove zero-width spaces used for cursor positioning
-    const cleanText = node.text.replace(/\u200B/g, '')
-    if (this.mode === 'simple') return `'${cleanText.replace(/'/g, "\\'")}'`
+    let cleanText = node.text.replace(/\u200B/g, '')
+
+    if (this.mode === 'simple') {
+      return `'${cleanText.replace(/'/g, "\\'")}'`
+    }
+
+    // In advanced mode, we need to escape actual newlines in the text
+    // to make them valid in string literals
+    cleanText = cleanText.replace(/\n/g, '\\n')
     return cleanText
   }
 
@@ -168,5 +177,11 @@ export class FromTipTapVisitor {
   visitOperatorFormulaComponent(node) {
     const operatorSymbol = node.attrs?.operatorSymbol || ''
     return operatorSymbol
+  }
+
+  visitHardBreak(node) {
+    // In advanced mode, convert hard breaks to actual newline characters
+    // that will be part of the string literal
+    return '\n'
   }
 }

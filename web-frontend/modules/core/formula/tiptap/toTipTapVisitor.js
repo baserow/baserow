@@ -54,6 +54,37 @@ export class ToTipTapVisitor extends BaserowFormulaVisitor {
         if (this.mode === 'advanced') {
           // In advanced mode, keep quotes for display
           const fullText = ctx.getText()
+
+          // Check if the string contains escaped newlines (\n)
+          // If so, split it into text nodes and hardBreak nodes
+          if (fullText.includes('\\n')) {
+            const quote = fullText[0] // Get the opening quote
+            const content = fullText.slice(1, -1) // Remove quotes
+            const parts = content.split('\\n')
+
+            // Create an array of text and hardBreak nodes
+            const nodes = []
+            parts.forEach((part, index) => {
+              if (index === 0) {
+                // First part: add opening quote
+                nodes.push({ type: 'text', text: quote + part })
+              } else if (index === parts.length - 1) {
+                // Last part: add closing quote
+                nodes.push({ type: 'text', text: part + quote })
+              } else {
+                // Middle parts: no quotes
+                nodes.push({ type: 'text', text: part })
+              }
+
+              // Add hardBreak between parts (but not after the last one)
+              if (index < parts.length - 1) {
+                nodes.push({ type: 'hardBreak' })
+              }
+            })
+
+            return nodes
+          }
+
           return { type: 'text', text: fullText }
         }
         // In simple mode, remove quotes (they will be added back by fromTipTapVisitor)

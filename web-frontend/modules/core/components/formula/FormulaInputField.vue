@@ -13,6 +13,8 @@
       />
     </div>
 
+    {{ value }}
+
     <FormulaInputContext
       v-if="isFocused && !readOnly"
       ref="formulaInputContext"
@@ -42,6 +44,7 @@ import { Placeholder } from '@tiptap/extension-placeholder'
 import { Document } from '@tiptap/extension-document'
 import { Text } from '@tiptap/extension-text'
 import { History } from '@tiptap/extension-history'
+import { HardBreak } from '@tiptap/extension-hard-break'
 import { FunctionHelpTooltipExtension } from '@baserow/modules/core/components/formula/FunctionHelpTooltipExtension'
 import {
   FormulaInsertionExtension,
@@ -271,6 +274,15 @@ export default {
         extensions.push(FunctionArgumentCommaNode)
         extensions.push(FunctionClosingParenNode)
         extensions.push(OperatorFormulaComponentNode)
+        extensions.push(
+          HardBreak.extend({
+            addKeyboardShortcuts() {
+              return {
+                Enter: () => this.editor.commands.setHardBreak(),
+              }
+            },
+          })
+        )
         extensions.push(
           FunctionDetectionExtension.configure({
             functionNames: this.functionNames,
