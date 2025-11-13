@@ -5,7 +5,7 @@
       <img
         v-else-if="workflowActionType.image"
         alt=""
-        class="workflow_action__image"
+        class="workflow-action__image"
         :src="workflowActionType.image"
       />
       <span>{{ workflowActionType.label }}</span>
