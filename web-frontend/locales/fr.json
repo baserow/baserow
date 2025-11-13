@@ -24,7 +24,8 @@
         "thursday": "Jeudi",
         "friday": "Vendredi",
         "saturday": "Samedi",
-        "sunday": "Dimanche"
+        "sunday": "Dimanche",
+        "value": "valeur"
     },
     "action": {
         "upload": "Envoyer",
@@ -95,7 +96,8 @@
         "tokens": "Jetons d'accès à la base",
         "deleteAccount": "Supprimer le compte",
         "emailNotifications": "Notifications par courriel",
-        "mcpEndpoint": "Serveur MCP"
+        "mcpEndpoint": "Serveur MCP",
+        "twoFactorAuth": "Autorisation à deux facteurs"
     },
     "userFileUploadType": {
         "file": "de mon appareil",
@@ -642,5 +644,63 @@
     },
     "fieldConstraintParametersText": {
         "placeholder": "Saisir la valeur de la contrainte"
+    },
+    "assistantMessageSources": {
+        "sources": "{count} source | {count} sources"
+    },
+    "runtimeFormulaTypes": {
+        "concatDescription": "Regroupe les arguments en une seule chaîne de charactères.",
+        "getDescription": "Retourne la valeur de la donnée spécifée.",
+        "addDescription": "Additionne deux arguments.",
+        "minusDescription": "Soustrait le deuxième argument du premier.",
+        "multiplyDescription": "Multiplie les deux arguments.",
+        "divideDescription": "Divise le premier argument par le second.",
+        "equalDescription": "Vérifie si les deux arguments sont égaux.",
+        "notEqualDescription": "Vérifie si les deux arguments sont différents.",
+        "greaterThanDescription": "Vérifie si le premier argument est supérieur au second.",
+        "lessThanDescription": "Vérifie si le premier argument est inférieur au second.",
+        "greaterThanOrEqualDescription": "Vérifie si le premier argument est supérieur ou égal au second.",
+        "upperDescription": "Tranforme la chaîne en majuscules.",
+        "lowerDescription": "Transforme la chaîne en minuscule.",
+        "capitalizeDescription": "Met la première lettre de l'argument en majuscule.",
+        "roundDescription": "Arrondit le premier argument au nombre de décimales spécifié par le second argument.",
+        "evenDescription": "Retourne true si l'argument est pair, false sinon.",
+        "oddDescription": "Retourne true si l'argument est impair, false sinon.",
+        "dateTimeDescription": "Formate la date en argument en utilisant les arguments format et timezone. Si le fuseau horaire n'est pas renseigné, le fuseau horaire du navigateur sera utilisé par défaut.",
+        "dayDescription": "Renvoie le jour de la date fournie en argument.",
+        "monthDescription": "Renvoie le mois de la date fournie en argument.",
+        "yearDescription": "Renvoie l'année de la date fournie en argument.",
+        "hourDescription": "Renvoie l'heure de la date fournie en argument.",
+        "minuteDescription": "Renvoie les minutes de la date fournie en argument.",
+        "secondDescription": "Renvoie les secondes de la date fournie en argument.",
+        "todayDescription": "Retourne la date courante.",
+        "getPropertyDescription": "Renvoie la propriété de l'objet.",
+        "randomIntDescription": "Renvoie un nombre entier aléatoire dans l'intervalle spécifié par les arguments.",
+        "randomFloatDescription": "Renvoie un flottant aléatoire dans l'intervalle spécifié par les arguments.",
+        "randomBoolDescription": "Renvoie un booléen aléatoire.",
+        "generateUUIDDescription": "Renvoie une chaîne UUID4 aléatoire.",
+        "ifDescription": "Si le premier argument est vrai, renvoie le deuxième argument, sinon renvoie le troisième argument.",
+        "andDescription": "Retourne vrai si tous les arguments sont vrais, sinon retourne faux.",
+        "orDescription": "Retourne vrai si l'un des arguments est vrai, sinon retourne faux.",
+        "formulaTypeFormula": "Fonction | Fonctions",
+        "formulaTypeOperator": "Opérateur | Opérateurs",
+        "formulaTypeData": "Données",
+        "formulaTypeDataEmpty": "Aucune donnée disponible",
+        "categoryText": "Texte",
+        "categoryNumber": "Nombre",
+        "categoryBoolean": "Booléen",
+        "categoryDate": "Date",
+        "categoryCondition": "Condition"
+    },
+    "formulaInputContext": {
+        "useRegularInput": "Utiliser une formule simple",
+        "useAdvancedInput": "Utiliser la saisie avancée",
+        "useRegularInputModalTitle": "Passer à la formule simple ?",
+        "useAdvancedInputModalTitle": "Passer à la formule avancée ?",
+        "modalMessage": "Le passage à un autre mode effacera la formule actuelle. Êtes-vous sûr‐e de vouloir continuer ?"
+    },
+    "nodeExplorer": {
+        "noResults": "Aucun résultat trouvé",
+        "resetSearch": "Réinitialiser la recherche"
     }
 }
