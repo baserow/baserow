@@ -111,7 +111,11 @@ export default {
           lastNode.type === 'array' &&
           (/^\d+$/.test(identifier) || identifier === '*')
         ) {
-          translatedParts.push(identifier)
+          translatedParts.push(
+            identifier === '*'
+              ? `[${this.$t('getFormulaComponent.all')}]`
+              : identifier
+          )
         } else {
           translatedParts.push(identifier)
           currentLevelNodes = null

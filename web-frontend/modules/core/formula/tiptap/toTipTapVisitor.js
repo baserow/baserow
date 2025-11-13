@@ -51,6 +51,12 @@ export class ToTipTapVisitor extends BaserowFormulaVisitor {
         // Specific element that helps to recognize root concat
         return { type: 'newLine' }
       default: {
+        if (this.mode === 'advanced') {
+          // In advanced mode, keep quotes for display
+          const fullText = ctx.getText()
+          return { type: 'text', text: fullText }
+        }
+        // In simple mode, remove quotes (they will be added back by fromTipTapVisitor)
         const processedString = this.processString(ctx)
         if (processedString) {
           return { type: 'text', text: processedString }
@@ -103,8 +109,29 @@ export class ToTipTapVisitor extends BaserowFormulaVisitor {
       expr.accept(this)
     )
 
+    // Special handling for 'get' function in advanced mode
+    // Remove quotes from the path argument since get expects raw path
+    const processedArgs =
+      functionName === 'get' && this.mode === 'advanced'
+        ? args.map((arg) => {
+            if (arg.type === 'text' && arg.text) {
+              let text = arg.text
+              // Remove quotes if present
+              if (
+                text.length >= 2 &&
+                ((text.startsWith('"') && text.endsWith('"')) ||
+                  (text.startsWith("'") && text.endsWith("'")))
+              ) {
+                text = text.slice(1, -1)
+              }
+              return { ...arg, text }
+            }
+            return arg
+          })
+        : args
+
     const formulaFunctionType = this.functions.get(functionName)
-    const node = formulaFunctionType.toNode(args, this.mode)
+    const node = formulaFunctionType.toNode(processedArgs, this.mode)
 
     // If the function returns an array (like concat with newlines in simple mode),
     // return it directly
@@ -141,10 +168,31 @@ export class ToTipTapVisitor extends BaserowFormulaVisitor {
           content.push(leftArg)
         }
 
-        // Add operator symbol
+        // Add space before operator
         content.push({
           type: 'text',
-          text: ` ${formulaFunctionType.getOperatorSymbol} `,
+          text: ' ',
+        })
+
+        // Add operator symbol as a component in advanced mode, as text in simple mode
+        if (this.mode === 'advanced') {
+          content.push({
+            type: 'operator-formula-component',
+            attrs: {
+              operatorSymbol: formulaFunctionType.getOperatorSymbol,
+            },
+          })
+        } else {
+          content.push({
+            type: 'text',
+            text: formulaFunctionType.getOperatorSymbol,
+          })
+        }
+
+        // Add space after operator
+        content.push({
+          type: 'text',
+          text: ' ',
         })
 
         // Add right argument
@@ -164,6 +212,40 @@ export class ToTipTapVisitor extends BaserowFormulaVisitor {
         } else if (rightArg) {
           content.push(rightArg)
         }
+      } else if (this.mode === 'advanced') {
+        // For functions in advanced mode, use the function component
+        // Create function component node (just name + opening parenthesis)
+        const functionNode = {
+          type: 'function-formula-component',
+          attrs: {
+            functionName,
+          },
+        }
+
+        // Build the content array with function node + arguments + closing parenthesis
+        const result = [functionNode]
+
+        // Add arguments as plain text nodes
+        args.forEach((arg, index) => {
+          if (index > 0) {
+            // Add atomic comma node
+            result.push({ type: 'function-argument-comma' })
+          }
+
+          // Add the argument directly
+          if (Array.isArray(arg)) {
+            // If arg is an array (from nested function calls in advanced mode),
+            // spread its elements
+            result.push(...arg)
+          } else if (arg) {
+            result.push(arg)
+          }
+        })
+
+        // Add closing parenthesis as atomic node
+        result.push({ type: 'function-closing-paren' })
+
+        return result
       } else {
         // For functions, display as: functionName(arg1, arg2, ...)
         content.push({ type: 'text', text: `${functionName}(` })

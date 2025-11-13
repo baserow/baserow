@@ -1,60 +1,9 @@
-.function-name-highlight {
-  color: $palette-cyan-800;
-  font-weight: 500;
-  background-color: $palette-cyan-50;
-  padding: 4px 8px;
-  height: 24px;
-  display: inline-block;
-  vertical-align: top;
-
-  @include rounded;
-}
-
-.operator-highlight {
-  color: $palette-green-800;
-  font-weight: 500;
-  background-color: $palette-green-50;
-  padding: 3px 8px;
-  height: 24px;
-  box-sizing: border-box;
-  display: inline-block;
-  vertical-align: top;
-
-  @include rounded;
-}
-
-.text-segment {
-  min-height: 24px;
-  display: inline-block;
-  vertical-align: top;
-  padding: 3px 0;
-  margin-right: 4px;
-  line-height: 18px;
-}
-
-.function-comma-highlight {
-  margin-right: 4px;
-}
-
-.function-comma-highlight,
-.function-paren-highlight {
-  color: $palette-cyan-800;
-  font-weight: 500;
-  background-color: $palette-cyan-50;
-  padding: 4px 8px;
-  height: 24px;
-  box-sizing: border-box;
-  display: inline-block;
-  vertical-align: top;
-
-  @include rounded;
-}
-
 .formula-input-field {
   height: auto;
   font-size: 13px;
   min-height: 36px;
-  padding: 5px 12px 1px;
+  line-height: 25px;
+  padding: 5px 12px;
 
   // If the field is empty, then give it the
   // same padding as a normal form input field.
@@ -67,20 +16,6 @@
     line-height: 25px;
     padding: 10px 12px;
     min-height: 48px;
-  }
-
-  // Remove margin from the last element to avoid trailing space
-  /* stylelint-disable-next-line selector-class-pattern */
-  .ProseMirror {
-    span:last-child {
-      margin-right: 0;
-    }
-
-    > div {
-      > span:not(.text-segment) {
-        margin: 0 4px 4px 0;
-      }
-    }
   }
 }
 
@@ -111,4 +46,19 @@
   color: $palette-neutral-500;
   pointer-events: none;
   height: 0;
+}
+
+// Atomic comma style
+.formula-input-field__comma,
+.formula-input-field__parenthesis {
+  color: $palette-cyan-800;
+  font-weight: 500;
+  background-color: $palette-cyan-50;
+  padding: 0 8px;
+  height: 24px;
+  box-sizing: border-box;
+  display: inline-block;
+  vertical-align: top;
+
+  @include rounded;
 }

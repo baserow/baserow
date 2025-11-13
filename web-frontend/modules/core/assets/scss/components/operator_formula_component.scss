@@ -1,0 +1,20 @@
+.operator-formula-component {
+  display: inline-block;
+  vertical-align: top;
+  white-space: normal;
+  user-select: none;
+  cursor: default;
+}
+
+.operator-formula-component__symbol {
+  color: $palette-green-800;
+  font-weight: 500;
+  background-color: $palette-green-50;
+  padding: 0 8px;
+  height: 24px;
+  box-sizing: border-box;
+  display: inline-block;
+  vertical-align: top;
+
+  @include rounded;
+}
