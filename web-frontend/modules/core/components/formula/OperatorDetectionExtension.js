@@ -151,4 +151,3 @@ export const OperatorDetectionExtension = Extension.create({
     ]
   },
 })
-
