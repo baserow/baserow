@@ -298,7 +298,10 @@
         "promptPlaceholder": "Wat is Baserow?",
         "outputType": "Uitkomst type",
         "outputTypeTooltip": "Selecteer de gewenste uitkomst format om de LLM te begeleiden bij het genereren van reacties die overeenkomen met de gewenste opties.",
-        "outputTypeChangedWarning": "Wist de gegenereerde celwaarden."
+        "outputTypeChangedWarning": "Wist de gegenereerde celwaarden.",
+        "autoUpdate": "Automatisch bijwerken",
+        "autoUpdateHelp": "Als deze optie is ingeschakeld, wordt de waarde van het AI-veld automatisch opnieuw gegenereerd als een van de velden waarnaar wordt verwezen als de prompt wordt bijgewerkt.",
+        "autoUpdateDescription": "Opnieuw genereren wanneer velden waarnaar wordt verwezen veranderen"
     },
     "rowEditFieldAI": {
         "generate": "Genereren",
