@@ -127,12 +127,7 @@ export class FromTipTapVisitor {
     let fullContent = ''
     for (let i = 0; i < content.length; i++) {
       const node = content[i]
-      if (node.type === 'text') {
-        // Remove zero-width spaces used for cursor positioning
-        fullContent += node.text.replace(/\u200B/g, '')
-      } else {
-        fullContent += this.visit(node)
-      }
+      fullContent += this.visit(node)
     }
 
     const argsStartIndex = fullContent.indexOf('(')

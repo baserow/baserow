@@ -227,13 +227,7 @@ export class RuntimeConcat extends RuntimeFormulaFunction {
     if (args.every((arg, index) => index % 2 === 0 || arg.type === 'newLine')) {
       return args
         .filter((arg, index) => index % 2 === 0) // Remove the new lines elements
-        .map((arg) => {
-          // Empty strings between newlines should create empty wrappers (empty paragraphs)
-          if (arg.type === 'text' && arg.text === '\u200B') {
-            return { type: 'wrapper', content: [] }
-          }
-          return { type: 'wrapper', content: [arg].flat() }
-        })
+        .map((arg) => ({ type: 'wrapper', content: [arg].flat() }))
     }
     return { type: 'wrapper', content: args }
   }
