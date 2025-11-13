@@ -252,7 +252,7 @@ export default {
         .getItemMenuError({
           menuItem: this.values,
           builder: this.builder,
-          page: this.elementPage,
+          elementPage: this.elementPage,
           element: this.element,
         })
     },
