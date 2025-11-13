@@ -312,7 +312,7 @@ export default {
     },
   },
   watch: {
-    nodesHierarchy(newValue, oldValue) {
+    nodesHierarchy() {
       // fixes reactivity issue with components in tiptap by forcing the input to
       // render.
       this.key += 1

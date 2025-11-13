@@ -20,8 +20,9 @@ const updateContext = {
 const updateCachedValues = (workflow) => {
   if (!workflow || !workflow.nodes) return
 
-  workflow.nodeMap = Object.fromEntries(
-    workflow.nodes.map((node) => [`${node.id}`, node])
+  Object.assign(
+    workflow.nodeMap,
+    Object.fromEntries(workflow.nodes.map((node) => [`${node.id}`, node]))
   )
 }
 
@@ -43,18 +44,11 @@ const mutations = {
     state,
     { workflow, node: nodeToUpdate, values, override = false }
   ) {
-    workflow.nodes.forEach((node) => {
-      if (node.id === nodeToUpdate.id) {
-        const newValue = override
-          ? populateNode(values)
-          : {
-              ...node,
-              ...values,
-            }
-        Object.assign(node, newValue)
-      }
-    })
-    updateCachedValues(workflow)
+    if (override) {
+      workflow.nodeMap[nodeToUpdate.id] = populateNode(values)
+    } else {
+      Object.assign(workflow.nodeMap[nodeToUpdate.id], values)
+    }
   },
   DELETE_ITEM(state, { workflow, nodeId }) {
     const nodeIdStr = nodeId.toString()
@@ -235,7 +229,7 @@ const actions = {
     { workflow, node, values }
   ) {
     // These values should not be updated via a regular update request
-    const excludeValues = ['order']
+    const excludeValues = ['id']
 
     const oldValues = {}
     Object.keys(values).forEach((name) => {
