@@ -17,7 +17,6 @@
       />
     </FormGroup>
     <FormGroup
-      v-if="values.integration_id"
       class="margin-bottom-2"
       :label="$t('slackWriteMessageServiceForm.channelLabel')"
       :error-message="getFirstErrorMessage('channel')"
@@ -32,7 +31,6 @@
       </FormInput>
     </FormGroup>
     <FormGroup
-      v-if="values.integration_id"
       class="margin-bottom-2"
       :label="$t('slackWriteMessageServiceForm.messageLabel')"
       required

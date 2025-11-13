@@ -7,7 +7,10 @@ from django.conf import settings
 from pydantic import Field, PrivateAttr
 
 from baserow.contrib.automation.nodes.models import AutomationNode
-from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
+from baserow.core.formula.types import (
+    BASEROW_FORMULA_MODE_ADVANCED,
+    BaserowFormulaObject,
+)
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
 from baserow_enterprise.assistant.types import BaseModel
@@ -45,16 +48,18 @@ class HasFormulasToCreateMixin(ABC):
 
         pass
 
-    @abstractmethod
     def update_service_with_formulas(self, service: Service, formulas: dict[str, str]):
-        """
-        Updates the given service instance with the provided formulas mapping.
-        The names in the formulas dict correspond to the field names returned by
-        get_formulas_to_create. Once the LLM has generated the formulas, this method
-        is called to update the service with the generated formulas.
-        """
-
-        pass
+        save = False
+        for field_name, formula in formulas.items():
+            if hasattr(service, field_name):
+                setattr(
+                    service,
+                    field_name,
+                    BaserowFormulaObject.create(formula=formula),
+                )
+                save = True
+        if save:
+            ServiceHandler().update_service(service.get_type(), service)
 
 
 class PeriodicTriggerSettings(BaseModel):
@@ -312,18 +317,39 @@ class SendEmailActionCreate(
             values["body"] += f" Value to resolve: {self.body}"
         return values
 
-    def update_service_with_formulas(self, service: Service, formulas: dict[str, str]):
-        save = False
-        for field_name, formula in formulas.items():
-            if hasattr(service, field_name):
-                setattr(service, field_name, formula)
-                save = True
-        if save:
-            ServiceHandler().update_service(service.get_type(), service)
-
 
 class SendEmailActionItem(SendEmailActionBase, Item):
     """Existing send email action with ID."""
+
+
+class SlackWriteMessageActionBase(NodeBase):
+    """Send Slack message action configuration."""
+
+    type: Literal["slack_write_message"]
+    channel: str
+    text: str
+
+
+class SlackWriteMessageActionCreate(
+    SlackWriteMessageActionBase, RefCreate, EdgeCreate, HasFormulasToCreateMixin
+):
+    """Create a send Slack message action with edge configuration."""
+
+    def to_orm_service_dict(self) -> dict[str, Any]:
+        return {
+            "channel": self.channel,
+            "text": f"'{self.text}'",
+        }
+
+    def get_formulas_to_create(self, orm_node: AutomationNode) -> dict[str, str]:
+        values = {}
+
+        message_base = "The message content."
+        if self.text:
+            values["text"] = message_base + f" Value to resolve: '{self.text}'"
+        else:
+            values["text"] = "[optional]: " + message_base
+        return values
 
 
 class CreateRowActionBase(NodeBase):
@@ -486,11 +512,6 @@ class AiAgentNodeCreate(
     def get_formulas_to_create(self, orm_node: AutomationNode) -> dict[str, str]:
         return {"ai_prompt": self.prompt}
 
-    def update_service_with_formulas(self, service: Service, formulas: dict[str, str]):
-        if "ai_prompt" in formulas:
-            service.ai_prompt = formulas["ai_prompt"]
-            ServiceHandler().update_service(service.get_type(), service)
-
 
 class AiAgentNodeItem(AiAgentNodeBase, Item):
     """Existing AI Agent action with ID."""
@@ -500,6 +521,7 @@ AnyNodeCreate = Annotated[
     RouterNodeCreate
     # actions
     | SendEmailActionCreate
+    | SlackWriteMessageActionCreate
     | CreateRowActionCreate
     | UpdateRowActionCreate
     | DeleteRowActionCreate
