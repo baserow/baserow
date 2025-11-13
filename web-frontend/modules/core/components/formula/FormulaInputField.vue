@@ -42,21 +42,22 @@ import { Placeholder } from '@tiptap/extension-placeholder'
 import { Document } from '@tiptap/extension-document'
 import { Text } from '@tiptap/extension-text'
 import { History } from '@tiptap/extension-history'
-// import { FunctionHighlightExtension } from '@baserow/modules/core/components/formula/FunctionHighlightExtension'
-// import { FunctionAutoCompleteExtension } from '@baserow/modules/core/components/formula/FunctionAutoCompleteExtension'
-// import { FunctionDeletionExtension } from '@baserow/modules/core/components/formula/FunctionDeletionExtension'
 import { FunctionHelpTooltipExtension } from '@baserow/modules/core/components/formula/FunctionHelpTooltipExtension'
 import {
   FormulaInsertionExtension,
   FunctionFormulaComponentNode,
   FunctionArgumentCommaNode,
   FunctionClosingParenNode,
-  TextSegmentNode,
+  OperatorFormulaComponentNode,
 } from '@baserow/modules/core/components/formula/FormulaInsertionExtension'
 import { NodeSelectionExtension } from '@baserow/modules/core/components/formula/NodeSelectionExtension'
 import { ContextManagementExtension } from '@baserow/modules/core/components/formula/ContextManagementExtension'
 import { FunctionDetectionExtension } from '@baserow/modules/core/components/formula/FunctionDetectionExtension'
-import { TextSegmentWrapperExtension } from '@baserow/modules/core/components/formula/TextSegmentWrapperExtension'
+import { OperatorDetectionExtension } from '@baserow/modules/core/components/formula/OperatorDetectionExtension'
+import {
+  createClipboardTextSerializer,
+  createPasteHandler,
+} from '@baserow/modules/core/components/formula/FormulaClipboardHandler'
 import _ from 'lodash'
 import parseBaserowFormula from '@baserow/modules/core/formula/parser/parser'
 import { ToTipTapVisitor } from '@baserow/modules/core/formula/tiptap/toTipTapVisitor'
@@ -256,37 +257,25 @@ export default {
         FunctionHelpTooltipExtension.configure({
           vueComponent: this,
         }),
-        // FunctionHighlightExtension.configure({
-        //   functionNames: [], // Désactivé car nous utilisons FunctionFormulaComponent
-        //   operators: this.mode === 'advanced' ? this.operators : [],
-        // }),
+
         ...this.formulaComponents,
       ]
 
-      // Add TextSegmentNode
-      extensions.push(TextSegmentNode)
-
-      // Add FunctionFormulaComponentNode, FunctionArgumentCommaNode and FunctionClosingParenNode only in advanced mode
       if (this.mode === 'advanced') {
         extensions.push(FunctionFormulaComponentNode)
         extensions.push(FunctionArgumentCommaNode)
         extensions.push(FunctionClosingParenNode)
-      }
+        extensions.push(OperatorFormulaComponentNode)
 
-      if (this.mode === 'advanced') {
         extensions.push(
-          // FunctionAutoCompleteExtension.configure({
-          //   functionNames: this.functionNames,
-          // }),
-          // FunctionDeletionExtension.configure({
-          //   functionNames: this.functionNames,
-          // }),
           FunctionDetectionExtension.configure({
             functionNames: this.functionNames,
             vueComponent: this,
           }),
-          // TextSegmentWrapper must be after FunctionDetection so function detection takes precedence
-          TextSegmentWrapperExtension
+          OperatorDetectionExtension.configure({
+            operators: this.operators,
+            vueComponent: this,
+          })
         )
       }
 
@@ -394,7 +383,15 @@ export default {
         parseOptions: {
           preserveWhitespace: 'full',
         },
-        editorProps: {},
+        editorProps: {
+          clipboardTextSerializer: createClipboardTextSerializer(
+            this.toFormula.bind(this)
+          ),
+          handlePaste: createPasteHandler({
+            toContent: this.toContent.bind(this),
+            getMode: () => this.mode,
+          }),
+        },
       })
     },
     recreateEditor(formula = null) {
@@ -446,23 +443,6 @@ export default {
           content: [{ type: 'wrapper' }],
         }
       }
-
-      // if (this.readOnly) {
-      //   return {
-      //     type: 'doc',
-      //     content: [
-      //       {
-      //         type: 'wrapper',
-      //         content: [
-      //           {
-      //             type: 'text',
-      //             text: formula,
-      //           },
-      //         ],
-      //       },
-      //     ],
-      //   }
-      // }
 
       try {
         const tree = parseBaserowFormula(formula)

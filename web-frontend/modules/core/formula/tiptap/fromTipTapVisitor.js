@@ -18,8 +18,8 @@ export class FromTipTapVisitor {
         return ','
       case 'function-closing-paren':
         return ')'
-      case 'text-segment':
-        return this.visitTextSegment(node)
+      case 'operator-formula-component':
+        return this.visitOperatorFormulaComponent(node)
       default:
         return this.visitFunction(node)
     }
@@ -170,11 +170,8 @@ export class FromTipTapVisitor {
     return `${functionName}(`
   }
 
-  visitTextSegment(node) {
-    if (!node.content || node.content.length === 0) {
-      return ''
-    }
-    // Visit the content of the text segment
-    return node.content.map(this.visit.bind(this)).join('')
+  visitOperatorFormulaComponent(node) {
+    const operatorSymbol = node.attrs?.operatorSymbol || ''
+    return operatorSymbol
   }
 }

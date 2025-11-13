@@ -2,6 +2,7 @@ import { Node, mergeAttributes, Extension } from '@tiptap/core'
 import { VueNodeViewRenderer } from '@tiptap/vue-2'
 import GetFormulaComponent from '@baserow/modules/core/components/formula/GetFormulaComponent'
 import FunctionFormulaComponent from '@baserow/modules/core/components/formula/FunctionFormulaComponent'
+import OperatorFormulaComponent from '@baserow/modules/core/components/formula/OperatorFormulaComponent'
 
 export const GetFormulaComponentNode = Node.create({
   name: 'get-formula-component',
@@ -79,80 +80,6 @@ export const FunctionFormulaComponentNode = Node.create({
   addNodeView() {
     return VueNodeViewRenderer(FunctionFormulaComponent)
   },
-
-  addKeyboardShortcuts() {
-    return {
-      Backspace: () =>
-        this.editor.commands.command(({ state, dispatch }) => {
-          const { selection, doc } = state
-          const { $from, empty } = selection
-
-          // Only handle when selection is empty (cursor position)
-          if (!empty) return false
-
-          // Check if we're immediately after a function-formula-component
-          const pos = $from.pos
-          let functionNode = null
-          let functionPos = null
-
-          // Check position immediately before cursor
-          if (pos > 0) {
-            const nodeBefore = doc.nodeAt(pos - 1)
-            if (
-              nodeBefore &&
-              nodeBefore.type.name === 'function-formula-component'
-            ) {
-              functionNode = nodeBefore
-              functionPos = pos - 1
-            }
-          }
-
-          // If not found, check if cursor is at the start of a text node after the function
-          if (!functionNode && pos > 1) {
-            const nodeBefore = doc.nodeAt(pos - 2)
-            if (
-              nodeBefore &&
-              nodeBefore.type.name === 'function-formula-component'
-            ) {
-              functionNode = nodeBefore
-              functionPos = pos - 2
-            }
-          }
-
-          if (functionNode && functionPos !== null) {
-            // Find the matching closing parenthesis
-            let endPos = null
-            let parenCount = 1
-
-            // Search from the position after the function node
-            const searchStart = functionPos + 1
-
-            doc.nodesBetween(searchStart, doc.content.size, (node, nodePos) => {
-              if (parenCount === 0) return false // Stop searching
-
-              if (node.type.name === 'function-closing-paren') {
-                parenCount--
-                if (parenCount === 0) {
-                  endPos = nodePos + node.nodeSize
-                  return false
-                }
-              } else if (node.type.name === 'function-formula-component') {
-                // Found a nested function, increment counter
-                parenCount++
-              }
-            })
-
-            // If we found the closing parenthesis, delete everything
-            if (endPos !== null && dispatch) {
-              dispatch(state.tr.delete(functionPos, endPos))
-              return true
-            }
-          }
-
-          return false
-        }),
-    }
-  },
 })
 
 // Atomic comma node for function arguments
@@ -176,35 +103,9 @@ export const FunctionArgumentCommaNode = Node.create({
       'span',
       mergeAttributes(HTMLAttributes, {
         'data-formula-comma': 'true',
-        class: 'formula-field__text-input__comma',
+        class: 'formula-input-field__comma',
       }),
       ',',
-    ]
-  },
-})
-
-// Node for text segments
-export const TextSegmentNode = Node.create({
-  name: 'text-segment',
-  group: 'inline',
-  inline: true,
-  content: 'text*',
-
-  parseHTML() {
-    return [
-      {
-        tag: 'span.text-segment',
-      },
-    ]
-  },
-
-  renderHTML({ HTMLAttributes }) {
-    return [
-      'span',
-      mergeAttributes(HTMLAttributes, {
-        class: 'text-segment',
-      }),
-      0,
     ]
   },
 })
@@ -230,10 +131,48 @@ export const FunctionClosingParenNode = Node.create({
       'span',
       mergeAttributes(HTMLAttributes, {
         'data-formula-closing-paren': 'true',
-        class: 'formula-field__text-input__comma', // Reuse same CSS class for consistent style
+        class: 'formula-input-field__parenthesis',
       }),
       ')',
     ]
+  },
+})
+
+// Operator formula component node
+export const OperatorFormulaComponentNode = Node.create({
+  name: 'operator-formula-component',
+  group: 'inline',
+  inline: true,
+  draggable: false,
+  selectable: false,
+
+  addAttributes() {
+    return {
+      operatorSymbol: {
+        default: null,
+      },
+    }
+  },
+
+  parseHTML() {
+    return [
+      {
+        tag: 'span[data-formula-component="operator-formula-component"]',
+      },
+    ]
+  },
+
+  renderHTML({ HTMLAttributes }) {
+    return [
+      'span',
+      mergeAttributes(HTMLAttributes, {
+        'data-formula-component': this.name,
+      }),
+    ]
+  },
+
+  addNodeView() {
+    return VueNodeViewRenderer(OperatorFormulaComponent)
   },
 })
 
@@ -256,53 +195,48 @@ export const FormulaInsertionExtension = Extension.create({
         },
       insertFunction:
         (node) =>
-        ({ editor, commands }) => {
+        ({ editor, commands, state }) => {
           const functionName = node.name
+          const minArgs = node.signature?.minArgs || 1
 
-          // Insert the function component node (just name + opening parenthesis)
-          commands.insertContent({
+          // Get initial cursor position
+          const initialPos = state.selection.from
+
+          // Build all content to insert
+          const contentToInsert = []
+
+          // Add function component
+          contentToInsert.push({
             type: 'function-formula-component',
             attrs: {
               functionName,
             },
           })
 
-          // Get minimum args from node signature
-          const minArgs = node.signature?.minArgs || 1
-
           // Add comma-separated placeholders based on minimum args
           if (minArgs >= 2) {
             for (let i = 0; i < minArgs - 1; i++) {
-              // Add atomic comma
-              commands.insertContent({
+              contentToInsert.push({
                 type: 'function-argument-comma',
               })
             }
           }
 
-          // Add closing parenthesis after as atomic node
-          commands.insertContent({
+          // Add closing parenthesis
+          contentToInsert.push({
             type: 'function-closing-paren',
           })
 
-          // Position cursor at the first argument position
-          const { state } = editor
-          const { from } = state.selection
+          // Insert all content at once
+          commands.insertContent(contentToInsert)
 
-          // Calculate cursor position
-          // We need to position cursor right after the function component (and opening parenthesis)
-          // The function component is 1 node
-          let cursorPos = from - 1 // Go back from closing parenthesis
-
-          // If we have placeholders, count them back
-          if (minArgs >= 2) {
-            // For N arguments, we have (N-1) comma nodes
-            cursorPos -= minArgs - 1
-          }
+          // Position cursor right after the function component (before commas and closing paren)
+          // The function component is 1 node, so cursor should be at initialPos + 1
+          const targetPos = initialPos + 1
 
           commands.setTextSelection({
-            from: cursorPos,
-            to: cursorPos,
+            from: targetPos,
+            to: targetPos,
           })
 
           commands.focus()
@@ -312,7 +246,15 @@ export const FormulaInsertionExtension = Extension.create({
       insertOperator:
         (node) =>
         ({ editor, commands }) => {
-          commands.insertContent(node.signature.operator)
+          const operatorSymbol = node.signature.operator
+
+          // Insert operator as an operator-formula-component node
+          commands.insertContent({
+            type: 'operator-formula-component',
+            attrs: {
+              operatorSymbol,
+            },
+          })
 
           commands.focus()
 

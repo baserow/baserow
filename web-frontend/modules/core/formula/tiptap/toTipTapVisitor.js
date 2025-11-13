@@ -51,40 +51,31 @@ export class ToTipTapVisitor extends BaserowFormulaVisitor {
         // Specific element that helps to recognize root concat
         return { type: 'newLine' }
       default: {
-        // For display in the editor, keep the quotes
-        const fullText = ctx.getText()
         if (this.mode === 'advanced') {
-          // In advanced mode, wrap in text-segment
-          return {
-            type: 'text-segment',
-            content: [{ type: 'text', text: fullText }],
-          }
+          // In advanced mode, keep quotes for display
+          const fullText = ctx.getText()
+          return { type: 'text', text: fullText }
         }
-        return { type: 'text', text: fullText }
+        // In simple mode, remove quotes (they will be added back by fromTipTapVisitor)
+        const processedString = this.processString(ctx)
+        if (processedString) {
+          return { type: 'text', text: processedString }
+        } else {
+          // Empty strings cannot be represented as empty text nodes in TipTap
+          // Use a zero-width space to represent them visually
+          // This will be converted back to an empty string when converting to formula
+          return { type: 'text', text: '\u200B' }
+        }
       }
     }
   }
 
   visitDecimalLiteral(ctx) {
-    if (this.mode === 'advanced') {
-      // In advanced mode, wrap in text-segment
-      return {
-        type: 'text-segment',
-        content: [{ type: 'text', text: ctx.getText() }],
-      }
-    }
     return { type: 'text', text: ctx.getText() }
   }
 
   visitBooleanLiteral(ctx) {
     const value = ctx.TRUE() !== null ? 'true' : 'false'
-    if (this.mode === 'advanced') {
-      // In advanced mode, wrap in text-segment
-      return {
-        type: 'text-segment',
-        content: [{ type: 'text', text: value }],
-      }
-    }
     return { type: 'text', text: value }
   }
 
@@ -118,8 +109,29 @@ export class ToTipTapVisitor extends BaserowFormulaVisitor {
       expr.accept(this)
     )
 
+    // Special handling for 'get' function in advanced mode
+    // Remove quotes from the path argument since get expects raw path
+    const processedArgs =
+      functionName === 'get' && this.mode === 'advanced'
+        ? args.map((arg) => {
+            if (arg.type === 'text' && arg.text) {
+              let text = arg.text
+              // Remove quotes if present
+              if (
+                text.length >= 2 &&
+                ((text.startsWith('"') && text.endsWith('"')) ||
+                  (text.startsWith("'") && text.endsWith("'")))
+              ) {
+                text = text.slice(1, -1)
+              }
+              return { ...arg, text }
+            }
+            return arg
+          })
+        : args
+
     const formulaFunctionType = this.functions.get(functionName)
-    const node = formulaFunctionType.toNode(args, this.mode)
+    const node = formulaFunctionType.toNode(processedArgs, this.mode)
 
     // If the function returns an array (like concat with newlines in simple mode),
     // return it directly
@@ -156,10 +168,31 @@ export class ToTipTapVisitor extends BaserowFormulaVisitor {
           content.push(leftArg)
         }
 
-        // Add operator symbol
+        // Add space before operator
         content.push({
           type: 'text',
-          text: ` ${formulaFunctionType.getOperatorSymbol} `,
+          text: ' ',
+        })
+
+        // Add operator symbol as a component in advanced mode, as text in simple mode
+        if (this.mode === 'advanced') {
+          content.push({
+            type: 'operator-formula-component',
+            attrs: {
+              operatorSymbol: formulaFunctionType.getOperatorSymbol,
+            },
+          })
+        } else {
+          content.push({
+            type: 'text',
+            text: formulaFunctionType.getOperatorSymbol,
+          })
+        }
+
+        // Add space after operator
+        content.push({
+          type: 'text',
+          text: ' ',
         })
 
         // Add right argument
@@ -192,41 +225,22 @@ export class ToTipTapVisitor extends BaserowFormulaVisitor {
         // Build the content array with function node + arguments + closing parenthesis
         const result = [functionNode]
 
-        // Add arguments wrapped in text-segments
-        if (args.length === 0) {
-          // If no arguments, add an empty text-segment for user to type in
-          result.push({
-            type: 'text-segment',
-            content: [],
-          })
-        } else {
-          args.forEach((arg, index) => {
-            if (index > 0) {
-              // Add atomic comma node
-              result.push({ type: 'function-argument-comma' })
-            }
+        // Add arguments as plain text nodes
+        args.forEach((arg, index) => {
+          if (index > 0) {
+            // Add atomic comma node
+            result.push({ type: 'function-argument-comma' })
+          }
 
-            // Wrap the argument in a text-segment
-            const textSegment = {
-              type: 'text-segment',
-              content: [],
-            }
-
-            // Check if the argument is a complex node or a simple value
-            if (arg.type === 'text' && typeof arg.text === 'string') {
-              // Wrap text arguments in text-segment
-              textSegment.content.push(arg)
-            } else if (Array.isArray(arg)) {
-              // If arg is an array (from nested function calls in advanced mode),
-              // spread its elements into the text-segment
-              textSegment.content.push(...arg)
-            } else if (arg) {
-              textSegment.content.push(arg)
-            }
-
-            result.push(textSegment)
-          })
-        }
+          // Add the argument directly
+          if (Array.isArray(arg)) {
+            // If arg is an array (from nested function calls in advanced mode),
+            // spread its elements
+            result.push(...arg)
+          } else if (arg) {
+            result.push(arg)
+          }
+        })
 
         // Add closing parenthesis as atomic node
         result.push({ type: 'function-closing-paren' })
@@ -313,13 +327,6 @@ export class ToTipTapVisitor extends BaserowFormulaVisitor {
   }
 
   visitIntegerLiteral(ctx) {
-    if (this.mode === 'advanced') {
-      // In advanced mode, wrap in text-segment
-      return {
-        type: 'text-segment',
-        content: [{ type: 'text', text: ctx.getText() }],
-      }
-    }
     return { type: 'text', text: ctx.getText() }
   }
 

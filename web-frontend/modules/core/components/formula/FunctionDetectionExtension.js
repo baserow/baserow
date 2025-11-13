@@ -53,23 +53,6 @@ export const FunctionDetectionExtension = Extension.create({
           // Create a transaction to replace the function text with the component
           const tr = state.tr
 
-          // Check if the function name is inside a text-segment
-          const $functionStart = doc.resolve(functionStart)
-          let replaceStart = functionStart
-          let replaceEnd = to
-
-          // Find the parent text-segment if it exists
-          for (let i = $functionStart.depth; i > 0; i--) {
-            const node = $functionStart.node(i)
-            if (node.type.name === 'text-segment') {
-              // Get the position range of the text-segment
-              const parentPos = $functionStart.before(i)
-              replaceStart = parentPos
-              replaceEnd = parentPos + node.nodeSize
-              break
-            }
-          }
-
           // Build all nodes to insert
           const nodesToInsert = []
 
@@ -99,11 +82,11 @@ export const FunctionDetectionExtension = Extension.create({
           // Insert all nodes at once using Fragment.from
           const fragment = Fragment.from(nodesToInsert)
 
-          // Replace the text-segment (or just the function name) with our nodes
-          tr.replaceWith(replaceStart, replaceEnd, fragment)
+          // Replace the function name + opening parenthesis with our nodes
+          tr.replaceWith(functionStart, to, fragment)
 
           // Position cursor right after the function component (opening parenthesis)
-          const cursorPos = replaceStart + 1
+          const cursorPos = functionStart + 1
 
           tr.setSelection(TextSelection.create(tr.doc, cursorPos))
 
