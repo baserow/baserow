@@ -13,8 +13,6 @@
       />
     </div>
 
-    {{ value }}
-
     <FormulaInputContext
       v-if="isFocused && !readOnly"
       ref="formulaInputContext"
