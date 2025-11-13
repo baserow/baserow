@@ -299,7 +299,10 @@
         "promptPlaceholder": "Qu'est-ce que Baserow ?",
         "outputTypeChangedWarning": "Efface les valeurs des cellules générées.",
         "outputTypeTooltip": "Sélectionnez le format de sortie souhaité pour aider le LLM à générer des réponses correspondant aux options désirées.",
-        "outputType": "Format du résultat"
+        "outputType": "Format du résultat",
+        "autoUpdate": "Mise à jour automatique",
+        "autoUpdateHelp": "Lorsque cette option est activée, la valeur du champ IA est automatiquement régénérée lorsque l'un des champs référencés dans l'invite est mis à jour.",
+        "autoUpdateDescription": "Régénérer lorsque les champs référencés changent"
     },
     "rowEditFieldAI": {
         "createRowBefore": "La valeur du champ IA peut être générée après la création de la ligne.",
@@ -311,7 +314,7 @@
     "aiFormulaModal": {
         "title": "Générer une formule à l'aide de l'IA",
         "description": "Notez que les formules générées ne fonctionnent pas toujours comme prévu. Nous construisons un prompt pour le modèle et nous utilisons le résultat en tant que formule. Cela fonctionne mieux avec un modèle puissant comme le modèle *gpt-4-turbo-preview*.",
-        "noModels": "Aucun modèle d'IA n'est configuré dans votre instance et votre projet Baserow. Cliquez sur les trois points à côté de votre espace de travail, puis sur les paramètres pour en configurer.",
+        "noModels": "Aucun modèle d'IA n'est configuré dans votre instance et votre projet Baserow. Naviguez vers la page accueil, cliquez sur le nom de votre projet, puis sur les paramètres pour en configurer un.",
         "label": "Prompt",
         "labelDescription": "Décrivez la formule que vous souhaitez générer",
         "generate": "Générer"
