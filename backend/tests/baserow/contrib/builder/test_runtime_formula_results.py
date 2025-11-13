@@ -250,22 +250,22 @@ def create_test_context(data_fixture):
             user=user,
             table=table,
             values={
-                f"field_{fields[0].id}": row[0],
-                f"field_{fields[1].id}": row[1],
-                f"field_{fields[2].id}": row[2],
-                f"field_{fields[3].id}": row[3],
-                f"field_{fields[4].id}": row[4],
-                f"field_{fields[5].id}": row[5],
-                f"field_{fields[6].id}": row[6],
-                f"field_{fields[7].id}": row[7],
-                f"field_{fields[8].id}": row[8],
-                f"field_{fields[9].id}": row[9],
-                f"field_{fields[10].id}": row[10],
-                f"field_{fields[11].id}": row[11],
-                f"field_{fields[12].id}": row[12],
-                f"field_{fields[13].id}": row[13],
-                f"field_{fields[14].id}": row[14],
-                f"field_{fields[15].id}": row[15],
+                fields[0].db_column: row[0],
+                fields[1].db_column: row[1],
+                fields[2].db_column: row[2],
+                fields[3].db_column: row[3],
+                fields[4].db_column: row[4],
+                fields[5].db_column: row[5],
+                fields[6].db_column: row[6],
+                fields[7].db_column: row[7],
+                fields[8].db_column: row[8],
+                fields[9].db_column: row[9],
+                fields[10].db_column: row[10],
+                fields[11].db_column: row[11],
+                fields[12].db_column: row[12],
+                fields[13].db_column: row[13],
+                fields[14].db_column: row[14],
+                fields[15].db_column: row[15],
             },
         )
         for row in ROWS
@@ -301,15 +301,15 @@ def test_runtime_formula_if(data_fixture):
     fields = data["fields"]
 
     # Cherry
-    value_cherry = f"get('data_source.{data_source_get_row.id}.field_{fields[1].id}')"
+    value_cherry = f"get('data_source.{data_source_get_row.id}.{fields[1].db_column}')"
     # Strawberry
     value_strawberry = (
-        f"get('data_source.{data_source_get_row.id}.field_{fields[2].id}')"
+        f"get('data_source.{data_source_get_row.id}.{fields[2].db_column}')"
     )
     # True
-    value_true = f"get('data_source.{data_source_get_row.id}.field_{fields[11].id}')"
+    value_true = f"get('data_source.{data_source_get_row.id}.{fields[11].db_column}')"
     # False
-    value_false = f"get('data_source.{data_source_get_row.id}.field_{fields[12].id}')"
+    value_false = f"get('data_source.{data_source_get_row.id}.{fields[12].db_column}')"
 
     fake_request = HttpRequest()
     dispatch_context = BuilderDispatchContext(
@@ -347,7 +347,7 @@ def test_runtime_formula_get_property(data_fixture):
     fields = data["fields"]
 
     # Cherry
-    key = f"get('data_source.{data_source_get_row.id}.field_{fields[0].id}')"
+    key = f"get('data_source.{data_source_get_row.id}.{fields[0].db_column}')"
     object_str = '\'{"Cherry": "Dark Red"}\''
     value = f"get_property({object_str}, {key})"
     formula = BaserowFormulaObject.create(value)
@@ -373,8 +373,8 @@ def test_runtime_formula_datetime_format(data_fixture):
     page = data["page"]
     fields = data["fields"]
 
-    date_str = f"get('data_source.{data_source_get_row.id}.field_{fields[7].id}')"
-    date_format = f"get('data_source.{data_source_get_row.id}.field_{fields[15].id}')"
+    date_str = f"get('data_source.{data_source_get_row.id}.{fields[7].db_column}')"
+    date_format = f"get('data_source.{data_source_get_row.id}.{fields[15].db_column}')"
     value = f"datetime_format({date_str}, {date_format})"
     formula = BaserowFormulaObject.create(value)
 
@@ -403,10 +403,10 @@ def test_runtime_formula_comparison_operator(data_fixture):
         operator, field_a, field_b, expected = test_case
 
         value_a = (
-            f"get('data_source.{data_source_get_row.id}.field_{fields[field_a].id}')"
+            f"get('data_source.{data_source_get_row.id}.{fields[field_a].db_column}')"
         )
         value_b = (
-            f"get('data_source.{data_source_get_row.id}.field_{fields[field_b].id}')"
+            f"get('data_source.{data_source_get_row.id}.{fields[field_b].db_column}')"
         )
 
         value = f"{value_a} {operator} {value_b}"
@@ -436,10 +436,10 @@ def test_runtime_formula_comparison(data_fixture):
         formula_name, field_a, field_b, expected = test_case
 
         value_a = (
-            f"get('data_source.{data_source_get_row.id}.field_{fields[field_a].id}')"
+            f"get('data_source.{data_source_get_row.id}.{fields[field_a].db_column}')"
         )
         value_b = (
-            f"get('data_source.{data_source_get_row.id}.field_{fields[field_b].id}')"
+            f"get('data_source.{data_source_get_row.id}.{fields[field_b].db_column}')"
         )
 
         value = f"{formula_name}({value_a}, {value_b})"
@@ -469,7 +469,7 @@ def test_runtime_formula_boolean(data_fixture):
         formula_name, field_id, expected = test_case
 
         value = (
-            f"get('data_source.{data_source_get_row.id}.field_{fields[field_id].id}')"
+            f"get('data_source.{data_source_get_row.id}.{fields[field_id].db_column}')"
         )
 
         value = f"{formula_name}({value})"
@@ -498,7 +498,7 @@ def test_runtime_formula_date(data_fixture):
     for test_case in TEST_CASES_DATE:
         formula_name, expected = test_case
 
-        value = f"get('data_source.{data_source_get_row.id}.field_{fields[7].id}')"
+        value = f"get('data_source.{data_source_get_row.id}.{fields[7].db_column}')"
 
         value = f"{formula_name}({value})"
         formula = BaserowFormulaObject.create(value)
@@ -526,8 +526,8 @@ def test_runtime_formula_arithmetic(data_fixture):
     for test_case in TEST_CASES_ARITHMETIC:
         operator, expected = test_case
 
-        value_1 = f"get('data_source.{data_source_get_row.id}.field_{fields[3].id}')"
-        value_2 = f"get('data_source.{data_source_get_row.id}.field_{fields[4].id}')"
+        value_1 = f"get('data_source.{data_source_get_row.id}.{fields[3].db_column}')"
+        value_2 = f"get('data_source.{data_source_get_row.id}.{fields[4].db_column}')"
 
         value = f"{value_1} {operator} {value_2}"
         formula = BaserowFormulaObject.create(value)
@@ -557,11 +557,11 @@ def test_runtime_formula_strings(data_fixture):
         formula_name, data_source_type, field_id, expected = test_case
 
         if data_source_type == "list_rows":
-            value = f"get('data_source.{data_source_list_rows.id}.*.field_{fields[field_id].id}')"
+            value = f"get('data_source.{data_source_list_rows.id}.*.{fields[field_id].db_column}')"
         elif data_source_type == "list_rows_item":
-            value = f"get('data_source.{data_source_list_rows.id}.0.field_{fields[field_id].id}')"
+            value = f"get('data_source.{data_source_list_rows.id}.0.{fields[field_id].db_column}')"
         elif data_source_type == "get_row":
-            value = f"get('data_source.{data_source_get_row.id}.field_{fields[0].id}')"
+            value = f"get('data_source.{data_source_get_row.id}.{fields[0].db_column}')"
 
         value = f"{formula_name}({value})"
         formula = BaserowFormulaObject.create(value)
