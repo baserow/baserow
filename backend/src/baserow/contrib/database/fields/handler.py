@@ -190,10 +190,8 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             base_queryset = field_model.objects
 
         try:
-            field = (
-                base_queryset.select_related("table__database__workspace")
-                .prefetch_related("select_options")
-                .get(id=field_id)
+            field = base_queryset.select_related("table__database__workspace").get(
+                id=field_id
             )
         except Field.DoesNotExist:
             raise FieldDoesNotExist(f"The field with id {field_id} does not exist.")

@@ -161,8 +161,24 @@ class GenerateAIValuesJobType(JobType):
             raise ModelDoesNotBelongToType(model_name=ai_field.ai_generative_ai_model)
         return generative_ai_model_type
 
+    def _get_field(self, field_id: int) -> AIField:
+        """
+        Returns the AI field with the given ID.
+
+        :param field_id: The ID of the AI field to retrieve.
+        :return: The AI field instance.
+        :raises FieldDoesNotExist: If the field does not exist.
+        """
+
+        return FieldHandler().get_field(
+            field_id,
+            base_queryset=AIField.objects.all()
+            .select_related("table__database__workspace")
+            .prefetch_related("select_options"),
+        )
+
     def prepare_values(self, values, user):
-        ai_field = FieldHandler().get_field(values["field_id"], field_model=AIField)
+        ai_field = self._get_field(values["field_id"])
 
         model = ai_field.table.get_model()
         req_row_ids = values.get("row_ids")
@@ -172,24 +188,22 @@ class GenerateAIValuesJobType(JobType):
         unsaved_job = GenerateAIValuesJob(**values)
 
         if unsaved_job.mode == GenerateAIValuesJob.MODES.ROWS:
-            rows = RowHandler().get_rows(model, req_row_ids)
-            if len(rows) != len(req_row_ids):
-                found_rows_ids = [row.id for row in rows]
+            found_rows_ids = (
+                RowHandler().get_rows(model, req_row_ids).values_list("id", flat=True)
+            )
+            if len(found_rows_ids) != len(req_row_ids):
                 raise RowDoesNotExist(
                     sorted(list(set(req_row_ids) - set(found_rows_ids)))
                 )
         elif unsaved_job.mode == GenerateAIValuesJob.MODES.VIEW:
-            rows = self._get_view_queryset(user, view_id, ai_field.table.id)
-        elif unsaved_job.mode == GenerateAIValuesJob.MODES.TABLE:
-            rows = model.objects.all()
-        else:
-            raise ValueError(f"Unknown mode {unsaved_job.mode} for GenerateAIValuesJob")
+            # Ensure the view exists in the table
+            ViewHandler().get_view_as_user(user, view_id, table_id=ai_field.table.id)
 
         return values
 
     def run(self, job: GenerateAIValuesJob, progress):
         user = job.user
-        ai_field = FieldHandler().get_field(job.field_id, field_model=AIField)
+        ai_field = self._get_field(job.field_id)
         table = ai_field.table
         workspace = table.database.workspace
         model = table.get_model()
