@@ -276,7 +276,8 @@
         "dbIndex": "Index",
         "dbIndexError": "Dit veldtype kan geen index hebben. Verwijder deze voordat u het veldtype opslaat of wijzigt.",
         "dbIndexDescription": "Indexeren kan de filterprestaties aanzienlijk verbeteren, maar vertraagt het maken, bijwerken en verwijderen.",
-        "defaultValueDisabledByConstraint": "Kan geen standaardwaarde instellen met een unieke beperking"
+        "defaultValueDisabledByConstraint": "Kan geen standaardwaarde instellen met een unieke beperking",
+        "dbIndexDisabledTooltip": "Indexering is niet beschikbaar voor dit veldtype."
     },
     "fieldLookupSubForm": {
         "noTable": "Je hebt minstens één link-rij veld nodig om een lookup veld te maken.",
@@ -907,7 +908,8 @@
     },
     "collaboratorAddedToRowNotification": {
         "title": "{sender} heeft u toegewezen aan {fieldName} in rij {rowId} in {tableName}",
-        "deletedUser": "Een verwijderde gebruiker"
+        "deletedUser": "Een verwijderde gebruiker",
+        "unknownUser": "Een onbekende gebruiker"
     },
     "fieldCollaboratorSubForm": {
         "notifyUserWhenAdded": "Gebruiker op de hoogte stellen wanneer toegevoegd"
