@@ -309,8 +309,12 @@ def test_workspace_search_scoped_to_requested_workspace(api_client, data_fixture
     table1 = data_fixture.create_database_table(database=db1, name="Common Table")
     table2 = data_fixture.create_database_table(database=db2, name="Common Table")
 
-    text_field1 = data_fixture.create_text_field(table=table1, name="Text")
-    text_field2 = data_fixture.create_text_field(table=table2, name="Text")
+    text_field1 = data_fixture.create_text_field(
+        table=table1, name="Text", primary=True
+    )
+    text_field2 = data_fixture.create_text_field(
+        table=table2, name="Text", primary=True
+    )
 
     from baserow.contrib.database.rows.handler import RowHandler
     from baserow.contrib.database.search.handler import SearchHandler

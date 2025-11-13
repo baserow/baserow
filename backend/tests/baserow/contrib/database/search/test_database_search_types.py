@@ -309,8 +309,12 @@ def test_row_search_multiple_fields(data_fixture):
     database = data_fixture.create_database_application(workspace=workspace)
     table = data_fixture.create_database_table(database=database)
 
-    text_field1 = data_fixture.create_text_field(table=table, name="Field 1")
-    text_field2 = data_fixture.create_text_field(table=table, name="Field 2")
+    text_field1 = data_fixture.create_text_field(
+        table=table, name="Field 1", primary=True
+    )
+    text_field2 = data_fixture.create_text_field(
+        table=table, name="Field 2", primary=True
+    )
 
     from baserow.contrib.database.rows.handler import RowHandler
 
