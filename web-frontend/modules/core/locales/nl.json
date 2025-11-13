@@ -254,7 +254,8 @@
         "tutorialsMessage": "Ontdek het potentieel van Baserow",
         "emptyWorkspaceMessage": "Begin met het maken van een nieuwe database of applicatie.",
         "addNew": "Nieuwe toevoegen...",
-        "noWorkspace": "Geen werkruimte"
+        "noWorkspace": "Geen werkruimte",
+        "starOnGitHub": "Geef een ster op GitHub"
     },
     "login": {
         "title": "Inloggen",
@@ -704,7 +705,8 @@
         "noMatchingNodesText": "Er zijn geen overeenkomende gegevensverstrekkers gevonden."
     },
     "formulaInputField": {
-        "errorInvalidFormula": "De formule is ongeldig."
+        "errorInvalidFormula": "De formule is ongeldig.",
+        "advancedFormulaMode": "Geavanceerde formule-modus"
     },
     "userPasswordChangedToast": {
         "title": "Wachtwoord veranderd",
@@ -767,7 +769,9 @@
         "openRouter": "OpenRouter",
         "openRouterModelsLabel": "Ingeschakelde modellen",
         "openRouterModelsDescription": "Geef een lijst met door komma's gescheiden [OpenRouter modellen] (https://openrouter.ai/models) die kunnen worden gebruikt in Baserow. (bijv. `openai/gpt-4o,anthropic/claude-3-haiku`)",
-        "openRouterApiKeyDescription": "Geef een OpenRouter API-key op als u de integratie wilt inschakelen. [get an API key](https://openrouter.ai/settings/keys)."
+        "openRouterApiKeyDescription": "Geef een OpenRouter API-key op als u de integratie wilt inschakelen. [get an API key](https://openrouter.ai/settings/keys).",
+        "openaiBaseUrl": "Basis URL",
+        "openaiBaseUrlDescription": "Gebruikt standaard de OpenAI basis URL als deze leeg is. Kan optioneel worden gewijzigd in https://eu.api.openai.com/v1, https://<uw-bronnaam>.openai.azure.com, of een andere OpenAI-compatibele API."
     },
     "generativeAIWorkspaceSettings": {
         "title": "Generatieve AI-instellingen",
@@ -865,7 +869,8 @@
         "viewMore": "Meer bekijken"
     },
     "dataExplorerNode": {
-        "showMore": "Meer herhalingen tonen"
+        "showMore": "Meer herhalingen tonen",
+        "selectNode": "Selecteer"
     },
     "exportWorkspaceModal": {
         "exportSettings": "Export instellingen",
@@ -1074,5 +1079,125 @@
     },
     "importWorkspaceForm": {
         "selectApplicationsToImport": "Applicaties selecteren om te importeren"
+    },
+    "workspaceSearch": {
+        "title": "Zoek",
+        "searchEverything": "Zoek...",
+        "searching": "Zoeken...",
+        "noResults": "Geen resultaten gevonden",
+        "noResultsSubtitle": "We konden niets vinden dat overeenkomt met \"{searchTerm}\"",
+        "welcome": "Doorzoek alles in je werkruimte",
+        "welcomeSubtitle": "Gebruik het zoekvak hierboven om toepassingen, tabellen, velden en meer te vinden",
+        "navigate": "Navigatie",
+        "select": "Selecteer",
+        "close": "Sluit",
+        "types": {
+            "applications": "Applicaties",
+            "tables": "Tabellen",
+            "fields": "Velden",
+            "rows": "Rijen"
+        }
+    },
+    "action": {
+        "cancel": "Annuleren",
+        "submit": "Verstuur"
+    },
+    "twoFactorAuthSettings": {
+        "title": "Tweefactorauthenticatie",
+        "loadingError": "Kon tweefactorconfiguratie niet laden."
+    },
+    "disableTwoFactorAuth": {
+        "title": "Weet je zeker dat je 2FA wilt uitschakelen?",
+        "description": "Je account verliest een extra beveiligingslaag. Als iemand achter je wachtwoord komt, kan hij of zij misschien inloggen op je account.",
+        "cancel": "Laat het aan",
+        "disable": "Uitschakelen",
+        "successTitle": "Tweefactorauthenticatie is uitgeschakeld",
+        "errorWrongPasswordTitle": "Verkeerd wachtwoord",
+        "errorWrongPasswordMessage": "Het ingevoerde wachtwoord komt niet overeen met uw wachtwoord."
+    },
+    "enableTwoFactorOptions": {
+        "cancel": "Annuleren",
+        "continue": "Ga verder"
+    },
+    "saveBackupCode": {
+        "description": "Als je de toegang tot de authenticator-app of telefoon verliest en geen verificatiecodes kunt ontvangen of genereren, kun je deze back-up gebruiken. Je kunt het maar één keer gebruiken. Zorg ervoor dat je het opschrijft of kopieert naar een veilige plek zodat je het kunt openen zonder in te loggen.",
+        "backupCodes": "Back-up codes",
+        "copy": "Kopiëren",
+        "continue": "Ga verder",
+        "backupCodesCopiedTitle": "Gekopieerd!",
+        "backupCodesCopiedMessage": "Back-upcodes gekopieerd naar klembord."
+    },
+    "totpAuthType": {
+        "name": "Authenticator-app",
+        "description": "Gebruik een app om tweefactorauthenticatiecodes te krijgen. We raden aan apps te gebruiken zoals Google Authenticator, Authy en Microsoft Authenticator.",
+        "enabledDescription": "Je ontvangt verificatiecodes via een authenticatie-app. Om een andere app of methode in te stellen, schakel je gewoon 2FA uit en stel je opnieuw in.",
+        "sideLabel": "Aanbevolen"
+    },
+    "twoFactorEnabled": {
+        "enabled": "Ingeschakeld",
+        "disable": "2FA uitschakelen"
+    },
+    "totpLogin": {
+        "backupCodesTitle": "Back-upcode invoeren",
+        "backupCodesDescription": "Log in met je eenmalige back-upcode.",
+        "authenticate": "Authenticeren",
+        "goBack": "Ga terug",
+        "totpTitle": "Tweefacturauthenticatie",
+        "totpDescription": "Voer de code van je authenticator-app in.",
+        "verify": "Controleer",
+        "useBackupCode": "Gebruik back-upcode",
+        "verificationFailed": "Verificatie mislukt",
+        "verificationFailedDescription": "De ingevoerde code is niet correct.",
+        "loginExpired": "Inloggen verlopen",
+        "loginExpiredDescription": "Geef je wachtwoord opnieuw op.",
+        "rateLimit": "Te veel pogingen."
+    },
+    "formulaInputContext": {
+        "variables": "Variables",
+        "functions": "Functies",
+        "operators": "Operators",
+        "search": "Zoeken",
+        "useRegularInputModalTitle": "Normale invoer gebruiken voor dit veld?",
+        "useRegularInput": "Gebruik regelmatige invoer",
+        "useAdvancedInput": "Geavanceerde invoer gebruiken",
+        "useAdvancedInputModalTitle": "Geavanceerde invoer gebruiken voor dit veld?",
+        "modalMessage": "De inhoud van je veld zal worden gewist en het zal niet mogelijk zijn om het te herstellen."
+    },
+    "coreHTTPTriggerServiceForm": {
+        "title": "Webhook URL",
+        "urlVersion": "Versie",
+        "urlVersionPublished": "Gepubliceerd",
+        "urlVersionTest": "Test",
+        "copyUrl": "URL webhook kopiëren",
+        "urlCopied": "Webhook URL gekopieerd naar klembord",
+        "description": "Deze webhook zal HTP verzoeken ontvangen en de workflow starten met de verzoekgegevens als de lading.",
+        "methodsOptionLabel": "Toegestane HTTP-methoden",
+        "methodsOptionDescription": "Bepaalt welke HTTP-methodes zijn toegestaan voor deze webhook. Het uitsluiten van GET vermindert de kans dat de webhook per ongeluk wordt geactiveerd.",
+        "methodsOptionAll": "Alle",
+        "methodsOptionExcludeGet": "GET uitsluiten"
+    },
+    "twoFactorAuthEmpty": {
+        "title": "Je hebt 2FA nog niet ingeschakeld",
+        "description": "Voeg een extra beveiligingslaag toe aan je account.",
+        "enable": "2FA inschakelen",
+        "notAllowedTitle": "2FA niet ingeschakeld",
+        "notAllowedDescription": "Het toevoegen van 2FA is alleen mogelijk voor accounts met een wachtwoord."
+    },
+    "nodeHelpTooltip": {
+        "exampleLabel": "Voorbeeld",
+        "result": "Resultaat: {result}"
+    },
+    "enableWithQRCode": {
+        "scanQRCode": "QR-code scannen",
+        "scanQRCodeDescription": "Scan de code met een app zoals Google Authenticator, Authy of Microsoft Authenticator.",
+        "clickToCopy": "Je kunt ook hier klikken om de code te kopiëren.",
+        "secretCopiedTitle": "Geheim gekopieerd",
+        "secretCopiedMessage": "TOTP geheim gekopieerd naar klembord.",
+        "enterCode": "Voer de getoonde code in",
+        "enterCodeDescription": "Voer een 6-cijferige code in die door de app wordt getoond om te bevestigen dat je de app correct hebt ingesteld.",
+        "verificationFailed": "Verificatie mislukt",
+        "verificationFailedDescription": "De ingevoerde code is ongeldig.",
+        "provisioningFailed": "Voorziening mislukt",
+        "checkSuccess": "Tweefactorauthenticatie succesvol ingeschakeld"
     }
 }
