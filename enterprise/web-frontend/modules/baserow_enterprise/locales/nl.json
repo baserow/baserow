@@ -670,5 +670,30 @@
         "includeWeekendsLabel": "Houd rekening met weekenden bij het berekenen van looptijden",
         "dependencyFieldForReaderTooltip": "Dit veld is opgenomen in de regel voor datumafhankelijke velden",
         "fieldInvalidTitle": "Fout in datumafhankelijkheidsveld"
+    },
+    "assistant": {
+        "statusThinking": "Denken...",
+        "statusAnswering": "Antwoorden..."
+    },
+    "assistantMessageSources": {
+        "sources": "{count} source | {count} sources"
+    },
+    "assistantMessageActions": {
+        "feedbackContextTitle": "Help ons te verbeteren",
+        "feedbackContextPlaceholder": "Wat kunnen we verbeteren? (optioneel)",
+        "copiedToClipboard": "Gekopieerd naar klembord",
+        "copiedContentToast": "De inhoud van het antwoord van de assistent is gekopieerd naar je klembord",
+        "copyFailed": "Kopiëren naar klembord mislukt"
+    },
+    "dateDependency": {
+        "invalidChildRow": "Opeenvolgende rij is ongeldig",
+        "invalidParentRow": "Voorganger rij is ongeldig",
+        "invalidParentEndDateAfterChildStartDate": "De einddatum van de rij van de voorganger ligt na de begindatum van de rij van de opvolger",
+        "invalidStartDateEmpty": "Startdatum is leeg",
+        "invalidEndDateEmpty": "Einddatum is leeg",
+        "invalidEndDateBeforeStartDate": "Einddatum is voor begindatum",
+        "invalidDurationEmpty": "Duur is leeg",
+        "invalidDurationValue": "Duur waarde is niet geldig",
+        "invalidDurationMismatch": "Duur waarde mismatch"
     }
 }
