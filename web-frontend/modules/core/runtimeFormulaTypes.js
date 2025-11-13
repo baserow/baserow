@@ -1663,6 +1663,10 @@ export class RuntimeAnd extends RuntimeFormulaFunction {
     return FORMULA_CATEGORY.CONDITION
   }
 
+  get getOperatorSymbol() {
+    return '&&'
+  }
+
   get args() {
     return [
       new BooleanBaserowRuntimeFormulaArgumentType(),
@@ -1704,6 +1708,10 @@ export class RuntimeOr extends RuntimeFormulaFunction {
 
   static getCategoryType() {
     return FORMULA_CATEGORY.CONDITION
+  }
+
+  get getOperatorSymbol() {
+    return '||'
   }
 
   get args() {

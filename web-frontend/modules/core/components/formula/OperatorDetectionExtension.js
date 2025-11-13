@@ -52,41 +52,43 @@ export const OperatorDetectionExtension = Extension.create({
       const { state } = view
       const { tr, schema } = state
 
-      // Check for compound operators by looking at the previous character
-      const textBefore = state.doc.textBetween(Math.max(0, from - 2), from, '')
       let operatorText = typedText
-      let startPos = from // Default: insert at current position (don't replace anything before)
-      let endPos = from // Default: don't remove anything
+      let startPos = from
+      let endPos = from
 
-      // Handle compound operators (!=, >=, <=)
-      if (typedText === '=') {
-        // First, check if there's a text character before
-        const prevChar = textBefore.charAt(textBefore.length - 1)
-        if (prevChar === '!' || prevChar === '>' || prevChar === '<') {
-          operatorText = prevChar + '='
-          startPos = from - 2 // Start before the !, > or <
-          endPos = from // End at current position (don't include the = we're typing)
-        } else {
-          // Check if there's an operator node right before the cursor
-          const $pos = state.doc.resolve(from)
-          const nodeBefore = $pos.nodeBefore
+      // Unified handling for all compound operators (!=, >=, <=, &&, ||)
+      // Try to form a compound operator by looking at what's before the cursor
 
-          if (
-            nodeBefore &&
-            nodeBefore.type.name === 'operator-formula-component'
-          ) {
-            const prevOperator = nodeBefore.attrs.operatorSymbol
+      // First, check if there's an operator node right before the cursor
+      // This has priority because > and < are converted to nodes immediately
+      const $pos = state.doc.resolve(from)
+      const nodeBefore = $pos.nodeBefore
 
-            if (
-              (prevOperator === '>' || prevOperator === '<') &&
-              operators.includes(prevOperator + '=')
-            ) {
-              // Replace the previous operator node with the compound operator
-              operatorText = prevOperator + '='
-              startPos = from - nodeBefore.nodeSize
-              endPos = from // Replace up to current position
-            }
-          }
+      if (nodeBefore && nodeBefore.type.name === 'operator-formula-component') {
+        const prevOperator = nodeBefore.attrs.operatorSymbol
+        const potentialFromNode = prevOperator + typedText
+
+        if (operators.includes(potentialFromNode)) {
+          // Replace the previous operator node with the compound operator
+          operatorText = potentialFromNode
+          startPos = from - nodeBefore.nodeSize
+          endPos = from
+        }
+      } else {
+        // Check for text character before cursor
+        const prevChar = state.doc.textBetween(Math.max(0, from - 1), from, '')
+        const potentialOperator = prevChar + typedText
+
+        if (prevChar && operators.includes(potentialOperator)) {
+          // We can form a compound operator with the previous character
+          // Only if there actually IS a previous character
+          operatorText = potentialOperator
+          startPos = from - 1
+          endPos = from
+        } else if (operators.includes(typedText)) {
+          // Simple operator (like > or <), no need to look back
+          operatorText = typedText
+          // startPos and endPos already set to 'from'
         }
       }
 
@@ -137,14 +139,8 @@ export const OperatorDetectionExtension = Extension.create({
               return false
             }
 
-            // For '!', we need to wait for the next character to see if it's '!='
-            // We don't wait for '>' and '<' because they are valid operators on their own
-            if (text === '!') {
-              return false
-            }
-
             // Handle the operator
-            return handleOperatorTyped(view, to, to, text)
+            return handleOperatorTyped(view, from, to, text)
           },
         },
       }),
