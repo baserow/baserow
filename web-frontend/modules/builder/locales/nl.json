@@ -543,7 +543,8 @@
         "tags": "Tags",
         "button": "Knop",
         "image": "Afbeelding",
-        "rating": "Beoordeling"
+        "rating": "Beoordeling",
+        "errorValueMissing": "Ontbrekende waarde eigenschap"
     },
     "createUserSourceForm": {
         "userSourceName": "Naam",
@@ -705,7 +706,10 @@
         "rolesAllMembersOf": "Alle leden van {name}",
         "noRole": "Geen rol",
         "errorFetchingRolesTitle": "Kan gebruikersrollen niet ophalen",
-        "errorFetchingRolesMessage": "Er is een probleem opgetreden tijdens het ophalen van gebruikersrollen."
+        "errorFetchingRolesMessage": "Er is een probleem opgetreden tijdens het ophalen van gebruikersrollen.",
+        "visibilityCondition": "Zichtbaarheid voorwaarde",
+        "visibilityConditionHelper": "Als het resultaat van deze formule waar is en de bezoekerskeuze hierboven waar is, zal het element zichtbaar zijn. Deze voorwaarde beïnvloedt alleen de zichtbaarheid van het element. Als u in plaats daarvan gegevens wilt uitsluiten van het serverantwoord, gebruikt u de bovenstaande filteroptie voor gebruikersrollen.",
+        "visibilityConditionPlaceholder": "Voorwaarde..."
     },
     "imageInput": {
         "labelButton": "Uploaden",
