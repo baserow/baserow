@@ -24,7 +24,8 @@
         "thursday": "Donderdag",
         "friday": "Vrijdag",
         "saturday": "Zaterdag",
-        "sunday": "Zondag"
+        "sunday": "Zondag",
+        "value": "waarde"
     },
     "action": {
         "upload": "Uploaden",
@@ -95,7 +96,8 @@
         "tokens": "API-tokens",
         "deleteAccount": "Account verwijderen",
         "emailNotifications": "E-mail notificaties",
-        "mcpEndpoint": "MCP server"
+        "mcpEndpoint": "MCP server",
+        "twoFactorAuth": "Tweefactorauth"
     },
     "userFileUploadType": {
         "file": "mijn apparaat",
@@ -642,5 +644,63 @@
     },
     "fieldConstraintParametersText": {
         "placeholder": "Beperkingswaarde invoeren"
+    },
+    "assistantMessageSources": {
+        "sources": "{count} source | {count} sources"
+    },
+    "runtimeFormulaTypes": {
+        "concatDescription": "Voeg argumenten samen als één tekst.",
+        "getDescription": "Geeft de vaste waarde van een Baserow formule terug.",
+        "addDescription": "Telt twee argumenten bij elkaar op.",
+        "minusDescription": "Trekt het tweede argument af van het eerste.",
+        "multiplyDescription": "Vermenigvuldigt de twee argumenten.",
+        "divideDescription": "Deelt het eerste argument met de tweede.",
+        "equalDescription": "Controleert of beide argumenten gelijk zijn.",
+        "notEqualDescription": "Controleert of beide argumenten niet gelijk zijn.",
+        "greaterThanDescription": "Controleert of het eerste argument groter is dan het tweede.",
+        "lessThanDescription": "Controleert of het eerste argument minder is dan het tweede.",
+        "greaterThanOrEqualDescription": "Controleert of het eerste argument meer of gelijk is aan het tweede.",
+        "upperDescription": "Converteert het argument naar hoofdletters.",
+        "lowerDescription": "Converteert het argument naar kleine letters.",
+        "capitalizeDescription": "Zet de eerste letter van het argument met een hoofdletter.",
+        "roundDescription": "Rondt het eerste argument af op het aantal decimalen dat wordt opgegeven door het tweede argument.",
+        "evenDescription": "Geeft true terug als het argument even is, anders false.",
+        "oddDescription": "Geeft true terug als het argument oneven is, anders false.",
+        "dateTimeDescription": "Formatteert het datum-tijd argument met het format en tijdzone argument. Als de tijdzone leeg wordt gelaten, wordt standaard de tijdzone van de browser gebruikt.",
+        "dayDescription": "Geeft als resultaat de dag van het datum-tijdargument.",
+        "monthDescription": "Geeft als resultaat de maand van het datum-tijdargument.",
+        "yearDescription": "Geeft het jaar van het datum-tijdargument.",
+        "hourDescription": "Geeft het uur van het datum-tijdargument.",
+        "minuteDescription": "Geeft de minuten van het datum-tijdargument.",
+        "secondDescription": "Geeft de seconde van het datum-tijdargument.",
+        "todayDescription": "Geeft de huidige datum.",
+        "getPropertyDescription": "Geeft de eigenschap van het object terug.",
+        "randomIntDescription": "Geeft een willekeurig geheel getal terug uit het bereik opgegeven door de argumenten.",
+        "randomFloatDescription": "Geeft een willekeurige float terug uit het bereik opgegeven door de argumenten.",
+        "randomBoolDescription": "Geeft een willekeurig booleaans waar of onwaar terug.",
+        "generateUUIDDescription": "Geeft een willekeurige UUID4-tekenreeks terug.",
+        "ifDescription": "Als het eerste argument waar is, retourneert het tweede argument, anders retourneert het derde argument.",
+        "andDescription": "Geeft true als alle argumenten waar zijn, anders false.",
+        "orDescription": "Geeft waar als een van de argumenten waar is, anders onwaar.",
+        "formulaTypeFormula": "Functie | Functies",
+        "formulaTypeOperator": "Operator | Operators",
+        "formulaTypeData": "Data",
+        "formulaTypeDataEmpty": "Geen gegevensbronnen beschikbaar",
+        "categoryText": "Tekst",
+        "categoryNumber": "Nummer",
+        "categoryBoolean": "Boolean",
+        "categoryDate": "Datum",
+        "categoryCondition": "Voorwaarde"
+    },
+    "formulaInputContext": {
+        "useRegularInput": "Gebruik regelmatige invoer",
+        "useAdvancedInput": "Geavanceerde invoer gebruiken",
+        "useRegularInputModalTitle": "Overschakelen op gewone invoer?",
+        "useAdvancedInputModalTitle": "Overschakelen naar geavanceerde invoer?",
+        "modalMessage": "Als u overschakelt naar een andere invoermodus, wordt de huidige formule gewist. Weet u zeker dat u wilt doorgaan?"
+    },
+    "nodeExplorer": {
+        "noResults": "Geen resultaten gevonden",
+        "resetSearch": "Zoeken herstellen"
     }
 }
