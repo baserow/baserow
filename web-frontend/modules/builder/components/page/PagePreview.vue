@@ -30,7 +30,6 @@
                 :is-copying="copyingElementIndex === index"
                 :application-context-additions="{
                   recordIndexPath: [],
-                  element,
                   page: currentPage,
                 }"
                 :show-element-id="showElementId"
@@ -71,7 +70,6 @@
                 :is-copying="copyingElementIndex === index"
                 :application-context-additions="{
                   recordIndexPath: [],
-                  element,
                   page: currentPage,
                 }"
                 :show-element-id="showElementId"
@@ -104,7 +102,6 @@
                 :is-copying="copyingElementIndex === index"
                 :application-context-additions="{
                   recordIndexPath: [],
-                  element,
                   page: currentPage,
                 }"
                 :show-element-id="showElementId"

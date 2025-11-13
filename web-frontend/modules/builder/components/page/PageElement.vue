@@ -15,6 +15,7 @@
         :key="element._.uid"
         :element="element"
         class="element"
+        :application-context-additions="{ element }"
         :class="elementClasses"
         @move="$emit('move', $event)"
       />

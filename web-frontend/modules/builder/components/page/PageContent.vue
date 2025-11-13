@@ -6,7 +6,6 @@
       :element="element"
       :mode="mode"
       :application-context-additions="{
-        element,
         page: currentPage,
         recordIndexPath: [],
       }"
@@ -17,7 +16,6 @@
       :element="element"
       :mode="mode"
       :application-context-additions="{
-        element,
         page: currentPage,
         recordIndexPath: [],
       }"
@@ -28,7 +26,6 @@
       :element="element"
       :mode="mode"
       :application-context-additions="{
-        element,
         page: currentPage,
         recordIndexPath: [],
       }"
