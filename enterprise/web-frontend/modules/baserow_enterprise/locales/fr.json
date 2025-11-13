@@ -626,7 +626,7 @@
         "realtimePushDescription": "Permet de modifier les valeurs des cellules directement dans Baserow et de les envoyer en temps réel à la source de synchronisation des données. Notez que les modifications ne sont pas récupérées en temps réel, car elles dépendent de l'action de synchronisation (périodique) pour être effectuées. Il est fortement recommandé de créer des sauvegardes de la base de données PostgreSQL afin d'éviter toute modification accidentelle."
     },
     "assistantSidebarItem": {
-        "title": "Assistant IA"
+        "title": "Kuma IA"
     },
     "assistantPanel": {
         "title": "Assistant IA",
@@ -636,8 +636,8 @@
     },
     "assistantWelcomeMessage": {
         "greet": "Bonjour {name}",
-        "question": "comment puis-je aider ?",
-        "subtitle": "Je suis là pour vous aider à gérer vos données."
+        "question": "mon nom est Kuma !",
+        "subtitle": "Je suis là pour vous aider à utiliser Baserow. Choisissez parmi les prompts ci-dessous ou écrivez-moi simplement ce dont vous avez besoin !"
     },
     "assistantInputMessage": {
         "statusWaiting": "L'assistant est prêt à vous aider",
@@ -670,5 +670,30 @@
         "includeWeekendsLabel": "Inclure les week-ends dans le calcul des durées",
         "dependencyFieldForReaderTooltip": "Ce champ est inclus dans la règle de dépendance de date",
         "fieldInvalidTitle": "Erreur dans la dépendance de date"
+    },
+    "assistant": {
+        "statusThinking": "Réflexions...",
+        "statusAnswering": "Réponse en cours..."
+    },
+    "assistantMessageSources": {
+        "sources": "{count} source | {count} sources"
+    },
+    "assistantMessageActions": {
+        "feedbackContextTitle": "Aidez-nous à nous améliorer",
+        "feedbackContextPlaceholder": "Que pourrions-nous améliorer ? (facultatif)",
+        "copiedToClipboard": "Copié dans le presse-papiers",
+        "copiedContentToast": "Le contenu de la réponse de l'assistant a été copié dans votre presse-papiers",
+        "copyFailed": "Échec de la copie dans le presse-papiers"
+    },
+    "dateDependency": {
+        "invalidChildRow": "La ligne suivante est invalide",
+        "invalidParentRow": "La ligne précédente est invalide",
+        "invalidParentEndDateAfterChildStartDate": "La date de fin de la ligne précédente est postérieure à la date de début de la ligne suivante",
+        "invalidStartDateEmpty": "La date de début est vide",
+        "invalidEndDateEmpty": "La date de fin est vide",
+        "invalidEndDateBeforeStartDate": "La date de fin est antérieure à la date de début",
+        "invalidDurationEmpty": "La durée est vide",
+        "invalidDurationValue": "La durée n'est pas valide",
+        "invalidDurationMismatch": "La durée ne correspond pas"
     }
 }
