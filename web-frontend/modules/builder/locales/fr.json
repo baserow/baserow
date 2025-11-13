@@ -578,7 +578,8 @@
         "tags": "Étiquettes",
         "button": "Bouton",
         "image": "Image",
-        "rating": "Notation"
+        "rating": "Notation",
+        "errorValueMissing": "Valeur manquante"
     },
     "createUserSourceForm": {
         "userSourceName": "Nom",
@@ -707,7 +708,10 @@
         "errorFetchingRolesMessage": "Il y a eu un problème lors de la récupération des rôles d'utilisateur.",
         "rolesAllMembersOf": "Tous les membres de {name}",
         "noRole": "Sans rôle",
-        "errorFetchingRolesTitle": "Impossible de récupérer les rôles des utilisateurs"
+        "errorFetchingRolesTitle": "Impossible de récupérer les rôles des utilisateurs",
+        "visibilityCondition": "Conditions de visibilité",
+        "visibilityConditionHelper": "Si le résultat de cette formule est vrai et que le statut du visiteur ci-dessus est vrai, l'élément sera visible. Cette condition n'affecte que la visibilité de l'élément. Pour exclure des données de la réponse du serveur, utilisez l'option de filtrage du rôle de l'utilisateur ci-dessus.",
+        "visibilityConditionPlaceholder": "Condition..."
     },
     "imageInput": {
         "labelDescription": "Description par défaut",
