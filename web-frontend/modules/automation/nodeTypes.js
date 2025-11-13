@@ -149,6 +149,19 @@ export class NodeType extends Registerable {
   }
 
   /**
+   * Returns the error message we should show when the node is in-error.
+   * By default, this is derived from the service type's `getErrorMessage`
+   * method, but can be overridden by the node type.
+   * @param {object} service - The service of the node.
+   * @param {object} node - The node for which the
+   *  error message is being retrieved.
+   * @returns {string} - The error message.
+   */
+  getErrorMessage({ service, node }) {
+    return this.serviceType.getErrorMessage({ service })
+  }
+
+  /**
    * Returns whether this individual node is allowed to be deleted.
    * By default, all nodes (except triggers) are allowed to be deleted.
    * This can be overridden by the node type to prevent deletion.

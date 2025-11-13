@@ -143,11 +143,11 @@ export class CoreRouterServiceType extends WorkflowActionServiceTypeMixin(
     if (!service.edges?.length) {
       return this.app.i18n.t('serviceType.coreRouterEdgesRequired')
     }
-    const hasEdgeInError = service.edges.some((edge) => {
-      return this.getEdgeErrorMessage(edge)
-    })
-    if (hasEdgeInError) {
-      return hasEdgeInError
+    for (const edge of service.edges) {
+      const errorMessage = this.getEdgeErrorMessage(edge)
+      if (errorMessage) {
+        return errorMessage
+      }
     }
     return super.getErrorMessage({ service })
   }

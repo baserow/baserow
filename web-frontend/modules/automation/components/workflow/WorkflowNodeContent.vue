@@ -6,7 +6,7 @@
       'workflow-node-content--dragging': isDragging,
       'workflow-node-content--utility': nodeType.isUtilityNode,
     }"
-    :title="displayLabel"
+    :title="!isInError ? displayLabel : ''"
     :data-before-label="getDataBeforeLabel"
     :draggable="isDraggable"
     @dragstart="handleDragStart"
@@ -31,6 +31,8 @@
 
     <Badge
       v-if="isInteractionReady && isInError"
+      :key="errorMessage"
+      v-tooltip="errorMessage"
       rounded
       color="yellow"
       size="large"
@@ -219,6 +221,18 @@ const loading = computed(() => {
 })
 const isInError = computed(() => {
   return nodeType.value.isInError({ service: props.node.service })
+})
+
+/**
+ * This computed property retrieves the error message associated with
+ * the node if it is in an error state.
+ * @type {string} - The error message for the node.
+ */
+const errorMessage = computed(() => {
+  return nodeType.value.getErrorMessage({
+    service: props.node.service,
+    node: props.node,
+  })
 })
 
 /**
