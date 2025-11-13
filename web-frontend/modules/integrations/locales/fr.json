@@ -3,7 +3,8 @@
         "localBaserowSummary": "Baserow local - {name}, {username}",
         "localBaserow": "Baserow local",
         "localBaserowWarning": "Associer votre compte donne à tous ceux qui peuvent modifier l'application un accès complet aux données auxquelles vous avez accès. Il est possible de créer un deuxième utilisateur, donner les bonnes autorisations et utiliser celui-ci.",
-        "smtp": "Mail SMTP"
+        "smtp": "Mail SMTP",
+        "ai": "IA"
     },
     "serviceType": {
         "localBaserowGetRow": "Obtenir une ligne",
@@ -45,7 +46,19 @@
         "coreRouterDescription": "Poursuit vers l'une des branches en fonction d'une condition.",
         "corePeriodic": "Déclencheur périodique",
         "corePeriodicDescription": "Déclenche le scénario à des intervalles spécifiés",
-        "corePeriodicErrorIntervalMissing": "Un intervalle est nécessaire."
+        "corePeriodicErrorIntervalMissing": "Un intervalle est nécessaire.",
+        "aiAgent": "Prompt pour l'IA",
+        "aiAgentDescription": "Envoyer des prompts aux modèles d'IA génératifs configurés.",
+        "errorNoIntegrationSelected": "Aucune intégration sélectionnée",
+        "errorNoAIProviderSelected": "Aucun service d'IA n'a été sélectionné",
+        "errorNoAIModelSelected": "Aucun modèle d'IA n'est sélectionné",
+        "errorNoPromptProvided": "Aucun prompt n'a été fournie",
+        "errorNoChoicesProvided": "Aucun choix n'est fait pour le type de sortie",
+        "coreHTTPTrigger": "Recevoir une requête HTTP",
+        "coreHTTPTriggerDescription": "Déclenché quand une requête HTTP est reçue.",
+        "coreIteration": "Itérateur",
+        "coreIterationDescription": "Itère sur une liste d'éléments.",
+        "errorIterationSourceMissing": "Source manquante"
     },
     "localBaserowForm": {
         "user": "Utilisateur",
@@ -84,7 +97,8 @@
         "filterTypeNotFound": "Le type de filtre n'est pas compatible.",
         "useFormulaForValue": "Utiliser une formule pour ce filtre",
         "useDefaultForValue": "Utiliser le filtre par défaut pour ce champ",
-        "formulaFilterInputPlaceholder": "Saisissez un texte..."
+        "formulaFilterInputPlaceholder": "Saisissez une valeur...",
+        "textFilterInputPlaceholder": "Saisissez le texte..."
     },
     "localBaserowTableServiceSortForm": {
         "noSortTitle": "Vous n'avez pas encore créé de tri pour cette source de données",
@@ -112,7 +126,7 @@
     "localBaserowIntegrationType": {
         "localBaserowSummary": "Baserow local - {name}, {username}",
         "localBaserowNoUser": "Baserow local - Non configuré",
-        "localBaserowWarning": "Associer votre compte donne à tous ceux qui peuvent modifier l'application un accès complet aux données auxquelles vous avez accès. Il est possible de créer un deuxième utilisateur, donner les bonnes autorisations et utiliser celui-ci."
+        "localBaserowWarning": "Associer votre compte donne à tous ceux qui peuvent modifier l'application un accès complet aux données auxquelles vous avez accès. Il est possible de créer un deuxième utilisateur, lui donner les bonnes autorisations et utiliser celui-ci."
     },
     "integrationsCommon": {
         "singleRow": "Une ligne",
@@ -210,7 +224,7 @@
     "periodicForm": {
         "intervalLabel": "Interval",
         "intervalHelper": "Choisissez la fréquence d'exécution de ce scénario",
-        "everyMinute": "Chaque minute",
+        "everyMinute": "Toutes les {minute} minutes",
         "everyHour": "Toutes les heures",
         "everyDay": "Tous les jours",
         "everyWeek": "Chaque semaine",
@@ -222,12 +236,51 @@
         "hourPlaceholder": "0-23",
         "minutePlaceholder": "0-59",
         "dayOfMonthPlaceholder": "1-31",
-        "minuteHelper": "Ce scénario sera exécuté toutes les minutes",
+        "minuteHelper": "Ce scénario sera exécuté toutes les X minutes",
         "hourHelper": "Ce scénario s'exécutera toutes les heures à la minute spécifiée dans votre fuseau horaire local ({timezone})",
         "dayHelper": "Ce scénario sera exécuté chaque jour à l'heure spécifiée dans votre fuseau horaire local ({timezone})",
         "weekHelper": "Ce scénario sera exécuté chaque semaine au jour et à l'heure spécifiés dans votre fuseau horaire local ({timezone})",
         "monthHelper": "Ce scénario sera exécuté chaque mois le jour et l'heure spécifiés dans votre fuseau horaire local ({timezone})",
         "deactivatedTitle": "Déclenchement périodique désactivé",
-        "deactivatedText": "Ce déclencheur périodique a été automatiquement désactivé en raison d'échecs consécutifs."
+        "deactivatedText": "Ce déclencheur périodique a été automatiquement désactivé en raison d'échecs consécutifs.",
+        "everyMinuteDefault": "Toutes les X minutes",
+        "minuteFrequency": "Toutes les minutes",
+        "minuteFrequencyPlaceholder": "15"
+    },
+    "aiIntegrationType": {
+        "overridingProviders": "{count} service configuré|{count} services configurés",
+        "inheritingWorkspace": "Héritage des paramètres d'IA du projet"
+    },
+    "aiForm": {
+        "description": "Configurer les paramètres du service d'IA pour cette intégration. Par défaut, les paramètres d'IA du projet sont hérités.",
+        "workspaceSettingsTitle": "Paramètres de configuration d'IA du projet",
+        "workspaceSettingsDescription": "Cette intégration hérite par défaut des configurations d'IA de votre Projet. Vous pouvez remplacer des services spécifiques ci-dessous.",
+        "overrideWorkspaceSettings": "Remplacer les paramètres du projet pour ce service",
+        "inherited": "Héritée",
+        "overridden": "Remplacé"
+    },
+    "aiAgentServiceForm": {
+        "integrationLabel": "Intégration",
+        "providerLabel": "Service d'IA",
+        "providerPlaceholder": "Sélectionnez un service d'IA...",
+        "modelLabel": "Modèle IA",
+        "modelPlaceholder": "Sélectionnez un modèle...",
+        "outputTypeLabel": "Type de sortie",
+        "outputTypeHelp": "Choisissez la manière dont l'IA doit formuler sa réponse. Si vous définissez des choix, vous obligez le modèle à ne répondre que par l'un de ces choix.",
+        "outputTypeText": "Texte",
+        "outputTypeChoice": "Choix",
+        "temperatureLabel": "Température",
+        "temperaturePlaceholder": "Ex : 0.7",
+        "temperatureHelp": "Contrôle le caractère aléatoire. Les valeurs faibles (0-0,3) sont plus ciblées et déterministes. Les valeurs plus élevées (0,7-2,0) sont plus créatives et variées.",
+        "promptLabel": "Prompt",
+        "promptPlaceholder": "Saisissez votre prompt ici...",
+        "choicesLabel": "Choix",
+        "choicePlaceholder": "Saisissez un choix...",
+        "addChoice": "Ajouter un choix",
+        "choicesRequired": "Au moins un choix est requis"
+    },
+    "coreIterationServiceForm": {
+        "source": "Source",
+        "sourcePlaceholder": "Choisissez une source..."
     }
 }
