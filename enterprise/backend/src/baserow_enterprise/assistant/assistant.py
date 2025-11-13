@@ -3,13 +3,17 @@ from functools import lru_cache
 from typing import Any, AsyncGenerator, Callable, TypedDict
 
 from django.conf import settings
+from django.core.cache import cache
 from django.utils import translation
 
 import udspy
 from udspy.callback import BaseCallback
 
 from baserow.api.sessions import get_client_undo_redo_action_group_id
-from baserow_enterprise.assistant.exceptions import AssistantModelNotSupportedError
+from baserow_enterprise.assistant.exceptions import (
+    AssistantMessageCancelled,
+    AssistantModelNotSupportedError,
+)
 from baserow_enterprise.assistant.tools.navigation.types import AnyNavigationRequestType
 from baserow_enterprise.assistant.tools.navigation.utils import unsafe_navigate_to
 from baserow_enterprise.assistant.tools.registries import assistant_tool_registry
@@ -25,6 +29,7 @@ from .types import (
     AssistantMessageUnion,
     ChatTitleMessage,
     HumanMessage,
+    MessageStartedMessage,
 )
 
 
@@ -126,6 +131,29 @@ class ChatSignature(udspy.Signature):
         ),
     )
     answer: str = udspy.OutputField()
+
+
+def get_assistant_cancellation_key(chat_uuid: str) -> str:
+    """
+    Get the Redis cache key for cancellation tracking.
+
+    :param chat_uuid: The UUID of the assistant chat.
+    :return: The cache key as a string.
+    """
+
+    return f"assistant:chat:{chat_uuid}:cancelled"
+
+
+def set_assistant_cancellation_key(chat_uuid: str, timeout: int = 300) -> None:
+    """
+    Set the cancellation flag in the cache for the given chat UUID.
+
+    :param chat_uuid: The UUID of the assistant chat.
+    :param timeout: The time in seconds after which the cancellation flag expires.
+    """
+
+    cache_key = get_assistant_cancellation_key(chat_uuid)
+    cache.set(cache_key, True, timeout=timeout)
 
 
 class Assistant:
@@ -326,6 +354,95 @@ class Assistant:
             can_submit_feedback=True,
         )
 
+    def _get_cancellation_cache_key(self) -> str:
+        """
+        Get the Redis cache key for cancellation tracking.
+
+        :return: The cache key as a string.
+        """
+
+        return get_assistant_cancellation_key(self._chat.uuid)
+
+    def _check_cancellation(self, cache_key: str) -> None:
+        """
+        Check if the message generation has been cancelled.
+
+        :param cache_key: The cache key to check for cancellation.
+        :raises AssistantMessageCancelled: If the message generation has been cancelled.
+        """
+
+        if cache.get(cache_key):
+            cache.delete(cache_key)
+            raise AssistantMessageCancelled(
+                f"Message generation cancelled for chat {self._chat.uuid}."
+            )
+
+    async def _enhance_question_with_history(self, question: str) -> str:
+        """Enhance the user question with chat history context if available."""
+
+        if not self.history.messages:
+            return question
+
+        predictor = udspy.Predict("question, context -> enhanced_question")
+        result = await predictor.aforward(
+            question=question, context=self.history.messages
+        )
+        return result.enhanced_question
+
+    async def _process_stream_event(
+        self,
+        event: Any,
+        human_msg: AssistantChatMessage,
+        human_message: HumanMessage,
+        stream_reasoning: bool,
+    ) -> tuple[list[AssistantMessageUnion], bool]:
+        """
+        Process a single event from the output stream.
+
+        :param event: The event to process.
+        :param human_msg: The human message instance.
+        :param human_message: The human message data.
+        :param stream_reasoning: Whether reasoning streaming is enabled.
+        :return: a tuple of (messages_to_yield, updated_stream_reasoning_flag).
+        """
+
+        messages = []
+
+        if isinstance(event, (AiThinkingMessage, AiNavigationMessage)):
+            messages.append(event)
+            return messages, True  # Enable reasoning streaming
+
+        # Stream the final answer
+        if isinstance(event, udspy.OutputStreamChunk):
+            if event.field_name == "answer":
+                messages.append(
+                    AiMessageChunk(
+                        content=event.content,
+                        sources=self.callbacks.sources,
+                    )
+                )
+
+        elif isinstance(event, udspy.Prediction):
+            # sub-module predictions contain reasoning steps
+            if "next_thought" in event and stream_reasoning:
+                messages.append(AiReasoningChunk(content=event.next_thought))
+
+            # final prediction contains the answer to the user question
+            elif event.module is self._assistant:
+                ai_msg = await self._acreate_ai_message_response(
+                    human_msg, event, self.callbacks.sources
+                )
+                messages.append(ai_msg)
+
+                # Generate chat title if needed
+                if not self._chat.title:
+                    chat_title = await self._generate_chat_title(human_message, ai_msg)
+                    messages.append(ChatTitleMessage(content=chat_title))
+                    self._chat.title = chat_title
+                    await self._chat.asave(update_fields=["title", "updated_on"])
+
+        return messages, stream_reasoning
+
     async def astream_messages(
         self, human_message: HumanMessage
     ) -> AsyncGenerator[AssistantMessageUnion, None]:
@@ -335,7 +452,6 @@ class Assistant:
         :param human_message: The message from the user.
         :return: An async generator that yields the response messages.
         """
-
         with udspy.settings.context(
             lm=self._lm_client,
             callbacks=[*udspy.settings.callbacks, self.callbacks],
@@ -343,14 +459,9 @@ class Assistant:
             if self.history is None:
                 await self.aload_chat_history()
 
-            user_question = human_message.content
-            if self.history.messages:  # Enhance question context based on chat history
-                predictor = udspy.Predict("question, context -> enhanced_question")
-                user_question = (
-                    await predictor.aforward(
-                        question=user_question, context=self.history.messages
-                    )
-                ).enhanced_question
+            user_question = await self._enhance_question_with_history(
+                human_message.content
+            )
 
             output_stream = self._assistant.astream(
                 question=user_question,
@@ -361,40 +472,25 @@ class Assistant:
                 AssistantChatMessage.Role.HUMAN, human_message.content
             )
 
+            cache_key = self._get_cancellation_cache_key()
+            yield MessageStartedMessage()
+
+            # Flag to wait for the first step in the reasoning to start streaming it
             stream_reasoning = False
+            chunk_count = 0
+
             async for event in output_stream:
-                if isinstance(event, (AiThinkingMessage, AiNavigationMessage)):
-                    # Start streaming reasoning from now on, since we are calling tools
-                    # and updating the UI status
-                    stream_reasoning = True
-                    yield event
-                    continue
+                # Periodically check for cancellation
+                chunk_count += 1
+                if chunk_count % 10 == 0:
+                    self._check_cancellation(cache_key)
 
-                if isinstance(event, udspy.OutputStreamChunk):
-                    # Stream the final answer chunks
-                    if event.field_name == "answer":
-                        yield AiMessageChunk(
-                            content=event.content,
-                            sources=self.callbacks.sources,
-                        )
-                        continue
+                messages, stream_reasoning = await self._process_stream_event(
+                    event, human_msg, human_message, stream_reasoning
+                )
 
-                if isinstance(event, udspy.Prediction):
-                    if "next_thought" in event and stream_reasoning:
-                        yield AiReasoningChunk(content=event.next_thought)
+                if messages:  # Don't return responses if cancelled
+                    self._check_cancellation(cache_key)
 
-                    elif event.module is self._assistant:
-                        ai_msg = await self._acreate_ai_message_response(
-                            human_msg, event, self.callbacks.sources
-                        )
-                        yield ai_msg
-
-                        if not self._chat.title:
-                            chat_title = await self._generate_chat_title(
-                                human_message, ai_msg
-                            )
-                            yield ChatTitleMessage(content=chat_title)
-                            self._chat.title = chat_title
-                            await self._chat.asave(
-                                update_fields=["title", "updated_on"]
-                            )
+                for msg in messages:
+                    yield msg

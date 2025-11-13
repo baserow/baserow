@@ -24,9 +24,11 @@ from baserow.api.sessions import set_client_undo_redo_action_group_id
 from baserow.core.exceptions import UserNotInWorkspace, WorkspaceDoesNotExist
 from baserow.core.feature_flags import FF_ASSISTANT, feature_flag_is_enabled
 from baserow.core.handler import CoreHandler
+from baserow_enterprise.assistant.assistant import set_assistant_cancellation_key
 from baserow_enterprise.assistant.exceptions import (
     AssistantChatDoesNotExist,
     AssistantChatMessagePredictionDoesNotExist,
+    AssistantMessageCancelled,
     AssistantModelNotSupportedError,
 )
 from baserow_enterprise.assistant.handler import AssistantHandler
@@ -36,6 +38,7 @@ from baserow_enterprise.assistant.types import (
     AiErrorMessage,
     AssistantMessageUnion,
     HumanMessage,
+    MessageCancelledMessage,
     UIContext,
 )
 
@@ -178,6 +181,8 @@ class AssistantChatView(APIView):
             try:
                 async for msg in assistant.astream_messages(human_message):
                     yield self._stream_assistant_message(msg)
+            except AssistantMessageCancelled:
+                yield self._stream_assistant_message(MessageCancelledMessage())
             except Exception:
                 logger.exception("Error while streaming assistant messages")
                 yield self._stream_assistant_message(
@@ -238,6 +243,42 @@ class AssistantChatView(APIView):
         serializer = AssistantChatMessagesSerializer({"messages": messages})
 
         return Response(serializer.data)
+
+    @extend_schema(
+        tags=["AI Assistant"],
+        operation_id="cancel_assistant_message",
+        description=(
+            "Cancel an ongoing assistant message generation in the specified chat.\n\n"
+        ),
+        responses={
+            204: OpenApiResponse(description="Message generation cancelled"),
+            400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
+        },
+    )
+    @map_exceptions(
+        {
+            UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
+            WorkspaceDoesNotExist: ERROR_GROUP_DOES_NOT_EXIST,
+            AssistantChatDoesNotExist: ERROR_ASSISTANT_CHAT_DOES_NOT_EXIST,
+        }
+    )
+    def delete(self, request: Request, chat_uuid: str) -> Response:
+        feature_flag_is_enabled(FF_ASSISTANT, raise_if_disabled=True)
+
+        handler = AssistantHandler()
+        chat = handler.get_chat(request.user, chat_uuid)
+
+        workspace = chat.workspace
+        CoreHandler().check_permissions(
+            request.user,
+            ChatAssistantChatOperationType.type,
+            workspace=workspace,
+            context=workspace,
+        )
+
+        set_assistant_cancellation_key(chat.uuid)
+
+        return Response(status=HTTP_204_NO_CONTENT)
 
 
 class AssistantChatMessageFeedbackView(APIView):

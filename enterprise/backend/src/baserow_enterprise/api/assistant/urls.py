@@ -15,6 +15,11 @@ urlpatterns = [
         name="chat_messages",
     ),
     path(
+        "chat/<uuid:chat_uuid>/cancel/",
+        AssistantChatView.as_view(),
+        name="cancel_message",
+    ),
+    path(
         "chat/",
         AssistantChatsView.as_view(),
         name="list",

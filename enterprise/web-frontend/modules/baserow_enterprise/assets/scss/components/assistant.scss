@@ -266,10 +266,6 @@
     font-size: 14px;
   }
 
-  &--is-running i {
-    animation: spin 2.5s linear infinite;
-  }
-
   &:hover:not(.assistant__send-button--disabled) {
     background: $palette-neutral-1200;
     transform: scale(1.05);

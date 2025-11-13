@@ -101,6 +101,8 @@ class AssistantMessageType(StrEnum):
     TOOL_CALL = "tool_call"
     TOOL = "tool"
     CHAT_TITLE = "chat/title"
+    MESSAGE_STARTED = "message/started"  # Sent when message generation starts
+    MESSAGE_CANCELLED = "message/cancelled"  # Sent when message generation is cancelled
 
 
 class HumanMessage(BaseModel):
@@ -168,6 +170,16 @@ class ChatTitleMessage(BaseModel):
     content: str = Field(description="The chat title")
 
 
+class MessageStartedMessage(BaseModel):
+    type: Literal["message/started"] = AssistantMessageType.MESSAGE_STARTED.value
+    message_id: str = Field(description="The ID of the message being generated")
+
+
+class MessageCancelledMessage(BaseModel):
+    type: Literal["message/cancelled"] = AssistantMessageType.MESSAGE_CANCELLED.value
+    message_id: str = Field(description="The ID of the message that was cancelled")
+
+
 class AiErrorMessageCode(StrEnum):
     RECURSION_LIMIT_EXCEEDED = "recursion_limit_exceeded"
     TIMEOUT = "timeout"
@@ -189,6 +201,8 @@ AIMessageUnion = (
     | ChatTitleMessage
     | AiMessageChunk
     | AiReasoningChunk
+    | MessageStartedMessage
+    | MessageCancelledMessage
 )
 AssistantMessageUnion = HumanMessage | AIMessageUnion
 

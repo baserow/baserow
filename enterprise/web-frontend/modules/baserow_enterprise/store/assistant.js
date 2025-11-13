@@ -3,12 +3,14 @@ import { v4 as uuidv4 } from 'uuid'
 import Vue from 'vue'
 
 const MESSAGE_TYPE = {
-  MESSAGE: 'ai/message',
+  MESSAGE: 'ai/message', // The main AI message content, both for partial and final answers
   THINKING: 'ai/thinking', // Update the status bar in the UI
   REASONING: 'ai/reasoning', // Show reasoning steps before the final answer
-  NAVIGATION: 'ai/navigation',
-  ERROR: 'ai/error',
-  CHAT_TITLE: 'chat/title',
+  NAVIGATION: 'ai/navigation', // Navigate the user to a specific location in the UI
+  ERROR: 'ai/error', // Show an error message
+  CHAT_TITLE: 'chat/title', // Update the chat title
+  MESSAGE_STARTED: 'message/started', // Indicates the start of the respose generation
+  MESSAGE_CANCELLED: 'message/cancelled', // Indicates the message generation has stopped
 }
 
 export const state = () => ({
@@ -36,6 +38,10 @@ export const mutations = {
     Vue.set(chat, 'runningMessage', message)
   },
 
+  SET_ASSISTANT_CANCELLING(state, { chat, value }) {
+    Vue.set(chat, 'cancelling', value)
+  },
+
   SET_MESSAGES(state, messages) {
     state.messages = messages
   },
@@ -61,6 +67,10 @@ export const mutations = {
     state.messages = []
   },
 
+  SET_CURRENT_MESSAGE_ID(state, { chat, messageId }) {
+    Vue.set(chat, 'currentMessageId', messageId)
+  },
+
   SET_CHATS(state, chats) {
     state.chats = chats.map((chat) => ({
       id: chat.uuid,
@@ -71,6 +81,8 @@ export const mutations = {
       loading: false,
       running: false,
       reasoning: false,
+      cancelling: false,
+      currentMessageId: null,
     }))
   },
 
@@ -158,6 +170,24 @@ export const actions = {
 
   handleStreamingResponse({ commit, state }, { chat, id, update }) {
     switch (update.type) {
+      case MESSAGE_TYPE.MESSAGE_STARTED:
+        commit('SET_CURRENT_MESSAGE_ID', { chat, messageId: update.message_id })
+        break
+      case MESSAGE_TYPE.MESSAGE_CANCELLED:
+        commit('UPDATE_MESSAGE', {
+          id,
+          updates: {
+            content: this.$i18n.t('assistant.messageCancelled'),
+            loading: false,
+            error: false,
+            reasoning: false,
+            cancelled: true,
+          },
+        })
+        commit('SET_ASSISTANT_CANCELLING', { chat, value: false })
+        commit('SET_ASSISTANT_RUNNING', { chat, value: false })
+        commit('SET_CURRENT_MESSAGE_ID', { chat, messageId: null })
+        break
       case MESSAGE_TYPE.MESSAGE:
         commit('SET_ASSISTANT_RUNNING_MESSAGE', {
           chat,
@@ -270,6 +300,10 @@ export const actions = {
         throw new Error('The assistant did not provide a response.')
       }
     } catch (error) {
+      // Don't show error if the request was cancelled by user
+      if (error.cancelled) {
+        return
+      }
       commit('UPDATE_MESSAGE', {
         id: aiMessageId,
         updates: {
@@ -284,8 +318,37 @@ export const actions = {
       })
     } finally {
       commit('SET_ASSISTANT_RUNNING', { chat, value: false })
+      commit('SET_CURRENT_MESSAGE_ID', { chat, messageId: null })
     }
   },
+
+  async cancelMessage({ commit, state }) {
+    if (!state.currentChatId) {
+      return
+    }
+
+    const chat = state.chats.find((c) => c.id === state.currentChatId)
+    if (!chat || !chat.running) {
+      return
+    }
+
+    commit('SET_ASSISTANT_CANCELLING', { chat, value: true })
+    commit('SET_ASSISTANT_RUNNING_MESSAGE', {
+      chat,
+      message: this.$i18n.t('assistant.statusCancelling'),
+    })
+
+    try {
+      await assistant(this.$client).cancelMessage(state.currentChatId)
+    } catch (error) {
+      // Silently handle cancellation errors - the stream will stop anyway
+      console.error('Error cancelling message:', error)
+      commit('SET_ASSISTANT_CANCELLING', { chat, value: false })
+      commit('SET_ASSISTANT_RUNNING', { chat, value: false })
+      commit('SET_CURRENT_MESSAGE_ID', { chat, messageId: null })
+    }
+  },
+
   async submitFeedback({ commit, state }, { messageId, sentiment, feedback }) {
     const message = state.messages.find((m) => m.id === messageId)
     if (!message) {

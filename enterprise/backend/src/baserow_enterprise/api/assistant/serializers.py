@@ -186,6 +186,20 @@ class ChatTitleMessageSerializer(serializers.Serializer):
     content = serializers.CharField(help_text="The chat title message content.")
 
 
+class MessageStartedSerializer(serializers.Serializer):
+    type = serializers.CharField(default=AssistantMessageType.MESSAGE_STARTED)
+    message_id = serializers.CharField(
+        help_text="The ID of the message being generated."
+    )
+
+
+class MessageCancelledSerializer(serializers.Serializer):
+    type = serializers.CharField(default=AssistantMessageType.MESSAGE_CANCELLED)
+    message_id = serializers.CharField(
+        help_text="The ID of the message that was cancelled."
+    )
+
+
 class HumanMessageSerializer(serializers.Serializer):
     id = serializers.IntegerField(help_text="The unique ID of the message.")
     type = serializers.CharField(default=AssistantMessageType.HUMAN)
@@ -203,6 +217,8 @@ TYPE_SERIALIZER_MAP = {
     AssistantMessageType.AI_REASONING: AiReasoningSerializer,  # Show reasoning steps before the final answer
     AssistantMessageType.AI_NAVIGATION: AiNavigationSerializer,
     AssistantMessageType.AI_ERROR: AiErrorMessageSerializer,
+    AssistantMessageType.MESSAGE_STARTED: MessageStartedSerializer,
+    AssistantMessageType.MESSAGE_CANCELLED: MessageCancelledSerializer,
 }
 
 

@@ -27,15 +27,24 @@
           class="assistant__send-button"
           :class="{
             'assistant__send-button--disabled':
-              !currentMessage.trim() || isRunning,
+              !currentMessage.trim() && !isRunning,
             'assistant__send-button--is-running': isRunning,
+            'assistant__send-button--is-cancelling': isCancelling,
           }"
-          :disabled="!currentMessage.trim() || isRunning"
-          :title="$t('assistantInputMessage.send')"
-          @click="sendMessage"
+          :disabled="(!currentMessage.trim() && !isRunning) || isCancelling"
+          :title="
+            isRunning
+              ? $t('assistantInputMessage.stop')
+              : $t('assistantInputMessage.send')
+          "
+          @click="handleButtonClick"
         >
           <i v-if="!isRunning" class="iconoir-arrow-up"></i>
-          <i v-else class="iconoir-system-restart"></i>
+          <i
+            v-else
+            class="iconoir-square"
+            :style="{ backgroundColor: 'white', transform: 'scale(0.7)' }"
+          ></i>
         </button>
       </div>
     </div>
@@ -56,6 +65,10 @@ export default {
       default: () => ({}),
     },
     isRunning: {
+      type: Boolean,
+      default: false,
+    },
+    isCancelling: {
       type: Boolean,
       default: false,
     },
@@ -80,6 +93,15 @@ export default {
       // If shift key is pressed, allow the default behavior (new line)
       if (!event.shiftKey) {
         event.preventDefault()
+        if (!this.isRunning) {
+          this.sendMessage()
+        }
+      }
+    },
+    handleButtonClick() {
+      if (this.isRunning) {
+        this.cancelMessage()
+      } else {
         this.sendMessage()
       }
     },
@@ -90,6 +112,10 @@ export default {
       this.$emit('send-message', message)
 
       this.clear()
+    },
+    cancelMessage() {
+      if (!this.isRunning || this.isCancelling) return
+      this.$emit('cancel-message')
     },
     calculateLineHeight() {
       const textarea = this.$refs.textarea

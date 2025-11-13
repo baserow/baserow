@@ -52,8 +52,10 @@
       <AssistantInputMessage
         :ui-context="uiContext"
         :is-running="isAssistantRunning"
+        :is-cancelling="isAssistantCancelling"
         :running-message="assistantRunningMessage"
         @send-message="handleSendMessage"
+        @cancel-message="handleCancelMessage"
       ></AssistantInputMessage>
     </div>
   </div>
@@ -104,6 +106,9 @@ export default {
     },
     isAssistantRunning() {
       return Boolean(this.currentChat?.running)
+    },
+    isAssistantCancelling() {
+      return Boolean(this.currentChat?.cancelling)
     },
     assistantRunningMessage() {
       return this.currentChat?.runningMessage || ''
@@ -241,6 +246,7 @@ export default {
   methods: {
     ...mapActions({
       sendMessage: 'assistant/sendMessage',
+      cancelMessage: 'assistant/cancelMessage',
       createChat: 'assistant/createChat',
       selectChat: 'assistant/selectChat',
       clearChat: 'assistant/clearChat',
@@ -256,6 +262,10 @@ export default {
         message,
         workspace: this.workspace,
       })
+    },
+
+    async handleCancelMessage() {
+      await this.cancelMessage()
     },
 
     toggleChatHistoryContext() {

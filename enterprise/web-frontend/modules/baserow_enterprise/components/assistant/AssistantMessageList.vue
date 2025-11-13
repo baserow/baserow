@@ -8,6 +8,7 @@
         'assistant__message--human': message.role === 'human',
         'assistant__message--ai': message.role === 'ai',
         'assistant__message--error': message.error,
+        'assistant__message--cancelled': message.cancelled,
         'assistant__message--reasoning': message.reasoning,
       }"
     >

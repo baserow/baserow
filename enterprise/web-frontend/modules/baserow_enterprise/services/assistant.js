@@ -9,6 +9,9 @@ function getAssistantBaseURL(client) {
 }
 
 export default (client) => {
+  // Store active XHR request by chat UUID for cancellation
+  const activeRequests = new Map()
+
   return {
     async sendMessage(chatUuid, message, uiContext, onDownloadProgress = null) {
       return await client.post(
@@ -23,6 +26,9 @@ export default (client) => {
             return new Promise((resolve, reject) => {
               const xhr = new XMLHttpRequest()
               let buffer = ''
+
+              // Store XHR for potential cancellation
+              activeRequests.set(chatUuid, xhr)
 
               xhr.open('POST', config.baseURL + config.url, true)
               Object.keys(config.headers).forEach((key) => {
@@ -45,6 +51,9 @@ export default (client) => {
               }
 
               xhr.onload = () => {
+                // Clean up stored XHR reference
+                activeRequests.delete(chatUuid)
+
                 // Check if the request was successful (2xx status codes)
                 if (xhr.status >= 200 && xhr.status < 300) {
                   resolve({ data: xhr.responseText, status: xhr.status })
@@ -76,14 +85,27 @@ export default (client) => {
               }
 
               xhr.onerror = () => {
+                // Clean up stored XHR reference
+                activeRequests.delete(chatUuid)
                 const error = new Error('Network error occurred')
                 error.isAxiosError = true
                 reject(error)
               }
 
               xhr.ontimeout = () => {
+                // Clean up stored XHR reference
+                activeRequests.delete(chatUuid)
                 const error = new Error('Request timeout')
                 error.isAxiosError = true
+                reject(error)
+              }
+
+              xhr.onabort = () => {
+                // Clean up stored XHR reference
+                activeRequests.delete(chatUuid)
+                const error = new Error('Request cancelled')
+                error.isAxiosError = true
+                error.cancelled = true
                 reject(error)
               }
 
@@ -123,6 +145,19 @@ export default (client) => {
         }
       )
       return data
+    },
+
+    async cancelMessage(chatUuid) {
+      // Abort the XHR request if it exists
+      const xhr = activeRequests.get(chatUuid)
+      if (xhr) {
+        xhr.abort()
+      }
+
+      // Call the backend cancellation endpoint
+      await client.delete(`/assistant/chat/${chatUuid}/cancel/`, {
+        baseURL: getAssistantBaseURL(client),
+      })
     },
   }
 }

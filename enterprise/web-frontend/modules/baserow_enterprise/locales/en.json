@@ -337,11 +337,14 @@
     "statusWaiting": "Assistant is ready to help",
     "statusRunning": "Running...",
     "placeholder": "Ask me anything...",
-    "send": "Send message"
+    "send": "Send message",
+    "stop": "Stop generation"
   },
   "assistant": {
     "statusThinking": "Thinking...",
-    "statusAnswering": "Answering..."
+    "statusAnswering": "Answering...",
+    "statusCancelling": "Cancelling...",
+    "messageCancelled": "Message cancelled"
   },
   "assistantChatHistoryContext": {
     "empty": "No chat history available",
