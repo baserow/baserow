@@ -52,7 +52,7 @@ export const ContextManagementExtension = Extension.create({
               switch (contextPosition) {
                 case 'left':
                   config = {
-                    vertical: 'top',
+                    vertical: 'bottom',
                     horizontal: 'left',
                     needsDynamicOffset: true,
                   }
@@ -67,7 +67,7 @@ export const ContextManagementExtension = Extension.create({
                   break
                 case 'right':
                   config = {
-                    vertical: 'top',
+                    vertical: 'bottom',
                     horizontal: 'left',
                     needsDynamicOffset: true,
                   }
