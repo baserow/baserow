@@ -1,9 +1,9 @@
 from django.shortcuts import reverse
 
 import pytest
-from pytest_unordered import unordered
 from baserow_premium.fields.field_types import AIFieldType
 from baserow_premium.fields.models import AIField
+from pytest_unordered import unordered
 from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST, HTTP_404_NOT_FOUND
 
 from baserow.contrib.database.fields.dependencies.models import FieldDependency
