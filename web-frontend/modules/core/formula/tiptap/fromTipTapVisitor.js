@@ -93,7 +93,7 @@ export class FromTipTapVisitor {
     if (this.mode === 'simple') {
       return `concat(${node.content.map(this.visit.bind(this)).join(', ')})`
     } else {
-      return node.content.map(this.visit.bind(this)).join('\n')
+      return node.content.map(this.visit.bind(this)).join('')
     }
   }
 
