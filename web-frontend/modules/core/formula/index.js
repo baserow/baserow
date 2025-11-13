@@ -219,11 +219,32 @@ export const buildFormulaFunctionNodes = (app, i18n = null) => {
         // Get function signature information
         let signature = null
 
-        // Check if function is variadic by looking at its validateNumberOfArgs implementation
-        const isVariadic =
+        // Check if function is variadic
+        // A function is variadic if:
+        // 1. It has a custom validateNumberOfArgs implementation
+        // 2. OR it doesn't have args property (like concat)
+        const hasCustomValidation =
           instance.validateNumberOfArgs &&
           instance.validateNumberOfArgs !==
             instance.constructor.prototype.validateNumberOfArgs
+        const isVariadic = !instance.args || hasCustomValidation
+
+        // Calculate minArgs by testing validateNumberOfArgs
+        let minArgs = 1
+        if (instance.validateNumberOfArgs) {
+          // Test with increasing numbers of arguments to find the minimum
+          for (let testCount = 0; testCount <= 10; testCount++) {
+            const testArgs = new Array(testCount).fill({})
+            const isValid = instance.validateNumberOfArgs(testArgs)
+            if (isValid) {
+              // This number of args is valid, this is the minimum
+              minArgs = testCount
+              break
+            }
+          }
+        } else if (!isVariadic && instance.args) {
+          minArgs = instance.numArgs ?? instance.args.length
+        }
 
         if (instance.args && instance.args.length > 0) {
           signature = {
@@ -254,7 +275,7 @@ export const buildFormulaFunctionNodes = (app, i18n = null) => {
               }
             }),
             variadic: isVariadic,
-            minArgs: isVariadic ? 1 : instance.numArgs ?? instance.args.length,
+            minArgs,
             maxArgs: isVariadic
               ? null
               : instance.numArgs ?? instance.args.length,
@@ -268,8 +289,8 @@ export const buildFormulaFunctionNodes = (app, i18n = null) => {
               },
             ],
             variadic: isVariadic,
-            minArgs: 1,
-            maxArgs: null,
+            minArgs,
+            maxArgs: isVariadic ? null : 1,
           }
         }
 
