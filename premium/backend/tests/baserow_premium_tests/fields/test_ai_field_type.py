@@ -1,6 +1,7 @@
 from django.shortcuts import reverse
 
 import pytest
+from pytest_unordered import unordered
 from baserow_premium.fields.field_types import AIFieldType
 from baserow_premium.fields.models import AIField
 from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST, HTTP_404_NOT_FOUND
@@ -1258,15 +1259,16 @@ def test_create_ai_field_with_references(premium_data_fixture):
         ai_prompt=f"concat('test:',get('fields.field_{ai_field.id}'))",
     )
 
-    deps = list(FieldDependency.objects.all().order_by("dependant", "dependency"))
+    deps = list(FieldDependency.objects.values("dependant_id", "dependency_id"))
 
     assert len(deps) == 3
-    assert deps[0].dependant_id == ai_field.id
-    assert deps[0].dependency_id == text_field.id
-    assert deps[1].dependant_id == ai_field.id
-    assert deps[1].dependency_id == other_text_field.id
-    assert deps[2].dependency_id == ai_field.id
-    assert deps[2].dependant_id == other_ai_field.id
+    assert deps == unordered(
+        [
+            {"dependant_id": ai_field.id, "dependency_id": text_field.id},
+            {"dependant_id": ai_field.id, "dependency_id": other_text_field.id},
+            {"dependant_id": other_ai_field.id, "dependency_id": ai_field.id},
+        ]
+    )
 
 
 @pytest.mark.django_db
