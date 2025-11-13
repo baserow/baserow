@@ -294,9 +294,7 @@ export default {
     nodesHierarchy(newValue, oldValue) {
       // fixes reactivity issue with components in tiptap by forcing the input to
       // render.
-      if (!_.isEqual(newValue, oldValue)) {
-        this.key += 1
-      }
+      this.key += 1
     },
     disabled(newValue) {
       this.editor.setOptions({ editable: !newValue && !this.readOnly })

@@ -60,21 +60,19 @@ const mutations = {
       order,
     } = page.workflowActions[index]
 
-    const newValue = overwrite
-      ? populateWorkflowAction({
-          id,
-          page_id: pageId,
-          element_id: elementId,
-          event,
-          order,
-          ...values,
-        })
-      : {
-          ...page.workflowActions[index],
-          ...values,
-        }
-
-    page.workflowActions.splice(index, 1, newValue)
+    if (overwrite) {
+      const newValue = populateWorkflowAction({
+        id,
+        page_id: pageId,
+        element_id: elementId,
+        event,
+        order,
+        ...values,
+      })
+      page.workflowActions.splice(index, 1, newValue)
+    } else {
+      Object.assign(page.workflowActions[index], values)
+    }
   },
   SET_ITEM(state, { page, workflowAction: workflowActionToSet, values }) {
     page.workflowActions = page.workflowActions.map((workflowAction) =>

@@ -105,7 +105,7 @@ export default {
         await this.actionUpdateWorkflowAction({
           page: this.elementPage,
           workflowAction: this.workflowAction,
-          values,
+          values: differences,
         })
       } catch (error) {
         this.$refs.actionForm?.reset()
