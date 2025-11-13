@@ -254,7 +254,8 @@
         "emptyWorkspaceMessage": "Pour commencer, créez une nouvelle base de données ou une nouvelle application.",
         "addNew": "Ajouter...",
         "noWorkspace": "Aucun projet",
-        "noWorkspaceDescription": "Pour commencer, créez un nouveau projet"
+        "noWorkspaceDescription": "Pour commencer, créez un nouveau projet",
+        "starOnGitHub": "Suivez-nous sur GitHub"
     },
     "login": {
         "title": "Bienvenue",
@@ -704,7 +705,8 @@
         "noProvidersText": "Aucun fournisseur de données n'a été trouvé. Pour commencer, vous pouvez, par exemple, ajouter une source de données ou un paramètre de page."
     },
     "formulaInputField": {
-        "errorInvalidFormula": "La formule est invalide."
+        "errorInvalidFormula": "La formule est invalide.",
+        "advancedFormulaMode": "Mode formule avancée"
     },
     "userPasswordChangedToast": {
         "title": "Mot de passe modifié",
@@ -770,7 +772,9 @@
         "openRouterModelsDescription": "Fournissez une liste de [modèles OpenRouter](https://openrouter.ai/models) séparés par des virgules qui peuvent être utilisés dans Baserow. (par exemple `openai/gpt-4o,anthropic/claude-3-haiku`)",
         "openRouterApiKeyDescription": "Fournissez une clé API OpenRouter si vous souhaitez activer l'intégration. [Obtenir une clé API](https://openrouter.ai/settings/keys).",
         "openRouterApiKeyLabel": "Clé API",
-        "openRouterOrganization": "Organisation (facultatif)"
+        "openRouterOrganization": "Organisation (facultatif)",
+        "openaiBaseUrl": "URL de base",
+        "openaiBaseUrlDescription": "Utilise l'URL de base OpenAI par défaut si elle est vide. Elle peut être remplacée par https://eu.api.openai.com/v1, https://<votre-nom-de-ressource>.openai.azure.com, ou toute autre API compatible avec OpenAI."
     },
     "generativeAIWorkspaceSettings": {
         "title": "Paramètres de l'IA générative",
@@ -859,7 +863,8 @@
         "labelButton": "Envoyer"
     },
     "dataExplorerNode": {
-        "showMore": "Afficher plus de répétitions"
+        "showMore": "Afficher plus de répétitions",
+        "selectNode": "Sélectionner"
     },
     "dashboardApplication": {
         "createdAt": "créé(e)"
@@ -1073,5 +1078,125 @@
     },
     "importWorkspaceForm": {
         "selectApplicationsToImport": "Sélectionnez les applications à importer"
+    },
+    "workspaceSearch": {
+        "title": "Recherche",
+        "searchEverything": "Recherche...",
+        "searching": "Recherche en cours...",
+        "welcome": "Recherchez ce que vous souhaitez dans votre projet",
+        "welcomeSubtitle": "Utilisez le champ de recherche ci-dessus pour trouver des applications, des tables, des champs, etc.",
+        "navigate": "Voir",
+        "select": "Sélectionner",
+        "close": "Fermer",
+        "types": {
+            "applications": "Applications",
+            "tables": "Tables",
+            "fields": "Colonnes",
+            "rows": "Lignes"
+        },
+        "noResults": "Aucun résultat trouvé",
+        "noResultsSubtitle": "Aucun résultat correspondant à \"{searchTerm}\""
+    },
+    "action": {
+        "cancel": "Annuler",
+        "submit": "Valider"
+    },
+    "disableTwoFactorAuth": {
+        "successTitle": "L'authentification à deux facteurs a été désactivée",
+        "errorWrongPasswordTitle": "Mot de passe erroné",
+        "errorWrongPasswordMessage": "Le mot de passe saisi ne correspond pas à votre mot de passe.",
+        "title": "Êtes-vous sûr‑e de vouloir désactiver 2FA ?",
+        "description": "Votre compte va perdre une couche supplémentaire de sécurité. Si quelqu'un découvre votre mot de passe, ils pourraient être en mesure de se connecter à votre compte.",
+        "cancel": "Annuler",
+        "disable": "Désactiver"
+    },
+    "enableTwoFactorOptions": {
+        "cancel": "Annuler",
+        "continue": "Continuer"
+    },
+    "saveBackupCode": {
+        "description": "Si vous perdez l'accès à votre application d'authentification ou à votre téléphone et que vous ne pouvez pas recevoir ou générer des codes d'authentification, vous pouvez utiliser cette sauvegarde. Vous ne pouvez l'utiliser qu'une seule fois. Veillez à le noter ou à le copier dans un endroit sûr afin de pouvoir y accéder sans vous connecter.",
+        "backupCodes": "Codes de secours",
+        "copy": "Copier",
+        "continue": "Continuer",
+        "backupCodesCopiedTitle": "Copié !",
+        "backupCodesCopiedMessage": "Codes de secours copiés dans le presse-papiers."
+    },
+    "totpAuthType": {
+        "name": "App d'authentification",
+        "description": "Utilisez une application pour obtenir des codes d'authentification à deux facteurs. Vous pouvez, par exemple, utiliser des applications telles que Google Authenticator, Authy et Microsoft Authenticator.",
+        "enabledDescription": "Vous recevrez des codes de vérification via une application d'authentification. Pour configurer une autre application ou méthode, il vous suffit de désactiver l'option 2FA et de la configurer à nouveau.",
+        "sideLabel": "Recommandé"
+    },
+    "twoFactorEnabled": {
+        "enabled": "Activé",
+        "disable": "Désactiver 2FA"
+    },
+    "totpLogin": {
+        "backupCodesTitle": "Saisir le code de secours",
+        "backupCodesDescription": "Connectez-vous avec votre code de secours à usage unique.",
+        "authenticate": "S'authentifier",
+        "goBack": "Retour",
+        "totpTitle": "Authentification à deux facteurs",
+        "totpDescription": "Saisissez le code de votre application d'authentification.",
+        "verify": "Vérifier",
+        "useBackupCode": "Utiliser le code de secours",
+        "verificationFailed": "Échec de la vérification",
+        "verificationFailedDescription": "Le code saisie n'est pas correct.",
+        "loginExpired": "Connexion expirée",
+        "loginExpiredDescription": "Veuillez indiquer de nouveau votre mot de passe.",
+        "rateLimit": "Trop de tentatives."
+    },
+    "formulaInputContext": {
+        "variables": "Variables",
+        "functions": "Fonctions",
+        "operators": "Opérateurs",
+        "search": "Recherche",
+        "useRegularInputModalTitle": "Utiliser une formule simple ?",
+        "useRegularInput": "Utiliser une formule simple",
+        "useAdvancedInput": "Utiliser la saisie avancée",
+        "useAdvancedInputModalTitle": "Utiliser la saisie avancée pour ce champ ?",
+        "modalMessage": "Le contenu de votre champ sera effacé et il ne sera pas possible de le récupérer."
+    },
+    "twoFactorAuthSettings": {
+        "title": "Authentification à deux facteurs",
+        "loadingError": "Impossible de charger la configuration de l'authentification à deux facteurs."
+    },
+    "coreHTTPTriggerServiceForm": {
+        "title": "URL du webhook",
+        "urlVersion": "Version",
+        "urlVersionPublished": "Public",
+        "urlVersionTest": "Test",
+        "copyUrl": "Copier l'URL du Webhook",
+        "urlCopied": "URL du webhook copiée dans le presse-papiers",
+        "description": "Ce webhook recevra des requêtes HTTP et déclenchera le scénario avec les données de la requête comme payload.",
+        "methodsOptionLabel": "Méthodes HTTP autorisées",
+        "methodsOptionDescription": "Contrôle les méthodes HTTP autorisées pour ce webhook. L'exclusion de GET réduit le risque de déclenchement accidentel du webhook.",
+        "methodsOptionAll": "Toutes",
+        "methodsOptionExcludeGet": "Exclure GET"
+    },
+    "twoFactorAuthEmpty": {
+        "title": "Vous n'avez pas encore activé 2FA",
+        "description": "Ajoutez une couche de sécurité supplémentaire à votre compte.",
+        "enable": "Activer 2FA",
+        "notAllowedTitle": "2FA non activé",
+        "notAllowedDescription": "L'ajout de 2FA n'est possible que pour les comptes basés sur un mot de passe."
+    },
+    "nodeHelpTooltip": {
+        "exampleLabel": "Exemple",
+        "result": "Résultat : {result}"
+    },
+    "enableWithQRCode": {
+        "scanQRCode": "Scanner un QR code",
+        "scanQRCodeDescription": "Scannez le code avec une application comme Google Authenticator, Authy ou Microsoft Authenticator.",
+        "clickToCopy": "Vous pouvez également cliquer ici pour copier le code.",
+        "secretCopiedTitle": "Secret copié",
+        "secretCopiedMessage": "Secret TOTP copié dans le presse-papiers.",
+        "enterCode": "Entrez le code indiqué",
+        "enterCodeDescription": "Saisissez un code à 6 chiffres affiché par l'application pour confirmer que vous l'avez configuré correctement.",
+        "verificationFailed": "Échec de la vérification",
+        "verificationFailedDescription": "Le code saisi n'est pas valide.",
+        "provisioningFailed": "Échec du provisionnement",
+        "checkSuccess": "L'authentification à deux facteurs a été activée avec succès"
     }
 }
