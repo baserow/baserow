@@ -93,16 +93,16 @@ class UIContext(BaseModel):
 
 class AssistantMessageType(StrEnum):
     HUMAN = "human"
-    AI_MESSAGE = "ai/message"
+    AI_STARTED = "ai/started"  # Sent when AI starts generating a response
     AI_THINKING = "ai/thinking"  # Update the status bar in the UI
-    AI_REASONING = "ai/reasoning"  # Show reasoning steps before the final answer
+    AI_REASONING = "ai/reasoning"  # Show reasoning as a message before the final answer
     AI_NAVIGATION = "ai/navigation"
+    AI_MESSAGE = "ai/message"
     AI_ERROR = "ai/error"
+    AI_CANCELLED = "ai/cancelled"  # Sent when AI generation is cancelled
     TOOL_CALL = "tool_call"
     TOOL = "tool"
     CHAT_TITLE = "chat/title"
-    MESSAGE_STARTED = "message/started"  # Sent when message generation starts
-    MESSAGE_CANCELLED = "message/cancelled"  # Sent when message generation is cancelled
 
 
 class HumanMessage(BaseModel):
@@ -170,13 +170,13 @@ class ChatTitleMessage(BaseModel):
     content: str = Field(description="The chat title")
 
 
-class MessageStartedMessage(BaseModel):
-    type: Literal["message/started"] = AssistantMessageType.MESSAGE_STARTED.value
+class AiStartedMessage(BaseModel):
+    type: Literal["ai/started"] = AssistantMessageType.AI_STARTED.value
     message_id: str = Field(description="The ID of the message being generated")
 
 
-class MessageCancelledMessage(BaseModel):
-    type: Literal["message/cancelled"] = AssistantMessageType.MESSAGE_CANCELLED.value
+class AiCancelledMessage(BaseModel):
+    type: Literal["ai/cancelled"] = AssistantMessageType.AI_CANCELLED.value
     message_id: str = Field(description="The ID of the message that was cancelled")
 
 
@@ -195,14 +195,14 @@ class AiErrorMessage(BaseModel):
 
 
 AIMessageUnion = (
-    AiMessage
+    ChatTitleMessage
+    | AiMessage
     | AiErrorMessage
     | AiThinkingMessage
-    | ChatTitleMessage
     | AiMessageChunk
     | AiReasoningChunk
-    | MessageStartedMessage
-    | MessageCancelledMessage
+    | AiStartedMessage
+    | AiCancelledMessage
 )
 AssistantMessageUnion = HumanMessage | AIMessageUnion
 

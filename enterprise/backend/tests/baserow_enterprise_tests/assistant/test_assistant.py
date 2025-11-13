@@ -10,14 +10,18 @@ These tests verify that the Assistant:
 """
 from unittest.mock import MagicMock, patch
 
+from django.core.cache import cache
+
 import pytest
 from asgiref.sync import async_to_sync
 from udspy import OutputStreamChunk, Prediction
 
 from baserow_enterprise.assistant.assistant import Assistant, AssistantCallbacks
+from baserow_enterprise.assistant.exceptions import AssistantMessageCancelled
 from baserow_enterprise.assistant.models import AssistantChat, AssistantChatMessage
 from baserow_enterprise.assistant.types import (
     AiMessageChunk,
+    AiStartedMessage,
     AiThinkingMessage,
     ApplicationUIContext,
     ChatTitleMessage,
@@ -831,3 +835,160 @@ class TestUIContext:
         assert user_context.id == user.id
         assert user_context.name == "John Doe"
         assert user_context.email == "john@example.com"
+
+
+@pytest.mark.django_db
+class TestAssistantCancellation:
+    """Test cancellation functionality in Assistant"""
+
+    def test_get_cancellation_cache_key(self, enterprise_data_fixture):
+        """Test that cancellation cache key is correctly formatted"""
+
+        user = enterprise_data_fixture.create_user()
+        workspace = enterprise_data_fixture.create_workspace(user=user)
+        chat = AssistantChat.objects.create(
+            user=user, workspace=workspace, title="Test"
+        )
+
+        assistant = Assistant(chat)
+        cache_key = assistant._get_cancellation_cache_key()
+
+        assert cache_key == f"assistant:chat:{chat.uuid}:cancelled"
+
+    def test_check_cancellation_raises_when_flag_set(self, enterprise_data_fixture):
+        """Test that check_cancellation raises exception when flag is set"""
+
+        user = enterprise_data_fixture.create_user()
+        workspace = enterprise_data_fixture.create_workspace(user=user)
+        chat = AssistantChat.objects.create(
+            user=user, workspace=workspace, title="Test"
+        )
+
+        assistant = Assistant(chat)
+        cache_key = assistant._get_cancellation_cache_key()
+
+        # Set cancellation flag
+        cache.set(cache_key, True)
+
+        # Should raise exception
+        with pytest.raises(AssistantMessageCancelled) as exc_info:
+            assistant._check_cancellation(cache_key, "msg123")
+
+        assert exc_info.value.message_id == "msg123"
+
+        # Flag should be cleaned up
+        assert cache.get(cache_key) is None
+
+    def test_check_cancellation_does_nothing_when_no_flag(
+        self, enterprise_data_fixture
+    ):
+        """Test that check_cancellation does nothing when flag not set"""
+
+        user = enterprise_data_fixture.create_user()
+        workspace = enterprise_data_fixture.create_workspace(user=user)
+        chat = AssistantChat.objects.create(
+            user=user, workspace=workspace, title="Test"
+        )
+
+        assistant = Assistant(chat)
+        cache_key = assistant._get_cancellation_cache_key()
+
+        # Should not raise
+        assistant._check_cancellation(cache_key, "msg123")
+
+    @patch("udspy.ReAct.astream")
+    @patch("udspy.LM")
+    def test_astream_messages_yields_ai_started_message(
+        self, mock_lm, mock_astream, enterprise_data_fixture
+    ):
+        """Test that astream_messages yields AiStartedMessage at the beginning"""
+
+        user = enterprise_data_fixture.create_user()
+        workspace = enterprise_data_fixture.create_workspace(user=user)
+        chat = AssistantChat.objects.create(
+            user=user, workspace=workspace, title="Test"
+        )
+
+        # Mock the streaming
+        async def mock_stream(*args, **kwargs):
+            yield OutputStreamChunk(
+                module=None,
+                field_name="answer",
+                delta="Hello",
+                content="Hello",
+                is_complete=False,
+            )
+            yield Prediction(answer="Hello there!", trajectory=[], reasoning="")
+
+        mock_astream.return_value = mock_stream()
+        mock_lm.return_value.model = "test-model"
+
+        assistant = Assistant(chat)
+        ui_context = UIContext(
+            workspace=WorkspaceUIContext(id=workspace.id, name=workspace.name),
+            user=UserUIContext(id=user.id, name=user.first_name, email=user.email),
+        )
+        human_message = HumanMessage(content="Hello", ui_context=ui_context)
+
+        # Collect messages
+        async def collect_messages():
+            messages = []
+            async for msg in assistant.astream_messages(human_message):
+                messages.append(msg)
+            return messages
+
+        messages = async_to_sync(collect_messages)()
+
+        # First message should be AiStartedMessage
+        assert len(messages) > 0
+        assert isinstance(messages[0], AiStartedMessage)
+        assert messages[0].message_id is not None
+
+    @patch("udspy.ReAct.astream")
+    @patch("udspy.LM")
+    def test_astream_messages_checks_cancellation_periodically(
+        self, mock_lm, mock_astream, enterprise_data_fixture
+    ):
+        """Test that astream_messages checks for cancellation every 10 chunks"""
+
+        user = enterprise_data_fixture.create_user()
+        workspace = enterprise_data_fixture.create_workspace(user=user)
+        chat = AssistantChat.objects.create(
+            user=user, workspace=workspace, title="Test"
+        )
+
+        # Mock the stream to return many chunks - enough to trigger check at 10
+        async def mock_stream(*args, **kwargs):
+            # Yield 15 chunks - cancellation check happens at chunk 10
+            for i in range(15):
+                yield OutputStreamChunk(
+                    module=None,
+                    field_name="answer",
+                    delta=f"word{i}",
+                    content=f"word{i}",
+                    is_complete=False,
+                )
+            yield Prediction(answer="Complete response", trajectory=[], reasoning="")
+
+        mock_astream.return_value = mock_stream()
+        mock_lm.return_value.model = "test-model"
+
+        assistant = Assistant(chat)
+        cache_key = assistant._get_cancellation_cache_key()
+
+        # Set cancellation flag immediately - it should be detected at chunk 10
+        cache.set(cache_key, True)
+
+        ui_context = UIContext(
+            workspace=WorkspaceUIContext(id=workspace.id, name=workspace.name),
+            user=UserUIContext(id=user.id, name=user.first_name, email=user.email),
+        )
+        human_message = HumanMessage(content="Hello", ui_context=ui_context)
+
+        # Should raise AssistantMessageCancelled when check happens at chunk 10
+        async def stream_messages():
+            async for msg in assistant.astream_messages(human_message):
+                pass
+
+        with pytest.raises(AssistantMessageCancelled):
+            async_to_sync(stream_messages)()

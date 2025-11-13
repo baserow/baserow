@@ -35,10 +35,10 @@ from baserow_enterprise.assistant.handler import AssistantHandler
 from baserow_enterprise.assistant.models import AssistantChatPrediction
 from baserow_enterprise.assistant.operations import ChatAssistantChatOperationType
 from baserow_enterprise.assistant.types import (
+    AiCancelledMessage,
     AiErrorMessage,
     AssistantMessageUnion,
     HumanMessage,
-    MessageCancelledMessage,
     UIContext,
 )
 
@@ -181,8 +181,10 @@ class AssistantChatView(APIView):
             try:
                 async for msg in assistant.astream_messages(human_message):
                     yield self._stream_assistant_message(msg)
-            except AssistantMessageCancelled:
-                yield self._stream_assistant_message(MessageCancelledMessage())
+            except AssistantMessageCancelled as exc:
+                yield self._stream_assistant_message(
+                    AiCancelledMessage(message_id=exc.message_id)
+                )
             except Exception:
                 logger.exception("Error while streaming assistant messages")
                 yield self._stream_assistant_message(

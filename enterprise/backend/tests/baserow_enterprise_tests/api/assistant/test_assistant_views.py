@@ -2,6 +2,7 @@ import json
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
+from django.core.cache import cache
 from django.test import override_settings
 from django.urls import reverse
 
@@ -2120,3 +2121,74 @@ def test_submit_feedback_toggles_sentiment_from_like_to_dislike(
     prediction.refresh_from_db()
     assert prediction.human_sentiment == -1
     assert prediction.human_feedback == "Changed my mind"
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_cancel_message_sets_redis_flag(api_client, enterprise_data_fixture):
+    """Test that cancelling a message sets the Redis cancellation flag"""
+
+    user, token = enterprise_data_fixture.create_user_and_token()
+    workspace = enterprise_data_fixture.create_workspace(user=user)
+    enterprise_data_fixture.enable_enterprise()
+
+    # Create chat
+    chat = AssistantChat.objects.create(
+        user=user, workspace=workspace, title="Test Chat"
+    )
+
+    # Call cancel endpoint
+    rsp = api_client.delete(
+        reverse("assistant:cancel_message", kwargs={"chat_uuid": chat.uuid}),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert rsp.status_code == 204
+
+    # Verify Redis flag was set
+    cache_key = f"assistant:chat:{chat.uuid}:cancelled"
+    assert cache.get(cache_key) is True
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_cancel_message_requires_auth(api_client, enterprise_data_fixture):
+    """Test that cancel endpoint requires authentication"""
+
+    user = enterprise_data_fixture.create_user()
+    workspace = enterprise_data_fixture.create_workspace(user=user)
+    enterprise_data_fixture.enable_enterprise()
+
+    chat = AssistantChat.objects.create(
+        user=user, workspace=workspace, title="Test Chat"
+    )
+
+    # Call without auth
+    rsp = api_client.delete(
+        reverse("assistant:cancel_message", kwargs={"chat_uuid": chat.uuid}),
+    )
+
+    assert rsp.status_code == 401
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_cancel_message_requires_workspace_access(api_client, enterprise_data_fixture):
+    """Test that user must have access to workspace"""
+
+    user, token = enterprise_data_fixture.create_user_and_token()
+    other_user = enterprise_data_fixture.create_user()
+    workspace = enterprise_data_fixture.create_workspace(user=other_user)
+    enterprise_data_fixture.enable_enterprise()
+
+    chat = AssistantChat.objects.create(
+        user=other_user, workspace=workspace, title="Test Chat"
+    )
+
+    rsp = api_client.delete(
+        reverse("assistant:cancel_message", kwargs={"chat_uuid": chat.uuid}),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert rsp.status_code == 404
+    assert rsp.json()["error"] == "ERROR_ASSISTANT_CHAT_DOES_NOT_EXIST"

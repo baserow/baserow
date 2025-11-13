@@ -25,11 +25,11 @@ from .types import (
     AiMessageChunk,
     AiNavigationMessage,
     AiReasoningChunk,
+    AiStartedMessage,
     AiThinkingMessage,
     AssistantMessageUnion,
     ChatTitleMessage,
     HumanMessage,
-    MessageStartedMessage,
 )
 
 
@@ -363,19 +363,18 @@ class Assistant:
 
         return get_assistant_cancellation_key(self._chat.uuid)
 
-    def _check_cancellation(self, cache_key: str) -> None:
+    def _check_cancellation(self, cache_key: str, message_id: str) -> None:
         """
         Check if the message generation has been cancelled.
 
         :param cache_key: The cache key to check for cancellation.
+        :param message_id: The ID of the message being generated.
         :raises AssistantMessageCancelled: If the message generation has been cancelled.
         """
 
         if cache.get(cache_key):
             cache.delete(cache_key)
-            raise AssistantMessageCancelled(
-                f"Message generation cancelled for chat {self._chat.uuid}."
-            )
+            raise AssistantMessageCancelled(message_id=message_id)
 
     async def _enhance_question_with_history(self, question: str) -> str:
         """Enhance the user question with chat history context if available."""
@@ -473,7 +472,8 @@ class Assistant:
             )
 
             cache_key = self._get_cancellation_cache_key()
-            yield MessageStartedMessage()
+            message_id = str(human_msg.id)
+            yield AiStartedMessage(message_id=message_id)
 
             # Flag to wait for the first step in the reasoning to start streaming it
             stream_reasoning = False
@@ -483,14 +483,14 @@ class Assistant:
                 # Periodically check for cancellation
                 chunk_count += 1
                 if chunk_count % 10 == 0:
-                    self._check_cancellation(cache_key)
+                    self._check_cancellation(cache_key, message_id)
 
                 messages, stream_reasoning = await self._process_stream_event(
                     event, human_msg, human_message, stream_reasoning
                 )
 
                 if messages:  # Don't return responses if cancelled
-                    self._check_cancellation(cache_key)
+                    self._check_cancellation(cache_key, message_id)
 
-                for msg in messages:
-                    yield msg
+                    for msg in messages:
+                        yield msg

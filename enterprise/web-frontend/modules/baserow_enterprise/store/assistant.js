@@ -9,8 +9,8 @@ const MESSAGE_TYPE = {
   NAVIGATION: 'ai/navigation', // Navigate the user to a specific location in the UI
   ERROR: 'ai/error', // Show an error message
   CHAT_TITLE: 'chat/title', // Update the chat title
-  MESSAGE_STARTED: 'message/started', // Indicates the start of the respose generation
-  MESSAGE_CANCELLED: 'message/cancelled', // Indicates the message generation has stopped
+  AI_STARTED: 'ai/started', // Indicates the AI started generating a response
+  AI_CANCELLED: 'ai/cancelled', // Indicates the AI generation was cancelled
 }
 
 export const state = () => ({
@@ -170,10 +170,10 @@ export const actions = {
 
   handleStreamingResponse({ commit, state }, { chat, id, update }) {
     switch (update.type) {
-      case MESSAGE_TYPE.MESSAGE_STARTED:
+      case MESSAGE_TYPE.AI_STARTED:
         commit('SET_CURRENT_MESSAGE_ID', { chat, messageId: update.message_id })
         break
-      case MESSAGE_TYPE.MESSAGE_CANCELLED:
+      case MESSAGE_TYPE.AI_CANCELLED:
         commit('UPDATE_MESSAGE', {
           id,
           updates: {
