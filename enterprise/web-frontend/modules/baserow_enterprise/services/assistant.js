@@ -148,16 +148,17 @@ export default (client) => {
     },
 
     async cancelMessage(chatUuid) {
-      // Abort the XHR request if it exists
-      const xhr = activeRequests.get(chatUuid)
-      if (xhr) {
-        xhr.abort()
-      }
-
-      // Call the backend cancellation endpoint
       await client.delete(`/assistant/chat/${chatUuid}/cancel/`, {
         baseURL: getAssistantBaseURL(client),
       })
+
+      // Abort the XHR request if it exists
+      const xhr = activeRequests.get(chatUuid)
+      if (xhr) {
+        // Optionally, set a custom property to indicate user-initiated abort
+        xhr._userCancelled = true
+        xhr.abort()
+      }
     },
   }
 }

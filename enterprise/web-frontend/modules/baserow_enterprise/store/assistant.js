@@ -341,8 +341,6 @@ export const actions = {
     try {
       await assistant(this.$client).cancelMessage(state.currentChatId)
     } catch (error) {
-      // Silently handle cancellation errors - the stream will stop anyway
-      console.error('Error cancelling message:', error)
       commit('SET_ASSISTANT_CANCELLING', { chat, value: false })
       commit('SET_ASSISTANT_RUNNING', { chat, value: false })
       commit('SET_CURRENT_MESSAGE_ID', { chat, messageId: null })

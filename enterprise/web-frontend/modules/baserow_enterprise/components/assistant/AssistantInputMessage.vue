@@ -27,7 +27,7 @@
           class="assistant__send-button"
           :class="{
             'assistant__send-button--disabled':
-              !currentMessage.trim() && !isRunning,
+              (!currentMessage.trim() && !isRunning) || isCancelling,
             'assistant__send-button--is-running': isRunning,
             'assistant__send-button--is-cancelling': isCancelling,
           }"
@@ -40,11 +40,7 @@
           @click="handleButtonClick"
         >
           <i v-if="!isRunning" class="iconoir-arrow-up"></i>
-          <i
-            v-else
-            class="iconoir-square"
-            :style="{ backgroundColor: 'white', transform: 'scale(0.7)' }"
-          ></i>
+          <i v-else class="iconoir-square assistant__send-button-icon-stop"></i>
         </button>
       </div>
     </div>
