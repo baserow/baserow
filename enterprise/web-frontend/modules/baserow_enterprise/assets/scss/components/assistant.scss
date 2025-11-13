@@ -334,7 +334,6 @@
   }
 }
 
-
 .assistant__message {
   display: flex;
 
@@ -748,4 +747,13 @@
   justify-content: flex-end;
   gap: 8px;
   margin-top: 10px;
+}
+
+.assistant__disclaimer {
+  margin-top: 8px;
+  margin-left: 8px;
+  font-size: 11px;
+  color: $palette-neutral-600;
+  text-align: left;
+  line-height: 1.4;
 }

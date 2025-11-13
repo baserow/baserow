@@ -355,7 +355,8 @@
     "feedbackContextPlaceholder": "What could we improve? (optional)",
     "copiedToClipboard": "Copied to clipboard",
     "copiedContentToast": "The Assistant's response content has been copied to your clipboard",
-    "copyFailed": "Failed to copy to clipboard"
+    "copyFailed": "Failed to copy to clipboard",
+    "disclaimer": "Kuma can make mistakes, please double-check responses"
   },
   "chatwootSupportSidebarWorkspace": {
     "directSupport": "Direct support"
