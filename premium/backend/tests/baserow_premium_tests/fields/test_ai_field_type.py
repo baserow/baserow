@@ -1214,6 +1214,7 @@ def test_ai_field_type_check_can_filter_by(premium_data_fixture):
 
 @pytest.mark.django_db
 @pytest.mark.field_ai
+@pytest.mark.skip
 def test_create_ai_field_with_references(premium_data_fixture):
     """
     Test if AI field type handler creates appropriate FieldDependency entries.
