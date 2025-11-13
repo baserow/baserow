@@ -32,7 +32,8 @@
         "noCompatibleFilterTypesErrorMessage": "Geen van uw velden heeft passende filtertypen",
         "formulaFilterInputPlaceholder": "Tekst invoeren...",
         "useFormulaForValue": "Gebruik een formule voor dit filter",
-        "useDefaultForValue": "Gebruik het standaardfilter voor dit veld"
+        "useDefaultForValue": "Gebruik het standaardfilter voor dit veld",
+        "textFilterInputPlaceholder": "Tekst invoeren..."
     },
     "localBaserowTableSelector": {
         "databaseFieldLabel": "Database",
@@ -45,7 +46,8 @@
         "localBaserow": "Lokaal Baserow",
         "localBaserowSummary": "Lokaal Baserow - {name}, {username}",
         "localBaserowWarning": "Door jouw account te autoriseren krijgt iedereen die bewerkingsrechten heeft voor de applicatie volledige toegang tot de gegevens waar jij toegang tot hebt. Het is mogelijk om een tweede gebruiker aan te maken, de juiste rechten te geven en die te gebruiken.",
-        "smtp": "SMTP e-mail"
+        "smtp": "SMTP e-mail",
+        "ai": "AI"
     },
     "serviceType": {
         "localBaserowGetRow": "Rij ophalen",
@@ -87,7 +89,19 @@
         "coreRouterDescription": "Leidt de workflow naar de volgende vertakking op basis van een voorwaarde.",
         "corePeriodic": "Periodieke trigger",
         "corePeriodicDescription": "Triggert de workflow op periodieke basis met gespecificeerde intervallen",
-        "corePeriodicErrorIntervalMissing": "Een interval is vereist."
+        "corePeriodicErrorIntervalMissing": "Een interval is vereist.",
+        "coreHTTPTrigger": "Een HTTP-verzoek ontvangen",
+        "coreHTTPTriggerDescription": "Wordt geactiveerd wanneer een HTTP-verzoek wordt ontvangen.",
+        "coreIteration": "Iterator",
+        "coreIterationDescription": "Itereren op items.",
+        "errorIterationSourceMissing": "Ontbrekende broneigenschap",
+        "aiAgent": "AI prompt",
+        "aiAgentDescription": "AI prompt uitvoeren met behulp van geconfigureerde generatieve AI-modellen.",
+        "errorNoIntegrationSelected": "Geen integratie geselecteerd",
+        "errorNoAIProviderSelected": "Geen AI-aanbieder geselecteerd",
+        "errorNoAIModelSelected": "Geen AI-model geselecteerd",
+        "errorNoPromptProvided": "Geen prompt voorzien",
+        "errorNoChoicesProvided": "Geen keuzes voor uitvoer type"
     },
     "userSourceType": {
         "localBaserow": "Baserow tabel authenticatie"
@@ -228,6 +242,45 @@
         "weekHelper": "Deze workflow wordt elke week uitgevoerd op de opgegeven dag en tijd in je lokale tijdzone ({timezone})",
         "monthHelper": "Deze workflow wordt elke maand uitgevoerd op de opgegeven dag en tijd in je lokale tijdzone ({timezone}).",
         "deactivatedTitle": "Periodieke trigger gedeactiveerd",
-        "deactivatedText": "Deze periodieke trigger is automatisch gedeactiveerd vanwege opeenvolgende fouten."
+        "deactivatedText": "Deze periodieke trigger is automatisch gedeactiveerd vanwege opeenvolgende fouten.",
+        "everyMinuteDefault": "Elke opgegeven minuut",
+        "minuteFrequency": "Elke minuut",
+        "minuteFrequencyPlaceholder": "15"
+    },
+    "aiIntegrationType": {
+        "inheritingWorkspace": "Werkruimte AI-instellingen erven",
+        "overridingProviders": "Opheffen van {count} provider|Overschrijving {count} providers"
+    },
+    "aiForm": {
+        "description": "Configureer AI-providerinstellingen voor deze integratie. Standaard worden de AI-instellingen voor de werkruimte geërfd.",
+        "workspaceSettingsTitle": "Werkruimte AI-instellingen",
+        "workspaceSettingsDescription": "Deze integratie erft standaard AI-providerinstellingen van je werkruimte. Hieronder kun je specifieke providers overschrijven.",
+        "overrideWorkspaceSettings": "Werkruimte-instellingen voor deze provider overschrijven",
+        "inherited": "Geërfd",
+        "overridden": "Overschreven"
+    },
+    "aiAgentServiceForm": {
+        "integrationLabel": "Integratie",
+        "providerLabel": "AI-aanbieder",
+        "providerPlaceholder": "Selecteer een AI-provider...",
+        "modelLabel": "AI-model",
+        "modelPlaceholder": "Selecteer een model...",
+        "outputTypeLabel": "Uitvoer type",
+        "outputTypeHelp": "Kies hoe de AI moet reageren. Als je keuzes definieert, dwing je het model om alleen te reageren met een van die keuzes.",
+        "outputTypeText": "Tekst",
+        "outputTypeChoice": "Keuze",
+        "temperatureLabel": "Temperatuur",
+        "temperaturePlaceholder": "e.g. 0.7",
+        "temperatureHelp": "Regelt willekeur. Lagere waarden (0-0,3) zijn meer gefocust en deterministisch. Hogere waarden (0,7-2,0) zijn creatiever en gevarieerder.",
+        "promptLabel": "Prompt",
+        "promptPlaceholder": "Voer hier je vraag in...",
+        "choicesLabel": "Keuzes",
+        "choicePlaceholder": "Voer een keuzeoptie in...",
+        "addChoice": "Keuze toevoegen",
+        "choicesRequired": "Minstens één keuze is vereist"
+    },
+    "coreIterationServiceForm": {
+        "source": "Bron",
+        "sourcePlaceholder": "Kies een bron..."
     }
 }
