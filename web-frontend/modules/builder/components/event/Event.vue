@@ -34,6 +34,7 @@
             :key="workflowActionType.getType()"
             :value="workflowActionType.getType()"
             :icon="workflowActionType.icon"
+            :image="workflowActionType.image"
             type="primary"
             size="small"
             @click="addWorkflowAction(workflowActionType.getType())"

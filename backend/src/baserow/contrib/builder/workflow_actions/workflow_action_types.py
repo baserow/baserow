@@ -26,6 +26,7 @@ from baserow.contrib.builder.workflow_actions.models import (
     NotificationWorkflowAction,
     OpenPageWorkflowAction,
     RefreshDataSourceWorkflowAction,
+    SlackWriteMessageWorkflowAction,
 )
 from baserow.contrib.builder.workflow_actions.registries import (
     BuilderWorkflowActionType,
@@ -39,6 +40,9 @@ from baserow.contrib.integrations.core.service_types import (
 from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowDeleteRowServiceType,
     LocalBaserowUpsertRowServiceType,
+)
+from baserow.contrib.integrations.slack.service_types import (
+    SlackWriteMessageServiceType,
 )
 from baserow.core.db import specific_queryset
 from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
@@ -492,4 +496,14 @@ class AIAgentWorkflowActionType(BuilderWorkflowServiceActionType):
 
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, int]:
         service = pytest_data_fixture.create_ai_agent_service()
+        return {"service": service}
+
+
+class SlackWriteMessageWorkflowActionType(BuilderWorkflowServiceActionType):
+    type = "slack_write_message"
+    model_class = SlackWriteMessageWorkflowAction
+    service_type = SlackWriteMessageServiceType.type
+
+    def get_pytest_params(self, pytest_data_fixture) -> Dict[str, int]:
+        service = pytest_data_fixture.create_slack_write_message_service()
         return {"service": service}

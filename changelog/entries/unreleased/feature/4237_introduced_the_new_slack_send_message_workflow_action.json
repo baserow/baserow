@@ -1,0 +1,8 @@
+{
+    "type": "feature",
+    "message": "Introduced the new 'Slack send message' workflow action.",
+    "domain": "builder",
+    "issue_number": 4237,
+    "bullet_points": [],
+    "created_at": "2025-11-13"
+}

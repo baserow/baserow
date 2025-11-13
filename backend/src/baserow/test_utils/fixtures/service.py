@@ -20,6 +20,7 @@ from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowTableServiceSort,
     LocalBaserowUpsertRow,
 )
+from baserow.contrib.integrations.slack.models import SlackWriteMessageService
 from baserow.core.services.registries import service_type_registry
 
 
@@ -103,6 +104,9 @@ class ServiceFixtures:
 
     def create_ai_agent_service(self, **kwargs):
         return self.create_service(AIAgentService, **kwargs)
+
+    def create_slack_write_message_service(self, **kwargs):
+        return self.create_service(SlackWriteMessageService, **kwargs)
 
     def create_core_iterator_service(self, **kwargs):
         return self.create_service(CoreIteratorService, **kwargs)

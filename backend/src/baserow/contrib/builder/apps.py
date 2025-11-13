@@ -286,6 +286,7 @@ class BuilderConfig(AppConfig):
             NotificationWorkflowActionType,
             OpenPageWorkflowActionType,
             RefreshDataSourceWorkflowActionType,
+            SlackWriteMessageWorkflowActionType,
             UpdateRowWorkflowActionType,
         )
 
@@ -301,6 +302,9 @@ class BuilderConfig(AppConfig):
         builder_workflow_action_type_registry.register(CoreHttpRequestActionType())
         builder_workflow_action_type_registry.register(CoreSMTPEmailActionType())
         builder_workflow_action_type_registry.register(AIAgentWorkflowActionType())
+        builder_workflow_action_type_registry.register(
+            SlackWriteMessageWorkflowActionType()
+        )
 
         from .elements.collection_field_types import (
             BooleanCollectionFieldType,

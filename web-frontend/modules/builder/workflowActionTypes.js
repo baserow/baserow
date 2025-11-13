@@ -19,6 +19,7 @@ import resolveElementUrl from '@baserow/modules/builder/utils/urlResolution'
 import { ensureString } from '@baserow/modules/core/utils/validator'
 import { pathParametersInError } from '@baserow/modules/builder/utils/params'
 import { handleDispatchError } from '@baserow/modules/builder/utils/error'
+import { SlackWriteMessageServiceType } from '@baserow/modules/integrations/slack/serviceTypes'
 
 export class NotificationWorkflowActionType extends WorkflowActionType {
   static getType() {
@@ -255,6 +256,10 @@ export class WorkflowActionServiceType extends WorkflowActionType {
     return this.serviceType.icon
   }
 
+  get image() {
+    return this.serviceType.image
+  }
+
   execute({ workflowAction: { id }, applicationContext, resolveFormula }) {
     const data = DataProviderType.getAllActionDispatchContext(
       this.app.$registry.getAll('builderDataProvider'),
@@ -390,11 +395,20 @@ export class AIAgentWorkflowActionType extends WorkflowActionServiceType {
     return 'ai_agent'
   }
 
-  get name() {
-    return this.app.i18n.t('nodeType.aiAgent')
+  get serviceType() {
+    return this.app.$registry.get('service', AIAgentServiceType.getType())
+  }
+}
+
+export class SlackWriteMessageWorkflowActionType extends WorkflowActionServiceType {
+  static getType() {
+    return 'slack_write_message'
   }
 
   get serviceType() {
-    return this.app.$registry.get('service', AIAgentServiceType.getType())
+    return this.app.$registry.get(
+      'service',
+      SlackWriteMessageServiceType.getType()
+    )
   }
 }

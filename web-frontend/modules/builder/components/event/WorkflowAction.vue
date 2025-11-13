@@ -1,7 +1,13 @@
 <template>
   <SidebarExpandable :force-expanded="expanded" @toggle="$emit('toggle')">
     <template #title>
-      <Icon :icon="workflowActionType.icon" />
+      <Icon v-if="workflowActionType.icon" :icon="workflowActionType.icon" />
+      <img
+        v-else-if="workflowActionType.image"
+        alt=""
+        class="workflow_action__image"
+        :src="workflowActionType.image"
+      />
       <span>{{ workflowActionType.label }}</span>
       <Icon
         v-if="errorMessage"

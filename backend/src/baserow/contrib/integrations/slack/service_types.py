@@ -28,6 +28,7 @@ class SlackWriteMessageServiceType(ServiceType):
 
     allowed_fields = ["integration_id", "channel", "text"]
     serializer_field_names = ["integration_id", "channel", "text"]
+    public_serializer_field_names = ["integration_id", "channel", "text"]
     simple_formula_fields = ["text"]
 
     class SerializedDict(ServiceDict):
@@ -54,6 +55,12 @@ class SlackWriteMessageServiceType(ServiceType):
                 help_text=SlackWriteMessageService._meta.get_field("text").help_text
             ),
         }
+
+    @property
+    def public_serializer_field_overrides(self):
+        # When we're exposing this service type via a "public" serializer,
+        #  use the same overrides as usual.
+        return self.serializer_field_overrides
 
     def formulas_to_resolve(
         self, service: SlackWriteMessageService

@@ -121,6 +121,7 @@ import {
   CoreHTTPRequestWorkflowActionType,
   CoreSMTPEmailWorkflowActionType,
   AIAgentWorkflowActionType,
+  SlackWriteMessageWorkflowActionType,
 } from '@baserow/modules/builder/workflowActionTypes'
 
 import {
@@ -388,6 +389,10 @@ export default (context) => {
   app.$registry.register(
     'workflowAction',
     new DeleteRowWorkflowActionType(context)
+  )
+  app.$registry.register(
+    'workflowAction',
+    new SlackWriteMessageWorkflowActionType(context)
   )
 
   app.$registry.register(

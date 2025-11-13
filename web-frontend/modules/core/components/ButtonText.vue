@@ -8,6 +8,7 @@
     v-on="$listeners"
   >
     <i v-if="icon !== '' && !loading" class="button-text__icon" :class="icon" />
+    <img v-else-if="image" alt="" :src="image" class="button-text__image" />
 
     <i v-if="loading" class="button-text__spinner"></i>
     <span v-if="$slots.default" class="button-text__label"><slot /></span>
@@ -57,6 +58,14 @@ export default {
       required: false,
       type: String,
       default: '',
+    },
+    /**
+     * The image of the button. If no icon is provided, this image will be shown.
+     */
+    image: {
+      required: false,
+      type: String,
+      default: null,
     },
     /**
      * If true a loading icon will be shown.
