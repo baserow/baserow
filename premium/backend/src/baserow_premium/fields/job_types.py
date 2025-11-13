@@ -27,6 +27,7 @@ from baserow.core.generative_ai.registries import (
     generative_ai_model_type_registry,
 )
 from baserow.core.handler import CoreHandler
+from baserow.core.job_types import _empty_transaction_context
 from baserow.core.jobs.exceptions import MaxJobCountExceeded
 from baserow.core.jobs.registries import JobType
 from baserow.core.utils import ChildProgressBuilder
@@ -89,7 +90,10 @@ class GenerateAIValuesJobType(JobType):
             return
 
         running_jobs = (
-            GenerateAIValuesJob.objects.filter(user_id=job.user.id)
+            GenerateAIValuesJob.objects.filter(
+                user_id=job.user.id,
+                row_ids__isnull=True,
+            )
             .is_pending_or_running()
             .select_related("field")
         )
@@ -101,13 +105,17 @@ class GenerateAIValuesJobType(JobType):
                 "the same time."
             )
 
-        # No more than 1 job per table
+        # No more than 1 job per field
         for running_job in running_jobs:
-            if running_job.field.table_id == job.field.table_id:
+            if running_job.field_id == job.field_id:
                 raise MaxJobCountExceeded(
                     f"You can only launch 1 {self.type} job(s) at "
-                    "the same time for the same table."
+                    "the same time for the same field."
                 )
+
+    def transaction_atomic_context(self, job: GenerateAIValuesJob):
+        # We want to commit a row at a time to provide faster feedback to the user.
+        return _empty_transaction_context()
 
     def _get_view_queryset(self, user, view_id: int, table_id: int):
         """

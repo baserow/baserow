@@ -270,6 +270,7 @@ def test_job_limiting_table_or_view_mode(premium_data_fixture, params):
     table = premium_data_fixture.create_database_table(database=database)
     view = premium_data_fixture.create_grid_view(table=table)
     field = premium_data_fixture.create_ai_field(table=table, ai_prompt="'test'")
+    field_2 = premium_data_fixture.create_ai_field(table=table, ai_prompt="'test2'")
 
     RowHandler().create_rows(user, table, rows_values=[{}])
     # Manually create a job that won't run
@@ -284,6 +285,15 @@ def test_job_limiting_table_or_view_mode(premium_data_fixture, params):
             **params(view),
             sync=True,
         )
+
+    # It should be possible to schedule a job for a different field on the same table
+    JobHandler().create_and_start_job(
+        user,
+        "generate_ai_values",
+        field_id=field_2.id,
+        **params(view),
+        sync=True,
+    )
 
     # But it should be possible to schedule 2 more jobs for different tables
     table_2 = premium_data_fixture.create_database_table(database=database)

@@ -20,6 +20,7 @@
         :job="job"
         :loading="loading"
         :disabled="!isValid"
+        :cancel-loading="cancelLoading"
         :field="field"
         @cancel-job="cancelJob(job.id)"
       >
@@ -77,6 +78,7 @@ export default {
         (job) => {
           return (
             job.type === GenerateAIValuesJobType.getType() &&
+            job.field_id === this.field.id &&
             job.row_ids === null
           )
         }
