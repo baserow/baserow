@@ -246,7 +246,7 @@ class KnowledgeBaseHandler:
         chunks. The idea is that this `website_export.csv` file can easily be
         exported from the production version of saas.
 
-        It automatically checks if the entry already exists based, and will create,
+        It automatically checks if the entry already exists, and will create,
         update or delete accordingly. This will make sure that if a FAQ question is
         removed from the source, it will also be removed in the documents.
         """
@@ -262,9 +262,6 @@ class KnowledgeBaseHandler:
         if not rows:
             return
 
-        # For `baserow_user_docs`: merge duplicates by (type, slug) by concatenating
-        #   bodies
-        # For `faq`: create a unique slug per row using the CSV `id`.
         pages = {}  # (doc_type, slug) -> page dict
         slugs_by_type = defaultdict(set)
         cat_names = set()
@@ -390,6 +387,13 @@ class KnowledgeBaseHandler:
                     doc_ids_needing_chunks.add(d.id)
 
             if update:
+                # The `updated_on` field is not saved during the bulk update, so we
+                # would need to pre_save this value before.
+                for d in update:
+                    d.updated_on = KnowledgeBaseDocument._meta.get_field(
+                        "updated_on"
+                    ).pre_save(d, add=False)
+
                 KnowledgeBaseDocument.objects.bulk_update(
                     update,
                     [

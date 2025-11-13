@@ -353,6 +353,7 @@ class BaserowEnterpriseConfig(AppConfig):
 
         # The signals must always be imported last because they use the registries
         # which need to be filled first.
+        import baserow_enterprise.assistant.tasks  # noqa: F
         import baserow_enterprise.audit_log.signals  # noqa: F
         import baserow_enterprise.ws.signals  # noqa: F
 
@@ -422,12 +423,19 @@ def sync_default_roles_after_migrate(sender, **kwargs):
 
 
 def sync_assistant_knowledge_base(sender, **kwargs):
+    from baserow_enterprise.assistant.tasks import (
+        sync_assistant_knowledge_base as sync_assistant_knowledge_base_task,
+    )
     from baserow_enterprise.assistant.tools.search_docs.handler import (
         KnowledgeBaseHandler,
     )
 
     if KnowledgeBaseHandler().can_have_knowledge_base():
-        KnowledgeBaseHandler().sync_knowledge_base()
+        print(
+            "Submitting the sync assistant knowledge base task to run asynchronously "
+            "in celery after the migration..."
+        )
+        sync_assistant_knowledge_base_task.delay()
     else:
         print(
             "Skipping assistant knowledge base sync because this instance does not "

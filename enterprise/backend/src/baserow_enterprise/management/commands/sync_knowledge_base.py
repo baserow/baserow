@@ -5,8 +5,8 @@ from baserow_enterprise.assistant.tools.search_docs.handler import KnowledgeBase
 
 class Command(BaseCommand):
     help = (
-        "Load the knowledge base from a file with optional decompression with the "
-        "latest files in the repository."
+        "Sync the knowledge base with the latest data from the website_export.csv "
+        "file in the repository."
     )
 
     def handle(self, *args, **options):

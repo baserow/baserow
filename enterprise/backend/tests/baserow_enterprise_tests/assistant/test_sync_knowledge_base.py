@@ -146,15 +146,12 @@ def test_sync_no_reembedding_when_body_unchanged(handler_and_csv, monkeypatch):
     chunk_before_id = chunk_before.id
 
     # Second sync with same CSV: ensure embedder is NOT called
-    called = {"n": 0}
     monkeypatch.setattr(handler.vector_handler, "embed_texts", fake_embed_texts)
     handler.sync_knowledge_base()
 
     # No new chunks created; existing remains the same id
     chunk_after = KnowledgeBaseChunk.objects.get(source_document=doc)
     assert chunk_after.id == chunk_before_id
-    # Embeddings not recomputed
-    assert called["n"] == 0
 
 
 @pytest.mark.django_db
