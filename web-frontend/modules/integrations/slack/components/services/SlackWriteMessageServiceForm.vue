@@ -50,7 +50,7 @@
 import form from '@baserow/modules/core/mixins/form'
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput.vue'
 import { useVuelidate } from '@vuelidate/core'
-import { required, maxLength, helpers } from '@vuelidate/validators'
+import { maxLength, helpers } from '@vuelidate/validators'
 import IntegrationDropdown from '@baserow/modules/core/components/integrations/IntegrationDropdown.vue'
 
 import { SlackBotIntegrationType } from '@baserow/modules/integrations/slack/integrationTypes'
@@ -73,7 +73,7 @@ export default {
       allowedValues: ['channel', 'text', 'integration_id'],
       values: {
         channel: '',
-        text: '',
+        text: {},
         integration_id: null,
       },
     }
@@ -98,14 +98,12 @@ export default {
     return {
       values: {
         channel: {
-          required,
           maxLength: maxLength(75),
           noPrefix: helpers.withMessage(
             this.$t('slackWriteMessageServiceForm.channelNoPrefix'),
             (value) => !value || !value.startsWith('#')
           ),
         },
-        integration_id: { required },
       },
     }
   },

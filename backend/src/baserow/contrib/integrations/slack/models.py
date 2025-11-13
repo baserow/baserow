@@ -15,7 +15,7 @@ class SlackBotIntegration(Integration):
 
 class SlackWriteMessageService(Service):
     channel = models.CharField(
-        max_length=75,
+        max_length=80,
         help_text="The Slack channel ID where the message will be sent.",
     )
     text = FormulaField(

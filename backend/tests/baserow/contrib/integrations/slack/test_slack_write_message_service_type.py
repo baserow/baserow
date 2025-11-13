@@ -79,6 +79,7 @@ def test_dispatch_slack_write_message_basic(data_fixture):
 @pytest.mark.parametrize(
     "error_code,expected_message",
     [
+        ("no_text", "The message text is missing."),
         ("invalid_auth", "Invalid bot user token."),
         ("channel_not_found", "The channel #general was not found."),
         ("not_in_channel", "Your app has not been invited to channel #general."),

@@ -58,7 +58,7 @@ class Migration(migrations.Migration):
                     "channel",
                     models.CharField(
                         help_text="The Slack channel ID where the message will be sent.",
-                        max_length=75,
+                        max_length=80,
                     ),
                 ),
                 (

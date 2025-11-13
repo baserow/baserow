@@ -112,6 +112,7 @@ class SlackWriteMessageServiceType(ServiceType):
             # Some frequently occurring error codes from Slack API. Full list:
             # https://docs.slack.dev/reference/methods/chat.postMessage/
             misconfigured_service_error_codes = {
+                "no_text": "The message text is missing.",
                 "invalid_auth": "Invalid bot user token.",
                 "channel_not_found": "The channel #{channel} was not found.",
                 "not_in_channel": "Your app has not been invited to channel #{channel}.",
