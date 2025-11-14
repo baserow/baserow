@@ -39,10 +39,6 @@
       </template>
     </div>
 
-    <div v-if="message.can_submit_feedback" class="assistant__disclaimer">
-      {{ $t('assistantMessageActions.disclaimer') }}
-    </div>
-
     <!-- Additional user feedback context for the thumb down button -->
     <Context
       ref="feedbackContext"

@@ -1,7 +1,7 @@
 <template>
   <div class="assistant__messages-list">
     <div
-      v-for="message in messages"
+      v-for="(message, index) in messages"
       :key="message.id"
       class="assistant__message"
       :class="{
@@ -33,7 +33,6 @@
               ></div>
             </div>
 
-            <!-- Sources section - only show for AI messages with sources -->
             <AssistantMessageSources
               v-if="message.role === 'ai'"
               :sources="message.sources"
@@ -44,6 +43,12 @@
         </div>
 
         <AssistantMessageActions :message="message" />
+        <div
+          v-if="message.can_submit_feedback && isLastMessage(index)"
+          class="assistant__disclaimer"
+        >
+          {{ $t('assistantMessageList.disclaimer') }}
+        </div>
       </div>
     </div>
   </div>
@@ -128,6 +133,10 @@ export default {
         messageId,
         !this.expandedSources[messageId]
       )
+    },
+
+    isLastMessage(index) {
+      return index === this.messages.length - 1
     },
   },
 }

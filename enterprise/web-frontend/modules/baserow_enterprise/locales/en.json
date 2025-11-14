@@ -368,13 +368,15 @@
   "assistantMessageSources": {
     "sources": "{count} source | {count} sources"
   },
+  "assistantMessageList": {
+    "disclaimer": "Kuma can make mistakes, please double-check responses"
+  },
   "assistantMessageActions": {
     "feedbackContextTitle": "Help us improve",
     "feedbackContextPlaceholder": "What could we improve? (optional)",
     "copiedToClipboard": "Copied to clipboard",
     "copiedContentToast": "The Assistant's response content has been copied to your clipboard",
-    "copyFailed": "Failed to copy to clipboard",
-    "disclaimer": "Kuma can make mistakes, please double-check responses"
+    "copyFailed": "Failed to copy to clipboard"
   },
   "chatwootSupportSidebarWorkspace": {
     "directSupport": "Direct support"
@@ -683,7 +685,7 @@
     "fieldInvalidTitle": "Date dependency field error"
   },
   "dateDependency": {
-   "invalidChildRow": "Successor row is invalid",
+    "invalidChildRow": "Successor row is invalid",
     "invalidParentRow": "Predecessor row is invalid",
     "invalidParentEndDateAfterChildStartDate": "Predecessor row end date is after successor start date",
     "invalidStartDateEmpty": "Start date is empty",

@@ -122,6 +122,9 @@ class ChatSignature(udspy.Signature):
     __doc__ = f"{ASSISTANT_SYSTEM_PROMPT}\n TASK INSTRUCTIONS: \n"
 
     question: str = udspy.InputField()
+    context: str = udspy.InputField(
+        description="Context and facts extracted from the history to help answer the question."
+    )
     ui_context: dict[str, Any] | None = udspy.InputField(
         default=None,
         desc=(
@@ -131,6 +134,29 @@ class ChatSignature(udspy.Signature):
         ),
     )
     answer: str = udspy.OutputField()
+
+
+class QuestionContextSummarizationSignature(udspy.Signature):
+    """
+    Extract relevant facts from conversation history that provide context for answering
+    the current question. Do not answer the question or modify it - only extract and
+    summarize the relevant historical facts that will help in decision-making.
+    """
+
+    question: str = udspy.InputField(
+        description="The current user question that needs context from history."
+    )
+    previous_messages: list[str] = udspy.InputField(
+        description="Conversation history as alternating user/assistant messages."
+    )
+    facts: str = udspy.OutputField(
+        description=(
+            "Relevant facts extracted from the conversation history as a concise "
+            "paragraph. Include only information that provides necessary context for "
+            "answering the question. Do not answer the question itself, do not modify "
+            "the question, and do not include irrelevant details."
+        )
+    )
 
 
 def get_assistant_cancellation_key(chat_uuid: str) -> str:
@@ -265,7 +291,7 @@ class Assistant:
             msg async for msg in self._chat.messages.order_by("-created_on")[:limit]
         ]
 
-        self.history = udspy.History()
+        self.history: list[str] = []
         while len(last_saved_messages) >= 2:
             # Pop the oldest message pair to respect chronological order.
             first_message = last_saved_messages.pop()
@@ -276,9 +302,9 @@ class Assistant:
             ):
                 continue
 
-            self.history.add_user_message(first_message.content)
+            self.history.append(f"Human: {first_message.content}")
             ai_answer = last_saved_messages.pop()
-            self.history.add_assistant_message(ai_answer.content)
+            self.history.append(f"AI: {ai_answer.content}")
 
     @lru_cache(maxsize=1)
     def check_llm_ready_or_raise(self):
@@ -376,17 +402,20 @@ class Assistant:
             cache.delete(cache_key)
             raise AssistantMessageCancelled(message_id=message_id)
 
-    async def _enhance_question_with_history(self, question: str) -> str:
-        """Enhance the user question with chat history context if available."""
+    async def _summarize_context_from_history(self, question: str) -> str:
+        """
+        Extract relevant facts from chat history to provide context for the question.
+        """
 
-        if not self.history.messages:
-            return question
+        if not self.history:
+            return ""
 
-        predictor = udspy.Predict("question, context -> enhanced_question")
+        predictor = udspy.Predict(QuestionContextSummarizationSignature)
         result = await predictor.aforward(
-            question=question, context=self.history.messages
+            question=question,
+            previous_messages=self.history,
         )
-        return result.enhanced_question
+        return result.facts
 
     async def _process_stream_event(
         self,
@@ -458,12 +487,13 @@ class Assistant:
             if self.history is None:
                 await self.aload_chat_history()
 
-            user_question = await self._enhance_question_with_history(
+            context_from_history = await self._summarize_context_from_history(
                 human_message.content
             )
 
             output_stream = self._assistant.astream(
-                question=user_question,
+                question=human_message.content,
+                context=context_from_history,
                 ui_context=human_message.ui_context.model_dump_json(exclude_none=True),
             )
 

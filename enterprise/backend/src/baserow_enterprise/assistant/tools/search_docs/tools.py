@@ -43,7 +43,7 @@ class SearchDocsRAG(udspy.Module):
         self.rag = udspy.ChainOfThought(SearchDocsSignature)
 
     def forward(self, question: str, *args, **kwargs):
-        context = KnowledgeBaseHandler().search(question, num_results=10)
+        context = KnowledgeBaseHandler().search(question, num_results=7)
         return self.rag(context=context, question=question)
 
 
