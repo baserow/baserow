@@ -32,7 +32,7 @@ def get_db_alias() -> str | None:
 
 def set_db_alias_for_read():
     """
-    Choose a read replica for read queries, unless we are in an atomic block, in
+    Choose a read replica for read queries, unless we are in an atomic block,
     in which case we should use the primary database to avoid replication lag issues
     or trying to lock data in a read replica.
     Once a read replica is chosen, it is pinned for the duration of the request or
