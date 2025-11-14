@@ -2,7 +2,6 @@
   <FormulaInputField
     v-bind="$attrs"
     required
-    enable-advanced-mode
     :value="formulaStr"
     :mode="localMode"
     :loading="dataExplorerLoading"

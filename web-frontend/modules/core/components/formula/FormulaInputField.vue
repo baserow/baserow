@@ -20,7 +20,6 @@
       :loading="loading"
       :mode="mode"
       :allow-node-selection="allowNodeSelection"
-      :enable-advanced-mode="enableAdvancedMode"
       :nodes-hierarchy="nodesHierarchy"
       @node-selected="handleNodeSelected"
       @node-unselected="unSelectNode"
@@ -66,7 +65,6 @@ import { RuntimeFunctionCollection } from '@baserow/modules/core/functionCollect
 import { FromTipTapVisitor } from '@baserow/modules/core/formula/tiptap/fromTipTapVisitor'
 import { mergeAttributes } from '@tiptap/core'
 import FormulaInputContext from '@baserow/modules/core/components/formula/FormulaInputContext'
-import { FF_ADVANCED_FORMULA } from '@baserow/modules/core/plugins/featureFlags'
 import { isFormulaValid } from '@baserow/modules/core/formula'
 import NodeHelpTooltip from '@baserow/modules/core/components/nodeExplorer/NodeHelpTooltip'
 import { fixPropertyReactivityForProvide } from '@baserow/modules/core/utils/object'
@@ -153,7 +151,6 @@ export default {
       isFormulaInvalid: false,
       isFocused: false,
       hoveredFunctionNode: null,
-      enableAdvancedMode: this.$featureFlagIsEnabled(FF_ADVANCED_FORMULA),
       isHandlingModeChange: false,
       intersectionObserver: null,
       key: 0,
