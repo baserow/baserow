@@ -13,14 +13,24 @@
       :disabled="disabled"
       :error="hasError"
       size="regular"
-      @change="$emit('input', $event)"
+      @change="
+        isAddNew($event) ? $emit('add-new', $event) : null
+        $emit('input', $event)
+      "
     >
       <DropdownItem
         v-for="r in fields"
         :key="r.id"
         :name="r.name"
         :value="r.id"
-        :icon="r.id ? icon : null"
+        :icon="r.icon ? r.icon : r.id ? icon : null"
+      ></DropdownItem>
+
+      <DropdownItem
+        v-if="addNew"
+        :name="$t('dateDependencyModal.addNewField')"
+        value="add-new"
+        icon="iconoir-plus"
       ></DropdownItem>
     </Dropdown>
     <template #error>{{ errors[0].$message }}</template>
@@ -66,6 +76,7 @@ export default {
       default: null,
     },
     disabled: { type: Boolean, required: false, default: false },
+    addNew: { type: Boolean, required: false, default: false },
   },
   computed: {
     errorMessageStr() {
@@ -76,6 +87,11 @@ export default {
     },
     hasError() {
       return Boolean(this.errors?.length > 0)
+    },
+  },
+  methods: {
+    isAddNew(value) {
+      return value === 'add-new'
     },
   },
 }
