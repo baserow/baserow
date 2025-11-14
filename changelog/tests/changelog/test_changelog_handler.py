@@ -18,29 +18,29 @@ def test_add_entry(fs):
 
 def test_get_changelog_entries(fs):
     handler = ChangelogHandler()
-    handler.add_entry(DatabaseDomain.type, BugChangelogEntry.type, "1")
-    handler.add_entry(DatabaseDomain.type, BugChangelogEntry.type, "2")
+    handler.add_entry(DatabaseDomain.type, BugChangelogEntry.type, "msg1")
+    handler.add_entry(DatabaseDomain.type, BugChangelogEntry.type, "msg2")
 
     changelog_entries = handler.get_changelog_entries()
 
     assert BugChangelogEntry.type in changelog_entries
     assert [
-        BugChangelogEntry().generate_entry_dict(DatabaseDomain.type, "1"),
-        BugChangelogEntry().generate_entry_dict(DatabaseDomain.type, "2"),
+        BugChangelogEntry().generate_entry_dict(DatabaseDomain.type, "msg1", "github"),
+        BugChangelogEntry().generate_entry_dict(DatabaseDomain.type, "msg2", "github"),
     ] in changelog_entries.values()
 
 
 def test_get_changelog_entries_order(fs):
     handler = ChangelogHandler()
-    handler.add_entry(DatabaseDomain.type, BugChangelogEntry.type, "2")
-    handler.add_entry(DatabaseDomain.type, BugChangelogEntry.type, "1")
+    handler.add_entry(DatabaseDomain.type, BugChangelogEntry.type, "msg2")
+    handler.add_entry(DatabaseDomain.type, BugChangelogEntry.type, "msg1")
 
     changelog_entries = handler.get_changelog_entries()
 
     assert BugChangelogEntry.type in changelog_entries
     assert [
-        BugChangelogEntry().generate_entry_dict(DatabaseDomain.type, "1"),
-        BugChangelogEntry().generate_entry_dict(DatabaseDomain.type, "2"),
+        BugChangelogEntry().generate_entry_dict(DatabaseDomain.type, "msg1", "github"),
+        BugChangelogEntry().generate_entry_dict(DatabaseDomain.type, "msg2", "github"),
     ] in changelog_entries.values()
 
 

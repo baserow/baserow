@@ -35,10 +35,16 @@ class AutomationDomain(BaserowDomain):
     heading = "Automation"
 
 
+class IntegrationDomain(BaserowDomain):
+    type = "integration"
+    heading = "Integration"
+
+
 domain_types: Dict[str, type[BaserowDomain]] = {
     CoreDomain.type: CoreDomain,
     DashboardDomain.type: DashboardDomain,
     DatabaseDomain.type: DatabaseDomain,
     BuilderDomain.type: BuilderDomain,
     AutomationDomain.type: AutomationDomain,
+    IntegrationDomain.type: IntegrationDomain,
 }

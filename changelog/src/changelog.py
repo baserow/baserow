@@ -43,7 +43,11 @@ def add(working_dir: Optional[str] = typer.Option(default=default_path)):
         issue_number = None
 
     ChangelogHandler(working_dir).add_entry(
-        domain_type, changelog_type, message, issue_number=issue_number
+        domain_type,
+        changelog_type,
+        message,
+        issue_number=issue_number,
+        issue_origin="github",  # All new changelogs originate from GitHub
     )
 
 
