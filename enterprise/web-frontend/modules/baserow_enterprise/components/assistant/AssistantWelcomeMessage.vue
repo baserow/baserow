@@ -26,7 +26,11 @@
       {{ $t('assistantWelcomeMessage.question') }}
     </h2>
     <p class="assistant__welcome-subtitle">
-      {{ $t('assistantWelcomeMessage.subtitle') }}
+      {{
+        suggestions.length === 0
+          ? $t('assistantWelcomeMessage.subtitleWithoutSuggestions')
+          : $t('assistantWelcomeMessage.subtitle')
+      }}
     </p>
     <a
       v-for="suggestion in suggestions"
@@ -73,46 +77,73 @@ export default {
       return image
     },
     suggestions() {
-      const applicationType = this.uiContext.applicationType || null
-      console.log(applicationType)
+      let type = this.uiContext.applicationType || null
+      if (this.uiContext.table) {
+        type = 'table'
+      }
       const mapping = {
         null: [
           {
             id: 'database',
             icon: 'iconoir-view-grid',
-            title: 'Create a database',
-            prompt: 'Build a project management database.',
+            title: this.$t('assistantWelcomeMessage.promptCreateDatabaseTitle'),
+            prompt: this.$t(
+              'assistantWelcomeMessage.promptCreateDatabasePrompt'
+            ),
           },
           {
             id: 'automation',
             icon: 'baserow-icon-automation',
-            title: 'Create an automation',
-            prompt:
-              'Create an automation that every Tuesday in the morning ask in the Slack developers channel if there is anything to demo.',
+            title: this.$t(
+              'assistantWelcomeMessage.promptCreateAutomationTitle'
+            ),
+            prompt: this.$t(
+              'assistantWelcomeMessage.promptCreateAutomationPrompt'
+            ),
+          },
+          {
+            id: 'how',
+            icon: 'iconoir-send-mail',
+            title: this.$t('assistantWelcomeMessage.promptInviteUsersTitle'),
+            prompt: this.$t('assistantWelcomeMessage.promptInviteUsersPrompt'),
           },
         ],
         database: [
           {
+            id: 'table',
+            icon: 'iconoir-view-grid',
+            title: this.$t('assistantWelcomeMessage.promptCreateTableTitle'),
+            prompt: this.$t('assistantWelcomeMessage.promptCreateTablePrompt'),
+          },
+          {
+            id: 'which-tables',
+            icon: 'iconoir-view-grid',
+            title: this.$t('assistantWelcomeMessage.promptWhichTablesTitle'),
+            prompt: this.$t('assistantWelcomeMessage.promptWhichTablesPrompt'),
+          },
+        ],
+        table: [
+          {
             id: 'form',
             icon: 'iconoir-submit-document',
-            title: 'Create a form',
-            prompt: 'Create a form for this table.',
+            title: this.$t('assistantWelcomeMessage.promptCreateFormTitle'),
+            prompt: this.$t('assistantWelcomeMessage.promptCreateFormPrompt'),
           },
           {
             id: 'filter',
             icon: 'iconoir-filter',
-            title: 'Create a filter',
-            prompt: 'Show only rows where the primary field is empty.',
+            title: this.$t('assistantWelcomeMessage.promptCreateFilterTitle'),
+            prompt: this.$t('assistantWelcomeMessage.promptCreateFilterPrompt'),
           },
           {
             id: 'table',
             icon: 'iconoir-view-grid',
-            title: 'Create a table',
-            prompt: 'Create a new table named tasks.',
+            title: this.$t('assistantWelcomeMessage.promptCreateTableTitle'),
+            prompt: this.$t('assistantWelcomeMessage.promptCreateTablePrompt'),
           },
         ],
       }
-      return mapping[applicationType] || []
+      return mapping[type] || []
     },
   },
 }

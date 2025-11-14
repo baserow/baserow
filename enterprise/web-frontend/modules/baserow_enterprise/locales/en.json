@@ -331,7 +331,22 @@
   "assistantWelcomeMessage": {
     "greet": "Hey {name}",
     "question": "my name is Kuma!",
-    "subtitle": "I’ll help you bear the load so it never feels heavy. Choose from the prompts below or just tell me what you need!"
+    "subtitle": "I’ll help you bear the load so it never feels heavy. Choose from the prompts below or just tell me what you need!",
+    "subtitleWithoutSuggestions": "I’ll help you bear the load so it never feels heavy. Just tell me what you need!",
+    "promptCreateDatabaseTitle": "Create a database",
+    "promptCreateDatabasePrompt": "Build a project management database.",
+    "promptCreateAutomationTitle": "Create an automation",
+    "promptCreateAutomationDatabasePrompt": "Create an automation that every Tuesday in the morning ask in the Slack developers channel if there is anything to demo.",
+    "promptInviteUsersTitle": "Invite users",
+    "promptInviteUsersPrompt": "How do I invite users to my workspace?",
+    "promptCreateTableTitle": "Create a table",
+    "promptCreateTablePrompt": "Create a new table named tasks.",
+    "promptWhichTablesTitle": "Which tables",
+    "promptWhichTablesPrompt": "Which tables do I have in this database?",
+    "promptCreateFormTitle": "Create a form",
+    "promptCreateFormPrompt": "Create a form for this table.",
+    "promptCreateFilterTitle": "Create a filter",
+    "promptCreateFilterPrompt": "Show only rows where the primary field is empty."
   },
   "assistantInputMessage": {
     "statusWaiting": "Assistant is ready to help",
