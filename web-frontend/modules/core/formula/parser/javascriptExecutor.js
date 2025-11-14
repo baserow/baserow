@@ -68,6 +68,10 @@ export default class JavascriptExecutor extends BaserowFormulaVisitor {
 
     formulaFunctionType.validateArgs(args, this.validateArgsType)
 
+    if (!this.validateArgsType) {
+      return null
+    }
+
     const argsParsed = formulaFunctionType.parseArgs(args)
 
     return formulaFunctionType.execute(this.context, argsParsed)
