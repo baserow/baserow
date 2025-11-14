@@ -262,7 +262,9 @@ class UserFileHandler:
         file_name = truncate_middle(file_name, 64)
 
         existing_user_file = UserFile.objects.filter(
-            original_name=file_name, sha256_hash=stream_hash
+            original_name=file_name,
+            sha256_hash=stream_hash,
+            deleted_at__isnull=True,
         ).first()
 
         if existing_user_file:
