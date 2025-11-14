@@ -4,7 +4,7 @@ module.exports = {
   displayName: 'enterprise-unit',
   testEnvironment: 'jsdom',
   testMatch: ['<rootDir>/test/unit/**/*.spec.js'],
-  moduleFileExtensions: ['js', 'json', 'vue'],
+  moduleFileExtensions: ['js', 'json', 'vue', '.mjs'],
   moduleDirectories: [
     path.join(__dirname, '/../../web-frontend/node_modules/'),
   ],
@@ -27,7 +27,7 @@ module.exports = {
     ),
   },
   transform: {
-    '^.+\\.js$': [
+    '^.+\\.(mjs|js)$': [
       'babel-jest',
       {
         configFile: path.join(__dirname, '/../../web-frontend/babel.config.js'),
@@ -37,6 +37,7 @@ module.exports = {
     '^.+\\.(gif|ico|jpg|jpeg|png|svg)$':
       '../../web-frontend/test/helpers/stubFileTransformer.js',
   },
+  transformIgnorePatterns: ['/node_modules/(?!@nuxtjs/composition-api)'],
   setupFilesAfterEnv: [
     path.join(__dirname, '/../../enterprise/web-frontend/jest.setup.js'),
   ],
