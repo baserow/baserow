@@ -76,6 +76,15 @@ export default {
     this.adjustHeight()
   },
   methods: {
+    setCurrentMessage(message) {
+      this.currentMessage = message
+
+      this.$nextTick(() => {
+        this.calculateLineHeight()
+        this.adjustHeight()
+        this.$refs.textarea.focus()
+      })
+    },
     handleEnter(event) {
       // If shift key is pressed, allow the default behavior (new line)
       if (!event.shiftKey) {

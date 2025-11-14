@@ -42,6 +42,7 @@
   padding: 20px 11px 0 20px;
   overflow-y: auto;
   display: flex;
+  flex-direction: column;
   scrollbar-gutter: stable;
 }
 
@@ -71,7 +72,7 @@
   @extend %ellipsis;
 
   font-size: 13px;
-  font-weight: ⁨;
+  font-weight: 500;
   line-height: 20px;
   flex: 1;
 
@@ -82,7 +83,8 @@
 }
 
 .assistant__welcome {
-  flex: 1;
+  flex: 0 0 auto;
+  min-height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -137,6 +139,64 @@
 
 .assistant__welcome-title-greeting {
   color: $palette-neutral-700;
+}
+
+.assistant__suggestions {
+  padding-bottom: 12px;
+}
+
+.assistant__suggestion {
+  display: flex;
+  gap: 18px;
+  border: solid 1px $palette-neutral-200;
+  padding: 14px 18px;
+  text-align: left;
+  width: 100%;
+  margin-bottom: 12px;
+
+  @include rounded($rounded-xl);
+  @include elevation($elevation-low);
+
+  &:hover {
+    text-decoration: none;
+    border-color: $palette-neutral-400;
+  }
+}
+
+.assistant__suggestion-icon-wrapper {
+  flex: 0 0 40px;
+}
+
+.assistant__suggestion-icon {
+  width: 40px;
+  height: 40px;
+  line-height: 40px;
+  border-radius: 100%;
+  background-color: $palette-neutral-50;
+  color: $palette-neutral-700;
+  text-align: center;
+}
+
+.assistant__suggestion-text {
+  min-width: 0;
+}
+
+.assistant__suggestion-title {
+  @extend %ellipsis;
+
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
+  margin-bottom: 4px;
+  color: $palette-neutral-1200;
+}
+
+.assistant__suggestion-description {
+  @extend %ellipsis;
+
+  font-size: 12px;
+  line-height: 20px;
+  color: $palette-neutral-900;
 }
 
 .assistant__input {

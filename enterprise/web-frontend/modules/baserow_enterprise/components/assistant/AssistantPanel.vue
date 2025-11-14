@@ -46,10 +46,13 @@
       <AssistantWelcomeMessage
         v-else
         :name="user.first_name"
+        :ui-context="uiContext"
+        @prompt="$refs.message.setCurrentMessage($event)"
       ></AssistantWelcomeMessage>
     </div>
     <div class="assistant__footer">
       <AssistantInputMessage
+        ref="message"
         :ui-context="uiContext"
         :is-running="isAssistantRunning"
         :running-message="assistantRunningMessage"
