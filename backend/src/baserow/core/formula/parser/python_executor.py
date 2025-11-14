@@ -1,5 +1,3 @@
-from decimal import Decimal
-
 from baserow.core.formula import BaserowFormula, BaserowFormulaVisitor
 from baserow.core.formula.parser.exceptions import (
     BaserowFormulaSyntaxError,
@@ -31,7 +29,7 @@ class BaserowPythonExecutor(BaserowFormulaVisitor):
         return self.process_string(ctx)
 
     def visitDecimalLiteral(self, ctx: BaserowFormula.DecimalLiteralContext):
-        return Decimal(ctx.getText())
+        return float(ctx.getText())
 
     def visitBooleanLiteral(self, ctx: BaserowFormula.BooleanLiteralContext):
         return ctx.TRUE() is not None
