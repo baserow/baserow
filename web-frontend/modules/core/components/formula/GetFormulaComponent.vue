@@ -112,9 +112,7 @@ export default {
           (/^\d+$/.test(identifier) || identifier === '*')
         ) {
           translatedParts.push(
-            identifier === '*'
-              ? `[${this.$t('getFormulaComponent.all')}]`
-              : identifier
+            identifier === '*' ? `[${this.$t('common.all')}]` : identifier
           )
         } else {
           translatedParts.push(identifier)
