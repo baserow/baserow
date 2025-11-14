@@ -2024,6 +2024,13 @@ class FieldType(
 
         return field_name
 
+    def to_runtime_formula_value(self, field, value):
+        """
+        Transform the value to be usable in runtime formula land.
+        """
+
+        return value
+
 
 class ReadOnlyFieldType(FieldType):
     read_only = True

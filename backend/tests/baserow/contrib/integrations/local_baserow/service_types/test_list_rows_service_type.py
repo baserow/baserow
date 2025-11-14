@@ -1121,8 +1121,8 @@ def test_dispatch_transform_passes_field_ids(mock_get_serializer, field_names):
     """
 
     mock_serializer_instance = MagicMock()
-    mock_serializer_instance.data.return_value = "foo"
     mock_serializer = MagicMock(return_value=mock_serializer_instance)
+    mock_serializer.data = []
     mock_get_serializer.return_value = mock_serializer
 
     service_type = LocalBaserowListRowsUserServiceType()
@@ -1139,7 +1139,7 @@ def test_dispatch_transform_passes_field_ids(mock_get_serializer, field_names):
 
     assert results.data == {
         "has_next_page": False,
-        "results": mock_serializer_instance.data,
+        "results": mock_serializer.data,
     }
     mock_get_serializer.assert_called_once_with(
         dispatch_data["baserow_table_model"],

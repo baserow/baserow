@@ -490,13 +490,15 @@ class PreviousActionProviderType(BuilderDataProviderType):
             cache_key = self.get_dispatch_action_cache_key(
                 dispatch_id, workflow_action.id
             )
-            prepared_path = workflow_action.service.get_type().prepare_value_path(
-                workflow_action.service.specific, rest
-            )
-            return get_value_at_path(cache.get(cache_key), prepared_path)
+            dispatch_result = cache.get(cache_key)
+            service = workflow_action.service.specific
+            prepared_path = service.get_type().prepare_value_path(service, rest)
         else:
             # Frontend actions
-            return get_value_at_path(previous_action_results[previous_action_id], rest)
+            dispatch_result = previous_action_results[previous_action_id]
+            prepared_path = rest
+
+        return get_value_at_path(dispatch_result, prepared_path)
 
     def post_dispatch(
         self,

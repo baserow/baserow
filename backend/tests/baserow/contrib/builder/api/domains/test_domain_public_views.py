@@ -915,12 +915,12 @@ def test_public_dispatch_data_source_view_returns_all_fields(
             {
                 "id": rows[0].id,
                 fields[0].name: "Paneer Tikka",
-                fields[1].name: "5",
+                fields[1].name: 5,
             },
             {
                 "id": rows[1].id,
                 fields[0].name: "Gobi Manchurian",
-                fields[1].name: "8",
+                fields[1].name: 8,
             },
         ],
     }

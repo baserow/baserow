@@ -2385,13 +2385,13 @@ def test_private_dispatch_data_source_view_returns_all_fields(api_client, data_f
                 # Although only field_1 is explicitly used by an element in this
                 # page, field_2 is still returned because the Editor page needs
                 # access to all data source fields.
-                fields[1].name: "5",
+                fields[1].name: 5,
                 "id": AnyInt(),
                 "order": AnyStr(),
             },
             {
                 fields[0].name: "Gobi Manchurian",
-                fields[1].name: "8",
+                fields[1].name: 8,
                 "id": AnyInt(),
                 "order": AnyStr(),
             },

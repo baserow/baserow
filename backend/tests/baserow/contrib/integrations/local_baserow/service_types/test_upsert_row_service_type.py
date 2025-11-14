@@ -782,8 +782,8 @@ def test_dispatch_transform_passes_field_ids(
     """
 
     mock_serializer_instance = MagicMock()
-    mock_serializer_instance.data.return_value = "foo"
     mock_serializer = MagicMock(return_value=mock_serializer_instance)
+    mock_serializer.data = {}
     mock_get_serializer.return_value = mock_serializer
 
     service_type = LocalBaserowUpsertRowServiceType()
@@ -796,7 +796,7 @@ def test_dispatch_transform_passes_field_ids(
 
     results = service_type.dispatch_transform(dispatch_data)
 
-    assert results.data == mock_serializer_instance.data
+    assert results.data == mock_serializer.data
     mock_get_serializer.assert_called_once_with(
         dispatch_data["baserow_table_model"],
         RowSerializer,

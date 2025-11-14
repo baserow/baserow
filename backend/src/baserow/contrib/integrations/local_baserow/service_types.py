@@ -241,6 +241,34 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
 
         return [human_name, *rest]
 
+    def _prepare_one_row(self, mapping, row):
+        def convert(key, value):
+            if key in mapping:
+                return mapping[key]["type"].to_runtime_formula_value(
+                    mapping[key]["field"], value
+                )
+            return value
+
+        return {key: convert(key, value) for key, value in row.items()}
+
+    def _prepare_result(self, table_model, dispatch_result):
+        mapping = {
+            field_obj["field"].name: field_obj
+            for field_obj in table_model.get_field_objects() or []
+        }
+
+        if self.returns_list:
+            return {
+                **dispatch_result,
+                "results": [
+                    self._prepare_one_row(mapping, r)
+                    for r in dispatch_result["results"]
+                ],
+            }
+
+        else:
+            return self._prepare_one_row(mapping, dispatch_result)
+
     def build_queryset(
         self,
         service: LocalBaserowTableService,
@@ -1093,12 +1121,15 @@ class LocalBaserowListRowsUserServiceType(
             user_field_names=True,
         )
 
-        return DispatchResult(
-            data={
+        result = self._prepare_result(
+            dispatch_data["baserow_table_model"],
+            {
                 "results": serializer(dispatch_data["results"], many=True).data,
                 "has_next_page": dispatch_data["has_next_page"],
-            }
+            },
         )
+
+        return DispatchResult(data=result)
 
     def get_record_names(
         self,
@@ -1611,32 +1642,6 @@ class LocalBaserowGetRowUserServiceType(
 
         return self.import_path(path, id_mapping)
 
-    def dispatch_transform(self, dispatch_data: Dict[str, Any]) -> DispatchResult:
-        """
-        Responsible for serializing the `dispatch_data` row.
-
-        :param dispatch_data: The `dispatch_data` result.
-        :return:
-        """
-
-        field_ids = (
-            extract_field_ids_from_list(dispatch_data["public_allowed_properties"])
-            if isinstance(dispatch_data["public_allowed_properties"], list)
-            else None
-        )
-
-        serializer = get_row_serializer_class(
-            dispatch_data["baserow_table_model"],
-            RowSerializer,
-            is_response=True,
-            field_ids=field_ids,
-            user_field_names=True,
-        )
-
-        serialized_row = serializer(dispatch_data["data"]).data
-
-        return DispatchResult(data=serialized_row)
-
     def dispatch_data(
         self,
         service: LocalBaserowGetRow,
@@ -1682,6 +1687,34 @@ class LocalBaserowGetRowUserServiceType(
             }
         except table_model.DoesNotExist:
             raise DoesNotExist()
+
+    def dispatch_transform(self, dispatch_data: Dict[str, Any]) -> DispatchResult:
+        """
+        Responsible for serializing the `dispatch_data` row.
+
+        :param dispatch_data: The `dispatch_data` result.
+        :return:
+        """
+
+        field_ids = (
+            extract_field_ids_from_list(dispatch_data["public_allowed_properties"])
+            if isinstance(dispatch_data["public_allowed_properties"], list)
+            else None
+        )
+
+        serializer = get_row_serializer_class(
+            dispatch_data["baserow_table_model"],
+            RowSerializer,
+            is_response=True,
+            field_ids=field_ids,
+            user_field_names=True,
+        )
+
+        serialized_row = self._prepare_result(
+            dispatch_data["baserow_table_model"], serializer(dispatch_data["data"]).data
+        )
+
+        return DispatchResult(data=serialized_row)
 
 
 class LocalBaserowUpsertRowServiceType(
@@ -2123,7 +2156,10 @@ class LocalBaserowUpsertRowServiceType(
             field_ids=field_ids,
             user_field_names=True,
         )
-        serialized_row = serializer(dispatch_data["data"]).data
+
+        serialized_row = self._prepare_result(
+            dispatch_data["baserow_table_model"], serializer(dispatch_data["data"]).data
+        )
 
         return DispatchResult(data=serialized_row)
 
@@ -2291,6 +2327,8 @@ class LocalBaserowRowsSignalServiceType(
             "results": serializer(rows, many=True).data,
             "has_next_page": False,
         }
+
+        data_to_process = self._prepare_result(table.get_model(), data_to_process)
 
         self._process_event(
             self.model_class.objects.filter(table=table),

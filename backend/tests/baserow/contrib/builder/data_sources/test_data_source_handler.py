@@ -596,13 +596,13 @@ def test_dispatch_data_source_doesnt_return_formula_field_names(
                 "id": 1,
                 "order": "1.00000000000000000000",
                 fields[0].name: "Paneer Tikka",
-                fields[1].name: "5",
+                fields[1].name: 5,
             },
             {
                 "id": 2,
                 "order": "2.00000000000000000000",
                 fields[0].name: "Gobi Manchurian",
-                fields[1].name: "8",
+                fields[1].name: 8,
             },
         ],
     }

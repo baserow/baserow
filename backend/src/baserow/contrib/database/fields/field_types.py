@@ -867,6 +867,19 @@ class NumberFieldType(FieldType):
             raise ValueError(f"Invalid value for number field: {value}")
         return value
 
+    def to_runtime_formula_value(self, field, value):
+        """
+        Transform the value to be usable in runtime formula land.
+        """
+
+        if value is None or value == "":
+            return None
+
+        if field.number_decimal_places == 0:
+            return int(Decimal(value))
+
+        return float(Decimal(value))
+
 
 class RatingFieldType(FieldType):
     type = "rating"
