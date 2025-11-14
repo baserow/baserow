@@ -103,11 +103,13 @@ To enable the AI assistant, you need to configure the LLM model and provide the 
 ```yaml
 global:
   baserow:
-    assistantLLMModel: "openai/gpt-oss-120b"
+    assistantLLMModel: "groq/openai/gpt-oss-120b"
 
 backendSecrets:
-  OPENAI_API_KEY: "your-openai-api-key"
+  GROQ_API_KEY: "your-groq-api-key"
 ```
+
+More information about the available providers can be found here: https://baserow.io/docs/installation%2Fai-assistant
 
 ### Enable Embeddings Service
 
