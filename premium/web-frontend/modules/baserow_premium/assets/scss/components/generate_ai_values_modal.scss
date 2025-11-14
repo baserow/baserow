@@ -1,0 +1,49 @@
+.generate-ai-values__list {
+  border-top: 1px solid $color-neutral-200;
+  padding-top: 30px;
+  margin-top: 30px;
+}
+
+.generate-ai-values-job {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  &:not(:last-child) {
+    margin-bottom: 20px;
+  }
+
+  &__info {
+    min-height: 36px;
+    flex-grow: 1;
+    display: flex;
+    align-items: center;
+  }
+
+  &__name {
+    font-weight: 600;
+    padding-bottom: 5px;
+
+    &.deleted-view {
+      text-decoration: line-through;
+      opacity: 0.6;
+    }
+  }
+
+  &__detail {
+    color: $color-neutral-500;
+    margin-bottom: 8px;
+  }
+
+  &__progress {
+    max-width: 300px;
+  }
+
+  &__actions {
+    margin-left: 12px;
+  }
+
+  &__cancel {
+    color: $color-error-500;
+  }
+}

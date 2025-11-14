@@ -36,5 +36,24 @@ export default (client) => {
 
       return client.post(`/jobs/`, payload)
     },
+    listGenerateAIValuesJobs(fieldId = null, states = null, limit = null) {
+      const params = new URLSearchParams()
+      if (fieldId !== null) {
+        params.append('field_id', fieldId)
+      }
+      if (states !== null) {
+        params.append(
+          'states',
+          Array.isArray(states) ? states.join(',') : states
+        )
+      }
+      if (limit !== null) {
+        params.append('limit', limit)
+      }
+
+      return client.get(
+        `/database/fields/generate-ai-field-values/jobs/?${params.toString()}`
+      )
+    },
   }
 }
