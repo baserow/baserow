@@ -154,7 +154,7 @@ export class FromTipTapVisitor {
 
     // In advanced mode, we need to escape actual newlines in the text
     // to make them valid in string literals
-    cleanText = cleanText.replace(/\n/g, '\\n')
+    cleanText = cleanText.replace(/\n/g, '\n')
     return cleanText
   }
 
