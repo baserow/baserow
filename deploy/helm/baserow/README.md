@@ -94,31 +94,31 @@ baserow-backend-wsgi:
 
 ## AI and Embeddings Configuration
 
-Baserow supports multiple AI providers for generative AI features and the AI assistant. The embeddings service powers semantic search for the AI assistant's documentation lookup feature.
+Baserow supports multiple AI providers for generative AI features and the AI assistant. The embeddings service powers semantic search for the AI assistant's documentation lookup feature. For more documentation check the [Baserow AI documentation](/docs/installation/ai-assistant.md).
+
+### Enable AI Assistant
+
+To enable the AI assistant, you need to configure the LLM model and provide the necessary API keys for the chosen provider.
+
+```yaml
+global:
+  baserow:
+    assistantLLMModel: "openai/gpt-oss-120b"
+
+backendSecrets:
+  OPENAI_API_KEY: "your-openai-api-key"
+```
 
 ### Enable Embeddings Service
 
-The AI assistant uses the embeddings service and requires an LLM model to be configured. The embeddings service is automatically configured when enabled.
+The AI assistant uses the embeddings service and requires the LLM model to be configured. You need to enable this next to the global ai configuration.
 
 #### Basic Configuration
 
 ```yaml
 baserow-embeddings:
   enabled: true
-  assistantLLMModel: "groq/openai/gpt-oss-120b"
-
-backendSecrets:
-  # Add the appropriate API key for your chosen model provider
-  GROQ_API_KEY: "gsk_..."
 ```
-
-The assistantLLMModel option sets the LLM model to use for the AI assistant it follows the [LiteLLM provider format](https://docs.litellm.ai/docs/providers)
-
-- Examples:
-  - Groq: `groq/openai/gpt-oss-120b` or `groq/llama-3.1-70b-versatile`
-  - OpenAI: `openai/gpt-4o` or `openai/gpt-3.5-turbo`
-  - Anthropic: `anthropic/claude-3-5-sonnet-20241022`
-  - Bedrock: `bedrock/anthropic.claude-3-sonnet-20240229-v1:0`
 
 ## Different Cloud Providers
 

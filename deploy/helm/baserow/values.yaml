@@ -59,6 +59,7 @@ global:
     domain: cluster.local
     backendDomain: api.cluster.local
     objectsDomain: objects.cluster.local
+    assistantLLMModel: "openai/gpt-oss-120b"
 
     securityContext:
       enabled: false
@@ -564,7 +565,6 @@ baserow-celery-flower:
 ## @param baserow-embeddings.livenessProbe.timeoutSeconds Timeout for liveness probe.
 baserow-embeddings:
   enabled: false
-  assistantLLMModel: "groq/openai/gpt-oss-120b"
   image:
     repository: embeddings
   resources:
