@@ -1,3 +1,5 @@
+from typing import Type
+
 from django.db.models import QuerySet
 
 from baserow_premium.generative_ai.managers import AIFileManager
@@ -34,6 +36,18 @@ from baserow.core.utils import ChildProgressBuilder
 
 from .models import AIField, GenerateAIValuesJob
 from .registries import ai_field_output_registry
+
+
+class GenerateAIValuesJobFiltersSerializer(serializers.Serializer):
+    """
+    Adds the ability to filter GenerateAIValuesJob by AI field ID.
+    """
+
+    generate_ai_values_field_id = serializers.IntegerField(
+        min_value=1,
+        required=False,
+        help_text="Filter by the AI field ID.",
+    )
 
 
 class GenerateAIValuesJobType(JobType):
@@ -208,6 +222,15 @@ class GenerateAIValuesJobType(JobType):
             ViewHandler().get_view_as_user(user, view_id, table_id=ai_field.table.id)
 
         return values
+
+    def get_filters_serializer(self) -> Type[serializers.Serializer] | None:
+        """
+        Adds the ability to filter GenerateAIValuesJob by AI field ID.
+
+        :return: A serializer class extending JobTypeFiltersSerializer.
+        """
+
+        return GenerateAIValuesJobFiltersSerializer
 
     def run(self, job: GenerateAIValuesJob, progress):
         user = job.user

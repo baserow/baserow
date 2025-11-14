@@ -1,7 +1,6 @@
 from django.db import transaction
 
 from baserow_premium.fields.actions import GenerateFormulaWithAIActionType
-from baserow_premium.fields.handler import AIFieldHandler
 from baserow_premium.fields.job_types import GenerateAIValuesJobType
 from baserow_premium.fields.models import AIField
 from baserow_premium.license.features import PREMIUM
@@ -15,11 +14,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from baserow.api.decorators import (
-    map_exceptions,
-    validate_body,
-    validate_query_parameters,
-)
+from baserow.api.decorators import map_exceptions, validate_body
 from baserow.api.errors import ERROR_USER_NOT_IN_GROUP
 from baserow.api.generative_ai.errors import (
     ERROR_GENERATIVE_AI_DOES_NOT_EXIST,
@@ -59,8 +54,6 @@ from .serializers import (
     GenerateAIFieldValueViewSerializer,
     GenerateFormulaWithAIRequestSerializer,
     GenerateFormulaWithAIResponseSerializer,
-    ListGenerateAIValuesJobsQuerySerializer,
-    ListGenerateAIValuesJobsSerializer,
 )
 
 
@@ -224,81 +217,3 @@ class GenerateFormulaWithAIView(APIView):
         )
 
         return Response({"formula": formula}, status=status.HTTP_200_OK)
-
-
-class ListGenerateAIValuesJobsView(APIView):
-    permission_classes = (IsAuthenticated,)
-
-    @extend_schema(
-        parameters=[
-            OpenApiParameter(
-                name="field_id",
-                location=OpenApiParameter.QUERY,
-                type=OpenApiTypes.INT,
-                description="The AI field ID to list jobs for.",
-                required=True,
-            ),
-            OpenApiParameter(
-                name="states",
-                location=OpenApiParameter.QUERY,
-                type=OpenApiTypes.STR,
-                description="Comma-separated list of job states to filter by (e.g., 'finished,failed'). If not provided, returns all states.",
-                required=False,
-            ),
-            OpenApiParameter(
-                name="limit",
-                location=OpenApiParameter.QUERY,
-                type=OpenApiTypes.INT,
-                description="Maximum number of jobs to return. Defaults to 7.",
-                required=False,
-            ),
-        ],
-        tags=["Database table fields"],
-        operation_id="list_generate_ai_values_jobs",
-        description=(
-            "Lists GenerateAIValuesJob jobs for a specific AI field. "
-            "Returns jobs created by the authenticated user for the given field. "
-            "Verifies the user has access to the field's table and the workspace has a premium license."
-            "\nThis is a **premium** feature."
-        ),
-        responses={
-            200: ListGenerateAIValuesJobsSerializer,
-            400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
-            402: get_error_schema(["ERROR_FEATURE_NOT_AVAILABLE"]),
-            404: get_error_schema(["ERROR_FIELD_DOES_NOT_EXIST"]),
-        },
-    )
-    @map_exceptions(
-        {
-            FieldDoesNotExist: ERROR_FIELD_DOES_NOT_EXIST,
-            UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
-        }
-    )
-    @validate_query_parameters(
-        ListGenerateAIValuesJobsQuerySerializer, return_validated=True
-    )
-    def get(self, request: Request, query_params) -> Response:
-        """Lists AI value generation jobs for a specific AI field."""
-
-        field_id = query_params["field_id"]
-
-        field = FieldHandler().get_field(field_id)
-        workspace = field.table.database.workspace
-        LicenseHandler.raise_if_user_doesnt_have_feature(
-            PREMIUM, request.user, workspace
-        )
-
-        states = query_params.get("states")
-        limit = query_params.get("limit", 7)
-
-        jobs = AIFieldHandler.list_generate_ai_values_jobs(
-            performed_by=request.user,
-            field_id=field_id,
-            states=states,
-            limit=limit,
-        )
-
-        return Response(
-            ListGenerateAIValuesJobsSerializer({"results": jobs}).data,
-            status=status.HTTP_200_OK,
-        )

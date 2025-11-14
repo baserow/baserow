@@ -3,8 +3,8 @@ from django.shortcuts import reverse
 from django.test.utils import override_settings
 
 import pytest
-from baserow_premium.fields.models import GenerateAIValuesJob
 from rest_framework.status import (
+    HTTP_200_OK,
     HTTP_202_ACCEPTED,
     HTTP_400_BAD_REQUEST,
     HTTP_402_PAYMENT_REQUIRED,
@@ -12,7 +12,6 @@ from rest_framework.status import (
 )
 
 from baserow.contrib.database.rows.handler import RowHandler
-from baserow.core.jobs.constants import JOB_FAILED, JOB_FINISHED, JOB_PENDING
 
 
 @pytest.mark.django_db
@@ -391,301 +390,92 @@ def test_batch_generate_ai_field_value_limit(api_client, premium_data_fixture):
 @pytest.mark.django_db
 @pytest.mark.field_ai
 @override_settings(DEBUG=True)
-def test_list_generate_ai_values_jobs_without_license(premium_data_fixture, api_client):
+def test_list_jobs_filter_by_type_and_field_id(premium_data_fixture, api_client):
+    """Test that generate_ai_values jobs can be filtered by type and field_id."""
+
     premium_data_fixture.register_fake_generate_ai_type()
     user, token = premium_data_fixture.create_user_and_token(
-        email="test@test.nl",
-        password="password",
-        first_name="Test1",
-        has_active_premium_license=False,
+        has_active_premium_license=True
     )
 
     database = premium_data_fixture.create_database_application(
         user=user, name="database"
     )
     table = premium_data_fixture.create_database_table(name="table", database=database)
-    field = premium_data_fixture.create_ai_field(table=table, name="ai")
 
-    response = api_client.get(
-        reverse("api:premium:fields:list_generate_ai_values_jobs"),
-        {"field_id": field.id},
+    # Create multiple AI fields
+    field_1 = premium_data_fixture.create_ai_field(
+        table=table, name="ai_1", ai_prompt="'Hello'"
+    )
+    field_2 = premium_data_fixture.create_ai_field(
+        table=table, name="ai_2", ai_prompt="'World'"
+    )
+
+    rows = RowHandler().create_rows(user, table, rows_values=[{}, {}]).created_rows
+
+    # Create jobs for field_1
+    response_1 = api_client.post(
+        reverse(
+            "api:premium:fields:async_generate_ai_field_values",
+            kwargs={"field_id": field_1.id},
+        ),
+        {"row_ids": [rows[0].id]},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
+    assert response_1.status_code == HTTP_202_ACCEPTED
+    job_1_id = response_1.json()["id"]
 
-    assert response.status_code == HTTP_402_PAYMENT_REQUIRED
-
-
-@pytest.mark.django_db
-@pytest.mark.field_ai
-@override_settings(DEBUG=True)
-def test_list_generate_ai_values_jobs_returns_user_jobs_only(
-    premium_data_fixture, api_client
-):
-    premium_data_fixture.register_fake_generate_ai_type()
-    user, token = premium_data_fixture.create_user_and_token(
-        email="test@test.nl",
-        password="password",
-        first_name="Test1",
-        has_active_premium_license=True,
-    )
-    other_user = premium_data_fixture.create_user(
-        email="other@test.nl",
-        password="password",
-        first_name="Other",
-        has_active_premium_license=True,
-    )
-
-    database = premium_data_fixture.create_database_application(
-        user=user, name="database"
-    )
-    table = premium_data_fixture.create_database_table(name="table", database=database)
-    field = premium_data_fixture.create_ai_field(table=table, name="ai")
-
-    # Create jobs for both users
-    user_job = GenerateAIValuesJob.objects.create(user=user, field=field)
-    other_user_job = GenerateAIValuesJob.objects.create(user=other_user, field=field)
-
-    response = api_client.get(
-        reverse("api:premium:fields:list_generate_ai_values_jobs"),
-        {"field_id": field.id},
+    # Create jobs for field_2
+    response_2 = api_client.post(
+        reverse(
+            "api:premium:fields:async_generate_ai_field_values",
+            kwargs={"field_id": field_2.id},
+        ),
+        {"row_ids": [rows[1].id]},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
+    assert response_2.status_code == HTTP_202_ACCEPTED
+    job_2_id = response_2.json()["id"]
 
-    assert response.status_code == 200
-    job_ids = [job["id"] for job in response.json()["results"]]
-    assert user_job.id in job_ids
-    assert other_user_job.id not in job_ids
-
-
-@pytest.mark.django_db
-@pytest.mark.field_ai
-@override_settings(DEBUG=True)
-def test_list_generate_ai_values_jobs_filters_by_field(
-    premium_data_fixture, api_client
-):
-    premium_data_fixture.register_fake_generate_ai_type()
-    user, token = premium_data_fixture.create_user_and_token(
-        email="test@test.nl",
-        password="password",
-        first_name="Test1",
-        has_active_premium_license=True,
-    )
-
-    database = premium_data_fixture.create_database_application(
-        user=user, name="database"
-    )
-    table = premium_data_fixture.create_database_table(name="table", database=database)
-    field1 = premium_data_fixture.create_ai_field(table=table, name="ai1")
-    field2 = premium_data_fixture.create_ai_field(table=table, name="ai2")
-
-    job1 = GenerateAIValuesJob.objects.create(user=user, field=field1)
-    job2 = GenerateAIValuesJob.objects.create(user=user, field=field2)
-
-    # Filter by field1
+    # Test filtering by type only
+    jobs_url = reverse("api:jobs:list")
     response = api_client.get(
-        reverse("api:premium:fields:list_generate_ai_values_jobs"),
-        {"field_id": field1.id},
-        format="json",
+        f"{jobs_url}?type=generate_ai_values",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
 
-    assert response.status_code == 200
-    job_ids = [job["id"] for job in response.json()["results"]]
-    assert job1.id in job_ids
-    assert job2.id not in job_ids
+    assert response.status_code == HTTP_200_OK
+    response_data = response.json()
+    job_ids = [job["id"] for job in response_data["jobs"]]
+    assert job_1_id in job_ids
+    assert job_2_id in job_ids
+    # All returned jobs should be of type generate_ai_values
+    assert all(job["type"] == "generate_ai_values" for job in response_data["jobs"])
 
-
-@pytest.mark.django_db
-@pytest.mark.field_ai
-@override_settings(DEBUG=True)
-def test_list_generate_ai_values_jobs_filters_by_states(
-    premium_data_fixture, api_client
-):
-    premium_data_fixture.register_fake_generate_ai_type()
-    user, token = premium_data_fixture.create_user_and_token(
-        email="test@test.nl",
-        password="password",
-        first_name="Test1",
-        has_active_premium_license=True,
-    )
-
-    database = premium_data_fixture.create_database_application(
-        user=user, name="database"
-    )
-    table = premium_data_fixture.create_database_table(name="table", database=database)
-    field = premium_data_fixture.create_ai_field(table=table, name="ai")
-
-    finished_job = GenerateAIValuesJob.objects.create(
-        user=user, field=field, state=JOB_FINISHED
-    )
-    failed_job = GenerateAIValuesJob.objects.create(
-        user=user, field=field, state=JOB_FAILED
-    )
-    pending_job = GenerateAIValuesJob.objects.create(
-        user=user, field=field, state=JOB_PENDING
-    )
-
+    # Test filtering by type and field_id for field_1
     response = api_client.get(
-        reverse("api:premium:fields:list_generate_ai_values_jobs"),
-        {"field_id": field.id, "states": JOB_FINISHED},
-        format="json",
+        f"{jobs_url}?type=generate_ai_values&generate_ai_values_field_id={field_1.id}",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
 
-    assert response.status_code == 200
-    job_ids = [job["id"] for job in response.json()["results"]]
-    assert finished_job.id in job_ids
-    assert failed_job.id not in job_ids
-    assert pending_job.id not in job_ids
+    assert response.status_code == HTTP_200_OK
+    response_data = response.json()
+    assert len(response_data["jobs"]) == 1
+    assert response_data["jobs"][0]["id"] == job_1_id
+    assert response_data["jobs"][0]["type"] == "generate_ai_values"
+    assert response_data["jobs"][0]["field_id"] == field_1.id
 
+    # Test filtering by type and field_id for field_2
     response = api_client.get(
-        reverse("api:premium:fields:list_generate_ai_values_jobs"),
-        {"field_id": field.id, "states": f"{JOB_FINISHED},{JOB_FAILED}"},
-        format="json",
+        f"{jobs_url}?type=generate_ai_values&generate_ai_values_field_id={field_2.id}",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
 
-    assert response.status_code == 200
-    job_ids = [job["id"] for job in response.json()["results"]]
-    assert finished_job.id in job_ids
-    assert failed_job.id in job_ids
-    assert pending_job.id not in job_ids
-
-
-@pytest.mark.django_db
-@pytest.mark.field_ai
-@override_settings(DEBUG=True)
-def test_list_generate_ai_values_jobs_respects_limit(premium_data_fixture, api_client):
-    premium_data_fixture.register_fake_generate_ai_type()
-    user, token = premium_data_fixture.create_user_and_token(
-        email="test@test.nl",
-        password="password",
-        first_name="Test1",
-        has_active_premium_license=True,
-    )
-
-    database = premium_data_fixture.create_database_application(
-        user=user, name="database"
-    )
-    table = premium_data_fixture.create_database_table(name="table", database=database)
-    field = premium_data_fixture.create_ai_field(table=table, name="ai")
-
-    for _ in range(10):
-        GenerateAIValuesJob.objects.create(user=user, field=field)
-
-    response = api_client.get(
-        reverse("api:premium:fields:list_generate_ai_values_jobs"),
-        {"field_id": field.id, "limit": 3},
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
-
-    assert response.status_code == 200
-    assert len(response.json()["results"]) == 3
-
-
-@pytest.mark.django_db
-@pytest.mark.field_ai
-@override_settings(DEBUG=True)
-def test_list_generate_ai_values_jobs_returns_all_states_by_default(
-    premium_data_fixture, api_client
-):
-    premium_data_fixture.register_fake_generate_ai_type()
-    user, token = premium_data_fixture.create_user_and_token(
-        email="test@test.nl",
-        password="password",
-        first_name="Test1",
-        has_active_premium_license=True,
-    )
-
-    database = premium_data_fixture.create_database_application(
-        user=user, name="database"
-    )
-    table = premium_data_fixture.create_database_table(name="table", database=database)
-    field = premium_data_fixture.create_ai_field(table=table, name="ai")
-
-    finished_job = GenerateAIValuesJob.objects.create(
-        user=user, field=field, state=JOB_FINISHED
-    )
-    failed_job = GenerateAIValuesJob.objects.create(
-        user=user, field=field, state=JOB_FAILED
-    )
-    pending_job = GenerateAIValuesJob.objects.create(
-        user=user, field=field, state=JOB_PENDING
-    )
-
-    response = api_client.get(
-        reverse("api:premium:fields:list_generate_ai_values_jobs"),
-        {"field_id": field.id},
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
-
-    assert response.status_code == 200
-    job_ids = [job["id"] for job in response.json()["results"]]
-    assert finished_job.id in job_ids
-    assert failed_job.id in job_ids
-    assert pending_job.id in job_ids
-
-
-@pytest.mark.django_db
-@pytest.mark.field_ai
-@override_settings(DEBUG=True)
-def test_list_generate_ai_values_jobs_includes_job_metadata(
-    premium_data_fixture, api_client
-):
-    premium_data_fixture.register_fake_generate_ai_type()
-    user, token = premium_data_fixture.create_user_and_token(
-        email="test@test.nl",
-        password="password",
-        first_name="Test1",
-        has_active_premium_license=True,
-    )
-
-    database = premium_data_fixture.create_database_application(
-        user=user, name="database"
-    )
-    table = premium_data_fixture.create_database_table(name="table", database=database)
-    view = premium_data_fixture.create_grid_view(table=table)
-    field = premium_data_fixture.create_ai_field(table=table, name="ai")
-
-    rows = (
-        RowHandler()
-        .create_rows(
-            user,
-            table,
-            rows_values=[{}, {}, {}],
-        )
-        .created_rows
-    )
-    row_ids = [row.id for row in rows]
-
-    job = GenerateAIValuesJob.objects.create(
-        user=user, field=field, view_id=view.id, row_ids=row_ids
-    )
-
-    response = api_client.get(
-        reverse("api:premium:fields:list_generate_ai_values_jobs"),
-        {"field_id": field.id},
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
-
-    assert response.status_code == 200
-    jobs = response.json()["results"]
-    assert len(jobs) == 1
-
-    job_data = jobs[0]
-    assert job_data["id"] == job.id
-    assert job_data["field_id"] == field.id
-    assert job_data["view_id"] == view.id
-    assert job_data["mode"] == "rows"
-    assert job_data["row_count"] == 3
-    assert set(job_data["row_ids"]) == set(row_ids)
-    assert "state" in job_data
-    assert "progress_percentage" in job_data
-    assert "created_on" in job_data
-    assert "updated_on" in job_data
-    assert "only_empty" in job_data
+    assert response.status_code == HTTP_200_OK
+    response_data = response.json()
+    assert len(response_data["jobs"]) == 1
+    assert response_data["jobs"][0]["id"] == job_2_id
+    assert response_data["jobs"][0]["type"] == "generate_ai_values"
+    assert response_data["jobs"][0]["field_id"] == field_2.id

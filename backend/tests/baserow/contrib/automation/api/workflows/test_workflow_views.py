@@ -337,7 +337,7 @@ def test_delete_workflow_does_not_exist(api_client, data_fixture):
 
 @pytest.mark.django_db
 def test_duplicate_workflow(api_client, data_fixture):
-    user, token = data_fixture.create_user_and_token()
+    user = data_fixture.create_user()
     automation = data_fixture.create_automation_application(user=user)
     workflow = data_fixture.create_automation_workflow(
         user, automation=automation, name="test"
@@ -345,7 +345,11 @@ def test_duplicate_workflow(api_client, data_fixture):
     trigger = workflow.get_trigger()
 
     url = reverse(API_URL_WORKFLOW_DUPLICATE, kwargs={"workflow_id": workflow.id})
-    response = api_client.post(url, format="json", HTTP_AUTHORIZATION=f"JWT {token}")
+    with freeze_time("2025-06-04 11:00"):
+        token = data_fixture.generate_token(user)
+        response = api_client.post(
+            url, format="json", HTTP_AUTHORIZATION=f"JWT {token}"
+        )
 
     assert response.status_code == HTTP_202_ACCEPTED
 
@@ -367,6 +371,8 @@ def test_duplicate_workflow(api_client, data_fixture):
         "progress_percentage": 0,
         "state": "pending",
         "type": "duplicate_automation_workflow",
+        "created_on": "2025-06-04T11:00:00Z",
+        "updated_on": "2025-06-04T11:00:00Z",
     }
 
 
@@ -490,19 +496,20 @@ def test_run_workflow_in_test_mode(api_client, data_fixture):
 
 @pytest.mark.django_db
 def test_publish_workflow(api_client, data_fixture):
-    user, token = data_fixture.create_user_and_token()
+    user = data_fixture.create_user()
     automation = data_fixture.create_automation_application(user)
     workflow = data_fixture.create_automation_workflow(
         user, automation=automation, name="test"
     )
 
     url = reverse(API_URL_WORKFLOW_PUBLISH, kwargs={"workflow_id": workflow.id})
-    response = api_client.post(
-        url,
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
-
+    with freeze_time("2025-06-04 11:00"):
+        token = data_fixture.generate_token(user)
+        response = api_client.post(
+            url,
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
     assert response.status_code == HTTP_202_ACCEPTED
     assert response.json() == {
         "human_readable_error": "",
@@ -510,6 +517,8 @@ def test_publish_workflow(api_client, data_fixture):
         "progress_percentage": AnyInt(),
         "state": "pending",
         "type": "publish_automation_workflow",
+        "created_on": "2025-06-04T11:00:00Z",
+        "updated_on": "2025-06-04T11:00:00Z",
     }
 
 

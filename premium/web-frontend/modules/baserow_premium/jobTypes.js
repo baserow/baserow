@@ -47,4 +47,8 @@ export class GenerateAIValuesJobType extends JobType {
   async onJobFailed(job) {
     await this._clearPendingOperations(job)
   }
+
+  async onJobCancelled(job) {
+    await this._clearPendingOperations(job)
+  }
 }

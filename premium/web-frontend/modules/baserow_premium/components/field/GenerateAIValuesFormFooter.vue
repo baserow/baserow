@@ -21,7 +21,7 @@
       :loading="loading"
       :disabled="disabled || loading"
       full-width
-      class="modal-progress__primary-button"
+      class="modal-progress__primary-button generate-ai-values__generate-button"
     >
       {{ $t('generateAIValuesFormFooter.generate') }}
     </Button>

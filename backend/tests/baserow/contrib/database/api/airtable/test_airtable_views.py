@@ -3,6 +3,7 @@ from unittest.mock import patch
 from django.urls import reverse
 
 import pytest
+from freezegun import freeze_time
 from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST, HTTP_404_NOT_FOUND
 
 from baserow.contrib.database.airtable.models import AirtableImportJob
@@ -85,21 +86,25 @@ def test_create_airtable_import_job(
         },
     }
 
-    response = api_client.post(
-        reverse("api:jobs:list"),
-        {
-            "type": "airtable",
-            "workspace_id": workspace.id,
-            "airtable_share_url": "https://airtable.com/shrxxxxxxxxxxxxxx",
-        },
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
+    with freeze_time("2025-01-01 12:00:00"):
+        token = data_fixture.generate_token(user)
+        response = api_client.post(
+            reverse("api:jobs:list"),
+            {
+                "type": "airtable",
+                "workspace_id": workspace.id,
+                "airtable_share_url": "https://airtable.com/shrxxxxxxxxxxxxxx",
+            },
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
     assert response.status_code == HTTP_200_OK
     airtable_import_job = AirtableImportJob.objects.all().first()
     assert airtable_import_job.workspace_id == workspace.id
     assert airtable_import_job.airtable_share_id == "shrxxxxxxxxxxxxxx"
     assert response.json() == {
         "id": airtable_import_job.id,
+        "created_on": "2025-01-01T12:00:00Z",
+        "updated_on": "2025-01-01T12:00:00Z",
         "type": "airtable",
         "workspace_id": workspace.id,
         "airtable_share_id": "shrxxxxxxxxxxxxxx",
@@ -112,21 +117,25 @@ def test_create_airtable_import_job(
     mock_run_import_from_airtable.delay.assert_called()
 
     airtable_import_job.delete()
-    response = api_client.post(
-        reverse("api:jobs:list"),
-        {
-            "type": "airtable",
-            "workspace_id": workspace.id,
-            "airtable_share_url": "https://airtable.com/shrxxxxxxxxxxxxxx",
-        },
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
+    with freeze_time("2025-01-01 12:00:00"):
+        token = data_fixture.generate_token(user)
+        response = api_client.post(
+            reverse("api:jobs:list"),
+            {
+                "type": "airtable",
+                "workspace_id": workspace.id,
+                "airtable_share_url": "https://airtable.com/shrxxxxxxxxxxxxxx",
+            },
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
     assert response.status_code == HTTP_200_OK
     airtable_import_job = AirtableImportJob.objects.all().first()
     assert airtable_import_job.workspace_id == workspace.id
     assert airtable_import_job.airtable_share_id == "shrxxxxxxxxxxxxxx"
     assert response.json() == {
         "id": airtable_import_job.id,
+        "created_on": "2025-01-01T12:00:00Z",
+        "updated_on": "2025-01-01T12:00:00Z",
         "type": "airtable",
         "workspace_id": workspace.id,
         "airtable_share_id": "shrxxxxxxxxxxxxxx",
@@ -137,6 +146,7 @@ def test_create_airtable_import_job(
         "database": None,
     }
 
+    token = data_fixture.generate_token(user)
     response = api_client.post(
         reverse("api:jobs:list"),
         {
@@ -162,15 +172,17 @@ def test_create_airtable_import_job_long_share_id(
         "viwyUDJYyQPYuFj1F?blocks=bipEYER8Qq7fLoPbr"
     )
 
-    response = api_client.post(
-        reverse("api:jobs:list"),
-        {
-            "type": "airtable",
-            "workspace_id": workspace.id,
-            "airtable_share_url": f"https://airtable.com/{long_share_id}",
-        },
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
+    with freeze_time("2025-01-01 12:00:00"):
+        token = data_fixture.generate_token(user)
+        response = api_client.post(
+            reverse("api:jobs:list"),
+            {
+                "type": "airtable",
+                "workspace_id": workspace.id,
+                "airtable_share_url": f"https://airtable.com/{long_share_id}",
+            },
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
 
     assert response.status_code == HTTP_200_OK
     airtable_import_job = AirtableImportJob.objects.all().first()
@@ -178,6 +190,8 @@ def test_create_airtable_import_job_long_share_id(
     assert airtable_import_job.airtable_share_id == long_share_id
     assert response.json() == {
         "id": airtable_import_job.id,
+        "created_on": "2025-01-01T12:00:00Z",
+        "updated_on": "2025-01-01T12:00:00Z",
         "type": "airtable",
         "workspace_id": workspace.id,
         "airtable_share_id": long_share_id,
@@ -274,8 +288,10 @@ def test_create_airtable_import_job_with_session(
 @pytest.mark.django_db
 def test_get_airtable_import_job(data_fixture, api_client):
     user, token = data_fixture.create_user_and_token()
-    airtable_job_1 = data_fixture.create_airtable_import_job(user=user)
-    airtable_job_2 = data_fixture.create_airtable_import_job()
+
+    with freeze_time("2025-01-01 12:00:00"):
+        airtable_job_1 = data_fixture.create_airtable_import_job(user=user)
+        airtable_job_2 = data_fixture.create_airtable_import_job()
 
     response = api_client.get(
         reverse(
@@ -299,6 +315,8 @@ def test_get_airtable_import_job(data_fixture, api_client):
     assert json == {
         "id": airtable_job_1.id,
         "type": "airtable",
+        "created_on": "2025-01-01T12:00:00Z",
+        "updated_on": "2025-01-01T12:00:00Z",
         "workspace_id": airtable_job_1.workspace_id,
         "airtable_share_id": "test",
         "skip_files": False,
@@ -312,7 +330,8 @@ def test_get_airtable_import_job(data_fixture, api_client):
     airtable_job_1.state = "failed"
     airtable_job_1.human_readable_error = "Wrong"
     airtable_job_1.database = data_fixture.create_database_application()
-    airtable_job_1.save()
+    with freeze_time("2025-01-01 12:00:00"):
+        airtable_job_1.save()
 
     response = api_client.get(
         reverse(
@@ -325,6 +344,8 @@ def test_get_airtable_import_job(data_fixture, api_client):
     json = response.json()
     assert json == {
         "id": airtable_job_1.id,
+        "created_on": "2025-01-01T12:00:00Z",
+        "updated_on": "2025-01-01T12:00:00Z",
         "type": "airtable",
         "workspace_id": airtable_job_1.workspace_id,
         "airtable_share_id": "test",

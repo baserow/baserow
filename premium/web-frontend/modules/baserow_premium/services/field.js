@@ -1,3 +1,5 @@
+import { GenerateAIValuesJobType } from '@baserow_premium/jobTypes'
+
 export default (client) => {
   return {
     generateAIFieldValues(fieldId, rowIds) {
@@ -36,24 +38,19 @@ export default (client) => {
 
       return client.post(`/jobs/`, payload)
     },
-    listGenerateAIValuesJobs(fieldId = null, states = null, limit = null) {
+    listGenerateAIValuesJobs(fieldId, { offset, limit = 10 } = {}) {
       const params = new URLSearchParams()
-      if (fieldId !== null) {
-        params.append('field_id', fieldId)
+      params.append('type', GenerateAIValuesJobType.getType())
+      params.append(GenerateAIValuesJobType.getType() + '_field_id', fieldId)
+      if (offset !== undefined) {
+        params.append('offset', offset)
       }
-      if (states !== null) {
-        params.append(
-          'states',
-          Array.isArray(states) ? states.join(',') : states
-        )
-      }
-      if (limit !== null) {
+      if (limit !== undefined) {
         params.append('limit', limit)
       }
 
-      return client.get(
-        `/database/fields/generate-ai-field-values/jobs/?${params.toString()}`
-      )
+      const config = { params }
+      return client.get(`/jobs/`, config)
     },
   }
 }

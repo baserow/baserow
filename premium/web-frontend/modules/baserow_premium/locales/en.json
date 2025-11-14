@@ -375,18 +375,17 @@
   },
   "generateAIValuesModal": {
     "title": "Generate all AI values",
-    "previousJobs": "Previous jobs",
     "noPreviousJobs": "No previous jobs",
-    "completed": "Completed",
+    "started": "Started",
+    "finished": "Completed",
     "running": "Running",
     "failed": "Failed",
     "cancelled": "Cancelled",
     "pending": "Pending",
-    "mode_rows": "Specific rows",
-    "mode_view": "View",
-    "mode_table": "Entire table",
-    "deletedView": "Deleted view",
-    "selectedRows": "Selected {count} rows"
+    "view": "View: {name}",
+    "table": "Table: All rows",
+    "deletedView": "View: ID {viewId} (deleted)",
+    "rows": "Rows: {count} rows"
   },
   "generateAIValuesForm": {
     "scopeLabel": "Scope",

@@ -1,5 +1,5 @@
 <template>
-  <Modal>
+  <Modal @hidden="hideError">
     <div v-if="loadingViews" class="loading-overlay"></div>
     <h2 class="box__title">
       {{ $t('generateAIValuesModal.title', { name: field.name }) }}
@@ -29,20 +29,22 @@
 
     <!-- Job List Section -->
     <div class="generate-ai-values__list">
-      <div v-if="jobListLoading" class="loading"></div>
+      <div v-if="loadingPreviousJobs" class="loading"></div>
       <div v-else-if="previousJobs.length > 0">
         <GenerateAIValuesJobListItem
           v-for="jobItem in previousJobs"
           :key="jobItem.id"
-          :job="jobItem"
+          :job-item="jobItem"
           :field="field"
           :views="views"
-          :cancel-loading="cancelLoading && cancellingJobId === jobItem.id"
-          :last-updated="jobItem.updated_on"
-          @cancel-job="cancelHistoryJob"
+          :last-updated="
+            jobItem.state === 'finished'
+              ? jobItem.updated_on
+              : jobItem.created_on
+          "
         />
       </div>
-      <div v-else>
+      <div v-else class="margin-top-2">
         {{ $t('generateAIValuesModal.noPreviousJobs') }}
       </div>
     </div>
@@ -90,15 +92,12 @@ export default {
   },
   data() {
     return {
+      loading: false,
+      isValid: false,
       views: [],
       loadingViews: false,
-      loading: false,
-      cancelLoading: false,
-      cancellingJobId: null,
-      isValid: false,
-      jobListLoading: false,
       previousJobs: [],
-      loadingNewJobs: false,
+      loadingPreviousJobs: false,
     }
   },
   computed: {
@@ -108,35 +107,6 @@ export default {
           job.type === GenerateAIValuesJobType.getType() &&
           job.field_id === this.field.id
       )
-    },
-  },
-  watch: {
-    unfinishedJobsFromStore: {
-      async handler(newJobs) {
-        newJobs.forEach((storeJob) => {
-          const index = this.previousJobs.findIndex((j) => j.id === storeJob.id)
-          if (index !== -1) {
-            this.$set(this.previousJobs, index, {
-              ...this.previousJobs[index],
-              progress_percentage: storeJob.progress_percentage,
-              state: storeJob.state,
-              updated_on: storeJob.updated_on,
-            })
-          }
-        })
-
-        const runningJobIds = newJobs.map((j) => j.id)
-        const finishedJobs = this.previousJobs.filter(
-          (j) =>
-            (j.state === 'pending' || j.state === 'started') &&
-            !runningJobIds.includes(j.id)
-        )
-
-        if (finishedJobs.length > 0) {
-          await this.loadPreviousJobs()
-        }
-      },
-      deep: true,
     },
   },
   methods: {
@@ -155,43 +125,34 @@ export default {
         this.loading = true
       }
     },
-    async show(...args) {
+    show(...args) {
       const show = modal.methods.show.call(this, ...args)
-      this.loading = false
-      await this.fetchViews()
+      // Don't await to avoid blocking the modal display
       this.loadRunningJob()
-      await this.loadPreviousJobs()
+      this.fetchViews()
+      this.loadPreviousJobs()
       this.$nextTick(() => {
         this.valuesChanged()
       })
       return show
     },
     async loadPreviousJobs() {
-      this.jobListLoading = true
-      this.loadingNewJobs = true
+      this.loadingPreviousJobs = true
+
       try {
         const { data } = await FieldService(
           this.$client
         ).listGenerateAIValuesJobs(this.field.id)
-        const jobs = data?.results || []
-
+        const jobs = data.jobs
         const storeJobs = this.unfinishedJobsFromStore
         let addedRunningJobs = false
 
         jobs.forEach((job, index) => {
           const storeJob = storeJobs.find((sj) => sj.id === job.id)
           if (storeJob) {
-            jobs[index] = {
-              ...job,
-              progress_percentage: storeJob.progress_percentage,
-              state: storeJob.state,
-              updated_on: storeJob.updated_on,
-            }
+            jobs[index] = storeJob
           } else if (job.state === 'pending' || job.state === 'started') {
-            this.$store.dispatch('job/forceCreate', {
-              ...job,
-              type: GenerateAIValuesJobType.getType(),
-            })
+            this.$store.dispatch('job/forceCreate', job)
             addedRunningJobs = true
           }
         })
@@ -205,12 +166,12 @@ export default {
       } catch (error) {
         this.handleError(error)
       } finally {
-        this.jobListLoading = false
-        this.loadingNewJobs = false
+        this.loadingPreviousJobs = false
       }
     },
     async fetchViews() {
       this.loadingViews = true
+
       try {
         const { data: viewsData } = await ViewService(this.$client).fetchAll(
           this.table.id
@@ -219,8 +180,9 @@ export default {
         this.views = viewsData
       } catch (error) {
         this.handleError(error, 'views')
+      } finally {
+        this.loadingViews = false
       }
-      this.loadingViews = false
     },
     async submitted(values) {
       if (!this.$refs.form.isFormValid()) {
@@ -244,45 +206,26 @@ export default {
         this.handleError(error)
       }
     },
+    // eslint-disable-next-line require-await
     async onJobFinished() {
-      await this.loadPreviousJobs()
+      this.previousJobs.unshift(this.job)
       this.job = null
       this.loading = false
     },
+    // eslint-disable-next-line require-await
     async onJobFailed() {
-      await this.loadPreviousJobs()
+      this.previousJobs.unshift(this.job)
+      this.job = null
       this.loading = false
     },
+    // eslint-disable-next-line require-await
     async onJobCancelled() {
-      await this.loadPreviousJobs()
+      this.previousJobs.unshift(this.job)
+      this.job = null
       this.loading = false
-      this.cancelLoading = false
     },
     valuesChanged() {
       this.isValid = this.$refs.form.isFormValid()
-    },
-    async cancelHistoryJob(jobId) {
-      this.cancelLoading = true
-      this.cancellingJobId = jobId
-      try {
-        const job = this.previousJobs.find((j) => j.id === jobId)
-        if (job) {
-          await this.$store.dispatch('job/cancel', job)
-          if (job.row_ids && job.row_ids.length > 0 && job.field_id) {
-            this.$store.dispatch('page/view/grid/setPendingFieldOperations', {
-              fieldId: job.field_id,
-              rowIds: job.row_ids,
-              value: false,
-            })
-          }
-          await this.loadPreviousJobs()
-        }
-      } catch (error) {
-        this.handleError(error)
-      } finally {
-        this.cancelLoading = false
-        this.cancellingJobId = null
-      }
     },
   },
 }

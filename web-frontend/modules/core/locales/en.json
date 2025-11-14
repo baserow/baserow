@@ -689,7 +689,7 @@
     "daysAgo": "0 days ago | 1 day ago | {n} days ago",
     "monthsAgo": "0 months ago | 1 month ago | {n} months ago",
     "yearsAgo": "0 years ago | 1 year ago | {n} years ago",
-    "lessThanMinuteAgo": "less than minute ago",
+    "lessThanMinuteAgo": "less than a minute ago",
     "justNow": "just now"
   },
   "crudTableSearch": {

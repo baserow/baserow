@@ -113,21 +113,23 @@ export default {
         })
       } catch (error) {
         const errMsg = error.response?.data
-        if (errMsg?.error === 'ERROR_JOB_NOT_CANCELLABLE') {
-          this.showError(
-            this.$t('job.errorJobCannotBeCancelledTitle'),
-            this.$t('job.errorJobCannotBeCancelledDescription')
-          )
-        } else {
-          this.showError({
-            title: this.$t('clientHandler.notCompletedTitle'),
-            message:
-              (error ? error?.detail || error?.message : null) ||
-              this.$t('unknown error'),
-          })
-        }
-        if (typeof this.onJobCancelFailed === 'function') {
-          this.onJobCancelFailed()
+        if (typeof this.showError === 'function') {
+          if (errMsg?.error === 'ERROR_JOB_NOT_CANCELLABLE') {
+            this.showError(
+              this.$t('job.errorJobCannotBeCancelledTitle'),
+              this.$t('job.errorJobCannotBeCancelledDescription')
+            )
+          } else {
+            this.showError({
+              title: this.$t('clientHandler.notCompletedTitle'),
+              message:
+                (error ? error?.detail || error?.message : null) ||
+                this.$t('unknown error'),
+            })
+          }
+          if (this.onJobCancelFailed === 'function') {
+            this.onJobCancelFailed()
+          }
         }
       } finally {
         this.cancelLoading = false

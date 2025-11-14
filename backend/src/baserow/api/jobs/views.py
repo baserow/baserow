@@ -13,6 +13,7 @@ from baserow.api.decorators import (
 )
 from baserow.api.schemas import get_error_schema
 from baserow.api.utils import DiscriminatorCustomFieldsMappingSerializer
+from baserow.core.db import specific_iterator
 from baserow.core.jobs.exceptions import (
     JobDoesNotExist,
     JobNotCancellable,
@@ -33,30 +34,15 @@ class JobsView(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
-        parameters=[
-            OpenApiParameter(
-                name="states",
-                location=OpenApiParameter.QUERY,
-                type=OpenApiTypes.STR,
-                description="A comma separated list of jobs state to look for. "
-                "The only possible values are: `pending`, `finished`, `failed` and `cancelled`. "
-                "It's possible to exclude a state by prefixing it with a `!`. ",
-            ),
-            OpenApiParameter(
-                name="job_ids",
-                location=OpenApiParameter.QUERY,
-                type=OpenApiTypes.STR,
-                description="A comma separated list of job ids in the desired order."
-                "The jobs will be returned in the same order as the ids."
-                "If a job id is not found it will be ignored.",
-            ),
-        ],
+        parameters=[ListJobQuerySerializer],
         tags=["Jobs"],
         operation_id="list_job",
         description=(
             "List all existing jobs. Jobs are task executed asynchronously in the "
-            "background. You can use the `get_job` endpoint to read the current"
-            "progress of a the job."
+            "background. You can use the `get_job` endpoint to read the current "
+            "progress of the job. The available query parameters depend on the job type "
+            "selected via the `type` parameter. Each job type may support additional "
+            "type-specific filter parameters."
         ),
         responses={
             200: DiscriminatorCustomFieldsMappingSerializer(
@@ -68,22 +54,33 @@ class JobsView(APIView):
     def get(self, request, query_params):
         states = query_params.get("states", None)
         job_ids = query_params.get("job_ids", None)
+        offset = query_params.get("offset", 0)
+        limit = query_params.get("limit", 20)
+
+        # Get job type and filters from the validated data
+        job_type_name = query_params.get("job_type_name", None)
+        type_filters = query_params.get("type_filters", {})
+
+        base_model = None
+        if job_type_name:
+            job_type = job_type_registry.get(job_type_name)
+            base_model = job_type.model_class
 
         jobs = JobHandler.get_jobs_for_user(
-            request.user, filter_states=states, filter_ids=job_ids
-        )
+            request.user,
+            filter_states=states,
+            filter_ids=job_ids,
+            base_model=base_model,
+            type_filters=type_filters if type_filters else None,
+        )[offset : offset + limit]
 
-        # FIXME: job.specific makes a query for each job to get the specific instance.
-        # As long as we have max_count=1 for each job type, there's not much we can do,
-        # but this should be optimized in the future if we allow multiple jobs of the
-        # same type.
         serialized_jobs = [
             job_type_registry.get_serializer(
-                job.specific,
+                job,
                 JobSerializer,
                 context={"request": request},
             ).data
-            for job in jobs
+            for job in specific_iterator(jobs)
         ]
         return Response({"jobs": serialized_jobs})
 
