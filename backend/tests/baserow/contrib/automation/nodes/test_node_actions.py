@@ -109,7 +109,10 @@ def test_replace_automation_action_node_type(data_fixture):
     node = data_fixture.create_automation_node(
         workflow=workflow, type=LocalBaserowCreateRowNodeType.type, label="To replace"
     )
-    node_after = data_fixture.create_automation_node(
+    workflow.simulate_until_node_id = node.id
+    workflow.save()
+
+    data_fixture.create_automation_node(
         workflow=workflow, type=LocalBaserowCreateRowNodeType.type, label="After"
     )
 
@@ -125,6 +128,9 @@ def test_replace_automation_action_node_type(data_fixture):
     replaced_node = ReplaceAutomationNodeActionType.do(
         user, node.id, LocalBaserowUpdateRowNodeType.type
     )
+
+    workflow.refresh_from_db()
+    assert workflow.simulate_until_node_id is None
 
     workflow.assert_reference(
         {
@@ -209,10 +215,12 @@ def test_replace_automation_trigger_node_type(data_fixture):
     automation = data_fixture.create_automation_application(workspace=workspace)
     workflow = data_fixture.create_automation_workflow(user, automation=automation)
     original_trigger = workflow.get_trigger()
-    action_node = data_fixture.create_automation_node(
+    data_fixture.create_automation_node(
         workflow=workflow,
         type=LocalBaserowCreateRowNodeType.type,
     )
+    workflow.simulate_until_node_id = original_trigger.id
+    workflow.save()
 
     workflow.assert_reference(
         {
@@ -225,6 +233,9 @@ def test_replace_automation_trigger_node_type(data_fixture):
     replaced_trigger = ReplaceAutomationNodeActionType.do(
         user, original_trigger.id, LocalBaserowRowsUpdatedNodeTriggerType.type
     )
+
+    workflow.refresh_from_db()
+    assert workflow.simulate_until_node_id is None
 
     workflow.assert_reference(
         {

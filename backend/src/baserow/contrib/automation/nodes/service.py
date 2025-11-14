@@ -400,6 +400,10 @@ class AutomationNodeService:
 
         workflow.get_graph().replace(node_to_replace, new_node)
 
+        if workflow.simulate_until_node_id == node_to_replace.id:
+            workflow.simulate_until_node = None
+            workflow.save(update_fields=["simulate_until_node"])
+
         automation_node_deleted.send(
             self,
             workflow=workflow,
