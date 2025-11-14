@@ -20,9 +20,8 @@ const updateContext = {
 const updateCachedValues = (workflow) => {
   if (!workflow || !workflow.nodes) return
 
-  Object.assign(
-    workflow.nodeMap,
-    Object.fromEntries(workflow.nodes.map((node) => [`${node.id}`, node]))
+  workflow.nodeMap = Object.fromEntries(
+    workflow.nodes.map((node) => [`${node.id}`, node])
   )
 }
 
