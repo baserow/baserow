@@ -127,7 +127,7 @@ class ChatSignature(udspy.Signature):
     )
     ui_context: dict[str, Any] | None = udspy.InputField(
         default=None,
-        desc=(
+        description=(
             "The context the user is currently in. "
             "It contains information about the user, the workspace, open table, view, etc."
             "Whenever make sense, use it to ground your answer."
@@ -202,7 +202,7 @@ class Assistant:
         )
         self.callbacks = AssistantCallbacks(self.tool_helpers)
         self._assistant = udspy.ReAct(ChatSignature, tools=tools, max_iters=20)
-        self.history = None
+        self.history: list[str] = []
 
     async def acreate_chat_message(
         self,
@@ -291,7 +291,6 @@ class Assistant:
             msg async for msg in self._chat.messages.order_by("-created_on")[:limit]
         ]
 
-        self.history: list[str] = []
         while len(last_saved_messages) >= 2:
             # Pop the oldest message pair to respect chronological order.
             first_message = last_saved_messages.pop()
@@ -404,7 +403,11 @@ class Assistant:
 
     async def _summarize_context_from_history(self, question: str) -> str:
         """
-        Extract relevant facts from chat history to provide context for the question.
+        Extract relevant facts from chat history to provide context for the question or
+        return an empty string if there is no history.
+
+        :param question: The current user question that needs context from history.
+        :return: A string containing relevant facts from the conversation history.
         """
 
         if not self.history:

@@ -207,25 +207,18 @@ class TestAssistantChatHistory:
 
         # History should contain user/assistant message pairs
         assert assistant.history is not None
-        assert len(assistant.history.messages) == 4
+        assert len(assistant.history) == 4
 
         # First pair
-        assert assistant.history.messages[0]["content"] == "What is Baserow?"
-        assert assistant.history.messages[0]["role"] == "user"
-        assert (
-            assistant.history.messages[1]["content"]
-            == "Baserow is a no-code database platform."
-        )
-        assert assistant.history.messages[1]["role"] == "assistant"
+        assert assistant.history[0] == "Human: What is Baserow?"
+        assert assistant.history[1] == "AI: Baserow is a no-code database platform."
 
         # Second pair
-        assert assistant.history.messages[2]["content"] == "How do I create a table?"
-        assert assistant.history.messages[2]["role"] == "user"
+        assert assistant.history[2] == "Human: How do I create a table?"
         assert (
-            assistant.history.messages[3]["content"]
-            == "You can create a table by clicking the + button."
+            assistant.history[3]
+            == "AI: You can create a table by clicking the + button."
         )
-        assert assistant.history.messages[3]["role"] == "assistant"
 
     def test_aload_chat_history_respects_limit(self, enterprise_data_fixture):
         """Test that history loading respects the limit parameter"""
@@ -251,7 +244,7 @@ class TestAssistantChatHistory:
         async_to_sync(assistant.aload_chat_history)(limit=6)  # Last 6 messages
 
         # Should only load the most recent 6 messages (3 pairs)
-        assert len(assistant.history.messages) == 6
+        assert len(assistant.history) == 6
 
     def test_aload_chat_history_handles_incomplete_pairs(self, enterprise_data_fixture):
         """
@@ -281,11 +274,9 @@ class TestAssistantChatHistory:
         async_to_sync(assistant.aload_chat_history)()
 
         # Should only include the complete pair (2 messages: user + assistant)
-        assert len(assistant.history.messages) == 2
-        assert assistant.history.messages[0]["content"] == "Question 1"
-        assert assistant.history.messages[0]["role"] == "user"
-        assert assistant.history.messages[1]["content"] == "Answer 1"
-        assert assistant.history.messages[1]["role"] == "assistant"
+        assert len(assistant.history) == 2
+        assert assistant.history[0] == "Human: Question 1"
+        assert assistant.history[1] == "AI: Answer 1"
 
 
 @pytest.mark.django_db
