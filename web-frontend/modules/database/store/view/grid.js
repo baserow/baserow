@@ -2729,7 +2729,7 @@ export const actions = {
       getters.getMultiSelectHeadFieldIndex +
       1
 
-    const isSingleRowCopied = copiedRowsCount === 1 && selectedRowsCount > 0
+    const isSingleRowCopied = copiedRowsCount === 1 && selectedRowsCount > 1
 
     if (isSingleCellCopied) {
       // the textData and jsonData are recreated
