@@ -49,7 +49,11 @@ export class ToTipTapVisitor extends BaserowFormulaVisitor {
     switch (ctx.getText()) {
       case "'\n'":
         // Specific element that helps to recognize root concat
-        return { type: 'newLine' }
+        if (this.mode === 'simple') {
+          return { type: 'newLine' }
+        } else {
+          return { type: 'text', text: "'\\n'" }
+        }
       default: {
         if (this.mode === 'advanced') {
           // In advanced mode, keep quotes for display
@@ -92,7 +96,8 @@ export class ToTipTapVisitor extends BaserowFormulaVisitor {
         if (processedString) {
           return { type: 'text', text: processedString }
         } else {
-          return { type: 'wrapper' }
+          // Empty strings are represented as a special marker that won't be confused with line breaks
+          return { type: 'text', text: '\u200B' } // Zero-width space for empty strings
         }
       }
     }
