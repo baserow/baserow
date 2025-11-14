@@ -653,9 +653,8 @@ def test_generate_ai_field_value_view_generative_ai_invalid_prompt(
     assert patched_rows_updated.call_count == 0
     assert patched_rows_ai_values_generation_error.call_count == 1
     call_args_rows = patched_rows_ai_values_generation_error.call_args[1]["rows"]
-    assert (
-        len(call_args_rows) == 0
-    )  # Changed because rows is passed as empty list in job_types.py:220
+    assert len(call_args_rows) == 1
+    assert [r.id for r in call_args_rows] == [rows[0].id]
     assert patched_rows_ai_values_generation_error.call_args[1]["field"] == field
     assert (
         patched_rows_ai_values_generation_error.call_args[1]["error_message"]

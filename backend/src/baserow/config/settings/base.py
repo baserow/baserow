@@ -1443,3 +1443,9 @@ BASEROW_DEADLOCK_INITIAL_BACKOFF = max(
     try_float(os.getenv("BASEROW_DEADLOCK_INITIAL_BACKOFF"), 0.2),
     0.1,
 )
+
+# Used to limit thread pool size for running AI field generation in parallel
+BASEROW_MAX_AI_WORKERS = try_int(os.getenv("BASEROW_MAX_AI_WORKERS"), 5)
+
+# a number of allowed errors for a single job when generating AI field value.
+BASEROW_MAX_AI_WORKERS_ERRORS = try_int(os.getenv("BASEROW_MAX_AI_WORKERS"), 3)

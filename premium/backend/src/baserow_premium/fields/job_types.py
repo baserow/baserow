@@ -1,8 +1,14 @@
 from typing import Type
 
+from concurrent.futures import ThreadPoolExecutor
+from threading import RLock
+
+from django.conf import settings
+from django.contrib.auth.models import AbstractUser
 from django.db.models import QuerySet
 
 from baserow_premium.generative_ai.managers import AIFileManager
+from loguru import logger
 from rest_framework import serializers
 
 from baserow.api.errors import ERROR_GROUP_DOES_NOT_EXIST, ERROR_USER_NOT_IN_GROUP
@@ -17,13 +23,16 @@ from baserow.contrib.database.rows.runtime_formula_contexts import (
     HumanReadableRowContext,
 )
 from baserow.contrib.database.rows.signals import rows_ai_values_generation_error
-from baserow.contrib.database.table.models import GeneratedTableModel
+from baserow.contrib.database.table.models import GeneratedTableModel, Table
 from baserow.contrib.database.views.exceptions import ViewDoesNotExist
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.core.exceptions import UserNotInWorkspace, WorkspaceDoesNotExist
 from baserow.core.formula import resolve_formula
 from baserow.core.formula.registries import formula_runtime_function_registry
-from baserow.core.generative_ai.exceptions import ModelDoesNotBelongToType
+from baserow.core.generative_ai.exceptions import (
+    GenerativeAIPromptError,
+    ModelDoesNotBelongToType,
+)
 from baserow.core.generative_ai.registries import (
     GenerativeAIWithFilesModelType,
     generative_ai_model_type_registry,
@@ -32,10 +41,11 @@ from baserow.core.handler import CoreHandler
 from baserow.core.job_types import _empty_transaction_context
 from baserow.core.jobs.exceptions import MaxJobCountExceeded
 from baserow.core.jobs.registries import JobType
-from baserow.core.utils import ChildProgressBuilder
+from baserow.core.utils import ChildProgressBuilder, Progress
 
 from .models import AIField, GenerateAIValuesJob
 from .registries import ai_field_output_registry
+
 
 
 class GenerateAIValuesJobFiltersSerializer(serializers.Serializer):
@@ -49,12 +59,33 @@ class GenerateAIValuesJobFiltersSerializer(serializers.Serializer):
         help_text="Filter by the AI field ID.",
     )
 
+def get_valid_generative_ai_model_type_or_raise(ai_field: AIField):
+    """
+    Returns the generative AI model type for the given AI field if the model belongs
+    to the type. Otherwise, raises a ModelDoesNotBelongToType exception.
+
+    :param ai_field: The AI field to check.
+    :return: The generative AI model type.
+    :raises ModelDoesNotBelongToType: If the model does not belong to the type.
+    """
+
+    generative_ai_model_type = generative_ai_model_type_registry.get(
+        ai_field.ai_generative_ai_type
+    )
+    workspace = ai_field.table.database.workspace
+    ai_models = generative_ai_model_type.get_enabled_models(workspace=workspace)
+
+    if ai_field.ai_generative_ai_model not in ai_models:
+        raise ModelDoesNotBelongToType(model_name=ai_field.ai_generative_ai_model)
+    return generative_ai_model_type
+
 
 class GenerateAIValuesJobType(JobType):
     type = "generate_ai_values"
     model_class = GenerateAIValuesJob
     max_count = 3
 
+    allowed_fields = JobType.allowed_fields + ["rows_errors"]
     api_exceptions_map = {
         UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
         WorkspaceDoesNotExist: ERROR_GROUP_DOES_NOT_EXIST,
@@ -66,6 +97,7 @@ class GenerateAIValuesJobType(JobType):
         "row_ids",
         "view_id",
         "only_empty",
+        "rows_errors",
     ]
     serializer_field_overrides = {
         "field_id": serializers.IntegerField(
@@ -87,6 +119,7 @@ class GenerateAIValuesJobType(JobType):
             help_text="Whether to only generate AI values for rows where the "
             "field is empty.",
         ),
+        "rows_errors": serializers.HStoreField(required=False, read_only=True),
     }
 
     def can_schedule_or_raise(self, job: GenerateAIValuesJob):
@@ -162,26 +195,6 @@ class GenerateAIValuesJobType(JobType):
         return queryset.filter(
             **{f"{ai_field.db_column}__isnull": True}
         ) | queryset.filter(**{ai_field.db_column: ""})
-
-    def get_valid_generative_ai_model_type_or_raise(self, ai_field: AIField):
-        """
-        Returns the generative AI model type for the given AI field if the model belongs
-        to the type. Otherwise, raises a ModelDoesNotBelongToType exception.
-
-        :param ai_field: The AI field to check.
-        :return: The generative AI model type.
-        :raises ModelDoesNotBelongToType: If the model does not belong to the type.
-        """
-
-        generative_ai_model_type = generative_ai_model_type_registry.get(
-            ai_field.ai_generative_ai_type
-        )
-        workspace = ai_field.table.database.workspace
-        ai_models = generative_ai_model_type.get_enabled_models(workspace=workspace)
-
-        if ai_field.ai_generative_ai_model not in ai_models:
-            raise ModelDoesNotBelongToType(model_name=ai_field.ai_generative_ai_model)
-        return generative_ai_model_type
 
     def _get_field(self, field_id: int) -> AIField:
         """
@@ -259,9 +272,60 @@ class GenerateAIValuesJobType(JobType):
         if job.only_empty:
             rows = self._filter_empty_values(rows, ai_field)
 
+        progress_builder = progress.create_child_builder(
+            represents_progress=progress.total
+        )
+        rows_progress = ChildProgressBuilder.build(progress_builder, rows.count())
+
+        worker = AIGenerationWorker(user, ai_field, table, model, self, rows_progress)
+
+        with get_executor(ai_field.ai_max_workers) as executor:
+            for row in rows.iterator(chunk_size=200):
+                executor.submit(worker.generate_value_for, row)
+
+        worker.raise_if_error()
+
+
+class AIGenerationWorker:
+    """
+    AIGenerationWorker encapsulates AI field value generation process, so it can be
+    executed with a worker pool.
+    """
+
+    def __init__(
+        self,
+        user: AbstractUser,
+        ai_field: AIField,
+        table: Table,
+        model: GeneratedTableModel,
+        job: GenerateAIValuesJob,
+        progress: Progress,
+    ):
+        self.user = user
+
+        self.ai_field = ai_field
+        self.table = table
+        self.model = model or table.get_model()
+        self.job = job
+        self.workspace = table.database.workspace
+        self.lock = RLock()
+        self.progress = progress
+        self.should_process = True
+        self.processed = 0
+        self.prepare()
+        # TODO: exit if a number of errors too high
+        self.errors = {}
+        self.notification_sent = False
+        self.row_handler = RowHandler()
+
+    def prepare(self):
+        """
+        Prepares runtime values from AI field attached.
+        """
+
         try:
-            generative_ai_model_type = self.get_valid_generative_ai_model_type_or_raise(
-                ai_field
+            self.generative_ai_model_type = get_valid_generative_ai_model_type_or_raise(
+                self.ai_field
             )
         except ModelDoesNotBelongToType as exc:
             # If the workspace AI settings have been removed before the task starts,
@@ -269,91 +333,142 @@ class GenerateAIValuesJobType(JobType):
             # fail. We therefore want to handle the error gracefully.
             # Note: rows might be a generator, so we can't pass it directly
             rows_ai_values_generation_error.send(
-                self,
-                user=user,
+                self.job,
+                user=self.user,
                 rows=[],
-                field=ai_field,
-                table=ai_field.table,
+                field=self.ai_field,
+                table=self.ai_field.table,
                 error_message=str(exc),
             )
             raise exc
 
-        ai_output_type = ai_field_output_registry.get(ai_field.ai_output_type)
+        self.ai_output_type = ai_field_output_registry.get(self.ai_field.ai_output_type)
 
-        progress_builder = progress.create_child_builder(
-            represents_progress=progress.total
-        )
-        rows_progress = ChildProgressBuilder.build(progress_builder, rows.count())
-
-        for row in rows.iterator(chunk_size=200):
-            context = HumanReadableRowContext(row, exclude_field_ids=[ai_field.id])
-            message = str(
-                resolve_formula(
-                    ai_field.ai_prompt, formula_runtime_function_registry, context
-                )
+        self.use_file_fields = (
+            self.ai_field.ai_file_field_id is not None
+            and isinstance(
+                self.generative_ai_model_type, GenerativeAIWithFilesModelType
             )
+        )
 
-            # The AI output type should be able to format the prompt because it can add
-            # additional instructions to it. The choice output type for example adds
-            # additional prompt trying to force the out, for example.
-            message = ai_output_type.format_prompt(message, ai_field)
+        # FIXME: manually set the websocket_id to None for now because the frontend
+        # needs to receive the update to stop the loading state
+        self.user.web_socket_id = None
 
-            try:
-                if ai_field.ai_file_field_id is not None and isinstance(
-                    generative_ai_model_type, GenerativeAIWithFilesModelType
-                ):
-                    file_ids = AIFileManager.upload_files_from_file_field(
-                        ai_field, row, generative_ai_model_type, workspace=workspace
-                    )
-                    try:
-                        value = generative_ai_model_type.prompt_with_files(
-                            ai_field.ai_generative_ai_model,
-                            message,
-                            file_ids=file_ids,
-                            workspace=workspace,
-                            temperature=ai_field.ai_temperature,
-                        )
-                    except Exception as exc:
-                        raise exc
-                    finally:
-                        generative_ai_model_type.delete_files(
-                            file_ids, workspace=workspace
-                        )
-                else:
-                    value = generative_ai_model_type.prompt(
+    def generate_value_for(self, row):
+        """
+        Runs value generation for a single row using AI model.
+        """
+
+        with self.lock:
+            if not self.should_process:
+                self.update_progress()
+                return
+
+        ai_field = self.ai_field
+        ai_output_type = self.ai_output_type
+        generative_ai_model_type = self.generative_ai_model_type
+        workspace = self.workspace
+
+        context = HumanReadableRowContext(row, exclude_field_ids=[ai_field.id])
+        message = str(
+            resolve_formula(
+                ai_field.ai_prompt, formula_runtime_function_registry, context
+            )
+        )
+
+        # The AI output type should be able to format the prompt because it can add
+        # additional instructions to it. The choice output type for example adds
+        # additional prompt trying to force the out, for example.
+        message = ai_output_type.format_prompt(message, ai_field)
+
+        try:
+            if self.use_file_fields:
+                file_ids = AIFileManager.upload_files_from_file_field(
+                    ai_field, row, generative_ai_model_type, workspace=workspace
+                )
+                try:
+                    value = generative_ai_model_type.prompt_with_files(
                         ai_field.ai_generative_ai_model,
                         message,
+                        file_ids=file_ids,
                         workspace=workspace,
                         temperature=ai_field.ai_temperature,
                     )
+                finally:
+                    generative_ai_model_type.delete_files(file_ids, workspace=workspace)
+            else:
+                value = generative_ai_model_type.prompt(
+                    ai_field.ai_generative_ai_model,
+                    message,
+                    workspace=workspace,
+                    temperature=ai_field.ai_temperature,
+                )
 
-                # Because the AI output type can change the prompt to try to force the
-                # output a certain way, then it should give the opportunity to parse the
-                # output when it's given. With the choice output type, it will try to
-                # match it to a `SelectOption`, for example.
-                value = ai_output_type.parse_output(value, ai_field)
-            except Exception as exc:
-                # If the prompt fails once, we should not continue with the other rows.
-                # Note: rows might be a generator, so we can't slice it
+            # Because the AI output type can change the prompt to try to force the
+            # output a certain way, then it should give the opportunity to parse the
+            # output when it's given. With the choice output type, it will try to
+            # match it to a `SelectOption`, for example.
+            value = ai_output_type.parse_output(value, ai_field)
+            self.update_value(row, value)
+
+        except Exception as exc:
+            self.handle_error(row, exc)
+        finally:
+            self.update_progress()
+
+    def handle_error(self, row, exc):
+        logger.opt(exception=exc).warning(
+            f"Error when retrieving AI model result for {row}: {exc}"
+        )
+        with self.lock:
+            # if this is an error on the first row, or a number of errors is above
+            # a max error count threshold, we stop processing
+            if (
+                self.processed < 1
+                or len(self.errors) - 1 > settings.BASEROW_MAX_AI_WORKERS_ERRORS
+            ):
+                self.should_process = False
+
+            self.errors[row.id] = str(exc)
+
+            # note: signal should be sent once (as it will send an error per row)
+            # we should distinguish from 'some rows failed' and 'the job failed'
+
+            # If the prompt fails once, we should not continue with the other rows.
+            # Note: rows might be a generator, so we can't slice it
+            if not self.notification_sent:
+                self.notification_sent = True
                 rows_ai_values_generation_error.send(
                     self,
-                    user=user,
-                    rows=[],
-                    field=ai_field,
-                    table=table,
+                    user=self.user,
+                    rows=[row],
+                    field=self.ai_field,
+                    table=self.table,
                     error_message=str(exc),
                 )
-                raise exc
 
-            # FIXME: manually set the websocket_id to None for now because the frontend
-            # needs to receive the update to stop the loading state
-            user.web_socket_id = None
-            RowHandler().update_row_by_id(
-                user,
-                table,
-                row.id,
-                {ai_field.db_column: value},
-                model=model,
-                values_already_prepared=True,
-            )
-            rows_progress.increment()
+    def update_progress(self):
+        with self.lock:
+            self.progress.increment()
+            self.processed += 1
+
+    def update_value(self, row, value):
+        # Update immediately. Note: this will be run in a worker thread, so the
+        # db connection will use a separate transaction.
+        self.row_handler.update_row_by_id(
+            self.user,
+            self.table,
+            row.id,
+            {self.ai_field.db_column: value},
+            model=self.model,
+            values_already_prepared=True,
+        )
+
+    def raise_if_error(self):
+        if len(self.errors) == self.processed and self.processed > 0:
+            raise GenerativeAIPromptError(f"AI model responded with errors.")
+
+
+def get_executor(max_workers=1):
+    return ThreadPoolExecutor(max_workers=max_workers)

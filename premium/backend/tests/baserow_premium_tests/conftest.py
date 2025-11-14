@@ -11,7 +11,7 @@ from baserow_premium.license.registries import LicenseType, license_type_registr
 from baserow_premium.plugins import PremiumPlugin
 
 from baserow.core.cache import local_cache
-from baserow.test_utils.pytest_conftest import *  # noqa: F403, F401
+from baserow.test_utils.pytest_conftest import *  # noqa: F403, F401, F405
 
 
 @pytest.fixture
@@ -93,3 +93,34 @@ def alternative_per_workspace_license_service(
     mutable_plugin_registry.registry[PremiumPlugin.type] = stub_premium_plugin
 
     yield stub_premium_plugin.get_license_plugin()
+
+
+@pytest.fixture(scope="function", autouse=True)
+def patch_aigeneratorworker_pool():
+    """
+    Patches thread-based executor for AI value generation with a serialized execution,
+    so we run each worker in the main thread, and have proper access to test database.
+    """
+
+    class SerialExecutor:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            pass
+
+        def submit(self, call, *args, **kwargs):
+            try:
+                call(*args, **kwargs)
+            except Exception as err:
+                logger.opt(exception=err).warning(  # noqa: F405
+                    f" SerialExecutor call {call}({args}, {kwargs}) failed: {err}"
+                )
+
+    def patch_executor(*args, **kwargs):
+        return SerialExecutor()
+
+    with patch(  # noqa: F405
+        "baserow_premium.fields.job_types.get_executor", new=patch_executor
+    ) as patched:
+        yield patched

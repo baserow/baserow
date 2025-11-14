@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Run AI field generation in parallel",
+    "issue_origin": "github",
+    "issue_number": 4227,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2025-11-20"
+}
