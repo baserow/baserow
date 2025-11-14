@@ -52,7 +52,7 @@ export class ToTipTapVisitor extends BaserowFormulaVisitor {
         if (this.mode === 'simple') {
           return { type: 'newLine' }
         } else {
-          return { type: 'text', text: "'\\n'" }
+          return { type: 'text', text: "'\n'" }
         }
       default: {
         if (this.mode === 'advanced') {
