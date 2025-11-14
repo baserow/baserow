@@ -76,9 +76,7 @@ class TextNotContainsViewFilterItem(
 
 
 class TextEmptyViewFilterItemCreate(TextViewFilterItemCreate):
-    operator: Literal["is_empty"] = Field(
-        ..., description="Checks if the field is empty."
-    )
+    operator: Literal["empty"] = Field(..., description="Checks if the field is empty.")
 
 
 class TextEmptyViewFilterItem(TextEmptyViewFilterItemCreate, ViewFilterItem):
@@ -86,7 +84,7 @@ class TextEmptyViewFilterItem(TextEmptyViewFilterItemCreate, ViewFilterItem):
 
 
 class TextNotEmptyViewFilterItemCreate(TextViewFilterItemCreate):
-    operator: Literal["is_not_empty"] = Field(
+    operator: Literal["not_empty"] = Field(
         ..., description="Checks if the field is not empty."
     )
 
@@ -183,9 +181,7 @@ class NumberLowerThanViewFilterItem(
 
 
 class NumberEmptyViewFilterItemCreate(NumberViewFilterItemCreate):
-    operator: Literal["is_empty"] = Field(
-        ..., description="Checks if the field is empty."
-    )
+    operator: Literal["empty"] = Field(..., description="Checks if the field is empty.")
 
 
 class NumberEmptyViewFilterItem(NumberEmptyViewFilterItemCreate, ViewFilterItem):
@@ -193,7 +189,7 @@ class NumberEmptyViewFilterItem(NumberEmptyViewFilterItemCreate, ViewFilterItem)
 
 
 class NumberNotEmptyViewFilterItemCreate(NumberViewFilterItemCreate):
-    operator: Literal["is_not_empty"] = Field(
+    operator: Literal["not_empty"] = Field(
         ..., description="Checks if the field is not empty."
     )
 
