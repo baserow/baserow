@@ -231,11 +231,6 @@ export default {
       // The fields store is context-sensitive, and shows fields for the current table
       // only, so we should add the field only if the modal has been opened for the
       // current table.
-      console.log('current table', {
-        modal: this.table.id,
-        store: this.$store.getters['table/getSelectedId'],
-        cb: forceCreateCallback,
-      })
       if (this.table.id === this.$store.getters['table/getSelectedId']) {
         if (_.isFunction(forceCreateCallback)) {
           await forceCreateCallback()
@@ -245,6 +240,14 @@ export default {
       return newField
     },
     async addNewField(dependencyFieldName) {
+      try {
+        return await this._addNewField(dependencyFieldName)
+      } catch (error) {
+        notifyIf(error)
+      }
+    },
+
+    async _addNewField(dependencyFieldName) {
       // Defaults for new fields depending on a configuration field.
       // We need to have access to instance variables, so this is inside a method.
       const FIELDS_DEFAULTS = {
@@ -287,7 +290,7 @@ export default {
       const usedFieldNames = _.map(this.fields, 'name')
 
       const fieldName = getNextAvailableNameInSequence(
-        _.capitalize(fieldDef.values.name),
+        fieldDef.values.name,
         usedFieldNames
       )
       fieldDef.values.name = fieldName
