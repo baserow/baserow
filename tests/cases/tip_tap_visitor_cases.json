@@ -155,7 +155,8 @@
           "type": "wrapper",
           "content": [
             {
-              "type": "wrapper"
+              "type": "text",
+              "text": "\u200B"
             }
           ]
         }
