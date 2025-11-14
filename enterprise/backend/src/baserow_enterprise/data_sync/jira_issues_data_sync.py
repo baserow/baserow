@@ -283,8 +283,8 @@ class JiraIssuesDataSyncType(DataSyncType):
                 start_at += max_results
                 if data["total"] <= start_at:
                     break
-        except (RequestException, UnacceptableAddressException, ConnectionError):
-            raise SyncError("Error fetching issues from Jira.")
+        except (RequestException, UnacceptableAddressException, ConnectionError) as e:
+            raise SyncError(f"Error connecting to Jira: {str(e)}")
 
         return issues
 
