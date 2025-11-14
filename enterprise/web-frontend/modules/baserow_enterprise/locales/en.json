@@ -336,7 +336,7 @@
     "promptCreateDatabaseTitle": "Create a database",
     "promptCreateDatabasePrompt": "Build a project management database.",
     "promptCreateAutomationTitle": "Create an automation",
-    "promptCreateAutomationPrompt": "Create an automation that every Tuesday in the morning ask in the Slack developers channel if there is anything to demo.",
+    "promptCreateAutomationPrompt": "Create an automation that every Tuesday in the morning asks in the Slack developers channel if there is anything to demo.",
     "promptInviteUsersTitle": "Invite users",
     "promptInviteUsersPrompt": "How do I invite users to my workspace?",
     "promptCreateTableTitle": "Create a table",
