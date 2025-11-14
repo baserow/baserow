@@ -1,5 +1,6 @@
 from enum import StrEnum
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
@@ -57,6 +58,14 @@ class AIField(Field):
             return output_field._meta.get_field(name).default
         except Exception:
             super().__getattr__(name)
+
+    @property
+    def ai_max_workers(self):
+        """
+        Returns a number of max concurrent workers to be used with the model.
+        """
+
+        return settings.BASEROW_MAX_AI_WORKERS
 
 
 class GenerateAIValuesJob(
