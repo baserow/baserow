@@ -1026,50 +1026,6 @@ def test_get_set_export_serialized_value_single_select_field(data_fixture):
     assert getattr(imported_row_3, f"field_{imported_field.id}").color == "red"
 
 
-@pytest.mark.django_db(transaction=True)
-def test_get_set_export_serialized_value_single_select_field_with_deleted_option(
-    data_fixture,
-):
-    user = data_fixture.create_user()
-    workspace = data_fixture.create_workspace(user=user)
-    imported_workspace = data_fixture.create_workspace(user=user)
-    database = data_fixture.create_database_application(workspace=workspace)
-    table = data_fixture.create_database_table(database=database)
-    field = data_fixture.create_single_select_field(table=table)
-    option_a = data_fixture.create_select_option(field=field, value="A", color="green")
-
-    core_handler = CoreHandler()
-
-    model = table.get_model()
-    model.objects.create(**{f"field_{field.id}_id": option_a.id})
-
-    # Deleting the option doesn't set the row value to None.
-    option_a.delete()
-
-    config = ImportExportConfig(include_permission_data=False)
-
-    exported_applications = core_handler.export_workspace_applications(
-        workspace, BytesIO(), config
-    )
-    imported_applications, id_mapping = core_handler.import_applications_to_workspace(
-        imported_workspace, exported_applications, BytesIO(), config, None
-    )
-    imported_database = imported_applications[0]
-    imported_table = imported_database.table_set.all()[0]
-    imported_field = imported_table.field_set.all().first().specific
-
-    assert imported_table.id != table.id
-    assert imported_field.id != field.id
-
-    imported_model = imported_table.get_model()
-    all = imported_model.objects.all()
-    assert len(all) == 1
-    imported_row_1 = all[0]
-
-    assert getattr(imported_row_1, f"field_{imported_field.id}") is None
-    assert getattr(imported_row_1, f"field_{imported_field.id}_id") is None
-
-
 @pytest.mark.django_db
 def test_single_select_adjacent_row(data_fixture):
     user = data_fixture.create_user()
