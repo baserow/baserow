@@ -1,6 +1,10 @@
 from django.urls import re_path
 
-from .views import AsyncGenerateAIFieldValuesView, GenerateFormulaWithAIView
+from .views import (
+    AsyncGenerateAIFieldValuesView,
+    GenerateFormulaWithAIView,
+    ListGenerateAIValuesJobsView,
+)
 
 app_name = "baserow_premium.api.fields"
 
@@ -9,6 +13,11 @@ urlpatterns = [
         r"(?P<field_id>[0-9]+)/generate-ai-field-values/$",
         AsyncGenerateAIFieldValuesView.as_view(),
         name="async_generate_ai_field_values",
+    ),
+    re_path(
+        r"generate-ai-field-values/jobs/$",
+        ListGenerateAIValuesJobsView.as_view(),
+        name="list_generate_ai_values_jobs",
     ),
     re_path(
         r"table/(?P<table_id>[0-9]+)/generate-ai-formula/$",

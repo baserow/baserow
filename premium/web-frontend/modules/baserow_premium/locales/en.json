@@ -374,7 +374,19 @@
     "other": "Other"
   },
   "generateAIValuesModal": {
-    "title": "Generate all AI values"
+    "title": "Generate all AI values",
+    "previousJobs": "Previous jobs",
+    "noPreviousJobs": "No previous jobs",
+    "completed": "Completed",
+    "running": "Running",
+    "failed": "Failed",
+    "cancelled": "Cancelled",
+    "pending": "Pending",
+    "mode_rows": "Specific rows",
+    "mode_view": "View",
+    "mode_table": "Entire table",
+    "deletedView": "Deleted view",
+    "selectedRows": "Selected {count} rows"
   },
   "generateAIValuesForm": {
     "scopeLabel": "Scope",

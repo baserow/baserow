@@ -49,11 +49,13 @@ from baserow.core.generative_ai.exceptions import (
 from baserow.core.handler import CoreHandler
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.jobs.registries import job_type_registry
+from baserow_premium.fields.handler import AIFieldHandler
 
 from .serializers import (
     GenerateAIFieldValueViewSerializer,
     GenerateFormulaWithAIRequestSerializer,
     GenerateFormulaWithAIResponseSerializer,
+    ListGenerateAIValuesJobsSerializer,
 )
 
 
@@ -217,3 +219,79 @@ class GenerateFormulaWithAIView(APIView):
         )
 
         return Response({"formula": formula}, status=status.HTTP_200_OK)
+
+
+class ListGenerateAIValuesJobsView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="field_id",
+                location=OpenApiParameter.QUERY,
+                type=OpenApiTypes.INT,
+                description="Filter jobs by field ID. If not provided, returns jobs for all fields the user has access to.",
+                required=False,
+            ),
+            OpenApiParameter(
+                name="states",
+                location=OpenApiParameter.QUERY,
+                type=OpenApiTypes.STR,
+                description="Comma-separated list of job states to filter by (e.g., 'finished,failed'). If not provided, returns all states.",
+                required=False,
+            ),
+            OpenApiParameter(
+                name="limit",
+                location=OpenApiParameter.QUERY,
+                type=OpenApiTypes.INT,
+                description="Maximum number of jobs to return. Defaults to 7.",
+                required=False,
+            ),
+        ],
+        tags=["Database table fields"],
+        operation_id="list_generate_ai_values_jobs",
+        description=(
+            "Lists GenerateAIValuesJob jobs with flexible filtering. "
+            "Returns jobs created by the authenticated user. "
+            "If field_id is provided, verifies user has access to the field's table."
+            "\nThis is a **premium** feature."
+        ),
+        responses={
+            200: ListGenerateAIValuesJobsSerializer,
+            400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
+            404: get_error_schema(["ERROR_FIELD_DOES_NOT_EXIST"]),
+        },
+    )
+    @map_exceptions(
+        {
+            FieldDoesNotExist: ERROR_FIELD_DOES_NOT_EXIST,
+            UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
+        }
+    )
+    def get(self, request: Request) -> Response:
+        """Lists AI value generation jobs with optional filtering."""
+
+        field_id = request.GET.get("field_id")
+        if field_id:
+            field_id = int(field_id)
+
+        states = request.GET.get("states")
+        if states:
+            states = [s.strip() for s in states.split(",")]
+        else:
+            states = None
+
+        limit = request.GET.get("limit", 5)
+        limit = int(limit)
+
+        jobs = AIFieldHandler.list_generate_ai_values_jobs(
+            performed_by=request.user,
+            field_id=field_id,
+            states=states,
+            limit=limit,
+        )
+
+        return Response(
+            ListGenerateAIValuesJobsSerializer({"results": jobs}).data,
+            status=status.HTTP_200_OK,
+        )

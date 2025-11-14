@@ -1,17 +1,25 @@
 import json
 from typing import Optional
 
+from django.contrib.auth.models import AbstractUser
+from django.db.models import QuerySet
+
 from baserow_premium.prompts import get_generate_formula_prompt
 from langchain_core.exceptions import OutputParserException
 from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.prompts import PromptTemplate
 
+from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.table.models import Table
+from baserow.contrib.database.table.operations import ReadDatabaseTableOperationType
 from baserow.core.db import specific_iterator
 from baserow.core.generative_ai.exceptions import ModelDoesNotBelongToType
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
+from baserow.core.handler import CoreHandler
+from baserow.core.jobs.constants import JOB_FINISHED
 
+from .models import GenerateAIValuesJob
 from .pydantic_models import BaserowFormulaModel
 
 
@@ -75,3 +83,46 @@ class AIFieldHandler:
             raise OutputParserException(
                 "The model didn't respond with the correct output. " "Please try again."
             ) from e
+
+    @classmethod
+    def list_generate_ai_values_jobs(
+        cls,
+        performed_by: AbstractUser,
+        field_id: Optional[int] = None,
+        states: Optional[list[str]] = None,
+        limit: int = 7,
+    ) -> QuerySet:
+        """
+        Lists GenerateAIValuesJob jobs with flexible filtering.
+
+        :param performed_by: The user performing the operation.
+        :param field_id: Optional field ID to filter jobs for a specific field.
+        :param states: Optional list of job states to filter by. If None, returns all states.
+        :param limit: Maximum number of jobs to return. Defaults to 7.
+        :return: A queryset of GenerateAIValuesJob objects.
+        :raises FieldDoesNotExist: If field_id is provided but field doesn't exist.
+        :raises UserNotInWorkspace: If user doesn't have access to the field's table.
+        """
+
+        # Build base query - only jobs created by the user
+        queryset = GenerateAIValuesJob.objects.filter(user=performed_by)
+
+        # If field_id is provided, verify permissions and filter
+        if field_id is not None:
+            field = FieldHandler().get_field(field_id)
+            CoreHandler().check_permissions(
+                performed_by,
+                ReadDatabaseTableOperationType.type,
+                workspace=field.table.database.workspace,
+                context=field.table,
+            )
+            queryset = queryset.filter(field_id=field_id)
+
+        # Filter by states (if provided)
+        if states is not None:
+            queryset = queryset.filter(state__in=states)
+
+        # Order and limit
+        return queryset.select_related("user", "field").order_by("-updated_on", "-id")[
+            :limit
+        ]
