@@ -634,13 +634,29 @@
     "assistantWelcomeMessage": {
         "greet": "안녕 {name}",
         "question": "제 이름은 쿠마예요!",
-        "subtitle": "짐이 무겁게 느껴지지 않도록 제가 도와드릴게요. 아래 질문 중에서 선택하시거나, 필요하신 내용을 말씀해 주세요!"
+        "subtitle": "짐이 무겁게 느껴지지 않도록 제가 도와드릴게요. 아래 질문 중에서 선택하시거나, 필요하신 내용을 말씀해 주세요!",
+        "subtitleWithoutSuggestions": "일이 부담스럽게 느껴지지 않도록 제가 도와드릴게요. 필요한 게 뭐든지 말씀만 하세요!",
+        "promptCreateDatabaseTitle": "데이터베이스 생성",
+        "promptCreateDatabasePrompt": "프로젝트 관리 데이터베이스를 구축합니다.",
+        "promptCreateAutomationTitle": "자동화 만들기",
+        "promptCreateAutomationPrompt": "매주 화요일 아침 Slack 개발자 채널에서 데모할 내용이 있는지 묻는 자동화를 만듭니다.",
+        "promptInviteUsersTitle": "사용자 초대",
+        "promptInviteUsersPrompt": "내 작업 공간에 사용자를 초대하려면 어떻게 해야 하나요?",
+        "promptCreateTableTitle": "테이블 생성",
+        "promptCreateTablePrompt": "작업이라는 이름의 새 테이블을 만듭니다.",
+        "promptWhichTablesTitle": "어떤 테이블",
+        "promptWhichTablesPrompt": "이 데이터베이스에는 어떤 테이블이 있나요?",
+        "promptCreateFormTitle": "양식 생성",
+        "promptCreateFormPrompt": "이 표에 대한 양식을 만듭니다.",
+        "promptCreateFilterTitle": "필터 만들기",
+        "promptCreateFilterPrompt": "기본 필드가 비어 있는 행만 표시합니다."
     },
     "assistantInputMessage": {
         "statusWaiting": "어시스턴트가 도와드릴 준비가 되었습니다",
         "statusRunning": "실행중...",
         "placeholder": "무엇이든 물어보세요...",
-        "send": "메시지 보내기"
+        "send": "메시지 보내기",
+        "stop": "생성 중지"
     },
     "assistantChatHistoryContext": {
         "empty": "채팅 기록이 없습니다",
@@ -670,7 +686,9 @@
     },
     "assistant": {
         "statusThinking": "생각중...",
-        "statusAnswering": "답변중..."
+        "statusAnswering": "답변중...",
+        "statusCancelling": "취소중...",
+        "messageCancelled": "메시지 취소됨"
     },
     "assistantMessageSources": {
         "sources": "{count} 소스 | {count} 소스"
@@ -680,6 +698,18 @@
         "feedbackContextPlaceholder": "무엇을 개선할 수 있을까요? (선택 사항)",
         "copiedToClipboard": "클립보드에 복사됨",
         "copiedContentToast": "도우미의 응답 내용이 클립보드에 복사되었습니다",
-        "copyFailed": "클립보드에 복사하는 데 실패했습니다"
+        "copyFailed": "클립보드에 복사하는 데 실패했습니다",
+        "disclaimer": "쿠마는 실수를 할 수 있으니 답변을 다시 한번 확인해 주세요"
+    },
+    "dateDependency": {
+        "invalidChildRow": "후속 행이 유효하지 않습니다",
+        "invalidParentRow": "선행 행이 잘못되었습니다",
+        "invalidParentEndDateAfterChildStartDate": "이전 행 종료 날짜가 후속 행 시작 날짜 이후입니다",
+        "invalidStartDateEmpty": "시작 날짜가 비어 있습니다",
+        "invalidEndDateEmpty": "종료 날짜가 비어 있습니다",
+        "invalidEndDateBeforeStartDate": "종료 날짜가 시작 날짜보다 이전입니다",
+        "invalidDurationEmpty": "기간이 비어 있습니다",
+        "invalidDurationValue": "기간 값이 유효하지 않습니다",
+        "invalidDurationMismatch": "기간 값 불일치"
     }
 }
