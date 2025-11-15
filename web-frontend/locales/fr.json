@@ -695,7 +695,7 @@
     "formulaInputContext": {
         "useRegularInput": "Utiliser une formule simple",
         "useAdvancedInput": "Utiliser la saisie avancée",
-        "useRegularInputModalTitle": "Passer à la formule simple ?",
+        "useRegularInputModalTitle": "Passer à une formule simple ?",
         "useAdvancedInputModalTitle": "Passer à la formule avancée ?",
         "modalMessage": "Le passage à un autre mode effacera la formule actuelle. Êtes-vous sûr‐e de vouloir continuer ?"
     },
