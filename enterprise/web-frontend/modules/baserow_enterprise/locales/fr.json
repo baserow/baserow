@@ -637,13 +637,29 @@
     "assistantWelcomeMessage": {
         "greet": "Bonjour {name}",
         "question": "mon nom est Kuma !",
-        "subtitle": "Je suis là pour vous aider à utiliser Baserow. Choisissez parmi les prompts ci-dessous ou écrivez-moi simplement ce dont vous avez besoin !"
+        "subtitle": "Je suis là pour vous aider à utiliser Baserow. Choisissez parmi les prompts ci-dessous ou écrivez-moi simplement ce dont vous avez besoin !",
+        "promptInviteUsersPrompt": "Comment inviter les utilisateurs dans mon projet ?",
+        "promptCreateTableTitle": "Créer une table",
+        "promptCreateTablePrompt": "Créer une nouvelle table nommée tâches.",
+        "promptWhichTablesTitle": "Quelles tables",
+        "promptWhichTablesPrompt": "Quelles tables sont dans cette base de données ?",
+        "promptCreateFormTitle": "Créer un formulaire",
+        "promptCreateFormPrompt": "Créer un formulaire pour cette table.",
+        "promptCreateFilterTitle": "Créer un filtre",
+        "promptCreateFilterPrompt": "Montrer seulement les lignes où le champ primaire est vide.",
+        "subtitleWithoutSuggestions": "Je suis là pour vous faciliter l'utilisation de Baserow. Dites-moi ce dont vous avez besoin !",
+        "promptCreateDatabaseTitle": "Créer une base de données",
+        "promptCreateDatabasePrompt": "Construire une base de données de gestion de projet.",
+        "promptCreateAutomationTitle": "Créer une automatisation",
+        "promptCreateAutomationPrompt": "Créez une automatisation pour que chaque mardi matin une demande soit envoyée dans le canal Slack des développeurs pour savoir s'il y a une nouvelle fonctionnalité à présenter.",
+        "promptInviteUsersTitle": "Inviter des utilisateurs"
     },
     "assistantInputMessage": {
         "statusWaiting": "L'assistant est prêt à vous aider",
         "statusRunning": "En cours...",
         "placeholder": "Demandez-moi ce que vous voulez...",
-        "send": "Envoyer"
+        "send": "Envoyer",
+        "stop": "Arréter la génération"
     },
     "assistantChatHistoryContext": {
         "empty": "Aucun historique de conversation",
@@ -673,7 +689,9 @@
     },
     "assistant": {
         "statusThinking": "Réflexions...",
-        "statusAnswering": "Réponse en cours..."
+        "statusAnswering": "Réponse en cours...",
+        "statusCancelling": "Annulation...",
+        "messageCancelled": "Message annulé"
     },
     "assistantMessageSources": {
         "sources": "{count} source | {count} sources"
@@ -682,8 +700,9 @@
         "feedbackContextTitle": "Aidez-nous à nous améliorer",
         "feedbackContextPlaceholder": "Que pourrions-nous améliorer ? (facultatif)",
         "copiedToClipboard": "Copié dans le presse-papiers",
-        "copiedContentToast": "Le contenu de la réponse de l'assistant a été copié dans votre presse-papiers",
-        "copyFailed": "Échec de la copie dans le presse-papiers"
+        "copiedContentToast": "La réponse de l'assistant a été copié dans votre presse-papiers",
+        "copyFailed": "Échec de la copie dans le presse-papiers",
+        "disclaimer": "Kuma peut faire des erreurs, veuillez vérifier les réponses"
     },
     "dateDependency": {
         "invalidChildRow": "La ligne suivante est invalide",
