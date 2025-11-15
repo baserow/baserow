@@ -537,7 +537,8 @@
                 "teams": "Équipes",
                 "highestRole": "Rôle le plus élevé",
                 "highestRoleHelpText": "Le rôle le plus élevé attribué à cet utilisateur, directement ou par une équipe, sur tout ce qui se trouve dans ce projet",
-                "highestRoleInstanceHelpText": "Le rôle le plus élevé dont dispose cet utilisateur dans l'instance"
+                "highestRoleInstanceHelpText": "Le rôle le plus élevé dont dispose cet utilisateur dans l'instance",
+                "2fa": "2FA"
             },
             "title": "{userAmount} Membres dans {workspaceName}",
             "inviteMember": "Inviter un membre"
@@ -664,7 +665,7 @@
         "createTitle": "Nouvelle intégration"
     },
     "integrationEditForm": {
-        "name": "Nom de l’intégration",
+        "name": "Nom",
         "namePlaceholder": "Saisissez le nom de l'intégration..."
     },
     "workspaceInvitationCreatedNotification": {
@@ -1198,5 +1199,9 @@
         "verificationFailedDescription": "Le code saisi n'est pas valide.",
         "provisioningFailed": "Échec du provisionnement",
         "checkSuccess": "L'authentification à deux facteurs a été activée avec succès"
+    },
+    "twoFactorAuthField": {
+        "enabled": "Activé",
+        "disabled": "Désactivé"
     }
 }
