@@ -391,5 +391,22 @@
         "other": "Autre",
         "true": "vrai",
         "false": "faux"
+    },
+    "generateAIValuesModal": {
+        "title": "Générer toutes les valeurs IA"
+    },
+    "generateAIValuesForm": {
+        "scopeLabel": "Champ d ' application",
+        "entireTable": "Table entière",
+        "skipPopulated": "Générer uniquement des valeurs pour les cellules vides",
+        "warningTitle": "Avertissement d'utilisation du Jeton",
+        "warningMessage": "Générer toutes les valeurs consomme des jetons d'API et peut prendre un temps considérable en fonction du nombre de lignes."
+    },
+    "generateAIValuesFormFooter": {
+        "generate": "Générer avec l'IA",
+        "close": "Fermer"
+    },
+    "jobType": {
+        "generateAIValues": "Régénérer les valeurs du champ"
     }
 }
