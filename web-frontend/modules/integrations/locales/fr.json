@@ -4,7 +4,8 @@
         "localBaserow": "Baserow local",
         "localBaserowWarning": "Associer votre compte donne à tous ceux qui peuvent modifier l'application un accès complet aux données auxquelles vous avez accès. Il est possible de créer un deuxième utilisateur, donner les bonnes autorisations et utiliser celui-ci.",
         "smtp": "Mail SMTP",
-        "ai": "IA"
+        "ai": "IA",
+        "slackBot": "Bot Slack"
     },
     "serviceType": {
         "localBaserowGetRow": "Obtenir une ligne",
@@ -58,7 +59,12 @@
         "coreHTTPTriggerDescription": "Déclenché quand une requête HTTP est reçue.",
         "coreIteration": "Itérateur",
         "coreIterationDescription": "Itère sur une liste d'éléments.",
-        "errorIterationSourceMissing": "Source manquante"
+        "errorIterationSourceMissing": "Source manquante",
+        "slackWriteMessage": "Envoyer un message Slack",
+        "slackWriteMessageDescription": "Envoie un message à un #canal Slack spécifique",
+        "slackWriteMessageMissingChannel": "Un canal est nécessaire.",
+        "slackWriteMessageMissingMessage": "Un message est nécessaire.",
+        "slackWriteMessageMissingIntegration": "Aucune intégration Slack n'a été sélectionnée."
     },
     "localBaserowForm": {
         "user": "Utilisateur",
@@ -282,5 +288,35 @@
     "coreIterationServiceForm": {
         "source": "Source",
         "sourcePlaceholder": "Choisissez une source..."
+    },
+    "slackBotIntegrationType": {
+        "slackBotSummary": "Bot Slack",
+        "slackBotNoToken": "Bot Slack - Non configuré"
+    },
+    "slackBotForm": {
+        "tokenLabel": "Token utilisateur pour le bot",
+        "tokenPlaceholder": "xoxb-1234-...",
+        "tokenMustStartWith": "Le jeton doit commencer par \"xoxb-\"",
+        "supportHeading": "Besoin d'aide ?",
+        "supportDescription": "Si vous avez besoin d'aide pour la connexion avec votre application Slack, veuillez suivre les étapes ci-dessous.",
+        "supportSetupHeading": "1. Mettre en place l'application",
+        "supportSetupDescription": "En fonction des paramètres de votre espace de travail Slack, vous pourrez peut-être créer une nouvelle application Slack. Sinon, un administrateur devra le faire pour vous. Si vous réutilisez une application existante qui peut écrire des messages, passez à la section intitulée \"Connexion avec votre application Slack\".",
+        "supportSetupStep1": "Accédez à la page <a href=\"https://api.slack.com/apps\" target=\"_blank\">application</a> de votre espace de travail Slack.",
+        "supportSetupStep2": "Créez une nouvelle application, choisissez \"A partir de zéro\" et saisissez un nom. Sélectionnez l'espace de travail dans lequel votre application doit fonctionner et cliquez sur \"Créer\".",
+        "supportSetupStep3": "Dans la barre latérale gauche, naviguez vers \"OAuth & Permissions\", descendez jusqu'à \"Scopes\" et sous \"Bot Token Scopes\", sélectionnez \"Add an OAuth Scope\".",
+        "supportSetupStep4": "Pour permettre à votre application de poster des messages, ajoutez la portée <pre>chat:write</pre>.",
+        "supportPairingHeading": "2. Association avec votre application Slack",
+        "supportPairingStep1": "Si votre application est nouvelle : visitez la page 'Paramètres' > 'Installer application'. Cliquez sur le bouton vert pour installer l'application dans votre espace de travail.",
+        "supportPairingStep2": "Copiez votre 'Bot User OAuth Token' et stockez-le dans le champ 'Jeton utilisateur Bot' dans ce formulaire.",
+        "supportPairingStep3": "Enfin, si votre application est nouvelle : dans Slack, invitez votre application dans le canal choisi avec <pre>/invite @votreAppName votreChannel</pre>"
+    },
+    "slackWriteMessageServiceForm": {
+        "alertMessage": "Cette action doit être associée à une application Slack. Suivez le guide dans la fenêtre de configuration de l'intégration pour procéder.",
+        "integrationLabel": "Intégration",
+        "channelLabel": "Canal",
+        "channelPlaceholder": "Entrez un nom de canal",
+        "messageLabel": "Message",
+        "messagePlaceholder": "Saisissez un message...",
+        "channelNoPrefix": "Retirer le '#' avant le nom du canal."
     }
 }
