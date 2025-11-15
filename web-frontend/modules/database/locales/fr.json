@@ -561,7 +561,8 @@
         "generateCellsValues": "Générer des valeurs avec l'IA",
         "AIValuesGenerationErrorTitle": "La génération de valeur par l'IA a échoué",
         "AIValuesGenerationErrorMessage": "Veuillez vérifier votre API_KEY et le modèle sélectionné.",
-        "copyCellsWithHeader": "Copier les cellules avec l'en-tête"
+        "copyCellsWithHeader": "Copier les cellules avec l'en-tête",
+        "generateAllAiValues": "Générer toutes les valeurs"
     },
     "gridViewFieldLinkRow": {
         "unnamed": "Ligne sans nom {value}",
