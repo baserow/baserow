@@ -671,7 +671,8 @@
         "tooManyItemsTitle": "항목이 너무 많음",
         "tooManyItemsDescription": "한 번에 {limit}개 이상의 행을 업데이트할 수 없으므로 처음 몇 개만 업데이트했습니다.",
         "AIValuesGenerationErrorTitle": "AI 값 생성 실패",
-        "AIValuesGenerationErrorMessage": "API_KEY를 확인하고 선택한 모델을 확인하세요."
+        "AIValuesGenerationErrorMessage": "API_KEY를 확인하고 선택한 모델을 확인하세요.",
+        "generateAllAiValues": "모든 AI 값 생성"
     },
     "gridViewFieldFile": {
         "dropHere": "여기에 놓기",
