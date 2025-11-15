@@ -94,7 +94,8 @@
         "emailNotifications": "이메일 알림",
         "tokens": "데이터베이스 토큰",
         "deleteAccount": "계정 삭제",
-        "mcpEndpoint": "MCP 서버"
+        "mcpEndpoint": "MCP 서버",
+        "twoFactorAuth": "2단계 인증"
     },
     "userFileUploadType": {
         "file": "내 기기",
@@ -658,7 +659,7 @@
         "roundDescription": "첫 번째 인수를 두 번째 인수로 지정된 소수 자릿수까지 반올림합니다.",
         "evenDescription": "인수가 짝수이면 true를 반환하고, 그렇지 않으면 false를 반환합니다.",
         "oddDescription": "인수가 홀수이면 true를 반환하고, 그렇지 않으면 false를 반환합니다.",
-        "dateTimeDescription": "format 및 timezone 인수를 사용하여 날짜 시간 인수를 형식화합니다.",
+        "dateTimeDescription": "format 및 timezone 인수를 사용하여 날짜/시간 인수의 형식을 지정합니다. 시간대를 비워 두면 브라우저의 시간대가 기본값으로 사용됩니다.",
         "dayDescription": "날짜 시간 인수에서 요일을 반환합니다.",
         "monthDescription": "날짜 시간 인수에서 월을 반환합니다.",
         "yearDescription": "날짜 시간 인수에서 연도를 반환합니다.",
@@ -670,6 +671,29 @@
         "randomIntDescription": "인수로 지정된 범위에서 임의의 정수를 반환합니다.",
         "randomFloatDescription": "인수로 지정된 범위에서 난수 부동 소수점을 반환합니다.",
         "randomBoolDescription": "true 또는 false의 무작위 부울 값을 반환합니다.",
-        "generateUUIDDescription": "임의의 UUID4 문자열을 반환합니다."
+        "generateUUIDDescription": "임의의 UUID4 문자열을 반환합니다.",
+        "ifDescription": "첫 번째 인수가 참이면 두 번째 인수를 반환하고, 그렇지 않으면 세 번째 인수를 반환합니다.",
+        "andDescription": "모든 인수가 참이면 참을 반환하고, 그렇지 않으면 거짓을 반환합니다.",
+        "orDescription": "인수가 참이면 참을 반환하고, 그렇지 않으면 거짓을 반환합니다.",
+        "formulaTypeFormula": "함수 | 함수",
+        "formulaTypeOperator": "연산자 | 연산자",
+        "formulaTypeData": "데이터",
+        "formulaTypeDataEmpty": "사용 가능한 데이터가 없습니다",
+        "categoryText": "텍스트",
+        "categoryNumber": "숫자",
+        "categoryBoolean": "부울",
+        "categoryDate": "날짜",
+        "categoryCondition": "상태"
+    },
+    "formulaInputContext": {
+        "useRegularInput": "일반적인 입력을 사용",
+        "useAdvancedInput": "고급 입력 사용",
+        "useRegularInputModalTitle": "일반 입력으로 전환하시겠습니까?",
+        "useAdvancedInputModalTitle": "고급 입력으로 전환하시겠습니까?",
+        "modalMessage": "다른 입력 모드로 전환하면 현재 수식이 삭제됩니다. 계속하시겠습니까?"
+    },
+    "nodeExplorer": {
+        "noResults": "검색 결과가 없습니다",
+        "resetSearch": "검색 재설정"
     }
 }
