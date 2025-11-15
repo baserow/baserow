@@ -19,7 +19,7 @@ from baserow_enterprise.assistant.tools.navigation.utils import unsafe_navigate_
 from baserow_enterprise.assistant.tools.registries import assistant_tool_registry
 
 from .models import AssistantChat, AssistantChatMessage, AssistantChatPrediction
-from .prompts import ASSISTANT_SYSTEM_PROMPT
+from .signatures import ChatSignature, ExtractQuestionContext
 from .types import (
     AiMessage,
     AiMessageChunk,
@@ -118,47 +118,6 @@ class AssistantCallbacks(BaseCallback):
             self.extend_sources(outputs["sources"])
 
 
-class ChatSignature(udspy.Signature):
-    __doc__ = f"{ASSISTANT_SYSTEM_PROMPT}\n TASK INSTRUCTIONS: \n"
-
-    question: str = udspy.InputField()
-    context: str = udspy.InputField(
-        description="Context and facts extracted from the history to help answer the question."
-    )
-    ui_context: dict[str, Any] | None = udspy.InputField(
-        default=None,
-        description=(
-            "The context the user is currently in. "
-            "It contains information about the user, the workspace, open table, view, etc."
-            "Whenever make sense, use it to ground your answer."
-        ),
-    )
-    answer: str = udspy.OutputField()
-
-
-class QuestionContextSummarizationSignature(udspy.Signature):
-    """
-    Extract relevant facts from conversation history that provide context for answering
-    the current question. Do not answer the question or modify it - only extract and
-    summarize the relevant historical facts that will help in decision-making.
-    """
-
-    question: str = udspy.InputField(
-        description="The current user question that needs context from history."
-    )
-    previous_messages: list[str] = udspy.InputField(
-        description="Conversation history as alternating user/assistant messages."
-    )
-    facts: str = udspy.OutputField(
-        description=(
-            "Relevant facts extracted from the conversation history as a concise "
-            "paragraph. Include only information that provides necessary context for "
-            "answering the question. Do not answer the question itself, do not modify "
-            "the question, and do not include irrelevant details."
-        )
-    )
-
-
 def get_assistant_cancellation_key(chat_uuid: str) -> str:
     """
     Get the Redis cache key for cancellation tracking.
@@ -182,18 +141,44 @@ def set_assistant_cancellation_key(chat_uuid: str, timeout: int = 300) -> None:
     cache.set(cache_key, True, timeout=timeout)
 
 
+def get_lm_client(
+    model: str | None = None,
+) -> "Assistant":
+    """
+    Returns a udspy.LM client configured with the specified model or the default model.
+
+    :param model: The language model to use. If None, the default model from settings
+        will be used.
+    :return: A udspy.LM instance.
+    """
+
+    return udspy.LM(model=model or settings.BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL)
+
+
+@lru_cache(maxsize=1)
+def check_lm_ready_or_raise() -> None:
+    """
+    Checks if the configured LLM is ready by making a test call. Raises
+    AssistantModelNotSupportedError if the model is not supported or accessible.
+    """
+
+    lm = get_lm_client()
+    try:
+        lm("Respond in JSON: {'response': 'ok'}")
+    except Exception as e:
+        raise AssistantModelNotSupportedError(
+            f"The model '{lm.model}' is not supported or accessible: {e}"
+        )
+
+
 class Assistant:
     def __init__(self, chat: AssistantChat):
         self._chat = chat
         self._user = chat.user
         self._workspace = chat.workspace
 
-        self._init_lm_client()
+        self._lm_client = get_lm_client()
         self._init_assistant()
-
-    def _init_lm_client(self):
-        lm_model = settings.BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL
-        self._lm_client = udspy.LM(model=lm_model)
 
     def _init_assistant(self):
         self.tool_helpers = self.get_tool_helpers()
@@ -202,7 +187,7 @@ class Assistant:
         )
         self.callbacks = AssistantCallbacks(self.tool_helpers)
         self._assistant = udspy.ReAct(ChatSignature, tools=tools, max_iters=20)
-        self.history: list[str] = []
+        self.history = udspy.History()
 
     async def acreate_chat_message(
         self,
@@ -301,18 +286,9 @@ class Assistant:
             ):
                 continue
 
-            self.history.append(f"Human: {first_message.content}")
-            ai_answer = last_saved_messages.pop()
-            self.history.append(f"AI: {ai_answer.content}")
-
-    @lru_cache(maxsize=1)
-    def check_llm_ready_or_raise(self):
-        try:
-            self._lm_client("Say ok if you can read this.")
-        except Exception as e:
-            raise AssistantModelNotSupportedError(
-                f"The model '{self._lm_client.model}' is not supported or accessible: {e}"
-            )
+            self.history.add_user_message(first_message.content)
+            assistant_answer = last_saved_messages.pop()
+            self.history.add_assistant_message(assistant_answer.content)
 
     def get_tool_helpers(self) -> ToolHelpers:
         def update_status_localized(status: str):
@@ -410,15 +386,19 @@ class Assistant:
         :return: A string containing relevant facts from the conversation history.
         """
 
-        if not self.history:
+        await self.aload_chat_history()
+        conversation_history = ExtractQuestionContext.format_conversation_history(
+            self.history
+        )
+        if not conversation_history:
             return ""
 
-        predictor = udspy.Predict(QuestionContextSummarizationSignature)
-        result = await predictor.aforward(
+        extract = udspy.ChainOfThought(ExtractQuestionContext)
+        result = await extract.aforward(
             question=question,
-            previous_messages=self.history,
+            conversation_history=conversation_history,
         )
-        return result.facts
+        return result.relevant_context
 
     async def _process_stream_event(
         self,
@@ -487,9 +467,6 @@ class Assistant:
             lm=self._lm_client,
             callbacks=[*udspy.settings.callbacks, self.callbacks],
         ):
-            if self.history is None:
-                await self.aload_chat_history()
-
             context_from_history = await self._summarize_context_from_history(
                 human_message.content
             )

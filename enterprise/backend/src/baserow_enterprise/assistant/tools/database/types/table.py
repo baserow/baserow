@@ -42,17 +42,20 @@ class TableItem(BaseTableItem):
 
 class ListTablesFilterArg(BaseModel):
     database_ids: list[int] | None = Field(
-        ..., description="A list of database_ids to filter. None to exclude this filter"
+        default=None,
+        description="A list of database_ids to filter. None to exclude this filter",
     )
     database_names: list[str] | None = Field(
-        ...,
+        default=None,
         description="A list of database_names to filter. None to exclude this filter",
     )
     table_ids: list[int] | None = Field(
-        ..., description="A list of table ids to filter. None to exclude this filter"
+        default=None,
+        description="A list of table ids to filter. None to exclude this filter",
     )
     table_names: list[str] | None = Field(
-        ..., description="A list of table names to filter. None to exclude this filter"
+        default=None,
+        description="A list of table names to filter. None to exclude this filter",
     )
 
     def to_orm_filter(self) -> Q:

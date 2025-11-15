@@ -312,13 +312,7 @@ class BaserowEnterpriseConfig(AppConfig):
 
         from baserow_enterprise.assistant.tools import (
             CreateBuildersToolType,
-            CreateFieldsToolType,
-            CreateTablesToolType,
-            CreateViewFiltersToolType,
-            CreateViewsToolType,
-            CreateWorkflowsToolType,
             GenerateDatabaseFormulaToolType,
-            GetRowsToolsToolType,
             GetTablesSchemaToolType,
             ListBuildersToolType,
             ListRowsToolType,
@@ -326,7 +320,12 @@ class BaserowEnterpriseConfig(AppConfig):
             ListViewsToolType,
             ListWorkflowsToolType,
             NavigationToolType,
+            RowsToolFactoryToolType,
             SearchDocsToolType,
+            TableAndFieldsToolFactoryToolType,
+            ViewFiltersToolFactoryToolType,
+            ViewsToolFactoryToolType,
+            WorkflowToolFactoryToolType,
         )
         from baserow_enterprise.assistant.tools.registries import (
             assistant_tool_registry,
@@ -338,18 +337,17 @@ class BaserowEnterpriseConfig(AppConfig):
         assistant_tool_registry.register(ListBuildersToolType())
         assistant_tool_registry.register(CreateBuildersToolType())
         assistant_tool_registry.register(ListTablesToolType())
-        assistant_tool_registry.register(CreateTablesToolType())
+        assistant_tool_registry.register(TableAndFieldsToolFactoryToolType())
         assistant_tool_registry.register(GetTablesSchemaToolType())
-        assistant_tool_registry.register(CreateFieldsToolType())
         assistant_tool_registry.register(GenerateDatabaseFormulaToolType())
         assistant_tool_registry.register(ListRowsToolType())
-        assistant_tool_registry.register(GetRowsToolsToolType())
+        assistant_tool_registry.register(RowsToolFactoryToolType())
         assistant_tool_registry.register(ListViewsToolType())
-        assistant_tool_registry.register(CreateViewsToolType())
-        assistant_tool_registry.register(CreateViewFiltersToolType())
+        assistant_tool_registry.register(ViewsToolFactoryToolType())
+        assistant_tool_registry.register(ViewFiltersToolFactoryToolType())
 
         assistant_tool_registry.register(ListWorkflowsToolType())
-        assistant_tool_registry.register(CreateWorkflowsToolType())
+        assistant_tool_registry.register(WorkflowToolFactoryToolType())
 
         # The signals must always be imported last because they use the registries
         # which need to be filled first.

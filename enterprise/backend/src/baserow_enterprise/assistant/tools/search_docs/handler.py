@@ -102,21 +102,18 @@ class VectorHandler:
 
         return self.embed_texts([chunk.content for chunk in chunks])
 
-    def query(self, query: str, num_results: int = 10) -> list[str]:
+    def query(self, query: str, num_results: int = 10) -> list[KnowledgeBaseChunk]:
         """
         Retrieve the most relevant document chunks for the given query.
         It vectorizes the query and performs a similarity search using the vector field.
 
         :param query: The text query to search for
         :param num_results: The number of results to return
-        :return: A list of document chunk contents matching the query
+        :return: A list of KnowledgeBaseChunk instances matching the query
         """
 
         (vector_query,) = self.embed_texts([query])
-        results = self.raw_query(vector_query, num_results=num_results)
-        response = [res.content for res in results]
-
-        return response
+        return self.raw_query(vector_query, num_results=num_results)
 
     def raw_query(
         self, query_vector: list[float], num_results: int = 10
@@ -133,6 +130,7 @@ class VectorHandler:
             KnowledgeBaseChunk.objects.filter(
                 source_document__status=KnowledgeBaseDocument.Status.READY,
             )
+            .select_related("source_document")
             .alias(
                 distance=L2Distance(KnowledgeBaseChunk.VECTOR_FIELD_NAME, query_vector)
             )
@@ -185,13 +183,13 @@ class KnowledgeBaseHandler:
             ).exists()
         )
 
-    def search(self, query: str, num_results=10) -> list[str]:
+    def search(self, query: str, num_results=10) -> list[KnowledgeBaseChunk]:
         """
         Retrieve the most relevant knowledge chunks for the given query.
 
         :param query: The text query to search for
         :param num_results: The number of results to return
-        :return: A list of document chunk contents matching the query
+        :return: A list of KnowledgeBaseChunk instances matching the query
         """
 
         return self.vector_handler.query(query, num_results=num_results)

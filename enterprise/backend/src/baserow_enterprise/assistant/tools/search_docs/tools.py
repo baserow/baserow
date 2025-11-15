@@ -18,17 +18,17 @@ MAX_SOURCES = 3
 
 class SearchDocsSignature(udspy.Signature):
     """
-    Search the Baserow documentation for relevant information to answer user questions.
-    Never fabricate answers or URLs. Always copy instructions exactly as they appear in
-    the documentation, without rephrasing.
+    Given a user question and the relevant documentation chunks as context, provide a an
+    accurate and concise answer along with a reliability score. If the documentation
+    provides instructions or URLs, include them in the answer. If the answer is not
+    found in the context, respond with "Nothing found in the documentation."
+
+    Never fabricate answers or URLs.
     """
 
     question: str = udspy.InputField()
     context: list[str] = udspy.InputField()
     response: str = udspy.OutputField()
-    sources: list[str] = udspy.OutputField(
-        desc=f"List of unique and relevant source URLs. Max {MAX_SOURCES}."
-    )
     reliability: float = udspy.OutputField(
         desc=(
             "The reliability score of the response, from 0 to 1. "
@@ -43,8 +43,12 @@ class SearchDocsRAG(udspy.Module):
         self.rag = udspy.ChainOfThought(SearchDocsSignature)
 
     def forward(self, question: str, *args, **kwargs):
-        context = KnowledgeBaseHandler().search(question, num_results=7)
-        return self.rag(context=context, question=question)
+        relevant_chunks = KnowledgeBaseHandler().search(question, num_results=7)
+        relevant_contents = [chunk.content for chunk in relevant_chunks]
+        return {
+            **self.rag(context=relevant_contents, question=question),
+            "sources": relevant_chunks,
+        }
 
 
 def get_search_docs_tool(
@@ -72,17 +76,16 @@ def get_search_docs_tool(
         answer = search_tool(question=question)
         # Somehow sources can be objects with an "url" attribute instead of strings,
         # let's fix that
-        fixed_sources = []
-        for src in answer.sources[:MAX_SOURCES]:
-            if isinstance(src, str):
-                fixed_sources.append(src)
-            elif isinstance(src, dict) and "url" in src:
-                fixed_sources.append(src["url"])
+        sources = []
+        for src in answer["sources"][:MAX_SOURCES]:
+            url = src.source_document.source_url
+            if url not in sources:
+                sources.append(url)
 
         return {
-            "response": answer.response,
-            "sources": fixed_sources,
-            "reliability": answer.reliability,
+            "response": answer["response"],
+            "reliability": answer["reliability"],
+            "sources": sources,
         }
 
     return search_docs

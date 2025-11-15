@@ -5,8 +5,8 @@ from baserow.core.formula import resolve_formula
 from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
 from baserow_enterprise.assistant.tools.automation.tools import (
-    get_create_workflows_tool,
     get_list_workflows_tool,
+    get_workflow_tool_factory,
 )
 from baserow_enterprise.assistant.tools.automation.types import (
     CreateRowActionCreate,
@@ -94,7 +94,7 @@ def test_create_workflows(data_fixture):
     database = data_fixture.create_database_application(user=user, workspace=workspace)
     table = data_fixture.create_database_table(user=user, database=database)
 
-    tool = get_create_workflows_tool(user, workspace, fake_tool_helpers)
+    tool = get_workflow_tool_factory(user, workspace, fake_tool_helpers)
     result = tool(
         automation_id=automation.id,
         workflows=[
@@ -143,7 +143,7 @@ def test_create_multiple_workflows(data_fixture):
     database = data_fixture.create_database_application(user=user, workspace=workspace)
     table = data_fixture.create_database_table(user=user, database=database)
 
-    tool = get_create_workflows_tool(user, workspace, fake_tool_helpers)
+    tool = get_workflow_tool_factory(user, workspace, fake_tool_helpers)
     result = tool(
         automation_id=automation.id,
         workflows=[
@@ -248,7 +248,7 @@ def test_create_workflow_with_row_triggers_and_actions(data_fixture, trigger, ac
     table.pk = 999  # To match the action's table_id
     table.save()
 
-    tool = get_create_workflows_tool(user, workspace, fake_tool_helpers)
+    tool = get_workflow_tool_factory(user, workspace, fake_tool_helpers)
     result = tool(
         automation_id=automation.id,
         workflows=[
@@ -286,7 +286,7 @@ def test_create_row_action_with_field_ids(data_fixture):
     text_field = data_fixture.create_text_field(table=table, name="Name")
     number_field = data_fixture.create_number_field(table=table, name="Age")
 
-    tool = get_create_workflows_tool(user, workspace, fake_tool_helpers)
+    tool = get_workflow_tool_factory(user, workspace, fake_tool_helpers)
     result = tool(
         automation_id=automation.id,
         workflows=[
@@ -340,7 +340,7 @@ def test_update_row_action_with_row_id_and_field_ids(data_fixture):
     table = data_fixture.create_database_table(user=user, database=database)
     text_field = data_fixture.create_text_field(table=table, name="Status")
 
-    tool = get_create_workflows_tool(user, workspace, fake_tool_helpers)
+    tool = get_workflow_tool_factory(user, workspace, fake_tool_helpers)
     result = tool(
         automation_id=automation.id,
         workflows=[
@@ -395,7 +395,7 @@ def test_delete_row_action_with_row_id(data_fixture):
     database = data_fixture.create_database_application(user=user, workspace=workspace)
     table = data_fixture.create_database_table(user=user, database=database)
 
-    tool = get_create_workflows_tool(user, workspace, fake_tool_helpers)
+    tool = get_workflow_tool_factory(user, workspace, fake_tool_helpers)
     result = tool(
         automation_id=automation.id,
         workflows=[
@@ -449,7 +449,7 @@ def test_router_node_with_required_conditions(data_fixture):
     database = data_fixture.create_database_application(user=user, workspace=workspace)
     table = data_fixture.create_database_table(user=user, database=database)
 
-    tool = get_create_workflows_tool(user, workspace, fake_tool_helpers)
+    tool = get_workflow_tool_factory(user, workspace, fake_tool_helpers)
     result = tool(
         automation_id=automation.id,
         workflows=[

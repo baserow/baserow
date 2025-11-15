@@ -7,9 +7,9 @@ from baserow.contrib.database.formula.registries import formula_function_registr
 from baserow.contrib.database.table.models import Table
 from baserow.test_utils.helpers import AnyInt
 from baserow_enterprise.assistant.tools.database.tools import (
-    get_create_tables_tool,
     get_generate_database_formula_tool,
     get_list_tables_tool,
+    get_table_and_fields_tools_factory,
 )
 from baserow_enterprise.assistant.tools.database.types import (
     BooleanFieldItemCreate,
@@ -187,7 +187,7 @@ def test_create_simple_table_tool(data_fixture):
         workspace=workspace, name="Database 1"
     )
 
-    tool = get_create_tables_tool(user, workspace, fake_tool_helpers)
+    tool = get_table_and_fields_tools_factory(user, workspace, fake_tool_helpers)
     response = tool(
         database_id=database.id,
         tables=[
@@ -220,7 +220,7 @@ def test_create_complex_table_tool(data_fixture):
     )
     table = data_fixture.create_database_table(database=database, name="Table 1")
 
-    tool = get_create_tables_tool(user, workspace, fake_tool_helpers)
+    tool = get_table_and_fields_tools_factory(user, workspace, fake_tool_helpers)
     primary_field = TextFieldItemCreate(type="text", name="Name")
     fields = [
         LongTextFieldItemCreate(

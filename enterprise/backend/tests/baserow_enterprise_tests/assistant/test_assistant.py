@@ -278,6 +278,104 @@ class TestAssistantChatHistory:
         assert assistant.history[0] == "Human: Question 1"
         assert assistant.history[1] == "AI: Answer 1"
 
+    @patch(
+        "baserow_enterprise.assistant.assistant.Assistant._summarize_context_from_history"
+    )
+    @patch("udspy.ReAct.astream")
+    @patch("udspy.LM")
+    def test_history_is_passed_to_astream_as_context(
+        self, mock_lm, mock_astream, mock_summarize, enterprise_data_fixture
+    ):
+        """
+        Test that chat history is loaded correctly and passed to astream as context
+        """
+
+        user = enterprise_data_fixture.create_user()
+        workspace = enterprise_data_fixture.create_workspace(user=user)
+        chat = AssistantChat.objects.create(
+            user=user, workspace=workspace, title="Test Chat"
+        )
+
+        # Create conversation history (2 complete pairs)
+        AssistantChatMessage.objects.create(
+            chat=chat, role=AssistantChatMessage.Role.HUMAN, content="What is Baserow?"
+        )
+        AssistantChatMessage.objects.create(
+            chat=chat,
+            role=AssistantChatMessage.Role.AI,
+            content="Baserow is a no-code database",
+        )
+        AssistantChatMessage.objects.create(
+            chat=chat,
+            role=AssistantChatMessage.Role.HUMAN,
+            content="How do I create a table?",
+        )
+        AssistantChatMessage.objects.create(
+            chat=chat,
+            role=AssistantChatMessage.Role.AI,
+            content="Click the Create Table button",
+        )
+
+        # Mock summarize_context_from_history to pass through all messages. We'll
+        # capture the assistant instance and access its history directly
+        captured_assistant = None
+
+        async def mock_summarize_impl(question):
+            # Access the assistant's history directly
+            if captured_assistant and captured_assistant.history:
+                return "\n".join(captured_assistant.history)
+            return ""
+
+        mock_summarize.side_effect = mock_summarize_impl
+
+        # Mock astream to capture the context parameter
+        captured_context = {}
+
+        async def mock_stream(**kwargs):
+            # Capture all keyword arguments
+            captured_context.update(kwargs)
+            yield OutputStreamChunk(
+                module=None,
+                field_name="answer",
+                delta="Test response",
+                content="Test response",
+                is_complete=True,
+            )
+            yield Prediction(answer="Test response", trajectory=[], reasoning="")
+
+        mock_astream.side_effect = mock_stream
+        mock_lm.return_value.model = "test-model"
+
+        # Execute
+        assistant = Assistant(chat)
+        captured_assistant = assistant  # Capture for the mock to access
+
+        # Create a minimal UIContext for the test
+        ui_context = UIContext(
+            workspace=WorkspaceUIContext(id=workspace.id, name=workspace.name),
+            user=UserUIContext(id=user.id, name=user.first_name, email=user.email),
+        )
+        human_message = HumanMessage(content="Tell me more", ui_context=ui_context)
+
+        async def consume_stream():
+            async for _ in assistant.astream_messages(human_message):
+                pass
+
+        async_to_sync(consume_stream)()
+
+        # Assert that astream was called with context containing the history
+        mock_astream.assert_called_once()
+        assert "context" in captured_context
+
+        context_value = captured_context["context"]
+        assert context_value is not None
+
+        # Verify the context contains all 4 history messages in correct format
+        assert "Human: What is Baserow?" in context_value
+        assert "AI: Baserow is a no-code database" in context_value
+        assert "Human: How do I create a table?" in context_value
+        assert "AI: Click the Create Table button" in context_value
+
 
 @pytest.mark.django_db
 class TestAssistantMessagePersistence:

@@ -4,6 +4,8 @@ from django.contrib.auth.models import AbstractUser
 from django.db import transaction
 from django.utils.translation import gettext as _
 
+import udspy
+
 from baserow.contrib.automation.workflows.service import AutomationWorkflowService
 from baserow.core.models import Workspace
 from baserow_enterprise.assistant.tools.registries import AssistantToolType
@@ -47,11 +49,11 @@ def get_list_workflows_tool(
     return list_workflows
 
 
-def get_create_workflows_tool(
+def get_workflow_tool_factory(
     user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
 ) -> Callable[[int, list[WorkflowCreate]], dict[str, list[dict]]]:
     """
-    Create new workflows.
+    Returns a function that creates workflows in an automation.
     """
 
     def create_workflows(
@@ -100,7 +102,30 @@ def get_create_workflows_tool(
 
         return {"created_workflows": created}
 
-    return create_workflows
+    def load_workflow_automation_tools():
+        """
+        Load the tools to create workflows in an automation.
+        """
+
+        @udspy.module_callback
+        def _load_workflow_automation_tools(context):
+            nonlocal user, workspace, tool_helpers
+
+            observation = ["New tools are now available.\n"]
+
+            create_tool = udspy.Tool(create_workflows)
+            new_tools = [create_tool]
+            observation.append(
+                "- Use `create_workflows` to create workflows in an automation."
+            )
+
+            # Re-initialize the module with the new tools for the next iteration
+            context.module.init_module(tools=context.module._tools + new_tools)
+            return "\n".join(observation)
+
+        return _load_workflow_automation_tools
+
+    return load_workflow_automation_tools
 
 
 # ============================================================================
@@ -116,9 +141,9 @@ class ListWorkflowsToolType(AssistantToolType):
         return get_list_workflows_tool(user, workspace, tool_helpers)
 
 
-class CreateWorkflowsToolType(AssistantToolType):
-    type = "create_workflows"
+class WorkflowToolFactoryToolType(AssistantToolType):
+    type = "workflow_tool_factory"
 
     @classmethod
     def get_tool(cls, user, workspace, tool_helpers):
-        return get_create_workflows_tool(user, workspace, tool_helpers)
+        return get_workflow_tool_factory(user, workspace, tool_helpers)

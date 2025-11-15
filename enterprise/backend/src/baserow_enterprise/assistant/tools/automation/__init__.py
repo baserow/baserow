@@ -1,6 +1,6 @@
-from .tools import CreateWorkflowsToolType, ListWorkflowsToolType
+from .tools import ListWorkflowsToolType, WorkflowToolFactoryToolType
 
 __all__ = [
     "ListWorkflowsToolType",
-    "CreateWorkflowsToolType",
+    "WorkflowToolFactoryToolType",
 ]

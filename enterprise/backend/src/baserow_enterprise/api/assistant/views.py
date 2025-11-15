@@ -24,7 +24,10 @@ from baserow.api.sessions import set_client_undo_redo_action_group_id
 from baserow.core.exceptions import UserNotInWorkspace, WorkspaceDoesNotExist
 from baserow.core.feature_flags import FF_ASSISTANT, feature_flag_is_enabled
 from baserow.core.handler import CoreHandler
-from baserow_enterprise.assistant.assistant import set_assistant_cancellation_key
+from baserow_enterprise.assistant.assistant import (
+    check_lm_ready_or_raise,
+    set_assistant_cancellation_key,
+)
 from baserow_enterprise.assistant.exceptions import (
     AssistantChatDoesNotExist,
     AssistantChatMessagePredictionDoesNotExist,
@@ -159,6 +162,7 @@ class AssistantChatView(APIView):
             context=workspace,
         )
 
+        check_lm_ready_or_raise()
         handler = AssistantHandler()
         chat, _ = handler.get_or_create_chat(request.user, workspace, chat_uuid)
 
@@ -174,7 +178,6 @@ class AssistantChatView(APIView):
         chat.user.profile.timezone = ui_context.timezone
 
         assistant = handler.get_assistant(chat)
-        assistant.check_llm_ready_or_raise()
         human_message = HumanMessage(content=data["content"], ui_context=ui_context)
 
         async def stream_assistant_messages():

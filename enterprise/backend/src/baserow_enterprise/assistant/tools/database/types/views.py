@@ -21,7 +21,7 @@ class ViewItemCreate(BaseModel):
         description="A sensible name for the view (i.e. 'Pending payments', 'Completed tasks', etc.).",
     )
     public: bool = Field(
-        ...,
+        default=False,
         description="Whether the view is publicly accessible. False unless specified.",
     )
 
@@ -50,11 +50,11 @@ class ViewItem(BaseModel):
 class GridFieldOption(BaseModel):
     field_id: int = Field(...)
     width: int = Field(
-        ...,
+        default=200,
         description="The width of the field in the grid view. Default is 200.",
     )
     hidden: bool = Field(
-        ...,
+        default=False,
         description="Whether the field is hidden in the grid view. Default is False.",
     )
 
@@ -152,7 +152,7 @@ class CalendarViewItem(CalendarViewItemCreate, ViewItem):
 class BaseGalleryViewItem(ViewItemCreate):
     type: Literal["gallery"] = Field(..., description="A gallery view.")
     cover_field_id: int | None = Field(
-        None,
+        default=None,
         description=(
             "The ID of the field to use for the gallery cover image. Must be a file field. None if no file field is available."
         ),
@@ -239,43 +239,42 @@ class FormFieldOption(BaseModel):
     field_id: int = Field(..., description="The ID of the field.")
     name: str = Field(..., description="The name to show for the field in the form.")
     description: str = Field(
-        ..., description="The description to show for the field in the form."
+        default="", description="The description to show for the field in the form."
     )
     required: bool = Field(
-        ..., description="Whether the field is required in the form. Default is True."
+        default=True,
+        description="Whether the field is required in the form. Default is True.",
     )
     order: int = Field(..., description="The order of the field in the form.")
 
 
 class BaseFormViewItem(ViewItemCreate):
     type: Literal["form"] = Field(..., description="A form view.")
-    title: str = Field(..., description="The title of the form. Can be empty.")
-    description: str = Field(
-        ..., description="The description of the form. Can be empty."
-    )
+    title: str = Field(default="", description="The title of the form.")
+    description: str = Field(default="", description="The description of the form.")
     submit_button_label: str = Field(
-        ..., description="The label of the submit button. Default is 'Submit'."
+        default="Submit", description="The label of the submit button."
     )
     receive_notification_on_submit: bool = Field(
-        ...,
+        default=False,
         description=(
-            "Whether to receive an email notification when the form is submitted. Default is False."
+            "Whether to receive an email notification when the form is submitted."
         ),
     )
     submit_action: Literal["MESSAGE", "REDIRECT"] = Field(
-        ...,
-        description="The action to perform when the form is submitted. Default is 'MESSAGE'.",
+        default="MESSAGE",
+        description="The action to perform when the form is submitted.",
     )
     submit_action_message: str = Field(
-        ...,
+        default="",
         description=(
-            "The message to display when the form is submitted and the action is 'MESSAGE'. Default is empty."
+            "The message to display when the form is submitted and the action is 'MESSAGE'."
         ),
     )
     submit_action_redirect_url: str = Field(
-        ...,
+        default="",
         description=(
-            "The URL to redirect to when the form is submitted and the action is 'REDIRECT'. Default is empty."
+            "The URL to redirect to when the form is submitted and the action is 'REDIRECT'."
         ),
     )
 
