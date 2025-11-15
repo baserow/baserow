@@ -5,12 +5,14 @@
     },
     "integrationType": {
         "localBaserow": "로컬 Baserow",
-        "smtp": "SMTP 이메일"
+        "smtp": "SMTP 이메일",
+        "slackBot": "슬랙 봇",
+        "ai": "AI"
     },
     "localBaserowIntegrationType": {
         "localBaserowSummary": "로컬 Baserow - {name}, {username}",
         "localBaserowNoUser": "로컬 Baserow - 구성되지 않음",
-        "localBaserowWarning": "귀하의 계정을 승인하면 애플리케이션에 편집 권한이 있는 모든 사용자가 귀하가 접근할 수 있는 데이터에 완전한 접근 권한을 갖게 됩니다. 두 번째 사용자를 생성하여 적절한 권한을 부여하고 그 사용자를 사용할 수 있습니다."
+        "localBaserowWarning": "계정을 승인하면 애플리케이션 편집 권한이 있는 모든 사용자에게 귀하가 접근하는 데이터에 대한 전체 접근 권한이 부여됩니다. 두 번째 사용자를 생성하고 적절한 권한을 부여하여 해당 사용자를 사용할 수 있습니다."
     },
     "serviceType": {
         "localBaserowGetRow": "단일 행 가져오기",
@@ -54,14 +56,29 @@
         "corePeriodicDescription": "지정된 간격으로 주기적으로 워크플로우를 트리거합니다",
         "corePeriodicErrorIntervalMissing": "간격이 필요합니다.",
         "coreHTTPTrigger": "HTTP 요청 수신",
-        "coreHTTPTriggerDescription": "HTTP 요청이 수신되었을 때 트리거됩니다."
+        "coreHTTPTriggerDescription": "HTTP 요청이 수신되었을 때 트리거됩니다.",
+        "coreIteration": "반복자",
+        "coreIterationDescription": "항목을 반복합니다.",
+        "errorIterationSourceMissing": "소스 속성이 누락되었습니다",
+        "aiAgent": "AI 프롬프트",
+        "aiAgentDescription": "구성된 생성 AI 모델을 사용하여 AI 프롬프트를 실행합니다.",
+        "errorNoIntegrationSelected": "통합이 선택되지 않았습니다",
+        "errorNoAIProviderSelected": "AI 공급자가 선택되지 않았습니다",
+        "errorNoAIModelSelected": "AI 모델이 선택되지 않았습니다",
+        "errorNoPromptProvided": "프롬프트가 제공되지 않음",
+        "errorNoChoicesProvided": "선택 출력 유형에 대한 선택 사항이 제공되지 않았습니다",
+        "slackWriteMessage": "Slack 메시지 보내기",
+        "slackWriteMessageDescription": "특정 Slack 채널에 메시지를 보냅니다",
+        "slackWriteMessageMissingChannel": "채널이 필요합니다.",
+        "slackWriteMessageMissingMessage": "메시지가 필요합니다.",
+        "slackWriteMessageMissingIntegration": "Slack 통합이 선택되지 않았습니다."
     },
     "userSourceType": {
         "localBaserow": "Baserow 테이블 인증"
     },
     "localBaserowForm": {
         "user": "사용자",
-        "userMessage": "이 연결을 생성함으로써, 귀하는 애플리케이션이 귀하의 계정을 사용하여 로컬 Baserow 작업공간에서 변경을 할 수 있도록 승인하는 것입니다."
+        "userMessage": "이 연결을 생성하면 애플리케이션이 귀하의 계정을 사용하여 로컬 Baserow 작업 공간에서 변경 작업을 수행할 수 있도록 승인하게 됩니다."
     },
     "localBaserowGetRowForm": {
         "rowFieldLabel": "행 ID",
@@ -211,7 +228,7 @@
     "periodicForm": {
         "intervalLabel": "간격",
         "intervalHelper": "이 워크플로를 얼마나 자주 실행할지 선택하세요",
-        "everyMinute": "매 분",
+        "everyMinute": "매 {minute} 분마다",
         "everyHour": "매 시간",
         "everyDay": "매 일",
         "everyWeek": "매 주",
@@ -223,12 +240,81 @@
         "hourPlaceholder": "0-23",
         "minutePlaceholder": "0-59",
         "dayOfMonthPlaceholder": "1-31",
-        "minuteHelper": "이 워크플로는 매분마다 실행됩니다",
+        "minuteHelper": "이 워크플로는 지정된 분마다 실행됩니다",
         "hourHelper": "이 워크플로는 현지 시간대({timezone})에서 지정된 분마다 실행됩니다",
         "dayHelper": "이 워크플로는 매일 현지 시간대({timezone})의 지정된 시간에 실행됩니다",
         "weekHelper": "이 워크플로는 매주 지정된 날짜와 시간에 현지 시간대({timezone})로 실행됩니다",
         "monthHelper": "이 워크플로는 매월 지정된 날짜와 시간에 현지 시간대({timezone})로 실행됩니다",
         "deactivatedTitle": "주기적 트리거 비활성화됨",
-        "deactivatedText": "연속적인 실패로 인해 이 주기적 트리거가 자동으로 비활성화되었습니다."
+        "deactivatedText": "연속적인 실패로 인해 이 주기적 트리거가 자동으로 비활성화되었습니다.",
+        "everyMinuteDefault": "지정된 분마다",
+        "minuteFrequency": "매 분마다",
+        "minuteFrequencyPlaceholder": "15"
+    },
+    "aiIntegrationType": {
+        "inheritingWorkspace": "작업 공간 AI 설정 상속",
+        "overridingProviders": "{count}개의 공급자 재정의 중|{count}개의 공급자 재정의 중"
+    },
+    "slackBotIntegrationType": {
+        "slackBotSummary": "슬랙 봇",
+        "slackBotNoToken": "슬랙 봇 - 구성되지 않음"
+    },
+    "aiForm": {
+        "description": "이 통합에 대한 AI 공급자 설정을 구성하세요. 기본적으로 Workspace AI 설정은 상속됩니다.",
+        "workspaceSettingsTitle": "Workspace AI 설정",
+        "workspaceSettingsDescription": "이 통합은 기본적으로 작업 공간의 AI 공급자 설정을 상속합니다. 아래에서 특정 공급자를 재정의할 수 있습니다.",
+        "overrideWorkspaceSettings": "이 공급자에 대한 작업 공간 설정을 재정의합니다",
+        "inherited": "상속받음",
+        "overridden": "재정의됨"
+    },
+    "aiAgentServiceForm": {
+        "integrationLabel": "통합",
+        "providerLabel": "AI 공급업체",
+        "providerPlaceholder": "AI 공급업체를 선택하세요...",
+        "modelLabel": "AI 모델",
+        "modelPlaceholder": "모델을 선택하세요...",
+        "outputTypeLabel": "출력 유형",
+        "outputTypeHelp": "AI가 응답 형식을 어떻게 구성해야 할지 선택하세요. 선택지를 정의하면 모델이 해당 선택지 중 하나만으로 응답하도록 강제합니다.",
+        "outputTypeText": "텍스트",
+        "outputTypeChoice": "선택",
+        "temperatureLabel": "온도",
+        "temperaturePlaceholder": "예) 0.7",
+        "temperatureHelp": "무작위성을 조절합니다. 값이 낮을수록(0–0.3) 더 집중되고 결정적인 결과를 내며, 값이 높을수록(0.7–2.0) 더 창의적이고 다양하게 출력됩니다.",
+        "promptLabel": "프롬프트",
+        "promptPlaceholder": "여기에 프롬프트를 입력하세요...",
+        "choicesLabel": "선택",
+        "choicePlaceholder": "선택 옵션을 입력하세요...",
+        "addChoice": "선택 추가",
+        "choicesRequired": "최소한 하나의 선택이 필요합니다"
+    },
+    "slackBotForm": {
+        "tokenLabel": "봇 사용자 토큰",
+        "tokenPlaceholder": "xoxb-1234-...",
+        "tokenMustStartWith": "토큰은 \"xoxb-\"로 시작해야 합니다",
+        "supportHeading": "도움이 필요하신가요?",
+        "supportDescription": "Slack 앱과 페어링하는 데 도움이 필요하면 아래 단계를 참조하세요.",
+        "supportSetupHeading": "1. 앱 설정",
+        "supportSetupDescription": "Slack 작업 공간 설정에 따라 새 Slack 앱을 생성할 수 있습니다. 그렇지 않은 경우 관리자가 대신 생성해야 합니다. 메시지를 작성할 수 있는 기존 앱을 재사용하는 경우 'Slack 앱과 페어링하기' 섹션으로 건너뛰세요.",
+        "supportSetupStep1": "워크스페이스의 <a href=\"https://api.slack.com/apps\" target=\"_blank\">앱 페이지</a>로 이동하세요.",
+        "supportSetupStep2": "새 앱을 만들고 '처음부터'를 선택한 후 이름을 입력하세요. 앱이 작동할 작업 공간을 선택하고 '만들기'를 클릭하세요.",
+        "supportSetupStep3": "왼쪽 사이드바에서 'OAuth 및 권한'으로 이동한 후 범위까지 아래로 스크롤하여 '봇 토큰 범위' 아래에서 'OAuth 범위 추가'를 선택합니다.",
+        "supportSetupStep4": "앱에서 메시지를 게시할 수 있도록 하려면 <pre>chat:write</pre> 범위를 추가하세요.",
+        "supportPairingHeading": "2. Slack 앱과 페어링",
+        "supportPairingStep1": "앱이 새로 설치된 경우: '설정' > '앱 설치'로 이동하세요. 녹색 버튼을 클릭하여 작업 공간에 앱을 설치하세요.",
+        "supportPairingStep2": "'봇 사용자 OAuth 토큰'을 복사하여 이 양식의 '봇 사용자 토큰' 필드에 저장하세요.",
+        "supportPairingStep3": "마지막으로, 앱이 새롭다면 Slack에서 <pre>/invite @yourAppName yourChannel</pre>을 사용하여 선택한 채널에 앱을 초대하세요"
+    },
+    "slackWriteMessageServiceForm": {
+        "alertMessage": "이 작업은 Slack 앱과 연동되어야 합니다. 시작하려면 통합 팝업의 가이드를 따르세요.",
+        "integrationLabel": "통합",
+        "channelLabel": "채널",
+        "channelPlaceholder": "채널 이름을 입력하세요",
+        "messageLabel": "메시지",
+        "messagePlaceholder": "메시지를 입력하세요...",
+        "channelNoPrefix": "채널 이름 앞에 있는 '#'을 제거하세요."
+    },
+    "coreIterationServiceForm": {
+        "source": "소스",
+        "sourcePlaceholder": "출처를 선택하세요..."
     }
 }
