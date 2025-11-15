@@ -864,7 +864,10 @@
         "rolesAllMembersOf": "{name}의 모든 멤버",
         "noRole": "역할 없음",
         "errorFetchingRolesTitle": "사용자 역할을 가져올 수 없습니다",
-        "errorFetchingRolesMessage": "사용자 역할을 가져오는 동안 문제가 발생했습니다."
+        "errorFetchingRolesMessage": "사용자 역할을 가져오는 동안 문제가 발생했습니다.",
+        "visibilityCondition": "표시성 조건",
+        "visibilityConditionHelper": "이 수식의 결과가 참이고 위의 방문자 선택 사항이 참이면 요소가 표시됩니다. 이 조건은 요소의 표시 여부에만 영향을 미칩니다. 서버 응답에서 데이터를 제외하려면 위의 사용자 역할 필터링 옵션을 사용하세요.",
+        "visibilityConditionPlaceholder": "상태..."
     },
     "userDataProviderType": {
         "isAuthenticated": "인증됨",
