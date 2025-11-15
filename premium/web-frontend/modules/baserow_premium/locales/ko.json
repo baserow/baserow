@@ -332,7 +332,10 @@
         "fileFieldHelp": "필드의 첫 번째 호환 가능한 파일이 프롬프트의 지식 기반으로 사용됩니다. 파일은 .txt, .md, .pdf, .docx와 같은 지원되는 파일 확장자를 가진 텍스트 파일이어야 합니다.",
         "outputType": "출력 유형",
         "outputTypeTooltip": "원하는 출력 형식을 선택하여 LLM이 원하는 옵션에 맞는 응답을 생성하도록 안내하세요.",
-        "outputTypeChangedWarning": "생성된 셀 값을 지웁니다."
+        "outputTypeChangedWarning": "생성된 셀 값을 지웁니다.",
+        "autoUpdate": "자동 업데이트",
+        "autoUpdateHelp": "이 기능을 활성화하면 프롬프트에서 참조된 필드가 업데이트될 때 AI 필드 값이 자동으로 다시 생성됩니다.",
+        "autoUpdateDescription": "참조된 필드가 변경될 때 재생성"
     },
     "rowEditFieldAI": {
         "generate": "생성",
@@ -344,7 +347,7 @@
         "label": "프롬프트",
         "labelDescription": "생성하려는 수식을 설명하세요",
         "generate": "생성",
-        "noModels": "귀하의 Baserow 인스턴스와 작업공간에 구성된 AI 모델이 없습니다. 작업공간 옆의 세 점을 클릭한 다음 설정을 클릭하여 구성하세요."
+        "noModels": "Baserow 인스턴스와 작업 공간에 AI 모델이 구성되어 있지 않습니다. 홈페이지로 이동하여 작업 공간 이름을 클릭한 다음 설정을 클릭하여 구성하세요."
     },
     "formulaFieldAI": {
         "generateWithAI": "AI를 사용하여 생성",
@@ -376,5 +379,22 @@
         "other": "기타",
         "true": "참",
         "false": "거짓"
+    },
+    "generateAIValuesModal": {
+        "title": "모든 AI 값 생성"
+    },
+    "generateAIValuesForm": {
+        "scopeLabel": "범위",
+        "entireTable": "전체 테이블",
+        "skipPopulated": "빈 셀에 대한 값만 생성합니다",
+        "warningTitle": "토큰 사용 경고",
+        "warningMessage": "모든 AI 값을 생성하려면 API 토큰이 소모되며 행 수에 따라 상당한 시간이 걸릴 수 있습니다."
+    },
+    "generateAIValuesFormFooter": {
+        "generate": "AI로 생성",
+        "close": "닫기"
+    },
+    "jobType": {
+        "generateAIValues": "AI 필드 값 재생성"
     }
 }
