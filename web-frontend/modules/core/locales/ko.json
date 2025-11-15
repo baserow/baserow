@@ -258,7 +258,9 @@
         "openRouterModelsDescription": "Baserow에서 사용할 수 있는 [OpenRouter 모델](https://openrouter.ai/models) 의 목록을 쉼표로 구분하여 제공하세요. (예 : `openai/gpt-4o,anthropic/claude-3-haiku`)",
         "openRouter": "OpenRouter",
         "openRouterOrganization": "조직 (선택 사항)",
-        "openRouterModelsLabel": "활성화된 모델"
+        "openRouterModelsLabel": "활성화된 모델",
+        "openaiBaseUrl": "기본 URL",
+        "openaiBaseUrlDescription": "비어 있으면 기본적으로 기본 OpenAI 기반 URL을 사용합니다. 선택적으로 https://eu.api.openai.com/v1, https://<your-resource-name>.openai.azure.com 또는 기타 OpenAI 호환 API로 변경할 수 있습니다."
     },
     "generativeAIWorkspaceSettings": {
         "title": "생성형 AI 설정",
@@ -637,7 +639,8 @@
                 "highestRole": "최고 역할",
                 "highestRoleHelpText": "이 작업공간의 어떤 것에서 직접 또는 팀에서 할당된 이 사용자의 최고 역할",
                 "teams": "팀",
-                "highestRoleInstanceHelpText": "인스턴스에서 이 사용자가 갖는 가장 높은 역할"
+                "highestRoleInstanceHelpText": "인스턴스에서 이 사용자가 갖는 가장 높은 역할",
+                "2fa": "2FA"
             },
             "actions": {
                 "copyEmail": "이메일 복사",
@@ -695,7 +698,7 @@
         "warningTitle": "경고"
     },
     "integrationEditForm": {
-        "name": "통합 이름",
+        "name": "이름",
         "namePlaceholder": "통합 이름 입력..."
     },
     "integrationDropdown": {
@@ -822,7 +825,8 @@
         "labelButton": "업로드"
     },
     "dataExplorerNode": {
-        "showMore": "더 많은 반복 표시"
+        "showMore": "더 많은 반복 표시",
+        "selectNode": "선택"
     },
     "user": {
         "isStaff": "직원 여부",
@@ -1013,5 +1017,94 @@
         "methodsOptionDescription": "이 웹훅에 허용되는 HTTP 메서드를 제어합니다. GET을 제외하면 웹훅이 실수로 트리거될 가능성이 줄어듭니다.",
         "methodsOptionAll": "전체",
         "methodsOptionExcludeGet": "GET 제외"
+    },
+    "twoFactorAuthSettings": {
+        "title": "2단계 인증",
+        "loadingError": "2단계 인증을 로드할 수 없습니다."
+    },
+    "disableTwoFactorAuth": {
+        "title": "2FA를 비활성화하시겠습니까?",
+        "description": "계정 보안이 한 단계 더 약화됩니다. 누군가 비밀번호를 알아내면 계정에 로그인할 수 있습니다.",
+        "cancel": "그대로 두세요",
+        "disable": "비활성화",
+        "successTitle": "2단계 인증이 비활성화되었습니다",
+        "errorWrongPasswordTitle": "잘못된 비밀번호",
+        "errorWrongPasswordMessage": "입력한 비밀번호가 귀하의 비밀번호와 일치하지 않습니다."
+    },
+    "enableTwoFactorOptions": {
+        "cancel": "취소",
+        "continue": "계속"
+    },
+    "saveBackupCode": {
+        "description": "인증 앱이나 휴대폰에 접근할 수 없어 인증 코드를 수신하거나 생성할 수 없는 경우 이 백업 코드를 사용할 수 있습니다. 이 코드는 한 번만 사용 가능합니다. 로그인 없이도 접근할 수 있도록 반드시 기록하거나 안전한 장소에 복사해 두십시오.",
+        "backupCodes": "백업 코드",
+        "copy": "복사",
+        "continue": "계속",
+        "backupCodesCopiedTitle": "복사됨!",
+        "backupCodesCopiedMessage": "백업 코드가 클립보드에 복사되었습니다."
+    },
+    "totpAuthType": {
+        "name": "인증 앱",
+        "description": "앱을 사용하여 2단계 인증 코드를 받으세요. Google Authenticator, Authy, Microsoft Authenticator 등의 앱을 사용하는 것이 좋습니다.",
+        "enabledDescription": "인증 앱을 통해 인증 코드를 받게 됩니다. 다른 앱이나 인증 방식을 설정하려면 2FA를 비활성화하고 다시 설정하세요.",
+        "sideLabel": "추천"
+    },
+    "twoFactorEnabled": {
+        "enabled": "활성화됨",
+        "disable": "2FA 비활성화"
+    },
+    "totpLogin": {
+        "backupCodesTitle": "백업 코드를 입력하세요",
+        "backupCodesDescription": "일회용 백업 코드로 로그인하세요.",
+        "authenticate": "인증",
+        "goBack": "돌아가기",
+        "totpTitle": "2단계 인증",
+        "totpDescription": "인증 앱에서 코드를 입력하세요.",
+        "verify": "확인",
+        "useBackupCode": "백업 코드 사용",
+        "verificationFailed": "검증에 실패했습니다",
+        "verificationFailedDescription": "입력한 코드가 올바르지 않습니다.",
+        "loginExpired": "로그인이 만료되었습니다",
+        "loginExpiredDescription": "비밀번호를 다시 입력해 주세요.",
+        "rateLimit": "시도가 너무 많습니다."
+    },
+    "formulaInputContext": {
+        "variables": "변수",
+        "functions": "기능",
+        "operators": "연산자",
+        "search": "검색",
+        "useRegularInputModalTitle": "이 필드에 일반 입력을 사용하시겠습니까?",
+        "useRegularInput": "일반적인 입력을 사용",
+        "useAdvancedInput": "고급 입력 사용",
+        "useAdvancedInputModalTitle": "이 필드에 고급 입력을 사용하시겠습니까?",
+        "modalMessage": "해당 필드의 내용이 삭제되며 복구할 수 없습니다."
+    },
+    "twoFactorAuthField": {
+        "enabled": "활성화됨",
+        "disabled": "비활성화됨"
+    },
+    "twoFactorAuthEmpty": {
+        "title": "아직 2FA를 활성화하지 않았습니다",
+        "description": "귀하의 계정에 보안을 한층 더 강화하세요.",
+        "enable": "2FA 활성화",
+        "notAllowedTitle": "2FA가 활성화되지 않았습니다",
+        "notAllowedDescription": "2FA 추가는 비밀번호 기반 계정에만 가능합니다."
+    },
+    "nodeHelpTooltip": {
+        "exampleLabel": "예시",
+        "result": "결과: {result}"
+    },
+    "enableWithQRCode": {
+        "scanQRCode": "QR코드 스캔",
+        "scanQRCodeDescription": "Google Authenticator, Authy 또는 Microsoft Authenticator와 같은 앱으로 코드를 스캔하세요.",
+        "clickToCopy": "또는 여기를 클릭하여 코드를 복사하세요.",
+        "secretCopiedTitle": "시크릿 복사됨",
+        "secretCopiedMessage": "TOTP 비밀번호가 클립보드에 복사되었습니다.",
+        "enterCode": "표시된 코드를 입력하세요",
+        "enterCodeDescription": "앱에 표시된 6자리 코드를 입력하여 올바르게 설정되었는지 확인하세요.",
+        "verificationFailed": "검증에 실패했습니다",
+        "verificationFailedDescription": "입력한 코드가 유효하지 않습니다.",
+        "provisioningFailed": "프로비저닝에 실패했습니다",
+        "checkSuccess": "2단계 인증을 성공적으로 활성화했습니다"
     }
 }
