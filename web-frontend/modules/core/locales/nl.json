@@ -510,7 +510,8 @@
                 "teams": "Teams",
                 "highestRole": "Hoogste rol",
                 "highestRoleHelpText": "De hoogste rol die deze gebruiker rechtstreeks of vanuit een team aan hem is toegekend, op alles in deze werkruimte",
-                "highestRoleInstanceHelpText": "De hoogste rol die deze gebruiker heeft in de instantie"
+                "highestRoleInstanceHelpText": "De hoogste rol die deze gebruiker heeft in de instantie",
+                "2fa": "2FA"
             },
             "actions": {
                 "copyEmail": "E-mail kopiëren",
@@ -1199,5 +1200,9 @@
         "verificationFailedDescription": "De ingevoerde code is ongeldig.",
         "provisioningFailed": "Voorziening mislukt",
         "checkSuccess": "Tweefactorauthenticatie succesvol ingeschakeld"
+    },
+    "twoFactorAuthField": {
+        "enabled": "Ingeschakeld",
+        "disabled": "Uitgeschakeld"
     }
 }
