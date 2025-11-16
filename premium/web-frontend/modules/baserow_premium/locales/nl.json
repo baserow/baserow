@@ -391,5 +391,22 @@
         "other": "Andere",
         "true": "waar",
         "false": "onwaar"
+    },
+    "generateAIValuesModal": {
+        "title": "Genereer alle AI-waarden"
+    },
+    "generateAIValuesForm": {
+        "scopeLabel": "Scope",
+        "entireTable": "Gehele tabel",
+        "skipPopulated": "Genereer alleen waarden voor lege cellen",
+        "warningTitle": "Waarschuwing voor tokengebruik",
+        "warningMessage": "Het genereren van alle AI waarden verbruikt API-tokens en kan veel tijd in beslag nemen, afhankelijk van het aantal rijen."
+    },
+    "generateAIValuesFormFooter": {
+        "generate": "Genereren met AI",
+        "close": "Sluit"
+    },
+    "jobType": {
+        "generateAIValues": "AI-veldwaarden opnieuw genereren"
     }
 }
