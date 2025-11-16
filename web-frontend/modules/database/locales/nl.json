@@ -561,7 +561,8 @@
         "generateCellsValues": "Genereer waardes met AI",
         "AIValuesGenerationErrorTitle": "AI-waardegeneratie mislukt",
         "AIValuesGenerationErrorMessage": "Controleer alsjeblieft je API_KEY en controleer het geselecteerde model.",
-        "copyCellsWithHeader": "Cellen met koptekst kopiëren"
+        "copyCellsWithHeader": "Cellen met koptekst kopiëren",
+        "generateAllAiValues": "Genereer alle AI-waarden"
     },
     "gridViewFieldLinkRow": {
         "unnamed": "onbenoemde rij {value}",
