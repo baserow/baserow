@@ -637,13 +637,29 @@
     "assistantWelcomeMessage": {
         "greet": "Hé {name}",
         "question": "hoe kan ik helpen?",
-        "subtitle": "Ik ben er om je te ondersteunen bij het omgaan met je gegevens."
+        "subtitle": "Ik ben er om je te ondersteunen bij het omgaan met je gegevens.",
+        "subtitleWithoutSuggestions": "Ik help je de last te dragen zodat het nooit zwaar aanvoelt. Vertel me gewoon wat je nodig hebt!",
+        "promptCreateDatabaseTitle": "Een database maken",
+        "promptCreateDatabasePrompt": "Bouw een database voor projectbeheer.",
+        "promptCreateAutomationTitle": "Een automatisering maken",
+        "promptCreateAutomationPrompt": "Maak een automatisering die elke dinsdag in de ochtend in het Slack developers kanaal vraagt of er iets te demonstreren valt.",
+        "promptInviteUsersTitle": "Gebruikers uitnodigen",
+        "promptInviteUsersPrompt": "Hoe nodig ik gebruikers uit voor mijn werkruimte?",
+        "promptCreateTableTitle": "Een tabel maken",
+        "promptCreateTablePrompt": "Maak een nieuwe tabel met de naam taken.",
+        "promptWhichTablesTitle": "Welke tabellen",
+        "promptWhichTablesPrompt": "Welke tabellen heb ik in deze database?",
+        "promptCreateFormTitle": "Een formulier maken",
+        "promptCreateFormPrompt": "Maak een formulier voor deze tabel.",
+        "promptCreateFilterTitle": "Een filter maken",
+        "promptCreateFilterPrompt": "Toon alleen rijen waarvan het primaire veld leeg is."
     },
     "assistantInputMessage": {
         "statusWaiting": "Assistent staat klaar om te helpen",
         "statusRunning": "Uitvoeren...",
         "placeholder": "Vraag me alles...",
-        "send": "Verstuur bericht"
+        "send": "Verstuur bericht",
+        "stop": "Genereren stoppen"
     },
     "assistantChatHistoryContext": {
         "empty": "Geen chatgeschiedenis beschikbaar",
@@ -673,7 +689,9 @@
     },
     "assistant": {
         "statusThinking": "Denken...",
-        "statusAnswering": "Antwoorden..."
+        "statusAnswering": "Antwoorden...",
+        "statusCancelling": "Annuleren...",
+        "messageCancelled": "Bericht geannuleerd"
     },
     "assistantMessageSources": {
         "sources": "{count} source | {count} sources"
@@ -695,5 +713,8 @@
         "invalidDurationEmpty": "Duur is leeg",
         "invalidDurationValue": "Duur waarde is niet geldig",
         "invalidDurationMismatch": "Duur waarde mismatch"
+    },
+    "assistantMessageList": {
+        "disclaimer": "Kuma kan fouten maken, controleer antwoorden dubbel"
     }
 }
