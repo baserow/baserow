@@ -207,18 +207,27 @@ class TestAssistantChatHistory:
 
         # History should contain user/assistant message pairs
         assert assistant.history is not None
-        assert len(assistant.history) == 4
+        assert len(assistant.history.messages) == 4
 
         # First pair
-        assert assistant.history[0] == "Human: What is Baserow?"
-        assert assistant.history[1] == "AI: Baserow is a no-code database platform."
+        assert assistant.history.messages[0] == {
+            "role": "user",
+            "content": "What is Baserow?",
+        }
+        assert assistant.history.messages[1] == {
+            "role": "assistant",
+            "content": "Baserow is a no-code database platform.",
+        }
 
         # Second pair
-        assert assistant.history[2] == "Human: How do I create a table?"
-        assert (
-            assistant.history[3]
-            == "AI: You can create a table by clicking the + button."
-        )
+        assert assistant.history.messages[2] == {
+            "role": "user",
+            "content": "How do I create a table?",
+        }
+        assert assistant.history.messages[3] == {
+            "role": "assistant",
+            "content": "You can create a table by clicking the + button.",
+        }
 
     def test_aload_chat_history_respects_limit(self, enterprise_data_fixture):
         """Test that history loading respects the limit parameter"""
@@ -274,17 +283,19 @@ class TestAssistantChatHistory:
         async_to_sync(assistant.aload_chat_history)()
 
         # Should only include the complete pair (2 messages: user + assistant)
-        assert len(assistant.history) == 2
-        assert assistant.history[0] == "Human: Question 1"
-        assert assistant.history[1] == "AI: Answer 1"
+        assert len(assistant.history.messages) == 2
+        assert assistant.history.messages[0] == {
+            "role": "user",
+            "content": "Question 1",
+        }
+        assert assistant.history.messages[1] == {
+            "role": "assistant",
+            "content": "Answer 1",
+        }
 
-    @patch(
-        "baserow_enterprise.assistant.assistant.Assistant._summarize_context_from_history"
-    )
-    @patch("udspy.ReAct.astream")
-    @patch("udspy.LM")
+    @patch("udspy.ChainOfThought.aexecute")
     def test_history_is_passed_to_astream_as_context(
-        self, mock_lm, mock_astream, mock_summarize, enterprise_data_fixture
+        self, mock_cot, enterprise_data_fixture
     ):
         """
         Test that chat history is loaded correctly and passed to astream as context
@@ -315,66 +326,17 @@ class TestAssistantChatHistory:
             role=AssistantChatMessage.Role.AI,
             content="Click the Create Table button",
         )
-
-        # Mock summarize_context_from_history to pass through all messages. We'll
-        # capture the assistant instance and access its history directly
-        captured_assistant = None
-
-        async def mock_summarize_impl(question):
-            # Access the assistant's history directly
-            if captured_assistant and captured_assistant.history:
-                return "\n".join(captured_assistant.history)
-            return ""
-
-        mock_summarize.side_effect = mock_summarize_impl
-
-        # Mock astream to capture the context parameter
-        captured_context = {}
-
-        async def mock_stream(**kwargs):
-            # Capture all keyword arguments
-            captured_context.update(kwargs)
-            yield OutputStreamChunk(
-                module=None,
-                field_name="answer",
-                delta="Test response",
-                content="Test response",
-                is_complete=True,
-            )
-            yield Prediction(answer="Test response", trajectory=[], reasoning="")
-
-        mock_astream.side_effect = mock_stream
-        mock_lm.return_value.model = "test-model"
-
-        # Execute
         assistant = Assistant(chat)
-        captured_assistant = assistant  # Capture for the mock to access
+        async_to_sync(assistant.summarize_context_from_history)("How to add a view?")
 
-        # Create a minimal UIContext for the test
-        ui_context = UIContext(
-            workspace=WorkspaceUIContext(id=workspace.id, name=workspace.name),
-            user=UserUIContext(id=user.id, name=user.first_name, email=user.email),
-        )
-        human_message = HumanMessage(content="Tell me more", ui_context=ui_context)
-
-        async def consume_stream():
-            async for _ in assistant.astream_messages(human_message):
-                pass
-
-        async_to_sync(consume_stream)()
-
-        # Assert that astream was called with context containing the history
-        mock_astream.assert_called_once()
-        assert "context" in captured_context
-
-        context_value = captured_context["context"]
-        assert context_value is not None
-
-        # Verify the context contains all 4 history messages in correct format
-        assert "Human: What is Baserow?" in context_value
-        assert "AI: Baserow is a no-code database" in context_value
-        assert "Human: How do I create a table?" in context_value
-        assert "AI: Click the Create Table button" in context_value
+        mock_cot.assert_called_once()
+        assert mock_cot.call_args.kwargs["question"] == "How to add a view?"
+        assert mock_cot.call_args.kwargs["conversation_history"] == [
+            "[0] (user): What is Baserow?",
+            "[1] (assistant): Baserow is a no-code database",
+            "[2] (user): How do I create a table?",
+            "[3] (assistant): Click the Create Table button",
+        ]
 
 
 @pytest.mark.django_db

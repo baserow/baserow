@@ -1,6 +1,7 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
+from udspy.module.callbacks import ModuleContext, is_module_callback
 
 from baserow.contrib.database.fields.models import FormulaField
 from baserow.contrib.database.formula.registries import formula_function_registry
@@ -187,8 +188,29 @@ def test_create_simple_table_tool(data_fixture):
         workspace=workspace, name="Database 1"
     )
 
-    tool = get_table_and_fields_tools_factory(user, workspace, fake_tool_helpers)
-    response = tool(
+    factory = get_table_and_fields_tools_factory(user, workspace, fake_tool_helpers)
+    assert callable(factory)
+
+    tools_upgrade = factory()
+    assert is_module_callback(tools_upgrade)
+
+    mock_module = Mock()
+    mock_module._tools = []
+    mock_module.init_module = Mock()
+    tools_upgrade(ModuleContext(module=mock_module))
+    assert mock_module.init_module.called
+
+    added_tools = mock_module.init_module.call_args[1]["tools"]
+    assert len(added_tools) == 2  # create_tables and create_fields
+
+    # Find the create_tables tool
+    create_tables_tool = next(
+        (tool for tool in added_tools if tool.name == "create_tables"), None
+    )
+    assert create_tables_tool is not None
+
+    # Call the underlying function directly (not through udspy.Tool wrapper)
+    response = create_tables_tool.func(
         database_id=database.id,
         tables=[
             TableItemCreate(
@@ -220,7 +242,27 @@ def test_create_complex_table_tool(data_fixture):
     )
     table = data_fixture.create_database_table(database=database, name="Table 1")
 
-    tool = get_table_and_fields_tools_factory(user, workspace, fake_tool_helpers)
+    factory = get_table_and_fields_tools_factory(user, workspace, fake_tool_helpers)
+    assert callable(factory)
+
+    tools_upgrade = factory()
+    assert is_module_callback(tools_upgrade)
+
+    mock_module = Mock()
+    mock_module._tools = []
+    mock_module.init_module = Mock()
+    tools_upgrade(ModuleContext(module=mock_module))
+    assert mock_module.init_module.called
+
+    added_tools = mock_module.init_module.call_args[1]["tools"]
+    assert len(added_tools) == 2  # create_tables and create_fields
+
+    # Find the create_tables tool
+    create_tables_tool = next(
+        (tool for tool in added_tools if tool.name == "create_tables"), None
+    )
+    assert create_tables_tool is not None
+
     primary_field = TextFieldItemCreate(type="text", name="Name")
     fields = [
         LongTextFieldItemCreate(
@@ -282,7 +324,8 @@ def test_create_complex_table_tool(data_fixture):
             name="Attachments",
         ),
     ]
-    response = tool(
+    # Call the underlying function directly (not through udspy.Tool wrapper)
+    response = create_tables_tool.func(
         database_id=database.id,
         tables=[
             TableItemCreate(

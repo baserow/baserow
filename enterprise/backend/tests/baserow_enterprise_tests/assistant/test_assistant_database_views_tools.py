@@ -1,4 +1,7 @@
+from unittest.mock import Mock
+
 import pytest
+from udspy.module.callbacks import ModuleContext, is_module_callback
 
 from baserow.contrib.database.views.models import View, ViewFilter
 from baserow_enterprise.assistant.tools.database.tools import (
@@ -40,6 +43,52 @@ from baserow_enterprise.assistant.tools.database.types.view_filters import (
 from .utils import fake_tool_helpers
 
 
+def get_create_views_tool(user, workspace):
+    """Helper to get the create_views tool from the factory"""
+
+    factory = get_views_tool_factory(user, workspace, fake_tool_helpers)
+    assert callable(factory)
+
+    tools_upgrade = factory()
+    assert is_module_callback(tools_upgrade)
+
+    mock_module = Mock()
+    mock_module._tools = []
+    mock_module.init_module = Mock()
+    tools_upgrade(ModuleContext(module=mock_module))
+    assert mock_module.init_module.called
+
+    added_tools = mock_module.init_module.call_args[1]["tools"]
+    create_views_tool = next(
+        (tool for tool in added_tools if tool.name == "create_views"), None
+    )
+    assert create_views_tool is not None
+    return create_views_tool
+
+
+def get_create_view_filters_tool(user, workspace):
+    """Helper to get the create_view_filters tool from the factory"""
+
+    factory = get_view_filters_tool_factory(user, workspace, fake_tool_helpers)
+    assert callable(factory)
+
+    tools_upgrade = factory()
+    assert is_module_callback(tools_upgrade)
+
+    mock_module = Mock()
+    mock_module._tools = []
+    mock_module.init_module = Mock()
+    tools_upgrade(ModuleContext(module=mock_module))
+    assert mock_module.init_module.called
+
+    added_tools = mock_module.init_module.call_args[1]["tools"]
+    create_filters_tool = next(
+        (tool for tool in added_tools if tool.name == "create_view_filters"), None
+    )
+    assert create_filters_tool is not None
+    return create_filters_tool
+
+
 @pytest.mark.django_db
 def test_list_views_tool(data_fixture):
     user = data_fixture.create_user()
@@ -77,8 +126,8 @@ def test_create_grid_view(data_fixture):
     database = data_fixture.create_database_application(workspace=workspace)
     table = data_fixture.create_database_table(database=database)
 
-    tool = get_views_tool_factory(user, workspace, fake_tool_helpers)
-    response = tool(
+    tool = get_create_views_tool(user, workspace)
+    response = tool.func(
         table_id=table.id,
         views=[
             GridViewItemCreate(
@@ -100,8 +149,8 @@ def test_create_kanban_view(data_fixture):
     table = data_fixture.create_database_table(database=database)
     single_select = data_fixture.create_single_select_field(table=table, name="Status")
 
-    tool = get_views_tool_factory(user, workspace, fake_tool_helpers)
-    response = tool(
+    tool = get_create_views_tool(user, workspace)
+    response = tool.func(
         table_id=table.id,
         views=[
             KanbanViewItemCreate(
@@ -126,8 +175,8 @@ def test_create_calendar_view(data_fixture):
     table = data_fixture.create_database_table(database=database)
     date_field = data_fixture.create_date_field(table=table, name="Date")
 
-    tool = get_views_tool_factory(user, workspace, fake_tool_helpers)
-    response = tool(
+    tool = get_create_views_tool(user, workspace)
+    response = tool.func(
         table_id=table.id,
         views=[
             CalendarViewItemCreate(
@@ -152,8 +201,8 @@ def test_create_gallery_view(data_fixture):
     table = data_fixture.create_database_table(database=database)
     file_field = data_fixture.create_file_field(table=table, name="Files")
 
-    tool = get_views_tool_factory(user, workspace, fake_tool_helpers)
-    response = tool(
+    tool = get_create_views_tool(user, workspace)
+    response = tool.func(
         table_id=table.id,
         views=[
             GalleryViewItemCreate(
@@ -179,8 +228,8 @@ def test_create_timeline_view(data_fixture):
     start_date = data_fixture.create_date_field(table=table, name="Start Date")
     end_date = data_fixture.create_date_field(table=table, name="End Date")
 
-    tool = get_views_tool_factory(user, workspace, fake_tool_helpers)
-    response = tool(
+    tool = get_create_views_tool(user, workspace)
+    response = tool.func(
         table_id=table.id,
         views=[
             TimelineViewItemCreate(
@@ -206,8 +255,8 @@ def test_create_form_view(data_fixture):
     table = data_fixture.create_database_table(database=database)
     field = data_fixture.create_text_field(table=table, name="Name", primary=True)
 
-    tool = get_views_tool_factory(user, workspace, fake_tool_helpers)
-    response = tool(
+    tool = get_create_views_tool(user, workspace)
+    response = tool.func(
         table_id=table.id,
         views=[
             FormViewItemCreate(
@@ -249,8 +298,8 @@ def test_create_text_equal_filter(data_fixture):
     field = data_fixture.create_text_field(table=table, name="Name")
     view = data_fixture.create_grid_view(table=table)
 
-    tool = get_view_filters_tool_factory(user, workspace, fake_tool_helpers)
-    response = tool(
+    tool = get_create_view_filters_tool(user, workspace)
+    response = tool.func(
         [
             ViewFiltersArgs(
                 view_id=view.id,
@@ -278,8 +327,8 @@ def test_create_text_not_equal_filter(data_fixture):
     field = data_fixture.create_text_field(table=table)
     view = data_fixture.create_grid_view(table=table)
 
-    tool = get_view_filters_tool_factory(user, workspace, fake_tool_helpers)
-    response = tool(
+    tool = get_create_view_filters_tool(user, workspace)
+    response = tool.func(
         [
             ViewFiltersArgs(
                 view_id=view.id,
@@ -291,7 +340,7 @@ def test_create_text_not_equal_filter(data_fixture):
                         value="test",
                     )
                 ],
-            )
+            ),
         ]
     )
 
@@ -308,8 +357,8 @@ def test_create_text_contains_filter(data_fixture):
     field = data_fixture.create_text_field(table=table)
     view = data_fixture.create_grid_view(table=table)
 
-    tool = get_view_filters_tool_factory(user, workspace, fake_tool_helpers)
-    response = tool(
+    tool = get_create_view_filters_tool(user, workspace)
+    response = tool.func(
         [
             ViewFiltersArgs(
                 view_id=view.id,
@@ -321,7 +370,7 @@ def test_create_text_contains_filter(data_fixture):
                         value="test",
                     )
                 ],
-            )
+            ),
         ]
     )
 
@@ -338,8 +387,8 @@ def test_create_text_not_contains_filter(data_fixture):
     field = data_fixture.create_text_field(table=table)
     view = data_fixture.create_grid_view(table=table)
 
-    tool = get_view_filters_tool_factory(user, workspace, fake_tool_helpers)
-    response = tool(
+    tool = get_create_view_filters_tool(user, workspace)
+    response = tool.func(
         [
             ViewFiltersArgs(
                 view_id=view.id,
@@ -351,7 +400,7 @@ def test_create_text_not_contains_filter(data_fixture):
                         value="test",
                     )
                 ],
-            )
+            ),
         ]
     )
 
@@ -371,8 +420,8 @@ def test_create_number_equal_filter(data_fixture):
     field = data_fixture.create_number_field(table=table)
     view = data_fixture.create_grid_view(table=table)
 
-    tool = get_view_filters_tool_factory(user, workspace, fake_tool_helpers)
-    response = tool(
+    tool = get_create_view_filters_tool(user, workspace)
+    response = tool.func(
         [
             ViewFiltersArgs(
                 view_id=view.id,
@@ -381,7 +430,7 @@ def test_create_number_equal_filter(data_fixture):
                         field_id=field.id, type="number", operator="equal", value=42.0
                     )
                 ],
-            )
+            ),
         ]
     )
 
@@ -398,8 +447,8 @@ def test_create_number_not_equal_filter(data_fixture):
     field = data_fixture.create_number_field(table=table)
     view = data_fixture.create_grid_view(table=table)
 
-    tool = get_view_filters_tool_factory(user, workspace, fake_tool_helpers)
-    response = tool(
+    tool = get_create_view_filters_tool(user, workspace)
+    response = tool.func(
         [
             ViewFiltersArgs(
                 view_id=view.id,
@@ -411,7 +460,7 @@ def test_create_number_not_equal_filter(data_fixture):
                         value=42.0,
                     )
                 ],
-            )
+            ),
         ]
     )
 
@@ -428,8 +477,8 @@ def test_create_number_higher_than_filter(data_fixture):
     field = data_fixture.create_number_field(table=table)
     view = data_fixture.create_grid_view(table=table)
 
-    tool = get_view_filters_tool_factory(user, workspace, fake_tool_helpers)
-    response = tool(
+    tool = get_create_view_filters_tool(user, workspace)
+    response = tool.func(
         [
             ViewFiltersArgs(
                 view_id=view.id,
@@ -443,7 +492,7 @@ def test_create_number_higher_than_filter(data_fixture):
                     )
                 ],
             )
-        ]
+        ],
     )
 
     assert len(response["created_view_filters"]) == 1
@@ -461,8 +510,8 @@ def test_create_number_lower_than_filter(data_fixture):
     field = data_fixture.create_number_field(table=table)
     view = data_fixture.create_grid_view(table=table)
 
-    tool = get_view_filters_tool_factory(user, workspace, fake_tool_helpers)
-    response = tool(
+    tool = get_create_view_filters_tool(user, workspace)
+    response = tool.func(
         [
             ViewFiltersArgs(
                 view_id=view.id,
@@ -475,7 +524,7 @@ def test_create_number_lower_than_filter(data_fixture):
                         or_equal=False,
                     )
                 ],
-            )
+            ),
         ]
     )
 
@@ -493,8 +542,8 @@ def test_create_date_equal_filter(data_fixture):
     field = data_fixture.create_date_field(table=table)
     view = data_fixture.create_grid_view(table=table)
 
-    tool = get_view_filters_tool_factory(user, workspace, fake_tool_helpers)
-    response = tool(
+    tool = get_create_view_filters_tool(user, workspace)
+    response = tool.func(
         [
             ViewFiltersArgs(
                 view_id=view.id,
@@ -507,7 +556,7 @@ def test_create_date_equal_filter(data_fixture):
                         mode="exact_date",
                     )
                 ],
-            )
+            ),
         ]
     )
 
@@ -524,8 +573,8 @@ def test_create_date_not_equal_filter(data_fixture):
     field = data_fixture.create_date_field(table=table)
     view = data_fixture.create_grid_view(table=table)
 
-    tool = get_view_filters_tool_factory(user, workspace, fake_tool_helpers)
-    response = tool(
+    tool = get_create_view_filters_tool(user, workspace)
+    response = tool.func(
         [
             ViewFiltersArgs(
                 view_id=view.id,
@@ -538,7 +587,7 @@ def test_create_date_not_equal_filter(data_fixture):
                         mode="today",
                     )
                 ],
-            )
+            ),
         ]
     )
 
@@ -557,8 +606,8 @@ def test_create_date_after_filter(data_fixture):
     field = data_fixture.create_date_field(table=table)
     view = data_fixture.create_grid_view(table=table)
 
-    tool = get_view_filters_tool_factory(user, workspace, fake_tool_helpers)
-    response = tool(
+    tool = get_create_view_filters_tool(user, workspace)
+    response = tool.func(
         [
             ViewFiltersArgs(
                 view_id=view.id,
@@ -572,7 +621,7 @@ def test_create_date_after_filter(data_fixture):
                         or_equal=False,
                     )
                 ],
-            )
+            ),
         ]
     )
 
@@ -591,8 +640,8 @@ def test_create_date_before_filter(data_fixture):
     field = data_fixture.create_date_field(table=table)
     view = data_fixture.create_grid_view(table=table)
 
-    tool = get_view_filters_tool_factory(user, workspace, fake_tool_helpers)
-    response = tool(
+    tool = get_create_view_filters_tool(user, workspace)
+    response = tool.func(
         [
             ViewFiltersArgs(
                 view_id=view.id,
@@ -606,7 +655,7 @@ def test_create_date_before_filter(data_fixture):
                         or_equal=True,
                     )
                 ],
-            )
+            ),
         ]
     )
 
@@ -628,8 +677,8 @@ def test_create_single_select_is_any_of_filter(data_fixture):
     data_fixture.create_select_option(field=field, value="Option 2")
     view = data_fixture.create_grid_view(table=table)
 
-    tool = get_view_filters_tool_factory(user, workspace, fake_tool_helpers)
-    response = tool(
+    tool = get_create_view_filters_tool(user, workspace)
+    response = tool.func(
         [
             ViewFiltersArgs(
                 view_id=view.id,
@@ -641,7 +690,7 @@ def test_create_single_select_is_any_of_filter(data_fixture):
                         value=["Option 1", "Option 2"],
                     )
                 ],
-            )
+            ),
         ]
     )
 
@@ -661,8 +710,8 @@ def test_create_single_select_is_none_of_filter(data_fixture):
     data_fixture.create_select_option(field=field, value="Bad Option")
     view = data_fixture.create_grid_view(table=table)
 
-    tool = get_view_filters_tool_factory(user, workspace, fake_tool_helpers)
-    response = tool(
+    tool = get_create_view_filters_tool(user, workspace)
+    response = tool.func(
         [
             ViewFiltersArgs(
                 view_id=view.id,
@@ -674,7 +723,7 @@ def test_create_single_select_is_none_of_filter(data_fixture):
                         value=["Bad Option"],
                     )
                 ],
-            )
+            ),
         ]
     )
 
@@ -694,8 +743,8 @@ def test_create_boolean_is_true_filter(data_fixture):
     field = data_fixture.create_boolean_field(table=table, name="Active")
     view = data_fixture.create_grid_view(table=table)
 
-    tool = get_view_filters_tool_factory(user, workspace, fake_tool_helpers)
-    response = tool(
+    tool = get_create_view_filters_tool(user, workspace)
+    response = tool.func(
         [
             ViewFiltersArgs(
                 view_id=view.id,
@@ -704,7 +753,7 @@ def test_create_boolean_is_true_filter(data_fixture):
                         field_id=field.id, type="boolean", operator="is", value=True
                     )
                 ],
-            )
+            ),
         ]
     )
 
@@ -721,8 +770,8 @@ def test_create_boolean_is_false_filter(data_fixture):
     field = data_fixture.create_boolean_field(table=table, name="Active")
     view = data_fixture.create_grid_view(table=table)
 
-    tool = get_view_filters_tool_factory(user, workspace, fake_tool_helpers)
-    response = tool(
+    tool = get_create_view_filters_tool(user, workspace)
+    response = tool.func(
         [
             ViewFiltersArgs(
                 view_id=view.id,
@@ -731,7 +780,7 @@ def test_create_boolean_is_false_filter(data_fixture):
                         field_id=field.id, type="boolean", operator="is", value=False
                     )
                 ],
-            )
+            ),
         ]
     )
 
@@ -751,8 +800,8 @@ def test_create_multiple_select_is_any_of_filter(data_fixture):
     data_fixture.create_select_option(field=field, value="Tag 2")
     view = data_fixture.create_grid_view(table=table)
 
-    tool = get_view_filters_tool_factory(user, workspace, fake_tool_helpers)
-    response = tool(
+    tool = get_create_view_filters_tool(user, workspace)
+    response = tool.func(
         [
             ViewFiltersArgs(
                 view_id=view.id,
@@ -764,7 +813,7 @@ def test_create_multiple_select_is_any_of_filter(data_fixture):
                         value=["Tag 1", "Tag 2"],
                     )
                 ],
-            )
+            ),
         ]
     )
 
@@ -784,8 +833,8 @@ def test_create_multiple_select_is_none_of_filter(data_fixture):
     data_fixture.create_select_option(field=field, value="Bad Tag")
     view = data_fixture.create_grid_view(table=table)
 
-    tool = get_view_filters_tool_factory(user, workspace, fake_tool_helpers)
-    response = tool(
+    tool = get_create_view_filters_tool(user, workspace)
+    response = tool.func(
         [
             ViewFiltersArgs(
                 view_id=view.id,
@@ -797,10 +846,9 @@ def test_create_multiple_select_is_none_of_filter(data_fixture):
                         value=["Bad Tag"],
                     )
                 ],
-            )
+            ),
         ]
     )
-
     assert len(response["created_view_filters"]) == 1
     assert ViewFilter.objects.filter(
         view=view, field=field, type="multiple_select_has_not"

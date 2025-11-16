@@ -220,10 +220,15 @@ def test_cannot_send_message_without_valid_workspace(
 
 @pytest.mark.django_db()
 @override_settings(DEBUG=True)
+@patch("baserow_enterprise.api.assistant.views.check_lm_ready_or_raise")
 @patch("baserow_enterprise.assistant.handler.Assistant")
 @patch("baserow_enterprise.api.assistant.views.AssistantHandler")
 def test_send_message_creates_chat_if_not_exists(
-    mock_handler_class, mock_assistant_class, api_client, enterprise_data_fixture
+    mock_handler_class,
+    mock_assistant_class,
+    mock_check_lm,
+    api_client,
+    enterprise_data_fixture,
 ):
     """Test that sending a message creates a chat if it doesn't exist"""
 
@@ -282,10 +287,15 @@ def test_send_message_creates_chat_if_not_exists(
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
+@patch("baserow_enterprise.api.assistant.views.check_lm_ready_or_raise")
 @patch("baserow_enterprise.assistant.handler.Assistant")
 @patch("baserow_enterprise.api.assistant.views.AssistantHandler")
 def test_send_message_streams_response(
-    mock_handler_class, mock_assistant_class, api_client, enterprise_data_fixture
+    mock_handler_class,
+    mock_assistant_class,
+    mock_check_lm,
+    api_client,
+    enterprise_data_fixture,
 ):
     """Test that the endpoint streams AI responses properly"""
 
@@ -865,10 +875,15 @@ def test_get_messages_includes_human_sentiment_when_feedback_exists(
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
+@patch("baserow_enterprise.api.assistant.views.check_lm_ready_or_raise")
 @patch("baserow_enterprise.assistant.handler.Assistant")
 @patch("baserow_enterprise.api.assistant.views.AssistantHandler")
 def test_send_message_streams_sources_from_tools(
-    mock_handler_class, mock_assistant_class, api_client, enterprise_data_fixture
+    mock_handler_class,
+    mock_assistant_class,
+    mock_check_lm,
+    api_client,
+    enterprise_data_fixture,
 ):
     """Test that sources from tool calls are included in streamed responses"""
 
@@ -954,10 +969,15 @@ def test_send_message_streams_sources_from_tools(
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
+@patch("baserow_enterprise.api.assistant.views.check_lm_ready_or_raise")
 @patch("baserow_enterprise.assistant.handler.Assistant")
 @patch("baserow_enterprise.api.assistant.views.AssistantHandler")
 def test_send_message_streams_thinking_messages_during_tool_execution(
-    mock_handler_class, mock_assistant_class, api_client, enterprise_data_fixture
+    mock_handler_class,
+    mock_assistant_class,
+    mock_check_lm,
+    api_client,
+    enterprise_data_fixture,
 ):
     """Test that thinking messages are streamed during tool execution"""
 
@@ -1039,10 +1059,15 @@ def test_send_message_streams_thinking_messages_during_tool_execution(
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
+@patch("baserow_enterprise.api.assistant.views.check_lm_ready_or_raise")
 @patch("baserow_enterprise.assistant.handler.Assistant")
 @patch("baserow_enterprise.api.assistant.views.AssistantHandler")
 def test_send_message_generates_chat_title_on_first_message(
-    mock_handler_class, mock_assistant_class, api_client, enterprise_data_fixture
+    mock_handler_class,
+    mock_assistant_class,
+    mock_check_lm,
+    api_client,
+    enterprise_data_fixture,
 ):
     """Test that a chat title is generated and streamed on the first message"""
 
@@ -1109,10 +1134,15 @@ def test_send_message_generates_chat_title_on_first_message(
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
+@patch("baserow_enterprise.api.assistant.views.check_lm_ready_or_raise")
 @patch("baserow_enterprise.assistant.handler.Assistant")
 @patch("baserow_enterprise.api.assistant.views.AssistantHandler")
 def test_send_message_does_not_generate_title_on_subsequent_messages(
-    mock_handler_class, mock_assistant_class, api_client, enterprise_data_fixture
+    mock_handler_class,
+    mock_assistant_class,
+    mock_check_lm,
+    api_client,
+    enterprise_data_fixture,
 ):
     """Test that chat title is NOT regenerated on subsequent messages"""
 
@@ -1179,10 +1209,15 @@ def test_send_message_does_not_generate_title_on_subsequent_messages(
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
+@patch("baserow_enterprise.api.assistant.views.check_lm_ready_or_raise")
 @patch("baserow_enterprise.assistant.handler.Assistant")
 @patch("baserow_enterprise.api.assistant.views.AssistantHandler")
 def test_send_message_handles_ai_error_in_streaming(
-    mock_handler_class, mock_assistant_class, api_client, enterprise_data_fixture
+    mock_handler_class,
+    mock_assistant_class,
+    mock_check_lm,
+    api_client,
+    enterprise_data_fixture,
 ):
     """Test that AI errors are properly streamed to the client"""
 
@@ -1252,10 +1287,15 @@ def test_send_message_handles_ai_error_in_streaming(
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
+@patch("baserow_enterprise.api.assistant.views.check_lm_ready_or_raise")
 @patch("baserow_enterprise.assistant.handler.Assistant")
 @patch("baserow_enterprise.api.assistant.views.AssistantHandler")
 def test_send_message_with_minimal_ui_context(
-    mock_handler_class, mock_assistant_class, api_client, enterprise_data_fixture
+    mock_handler_class,
+    mock_assistant_class,
+    mock_check_lm,
+    api_client,
+    enterprise_data_fixture,
 ):
     """Test sending message with minimal UI context (workspace only)"""
 
@@ -1318,10 +1358,15 @@ def test_send_message_with_minimal_ui_context(
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
+@patch("baserow_enterprise.api.assistant.views.check_lm_ready_or_raise")
 @patch("baserow_enterprise.assistant.handler.Assistant")
 @patch("baserow_enterprise.api.assistant.views.AssistantHandler")
 def test_send_message_with_database_builder_context(
-    mock_handler_class, mock_assistant_class, api_client, enterprise_data_fixture
+    mock_handler_class,
+    mock_assistant_class,
+    mock_check_lm,
+    api_client,
+    enterprise_data_fixture,
 ):
     """
     Test sending message with database builder context
@@ -1398,10 +1443,15 @@ def test_send_message_with_database_builder_context(
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
+@patch("baserow_enterprise.api.assistant.views.check_lm_ready_or_raise")
 @patch("baserow_enterprise.assistant.handler.Assistant")
 @patch("baserow_enterprise.api.assistant.views.AssistantHandler")
 def test_send_message_with_application_builder_context(
-    mock_handler_class, mock_assistant_class, api_client, enterprise_data_fixture
+    mock_handler_class,
+    mock_assistant_class,
+    mock_check_lm,
+    api_client,
+    enterprise_data_fixture,
 ):
     """
     Test sending message with application builder context
@@ -1504,10 +1554,15 @@ def test_send_message_ui_context_validation_missing_workspace(
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
+@patch("baserow_enterprise.api.assistant.views.check_lm_ready_or_raise")
 @patch("baserow_enterprise.assistant.handler.Assistant")
 @patch("baserow_enterprise.api.assistant.views.AssistantHandler")
 def test_send_message_with_automation_context(
-    mock_handler_class, mock_assistant_class, api_client, enterprise_data_fixture
+    mock_handler_class,
+    mock_assistant_class,
+    mock_check_lm,
+    api_client,
+    enterprise_data_fixture,
 ):
     """Test sending message with automation builder context"""
 
@@ -1575,10 +1630,15 @@ def test_send_message_with_automation_context(
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
+@patch("baserow_enterprise.api.assistant.views.check_lm_ready_or_raise")
 @patch("baserow_enterprise.assistant.handler.Assistant")
 @patch("baserow_enterprise.api.assistant.views.AssistantHandler")
 def test_send_message_with_dashboard_context(
-    mock_handler_class, mock_assistant_class, api_client, enterprise_data_fixture
+    mock_handler_class,
+    mock_assistant_class,
+    mock_check_lm,
+    api_client,
+    enterprise_data_fixture,
 ):
     """Test sending message with dashboard context"""
 

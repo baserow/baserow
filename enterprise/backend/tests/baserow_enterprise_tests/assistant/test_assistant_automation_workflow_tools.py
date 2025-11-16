@@ -1,4 +1,7 @@
+from unittest.mock import Mock
+
 import pytest
+from udspy.module.callbacks import ModuleContext, is_module_callback
 
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 from baserow.core.formula import resolve_formula
@@ -94,8 +97,25 @@ def test_create_workflows(data_fixture):
     database = data_fixture.create_database_application(user=user, workspace=workspace)
     table = data_fixture.create_database_table(user=user, database=database)
 
-    tool = get_workflow_tool_factory(user, workspace, fake_tool_helpers)
-    result = tool(
+    factory = get_workflow_tool_factory(user, workspace, fake_tool_helpers)
+    assert callable(factory)
+
+    tools_upgrade = factory()
+    assert is_module_callback(tools_upgrade)
+
+    mock_module = Mock()
+    mock_module._tools = []
+    mock_module.init_module = Mock()
+    tools_upgrade(ModuleContext(module=mock_module))
+    assert mock_module.init_module.called
+
+    added_tools = mock_module.init_module.call_args[1]["tools"]
+    create_workflows_tool = next(
+        (tool for tool in added_tools if tool.name == "create_workflows"), None
+    )
+    assert create_workflows_tool is not None
+
+    result = create_workflows_tool.func(
         automation_id=automation.id,
         workflows=[
             WorkflowCreate(
@@ -143,8 +163,25 @@ def test_create_multiple_workflows(data_fixture):
     database = data_fixture.create_database_application(user=user, workspace=workspace)
     table = data_fixture.create_database_table(user=user, database=database)
 
-    tool = get_workflow_tool_factory(user, workspace, fake_tool_helpers)
-    result = tool(
+    factory = get_workflow_tool_factory(user, workspace, fake_tool_helpers)
+    assert callable(factory)
+
+    tools_upgrade = factory()
+    assert is_module_callback(tools_upgrade)
+
+    mock_module = Mock()
+    mock_module._tools = []
+    mock_module.init_module = Mock()
+    tools_upgrade(ModuleContext(module=mock_module))
+    assert mock_module.init_module.called
+
+    added_tools = mock_module.init_module.call_args[1]["tools"]
+    create_workflows_tool = next(
+        (tool for tool in added_tools if tool.name == "create_workflows"), None
+    )
+    assert create_workflows_tool is not None
+
+    result = create_workflows_tool.func(
         automation_id=automation.id,
         workflows=[
             WorkflowCreate(
@@ -248,8 +285,25 @@ def test_create_workflow_with_row_triggers_and_actions(data_fixture, trigger, ac
     table.pk = 999  # To match the action's table_id
     table.save()
 
-    tool = get_workflow_tool_factory(user, workspace, fake_tool_helpers)
-    result = tool(
+    factory = get_workflow_tool_factory(user, workspace, fake_tool_helpers)
+    assert callable(factory)
+
+    tools_upgrade = factory()
+    assert is_module_callback(tools_upgrade)
+
+    mock_module = Mock()
+    mock_module._tools = []
+    mock_module.init_module = Mock()
+    tools_upgrade(ModuleContext(module=mock_module))
+    assert mock_module.init_module.called
+
+    added_tools = mock_module.init_module.call_args[1]["tools"]
+    create_workflows_tool = next(
+        (tool for tool in added_tools if tool.name == "create_workflows"), None
+    )
+    assert create_workflows_tool is not None
+
+    result = create_workflows_tool.func(
         automation_id=automation.id,
         workflows=[
             WorkflowCreate(
@@ -286,8 +340,25 @@ def test_create_row_action_with_field_ids(data_fixture):
     text_field = data_fixture.create_text_field(table=table, name="Name")
     number_field = data_fixture.create_number_field(table=table, name="Age")
 
-    tool = get_workflow_tool_factory(user, workspace, fake_tool_helpers)
-    result = tool(
+    factory = get_workflow_tool_factory(user, workspace, fake_tool_helpers)
+    assert callable(factory)
+
+    tools_upgrade = factory()
+    assert is_module_callback(tools_upgrade)
+
+    mock_module = Mock()
+    mock_module._tools = []
+    mock_module.init_module = Mock()
+    tools_upgrade(ModuleContext(module=mock_module))
+    assert mock_module.init_module.called
+
+    added_tools = mock_module.init_module.call_args[1]["tools"]
+    create_workflows_tool = next(
+        (tool for tool in added_tools if tool.name == "create_workflows"), None
+    )
+    assert create_workflows_tool is not None
+
+    result = create_workflows_tool.func(
         automation_id=automation.id,
         workflows=[
             WorkflowCreate(
@@ -340,8 +411,25 @@ def test_update_row_action_with_row_id_and_field_ids(data_fixture):
     table = data_fixture.create_database_table(user=user, database=database)
     text_field = data_fixture.create_text_field(table=table, name="Status")
 
-    tool = get_workflow_tool_factory(user, workspace, fake_tool_helpers)
-    result = tool(
+    factory = get_workflow_tool_factory(user, workspace, fake_tool_helpers)
+    assert callable(factory)
+
+    tools_upgrade = factory()
+    assert is_module_callback(tools_upgrade)
+
+    mock_module = Mock()
+    mock_module._tools = []
+    mock_module.init_module = Mock()
+    tools_upgrade(ModuleContext(module=mock_module))
+    assert mock_module.init_module.called
+
+    added_tools = mock_module.init_module.call_args[1]["tools"]
+    create_workflows_tool = next(
+        (tool for tool in added_tools if tool.name == "create_workflows"), None
+    )
+    assert create_workflows_tool is not None
+
+    result = create_workflows_tool.func(
         automation_id=automation.id,
         workflows=[
             WorkflowCreate(
@@ -395,8 +483,25 @@ def test_delete_row_action_with_row_id(data_fixture):
     database = data_fixture.create_database_application(user=user, workspace=workspace)
     table = data_fixture.create_database_table(user=user, database=database)
 
-    tool = get_workflow_tool_factory(user, workspace, fake_tool_helpers)
-    result = tool(
+    factory = get_workflow_tool_factory(user, workspace, fake_tool_helpers)
+    assert callable(factory)
+
+    tools_upgrade = factory()
+    assert is_module_callback(tools_upgrade)
+
+    mock_module = Mock()
+    mock_module._tools = []
+    mock_module.init_module = Mock()
+    tools_upgrade(ModuleContext(module=mock_module))
+    assert mock_module.init_module.called
+
+    added_tools = mock_module.init_module.call_args[1]["tools"]
+    create_workflows_tool = next(
+        (tool for tool in added_tools if tool.name == "create_workflows"), None
+    )
+    assert create_workflows_tool is not None
+
+    result = create_workflows_tool.func(
         automation_id=automation.id,
         workflows=[
             WorkflowCreate(
@@ -449,8 +554,25 @@ def test_router_node_with_required_conditions(data_fixture):
     database = data_fixture.create_database_application(user=user, workspace=workspace)
     table = data_fixture.create_database_table(user=user, database=database)
 
-    tool = get_workflow_tool_factory(user, workspace, fake_tool_helpers)
-    result = tool(
+    factory = get_workflow_tool_factory(user, workspace, fake_tool_helpers)
+    assert callable(factory)
+
+    tools_upgrade = factory()
+    assert is_module_callback(tools_upgrade)
+
+    mock_module = Mock()
+    mock_module._tools = []
+    mock_module.init_module = Mock()
+    tools_upgrade(ModuleContext(module=mock_module))
+    assert mock_module.init_module.called
+
+    added_tools = mock_module.init_module.call_args[1]["tools"]
+    create_workflows_tool = next(
+        (tool for tool in added_tools if tool.name == "create_workflows"), None
+    )
+    assert create_workflows_tool is not None
+
+    result = create_workflows_tool.func(
         automation_id=automation.id,
         workflows=[
             WorkflowCreate(

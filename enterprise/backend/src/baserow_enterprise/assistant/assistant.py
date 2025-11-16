@@ -377,7 +377,7 @@ class Assistant:
             cache.delete(cache_key)
             raise AssistantMessageCancelled(message_id=message_id)
 
-    async def _summarize_context_from_history(self, question: str) -> str:
+    async def summarize_context_from_history(self, question: str) -> str:
         """
         Extract relevant facts from chat history to provide context for the question or
         return an empty string if there is no history.
@@ -467,7 +467,7 @@ class Assistant:
             lm=self._lm_client,
             callbacks=[*udspy.settings.callbacks, self.callbacks],
         ):
-            context_from_history = await self._summarize_context_from_history(
+            context_from_history = await self.summarize_context_from_history(
                 human_message.content
             )
 

@@ -255,7 +255,7 @@ class TestKnowledgeHandler:
         """Test knowledge retrieval when vector store is empty"""
 
         results = knowledge_handler.search("database query")
-        assert results == []
+        assert list(results) == []
 
     def test_retrieve_knowledge_chunks_with_data(
         self, knowledge_handler, sample_documents_with_chunks
@@ -267,7 +267,10 @@ class TestKnowledgeHandler:
         # The chunks are already in the database and available for search
 
         # Query for database-related content
-        results = knowledge_handler.search("database fundamentals", num_results=5)
+        results = [
+            ch.content
+            for ch in knowledge_handler.search("database fundamentals", num_results=5)
+        ]
 
         assert len(results) > 0
         assert any(
@@ -352,7 +355,9 @@ class TestKnowledgeHandler:
 
         # Search with a query that will be embedded as [1.0, 0.0, 0.0, ...]
         # (our MockEmbeddings returns this for "database" queries)
-        results = knowledge_handler.search("database", num_results=3)
+        results = [
+            ch.content for ch in knowledge_handler.search("database", num_results=3)
+        ]
 
         # Results should be ordered by distance (closest first)
         assert len(results) == 3
@@ -405,7 +410,9 @@ class TestKnowledgeHandler:
             index=2,
         )
 
-        results = knowledge_handler.search("database", num_results=3)
+        results = [
+            ch.content for ch in knowledge_handler.search("database", num_results=3)
+        ]
 
         # Should be ordered: distance 0, sqrt(0.5), sqrt(2)
         assert len(results) == 3

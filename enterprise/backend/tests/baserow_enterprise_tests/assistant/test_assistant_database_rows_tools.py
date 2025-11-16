@@ -6,7 +6,7 @@ from udspy.module.callbacks import ModuleContext, is_module_callback
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow_enterprise.assistant.tools.database.tools import (
     get_list_rows_tool,
-    get_load_rows_tool,
+    get_rows_tools_factory,
 )
 
 from .utils import fake_tool_helpers
@@ -211,7 +211,7 @@ def test_create_rows(data_fixture):
     table = res["table_a"]
     tool_helpers = fake_tool_helpers
 
-    meta_tool = get_load_rows_tool(user, workspace, tool_helpers)
+    meta_tool = get_rows_tools_factory(user, workspace, tool_helpers)
     assert callable(meta_tool)
 
     tools_upgrade = meta_tool([table.id], ["create"])
@@ -277,7 +277,7 @@ def test_update_rows(data_fixture):
     table = res["table_a"]
     tool_helpers = fake_tool_helpers
 
-    meta_tool = get_load_rows_tool(user, workspace, tool_helpers)
+    meta_tool = get_rows_tools_factory(user, workspace, tool_helpers)
     assert callable(meta_tool)
     tools_upgrade = meta_tool([table.id], ["update"])
     assert is_module_callback(tools_upgrade)
@@ -371,7 +371,7 @@ def test_delete_rows(data_fixture):
     table = res["table_a"]
     tool_helpers = fake_tool_helpers
 
-    meta_tool = get_load_rows_tool(user, workspace, tool_helpers)
+    meta_tool = get_rows_tools_factory(user, workspace, tool_helpers)
     assert callable(meta_tool)
 
     tools_upgrade = meta_tool([table.id], ["delete"])
