@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Gracefully handle when page is being renamed to an existing name.",
+    "issue_origin": "github",
+    "issue_number": 4183,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2025-11-17"
+}
