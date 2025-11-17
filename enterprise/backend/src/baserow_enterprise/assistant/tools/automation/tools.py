@@ -52,15 +52,6 @@ def get_list_workflows_tool(
 def get_workflow_tool_factory(
     user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
 ) -> Callable[[int, list[WorkflowCreate]], dict[str, list[dict]]]:
-    """
-    TOOL LOADER: Loads workflow creation tools for automations.
-
-    After calling this loader, you will have access to:
-    - create_workflows: Create workflows with triggers, actions, and routers
-
-    Use this when you need to create workflows in an automation but don't have the tool.
-    """
-
     def create_workflows(
         automation_id: int, workflows: list[WorkflowCreate]
     ) -> dict[str, Any]:
@@ -109,8 +100,13 @@ def get_workflow_tool_factory(
 
     def load_workflow_automation_tools():
         """
-        Load the tools to create workflows in an automation.
-        """
+        TOOL LOADER: Loads workflow/automation creation tools.
+
+        After calling this loader, you will have access to:
+        - create_workflows: Create workflows and automations with triggers, actions, and routers
+
+        Use this when you need to create workflows in an automation but don't have the tool.
+        """  # noqa: W505
 
         @udspy.module_callback
         def _load_workflow_automation_tools(context):

@@ -10,7 +10,9 @@ from baserow_enterprise.assistant.models import (
     KnowledgeBaseChunk,
     KnowledgeBaseDocument,
 )
-from baserow_enterprise.assistant.tools.search_docs.handler import KnowledgeBaseHandler
+from baserow_enterprise.assistant.tools.search_user_docs.handler import (
+    KnowledgeBaseHandler,
+)
 
 
 @pytest.fixture

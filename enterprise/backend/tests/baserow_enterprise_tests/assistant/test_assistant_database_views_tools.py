@@ -6,7 +6,6 @@ from udspy.module.callbacks import ModuleContext, is_module_callback
 from baserow.contrib.database.views.models import View, ViewFilter
 from baserow_enterprise.assistant.tools.database.tools import (
     get_list_views_tool,
-    get_view_filters_tool_factory,
     get_views_tool_factory,
 )
 from baserow_enterprise.assistant.tools.database.types import (
@@ -69,7 +68,7 @@ def get_create_views_tool(user, workspace):
 def get_create_view_filters_tool(user, workspace):
     """Helper to get the create_view_filters tool from the factory"""
 
-    factory = get_view_filters_tool_factory(user, workspace, fake_tool_helpers)
+    factory = get_views_tool_factory(user, workspace, fake_tool_helpers)
     assert callable(factory)
 
     tools_upgrade = factory()

@@ -174,16 +174,6 @@ class GetTablesSchemaToolType(AssistantToolType):
 def get_table_and_fields_tools_factory(
     user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
 ) -> Callable[[list[TableItemCreate]], list[dict[str, Any]]]:
-    """
-    TOOL LOADER: Loads table and field creation tools for a database.
-
-    After calling this loader, you will have access to:
-    - create_tables: Create new tables in a database with fields and sample rows
-    - create_fields: Add new fields to an existing table
-
-    Use this when you need to create tables or add fields but don't have the tools.
-    """
-
     def create_fields(
         table_id: int, fields: list[AnyFieldItemCreate]
     ) -> list[AnyFieldItem]:
@@ -307,7 +297,13 @@ def get_table_and_fields_tools_factory(
 
     def load_table_and_fields_tools():
         """
-        Load the tools to create tables and fields in a database.
+        TOOL LOADER: Loads table and field creation tools for a database.
+
+        After calling this loader, you will have access to:
+        - create_tables: Create new tables in a database with fields and sample rows
+        - create_fields: Add new fields to an existing table
+
+        Use this when you need to create tables or add fields but don't have the tools.
         """
 
         @udspy.module_callback
@@ -407,25 +403,22 @@ def get_rows_tools_factory(
     workspace: Workspace,
     tool_helpers: "ToolHelpers",
 ) -> Callable[[int, list[dict[str, Any]]], list[Any]]:
-    """
-    TOOL LOADER: Loads row manipulation tools for specified tables. Make
-    sure to have the correct table IDs.
-
-    After calling this loader, you will have access to table-specific tools:
-    - create_rows_in_table_X: Create new rows in table X
-    - update_rows_in_table_X: Update existing rows in table X by their IDs
-    - delete_rows_in_table_X: Delete rows from table X by their IDs
-
-    Use this when you need to create, update, or delete rows but don't have the tools.
-    Call with the table IDs and desired operations (create/update/delete).
-    """
-
     def load_rows_tools(
         table_ids: list[int],
         operations: list[Literal["create", "update", "delete"]],
     ) -> Tuple[str, list[Callable[[Any], Any]]]:
         """
-        Load the tools to create/update/delete rows in specified tables.
+        TOOL LOADER: Loads row manipulation tools for specified tables.
+        Make sure to have the correct table IDs.
+
+        After calling this loader, you will have access to table-specific tools:
+        - create_rows_in_table_X: Create new rows in table X
+        - update_rows_in_table_X: Update existing rows in table X by their IDs
+        - delete_rows_in_table_X: Delete rows from table X by their IDs
+
+        Use this when you need to create, update, or delete rows but don't have
+        the tools.
+        Call with the table IDs and desired operations (create/update/delete).
         """
 
         @udspy.module_callback
@@ -545,14 +538,43 @@ class ListViewsToolType(AssistantToolType):
 def get_views_tool_factory(
     user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
 ) -> Callable[[int, list[str]], list[str]]:
-    """
-    TOOL LOADER: Loads view creation tools for tables.
+    def create_view_filters(
+        view_filters: list[ViewFiltersArgs],
+    ) -> list[AnyViewFilterItem]:
+        """
+        Creates filters in the specified views.
+        """
 
-    After calling this loader, you will have access to:
-    - create_views: Create views (grid, gallery, form, kanban, calendar) in a table
+        nonlocal user, workspace, tool_helpers
 
-    Use this when you need to create views but don't have the tool available yet.
-    """
+        if not view_filters:
+            return []
+
+        created_view_filters = []
+        for vf in view_filters:
+            orm_view = utils.get_view(user, vf.view_id)
+            tool_helpers.update_status(
+                _("Creating filters in %(view_name)s...") % {"view_name": orm_view.name}
+            )
+
+            fields = {f.id: f for f in orm_view.table.field_set.all()}
+            created_filters = []
+            with transaction.atomic():
+                for filter in vf.filters:
+                    try:
+                        orm_filter = utils.create_view_filter(
+                            user, orm_view, fields, filter
+                        )
+                    except ValueError as e:
+                        logger.warning(f"Skipping filter creation: {e}")
+                        continue
+
+                    created_filters.append({"id": orm_filter.id, **filter.model_dump()})
+            created_view_filters.append(
+                {"view_id": vf.view_id, "filters": created_filters}
+            )
+
+        return {"created_view_filters": created_view_filters}
 
     def create_views(
         table_id: int, views: list[AnyViewItemCreate]
@@ -609,7 +631,14 @@ def get_views_tool_factory(
 
     def load_views_tools():
         """
-        Load the tools to create views.
+        TOOL LOADER: Loads tools to manage views and filters
+        (grid, gallery, form, kanban, calendar and timeline).
+
+        After calling this loader, you will be able to:
+        - create_views: Create grid, gallery, form, kanban, calendar and timeline views
+        - create_view_filters: Create filters for specific views to filter rows
+
+        Use this when you need to create views or filters but don't have the tools yet.
         """
 
         @udspy.module_callback
@@ -621,6 +650,12 @@ def get_views_tool_factory(
             create_tool = udspy.Tool(create_views)
             new_tools = [create_tool]
             observation.append("- Use `create_views` to create views.")
+
+            create_filters_tool = udspy.Tool(create_view_filters)
+            new_tools.append(create_filters_tool)
+            observation.append(
+                "- Use `create_view_filters` to create filters in views."
+            )
 
             # Re-initialize the module with the new tools for the next iteration
             context.module.init_module(tools=context.module._tools + new_tools)
@@ -639,93 +674,6 @@ class ViewsToolFactoryToolType(AssistantToolType):
         cls, user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
     ) -> Callable[[Any], Any]:
         return get_views_tool_factory(user, workspace, tool_helpers)
-
-
-def get_view_filters_tool_factory(
-    user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
-) -> Callable[[int, list[str]], list[str]]:
-    """
-    TOOL LOADER: Loads tools to add filters to views (grid, gallery, form,
-    kanban, calendar). Filters are needed to limit the rows shown in views.
-
-    After calling this loader, you will have access to:
-    - create_view_filters: Create filters for specific views to filter rows
-
-    Use this when you need to add filters to views but don't have the tool.
-    """
-
-    def create_view_filters(
-        view_filters: list[ViewFiltersArgs],
-    ) -> list[AnyViewFilterItem]:
-        """
-        Creates filters in the specified views.
-        """
-
-        nonlocal user, workspace, tool_helpers
-
-        if not view_filters:
-            return []
-
-        created_view_filters = []
-        for vf in view_filters:
-            orm_view = utils.get_view(user, vf.view_id)
-            tool_helpers.update_status(
-                _("Creating filters in %(view_name)s...") % {"view_name": orm_view.name}
-            )
-
-            fields = {f.id: f for f in orm_view.table.field_set.all()}
-            created_filters = []
-            with transaction.atomic():
-                for filter in vf.filters:
-                    try:
-                        orm_filter = utils.create_view_filter(
-                            user, orm_view, fields, filter
-                        )
-                    except ValueError as e:
-                        logger.warning(f"Skipping filter creation: {e}")
-                        continue
-
-                    created_filters.append({"id": orm_filter.id, **filter.model_dump()})
-            created_view_filters.append(
-                {"view_id": vf.view_id, "filters": created_filters}
-            )
-
-        return {"created_view_filters": created_view_filters}
-
-    def load_view_filters_tools():
-        """
-        Load the tools to create filters in views.
-        """
-
-        @udspy.module_callback
-        def _load_view_filters_tools(context):
-            nonlocal user, workspace, tool_helpers
-
-            observation = ["New tools are now available.\n"]
-
-            create_tool = udspy.Tool(create_view_filters)
-            new_tools = [create_tool]
-            observation.append(
-                "- Use `create_view_filters` to create filters in views."
-            )
-
-            # Re-initialize the module with the new tools for the next iteration
-            context.module.init_module(tools=context.module._tools + new_tools)
-            return "\n".join(observation)
-
-        return _load_view_filters_tools
-
-    return load_view_filters_tools
-
-
-class ViewFiltersToolFactoryToolType(AssistantToolType):
-    type = "view_filters_tool_factory"
-
-    @classmethod
-    def get_tool(
-        cls, user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
-    ) -> Callable[[Any], Any]:
-        return get_view_filters_tool_factory(user, workspace, tool_helpers)
 
 
 def get_formula_type_tool(

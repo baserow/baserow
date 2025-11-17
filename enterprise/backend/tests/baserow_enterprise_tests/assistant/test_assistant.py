@@ -83,7 +83,7 @@ class TestAssistantCallbacks:
 
         # Mock tool instance and inputs
         tool_instance = MagicMock()
-        tool_instance.name = "search_docs"
+        tool_instance.name = "search_user_docs"
         inputs = {"query": "test"}
 
         # Register tool call

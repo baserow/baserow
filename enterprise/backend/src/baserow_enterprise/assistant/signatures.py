@@ -31,8 +31,10 @@ class RequestRouter(udspy.Signature):
         desc="Previous messages formatted as '[index] (role): content', ordered chronologically"
     )
 
-    routing_decision: Literal["delegate_to_agent", "search_docs"] = udspy.OutputField(
-        desc="Must be one of: 'delegate_to_agent' or 'search_docs'"
+    routing_decision: Literal[
+        "delegate_to_agent", "search_user_docs"
+    ] = udspy.OutputField(
+        desc="Must be one of: 'delegate_to_agent' or 'search_user_docs'"
     )
     extracted_context: str = udspy.OutputField(
         desc=(
@@ -44,7 +46,7 @@ class RequestRouter(udspy.Signature):
     )
     search_query: str = udspy.OutputField(
         desc=(
-            "The search query in English to use with search_docs if routing_decision='search_docs'. "
+            "The search query in English to use with search_user_docs if routing_decision='search_user_docs'. "
             "Should be a clear, well-formulated question using Baserow terminology. "
             "Empty string if routing_decision='delegate_to_agent'. "
             "If the question is in another language, make sure to mention in which "

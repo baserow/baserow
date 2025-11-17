@@ -192,10 +192,13 @@ class Assistant:
         ]
         self.callbacks = AssistantCallbacks(self.tool_helpers)
 
-        module_kwargs = {"response_format": {"type": "json_object"}}
+        module_kwargs = {
+            "temperature": settings.BASEROW_ENTERPRISE_ASSISTANT_LLM_TEMPERATURE,
+            "response_format": {"type": "json_object"},
+        }
 
-        self.search_docs_tool = next(
-            (tool for tool in tools if tool.name == "search_docs"), None
+        self.search_user_docs_tool = next(
+            (tool for tool in tools if tool.name == "search_user_docs"), None
         )
         self.agent_tools = tools
         self._request_router = udspy.ChainOfThought(RequestRouter, **module_kwargs)
@@ -456,9 +459,9 @@ class Assistant:
 
             if getattr(event, "routing_decision", None) == "delegate_to_agent":
                 messages.append(AiThinkingMessage(content=_("Thinking...")))
-            elif getattr(event, "routing_decision", None) == "search_docs":
-                if self.search_docs_tool is not None:
-                    await self.search_docs_tool(question=event.search_query)
+            elif getattr(event, "routing_decision", None) == "search_user_docs":
+                if self.search_user_docs_tool is not None:
+                    await self.search_user_docs_tool(question=event.search_query)
                 else:
                     messages.append(
                         AiMessage(

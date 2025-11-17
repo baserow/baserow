@@ -68,22 +68,33 @@ class SearchDocsSignature(udspy.Signature):
         return context
 
 
-def get_search_docs_tool(
+def get_search_user_docs_tool(
     user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
 ) -> Callable[[str], dict[str, Any]]:
     """
     Returns a function that searches the Baserow documentation for a given query.
     """
 
-    async def search_docs(
+    async def search_user_docs(
         question: Annotated[
             str, "The English version of the user question, using Baserow vocabulary."
         ]
     ) -> dict[str, Any]:
         """
-        Search Baserow documentation for relevant instructions or information. Make sure
-        the question is in English and uses Baserow-specific terminology to get the best
-        results.
+        Search Baserow documentation to provide instructions and information for USERS.
+
+        This tool provides end-user documentation explaining Baserow features and how
+        users can use them manually through the UI. It does NOT contain information
+        about:
+        - Which tools/functions the agent should use
+        - How to use agent tools or loaders
+        - Agent-specific implementation details
+
+        Use this ONLY when the user explicitly asks for instructions on how to do
+        something themselves, or wants to learn about Baserow features.
+
+        Make sure the question is in English and uses Baserow-specific terminology
+        to get the best results.
         """
 
         nonlocal tool_helpers
@@ -124,11 +135,11 @@ def get_search_docs_tool(
             "sources": sources,
         }
 
-    return search_docs
+    return search_user_docs
 
 
 class SearchDocsToolType(AssistantToolType):
-    type = "search_docs"
+    type = "search_user_docs"
 
     def can_use(
         self, user: AbstractUser, workspace: Workspace, *args, **kwargs
@@ -139,4 +150,4 @@ class SearchDocsToolType(AssistantToolType):
     def get_tool(
         cls, user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
     ) -> Callable[[Any], Any]:
-        return get_search_docs_tool(user, workspace, tool_helpers)
+        return get_search_user_docs_tool(user, workspace, tool_helpers)

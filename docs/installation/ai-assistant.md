@@ -21,7 +21,16 @@ Set the model you want, restart Baserow, and let migrations run.
 # Required
 BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL=openai/gpt-5-mini
 OPENAI_API_KEY=your_api_key
+
+# Optional - adjust LLM temperature (default: 0)
+BASEROW_ENTERPRISE_ASSISTANT_LLM_TEMPERATURE=0
 ```
+
+**About temperature:**
+- Controls randomness in LLM responses (0.0 to 2.0)
+- **Default: 0** (deterministic, consistent responses - recommended for production)
+- Higher values (e.g., 0.7-1.0) = more creative/varied responses
+- Lower values (e.g., 0-0.3) = more focused/consistent responses
 
 ## 3) Provider presets
 

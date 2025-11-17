@@ -91,7 +91,7 @@ msgstr ""
 msgid "Navigating to %(location)s..."
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/search_docs/tools.py:44
+#: src/baserow_enterprise/assistant/tools/search_user_docs/tools.py:44
 msgid "Exploring the knowledge base..."
 msgstr ""
 

@@ -9,7 +9,7 @@ from baserow_enterprise.assistant.models import (
     KnowledgeBaseChunk,
     KnowledgeBaseDocument,
 )
-from baserow_enterprise.assistant.tools.search_docs.handler import (
+from baserow_enterprise.assistant.tools.search_user_docs.handler import (
     BaserowEmbedder,
     KnowledgeBaseHandler,
     VectorHandler,
@@ -27,7 +27,7 @@ class TestBaserowEmbedder:
 
         # Mock the httpxClient where it's used in the handler module
         with patch(
-            "baserow_enterprise.assistant.tools.search_docs.handler.httpxClient"
+            "baserow_enterprise.assistant.tools.search_user_docs.handler.httpxClient"
         ) as mock_client:
             mock_client_instance = mock_client.return_value
             mock_post_response = mock_client_instance.post.return_value
@@ -56,7 +56,7 @@ class TestBaserowEmbedder:
 
         # Mock the httpxClient where it's used in the handler module
         with patch(
-            "baserow_enterprise.assistant.tools.search_docs.handler.httpxClient"
+            "baserow_enterprise.assistant.tools.search_user_docs.handler.httpxClient"
         ) as mock_client:
             mock_client_instance = mock_client.return_value
             mock_post_response = mock_client_instance.post.return_value
@@ -82,7 +82,7 @@ class TestBaserowEmbedder:
 
         # Mock the httpxClient where it's used in the handler module
         with patch(
-            "baserow_enterprise.assistant.tools.search_docs.handler.httpxClient"
+            "baserow_enterprise.assistant.tools.search_user_docs.handler.httpxClient"
         ) as mock_client:
             # Mock the httpxClient.post call with smaller dimensions
             small_dimension = 512
@@ -111,7 +111,7 @@ class TestBaserowEmbedder:
 
         # Mock the httpxClient where it's used in the handler module
         with patch(
-            "baserow_enterprise.assistant.tools.search_docs.handler.httpxClient"
+            "baserow_enterprise.assistant.tools.search_user_docs.handler.httpxClient"
         ) as mock_client:
             # Mock the httpxClient.post call with larger dimensions
             large_dimension = DEFAULT_EMBEDDING_DIMENSIONS + 100
@@ -498,7 +498,7 @@ class TestKnowledgeHandler:
         """Test handler creation with default vector store"""
 
         with patch(
-            "baserow_enterprise.assistant.tools.search_docs.handler.VectorHandler"
+            "baserow_enterprise.assistant.tools.search_user_docs.handler.VectorHandler"
         ) as mock_vector_handler:
             handler = KnowledgeBaseHandler()
 

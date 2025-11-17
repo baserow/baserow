@@ -1,6 +1,8 @@
 from django.core.management.base import BaseCommand
 
-from baserow_enterprise.assistant.tools.search_docs.handler import KnowledgeBaseHandler
+from baserow_enterprise.assistant.tools.search_user_docs.handler import (
+    KnowledgeBaseHandler,
+)
 
 
 class Command(BaseCommand):

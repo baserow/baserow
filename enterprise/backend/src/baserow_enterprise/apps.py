@@ -323,7 +323,6 @@ class BaserowEnterpriseConfig(AppConfig):
             RowsToolFactoryToolType,
             SearchDocsToolType,
             TableAndFieldsToolFactoryToolType,
-            ViewFiltersToolFactoryToolType,
             ViewsToolFactoryToolType,
             WorkflowToolFactoryToolType,
         )
@@ -337,14 +336,13 @@ class BaserowEnterpriseConfig(AppConfig):
         assistant_tool_registry.register(ListBuildersToolType())
         assistant_tool_registry.register(CreateBuildersToolType())
         assistant_tool_registry.register(ListTablesToolType())
-        assistant_tool_registry.register(TableAndFieldsToolFactoryToolType())
         assistant_tool_registry.register(GetTablesSchemaToolType())
+        assistant_tool_registry.register(TableAndFieldsToolFactoryToolType())
         assistant_tool_registry.register(GenerateDatabaseFormulaToolType())
         assistant_tool_registry.register(ListRowsToolType())
         assistant_tool_registry.register(RowsToolFactoryToolType())
         assistant_tool_registry.register(ListViewsToolType())
         assistant_tool_registry.register(ViewsToolFactoryToolType())
-        assistant_tool_registry.register(ViewFiltersToolFactoryToolType())
 
         assistant_tool_registry.register(ListWorkflowsToolType())
         assistant_tool_registry.register(WorkflowToolFactoryToolType())
@@ -424,7 +422,7 @@ def sync_assistant_knowledge_base(sender, **kwargs):
     from baserow_enterprise.assistant.tasks import (
         sync_assistant_knowledge_base as sync_assistant_knowledge_base_task,
     )
-    from baserow_enterprise.assistant.tools.search_docs.handler import (
+    from baserow_enterprise.assistant.tools.search_user_docs.handler import (
         KnowledgeBaseHandler,
     )
 
