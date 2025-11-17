@@ -18,6 +18,7 @@ export function populatePage(page) {
     workflowActions: [],
     elementTree: [],
     contents: null,
+    formData: {},
   }
 }
 
