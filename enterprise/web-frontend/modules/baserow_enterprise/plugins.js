@@ -14,7 +14,6 @@ import AssistantSidebarItem from '@baserow_enterprise/components/assistant/Assis
 import AssistantPanel from '@baserow_enterprise/components/assistant/AssistantPanel'
 import DateDependencyMenuItem from '@baserow_enterprise/components/dateDependency/DateDependencyMenuItem'
 import DateDependencyFieldTypeIcon from '@baserow_enterprise/components/dateDependency/DateDependencyFieldTypeIcon'
-import { FF_ASSISTANT } from '@baserow/modules/core/plugins/featureFlags'
 
 export class EnterprisePlugin extends BaserowPlugin {
   static getType() {
@@ -23,9 +22,7 @@ export class EnterprisePlugin extends BaserowPlugin {
 
   getSidebarWorkspaceComponents(workspace) {
     const sidebarItems = []
-    if (this.app.$featureFlagIsEnabled(FF_ASSISTANT)) {
-      sidebarItems.push(AssistantSidebarItem)
-    }
+    sidebarItems.push(AssistantSidebarItem)
     if (!this.app.$config.BASEROW_DISABLE_SUPPORT) {
       sidebarItems.push(ChatwootSupportSidebarWorkspace)
     }
@@ -51,9 +48,7 @@ export class EnterprisePlugin extends BaserowPlugin {
 
   getRightSidebarWorkspaceComponents(workspace) {
     const rightSidebarItems = []
-    if (this.app.$featureFlagIsEnabled(FF_ASSISTANT)) {
-      rightSidebarItems.push(AssistantPanel)
-    }
+    rightSidebarItems.push(AssistantPanel)
     return rightSidebarItems
   }
 
