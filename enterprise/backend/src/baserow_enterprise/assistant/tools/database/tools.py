@@ -175,7 +175,13 @@ def get_table_and_fields_tools_factory(
     user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
 ) -> Callable[[list[TableItemCreate]], list[dict[str, Any]]]:
     """
-    Returns a function that loads tools to create tables and fields.
+    TOOL LOADER: Loads table and field creation tools for a database.
+
+    After calling this loader, you will have access to:
+    - create_tables: Create new tables in a database with fields and sample rows
+    - create_fields: Add new fields to an existing table
+
+    Use this when you need to create tables or add fields but don't have the tools available yet.
     """
 
     def create_fields(
@@ -402,7 +408,15 @@ def get_rows_tools_factory(
     tool_helpers: "ToolHelpers",
 ) -> Callable[[int, list[dict[str, Any]]], list[Any]]:
     """
-    Load the tools to create/update/delete rows in specified tables.
+    TOOL LOADER: Loads row manipulation tools for specified tables.
+
+    After calling this loader, you will have access to table-specific tools:
+    - create_rows_table_X: Create new rows in table X
+    - update_rows_table_X: Update existing rows in table X by their IDs
+    - delete_rows_table_X: Delete rows from table X by their IDs
+
+    Use this when you need to create, update, or delete rows but don't have the tools available yet.
+    Call with the table IDs and desired operations (create/update/delete).
     """
 
     def load_rows_tools(
@@ -417,10 +431,16 @@ def get_rows_tools_factory(
         def _load_rows_tools(context):
             nonlocal user, workspace, tool_helpers
 
-            observation = ["New tools are now available.\n"]
+            tables = utils.filter_tables(user, workspace).filter(id__in=table_ids)
+            if not tables:
+                observation = [
+                    "No valid tables found for the given IDs. ",
+                    "Make sure the table IDs are correct.",
+                ]
+                return "\n".join(observation)
 
             new_tools = []
-            tables = utils.filter_tables(user, workspace).filter(id__in=table_ids)
+            observation = ["New tools are now available.\n"]
             for table in tables:
                 table_tools = utils.get_table_rows_tools(
                     user, workspace, tool_helpers, table
@@ -525,8 +545,12 @@ def get_views_tool_factory(
     user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
 ) -> Callable[[int, list[str]], list[str]]:
     """
-    Returns a function that creates views in a given table the user has access to
-    in the current workspace.
+    TOOL LOADER: Loads view creation tools for tables.
+
+    After calling this loader, you will have access to:
+    - create_views: Create views (grid, gallery, form, kanban, calendar) in a table
+
+    Use this when you need to create views but don't have the tool available yet.
     """
 
     def create_views(
@@ -620,8 +644,12 @@ def get_view_filters_tool_factory(
     user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
 ) -> Callable[[int, list[str]], list[str]]:
     """
-    Returns a function that creates views in a given table the user has access to
-    in the current workspace.
+    TOOL LOADER: Loads view filter creation tools.
+
+    After calling this loader, you will have access to:
+    - create_view_filters: Create filters for specific views to filter rows
+
+    Use this when you need to add filters to views but don't have the tool available yet.
     """
 
     def create_view_filters(

@@ -4,16 +4,16 @@ from django.contrib.auth.models import AbstractUser
 from django.utils.translation import gettext as _
 
 import udspy
+from asgiref.sync import sync_to_async
 
 from baserow.core.models import Workspace
+from baserow_enterprise.assistant.models import KnowledgeBaseChunk
 from baserow_enterprise.assistant.tools.registries import AssistantToolType
 
 from .handler import KnowledgeBaseHandler
 
 if TYPE_CHECKING:
     from baserow_enterprise.assistant.assistant import ToolHelpers
-
-MAX_SOURCES = 3
 
 
 class SearchDocsSignature(udspy.Signature):
@@ -28,27 +28,15 @@ class SearchDocsSignature(udspy.Signature):
 
     question: str = udspy.InputField()
     context: list[str] = udspy.InputField()
-    response: str = udspy.OutputField()
+
+    answer: str = udspy.OutputField()
     reliability: float = udspy.OutputField(
         desc=(
-            "The reliability score of the response, from 0 to 1. "
+            "The reliability score of the answer, from 0 to 1. "
             "1 means the answer is fully supported by the provided context. "
             "0 means the answer is not supported by the provided context."
         )
     )
-
-
-class SearchDocsRAG(udspy.Module):
-    def __init__(self):
-        self.rag = udspy.ChainOfThought(SearchDocsSignature)
-
-    def forward(self, question: str, *args, **kwargs):
-        relevant_chunks = KnowledgeBaseHandler().search(question, num_results=7)
-        relevant_contents = [chunk.content for chunk in relevant_chunks]
-        return {
-            **self.rag(context=relevant_contents, question=question),
-            "sources": relevant_chunks,
-        }
 
 
 def get_search_docs_tool(
@@ -58,7 +46,7 @@ def get_search_docs_tool(
     Returns a function that searches the Baserow documentation for a given query.
     """
 
-    def search_docs(
+    async def search_docs(
         question: Annotated[
             str, "The English version of the user question, using Baserow vocabulary."
         ]
@@ -72,18 +60,28 @@ def get_search_docs_tool(
 
         tool_helpers.update_status(_("Exploring the knowledge base..."))
 
-        search_tool = SearchDocsRAG()
-        answer = search_tool(question=question)
-        # Somehow sources can be objects with an "url" attribute instead of strings,
-        # let's fix that
+        @sync_to_async
+        def _search(question: str) -> list[KnowledgeBaseChunk]:
+            chunks = KnowledgeBaseHandler().search(question, num_results=7)
+            return list(chunks)
+
+        searcher = udspy.ChainOfThought(SearchDocsSignature)
+        relevant_chunks = await _search(question)
+        relevant_contents = [chunk.content for chunk in relevant_chunks]
+        answer = await searcher.aexecute(
+            question=question,
+            context=relevant_contents,
+            stream=True,
+        )
+
         sources = []
-        for src in answer["sources"][:MAX_SOURCES]:
-            url = src.source_document.source_url
+        for chunk in relevant_chunks:
+            url = chunk.source_document.source_url
             if url not in sources:
                 sources.append(url)
 
         return {
-            "response": answer["response"],
+            "answer": answer["answer"],
             "reliability": answer["reliability"],
             "sources": sources,
         }

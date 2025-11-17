@@ -327,7 +327,7 @@ class TestAssistantChatHistory:
             content="Click the Create Table button",
         )
         assistant = Assistant(chat)
-        async_to_sync(assistant.summarize_context_from_history)("How to add a view?")
+        async_to_sync(assistant.get_smart_router_stream)("How to add a view?")
 
         mock_cot.assert_called_once()
         assert mock_cot.call_args.kwargs["question"] == "How to add a view?"

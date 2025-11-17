@@ -472,7 +472,7 @@ def get_table_rows_tools(
     )
     update_rows_tool = udspy.Tool(
         func=_update_rows,
-        name=f"update_rows_in_table_{table.id}_by_row_ids",
+        name=f"update_rows_in_table_{table.id}",
         description=f"Updates existing rows in the table {table.name} (ID: {table.id}), identified by their row IDs. Max 20 at a time.",
         args={
             "rows": {
@@ -504,7 +504,7 @@ def get_table_rows_tools(
 
     delete_rows_tool = udspy.Tool(
         func=_delete_rows,
-        name=f"delete_rows_in_table_{table.id}_by_row_ids",
+        name=f"delete_rows_in_table_{table.id}",
         description=f"Deletes rows in the table {table.name} (ID: {table.id}). Max 20 at a time.",
         args={
             "row_ids": {

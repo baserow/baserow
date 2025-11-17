@@ -53,7 +53,12 @@ def get_workflow_tool_factory(
     user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
 ) -> Callable[[int, list[WorkflowCreate]], dict[str, list[dict]]]:
     """
-    Returns a function that creates workflows in an automation.
+    TOOL LOADER: Loads workflow creation tools for automations.
+
+    After calling this loader, you will have access to:
+    - create_workflows: Create workflows in an automation with triggers, actions, and routers
+
+    Use this when you need to create workflows in an automation but don't have the tool available yet.
     """
 
     def create_workflows(

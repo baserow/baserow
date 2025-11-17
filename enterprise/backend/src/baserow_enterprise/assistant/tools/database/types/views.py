@@ -250,8 +250,8 @@ class FormFieldOption(BaseModel):
 
 class BaseFormViewItem(ViewItemCreate):
     type: Literal["form"] = Field(..., description="A form view.")
-    title: str = Field(default="", description="The title of the form.")
-    description: str = Field(default="", description="The description of the form.")
+    title: str = Field(..., description="The title of the form.")
+    description: str = Field(..., description="The description of the form.")
     submit_button_label: str = Field(
         default="Submit", description="The label of the submit button."
     )

@@ -1,10 +1,11 @@
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import Any, AsyncGenerator, Callable, TypedDict
+from typing import Any, AsyncGenerator, Callable, Tuple, TypedDict
 
 from django.conf import settings
 from django.core.cache import cache
 from django.utils import translation
+from django.utils.translation import gettext as _
 
 import udspy
 from udspy.callback import BaseCallback
@@ -19,7 +20,7 @@ from baserow_enterprise.assistant.tools.navigation.utils import unsafe_navigate_
 from baserow_enterprise.assistant.tools.registries import assistant_tool_registry
 
 from .models import AssistantChat, AssistantChatMessage, AssistantChatPrediction
-from .signatures import ChatSignature, ExtractQuestionContext
+from .signatures import ChatSignature, SmartRequestRouter
 from .types import (
     AiMessage,
     AiMessageChunk,
@@ -181,13 +182,26 @@ class Assistant:
         self._init_assistant()
 
     def _init_assistant(self):
+        self.history = None
         self.tool_helpers = self.get_tool_helpers()
-        tools = assistant_tool_registry.list_all_usable_tools(
-            self._user, self._workspace, self.tool_helpers
-        )
+        tools = [
+            t if isinstance(t, udspy.Tool) else udspy.Tool(t)
+            for t in assistant_tool_registry.list_all_usable_tools(
+                self._user, self._workspace, self.tool_helpers
+            )
+        ]
         self.callbacks = AssistantCallbacks(self.tool_helpers)
-        self._assistant = udspy.ReAct(ChatSignature, tools=tools, max_iters=20)
-        self.history = udspy.History()
+
+        module_kwargs = {"response_format": {"type": "json_object"}}
+
+        self.search_docs_tool = next(
+            tool for tool in tools if tool.name == "search_docs"
+        )
+        self.agent_tools = [tool for tool in tools if tool.name != "search_docs"]
+        self._smart_router = udspy.ChainOfThought(SmartRequestRouter, **module_kwargs)
+        self._assistant = udspy.ReAct(
+            ChatSignature, tools=self.agent_tools, max_iters=20, **module_kwargs
+        )
 
     async def acreate_chat_message(
         self,
@@ -272,6 +286,7 @@ class Assistant:
         :return: None
         """
 
+        history = udspy.History()
         last_saved_messages: list[AssistantChatMessage] = [
             msg async for msg in self._chat.messages.order_by("-created_on")[:limit]
         ]
@@ -286,9 +301,11 @@ class Assistant:
             ):
                 continue
 
-            self.history.add_user_message(first_message.content)
+            history.add_user_message(first_message.content)
             assistant_answer = last_saved_messages.pop()
-            self.history.add_assistant_message(assistant_answer.content)
+            history.add_assistant_message(assistant_answer.content)
+
+        return history
 
     def get_tool_helpers(self) -> ToolHelpers:
         def update_status_localized(status: str):
@@ -307,7 +324,7 @@ class Assistant:
         )
 
     async def _generate_chat_title(
-        self, user_message: HumanMessage, ai_msg: AiMessage
+        self, user_message: str, assistant_message: str
     ) -> str:
         """
         Generates a title for the chat based on the user message and AI response.
@@ -315,42 +332,49 @@ class Assistant:
 
         title_generator = udspy.Predict(
             udspy.Signature.from_string(
-                "user_message, ai_response -> chat_title",
+                "user_message, assistant_message -> chat_title",
                 "Create a short title for the following chat conversation.",
             )
         )
         rsp = await title_generator.aforward(
-            user_message=user_message.content,
-            ai_response=ai_msg.content[:300],
+            user_message=user_message,
+            assistant_message=assistant_message[:300],
         )
         return rsp.chat_title
 
     async def _acreate_ai_message_response(
         self,
         human_msg: HumanMessage,
-        final_prediction: udspy.Prediction,
-        sources: list[str],
+        prediction: udspy.Prediction,
     ) -> AiMessage:
+        """
+        Creates and saves an AI chat message response based on the prediction. Stores
+        the prediction in AssistantChatPrediction, linking it to the human message, so
+        it can be referenced later to provide feedback.
+
+        :param human_msg: The human message instance.
+        :param prediction: The udspy.Prediction instance containing the AI response.
+        :return: The created AiMessage instance to return to the user.
+        """
+
+        sources = self.callbacks.sources
         ai_msg = await self.acreate_chat_message(
             AssistantChatMessage.Role.AI,
-            final_prediction.answer,
+            prediction.answer,
             artifacts={"sources": sources},
             action_group_id=get_client_undo_redo_action_group_id(self._user),
         )
+
         await AssistantChatPrediction.objects.acreate(
             human_message=human_msg,
             ai_response=ai_msg,
-            prediction={
-                "model": self._lm_client.model,
-                "trajectory": final_prediction.trajectory,
-                "reasoning": final_prediction.reasoning,
-            },
+            prediction={k: v for k, v in prediction.items() if k != "module"},
         )
 
         # Yield final complete message
         return AiMessage(
             id=ai_msg.id,
-            content=final_prediction.answer,
+            content=prediction.answer,
             sources=sources,
             can_submit_feedback=True,
         )
@@ -377,51 +401,91 @@ class Assistant:
             cache.delete(cache_key)
             raise AssistantMessageCancelled(message_id=message_id)
 
-    async def summarize_context_from_history(self, question: str) -> str:
+    async def get_smart_router_stream(self, message: HumanMessage) -> str:
         """
         Extract relevant facts from chat history to provide context for the question or
         return an empty string if there is no history.
 
-        :param question: The current user question that needs context from history.
+        :param message: The current user message that needs context from history.
         :return: A string containing relevant facts from the conversation history.
         """
 
-        await self.aload_chat_history()
-        conversation_history = ExtractQuestionContext.format_conversation_history(
-            self.history
-        )
-        if not conversation_history:
-            return ""
+        self.history = await self.aload_chat_history()
 
-        extract = udspy.ChainOfThought(ExtractQuestionContext)
-        result = await extract.aforward(
-            question=question,
-            conversation_history=conversation_history,
+        return self._smart_router.astream(
+            question=message.content,
+            conversation_history=SmartRequestRouter.format_conversation_history(
+                self.history
+            ),
+            ui_context=message.ui_context,
+            agent_tools=SmartRequestRouter.format_agent_tools(self.agent_tools),
         )
-        return result.relevant_context
 
-    async def _process_stream_event(
+    async def _process_smart_router_stream_event(
         self,
         event: Any,
         human_msg: AssistantChatMessage,
-        human_message: HumanMessage,
-        stream_reasoning: bool,
-    ) -> tuple[list[AssistantMessageUnion], bool]:
+    ) -> Tuple[list[AssistantMessageUnion], bool, udspy.Prediction | None]:
+        """
+        Process a single event from the smart router output stream.
+
+        :param event: The event to process.
+        :param human_msg: The human message instance.
+        :return: a tuple of (messages_to_yield, updated_stream_reasoning_flag,
+            prediction).
+        """
+
+        messages = []
+        prediction = None
+
+        if isinstance(event, (AiThinkingMessage, AiNavigationMessage)):
+            messages.append(event)
+            return messages, prediction
+
+        # Stream the final answer
+        if isinstance(event, udspy.OutputStreamChunk):
+            if event.field_name == "answer" and event.content.strip():
+                messages.append(
+                    AiMessageChunk(
+                        content=event.content,
+                        sources=self.callbacks.sources,
+                    )
+                )
+
+        elif isinstance(event, udspy.Prediction):
+            if hasattr(event, "routing_decision"):
+                prediction = event
+
+            if getattr(event, "routing_decision", None) == "delegate_to_agent":
+                messages.append(AiThinkingMessage(content=_("Sharpening my tools...")))
+            elif getattr(event, "routing_decision", None) == "search_docs":
+                question = event.search_query
+                if event.extracted_context:
+                    question = f"{event.extracted_context}. Question: {question}"
+                await self.search_docs_tool(question=question)
+
+        return messages, prediction
+
+    async def _process_react_agent_stream_event(
+        self,
+        event: Any,
+        human_msg: AssistantChatMessage,
+    ) -> Tuple[list[AssistantMessageUnion], udspy.Prediction | None]:
         """
         Process a single event from the output stream.
 
         :param event: The event to process.
         :param human_msg: The human message instance.
-        :param human_message: The human message data.
-        :param stream_reasoning: Whether reasoning streaming is enabled.
-        :return: a tuple of (messages_to_yield, updated_stream_reasoning_flag).
+        :return: a tuple of (messages_to_yield, updated_stream_reasoning_flag,
+            prediction).
         """
 
         messages = []
+        prediction = None
 
         if isinstance(event, (AiThinkingMessage, AiNavigationMessage)):
             messages.append(event)
-            return messages, True  # Enable reasoning streaming
+            return messages, prediction
 
         # Stream the final answer
         if isinstance(event, udspy.OutputStreamChunk):
@@ -434,28 +498,71 @@ class Assistant:
                 )
 
         elif isinstance(event, udspy.Prediction):
-            # sub-module predictions contain reasoning steps
-            if "next_thought" in event and stream_reasoning:
-                messages.append(AiReasoningChunk(content=event.next_thought))
-
             # final prediction contains the answer to the user question
-            elif event.module is self._assistant:
-                ai_msg = await self._acreate_ai_message_response(
-                    human_msg, event, self.callbacks.sources
-                )
+            if event.module is self._assistant:
+                prediction = event
+                ai_msg = await self._acreate_ai_message_response(human_msg, prediction)
                 messages.append(ai_msg)
 
                 # Generate chat title if needed
                 if not self._chat.title:
-                    chat_title = await self._generate_chat_title(human_message, ai_msg)
-                    messages.append(ChatTitleMessage(content=chat_title))
+                    chat_title = await self._generate_chat_title(
+                        human_msg.content, ai_msg.content
+                    )
                     self._chat.title = chat_title
                     await self._chat.asave(update_fields=["title", "updated_on"])
+                    messages.append(ChatTitleMessage(content=chat_title))
+            elif reasoning := getattr(event, "next_thought", None):
+                messages.append(AiReasoningChunk(content=reasoning))
 
-        return messages, stream_reasoning
+        return messages, prediction
+
+    def get_react_agent_stream(
+        self, message: HumanMessage, extracted_context: str
+    ) -> AsyncGenerator[Any, None]:
+        """
+        Returns an async generator that streams the ReAct agent's response to a user
+        message.
+
+        :param user_message: The message from the user.
+        :return: An async generator that yields stream events.
+        """
+
+        return self._assistant.astream(
+            question=message.content,
+            context=extracted_context,
+            ui_context=message.ui_context.model_dump_json(exclude_none=True),
+        )
+
+    async def _process_stream(
+        self,
+        human_msg: HumanMessage,
+        stream: AsyncGenerator[Any, None],
+        process_event_func: Callable[
+            [Any, AssistantChatMessage],
+            Tuple[list[AssistantMessageUnion], udspy.Prediction | None],
+        ],
+    ) -> AsyncGenerator[Tuple[AssistantMessageUnion, udspy.Prediction | None], None]:
+        chunk_count = 0
+        cancellation_key = self._get_cancellation_cache_key()
+        message_id = str(human_msg.id)
+
+        async for event in stream:
+            # Periodically check for cancellation
+            chunk_count += 1
+            if chunk_count % 10 == 0:
+                self._check_cancellation(cancellation_key, message_id)
+
+            messages, prediction = await process_event_func(event, human_msg)
+
+            if messages:  # Don't return responses if cancelled
+                self._check_cancellation(cancellation_key, message_id)
+
+                for msg in messages:
+                    yield msg, prediction
 
     async def astream_messages(
-        self, human_message: HumanMessage
+        self, message: HumanMessage
     ) -> AsyncGenerator[AssistantMessageUnion, None]:
         """
         Streams the response to a user message.
@@ -463,44 +570,37 @@ class Assistant:
         :param human_message: The message from the user.
         :return: An async generator that yields the response messages.
         """
+
+        human_msg = await self.acreate_chat_message(
+            AssistantChatMessage.Role.HUMAN,
+            message.content,
+        )
+
         with udspy.settings.context(
             lm=self._lm_client,
             callbacks=[*udspy.settings.callbacks, self.callbacks],
         ):
-            context_from_history = await self.summarize_context_from_history(
-                human_message.content
-            )
-
-            output_stream = self._assistant.astream(
-                question=human_message.content,
-                context=context_from_history,
-                ui_context=human_message.ui_context.model_dump_json(exclude_none=True),
-            )
-
-            human_msg = await self.acreate_chat_message(
-                AssistantChatMessage.Role.HUMAN, human_message.content
-            )
-
-            cache_key = self._get_cancellation_cache_key()
             message_id = str(human_msg.id)
             yield AiStartedMessage(message_id=message_id)
 
-            # Flag to wait for the first step in the reasoning to start streaming it
-            stream_reasoning = False
-            chunk_count = 0
+            smart_router_stream = await self.get_smart_router_stream(message)
+            routing_decision, extrated_context = None, ""
 
-            async for event in output_stream:
-                # Periodically check for cancellation
-                chunk_count += 1
-                if chunk_count % 10 == 0:
-                    self._check_cancellation(cache_key, message_id)
+            async for msg, prediction in self._process_stream(
+                human_msg, smart_router_stream, self._process_smart_router_stream_event
+            ):
+                if prediction is not None:
+                    routing_decision = prediction.routing_decision
+                    extrated_context = prediction.extracted_context
+                yield msg
 
-                messages, stream_reasoning = await self._process_stream_event(
-                    event, human_msg, human_message, stream_reasoning
+            if routing_decision == "delegate_to_agent":
+                agent_stream = self.get_react_agent_stream(
+                    message,
+                    extracted_context=extrated_context,
                 )
 
-                if messages:  # Don't return responses if cancelled
-                    self._check_cancellation(cache_key, message_id)
-
-                    for msg in messages:
-                        yield msg
+                async for msg, __ in self._process_stream(
+                    human_msg, agent_stream, self._process_react_agent_stream_event
+                ):
+                    yield msg
