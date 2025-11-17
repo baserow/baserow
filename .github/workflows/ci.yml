@@ -873,6 +873,7 @@ jobs:
       - name: Comment coverage report on PR
         if: github.event_name == 'pull_request'
         uses: py-cov-action/python-coverage-comment-action@v3.38
+        continue-on-error: true
         with:
           GITHUB_TOKEN: ${{ github.token }}
           MERGE_COVERAGE_FILES: false
