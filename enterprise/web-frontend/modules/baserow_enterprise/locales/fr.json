@@ -714,5 +714,8 @@
         "invalidDurationEmpty": "La durée est vide",
         "invalidDurationValue": "La durée n'est pas valide",
         "invalidDurationMismatch": "La durée ne correspond pas"
+    },
+    "assistantMessageList": {
+        "disclaimer": "Kuma peut faire des erreurs, veuillez vérifier les réponses"
     }
 }
