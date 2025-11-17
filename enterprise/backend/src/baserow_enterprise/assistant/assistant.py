@@ -198,7 +198,7 @@ class Assistant:
             (tool for tool in tools if tool.name == "search_docs"), None
         )
         self.agent_tools = tools
-        self._smart_router = udspy.ChainOfThought(RequestRouter, **module_kwargs)
+        self._request_router = udspy.ChainOfThought(RequestRouter, **module_kwargs)
         self._assistant = udspy.ReAct(
             ChatSignature, tools=self.agent_tools, max_iters=20, **module_kwargs
         )
@@ -276,7 +276,7 @@ class Assistant:
                 )
         return list(reversed(messages))
 
-    async def aload_chat_history(self, limit=30):
+    async def afetch_chat_history(self, limit=30):
         """
         Loads the chat history into a udspy.History object. It only loads complete
         message pairs (human + AI). The history will be in chronological order and must
@@ -401,18 +401,19 @@ class Assistant:
             cache.delete(cache_key)
             raise AssistantMessageCancelled(message_id=message_id)
 
-    async def get_router_stream(self, message: HumanMessage) -> str:
+    async def get_router_stream(
+        self, message: HumanMessage
+    ) -> AsyncGenerator[Any, None]:
         """
-        Extract relevant facts from chat history to provide context for the question or
-        return an empty string if there is no history.
+        Returns an async generator that streams the router's response to a user
 
         :param message: The current user message that needs context from history.
-        :return: A string containing relevant facts from the conversation history.
+        :return: An async generator that yields stream events.
         """
 
-        self.history = await self.aload_chat_history()
+        self.history = await self.afetch_chat_history()
 
-        return self._smart_router.astream(
+        return self._request_router.astream(
             question=message.content,
             conversation_history=RequestRouter.format_conversation_history(
                 self.history
@@ -429,8 +430,7 @@ class Assistant:
 
         :param event: The event to process.
         :param human_msg: The human message instance.
-        :return: a tuple of (messages_to_yield, updated_stream_reasoning_flag,
-            prediction).
+        :return: a tuple of (messages_to_yield, prediction).
         """
 
         messages = []
@@ -488,8 +488,7 @@ class Assistant:
 
         :param event: The event to process.
         :param human_msg: The human message instance.
-        :return: a tuple of (messages_to_yield, updated_stream_reasoning_flag,
-            prediction).
+        :return: a tuple of (messages_to_yield, prediction).
         """
 
         messages = []
@@ -593,20 +592,20 @@ class Assistant:
             yield AiStartedMessage(message_id=message_id)
 
             router_stream = await self.get_router_stream(message)
-            routing_decision, extrated_context = None, ""
+            routing_decision, extracted_context = None, ""
 
             async for msg, prediction in self._process_stream(
                 human_msg, router_stream, self._process_router_stream
             ):
                 if prediction is not None:
                     routing_decision = prediction.routing_decision
-                    extrated_context = prediction.extracted_context
+                    extracted_context = prediction.extracted_context
                 yield msg
 
             if routing_decision == "delegate_to_agent":
                 agent_stream = self.get_agent_stream(
                     message,
-                    extracted_context=extrated_context,
+                    extracted_context=extracted_context,
                 )
 
                 async for msg, __ in self._process_stream(

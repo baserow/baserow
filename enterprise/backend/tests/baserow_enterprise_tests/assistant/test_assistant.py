@@ -203,7 +203,7 @@ class TestAssistantChatHistory:
         )
 
         assistant = Assistant(chat)
-        assistant.history = async_to_sync(assistant.aload_chat_history)()
+        assistant.history = async_to_sync(assistant.afetch_chat_history)()
 
         # History should contain user/assistant message pairs
         assert assistant.history is not None
@@ -250,12 +250,12 @@ class TestAssistantChatHistory:
             )
 
         assistant = Assistant(chat)
-        assistant.history = async_to_sync(assistant.aload_chat_history)(
+        assistant.history = async_to_sync(assistant.afetch_chat_history)(
             limit=6
         )  # Last 6 messages
 
         # Should only load the most recent 6 messages (3 pairs)
-        assert len(assistant.history) == 6
+        assert len(assistant.history.messages) == 6
 
     def test_aload_chat_history_handles_incomplete_pairs(self, enterprise_data_fixture):
         """
@@ -282,7 +282,7 @@ class TestAssistantChatHistory:
         )
 
         assistant = Assistant(chat)
-        assistant.history = async_to_sync(assistant.aload_chat_history)()
+        assistant.history = async_to_sync(assistant.afetch_chat_history)()
 
         # Should only include the complete pair (2 messages: user + assistant)
         assert len(assistant.history.messages) == 2
@@ -352,7 +352,7 @@ class TestAssistantChatHistory:
             return _stream()
 
         # Patch the instance method
-        assistant._smart_router.astream = Mock(side_effect=mock_router_stream_factory)
+        assistant._request_router.astream = Mock(side_effect=mock_router_stream_factory)
 
         # Mock the agent stream
         def mock_agent_stream_factory(*args, **kwargs):

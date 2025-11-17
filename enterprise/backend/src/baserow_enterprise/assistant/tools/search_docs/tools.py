@@ -97,7 +97,7 @@ def get_search_docs_tool(
 
         searcher = udspy.ChainOfThought(SearchDocsSignature)
         relevant_chunks = await _search(question)
-        answer = await searcher.aexecute(
+        prediction = await searcher.aexecute(
             question=question,
             context=SearchDocsSignature.format_context(relevant_chunks),
             stream=True,
@@ -105,7 +105,7 @@ def get_search_docs_tool(
 
         sources = []
         available_urls = {chunk.source_document.source_url for chunk in relevant_chunks}
-        for url in answer["sources"]:
+        for url in prediction.sources:
             # somehow LLMs sometimes return sources as objects
             if isinstance(url, dict) and "url" in url:
                 url = url["url"]
@@ -119,8 +119,8 @@ def get_search_docs_tool(
             sources = list(available_urls)
 
         return {
-            "answer": answer["answer"],
-            "reliability": answer["reliability"],
+            "answer": prediction.answer,
+            "reliability": prediction.reliability,
             "sources": sources,
         }
 
