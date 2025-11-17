@@ -90,6 +90,9 @@ class UIContext(BaseModel):
         user_context = UserUIContext.from_user(request.user)
         return cls(user=user_context, **ui_context_data)
 
+    def format(self) -> dict:
+        return self.model_dump_json(exclude_none=True)
+
 
 class AssistantMessageType(StrEnum):
     HUMAN = "human"

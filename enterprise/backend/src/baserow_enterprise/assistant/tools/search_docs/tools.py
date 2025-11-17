@@ -27,9 +27,17 @@ class SearchDocsSignature(udspy.Signature):
     """
 
     question: str = udspy.InputField()
-    context: list[str] = udspy.InputField()
+    context: dict[str, str] = udspy.InputField(
+        desc="A mapping of source URLs to content."
+    )
 
     answer: str = udspy.OutputField()
+    sources: list[str] = udspy.OutputField(
+        desc=(
+            "A list of source URLs as strings used to generate the answer, "
+            "picked from the provided context keys, in order of importance."
+        )
+    )
     reliability: float = udspy.OutputField(
         desc=(
             "The reliability score of the answer, from 0 to 1. "
@@ -37,6 +45,27 @@ class SearchDocsSignature(udspy.Signature):
             "0 means the answer is not supported by the provided context."
         )
     )
+
+    @classmethod
+    def format_context(cls, chunks: list[KnowledgeBaseChunk]) -> dict[str, str]:
+        """
+        Formats the context as a list of strings for the signature.
+        Each string is formatted as "Source URL: content".
+
+        :param chunks: The list of knowledge base chunks.
+        :return: A dictionary mapping source URLs to their combined content.
+        """
+
+        context = {}
+        for chunk in chunks:
+            url = chunk.source_document.source_url
+            content = chunk.content
+            if url not in context:
+                context[url] = content
+            else:
+                context[url] += "\n" + content
+
+        return context
 
 
 def get_search_docs_tool(
@@ -52,8 +81,9 @@ def get_search_docs_tool(
         ]
     ) -> dict[str, Any]:
         """
-        Search Baserow documentation for relevant information. Make sure the question
-        is in English and uses Baserow-specific terminology to get the best results.
+        Search Baserow documentation for relevant instructions or information. Make sure
+        the question is in English and uses Baserow-specific terminology to get the best
+        results.
         """
 
         nonlocal tool_helpers
@@ -62,23 +92,31 @@ def get_search_docs_tool(
 
         @sync_to_async
         def _search(question: str) -> list[KnowledgeBaseChunk]:
-            chunks = KnowledgeBaseHandler().search(question, num_results=7)
+            chunks = KnowledgeBaseHandler().search(question)
             return list(chunks)
 
         searcher = udspy.ChainOfThought(SearchDocsSignature)
         relevant_chunks = await _search(question)
-        relevant_contents = [chunk.content for chunk in relevant_chunks]
         answer = await searcher.aexecute(
             question=question,
-            context=relevant_contents,
+            context=SearchDocsSignature.format_context(relevant_chunks),
             stream=True,
         )
 
         sources = []
-        for chunk in relevant_chunks:
-            url = chunk.source_document.source_url
-            if url not in sources:
+        available_urls = {chunk.source_document.source_url for chunk in relevant_chunks}
+        for url in answer["sources"]:
+            # somehow LLMs sometimes return sources as objects
+            if isinstance(url, dict) and "url" in url:
+                url = url["url"]
+
+            if url in available_urls and url not in sources:
                 sources.append(url)
+
+        # If for any reason the model wasn't able to return sources correctly, fill them
+        # from the available URLs.
+        if not sources:
+            sources = list(available_urls)
 
         return {
             "answer": answer["answer"],

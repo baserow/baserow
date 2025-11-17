@@ -291,7 +291,7 @@ def test_update_rows(data_fixture):
     added_tools = mock_module.init_module.call_args[1]["tools"]
     added_tools_names = [tool.name for tool in added_tools]
     assert len(added_tools) == 1
-    assert f"update_rows_in_table_{table.id}_by_row_ids" in added_tools_names
+    assert f"update_rows_in_table_{table.id}" in added_tools_names
 
     table_model = table.get_model()
     assert table_model.objects.count() == 3
@@ -384,7 +384,7 @@ def test_delete_rows(data_fixture):
     added_tools = mock_module.init_module.call_args[1]["tools"]
     added_tools_names = [tool.name for tool in added_tools]
     assert len(added_tools) == 1
-    assert f"delete_rows_in_table_{table.id}_by_row_ids" in added_tools_names
+    assert f"delete_rows_in_table_{table.id}" in added_tools_names
     delete_table_rows = added_tools[0]
 
     table_model = table.get_model()

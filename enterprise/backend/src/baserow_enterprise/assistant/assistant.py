@@ -20,7 +20,7 @@ from baserow_enterprise.assistant.tools.navigation.utils import unsafe_navigate_
 from baserow_enterprise.assistant.tools.registries import assistant_tool_registry
 
 from .models import AssistantChat, AssistantChatMessage, AssistantChatPrediction
-from .signatures import ChatSignature, SmartRequestRouter
+from .signatures import ChatSignature, RequestRouter
 from .types import (
     AiMessage,
     AiMessageChunk,
@@ -195,10 +195,10 @@ class Assistant:
         module_kwargs = {"response_format": {"type": "json_object"}}
 
         self.search_docs_tool = next(
-            tool for tool in tools if tool.name == "search_docs"
+            (tool for tool in tools if tool.name == "search_docs"), None
         )
-        self.agent_tools = [tool for tool in tools if tool.name != "search_docs"]
-        self._smart_router = udspy.ChainOfThought(SmartRequestRouter, **module_kwargs)
+        self.agent_tools = tools
+        self._smart_router = udspy.ChainOfThought(RequestRouter, **module_kwargs)
         self._assistant = udspy.ReAct(
             ChatSignature, tools=self.agent_tools, max_iters=20, **module_kwargs
         )
@@ -323,22 +323,22 @@ class Assistant:
             navigate_to=unsafe_navigate_to,
         )
 
-    async def _generate_chat_title(
-        self, user_message: str, assistant_message: str
-    ) -> str:
+    async def _generate_chat_title(self, user_message: str) -> str:
         """
         Generates a title for the chat based on the user message and AI response.
+
+        :param user_message: The latest user message in the chat.
+        :return: The generated chat title.
         """
 
         title_generator = udspy.Predict(
             udspy.Signature.from_string(
-                "user_message, assistant_message -> chat_title",
-                "Create a short title for the following chat conversation.",
+                "user_message -> chat_title",
+                "Create a short title for the following user request.",
             )
         )
         rsp = await title_generator.aforward(
             user_message=user_message,
-            assistant_message=assistant_message[:300],
         )
         return rsp.chat_title
 
@@ -401,7 +401,7 @@ class Assistant:
             cache.delete(cache_key)
             raise AssistantMessageCancelled(message_id=message_id)
 
-    async def get_smart_router_stream(self, message: HumanMessage) -> str:
+    async def get_router_stream(self, message: HumanMessage) -> str:
         """
         Extract relevant facts from chat history to provide context for the question or
         return an empty string if there is no history.
@@ -414,14 +414,12 @@ class Assistant:
 
         return self._smart_router.astream(
             question=message.content,
-            conversation_history=SmartRequestRouter.format_conversation_history(
+            conversation_history=RequestRouter.format_conversation_history(
                 self.history
             ),
-            ui_context=message.ui_context,
-            agent_tools=SmartRequestRouter.format_agent_tools(self.agent_tools),
         )
 
-    async def _process_smart_router_stream_event(
+    async def _process_router_stream(
         self,
         event: Any,
         human_msg: AssistantChatMessage,
@@ -457,16 +455,30 @@ class Assistant:
                 prediction = event
 
             if getattr(event, "routing_decision", None) == "delegate_to_agent":
-                messages.append(AiThinkingMessage(content=_("Sharpening my tools...")))
+                messages.append(AiThinkingMessage(content=_("Thinking...")))
             elif getattr(event, "routing_decision", None) == "search_docs":
-                question = event.search_query
-                if event.extracted_context:
-                    question = f"{event.extracted_context}. Question: {question}"
-                await self.search_docs_tool(question=question)
+                if self.search_docs_tool is not None:
+                    await self.search_docs_tool(question=event.search_query)
+                else:
+                    messages.append(
+                        AiMessage(
+                            content=_(
+                                "I wanted to search the documentation for you, "
+                                "but the search tool isn't currently available.\n\n"
+                                "To enable documentation search, you'll need to set up "
+                                "the local knowledge base. \n\n"
+                                "You can find setup instructions at: https://baserow.io/user-docs"
+                            ),
+                            sources=[],
+                        )
+                    )
+            elif getattr(event, "answer", None):
+                ai_msg = await self._acreate_ai_message_response(human_msg, event)
+                messages.append(ai_msg)
 
         return messages, prediction
 
-    async def _process_react_agent_stream_event(
+    async def _process_agent_stream(
         self,
         event: Any,
         human_msg: AssistantChatMessage,
@@ -489,7 +501,10 @@ class Assistant:
 
         # Stream the final answer
         if isinstance(event, udspy.OutputStreamChunk):
-            if event.field_name == "answer":
+            if (
+                event.field_name == "answer"
+                and event.module is self._assistant.extract_module
+            ):
                 messages.append(
                     AiMessageChunk(
                         content=event.content,
@@ -504,20 +519,12 @@ class Assistant:
                 ai_msg = await self._acreate_ai_message_response(human_msg, prediction)
                 messages.append(ai_msg)
 
-                # Generate chat title if needed
-                if not self._chat.title:
-                    chat_title = await self._generate_chat_title(
-                        human_msg.content, ai_msg.content
-                    )
-                    self._chat.title = chat_title
-                    await self._chat.asave(update_fields=["title", "updated_on"])
-                    messages.append(ChatTitleMessage(content=chat_title))
             elif reasoning := getattr(event, "next_thought", None):
                 messages.append(AiReasoningChunk(content=reasoning))
 
         return messages, prediction
 
-    def get_react_agent_stream(
+    def get_agent_stream(
         self, message: HumanMessage, extracted_context: str
     ) -> AsyncGenerator[Any, None]:
         """
@@ -528,10 +535,12 @@ class Assistant:
         :return: An async generator that yields stream events.
         """
 
+        ui_context = message.ui_context.format() if message.ui_context else None
+
         return self._assistant.astream(
             question=message.content,
             context=extracted_context,
-            ui_context=message.ui_context.model_dump_json(exclude_none=True),
+            ui_context=ui_context,
         )
 
     async def _process_stream(
@@ -583,11 +592,11 @@ class Assistant:
             message_id = str(human_msg.id)
             yield AiStartedMessage(message_id=message_id)
 
-            smart_router_stream = await self.get_smart_router_stream(message)
+            router_stream = await self.get_router_stream(message)
             routing_decision, extrated_context = None, ""
 
             async for msg, prediction in self._process_stream(
-                human_msg, smart_router_stream, self._process_smart_router_stream_event
+                human_msg, router_stream, self._process_router_stream
             ):
                 if prediction is not None:
                     routing_decision = prediction.routing_decision
@@ -595,12 +604,19 @@ class Assistant:
                 yield msg
 
             if routing_decision == "delegate_to_agent":
-                agent_stream = self.get_react_agent_stream(
+                agent_stream = self.get_agent_stream(
                     message,
                     extracted_context=extrated_context,
                 )
 
                 async for msg, __ in self._process_stream(
-                    human_msg, agent_stream, self._process_react_agent_stream_event
+                    human_msg, agent_stream, self._process_agent_stream
                 ):
                     yield msg
+
+                # Generate chat title if needed
+                if not self._chat.title:
+                    chat_title = await self._generate_chat_title(human_msg.content)
+                    self._chat.title = chat_title
+                    await self._chat.asave(update_fields=["title", "updated_on"])
+                    yield ChatTitleMessage(content=chat_title)

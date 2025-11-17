@@ -181,7 +181,7 @@ def get_table_and_fields_tools_factory(
     - create_tables: Create new tables in a database with fields and sample rows
     - create_fields: Add new fields to an existing table
 
-    Use this when you need to create tables or add fields but don't have the tools available yet.
+    Use this when you need to create tables or add fields but don't have the tools.
     """
 
     def create_fields(
@@ -408,14 +408,15 @@ def get_rows_tools_factory(
     tool_helpers: "ToolHelpers",
 ) -> Callable[[int, list[dict[str, Any]]], list[Any]]:
     """
-    TOOL LOADER: Loads row manipulation tools for specified tables.
+    TOOL LOADER: Loads row manipulation tools for specified tables. Make
+    sure to have the correct table IDs.
 
     After calling this loader, you will have access to table-specific tools:
-    - create_rows_table_X: Create new rows in table X
-    - update_rows_table_X: Update existing rows in table X by their IDs
-    - delete_rows_table_X: Delete rows from table X by their IDs
+    - create_rows_in_table_X: Create new rows in table X
+    - update_rows_in_table_X: Update existing rows in table X by their IDs
+    - delete_rows_in_table_X: Delete rows from table X by their IDs
 
-    Use this when you need to create, update, or delete rows but don't have the tools available yet.
+    Use this when you need to create, update, or delete rows but don't have the tools.
     Call with the table IDs and desired operations (create/update/delete).
     """
 
@@ -644,12 +645,13 @@ def get_view_filters_tool_factory(
     user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
 ) -> Callable[[int, list[str]], list[str]]:
     """
-    TOOL LOADER: Loads view filter creation tools.
+    TOOL LOADER: Loads tools to add filters to views (grid, gallery, form,
+    kanban, calendar). Filters are needed to limit the rows shown in views.
 
     After calling this loader, you will have access to:
     - create_view_filters: Create filters for specific views to filter rows
 
-    Use this when you need to add filters to views but don't have the tool available yet.
+    Use this when you need to add filters to views but don't have the tool.
     """
 
     def create_view_filters(

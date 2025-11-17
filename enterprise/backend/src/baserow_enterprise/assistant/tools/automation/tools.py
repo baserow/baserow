@@ -56,9 +56,9 @@ def get_workflow_tool_factory(
     TOOL LOADER: Loads workflow creation tools for automations.
 
     After calling this loader, you will have access to:
-    - create_workflows: Create workflows in an automation with triggers, actions, and routers
+    - create_workflows: Create workflows with triggers, actions, and routers
 
-    Use this when you need to create workflows in an automation but don't have the tool available yet.
+    Use this when you need to create workflows in an automation but don't have the tool.
     """
 
     def create_workflows(
