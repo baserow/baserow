@@ -20,6 +20,7 @@ env:
   IMAGE_REPO: ${{ github.repository }}
   CI_IMAGE_TAG_PREFIX: ci-
   DEVELOP_BRANCH_NAME: develop
+  REAL_GITHUB_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
 
 jobs:
   check-build-and-publish:
@@ -77,7 +78,7 @@ jobs:
         id: image
         run: |
           IMAGE_NAME="${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/backend_dev"
-          IMAGE_TAG="${{ env.CI_IMAGE_TAG_PREFIX }}${{ github.sha }}"
+          IMAGE_TAG="${{ env.CI_IMAGE_TAG_PREFIX }}${{ env.REAL_GITHUB_SHA }}"
           FULL_IMAGE="${IMAGE_NAME}:${IMAGE_TAG}"
           echo "full=${FULL_IMAGE}" >> $GITHUB_OUTPUT
 
@@ -109,7 +110,7 @@ jobs:
           cache-to: type=inline
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.revision=${{ env.REAL_GITHUB_SHA }}
             org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
 
   build-frontend:
@@ -138,7 +139,7 @@ jobs:
         id: image
         run: |
           IMAGE_NAME="${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/web-frontend_dev"
-          IMAGE_TAG="${{ env.CI_IMAGE_TAG_PREFIX }}${{ github.sha }}"
+          IMAGE_TAG="${{ env.CI_IMAGE_TAG_PREFIX }}${{ env.REAL_GITHUB_SHA }}"
           FULL_IMAGE="${IMAGE_NAME}:${IMAGE_TAG}"
           echo "full=${FULL_IMAGE}" >> $GITHUB_OUTPUT
 
@@ -170,7 +171,7 @@ jobs:
           cache-to: type=inline
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.revision=${{ env.REAL_GITHUB_SHA }}
             org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
 
   # ==========================================================================
@@ -910,12 +911,12 @@ jobs:
           file: backend/Dockerfile
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/backend:ci-tested-${{ github.sha }}
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/backend_dev:ci-${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/backend:ci-tested-${{ env.REAL_GITHUB_SHA }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/backend_dev:ci-${{ env.REAL_GITHUB_SHA }}
           cache-to: type=inline
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.revision=${{ env.REAL_GITHUB_SHA }}
             org.opencontainers.image.title=backend
             org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
 
@@ -949,12 +950,12 @@ jobs:
           file: web-frontend/Dockerfile
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/web-frontend:ci-tested-${{ github.sha }}
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/web-frontend_dev:ci-${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/web-frontend:ci-tested-${{ env.REAL_GITHUB_SHA }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/web-frontend_dev:ci-${{ env.REAL_GITHUB_SHA }}
           cache-to: type=inline
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.revision=${{ env.REAL_GITHUB_SHA }}
             org.opencontainers.image.title=web-frontend
             org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
 
@@ -987,14 +988,14 @@ jobs:
           file: deploy/all-in-one/Dockerfile
           push: true
           build-args: |
-            FROM_BACKEND_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/backend:ci-tested-${{ github.sha }}
-            FROM_WEBFRONTEND_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/web-frontend:ci-tested-${{ github.sha }}
+            FROM_BACKEND_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/backend:ci-tested-${{ env.REAL_GITHUB_SHA }}
+            FROM_WEBFRONTEND_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/web-frontend:ci-tested-${{ env.REAL_GITHUB_SHA }}
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/baserow:ci-tested-${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/baserow:ci-tested-${{ env.REAL_GITHUB_SHA }}
           cache-to: type=inline
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.revision=${{ env.REAL_GITHUB_SHA }}
             org.opencontainers.image.title=baserow
             org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
 
@@ -1026,13 +1027,13 @@ jobs:
           file: deploy/cloudron/Dockerfile
           push: true
           build-args: |
-            FROM_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/baserow:ci-tested-${{ github.sha }}
+            FROM_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/baserow:ci-tested-${{ env.REAL_GITHUB_SHA }}
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/cloudron:ci-tested-${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/cloudron:ci-tested-${{ env.REAL_GITHUB_SHA }}
           cache-to: type=inline
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.revision=${{ env.REAL_GITHUB_SHA }}
             org.opencontainers.image.title=cloudron
             org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
 
@@ -1071,7 +1072,7 @@ jobs:
 
       - name: Create and push develop-latest image on Docker Hub
         run: |
-          SOURCE=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/backend:ci-tested-${{ github.sha }}
+          SOURCE=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/backend:ci-tested-${{ env.REAL_GITHUB_SHA }}
           TARGET=${{ env.RELEASE_DOCKER_REPOSITORY }}/backend:develop-latest
           echo "Publishing $SOURCE → $TARGET"
           docker buildx imagetools create -t $TARGET $SOURCE
@@ -1111,7 +1112,7 @@ jobs:
 
       - name: Create and push develop-latest image on Docker Hub
         run: |
-          SOURCE=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/web-frontend:ci-tested-${{ github.sha }}
+          SOURCE=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/web-frontend:ci-tested-${{ env.REAL_GITHUB_SHA }}
           TARGET=${{ env.RELEASE_DOCKER_REPOSITORY }}/web-frontend:develop-latest
           echo "Publishing $SOURCE → $TARGET"
           docker buildx imagetools create -t $TARGET $SOURCE
@@ -1151,7 +1152,7 @@ jobs:
 
       - name: Create and push develop-latest image on Docker Hub
         run: |
-          SOURCE=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/baserow:ci-tested-${{ github.sha }}
+          SOURCE=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/baserow:ci-tested-${{ env.REAL_GITHUB_SHA }}
           TARGET=${{ env.RELEASE_DOCKER_REPOSITORY }}/baserow:develop-latest
           echo "Publishing $SOURCE → $TARGET"
           docker buildx imagetools create -t $TARGET $SOURCE
@@ -1191,7 +1192,7 @@ jobs:
 
       - name: Create and push develop-latest image on Docker Hub
         run: |
-          SOURCE=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/cloudron:ci-tested-${{ github.sha }}
+          SOURCE=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/cloudron:ci-tested-${{ env.REAL_GITHUB_SHA }}
           TARGET=${{ env.RELEASE_DOCKER_REPOSITORY }}/cloudron:develop-latest
           echo "Publishing $SOURCE → $TARGET"
           docker buildx imagetools create -t $TARGET $SOURCE
@@ -1224,11 +1225,11 @@ jobs:
         run: |
           echo "🧩 Generating updated image references..."
 
-          BACKEND_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/backend:ci-tested-${{ github.sha }}"
-          BACKEND_DEV_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/backend_dev:ci-${{ github.sha }}"
-          WEB_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/web-frontend:ci-tested-${{ github.sha }}"
-          WEB_DEV_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/web-frontend_dev:ci-${{ github.sha }}"
-          ALL_IN_ONE_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/baserow:ci-tested-${{ github.sha }}"
+          BACKEND_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/backend:ci-tested-${{ env.REAL_GITHUB_SHA }}"
+          BACKEND_DEV_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/backend_dev:ci-${{ env.REAL_GITHUB_SHA }}"
+          WEB_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/web-frontend:ci-tested-${{ env.REAL_GITHUB_SHA }}"
+          WEB_DEV_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/web-frontend_dev:ci-${{ env.REAL_GITHUB_SHA }}"
+          ALL_IN_ONE_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/baserow:ci-tested-${{ env.REAL_GITHUB_SHA }}"
 
           echo "$BACKEND_IMAGE" > plugins/saas/backend/build_from_image.version
           echo "$BACKEND_DEV_IMAGE" > plugins/saas/backend/build_from_dev_image.version
