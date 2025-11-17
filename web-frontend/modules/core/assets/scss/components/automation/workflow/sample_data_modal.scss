@@ -8,6 +8,9 @@
 }
 
 .sample-data-modal__sub-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   font-size: 14px;
   margin-bottom: 10px;
 }
@@ -29,11 +32,4 @@
     overflow-wrap: anywhere;
     word-break: break-word;
   }
-}
-
-.sample-data-modal__copy-button {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  z-index: 1;
 }
