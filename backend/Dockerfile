@@ -70,7 +70,10 @@ ENV PIP_CACHE_DIR=/tmp/baserow_pip_cache
 # hadolint ignore=SC1091,DL3042,DL3013
 RUN --mount=type=cache,mode=777,target=$PIP_CACHE_DIR,uid=$UID,gid=$GID . /baserow/venv/bin/activate \
     && pip3 install --no-cache-dir --upgrade pip setuptools==78.1.1 \
-    && pip3 install -r /baserow/requirements/base.txt
+    && pip3 install --no-compile -r /baserow/requirements/base.txt \
+    && find /baserow/venv -type d -name "__pycache__" -prune -exec rm -rf '{}' + \
+    && find /baserow/venv -type f \( -name "*.pyc" -o -name "*.pyo" \) -delete \
+    && find /baserow/venv -type f \( -name "*.c" -o -name "*.h" \) -delete
 
 # Build a dev_deps stage which also has the dev dependencies for use by the dev layer.
 FROM base AS dev_deps

@@ -44,9 +44,6 @@ COPY --chown=$UID:$GID ./web-frontend/package.json ./web-frontend/yarn.lock /bas
 
 WORKDIR /baserow/web-frontend
 
-# We still need dev-dependencies as we will be running a nuxt build below
-RUN yarn install && yarn cache clean
-
 COPY --chown=$UID:$GID ./web-frontend /baserow/web-frontend/
 COPY --chown=$UID:$GID ./premium/web-frontend /baserow/premium/web-frontend/
 COPY --chown=$UID:$GID ./enterprise/web-frontend /baserow/enterprise/web-frontend/
@@ -63,6 +60,11 @@ EXPOSE 3000
 
 FROM base AS dev
 
+WORKDIR /baserow/web-frontend
+
+# Install dev dependencies for running nuxt dev + tests.
+RUN yarn install && yarn cache clean
+
 COPY --chown=$UID:$GID ./tests /baserow/tests/
 
 # Create symlinks for jest tests
@@ -76,6 +78,13 @@ CMD ["nuxt-dev"]
 FROM base AS local
 
 # Run the nuxt build and then remove all dev dependencies as we don't need them after.
-RUN yarn run build-local && rm -rf node_modules && yarn install --production && yarn cache clean
+RUN yarn install \
+    && yarn run build-local \
+    && rm -rf node_modules \
+    && yarn install --production \
+    && yarn cache clean \
+    && find node_modules -type f \( -name "*.o" -o -name "*.a" \) -delete \
+    && find node_modules -type d \( -name "test" -o -name "tests" -o -name "__tests__" -o -name "example" -o -name "examples" -o -name "doc" -o -name "docs" \) -prune -exec rm -rf '{}' + \
+    && find .nuxt -type f -name "*.map" -delete
 CMD ["nuxt-local"]
 
