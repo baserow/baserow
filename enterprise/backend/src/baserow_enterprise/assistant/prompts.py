@@ -69,18 +69,11 @@ AGENT_LIMITATIONS = """
 ### CANNOT UPDATE/MODIFY:
 - User, workspace, or integration settings
 - Role, permissions
-- Workflows, automations dashboards or applications
 
 ### CANNOT DELETE:
 - Users, workspaces
-- Databases, tables, fields
-- Applications, dashboards
-- Workflows, automations
-- Snapshots, integrations, webhooks
 - Roles, permissions
 
-### OTHER:
-- Cannot restore from trash or snapshots
 """
 
 ASSISTANT_SYSTEM_PROMPT_BASE = (
