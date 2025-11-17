@@ -70,6 +70,12 @@ export default (context) => {
 
   registerRealtimeEvents(app.$realtime)
 
+  app.$clientErrorMap.setError(
+    'ERROR_AUTOMATION_WORKFLOW_NAME_NOT_UNIQUE',
+    app.i18n.t('automationWorkflowErrors.errorNameNotUnique'),
+    app.i18n.t('automationWorkflowErrors.errorNameNotUniqueDescription')
+  )
+
   store.registerModule('automationApplication', automationApplicationStore)
   store.registerModule('automationWorkflow', automationWorkflowStore)
   store.registerModule('automationWorkflowNode', automationWorkflowNodeStore)

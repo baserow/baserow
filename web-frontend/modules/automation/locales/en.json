@@ -46,7 +46,8 @@
     "duplicatedTitle": "Workflow duplicated"
   },
   "automationWorkflowErrors": {
-    "errorNameNotUnique": "A workflow with this name already exists"
+    "errorNameNotUnique": "A workflow with this name already exists",
+    "errorNameNotUniqueDescription": "Please enter a unique name for the workflow"
   },
   "trashType": {
     "workflow": "workflow",
