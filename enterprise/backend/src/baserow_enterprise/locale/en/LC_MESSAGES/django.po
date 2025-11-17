@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-10-17 14:14+0000\n"
+"POT-Creation-Date: 2025-11-17 15:17+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,95 +18,144 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: src/baserow_enterprise/assistant/tools/database/tools.py:63
-msgid "Listing databases..."
+#: src/baserow_enterprise/assistant/assistant.py:461
+msgid "Thinking..."
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/database/tools.py:136
+#: src/baserow_enterprise/assistant/assistant.py:469
+msgid ""
+"I wanted to search the documentation for you, but the search tool isn't "
+"currently available.\n"
+"\n"
+"To enable documentation search, you'll need to set up the local knowledge "
+"base. \n"
+"\n"
+"You can find setup instructions at: https://baserow.io/user-docs"
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/automation/tools.py:38
+msgid "Listing workflows..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/automation/utils.py:283
+#, python-format
+msgid "Creating workflow '%(name)s'..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/automation/utils.py:296
+#, python-format
+msgid "Creating trigger '%(label)s'..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/automation/utils.py:316
+#, python-format
+msgid "Creating node '%(label)s'..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/automation/utils.py:381
+#, python-format
+msgid "Generating formulas for node '%(label)s'..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/core/tools.py:44
+#, python-format
+msgid "Listing %(builder_types)ss..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/core/tools.py:103
+#, python-format
+msgid "Creating %(builder_type)s %(builder_name)s..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/database/tools.py:92
 #, python-format
 msgid "Listing tables in %(database_names)s..."
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/database/tools.py:195
+#: src/baserow_enterprise/assistant/tools/database/tools.py:151
 #, python-format
 msgid "Inspecting %(table_names)s schema..."
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/database/tools.py:238
-#, python-format
-msgid "Creating database %(database_name)s..."
-msgstr ""
-
-#: src/baserow_enterprise/assistant/tools/database/tools.py:303
+#: src/baserow_enterprise/assistant/tools/database/tools.py:230
 #, python-format
 msgid "Creating table %(table_name)s..."
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/database/tools.py:346
+#: src/baserow_enterprise/assistant/tools/database/tools.py:272
 msgid "Preparing example rows for these new tables..."
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/database/tools.py:468
+#: src/baserow_enterprise/assistant/tools/database/tools.py:368
 #, python-format
 msgid "Listing rows in %(table_name)s "
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/database/tools.py:593
+#: src/baserow_enterprise/assistant/tools/database/tools.py:506
 #, python-format
 msgid "Listing views in %(table_name)s..."
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/database/tools.py:656
-#, python-format
-msgid "Creating %(view_type)s view %(view_name)s"
-msgstr ""
-
-#: src/baserow_enterprise/assistant/tools/database/tools.py:723
+#: src/baserow_enterprise/assistant/tools/database/tools.py:557
 #, python-format
 msgid "Creating filters in %(view_name)s..."
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/database/utils.py:119
+#: src/baserow_enterprise/assistant/tools/database/tools.py:602
+#, python-format
+msgid "Creating %(view_type)s view %(view_name)s"
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/database/tools.py:781
+msgid "Generating formula..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/database/utils.py:127
 #, python-format
 msgid "Creating field %(field_name)s..."
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/database/utils.py:409
+#: src/baserow_enterprise/assistant/tools/database/utils.py:417
 #, python-format
 msgid "Creating rows in %(table_name)s "
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/database/utils.py:450
+#: src/baserow_enterprise/assistant/tools/database/utils.py:458
 #, python-format
 msgid "Updating rows in %(table_name)s "
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/database/utils.py:489
+#: src/baserow_enterprise/assistant/tools/database/utils.py:497
 #, python-format
 msgid "Deleting rows in %(table_name)s "
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/navigation/tools.py:34
+#: src/baserow_enterprise/assistant/tools/navigation/tools.py:39
 #, python-format
 msgid "Navigating to %(location)s..."
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/search_user_docs/tools.py:44
+#: src/baserow_enterprise/assistant/tools/search_user_docs/tools.py:102
 msgid "Exploring the knowledge base..."
 msgstr ""
 
-#: src/baserow_enterprise/assistant/types.py:176
+#: src/baserow_enterprise/assistant/types.py:220
 #, python-format
 msgid "table %(table_name)s"
 msgstr ""
 
-#: src/baserow_enterprise/assistant/types.py:187
+#: src/baserow_enterprise/assistant/types.py:232
 #, python-format
 msgid "view %(view_name)s"
 msgstr ""
 
-#: src/baserow_enterprise/assistant/types.py:194
+#: src/baserow_enterprise/assistant/types.py:239
 msgid "home"
+msgstr ""
+
+#: src/baserow_enterprise/assistant/types.py:249
+#, python-format
+msgid "workflow %(workflow_name)s"
 msgstr ""
 
 #: src/baserow_enterprise/audit_log/job_types.py:36

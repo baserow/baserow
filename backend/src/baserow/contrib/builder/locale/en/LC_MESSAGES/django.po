@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-08-06 12:24+0000\n"
+"POT-Creation-Date: 2025-11-17 15:17+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -46,7 +46,7 @@ msgstr ""
 msgid "Last name"
 msgstr ""
 
-#: src/baserow/contrib/builder/data_providers/data_provider_types.py:605
+#: src/baserow/contrib/builder/data_providers/data_provider_types.py:619
 #, python-format
 msgid "%(user_source_name)s member"
 msgstr ""

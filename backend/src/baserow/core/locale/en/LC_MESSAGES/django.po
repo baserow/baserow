@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-10-13 19:58+0000\n"
+"POT-Creation-Date: 2025-11-17 15:17+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -466,6 +466,27 @@ msgstr ""
 #, python-format
 msgid ""
 "Item of type \"%(item_type)s\" (%(item_id)s) has been restored from trash"
+msgstr ""
+
+#: src/baserow/core/two_factor_auth/actions.py:19
+msgid "Configure two-factor authentication"
+msgstr ""
+
+#: src/baserow/core/two_factor_auth/actions.py:21
+#, python-format
+msgid ""
+"User \"%(user_email)s\" (%(user_id)s) configured %(provider_type)s (enabled "
+"%(is_enabled)s) two-factor authentication."
+msgstr ""
+
+#: src/baserow/core/two_factor_auth/actions.py:71
+msgid "Disable two-factor authentication"
+msgstr ""
+
+#: src/baserow/core/two_factor_auth/actions.py:72
+#, python-format
+msgid ""
+"User \"%(user_email)s\" (%(user_id)s) disabled two-factor authentication."
 msgstr ""
 
 #: src/baserow/core/user/actions.py:25
