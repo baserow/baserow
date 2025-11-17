@@ -121,6 +121,9 @@ def get_search_user_docs_tool(
             if isinstance(url, dict) and "url" in url:
                 url = url["url"]
 
+            if not isinstance(url, str):
+                continue
+
             if url in available_urls and url not in sources:
                 sources.append(url)
 
