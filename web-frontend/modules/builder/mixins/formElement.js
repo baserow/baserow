@@ -9,18 +9,14 @@ export default {
       inputValue: null,
     }
   },
-  mounted() {
-    // When a form element is mounted, we want to set the initial value of the form
-    // data in the store, but *only* after we have a fully complete `recordIndexPath`,
-    // otherwise we will create two entries in the form data store: one for just the
-    // elementId, and once the `recordIndexPath` is set, another one with the full path.
-    const initialValue = this.elementType.getInitialFormDataValue(
-      this.element,
-      this.applicationContext
-    )
-    this.setFormData(initialValue)
-  },
   computed: {
+    resolvedDefaultValue() {
+      const init = this.elementType.getInitialFormDataValue(
+        this.element,
+        this.applicationContext
+      )
+      return init
+    },
     uniqueElementId() {
       return this.elementType.uniqueElementId({
         element: this.element,
@@ -124,10 +120,18 @@ export default {
       handler(newValue) {
         this.inputValue = newValue
       },
+    },
+    resolvedDefaultValue: {
+      handler(newValue) {
+        this.inputValue = newValue
+      },
       immediate: true,
     },
-    inputValue(newValue) {
-      this.handleFormElementChange(newValue)
+    inputValue: {
+      handler(newValue) {
+        this.handleFormElementChange(newValue)
+      },
+      immediate: true,
     },
   },
 }

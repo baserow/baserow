@@ -1,0 +1,9 @@
+{
+    "type": "refactor",
+    "message": "Fix missing form data after first render (SSR)",
+    "issue_origin": "github",
+    "issue_number": 4268,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2025-11-17"
+}

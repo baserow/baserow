@@ -99,6 +99,7 @@ import elementImageRepeat from '@baserow/modules/builder/assets/icons/element-re
 import elementImageSimpleContainer from '@baserow/modules/builder/assets/icons/element-simple_container.svg'
 import elementImageTable from '@baserow/modules/builder/assets/icons/element-table.svg'
 import elementImageText from '@baserow/modules/builder/assets/icons/element-text.svg'
+import moment from '@baserow/modules/core/moment'
 
 import _ from 'lodash'
 import { getValueAtPath } from '../core/utils/object'
@@ -1810,67 +1811,6 @@ export class ChoiceElementType extends FormElementType {
   }
 
   /**
-   * Returns the first option for this element.
-   * @param {Object} element the element we want the option for.
-   * @returns the first option value.
-   */
-  _getFirstOptionValue(element, applicationContext) {
-    switch (element.option_type) {
-      case CHOICE_OPTION_TYPES.MANUAL:
-        return element.options.find(({ value }) => value)
-      case CHOICE_OPTION_TYPES.FORMULAS: {
-        const formulaValues = ensureArray(
-          this.resolveFormula(element.formula_value, {
-            element,
-            ...applicationContext,
-          })
-        )
-        if (formulaValues.length === 0) {
-          return null
-        }
-        return ensureStringOrInteger(formulaValues[0])
-      }
-      default:
-        return []
-    }
-  }
-
-  getInitialFormDataValue(element, applicationContext) {
-    try {
-      const firstValue = this._getFirstOptionValue(element, applicationContext)
-      let converter = ensureStringOrInteger
-      if (firstValue ?? Number.isInteger(firstValue)) {
-        converter = (v) => ensurePositiveInteger(v, { allowNull: true })
-      }
-      if (element.multiple) {
-        return ensureArray(
-          this.resolveFormula(element.default_value, {
-            element,
-            ...applicationContext,
-          })
-        ).map(converter)
-      } else {
-        return converter(
-          this.resolveFormula(element.default_value, {
-            element,
-            ...applicationContext,
-          })
-        )
-      }
-    } catch {
-      return element.multiple ? [] : null
-    }
-  }
-
-  getDisplayName(element, applicationContext) {
-    const displayValue = element.label || element.placeholder
-    const resolvedName = ensureString(
-      this.resolveFormula(displayValue, applicationContext)
-    ).trim()
-    return resolvedName || this.name
-  }
-
-  /**
    * Given a Choice Element, return an array of all valid option Values.
    *
    * When adding a new Option, the Page Designer can choose to only define the
@@ -1885,10 +1825,77 @@ export class ChoiceElementType extends FormElementType {
    * @param element - The choice form element
    * @returns {Array} - An array of valid Values
    */
-  choiceOptions(element) {
-    return element.options.map((option) => {
-      return option.value !== null ? option.value : option.name
-    })
+  getOptionsResolved(element, applicationContext) {
+    switch (element.option_type) {
+      case CHOICE_OPTION_TYPES.MANUAL:
+        return element.options.map(({ name, value }) => ({
+          name,
+          value: value === null ? name : value,
+        }))
+      case CHOICE_OPTION_TYPES.FORMULAS: {
+        const formulaValues = ensureArray(
+          this.resolveFormula(element.formula_value, applicationContext)
+        )
+        const formulaNames = ensureArray(
+          this.resolveFormula(element.formula_name, applicationContext)
+        )
+        return formulaValues.map((value, index) => ({
+          id: index,
+          value: ensureStringOrInteger(value),
+          name: ensureString(
+            index < formulaValues.length ? formulaNames[index] : value
+          ),
+        }))
+      }
+      default:
+        return []
+    }
+  }
+
+  getInitialFormDataValue(element, applicationContext) {
+    let converter = ensureString
+    const optionsResolved = this.getOptionsResolved(element, applicationContext)
+
+    const firstOption = optionsResolved.find(
+      ({ value }) => value !== undefined && value !== null // We skip null values
+    )
+
+    if (firstOption && Number.isInteger(firstOption.value)) {
+      converter = (v) => ensurePositiveInteger(v, { allowNull: true })
+    }
+
+    if (element.multiple) {
+      try {
+        const existingValues = optionsResolved.map(({ value }) => value)
+        return ensureArray(
+          this.resolveFormula(element.default_value, applicationContext)
+        )
+          .map(converter)
+          .filter((value) => existingValues.includes(value))
+      } catch {
+        return []
+      }
+    } else {
+      try {
+        // Always return a string if we have a default value, otherwise
+        // set the value to null as single select fields will only skip
+        // field preparation if the value is null.
+        const resolvedSingleValue = converter(
+          this.resolveFormula(element.default_value, applicationContext)
+        )
+        return resolvedSingleValue === '' ? null : resolvedSingleValue
+      } catch {
+        return null
+      }
+    }
+  }
+
+  getDisplayName(element, applicationContext) {
+    const displayValue = element.label || element.placeholder
+    const resolvedName = ensureString(
+      this.resolveFormula(displayValue, applicationContext)
+    ).trim()
+    return resolvedName || this.name
   }
 
   /**
@@ -1901,26 +1908,14 @@ export class ChoiceElementType extends FormElementType {
    * @returns {boolean}
    */
   isValid(element, value, applicationContext) {
-    let options
-
-    if (element.option_type === CHOICE_OPTION_TYPES.FORMULAS) {
-      try {
-        options = ensureArray(
-          this.resolveFormula(element.formula_value, {
-            element,
-            ...applicationContext,
-          })
-        ).map(ensureStringOrInteger)
-      } catch {
-        options = []
-      }
-    } else {
-      options = this.choiceOptions(element)
-    }
+    const optionValues = this.getOptionsResolved(
+      element,
+      applicationContext
+    ).map(({ value }) => value)
 
     const validOption = element.multiple
-      ? options.some((option) => value.includes(option))
-      : options.includes(value)
+      ? optionValues.some((option) => value.includes(option))
+      : optionValues.includes(value)
 
     return !(element.required && !validOption)
   }
@@ -2208,13 +2203,23 @@ export class DateTimePickerElementType extends FormElementType {
       ...applicationContext,
     })
 
+    if (!resolvedDefaultValue) {
+      return null
+    }
+
     try {
       // We try to convert it to a date and if it works we return it.
       const result = element.include_time
         ? ensureDateTime(resolvedDefaultValue)
         : ensureDate(resolvedDefaultValue)
 
-      return result
+      if (result && !isNaN(result)) {
+        // We convert to an iso string here because date objects are not serialized
+        // properly during SSR
+        return result.toJSON()
+      } else {
+        return result
+      }
     } catch (e) {
       return null
     }
@@ -2223,6 +2228,15 @@ export class DateTimePickerElementType extends FormElementType {
   isValid(element, value) {
     if (!value) {
       return !element.required
+    }
+
+    if (typeof value === 'string') {
+      // During SSR the date object becomes a string so we need to check
+      // that as well
+      const date = moment(value)
+      if (date.isValid()) {
+        return true
+      }
     }
 
     return value instanceof Date && !isNaN(value)
@@ -2478,27 +2492,6 @@ export class RatingElementType extends ElementType {
 
   get generalFormComponent() {
     return RatingElementForm
-  }
-
-  formDataType(element) {
-    return 'number'
-  }
-
-  getInitialFormDataValue(element, applicationContext) {
-    try {
-      return ensurePositiveInteger(
-        this.resolveFormula(element.value, {
-          element,
-          ...applicationContext,
-        })
-      )
-    } catch {
-      return 0
-    }
-  }
-
-  isValid(element, value) {
-    return value >= 0 && value <= element.max_value
   }
 }
 

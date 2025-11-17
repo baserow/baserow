@@ -171,10 +171,10 @@ export default {
   data() {
     return {
       values: {
-        label: '',
-        default_name: '',
-        default_url: '',
-        help_text: '',
+        label: {},
+        default_name: {},
+        default_url: {},
+        help_text: {},
         required: false,
         multiple: false,
         max_filesize: 5,

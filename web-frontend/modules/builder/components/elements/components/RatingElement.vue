@@ -12,7 +12,7 @@
 
 <script>
 import Rating from '@baserow/modules/database/components/Rating'
-import formElement from '@baserow/modules/builder/mixins/formElement'
+import element from '@baserow/modules/builder/mixins/element'
 import { ensurePositiveInteger } from '@baserow/modules/core/utils/validator'
 
 export default {
@@ -20,7 +20,7 @@ export default {
   components: {
     Rating,
   },
-  mixins: [formElement],
+  mixins: [element],
   computed: {
     resolvedValue() {
       try {

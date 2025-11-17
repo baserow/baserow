@@ -57,13 +57,7 @@
 
 <script>
 import formElement from '@baserow/modules/builder/mixins/formElement'
-import {
-  ensureString,
-  ensureStringOrInteger,
-  ensureArray,
-  ensurePositiveInteger,
-} from '@baserow/modules/core/utils/validator'
-import { CHOICE_OPTION_TYPES } from '@baserow/modules/builder/enums'
+import { ensureString } from '@baserow/modules/core/utils/validator'
 
 export default {
   name: 'ChoiceElement',
@@ -94,78 +88,19 @@ export default {
     placeholderResolved() {
       return ensureString(this.resolveFormula(this.element.placeholder))
     },
-    defaultValueResolved() {
-      let converter = ensureString
-      if (
-        this.optionsResolved.find(
-          ({ value }) => value !== undefined && value !== null // We skip null values
-        ) &&
-        Number.isInteger(this.optionsResolved[0].value)
-      ) {
-        converter = (v) => ensurePositiveInteger(v, { allowNull: true })
-      }
-      if (this.element.multiple) {
-        try {
-          const existingValues = this.optionsResolved.map(({ value }) => value)
-          return ensureArray(this.resolveFormula(this.element.default_value))
-            .map(converter)
-            .filter((value) => existingValues.includes(value))
-        } catch {
-          return []
-        }
-      } else {
-        try {
-          // Always return a string if we have a default value, otherwise
-          // set the value to null as single select fields will only skip
-          // field preparation if the value is null.
-          const resolvedSingleValue = converter(
-            this.resolveFormula(this.element.default_value)
-          )
-          return resolvedSingleValue === '' ? null : resolvedSingleValue
-        } catch {
-          return null
-        }
-      }
-    },
     canHaveOptions() {
       return !this.elementIsInError
     },
     optionsResolved() {
-      switch (this.element.option_type) {
-        case CHOICE_OPTION_TYPES.MANUAL:
-          return this.element.options.map(({ name, value }) => ({
-            name,
-            value: value === null ? name : value,
-          }))
-        case CHOICE_OPTION_TYPES.FORMULAS: {
-          const formulaValues = ensureArray(
-            this.resolveFormula(this.element.formula_value)
-          )
-          const formulaNames = ensureArray(
-            this.resolveFormula(this.element.formula_name)
-          )
-          return formulaValues.map((value, index) => ({
-            id: index,
-            value: ensureStringOrInteger(value),
-            name: ensureString(
-              index < formulaValues.length ? formulaNames[index] : value
-            ),
-          }))
-        }
-        default:
-          return []
-      }
+      return this.elementType.getOptionsResolved(
+        this.element,
+        this.applicationContext
+      )
     },
   },
   watch: {
-    defaultValueResolved: {
-      handler(newValue) {
-        this.inputValue = newValue
-      },
-      immediate: true,
-    },
     'element.multiple'() {
-      this.setFormData(this.defaultValueResolved)
+      this.setFormData(this.resolvedDefaultValue)
     },
   },
   methods: {
