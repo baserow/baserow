@@ -88,7 +88,6 @@ import {
 } from '@baserow_enterprise/dateDependencyTypes'
 import { CustomCodeBuilderSettingType } from '@baserow_enterprise/builderSettingTypes'
 import { RealtimePushTwoWaySyncStrategyType } from '@baserow_enterprise/twoWaySyncStrategyTypes'
-import { FF_DATE_DEPENDENCY } from '@baserow/modules/core/plugins/featureFlags'
 
 export default (context) => {
   const { app, isDev, store } = context
@@ -240,16 +239,11 @@ export default (context) => {
     new BuilderFileInputElementPaidFeature(context)
   )
 
-  if (app.$featureFlagIsEnabled(FF_DATE_DEPENDENCY)) {
-    app.$registry.register(
-      'paidFeature',
-      new DateDependencyPaidFeature(context)
-    )
-    app.$registry.register(
-      'timelineFieldRules',
-      new DateDependencyTimelineComponent(context)
-    )
-  }
+  app.$registry.register('paidFeature', new DateDependencyPaidFeature(context))
+  app.$registry.register(
+    'timelineFieldRules',
+    new DateDependencyTimelineComponent(context)
+  )
   app.$registry.register(
     'fieldContextItem',
     new DateDependencyContextItemType(context)

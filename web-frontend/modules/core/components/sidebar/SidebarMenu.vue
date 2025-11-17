@@ -2,7 +2,6 @@
   <div class="sidebar__section" ph-autocapture="sidebar" data-highlight="menu">
     <ul class="tree">
       <SidebarSearch
-        v-if="$featureFlagIsEnabled(FF_WORKSPACE_SEARCH)"
         :selected-workspace="selectedWorkspace"
         @open-workspace-search="openWorkspaceSearch"
       />
@@ -151,7 +150,6 @@
 <script>
 import { mapGetters } from 'vuex'
 
-import { FF_WORKSPACE_SEARCH } from '@baserow/modules/core/plugins/featureFlags'
 import TrashModal from '@baserow/modules/core/components/trash/TrashModal'
 import NotificationPanel from '@baserow/modules/core/components/NotificationPanel'
 import WorkspaceMemberInviteModal from '@baserow/modules/core/components/workspace/WorkspaceMemberInviteModal'
@@ -177,11 +175,6 @@ export default {
       required: false,
       default: false,
     },
-  },
-  data() {
-    return {
-      FF_WORKSPACE_SEARCH,
-    }
   },
   computed: {
     sidebarWorkspaceComponents() {

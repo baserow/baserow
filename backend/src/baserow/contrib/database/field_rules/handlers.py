@@ -15,7 +15,6 @@ from baserow.contrib.database.field_rules.registries import (
 from baserow.contrib.database.table.cache import clear_generated_model_cache
 from baserow.contrib.database.table.models import GeneratedTableModel, Table
 from baserow.core.db import specific_iterator
-from baserow.core.feature_flags import FF_DATE_DEPENDENCY, feature_flag_is_enabled
 
 from .collector import FieldRuleCollector
 from .exceptions import FieldRuleTableMismatch, NoRuleError
@@ -50,8 +49,6 @@ class FieldRuleHandler:
         Returns `True` if the table contains active field rules.
         """
 
-        if not feature_flag_is_enabled(FF_DATE_DEPENDENCY):
-            return False
         if not self.table.field_rules_validity_column_added:
             return False
         return bool(self.applicable_rules_with_types)

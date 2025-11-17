@@ -2,7 +2,6 @@ import _ from 'lodash'
 import { Registerable } from '@baserow/modules/core/registry'
 import DateDependencyMenuItem from '@baserow_enterprise/components/dateDependency/DateDependencyMenuItem'
 import TimelineFieldRuleType from '@baserow_premium/timelineFieldRuleType'
-import { FF_DATE_DEPENDENCY } from '@baserow/modules/core/plugins/featureFlags'
 import DateDependencyConnection from '@baserow_enterprise/components/dateDependency/DateDependencyConnection'
 
 // Date dependency on timeline views
@@ -104,7 +103,6 @@ export class DateDependencyTimelineComponent extends TimelineFieldRuleType {
 
   getTimelineFieldRuleComponent(rule, view, database) {
     if (
-      this.app.$featureFlagIsEnabled(FF_DATE_DEPENDENCY) &&
       this.app.$hasPermission(
         'database.table.field_rules.read_field_rules',
         view.table,

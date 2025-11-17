@@ -1,6 +1,4 @@
 const FF_ENABLE_ALL = '*'
-export const FF_WORKSPACE_SEARCH = 'workspace-search'
-export const FF_DATE_DEPENDENCY = 'date_dependency'
 
 /**
  * A comma separated list of feature flags used to enable in-progress or not ready
