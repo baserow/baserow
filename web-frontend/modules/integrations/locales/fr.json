@@ -306,7 +306,7 @@
         "supportSetupStep3": "Dans la barre latérale gauche, naviguez vers \"OAuth & Permissions\", descendez jusqu'à \"Scopes\" et sous \"Bot Token Scopes\", sélectionnez \"Add an OAuth Scope\".",
         "supportSetupStep4": "Pour permettre à votre application de poster des messages, ajoutez la portée <pre>chat:write</pre>.",
         "supportPairingHeading": "2. Association avec votre application Slack",
-        "supportPairingStep1": "Si votre application est nouvelle : visitez la page 'Paramètres' > 'Installer application'. Cliquez sur le bouton vert pour installer l'application dans votre espace de travail.",
+        "supportPairingStep1": "Si votre application est nouvelle : visitez la page 'Paramètres' > 'Installer application'. Cliquez sur le bouton vert pour installer l'application dans votre Projet.",
         "supportPairingStep2": "Copiez votre 'Bot User OAuth Token' et stockez-le dans le champ 'Jeton utilisateur Bot' dans ce formulaire.",
         "supportPairingStep3": "Enfin, si votre application est nouvelle : dans Slack, invitez votre application dans le canal choisi avec <pre>/invite @votreAppName votreChannel</pre>"
     },
