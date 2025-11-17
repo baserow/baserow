@@ -86,7 +86,7 @@ jobs:
           echo "  $AMD64"
           echo "  $ARM64"
 
-          docker buildx imagetools create --debug -t "$TARGET" "$AMD64" "$ARM64"
+          docker buildx imagetools create -t "$TARGET" "$AMD64" "$ARM64"
 
   build-webfrontend-arm64-release-image:
     name: Build web-frontend arm64 image (GHCR)
@@ -238,7 +238,7 @@ jobs:
           echo "  $AMD64"
           echo "  $ARM64"
 
-          docker buildx imagetools create --debug -t "$TARGET" "$AMD64" "$ARM64"
+          docker buildx imagetools create -t "$TARGET" "$AMD64" "$ARM64"
 
   build-cloudron-arm64-release-image:
     name: Build cloudron arm64 image (GHCR)
@@ -315,4 +315,4 @@ jobs:
           echo "  $AMD64"
           echo "  $ARM64"
 
-          docker buildx imagetools create --debug -t "$TARGET" "$AMD64" "$ARM64"
+          docker buildx imagetools create -t "$TARGET" "$AMD64" "$ARM64"
