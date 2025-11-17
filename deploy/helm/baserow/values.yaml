@@ -570,10 +570,10 @@ baserow-embeddings:
   resources:
     requests:
       cpu: 800m
-      memory: 256Mi
+      memory: 1536Mi
     limits:
       cpu: 1000m
-      memory: 512Mi
+      memory: 1536Mi
   readinessProbe:
     enabled: true
     httpGet:
