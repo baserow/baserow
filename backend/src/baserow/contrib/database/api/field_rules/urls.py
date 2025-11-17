@@ -1,6 +1,6 @@
 from django.urls import re_path
-from .views import FieldRulesView, FieldRuleView, InvalidRowsView
 
+from .views import FieldRulesView, FieldRuleView, InvalidRowsView
 
 app_name = "baserow.contrib.database.api.field_rules"
 
