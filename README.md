@@ -42,7 +42,6 @@ docker run -v baserow_data:/baserow/data -p 80:80 -p 443:443 baserow/baserow:2.0
 ![Baserow application builder](docs/assets/screenshot_application_builder.png "Baserow application builder screenshot")
 
 ![Baserow application builder](docs/assets/screenshot_automations.png "Baserow automations screenshot")
-(coming soon)
 
 
 ## Get Involved
