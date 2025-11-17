@@ -56,6 +56,7 @@
   },
   "pageErrors": {
     "errorNameNotUnique": "A page with this name already exists",
+    "errorNameNotUniqueDescription": "Please enter a unique name for the page",
     "errorPathNotUnique": "A path with this name already exists",
     "errorStartingSlash": "A path needs to start with a '/'",
     "errorValidPathCharacters": "The path contains invalid characters",

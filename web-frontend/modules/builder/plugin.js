@@ -172,6 +172,12 @@ export default (context) => {
 
   registerRealtimeEvents(app.$realtime)
 
+  app.$clientErrorMap.setError(
+    'ERROR_PAGE_NAME_NOT_UNIQUE',
+    app.i18n.t('pageErrors.errorNameNotUnique'),
+    app.i18n.t('pageErrors.errorNameNotUniqueDescription')
+  )
+
   store.registerModule('page', pageStore)
   store.registerModule('element', elementStore)
   store.registerModule('domain', domainStore)
