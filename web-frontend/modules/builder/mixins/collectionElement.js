@@ -198,9 +198,11 @@ export default {
       row,
       rowIndex,
       field = null,
+      ...rest
     }) {
       const newApplicationContext = {
         recordIndexPath: [...applicationContext.recordIndexPath, rowIndex],
+        ...rest,
       }
       if (field) {
         newApplicationContext.field = field

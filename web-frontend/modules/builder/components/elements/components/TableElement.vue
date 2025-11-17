@@ -41,6 +41,7 @@
                   row,
                   rowIndex,
                   field,
+                  allowSameElement: true,
                 })
               "
               v-bind="value"

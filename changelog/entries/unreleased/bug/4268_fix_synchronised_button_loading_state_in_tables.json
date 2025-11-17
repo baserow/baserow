@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fix synchronised button loading state in tables",
+    "issue_origin": "github",
+    "issue_number": 4268,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2025-11-17"
+}

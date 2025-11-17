@@ -782,7 +782,12 @@ export class ElementType extends Registerable {
    *
    */
   uniqueElementId({ element, applicationContext }) {
-    const { recordIndexPath, builder, page } = applicationContext
+    const {
+      recordIndexPath,
+      builder,
+      page,
+      allowSameElement = false,
+    } = applicationContext
 
     const elementPage =
       element.page_id === page.id
@@ -792,7 +797,7 @@ export class ElementType extends Registerable {
     const collectionAncestorLength = this.getCollectionAncestry({
       page: elementPage,
       element,
-      allowSameElement: false,
+      allowSameElement,
     }).length
 
     // We might be asking the uniqueID for an outside element so we don't
