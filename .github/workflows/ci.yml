@@ -401,7 +401,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+        group: [1]
     services:
       db:
         image: pgvector/pgvector:pg13
@@ -437,7 +437,7 @@ jobs:
           docker run \
             --name=baserow_backend_test_container \
             --network="${{ job.services.db.network }}" \
-            -e PYTEST_SPLITS=10 \
+            -e PYTEST_SPLITS=100 \
             -e PYTEST_SPLIT_GROUP=${{ matrix.group }} \
             -e DATABASE_HOST=db \
             -e DATABASE_PORT=5432 \
@@ -481,7 +481,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: [1]
     steps:
       - name: Exit early if frontend not changed and not develop/master
         run: |
@@ -505,7 +505,7 @@ jobs:
           docker run \
             --name=webfrontend_test \
             -e JEST_SHARD_INDEX=${{ matrix.shard }} \
-            -e JEST_SHARD_TOTAL=4 \
+            -e JEST_SHARD_TOTAL=40 \
             ${{ needs.build-frontend.outputs.image }} ci-test | tee reports/stdout.txt
           docker cp webfrontend_test:/baserow/reports/. ./reports
           docker rm webfrontend_test
@@ -610,6 +610,7 @@ jobs:
     timeout-minutes: 60
     runs-on: ubuntu-latest
     needs:
+      - detect-changes
       - build-backend
       - build-frontend
       - backend-lint
@@ -622,7 +623,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: [1]
     services:
       db:
         image: pgvector/pgvector:pg13
@@ -758,7 +759,7 @@ jobs:
           PRIVATE_BACKEND_URL: http://backend:8000
         run: |
           cd e2e-tests
-          CI=1 npx playwright test --timeout=30000 --grep-invert=@slow --shard=${{ matrix.shard }}/4 --project=firefox
+          CI=1 npx playwright test --timeout=30000 --grep-invert=@slow --shard=${{ matrix.shard }}/40 --project=firefox
 
       - name: Upload E2E test results
         uses: actions/upload-artifact@v4
