@@ -3,7 +3,7 @@
 services:
   baserow:
     container_name: baserow
-    image: baserow/baserow:1.35.3
+    image: baserow/baserow:2.0.0
     environment:
       BASEROW_PUBLIC_URL: 'http://localhost'
     ports:

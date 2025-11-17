@@ -122,7 +122,7 @@ containing metadata about your plugin. It should have the following JSON structu
 {
   "name": "TODO",
   "version": "TODO",
-  "supported_baserow_versions": "1.35.3",
+  "supported_baserow_versions": "2.0.0",
   "plugin_api_version": "0.0.1-alpha",
   "description": "TODO",
   "author": "TODO",

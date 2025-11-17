@@ -1,4 +1,4 @@
-ARG FROM_IMAGE=baserow/baserow:1.35.3
+ARG FROM_IMAGE=baserow/baserow:2.0.0
 # This is pinned as version pinning is done by the CI setting FROM_IMAGE.
 # hadolint ignore=DL3006
 FROM $FROM_IMAGE AS image_base

@@ -3,7 +3,7 @@ name: baserow
 description: The open platform to create scalable databases and applications—without coding.
 type: application
 version: 1.0.36
-appVersion: "1.35.3"
+appVersion: "2.0.0"
 home: https://github.com/baserow/baserow/blob/develop/deploy/helm/baserow?ref_type=heads
 icon: https://baserow.io/img/favicon_192.png
 sources:

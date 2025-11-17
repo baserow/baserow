@@ -2,7 +2,7 @@
 # Bash strict mode: http://redsymbol.net/articles/unofficial-bash-strict-mode/
 set -euo pipefail
 
-export BASEROW_VERSION="1.35.3"
+export BASEROW_VERSION="2.0.0"
 BASEROW_WEBFRONTEND_PORT="${BASEROW_WEBFRONTEND_PORT:-3000}"
 
 show_help() {
