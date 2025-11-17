@@ -364,18 +364,14 @@ const actions = {
 
     commit('DELETE_ITEM', { workflow, nodeId })
 
-    const automation = rootGetters['application/get'](workflow.automation_id)
-    if (automation) {
-      // Refresh updated workflow (simulate_until_node_id could have changed)
-      await dispatch(
-        'automationWorkflow/fetchById',
-        {
-          automation,
-          workflowId: workflow.id,
-        },
-        { root: true }
-      )
-    }
+    await dispatch(
+      'automationWorkflow/forceUpdate',
+      {
+        workflow,
+        values: { simulate_until_node_id: null },
+      },
+      { root: true }
+    )
 
     setTimeout(() => {
       dispatch('select', { workflow, node: newNode })
