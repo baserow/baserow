@@ -2283,18 +2283,22 @@ class LocalBaserowRowsSignalServiceType(
         model: "GeneratedTableModel",
         **kwargs,
     ):
-        serializer = get_row_serializer_class(
-            model, RowSerializer, is_response=True, user_field_names=True
-        )
+        def get_data():
+            # Make sure we have an up to date model
+            local_model = model.baserow_table.get_model()
 
-        data_to_process = {
-            "results": serializer(rows, many=True).data,
-            "has_next_page": False,
-        }
+            serializer = get_row_serializer_class(
+                local_model, RowSerializer, is_response=True, user_field_names=True
+            )
+
+            return {
+                "results": serializer(rows, many=True).data,
+                "has_next_page": False,
+            }
 
         self._process_event(
             self.model_class.objects.filter(table=table),
-            data_to_process,
+            get_data,
             user=user,
         )
 
