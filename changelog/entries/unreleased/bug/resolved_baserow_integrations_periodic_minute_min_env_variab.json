@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Resolved BASEROW_INTEGRATIONS_PERIODIC_MINUTE_MIN env variable bug.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "integration",
+    "bullet_points": [],
+    "created_at": "2025-11-18"
+}
