@@ -1,5 +1,13 @@
 # Changelog
 
+## Released 2.0.1
+
+### Bug fixes
+* [Core] Don't show the Assistant panel if the LLM_MODEL env variable is not configured [#4280](https://github.com/baserow/baserow/-/issues/4280)
+* [Builder] Fix visibility condition not working if data property wasn't used in page
+* [Automation] Save data preparation for table that don't have trigger associated to it
+
+
 ## Released 2.0.0
 
 ### New features
