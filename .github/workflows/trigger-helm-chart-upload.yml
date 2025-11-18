@@ -28,9 +28,6 @@ jobs:
           # Build dependencies
           helm dependency build baserow
 
-          # Lint the chart with strict mode
-          helm lint baserow --strict
-
           # Package the chart
           helm package baserow
 

@@ -188,6 +188,7 @@ jobs:
       dockerfiles: ${{ steps.filter.outputs.dockerfiles }}
       mjml: ${{ steps.filter.outputs.mjml }}
       zapier: ${{ steps.filter.outputs.zapier }}
+      helm: ${{ steps.filter.outputs.helm }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -216,7 +217,10 @@ jobs:
             zapier:
               - 'integrations/zapier/**'
               - '.github/workflows/ci.yml'
-
+            helm:
+              - 'deploy/helm/**'
+              - '.github/workflows/ci.yml'
+              - '.github/workflows/trigger-helm-chart-upload.yml'
   backend-lint:
     name: Backend Lint
     runs-on: ubuntu-latest
@@ -325,6 +329,44 @@ jobs:
           name: hadolint-results
           path: reports/hadolint.json
           retention-days: 7
+
+  helm-chart-lint:
+    name: Helm Chart Lint
+    runs-on: ubuntu-latest
+    needs:
+      - detect-changes
+    permissions:
+      contents: read
+    steps:
+      - name: Exit early if helm not changed and not develop/master
+        run: |
+          if [[ "${{ needs.detect-changes.outputs.helm }}" != "true" && \
+                "${{ github.ref_name }}" != "develop" && \
+                "${{ github.ref_name }}" != "master" ]]; then
+            echo "No backend changes detected — skipping backend lint."
+            exit 0
+          fi
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+
+      - name: Lint Helm Chart
+        run: |
+          cd deploy/helm
+          rm -f baserow/Chart.lock
+
+          # Add Helm repositories
+          helm repo add bitnami https://charts.bitnami.com/bitnami
+          helm repo add caddy https://caddyserver.github.io/ingress
+
+          # Build dependencies
+          helm dependency build baserow
+
+          # Lint the chart with strict mode
+          helm lint baserow --strict
 
   # ==========================================================================
   # TEST STAGE - Run backend and frontend tests
@@ -552,7 +594,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: "18"
 
       - name: Run Zapier tests
         run: |
@@ -585,7 +627,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: "18"
 
       - name: Compile MJML templates
         run: |
@@ -667,9 +709,9 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
-          cache: 'yarn'
-          cache-dependency-path: 'e2e-tests/yarn.lock'
+          node-version: "18"
+          cache: "yarn"
+          cache-dependency-path: "e2e-tests/yarn.lock"
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
@@ -790,7 +832,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: "18"
 
       - name: Download all E2E test results
         uses: actions/download-artifact@v4
@@ -832,7 +874,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
       - name: Install coverage tool
         run: pip install coverage
