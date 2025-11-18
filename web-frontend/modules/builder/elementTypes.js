@@ -904,6 +904,10 @@ export class ElementType extends Registerable {
       element: mainElement,
     })
 
+    if (!mainDataSource) {
+      return null
+    }
+
     const mainDataSourceType = this.app.$registry.get(
       'service',
       mainDataSource.type
