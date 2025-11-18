@@ -183,6 +183,7 @@
   "simulateDispatch": {
     "sampleDataLabel": "Output",
     "triggerNodeAwaitingEvent": "The node is waiting. Please manually trigger the event to populate the payload and complete the test.",
+    "simulationInProgress": "Node test is in progress...",
     "errorNodeNotConfigured": "The node must be configured before it can be tested.",
     "errorPreviousNodeNotConfigured": "The previous node \"{node}\" must be configured.",
     "errorPreviousNodesNotTested": "The previous node \"{node}\" must be tested first.",
