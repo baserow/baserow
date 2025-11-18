@@ -243,40 +243,4 @@ export const ContextManagementExtension = Extension.create({
       this.storage.clickOutsideEventCancel = null
     }
   },
-
-  getContextConfig() {
-    const { vueComponent } = this.options
-    // Read directly from Vue component to get reactive value
-    const contextPosition =
-      vueComponent?.contextPosition ?? this.options.contextPosition
-
-    switch (contextPosition) {
-      case 'left':
-        return {
-          vertical: 'top',
-          horizontal: 'left',
-          needsDynamicOffset: true,
-        }
-      case 'bottom':
-        return {
-          vertical: 'bottom',
-          horizontal: 'left',
-          verticalOffset: 10,
-          horizontalOffset: 0,
-        }
-      case 'right':
-        return {
-          vertical: 'top',
-          horizontal: 'left',
-          needsDynamicOffset: true,
-        }
-      default:
-        return {
-          vertical: 'bottom',
-          horizontal: 'left',
-          verticalOffset: 0,
-          horizontalOffset: -400,
-        }
-    }
-  },
 })

@@ -15,28 +15,40 @@ export class ToTipTapVisitor extends BaserowFormulaVisitor {
     // In advanced mode, ensure all content is wrapped in a single wrapper
     if (this.mode === 'advanced') {
       const content = _.isArray(result) ? result : [result]
+      const flatContent = content.flatMap((item) => {
+        // Filter out null or undefined items
+        if (!item) return []
+
+        // If the item is an array (from functions without wrapper in advanced mode)
+        if (Array.isArray(item)) {
+          return item
+        }
+
+        // If the item is a wrapper, extract its content
+        if (item.type === 'wrapper' && item.content) {
+          return item.content
+        }
+
+        // Return the item if it has a type
+        return item.type ? [item] : []
+      })
+
+      // Ensure content starts with ZWS
+      const firstNode = flatContent[0]
+      if (
+        !firstNode ||
+        firstNode.type !== 'text' ||
+        firstNode.text !== '\u200B'
+      ) {
+        flatContent.unshift({ type: 'text', text: '\u200B' })
+      }
+
       return {
         type: 'doc',
         content: [
           {
             type: 'wrapper',
-            content: content.flatMap((item) => {
-              // Filter out null or undefined items
-              if (!item) return []
-
-              // If the item is an array (from functions without wrapper in advanced mode)
-              if (Array.isArray(item)) {
-                return item
-              }
-
-              // If the item is a wrapper, extract its content
-              if (item.type === 'wrapper' && item.content) {
-                return item.content
-              }
-
-              // Return the item if it has a type
-              return item.type ? [item] : []
-            }),
+            content: flatContent,
           },
         ],
       }
@@ -166,6 +178,17 @@ export class ToTipTapVisitor extends BaserowFormulaVisitor {
     const formulaFunctionType = this.functions.get(functionName)
     const node = formulaFunctionType.toNode(processedArgs, this.mode)
 
+    if (
+      node?.type === 'get-formula-component' ||
+      node?.type === 'function-formula-component'
+    ) {
+      return [
+        { type: 'text', text: '\u200B' },
+        node,
+        { type: 'text', text: '\u200B' },
+      ]
+    }
+
     // If the function returns an array (like concat with newlines in simple mode),
     // return it directly
     if (Array.isArray(node)) {
@@ -201,12 +224,6 @@ export class ToTipTapVisitor extends BaserowFormulaVisitor {
           content.push(leftArg)
         }
 
-        // Add space before operator
-        content.push({
-          type: 'text',
-          text: ' ',
-        })
-
         // Add operator symbol as a component in advanced mode, as text in simple mode
         if (this.mode === 'advanced') {
           content.push({
@@ -221,12 +238,6 @@ export class ToTipTapVisitor extends BaserowFormulaVisitor {
             text: formulaFunctionType.getOperatorSymbol,
           })
         }
-
-        // Add space after operator
-        content.push({
-          type: 'text',
-          text: ' ',
-        })
 
         // Add right argument
         if (rightArg.type === 'text' && typeof rightArg.text === 'string') {
@@ -252,11 +263,12 @@ export class ToTipTapVisitor extends BaserowFormulaVisitor {
           type: 'function-formula-component',
           attrs: {
             functionName,
+            hasNoArgs: args.length === 0,
           },
         }
 
-        // Build the content array with function node + arguments + closing parenthesis
-        const result = [functionNode]
+        // Build the content array with ZWS + function node + arguments + closing parenthesis + ZWS
+        const result = [{ type: 'text', text: '\u200B' }, functionNode]
 
         // Add arguments as plain text nodes
         args.forEach((arg, index) => {
@@ -276,7 +288,15 @@ export class ToTipTapVisitor extends BaserowFormulaVisitor {
         })
 
         // Add closing parenthesis as atomic node
-        result.push({ type: 'function-closing-paren' })
+        result.push({
+          type: 'function-closing-paren',
+          attrs: {
+            noArgs: args.length === 0,
+          },
+        })
+
+        // Add ZWS after the closing parenthesis
+        result.push({ type: 'text', text: '\u200B' })
 
         return result
       } else {
@@ -328,6 +348,7 @@ export class ToTipTapVisitor extends BaserowFormulaVisitor {
 
   visitBinaryOp(ctx) {
     // TODO
+
     let op
 
     if (ctx.PLUS()) {

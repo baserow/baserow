@@ -42,6 +42,9 @@ import { Document } from '@tiptap/extension-document'
 import { Text } from '@tiptap/extension-text'
 import { History } from '@tiptap/extension-history'
 import { HardBreak } from '@tiptap/extension-hard-break'
+import { ArrowKeyNavigationExtension } from '@baserow/modules/core/components/formula/ArrowKeyNavigationExtension'
+import { SmartBackspaceExtension } from '@baserow/modules/core/components/formula/SmartBackspaceExtension'
+import { ZWSManagementExtension } from '@baserow/modules/core/components/formula/ZWSManagementExtension'
 import { FunctionHelpTooltipExtension } from '@baserow/modules/core/components/formula/FunctionHelpTooltipExtension'
 import {
   FormulaInsertionExtension,
@@ -242,6 +245,9 @@ export default {
         DocumentNode,
         this.wrapperNode,
         TextNode,
+        ArrowKeyNavigationExtension,
+        SmartBackspaceExtension,
+        ZWSManagementExtension,
         this.placeHolderExt,
         History.configure({
           depth: 100,
@@ -454,14 +460,43 @@ export default {
       if (!formula) {
         return {
           type: 'doc',
-          content: [{ type: 'wrapper' }],
+          content: [
+            {
+              type: 'wrapper',
+              content: [{ type: 'text', text: '\u200B' }],
+            },
+          ],
         }
       }
 
       try {
         const tree = parseBaserowFormula(formula)
         const functionCollection = new RuntimeFunctionCollection(this.$registry)
-        return new ToTipTapVisitor(functionCollection, this.mode).visit(tree)
+        const result = new ToTipTapVisitor(functionCollection, this.mode).visit(
+          tree
+        )
+
+        // Ensure wrapper always starts with a ZWS
+        if (result && result.content && result.content[0]) {
+          const wrapper = result.content[0]
+          if (wrapper.type === 'wrapper') {
+            if (!wrapper.content || wrapper.content.length === 0) {
+              wrapper.content = [{ type: 'text', text: '\u200B' }]
+            } else {
+              const firstNode = wrapper.content[0]
+              // Add ZWS at the beginning if it's not already there
+              if (
+                !firstNode ||
+                firstNode.type !== 'text' ||
+                firstNode.text !== '\u200B'
+              ) {
+                wrapper.content.unshift({ type: 'text', text: '\u200B' })
+              }
+            }
+          }
+        }
+
+        return result
       } catch (error) {
         return null
       }

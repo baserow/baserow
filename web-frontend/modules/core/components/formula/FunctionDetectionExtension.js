@@ -57,28 +57,39 @@ export const FunctionDetectionExtension = Extension.create({
           // Build all nodes to insert
           const nodesToInsert = []
 
+          // Add ZWS before the function component
+          nodesToInsert.push(state.schema.text('\u200B'))
+
           // Insert function node (atomic)
           const functionNode = state.schema.nodes[
             'function-formula-component'
           ].create({
             functionName,
+            hasNoArgs: minArgs === 0,
           })
           nodesToInsert.push(functionNode)
 
-          // Add comma-separated placeholders based on minimum args
-          if (minArgs >= 2) {
-            for (let i = 0; i < minArgs - 1; i++) {
-              // Add atomic comma
-              const commaNode =
+          if (minArgs > 0) {
+            nodesToInsert.push(state.schema.text('\u200B')) // First argument
+            for (let i = 1; i < minArgs; i++) {
+              nodesToInsert.push(
                 state.schema.nodes['function-argument-comma'].create()
-              nodesToInsert.push(commaNode)
+              )
+              nodesToInsert.push(state.schema.text('\u200B')) // Subsequent arguments
             }
           }
 
           // Insert the closing parenthesis as atomic node
-          const closingParenNode =
-            state.schema.nodes['function-closing-paren'].create()
+          const closingParenNode = state.schema.nodes[
+            'function-closing-paren'
+          ].create({
+            noArgs: minArgs === 0,
+          })
           nodesToInsert.push(closingParenNode)
+
+          // Always add a ZWS after the whole function call
+          // CleanupZWSExtension will remove any consecutive ZWS automatically
+          nodesToInsert.push(state.schema.text('\u200B'))
 
           // Insert all nodes at once using Fragment.from
           const fragment = Fragment.from(nodesToInsert)
@@ -86,8 +97,18 @@ export const FunctionDetectionExtension = Extension.create({
           // Replace the function name + opening parenthesis with our nodes
           tr.replaceWith(functionStart, to, fragment)
 
-          // Position cursor right after the function component (opening parenthesis)
-          const cursorPos = functionStart + 1
+          // Position cursor:
+          // - If no arguments expected, place after closing paren (but before the final ZWS)
+          // - Otherwise, place right after the function component (in first argument slot)
+          let cursorPos
+          if (minArgs === 0) {
+            // ZWS (1) + functionNode (1) + closingParenNode (1) = 3
+            // We place cursor at position 3, which is after the closing paren but before the final ZWS
+            cursorPos = functionStart + 3
+          } else {
+            // ZWS (1) + functionNode (1) = 2 (in first argument slot)
+            cursorPos = functionStart + 2
+          }
 
           tr.setSelection(TextSelection.create(tr.doc, cursorPos))
 
@@ -117,15 +138,19 @@ export const FunctionDetectionExtension = Extension.create({
       // Create transaction
       const tr = state.tr
 
-      // Create the atomic comma node
-      const commaNode = state.schema.nodes['function-argument-comma'].create()
+      // Create the atomic comma node and a ZWS for the next argument
+      const nodesToInsert = [
+        state.schema.nodes['function-argument-comma'].create(),
+        state.schema.text('\u200B'),
+      ]
+      const fragment = Fragment.from(nodesToInsert)
 
       // Replace the typed comma with the atomic node
-      tr.replaceWith(from, to, commaNode)
+      tr.replaceWith(from, to, fragment)
 
-      // Position cursor after the comma
+      // Position cursor after the comma, in the new ZWS slot
       const cursorPos = from + 1
-      tr.setSelection(TextSelection.near(tr.doc.resolve(cursorPos)))
+      tr.setSelection(TextSelection.create(tr.doc, cursorPos))
 
       view.dispatch(tr)
       return true

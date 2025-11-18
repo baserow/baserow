@@ -1,5 +1,9 @@
 <template>
-  <NodeViewWrapper as="span" class="function-formula-component">
+  <NodeViewWrapper
+    as="span"
+    class="function-formula-component"
+    :data-no-args="hasNoArgs ? 'true' : undefined"
+  >
     <span class="function-formula-component__name">{{ functionName }}(</span>
   </NodeViewWrapper>
 </template>
@@ -17,6 +21,9 @@ export default {
   computed: {
     functionName() {
       return this.node?.attrs?.functionName || ''
+    },
+    hasNoArgs() {
+      return this.node?.attrs?.hasNoArgs || false
     },
   },
 }

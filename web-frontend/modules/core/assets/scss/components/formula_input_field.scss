@@ -62,3 +62,50 @@
 
   @include rounded;
 }
+
+// Remove left padding for closing parenthesis of functions with no arguments
+.formula-input-field__parenthesis[data-no-args='true'] {
+  padding-left: 0;
+}
+
+// Add margin-right when a function component is followed by another function component
+.function-formula-component:has(+ .function-formula-component) {
+  margin-right: 4px;
+}
+
+// Add margin-right when a parenthesis is followed by another parenthesis
+.formula-input-field__parenthesis:has(+ .formula-input-field__parenthesis) {
+  margin-right: 4px;
+}
+
+// Add margin-right when a parenthesis is followed by a comma
+.formula-input-field__parenthesis:has(+ .formula-input-field__comma) {
+  margin-right: 4px;
+}
+
+// Add margin-right when a comma is followed by a function component
+.formula-input-field__comma:has(+ .function-formula-component) {
+  margin-right: 4px;
+}
+
+// Add margin-right when a comma is followed by a parenthesis
+.formula-input-field__comma:has(+ .formula-input-field__parenthesis) {
+  margin-right: 4px;
+}
+
+// Add margin-left when a comma is preceded by a function component
+.function-formula-component + .formula-input-field__comma {
+  margin-left: 4px;
+}
+
+// Add margin-right when a comma is followed by another comma
+.formula-input-field__comma:has(+ .formula-input-field__comma) {
+  margin-right: 4px;
+}
+
+// Remove right padding for function components with no arguments
+.function-formula-component[data-no-args='true'] {
+  .function-formula-component__name {
+    padding-right: 2px;
+  }
+}
