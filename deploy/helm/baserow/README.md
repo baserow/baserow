@@ -232,7 +232,7 @@ caddy:
 | ------------------------------------------------------------------ | --------------------------------------------------------------------------------------- | ----------------------- |
 | `global.baserow.imageRegistry`                                     | Global Docker image registry                                                            | `baserow`               |
 | `global.baserow.imagePullSecrets`                                  | Global Docker registry secret names as an array                                         | `[]`                    |
-| `global.baserow.image.tag`                                         | Global Docker image tag                                                                 | `2.0.0`                |
+| `global.baserow.image.tag`                                         | Global Docker image tag                                                                 | `2.0.1`                |
 | `global.baserow.serviceAccount.shared`                             | Set to true to share the service account between all application components.            | `true`                  |
 | `global.baserow.serviceAccount.create`                             | Set to true to create a service account to share between all application components.    | `true`                  |
 | `global.baserow.serviceAccount.name`                               | Configure a name for service account to share between all application components.       | `baserow`               |

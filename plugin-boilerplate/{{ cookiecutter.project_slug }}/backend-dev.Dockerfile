@@ -1,7 +1,7 @@
 # This a dev image for testing your plugin when installed into the Baserow backend image
-FROM baserow/backend:2.0.0 as base
+FROM baserow/backend:2.0.1 as base
 
-FROM baserow/backend:2.0.0
+FROM baserow/backend:2.0.1
 
 USER root
 

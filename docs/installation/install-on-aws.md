@@ -49,7 +49,7 @@ overview this is what any AWS deployment of Baserow will need:
 
 ## Option 1) Deploying the all-in-one image to Fargate/ECS
 
-The `baserow/baserow:2.0.0` image runs all of Baserow’s various services inside the
+The `baserow/baserow:2.0.1` image runs all of Baserow’s various services inside the
 container for ease of use.
 
 This image is designed for single server deployments or simple deployments to
@@ -67,7 +67,7 @@ Run.
     * You don't need to worry about configuring and linking together the different
       services that make up a Baserow deployment.
     * Configuring load balancers is easier as you can just directly route through all
-      requests to any horizontally scaled container running `baserow/baserow:2.0.0`.
+      requests to any horizontally scaled container running `baserow/baserow:2.0.1`.
 
 #### Cons
 
@@ -75,7 +75,7 @@ Run.
 * Potentially higher resource usage overall as each of the all-in-one containers will
   come with its internal services, so you have less granular control over scaling
   specific services.
-    * For example if you deploy 10 `baserow/baserow:2.0.0` containers horizontally you
+    * For example if you deploy 10 `baserow/baserow:2.0.1` containers horizontally you
       by default end up with:
         * 10 web-frontend services
         * 10 backend services
@@ -188,18 +188,18 @@ Generally, the Redis server is not the bottleneck in Baserow deployments as they
 Now create a target group on port 80 and ALB ready to route traffic to the Baserow
 containers.
 
-When setting up the health check for the ALB the `baserow/baserow:2.0.0` container
+When setting up the health check for the ALB the `baserow/baserow:2.0.1` container
 ,which you'll be deploying next, choose port `80` and health check
 URL `/api/_health/`. We recommend a long grace period of 900 seconds to account for
 first-time migrations being run on the first container's startup.
 
 #### 5) Launching Baserow on ECS/Fargate
 
-Now we are ready to spin up our `baserow/baserow:2.0.0` containers. See below for a
+Now we are ready to spin up our `baserow/baserow:2.0.1` containers. See below for a
 full task definition and environment variables. We recommend launching the containers
 with 2vCPUs and 4 GB of RAM each to start with. In short, you will want to:
 
-1. Select the `baserow/baserow:2.0.0` image.
+1. Select the `baserow/baserow:2.0.1` image.
 2. Add a port mapping of `80` on TCP as this is where this images HTTP server is
    listening by default.
 3. Mark the container as essential.
@@ -244,7 +244,7 @@ container_definitions    = <<DEFINITION
   [
     {
       "name": "baserow_task",
-      "image": "baserow/baserow:2.0.0", 
+      "image": "baserow/baserow:2.0.1", 
       "logConfiguration": {                     #logs are not mandatory
                 "logDriver": "awslogs",
                 "options": {
@@ -368,7 +368,7 @@ in-tool settings, active enterprise licenses, promote other users to being staff
 
 ## Option 2) Deploying Baserow as separate services to Fargate/ECS
 
-The `baserow/backend:2.0.0` and `baserow/web-frontend:2.0.0` images allow you to run
+The `baserow/backend:2.0.1` and `baserow/web-frontend:2.0.1` images allow you to run
 Baserow's various services as separate containers.
 
 These images are used by the Official Helm chart, our various docker-compose.yml
@@ -441,7 +441,7 @@ Alternatively [this docker-compose](https://github.com/baserow/baserow/blob/deve
 
 This service is our HTTP REST API service. When creating the task definition you should:
 
-1. In the task defintion use the `baserow/backend:2.0.0` image
+1. In the task defintion use the `baserow/backend:2.0.1` image
 2. Under docker configuration set `gunicorn-wsgi,--timeout,60` as the Command.
 
 > We recommend setting the timeout of each HTTP API request to 60 seconds in the
@@ -484,7 +484,7 @@ This service is our HTTP REST API service. When creating the task definition you
 This service is our Websocket API service and when configuring the task definition you
 should:
 
-1. Use the `baserow/backend:2.0.0`
+1. Use the `baserow/backend:2.0.1`
 2. Under docker configuration set `gunicorn` as the Command.
 3. We recommend 2vCPUs and 4 GB of RAM per container to start with.
 4. Map the container port `8000`/`TCP`
@@ -496,7 +496,7 @@ should:
 This service is our asynchronous high priority task worker queue used for realtime
 collaboration and sending emails.
 
-1. Use the `baserow/backend:2.0.0` image with `celery-worker` as the image command.
+1. Use the `baserow/backend:2.0.1` image with `celery-worker` as the image command.
 2. Under docker configuration set `celery-worker` as the Command.
 3. No port mappings needed.
 4. We recommend 2vCPUs and 4 GB of RAM per container to start with.
@@ -509,7 +509,7 @@ This service is our asynchronous slow/low priority task worker queue for batch
 processes and running potentially slow operations for users like table exports and
 imports etc.
 
-1. Use the `baserow/backend:2.0.0` image.
+1. Use the `baserow/backend:2.0.1` image.
 2. Under docker configuration set `celery-exportworker` as the Command.
 3. No port mappings needed.
 4. We recommend 2vCPUs and 4 GB of RAM per container to start with.
@@ -520,7 +520,7 @@ imports etc.
 
 This service is our CRON task scheduler that can have multiple replicas deployed.
 
-1. Use the `baserow/backend:2.0.0` image.
+1. Use the `baserow/backend:2.0.1` image.
 2. Under docker configuration set `celery-beat` as the Command.
 3. No port mapping needed.
 4. We recommend 1vCPUs and 3 GB of RAM per container to start with.
@@ -537,7 +537,7 @@ This service is our CRON task scheduler that can have multiple replicas deployed
 Finally, this service is used for server side rendering and serving the frontend of
 Baserow.
 
-1. Use the `baserow/web-frontend:2.0.0` image with no arguments needed.
+1. Use the `baserow/web-frontend:2.0.1` image with no arguments needed.
 2. Map the container port `3000`
 3. We recommend 2vCPUs and 4 GB of RAM per container to start with.
 4. Mark the container as essential.

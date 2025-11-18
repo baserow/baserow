@@ -2,8 +2,8 @@ apiVersion: v2
 name: baserow
 description: The open platform to create scalable databases and applications—without coding.
 type: application
-version: 1.0.36
-appVersion: "2.0.0"
+version: 1.0.37
+appVersion: "2.0.1"
 home: https://github.com/baserow/baserow/blob/develop/deploy/helm/baserow?ref_type=heads
 icon: https://baserow.io/img/favicon_192.png
 sources:
@@ -13,43 +13,43 @@ sources:
 dependencies:
   - name: baserow
     alias: baserow-backend-asgi
-    version: "1.0.36"
+    version: "1.0.37"
     repository: "file://charts/baserow-common"
 
   - name: baserow
     alias: baserow-backend-wsgi
-    version: "1.0.36"
+    version: "1.0.37"
     repository: "file://charts/baserow-common"
 
   - name: baserow
     alias: baserow-frontend
-    version: "1.0.36"
+    version: "1.0.37"
     repository: "file://charts/baserow-common"
 
   - name: baserow
     alias: baserow-celery-beat-worker
-    version: "1.0.36"
+    version: "1.0.37"
     repository: "file://charts/baserow-common"
 
   - name: baserow
     alias: baserow-celery-export-worker
-    version: "1.0.36"
+    version: "1.0.37"
     repository: "file://charts/baserow-common"
 
   - name: baserow
     alias: baserow-celery-worker
-    version: "1.0.36"
+    version: "1.0.37"
     repository: "file://charts/baserow-common"
 
   - name: baserow
     alias: baserow-celery-flower
-    version: "1.0.36"
+    version: "1.0.37"
     repository: "file://charts/baserow-common"
     condition: baserow-celery-flower.enabled
 
   - name: baserow
     alias: baserow-embeddings
-    version: "1.0.36"
+    version: "1.0.37"
     repository: "file://charts/baserow-common"
     condition: baserow-embeddings.enabled
 
