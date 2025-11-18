@@ -392,6 +392,24 @@ class ElementType(
             create related objects when the import / export functionality is tested.
         """
 
+    def formula_generator(
+        self, element: Element
+    ) -> Generator[str | Instance, str, None]:
+        """
+        Generator that returns formula fields for the LinkElementType.
+
+        Unlike other Element types, this one has its formula fields in the
+        page_parameters and query_prameters JSON fields.
+        """
+
+        yield from super().formula_generator(element)
+
+        # Deal with visibility_condition
+        new_formula = yield element.visibility_condition
+        if new_formula is not None:
+            element.visibility_condition = new_formula
+            yield element
+
 
 ElementTypeSubClass = TypeVar("ElementTypeSubClass", bound=ElementType)
 
