@@ -48,6 +48,7 @@ import WorkflowEditor from '@baserow/modules/automation/components/workflow/Work
 import EditorSidePanels from '@baserow/modules/automation/components/workflow/EditorSidePanels'
 import { AutomationApplicationType } from '@baserow/modules/automation/applicationTypes'
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import { StoreItemLookupError } from '@baserow/modules/core/errors'
 
 export default {
   name: 'AutomationWorkflow',
@@ -227,11 +228,12 @@ export default {
         parseInt(from.params.automationId)
       )
       if (automation) {
-        const workflow = this.$store.getters['automationWorkflow/getById'](
-          automation,
-          parseInt(from.params.workflowId)
-        )
-        if (workflow) {
+        try {
+          const workflow = this.$store.getters['automationWorkflow/getById'](
+            automation,
+            parseInt(from.params.workflowId)
+          )
+
           this.$store.dispatch('automationWorkflowNode/select', {
             workflow,
             node: null,
@@ -240,6 +242,10 @@ export default {
             application: automation,
             data: { _loadedOnce: false },
           })
+        } catch (e) {
+          if (!(e instanceof StoreItemLookupError)) {
+            throw e
+          }
         }
       }
       next()
