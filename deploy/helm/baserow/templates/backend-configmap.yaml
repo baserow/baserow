@@ -19,8 +19,8 @@ data:
   AWS_S3_CUSTOM_DOMAIN: {{ .Values.global.baserow.objectsDomain }}/{{ (index .Values.minio.provisioning.buckets 0).name }}
   AWS_S3_REGION_NAME: "us-east-1"
 {{- end }}
-{{- if .Values.global.baserow.assistantLLMModel -}}
-  BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL: "{{ .Values.baserow.assistantLLMModel }}"
+{{- if .Values.global.baserow.assistantLLMModel }}
+  BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL: "{{ .Values.global.baserow.assistantLLMModel }}"
 {{- end }}
 {{- if (index .Values "baserow-embeddings").enabled }}
   BASEROW_EMBEDDINGS_API_URL: http://{{ include "baserow.fullname" (index .Subcharts "baserow-embeddings") }}
