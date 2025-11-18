@@ -10,7 +10,11 @@
       {{ buttonLabel }}
     </Button>
 
-    <Alert v-if="cantBeTestedReason" type="info-neutral">
+    <Alert
+      v-if="cantBeTestedReason"
+      type="info-neutral"
+      class="margin-bottom-0"
+    >
       <p>{{ cantBeTestedReason }}</p>
     </Alert>
 
