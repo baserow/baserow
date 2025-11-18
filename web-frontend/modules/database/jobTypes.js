@@ -70,3 +70,13 @@ export class SyncDataSyncTableJobType extends JobType {
     return 'syncDataSyncTable'
   }
 }
+
+export class FileImportJobType extends JobType {
+  static getType() {
+    return 'file_import'
+  }
+
+  getName() {
+    return 'fileImport'
+  }
+}
