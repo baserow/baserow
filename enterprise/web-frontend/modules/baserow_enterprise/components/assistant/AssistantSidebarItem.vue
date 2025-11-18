@@ -1,5 +1,5 @@
 <template>
-  <div v-if="hasPermission">
+  <div v-if="hasPermission && isConfigured">
     <li class="tree__item">
       <div class="tree__action">
         <a href="#" class="tree__link" @click.prevent="toggleRightSidebar">
@@ -39,10 +39,14 @@ export default {
         this.workspace.id
       )
     },
+    isConfigured() {
+      return this.$config.BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL !== null
+    },
   },
   mounted() {
     if (
       this.hasPermission &&
+      this.isConfigured &&
       localStorage.getItem('baserow.rightSidebarOpen') !== 'false'
     ) {
       // open the right sidebar if the feature is available

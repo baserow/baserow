@@ -48,4 +48,9 @@ export default function () {
   // imports the original. We do this so that we can use the existing variables,
   // mixins, placeholders etc.
   this.options.css[0] = path.resolve(__dirname, 'assets/scss/default.scss')
+
+  if (this.options.publicRuntimeConfig) {
+    this.options.publicRuntimeConfig.BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL =
+      process.env.BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL || null
+  }
 }
