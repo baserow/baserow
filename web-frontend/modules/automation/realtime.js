@@ -4,10 +4,12 @@ export const registerRealtimeEvents = (realtime) => {
     const automation = store.getters['application/get'](
       data.workflow.automation_id
     )
-    store.dispatch('automationWorkflow/forceCreate', {
-      automation,
-      workflow: data.workflow,
-    })
+    if (automation !== undefined) {
+      store.dispatch('automationWorkflow/forceCreate', {
+        automation,
+        workflow: data.workflow,
+      })
+    }
   })
 
   realtime.registerEvent('automation_workflow_deleted', ({ store }, data) => {
