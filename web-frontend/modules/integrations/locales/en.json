@@ -309,5 +309,15 @@
     "monthHelper": "This workflow will run every month on the specified day and time in your local timezone ({timezone})",
     "deactivatedTitle": "Periodic trigger deactivated",
     "deactivatedText": "This periodic trigger has been automatically deactivated due to consecutive failures."
+  },
+  "localBaserowServiceForm": {
+    "integrationDropdownLabel": "Integration",
+    "rowIdLabel": "Row ID",
+    "rowIdPlaceholder": "Select a row ID"
+  },
+  "localBaserowUpsertRowServiceForm": {
+    "fieldMappingPlaceholder": "Choose a field value",
+    "noTableSelectedMessage": "Choose a table to begin configuring your fields.",
+    "noWritableFields": "This table does not contain any writable fields."
   }
 }

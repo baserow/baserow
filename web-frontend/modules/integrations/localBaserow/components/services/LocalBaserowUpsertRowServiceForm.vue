@@ -11,7 +11,7 @@
     ></LocalBaserowServiceForm>
     <div v-if="tableLoading" class="loading-spinner margin-bottom-1"></div>
     <p v-if="values.integration_id && !values.table_id">
-      {{ $t('upsertRowWorkflowActionForm.noTableSelectedMessage') }}
+      {{ $t('localBaserowUpsertRowServiceForm.noTableSelectedMessage') }}
     </p>
     <FieldMappingsForm
       v-if="!tableLoading"
@@ -22,7 +22,7 @@
       v-if="!tableLoading && service?.table_id && !writableSchemaFields.length"
       type="warning"
     >
-      <p>{{ $t('upsertRowWorkflowActionForm.noWritableFields') }}</p>
+      <p>{{ $t('localBaserowUpsertRowServiceForm.noWritableFields') }}</p>
     </Alert>
   </form>
 </template>
