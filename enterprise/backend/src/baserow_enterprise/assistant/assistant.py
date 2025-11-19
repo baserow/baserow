@@ -15,6 +15,7 @@ from baserow_enterprise.assistant.exceptions import (
     AssistantMessageCancelled,
     AssistantModelNotSupportedError,
 )
+from baserow_enterprise.assistant.telemetry import PosthogTracingCallback
 from baserow_enterprise.assistant.tools.navigation.types import AnyNavigationRequestType
 from baserow_enterprise.assistant.tools.navigation.utils import unsafe_navigate_to
 from baserow_enterprise.assistant.tools.registries import assistant_tool_registry
@@ -190,21 +191,41 @@ class Assistant:
                 self._user, self._workspace, self.tool_helpers
             )
         ]
-        self.callbacks = AssistantCallbacks(self.tool_helpers)
+
+        self._assistant_callbacks = AssistantCallbacks(self.tool_helpers)
+        self._telemetry_callbacks = PosthogTracingCallback()
+        self._callbacks = [self._assistant_callbacks, self._telemetry_callbacks]
 
         module_kwargs = {
             "temperature": settings.BASEROW_ENTERPRISE_ASSISTANT_LLM_TEMPERATURE,
             "response_format": {"type": "json_object"},
         }
-
-        self.search_user_docs_tool = next(
-            (tool for tool in tools if tool.name == "search_user_docs"), None
-        )
+        self.search_user_docs_tool = self._get_search_user_docs_tool(tools)
         self.agent_tools = tools
         self._request_router = udspy.ChainOfThought(RequestRouter, **module_kwargs)
         self._assistant = udspy.ReAct(
             ChatSignature, tools=self.agent_tools, max_iters=20, **module_kwargs
         )
+
+    def _get_search_user_docs_tool(
+        self, tools: list[udspy.Tool | Callable]
+    ) -> udspy.Tool | None:
+        """
+        Retrieves the search_user_docs tool from the list of tools if available.
+
+        :param tools: The list of tools to search through.
+        :return: The search_user_docs as udspy.Tool or None if not found.
+        """
+
+        search_user_docs_tool = next(
+            (tool for tool in tools if tool.name == "search_user_docs"), None
+        )
+        if search_user_docs_tool is None or isinstance(
+            search_user_docs_tool, udspy.Tool
+        ):
+            return search_user_docs_tool
+
+        return udspy.Tool(search_user_docs_tool)
 
     async def acreate_chat_message(
         self,
@@ -360,7 +381,7 @@ class Assistant:
         :return: The created AiMessage instance to return to the user.
         """
 
-        sources = self.callbacks.sources
+        sources = self._assistant_callbacks.sources
         ai_msg = await self.acreate_chat_message(
             AssistantChatMessage.Role.AI,
             prediction.answer,
@@ -449,7 +470,7 @@ class Assistant:
                 messages.append(
                     AiMessageChunk(
                         content=event.content,
-                        sources=self.callbacks.sources,
+                        sources=self._assistant_callbacks.sources,
                     )
                 )
 
@@ -472,7 +493,6 @@ class Assistant:
                                 "the local knowledge base. \n\n"
                                 "You can find setup instructions at: https://baserow.io/user-docs"
                             ),
-                            sources=[],
                         )
                     )
             elif getattr(event, "answer", None):
@@ -510,7 +530,7 @@ class Assistant:
                 messages.append(
                     AiMessageChunk(
                         content=event.content,
-                        sources=self.callbacks.sources,
+                        sources=self._assistant_callbacks.sources,
                     )
                 )
 
@@ -586,11 +606,12 @@ class Assistant:
             AssistantChatMessage.Role.HUMAN,
             message.content,
         )
+        default_callbacks = udspy.settings.callbacks
 
         with udspy.settings.context(
             lm=self._lm_client,
-            callbacks=[*udspy.settings.callbacks, self.callbacks],
-        ):
+            callbacks=[*default_callbacks, *self._callbacks],
+        ), self._telemetry_callbacks.trace(self._chat, human_msg.content):
             message_id = str(human_msg.id)
             yield AiStartedMessage(message_id=message_id)
 

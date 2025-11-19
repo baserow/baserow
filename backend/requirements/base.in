@@ -64,7 +64,7 @@ Brotli==1.1.0
 loguru==0.7.2
 django-cachalot==2.6.2
 celery-singleton==0.3.1
-posthog==3.5.0
+posthog==7.0.1
 https://github.com/fellowapp/prosemirror-py/archive/refs/tags/v0.3.5.zip
 rich==13.7.1
 tzdata==2025.2

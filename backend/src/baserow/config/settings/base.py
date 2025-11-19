@@ -11,7 +11,6 @@ from urllib.parse import urljoin, urlparse
 from django.core.exceptions import ImproperlyConfigured
 
 import dj_database_url
-import posthog
 import sentry_sdk
 from corsheaders.defaults import default_headers
 from sentry_sdk.integrations.django import DjangoIntegration
@@ -1243,13 +1242,8 @@ PG_FULLTEXT_SEARCH_UPDATE_DATA_THROTTLE_SECONDS = float(
 )
 
 POSTHOG_PROJECT_API_KEY = os.getenv("POSTHOG_PROJECT_API_KEY", "")
-POSTHOG_HOST = os.getenv("POSTHOG_HOST", "")
-POSTHOG_ENABLED = POSTHOG_PROJECT_API_KEY and POSTHOG_HOST
-if POSTHOG_ENABLED:
-    posthog.project_api_key = POSTHOG_PROJECT_API_KEY
-    posthog.host = POSTHOG_HOST
-else:
-    posthog.disabled = True
+POSTHOG_HOST = os.getenv("POSTHOG_HOST") or None
+POSTHOG_ENABLED = bool(POSTHOG_PROJECT_API_KEY)
 
 BASEROW_BUILDER_DOMAINS = os.getenv("BASEROW_BUILDER_DOMAINS", None)
 BASEROW_BUILDER_DOMAINS = (
