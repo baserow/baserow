@@ -14,6 +14,11 @@ def load_test_data():
     print("Add basic users...")
     user_handler = UserHandler()
 
+    # Allow to import any external archive
+    core_settings = CoreHandler().get_settings()
+    core_settings.verify_import_signature = False
+    core_settings.save()
+
     for i in range(3):
         # Create main admin
         email = f"admin{i + 1}@baserow.io" if i > 0 else "admin@baserow.io"

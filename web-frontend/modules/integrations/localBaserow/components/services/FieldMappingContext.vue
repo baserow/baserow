@@ -5,7 +5,10 @@
         <a
           class="context__menu-item-link"
           @click.prevent="
-            handleEditClick({ enabled: !fieldMapping.enabled, value: '' })
+            handleEditClick({
+              enabled: !fieldMapping.enabled,
+              value: { formula: '' },
+            })
           "
         >
           <i class="context__menu-item-icon" :class="enabledClass"></i>
