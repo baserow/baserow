@@ -50,8 +50,15 @@ export class AutomationApplicationType extends ApplicationType {
     return SidebarComponentAutomation
   }
 
-  delete(application, { $router }) {
-    $router.push({ name: 'dashboard' })
+  delete(application) {
+    const { store, router } = this.app
+    const workflowSelected = store.getters['automationWorkflow/getWorkflows'](
+      application
+    ).some((workflow) => workflow._.selected)
+
+    if (workflowSelected) {
+      router.push({ name: 'dashboard' })
+    }
   }
 
   async loadExtraData(automation) {
