@@ -11,6 +11,7 @@ from baserow.core.two_factor_auth.exceptions import (
 )
 from baserow.core.two_factor_auth.models import (
     TOTPAuthProviderModel,
+    TOTPUsedCode,
     TwoFactorAuthRecoveryCode,
 )
 from baserow.core.two_factor_auth.registries import TOTPAuthProviderType
@@ -66,6 +67,7 @@ def test_totp_configure_finish_configuration(data_fixture):
     assert provider.provisioning_qr_code == ""
     assert TOTPAuthProviderModel.objects.filter(user=user).count() == 1
     assert TwoFactorAuthRecoveryCode.objects.filter(user=user).count() == 8
+    assert TOTPUsedCode.objects.filter(user=user).count() == 1
 
 
 @pytest.mark.django_db
@@ -123,20 +125,60 @@ def test_generate_backup_codes():
 @pytest.mark.django_db
 def test_verify_with_code(data_fixture):
     user = data_fixture.create_user()
-    provider = data_fixture.configure_totp(user)
-    totp = pyotp.TOTP(provider.secret)
-    code = totp.now()
+    with freeze_time("2020-02-01 00:00"):
+        provider = data_fixture.configure_totp(user)
+        assert TOTPUsedCode.objects.filter(user=user).count() == 1
 
-    assert TOTPAuthProviderType().verify(email=user.email, code=code)
+    totp = pyotp.TOTP(provider.secret)
+
+    with freeze_time("2020-02-01 00:05"):
+        code = totp.now()
+        assert TOTPAuthProviderType().verify(email=user.email, code=code)
+        assert TOTPUsedCode.objects.filter(user=user).count() == 1
 
 
 @pytest.mark.django_db
-def test_verify_with_code_fails(data_fixture):
+def test_verify_with_code_fails_wrong_code(data_fixture):
     user = data_fixture.create_user()
     data_fixture.configure_totp(user)
 
     with pytest.raises(VerificationFailed):
         TOTPAuthProviderType().verify(email=user.email, code="1234567")
+
+
+@pytest.mark.django_db
+def test_verify_with_code_code_cannot_be_reused(data_fixture):
+    user = data_fixture.create_user()
+    user_2 = data_fixture.create_user()
+    with freeze_time("2020-02-01 00:00"):
+        provider = data_fixture.configure_totp(user)
+        provider_2 = data_fixture.configure_totp(user_2)
+        provider_2.secret = provider.secret
+        provider_2.save()
+    totp = pyotp.TOTP(provider.secret)
+
+    with freeze_time("2020-02-01 00:05"):
+        code = totp.now()
+
+        # first time the code is valid
+        assert TOTPAuthProviderType().verify(email=user.email, code=code)
+
+        with pytest.raises(VerificationFailed):
+            TOTPAuthProviderType().verify(email=user.email, code=code)
+
+        # another user with the same secret would not be
+        # affected
+        assert TOTPAuthProviderType().verify(email=user_2.email, code=code)
+
+    with freeze_time("2020-02-01 00:10"):
+        code = totp.now()
+
+        # user can use a new code from a different time window
+        assert TOTPAuthProviderType().verify(email=user.email, code=code)
+
+        # older used codes are automatically deleted upon successful
+        # verification
+        assert TOTPUsedCode.objects.filter(user=user).count() == 1
 
 
 @pytest.mark.django_db
@@ -169,9 +211,14 @@ def test_verify_no_provider(data_fixture):
 @pytest.mark.django_db
 def test_totp_disable(data_fixture):
     user = data_fixture.create_user()
+    user_2 = data_fixture.create_user()
     provider = data_fixture.configure_totp(user)
+    data_fixture.configure_totp(user_2)
+    assert TOTPUsedCode.objects.count() == 2
 
     TOTPAuthProviderType().disable(provider, user)
 
     assert TOTPAuthProviderModel.objects.filter(user=user).count() == 0
     assert TwoFactorAuthRecoveryCode.objects.filter(user=user).count() == 0
+    assert TOTPUsedCode.objects.count() == 1
+    assert TOTPUsedCode.objects.filter(user=user_2).count() == 1

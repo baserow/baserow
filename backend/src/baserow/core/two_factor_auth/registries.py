@@ -26,6 +26,7 @@ from baserow.core.two_factor_auth.exceptions import (
 )
 from baserow.core.two_factor_auth.models import (
     TOTPAuthProviderModel,
+    TOTPUsedCode,
     TwoFactorAuthProviderModel,
     TwoFactorAuthRecoveryCode,
 )
@@ -134,6 +135,12 @@ class TOTPAuthProviderType(TwoFactorAuthProviderType):
                 backup_codes_plaintext = self.generate_backup_codes()
                 self.store_backup_codes(provider, backup_codes_plaintext)
 
+                TOTPUsedCode.objects.create(
+                    user=provider.user,
+                    used_at=datetime.now(tz=timezone.utc),
+                    code=hashlib.sha256(code.encode("utf-8")).hexdigest(),
+                )
+
                 provider._backup_codes = backup_codes_plaintext
                 return provider
             else:
@@ -215,14 +222,27 @@ class TOTPAuthProviderType(TwoFactorAuthProviderType):
             raise VerificationFailed
 
         totp = pyotp.TOTP(provider.specific.secret)
+        current_ts = datetime.now(tz=timezone.utc)
+        hashed_code = hashlib.sha256(code.encode("utf-8")).hexdigest()
 
-        if totp.verify(code):
+        code_already_used = TOTPUsedCode.objects.filter(
+            user=provider.user, code=hashed_code
+        ).exists()
+
+        if not code_already_used and totp.verify(code):
+            TOTPUsedCode.objects.filter(user=provider.user).delete()
+            TOTPUsedCode.objects.create(
+                user=provider.user,
+                used_at=current_ts,
+                code=hashed_code,
+            )
             return True
         else:
             raise VerificationFailed
 
     def disable(self, provider, user):
         TwoFactorAuthRecoveryCode.objects.filter(user=user).delete()
+        TOTPUsedCode.objects.filter(user=user).delete()
         provider.delete()
 
 
