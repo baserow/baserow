@@ -13,17 +13,17 @@
     <p v-if="values.integration_id && !values.table_id">
       {{ $t('upsertRowWorkflowActionForm.noTableSelectedMessage') }}
     </p>
-    <FieldMappingForm
+    <FieldMappingsForm
       v-if="!tableLoading"
       v-model="values.field_mappings"
-      :fields="getWritableSchemaFields"
-    ></FieldMappingForm>
+      :fields="writableSchemaFields"
+    ></FieldMappingsForm>
   </form>
 </template>
 
 <script>
 import _ from 'lodash'
-import FieldMappingForm from '@baserow/modules/integrations/localBaserow/components/services/FieldMappingForm'
+import FieldMappingsForm from '@baserow/modules/integrations/localBaserow/components/services/FieldMappingsForm'
 import form from '@baserow/modules/core/mixins/form'
 import LocalBaserowServiceForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowServiceForm'
 
@@ -31,7 +31,7 @@ export default {
   name: 'LocalBaserowUpsertRowServiceForm',
   components: {
     LocalBaserowServiceForm,
-    FieldMappingForm,
+    FieldMappingsForm,
   },
   mixins: [form],
   props: {
@@ -75,7 +75,7 @@ export default {
      * Returns the writable fields in the schema, which the
      * `FieldMappingForm` can use to display the field mapping options.
      */
-    getWritableSchemaFields() {
+    writableSchemaFields() {
       if (
         this.service == null ||
         this.service.schema == null // have service, no table

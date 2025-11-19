@@ -1,115 +1,108 @@
 <template>
-  <div>
-    <FormGroup
-      v-for="field in filteredFields"
-      :key="field.id"
-      small-label
-      :label="field.name"
-      required
-      class="margin-bottom-2"
-    >
-      <FieldMapping
-        :field-mapping="field.mapping"
-        :placeholder="$t('upsertRowWorkflowActionForm.fieldMappingPlaceholder')"
-        @change="updateFieldMapping(field.id, $event)"
-      />
+  <div v-if="mapping?.enabled">
+    <FormGroup small-label :label="field.name" required class="margin-bottom-2">
+      <InViewport>
+        <InjectedFormulaInput
+          :key="`${field.id} ${mapping.enabled}`"
+          v-model="fieldValue"
+          :disabled="!mapping.enabled"
+          :placeholder="
+            mapping.enabled
+              ? $t('upsertRowWorkflowActionForm.fieldMappingPlaceholder')
+              : 'Disabled'
+          "
+        />
+        <template #placeholder>
+          <div class="field-mapping-form__placeholder" />
+        </template>
+      </InViewport>
       <template #after-input>
-        <div :ref="`editFieldMappingOpener-${field.id}`">
+        <div :ref="`editFieldMappingOpener`">
           <ButtonIcon
             type="secondary"
             icon="iconoir-more-vert"
-            @click="openContext(field)"
+            @click="openContext()"
           />
         </div>
         <FieldMappingContext
-          :ref="`fieldMappingContext-${field.id}`"
-          :field-mapping="field.mapping"
-          @edit="updateFieldMapping(field.id, $event)"
+          :ref="`fieldMappingContext`"
+          :field-mapping="mapping"
+          @edit="$emit('update', $event)"
         />
       </template>
+    </FormGroup>
+  </div>
+  <div v-else>
+    <FormGroup small-label :label="field.name" required class="margin-bottom-2">
+      <Button type="secondary" @click="$emit('update', defaultEmptyFormula())">
+        {{ $t('fieldMappingContext.enableField') }}
+      </Button>
     </FormGroup>
   </div>
 </template>
 
 <script>
-import FieldMapping from '@baserow/modules/integrations/localBaserow/components/services/FieldMapping'
 import FieldMappingContext from '@baserow/modules/integrations/localBaserow/components/services/FieldMappingContext'
+import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
+import InViewport from '@baserow/modules/core/components/InViewport'
 
 export default {
   name: 'FieldMappingForm',
-  components: { FieldMappingContext, FieldMapping },
+  components: { FieldMappingContext, InjectedFormulaInput, InViewport },
   inject: ['workspace'],
   props: {
-    value: {
-      type: Array,
+    field: {
+      type: Object,
       required: true,
     },
-    fields: {
-      type: Array,
-      required: true,
+    mapping: {
+      type: Object,
+      required: false,
+      default: undefined,
     },
   },
+  data() {
+    return {
+      localValue: this.mapping?.value,
+      debounceTimeout: null,
+    }
+  },
   computed: {
-    filteredFields() {
-      return this.fields
-        .map((field) => ({
-          ...field,
-          mapping: this.getFieldMapping(field.id),
-        }))
-        .filter((field) => this.canWriteFieldValues(field))
+    fieldValue: {
+      get() {
+        return this.localValue
+      },
+      set(value) {
+        this.localValue = value
+
+        // Debouncing value update as it produces performance issues when they are
+        // a lot of fields
+        clearTimeout(this.debounceTimeout)
+        this.debounceTimeout = setTimeout(() => {
+          this.$emit('update', { value })
+        }, 500)
+      },
+    },
+  },
+  watch: {
+    'mapping.value'(newValue) {
+      this.localValue = newValue
     },
   },
   methods: {
-    openContext(field) {
-      this.$refs[`fieldMappingContext-${field.id}`][0].toggle(
-        this.$refs[`editFieldMappingOpener-${field.id}`][0],
+    defaultEmptyFormula() {
+      return {
+        enabled: true,
+        value: { formula: '""' },
+      }
+    },
+    openContext() {
+      this.$refs.fieldMappingContext.toggle(
+        this.$refs.editFieldMappingOpener,
         'bottom',
         'left',
         4
       )
-    },
-    canWriteFieldValues(field) {
-      return this.$hasPermission(
-        'database.table.field.write_values',
-        field,
-        this.workspace.id
-      )
-    },
-    getFieldMapping(fieldId) {
-      return (
-        this.value.find(
-          (fieldMapping) => fieldMapping.field_id === fieldId
-        ) || { enabled: true, field_id: fieldId, value: {} }
-      )
-    },
-    updateFieldMapping(fieldId, changes) {
-      const existingMapping = this.value.some(
-        ({ field_id: existingId }) => existingId === fieldId
-      )
-      const existingFieldIds = this.fields.map(({ id }) => id)
-
-      // If the field has been removed in the meantime we want to ignore it
-      const filteredValue = this.value.filter(({ field_id: fieldId }) =>
-        existingFieldIds.includes(fieldId)
-      )
-
-      if (existingMapping) {
-        const newMapping = filteredValue.map((fieldMapping) => {
-          if (fieldMapping.field_id === fieldId) {
-            return { ...fieldMapping, ...changes }
-          }
-          return fieldMapping
-        })
-        this.$emit('input', newMapping)
-      } else {
-        const newMapping = filteredValue
-        newMapping.push({
-          enabled: true,
-          field_id: fieldId,
-          ...changes,
-        })
-        this.$emit('input', newMapping)
-      }
     },
   },
 }
