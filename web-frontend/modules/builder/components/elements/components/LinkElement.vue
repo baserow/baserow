@@ -5,12 +5,15 @@
     :style="getStyleOverride(element.variant)"
   >
     <ABLink :target="element.target" :url="url" :variant="element.variant">
-      {{
-        element.value
-          ? resolvedValue ||
-            (mode === 'editing' ? $t('linkElement.emptyValue') : '&nbsp;')
-          : $t('linkElement.missingValue')
-      }}
+      <span
+        v-html="
+          element.value
+            ? resolvedValue ||
+              (mode === 'editing' ? $t('linkElement.emptyValue') : '&nbsp;')
+            : $t('linkElement.missingValue')
+        "
+      >
+      </span>
     </ABLink>
   </div>
 </template>
@@ -19,6 +22,7 @@
 import element from '@baserow/modules/builder/mixins/element'
 import resolveElementUrl from '@baserow/modules/builder/utils/urlResolution'
 import { ensureString } from '@baserow/modules/core/utils/validator'
+import { decodeHTMLEntities } from '@baserow/modules/core/utils/string'
 
 /**
  * @typedef LinkElement
@@ -45,7 +49,8 @@ export default {
   },
   computed: {
     resolvedValue() {
-      return ensureString(this.resolveFormula(this.element.value))
+      const raw = ensureString(this.resolveFormula(this.element.value))
+      return decodeHTMLEntities(raw);
     },
     pages() {
       return this.$store.getters['page/getVisiblePages'](this.builder)

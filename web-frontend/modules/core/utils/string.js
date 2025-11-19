@@ -223,3 +223,19 @@ export function collatedStringCompare(stringA, stringB, order) {
     ? stringA.localeCompare(stringB, 'en')
     : stringB.localeCompare(stringA, 'en')
 }
+
+/**
+ * Decodes HTML entities in a string to their literal character equivalents.
+ * For example: "&gt;" becomes ">", "&lt;" becomes "<", "&amp;" becomes "&"
+ *
+ * @param {string} text - The text containing HTML entities
+ * @returns {string} The decoded text with literal characters
+ */
+export function decodeHTMLEntities(text) {
+  if (!text || typeof text !== 'string') return text
+  if (typeof document === 'undefined') return text
+
+  const textarea = document.createElement('textarea')
+  textarea.innerHTML = text
+  return textarea.value
+}

@@ -103,6 +103,13 @@ import elementImageText from '@baserow/modules/builder/assets/icons/element-text
 import _ from 'lodash'
 import { getValueAtPath } from '../core/utils/object'
 
+function decodeHTMLEntities(text) {
+  if (typeof document === 'undefined') return text
+  const textarea = document.createElement('textarea')
+  textarea.innerHTML = text
+  return textarea.value
+}
+
 export class ElementType extends Registerable {
   get name() {
     return null
@@ -1650,8 +1657,10 @@ export class LinkElementType extends ElementType {
       this.resolveFormula(element.value, applicationContext)
     ).trim()
 
-    return displayValue
-      ? `${displayValue}${destination}`
+    const decodedValue = decodeHTMLEntities(displayValue)
+
+    return decodedValue
+      ? `${decodedValue}${destination}`
       : `${this.name}${destination}`
   }
 }
@@ -1776,7 +1785,7 @@ export class ButtonElementType extends ElementType {
     const resolvedName = ensureString(
       this.resolveFormula(element.value, applicationContext)
     ).trim()
-    return resolvedName || this.name
+    return decodeHTMLEntities(resolvedName) || this.name
   }
 }
 

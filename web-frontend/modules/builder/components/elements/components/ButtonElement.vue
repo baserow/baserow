@@ -10,12 +10,15 @@
       :loading="workflowActionsInProgress"
       @click="fireEvent(elementType.getEventByName(element, 'click'))"
     >
-      {{
-        element.value
-          ? resolvedValue ||
-            (mode === 'editing' ? $t('buttonElement.emptyValue') : '&nbsp;')
-          : $t('buttonElement.missingValue')
-      }}
+      <span
+        v-html="
+          element.value
+            ? resolvedValue ||
+              (mode === 'editing' ? $t('buttonElement.emptyValue') : '&nbsp;')
+            : $t('buttonElement.missingValue')
+        "
+      >
+      </span>
     </ABButton>
   </div>
 </template>
@@ -23,6 +26,7 @@
 <script>
 import element from '@baserow/modules/builder/mixins/element'
 import { ensureString } from '@baserow/modules/core/utils/validator'
+import { decodeHTMLEntities } from '@baserow/modules/core/utils/string'
 
 /**
  * @typedef ButtonElement
@@ -44,7 +48,8 @@ export default {
   },
   computed: {
     resolvedValue() {
-      return ensureString(this.resolveFormula(this.element.value))
+      const raw = ensureString(this.resolveFormula(this.element.value))
+      return decodeHTMLEntities(raw);
     },
   },
 }
