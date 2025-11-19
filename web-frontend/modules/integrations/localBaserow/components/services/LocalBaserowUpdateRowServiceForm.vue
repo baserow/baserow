@@ -1,6 +1,7 @@
 <template>
   <UpsertRowWorkflowActionForm
     enable-row-id
+    :disallow-data-synced-tables="false"
     v-bind="$attrs"
     v-on="$listeners"
   />

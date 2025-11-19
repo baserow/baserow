@@ -5,7 +5,7 @@
       :application="application"
       :enable-view-picker="false"
       :default-values="defaultValues"
-      disallow-data-synced-tables
+      :disallow-data-synced-tables="disallowDataSyncedTables"
       @table-changed="handleTableChange"
       @values-changed="emitServiceChange($event)"
     ></LocalBaserowServiceForm>
@@ -17,7 +17,13 @@
       v-if="!tableLoading"
       v-model="values.field_mappings"
       :fields="writableSchemaFields"
-    ></FieldMappingsForm>
+    ></FieldMappingForm>
+    <Alert
+      v-if="!tableLoading && service?.table_id && !writableSchemaFields.length"
+      type="warning"
+    >
+      <p>{{ $t('upsertRowWorkflowActionForm.noWritableFields') }}</p>
+    </Alert>
   </form>
 </template>
 
@@ -57,6 +63,17 @@ export default {
       type: Boolean,
       required: false,
       default: false,
+    },
+    /**
+     * Whether to disallow selecting data synced tables. It defaults to
+     * true as this is the default behaviour for the create row action
+     * form. The update row action form allows data synced tables, assuming
+     * they have writable fields.
+     */
+    disallowDataSyncedTables: {
+      type: Boolean,
+      required: false,
+      default: true,
     },
   },
   data() {

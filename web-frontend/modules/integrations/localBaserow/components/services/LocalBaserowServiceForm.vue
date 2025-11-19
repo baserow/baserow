@@ -91,7 +91,7 @@ export default {
     },
     /**
      * Whether to disallow the selection of data synced tables. Data sources
-     * can select them, but workflow actions cannot.
+     * can select them, but a create-row workflow action cannot.
      */
     disallowDataSyncedTables: {
       type: Boolean,

@@ -915,7 +915,8 @@
   },
   "upsertRowWorkflowActionForm": {
     "fieldMappingPlaceholder": "Choose a field value",
-    "noTableSelectedMessage": "Choose a table to begin configuring your fields."
+    "noTableSelectedMessage": "Choose a table to begin configuring your fields.",
+    "noWritableFields": "This table does not contain any writable fields."
   },
   "fieldMappingContext": {
     "enableField": "Enable field",
