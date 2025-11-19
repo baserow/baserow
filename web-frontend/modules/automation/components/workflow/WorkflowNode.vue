@@ -36,6 +36,7 @@
             @remove-node="emit('remove-node', $event)"
             @replace-node="emit('replace-node', $event)"
             @move-node="emit('move-node', $event)"
+            @duplicate-node="emit('duplicate-node', $event)"
           />
         </div>
       </div>
