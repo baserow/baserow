@@ -23,6 +23,7 @@ from baserow.core.formula.runtime_formula_types import (
     RuntimeIf,
     RuntimeIsEven,
     RuntimeIsOdd,
+    RuntimeLength,
     RuntimeLessThan,
     RuntimeLessThanOrEqual,
     RuntimeLower,
@@ -1706,4 +1707,47 @@ def test_runtime_replace_validate_type_of_args(args, expected):
 )
 def test_runtime_replace_validate_number_of_args(args, expected):
     result = RuntimeReplace().validate_number_of_args(args)
+    assert result is expected
+
+
+#
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        (["Hello, world!"], 13),
+        (['{"a": "b", "c": "d"}'], 2),
+        (['["a", "b", "c", "d"]'], 4),
+    ],
+)
+def test_runtime_length_execute(args, expected):
+    parsed_args = RuntimeLength().parse_args(args)
+    result = RuntimeLength().execute({}, parsed_args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        (["foo"], None),
+        (['{"foo": "bar"}'], None),
+        (['["foo", "bar"]'], None),
+    ],
+)
+def test_runtime_length_validate_type_of_args(args, expected):
+    result = RuntimeLength().validate_type_of_args(args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([], False),
+        (["foo"], True),
+        (["foo", "bar"], False),
+    ],
+)
+def test_runtime_length_validate_number_of_args(args, expected):
+    result = RuntimeLength().validate_number_of_args(args)
     assert result is expected

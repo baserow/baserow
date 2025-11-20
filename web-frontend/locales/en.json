@@ -677,6 +677,7 @@
     "andDescription": "Returns true if all arguments are true, otherwise returns false.",
     "orDescription": "Returns true if any argument is true, otherwise returns false.",
     "replaceDescription": "Given the first argument, replaces all occurrences of the second argument with the third argument.",
+    "lengthDescription": "Returns the length of the argument: the number of items in an array, the number of characters in a string, or the number of keys in an object.",
     "formulaTypeFormula": "Function | Functions",
     "formulaTypeOperator": "Operator | Operators",
     "formulaTypeData": "Data",

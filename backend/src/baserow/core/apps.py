@@ -53,6 +53,7 @@ class CoreConfig(AppConfig):
             RuntimeIf,
             RuntimeIsEven,
             RuntimeIsOdd,
+            RuntimeLength,
             RuntimeLessThan,
             RuntimeLessThanOrEqual,
             RuntimeLower,
@@ -110,6 +111,7 @@ class CoreConfig(AppConfig):
         formula_runtime_function_registry.register(RuntimeAnd())
         formula_runtime_function_registry.register(RuntimeOr())
         formula_runtime_function_registry.register(RuntimeReplace())
+        formula_runtime_function_registry.register(RuntimeLength())
 
         from baserow.core.permission_manager import (
             AllowIfTemplatePermissionManagerType,

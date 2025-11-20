@@ -35,6 +35,7 @@ import {
   RuntimeToday,
   RuntimeUpper,
   RuntimeYear,
+  RuntimeLength,
 } from '@baserow/modules/core/runtimeFormulaTypes'
 import { expect } from '@jest/globals'
 
@@ -1480,6 +1481,39 @@ describe('RuntimeReplace', () => {
     { args: ['foo', 'bar', 'baz', 'x'], expected: false },
   ])('validates number of args', ({ args, expected }) => {
     const formulaType = new RuntimeReplace()
+    const result = formulaType.validateNumberOfArgs(args)
+    expect(result).toStrictEqual(expected)
+  })
+})
+
+describe('RuntimeLength', () => {
+  test.each([
+    { args: ['Hello, world!'], expected: 13 },
+    { args: ['{"a": "b", "c": "d"}'], expected: 2 },
+    { args: ['["a", "b", "c", "d"]'], expected: 4 },
+  ])('execute returns expected value', ({ args, expected }) => {
+    const formulaType = new RuntimeLength()
+    const parsedArgs = formulaType.parseArgs(args)
+    const result = formulaType.execute({}, parsedArgs)
+    expect(result).toEqual(expected)
+  })
+
+  test.each([
+    { args: ['foo'], expected: undefined },
+    { args: ['{"foo": "bar"}'], expected: undefined },
+    { args: ['["foo", "bar"]'], expected: undefined },
+  ])('validates type of args', ({ args, expected }) => {
+    const formulaType = new RuntimeLength()
+    const result = formulaType.validateTypeOfArgs(args)
+    expect(result).toStrictEqual(expected)
+  })
+
+  test.each([
+    { args: [], expected: false },
+    { args: ['foo'], expected: true },
+    { args: ['foo', 'bar'], expected: false },
+  ])('validates number of args', ({ args, expected }) => {
+    const formulaType = new RuntimeLength()
     const result = formulaType.validateNumberOfArgs(args)
     expect(result).toStrictEqual(expected)
   })

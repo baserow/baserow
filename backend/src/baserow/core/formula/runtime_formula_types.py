@@ -3,6 +3,7 @@ import uuid
 from typing import Optional
 from zoneinfo import ZoneInfo
 
+from django.core.exceptions import ValidationError
 from django.utils import timezone
 
 from baserow.core.formula.argument_types import (
@@ -17,7 +18,7 @@ from baserow.core.formula.argument_types import (
 from baserow.core.formula.registries import RuntimeFormulaFunction
 from baserow.core.formula.types import FormulaArg, FormulaArgs, FormulaContext
 from baserow.core.formula.utils.date import convert_date_format_moment_to_python
-from baserow.core.formula.validator import ensure_string
+from baserow.core.formula.validator import ensure_array, ensure_object, ensure_string
 
 
 class RuntimeConcat(RuntimeFormulaFunction):
@@ -431,3 +432,31 @@ class RuntimeReplace(RuntimeFormulaFunction):
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
         return args[0].replace(args[1], args[2])
+
+
+class RuntimeLength(RuntimeFormulaFunction):
+    type = "length"
+
+    args = [
+        AnyBaserowRuntimeFormulaArgumentType(),
+    ]
+
+    def execute(self, context: FormulaContext, args: FormulaArgs):
+        value = args[0]
+
+        try:
+            return len(ensure_object(value))
+        except ValidationError:
+            pass
+
+        try:
+            return len(ensure_array(value, allow_literal_string=True))
+        except ValidationError:
+            pass
+
+        try:
+            return len(ensure_string(value))
+        except ValidationError:
+            pass
+
+        return 0

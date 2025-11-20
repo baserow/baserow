@@ -1,3 +1,4 @@
+import ast
 import json
 import re
 from datetime import date, datetime
@@ -150,7 +151,9 @@ def ensure_string_or_integer(value: Any, allow_empty: bool = True) -> Union[int,
     return ensure_string(value, allow_empty=allow_empty)
 
 
-def ensure_array(value: Any, allow_empty: bool = True) -> List[Any]:
+def ensure_array(
+    value: Any, allow_empty: bool = True, allow_literal_array: bool = False
+) -> List[Any]:
     """
     Ensure that the value is an array or try to convert it.
     Strings will be treated as comma separated values.
@@ -158,6 +161,8 @@ def ensure_array(value: Any, allow_empty: bool = True) -> List[Any]:
 
     :param value: The value to ensure as an array.
     :param allow_empty: Whether we should raise an error if `value` is empty.
+    :param allow_literal_array: Whether a literal string representation of
+        a list should be allowed.
     :return: The value as an array.
     :raises ValidationError: if not allow_empty and `value` is empty.
     """
@@ -171,6 +176,16 @@ def ensure_array(value: Any, allow_empty: bool = True) -> List[Any]:
         return value
 
     if isinstance(value, str):
+        if allow_literal_array:
+            if value.startswith("[") and value.endswith("]"):
+                try:
+                    return ast.literal_eval(value)
+                except SyntaxError:
+                    raise ValidationError("Value isn't a literal string array.")
+            raise ValidationError(
+                "Literal string array must start with `[` and end with `]`."
+            )
+
         return [item.strip() for item in value.split(",")]
 
     return [value]

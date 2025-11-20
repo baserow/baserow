@@ -13,7 +13,11 @@ import {
   InvalidNumberOfArguments,
 } from '@baserow/modules/core/formula/parser/errors'
 import { Node, VueNodeViewRenderer } from '@tiptap/vue-2'
-import { ensureString } from '@baserow/modules/core/utils/validator'
+import {
+  ensureObject,
+  ensureString,
+  ensureArray,
+} from '@baserow/modules/core/utils/validator'
 import GetFormulaComponent from '@baserow/modules/core/components/formula/GetFormulaComponent'
 import { mergeAttributes } from '@tiptap/core'
 import { FORMULA_CATEGORY, FORMULA_TYPE } from '@baserow/modules/core/enums'
@@ -1788,6 +1792,65 @@ export class RuntimeReplace extends RuntimeFormulaFunction {
       {
         formula: "replace('Hello, world!', 'l', '-')",
         result: "'He--o, wor-d!'",
+      },
+    ]
+  }
+}
+
+export class RuntimeLength extends RuntimeFormulaFunction {
+  static getType() {
+    return 'length'
+  }
+
+  static getFormulaType() {
+    return FORMULA_TYPE.FUNCTION
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.TEXT
+  }
+
+  get args() {
+    return [new AnyBaserowRuntimeFormulaArgumentType()]
+  }
+
+  execute(context, [value]) {
+    try {
+      const val = ensureObject(value)
+      return Object.keys(val).length
+    } catch {}
+
+    try {
+      const val = ensureArray(value, { allowLiteralArray: true })
+      return val.length
+    } catch {}
+
+    try {
+      const val = ensureString(value)
+      return val.length
+    } catch {}
+
+    return 0
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.lengthDescription')
+  }
+
+  getExamples() {
+    return [
+      {
+        formula: "length('Hello, world!')",
+        result: "'13'",
+      },
+      {
+        formula: 'length(\'{"a": "b", "c": "d"}\')',
+        result: "'2'",
+      },
+      {
+        formula: 'length(\'["foo", "bar", "baz"]\')',
+        result: "'3'",
       },
     ]
   }
