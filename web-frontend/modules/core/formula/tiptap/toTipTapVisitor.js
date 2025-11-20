@@ -221,6 +221,11 @@ export class ToTipTapVisitor extends BaserowFormulaVisitor {
       return node
     }
 
+    // If the function returns a wrapper with content, flatten any nested arrays in content
+    if (node?.type === 'wrapper' && node.content) {
+      node.content = node.content.flat()
+    }
+
     // If the function doesn't have a proper TipTap component (node is null or type is null),
     // wrap it as text but preserve the arguments
     if (!node || !node.type) {
