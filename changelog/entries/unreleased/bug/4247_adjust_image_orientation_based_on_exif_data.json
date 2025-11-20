@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Adjust image orientation based on exif data",
+    "issue_origin": "github",
+    "issue_number": 4247,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2025-11-20"
+}

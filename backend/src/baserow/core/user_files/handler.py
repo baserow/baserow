@@ -20,6 +20,7 @@ import advocate
 from advocate.exceptions import UnacceptableAddressException
 from loguru import logger
 from PIL import Image, ImageOps
+from PIL.ImageOps import exif_transpose
 from requests.exceptions import RequestException
 
 from baserow.core.import_export.utils import file_chunk_generator
@@ -187,6 +188,10 @@ class UserFileHandler:
         """
 
         storage = storage or get_default_storage()
+
+        # adjust image orientation, if exif data differs from the image data
+        exif_transpose(image, in_place=True)
+
         image_width = image.width
         image_height = image.height
 
