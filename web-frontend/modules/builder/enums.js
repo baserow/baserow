@@ -192,6 +192,12 @@ export const LINK_VARIANTS = {
   BUTTON: 'button',
 }
 
+export const COLUMN_LAYOUTS = {
+  AUTO: 'auto',
+  FLEXI: 'flexi',
+  MANUAL: 'manual',
+}
+
 export const DATE_FORMATS = {
   EU: {
     format: 'DD/MM/YYYY',

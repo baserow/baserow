@@ -435,6 +435,11 @@ class ColumnElement(ContainerElement):
     A column element that can contain other elements.
     """
 
+    class COLUMN_LAYOUTS(models.TextChoices):
+        AUTO = "auto"  # all columns have the same size
+        FLEXI = "flexi"  # All columns have dynamic size
+        MANUAL = "manual"  # The weight is manually given to each column
+
     column_amount = models.IntegerField(
         default=3,
         help_text="The amount of columns inside this column element.",
@@ -455,6 +460,23 @@ class ColumnElement(ContainerElement):
         choices=VerticalAlignments.choices,
         max_length=10,
         default=VerticalAlignments.TOP,
+    )
+    alignment = models.CharField(
+        choices=VerticalAlignments.choices,
+        max_length=10,
+        default=VerticalAlignments.TOP,
+    )
+    column_layout = models.CharField(
+        choices=COLUMN_LAYOUTS.choices,
+        max_length=10,
+        default=COLUMN_LAYOUTS.AUTO,
+        db_default=COLUMN_LAYOUTS.AUTO,
+        help_text="Behaviour for each column.",
+    )
+    column_weights = models.JSONField(
+        default=list,
+        db_default=[],
+        help_text="The weight associated with each column.",
     )
 
 

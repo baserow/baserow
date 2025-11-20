@@ -142,6 +142,7 @@ class ColumnElementType(ContainerElementTypeMixin, ElementType):
         column_amount: int
         column_gap: int
         alignment: str
+        column_weights: List[int]
 
     @property
     def serializer_field_names(self):
@@ -149,6 +150,8 @@ class ColumnElementType(ContainerElementTypeMixin, ElementType):
             "column_amount",
             "column_gap",
             "alignment",
+            "column_layout",
+            "column_weights",
         ]
 
     @property
@@ -157,13 +160,20 @@ class ColumnElementType(ContainerElementTypeMixin, ElementType):
             "column_amount",
             "column_gap",
             "alignment",
+            "column_layout",
+            "column_layout",
+            "column_weights",
         ]
+
+    # TODO add serializer
 
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
         return {
             "column_amount": 2,
             "column_gap": 10,
             "alignment": VerticalAlignments.TOP,
+            "column_layout": ColumnElement.COLUMN_LAYOUTS.AUTO,
+            "column_weights": [1, 1, 1],
         }
 
     def get_new_place_in_container(

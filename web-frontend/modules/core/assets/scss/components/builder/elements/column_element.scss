@@ -4,6 +4,16 @@
   width: 100%;
   gap: var(--space-between-columns);
   align-items: stretch;
+
+  &--auto {
+    display: grid;
+    grid-auto-flow: column;
+  }
+
+  &--flexi,
+  &--manual {
+    display: flex;
+  }
 }
 
 .column-element__column {
@@ -12,10 +22,6 @@
   flex-direction: column;
   justify-content: var(--alignment);
   min-width: 0;
-}
-
-.column-element__element {
-  width: 100%;
 }
 
 .column-element__column > .add-element-zone {

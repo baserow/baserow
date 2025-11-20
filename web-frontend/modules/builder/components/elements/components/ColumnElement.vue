@@ -1,6 +1,7 @@
 <template>
   <div
     class="column-element"
+    :class="`column-element--${element.column_layout}`"
     :style="{
       '--space-between-columns': `${element.column_gap}px`,
       '--alignment': flexAlignment,
@@ -10,27 +11,26 @@
     <div
       v-for="(childrenInColumn, columnIndex) in childrenElements"
       :key="columnIndex"
+      :style="getColumnStyle(columnIndex)"
       class="column-element__column"
     >
       <template v-if="childrenInColumn.length > 0">
-        <div
-          v-for="childCurrent in childrenInColumn"
-          :key="childCurrent.id"
-          class="column-element__element"
-        >
+        <template v-for="childCurrent in childrenInColumn">
           <ElementPreview
             v-if="mode === 'editing'"
+            :key="childCurrent.id"
             :element="childCurrent"
             :application-context-additions="applicationContextAdditions"
             @move="$emit('move', $event)"
           ></ElementPreview>
           <PageElement
             v-else
+            :key="childCurrent.id"
             :element="childCurrent"
             :mode="mode"
             :application-context-additions="applicationContextAdditions"
           ></PageElement>
-        </div>
+        </template>
       </template>
       <AddElementZone
         v-else-if="mode === 'editing'"
@@ -58,7 +58,10 @@ import AddElementModal from '@baserow/modules/builder/components/elements/AddEle
 import containerElement from '@baserow/modules/builder/mixins/containerElement'
 import PageElement from '@baserow/modules/builder/components/page/PageElement'
 import ElementPreview from '@baserow/modules/builder/components/elements/ElementPreview'
-import { VERTICAL_ALIGNMENTS } from '@baserow/modules/builder/enums'
+import {
+  COLUMN_LAYOUTS,
+  VERTICAL_ALIGNMENTS,
+} from '@baserow/modules/builder/enums'
 import { dimensionMixin } from '@baserow/modules/core/mixins/dimensions'
 
 export default {
@@ -134,6 +137,16 @@ export default {
     this.dimensions.targetElement = this.$el.parentElement
   },
   methods: {
+    getColumnStyle(index) {
+      switch (this.element.column_layout) {
+        case COLUMN_LAYOUTS.MANUAL:
+          return {
+            '--weight': this.element.column_weights[index],
+          }
+        default:
+          return {}
+      }
+    },
     showAddElementModal(columnIndex) {
       this.$refs.addElementModal.show({
         placeInContainer: `${columnIndex}`,
