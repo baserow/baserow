@@ -245,18 +245,6 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         for key, value in allowed_values.items():
             setattr(workflow, key, value)
 
-        if "name" in allowed_values:
-            if (
-                AutomationWorkflow.objects.filter(
-                    automation_id=workflow.automation_id, name=workflow.name
-                )
-                .exclude(id=workflow.id)
-                .exists()
-            ):
-                raise AutomationWorkflowNameNotUnique(
-                    name=workflow.name,
-                )
-
         try:
             workflow.save()
         except IntegrityError as e:

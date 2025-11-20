@@ -1,6 +1,3 @@
-from unittest.mock import patch
-
-from django.db import IntegrityError
 from django.urls import reverse
 
 import pytest
@@ -721,25 +718,15 @@ def test_rename_page_using_existing_page_name(api_client, data_fixture):
     page_1 = data_fixture.create_builder_page(builder=builder, order=1, name="test1")
     page_2 = data_fixture.create_builder_page(builder=builder, order=1, name="test2")
 
-    # Django Silk is used in local development and production, but not in the
-    # pytest environment. This mocks the Silk analyze behaviour which
-    # interferes with the exception handling that raises PageNameNotUnique.
-    def mock_save(*args, **kwargs):
-        raise IntegrityError()
+    url = reverse("api:builder:pages:item", kwargs={"page_id": page_2.id})
+    response = api_client.patch(
+        url,
+        {
+            "name": page_1.name,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
 
-    with patch(
-        "baserow.contrib.builder.pages.models.Page.save",
-        side_effect=mock_save,
-    ):
-        url = reverse("api:builder:pages:item", kwargs={"page_id": page_2.id})
-        response = api_client.patch(
-            url,
-            {
-                "name": page_1.name,
-            },
-            format="json",
-            HTTP_AUTHORIZATION=f"JWT {token}",
-        )
-
-        assert response.status_code == HTTP_400_BAD_REQUEST
-        assert response.json()["error"] == "ERROR_PAGE_NAME_NOT_UNIQUE"
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_PAGE_NAME_NOT_UNIQUE"

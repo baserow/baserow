@@ -1,6 +1,6 @@
 {
     "type": "bug",
-    "message": "Gracefully handle when page is being renamed to an existing name.",
+    "message": "Show a specific error when a page is being renamed to an existing page's name.",
     "issue_origin": "github",
     "issue_number": 4183,
     "domain": "builder",

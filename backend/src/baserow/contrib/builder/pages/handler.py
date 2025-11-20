@@ -199,14 +199,6 @@ class PageHandler:
         for key, value in kwargs.items():
             setattr(page, key, value)
 
-        if "name" in kwargs:
-            if (
-                Page.objects.filter(builder_id=page.builder_id, name=page.name)
-                .exclude(id=page.id)
-                .exists()
-            ):
-                raise PageNameNotUnique(name=page.name, builder_id=page.builder_id)
-
         try:
             page.save()
         except IntegrityError as e:

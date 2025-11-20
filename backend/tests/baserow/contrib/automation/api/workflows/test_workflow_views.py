@@ -1,7 +1,5 @@
 import datetime
-from unittest.mock import patch
 
-from django.db import IntegrityError
 from django.urls import reverse
 from django.utils import timezone
 
@@ -611,24 +609,13 @@ def test_rename_workflow_using_existing_workflow_name(api_client, data_fixture):
         user, automation=automation, name="test2", order=2
     )
 
-    # Django Silk is used in local development and production, but not in the
-    # pytest environment. This mocks the Silk analyze behaviour which
-    # interferes with the exception handling that raises
-    # AutomationWorkflowNameNotUnique.
-    def mock_save(*args, **kwargs):
-        raise IntegrityError()
+    url = reverse(API_URL_WORKFLOW_ITEM, kwargs={"workflow_id": workflow_2.id})
+    response = api_client.patch(
+        url,
+        {"name": workflow_1.name},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
 
-    with patch(
-        "baserow.contrib.automation.workflows.models.AutomationWorkflow.save",
-        side_effect=mock_save,
-    ):
-        url = reverse(API_URL_WORKFLOW_ITEM, kwargs={"workflow_id": workflow_2.id})
-        response = api_client.patch(
-            url,
-            {"name": workflow_1.name},
-            format="json",
-            HTTP_AUTHORIZATION=f"JWT {token}",
-        )
-
-        assert response.status_code == HTTP_400_BAD_REQUEST
-        assert response.json()["error"] == "ERROR_AUTOMATION_WORKFLOW_NAME_NOT_UNIQUE"
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_AUTOMATION_WORKFLOW_NAME_NOT_UNIQUE"
