@@ -19,7 +19,7 @@ tests you think make sense. Some ideas on what to test:
 You'll need Node.js to run the end-to-end test suite locally. Using [nvm](https://github.com/nvm-sh/nvm),
 it can be installed with:
 ```bash
-nvm install v<version>
+nvm install <version>
 ```
 
 Replace `<version>` with a supported Node.js version listed in

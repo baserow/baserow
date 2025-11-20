@@ -1,0 +1,17 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Test MyComponent Default component 1`] = `
+<div
+  class="button-element element--no-value"
+>
+  <button
+    class="ab-button ab-button--medium"
+  >
+    <span>
+      
+    buttonElement.missingValue
+  
+    </span>
+  </button>
+</div>
+`;
