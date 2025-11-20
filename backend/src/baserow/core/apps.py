@@ -40,6 +40,7 @@ class CoreConfig(AppConfig):
             RuntimeAnd,
             RuntimeCapitalize,
             RuntimeConcat,
+            RuntimeContains,
             RuntimeDateTimeFormat,
             RuntimeDay,
             RuntimeDivide,
@@ -112,6 +113,7 @@ class CoreConfig(AppConfig):
         formula_runtime_function_registry.register(RuntimeOr())
         formula_runtime_function_registry.register(RuntimeReplace())
         formula_runtime_function_registry.register(RuntimeLength())
+        formula_runtime_function_registry.register(RuntimeContains())
 
         from baserow.core.permission_manager import (
             AllowIfTemplatePermissionManagerType,

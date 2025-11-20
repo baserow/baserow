@@ -450,7 +450,7 @@ class RuntimeLength(RuntimeFormulaFunction):
             pass
 
         try:
-            return len(ensure_array(value, allow_literal_string=True))
+            return len(ensure_array(value, allow_literal_array=True))
         except ValidationError:
             pass
 
@@ -460,3 +460,28 @@ class RuntimeLength(RuntimeFormulaFunction):
             pass
 
         return 0
+
+
+class RuntimeContains(RuntimeFormulaFunction):
+    type = "contains"
+
+    args = [
+        AnyBaserowRuntimeFormulaArgumentType(),
+        AnyBaserowRuntimeFormulaArgumentType(),
+    ]
+
+    def execute(self, context: FormulaContext, args: FormulaArgs):
+        value = args[0]
+
+        try:
+            value = ensure_object(value)
+            return args[1] in value
+        except ValidationError:
+            pass
+
+        try:
+            return args[1] in ensure_string(value)
+        except ValidationError:
+            pass
+
+        return False

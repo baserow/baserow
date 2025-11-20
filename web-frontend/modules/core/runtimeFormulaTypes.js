@@ -1820,6 +1820,7 @@ export class RuntimeLength extends RuntimeFormulaFunction {
       return Object.keys(val).length
     } catch {}
 
+    // TODO: this may not be necessary, since ensureObject() accepts array
     try {
       const val = ensureArray(value, { allowLiteralArray: true })
       return val.length
@@ -1851,6 +1852,69 @@ export class RuntimeLength extends RuntimeFormulaFunction {
       {
         formula: 'length(\'["foo", "bar", "baz"]\')',
         result: "'3'",
+      },
+    ]
+  }
+}
+
+export class RuntimeContains extends RuntimeFormulaFunction {
+  static getType() {
+    return 'contains'
+  }
+
+  static getFormulaType() {
+    return FORMULA_TYPE.FUNCTION
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.TEXT
+  }
+
+  get args() {
+    return [
+      new AnyBaserowRuntimeFormulaArgumentType(),
+      new AnyBaserowRuntimeFormulaArgumentType(),
+    ]
+  }
+
+  execute(context, args) {
+    const value = args[0]
+
+    try {
+      const val = ensureObject(value)
+      if (Array.isArray(val)) {
+        return val.includes(args[1])
+      } else {
+        return Object.keys(val).includes(args[1])
+      }
+    } catch {}
+
+    try {
+      const val = ensureString(value)
+      return val.includes(args[1])
+    } catch {}
+
+    return false
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.containsDescription')
+  }
+
+  getExamples() {
+    return [
+      {
+        formula: "contains('Hello, world!', 'll')",
+        result: 'true',
+      },
+      {
+        formula: 'contains(\'{"a": "b", "c": "d"}\', "a")',
+        result: 'true',
+      },
+      {
+        formula: 'contains(\'["foo", "bar", "baz"]\', "foo")',
+        result: 'true',
       },
     ]
   }

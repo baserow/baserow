@@ -10,6 +10,7 @@ from baserow.core.formula.runtime_formula_types import (
     RuntimeAnd,
     RuntimeCapitalize,
     RuntimeConcat,
+    RuntimeContains,
     RuntimeDateTimeFormat,
     RuntimeDay,
     RuntimeDivide,
@@ -1710,9 +1711,6 @@ def test_runtime_replace_validate_number_of_args(args, expected):
     assert result is expected
 
 
-#
-
-
 @pytest.mark.parametrize(
     "args,expected",
     [
@@ -1750,4 +1748,48 @@ def test_runtime_length_validate_type_of_args(args, expected):
 )
 def test_runtime_length_validate_number_of_args(args, expected):
     result = RuntimeLength().validate_number_of_args(args)
+    assert result is expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        (["Hello, world!", "ll"], True),
+        (["Hello, world!", "goodbye"], False),
+        (['{"foo": "bar"}', "foo"], True),
+        (['{"foo": "bar"}', "bar"], False),
+        (['["foo", "bar"]', "foo"], True),
+        (['["foo", "bar"]', "baz"], False),
+    ],
+)
+def test_runtime_contains_execute(args, expected):
+    parsed_args = RuntimeContains().parse_args(args)
+    result = RuntimeContains().execute({}, parsed_args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        (["foo"], None),
+        (['{"foo": "bar"}'], None),
+        (['["foo", "bar"]'], None),
+    ],
+)
+def test_runtime_contains_validate_type_of_args(args, expected):
+    result = RuntimeContains().validate_type_of_args(args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([], False),
+        (["foo"], False),
+        (["foo", "bar"], True),
+        (["foo", "bar", "baz"], False),
+    ],
+)
+def test_runtime_contains_validate_number_of_args(args, expected):
+    result = RuntimeContains().validate_number_of_args(args)
     assert result is expected
