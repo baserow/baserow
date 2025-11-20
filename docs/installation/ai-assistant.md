@@ -19,7 +19,7 @@ Set the model you want, restart Baserow, and let migrations run.
 
 ```dotenv
 # Required
-BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL=openai/gpt-5-mini
+BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL=openai/gpt-4o
 OPENAI_API_KEY=your_api_key
 
 # Optional - adjust LLM temperature (default: 0)
@@ -39,7 +39,7 @@ Choose **one** provider block and set its variables.
 ### OpenAI / OpenAI-compatible
 
 ```dotenv
-BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL=openai/gpt-5-mini
+BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL=openai/gpt-4o
 OPENAI_API_KEY=your_api_key
 # Optional alternative endpoints (OpenAI EU or Azure OpenAI, etc.)
 UDSPY_LM_OPENAI_COMPATIBLE_BASE_URL=https://eu.api.openai.com/v1
