@@ -1,5 +1,4 @@
 import { Extension } from '@tiptap/core'
-import { TextSelection } from '@tiptap/pm/state'
 
 export const SmartBackspaceExtension = Extension.create({
   name: 'smartBackspace',
