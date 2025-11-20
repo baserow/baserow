@@ -42,25 +42,25 @@ import { Document } from '@tiptap/extension-document'
 import { Text } from '@tiptap/extension-text'
 import { History } from '@tiptap/extension-history'
 import { HardBreak } from '@tiptap/extension-hard-break'
-import { ArrowKeyNavigationExtension } from '@baserow/modules/core/components/formula/ArrowKeyNavigationExtension'
-import { SmartBackspaceExtension } from '@baserow/modules/core/components/formula/SmartBackspaceExtension'
-import { ZWSManagementExtension } from '@baserow/modules/core/components/formula/ZWSManagementExtension'
-import { FunctionHelpTooltipExtension } from '@baserow/modules/core/components/formula/FunctionHelpTooltipExtension'
+import { ArrowKeyNavigationExtension } from '@baserow/modules/core/components/formula/extensions/ArrowKeyNavigationExtension'
+import { SmartBackspaceExtension } from '@baserow/modules/core/components/formula/extensions/SmartBackspaceExtension'
+import { ZWSManagementExtension } from '@baserow/modules/core/components/formula/extensions/ZWSManagementExtension'
+import { FunctionHelpTooltipExtension } from '@baserow/modules/core/components/formula/extensions/FunctionHelpTooltipExtension'
 import {
   FormulaInsertionExtension,
   FunctionFormulaComponentNode,
   FunctionArgumentCommaNode,
   FunctionClosingParenNode,
   OperatorFormulaComponentNode,
-} from '@baserow/modules/core/components/formula/FormulaInsertionExtension'
-import { NodeSelectionExtension } from '@baserow/modules/core/components/formula/NodeSelectionExtension'
-import { ContextManagementExtension } from '@baserow/modules/core/components/formula/ContextManagementExtension'
-import { FunctionDetectionExtension } from '@baserow/modules/core/components/formula/FunctionDetectionExtension'
-import { OperatorDetectionExtension } from '@baserow/modules/core/components/formula/OperatorDetectionExtension'
+} from '@baserow/modules/core/components/formula/extensions/FormulaInsertionExtension'
+import { NodeSelectionExtension } from '@baserow/modules/core/components/formula/extensions/NodeSelectionExtension'
+import { ContextManagementExtension } from '@baserow/modules/core/components/formula/extensions/ContextManagementExtension'
+import { FunctionDetectionExtension } from '@baserow/modules/core/components/formula/extensions/FunctionDetectionExtension'
+import { OperatorDetectionExtension } from '@baserow/modules/core/components/formula/extensions/OperatorDetectionExtension'
 import {
   createClipboardTextSerializer,
   createPasteHandler,
-} from '@baserow/modules/core/components/formula/FormulaClipboardHandler'
+} from '@baserow/modules/core/components/formula/extensions/FormulaClipboardHandler'
 import _ from 'lodash'
 import parseBaserowFormula from '@baserow/modules/core/formula/parser/parser'
 import { ToTipTapVisitor } from '@baserow/modules/core/formula/tiptap/toTipTapVisitor'
