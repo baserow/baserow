@@ -153,6 +153,64 @@ export const FunctionClosingParenNode = Node.create({
   },
 })
 
+// Atomic opening parenthesis node for grouping
+export const GroupOpeningParenNode = Node.create({
+  name: 'group-opening-paren',
+  group: 'inline',
+  inline: true,
+  atom: true,
+  draggable: false,
+  selectable: false,
+
+  parseHTML() {
+    return [
+      {
+        tag: 'span[data-group-opening-paren="true"]',
+      },
+    ]
+  },
+
+  renderHTML({ HTMLAttributes }) {
+    return [
+      'span',
+      mergeAttributes(HTMLAttributes, {
+        'data-group-opening-paren': 'true',
+        class: 'formula-input-field__group-parenthesis',
+      }),
+      '(',
+    ]
+  },
+})
+
+// Atomic closing parenthesis node for grouping
+export const GroupClosingParenNode = Node.create({
+  name: 'group-closing-paren',
+  group: 'inline',
+  inline: true,
+  atom: true,
+  draggable: false,
+  selectable: false,
+
+  parseHTML() {
+    return [
+      {
+        tag: 'span[data-group-closing-paren="true"]',
+      },
+    ]
+  },
+
+  renderHTML({ HTMLAttributes }) {
+    return [
+      'span',
+      mergeAttributes(HTMLAttributes, {
+        'data-group-closing-paren': 'true',
+        class: 'formula-input-field__group-parenthesis',
+      }),
+      ')',
+    ]
+  },
+})
+
 // Operator formula component node
 export const OperatorFormulaComponentNode = Node.create({
   name: 'operator-formula-component',

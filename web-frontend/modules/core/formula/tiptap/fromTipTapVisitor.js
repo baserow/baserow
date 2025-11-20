@@ -20,6 +20,10 @@ export class FromTipTapVisitor {
         return ','
       case 'function-closing-paren':
         return ')'
+      case 'group-opening-paren':
+        return '('
+      case 'group-closing-paren':
+        return ')'
       case 'operator-formula-component':
         return this.visitOperatorFormulaComponent(node)
       case 'hardBreak':

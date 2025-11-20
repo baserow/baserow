@@ -51,11 +51,14 @@ import {
   FunctionFormulaComponentNode,
   FunctionArgumentCommaNode,
   FunctionClosingParenNode,
+  GroupOpeningParenNode,
+  GroupClosingParenNode,
   OperatorFormulaComponentNode,
 } from '@baserow/modules/core/components/formula/extensions/FormulaInsertionExtension'
 import { NodeSelectionExtension } from '@baserow/modules/core/components/formula/extensions/NodeSelectionExtension'
 import { ContextManagementExtension } from '@baserow/modules/core/components/formula/extensions/ContextManagementExtension'
 import { FunctionDetectionExtension } from '@baserow/modules/core/components/formula/extensions/FunctionDetectionExtension'
+import { GroupDetectionExtension } from '@baserow/modules/core/components/formula/extensions/GroupDetectionExtension'
 import { OperatorDetectionExtension } from '@baserow/modules/core/components/formula/extensions/OperatorDetectionExtension'
 import {
   createClipboardTextSerializer,
@@ -274,6 +277,8 @@ export default {
         extensions.push(FunctionFormulaComponentNode)
         extensions.push(FunctionArgumentCommaNode)
         extensions.push(FunctionClosingParenNode)
+        extensions.push(GroupOpeningParenNode)
+        extensions.push(GroupClosingParenNode)
         extensions.push(OperatorFormulaComponentNode)
         extensions.push(
           HardBreak.extend({
@@ -289,6 +294,7 @@ export default {
             functionNames: this.functionNames,
             vueComponent: this,
           }),
+          GroupDetectionExtension,
           OperatorDetectionExtension.configure({
             operators: this.operators,
             vueComponent: this,

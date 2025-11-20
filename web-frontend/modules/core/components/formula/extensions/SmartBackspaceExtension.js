@@ -11,6 +11,8 @@ export const SmartBackspaceExtension = Extension.create({
       'operator-formula-component',
       'function-argument-comma',
       'function-closing-paren',
+      'group-opening-paren',
+      'group-closing-paren',
     ]
 
     return {

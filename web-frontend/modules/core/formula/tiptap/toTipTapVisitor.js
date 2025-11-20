@@ -125,8 +125,34 @@ export class ToTipTapVisitor extends BaserowFormulaVisitor {
   }
 
   visitBrackets(ctx) {
-    // TODO
-    return ctx.expr().accept(this)
+    const innerContent = ctx.expr().accept(this)
+
+    // In advanced mode, wrap the content with group parenthesis nodes
+    if (this.mode === 'advanced') {
+      const content = []
+
+      // Add opening group parenthesis
+      content.push({ type: 'text', text: '\u200B' })
+      content.push({ type: 'group-opening-paren' })
+      content.push({ type: 'text', text: '\u200B' })
+
+      // Add the inner content
+      if (Array.isArray(innerContent)) {
+        content.push(...innerContent)
+      } else {
+        content.push(innerContent)
+      }
+
+      // Add closing group parenthesis
+      content.push({ type: 'text', text: '\u200B' })
+      content.push({ type: 'group-closing-paren' })
+      content.push({ type: 'text', text: '\u200B' })
+
+      return content
+    }
+
+    // In simple mode, just return the inner content without parentheses
+    return innerContent
   }
 
   processString(ctx) {
