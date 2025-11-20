@@ -294,7 +294,9 @@ export default {
             functionNames: this.functionNames,
             vueComponent: this,
           }),
-          GroupDetectionExtension,
+          GroupDetectionExtension.configure({
+            functionNames: this.functionNames,
+          }),
           OperatorDetectionExtension.configure({
             operators: this.operators,
             vueComponent: this,

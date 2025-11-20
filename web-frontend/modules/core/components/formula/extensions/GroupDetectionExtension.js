@@ -5,24 +5,36 @@ import { Fragment } from '@tiptap/pm/model'
 export const GroupDetectionExtension = Extension.create({
   name: 'groupDetection',
 
+  addOptions() {
+    return {
+      functionNames: [],
+    }
+  },
+
   addProseMirrorPlugins() {
+    const functionNames = this.options.functionNames
+
     function handleOpeningParenthesis(view, from, to) {
       const { state } = view
       const { doc } = state
 
       // Check if we should create a group parenthesis
       // A group parenthesis is created when:
-      // - The previous node is NOT a function name (text followed by opening paren is a function)
-      
+      // - The previous text does NOT match a known function name
+
       const textBefore = doc.textBetween(Math.max(0, from - 50), from, ',')
-      
-      // Check if the text ends with a potential function name
-      // (letter/underscore followed by optional whitespace)
-      const functionPattern = /[a-zA-Z_][a-zA-Z0-9_]*\s*$/
-      
-      if (functionPattern.test(textBefore)) {
-        // This looks like a function call, let FunctionDetectionExtension handle it
-        return false
+
+      // If we have function names, check if the text ends with one
+      if (functionNames.length > 0) {
+        const functionPattern = new RegExp(
+          `(^|[^a-zA-Z0-9_])(${functionNames.join('|')})(\\s*)$`,
+          'i'
+        )
+
+        if (functionPattern.test(textBefore)) {
+          // This is a function call, let FunctionDetectionExtension handle it
+          return false
+        }
       }
 
       // This is a grouping parenthesis
@@ -60,7 +72,8 @@ export const GroupDetectionExtension = Extension.create({
       const tr = state.tr
 
       // Create the group closing paren node
-      const closingParenNode = state.schema.nodes['group-closing-paren'].create()
+      const closingParenNode =
+        state.schema.nodes['group-closing-paren'].create()
 
       tr.replaceWith(from, to, closingParenNode)
 
@@ -76,7 +89,6 @@ export const GroupDetectionExtension = Extension.create({
       // Count parentheses to determine if we're closing a group
       let parenCount = 0
       let foundGroupOpening = false
-      let foundFunctionOpening = false
 
       // Find the start of the wrapper
       const $pos = doc.resolve(pos)
@@ -93,7 +105,6 @@ export const GroupDetectionExtension = Extension.create({
         if (nodePos >= pos) return false
 
         if (node.type.name === 'function-formula-component') {
-          foundFunctionOpening = true
           parenCount = 1
         } else if (node.type.name === 'group-opening-paren') {
           foundGroupOpening = true
@@ -105,9 +116,6 @@ export const GroupDetectionExtension = Extension.create({
           }
         } else if (node.type.name === 'function-closing-paren') {
           parenCount--
-          if (parenCount === 0) {
-            foundFunctionOpening = false
-          }
         }
       })
 
@@ -137,4 +145,3 @@ export const GroupDetectionExtension = Extension.create({
     ]
   },
 })
-
