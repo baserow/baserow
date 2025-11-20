@@ -2327,12 +2327,12 @@ class LocalBaserowRowsSignalServiceType(
                 local_model, RowSerializer, is_response=True, user_field_names=True
             )
 
-            return {
+            data_to_process = {
                 "results": serializer(rows, many=True).data,
                 "has_next_page": False,
             }
 
-        data_to_process = self._prepare_result(table.get_model(), data_to_process)
+            return self._prepare_result(local_model, data_to_process)
 
         self._process_event(
             self.model_class.objects.filter(table=table),
