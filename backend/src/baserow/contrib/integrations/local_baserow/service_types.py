@@ -31,6 +31,7 @@ from baserow.contrib.database.api.utils import extract_field_ids_from_list
 from baserow.contrib.database.fields.exceptions import (
     FieldDoesNotExist,
     IncompatibleField,
+    FieldDataConstraintException,
 )
 from baserow.contrib.database.fields.field_types import (
     CreatedByFieldType,
@@ -2115,6 +2116,10 @@ class LocalBaserowUpsertRowServiceType(
                 raise ServiceImproperlyConfiguredDispatchException(
                     f"The row with id {row_id} does not exist."
                 ) from exc
+            except FieldDataConstraintException as exc:
+                raise ServiceImproperlyConfiguredDispatchException(
+                    f"Cannot update row due to field constraint violation."
+                ) from exc
         else:
             try:
                 (row,) = CreateRowsActionType.do(
@@ -2127,6 +2132,10 @@ class LocalBaserowUpsertRowServiceType(
                 raise ServiceImproperlyConfiguredDispatchException(
                     f"Cannot create rows in table {table.id} because "
                     "it has a data sync."
+                ) from exc
+            except FieldDataConstraintException as exc:
+                raise ServiceImproperlyConfiguredDispatchException(
+                    f"Cannot create row due to field constraint violation."
                 ) from exc
 
         return {
