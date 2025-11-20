@@ -103,6 +103,7 @@ export const BACKGROUND_MODES = {
 
 export const PAGE_PLACES = {
   HEADER: 'header',
+  FIXED_HEADER: 'fixed-header',
   CONTENT: 'content',
   FOOTER: 'footer',
 }
@@ -221,4 +222,10 @@ export const TIME_FORMATS = {
     name: 'common.timeFormat12Hour',
     example: '11:00 PM',
   },
+}
+
+export const PAGE_ELEMENT_BEHAVIOURS = {
+  NORMAL: 'normal',
+  STICKY: 'sticky',
+  FIXED: 'fixed',
 }

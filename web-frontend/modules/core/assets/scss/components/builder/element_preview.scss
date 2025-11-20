@@ -96,6 +96,7 @@
       pointer-events: none;
 
       .page__header &,
+      .page__sticky-header &,
       .page__footer & {
         border-color: $palette-purple-500;
       }

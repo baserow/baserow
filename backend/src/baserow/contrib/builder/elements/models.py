@@ -1030,10 +1030,22 @@ class MultiPageElement(Element):
         ONLY = "only"
         EXCEPT = "except"
 
+    class PAGE_BEHAVIOURS(models.TextChoices):
+        NORMAL = "normal"
+        FIXED = "fixed"
+        STICKY = "sticky"
+
     share_type = models.CharField(
         choices=SHARE_TYPE.choices,
         max_length=10,
         default=SHARE_TYPE.ALL,
+    )
+
+    behaviour = models.CharField(
+        choices=PAGE_BEHAVIOURS.choices,
+        max_length=15,
+        default=PAGE_BEHAVIOURS.NORMAL,
+        db_default=PAGE_BEHAVIOURS.NORMAL,
     )
 
     pages = models.ManyToManyField("builder.Page", blank=True)
@@ -1138,5 +1150,17 @@ class MenuElement(Element):
 
 class SimpleContainerElement(ContainerElement):
     """
-    A simple container to group elements
+    A simple container to group elements. It can optionally have alignment
+    and behaviour.
     """
+
+    class PAGE_BEHAVIOURS(models.TextChoices):
+        NORMAL = "normal"
+        STICKY = "sticky"
+
+    behaviour = models.CharField(
+        choices=PAGE_BEHAVIOURS.choices,
+        max_length=15,
+        default=PAGE_BEHAVIOURS.NORMAL,
+        db_default=PAGE_BEHAVIOURS.NORMAL,
+    )

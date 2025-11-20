@@ -42,12 +42,27 @@
         </div>
       </template>
     </FormGroup>
+    <FormGroup
+      :label="$t('simpleContainerElementForm.behaviourLabel')"
+      small-label
+      required
+      class="margin-bottom-2"
+    >
+      <RadioGroup
+        v-model="values.behaviour"
+        :options="behaviourTypes"
+        type="button"
+      />
+    </FormGroup>
   </form>
 </template>
 
 <script>
 import elementForm from '@baserow/modules/builder/mixins/elementForm'
-import { SHARE_TYPES } from '@baserow/modules/builder/enums'
+import {
+  SHARE_TYPES,
+  PAGE_ELEMENT_BEHAVIOURS,
+} from '@baserow/modules/builder/enums'
 
 export default {
   name: 'MultiPageContainerElementForm',
@@ -58,8 +73,9 @@ export default {
         share_type: '',
         pages: [],
         styles: {},
+        behaviour: null,
       },
-      allowedValues: ['share_type', 'pages', 'styles'],
+      allowedValues: ['share_type', 'pages', 'styles', 'behaviour'],
     }
   },
   computed: {
@@ -86,6 +102,22 @@ export default {
 
         this.values.share_type = newValue
       },
+    },
+    behaviourTypes() {
+      return [
+        {
+          label: this.$t('pageElementBehaviour.normal'),
+          value: PAGE_ELEMENT_BEHAVIOURS.NORMAL,
+        },
+        {
+          label: this.$t('pageElementBehaviour.fixed'),
+          value: PAGE_ELEMENT_BEHAVIOURS.FIXED,
+        },
+        {
+          label: this.$t('pageElementBehaviour.sticky'),
+          value: PAGE_ELEMENT_BEHAVIOURS.STICKY,
+        },
+      ]
     },
     pageShareTypes() {
       return [
