@@ -129,12 +129,8 @@
   margin-right: 4px;
 }
 
-// Add margin-right when a group parenthesis is followed by a function/operator
-.formula-input-field__group-parenthesis:has(+ .function-formula-component) {
-  margin-right: 4px;
-}
-
-// Add margin-right when a group parenthesis is followed by a comma
+// Add margin-right when a group parenthesis is followed by a function/operator/comma
+.formula-input-field__group-parenthesis:has(+ .function-formula-component),
 .formula-input-field__group-parenthesis:has(+ .formula-input-field__comma) {
   margin-right: 4px;
 }

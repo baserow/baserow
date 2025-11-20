@@ -54,7 +54,7 @@ import {
   GroupOpeningParenNode,
   GroupClosingParenNode,
   OperatorFormulaComponentNode,
-} from '@baserow/modules/core/components/formula/extensions/FormulaInsertionExtension'
+} from '@baserow/modules/core/components/formula/extensions/FormulaNodes'
 import { NodeSelectionExtension } from '@baserow/modules/core/components/formula/extensions/NodeSelectionExtension'
 import { ContextManagementExtension } from '@baserow/modules/core/components/formula/extensions/ContextManagementExtension'
 import { FunctionDetectionExtension } from '@baserow/modules/core/components/formula/extensions/FunctionDetectionExtension'
