@@ -43,7 +43,7 @@ import { Text } from '@tiptap/extension-text'
 import { History } from '@tiptap/extension-history'
 import { HardBreak } from '@tiptap/extension-hard-break'
 import { ArrowKeyNavigationExtension } from '@baserow/modules/core/components/formula/extensions/ArrowKeyNavigationExtension'
-import { SmartBackspaceExtension } from '@baserow/modules/core/components/formula/extensions/SmartBackspaceExtension'
+import { SmartDeletionExtension } from '@baserow/modules/core/components/formula/extensions/SmartDeletionExtension'
 import { ZWSManagementExtension } from '@baserow/modules/core/components/formula/extensions/ZWSManagementExtension'
 import { FunctionHelpTooltipExtension } from '@baserow/modules/core/components/formula/extensions/FunctionHelpTooltipExtension'
 import {
@@ -249,7 +249,7 @@ export default {
         this.wrapperNode,
         TextNode,
         ArrowKeyNavigationExtension,
-        SmartBackspaceExtension,
+        SmartDeletionExtension,
         ZWSManagementExtension,
         this.placeHolderExt,
         History.configure({
