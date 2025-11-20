@@ -36,7 +36,7 @@
 </template>
 
 <script>
-import { Editor, EditorContent, generateHTML, Node } from '@tiptap/vue-2'
+import { Editor, EditorContent, Node } from '@tiptap/vue-2'
 import { Placeholder } from '@tiptap/extension-placeholder'
 import { Document } from '@tiptap/extension-document'
 import { Text } from '@tiptap/extension-text'
@@ -304,15 +304,6 @@ export default {
 
       return extensions
     },
-    htmlContent() {
-      try {
-        return generateHTML(this.content, this.extensions)
-      } catch (e) {
-        console.error('Error while parsing formula content', this.value)
-        console.error(e)
-        return generateHTML(this.toContent(''), this.extensions)
-      }
-    },
     wrapperContent() {
       return this.editor.getJSON()
     },
@@ -353,7 +344,7 @@ export default {
     content: {
       handler() {
         if (this.editor && !_.isEqual(this.content, this.editor.getJSON())) {
-          this.editor.commands.setContent(this.htmlContent, false, {
+          this.editor.commands.setContent(this.content, false, {
             preserveWhitespace: 'full',
             addToHistory: false,
           })
@@ -403,7 +394,7 @@ export default {
       // Use provided formula or fall back to the prop value
       this.content = this.toContent(formula || this.value)
       this.editor = new Editor({
-        content: this.htmlContent,
+        content: this.content,
         editable: !this.disabled && !this.readOnly,
         onUpdate: this.onUpdate,
         extensions: this.extensions,

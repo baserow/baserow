@@ -54,7 +54,21 @@ export class ToTipTapVisitor extends BaserowFormulaVisitor {
       }
     }
 
-    return { type: 'doc', content: _.isArray(result) ? result : [result] }
+    // In simple mode, wrap inline content in a wrapper
+    // The result can be a wrapper, an array of wrappers, or inline content
+    if (Array.isArray(result)) {
+      // Array of wrappers (e.g., from concat with newlines)
+      return { type: 'doc', content: result }
+    } else if (result?.type === 'wrapper') {
+      // Already a wrapper
+      return { type: 'doc', content: [result] }
+    } else {
+      // Inline content (text, nodes, etc.) - wrap it
+      return {
+        type: 'doc',
+        content: [{ type: 'wrapper', content: [result] }],
+      }
+    }
   }
 
   visitStringLiteral(ctx) {
