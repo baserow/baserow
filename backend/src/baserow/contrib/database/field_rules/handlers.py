@@ -12,7 +12,6 @@ from baserow.contrib.database.field_rules.registries import (
     FieldRulesTypeRegistry,
     RowRuleChanges,
 )
-from baserow.contrib.database.table.cache import clear_generated_model_cache
 from baserow.contrib.database.table.models import GeneratedTableModel, Table
 from baserow.core.db import specific_iterator
 
@@ -132,7 +131,6 @@ class FieldRuleHandler:
         self.table.field_rules_validity_column_added = True
         self.table.save(update_fields=["field_rules_validity_column_added"])
 
-        clear_generated_model_cache()
         model = self._get_model()
         return model
 
