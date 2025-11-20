@@ -1752,3 +1752,43 @@ export class RuntimeOr extends RuntimeFormulaFunction {
     ]
   }
 }
+
+export class RuntimeReplace extends RuntimeFormulaFunction {
+  static getType() {
+    return 'replace'
+  }
+
+  static getFormulaType() {
+    return FORMULA_TYPE.FUNCTION
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.TEXT
+  }
+
+  get args() {
+    return [
+      new TextBaserowRuntimeFormulaArgumentType(),
+      new TextBaserowRuntimeFormulaArgumentType(),
+      new TextBaserowRuntimeFormulaArgumentType(),
+    ]
+  }
+
+  execute(context, args) {
+    return args[0].replaceAll(args[1], args[2])
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.replaceDescription')
+  }
+
+  getExamples() {
+    return [
+      {
+        formula: "replace('Hello, world!', 'l', '-')",
+        result: "'He--o, wor-d!'",
+      },
+    ]
+  }
+}

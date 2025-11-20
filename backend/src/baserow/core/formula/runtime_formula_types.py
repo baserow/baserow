@@ -418,3 +418,16 @@ class RuntimeOr(RuntimeFormulaFunction):
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
         return args[0] or args[1]
+
+
+class RuntimeReplace(RuntimeFormulaFunction):
+    type = "replace"
+
+    args = [
+        TextBaserowRuntimeFormulaArgumentType(),
+        TextBaserowRuntimeFormulaArgumentType(),
+        TextBaserowRuntimeFormulaArgumentType(),
+    ]
+
+    def execute(self, context: FormulaContext, args: FormulaArgs):
+        return args[0].replace(args[1], args[2])

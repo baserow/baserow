@@ -36,6 +36,7 @@ from baserow.core.formula.runtime_formula_types import (
     RuntimeRandomBool,
     RuntimeRandomFloat,
     RuntimeRandomInt,
+    RuntimeReplace,
     RuntimeRound,
     RuntimeSecond,
     RuntimeToday,
@@ -1606,7 +1607,6 @@ def test_runtime_and_validate_number_of_args(args, expected):
     assert result is expected
 
 
-##
 @pytest.mark.parametrize(
     "args,expected",
     [
@@ -1665,4 +1665,45 @@ def test_runtime_or_validate_type_of_args(args, expected):
 )
 def test_runtime_or_validate_number_of_args(args, expected):
     result = RuntimeOr().validate_number_of_args(args)
+    assert result is expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        (["Hello, world!", "l", "-"], "He--o, wor-d!"),
+        ([1112111, 2, 3], "1113111"),
+    ],
+)
+def test_runtime_replace_execute(args, expected):
+    parsed_args = RuntimeReplace().parse_args(args)
+    result = RuntimeReplace().execute({}, parsed_args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        # Valid types for all args
+        (["foo", "bar", "baz"], None),
+        ([100, 200, 300], None),
+    ],
+)
+def test_runtime_replace_validate_type_of_args(args, expected):
+    result = RuntimeReplace().validate_type_of_args(args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([], False),
+        (["foo"], False),
+        (["foo", "bar"], False),
+        (["foo", "bar", "baz"], True),
+        (["foo", "bar", "baz", "x"], False),
+    ],
+)
+def test_runtime_replace_validate_number_of_args(args, expected):
+    result = RuntimeReplace().validate_number_of_args(args)
     assert result is expected

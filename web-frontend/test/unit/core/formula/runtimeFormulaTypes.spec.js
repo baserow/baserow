@@ -26,6 +26,7 @@ import {
   RuntimeNotEqual,
   RuntimeNow,
   RuntimeOr,
+  RuntimeReplace,
   RuntimeRandomBool,
   RuntimeRandomFloat,
   RuntimeRandomInt,
@@ -1446,6 +1447,39 @@ describe('RuntimeOr', () => {
     { args: ['foo', 'bar', 'baz'], expected: false },
   ])('validates number of args', ({ args, expected }) => {
     const formulaType = new RuntimeOr()
+    const result = formulaType.validateNumberOfArgs(args)
+    expect(result).toStrictEqual(expected)
+  })
+})
+
+describe('RuntimeReplace', () => {
+  test.each([
+    { args: ['Hello, world!', 'l', '-'], expected: 'He--o, wor-d!' },
+    { args: ['1112111', 2, 3], expected: '1113111' },
+  ])('execute returns expected value', ({ args, expected }) => {
+    const formulaType = new RuntimeReplace()
+    const parsedArgs = formulaType.parseArgs(args)
+    const result = formulaType.execute({}, parsedArgs)
+    expect(result).toEqual(expected)
+  })
+
+  test.each([
+    { args: ['foo', 'bar', 'baz'], expected: undefined },
+    { args: [100, 200, 300], expected: undefined },
+  ])('validates type of args', ({ args, expected }) => {
+    const formulaType = new RuntimeReplace()
+    const result = formulaType.validateTypeOfArgs(args)
+    expect(result).toStrictEqual(expected)
+  })
+
+  test.each([
+    { args: [], expected: false },
+    { args: ['foo'], expected: false },
+    { args: ['foo', 'bar'], expected: false },
+    { args: ['foo', 'bar', 'baz'], expected: true },
+    { args: ['foo', 'bar', 'baz', 'x'], expected: false },
+  ])('validates number of args', ({ args, expected }) => {
+    const formulaType = new RuntimeReplace()
     const result = formulaType.validateNumberOfArgs(args)
     expect(result).toStrictEqual(expected)
   })

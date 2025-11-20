@@ -66,6 +66,7 @@ class CoreConfig(AppConfig):
             RuntimeRandomBool,
             RuntimeRandomFloat,
             RuntimeRandomInt,
+            RuntimeReplace,
             RuntimeRound,
             RuntimeSecond,
             RuntimeToday,
@@ -108,6 +109,7 @@ class CoreConfig(AppConfig):
         formula_runtime_function_registry.register(RuntimeIf())
         formula_runtime_function_registry.register(RuntimeAnd())
         formula_runtime_function_registry.register(RuntimeOr())
+        formula_runtime_function_registry.register(RuntimeReplace())
 
         from baserow.core.permission_manager import (
             AllowIfTemplatePermissionManagerType,
