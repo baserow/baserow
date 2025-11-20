@@ -14,7 +14,12 @@
     "formula": "'hello'",
     "content": {
       "type": "doc",
-      "content": [{ "text": "hello", "type": "text" }]
+      "content": [
+        {
+          "type": "wrapper",
+          "content": [{ "text": "hello", "type": "text" }]
+        }
+      ]
     }
   },
   {
