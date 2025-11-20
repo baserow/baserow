@@ -17,7 +17,7 @@
       v-if="!tableLoading"
       v-model="values.field_mappings"
       :fields="writableSchemaFields"
-    ></FieldMappingForm>
+    ></FieldMappingsForm>
     <Alert
       v-if="!tableLoading && service?.table_id && !writableSchemaFields.length"
       type="warning"
