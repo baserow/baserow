@@ -189,35 +189,132 @@ export class ToTipTapVisitor extends BaserowFormulaVisitor {
     return this.doFunc(functionArgumentExpressions, functionName)
   }
 
+  /**
+   * Helper to process text arguments - adds quotes if needed in simple mode
+   */
+  processTextArg(arg) {
+    if (arg.type === 'text' && typeof arg.text === 'string') {
+      const isBoolean = arg.text === 'true' || arg.text === 'false'
+      const isNumber = !isNaN(Number(arg.text))
+      const hasQuotes =
+        arg.text.length >= 2 &&
+        ((arg.text.startsWith('"') && arg.text.endsWith('"')) ||
+          (arg.text.startsWith("'") && arg.text.endsWith("'")))
+
+      if (isBoolean || isNumber || hasQuotes) {
+        return arg
+      } else {
+        // In simple mode, add quotes
+        return { type: 'text', text: `"${arg.text}"` }
+      }
+    }
+    return arg
+  }
+
+  /**
+   * Adds an argument to content array, spreading if it's an array
+   */
+  addArgToContent(content, arg) {
+    if (Array.isArray(arg)) {
+      content.push(...arg)
+    } else if (arg) {
+      content.push(arg)
+    }
+  }
+
+  /**
+   * Builds content for binary operators (arg1 operator arg2)
+   */
+  buildOperatorContent(leftArg, rightArg, operatorSymbol) {
+    const content = []
+
+    // Add left argument
+    const processedLeftArg = this.processTextArg(leftArg)
+    this.addArgToContent(content, processedLeftArg)
+
+    // Add operator
+    if (this.mode === 'advanced') {
+      content.push({
+        type: 'operator-formula-component',
+        attrs: { operatorSymbol },
+      })
+    } else {
+      content.push({ type: 'text', text: operatorSymbol })
+    }
+
+    // Add right argument
+    const processedRightArg = this.processTextArg(rightArg)
+    this.addArgToContent(content, processedRightArg)
+
+    return content
+  }
+
+  /**
+   * Builds content for functions in advanced mode
+   */
+  buildFunctionContentAdvanced(functionName, args) {
+    const result = [
+      { type: 'text', text: '\u200B' },
+      {
+        type: 'function-formula-component',
+        attrs: {
+          functionName,
+          hasNoArgs: args.length === 0,
+        },
+      },
+    ]
+
+    // Add arguments
+    args.forEach((arg, index) => {
+      if (index > 0) {
+        result.push({ type: 'function-argument-comma' })
+      }
+      this.addArgToContent(result, arg)
+    })
+
+    // Add closing parenthesis
+    result.push({
+      type: 'function-closing-paren',
+      attrs: { noArgs: args.length === 0 },
+    })
+
+    result.push({ type: 'text', text: '\u200B' })
+
+    return result
+  }
+
+  /**
+   * Builds content for functions in simple mode
+   */
+  buildFunctionContentSimple(functionName, args) {
+    const content = [{ type: 'text', text: `${functionName}(` }]
+
+    args.forEach((arg, index) => {
+      if (index > 0) {
+        content.push({ type: 'text', text: ', ' })
+      }
+
+      const processedArg = this.processTextArg(arg)
+      this.addArgToContent(content, processedArg)
+    })
+
+    content.push({ type: 'text', text: ')' })
+    return content
+  }
+
   doFunc(functionArgumentExpressions, functionName) {
     const args = Array.from(functionArgumentExpressions, (expr) =>
       expr.accept(this)
     )
 
-    // Special handling for 'get' function in advanced mode
-    // Remove quotes from the path argument since get expects raw path
-    const processedArgs =
-      functionName === 'get' && this.mode === 'advanced'
-        ? args.map((arg) => {
-            if (arg.type === 'text' && arg.text) {
-              let text = arg.text
-              // Remove quotes if present
-              if (
-                text.length >= 2 &&
-                ((text.startsWith('"') && text.endsWith('"')) ||
-                  (text.startsWith("'") && text.endsWith("'")))
-              ) {
-                text = text.slice(1, -1)
-              }
-              return { ...arg, text }
-            }
-            return arg
-          })
-        : args
+    // Preprocess arguments (special handling for 'get' in advanced mode)
+    const processedArgs = this.preprocessGetArgs(args, functionName)
 
+    // Get the node from the runtime function
     const formulaFunctionType = this.functions.get(functionName)
     const node = formulaFunctionType.toNode(processedArgs, this.mode)
 
+    // Early return: if it's a component that needs ZWS wrapping
     if (
       node?.type === 'get-formula-component' ||
       node?.type === 'function-formula-component'
@@ -229,166 +326,75 @@ export class ToTipTapVisitor extends BaserowFormulaVisitor {
       ]
     }
 
-    // If the function returns an array (like concat with newlines in simple mode),
-    // return it directly
+    // Early return: if it's already an array (e.g., concat with newlines)
     if (Array.isArray(node)) {
       return node
     }
 
-    // If the function returns a wrapper with content, flatten any nested arrays in content
+    // Flatten nested arrays in wrapper content
     if (node?.type === 'wrapper' && node.content) {
       node.content = node.content.flat()
+      return node
     }
 
-    // If the function doesn't have a proper TipTap component (node is null or type is null),
-    // wrap it as text but preserve the arguments
-    if (!node || !node.type) {
-      const content = []
-
-      // Check if this is an operator and should use symbol instead of function name
-      const isOperator = formulaFunctionType.getOperatorSymbol
-
-      if (isOperator && args.length === 2) {
-        // For binary operators, display as: arg1 symbol arg2
-        const [leftArg, rightArg] = args
-
-        // Add left argument
-        if (leftArg.type === 'text' && typeof leftArg.text === 'string') {
-          const isBoolean = leftArg.text === 'true' || leftArg.text === 'false'
-          const isNumber = !isNaN(Number(leftArg.text))
-          if (isBoolean || isNumber) {
-            content.push(leftArg)
-          } else {
-            content.push({ type: 'text', text: `"${leftArg.text}"` })
-          }
-        } else if (Array.isArray(leftArg)) {
-          // If arg is an array (from nested function calls in advanced mode),
-          // spread its elements
-          content.push(...leftArg)
-        } else if (leftArg) {
-          content.push(leftArg)
-        }
-
-        // Add operator symbol as a component in advanced mode, as text in simple mode
-        if (this.mode === 'advanced') {
-          content.push({
-            type: 'operator-formula-component',
-            attrs: {
-              operatorSymbol: formulaFunctionType.getOperatorSymbol,
-            },
-          })
-        } else {
-          content.push({
-            type: 'text',
-            text: formulaFunctionType.getOperatorSymbol,
-          })
-        }
-
-        // Add right argument
-        if (rightArg.type === 'text' && typeof rightArg.text === 'string') {
-          const isBoolean =
-            rightArg.text === 'true' || rightArg.text === 'false'
-          const isNumber = !isNaN(Number(rightArg.text))
-          if (isBoolean || isNumber) {
-            content.push(rightArg)
-          } else {
-            content.push({ type: 'text', text: `"${rightArg.text}"` })
-          }
-        } else if (Array.isArray(rightArg)) {
-          // If arg is an array (from nested function calls in advanced mode),
-          // spread its elements
-          content.push(...rightArg)
-        } else if (rightArg) {
-          content.push(rightArg)
-        }
-      } else if (this.mode === 'advanced') {
-        // For functions in advanced mode, use the function component
-        // Create function component node (just name + opening parenthesis)
-        const functionNode = {
-          type: 'function-formula-component',
-          attrs: {
-            functionName,
-            hasNoArgs: args.length === 0,
-          },
-        }
-
-        // Build the content array with ZWS + function node + arguments + closing parenthesis + ZWS
-        const result = [{ type: 'text', text: '\u200B' }, functionNode]
-
-        // Add arguments as plain text nodes
-        args.forEach((arg, index) => {
-          if (index > 0) {
-            // Add atomic comma node
-            result.push({ type: 'function-argument-comma' })
-          }
-
-          // Add the argument directly
-          if (Array.isArray(arg)) {
-            // If arg is an array (from nested function calls in advanced mode),
-            // spread its elements
-            result.push(...arg)
-          } else if (arg) {
-            result.push(arg)
-          }
-        })
-
-        // Add closing parenthesis as atomic node
-        result.push({
-          type: 'function-closing-paren',
-          attrs: {
-            noArgs: args.length === 0,
-          },
-        })
-
-        // Add ZWS after the closing parenthesis
-        result.push({ type: 'text', text: '\u200B' })
-
-        return result
-      } else {
-        // For functions, display as: functionName(arg1, arg2, ...)
-        content.push({ type: 'text', text: `${functionName}(` })
-
-        args.forEach((arg, index) => {
-          if (index > 0) {
-            content.push({ type: 'text', text: ', ' })
-          }
-
-          // Check if the argument is a complex node or a simple value
-          if (arg.type === 'text' && typeof arg.text === 'string') {
-            // Don't add quotes for boolean or numeric values
-            const isBoolean = arg.text === 'true' || arg.text === 'false'
-            const isNumber = !isNaN(Number(arg.text))
-
-            if (isBoolean || isNumber) {
-              content.push(arg)
-            } else {
-              // For actual string literals, add quotes
-              content.push({ type: 'text', text: `"${arg.text}"` })
-            }
-          } else if (Array.isArray(arg)) {
-            // If arg is an array (from nested function calls in advanced mode),
-            // spread its elements
-            content.push(...arg)
-          } else if (arg) {
-            content.push(arg)
-          }
-        })
-
-        content.push({ type: 'text', text: ')' })
-      }
-
-      // In advanced mode, return inline content without wrapper
-      if (this.mode === 'advanced') {
-        return content
-      }
-
-      return {
-        type: 'wrapper',
-        content,
-      }
+    // Early return: if node is valid, use it
+    if (node?.type) {
+      return node
     }
 
-    return node
+    // Fallback: build content manually when no proper TipTap component exists
+    return this.buildFallbackContent(args, functionName, formulaFunctionType)
+  }
+
+  /**
+   * Preprocesses arguments for 'get' function in advanced mode
+   */
+  preprocessGetArgs(args, functionName) {
+    if (functionName === 'get' && this.mode === 'advanced') {
+      return args.map((arg) => {
+        if (arg.type === 'text' && arg.text) {
+          let text = arg.text
+          // Remove quotes if present
+          if (
+            text.length >= 2 &&
+            ((text.startsWith('"') && text.endsWith('"')) ||
+              (text.startsWith("'") && text.endsWith("'")))
+          ) {
+            text = text.slice(1, -1)
+          }
+          return { ...arg, text }
+        }
+        return arg
+      })
+    }
+    return args
+  }
+
+  /**
+   * Builds fallback content when function doesn't have a TipTap component
+   */
+  buildFallbackContent(args, functionName, formulaFunctionType) {
+    const isOperator = formulaFunctionType.getOperatorSymbol
+
+    // Handle binary operators
+    if (isOperator && args.length === 2) {
+      const [leftArg, rightArg] = args
+      const content = this.buildOperatorContent(
+        leftArg,
+        rightArg,
+        formulaFunctionType.getOperatorSymbol
+      )
+
+      return this.mode === 'advanced' ? content : { type: 'wrapper', content }
+    }
+
+    // Handle functions
+    const content =
+      this.mode === 'advanced'
+        ? this.buildFunctionContentAdvanced(functionName, args)
+        : this.buildFunctionContentSimple(functionName, args)
+
+    return this.mode === 'advanced' ? content : { type: 'wrapper', content }
   }
 
   visitBinaryOp(ctx) {
