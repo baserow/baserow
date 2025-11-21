@@ -24,6 +24,7 @@ from baserow.core.formula.runtime_formula_types import (
     RuntimeIf,
     RuntimeIsEven,
     RuntimeIsOdd,
+    RuntimeJoin,
     RuntimeLength,
     RuntimeLessThan,
     RuntimeLessThanOrEqual,
@@ -1834,4 +1835,44 @@ def test_runtime_reverse_validate_type_of_args(args, expected):
 )
 def test_runtime_reverse_validate_number_of_args(args, expected):
     result = RuntimeReverse().validate_number_of_args(args)
+    assert result is expected
+
+
+#
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        (['["foo", "bar"]'], "foo,bar"),
+        (['["foo", "bar"]', "*"], "foo*bar"),
+    ],
+)
+def test_runtime_join_execute(args, expected):
+    parsed_args = RuntimeJoin().parse_args(args)
+    result = RuntimeJoin().execute({}, parsed_args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        (['["foo", "bar"]'], None),
+        (['["foo", "bar"]', "baz"], None),
+    ],
+)
+def test_runtime_join_validate_type_of_args(args, expected):
+    result = RuntimeJoin().validate_type_of_args(args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([], False),
+        (["foo"], True),
+        (["foo", "bar"], True),
+        (["foo", "bar", "baz"], False),
+    ],
+)
+def test_runtime_join_validate_number_of_args(args, expected):
+    result = RuntimeJoin().validate_number_of_args(args)
     assert result is expected

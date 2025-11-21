@@ -1971,3 +1971,59 @@ export class RuntimeReverse extends RuntimeFormulaFunction {
     ]
   }
 }
+
+export class RuntimeJoin extends RuntimeFormulaFunction {
+  static getType() {
+    return 'join'
+  }
+
+  static getFormulaType() {
+    return FORMULA_TYPE.FUNCTION
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.TEXT
+  }
+
+  get args() {
+    return [
+      new AnyBaserowRuntimeFormulaArgumentType(),
+      new TextBaserowRuntimeFormulaArgumentType({ optional: true }),
+    ]
+  }
+
+  execute(context, args) {
+    let separator = ','
+    if (args.length === 2) {
+      separator = args[1]
+    }
+
+    try {
+      const val = ensureObject(args[0])
+
+      if (Array.isArray(val)) {
+        return val.join(separator)
+      }
+    } catch {}
+
+    return args[0]
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.joinDescription')
+  }
+
+  getExamples() {
+    return [
+      {
+        formula: 'join(\'["foo", "bar"]\')',
+        result: "'foo,bar'",
+      },
+      {
+        formula: 'join(\'["foo", "bar"]\', ' * ')',
+        result: "'foo*bar'",
+      },
+    ]
+  }
+}

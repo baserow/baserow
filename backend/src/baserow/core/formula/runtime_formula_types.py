@@ -505,3 +505,25 @@ class RuntimeReverse(RuntimeFormulaFunction):
             pass
 
         return "".join(reversed(value))
+
+
+class RuntimeJoin(RuntimeFormulaFunction):
+    type = "join"
+
+    args = [
+        AnyBaserowRuntimeFormulaArgumentType(),
+        TextBaserowRuntimeFormulaArgumentType(optional=True),
+    ]
+
+    def execute(self, context: FormulaContext, args: FormulaArgs):
+        value = args[0]
+        separator = args[1] if len(args) == 2 else ","
+
+        try:
+            value = ensure_object(value)
+            if isinstance(value, list):
+                return separator.join(value)
+        except ValidationError:
+            pass
+
+        return value
