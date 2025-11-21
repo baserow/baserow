@@ -4,7 +4,7 @@ from django.core.exceptions import ValidationError
 
 import pytest
 
-from baserow.core.formula.validator import ensure_date, ensure_datetime
+from baserow.core.formula.validator import ensure_array, ensure_date, ensure_datetime
 
 
 def test_ensure_date():
@@ -29,3 +29,31 @@ def test_ensure_datetime_throws_exception_for_invalid_value(value):
     with pytest.raises(ValidationError) as exc:
         ensure_datetime(value)
     assert exc.value.args[0] == "Value cannot be converted to a datetime."
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        '["foo", "bar"',
+        '"foo", "bar"]',
+    ],
+)
+def test_ensure_array_throws_exception_for_invalid_literal_array(value):
+    with pytest.raises(ValidationError) as exc:
+        ensure_array(value, allow_literal_array=True)
+    assert (
+        exc.value.args[0]
+        == "Literal string array must start with `[` and end with `]`."
+    )
+
+
+@pytest.mark.parametrize(
+    "value,expected",
+    [
+        ('["foo", "bar"]', ["foo", "bar"]),
+        (["foo", "bar"], ["foo", "bar"]),
+    ],
+)
+def test_ensure_array_returns_array(value, expected):
+    result = ensure_array(value, allow_literal_array=True)
+    assert result == expected

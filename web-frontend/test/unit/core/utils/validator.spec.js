@@ -253,6 +253,20 @@ describe('ensureArray', () => {
     expect(ensureArray([1, 2, 3])).toStrictEqual([1, 2, 3])
     expect(ensureArray({ key: 'value' })).toStrictEqual([{ key: 'value' }])
   })
+  it('should convert a literal string array to an array', () => {
+    expect(
+      ensureArray('["foo", "bar"]', { allowLiteralArray: true })
+    ).toStrictEqual(['foo', 'bar'])
+    const error = new Error(
+      'Literal string array must start with `[` and end with `]`.'
+    )
+    expect(() =>
+      ensureArray('["foo", "bar"', { allowLiteralArray: true })
+    ).toThrow(error)
+    expect(() =>
+      ensureArray('"foo", "bar"]', { allowLiteralArray: true })
+    ).toThrow(error)
+  })
 })
 
 describe('ensurePositiveInteger', () => {
