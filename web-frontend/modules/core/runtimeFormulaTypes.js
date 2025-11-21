@@ -13,6 +13,7 @@ import {
   InvalidNumberOfArguments,
 } from '@baserow/modules/core/formula/parser/errors'
 import { Node, VueNodeViewRenderer } from '@tiptap/vue-2'
+import { reverseString } from '@baserow/modules/core/utils/string'
 import {
   ensureObject,
   ensureString,
@@ -1915,6 +1916,57 @@ export class RuntimeContains extends RuntimeFormulaFunction {
       {
         formula: 'contains(\'["foo", "bar", "baz"]\', "foo")',
         result: 'true',
+      },
+    ]
+  }
+}
+
+export class RuntimeReverse extends RuntimeFormulaFunction {
+  static getType() {
+    return 'reverse'
+  }
+
+  static getFormulaType() {
+    return FORMULA_TYPE.FUNCTION
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.TEXT
+  }
+
+  get args() {
+    return [new TextBaserowRuntimeFormulaArgumentType()]
+  }
+
+  execute(context, [arg]) {
+    try {
+      const val = ensureObject(arg)
+      if (Array.isArray(val)) {
+        return val.reverse()
+      }
+    } catch {}
+
+    return reverseString(arg)
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.reverseDescription')
+  }
+
+  getExamples() {
+    return [
+      {
+        formula: "reverse('Hello, world!')",
+        result: "'!dlrow ,olleH'",
+      },
+      {
+        formula: "reverse('😀💙🚀')",
+        result: "'🚀💙😀",
+      },
+      {
+        formula: 'reverse(\'["foo", "bar"]\')',
+        result: "'bar,foo'",
       },
     ]
   }

@@ -39,6 +39,7 @@ from baserow.core.formula.runtime_formula_types import (
     RuntimeRandomFloat,
     RuntimeRandomInt,
     RuntimeReplace,
+    RuntimeReverse,
     RuntimeRound,
     RuntimeSecond,
     RuntimeToday,
@@ -1792,4 +1793,45 @@ def test_runtime_contains_validate_type_of_args(args, expected):
 )
 def test_runtime_contains_validate_number_of_args(args, expected):
     result = RuntimeContains().validate_number_of_args(args)
+    assert result is expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        (["Hello, world!"], "!dlrow ,olleH"),
+        (["😀💙🚀"], "🚀💙😀"),
+        (["Hello, world!"], "!dlrow ,olleH"),
+        (['["foo", "bar"]'], ["bar", "foo"]),
+    ],
+)
+def test_runtime_reverse_execute(args, expected):
+    parsed_args = RuntimeReverse().parse_args(args)
+    result = RuntimeReverse().execute({}, parsed_args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        (["foo"], None),
+        (["😀💙🚀"], None),
+        (['["foo", "bar"]'], None),
+    ],
+)
+def test_runtime_reverse_validate_type_of_args(args, expected):
+    result = RuntimeReverse().validate_type_of_args(args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([], False),
+        (["foo"], True),
+        (["foo", "bar"], False),
+    ],
+)
+def test_runtime_reverse_validate_number_of_args(args, expected):
+    result = RuntimeReverse().validate_number_of_args(args)
     assert result is expected

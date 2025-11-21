@@ -485,3 +485,23 @@ class RuntimeContains(RuntimeFormulaFunction):
             pass
 
         return False
+
+
+class RuntimeReverse(RuntimeFormulaFunction):
+    type = "reverse"
+
+    args = [
+        TextBaserowRuntimeFormulaArgumentType(),
+    ]
+
+    def execute(self, context: FormulaContext, args: FormulaArgs):
+        value = args[0]
+
+        try:
+            value = ensure_object(value)
+            if isinstance(value, list):
+                return list(reversed(value))
+        except ValidationError:
+            pass
+
+        return "".join(reversed(value))

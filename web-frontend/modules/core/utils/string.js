@@ -223,3 +223,13 @@ export function collatedStringCompare(stringA, stringB, order) {
     ? stringA.localeCompare(stringB, 'en')
     : stringB.localeCompare(stringA, 'en')
 }
+
+/**
+ * Reverses a string.
+ *
+ * @param {string} value
+ * @returns string
+ */
+export const reverseString = (value) => {
+  return [...value].reverse().join('')
+}
