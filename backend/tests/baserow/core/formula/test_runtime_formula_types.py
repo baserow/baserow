@@ -43,6 +43,7 @@ from baserow.core.formula.runtime_formula_types import (
     RuntimeReverse,
     RuntimeRound,
     RuntimeSecond,
+    RuntimeSplit,
     RuntimeToday,
     RuntimeUpper,
     RuntimeYear,
@@ -1838,7 +1839,6 @@ def test_runtime_reverse_validate_number_of_args(args, expected):
     assert result is expected
 
 
-#
 @pytest.mark.parametrize(
     "args,expected",
     [
@@ -1875,4 +1875,45 @@ def test_runtime_join_validate_type_of_args(args, expected):
 )
 def test_runtime_join_validate_number_of_args(args, expected):
     result = RuntimeJoin().validate_number_of_args(args)
+    assert result is expected
+
+
+#
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        (["foobar", "b"], ["foo", "ar"]),
+        (["foobar"], ["f", "o", "o", "b", "a", "r"]),
+    ],
+)
+def test_runtime_split_execute(args, expected):
+    parsed_args = RuntimeSplit().parse_args(args)
+    result = RuntimeSplit().execute({}, parsed_args)
+    print("parsed args: ", parsed_args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        (['["foo", "bar"]'], None),
+        (['["foo", "bar"]', "baz"], None),
+    ],
+)
+def test_runtime_split_validate_type_of_args(args, expected):
+    result = RuntimeSplit().validate_type_of_args(args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([], False),
+        (["foo"], True),
+        (["foo", "bar"], True),
+        (["foo", "bar", "baz"], False),
+    ],
+)
+def test_runtime_split_validate_number_of_args(args, expected):
+    result = RuntimeSplit().validate_number_of_args(args)
     assert result is expected

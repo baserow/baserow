@@ -527,3 +527,19 @@ class RuntimeJoin(RuntimeFormulaFunction):
             pass
 
         return value
+
+
+class RuntimeSplit(RuntimeFormulaFunction):
+    type = "split"
+
+    args = [
+        TextBaserowRuntimeFormulaArgumentType(),
+        TextBaserowRuntimeFormulaArgumentType(optional=True),
+    ]
+
+    def execute(self, context: FormulaContext, args: FormulaArgs):
+        separator = args[1] if len(args) == 2 else None
+        if separator:
+            return args[0].split(separator)
+
+        return list(args[0])

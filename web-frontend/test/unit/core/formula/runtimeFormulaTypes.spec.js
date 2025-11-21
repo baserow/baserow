@@ -39,6 +39,7 @@ import {
   RuntimeContains,
   RuntimeReverse,
   RuntimeJoin,
+  RuntimeSplit,
 } from '@baserow/modules/core/runtimeFormulaTypes'
 import { expect } from '@jest/globals'
 
@@ -1619,6 +1620,38 @@ describe('RuntimeJoin', () => {
     { args: ['foo', 'bar', 'baz'], expected: false },
   ])('validates number of args', ({ args, expected }) => {
     const formulaType = new RuntimeJoin()
+    const result = formulaType.validateNumberOfArgs(args)
+    expect(result).toStrictEqual(expected)
+  })
+})
+
+describe('RuntimeSplit', () => {
+  test.each([
+    { args: ['foobar', 'b'], expected: ['foo', 'ar'] },
+    { args: ['foobar'], expected: ['f', 'o', 'o', 'b', 'a', 'r'] },
+  ])('execute returns expected value', ({ args, expected }) => {
+    const formulaType = new RuntimeSplit()
+    const parsedArgs = formulaType.parseArgs(args)
+    const result = formulaType.execute({}, parsedArgs)
+    expect(result).toEqual(expected)
+  })
+
+  test.each([
+    { args: ['foobar'], expected: undefined },
+    { args: ['foobar', 'baz'], expected: undefined },
+  ])('validates type of args', ({ args, expected }) => {
+    const formulaType = new RuntimeSplit()
+    const result = formulaType.validateTypeOfArgs(args)
+    expect(result).toStrictEqual(expected)
+  })
+
+  test.each([
+    { args: [], expected: false },
+    { args: ['foo'], expected: true },
+    { args: ['foo', 'bar'], expected: true },
+    { args: ['foo', 'bar', 'baz'], expected: false },
+  ])('validates number of args', ({ args, expected }) => {
+    const formulaType = new RuntimeSplit()
     const result = formulaType.validateNumberOfArgs(args)
     expect(result).toStrictEqual(expected)
   })

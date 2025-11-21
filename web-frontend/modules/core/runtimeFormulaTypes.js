@@ -2027,3 +2027,50 @@ export class RuntimeJoin extends RuntimeFormulaFunction {
     ]
   }
 }
+
+export class RuntimeSplit extends RuntimeFormulaFunction {
+  static getType() {
+    return 'split'
+  }
+
+  static getFormulaType() {
+    return FORMULA_TYPE.FUNCTION
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.TEXT
+  }
+
+  get args() {
+    return [
+      new TextBaserowRuntimeFormulaArgumentType(),
+      new TextBaserowRuntimeFormulaArgumentType({ optional: true }),
+    ]
+  }
+
+  execute(context, args) {
+    let separator = ''
+    if (args.length === 2) {
+      separator = args[1]
+    }
+    return args[0].split(separator)
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.joinDescription')
+  }
+
+  getExamples() {
+    return [
+      {
+        formula: 'split("foobar")',
+        result: "'f,o,o,b,a,r'",
+      },
+      {
+        formula: 'split("foobar", "b")',
+        result: "'foo,ar'",
+      },
+    ]
+  }
+}

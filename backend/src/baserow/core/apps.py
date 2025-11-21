@@ -73,6 +73,7 @@ class CoreConfig(AppConfig):
             RuntimeReverse,
             RuntimeRound,
             RuntimeSecond,
+            RuntimeSplit,
             RuntimeToday,
             RuntimeUpper,
             RuntimeYear,
@@ -118,6 +119,7 @@ class CoreConfig(AppConfig):
         formula_runtime_function_registry.register(RuntimeContains())
         formula_runtime_function_registry.register(RuntimeReverse())
         formula_runtime_function_registry.register(RuntimeJoin())
+        formula_runtime_function_registry.register(RuntimeSplit())
 
         from baserow.core.permission_manager import (
             AllowIfTemplatePermissionManagerType,

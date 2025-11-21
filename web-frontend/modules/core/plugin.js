@@ -134,6 +134,7 @@ import {
   RuntimeContains,
   RuntimeReverse,
   RuntimeJoin,
+  RuntimeSplit,
 } from '@baserow/modules/core/runtimeFormulaTypes'
 
 import priorityBus from '@baserow/modules/core/plugins/priorityBus'
@@ -321,6 +322,7 @@ export default (context, inject) => {
   registry.register('runtimeFormulaFunction', new RuntimeContains(context))
   registry.register('runtimeFormulaFunction', new RuntimeReverse(context))
   registry.register('runtimeFormulaFunction', new RuntimeJoin(context))
+  registry.register('runtimeFormulaFunction', new RuntimeSplit(context))
 
   registry.register('roles', new AdminRoleType(context))
   registry.register('roles', new MemberRoleType(context))
