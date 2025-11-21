@@ -26,7 +26,7 @@
               v-model="searchTerm"
               class="workspace-search__input"
               :placeholder="$t('workspaceSearch.searchEverything')"
-              @keydown="handleKeydown"
+              @keydown.stop="handleKeydown"
               @focusin="focusInput = true"
               @focusout="focusInput = false"
             />
