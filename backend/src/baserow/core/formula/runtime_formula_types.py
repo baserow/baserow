@@ -564,3 +564,14 @@ class RuntimeIsEmpty(RuntimeFormulaFunction):
             pass
 
         return len(value) == 0
+
+
+class RuntimeStrip(RuntimeFormulaFunction):
+    type = "strip"
+
+    args = [
+        AnyBaserowRuntimeFormulaArgumentType(),
+    ]
+
+    def execute(self, context: FormulaContext, args: FormulaArgs):
+        return args[0].strip()

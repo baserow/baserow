@@ -2143,3 +2143,39 @@ export class RuntimeIsEmpty extends RuntimeFormulaFunction {
     ]
   }
 }
+
+export class RuntimeStrip extends RuntimeFormulaFunction {
+  static getType() {
+    return 'strip'
+  }
+
+  static getFormulaType() {
+    return FORMULA_TYPE.FUNCTION
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.TEXT
+  }
+
+  get args() {
+    return [new TextBaserowRuntimeFormulaArgumentType()]
+  }
+
+  execute(context, [arg]) {
+    return arg.trim()
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.stripDescription')
+  }
+
+  getExamples() {
+    return [
+      {
+        formula: "trim(' foo ')",
+        result: "'foo'",
+      },
+    ]
+  }
+}

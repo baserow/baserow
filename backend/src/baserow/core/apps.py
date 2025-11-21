@@ -75,6 +75,7 @@ class CoreConfig(AppConfig):
             RuntimeRound,
             RuntimeSecond,
             RuntimeSplit,
+            RuntimeStrip,
             RuntimeToday,
             RuntimeUpper,
             RuntimeYear,
@@ -122,6 +123,7 @@ class CoreConfig(AppConfig):
         formula_runtime_function_registry.register(RuntimeJoin())
         formula_runtime_function_registry.register(RuntimeSplit())
         formula_runtime_function_registry.register(RuntimeIsEmpty())
+        formula_runtime_function_registry.register(RuntimeStrip())
 
         from baserow.core.permission_manager import (
             AllowIfTemplatePermissionManagerType,
