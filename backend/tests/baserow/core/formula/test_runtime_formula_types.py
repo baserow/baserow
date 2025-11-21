@@ -22,6 +22,7 @@ from baserow.core.formula.runtime_formula_types import (
     RuntimeGreaterThanOrEqual,
     RuntimeHour,
     RuntimeIf,
+    RuntimeIsEmpty,
     RuntimeIsEven,
     RuntimeIsOdd,
     RuntimeJoin,
@@ -1878,7 +1879,6 @@ def test_runtime_join_validate_number_of_args(args, expected):
     assert result is expected
 
 
-#
 @pytest.mark.parametrize(
     "args,expected",
     [
@@ -1916,4 +1916,56 @@ def test_runtime_split_validate_type_of_args(args, expected):
 )
 def test_runtime_split_validate_number_of_args(args, expected):
     result = RuntimeSplit().validate_number_of_args(args)
+    assert result is expected
+
+
+#
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([""], True),
+        ([None], True),
+        ([[]], True),
+        ([{}], True),
+        (["[]"], True),
+        (["{}"], True),
+        ([" "], False),
+        (["foo"], False),
+        ([["foo"]], False),
+        ([{"foo": "bar"}], False),
+        (['["foo"]'], False),
+        (['{"foo": "bar"}'], False),
+    ],
+)
+def test_runtime_is_empty_execute(args, expected):
+    parsed_args = RuntimeIsEmpty().parse_args(args)
+    result = RuntimeIsEmpty().execute({}, parsed_args)
+    print("parsed args: ", parsed_args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([""], None),
+        (["foo"], None),
+        ([[]], None),
+        ([{}], None),
+    ],
+)
+def test_runtime_is_empty_validate_type_of_args(args, expected):
+    result = RuntimeIsEmpty().validate_type_of_args(args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([], False),
+        (["foo"], True),
+        (["foo", "bar"], False),
+    ],
+)
+def test_runtime_is_empty_validate_number_of_args(args, expected):
+    result = RuntimeIsEmpty().validate_number_of_args(args)
     assert result is expected

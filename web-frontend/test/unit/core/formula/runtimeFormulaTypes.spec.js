@@ -40,6 +40,7 @@ import {
   RuntimeReverse,
   RuntimeJoin,
   RuntimeSplit,
+  RuntimeIsEmpty,
 } from '@baserow/modules/core/runtimeFormulaTypes'
 import { expect } from '@jest/globals'
 
@@ -1652,6 +1653,48 @@ describe('RuntimeSplit', () => {
     { args: ['foo', 'bar', 'baz'], expected: false },
   ])('validates number of args', ({ args, expected }) => {
     const formulaType = new RuntimeSplit()
+    const result = formulaType.validateNumberOfArgs(args)
+    expect(result).toStrictEqual(expected)
+  })
+})
+
+describe('RuntimeIsEmpty', () => {
+  test.each([
+    { args: [''], expected: true },
+    { args: [undefined], expected: true },
+    { args: [null], expected: true },
+    { args: [[]], expected: true },
+    { args: [{}], expected: true },
+    { args: ['[]'], expected: true },
+    { args: ['{}'], expected: true },
+    { args: [' '], expected: false },
+    { args: ['foo'], expected: false },
+    { args: [['foo']], expected: false },
+    { args: [{ foo: 'bar' }], expected: false },
+    { args: ['["foo"]'], expected: false },
+    { args: ['{"foo": "bar"}'], expected: false },
+  ])('execute returns expected value', ({ args, expected }) => {
+    const formulaType = new RuntimeIsEmpty()
+    const parsedArgs = formulaType.parseArgs(args)
+    const result = formulaType.execute({}, parsedArgs)
+    expect(result).toEqual(expected)
+  })
+
+  test.each([
+    { args: [''], expected: undefined },
+    { args: ['foobar'], expected: undefined },
+  ])('validates type of args', ({ args, expected }) => {
+    const formulaType = new RuntimeIsEmpty()
+    const result = formulaType.validateTypeOfArgs(args)
+    expect(result).toStrictEqual(expected)
+  })
+
+  test.each([
+    { args: [], expected: false },
+    { args: ['foo'], expected: true },
+    { args: ['foo', 'bar'], expected: false },
+  ])('validates number of args', ({ args, expected }) => {
+    const formulaType = new RuntimeIsEmpty()
     const result = formulaType.validateNumberOfArgs(args)
     expect(result).toStrictEqual(expected)
   })

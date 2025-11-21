@@ -52,6 +52,7 @@ class CoreConfig(AppConfig):
             RuntimeGreaterThanOrEqual,
             RuntimeHour,
             RuntimeIf,
+            RuntimeIsEmpty,
             RuntimeIsEven,
             RuntimeIsOdd,
             RuntimeJoin,
@@ -120,6 +121,7 @@ class CoreConfig(AppConfig):
         formula_runtime_function_registry.register(RuntimeReverse())
         formula_runtime_function_registry.register(RuntimeJoin())
         formula_runtime_function_registry.register(RuntimeSplit())
+        formula_runtime_function_registry.register(RuntimeIsEmpty())
 
         from baserow.core.permission_manager import (
             AllowIfTemplatePermissionManagerType,

@@ -543,3 +543,24 @@ class RuntimeSplit(RuntimeFormulaFunction):
             return args[0].split(separator)
 
         return list(args[0])
+
+
+class RuntimeIsEmpty(RuntimeFormulaFunction):
+    type = "is_empty"
+
+    args = [
+        AnyBaserowRuntimeFormulaArgumentType(),
+    ]
+
+    def execute(self, context: FormulaContext, args: FormulaArgs):
+        value = args[0]
+        if not value:
+            return True
+
+        try:
+            value = ensure_object(value)
+            return len(value) == 0
+        except ValidationError:
+            pass
+
+        return len(value) == 0

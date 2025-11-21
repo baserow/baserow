@@ -2074,3 +2074,72 @@ export class RuntimeSplit extends RuntimeFormulaFunction {
     ]
   }
 }
+
+export class RuntimeIsEmpty extends RuntimeFormulaFunction {
+  static getType() {
+    return 'is_empty'
+  }
+
+  static getFormulaType() {
+    return FORMULA_TYPE.FUNCTION
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.BOOLEAN
+  }
+
+  get args() {
+    return [new AnyBaserowRuntimeFormulaArgumentType()]
+  }
+
+  execute(context, [arg]) {
+    if (arg === undefined || arg === null) {
+      return true
+    }
+
+    try {
+      const val = ensureObject(arg)
+      if (Array.isArray(val)) {
+        return val.length === 0
+      } else {
+        return Object.keys(val).length === 0
+      }
+    } catch {}
+
+    return arg.length === 0
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.joinDescription')
+  }
+
+  getExamples() {
+    return [
+      {
+        formula: "is_empty('')",
+        result: 'true',
+      },
+      {
+        formula: "is_empty('{}')",
+        result: 'true',
+      },
+      {
+        formula: "is_empty('[]')",
+        result: 'true',
+      },
+      {
+        formula: "is_empty('foo')",
+        result: 'false',
+      },
+      {
+        formula: 'is_empty(\'{"foo": "bar"}\')',
+        result: 'false',
+      },
+      {
+        formula: 'is_empty(\'["foo"]\')',
+        result: 'false',
+      },
+    ]
+  }
+}
