@@ -498,9 +498,8 @@ class RuntimeReverse(RuntimeFormulaFunction):
         value = args[0]
 
         try:
-            value = ensure_object(value)
-            if isinstance(value, list):
-                return list(reversed(value))
+            value = ensure_array(value, allow_literal_array=True)
+            return list(reversed(value))
         except ValidationError:
             pass
 
@@ -520,9 +519,8 @@ class RuntimeJoin(RuntimeFormulaFunction):
         separator = args[1] if len(args) == 2 else ","
 
         try:
-            value = ensure_object(value)
-            if isinstance(value, list):
-                return separator.join(value)
+            value = ensure_array(value, allow_literal_array=True)
+            return separator.join(value)
         except ValidationError:
             pass
 
@@ -604,8 +602,7 @@ class RuntimeSum(RuntimeFormulaFunction):
 
         try:
             list_of_values = ensure_array(args[0])
-            if isinstance(list_of_values, list):
-                return self._get_sum(list_of_values)
+            return self._get_sum(list_of_values)
         except ValidationError:
             return 0
 
@@ -634,15 +631,28 @@ class RuntimeAvg(RuntimeFormulaFunction):
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
         try:
-            list_of_values = ensure_object(args[0])
-            if isinstance(list_of_values, list):
-                return self._get_avg(list_of_values)
-        except ValidationError:
-            pass
-
-        try:
-            list_of_values = ensure_array(args[0])
-            if isinstance(list_of_values, list):
-                return self._get_avg(list_of_values)
+            list_of_values = ensure_array(args[0], allow_literal_array=True)
+            return self._get_avg(list_of_values)
         except ValidationError:
             return 0
+
+
+class RuntimeAt(RuntimeFormulaFunction):
+    type = "at"
+
+    args = [
+        AnyBaserowRuntimeFormulaArgumentType(),
+        NumberBaserowRuntimeFormulaArgumentType(cast_to_int=True),
+    ]
+
+    def execute(self, context: FormulaContext, args: FormulaArgs):
+        value = args[0]
+        index = args[1]
+        try:
+            list_of_values = ensure_array(value, allow_literal_array=True)
+            if index + 1 <= len(list_of_values):
+                return list_of_values[index]
+        except ValidationError as e:
+            pass
+
+        return None

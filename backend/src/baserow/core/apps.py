@@ -38,6 +38,7 @@ class CoreConfig(AppConfig):
         from baserow.core.formula.runtime_formula_types import (
             RuntimeAdd,
             RuntimeAnd,
+            RuntimeAt,
             RuntimeAvg,
             RuntimeCapitalize,
             RuntimeConcat,
@@ -128,6 +129,7 @@ class CoreConfig(AppConfig):
         formula_runtime_function_registry.register(RuntimeStrip())
         formula_runtime_function_registry.register(RuntimeSum())
         formula_runtime_function_registry.register(RuntimeAvg())
+        formula_runtime_function_registry.register(RuntimeAt())
 
         from baserow.core.permission_manager import (
             AllowIfTemplatePermissionManagerType,

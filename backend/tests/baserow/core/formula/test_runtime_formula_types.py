@@ -8,6 +8,7 @@ from freezegun import freeze_time
 from baserow.core.formula.runtime_formula_types import (
     RuntimeAdd,
     RuntimeAnd,
+    RuntimeAt,
     RuntimeAvg,
     RuntimeCapitalize,
     RuntimeConcat,
@@ -2091,4 +2092,44 @@ def test_runtime_avg_validate_type_of_args(args, expected):
 )
 def test_runtime_avg_validate_number_of_args(args, expected):
     result = RuntimeAvg().validate_number_of_args(args)
+    assert result is expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        (['["foo", "bar"]', 1], "bar"),
+        (['["foo", "bar"]', 3], None),
+        ([["foo", "bar"], 0], "foo"),
+    ],
+)
+def test_runtime_at_execute(args, expected):
+    parsed_args = RuntimeAt().parse_args(args)
+    result = RuntimeAt().execute({}, parsed_args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        (["[]", "2"], None),
+        ([[], 2], None),
+    ],
+)
+def test_runtime_at_validate_type_of_args(args, expected):
+    result = RuntimeAt().validate_type_of_args(args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([], False),
+        (["foo"], False),
+        (["foo", "bar"], True),
+        (["foo", "bar", "baz"], False),
+    ],
+)
+def test_runtime_at_validate_number_of_args(args, expected):
+    result = RuntimeAt().validate_number_of_args(args)
     assert result is expected

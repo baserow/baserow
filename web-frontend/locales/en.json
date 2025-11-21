@@ -684,6 +684,7 @@
     "splitDescription": "Splits the first argument using the optional second argument as the separator. If the second argument is not provided, uses '' as the separator.",
     "sumDescription": "Sums the numbers inside the argument.",
     "avgDescription": "Averages the numbers inside the argument.",
+    "atDescription": "Returns the item in the first argument at the index specified by the second argument.",
     "formulaTypeFormula": "Function | Functions",
     "formulaTypeOperator": "Operator | Operators",
     "formulaTypeData": "Data",

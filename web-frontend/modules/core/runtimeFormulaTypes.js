@@ -1822,7 +1822,6 @@ export class RuntimeLength extends RuntimeFormulaFunction {
       return Object.keys(val).length
     } catch {}
 
-    // TODO: this may not be necessary, since ensureObject() accepts array
     try {
       const val = ensureArray(value, { allowLiteralArray: true })
       return val.length
@@ -1941,10 +1940,8 @@ export class RuntimeReverse extends RuntimeFormulaFunction {
 
   execute(context, [arg]) {
     try {
-      const val = ensureObject(arg)
-      if (Array.isArray(val)) {
-        return val.reverse()
-      }
+      const val = ensureArray(arg, { allowLiteralArray: true })
+      return val.reverse()
     } catch {}
 
     return reverseString(arg)
@@ -2000,7 +1997,7 @@ export class RuntimeJoin extends RuntimeFormulaFunction {
     }
 
     try {
-      const val = ensureObject(args[0])
+      const val = ensureArray(args[0], { allowLiteralArray: true })
 
       if (Array.isArray(val)) {
         return val.join(separator)
@@ -2122,11 +2119,11 @@ export class RuntimeIsEmpty extends RuntimeFormulaFunction {
         result: 'true',
       },
       {
-        formula: "is_empty('{}')",
+        formula: 'is_empty(\'"{}"\')',
         result: 'true',
       },
       {
-        formula: "is_empty('[]')",
+        formula: 'is_empty(\'"[]"\')',
         result: 'true',
       },
       {
@@ -2200,10 +2197,8 @@ export class RuntimeSum extends RuntimeFormulaFunction {
 
   execute(context, [arg]) {
     try {
-      const val = ensureObject(arg)
-      if (Array.isArray(val)) {
-        return sum(val)
-      }
+      const val = ensureArray(arg, { allowLiteralArray: true })
+      return sum(val)
     } catch {
       return 0
     }
@@ -2217,19 +2212,19 @@ export class RuntimeSum extends RuntimeFormulaFunction {
   getExamples() {
     return [
       {
-        formula: "sum('[1, 2, 3]')",
+        formula: 'sum(\'"[1, 2, 3]"\')',
         result: '6',
       },
       {
-        formula: 'sum([1, 2, 3])',
+        formula: 'sum(\'"[1, 2, 3]"\')',
         result: '6',
       },
       {
-        formula: 'sum(["1", 2.5, 3])',
+        formula: 'sum(\'["1", 2.5, 3]\')',
         result: '6.5',
       },
       {
-        formula: 'sum(["1", 2.5, "foo", 3])',
+        formula: 'sum(\'["1", 2.5, "foo", 3]\')',
         result: '6.5',
       },
     ]
@@ -2255,10 +2250,8 @@ export class RuntimeAvg extends RuntimeFormulaFunction {
 
   execute(context, [arg]) {
     try {
-      const val = ensureObject(arg)
-      if (Array.isArray(val)) {
-        return avg(val)
-      }
+      const val = ensureArray(arg, { allowLiteralArray: true })
+      return avg(val)
     } catch {
       return 0
     }
@@ -2272,12 +2265,63 @@ export class RuntimeAvg extends RuntimeFormulaFunction {
   getExamples() {
     return [
       {
-        formula: 'avg("[1, 2, 3, 4]")',
+        formula: "avg('[1, 2, 3, 4]')",
         result: '2.5',
       },
       {
-        formula: 'avg("[1, 2, "foo", 3, 4]")',
+        formula: 'avg(\'[1, 2, "foo", 3, 4]\')',
         result: '2.5',
+      },
+    ]
+  }
+}
+
+export class RuntimeAt extends RuntimeFormulaFunction {
+  static getType() {
+    return 'at'
+  }
+
+  static getFormulaType() {
+    return FORMULA_TYPE.FUNCTION
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.TEXT
+  }
+
+  get args() {
+    return [
+      new AnyBaserowRuntimeFormulaArgumentType(),
+      new NumberBaserowRuntimeFormulaArgumentType({ castToInt: true }),
+    ]
+  }
+
+  execute(context, args) {
+    const [array, index] = args
+    try {
+      const val = ensureArray(array, { allowLiteralArray: true })
+      if (index + 1 <= val.length) {
+        return val[index]
+      }
+    } catch {
+      return null
+    }
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.atDescription')
+  }
+
+  getExamples() {
+    return [
+      {
+        formula: 'at(\'["foo", "bar"]\', 1)',
+        result: '"foo"',
+      },
+      {
+        formula: 'at(\'["foo", "bar"]\', 3)',
+        result: 'null',
       },
     ]
   }
