@@ -491,7 +491,7 @@ class RuntimeReverse(RuntimeFormulaFunction):
     type = "reverse"
 
     args = [
-        TextBaserowRuntimeFormulaArgumentType(),
+        AnyBaserowRuntimeFormulaArgumentType(),
     ]
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
@@ -652,7 +652,7 @@ class RuntimeAt(RuntimeFormulaFunction):
             list_of_values = ensure_array(value, allow_literal_array=True)
             if index + 1 <= len(list_of_values):
                 return list_of_values[index]
-        except ValidationError as e:
+        except ValidationError:
             pass
 
         return None
