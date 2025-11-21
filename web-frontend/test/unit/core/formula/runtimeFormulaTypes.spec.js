@@ -43,6 +43,7 @@ import {
   RuntimeIsEmpty,
   RuntimeStrip,
   RuntimeSum,
+  RuntimeAvg,
 } from '@baserow/modules/core/runtimeFormulaTypes'
 import { expect } from '@jest/globals'
 
@@ -1766,6 +1767,40 @@ describe('RuntimeSum', () => {
     { args: ['foo', 'bar'], expected: false },
   ])('validates number of args', ({ args, expected }) => {
     const formulaType = new RuntimeSum()
+    const result = formulaType.validateNumberOfArgs(args)
+    expect(result).toStrictEqual(expected)
+  })
+})
+
+describe('RuntimeAvg', () => {
+  test.each([
+    { args: ['["1", "2", "3", "4"]'], expected: 2.5 },
+    { args: ['[1, 2, "foo", 3, 4]'], expected: 2.5 },
+    { args: [[1, 2, 'foo', 3, 4]], expected: 2.5 },
+  ])('execute returns expected value', ({ args, expected }) => {
+    const formulaType = new RuntimeAvg()
+    const parsedArgs = formulaType.parseArgs(args)
+    const result = formulaType.execute({}, parsedArgs)
+    expect(result).toEqual(expected)
+  })
+
+  test.each([
+    { args: [''], expected: undefined },
+    { args: ['foobar'], expected: undefined },
+    { args: ['[]'], expected: undefined },
+    { args: [[]], expected: undefined },
+  ])('validates type of args', ({ args, expected }) => {
+    const formulaType = new RuntimeAvg()
+    const result = formulaType.validateTypeOfArgs(args)
+    expect(result).toStrictEqual(expected)
+  })
+
+  test.each([
+    { args: [], expected: false },
+    { args: ['foo'], expected: true },
+    { args: ['foo', 'bar'], expected: false },
+  ])('validates number of args', ({ args, expected }) => {
+    const formulaType = new RuntimeAvg()
     const result = formulaType.validateNumberOfArgs(args)
     expect(result).toStrictEqual(expected)
   })

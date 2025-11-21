@@ -608,3 +608,41 @@ class RuntimeSum(RuntimeFormulaFunction):
                 return self._get_sum(list_of_values)
         except ValidationError:
             return 0
+
+
+class RuntimeAvg(RuntimeFormulaFunction):
+    type = "avg"
+
+    args = [
+        AnyBaserowRuntimeFormulaArgumentType(),
+    ]
+
+    def _get_avg(self, values: List[Any]) -> float:
+        valid_numbers = 0
+        numbers = []
+        for value in values:
+            try:
+                numbers.append(float(value))
+                valid_numbers += 1
+            except (ValueError, TypeError):
+                pass
+
+        if valid_numbers > 0:
+            return sum(numbers) / valid_numbers
+
+        return sum(numbers)
+
+    def execute(self, context: FormulaContext, args: FormulaArgs):
+        try:
+            list_of_values = ensure_object(args[0])
+            if isinstance(list_of_values, list):
+                return self._get_avg(list_of_values)
+        except ValidationError:
+            pass
+
+        try:
+            list_of_values = ensure_array(args[0])
+            if isinstance(list_of_values, list):
+                return self._get_avg(list_of_values)
+        except ValidationError:
+            return 0

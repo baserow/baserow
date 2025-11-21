@@ -14,7 +14,7 @@ import {
 } from '@baserow/modules/core/formula/parser/errors'
 import { Node, VueNodeViewRenderer } from '@tiptap/vue-2'
 import { reverseString } from '@baserow/modules/core/utils/string'
-import { sum } from '@baserow/modules/core/utils/number'
+import { avg, sum } from '@baserow/modules/core/utils/number'
 import {
   ensureObject,
   ensureString,
@@ -2231,6 +2231,53 @@ export class RuntimeSum extends RuntimeFormulaFunction {
       {
         formula: 'sum(["1", 2.5, "foo", 3])',
         result: '6.5',
+      },
+    ]
+  }
+}
+
+export class RuntimeAvg extends RuntimeFormulaFunction {
+  static getType() {
+    return 'avg'
+  }
+
+  static getFormulaType() {
+    return FORMULA_TYPE.FUNCTION
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.NUMBER
+  }
+
+  get args() {
+    return [new AnyBaserowRuntimeFormulaArgumentType()]
+  }
+
+  execute(context, [arg]) {
+    try {
+      const val = ensureObject(arg)
+      if (Array.isArray(val)) {
+        return avg(val)
+      }
+    } catch {
+      return 0
+    }
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.avgDescription')
+  }
+
+  getExamples() {
+    return [
+      {
+        formula: 'avg("[1, 2, 3, 4]")',
+        result: '2.5',
+      },
+      {
+        formula: 'avg("[1, 2, "foo", 3, 4]")',
+        result: '2.5',
       },
     ]
   }

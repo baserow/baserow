@@ -138,6 +138,7 @@ import {
   RuntimeIsEmpty,
   RuntimeStrip,
   RuntimeSum,
+  RuntimeAvg,
 } from '@baserow/modules/core/runtimeFormulaTypes'
 
 import priorityBus from '@baserow/modules/core/plugins/priorityBus'
@@ -329,6 +330,7 @@ export default (context, inject) => {
   registry.register('runtimeFormulaFunction', new RuntimeIsEmpty(context))
   registry.register('runtimeFormulaFunction', new RuntimeStrip(context))
   registry.register('runtimeFormulaFunction', new RuntimeSum(context))
+  registry.register('runtimeFormulaFunction', new RuntimeAvg(context))
 
   registry.register('roles', new AdminRoleType(context))
   registry.register('roles', new MemberRoleType(context))

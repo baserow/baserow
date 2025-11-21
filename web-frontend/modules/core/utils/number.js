@@ -22,3 +22,20 @@ export const sum = (arr) => {
     return Number.isFinite(num) ? total + num : total
   }, 0)
 }
+
+export const avg = (arr) => {
+  let validNumbers = 0
+  const _sum = arr.reduce((total, val) => {
+    const num = Number(val)
+    if (Number.isFinite(num)) {
+      validNumbers++
+      return total + num
+    } else {
+      return total
+    }
+  }, 0)
+  if (validNumbers > 0) {
+    return _sum / validNumbers
+  }
+  return _sum
+}
