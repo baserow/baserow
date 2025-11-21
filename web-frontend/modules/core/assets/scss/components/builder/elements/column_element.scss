@@ -1,13 +1,16 @@
 .column-element {
   display: flex;
   width: 100%;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: var(--space-between-columns);
   align-items: var(--alignment);
+  flex-wrap: nowrap;
 }
 
 .column-element__column {
+  flex: 0 0 var(--column-width);
   width: var(--column-width);
+  min-width: 0;
 }
 
 .column-element__element {

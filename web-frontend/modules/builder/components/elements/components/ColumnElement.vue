@@ -10,7 +10,7 @@
       v-for="(childrenInColumn, columnIndex) in childrenElements"
       :key="columnIndex"
       class="column-element__column"
-      :style="{ '--column-width': `${columnWidth}%` }"
+      :style="getColumnStyle(columnIndex)"
     >
       <template v-if="childrenInColumn.length > 0">
         <div
@@ -130,6 +130,26 @@ export default {
         (columnIndex) => this.childrenByColumnOrdered[columnIndex] || []
       )
     },
+    columnWidths() {
+      const { layout_type: layoutType, column_widths: customWidths } = this.element
+
+      switch (layoutType) {
+        case 'auto':
+          return Array(this.columnAmount).fill(100 / this.columnAmount)
+        case '1:2':
+          return this.columnAmount === 2 ? [33.33, 66.67] : this.getAutoWidths()
+        case '2:1':
+          return this.columnAmount === 2 ? [66.67, 33.33] : this.getAutoWidths()
+        case '1:1:2':
+          return this.columnAmount === 3 ? [25, 25, 50] : this.getAutoWidths()
+        case '2:1:1':
+          return this.columnAmount === 3 ? [50, 25, 25] : this.getAutoWidths()
+        case 'custom':
+          return this.calculateCustomWidths(customWidths)
+        default:
+          return this.getAutoWidths()
+      }
+    },
   },
   mounted() {
     this.dimensions.targetElement = this.$el.parentElement
@@ -140,6 +160,47 @@ export default {
         placeInContainer: `${columnIndex}`,
         parentElementId: this.element.id,
       })
+    },
+    getAutoWidths() {
+      return Array(this.columnAmount).fill(100 / this.columnAmount)
+    },
+    calculateCustomWidths(customWidths) {
+      if (!customWidths || customWidths.length !== this.columnAmount) {
+        return this.getAutoWidths()
+      }
+
+      const fixedTotal = customWidths.reduce((sum, width) => {
+        if (typeof width === 'number') {
+          return sum + width
+        }
+        return sum
+      }, 0)
+
+      const dynamicCount = customWidths.filter(
+        (w) => w === 'dynamic' || w === 'auto'
+      ).length
+
+      if (dynamicCount === 0) {
+        const total = customWidths.reduce((sum, w) => sum + (w || 0), 0)
+        return customWidths.map((w) => ((w || 0) / total) * 100)
+      }
+
+      const containerWidth = this.dimensions.width || 1000
+      const gapTotal = this.element.column_gap * (this.columnAmount - 1)
+      const availableWidth = containerWidth - gapTotal - fixedTotal
+      const dynamicWidth = Math.max(0, availableWidth / dynamicCount)
+
+      const totalPx = fixedTotal + dynamicWidth * dynamicCount
+      return customWidths.map((w) => {
+        const px = typeof w === 'number' ? w : dynamicWidth
+        return (px / totalPx) * 100
+      })
+    },
+    getColumnStyle(columnIndex) {
+      const width = this.columnWidths[columnIndex]
+      return {
+        '--column-width': `${width}%`,
+      }
     },
   },
 }

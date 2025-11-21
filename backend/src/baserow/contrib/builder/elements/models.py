@@ -422,6 +422,14 @@ class ColumnElement(ContainerElement):
     A column element that can contain other elements.
     """
 
+    class LAYOUT_TYPES(models.TextChoices):
+        AUTO = "auto"
+        RATIO_1_2 = "1:2"
+        RATIO_2_1 = "2:1"
+        RATIO_1_1_2 = "1:1:2"
+        RATIO_2_1_1 = "2:1:1"
+        CUSTOM = "custom"
+
     column_amount = models.IntegerField(
         default=3,
         help_text="The amount of columns inside this column element.",
@@ -442,6 +450,16 @@ class ColumnElement(ContainerElement):
         choices=VerticalAlignments.choices,
         max_length=10,
         default=VerticalAlignments.TOP,
+    )
+    layout_type = models.CharField(
+        choices=LAYOUT_TYPES.choices,
+        max_length=20,
+        default=LAYOUT_TYPES.AUTO,
+        help_text="The layout type determining column widths.",
+    )
+    column_widths = models.JSONField(
+        default=list,
+        help_text="Custom width configuration for each column. Used when layout_type is 'custom'. Each item can be a number (pixels), 'auto', or 'dynamic'.",
     )
 
 

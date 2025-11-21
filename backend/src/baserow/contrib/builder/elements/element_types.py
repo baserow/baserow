@@ -142,6 +142,8 @@ class ColumnElementType(ContainerElementTypeMixin, ElementType):
         column_amount: int
         column_gap: int
         alignment: str
+        layout_type: str
+        column_widths: List
 
     @property
     def serializer_field_names(self):
@@ -149,6 +151,8 @@ class ColumnElementType(ContainerElementTypeMixin, ElementType):
             "column_amount",
             "column_gap",
             "alignment",
+            "layout_type",
+            "column_widths",
         ]
 
     @property
@@ -157,14 +161,51 @@ class ColumnElementType(ContainerElementTypeMixin, ElementType):
             "column_amount",
             "column_gap",
             "alignment",
+            "layout_type",
+            "column_widths",
         ]
+
+    @property
+    def serializer_field_overrides(self):
+        return {
+            **super().serializer_field_overrides,
+            "layout_type": serializers.ChoiceField(
+                choices=ColumnElement.LAYOUT_TYPES.choices,
+                default=ColumnElement.LAYOUT_TYPES.AUTO,
+                help_text=ColumnElement._meta.get_field("layout_type").help_text,
+                required=False,
+            ),
+            "column_widths": serializers.JSONField(
+                default=list,
+                help_text=ColumnElement._meta.get_field("column_widths").help_text,
+                required=False,
+            ),
+        }
 
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
         return {
             "column_amount": 2,
             "column_gap": 10,
             "alignment": VerticalAlignments.TOP,
+            "layout_type": ColumnElement.LAYOUT_TYPES.AUTO,
+            "column_widths": [],
         }
+
+    def prepare_value_for_db(
+        self, values: Dict, instance: Optional[ColumnElement] = None
+    ):
+        """Validate column_widths match column_amount for custom layouts."""
+        layout_type = values.get("layout_type", getattr(instance, "layout_type", None))
+        column_widths = values.get("column_widths", getattr(instance, "column_widths", []))
+        column_amount = values.get("column_amount", getattr(instance, "column_amount", None))
+
+        if layout_type == ColumnElement.LAYOUT_TYPES.CUSTOM and column_widths:
+            if len(column_widths) != column_amount:
+                raise DRFValidationError(
+                    f"column_widths must have {column_amount} entries for custom layout"
+                )
+
+        return super().prepare_value_for_db(values, instance)
 
     def get_new_place_in_container(
         self, container_element_before_update: ColumnElement, places_removed: List[str]
