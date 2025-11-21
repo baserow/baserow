@@ -238,6 +238,10 @@ export class ToTipTapVisitor extends BaserowFormulaVisitor {
         type: 'operator-formula-component',
         attrs: { operatorSymbol },
       })
+      // Add space after minus operator to distinguish from negative numbers
+      if (operatorSymbol === '-') {
+        content.push({ type: 'text', text: ' ' })
+      }
     } else {
       content.push({ type: 'text', text: operatorSymbol })
     }

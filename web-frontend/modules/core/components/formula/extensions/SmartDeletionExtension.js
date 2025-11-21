@@ -20,6 +20,51 @@ export const SmartDeletionExtension = Extension.create({
     ]
 
     /**
+     * Tries to delete a minus operator with its trailing space
+     * @returns {object|null} - Deletion range {from, to} or null if not applicable
+     */
+    const tryDeleteMinusOperatorWithSpace = (state, from, isBackward) => {
+      const $pos = state.doc.resolve(from)
+      const adjacentNode = isBackward ? $pos.nodeBefore : $pos.nodeAfter
+
+      // Check if we're adjacent to a space
+      if (adjacentNode && adjacentNode.isText && adjacentNode.text === ' ') {
+        const posOtherSideSpace = isBackward
+          ? from - adjacentNode.nodeSize
+          : from + adjacentNode.nodeSize
+        const $otherSideSpace = state.doc.resolve(posOtherSideSpace)
+        const nodeOtherSideSpace = isBackward
+          ? $otherSideSpace.nodeBefore
+          : $otherSideSpace.nodeAfter
+
+        // Check if the other side is a minus operator
+        if (
+          nodeOtherSideSpace &&
+          nodeOtherSideSpace.type.name === 'operator-formula-component' &&
+          nodeOtherSideSpace.attrs.operatorSymbol === '-'
+        ) {
+          if (isBackward) {
+            // Backspace: delete operator + space, and ZWS after if present
+            const $afterSpace = state.doc.resolve(from)
+            const nodeAfterSpace = $afterSpace.nodeAfter
+
+            const deleteFrom = posOtherSideSpace - nodeOtherSideSpace.nodeSize
+            const deleteTo =
+              nodeAfterSpace &&
+              nodeAfterSpace.isText &&
+              nodeAfterSpace.text === '\u200B'
+                ? from + nodeAfterSpace.nodeSize
+                : from
+
+            return { from: deleteFrom, to: deleteTo }
+          }
+        }
+      }
+
+      return null
+    }
+
+    /**
      * Handles smart deletion in a given direction
      * @param {boolean} isBackward - true for Backspace, false for Delete
      */
@@ -39,6 +84,20 @@ export const SmartDeletionExtension = Extension.create({
       }
 
       const { from } = selection
+
+      // Try to delete minus operator with space (special case)
+      const minusDeletion = tryDeleteMinusOperatorWithSpace(
+        state,
+        from,
+        isBackward
+      )
+      if (minusDeletion) {
+        const tr = state.tr
+        tr.delete(minusDeletion.from, minusDeletion.to)
+        dispatch(tr)
+        return true
+      }
+
       const $pos = state.doc.resolve(from)
       const adjacentNode = isBackward ? $pos.nodeBefore : $pos.nodeAfter
 

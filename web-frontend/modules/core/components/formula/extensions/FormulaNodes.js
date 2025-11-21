@@ -351,8 +351,8 @@ export const FormulaInsertionExtension = Extension.create({
         ({ editor, commands }) => {
           const operatorSymbol = node.signature.operator
 
-          // Insert operator with ZWS before and after
-          commands.insertContent([
+          // Build content to insert
+          const contentToInsert = [
             { type: 'text', text: '\u200B' },
             {
               type: 'operator-formula-component',
@@ -360,8 +360,16 @@ export const FormulaInsertionExtension = Extension.create({
                 operatorSymbol,
               },
             },
-            { type: 'text', text: '\u200B' },
-          ])
+          ]
+
+          // Add space after minus operator to distinguish from negative numbers
+          if (operatorSymbol === '-') {
+            contentToInsert.push({ type: 'text', text: ' ' })
+          }
+
+          contentToInsert.push({ type: 'text', text: '\u200B' })
+
+          commands.insertContent(contentToInsert)
 
           commands.focus()
 

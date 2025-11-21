@@ -205,6 +205,10 @@ export class FromTipTapVisitor {
 
   visitOperatorFormulaComponent(node) {
     const operatorSymbol = node.attrs?.operatorSymbol || ''
+    // Add space after minus operator to distinguish from negative numbers
+    if (operatorSymbol === '-') {
+      return '- '
+    }
     return operatorSymbol
   }
 

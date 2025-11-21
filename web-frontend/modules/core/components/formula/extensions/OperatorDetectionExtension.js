@@ -36,6 +36,52 @@ export const OperatorDetectionExtension = Extension.create({
       return inString
     }
 
+    /**
+     * Handles minus operator detection when space is typed
+     * Returns true if the minus was converted to an operator, false otherwise
+     */
+    function handleMinusOperatorWithSpace(view, from, to) {
+      const { state } = view
+      const { doc, schema, tr } = state
+
+      // Get the position and node before cursor
+      const $pos = doc.resolve(from)
+      const nodeBefore = $pos.nodeBefore
+
+      // Check if the node before is text ending with '-'
+      if (
+        nodeBefore &&
+        nodeBefore.isText &&
+        nodeBefore.text &&
+        nodeBefore.text.endsWith('-')
+      ) {
+        // The space will be consumed as part of the operator replacement
+        // Replace the minus at position from-1 to from (the minus character)
+        // and insert operator + space + ZWS
+        const minusStartPos = from - 1
+
+        const nodesToInsert = [
+          schema.nodes['operator-formula-component'].create({
+            operatorSymbol: '-',
+          }),
+          schema.text(' '),
+          schema.text('\u200B'),
+        ]
+
+        const fragment = Fragment.from(nodesToInsert)
+        tr.replaceWith(minusStartPos, from, fragment)
+
+        // Position cursor after the space, in the ZWS slot
+        const cursorPos = minusStartPos + 2
+        tr.setSelection(TextSelection.create(tr.doc, cursorPos))
+
+        view.dispatch(tr)
+        return true
+      }
+
+      return false
+    }
+
     function shouldConvertOperator(view, from, to, typedChar) {
       const { state } = view
       const { doc } = state
@@ -102,14 +148,17 @@ export const OperatorDetectionExtension = Extension.create({
         operatorSymbol: operatorText,
       })
 
-      // Create the fragment with just the operator node (no spaces)
-      const fragment = Fragment.from([operatorNode])
+      // Build nodes to insert (operator + ZWS)
+      // Note: for minus, space is handled separately in space detection
+      const nodesToInsert = [operatorNode, schema.text('\u200B')]
+
+      const fragment = Fragment.from(nodesToInsert)
 
       // Replace from startPos to endPos with the fragment
       tr.replaceWith(startPos, endPos, fragment)
 
-      // Position cursor after the operator
-      const cursorPos = startPos + fragment.size
+      // Position cursor after the operator, in the ZWS slot
+      const cursorPos = startPos + 1
       tr.setSelection(TextSelection.create(tr.doc, cursorPos))
 
       view.dispatch(tr)
@@ -129,7 +178,18 @@ export const OperatorDetectionExtension = Extension.create({
         key: new PluginKey('operatorDetection'),
         props: {
           handleTextInput(view, from, to, text) {
-            // Only handle operator characters
+            // Special handling for minus operator
+            // Don't convert '-' immediately to allow typing negative numbers
+            if (text === '-') {
+              return false
+            }
+
+            // If space is typed, check if it's after a minus sign to convert it
+            if (text === ' ') {
+              return handleMinusOperatorWithSpace(view, from, to)
+            }
+
+            // Only handle operator characters (excluding minus and space)
             if (!operatorChars.has(text)) {
               return false
             }
