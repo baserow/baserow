@@ -46,6 +46,7 @@ from baserow.core.formula.runtime_formula_types import (
     RuntimeSecond,
     RuntimeSplit,
     RuntimeStrip,
+    RuntimeSum,
     RuntimeToday,
     RuntimeUpper,
     RuntimeYear,
@@ -1970,7 +1971,6 @@ def test_runtime_is_empty_validate_number_of_args(args, expected):
     assert result is expected
 
 
-#
 @pytest.mark.parametrize(
     "args,expected",
     [
@@ -2008,4 +2008,46 @@ def test_runtime_strip_validate_type_of_args(args, expected):
 )
 def test_runtime_strip_validate_number_of_args(args, expected):
     result = RuntimeStrip().validate_number_of_args(args)
+    assert result is expected
+
+
+#
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        (['["1", "2", "3"]'], 6.0),
+        (["[1, 2, 3]"], 6.0),
+        ([[1, 2, 3]], 6.0),
+        ([[1, 2, "foo", 3.5]], 6.5),
+    ],
+)
+def test_runtime_sum_execute(args, expected):
+    parsed_args = RuntimeSum().parse_args(args)
+    result = RuntimeSum().execute({}, parsed_args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([""], None),
+        (['["1", "foo"]'], None),
+        ([["1", 2]], None),
+    ],
+)
+def test_runtime_sum_validate_type_of_args(args, expected):
+    result = RuntimeSum().validate_type_of_args(args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([], False),
+        (["foo"], True),
+        (["foo", "bar"], False),
+    ],
+)
+def test_runtime_sum_validate_number_of_args(args, expected):
+    result = RuntimeSum().validate_number_of_args(args)
     assert result is expected

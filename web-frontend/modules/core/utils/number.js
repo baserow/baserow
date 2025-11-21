@@ -15,3 +15,10 @@ export const ceil = (n, digits = 0) => {
 export const clamp = (value, min, max) => {
   return Math.max(min, Math.min(value, max))
 }
+
+export const sum = (arr) => {
+  return arr.reduce((total, val) => {
+    const num = Number(val)
+    return Number.isFinite(num) ? total + num : total
+  }, 0)
+}

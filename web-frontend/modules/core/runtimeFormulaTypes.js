@@ -14,6 +14,7 @@ import {
 } from '@baserow/modules/core/formula/parser/errors'
 import { Node, VueNodeViewRenderer } from '@tiptap/vue-2'
 import { reverseString } from '@baserow/modules/core/utils/string'
+import { sum } from '@baserow/modules/core/utils/number'
 import {
   ensureObject,
   ensureString,
@@ -2173,8 +2174,63 @@ export class RuntimeStrip extends RuntimeFormulaFunction {
   getExamples() {
     return [
       {
-        formula: "trim(' foo ')",
+        formula: "strip(' foo ')",
         result: "'foo'",
+      },
+    ]
+  }
+}
+
+export class RuntimeSum extends RuntimeFormulaFunction {
+  static getType() {
+    return 'sum'
+  }
+
+  static getFormulaType() {
+    return FORMULA_TYPE.FUNCTION
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.NUMBER
+  }
+
+  get args() {
+    return [new AnyBaserowRuntimeFormulaArgumentType()]
+  }
+
+  execute(context, [arg]) {
+    try {
+      const val = ensureObject(arg)
+      if (Array.isArray(val)) {
+        return sum(val)
+      }
+    } catch {
+      return 0
+    }
+  }
+
+  getDescription() {
+    const { i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.sumDescription')
+  }
+
+  getExamples() {
+    return [
+      {
+        formula: "sum('[1, 2, 3]')",
+        result: '6',
+      },
+      {
+        formula: 'sum([1, 2, 3])',
+        result: '6',
+      },
+      {
+        formula: 'sum(["1", 2.5, 3])',
+        result: '6.5',
+      },
+      {
+        formula: 'sum(["1", 2.5, "foo", 3])',
+        result: '6.5',
       },
     ]
   }
