@@ -422,18 +422,19 @@ class AIGenerationWorker:
             f"Error when retrieving AI model result for {row}: {exc}"
         )
         with self.lock:
-            # if this is an error on the first row, or a number of errors is above
-            # a max error count threshold, we stop processing
+            # If this is an error on the first row, or a number of errors is above
+            # a max error count threshold, we stop processing.
             if (
                 self.processed < 1
-                or len(self.errors) - 1 > settings.BASEROW_MAX_AI_WORKERS_ERRORS
+                # Include current error, which is not yet in self.errors.
+                or len(self.errors) + 1 > settings.BASEROW_MAX_AI_WORKERS_ERRORS
             ):
                 self.should_process = False
 
             self.errors[row.id] = str(exc)
 
-            # note: signal should be sent once (as it will send an error per row)
-            # we should distinguish from 'some rows failed' and 'the job failed'
+            # Note: signal should be sent once (as it will send an error per row)
+            # we should distinguish from 'some rows failed' and 'the job failed'.
 
             # If the prompt fails once, we should not continue with the other rows.
             # Note: rows might be a generator, so we can't slice it
