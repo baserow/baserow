@@ -11,7 +11,8 @@
         "exporterType": {
             "json": "Exportar a JSON",
             "xml": "Exportar a XML",
-            "excel": "Exportar a Excel"
+            "excel": "Exportar a Excel",
+            "file": "Exportar archivos"
         },
         "deactivated": "Disponible en el plan Premium"
     },
@@ -351,5 +352,9 @@
     },
     "tableExcelExporter": {
         "includeHeader": "Incluir nombres de campos como encabezado"
+    },
+    "paidFeaturesModal": {
+        "description": "Esta función está disponible con el plan {plan}. Para acceder a ella, actualice su cuenta suscribiéndose. Haga clic en el botón a continuación para ver nuestras opciones de precios.",
+        "viewPricing": "Ver precios"
     }
 }
