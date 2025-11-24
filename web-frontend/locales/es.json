@@ -15,7 +15,9 @@
         "disabled": "Desactivado",
         "summarize": "Resumir",
         "or": "o",
-        "and": "y"
+        "and": "y",
+        "alpha": "Alfa",
+        "optional": "Opcional"
     },
     "action": {
         "upload": "Subir",
@@ -129,7 +131,7 @@
         "multipleSelect": "Selección múltiple",
         "phoneNumber": "Número de teléfono",
         "formula": "Fórmula",
-        "lookup": "Buscar",
+        "lookup": "Búsqueda",
         "multipleCollaborators": "Colaboradores",
         "count": "Cuenta",
         "rollup": "Enrollable",
