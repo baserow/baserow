@@ -9,8 +9,6 @@ from io import BytesIO
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 
-import pyotp
-import qrcode
 from rest_framework import serializers
 
 from baserow.core.registry import (
@@ -112,6 +110,9 @@ class TOTPAuthProviderType(TwoFactorAuthProviderType):
         provider: TOTPAuthProviderModel | None = None,
         **kwargs,
     ) -> TOTPAuthProviderModel:
+        import pyotp
+        import qrcode
+
         if provider and provider.enabled:
             raise TwoFactorAuthAlreadyConfigured
 
@@ -192,6 +193,8 @@ class TOTPAuthProviderType(TwoFactorAuthProviderType):
         return provider.enabled
 
     def verify(self, **kwargs) -> bool:
+        import pyotp
+
         email = kwargs.get("email")
         code = kwargs.get("code")
         backup_code = kwargs.get("backup_code")

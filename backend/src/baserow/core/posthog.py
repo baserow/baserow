@@ -7,18 +7,30 @@ from django.contrib.auth.models import AbstractUser
 from django.dispatch import receiver
 
 from loguru import logger
-from posthog import Posthog
 
 from baserow.core.action.signals import ActionCommandType, action_done
 from baserow.core.models import Workspace
 from baserow.core.utils import exception_capturer
 
-posthog_client = Posthog(
-    settings.POSTHOG_PROJECT_API_KEY,
-    settings.POSTHOG_HOST,
-    # disabled=True will automatically avoid sending any data, even if capture is called
-    disabled=not settings.POSTHOG_ENABLED,
-)
+_posthog = None
+
+
+def get_posthog_client():
+    """
+    Returns the Posthog instance configured according to the settings. If Posthog is
+    disabled, the instance will have the `disabled` attribute set to True.
+    """
+
+    from posthog import Posthog
+
+    global _posthog
+    if _posthog is None:
+        _posthog = Posthog(
+            settings.POSTHOG_PROJECT_API_KEY,
+            host=settings.POSTHOG_HOST,
+            disabled=not settings.POSTHOG_ENABLED,
+        )
+    return _posthog
 
 
 def capture_event(distinct_id: str, event: str, properties: dict):
@@ -31,7 +43,8 @@ def capture_event(distinct_id: str, event: str, properties: dict):
         the event.
     """
 
-    if not settings.POSTHOG_ENABLED:
+    posthog_client = get_posthog_client()
+    if posthog_client.disabled:
         return
 
     try:

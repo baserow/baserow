@@ -1,17 +1,19 @@
 import contextvars
+from typing import TYPE_CHECKING
 
 from asgiref.sync import sync_to_async
 from loguru import logger
 from mcp.server.lowlevel.server import Server
 from mcp.server.lowlevel.server import lifespan as default_lifespan
-from mcp.types import TextContent
-from mcp.types import Tool as MCPTool
 from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.responses import Response
 from starlette.routing import Mount, Route
 
 from baserow.core.mcp.sse import DjangoChannelsSseServerTransport
+
+if TYPE_CHECKING:
+    from mcp.types import Tool
 
 current_key: contextvars.ContextVar[str] = contextvars.ContextVar("current_key")
 
@@ -78,6 +80,8 @@ class BaserowMCPServer:
             return None
 
     async def call_tool(self, name: str, arguments):
+        from mcp.types import TextContent
+
         from baserow.core.mcp.registries import mcp_tool_registry
 
         endpoint = await self.get_endpoint()
@@ -88,7 +92,7 @@ class BaserowMCPServer:
             return [TextContent(type="text", text=f"Tool '{name}' not found.")]
         return await tool.call(endpoint, name, params, arguments)
 
-    async def list_tools(self) -> list[MCPTool]:
+    async def list_tools(self) -> list["Tool"]:
         from baserow.core.mcp.registries import mcp_tool_registry
 
         endpoint = await self.get_endpoint()
@@ -157,4 +161,11 @@ class BaserowMCPServer:
         )
 
 
-baserow_mcp = BaserowMCPServer()
+_baserow_mcp = None
+
+
+def get_baserow_mcp_server() -> BaserowMCPServer:
+    global _baserow_mcp
+    if _baserow_mcp is None:
+        _baserow_mcp = BaserowMCPServer()
+    return _baserow_mcp

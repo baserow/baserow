@@ -5,7 +5,6 @@ from typing import Any, Dict, List, Optional
 import advocate
 from advocate import UnacceptableAddressException
 from baserow_premium.license.handler import LicenseHandler
-from jira2markdown import convert
 from requests.auth import HTTPBasicAuth
 from requests.exceptions import JSONDecodeError, RequestException
 
@@ -293,6 +292,8 @@ class JiraIssuesDataSyncType(DataSyncType):
         instance,
         progress_builder: Optional[ChildProgressBuilder] = None,
     ) -> List[Dict]:
+        from jira2markdown import convert
+
         issue_list = []
         progress = ChildProgressBuilder.build(progress_builder, child_total=10)
         fetched_issues = self._fetch_issues(

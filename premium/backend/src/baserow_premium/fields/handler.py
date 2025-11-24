@@ -1,10 +1,8 @@
 import json
 from typing import Optional
 
+from baserow_premium.fields.exceptions import AiFieldOutputParserException
 from baserow_premium.prompts import get_generate_formula_prompt
-from langchain_core.exceptions import OutputParserException
-from langchain_core.output_parsers import JsonOutputParser
-from langchain_core.prompts import PromptTemplate
 
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.table.models import Table
@@ -37,6 +35,10 @@ class AIFieldHandler:
             type
         :return: The generated model.
         """
+
+        from langchain_core.exceptions import OutputParserException
+        from langchain_core.output_parsers import JsonOutputParser
+        from langchain_core.prompts import PromptTemplate
 
         generative_ai_model_type = generative_ai_model_type_registry.get(ai_type)
         ai_models = generative_ai_model_type.get_enabled_models(
@@ -72,6 +74,6 @@ class AIFieldHandler:
         try:
             return output_parser.parse(response)["formula"]
         except (OutputParserException, TypeError) as e:
-            raise OutputParserException(
+            raise AiFieldOutputParserException(
                 "The model didn't respond with the correct output. " "Please try again."
             ) from e

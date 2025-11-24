@@ -14,7 +14,7 @@ import udspy
 from posthog.ai.openai import AsyncOpenAI
 from udspy.callback import BaseCallback
 
-from baserow.core.posthog import posthog_client
+from baserow.core.posthog import get_posthog_client
 from baserow_enterprise.assistant.models import AssistantChat
 
 
@@ -85,7 +85,7 @@ class PosthogTracingCallback(BaseCallback):
             lm.client = AsyncOpenAI(
                 api_key=openai_client.api_key,
                 base_url=openai_client.base_url,
-                posthog_client=posthog_client,
+                posthog_client=get_posthog_client(),
             )
 
         exception = None
@@ -130,6 +130,7 @@ class PosthogTracingCallback(BaseCallback):
         else:
             kwargs["properties"] = default_props
 
+        posthog_client = get_posthog_client()
         posthog_client.capture(
             distinct_id=str(self.user_id),
             event=event,

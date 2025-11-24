@@ -5,7 +5,7 @@ from django.urls import re_path
 from channels.routing import ProtocolTypeRouter, URLRouter
 
 from baserow.config.helpers import ConcurrencyLimiterASGI
-from baserow.core.mcp import baserow_mcp
+from baserow.core.mcp import get_baserow_mcp_server
 from baserow.core.telemetry.telemetry import setup_logging, setup_telemetry
 from baserow.ws.routers import websocket_router
 
@@ -24,7 +24,7 @@ application = ProtocolTypeRouter(
         "http": ConcurrencyLimiterASGI(
             URLRouter(
                 [
-                    re_path(r"^mcp", baserow_mcp.sse_app()),
+                    re_path(r"^mcp", get_baserow_mcp_server().sse_app()),
                     re_path(r"", django_asgi_app),
                 ]
             ),

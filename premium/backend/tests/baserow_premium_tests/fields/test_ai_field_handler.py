@@ -1,8 +1,8 @@
 from unittest.mock import patch
 
 import pytest
+from baserow_premium.fields.exceptions import AiFieldOutputParserException
 from baserow_premium.fields.handler import AIFieldHandler
-from langchain_core.exceptions import OutputParserException
 
 from baserow.core.generative_ai.exceptions import (
     GenerativeAITypeDoesNotExist,
@@ -78,7 +78,7 @@ def test_generate_formula_output_parser_error(premium_data_fixture, api_client):
     )
     table = premium_data_fixture.create_database_table(name="table", database=database)
 
-    with pytest.raises(OutputParserException):
+    with pytest.raises(AiFieldOutputParserException):
         AIFieldHandler.generate_formula_with_ai(
             table,
             "test_generative_ai",

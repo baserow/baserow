@@ -1,6 +1,5 @@
 from celery import Task
 from celery.signals import worker_process_init
-from opentelemetry import baggage, context
 
 from baserow.core.telemetry.telemetry import setup_logging, setup_telemetry
 from baserow.core.telemetry.utils import otel_is_enabled
@@ -16,6 +15,8 @@ def initialize_otel(**kwargs):
 
 class BaserowTelemetryTask(Task):
     def __call__(self, *args, **kwargs):
+        from opentelemetry import baggage, context
+
         if otel_is_enabled():
             # Safely attach and detach baggage context within the same task call
             curr_ctx = context.get_current()
