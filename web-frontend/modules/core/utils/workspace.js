@@ -21,19 +21,10 @@ export const setWorkspaceCookie = (workspaceId, { $config }) => {
 
 export const unsetWorkspaceCookie = () => {
   if (process.SERVER_BUILD) return
-
-  const cookiesInstance = getCookiesInstance()
-  cookiesInstance.remove(cookieWorkspaceName)
+  getCookiesInstance().remove(cookieWorkspaceName)
 }
 
-export const getWorkspaceCookie = (req = null) => {
+export const getWorkspaceCookie = () => {
   if (process.SERVER_BUILD) return
-
-  // En mode serveur, utiliser les cookies de la requête
-  const cookiesInstance = getCookiesInstance(
-    process.server ? req?.headers?.cookie : null
-  )
-  const workspaceId = cookiesInstance.get(cookieWorkspaceName)
-
-  return workspaceId
+  return getCookiesInstance().get(cookieWorkspaceName)
 }

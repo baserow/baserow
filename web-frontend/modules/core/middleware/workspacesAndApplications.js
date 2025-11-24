@@ -13,8 +13,8 @@ export default async function WorkspacesAndApplications({
   // If nuxt generate, pass this middleware
   if (process.server && !req) return
 
-  // Get the selected workspace id, passing req for server-side
-  let workspaceId = getWorkspaceCookie(process.server ? req : null)
+  // Get the selected workspace id
+  let workspaceId = getWorkspaceCookie()
 
   // If the workspaces haven't already been selected we will
   if (store.getters['auth/isAuthenticated']) {

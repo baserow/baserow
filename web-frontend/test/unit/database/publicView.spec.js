@@ -9,15 +9,11 @@ jest.mock('lodash/debounce', () => jest.fn((fn) => fn))
 describe('Public View Page Tests', () => {
   let testApp = null
   let mockServer = null
-  let cookiesInstance = null
+  let allCookies = null
   beforeAll(() => {
     testApp = new TestApp()
     mockServer = testApp.mockServer
-    cookiesInstance = getCookiesInstance()
-    // Setting HAS_DOCUMENT_COOKIE to false to indicate that we're in a test environment
-    // where document.cookie is not available (Node.js). This makes the cookie implementation
-    // use a mock/alternative storage mechanism instead of the browser's document.cookie API.
-    cookiesInstance.HAS_DOCUMENT_COOKIE = false
+    allCookies = getCookiesInstance()
   })
 
   afterEach(() => testApp.afterEach())
@@ -48,7 +44,7 @@ describe('Public View Page Tests', () => {
       },
     })
 
-    const cookieValue = cookiesInstance.get('defaultViewId')
+    const cookieValue = allCookies.get('defaultViewId')
     expect(cookieValue.length).toBe(0)
   })
 

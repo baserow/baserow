@@ -19,7 +19,7 @@ export default function ({ store, req, app, route, redirect }) {
   }
 
   // check if the token is still valid in the cookies
-  let refreshToken = getTokenIfEnoughTimeLeft(undefined, req)
+  let refreshToken = getTokenIfEnoughTimeLeft()
 
   // if the token is not valid in the cookies, check if it is in the query string (SSO)
   if (!refreshToken && route.query.token) {

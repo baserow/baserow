@@ -110,10 +110,7 @@
     "vue2-smooth-scroll": "^1.6.0",
     "vuejs-datepicker": "1.6.2",
     "form-data": "4.0.4",
-    "universal-cookie": "^7",
-    "@vueuse/nuxt": "11.3.0",
-    "@vueuse/core": "11.3.0",
-    "@vueuse/integrations": "11.3.0"
+    "universal-cookie": "^7"
   },
   "resolutions": {
     "elliptic": "^6.6.1",

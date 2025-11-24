@@ -1,6 +1,6 @@
 <template>
   <Alert
-    v-if="displayAlert"
+    v-if="showAlert"
     type="blank"
     close-button
     class="dashboard__help"
@@ -76,29 +76,26 @@
 </template>
 
 <script>
-import { useCookies } from '@vueuse/integrations/useCookies'
+import { getCookiesInstance } from '@baserow/modules/core/utils/cookies'
 const helpDisplayCookieName = 'baserow_dashboard_alert_closed_v2'
 
 export default {
   name: 'DashboardHelp',
-  setup() {
-    const cookies = useCookies(['helpDisplayCookieName'])
-    return {
-      cookies,
-    }
-  },
+
   data() {
     return {
-      displayAlert: false,
+      showAlert: false,
     }
   },
   mounted() {
-    this.displayAlert = !this.cookies.get(helpDisplayCookieName)
+    const cookies = getCookiesInstance()
+    this.showAlert = !cookies.get(helpDisplayCookieName)
   },
   methods: {
     handleAlertClose() {
-      this.displayAlert = false
-      this.cookies.set(helpDisplayCookieName, true, {
+      this.showAlert = false
+      const cookies = getCookiesInstance()
+      cookies.set(helpDisplayCookieName, true, {
         path: '/',
         maxAge: 60 * 60 * 24 * 182, // 6 months
       })

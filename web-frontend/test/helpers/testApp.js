@@ -13,7 +13,7 @@ import _ from 'lodash'
 import { MockServer } from '@baserow/test/fixtures/mockServer'
 import flushPromises from 'flush-promises'
 import setupHasFeaturePlugin from '@baserow/modules/core/plugins/hasFeature'
-
+import { initCookiesInstance } from '@baserow/modules/core/utils/cookies'
 /**
  * Uses the real baserow plugins to setup a Vuex store and baserow registry
  * correctly.
@@ -93,6 +93,13 @@ export class TestApp {
       connect(a, b) {},
       disconnect() {},
     }
+
+    const cookiesInstance = initCookiesInstance()
+    // Setting HAS_DOCUMENT_COOKIE to false to indicate that we're in a test environment
+    // where document.cookie is not available (Node.js). This makes the cookie implementation
+    // use a mock/alternative storage mechanism instead of the browser's document.cookie API.
+    cookiesInstance.HAS_DOCUMENT_COOKIE = false
+
     // Various stub and mock attributes which will be injected into components
     // mounted using TestApp.
     this._app = {
@@ -134,7 +141,7 @@ export class TestApp {
       this._vueContext,
       extraPluginSetupFunc
     )
-    this.store.$cookies = this._app.$cookies
+
     this._initialCleanStoreState = _.cloneDeep(this.store.state)
     Papa.arrayToString = (array) => {
       return Papa.unparse([array])

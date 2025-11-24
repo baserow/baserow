@@ -82,15 +82,15 @@ export const unsetUserSessionCookie = (key = userSessionCookieName) => {
   cookiesInstance.remove(key)
 }
 
-export const getToken = (key = cookieTokenName, req = null) => {
-  const cookiesInstance = getCookiesInstance(req?.headers?.cookie)
+export const getToken = (key = cookieTokenName) => {
+  const cookiesInstance = getCookiesInstance()
   const token = cookiesInstance.get(key)
 
   return token
 }
 
-export const getTokenIfEnoughTimeLeft = (key = cookieTokenName, req = null) => {
-  const token = getToken(key, req)
+export const getTokenIfEnoughTimeLeft = (key = cookieTokenName) => {
+  const token = getToken(key)
   const now = Math.ceil(new Date().getTime() / 1000)
 
   let data
@@ -110,7 +110,6 @@ export const logoutAndRedirectToLogin = (
   showPasswordChangedToast = false,
   invalidateToken = false
 ) => {
-  console.log('logoutAndRedirectToLogin')
   if (showPasswordChangedToast) {
     store.dispatch('auth/forceLogoff')
   } else {
