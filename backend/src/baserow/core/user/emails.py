@@ -79,3 +79,26 @@ class AccountDeletionCanceled(BaseEmailMessage):
             user=self.user,
         )
         return context
+
+
+class ChangeEmailConfirmationEmail(BaseEmailMessage):
+    template_name = "baserow/core/user/change_email_confirmation.html"
+
+    def __init__(self, user, new_email, confirmation_url, *args, **kwargs):
+        self.user = user
+        self.new_email = new_email
+        self.confirmation_url = confirmation_url
+        super().__init__(*args, **kwargs)
+
+    def get_subject(self):
+        return _("Confirm email address change - Baserow")
+
+    def get_context(self):
+        context = super().get_context()
+        context.update(
+            user=self.user,
+            new_email=self.new_email,
+            confirmation_url=self.confirmation_url,
+            expire_hours=settings.CHANGE_EMAIL_TOKEN_MAX_AGE / 60 / 60,
+        )
+        return context

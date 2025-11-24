@@ -14,6 +14,7 @@ import {
 import {
   AccountSettingsType,
   PasswordSettingsType,
+  EmailSettingsType,
   EmailNotificationsSettingsType,
   MCPEndpointSettingsType,
   DeleteAccountSettingsType,
@@ -181,6 +182,7 @@ export default (context, inject) => {
 
   registry.register('settings', new AccountSettingsType(context))
   registry.register('settings', new PasswordSettingsType(context))
+  registry.register('settings', new EmailSettingsType(context))
   registry.register('settings', new EmailNotificationsSettingsType(context))
   registry.register('settings', new MCPEndpointSettingsType(context))
   registry.register('settings', new DeleteAccountSettingsType(context))

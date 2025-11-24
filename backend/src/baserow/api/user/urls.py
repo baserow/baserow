@@ -3,6 +3,7 @@ from django.urls import re_path
 from .views import (
     AccountView,
     BlacklistJSONWebToken,
+    ChangeEmailView,
     ChangePasswordView,
     DashboardView,
     ObtainJSONWebToken,
@@ -10,6 +11,7 @@ from .views import (
     RefreshJSONWebToken,
     ResetPasswordView,
     ScheduleAccountDeletionView,
+    SendChangeEmailConfirmationView,
     SendResetPasswordEmailView,
     SendVerifyEmailView,
     ShareOnboardingDetailsWithBaserowView,
@@ -43,6 +45,12 @@ urlpatterns = [
     re_path(
         r"^change-password/$", ChangePasswordView.as_view(), name="change_password"
     ),
+    re_path(
+        r"^send-change-email-confirmation/$",
+        SendChangeEmailConfirmationView.as_view(),
+        name="send_change_email_confirmation",
+    ),
+    re_path(r"^change-email/$", ChangeEmailView.as_view(), name="change_email"),
     re_path(
         r"^send-verify-email/$", SendVerifyEmailView.as_view(), name="send_verify_email"
     ),

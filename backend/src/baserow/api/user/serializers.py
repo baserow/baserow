@@ -246,6 +246,22 @@ class ChangePasswordBodyValidationSerializer(serializers.Serializer):
     new_password = serializers.CharField(validators=[password_validation])
 
 
+class SendChangeEmailConfirmationSerializer(serializers.Serializer):
+    new_email = serializers.EmailField(help_text="The new email address to change to.")
+    password = serializers.CharField(
+        help_text="The current password of the user for verification."
+    )
+    base_url = serializers.URLField(
+        help_text="The base URL where the user can confirm the email change. The "
+        "confirmation token is going to be appended to the base_url "
+        "(base_url '/token')."
+    )
+
+
+class ChangeEmailSerializer(serializers.Serializer):
+    token = serializers.CharField(help_text="The confirmation token.")
+
+
 class VerifyEmailAddressSerializer(serializers.Serializer):
     token = serializers.CharField()
 

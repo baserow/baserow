@@ -57,10 +57,12 @@ from baserow.core.exceptions import (
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Settings, Template, WorkspaceInvitation
 from baserow.core.user.actions import (
+    ChangeEmailActionType,
     ChangeUserPasswordActionType,
     CreateUserActionType,
     ResetUserPasswordActionType,
     ScheduleUserDeletionActionType,
+    SendChangeEmailConfirmationActionType,
     SendResetUserPasswordActionType,
     SendVerifyEmailAddressActionType,
     UpdateUserActionType,
@@ -107,10 +109,12 @@ from .schemas import (
 )
 from .serializers import (
     AccountSerializer,
+    ChangeEmailSerializer,
     ChangePasswordBodyValidationSerializer,
     DashboardSerializer,
     RegisterSerializer,
     ResetPasswordBodyValidationSerializer,
+    SendChangeEmailConfirmationSerializer,
     SendResetPasswordEmailBodyValidationSerializer,
     SendVerifyEmailAddressSerializer,
     ShareOnboardingDetailsWithBaserowSerializer,
@@ -478,6 +482,99 @@ class ChangePasswordView(APIView):
         action_type_registry.get(ChangeUserPasswordActionType.type).do(
             request.user, data["old_password"], data["new_password"]
         )
+
+        return Response(status=204)
+
+
+class SendChangeEmailConfirmationView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
+        tags=["User"],
+        request=SendChangeEmailConfirmationSerializer,
+        operation_id="send_change_email_confirmation",
+        description=(
+            "Sends an email to the new email address containing a confirmation link. "
+            "The user must provide their current password to initiate this request. "
+            f"The link is going to be valid for "
+            f"{int(settings.CHANGE_EMAIL_TOKEN_MAX_AGE / 60 / 60)} hours."
+        ),
+        responses={
+            204: None,
+            400: get_error_schema(
+                [
+                    "ERROR_REQUEST_BODY_VALIDATION",
+                    "ERROR_HOSTNAME_IS_NOT_ALLOWED",
+                    "ERROR_INVALID_OLD_PASSWORD",
+                    "ERROR_ALREADY_EXISTS",
+                ]
+            ),
+        },
+    )
+    @transaction.atomic
+    @map_exceptions(
+        {
+            BaseURLHostnameNotAllowed: ERROR_HOSTNAME_IS_NOT_ALLOWED,
+            InvalidPassword: ERROR_INVALID_OLD_PASSWORD,
+            UserAlreadyExist: ERROR_ALREADY_EXISTS,
+            AuthProviderDisabled: ERROR_AUTH_PROVIDER_DISABLED,
+        }
+    )
+    @validate_body(SendChangeEmailConfirmationSerializer)
+    def post(self, request, data):
+        """
+        Sends a confirmation email to the new email address if the password is correct.
+        """
+
+        action_type_registry.get(SendChangeEmailConfirmationActionType.type).do(
+            request.user, data["new_email"], data["password"], data["base_url"]
+        )
+
+        return Response(status=204)
+
+
+class ChangeEmailView(APIView):
+    permission_classes = (AllowAny,)
+
+    @extend_schema(
+        tags=["User"],
+        request=ChangeEmailSerializer,
+        operation_id="change_email",
+        description=(
+            "Changes the email address of a user if the confirmation token is valid. "
+            "The **send_change_email_confirmation** endpoint sends an email to the "
+            "new address containing the token. That token can be used to change the "
+            "email address here."
+        ),
+        responses={
+            204: None,
+            400: get_error_schema(
+                [
+                    "BAD_TOKEN_SIGNATURE",
+                    "EXPIRED_TOKEN_SIGNATURE",
+                    "ERROR_USER_NOT_FOUND",
+                    "ERROR_ALREADY_EXISTS",
+                    "ERROR_REQUEST_BODY_VALIDATION",
+                ]
+            ),
+        },
+        auth=[],
+    )
+    @transaction.atomic
+    @map_exceptions(
+        {
+            BadSignature: BAD_TOKEN_SIGNATURE,
+            BadTimeSignature: BAD_TOKEN_SIGNATURE,
+            SignatureExpired: EXPIRED_TOKEN_SIGNATURE,
+            UserNotFound: ERROR_USER_NOT_FOUND,
+            UserAlreadyExist: ERROR_ALREADY_EXISTS,
+        }
+    )
+    @validate_body(ChangeEmailSerializer)
+    def post(self, request, data):
+        """Changes the user's email address if the provided token is valid."""
+
+        action_type_registry.get(ChangeEmailActionType.type).do(data["token"])
 
         return Response(status=204)
 

@@ -33,6 +33,12 @@ export const routes = [
     meta: { preventPageViewTracking: true },
   },
   {
+    name: 'change-email',
+    path: '/change-email/:token',
+    component: path.resolve(__dirname, 'pages/changeEmail.vue'),
+    meta: { preventPageViewTracking: true },
+  },
+  {
     name: 'verify-email-address',
     path: '/verify-email-address/:token',
     component: path.resolve(__dirname, 'pages/verifyEmailAddress.vue'),

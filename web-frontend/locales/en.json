@@ -91,6 +91,7 @@
   "settingType": {
     "account": "Account",
     "password": "Password",
+    "email": "Change email",
     "emailNotifications": "Email notifications",
     "tokens": "Database tokens",
     "deleteAccount": "Delete account",

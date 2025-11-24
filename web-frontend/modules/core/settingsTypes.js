@@ -2,6 +2,7 @@ import { Registerable } from '@baserow/modules/core/registry'
 import PasswordSettings from '@baserow/modules/core/components/settings/PasswordSettings'
 import AccountSettings from '@baserow/modules/core/components/settings/AccountSettings'
 import DeleteAccountSettings from '@baserow/modules/core/components/settings/DeleteAccountSettings'
+import EmailSettings from '@baserow/modules/core/components/settings/EmailSettings'
 import EmailNotifications from '@baserow/modules/core/components/settings/EmailNotifications'
 import McpEndpointSettings from '@baserow/modules/core/components/settings/McpEndpointSettings.vue'
 import TwoFactorAuthSettings from '@baserow/modules/core/components/settings/TwoFactorAuthSettings.vue'
@@ -114,6 +115,32 @@ export class PasswordSettingsType extends SettingsType {
 
   getComponent() {
     return PasswordSettings
+  }
+}
+
+export class EmailSettingsType extends SettingsType {
+  static getType() {
+    return 'change_email'
+  }
+
+  getIconClass() {
+    return 'iconoir-at-sign'
+  }
+
+  getName() {
+    const { i18n } = this.app
+    return i18n.t('settingType.email')
+  }
+
+  isEnabled() {
+    return (
+      this.app.store.getters['authProvider/getPasswordLoginEnabled'] ||
+      this.app.store.getters['auth/isStaff']
+    )
+  }
+
+  getComponent() {
+    return EmailSettings
   }
 }
 
