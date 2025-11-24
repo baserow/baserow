@@ -582,6 +582,13 @@ class BaserowFormulaInvalidType(BaserowFormulaType):
     def is_searchable(self, field) -> bool:
         return False
 
+    def placeholder_empty_value(self):
+        """
+        Returns the correct empty placeholder for this formula type,
+        keeping the expected output_field intact.
+        """
+        return Value(self.get_python_empty_value(), output_field=self.output_field)
+
     def __init__(self, error: str, **kwargs):
         self.error = error
         super().__init__(**kwargs)

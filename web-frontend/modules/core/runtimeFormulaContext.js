@@ -43,7 +43,7 @@ export class RuntimeFormulaContext {
 
     const dataProviderType = this.dataProviders[providerName]
     if (!dataProviderType) {
-      throw new MissingDataProviderError()
+      throw new MissingDataProviderError(providerName)
     }
 
     try {

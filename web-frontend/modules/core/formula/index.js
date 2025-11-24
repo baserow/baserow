@@ -16,20 +16,16 @@ export const resolveFormula = (
   functions,
   RuntimeFormulaContext
 ) => {
-  if (!formulaCtx.formula) {
-    return formulaCtx.formula
-  }
-
-  if (formulaCtx.mode === 'raw') {
-    // We don't need to resolve the formula for raw mode.
-    return formulaCtx.formula
-  }
 
   try {
     const tree = parseBaserowFormula(formulaCtx.formula)
     return new JavascriptExecutor(functions, RuntimeFormulaContext).visit(tree)
   } catch (err) {
     console.debug(`FORMULA DEBUG: ${err}`)
+    if (err.dataProviderName || err.path) {
+      console.error(`Formula error: ${err.message}`)
+      throw err
+    }
     return null
   }
 }

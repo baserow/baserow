@@ -126,7 +126,7 @@ def ensure_string(value: Any, allow_empty: bool = True) -> str:
         # To match the frontend
         return "true" if value else "false"
     if isinstance(value, list):
-        results = [ensure_string(item) for item in value if item]
+        results = [ensure_string(item) for item in value if item is not None and item != ""]
         return ",".join(results)
     elif isinstance(value, dict):
         return json.dumps(value)

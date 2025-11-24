@@ -1925,15 +1925,35 @@ class ChoiceElementType(FormElementTypeMixin, ElementType):
             value if value is not None else name for (value, name) in options_tuple
         ]
 
+        from baserow.core.formula.parser.exceptions import (
+            InvalidFormulaException,
+            UnknownReference,
+        )
+
         if element.option_type == ChoiceElement.OPTION_TYPE.FORMULAS:
-            options = ensure_array(
-                resolve_formula(
-                    element.formula_value,
-                    formula_runtime_function_registry,
-                    dispatch_context,
+            try:
+                options = ensure_array(
+                    resolve_formula(
+                        element.formula_value,
+                        formula_runtime_function_registry,
+                        dispatch_context,
+                    )
                 )
-            )
-            options = [ensure_string_or_integer(option) for option in options]
+                options = [ensure_string_or_integer(option) for option in options]
+            except UnknownReference as exc:
+                raise UnknownReference(
+                    f"Formula references a deleted or missing path: {exc}"
+                ) from exc
+            
+            except InvalidFormulaException as exc:
+                raise InvalidFormulaException(
+                    f"Invalid formula: {exc}"
+                ) from exc
+
+            except Exception as exc:
+                raise ValueError(
+                    f"The formula is invalid or references unavailable data: {str(exc)}"
+                ) from exc
 
         if element.multiple:
             try:
