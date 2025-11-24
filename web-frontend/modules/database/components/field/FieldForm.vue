@@ -109,83 +109,46 @@
 
             <template #error> {{ $t('error.requiredField') }}</template>
           </FormGroup>
-
-<<<<<<< HEAD
-          <template
-            v-if="hasFormComponent && !defaultValues.immutable_properties"
-          >
-            <component
-              :is="getFormComponent(values.type)"
-              ref="childForm"
-              :table="table"
-              :field-type="values.type"
-              :field-constraints="values.field_constraints"
-              :view="view"
-              :primary="primary"
-              :all-fields-in-table="allFieldsInTable"
-              :name="values.name"
-              :default-values="defaultValues"
-              :database="database"
-              @validate="v$.$touch"
-              @suggested-field-name="handleSuggestedFieldName($event)"
-            />
-          </template>
-          <FormGroup
-            v-if="showDescription"
-            :error="fieldHasErrors('description')"
-            :label="$t('fieldForm.description')"
-            :small-label="true"
-            required
-          >
-            <div class="control__elements">
-              <FormTextarea
-                ref="description"
-                v-model="values.description"
-                :min-rows="1"
-                :max-rows="16"
-                auto-expandable
-                :placeholder="$t('fieldForm.description')"
-                size="small"
-              />
-            </div>
-          </FormGroup>
-=======
-      <template v-if="hasFormComponent && !defaultValues.immutable_properties">
-        <component
-          :is="getFormComponent(values.type)"
-          ref="childForm"
-          :table="table"
-          :field-type="values.type"
-          :view="view"
-          :primary="primary"
-          :all-fields-in-table="allFieldsInTable"
-          :name="values.name"
-          :default-values="defaultValues"
-          :database="database"
-          :parent-form="formProvider"
-          @validate="v$.$touch"
-          @suggested-field-name="handleSuggestedFieldName($event)"
-        />
-      </template>
-      <FormGroup
-        v-if="showDescription"
-        :error="fieldHasErrors('description')"
-        :label="$t('fieldForm.description')"
-        :small-label="true"
-        required
-      >
-        <div class="control__elements">
-          <FormTextarea
-            ref="description"
-            v-model="values.description"
-            :min-rows="1"
-            :max-rows="16"
-            auto-expandable
-            :placeholder="$t('fieldForm.description')"
-            size="small"
-          />
->>>>>>> d7b49c3ac6 (Handle child form)
         </div>
+
+        <template
+          v-if="hasFormComponent && !defaultValues.immutable_properties"
+        >
+          <component
+            :is="getFormComponent(values.type)"
+            ref="childForm"
+            :table="table"
+            :field-type="values.type"
+            :view="view"
+            :primary="primary"
+            :all-fields-in-table="allFieldsInTable"
+            :name="values.name"
+            :default-values="defaultValues"
+            :database="database"
+            :parent-form="formProvider"
+            @validate="v$.$touch"
+            @suggested-field-name="handleSuggestedFieldName($event)"
+          />
+        </template>
+        <FormGroup
+          v-if="showDescription"
+          :error="fieldHasErrors('description')"
+          :label="$t('fieldForm.description')"
+          :small-label="true"
+          required
+        >
+          <div class="control__elements">
+            <FormTextarea
+              ref="description"
+              v-model="values.description"
+              :min-rows="1"
+              :max-rows="16"
+              auto-expandable
+              :placeholder="$t('fieldForm.description')"
+              size="small"
+            />
+          </div>
+        </FormGroup>
         <div v-show="selectedTabIndex === 1" class="context__form-container">
           <FieldConstraintsSubForm
             v-model="values.field_constraints"
