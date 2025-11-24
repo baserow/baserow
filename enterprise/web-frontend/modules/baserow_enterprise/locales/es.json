@@ -411,5 +411,8 @@
     },
     "commonSamlSettingForm": {
         "authProviderInError": "Por favor, edita este proveedor para corregir el error."
+    },
+    "advanced": {
+        "license": "Avanzado"
     }
 }
