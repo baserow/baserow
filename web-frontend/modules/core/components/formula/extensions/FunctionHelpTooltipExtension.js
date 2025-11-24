@@ -9,6 +9,7 @@ export const FunctionHelpTooltipExtension = Extension.create({
   addOptions() {
     return {
       vueComponent: null,
+      functionDefinitions: {},
       selector: '.function-name-highlight',
       showDelay: 120,
       hideDelay: 60,
@@ -16,7 +17,13 @@ export const FunctionHelpTooltipExtension = Extension.create({
   },
 
   addProseMirrorPlugins() {
-    const { vueComponent, selector, showDelay, hideDelay } = this.options
+    const {
+      vueComponent,
+      functionDefinitions,
+      selector,
+      showDelay,
+      hideDelay,
+    } = this.options
     let lastEl = null
     let lastName = null
     let showTimer = null
@@ -24,21 +31,7 @@ export const FunctionHelpTooltipExtension = Extension.create({
 
     const findFunctionNodeByName = (name) => {
       const needle = (name || '').toLowerCase()
-      const walk = (nodes) => {
-        for (const n of nodes || []) {
-          if (
-            n.type === 'function' &&
-            typeof n.name === 'string' &&
-            n.signature
-          ) {
-            if (n.name.toLowerCase() === needle) return n
-          }
-          const hit = walk(n.nodes)
-          if (hit) return hit
-        }
-        return null
-      }
-      return walk(vueComponent?.nodesHierarchy || [])
+      return functionDefinitions[needle] || null
     }
 
     const showTooltip = (el, fname) => {

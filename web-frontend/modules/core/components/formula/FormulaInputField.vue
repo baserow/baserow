@@ -217,6 +217,26 @@ export default {
 
       return extract(this.nodesHierarchy)
     },
+    functionDefinitions() {
+      const definitions = {}
+      const extract = (nodes) => {
+        if (!nodes) {
+          return
+        }
+        for (const node of nodes) {
+          if (node.type === 'function' && node.signature) {
+            definitions[node.name.toLowerCase()] = node
+          }
+          const children = node.nodes
+          if (children) {
+            extract(children)
+          }
+        }
+      }
+
+      extract(this.nodesHierarchy)
+      return definitions
+    },
     operators() {
       const extract = (nodes) => {
         let operators = []
@@ -269,6 +289,7 @@ export default {
         }),
         FunctionHelpTooltipExtension.configure({
           vueComponent: this,
+          functionDefinitions: this.functionDefinitions,
         }),
         ...this.formulaComponents,
       ]
@@ -292,7 +313,7 @@ export default {
         extensions.push(
           FunctionDetectionExtension.configure({
             functionNames: this.functionNames,
-            vueComponent: this,
+            functionDefinitions: this.functionDefinitions,
           }),
           GroupDetectionExtension.configure({
             functionNames: this.functionNames,

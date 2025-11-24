@@ -8,13 +8,13 @@ export const FunctionDetectionExtension = Extension.create({
   addOptions() {
     return {
       functionNames: [],
-      vueComponent: null,
+      functionDefinitions: {},
     }
   },
 
   addProseMirrorPlugins() {
     const functionNames = this.options.functionNames
-    const vueComponent = this.options.vueComponent
+    const functionDefinitions = this.options.functionDefinitions
 
     function handleOpeningParenthesis(view, from, to) {
       const { state } = view
@@ -37,15 +37,8 @@ export const FunctionDetectionExtension = Extension.create({
         const functionStart =
           from - functionName.length - spacesBeforeParenthesis.length
 
-        // Find the function definition
-        const functionDef = vueComponent.nodesHierarchy
-          .flatMap((cat) => cat.nodes || [])
-          .flatMap((n) => n.nodes || [])
-          .find(
-            (node) =>
-              node.type === 'function' &&
-              node.name.toLowerCase() === functionName.toLowerCase()
-          )
+        // Find the function definition using the pre-computed map
+        const functionDef = functionDefinitions[functionName.toLowerCase()]
 
         if (functionDef) {
           const signature = functionDef.signature || {}
