@@ -110,7 +110,7 @@
         "userFieldNames": "Nombres de campo de usuario"
     },
     "apiDocsParameter": {
-        "optional": "Opcional",
+        "optional": "opcional",
         "defaultValue": "Default: {value}"
     },
     "apiDocsTableGetRow": {
@@ -209,7 +209,8 @@
         "placeholder": "Texto predeterminado"
     },
     "fieldSingleSelectSubForm": {
-        "optionsLabel": "Opciones"
+        "optionsLabel": "Opciones",
+        "defaultOptionLabel": "Opción predeterminada"
     },
     "fieldSingleSelectDropdown": {
         "notFound": "Opción no encontrada"
@@ -234,7 +235,8 @@
         "selectTableLabel": "Seleccione una tabla para vincular",
         "hasRelatedFieldLabel": "Crear campo relacionado en la tabla vinculada",
         "limitToView": "Limitar la selección para mostrar",
-        "limitToViewDescription": "Ten en cuenta que esto es solo visual. Aún es posible establecer relaciones fuera de la vista mediante la tabla relacionada o la API."
+        "limitToViewDescription": "Ten en cuenta que esto es solo visual. Aún es posible establecer relaciones fuera de la vista mediante la tabla relacionada o la API.",
+        "allowMultipleRelations": "Permitir múltiples relaciones"
     },
     "fieldSelectOptions": {
         "add": "Añadir una opción"
@@ -253,7 +255,9 @@
         "periodComma": "Punto, coma (1.000.000,00)",
         "separatorLabel": "Separador de miles y decimales",
         "commaPeriod": "Coma, punto (1.000.000,00)",
-        "noFormatting": "Sin formato"
+        "noFormatting": "Sin formato",
+        "defaultValueLabel": "Valor predeterminado",
+        "defaultValuePlaceholder": "Introduzca un valor predeterminado"
     },
     "fieldContext": {
         "editField": "Editar campo",
@@ -268,7 +272,12 @@
         "nameNotAllowed": "Este nombre de campo no está permitido.",
         "nameTooLong": "Este nombre de campo es demasiado largo.",
         "addDescription": "Añadir descripción",
-        "description": "Descripción"
+        "description": "Descripción",
+        "dbIndex": "Índice",
+        "dbIndexError": "Este tipo de campo no puede tener un índice. Por favor, elimínelo antes de guardar o cambie el tipo de campo.",
+        "dbIndexDescription": "Indexar puede mejorar significativamente el rendimiento del filtrado, pero ralentiza las operaciones de creación, actualización y eliminación.",
+        "defaultValueDisabledByConstraint": "No se puede establecer un valor predeterminado con una restricción de valor único",
+        "dbIndexDisabledTooltip": "La indexación no está disponible para este tipo de campo."
     },
     "fieldLookupSubForm": {
         "noTable": "Necesita al menos un campo de fila de vínculo para crear un campo de búsqueda.",
@@ -314,7 +323,8 @@
         }
     },
     "rowEditFieldLinkRow": {
-        "addLink": "Elige un enlace"
+        "addLink": "Elige un enlace",
+        "keepOnlyOneValue": "Mantenga solo un valor. Este campo solo admite una relación. El valor se guarda si queda únicamente una relación."
     },
     "tableCSVImporter": {
         "chooseFileLabel": "Elija el archivo CSV",
@@ -383,7 +393,9 @@
         "filePreview": "Vista previa del contenido del archivo",
         "importPreview": "Vista previa de la importación",
         "changeImporterType": "Cambiar el tipo de importación",
-        "defaultName": "Tabla"
+        "defaultName": "Tabla",
+        "useUpsertField": "Actualizar filas si ya existen",
+        "upsertTooltip": "Coincidir filas existentes usando un campo único para sobrescribir los datos con los valores importados."
     },
     "formulaAdvancedEditContext": {
         "textAreaFormulaInputPlaceholder": "Haga clic para editar la fórmula",
@@ -478,7 +490,15 @@
     },
     "viewFilter": {
         "filter": "Filtro | 1 filtro | {count} filtros",
-        "hasAllValuesEqual": "tiene todos los valores iguales"
+        "hasAllValuesEqual": "tiene todos los valores iguales",
+        "hasValueHigherThan": "tiene un valor mayor que",
+        "hasValueHigherThanOrEqual": "tiene un valor mayor o igual que",
+        "hasValueLowerThan": "tiene un valor menor que",
+        "hasValueLowerThanOrEqual": "tiene un valor menor o igual que",
+        "hasNotValueHigherThan": "no tiene un valor mayor que",
+        "hasNotValueHigherThanOrEqual": "no tiene un valor mayor o igual que",
+        "hasNotValueLowerThan": "no tiene un valor menor que",
+        "hasNotValueLowerThanOrEqual": "no tiene un valor menor que o igual que"
     },
     "viewContext": {
         "exportView": "Exportar vista",
@@ -512,7 +532,9 @@
         "sortField": "Clasificar",
         "hideField": "Ocultar campo",
         "duplicate": "Duplicar campo",
-        "dataSyncField": "El campo es de sólo lectura y forma parte de la sincronización de datos de la tabla."
+        "dataSyncField": "El campo es de sólo lectura y forma parte de la sincronización de datos de la tabla.",
+        "dataSyncFieldTwoWaySync": "El campo está sincronizado con la sincronización de datos de la tabla.",
+        "noWriteValues": "Los cambios en este campo están restringidos."
     },
     "gridViewRow": {
         "rowNotMatchingFilters": "La fila no coincide con los filtros",
@@ -539,10 +561,12 @@
         "generateCellsValues": "Generar valores con IA",
         "AIValuesGenerationErrorTitle": "Falló la generación de valor de la IA",
         "AIValuesGenerationErrorMessage": "Por favor, comprueba tu API_KEY y verifica el modelo seleccionado.",
-        "copyCellsWithHeader": "Copiar celdas con encabezado"
+        "copyCellsWithHeader": "Copiar celdas con encabezado",
+        "generateAllAiValues": "Generar todos los valores de IA"
     },
     "gridViewFieldLinkRow": {
-        "unnamed": "fila sin nombre {value}"
+        "unnamed": "fila sin nombre {value}",
+        "keepOnlyOneValue": "Mantener solo un valor"
     },
     "gridViewIdentifierOptions": {
         "id": "Identificador de fila",
@@ -594,7 +618,7 @@
         "back": "volver al tablero"
     },
     "viewAggregationType": {
-        "emptyCount": "Vacio",
+        "emptyCount": "{Empty}",
         "notEmptyCount": "Lleno",
         "emptyPercentage": "Porcentaje vacío",
         "notEmptyPercentage": "Porcentaje lleno",
@@ -614,17 +638,20 @@
         "median": "Median",
         "stdDev": "Desviación Estándar",
         "stdDevShort": "Desviación Estándar",
-        "variance": "Diferencia"
+        "variance": "Diferencia",
+        "count": "Contar",
+        "distribution": "Distribución",
+        "othersCount": "Otros"
     },
     "databaseForm": {
         "importLabel": "¿Le gustaría importar datos existentes?",
         "emptyLabel": "Empezar desde el principio",
-        "airtableLabel": "Importar desde Airtable (beta)"
+        "airtableLabel": "Importar desde Airtable"
     },
     "importFromAirtable": {
         "airtableShareLinkTitle": "Comparte un enlace a tu Base",
         "airtableShareLinkDescription": "Para importar su base Airtable, debe tener un enlace compartido a toda su base. En Airtable, haz clic en el botón de compartir en la esquina superior derecha después de abrir tu base. Luego de eso debes elegir la opción \"Acceso a la base\". En el modal de compartir, puede hacer clic en el botón \"Crear un enlace compartido para toda la base\" y luego en \"Enlace privado de solo lectura\". Copie el enlace público y péguelo en la entrada a continuación.",
-        "airtableShareLinkBeta": "Tenga en cuenta que esta función está en versión beta, sus tablas, campos (excepto fórmula, búsqueda y recuento) y datos se importarán. Sus vistas no se importarán.",
+        "airtableShareLinkBeta": "Esta funcionalidad importará la mayor parte de los datos, pero existen incompatibilidades. Por lo tanto, se añadirá una tabla llamada \"Airtable import report\" que contendrá una lista de cosas que no fueron importadas o que se importaron parcialmente.",
         "airtableShareLinkPaste": "Pega el enlace aquí",
         "importButtonLabel": "Importar desde Airtable",
         "openButtonLabel": "Abrir base de datos importada",
@@ -639,7 +666,11 @@
         "stateImportingTable": "Importando tabla {table}",
         "errorJobAlreadyRunningTitle": "Ya corriendo",
         "errorJobAlreadyRunningDescription": "Ya se está ejecutando otro trabajo de importación. Tienes que esperar a que termine antes de empezar otro.",
-        "linkError": "El enlace debería parecerse así: https://airtable.com/shrxxxxxxxxxxxxxx"
+        "linkError": "El enlace debería parecerse así: https://airtable.com/shrxxxxxxxxxxxxxx",
+        "skipFiles": "Omitir la importación de archivos",
+        "skipFilesHelper": "Una base de Airtable con muchos archivos puede ralentizar la importación. Al habilitar esta opción se omite la importación de los archivos.",
+        "useSession": "Autenticación de sesión",
+        "useSessionHelper": "Utilice esto si la base compartida públicamente requiere autenticación."
     },
     "viewDecorator": {
         "decorator": "Color | 1 Color | {recuento} Colores"
@@ -808,7 +839,8 @@
     },
     "duplicateTableJobType": {
         "duplicatedTitle": "Tabla duplicada",
-        "duplicating": "Duplicando"
+        "duplicating": "Duplicando",
+        "name": "Duplicar tabla"
     },
     "apiDocsUploadFile": {
         "description": "Sube un archivo a Baserow cargando el contenido del archivo directamente. Se espera una multiparte de `archivo` que contenga el contenido del archivo. La respuesta se puede utilizar para [subir un archivo a una fila]({PUBLIC_BACKEND_URL}/api/redoc/#tag/Database-table-rows/operation/update_database_table_row).",
@@ -1076,5 +1108,25 @@
         "syncSettings": "Ajustes de sincronización",
         "syncedFields": "Campos sincronizados",
         "title": "Sincronización de datos"
+    },
+    "apiDocsPasswordFieldAuthentication": {
+        "title": "autenticación de {name}",
+        "description": "Comprueba si la contraseña y la fila proporcionadas coinciden con lo almacenado en la celda.",
+        "fieldId": "El ID del campo donde se debe comprobar la contraseña.",
+        "rowId": "El ID de la fila donde se debe comprobar la contraseña.",
+        "password": "La contraseña que debe verificarse para saber si es correcta."
+    },
+    "apiDocsListTables": {
+        "listTablesDescription": "Este endpoint solo funciona en combinación con la autenticación mediante token. Enumera todas las tablas a las que el token tiene acceso de crear, leer, actualizar o eliminar."
+    },
+    "fieldMultipleSelectSubForm": {
+        "optionsLabel": "Opciones",
+        "defaultOptionsLabel": "Opciones predeterminadas"
+    },
+    "fieldBooleanSubForm": {
+        "defaultValue": "Predeterminado"
+    },
+    "viewFieldConditionItem": {
+        "filterMisconfigured": "El campo al que está asociado este filtro ha sido eliminado."
     }
 }
