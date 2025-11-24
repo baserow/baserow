@@ -1015,5 +1015,24 @@
     },
     "userSourceType": {
         "userCountSummary": "{count} usuarios ({lastUpdated})"
+    },
+    "workspaceSearch": {
+        "title": "Buscar",
+        "searchEverything": "Buscar...",
+        "searching": "Buscando...",
+        "noResults": "No se encontraron resultados",
+        "noResultsSubtitle": "No pudimos encontrar nada que coincida con “{searchTerm}”",
+        "welcome": "Buscar todo en su espacio de trabajo",
+        "welcomeSubtitle": "Utilice el cuadro de búsqueda superior para encontrar aplicaciones, tablas, campos y más",
+        "navigate": "Navegar",
+        "select": "Seleccionar",
+        "close": "Cerrar",
+        "types": {
+            "applications": "Aplicaciones",
+            "tables": "Tablas"
+        }
+    },
+    "formulaInputContext": {
+        "search": "Buscar"
     }
 }
