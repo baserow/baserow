@@ -957,5 +957,15 @@
     },
     "pageEditor": {
         "pageNotFound": "Página no encontrada"
+    },
+    "builderToast": {
+        "details": "Detalles",
+        "defaultTitle": "Error inesperado",
+        "defaultMessage": "Se produjo un error inesperado. Por favor, inténtelo de nuevo más tarde.",
+        "invalidContextTitle": "Solicitud inválida",
+        "invalidContextMessage": "La solicitud es inválida.",
+        "InvalidContentTitle": "Formulario inválido",
+        "invalidContentMessage": "Uno o varios campos contienen valores inválidos.",
+        "serviceMisconfiguredTitle": "Configuración incompleta"
     }
 }
