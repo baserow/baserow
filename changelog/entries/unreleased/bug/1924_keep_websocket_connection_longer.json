@@ -1,0 +1,9 @@
+{
+  "type": "bug",
+  "message": "Send ping event during websocket to keep the connection open longer.",
+  "issue_origin": "github",
+  "issue_number": 1924,
+  "domain": "core",
+  "bullet_points": [],
+  "created_at": "2025-11-24"
+}

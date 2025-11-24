@@ -427,11 +427,11 @@
   },
   "connectingToast": {
     "title": "Reconnecting",
-    "content": "Reconnecting with server."
+    "content": "Trying to reestablish real-time updates."
   },
   "failedConnectingToast": {
     "title": "Failed",
-    "content": "Connection to the server has failed. Please refresh the page.",
+    "content": "Real-time updates could not be reestablished. Please refresh to continue.",
     "action": "Refresh page"
   },
   "authorizationErrorToast": {

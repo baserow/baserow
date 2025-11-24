@@ -15,6 +15,7 @@ export class RealTimeHandler {
     this.subscribedToPages = true
     this.lastToken = null
     this.authenticationSuccess = true
+    this.heartBeatInterval = null
     this.registerCoreEvents()
   }
 
@@ -61,6 +62,7 @@ export class RealTimeHandler {
       this.context.store.dispatch('toast/setConnecting', false)
       this.connected = true
       this.attempts = 0
+      this.startHeartbeat()
 
       // If the client needs to be subscribed to a page we can do that directly
       // after connecting.
@@ -97,6 +99,7 @@ export class RealTimeHandler {
      */
     this.socket.onclose = () => {
       this.connected = false
+      this.stopHeartbeat()
       // By default the user not subscribed to a page a.k.a `null`, so if the current
       // page is already null we can mark it as subscribed.
       this.subscribedToPages = this.pages.length === 0
@@ -123,6 +126,34 @@ export class RealTimeHandler {
       // After the first try, we want to try again every 5 seconds.
       this.attempts > 1 ? 5000 : 0
     )
+  }
+
+  /**
+   * Starts the heart beat interval. This allows to keep the websocket connection
+   * open longer in some situations. We want to avoid losing the websocket
+   * connection and forcing the user to reload the page.
+   */
+  startHeartbeat() {
+    if (this.heartBeatInterval) {
+      clearInterval(this.heartBeatInterval)
+    }
+
+    this.heartBeatInterval = setInterval(() => {
+      if (
+        this.connected &&
+        this.socket &&
+        this.socket.readyState === WebSocket.OPEN
+      ) {
+        this.socket.send(JSON.stringify({ type: 'ping' }))
+      }
+    }, 1000) // every 30 seconds.
+  }
+
+  stopHeartbeat() {
+    if (this.heartBeatInterval) {
+      clearInterval(this.heartBeatInterval)
+      this.heartBeatInterval = null
+    }
   }
 
   /**
@@ -208,6 +239,7 @@ export class RealTimeHandler {
       this.socket.close()
     }
 
+    this.stopHeartbeat()
     this.context.store.dispatch('toast/setConnecting', false)
     this.context.store.dispatch('toast/setFailedConnecting', false)
     clearTimeout(this.reconnectTimeout)
