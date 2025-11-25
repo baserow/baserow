@@ -73,6 +73,11 @@ export const getFormulaFunctionsByCategory = (app, i18n = null) => {
 
   // Group functions by category
   for (const [functionName, registryItem] of Object.entries(functions)) {
+    // Filter out the 'get' function
+    if (functionName === 'get') {
+      continue
+    }
+
     try {
       // The registry might return instances instead of classes
       let instance = null
