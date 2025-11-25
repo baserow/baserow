@@ -60,12 +60,12 @@ class AIField(Field):
             super().__getattr__(name)
 
     @property
-    def ai_max_workers(self):
+    def ai_max_concurrent_generation(self) -> int:
         """
         Returns a number of max concurrent workers to be used with the model.
         """
 
-        return settings.BASEROW_MAX_AI_WORKERS
+        return settings.BASEROW_AI_FIELD_MAX_CONCURRENT_GENERATIONS
 
 
 class GenerateAIValuesJob(

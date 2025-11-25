@@ -1,10 +1,7 @@
 from django.db import transaction
 
 from baserow_premium.fields.actions import GenerateFormulaWithAIActionType
-from baserow_premium.fields.job_types import (
-    GenerateAIValuesJobType,
-    get_valid_generative_ai_model_type_or_raise,
-)
+from baserow_premium.fields.job_types import GenerateAIValuesJobType
 from baserow_premium.fields.models import AIField
 from baserow_premium.license.features import PREMIUM
 from baserow_premium.license.handler import LicenseHandler
@@ -132,7 +129,6 @@ class AsyncGenerateAIFieldValuesView(APIView):
             context=ai_field.table,
         )
 
-        get_valid_generative_ai_model_type_or_raise(ai_field)
         job = JobHandler().create_and_start_job(
             request.user,
             GenerateAIValuesJobType.type,

@@ -2,6 +2,8 @@ import os
 
 from django.core.exceptions import ImproperlyConfigured
 
+from baserow.config.settings.utils import try_int
+
 
 def setup(settings):
     """
@@ -32,4 +34,9 @@ def setup(settings):
 
     settings.BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS = (
         BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS
+    )
+
+    # Used to limit thread pool size for running AI field generation in parallel
+    settings.BASEROW_AI_FIELD_MAX_CONCURRENT_GENERATIONS = try_int(
+        os.getenv("BASEROW_AI_FIELD_MAX_CONCURRENT_GENERATIONS"), 5
     )
