@@ -1,5 +1,5 @@
 <template>
-  <Context class="workflow-node__context">
+  <Context ref="context" class="workflow-node__context">
     <WorkflowAddNodeMenu
       :node="node"
       :only-trigger="onlyTrigger"
