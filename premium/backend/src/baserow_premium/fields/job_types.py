@@ -2,9 +2,13 @@ from typing import Type
 
 from concurrent.futures import ThreadPoolExecutor
 from threading import RLock
+from collections.abc import Iterator
+from concurrent.futures import Executor, Future, ThreadPoolExecutor
+from queue import Empty, Queue
+from typing import Any, NamedTuple
 
-from django.conf import settings
 from django.contrib.auth.models import AbstractUser
+from django.db import transaction
 from django.db.models import QuerySet
 
 from baserow_premium.generative_ai.managers import AIFileManager
@@ -222,6 +226,8 @@ class GenerateAIValuesJobType(JobType):
         # Create the job instance without saving it yet, so we can use its mode property
         unsaved_job = GenerateAIValuesJob(**values)
 
+        get_valid_generative_ai_model_type_or_raise(ai_field)
+
         if unsaved_job.mode == GenerateAIValuesJob.MODES.ROWS:
             found_rows_ids = (
                 RowHandler().get_rows(model, req_row_ids).values_list("id", flat=True)
@@ -275,21 +281,28 @@ class GenerateAIValuesJobType(JobType):
         progress_builder = progress.create_child_builder(
             represents_progress=progress.total
         )
+
         rows_progress = ChildProgressBuilder.build(progress_builder, rows.count())
-
-        worker = AIGenerationWorker(user, ai_field, table, model, self, rows_progress)
-
-        with get_executor(ai_field.ai_max_workers) as executor:
-            for row in rows.iterator(chunk_size=200):
-                executor.submit(worker.generate_value_for, row)
-
-        worker.raise_if_error()
+        generator = AIValueGenerator(user, ai_field, table, model, self, rows_progress)
+        generator.process(rows.order_by("id"))
 
 
-class AIGenerationWorker:
+class AIGenerationContext(NamedTuple):
     """
-    AIGenerationWorker encapsulates AI field value generation process, so it can be
-    executed with a worker pool.
+    Helper container to pass values needed by the AI model
+    """
+
+    message: str
+    file_ids: list[int] | None
+
+
+class AIValueGenerator:
+    """
+    AIValueGenerator encapsulates AI field value generation process. Internally uses
+    a thread pool to run parallel requests and collects the results.
+
+    Each AI model request runs in a separate thread, but results are processed in the
+    caller's thread (assumed it's the main thread).
     """
 
     def __init__(
@@ -308,15 +321,29 @@ class AIGenerationWorker:
         self.model = model or table.get_model()
         self.job = job
         self.workspace = table.database.workspace
-        self.lock = RLock()
-        self.progress = progress
-        self.should_process = True
-        self.processed = 0
-        self.prepare()
-        # TODO: exit if a number of errors too high
+        self.max_concurrency = self.ai_field.ai_max_concurrent_generation
+
+        # A counter to count processed rows
+        self.finished = 0
+
+        # A marker to know if we should expect more rows to come
+        self.generation_done = False
+
+        # A queue of results
+        self.results_queue = Queue(self.max_concurrency)
+
+        # Keeps errors, one per row
         self.errors = {}
+
         self.notification_sent = False
         self.row_handler = RowHandler()
+
+        # progress bar
+        self.progress = progress
+
+        # keeps a list of currently processing row ids
+        self.in_process = set()
+        self.prepare()
 
     def prepare(self):
         """
@@ -355,15 +382,33 @@ class AIGenerationWorker:
         # needs to receive the update to stop the loading state
         self.user.web_socket_id = None
 
-    def generate_value_for(self, row):
+    def generate_value_for(self, row, context):
         """
         Runs value generation for a single row using AI model.
         """
 
-        with self.lock:
-            if not self.should_process:
-                self.update_progress()
-                return
+        try:
+            result = self._generate_value_for(row, context)
+            self.results_queue.put(
+                (
+                    row,
+                    result,
+                ),
+                block=True,
+            )
+        except Exception as e:
+            self.results_queue.put(
+                (
+                    row,
+                    e,
+                ),
+                block=True,
+            )
+
+    def prepare_row(self, row) -> AIGenerationContext:
+        """
+        Prepares values needed by the AI model.
+        """
 
         ai_field = self.ai_field
         ai_output_type = self.ai_output_type
@@ -376,99 +421,185 @@ class AIGenerationWorker:
                 ai_field.ai_prompt, formula_runtime_function_registry, context
             )
         )
-
+        file_ids = None
         # The AI output type should be able to format the prompt because it can add
         # additional instructions to it. The choice output type for example adds
         # additional prompt trying to force the out, for example.
         message = ai_output_type.format_prompt(message, ai_field)
+        if self.use_file_fields:
+            file_ids = AIFileManager.upload_files_from_file_field(
+                ai_field, row, generative_ai_model_type, workspace=workspace
+            )
 
-        try:
-            if self.use_file_fields:
-                file_ids = AIFileManager.upload_files_from_file_field(
-                    ai_field, row, generative_ai_model_type, workspace=workspace
-                )
-                try:
-                    value = generative_ai_model_type.prompt_with_files(
-                        ai_field.ai_generative_ai_model,
-                        message,
-                        file_ids=file_ids,
-                        workspace=workspace,
-                        temperature=ai_field.ai_temperature,
-                    )
-                finally:
-                    generative_ai_model_type.delete_files(file_ids, workspace=workspace)
-            else:
-                value = generative_ai_model_type.prompt(
+        return AIGenerationContext(message, file_ids)
+
+    def _generate_value_for(self, row, context: AIGenerationContext):
+        ai_field = self.ai_field
+        ai_output_type = self.ai_output_type
+        generative_ai_model_type = self.generative_ai_model_type
+        workspace = self.workspace
+
+        if self.use_file_fields:
+            try:
+                value = generative_ai_model_type.prompt_with_files(
                     ai_field.ai_generative_ai_model,
-                    message,
+                    context.message,
+                    file_ids=context.file_ids,
                     workspace=workspace,
                     temperature=ai_field.ai_temperature,
                 )
+            finally:
+                generative_ai_model_type.delete_files(
+                    context.file_ids, workspace=workspace
+                )
+        else:
+            value = generative_ai_model_type.prompt(
+                ai_field.ai_generative_ai_model,
+                context.message,
+                workspace=workspace,
+                temperature=ai_field.ai_temperature,
+            )
 
-            # Because the AI output type can change the prompt to try to force the
-            # output a certain way, then it should give the opportunity to parse the
-            # output when it's given. With the choice output type, it will try to
-            # match it to a `SelectOption`, for example.
-            value = ai_output_type.parse_output(value, ai_field)
-            self.update_value(row, value)
+        # Because the AI output type can change the prompt to try to force the
+        # output a certain way, then it should give the opportunity to parse the
+        # output when it's given. With the choice output type, it will try to
+        # match it to a `SelectOption`, for example.
+        value = ai_output_type.parse_output(value, ai_field)
 
-        except Exception as exc:
-            self.handle_error(row, exc)
-        finally:
-            self.update_progress()
+        return value
 
     def handle_error(self, row, exc):
         logger.opt(exception=exc).warning(
             f"Error when retrieving AI model result for {row}: {exc}"
         )
-        with self.lock:
-            # If this is an error on the first row, or a number of errors is above
-            # a max error count threshold, we stop processing.
-            if (
-                self.processed < 1
-                # Include current error, which is not yet in self.errors.
-                or len(self.errors) + 1 > settings.BASEROW_MAX_AI_WORKERS_ERRORS
-            ):
-                self.should_process = False
 
-            self.errors[row.id] = str(exc)
+        self.errors[row.id] = str(exc)
 
-            # Note: signal should be sent once (as it will send an error per row)
-            # we should distinguish from 'some rows failed' and 'the job failed'.
+        # let's not schedule more rows after this
+        self.generation_done = True
 
-            # If the prompt fails once, we should not continue with the other rows.
-            # Note: rows might be a generator, so we can't slice it
-            if not self.notification_sent:
-                self.notification_sent = True
-                rows_ai_values_generation_error.send(
-                    self,
-                    user=self.user,
-                    rows=[row],
-                    field=self.ai_field,
-                    table=self.table,
-                    error_message=str(exc),
-                )
+        # Note: signal should be sent once (as it will send an error per row)
+        # we should distinguish from 'some rows failed' and 'the job failed'.
 
-    def update_progress(self):
-        with self.lock:
-            self.progress.increment()
-            self.processed += 1
+        # If the prompt fails once, we should not continue with the other rows.
+        # Note: rows might be a generator, so we can't slice it
+        if not self.notification_sent:
+            self.notification_sent = True
+            rows_ai_values_generation_error.send(
+                self,
+                user=self.user,
+                rows=[row],
+                field=self.ai_field,
+                table=self.table,
+                error_message=str(exc),
+            )
 
     def update_value(self, row, value):
-        # Update immediately. Note: this will be run in a worker thread, so the
-        # db connection will use a separate transaction.
-        self.row_handler.update_row_by_id(
-            self.user,
-            self.table,
-            row.id,
-            {self.ai_field.db_column: value},
-            model=self.model,
-            values_already_prepared=True,
-        )
+        with transaction.atomic():
+            self.row_handler.update_row_by_id(
+                self.user,
+                self.table,
+                row.id,
+                {self.ai_field.db_column: value},
+                model=self.model,
+                values_already_prepared=True,
+            )
 
     def raise_if_error(self):
-        if len(self.errors) == self.processed and self.processed > 0:
+        if len(self.errors):
             raise GenerativeAIPromptError(f"AI model responded with errors.")
+
+    def process(self, rows: QuerySet[GeneratedTableModel]):
+        """
+        Generate AI model value for selected rows in parallel.
+
+        This will call the AI model generator for several rows at once. Each row is
+        processed in a separate thread, and the number of worker threads is fixed,
+        controlled by AIField.ai_max_workers value.
+
+        Results are processed in a callback.
+        """
+
+        logger.info(f"Expected to process {len(rows)} rows.")
+        # Chunk size shouldn't be big, because rows will be locked, and processing may
+        # take some time, so most of the rows will be idling.
+        rows_iter = iter(rows.iterator(chunk_size=self.max_concurrency))
+
+        with get_executor(self.max_concurrency) as executor:
+            while True:
+                try:
+                    # Allow to schedule only max_concurrent futures at most.
+                    # We can't use `concurrent.futures.as_completed`, because the list
+                    # of futures is constant, and we would need to wait for all
+                    # futures to finish to start a new waiting list.
+                    # Instead, we add rows only when we know there's a spare slot in
+                    # the executor.
+                    while self.can_schedule_next():
+                        self.schedule_next_row(rows_iter, executor)
+
+                except StopIteration:
+                    self.generation_done = True
+
+                try:
+                    processed = self.results_queue.get(block=True, timeout=0.1)
+                    row, result = processed
+                    self.mark_as_processed(row, result)
+
+                except Empty:
+                    pass
+
+                if self.is_finished():
+                    break
+
+        logger.info(
+            f"AI value generation: processed {self.finished} rows for {self.ai_field} field."
+        )
+
+        self.raise_if_error()
+
+    def can_schedule_next(self) -> bool:
+        """
+        Returns True, if there's a free slot to process.
+        """
+
+        return not self.generation_done and len(self.in_process) < self.max_concurrency
+
+    def is_finished(self) -> bool:
+        """
+        Returns true, if there's no rows left to process.
+        """
+
+        return not len(self.in_process) and self.generation_done
+
+    def mark_as_processed(self, row: GeneratedTableModel, result: Exception | Any):
+        """
+        Mark the row as processed. Depending on result type, the result may be an
+        error or a correct result.
+        """
+
+        logger.info(f"Processed row {row.id}: {result}")
+        try:
+            if isinstance(result, Exception):
+                self.handle_error(row, result)
+            else:
+                self.update_value(row, result)
+        finally:
+            self.finished += 1
+            self.in_process.remove(row.id)
+            self.progress.increment()
+
+    def schedule_next_row(self, rows_iter: Iterator, executor: Executor) -> Future:
+        """
+        Adds a next row to the work queue.
+        """
+
+        row = next(rows_iter)
+
+        context = self.prepare_row(row)
+        future = executor.submit(self.generate_value_for, row, context)
+        logger.info(f"scheduled row: {row} {context}")
+        self.in_process.add(row.id)
+        return future
 
 
 def get_executor(max_workers=1):
