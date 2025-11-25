@@ -189,7 +189,11 @@ class UserFileHandler:
         storage = storage or get_default_storage()
 
         # adjust image orientation, if exif data differs from the image data
-        ImageOps.exif_transpose(image, in_place=True)
+        try:
+            ImageOps.exif_transpose(image, in_place=True)
+        # ignore cases of incomplete images
+        except OSError:
+            pass
 
         image_width = image.width
         image_height = image.height
