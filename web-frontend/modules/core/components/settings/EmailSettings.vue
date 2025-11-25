@@ -25,18 +25,22 @@
         :label="$t('emailSettings.newEmailLabel')"
         small-label
         required
-        :error="v$.emailData.newEmail.$error"
+        :error="v$.emailData.newEmail.$dirty && v$.emailData.newEmail.$invalid"
         class="margin-bottom-2"
       >
         <FormInput
-          v-model="v$.emailData.newEmail.$model"
-          :error="v$.emailData.newEmail.$error"
+          v-model="emailData.newEmail"
+          :error="
+            v$.emailData.newEmail.$dirty && v$.emailData.newEmail.$invalid
+          "
           type="email"
           size="large"
-          @blur="v$.emailData.newEmail.$touch"
+          @blur="v$.emailData.newEmail.$touch()"
         ></FormInput>
         <template #error>
-          {{ v$.emailData.newEmail.$errors[0]?.$message }}
+          <span v-if="v$.emailData.newEmail.$dirty">
+            {{ v$.emailData.newEmail.$errors[0]?.$message }}
+          </span>
         </template>
       </FormGroup>
 
@@ -44,18 +48,22 @@
         :label="$t('emailSettings.passwordLabel')"
         small-label
         required
-        :error="v$.emailData.password.$error"
+        :error="v$.emailData.password.$dirty && v$.emailData.password.$invalid"
         class="margin-bottom-2"
       >
         <FormInput
-          v-model="v$.emailData.password.$model"
-          :error="v$.emailData.password.$error"
+          v-model="emailData.password"
+          :error="
+            v$.emailData.password.$dirty && v$.emailData.password.$invalid
+          "
           type="password"
           size="large"
-          @blur="v$.emailData.password.$touch"
+          @blur="v$.emailData.password.$touch()"
         ></FormInput>
         <template #error>
-          {{ v$.emailData.password.$errors[0]?.$message }}
+          <span v-if="v$.emailData.password.$dirty">
+            {{ v$.emailData.password.$errors[0]?.$message }}
+          </span>
         </template>
       </FormGroup>
 
