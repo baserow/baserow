@@ -128,6 +128,10 @@ export default {
             this.$t('emailSettings.errorEmailExistsTitle'),
             this.$t('emailSettings.errorEmailExistsMessage')
           ),
+          ERROR_CHANGE_EMAIL_NOT_ALLOWED: new ResponseErrorMessage(
+            this.$t('emailSettings.errorNotAllowedTitle'),
+            this.$t('emailSettings.errorNotAllowedMessage')
+          ),
         })
       }
     },

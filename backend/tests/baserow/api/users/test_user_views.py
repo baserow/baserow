@@ -1360,6 +1360,35 @@ def test_send_change_email_confirmation_password_auth_disabled(
 
 
 @pytest.mark.django_db(transaction=True)
+def test_send_change_email_confirmation_without_password(
+    data_fixture, client, mailoutbox
+):
+    data_fixture.create_password_provider()
+    # Create user without password (simulating SSO account)
+    user, token = data_fixture.create_user_and_token(email="test@test.nl")
+    user.password = ""
+    user.save()
+
+    response = client.post(
+        reverse("api:user:send_change_email_confirmation"),
+        {
+            "new_email": "newemail@test.nl",
+            "password": "dummy_password",  # Provided but user has no password
+            "base_url": f"{settings.PUBLIC_WEB_FRONTEND_URL}/change-email",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "error": "ERROR_CHANGE_EMAIL_NOT_ALLOWED",
+        "detail": "Email changes are only allowed for password-based accounts.",
+    }
+    assert len(mailoutbox) == 0
+
+
+@pytest.mark.django_db(transaction=True)
 def test_change_email(data_fixture, client, mailoutbox):
     data_fixture.create_password_provider()
     valid_password = "thisIsAValidPassword"

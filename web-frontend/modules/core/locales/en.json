@@ -161,7 +161,9 @@
     "errorInvalidPasswordTitle": "Invalid password",
     "errorInvalidPasswordMessage": "Could not request email change because your password is incorrect.",
     "errorEmailExistsTitle": "Email already exists",
-    "errorEmailExistsMessage": "Could not request email change because an account with this email address already exists."
+    "errorEmailExistsMessage": "Could not request email change because an account with this email address already exists.",
+    "errorNotAllowedTitle": "Email change not allowed",
+    "errorNotAllowedMessage": "You cannot change your email address because your account uses single sign-on (SSO) authentication."
   },
   "deleteAccountSettings": {
     "title": "Delete account",

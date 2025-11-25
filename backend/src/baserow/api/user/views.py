@@ -69,6 +69,7 @@ from baserow.core.user.actions import (
     VerifyEmailAddressActionType,
 )
 from baserow.core.user.exceptions import (
+    ChangeEmailNotAllowed,
     DeactivatedUserException,
     DisabledSignupError,
     EmailAlreadyVerified,
@@ -86,6 +87,7 @@ from baserow.core.user.utils import generate_session_tokens_for_user
 from .errors import (
     ERROR_ALREADY_EXISTS,
     ERROR_AUTH_PROVIDER_DISABLED,
+    ERROR_CHANGE_EMAIL_NOT_ALLOWED,
     ERROR_CLIENT_SESSION_ID_HEADER_NOT_SET,
     ERROR_DEACTIVATED_USER,
     ERROR_DISABLED_RESET_PASSWORD,
@@ -507,6 +509,7 @@ class SendChangeEmailConfirmationView(APIView):
                     "ERROR_HOSTNAME_IS_NOT_ALLOWED",
                     "ERROR_INVALID_OLD_PASSWORD",
                     "ERROR_ALREADY_EXISTS",
+                    "ERROR_CHANGE_EMAIL_NOT_ALLOWED",
                 ]
             ),
         },
@@ -518,6 +521,7 @@ class SendChangeEmailConfirmationView(APIView):
             InvalidPassword: ERROR_INVALID_OLD_PASSWORD,
             UserAlreadyExist: ERROR_ALREADY_EXISTS,
             AuthProviderDisabled: ERROR_AUTH_PROVIDER_DISABLED,
+            ChangeEmailNotAllowed: ERROR_CHANGE_EMAIL_NOT_ALLOWED,
         }
     )
     @validate_body(SendChangeEmailConfirmationSerializer)

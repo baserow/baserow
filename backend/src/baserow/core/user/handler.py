@@ -58,6 +58,7 @@ from .emails import (
     ResetPasswordEmail,
 )
 from .exceptions import (
+    ChangeEmailNotAllowed,
     DeactivatedUserException,
     DisabledSignupError,
     EmailAlreadyVerified,
@@ -528,7 +529,13 @@ class UserHandler(metaclass=baserow_trace_methods(tracer)):
             allowed.
         :raises AuthProviderDisabled: When the password provider is disabled and the
             user is not staff.
+        :raises ChangeEmailNotAllowed: When the user does not have a password set.
         """
+
+        # Email changes are only for password-based accounts. Accounts that don't
+        # have password set are accounts created via SSO.
+        if user.password == "":  # nosec
+            raise ChangeEmailNotAllowed()
 
         if not PasswordProviderHandler.get().enabled:
             raise AuthProviderDisabled()

@@ -936,6 +936,25 @@ def test_send_change_email_confirmation_auth_provider_disabled(data_fixture):
         )
 
 
+@pytest.mark.django_db(transaction=True)
+def test_send_change_email_confirmation_without_password(data_fixture):
+    from baserow.core.user.exceptions import ChangeEmailNotAllowed
+
+    data_fixture.create_password_provider()
+    # Create user without password (simulating SSO account)
+    user = data_fixture.create_user(email="test@localhost")
+    user.password = ""
+    user.save()
+
+    with pytest.raises(ChangeEmailNotAllowed):
+        UserHandler().send_change_email_confirmation(
+            user,
+            "newemail@localhost",
+            "dummy_password",  # Provided but user has no password
+            "http://localhost:3000/change-email",
+        )
+
+
 @pytest.mark.django_db
 def test_change_email(data_fixture):
     data_fixture.create_password_provider()
