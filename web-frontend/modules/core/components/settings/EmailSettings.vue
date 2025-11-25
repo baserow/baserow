@@ -10,6 +10,7 @@
       <FormGroup
         :label="$t('emailSettings.currentEmailLabel')"
         small-label
+        required
         class="margin-bottom-2"
       >
         <FormInput

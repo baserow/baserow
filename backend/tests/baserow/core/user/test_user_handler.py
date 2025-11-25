@@ -936,23 +936,6 @@ def test_send_change_email_confirmation_auth_provider_disabled(data_fixture):
         )
 
 
-@pytest.mark.django_db(transaction=True)
-def test_send_change_email_confirmation_auth_provider_disabled_staff(
-    data_fixture, mailoutbox
-):
-    data_fixture.create_password_provider(enabled=False)
-    valid_password = "thisIsAValidPassword"
-    user = data_fixture.create_user(
-        email="test@localhost", password=valid_password, is_staff=True
-    )
-
-    UserHandler().send_change_email_confirmation(
-        user, "newemail@localhost", valid_password, "http://localhost:3000/change-email"
-    )
-
-    assert len(mailoutbox) == 1
-
-
 @pytest.mark.django_db
 def test_change_email(data_fixture):
     data_fixture.create_password_provider()

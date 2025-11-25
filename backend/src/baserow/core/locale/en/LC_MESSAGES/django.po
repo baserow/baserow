@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-11-17 15:17+0000\n"
+"POT-Creation-Date: 2025-11-25 13:02+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -108,8 +108,8 @@ msgstr ""
 #, python-format
 msgid ""
 "Application \"%(application_name)s\" (%(application_id)s) of type "
-"%(application_type)s duplicated from \"%(original_application_name)s\" "
-"(%(original_application_id)s)"
+"%(application_type)s duplicated from "
+"\"%(original_application_name)s\" (%(original_application_id)s)"
 msgstr ""
 
 #: src/baserow/core/actions.py:709
@@ -130,8 +130,8 @@ msgstr ""
 #: src/baserow/core/actions.py:796
 #, python-format
 msgid ""
-"Group invitation created for \"%(email)s\" to join \"%(group_name)s\" "
-"(%(group_id)s) as %(permissions)s."
+"Group invitation created for \"%(email)s\" to join "
+"\"%(group_name)s\" (%(group_id)s) as %(permissions)s."
 msgstr ""
 
 #: src/baserow/core/actions.py:851
@@ -242,7 +242,7 @@ msgstr ""
 msgid "Decimal number"
 msgstr ""
 
-#: src/baserow/core/handler.py:2187 src/baserow/core/user/handler.py:267
+#: src/baserow/core/handler.py:2187 src/baserow/core/user/handler.py:269
 #, python-format
 msgid "%(name)s's workspace"
 msgstr ""
@@ -341,6 +341,7 @@ msgstr[1] ""
 #: src/baserow/core/templates/baserow/core/user/account_deleted.html:188
 #: src/baserow/core/templates/baserow/core/user/account_deletion_cancelled.html:188
 #: src/baserow/core/templates/baserow/core/user/account_deletion_scheduled.html:193
+#: src/baserow/core/templates/baserow/core/user/change_email_confirmation.html:211
 #: src/baserow/core/templates/baserow/core/user/reset_password.html:211
 #: src/baserow/core/templates/baserow/core/workspace_invitation.html:215
 msgid ""
@@ -387,6 +388,30 @@ msgstr ""
 msgid ""
 "If you've changed your mind and want to cancel your account deletion, you "
 "just have to login again."
+msgstr ""
+
+#: src/baserow/core/templates/baserow/core/user/change_email_confirmation.html:176
+msgid "Confirm email address change"
+msgstr ""
+
+#: src/baserow/core/templates/baserow/core/user/change_email_confirmation.html:181
+#, python-format
+msgid ""
+"A request was made to change the email address for your Baserow account from "
+"%(old_email)s to %(new_email)s on Baserow "
+"(%(baserow_embedded_share_hostname)s). If you did not authorize this, you "
+"may simply ignore this email."
+msgstr ""
+
+#: src/baserow/core/templates/baserow/core/user/change_email_confirmation.html:186
+#, python-format
+msgid ""
+"To confirm your email address change, simply click the button below. This "
+"link will expire in %(hours)s hours."
+msgstr ""
+
+#: src/baserow/core/templates/baserow/core/user/change_email_confirmation.html:195
+msgid "Confirm email change"
 msgstr ""
 
 #: src/baserow/core/templates/baserow/core/user/email_pending_verification.html:181
@@ -496,8 +521,9 @@ msgstr ""
 #: src/baserow/core/user/actions.py:27
 #, python-format
 msgid ""
-"User \"%(user_email)s\" (%(user_id)s) created via \"%(auth_provider_type)s\" "
-"(%(auth_provider_id)s) auth provider (invitation: %(with_invitation_token)s)"
+"User \"%(user_email)s\" (%(user_id)s) created via "
+"\"%(auth_provider_type)s\" (%(auth_provider_id)s) auth provider (invitation: "
+"%(with_invitation_token)s)"
 msgstr ""
 
 #: src/baserow/core/user/actions.py:119
@@ -587,6 +613,28 @@ msgstr ""
 msgid "User \"%(user_email)s\" (%(user_id)s) verify email"
 msgstr ""
 
+#: src/baserow/core/user/actions.py:510
+msgid "Send change email confirmation"
+msgstr ""
+
+#: src/baserow/core/user/actions.py:512
+#, python-format
+msgid ""
+"User \"%(user_email)s\" (%(user_id)s) requested to change email to "
+"\"%(new_email)s\""
+msgstr ""
+
+#: src/baserow/core/user/actions.py:558
+msgid "Change email"
+msgstr ""
+
+#: src/baserow/core/user/actions.py:560
+#, python-format
+msgid ""
+"User \"%(old_email)s\" (%(user_id)s) changed email to \"%(new_email)s\" by "
+"using the token."
+msgstr ""
+
 #: src/baserow/core/user/emails.py:16
 msgid "Reset password - Baserow"
 msgstr ""
@@ -601,4 +649,8 @@ msgstr ""
 
 #: src/baserow/core/user/emails.py:74
 msgid "Account deletion cancelled - Baserow"
+msgstr ""
+
+#: src/baserow/core/user/emails.py:94
+msgid "Confirm email address change - Baserow"
 msgstr ""

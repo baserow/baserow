@@ -560,7 +560,7 @@
     "disabledMessage": "It's not possible to reset the password because it has been disabled."
   },
   "changeEmail": {
-    "title": "Confirm email address change",
+    "title": "Confirm email change",
     "submit": "Confirm email change",
     "changed": "Email address changed",
     "message": "Your email address has been successfully changed. You can now login to Baserow using your new email address.",
