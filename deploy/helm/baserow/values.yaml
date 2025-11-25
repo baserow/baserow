@@ -59,7 +59,7 @@ global:
     domain: cluster.local
     backendDomain: api.cluster.local
     objectsDomain: objects.cluster.local
-    assistantLLMModel: "groq/openai/gpt-oss-120b"
+    assistantLLMModel: ""
 
     securityContext:
       enabled: false

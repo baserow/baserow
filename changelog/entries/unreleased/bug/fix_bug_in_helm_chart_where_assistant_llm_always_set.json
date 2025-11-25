@@ -1,0 +1,9 @@
+{
+  "type": "bug",
+  "message": "Fix bug in the Helm chart where the AI-assistant LLM model was always set.",
+  "issue_origin": "core",
+  "issue_number": null,
+  "domain": "builder",
+  "bullet_points": [],
+  "created_at": "2025-11-25"
+}
