@@ -11,75 +11,81 @@ export class ToTipTapVisitor extends BaserowFormulaVisitor {
 
   visitRoot(ctx) {
     const result = ctx.expr().accept(this)
+    return this.mode === 'advanced'
+      ? this._wrapForAdvancedMode(result)
+      : this._wrapForSimpleMode(result)
+  }
 
-    // In advanced mode, ensure all content is wrapped in a single wrapper
-    if (this.mode === 'advanced') {
-      const content = _.isArray(result) ? result : [result]
-      const flatContent = content.flatMap((item) => {
-        // Filter out null or undefined items
-        if (!item) return []
+  /**
+   * Wraps content for advanced mode - flattens all content into a single wrapper
+   */
+  _wrapForAdvancedMode(result) {
+    const content = _.isArray(result) ? result : [result]
+    const flatContent = this._flattenContent(content)
+    this._ensureStartsWithZWS(flatContent)
 
-        // If the item is an array (from functions without wrapper in advanced mode)
-        if (Array.isArray(item)) {
-          return item
-        }
-
-        // If the item is a wrapper, extract its content
-        if (item.type === 'wrapper' && item.content) {
-          return item.content
-        }
-
-        // Return the item if it has a type
-        return item.type ? [item] : []
-      })
-
-      // Ensure content starts with ZWS
-      const firstNode = flatContent[0]
-      if (
-        !firstNode ||
-        firstNode.type !== 'text' ||
-        firstNode.text !== '\u200B'
-      ) {
-        flatContent.unshift({ type: 'text', text: '\u200B' })
-      }
-
-      return {
-        type: 'doc',
-        content: [
-          {
-            type: 'wrapper',
-            content: flatContent,
-          },
-        ],
-      }
+    return {
+      type: 'doc',
+      content: [
+        {
+          type: 'wrapper',
+          content: flatContent,
+        },
+      ],
     }
+  }
 
-    // In simple mode, wrap inline content in a wrapper
-    // The result can be a wrapper, an array of wrappers, or inline content
+  /**
+   * Wraps content for simple mode - preserves wrapper structure or creates one
+   */
+  _wrapForSimpleMode(result) {
     if (Array.isArray(result)) {
-      // Check if it's an array of wrappers or inline content
-      const isArrayOfWrappers = result.every(item => item?.type === 'wrapper')
-      
-      if (isArrayOfWrappers) {
-        // Array of wrappers (e.g., from concat with newlines)
-        return { type: 'doc', content: result }
-      } else {
-        // Array of inline content - wrap it in a wrapper
-        return {
-          type: 'doc',
-          content: [{ type: 'wrapper', content: result }],
-        }
-      }
-    } else if (result?.type === 'wrapper') {
-      // Already a wrapper
-      return { type: 'doc', content: [result] }
-    } else {
-      // Inline content (text, nodes, etc.) - wrap it
-      return {
-        type: 'doc',
-        content: [{ type: 'wrapper', content: [result] }],
-      }
+      return this._isArrayOfWrappers(result)
+        ? { type: 'doc', content: result }
+        : { type: 'doc', content: [{ type: 'wrapper', content: result }] }
     }
+
+    if (result?.type === 'wrapper') {
+      return { type: 'doc', content: [result] }
+    }
+
+    return {
+      type: 'doc',
+      content: [{ type: 'wrapper', content: [result] }],
+    }
+  }
+
+  /**
+   * Flattens nested content, extracting items from wrappers and arrays
+   */
+  _flattenContent(content) {
+    return content.flatMap((item) => {
+      if (!item) return []
+      if (Array.isArray(item)) return item
+      if (item.type === 'wrapper' && item.content) return item.content
+      return item.type ? [item] : []
+    })
+  }
+
+  /**
+   * Ensures the content array starts with a Zero-Width Space text node
+   */
+  _ensureStartsWithZWS(content) {
+    const firstNode = content[0]
+    if (
+      !firstNode ||
+      firstNode.type !== 'text' ||
+      firstNode.text !== '\u200B'
+    ) {
+      content.unshift({ type: 'text', text: '\u200B' })
+    }
+  }
+
+  /**
+   * Checks if an array contains only wrapper nodes
+   */
+  _isArrayOfWrappers(array) {
+    return array.every((item) => item?.type === 'wrapper')
   }
 
   visitStringLiteral(ctx) {
