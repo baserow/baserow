@@ -191,7 +191,7 @@
     "premiumFeatures": {
         "rowComments": "Comentarios de la fila",
         "kanbanView": "Vista de Kanban",
-        "exports": "Exportación JSON y XML",
+        "exports": "Exportación de tabla",
         "rowColoring": "Coloración de las filas",
         "admin": "Funciones de administración",
         "surveyForm": "Formulario de encuesta",
@@ -199,7 +199,16 @@
         "personalViews": "Vistas personales",
         "calendarView": "Vista del calendario",
         "aiFeatures": "Campo de IA",
-        "timelineView": "Vista cronológica"
+        "timelineView": "Vista cronológica",
+        "rowCommentsContent": "Colabora directamente en tu tabla. Añade comentarios a filas individuales, menciona a los miembros del equipo y mantén la conversación en contexto.",
+        "kanbanViewContent": "Organiza tus datos visualmente en un tablero Kanban. Las tarjetas se agrupan en columnas según un campo de selección única, y puedes arrastrarlas y soltarlas fácilmente entre las columnas.",
+        "calendarViewContent": "Visualiza fácilmente tus filas en un calendario, usando el campo de fecha que prefieras. Es ideal para seguir plazos, eventos y horarios de un vistazo.",
+        "timelineViewContent": "Muestra las filas a lo largo de una línea de tiempo horizontal usando fechas de inicio y fin. Es ideal para la planificación de proyectos y hojas de ruta.",
+        "exportsContent": "Exporta tus datos fácilmente en formatos adicionales como Excel, JSON y XML, o descarga en bloque todos los archivos de una tabla, ideal para copias de seguridad, informes y compartir con otros.",
+        "rowColoringContent": "Resalta filas con colores según un campo de selección única o condiciones personalizadas. Así podrás identificar patrones y prioridades más fácilmente.",
+        "rowNotifications": "Notificaciones de fila",
+        "rowNotificationsContent": "Mantente al tanto con notificaciones personalizables de comentarios en filas. Elige entre recibir alertas de todos los comentarios o sólo cuando se te mencione.",
+        "aiFeaturesContent": "Utiliza IA para automatizar y mejorar tus flujos de trabajo. Con el tipo de campo de aviso de IA puedes generar texto, resúmenes o ideas directamente en las celdas a partir de avisos dinámicos que pueden hacer referencia a otros campos. Por separado, también puedes pedir a la IA que cree fórmulas para ti."
     },
     "formViewModeType": {
         "surveyDescription": "Un campo es visible al mismo tiempo.",
@@ -340,7 +349,7 @@
         "day": "Día",
         "week": "Semana",
         "month": "Mes",
-        "quarter": "Cuarto",
+        "quarter": "Trimestre",
         "year": "Año",
         "disabledTooltip": "Esta opción solo está disponible para campos de fecha con la opción `incluir hora` activada."
     },
@@ -354,7 +363,13 @@
         "includeHeader": "Incluir nombres de campos como encabezado"
     },
     "paidFeaturesModal": {
-        "description": "Esta función está disponible con el plan {plan}. Para acceder a ella, actualice su cuenta suscribiéndose. Haga clic en el botón a continuación para ver nuestras opciones de precios.",
+        "description": "Esta función está disponible con el plan {plan}. Para acceder a ella, por favor actualiza tu cuenta suscribiéndote. Haz clic en el botón de abajo para ver nuestras opciones de precios.",
         "viewPricing": "Ver precios"
+    },
+    "tableFileExporter": {
+        "organizeFiles": "Agrupa archivos por ID de fila"
+    },
+    "kanbanView": {
+        "addStack": "Añadir una pila"
     }
 }
