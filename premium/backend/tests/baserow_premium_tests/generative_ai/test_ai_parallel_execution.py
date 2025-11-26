@@ -8,7 +8,6 @@ from baserow.core.generative_ai.exceptions import GenerativeAIPromptError
 from baserow.core.storage import get_default_storage
 from baserow.core.user_files.handler import UserFileHandler
 from baserow.core.utils import Progress
-from baserow.test_utils.fixtures.generative_ai import TestGenerativeAIWithFilesModelType
 
 
 @pytest.mark.django_db
@@ -17,7 +16,6 @@ def test_ai_parallel_execution(premium_data_fixture):
 
     user = premium_data_fixture.create_user()
     premium_data_fixture.create_premium_license_user(user=user)
-    generative_ai_model_type = TestGenerativeAIWithFilesModelType()
     workspace = premium_data_fixture.create_workspace(user=user)
     database = premium_data_fixture.create_database_application(
         user=user, workspace=workspace
@@ -54,17 +52,14 @@ def test_ai_parallel_execution(premium_data_fixture):
     progress = Progress(len(rows))
     gen = AIValueGenerator(
         user=user,
-        table=table,
-        model=table_model,
         ai_field=ai_field,
-        job=None,
         progress=progress,
     )
     gen.process(rows.order_by("id"))
 
     assert len(rows) == 30
     assert gen.finished == len(rows)
-    assert gen.errors == {}
+    assert not gen.has_errors
     assert progress.progress == 30
 
 
@@ -116,10 +111,7 @@ def test_ai_parallel_execution_with_error(premium_data_fixture):
     progress = Progress(len(rows))
     gen = AIValueGenerator(
         user=user,
-        table=table,
-        model=table_model,
         ai_field=ai_field,
-        job=None,
         progress=progress,
     )
 
@@ -128,6 +120,5 @@ def test_ai_parallel_execution_with_error(premium_data_fixture):
 
     assert len(rows) == 30
     assert gen.finished == 5
-    assert len(gen.errors) == 5
+    assert gen.has_errors
     assert progress.progress == 5
-    assert gen.notification_sent
