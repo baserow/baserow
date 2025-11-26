@@ -846,10 +846,11 @@
     "operators": "Operators",
     "search": "Search",
     "useRegularInputModalTitle": "Use regular input for this field?",
-    "useRegularInput": "Use regular input",
-    "useAdvancedInput": "Use advanced input",
-    "useAdvancedInputModalTitle": "Use advanced input for this field?",
-    "modalMessage": "Your field’s content will be cleared and it will not be possible to recover it."
+    "useSimpleInput": "Switch to basic mode",
+    "useSimpleInputModalTitle": "Switch to basic mode?",
+    "useAdvancedInput": "Switch to expert mode",
+    "useAdvancedInputModalTitle": "Switch to expert mode?",
+    "modalMessage": "Switching to a different mode will clear the current formula. Are you sure you want to continue?"
   },
   "dataExplorer": {
     "noMatchingNodesText": "No matching results were found.",

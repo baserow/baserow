@@ -22,7 +22,7 @@
         @click="toggleMode"
         >{{
           isAdvancedMode
-            ? $t('formulaInputContext.useRegularInput')
+            ? $t('formulaInputContext.useSimpleInput')
             : $t('formulaInputContext.useAdvancedInput')
         }}</ButtonText
       >
@@ -32,7 +32,7 @@
       <h2 class="box__title">
         {{
           isAdvancedMode
-            ? $t('formulaInputContext.useRegularInputModalTitle')
+            ? $t('formulaInputContext.useSimpleInputModalTitle')
             : $t('formulaInputContext.useAdvancedInputModalTitle')
         }}
       </h2>
@@ -46,7 +46,7 @@
           <Button type="danger" size="large" @click="confirmModeChange">
             {{
               isAdvancedMode
-                ? $t('formulaInputContext.useRegularInput')
+                ? $t('formulaInputContext.useSimpleInput')
                 : $t('formulaInputContext.useAdvancedInput')
             }}
           </Button>
@@ -89,6 +89,16 @@ export default {
       validator: (value) => {
         return ['advanced', 'simple'].includes(value)
       },
+    },
+    /**
+     * Whether the formula input has a formula value set or not.
+     * Used to determine if we need to show a confirmation prompt
+     * or not when the mode changes from advanced to simple.
+     */
+    hasValue: {
+      type: Boolean,
+      required: false,
+      default: false,
     },
     allowNodeSelection: {
       type: Boolean,
@@ -170,7 +180,14 @@ export default {
     },
     toggleMode() {
       if (this.mode === 'advanced') {
-        this.showAdvancedModeModal()
+        if (this.hasValue) {
+          // If we have a value then we want the user to confirm
+          // they're happy for the formula to be reset.
+          this.showAdvancedModeModal()
+        } else {
+          // If we have no value then we can safely switch modes.
+          this.$emit('mode-changed', 'simple')
+        }
       } else {
         this.$emit('mode-changed', 'advanced')
       }
