@@ -9,6 +9,7 @@
         role="textbox"
         :class="classes"
         :editor="editor"
+        :style="{ '--formula-placeholder': `'${placeholder}'` }"
         @data-node-clicked="dataNodeClicked"
       />
     </div>
@@ -39,7 +40,6 @@
 
 <script>
 import { Editor, EditorContent, Node } from '@tiptap/vue-2'
-import { Placeholder } from '@tiptap/extension-placeholder'
 import { Document } from '@tiptap/extension-document'
 import { Text } from '@tiptap/extension-text'
 import { History } from '@tiptap/extension-history'
@@ -175,6 +175,11 @@ export default {
     }
   },
   computed: {
+    isFormulaEmpty() {
+      if (!this.editor) return true
+      const formula = this.toFormula(this.wrapperContent)
+      return !formula || formula.length === 0
+    },
     classes() {
       return {
         'form-input--disabled': this.disabled,
@@ -183,12 +188,8 @@ export default {
           !this.disabled && !this.readOnly && this.isFocused,
         'formula-input-field--disabled': this.disabled,
         'formula-input-field--error': this.isFormulaInvalid,
+        'formula-input-field--formula-empty': this.isFormulaEmpty,
       }
-    },
-    placeHolderExt() {
-      return Placeholder.configure({
-        placeholder: this.placeholder,
-      })
     },
     formulaComponents() {
       return Object.values(this.$registry.getAll('runtimeFormulaFunction'))
@@ -283,7 +284,6 @@ export default {
         ArrowKeyNavigationExtension,
         SmartDeletionExtension,
         ZWSManagementExtension,
-        this.placeHolderExt,
         History.configure({
           depth: 100,
         }),

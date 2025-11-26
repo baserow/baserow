@@ -116,7 +116,7 @@ export default {
       default: null,
     },
     /**
-     * Wether the label should be displayed as a small label.
+     * Whether the label should be displayed as a small label.
      */
     smallLabel: {
       type: Boolean,
@@ -149,7 +149,7 @@ export default {
       default: false,
     },
     /**
-     * Whether the label is required. (if false that will diplay an 'optional' label)
+     * Whether the label is required. (if false that will display an 'optional' label)
      */
     required: {
       type: Boolean,
