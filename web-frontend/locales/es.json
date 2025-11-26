@@ -274,7 +274,7 @@
         "hasNotValueContainsWord": "el valor no contiene una palabra",
         "hasValueLengthIsLowerThan": "tiene un valor inferior a",
         "hasValueContainsWord": "el valor contiene una palabra",
-        "hasAnySelectOptionEqual": "tiene cualquier opción de selección igual",
+        "hasAnySelectOptionEqual": "tiene la opción de seleccionar una igual",
         "hasNoneSelectOptionEqual": "no tiene la opción de seleccionar una igual"
     },
     "viewType": {
