@@ -6,8 +6,8 @@
     <div class="radio-card__content">
       <div class="radio-card__labels">
         <label class="radio-card__label">{{ label }}</label>
-        <div v-if="sideLabel">
-          <Badge :rounded="true" :small="true">{{ sideLabel }}</Badge>
+        <div v-if="badgeLabel">
+          <Badge :rounded="true" :small="true">{{ badgeLabel }}</Badge>
         </div>
       </div>
       <div v-if="hasSlot" class="radio-card__description">
@@ -39,7 +39,7 @@ export default {
       type: String,
       required: true,
     },
-    sideLabel: {
+    badgeLabel: {
       type: String,
       required: false,
       default: undefined,
