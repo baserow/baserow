@@ -97,7 +97,8 @@
         "password": "Autenticación de correo electrónico y contraseña",
         "saml": "Proveedor SAML SSO",
         "ssoSamlProviderName": "SSO SAML: {domain}",
-        "ssoSamlProviderNameUnconfigured": "SSO SAML no configurado"
+        "ssoSamlProviderNameUnconfigured": "SSO SAML no configurado",
+        "ssoOIDCProviderNameUnconfigured": "No se ha configurado el OpenID Connect"
     },
     "editAuthProviderMenuContext": {
         "edit": "Editar",
@@ -414,5 +415,11 @@
     },
     "advanced": {
         "license": "Avanzado"
+    },
+    "commonOidcSettingForm": {
+        "preview": "Vista previa"
+    },
+    "enterpriseTwoWaySyncStrategyType": {
+        "realtimePushDescription": "Permite editar los valores de las celdas directamente en Baserow y los envía en tiempo real a la fuente de sincronización de datos. Ten en cuenta que los cambios no se extraen en tiempo real porque dependen de la acción de sincronización (periódica) para completarse. Se recomienda encarecidamente crear copias de seguridad de la base de datos PostgreSQL para evitar modificaciones accidentales."
     }
 }
