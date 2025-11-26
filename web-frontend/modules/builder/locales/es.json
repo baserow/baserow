@@ -127,8 +127,8 @@
         "formContainer": "Formulario",
         "textDescription": "Texto multilínea",
         "heading": "Título",
-        "inputText": "Introducción de texto",
-        "inputTextDescription": "Un campo de entrada de texto",
+        "inputText": "Entrada de datos",
+        "inputTextDescription": "Campo de entrada de datos",
         "text": "Párrafo",
         "headingDescription": "Título de la página",
         "image": "Imagen",
@@ -167,7 +167,15 @@
         "notAllowedInsideSameType": "Este elemento no está permitido en un contenedor del mismo tipo",
         "notAllowedLocation": "Este elemento no está permitido en esta ubicación",
         "header": "Encabezado de varias páginas",
-        "notAllowedUnlessTop": "Este elemento solo está permitido en la parte superior de la página"
+        "notAllowedUnlessTop": "Este elemento solo está permitido en la parte superior de la página",
+        "ratingInput": "Campo de puntuación",
+        "ratingInputDescription": "Un elemento de campo de puntuación",
+        "rating": "Puntuación",
+        "ratingDescription": "Un elemento de puntuación",
+        "invalidElementValue": "Elemento con valor inválido: {value}",
+        "menu": "Menú",
+        "menuDescription": "Elemento de menú",
+        "simpleContainer": "Contenedor"
     },
     "verticalAlignmentSelector": {
         "alignmentTop": "Arriba",
@@ -368,7 +376,9 @@
         "openInNewTab": "Abrir en una pestaña nueva",
         "noDomain": "Necesitas tener al menos un dominio para poder publicar tu aplicación.",
         "publishFailedDescription": "La publicación del sitio ha fallado. Vuelva a intentarlo más tarde.",
-        "importingState": "Importando"
+        "importingState": "Importando",
+        "publishSucceedLink": "Ver sitio",
+        "addDomain": "Añadir dominio"
     },
     "currentRecordDataProviderType": {
         "index": "Índice",
@@ -451,7 +461,8 @@
         "errorUniquePathParams": "Los parámetros de la ruta deben ser únicos.",
         "errorPathNotUnique": "Ya existe una ruta con este nombre",
         "errorValidPathCharacters": "La ruta contiene caracteres inválidos",
-        "errorNameNotUnique": "Ya existe una página con este nombre"
+        "errorNameNotUnique": "Ya existe una página con este nombre",
+        "errorUniqueValidQueryParams": "Los nombres de los parámetros de consulta deben ser únicos y válidos."
     },
     "addElementButton": {
         "label": "Elemento"
@@ -553,7 +564,7 @@
         "requiredTitle": "Requerido",
         "labelTitle": "Etiqueta",
         "labelPlaceholder": "Introduce una etiqueta (opcional)",
-        "valueTitle": "Valor por defecto",
+        "valueTitle": "Valor",
         "valuePlaceholder": "Introduce un valor por defecto (opcional)",
         "placeholderTitle": "Marcador de posición",
         "validationTitle": "Validación"
@@ -617,7 +628,7 @@
         "loggedInVisitors": "Visitantes registrados",
         "notLoggedInVisitors": "Visitantes no registrados",
         "warningTitle": "Mejoramos constantemente la seguridad",
-        "warningMessage": "Por el momento, la visibilidad sólo se aplica en la interfaz de usuario, los datos subyacentes siguen siendo accesibles desde la API. Consulta la <a href='https://baserow.io/user-docs/application-builder-element-visibility#note-accessing-hidden-data-via-api'>documentación</a> para obtener más información sobre la seguridad de los datos.",
+        "warningMessage": "Revisa la <a href='https://baserow.io/user-docs/application-builder-element-visibility#note-accessing-hidden-data-via-api' target='_blank'>documentación</a> para aprender más sobre cómo aseguramos los datos.",
         "excludedRolesLabel": "todos los roles excepto",
         "switchAllowLabel": "Permitir",
         "switchDisallowLabel": "No permitir",
@@ -935,7 +946,7 @@
     "pageVisibilitySettings": {
         "allVisitors": "Todos los visitantes",
         "loggedInVisitors": "Visitantes registrados",
-        "description": "¿Quién puede ver esta página?",
+        "description": "Quién puede ver esta página",
         "title": "Visibilidad"
     },
     "builderLoginPageForm": {
@@ -961,11 +972,17 @@
     "builderToast": {
         "details": "Detalles",
         "defaultTitle": "Error inesperado",
-        "defaultMessage": "Se produjo un error inesperado. Por favor, inténtelo de nuevo más tarde.",
+        "defaultMessage": "Ha ocurrido un error inesperado. Por favor, inténtalo de nuevo más tarde.",
         "invalidContextTitle": "Solicitud inválida",
         "invalidContextMessage": "La solicitud es inválida.",
         "InvalidContentTitle": "Formulario inválido",
         "invalidContentMessage": "Uno o varios campos contienen valores inválidos.",
-        "serviceMisconfiguredTitle": "Configuración incompleta"
+        "serviceMisconfiguredTitle": "Configuración incompleta",
+        "serviceMisconfiguredMessage": "Por favor, revisa la configuración.",
+        "errorWorkflowActionDispatch": "La acción \"{name}\" ha fallado: ",
+        "errorDataSourceDispatch": "No se pudo cargar los datos de \"{name}\": "
+    },
+    "sidePanelGuidedTourStep": {
+        "content": "**Pestaña General** – Configura el elemento seleccionado.\n\n**Pestaña Estilo** – Personaliza el relleno, el margen, los bordes y más.\n\n**Pestaña Visibilidad** – Controla quién puede ver este elemento: usuarios conectados, usuarios desconectados o roles específicos.\n\n**Pestaña Eventos** – Si el elemento admite acciones, configúralas aquí para lograr interactividad dinámica."
     }
 }
