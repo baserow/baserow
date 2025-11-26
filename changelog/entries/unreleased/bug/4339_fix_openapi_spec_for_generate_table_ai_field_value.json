@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fix OpenAPI spec for generate_table_ai_field_value",
+    "issue_origin": "github",
+    "issue_number": 4339,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2025-11-26"
+}
