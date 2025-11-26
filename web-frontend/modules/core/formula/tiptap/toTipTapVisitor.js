@@ -57,8 +57,19 @@ export class ToTipTapVisitor extends BaserowFormulaVisitor {
     // In simple mode, wrap inline content in a wrapper
     // The result can be a wrapper, an array of wrappers, or inline content
     if (Array.isArray(result)) {
-      // Array of wrappers (e.g., from concat with newlines)
-      return { type: 'doc', content: result }
+      // Check if it's an array of wrappers or inline content
+      const isArrayOfWrappers = result.every(item => item?.type === 'wrapper')
+      
+      if (isArrayOfWrappers) {
+        // Array of wrappers (e.g., from concat with newlines)
+        return { type: 'doc', content: result }
+      } else {
+        // Array of inline content - wrap it in a wrapper
+        return {
+          type: 'doc',
+          content: [{ type: 'wrapper', content: result }],
+        }
+      }
     } else if (result?.type === 'wrapper') {
       // Already a wrapper
       return { type: 'doc', content: [result] }
