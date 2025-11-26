@@ -620,7 +620,7 @@
         "content": "Esto puede afectar a lo que tiene acceso, por favor, vuelve a cargar la página."
     },
     "integrationEditForm": {
-        "name": "Nombre de la integración",
+        "name": "Nombre",
         "namePlaceholder": "Introduce el nombre de la integración..."
     },
     "integrationCreateEditModal": {
@@ -629,7 +629,7 @@
         "warningTitle": "Advertencia"
     },
     "dropdown": {
-        "empty": "No hay artículos"
+        "empty": "No hay elementos disponibles"
     },
     "styleSidePanel": {
         "paddingBottom": "Acolchado inferior",
@@ -1022,17 +1022,80 @@
         "searching": "Buscando...",
         "noResults": "No se encontraron resultados",
         "noResultsSubtitle": "No pudimos encontrar nada que coincida con “{searchTerm}”",
-        "welcome": "Buscar todo en su espacio de trabajo",
-        "welcomeSubtitle": "Utilice el cuadro de búsqueda superior para encontrar aplicaciones, tablas, campos y más",
+        "welcome": "Busca todo en tu espacio de trabajo",
+        "welcomeSubtitle": "Utiliza la barra de búsqueda situada arriba para encontrar aplicaciones, tablas, campos y más",
         "navigate": "Navegar",
         "select": "Seleccionar",
         "close": "Cerrar",
         "types": {
             "applications": "Aplicaciones",
-            "tables": "Tablas"
+            "tables": "Tablas",
+            "fields": "Campos",
+            "rows": "Filas"
         }
     },
     "formulaInputContext": {
         "search": "Buscar"
+    },
+    "action": {
+        "cancel": "Cancelar",
+        "submit": "Enviar"
+    },
+    "enableTwoFactorOptions": {
+        "cancel": "Cancelar",
+        "continue": "Continuar"
+    },
+    "twoFactorAuthSettings": {
+        "title": "Autenticación de dos factores (2FA)",
+        "loadingError": "No se pudo cargar la configuración de autenticación de dos factores (2FA)."
+    },
+    "disableTwoFactorAuth": {
+        "title": "¿Estás seguro de que quieres desactivar la autenticación de dos factores (2FA)?",
+        "description": "Tu cuenta perderá una capa adicional de seguridad. Si alguien conoce tu contraseña, tendría la posibilidad de entrar en tu cuenta.",
+        "cancel": "Déjalo encendido",
+        "disable": "Desactiva",
+        "successTitle": "Se ha desactivado la autenticación de dos factores (2FA)",
+        "errorWrongPasswordTitle": "Contraseña incorrecta",
+        "errorWrongPasswordMessage": "La contraseña introducida no coincide con tu contraseña."
+    },
+    "saveBackupCode": {
+        "description": "Si pierdes el acceso a tu aplicación de autenticación o a tu móvil y no puedas recibir ni crear códigos de autenticación, puedes usar esta copia de seguridad. Solo podrás usarla una vez. Asegúrate de anotarla o copiarla en un lugar seguro para que puedas acceder a ella sin iniciar sesión.",
+        "backupCodes": "Códigos de respaldo",
+        "copy": "Copiar",
+        "continue": "Continúa",
+        "backupCodesCopiedTitle": "¡Copiado!",
+        "backupCodesCopiedMessage": "Se copiaron los códigos de respaldo al portapapeles."
+    },
+    "totpAuthType": {
+        "name": "Aplicación de autenticación",
+        "description": "Usa una aplicación para obtener códigos de autenticación de dos factores (2FA). Recomendamos usar aplicaciones como Google Authenticator, Authy y Microsoft Authenticator.",
+        "enabledDescription": "Recibirás los códigos de verificación a través de una aplicación de autenticación. Para configurar otra aplicación o método diferente, simplemente desactiva la autenticación en dos factores (2FA) y configúralo de nuevo.",
+        "sideLabel": "Recomendado"
+    },
+    "twoFactorEnabled": {
+        "enabled": "Activado",
+        "disable": "Deshabilita la autenticación de dos factores (2FA)"
+    },
+    "totpLogin": {
+        "backupCodesTitle": "Ingresa el código de respaldo",
+        "backupCodesDescription": "Inicia sesión con tu código de respaldo de un solo uso.",
+        "authenticate": "Autenticar",
+        "goBack": "Regresar",
+        "totpTitle": "Autenticación de dos factores (2FA)",
+        "totpDescription": "Introduce el código de tu aplicación de autenticación.",
+        "verify": "Verifica",
+        "useBackupCode": "Usa el código de respaldo",
+        "verificationFailed": "Falló la verificación",
+        "verificationFailedDescription": "El código introducido no es correcto.",
+        "loginExpired": "Tu sesión ha expirado",
+        "loginExpiredDescription": "Por favor, introduce tu contraseña nuevamente.",
+        "rateLimit": "Demasiados intentos."
+    },
+    "mcpEndpoint": {
+        "windsurfInstructions": "Dos pasos sencillos para configurar MCP con Cascase en Windsurf.\n\n1. Accede a Windsurf → Configuración → Configuración avanzada o abre la Paleta de comandos → Abrir página de configuración de Windsurf.\n2. Desplázate hacia abajo hasta la sección Cascade y encontrarás la opción para añadir un nuevo servidor → Ver los servidores existentes y un botón para ver el archivo de configuración JSON sin procesar en `mcp_config.json`. Añade lo siguiente a ese archivo:",
+        "claudeInstructions": "Tres pasos sencillos para comenzar con Claude Desktop y el MCP de Baserow.\n\n1. Abre la configuración de Claude Desktop desde la barra de navegación. (⌘+,)\n2. Ve a la pestaña «Desarrollar» y haz clic en «Editar Config».\n3. Incluye la siguiente configuración JSON en c`laude_desktop_config.json`."
+    },
+    "controlCenterGuidedTourStep": {
+        "content": "La barra lateral izquierda te ayuda a gestionar tu espacio de trabajo:\n\n- Inicio – Accede a tu panel principal.\n- Notificaciones – Mantente al día con los cambios y menciones.\n- Invitar a miembros – Colabora añadiendo integrantes al equipo.\n- Papelera – Lista y recupera todos tus elementos eliminados."
     }
 }
