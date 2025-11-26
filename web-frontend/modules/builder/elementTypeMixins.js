@@ -194,13 +194,13 @@ export const CollectionElementTypeMixin = (Base) =>
      * Collection elements by default will have three permutations of display names:
      *
      * 1. If no data source exists, on `element` or its ancestors, then:
-     *   - "Repeat" is returned.
+     *   - "Iterate" is returned.
      * 2. If a data source is found, and `element` has no `schema_property`, then:
-     *   - "Repeat {dataSourceName}" is returned.
+     *   - "Iterate {dataSourceName}" is returned.
      * 3. If a data source is found, `element` has a `schema_property`, and the integration is Baserow, then:
-     *   - "Repeat {schemaPropertyTitle} ({fieldTypeName})" is returned
+     *   - "Iterate {schemaPropertyTitle} ({fieldTypeName})" is returned
      * 4. If a data source is found, `element` has a `schema_property`, and the integration isn't Baserow, then:
-     *   - "Repeat {schemaPropertyTitle}" is returned
+     *   - "Iterate {schemaPropertyTitle}" is returned
      * @param element - The element we want to get a display name for.
      * @param page - The page the element belongs to.
      * @returns {string} - The display name for the element.
@@ -314,8 +314,8 @@ export const CollectionElementTypeMixin = (Base) =>
      * - The parent with the valid data_source_id points to a data_source
      *   that !returnsList and `schema_property` is blank.
      * - It is nested in another collection element, and we don't have a `schema_property`.
-     * @param {Object} page - The page the repeat element belongs to.
-     * @param {Object} element - The repeat element
+     * @param {Object} page - The page the iterate element belongs to.
+     * @param {Object} element - The iterate element
      * @param {Object} builder - The builder
      * @returns {Boolean} - Whether the element is in error.
      */

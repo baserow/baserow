@@ -47,8 +47,8 @@ import CheckboxElement from '@baserow/modules/builder/components/elements/compon
 import CheckboxElementForm from '@baserow/modules/builder/components/elements/components/forms/general/CheckboxElementForm.vue'
 import IFrameElement from '@baserow/modules/builder/components/elements/components/IFrameElement.vue'
 import IFrameElementForm from '@baserow/modules/builder/components/elements/components/forms/general/IFrameElementForm.vue'
-import RepeatElement from '@baserow/modules/builder/components/elements/components/RepeatElement'
-import RepeatElementForm from '@baserow/modules/builder/components/elements/components/forms/general/RepeatElementForm'
+import IterateElement from '@baserow/modules/builder/components/elements/components/IterateElement.vue'
+import IterateElementForm from '@baserow/modules/builder/components/elements/components/forms/general/IterateElementForm.vue'
 import RecordSelectorElement from '@baserow/modules/builder/components/elements/components/RecordSelectorElement.vue'
 import RecordSelectorElementForm from '@baserow/modules/builder/components/elements/components/forms/general/RecordSelectorElementForm'
 import MultiPageContainerElementForm from '@baserow/modules/builder/components/elements/components/forms/general/MultiPageContainerElementForm'
@@ -106,6 +106,10 @@ import { getValueAtPath } from '../core/utils/object'
 
 export class ElementType extends Registerable {
   get name() {
+    return null
+  }
+
+  get deprecatedName() {
     return null
   }
 
@@ -773,7 +777,7 @@ export class ElementType extends Registerable {
   /**
    * Generates a unique element id based on the element and if provided, an array
    * representing a path to access form data. Most elements will have a unique
-   * ID that matches their `id`, but when an element is part of one or more repeats,
+   * ID that matches their `id`, but when an element is part of one or more iterates,
    * we need to ensure that the ID is unique for each record.
    *
    * @param {Object} element - The element we want to generate a unique ID for.
@@ -1266,11 +1270,11 @@ export class TableElementType extends CollectionElementTypeMixin(ElementType) {
   }
 }
 
-export class RepeatElementType extends CollectionElementTypeMixin(
+export class IterateElementType extends CollectionElementTypeMixin(
   ContainerElementTypeMixin(ElementType)
 ) {
   static getType() {
-    return 'repeat'
+    return 'iterate'
   }
 
   category() {
@@ -1278,11 +1282,15 @@ export class RepeatElementType extends CollectionElementTypeMixin(
   }
 
   get name() {
-    return this.app.$i18n.t('elementType.repeat')
+    return this.app.i18n.t('elementType.iterate')
+  }
+
+  get deprecatedName() {
+    return this.app.i18n.t('elementType.iterateDeprecated')
   }
 
   get description() {
-    return this.app.$i18n.t('elementType.repeatDescription')
+    return this.app.i18n.t('elementType.iterateDescription')
   }
 
   get iconClass() {
@@ -1294,11 +1302,11 @@ export class RepeatElementType extends CollectionElementTypeMixin(
   }
 
   get component() {
-    return RepeatElement
+    return IterateElement
   }
 
   get generalFormComponent() {
-    return RepeatElementForm
+    return IterateElementForm
   }
 
   getElementPlaces(element) {
@@ -1307,7 +1315,7 @@ export class RepeatElementType extends CollectionElementTypeMixin(
 
   /**
    * Responsible for extending the element store's `populateElement`
-   * `_` object with repeat element specific properties.
+   * `_` object with iterate element specific properties.
    * @returns {Object} - An object containing the properties to be added.
    */
   getPopulateStoreProperties() {

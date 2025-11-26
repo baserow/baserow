@@ -438,7 +438,7 @@ class CurrentRecordDataProviderType(BuilderDataProviderType):
             if schema_property:
                 path = [schema_property, *path]
         else:
-            # Current Record could also use Get Row service type (via Repeat
+            # Current Record could also use Get Row service type (via iterate
             # element), so we need to add the field name if it is available.
             if not schema_property:
                 return {}

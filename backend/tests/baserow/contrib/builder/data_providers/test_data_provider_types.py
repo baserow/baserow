@@ -1408,11 +1408,11 @@ def test_current_record_provider_get_data_chunk(data_fixture):
     data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
         page=page, table=table, integration_args={"authorized_user": user}
     )
-    repeat_element = data_fixture.create_builder_repeat_element(
+    iterate_element = data_fixture.create_builder_iterate_element(
         page=page, data_source=data_source
     )
     button_element = data_fixture.create_builder_button_element(
-        page=page, parent_element=repeat_element
+        page=page, parent_element=iterate_element
     )
 
     workflow_action = data_fixture.create_local_baserow_create_row_workflow_action(

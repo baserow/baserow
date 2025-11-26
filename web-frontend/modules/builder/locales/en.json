@@ -97,6 +97,7 @@
     "noElements": "No elements found"
   },
   "elementType": {
+    "deprecationPrefix": "(previously {deprecatedName})",
     "heading": "Heading",
     "headingDescription": "Page heading title",
     "text": "Text",
@@ -123,8 +124,9 @@
     "iframeDescription": "Inline frame",
     "authForm": "Login form",
     "authFormDescription": "A user login form",
-    "repeat": "Repeat",
-    "repeatDescription": "A repeatable set of elements",
+    "iterate": "Iterate",
+    "iterateDeprecated": "Repeat",
+    "iterateDescription": "Iterate over elements using a source of data.",
     "recordSelector": "Record selector",
     "recordSelectorDescription": "A related record selector",
     "dateTimePicker": "Date time picker",
@@ -758,7 +760,7 @@
     "loading": "Loading...",
     "empty": "No items have been found."
   },
-  "repeatElement": {
+  "iterateElement": {
     "empty": "No items have been found.",
     "showMore": "Show more",
     "missingDataSourceTooltip": "Choose a data source to begin adding elements.",
@@ -779,16 +781,16 @@
     "noPropertiesAvailable": "No fields available.",
     "formDescription": "Choose which properties within this element's data source page visitors can filter, sort and search upon."
   },
-  "repeatElementForm": {
+  "iterateElementForm": {
     "dataSource": "Data source",
     "itemsPerPage": "Items per page",
     "itemsPerPagePlaceholder": "Enter value...",
     "itemsPerRowLabel": "Items per row",
     "itemsPerRowDescription": "Number of columns per row and device type.",
     "buttonLoadMoreLabel": "Show more label",
-    "toggleEditorRepetitionsLabel": "Temporarily disable repetitions",
-    "propertySelectorMissingArrays": "No multiple valued fields found to repeat with.",
-    "gapLabel": "Space between repetitions",
+    "toggleEditorIterationsLabel": "Temporarily disable iterations",
+    "propertySelectorMissingArrays": "No multiple valued fields found to iterate with.",
+    "gapLabel": "Space between iterations",
     "gapVerticalLabel": "Vertical",
     "gapHorizontalLabel": "Horizontal"
   },

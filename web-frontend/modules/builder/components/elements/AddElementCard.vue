@@ -13,7 +13,18 @@
       />
     </div>
     <div v-if="loading" class="loading"></div>
-    <span v-else class="add-element-card__label">{{ elementType.name }}</span>
+    <span v-else class="add-element-card__label">
+      {{ elementType.name }}
+    </span>
+    <sub
+      v-if="elementType.deprecatedName"
+      class="add-element-card__deprecation-label"
+      >{{
+        $t('elementType.deprecationPrefix', {
+          deprecatedName: elementType.deprecatedName,
+        })
+      }}</sub
+    >
     <component
       :is="disallowedClickModal[0]"
       v-if="disallowedClickModal !== null"

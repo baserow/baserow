@@ -513,7 +513,7 @@ class CollectionElementTypeMixin:
 
     def extract_properties(self, instance: Element, **kwargs) -> Dict[int, List[str]]:
         """
-        Some collection elements (e.g. Repeat Element) may have a nested
+        Some collection elements (e.g. Iterate Element) may have a nested
         collection element which uses a schema_property. This property points
         to a field name that is connected to the parent collection element's
         data source.

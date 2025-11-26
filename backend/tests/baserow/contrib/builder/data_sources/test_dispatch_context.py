@@ -81,7 +81,7 @@ def test_dispatch_context_page_clone(mock_get_field_names, data_fixture):
 
 @pytest.mark.django_db
 def test_dispatch_context_element_type(data_fixture):
-    element = data_fixture.create_builder_repeat_element()
+    element = data_fixture.create_builder_iterate_element()
     element_type = element.get_type()
 
     dispatch_context = BuilderDispatchContext(HttpRequest(), Mock())

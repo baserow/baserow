@@ -704,15 +704,15 @@ export class FormDataProviderType extends DataProviderType {
    * - InputRoot (path=[])
    * - FormContainer (path=[])
    *     - InputContainer (path=[])
-   * - RepeatA (path=[])
-   *     - InputOuter (path=[RepeatA.id])
-   *     - HeadingOuter (path=[RepeatA.id])
+   * - IterateA (path=[])
+   *     - InputOuter (path=[IterateA.id])
+   *     - HeadingOuter (path=[IterateA.id])
    *         * Can access `InputOuter`
    *         * Can access `InputRoot`
    *         * Can access `InputContainer`
-   *     - RepeatB (path=[RepeatA.id])
-   *        - InputInner (path=[RepeatA.id, RepeatB.id])
-   *        - HeadingInner (path=[RepeatA.id, RepeatB.id])
+   *     - IterateB (path=[IterateA.id])
+   *        - InputInner (path=[IterateA.id, IterateB.id])
+   *        - HeadingInner (path=[IterateA.id, IterateB.id])
    *            * Can access `InputInner`
    *            * Can access `InputOuter`
    *            * Can access `InputRoot`

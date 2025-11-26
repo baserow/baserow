@@ -10,11 +10,11 @@ from baserow.contrib.builder.elements.models import (
     HeadingElement,
     ImageElement,
     InputTextElement,
+    IterateElement,
     LinkElement,
     MenuElement,
     MenuItemElement,
     RecordSelectorElement,
-    RepeatElement,
     TableElement,
     TextElement,
 )
@@ -101,12 +101,12 @@ class ElementFixtures:
         element = self.create_builder_element(ChoiceElement, user, page, **kwargs)
         return element
 
-    def create_builder_repeat_element(self, user=None, page=None, **kwargs):
+    def create_builder_iterate_element(self, user=None, page=None, **kwargs):
         if "data_source" not in kwargs:
             kwargs["data_source"] = (
                 self.create_builder_local_baserow_list_rows_data_source(page=page)
             )
-        element = self.create_builder_element(RepeatElement, user, page, **kwargs)
+        element = self.create_builder_element(IterateElement, user, page, **kwargs)
         return element
 
     def create_builder_record_selector_element(self, user=None, page=None, **kwargs):

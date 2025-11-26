@@ -2,7 +2,7 @@ from collections import defaultdict
 
 import pytest
 
-from baserow.contrib.builder.elements.element_types import RepeatElementType
+from baserow.contrib.builder.elements.element_types import IterateElementType
 from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.models import (
     ButtonElement,
@@ -18,7 +18,7 @@ from baserow.core.utils import MirrorDict
 
 
 @pytest.mark.django_db
-def test_repeat_element_import_child_with_formula_with_current_record(data_fixture):
+def test_iterate_element_import_child_with_formula_with_current_record(data_fixture):
     user = data_fixture.create_user()
     builder = data_fixture.create_builder_application(user=user)
 
@@ -51,7 +51,7 @@ def test_repeat_element_import_child_with_formula_with_current_record(data_fixtu
             {
                 "id": 23,
                 "order": "1.00000000000000000000",
-                "type": "repeat",
+                "type": "iterate",
                 "parent_element_id": None,
                 "place_in_container": None,
                 "visibility": "all",
@@ -180,8 +180,8 @@ def test_extract_properties_includes_schema_property_for_nested_collection(
     data_fixture,
 ):
     """
-    Ensure the RepeatElementType::extract_properties() method includes
-    the schema_property field if it exists, when the Repeat is a nested element.
+    Ensure the IterateElementType::extract_properties() method includes
+    the schema_property field if it exists, when the iterate is a nested element.
     """
 
     user = data_fixture.create_user()
@@ -202,26 +202,28 @@ def test_extract_properties_includes_schema_property_for_nested_collection(
         page=page
     )
 
-    # Create a parent Repeat element that has a data source
-    parent_repeat = data_fixture.create_builder_repeat_element(
+    # Create a parent iterate element that has a data source
+    parent_iterate = data_fixture.create_builder_iterate_element(
         data_source=data_source, page=page
     )
 
-    properties = RepeatElementType().extract_properties(parent_repeat)
+    properties = IterateElementType().extract_properties(parent_iterate)
     assert properties == {data_source.service_id: ["id"]}
 
-    # Create a child Repeat with a schema_property
-    child_repeat = data_fixture.create_builder_repeat_element(
+    # Create a child iterate with a schema_property
+    child_iterate = data_fixture.create_builder_iterate_element(
         page=page,
         data_source=None,
-        parent_element_id=parent_repeat.id,
+        parent_element_id=parent_iterate.id,
         schema_property=multiple_select_field.db_column,
     )
     formula_context = ElementHandler().get_import_context_addition(
-        child_repeat.parent_element_id, {}
+        child_iterate.parent_element_id, {}
     )
 
-    properties = RepeatElementType().extract_properties(child_repeat, **formula_context)
+    properties = IterateElementType().extract_properties(
+        child_iterate, **formula_context
+    )
 
     # We expect that the schema_property field to be present and the ID
     assert properties == {
@@ -234,8 +236,8 @@ def test_extract_properties_includes_schema_property_for_single_row(
     data_fixture,
 ):
     """
-    Ensure the RepeatElementType::extract_properties() method includes
-    the schema_property field if it exists, when the repeat uses a Get Row service.
+    Ensure the IterateElementType::extract_properties() method includes
+    the schema_property field if it exists, when the iterate uses a Get Row service.
     """
 
     user = data_fixture.create_user()
@@ -277,14 +279,14 @@ def test_extract_properties_includes_schema_property_for_single_row(
         service=get_row_service,
     )
 
-    # Create a Repeat element that uses the Single Row data source
-    repeat = data_fixture.create_builder_repeat_element(
+    # Create an iterate element that uses the Single Row data source
+    iterate = data_fixture.create_builder_iterate_element(
         data_source=data_source,
         page=page,
         schema_property=multiple_select_field.db_column,
     )
 
-    properties = RepeatElementType().extract_properties(repeat)
+    properties = IterateElementType().extract_properties(iterate)
     assert properties == {
         data_source.service_id: [f"field_{multiple_select_field.id}", "id"]
     }

@@ -673,7 +673,7 @@ def test_create_collection_element_type_with_invalid_data_source_id(
 def test_create_collection_element_with_property_option(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     page = data_fixture.create_builder_page(user=user)
-    element = data_fixture.create_builder_repeat_element(user=user, page=page)
+    element = data_fixture.create_builder_iterate_element(user=user, page=page)
     url = reverse("api:builder:element:item", kwargs={"element_id": element.id})
     response = api_client.patch(
         url,
@@ -734,7 +734,7 @@ def test_create_collection_element_with_non_unique_schema_properties(
 ):
     user, token = data_fixture.create_user_and_token()
     page = data_fixture.create_builder_page(user=user)
-    element = data_fixture.create_builder_repeat_element(user=user, page=page)
+    element = data_fixture.create_builder_iterate_element(user=user, page=page)
     url = reverse("api:builder:element:item", kwargs={"element_id": element.id})
     response = api_client.patch(
         url,
@@ -767,7 +767,7 @@ def test_create_collection_element_with_blank_property_option_schema_property(
 ):
     user, token = data_fixture.create_user_and_token()
     page = data_fixture.create_builder_page(user=user)
-    element = data_fixture.create_builder_repeat_element(user=user, page=page)
+    element = data_fixture.create_builder_iterate_element(user=user, page=page)
     url = reverse("api:builder:element:item", kwargs={"element_id": element.id})
     response = api_client.patch(
         url,

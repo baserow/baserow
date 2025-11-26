@@ -1,0 +1,9 @@
+{
+    "type": "refactor",
+    "message": "Renamed the 'Repeat' element to 'Iterate'.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2025-11-26"
+}

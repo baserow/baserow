@@ -53,4 +53,11 @@
     width: 90px;
     text-align: center;
   }
+
+  &__deprecation-label {
+    font-size: 11px;
+    font-weight: 500;
+    margin-top: 5px;
+    color: $palette-neutral-900;
+  }
 }

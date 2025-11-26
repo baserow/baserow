@@ -916,10 +916,10 @@ class IFrameElement(Element):
     )
 
 
-class RepeatElement(CollectionElement, ContainerElement):
+class IterateElement(CollectionElement, ContainerElement):
     """
-    A container and collection type element which repeats the child elements for each
-    item in the data source that it is bound to.
+    A container and collection type element which iterates over the child elements
+    for each item in the data source that it is bound to.
     """
 
     class ORIENTATIONS(models.TextChoices):
@@ -933,13 +933,13 @@ class RepeatElement(CollectionElement, ContainerElement):
     )
     items_per_row = models.JSONField(
         default=dict,
-        help_text="The amount repetitions per row, per device type. "
+        help_text="The amount of iterations per row, per device type. "
         "Only applicable when the orientation is horizontal.",
     )
     horizontal_gap = models.IntegerField(
         default=0,
         db_default=0,
-        help_text="The amount of horizontal space between repeat elements.",
+        help_text="The amount of horizontal space between iterated elements.",
         validators=[
             MinValueValidator(0, message="Value cannot be less than 0."),
             MaxValueValidator(2000, message="Value cannot be greater than 2000."),
@@ -948,7 +948,7 @@ class RepeatElement(CollectionElement, ContainerElement):
     vertical_gap = models.IntegerField(
         default=0,
         db_default=0,
-        help_text="The amount of vertical space between repeat elements.",
+        help_text="The amount of vertical space between iterated elements.",
         validators=[
             MinValueValidator(0, message="Value cannot be less than 0."),
             MaxValueValidator(2000, message="Value cannot be greater than 2000."),

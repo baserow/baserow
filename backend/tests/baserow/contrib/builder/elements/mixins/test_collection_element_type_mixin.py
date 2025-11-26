@@ -69,19 +69,19 @@ def test_import_context_addition_sets_schema_property(data_fixture):
     data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
         page=page
     )
-    outer_repeat = data_fixture.create_builder_repeat_element(
+    outer_iterate = data_fixture.create_builder_iterate_element(
         data_source=data_source, page=page
     )
-    inner_repeat = data_fixture.create_builder_repeat_element(
+    inner_iterate = data_fixture.create_builder_iterate_element(
         page=page,
         data_source=None,
-        parent_element_id=outer_repeat.id,
+        parent_element_id=outer_iterate.id,
         schema_property="field_123",
     )
-    assert CollectionElementTypeMixin().import_context_addition(outer_repeat) == {
+    assert CollectionElementTypeMixin().import_context_addition(outer_iterate) == {
         "data_source_id": data_source.id,
     }
-    assert CollectionElementTypeMixin().import_context_addition(inner_repeat) == {
+    assert CollectionElementTypeMixin().import_context_addition(inner_iterate) == {
         "data_source_id": data_source.id,
         "schema_property": "field_123",
     }

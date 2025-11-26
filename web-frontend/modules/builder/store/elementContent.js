@@ -90,7 +90,7 @@ const actions = {
 
     /**
      * If `dataSource` is `null`, this means that we are trying to fetch the content
-     * of a nested collection element, such as a repeat nested in a repeat.
+     * of a nested collection element, such as an iterate nested in an iterate.
      *
      * No content is stored for this element directly. It's content will be deduced
      * from the applicationContext and the content of the parent element

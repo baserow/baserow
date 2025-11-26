@@ -691,9 +691,9 @@ def test_queryset_excludes_all_child_elements(
         user_role,
     )
 
-    # Create a Repeat element, which will be the parent element and first
+    # Create a iterate element, which will be the parent element and first
     # level of nesting.
-    repeat_element = data_fixture.create_builder_repeat_element(
+    iterate_element = data_fixture.create_builder_iterate_element(
         page=public_page,
         visibility=parent_visibility_type,
         roles=parent_element_roles,
@@ -706,7 +706,7 @@ def test_queryset_excludes_all_child_elements(
         visibility=child_visibility_type,
         roles=chid_element_roles,
         role_type=role_type,
-        parent_element_id=repeat_element.id,
+        parent_element_id=iterate_element.id,
     )
 
     # Add a Heading element that matches the user's role, and is the final

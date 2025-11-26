@@ -18,7 +18,7 @@ User = get_user_model()
 
 
 # For now there can be up to three levels of nested elements.
-# E.g. a RepeatElement might contain a ColumnElement, which might contain a
+# E.g. a IterateElement might contain a ColumnElement, which might contain a
 # HeadingElement.
 # However, later this number could be dynamic depending on the page itself.
 MAX_ELEMENT_NESTING_DEPTH = 3

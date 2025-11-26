@@ -31,7 +31,7 @@
         :schema="propertySelectorSchema"
       >
         <template #emptyState>
-          {{ $t('repeatElementForm.propertySelectorMissingArrays') }}
+          {{ $t('iterateElementForm.propertySelectorMissingArrays') }}
         </template>
         <template #chooseValueState>
           {{ $t('collectionElementForm.noSchemaPropertyMessage') }}
@@ -40,7 +40,7 @@
     </FormGroup>
     <FormGroup
       v-show="pagingOptionsAvailable"
-      :label="$t('repeatElementForm.itemsPerPage')"
+      :label="$t('iterateElementForm.itemsPerPage')"
       small-label
       required
       class="margin-bottom-2"
@@ -48,7 +48,7 @@
     >
       <FormInput
         v-model="v$.values.items_per_page.$model"
-        :placeholder="$t('repeatElementForm.itemsPerPagePlaceholder')"
+        :placeholder="$t('iterateElementForm.itemsPerPagePlaceholder')"
         :to-value="(value) => parseInt(value)"
         type="number"
         @blur="v$.values.items_per_page.$touch()"
@@ -65,7 +65,7 @@
     <FormGroup
       v-show="pagingOptionsAvailable"
       small-label
-      :label="$t('repeatElementForm.buttonLoadMoreLabel')"
+      :label="$t('iterateElementForm.buttonLoadMoreLabel')"
       class="margin-bottom-2"
       required
     >
@@ -90,15 +90,15 @@
     <FormGroup
       v-show="values.orientation === 'horizontal'"
       :error-message="itemsPerRowError"
-      :label="$t('repeatElementForm.itemsPerRowLabel')"
+      :label="$t('iterateElementForm.itemsPerRowLabel')"
       small-label
       required
-      :helper-text="$t('repeatElementForm.itemsPerRowDescription')"
+      :helper-text="$t('iterateElementForm.itemsPerRowDescription')"
       class="margin-bottom-2"
     >
       <DeviceSelector
         :device-type-selected="deviceTypeSelected"
-        class="repeat-element__device-selector margin-bottom-2"
+        class="iterate-element__device-selector margin-bottom-2"
         @selected="actionSetDeviceTypeSelected"
       >
         <template #deviceTypeControl="{ deviceType }">
@@ -115,7 +115,7 @@
     <FormGroup
       small-label
       required
-      :label="$t('repeatElementForm.gapLabel')"
+      :label="$t('iterateElementForm.gapLabel')"
       :error-message="gapError"
       class="margin-bottom-2"
     >
@@ -127,7 +127,7 @@
     <FormGroup
       small-label
       class="margin-bottom-2"
-      :label="$t('repeatElementForm.toggleEditorRepetitionsLabel')"
+      :label="$t('iterateElementForm.toggleEditorIterationsLabel')"
     >
       <Checkbox :checked="isCollapsed" @input="emitToggleRepetitions($event)">
       </Checkbox>
@@ -170,12 +170,12 @@ import {
   helpers,
 } from '@vuelidate/validators'
 import collectionElementForm from '@baserow/modules/builder/mixins/collectionElementForm'
-import DeviceSelector from '@baserow/modules/builder/components/page/header/DeviceSelector.vue'
+import DeviceSelector from '@baserow/modules/builder/components/page/header/DeviceSelector'
 import { mapActions, mapGetters } from 'vuex'
 import CustomStyleButton from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyleButton'
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
-import ServiceSchemaPropertySelector from '@baserow/modules/core/components/services/ServiceSchemaPropertySelector.vue'
-import DataSourceDropdown from '@baserow/modules/builder/components/dataSource/DataSourceDropdown.vue'
+import ServiceSchemaPropertySelector from '@baserow/modules/core/components/services/ServiceSchemaPropertySelector'
+import DataSourceDropdown from '@baserow/modules/builder/components/dataSource/DataSourceDropdown'
 import PropertyOptionForm from '@baserow/modules/builder/components/elements/components/forms/general/settings/PropertyOptionForm'
 import PaddingSelector from '@baserow/modules/builder/components/PaddingSelector'
 import { ORIENTATIONS } from '@baserow/modules/builder/enums'
@@ -183,7 +183,7 @@ import { ORIENTATIONS } from '@baserow/modules/builder/enums'
 const MAX_GAP_PX = 2000
 
 export default {
-  name: 'RepeatElementForm',
+  name: 'IterateElementForm',
   components: {
     PropertyOptionForm,
     DataSourceDropdown,
@@ -228,7 +228,7 @@ export default {
     ...mapGetters({ deviceTypeSelected: 'page/getDeviceTypeSelected' }),
     isCollapsed() {
       const { element } = this.applicationContext
-      return this.$store.getters['element/getRepeatElementCollapsed'](element)
+      return this.$store.getters['element/getIterateElementCollapsed'](element)
     },
     deviceTypes() {
       return Object.values(this.$registry.getOrderedList('device'))
@@ -310,7 +310,7 @@ export default {
     }),
     emitToggleRepetitions(value) {
       const { element } = this.applicationContext
-      this.$store.dispatch('element/setRepeatElementCollapsed', {
+      this.$store.dispatch('element/setIterateElementCollapsed', {
         element,
         collapsed: value,
       })

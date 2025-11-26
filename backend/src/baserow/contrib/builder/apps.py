@@ -182,12 +182,12 @@ class BuilderConfig(AppConfig):
             IFrameElementType,
             ImageElementType,
             InputTextElementType,
+            IterateElementType,
             LinkElementType,
             MenuElementType,
             RatingElementType,
             RatingInputElementType,
             RecordSelectorElementType,
-            RepeatElementType,
             SimpleContainerElementType,
             TableElementType,
             TextElementType,
@@ -204,7 +204,7 @@ class BuilderConfig(AppConfig):
         element_type_registry.register(ColumnElementType())
         element_type_registry.register(ButtonElementType())
         element_type_registry.register(TableElementType())
-        element_type_registry.register(RepeatElementType())
+        element_type_registry.register(IterateElementType())
         element_type_registry.register(RecordSelectorElementType())
         element_type_registry.register(FormContainerElementType())
         element_type_registry.register(ChoiceElementType())

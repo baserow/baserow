@@ -1,5 +1,5 @@
 <template>
-  <div class="repeat-element--container">
+  <div class="iterate-element--container">
     <CollectionElementHeader
       :element="element"
       :style="getStyleOverride('header_button')"
@@ -9,14 +9,14 @@
     ></CollectionElementHeader>
     <div
       :class="{
-        [`repeat-element--orientation-${element.orientation}`]: true,
+        [`iterate-element--orientation-${element.orientation}`]: true,
       }"
     >
-      <!-- If we have any contents to repeat... -->
+      <!-- If we have any contents to iterate... -->
       <template v-if="elementContent.length > 0">
         <div
-          class="repeat-element__repeated-elements"
-          :style="repeatedElementsStyles"
+          class="iterate-element__iterated-elements"
+          :style="iteratedElementsStyles"
         >
           <!-- Iterate over each content -->
           <div v-for="(content, index) in elementContent" :key="content.id">
@@ -54,7 +54,7 @@
                     })
                   "
                   :class="{
-                    'repeat-element__preview': index > 0 && isEditMode,
+                    'iterate-element__preview': index > 0 && isEditMode,
                   }"
                 />
               </template>
@@ -75,12 +75,12 @@
           ></AddElementModal>
         </template>
       </template>
-      <!-- We have no contents to repeat -->
+      <!-- We have no contents to iterate -->
       <template v-else>
         <!-- We have no element content, but do have an adhoc refinements in public mode -->
         <template v-if="(adhocSearch || adhocFilters) && !isEditMode">
-          <p class="repeat-element__empty-message">
-            {{ $t('repeatElement.emptyState') }}
+          <p class="iterate-element__empty-message">
+            {{ $t('iterateElement.emptyState') }}
           </p>
         </template>
         <!-- If we also have no children, allow the designer to add elements -->
@@ -108,7 +108,7 @@
           </template>
         </template>
       </template>
-      <div class="repeat-element__footer">
+      <div class="iterate-element__footer">
         <ABButton
           v-if="hasMorePage && children.length > 0"
           :style="getStyleOverride('button')"
@@ -116,7 +116,7 @@
           :loading="contentLoading"
           @click="loadMore()"
         >
-          {{ resolvedButtonLoadMoreLabel || $t('repeatElement.showMore') }}
+          {{ resolvedButtonLoadMoreLabel || $t('iterateElement.showMore') }}
         </ABButton>
       </div>
     </div>
@@ -129,13 +129,13 @@ import AddElementModal from '@baserow/modules/builder/components/elements/AddEle
 import ElementPreview from '@baserow/modules/builder/components/elements/ElementPreview'
 import PageElement from '@baserow/modules/builder/components/page/PageElement'
 import { ensureString } from '@baserow/modules/core/utils/validator'
-import { RepeatElementType } from '@baserow/modules/builder/elementTypes'
+import { IterateElementType } from '@baserow/modules/builder/elementTypes'
 import CollectionElementHeader from '@baserow/modules/builder/components/elements/components/CollectionElementHeader'
 import { ORIENTATIONS } from '@baserow/modules/builder/enums'
 import { useCollectionElement } from '@baserow/modules/builder/composables/useCollectionElement'
 
 export default {
-  name: 'RepeatElement',
+  name: 'IterateElement',
   components: {
     CollectionElementHeader,
     PageElement,
@@ -148,12 +148,12 @@ export default {
      * @type {Object}
      * @property {int} data_source_id - The collection data source Id we want to display.
      * @property {int} items_per_page - The number of items per page.
-     * @property {str} orientation - The orientation to repeat in (vertical, horizontal).
+     * @property {str} orientation - The orientation to iterate in (vertical, horizontal).
      * @property {Object} items_per_row - The number of items, per device, which should
-     *  be repeated in a row. Only applicable to when the orientation is 'horizontal'.
-     * @property {int} horizontal_gap - The amount of space between repeat
+     *  be iterated in a row. Only applicable to when the orientation is 'horizontal'.
+     * @property {int} horizontal_gap - The amount of space between iterate
      *   elements when the orientation is 'horizontal'.
-     * @property {int} vertical_gap - The amount of space between repeat
+     * @property {int} vertical_gap - The amount of space between iterate
      *   elements when the orientation is 'vertical'.
      */
     element: {
@@ -218,28 +218,31 @@ export default {
       )
     },
     isCollapsed() {
-      return this.$store.getters['element/getRepeatElementCollapsed'](
+      return this.$store.getters['element/getIterateElementCollapsed'](
         this.element
       )
     },
-    repeatElementIsNested() {
+    iterateElementIsNested() {
       return this.elementType.hasAncestorOfType(
         this.elementPage,
         this.element,
-        RepeatElementType.getType()
+        IterateElementType.getType()
       )
     },
     addElementErrorTooltipMessage() {
-      if (!this.repeatElementIsNested && this.element.data_source_id === null) {
-        return this.$t('repeatElement.missingDataSourceTooltip')
+      if (
+        !this.iterateElementIsNested &&
+        this.element.data_source_id === null
+      ) {
+        return this.$t('iterateElement.missingDataSourceTooltip')
       }
-      return this.$t('repeatElement.missingSchemaPropertyTooltip')
+      return this.$t('iterateElement.missingSchemaPropertyTooltip')
     },
-    repeatedElementsStyles() {
+    iteratedElementsStyles() {
       // These styles are applied inline as we are unable to provide
       // the CSS rules with the correct `items_per_row` per device. If
       // we add CSS vars to the element, and pass them into the
-      // `grid-template-columns` rule's `repeat`, it will cause a repaint
+      // `grid-template-columns` rule's `iterate`, it will cause a repaint
       // following page load when the orientation is horizontal. Initially the
       // page visitor will see repetitions vertically, then suddenly horizontally.
       if (this.element.orientation === ORIENTATIONS.VERTICAL) {

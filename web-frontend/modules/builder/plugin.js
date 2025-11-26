@@ -41,7 +41,7 @@ import {
   CheckboxElementType,
   DateTimePickerElementType,
   IFrameElementType,
-  RepeatElementType,
+  IterateElementType,
   RecordSelectorElementType,
   HeaderElementType,
   FooterElementType,
@@ -251,7 +251,7 @@ export default defineNuxtPlugin({
     $registry.register('element', new CheckboxElementType(context))
     $registry.register('element', new DateTimePickerElementType(context))
     $registry.register('element', new RecordSelectorElementType(context))
-    $registry.register('element', new RepeatElementType(context))
+    $registry.register('element', new IterateElementType(context))
     $registry.register('element', new RatingInputElementType(context))
     $registry.register('element', new MenuElementType(context))
 

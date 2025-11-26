@@ -94,7 +94,11 @@ export default {
       const elementTypesAll = Object.values(this.$registry.getAll('element'))
       const filteredTypes = elementTypesAll.filter((elementType) =>
         isSubstringOfStrings(
-          [elementType.name, elementType.description],
+          [
+            elementType.name,
+            elementType.deprecatedName || '',
+            elementType.description,
+          ],
           this.search
         )
       )

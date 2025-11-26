@@ -56,6 +56,7 @@ from baserow.contrib.builder.elements.models import (
     IFrameElement,
     ImageElement,
     InputTextElement,
+    IterateElement,
     LinkElement,
     MenuElement,
     MenuItemElement,
@@ -63,7 +64,6 @@ from baserow.contrib.builder.elements.models import (
     RatingElement,
     RatingInputElement,
     RecordSelectorElement,
-    RepeatElement,
     SimpleContainerElement,
     TableElement,
     TextElement,
@@ -362,11 +362,12 @@ class TableElementType(CollectionElementWithFieldsTypeMixin, ElementType):
         }
 
 
-class RepeatElementType(
+class IterateElementType(
     CollectionElementTypeMixin, ContainerElementTypeMixin, ElementType
 ):
-    type = "repeat"
-    model_class = RepeatElement
+    type = "iterate"
+    compat_type = "repeat"
+    model_class = IterateElement
 
     @property
     def allowed_fields(self):
@@ -425,7 +426,7 @@ class RepeatElementType(
                 mode=BASEROW_FORMULA_MODE_SIMPLE,
                 version=BASEROW_FORMULA_VERSION_INITIAL,
             ),
-            "orientation": RepeatElement.ORIENTATIONS.VERTICAL,
+            "orientation": IterateElement.ORIENTATIONS.VERTICAL,
         }
 
 
@@ -2350,7 +2351,7 @@ class MenuElementType(ElementType):
 
     def get_pytest_params(self, pytest_data_fixture):
         return {
-            "orientation": RepeatElement.ORIENTATIONS.VERTICAL,
+            "orientation": IterateElement.ORIENTATIONS.VERTICAL,
             "alignment": HorizontalAlignments.LEFT,
         }
 

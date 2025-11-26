@@ -1183,7 +1183,7 @@ def test_collection_element_type_publicly_searchable_sortable_filterable(
     collection_element_type,
 ):
     expected_results = {
-        "repeat": {
+        "iterate": {
             "is_publicly_sortable": True,
             "is_publicly_searchable": True,
             "is_publicly_filterable": True,
@@ -1567,7 +1567,7 @@ def test_record_element_is_valid(data_fixture):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_repeat_element_import_export(data_fixture):
+def test_iterate_element_import_export(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     builder = data_fixture.create_builder_application(workspace=workspace)
@@ -1586,13 +1586,13 @@ def test_repeat_element_import_export(data_fixture):
         page=page
     )
 
-    outer_repeat = data_fixture.create_builder_repeat_element(
+    outer_iterate = data_fixture.create_builder_iterate_element(
         data_source=data_source, page=page
     )
-    data_fixture.create_builder_repeat_element(
+    data_fixture.create_builder_iterate_element(
         page=page,
         data_source=None,
-        parent_element_id=outer_repeat.id,
+        parent_element_id=outer_iterate.id,
         schema_property=multiple_select_field.db_column,
     )
 
@@ -1619,13 +1619,13 @@ def test_repeat_element_import_export(data_fixture):
     # Pluck out the imported builder records.
     imported_page = imported_builder.visible_pages.all()[0]
     imported_data_source = imported_page.datasource_set.get()
-    imported_root_repeat = imported_page.element_set.get(
+    imported_root_iterate = imported_page.element_set.get(
         parent_element_id=None
     ).specific
-    imported_nested_repeat = imported_root_repeat.children.get().specific
+    imported_nested_iterate = imported_root_iterate.children.get().specific
 
-    assert imported_root_repeat.data_source_id == imported_data_source.id
-    assert imported_nested_repeat.schema_property == imported_field.db_column
+    assert imported_root_iterate.data_source_id == imported_data_source.id
+    assert imported_nested_iterate.schema_property == imported_field.db_column
 
 
 @pytest.mark.parametrize(

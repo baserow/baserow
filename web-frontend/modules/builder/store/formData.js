@@ -15,7 +15,7 @@ const state = {}
  */
 function setFormEntryAtPath(page, uniqueElementId, value) {
   // We update properties per properties here to avoid updating the array
-  // and then trigger to many element update in repeat elements.
+  // and then trigger to many element update in iterate elements.
   if (typeof value === 'object') {
     Object.entries(value).forEach(([key, value]) =>
       setValueAtPath(page.formData, `${uniqueElementId}.${key}`, value)

@@ -192,25 +192,25 @@ export default {
      * elements in tree until our matching element is found. For example, a
      * tree such as the following:
      *
-     * - Repeat
+     * - Iterate
      *     - Column
      *         - Heading 1
-     *         - Repeat
+     *         - Iterate
      *             - Image
      *         - Heading 2
      *
      * With a search query of "heading" would result in:
      *
-     * - Repeat
+     * - Iterate
      *     - Column
      *         - Heading 1
      *         - Heading 2
      *
      * With a search query of "image" would result in:
      *
-     * - Repeat
+     * - Iterate
      *     - Column
-     *         - Repeat
+     *         - Iterate
      *             - Image
      */
     filterElements(elements, page) {
