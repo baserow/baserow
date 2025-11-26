@@ -59,16 +59,24 @@
       "type": "doc",
       "content": [
         {
-          "type": "text",
-          "text": "\u200B"
-        },
-        {
-          "type": "get-formula-component",
-          "attrs": { "path": "data_source.hello.there", "isSelected": false }
-        },
-        {
-          "type": "text",
-          "text": "\u200B"
+          "type": "wrapper",
+          "content": [
+            {
+              "type": "text",
+              "text": "\u200B"
+            },
+            {
+              "type": "get-formula-component",
+              "attrs": {
+                "path": "data_source.hello.there",
+                "isSelected": false
+              }
+            },
+            {
+              "type": "text",
+              "text": "\u200B"
+            }
+          ]
         }
       ]
     }
