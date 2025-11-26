@@ -146,7 +146,7 @@
         "userFieldNames": "Cuando se proporciona cualquier valor para el parámetro GET `user_field_names`, los nombres de campo devueltos por este extremo serán los nombres reales de los campos.\n\nSi no se proporciona el parámetro GET `user_field_names`, todos los nombres de campo devueltos serán `field_` seguidos de la identificación del campo. Por ejemplo, `field_1` se refiere al campo con una identificación de `1`.\n\nAdemás, cuando se establece `user_field_names`, cambia el comportamiento de los otros parámetros GET `order_by`, `include` y `exclude`. En su lugar, esperan listas separadas por comas de los nombres de campo reales.",
         "search": "Si se proporcionan, solo se devolverán las filas con datos que coincidan con la consulta de búsqueda.",
         "orderBy": "Opcionalmente se pueden ordenar las filas por campos separados por coma. De forma predeterminada o si se antepone un '+', un campo se ordena en orden ascendente (A-Z), pero al anteponer el campo con un '-' se puede ordenar de forma descendente (Z-A).\n\n #### Con `user_field_names`:\n\n `order_by` debe ser una lista separada por comas de los nombres de los campos por ordenar. Por ejemplo, si proporciona el siguiente parámetro GET `order_by=My Field,-My Field 2`, las filas se ordenarán por el campo llamado `My Field` en orden ascendente. Si algunos campos tienen el mismo valor, ese subconjunto se ordenará por el campo llamado `Mi campo 2` en orden descendente.\n\n Asegúrese de que los campos con nombres que comienzan con `+` o `-` estén explícitamente precedidos por otro `+` o `-`. Por ejemplo, `+-Nombre`.\n\n El nombre de los campos que contienen comas debe estar entre comillas: `\"Nombre,\"`. Si los nombres de los campos contienen comillas, deben escaparse con el carácter `\\`. Ej: `Nombre\\\"`.\n\n#### Sin `user_field_names`:\n\n `order_by` debe ser una lista separada por comas de `field_` seguida de la identificación del campo por el que ordenar. Por ejemplo, si proporciona el siguiente parámetro GET `order_by=field_1,-field_2`, las filas se ordenarán por `field_1` en orden ascendente. Si algunos campos tienen el mismo valor, ese subconjunto se ordenará por `field_2` en orden descendente.",
-        "filter": "Las filas se pueden filtrar opcionalmente por los mismos filtros de vista disponibles para las vistas. Se pueden proporcionar múltiples filtros si siguen el mismo formato. Las variables `field` y `filter` indican cómo filtrar y el valor indica dónde filtrar.\n\n Por ejemplo, si proporciona el siguiente parámetro GET `filter__field_1__equal=test`, solo se devolverán las filas donde el valor de field_1 es igual a test. ",
+        "filter": "Las filas pueden filtrarse opcionalmente usando los mismos filtros de vista que están disponibles para las vistas. Se pueden aplicar varios filtros si siguen el mismo formato. Las variables `field` y `filter` indican, respectivamente, cómo y dónde aplicar el filtro.\n\n#### Con `user_field_names`:\n\nPor ejemplo, si proporcionas opcionalmente el siguiente parámetro GET: `filter__Name__equal=test`, solo se devolverán las filas cuyo valor en `Name` sea igual a `test`. Este método es retrocompatible y, si falla al buscar por nombre, verificará contra `field_id`.\n\n### Sin `user_field_names`:\n\nPor ejemplo, si proporcionas opcionalmente el siguiente parámetro GET: `filter__field_1__equal=test`, solo se devolverán las filas cuyo valor en `field_1` sea igual a `test`.\n\nTen en cuenta que, si se proporciona el parámetro filters, este parámetro será ignorado. ",
         "filterLink": "Puede encontrar una lista de todos los filtros aquí.",
         "filterType": "- `Y`: Indica que las filas deben coincidir con todos los filtros proporcionados.\n- `OR`: Indica que las filas solo tienen que coincidir con uno de los filtros.\n\n Esto funciona solo si se proporcionan dos o más filtros.",
         "include": "Todos los campos se incluyen en la respuesta de forma predeterminada. Puede seleccionar un subconjunto de campos para incluir proporcionando el parámetro de consulta de inclusión.\n\n #### Con `user_field_names`:\n\n `include` debe ser una lista separada por comas de nombres de campos que se incluirán en los resultados. Por ejemplo, si proporciona el siguiente parámetro GET: `include=My Field,-My Field 2`, solo se incluirán esos campos (a menos que se excluyan explícitamente).\n\n El nombre de los campos que contienen comas debe estar entre comillas: `\"Nombre,\"`. Si los nombres de los campos contienen comillas, deben escaparse con el carácter `\\`. Ej: `Nombre\\\"`.\n\n #### Sin `user_field_names`:\n\n `include` debe ser una lista separada por comas de `field_` seguida de la identificación del campo para incluir en los resultados. Por ejemplo: si proporciona el siguiente parámetro GET `exclude=field_1,field_2`, los campos con id `1` e id `2` solo se incluirán esos campos (a menos que se excluyan explícitamente).",
@@ -257,7 +257,7 @@
         "commaPeriod": "Coma, punto (1.000.000,00)",
         "noFormatting": "Sin formato",
         "defaultValueLabel": "Valor predeterminado",
-        "defaultValuePlaceholder": "Introduzca un valor predeterminado"
+        "defaultValuePlaceholder": "Introduce un valor predeterminado"
     },
     "fieldContext": {
         "editField": "Editar campo",
@@ -274,7 +274,7 @@
         "addDescription": "Añadir descripción",
         "description": "Descripción",
         "dbIndex": "Índice",
-        "dbIndexError": "Este tipo de campo no puede tener un índice. Por favor, elimínelo antes de guardar o cambie el tipo de campo.",
+        "dbIndexError": "Este tipo de campo no puede tener un índice. Por favor, elimínalo antes de guardar o cambia el tipo de campo.",
         "dbIndexDescription": "Indexar puede mejorar significativamente el rendimiento del filtrado, pero ralentiza las operaciones de creación, actualización y eliminación.",
         "defaultValueDisabledByConstraint": "No se puede establecer un valor predeterminado con una restricción de valor único",
         "dbIndexDisabledTooltip": "La indexación no está disponible para este tipo de campo."
@@ -324,7 +324,7 @@
     },
     "rowEditFieldLinkRow": {
         "addLink": "Elige un enlace",
-        "keepOnlyOneValue": "Mantenga solo un valor. Este campo solo admite una relación. El valor se guarda si queda únicamente una relación."
+        "keepOnlyOneValue": "Mantén solo un valor. Este campo solo admite una relación. El valor se guarda si queda únicamente una relación."
     },
     "tableCSVImporter": {
         "chooseFileLabel": "Elija el archivo CSV",
@@ -650,7 +650,7 @@
     },
     "importFromAirtable": {
         "airtableShareLinkTitle": "Comparte un enlace a tu Base",
-        "airtableShareLinkDescription": "Para importar su base Airtable, debe tener un enlace compartido a toda su base. En Airtable, haz clic en el botón de compartir en la esquina superior derecha después de abrir tu base. Luego de eso debes elegir la opción \"Acceso a la base\". En el modal de compartir, puede hacer clic en el botón \"Crear un enlace compartido para toda la base\" y luego en \"Enlace privado de solo lectura\". Copie el enlace público y péguelo en la entrada a continuación.",
+        "airtableShareLinkDescription": "Para importar tu base de Airtable, necesitas disponer de un enlace compartido de toda la base. En Airtable, haz clic en el botón «Compartir» en la esquina superior derecha después de abrir tu base. Después, debes escoger la opción «Compartir mediante enlace\". En la ventana emergente de compartir pulsa la pestaña «Compartir públicamente» y luego en «Enlace privado de solo lectura». Copia el enlace público y pégalo en el campo de entrada que aparece a continuación.",
         "airtableShareLinkBeta": "Esta funcionalidad importará la mayor parte de los datos, pero existen incompatibilidades. Por lo tanto, se añadirá una tabla llamada \"Airtable import report\" que contendrá una lista de cosas que no fueron importadas o que se importaron parcialmente.",
         "airtableShareLinkPaste": "Pega el enlace aquí",
         "importButtonLabel": "Importar desde Airtable",
@@ -670,7 +670,7 @@
         "skipFiles": "Omitir la importación de archivos",
         "skipFilesHelper": "Una base de Airtable con muchos archivos puede ralentizar la importación. Al habilitar esta opción se omite la importación de los archivos.",
         "useSession": "Autenticación de sesión",
-        "useSessionHelper": "Utilice esto si la base compartida públicamente requiere autenticación."
+        "useSessionHelper": "Utiliza esto si la base compartida públicamente requiere autenticación."
     },
     "viewDecorator": {
         "decorator": "Color | 1 Color | {recuento} Colores"
@@ -892,7 +892,7 @@
         "noGroupByText": "Agrupar filas por un campo."
     },
     "collaboratorAddedToRowNotification": {
-        "title": "{remitente} te asignó a {nombreDeCampo} en la fila {rowId} en {nombreDeTabla}.",
+        "title": "{sender} te asignó a {nombreDeCampo} en la fila {rowId} en {nombreDeTabla}",
         "deletedUser": "Un usuario eliminado"
     },
     "fieldCollaboratorSubForm": {
@@ -928,7 +928,7 @@
     },
     "userMentionInRichTextFieldNotification": {
         "deletedUser": "Un usuario eliminado",
-        "title": "{sender} le ha mencionado en el campo {fieldName} de la fila {rowId} en {tableName}."
+        "title": "{sender} te mencionó en el campo {fieldName} de la fila {rowId} en {tableName}"
     },
     "databaseImportStep": {
         "tableNameLabel": "Nombre de la tabla",
@@ -961,11 +961,11 @@
     },
     "databaseStep": {
         "title": "Crea tu primera base de datos",
-        "description": "Cuéntanos en qué estás trabajando.",
+        "description": "Selecciona desde dónde te gustaría comenzar:",
         "databaseNameLabel": "Nombre de la base de datos",
-        "scratch": "Desde cero",
-        "import": "De archivo",
-        "airtable": "Desde Airtable"
+        "scratch": "Esbozo",
+        "import": "Archivo",
+        "airtable": "Airtable"
     },
     "ViewFilterTypeDateUpgradeToMultiStep": {
         "migrateButtonText": "Migrar al filtro de fecha de varios pasos",
