@@ -93,8 +93,7 @@ export default {
       const capitalizedType =
         expectedType.charAt(0).toUpperCase() + expectedType.slice(1)
       return this.$t(
-        `localBaserowUpsertRowServiceForm.fieldMappingPlaceholder${capitalizedType}`,
-        { example: this.fieldType.getDocsRequestExample(this.field) }
+        `localBaserowUpsertRowServiceForm.fieldMappingPlaceholder${capitalizedType}`
       )
     },
   },
