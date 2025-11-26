@@ -17,7 +17,15 @@
         "or": "o",
         "and": "y",
         "alpha": "Alfa",
-        "optional": "Opcional"
+        "optional": "Opcional",
+        "monday": "Lunes",
+        "tuesday": "Martes",
+        "wednesday": "Miércoles",
+        "thursday": "Jueves",
+        "friday": "Viernes",
+        "saturday": "Sábado",
+        "sunday": "Domingo",
+        "value": "valor"
     },
     "action": {
         "upload": "Subir",
@@ -74,14 +82,22 @@
         "dashboards": "Paneles de control",
         "dashboardDefaultName": "Tablero sin título",
         "dashboard": "Tablero",
-        "dashboardDesc": "Visualice sus datos y métricas con gráficos, tablas o gráficos."
+        "dashboardDesc": "Visualice sus datos y métricas con gráficos, tablas o gráficos.",
+        "automation": "Automatización",
+        "automations": "Automatizaciones",
+        "automationDesc": "Automatiza tareas repetitivas y flujos de trabajo.",
+        "automationDefaultName": "Automatización sin título",
+        "cantSelectAutomationWorkflowTitle": "No se pudo seleccionar la automatización.",
+        "cantSelectAutomationWorkflowDescription": "No se pudo seleccionar la automatización porque no tiene ningún flujo de trabajo. Usa la barra lateral para crear uno."
     },
     "settingType": {
         "account": "Cuenta",
         "password": "Contraseña",
         "tokens": "Fichas de la base de datos",
         "deleteAccount": "Borrar cuenta",
-        "emailNotifications": "Notificaciones por correo electrónico"
+        "emailNotifications": "Notificaciones por correo electrónico",
+        "mcpEndpoint": "Servidor MCP",
+        "twoFactorAuth": "Autenticación de dos factores (2FA)"
     },
     "userFileUploadType": {
         "file": "mi dispositivo",
@@ -106,7 +122,8 @@
         "invalidURL": "Por favor, introduce una URL válida.",
         "alreadyInUse": "Este nombre de campo ya está en uso.",
         "decimalField": "El campo debe ser un decimal.",
-        "invalidCharacters": "Este campo contiene caracteres inválidos."
+        "invalidCharacters": "Este campo contiene caracteres inválidos.",
+        "copyFailed": "Error al copiar al portapapeles. Por favor, inténtalo de nuevo."
     },
     "permission": {
         "admin": "Admin",
@@ -274,8 +291,8 @@
         "hasNotValueContainsWord": "el valor no contiene una palabra",
         "hasValueLengthIsLowerThan": "tiene un valor inferior a",
         "hasValueContainsWord": "el valor contiene una palabra",
-        "hasAnySelectOptionEqual": "tiene la opción de seleccionar una igual",
-        "hasNoneSelectOptionEqual": "no tiene la opción de seleccionar igual"
+        "hasAnySelectOptionEqual": "tiene alguna opción de selección igual",
+        "hasNoneSelectOptionEqual": "no tiene ninguna opción de selección igual"
     },
     "viewType": {
         "grid": "Cuadrícula",
