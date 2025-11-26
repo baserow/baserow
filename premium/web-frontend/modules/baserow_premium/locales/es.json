@@ -340,7 +340,7 @@
         "day": "Día",
         "week": "Semana",
         "month": "Mes",
-        "quarter": "Trimestral",
+        "quarter": "Cuarto",
         "year": "Año",
         "disabledTooltip": "Esta opción solo está disponible para campos de fecha con la opción `incluir hora` activada."
     },
