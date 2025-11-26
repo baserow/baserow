@@ -14,6 +14,10 @@ asttokens==3.0.0
     # via
     #   snoop
     #   stack-data
+async-timeout==5.0.1
+    # via
+    #   -c base.txt
+    #   redis
 attrs==24.3.0
     # via
     #   -c base.txt
@@ -113,9 +117,7 @@ isort==5.13.2
 jedi==0.19.2
     # via ipython
 jinja2==3.1.6
-    # via
-    #   -c base.txt
-    #   pytest-html
+    # via pytest-html
 jsonschema==4.25.0
     # via
     #   -c base.txt
@@ -137,9 +139,7 @@ markdown-it-py==3.0.0
     #   -c base.txt
     #   rich
 markupsafe==3.0.3
-    # via
-    #   -c base.txt
-    #   jinja2
+    # via jinja2
 matplotlib-inline==0.1.7
     # via ipython
 mccabe==0.7.0
@@ -178,7 +178,7 @@ pbr==6.1.0
     # via stevedore
 pexpect==4.9.0
     # via ipython
-pip-tools==7.4.1
+pip-tools==7.5.2
     # via -r dev.in
 platformdirs==4.3.6
     # via black
