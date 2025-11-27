@@ -1,8 +1,8 @@
 {
   "name": "Baserow",
-  "description": "Open source online no-code database and Airtable alternative. More information about persistent files on S3, scaling and installing a custom domain can be found on https://baserow.io/docs/guides/installation/install-on-heroku. Note that it might take a couple of minutes to deploy the app, so please be patient.",
+  "description": "Baserow is an open source no-code database tool and Airtable alternative. Easily create\na relational database without any technical expertise. Build a table and define custom\nfields like text, number, file and many more. More information about persistent files on S3, scaling and installing a custom domain can be found on https://baserow.io/docs/guides/installation/install-on-heroku. Note that it might take a couple of minutes to deploy the app, so please be patient.",
   "repository": "https://github.com/baserow/baserow",
-  "keywords": ["baserow", "no-code", "database", "airtable"],
+  "keywords": ["baserow", "no-code", "database", "airtable", "data", "collaborate"],
   "logo": "https://baserow.io/img/favicon_192.png",
   "success_url": "/",
   "addons": [

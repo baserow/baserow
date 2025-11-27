@@ -1,5 +1,26 @@
 # Changelog
 
+## Released 2.0.2
+
+### New features
+* [Integration] Allow the Local Baserow 'update row' service to update data synced tables with writable fields. [#3799](https://github.com/baserow/baserow/-/issues/3799)
+
+### Bug fixes
+* [Database] Adjust image orientation based on exif data [#4247](https://github.com/baserow/baserow/-/issues/4247)
+* [Automation] Fixed a bug where creating a workflow would cause a crash for another user viewing a different app. [#4293](https://github.com/baserow/baserow/-/issues/4293)
+* [Automation] Allow to duplicate nodes inside container nodes [#4294](https://github.com/baserow/baserow/-/issues/4294)
+* [Builder] Improve performances when editing a create/update workflow action with a lot of table fields
+* [Integration] Resolved BASEROW_INTEGRATIONS_PERIODIC_MINUTE_MIN env variable bug.
+
+### Refactors
+* [Database] Make read/write DB routing consistent for http requests and background tasks [#3848](https://gitlab.com/baserow/baserow/-/issues/3848)
+* [Builder] Fix missing form data after first render (SSR) [#4268](https://github.com/baserow/baserow/-/issues/4268)
+* [Core] Improve formula editor
+
+### Breaking API changes
+* [Builder] Number field values returned by local baserow integrations are now actual numbers instead of string [#4219](https://github.com/baserow/baserow/-/issues/4219)
+
+
 ## Released 2.0.1
 
 ### Bug fixes
