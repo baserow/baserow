@@ -6,7 +6,7 @@
     <div class="radio-card__content">
       <div class="radio-card__labels">
         <label class="radio-card__label">{{ label }}</label>
-        <div v-if="badgeLabel">
+        <div v-if="badgeLabel" class="radio-card__badge">
           <Badge :rounded="true" :small="true">{{ badgeLabel }}</Badge>
         </div>
       </div>
