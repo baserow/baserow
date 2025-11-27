@@ -571,7 +571,9 @@
     "errorLinkExpiredTitle": "Link expired",
     "errorLinkExpiredMessage": "The email change link has expired. Please request a new one from your account settings.",
     "errorEmailExistsTitle": "Email already exists",
-    "errorEmailExistsMessage": "Could not change the email address because an account with this email address already exists."
+    "errorEmailExistsMessage": "Could not change the email address because an account with this email address already exists.",
+    "errorEmailAlreadyChangedTitle": "Email already changed",
+    "errorEmailAlreadyChangedMessage": "The email address has already been changed to the requested address."
   },
   "signup": {
     "headTitle": "Create account",

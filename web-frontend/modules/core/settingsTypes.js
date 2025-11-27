@@ -107,7 +107,10 @@ export class PasswordSettingsType extends SettingsType {
   }
 
   isEnabled() {
-    return this.app.store.getters['authProvider/getPasswordLoginEnabled']
+    return (
+      this.app.store.getters['authProvider/getPasswordLoginEnabled'] ||
+      this.app.store.getters['auth/isStaff']
+    )
   }
 
   getComponent() {

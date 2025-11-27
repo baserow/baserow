@@ -12,7 +12,6 @@
         <LangPicker />
       </div>
 
-      <!-- Form -->
       <div>
         <Error :error="error"></Error>
         <div class="auth__action mb-32">
@@ -96,6 +95,10 @@ export default {
           ERROR_EMAIL_ALREADY_EXISTS: new ResponseErrorMessage(
             this.$t('changeEmail.errorEmailExistsTitle'),
             this.$t('changeEmail.errorEmailExistsMessage')
+          ),
+          ERROR_EMAIL_ALREADY_CHANGED: new ResponseErrorMessage(
+            this.$t('changeEmail.errorEmailAlreadyChangedTitle'),
+            this.$t('changeEmail.errorEmailAlreadyChangedMessage')
           ),
         })
       }

@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from typing import Optional, Union
+from typing import Optional, Tuple
 from urllib.parse import urljoin, urlparse
 
 from django.conf import settings
@@ -61,6 +61,7 @@ from .exceptions import (
     ChangeEmailNotAllowed,
     DeactivatedUserException,
     DisabledSignupError,
+    EmailAlreadyChanged,
     EmailAlreadyVerified,
     InvalidPassword,
     InvalidVerificationToken,
@@ -572,7 +573,7 @@ class UserHandler(metaclass=baserow_trace_methods(tracer)):
             )
             email.send()
 
-    def change_email(self, token: str) -> Union[AbstractUser, str]:
+    def change_email(self, token: str) -> Tuple[AbstractUser, str]:
         """
         Changes the email address of a user if the provided token is valid.
 
@@ -581,7 +582,9 @@ class UserHandler(metaclass=baserow_trace_methods(tracer)):
         :raises UserNotFound: When a user related to the provided token has not been
             found.
         :raises UserAlreadyExist: When a user with the new email already exists.
-        :return: The updated user instance.
+        :raises EmailAlreadyChanged: When the email has already been changed to the
+            requested address.
+        :return: A tuple containing the updated user instance and the old email address.
         """
 
         signer = self.get_change_email_signer()
@@ -591,7 +594,13 @@ class UserHandler(metaclass=baserow_trace_methods(tracer)):
         new_email = normalize_email_address(payload["new_email"])
 
         user = self.get_active_user(user_id=user_id)
-        old_email = user.email
+        old_email = normalize_email_address(user.email)
+
+        # Check if the new email is the same as the current email
+        if old_email == new_email:
+            raise EmailAlreadyChanged(
+                f"The email address has already been changed to the requested address."
+            )
 
         # Check again if a user with the new email already exists because it could be
         # that a new user was created in the meantime.

@@ -1410,8 +1410,6 @@ def test_change_email(data_fixture, client, mailoutbox):
     assert response.status_code == HTTP_204_NO_CONTENT
     assert len(mailoutbox) == 1
 
-    # Extract token from email
-    email_body = mailoutbox[0].body
     # The token is in the URL in the email
     handler = UserHandler()
     signer = handler.get_change_email_signer()
@@ -1440,13 +1438,15 @@ def test_change_email(data_fixture, client, mailoutbox):
     assert user.email == "newemail@test.nl"
     assert user.username == "newemail@test.nl"
 
-    # Test that using the same token again succeeds idempotently
+    # Test that using the same token again fails because email is already changed
     response = client.post(
         reverse("api:user:change_email"),
         {"token": change_token},
         format="json",
     )
-    assert response.status_code == HTTP_204_NO_CONTENT
+    response_json = response.json()
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response_json["error"] == "ERROR_EMAIL_ALREADY_CHANGED"
 
     # Verify email is still the same
     user.refresh_from_db()
@@ -1462,7 +1462,6 @@ def test_change_email_with_expired_token(data_fixture, client):
 
     handler = UserHandler()
     signer = handler.get_change_email_signer()
-    change_token = signer.dumps({"user_id": user.id, "new_email": "newemail@test.nl"})
 
     # Test with expired token using freezegun
     with freeze_time("2023-01-01 12:00:00"):
@@ -1479,3 +1478,39 @@ def test_change_email_with_expired_token(data_fixture, client):
         response_json = response.json()
         assert response.status_code == HTTP_400_BAD_REQUEST
         assert response_json["error"] == "EXPIRED_TOKEN_SIGNATURE"
+
+
+@pytest.mark.django_db
+def test_change_email_same_as_current(data_fixture, client):
+    data_fixture.create_password_provider()
+    valid_password = "thisIsAValidPassword"
+    user = data_fixture.create_user(email="test@test.nl", password=valid_password)
+
+    handler = UserHandler()
+    signer = handler.get_change_email_signer()
+
+    # Test changing email to the same email (same case)
+    change_token = signer.dumps({"user_id": user.id, "new_email": "test@test.nl"})
+    response = client.post(
+        reverse("api:user:change_email"),
+        {"token": change_token},
+        format="json",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response_json["error"] == "ERROR_EMAIL_ALREADY_CHANGED"
+
+    # Test changing email to the same email (different case)
+    change_token = signer.dumps({"user_id": user.id, "new_email": "TeSt@TeSt.nl"})
+    response = client.post(
+        reverse("api:user:change_email"),
+        {"token": change_token},
+        format="json",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response_json["error"] == "ERROR_EMAIL_ALREADY_CHANGED"
+
+    # Verify email was not changed
+    user.refresh_from_db()
+    assert user.email == "test@test.nl"

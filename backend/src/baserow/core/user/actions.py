@@ -588,7 +588,7 @@ class ChangeEmailActionType(ActionType):
             params=cls.Params(user.id, old_email, user.email),
             scope=cls.scope(),
         )
-        return user, old_email
+        return user
 
     @classmethod
     def scope(cls) -> ActionScopeStr:

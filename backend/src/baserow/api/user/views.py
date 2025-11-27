@@ -72,6 +72,7 @@ from baserow.core.user.exceptions import (
     ChangeEmailNotAllowed,
     DeactivatedUserException,
     DisabledSignupError,
+    EmailAlreadyChanged,
     EmailAlreadyVerified,
     InvalidPassword,
     InvalidVerificationToken,
@@ -92,6 +93,7 @@ from .errors import (
     ERROR_DEACTIVATED_USER,
     ERROR_DISABLED_RESET_PASSWORD,
     ERROR_DISABLED_SIGNUP,
+    ERROR_EMAIL_ALREADY_CHANGED,
     ERROR_EMAIL_ALREADY_VERIFIED,
     ERROR_EMAIL_VERIFICATION_REQUIRED,
     ERROR_INVALID_CREDENTIALS,
@@ -558,6 +560,7 @@ class ChangeEmailView(APIView):
                     "EXPIRED_TOKEN_SIGNATURE",
                     "ERROR_USER_NOT_FOUND",
                     "ERROR_ALREADY_EXISTS",
+                    "ERROR_EMAIL_ALREADY_CHANGED",
                     "ERROR_REQUEST_BODY_VALIDATION",
                 ]
             ),
@@ -572,6 +575,7 @@ class ChangeEmailView(APIView):
             SignatureExpired: EXPIRED_TOKEN_SIGNATURE,
             UserNotFound: ERROR_USER_NOT_FOUND,
             UserAlreadyExist: ERROR_ALREADY_EXISTS,
+            EmailAlreadyChanged: ERROR_EMAIL_ALREADY_CHANGED,
         }
     )
     @validate_body(ChangeEmailSerializer)
