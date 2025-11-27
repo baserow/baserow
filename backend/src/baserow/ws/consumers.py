@@ -158,8 +158,6 @@ class CoreConsumer(AsyncJsonWebsocketConsumer):
         Processes incoming messages.
         """
 
-        if content.get("type") == "ping":
-            await self.send_json({"type": "pong"})
         if "page" in content:
             await self._add_page_scope(content)
         if "remove_page" in content:
