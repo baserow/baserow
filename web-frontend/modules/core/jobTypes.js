@@ -101,7 +101,6 @@ export class JobType extends Registerable {
   async beforeUpdate(job, data) {}
 
   async afterUpdate(job, data) {
-    console.log('afterUpdate job', job)
     switch (job.state) {
       case 'cancelled':
         await this.onJobCancelled(job, data)
