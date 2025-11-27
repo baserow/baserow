@@ -428,18 +428,9 @@ class KnowledgeBaseHandler:
             if not chunks:
                 return
 
-            embeddings = self.vector_handler.embed_texts(texts)
-            if KnowledgeBaseChunk.can_search_vectors():
-                for c, e in zip(chunks, embeddings):
-                    c.embedding = list(e)
-                    c._embedding_array = list(e)
-            else:
-                for c, e in zip(chunks, embeddings):
-                    c._embedding_array = list(e)
+            self._update_chunks(texts, chunks)
 
-            KnowledgeBaseChunk.objects.bulk_create(chunks)
-
-    def sync_knowledge_base_from_docs(self):
+    def sync_knowledge_base_from_dev_docs(self):
         """
         Sync the developer documentation from the local `docs/` folder with the
         knowledgebase documents and chunks. Every .md file will be included. It will
@@ -447,7 +438,7 @@ class KnowledgeBaseHandler:
         entry already exists, and will create, update or delete accordingly.
         """
 
-        docs_root = self._docs_path()
+        docs_root = self._get_docs_path()
         if docs_root is None:
             logger.warning(
                 f"The {docs_root} folder does not exist, skip synchronizing the dev "
@@ -461,7 +452,6 @@ class KnowledgeBaseHandler:
         slugs: set[str] = set()
 
         for md_path in docs_root.rglob("*.md"):
-            print(md_path)
             rel = md_path.relative_to(docs_root)
             rel_str = rel.as_posix()
             if not rel_str.lower().endswith(".md"):
@@ -501,8 +491,8 @@ class KnowledgeBaseHandler:
             }
 
             # Delete docs that no longer have a corresponding markdown file. This is
-            # needed because a file could be related because it's not longer
-            # relevant. It should then not show up in the docs anymore.
+            # needed because a file could be removed because it's no longer relevant.
+            # It should then not show up in the docs anymore.
             to_delete_slugs = [s for s in existing.keys() if s not in slugs]
             if to_delete_slugs:
                 KnowledgeBaseDocument.objects.filter(
@@ -616,16 +606,7 @@ class KnowledgeBaseHandler:
             if not chunks:
                 return
 
-            embeddings = self.vector_handler.embed_texts(texts)
-            if KnowledgeBaseChunk.can_search_vectors():
-                for c, e in zip(chunks, embeddings):
-                    c.embedding = list(e)
-                    c._embedding_array = list(e)
-            else:
-                for c, e in zip(chunks, embeddings):
-                    c._embedding_array = list(e)
-
-            KnowledgeBaseChunk.objects.bulk_create(chunks)
+            self._update_chunks(texts, chunks)
 
     def _csv_path(self):
         path = Path(__file__).resolve().parents[5] / "website_export.csv"
@@ -635,7 +616,7 @@ class KnowledgeBaseHandler:
 
         return path
 
-    def _docs_path(self) -> Path | None:
+    def _get_docs_path(self) -> Path | None:
         """
         Returns the path to the `docs` directory if it exists, otherwise None.
         The folder is expected at `../../../../../../../docs` from this handler file.
@@ -655,9 +636,21 @@ class KnowledgeBaseHandler:
                 return dt.value
         return KnowledgeBaseDocument.DocumentType.RAW_DOCUMENT
 
+    def _update_chunks(self, texts, chunks):
+        embeddings = self.vector_handler.embed_texts(texts)
+        if KnowledgeBaseChunk.can_search_vectors():
+            for c, e in zip(chunks, embeddings):
+                c.embedding = list(e)
+                c._embedding_array = list(e)
+        else:
+            for c, e in zip(chunks, embeddings):
+                c._embedding_array = list(e)
+
+        KnowledgeBaseChunk.objects.bulk_create(chunks)
+
     def sync_knowledge_base(self):
         # Ensure default categories exist (parents set by load_categories)
         self.load_categories(DEFAULT_CATEGORIES)
 
         self.sync_knowledge_base_from_csv()
-        self.sync_knowledge_base_from_docs()
+        self.sync_knowledge_base_from_dev_docs()

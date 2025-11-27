@@ -28,7 +28,7 @@ def handler_and_docs_root(tmp_path, monkeypatch):
     docs_root = tmp_path / "docs"
     docs_root.mkdir(parents=True, exist_ok=True)
 
-    monkeypatch.setattr(KnowledgeBaseHandler, "_docs_path", lambda self: docs_root)
+    monkeypatch.setattr(KnowledgeBaseHandler, "_get_docs_path", lambda self: docs_root)
 
     handler = KnowledgeBaseHandler()
     return handler, docs_root
@@ -384,7 +384,7 @@ def test_sync_dev_docs_creates_documents_and_chunks(handler_and_docs_root, monke
     file2.write_text("API doc body", encoding="utf-8")
 
     monkeypatch.setattr(handler.vector_handler, "embed_texts", fake_embed_texts)
-    handler.sync_knowledge_base_from_docs()
+    handler.sync_knowledge_base_from_dev_docs()
 
     doc_type = KnowledgeBaseDocument.DocumentType.BASEROW_DEV_DOCS
 
@@ -421,7 +421,7 @@ def test_sync_dev_docs_no_reembedding_when_body_unchanged(
     doc_file.write_text("Initial body", encoding="utf-8")
 
     monkeypatch.setattr(handler.vector_handler, "embed_texts", fake_embed_texts)
-    handler.sync_knowledge_base_from_docs()
+    handler.sync_knowledge_base_from_dev_docs()
 
     doc_type = KnowledgeBaseDocument.DocumentType.BASEROW_DEV_DOCS
     doc = KnowledgeBaseDocument.objects.get(type=doc_type, slug="dev/development/ci-cd")
@@ -429,7 +429,7 @@ def test_sync_dev_docs_no_reembedding_when_body_unchanged(
     chunk_before_id = chunk_before.id
 
     monkeypatch.setattr(handler.vector_handler, "embed_texts", fake_embed_texts)
-    handler.sync_knowledge_base_from_docs()
+    handler.sync_knowledge_base_from_dev_docs()
 
     chunk_after = KnowledgeBaseChunk.objects.get(source_document=doc)
     assert chunk_after.id == chunk_before_id
@@ -448,7 +448,7 @@ def test_sync_dev_docs_reembeds_on_body_change(handler_and_docs_root, monkeypatc
     doc_file.write_text("Original body", encoding="utf-8")
 
     monkeypatch.setattr(handler.vector_handler, "embed_texts", fake_embed_texts)
-    handler.sync_knowledge_base_from_docs()
+    handler.sync_knowledge_base_from_dev_docs()
 
     doc_type = KnowledgeBaseDocument.DocumentType.BASEROW_DEV_DOCS
     doc = KnowledgeBaseDocument.objects.get(type=doc_type, slug="dev/development/ci-cd")
@@ -459,7 +459,7 @@ def test_sync_dev_docs_reembeds_on_body_change(handler_and_docs_root, monkeypatc
     doc_file.write_text("Updated body text", encoding="utf-8")
 
     monkeypatch.setattr(handler.vector_handler, "embed_texts", fake_embed_texts)
-    handler.sync_knowledge_base_from_docs()
+    handler.sync_knowledge_base_from_dev_docs()
 
     new_chunk = KnowledgeBaseChunk.objects.get(source_document=doc)
     assert new_chunk.id != old_chunk_id
@@ -483,7 +483,7 @@ def test_sync_dev_docs_deletes_docs_when_file_removed(
     file2.write_text("B", encoding="utf-8")
 
     monkeypatch.setattr(handler.vector_handler, "embed_texts", fake_embed_texts)
-    handler.sync_knowledge_base_from_docs()
+    handler.sync_knowledge_base_from_dev_docs()
 
     doc_type = KnowledgeBaseDocument.DocumentType.BASEROW_DEV_DOCS
     assert KnowledgeBaseDocument.objects.filter(
@@ -496,7 +496,7 @@ def test_sync_dev_docs_deletes_docs_when_file_removed(
     file1.unlink()
 
     monkeypatch.setattr(handler.vector_handler, "embed_texts", fake_embed_texts)
-    handler.sync_knowledge_base_from_docs()
+    handler.sync_knowledge_base_from_dev_docs()
 
     # Document for removed file should be deleted; other remains
     assert not KnowledgeBaseDocument.objects.filter(
