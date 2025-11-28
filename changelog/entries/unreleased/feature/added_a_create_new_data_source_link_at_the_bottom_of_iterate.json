@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Added a 'Create new data source' link at the bottom of iterate/table element dropdowns for quicker data source creation.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2025-11-28"
+}

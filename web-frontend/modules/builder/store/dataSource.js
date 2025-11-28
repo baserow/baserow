@@ -140,11 +140,13 @@ const actions = {
         dataSource,
         values: updatedDataSource,
       })
+      return updatedDataSource
     } catch (error) {
       await dispatch('forceUpdate', { page, dataSource, values: oldValues })
       throw error
+    } finally {
+      commit('SET_LOADING', { page, value: false })
     }
-    commit('SET_LOADING', { page, value: false })
   },
 
   async debouncedUpdate(

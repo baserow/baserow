@@ -277,7 +277,7 @@
   margin-bottom: 4px;
 
   @include rounded($rounded);
-  @include fixed-height(36px, 14px);
+  @include fixed-height(36px, 13px);
   @include flex-align-items(6px);
 
   &:hover {
