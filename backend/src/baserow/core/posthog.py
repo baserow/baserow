@@ -16,6 +16,7 @@ from baserow.core.utils import exception_capturer
 posthog_client = Posthog(
     settings.POSTHOG_PROJECT_API_KEY,
     settings.POSTHOG_HOST,
+    # disabled=True will automatically avoid sending any data, even if capture is called
     disabled=not settings.POSTHOG_ENABLED,
 )
 

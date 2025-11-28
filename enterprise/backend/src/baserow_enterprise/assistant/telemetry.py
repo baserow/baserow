@@ -10,8 +10,6 @@ from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
 
-from django.conf import settings
-
 import udspy
 from posthog.ai.openai import AsyncOpenAI
 from udspy.callback import BaseCallback
@@ -62,22 +60,19 @@ class PosthogTracingCallback(BaseCallback):
         self.workspace_id = str(chat.workspace_id)
         self.chat_uuid = str(chat.uuid)
 
-        self.enabled = settings.POSTHOG_ENABLED
-
         start_time = _utc_now()
         self.spans = {}
         self.span_ids = [self.span_id]
 
-        if self.enabled:
-            # patch the OpenAI client to automatically send the generation event
-            lm = udspy.settings._context_lm.get()
-            openai_client = lm.client
-            if not isinstance(openai_client, AsyncOpenAI):
-                lm.client = AsyncOpenAI(
-                    api_key=openai_client.api_key,
-                    base_url=openai_client.base_url,
-                    posthog_client=posthog_client,
-                )
+        # patch the OpenAI client to automatically send the generation event
+        lm = udspy.settings._context_lm.get()
+        openai_client = lm.client
+        if not isinstance(openai_client, AsyncOpenAI):
+            lm.client = AsyncOpenAI(
+                api_key=openai_client.api_key,
+                base_url=openai_client.base_url,
+                posthog_client=posthog_client,
+            )
 
         exception = None
         try:
@@ -107,9 +102,6 @@ class PosthogTracingCallback(BaseCallback):
         :param event: Event name (e.g., "$ai_generation")
         :param properties: Event properties dictionary
         """
-
-        if not self.enabled:
-            return
 
         default_props = {
             "$ai_trace_id": self.trace_id,
