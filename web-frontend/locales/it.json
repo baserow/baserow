@@ -490,7 +490,8 @@
         "uploadFileViaUrlDescription": "Carica un file su Baserow fornendo un URL.",
         "fileUploads": "Carica file",
         "listTables": "Elenco tabelle",
-        "sendWebhookEventsDescription": "Parametro di query flag che attiva i webhook dopo l'operazione, se impostato su `y`, `yes`, `true`, `t`, `on`, `1` o lasciato vuoto. Il valore predefinito è `true`"
+        "sendWebhookEventsDescription": "Parametro di query flag che attiva i webhook dopo l'operazione, se impostato su `y`, `yes`, `true`, `t`, `on`, `1` o lasciato vuoto. Il valore predefinito è `true`",
+        "apiDocs": "Elenca tutte le tabelle"
     },
     "exporterType": {
         "csv": "Esporta in CSV"
@@ -638,5 +639,18 @@
     },
     "fieldConstraintParametersText": {
         "placeholder": "Inserisci il valore della limitazione"
+    },
+    "fieldConstraint": {
+        "uniqueWithEmpty": "Chiave univoca comprensiva dei valori vuoti"
+    },
+    "assistantMessageSources": {
+        "sources": "{count} sorgente | {count} sorgenti"
+    },
+    "runtimeFormulaTypes": {
+        "concatDescription": "Argomenti uniti come testo singolo.",
+        "getDescription": "Restituisce il valore ottenuto da una formula Baserow.",
+        "addDescription": "Somma due argomenti.",
+        "minusDescription": "Sottrae il secondo argomento dal primo.",
+        "multiplyDescription": "Moltiplica i due argomenti."
     }
 }
