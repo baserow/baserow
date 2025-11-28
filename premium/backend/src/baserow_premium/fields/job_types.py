@@ -1,11 +1,7 @@
-from typing import Type
-
-from concurrent.futures import ThreadPoolExecutor
-from threading import RLock
 from collections.abc import Iterator
 from concurrent.futures import Executor, ThreadPoolExecutor
 from queue import Empty, Queue
-from typing import Any
+from typing import Any, Type
 
 from django.contrib.auth.models import AbstractUser
 from django.db.models import QuerySet
@@ -50,7 +46,6 @@ from .models import AIField, GenerateAIValuesJob
 from .registries import ai_field_output_registry
 
 
-
 class GenerateAIValuesJobFiltersSerializer(serializers.Serializer):
     """
     Adds the ability to filter GenerateAIValuesJob by AI field ID.
@@ -61,6 +56,7 @@ class GenerateAIValuesJobFiltersSerializer(serializers.Serializer):
         required=False,
         help_text="Filter by the AI field ID.",
     )
+
 
 def get_valid_generative_ai_model_type_or_raise(ai_field: AIField):
     """
@@ -88,7 +84,6 @@ class GenerateAIValuesJobType(JobType):
     model_class = GenerateAIValuesJob
     max_count = 3
 
-    allowed_fields = JobType.allowed_fields + ["rows_errors"]
     api_exceptions_map = {
         UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
         WorkspaceDoesNotExist: ERROR_GROUP_DOES_NOT_EXIST,
@@ -100,7 +95,6 @@ class GenerateAIValuesJobType(JobType):
         "row_ids",
         "view_id",
         "only_empty",
-        "rows_errors",
     ]
     serializer_field_overrides = {
         "field_id": serializers.IntegerField(
@@ -122,7 +116,6 @@ class GenerateAIValuesJobType(JobType):
             help_text="Whether to only generate AI values for rows where the "
             "field is empty.",
         ),
-        "rows_errors": serializers.HStoreField(required=False, read_only=True),
     }
 
     def can_schedule_or_raise(self, job: GenerateAIValuesJob):
