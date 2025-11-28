@@ -34,6 +34,15 @@ from baserow_enterprise.assistant.types import (
 )
 
 
+@pytest.fixture(autouse=True)
+def mock_posthog_openai():
+    with patch("posthog.ai.openai.AsyncOpenAI") as mock:
+        # Configure the mock if needed
+        mock.return_value = MagicMock()
+        mock.return_value.model = "test-model"
+        yield mock
+
+
 @pytest.mark.django_db
 class TestAssistantCallbacks:
     """Test the AssistantCallbacks class for handling tool execution"""
@@ -296,9 +305,8 @@ class TestAssistantChatHistory:
         }
 
     @patch("udspy.ReAct.astream")
-    @patch("udspy.LM")
     def test_history_is_passed_to_astream_as_context(
-        self, mock_lm, mock_react_astream, enterprise_data_fixture
+        self, mock_react_astream, enterprise_data_fixture
     ):
         """
         Test that chat history is loaded correctly and passed to the agent as context
@@ -372,7 +380,6 @@ class TestAssistantChatHistory:
             return _stream()
 
         mock_react_astream.side_effect = mock_agent_stream_factory
-        mock_lm.return_value.model = "test-model"
 
         message = HumanMessage(content="How to add a view?")
 
@@ -390,9 +397,8 @@ class TestAssistantMessagePersistence:
 
     @patch("udspy.ChainOfThought.astream")
     @patch("udspy.ReAct.astream")
-    @patch("udspy.LM")
     def test_astream_messages_persists_human_message(
-        self, mock_lm, mock_react_astream, mock_cot_astream, enterprise_data_fixture
+        self, mock_react_astream, mock_cot_astream, enterprise_data_fixture
     ):
         """Test that human messages are persisted to database before streaming"""
 
@@ -426,9 +432,6 @@ class TestAssistantMessagePersistence:
 
         mock_react_astream.return_value = mock_agent_stream()
 
-        # Configure mock LM to return a serializable model name
-        mock_lm.return_value.model = "test-model"
-
         assistant = Assistant(chat)
         ui_context = UIContext(
             workspace=WorkspaceUIContext(id=workspace.id, name=workspace.name),
@@ -456,9 +459,8 @@ class TestAssistantMessagePersistence:
 
     @patch("udspy.ChainOfThought.astream")
     @patch("udspy.ReAct.astream")
-    @patch("udspy.LM")
     def test_astream_messages_persists_ai_message_with_sources(
-        self, mock_lm, mock_react_astream, mock_cot_astream, enterprise_data_fixture
+        self, mock_react_astream, mock_cot_astream, enterprise_data_fixture
     ):
         """Test that AI messages are persisted with sources in artifacts"""
 
@@ -467,9 +469,6 @@ class TestAssistantMessagePersistence:
         chat = AssistantChat.objects.create(
             user=user, workspace=workspace, title="Test Chat"
         )
-
-        # Configure mock LM to return a serializable model name
-        mock_lm.return_value.model = "test-model"
 
         assistant = Assistant(chat)
 
@@ -599,9 +598,8 @@ class TestAssistantStreaming:
 
     @patch("udspy.ChainOfThought.astream")
     @patch("udspy.ReAct.astream")
-    @patch("udspy.LM")
     def test_astream_messages_yields_answer_chunks(
-        self, mock_lm, mock_react_astream, mock_cot_astream, enterprise_data_fixture
+        self, mock_react_astream, mock_cot_astream, enterprise_data_fixture
     ):
         """Test that answer chunks are yielded during streaming"""
 
@@ -642,9 +640,6 @@ class TestAssistantStreaming:
             yield Prediction(answer="Hello world", trajectory=[], reasoning="")
 
         mock_react_astream.return_value = mock_agent_stream()
-
-        # Configure mock LM to return a serializable model name
-        mock_lm.return_value.model = "test-model"
 
         async def consume_stream():
             chunks = []
@@ -733,9 +728,8 @@ class TestAssistantStreaming:
 
     @patch("udspy.ChainOfThought.astream")
     @patch("udspy.ReAct.astream")
-    @patch("udspy.LM")
     def test_astream_messages_yields_thinking_messages(
-        self, mock_lm, mock_react_astream, mock_cot_astream, enterprise_data_fixture
+        self, mock_react_astream, mock_cot_astream, enterprise_data_fixture
     ):
         """Test that thinking messages from tools are yielded"""
 
@@ -770,9 +764,6 @@ class TestAssistantStreaming:
             yield Prediction(answer="Answer", trajectory=[], reasoning="")
 
         mock_react_astream.return_value = mock_agent_stream()
-
-        # Configure mock LM to return a serializable model name
-        mock_lm.return_value.model = "test-model"
 
         ui_context = UIContext(
             workspace=WorkspaceUIContext(id=workspace.id, name=workspace.name),
@@ -1056,9 +1047,8 @@ class TestAssistantCancellation:
 
     @patch("udspy.ChainOfThought.astream")
     @patch("udspy.ReAct.astream")
-    @patch("udspy.LM")
     def test_astream_messages_yields_ai_started_message(
-        self, mock_lm, mock_react_astream, mock_cot_astream, enterprise_data_fixture
+        self, mock_react_astream, mock_cot_astream, enterprise_data_fixture
     ):
         """Test that astream_messages yields AiStartedMessage at the beginning"""
 
@@ -1090,7 +1080,6 @@ class TestAssistantCancellation:
             yield Prediction(answer="Hello there!", trajectory=[], reasoning="")
 
         mock_react_astream.return_value = mock_agent_stream()
-        mock_lm.return_value.model = "test-model"
 
         assistant = Assistant(chat)
         human_message = HumanMessage(content="Hello")
@@ -1111,9 +1100,8 @@ class TestAssistantCancellation:
 
     @patch("udspy.ChainOfThought.astream")
     @patch("udspy.ReAct.astream")
-    @patch("udspy.LM")
     def test_astream_messages_checks_cancellation_periodically(
-        self, mock_lm, mock_react_astream, mock_cot_astream, enterprise_data_fixture
+        self, mock_react_astream, mock_cot_astream, enterprise_data_fixture
     ):
         """Test that astream_messages checks for cancellation every 10 chunks"""
 
@@ -1147,7 +1135,6 @@ class TestAssistantCancellation:
             yield Prediction(answer="Complete response", trajectory=[], reasoning="")
 
         mock_react_astream.return_value = mock_agent_stream()
-        mock_lm.return_value.model = "test-model"
 
         assistant = Assistant(chat)
         cache_key = assistant._get_cancellation_cache_key()

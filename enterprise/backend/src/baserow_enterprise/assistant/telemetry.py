@@ -40,6 +40,19 @@ class PosthogTracingCallback(BaseCallback):
     multiple concurrent traces can be captured independently.
     """
 
+    def __init__(self):
+        super().__init__()
+
+        self.chat: AssistantChat | None = None
+        self.human_msg: str | None = None
+        self.trace_id: str | None = None
+        self.span_id: str | None = None
+        self.user_id: str | None = None
+        self.workspace_id: str | None = None
+        self.chat_uuid: str | None = None
+        self.spans: dict[str, dict] = {}
+        self.span_ids: list[str] = []
+
     @contextmanager
     def trace(self, chat: AssistantChat, human_message: str):
         """
@@ -63,6 +76,7 @@ class PosthogTracingCallback(BaseCallback):
         start_time = _utc_now()
         self.spans = {}
         self.span_ids = [self.span_id]
+        self.trace_outputs = None
 
         # patch the OpenAI client to automatically send the generation event
         lm = udspy.settings._context_lm.get()
@@ -91,7 +105,10 @@ class PosthogTracingCallback(BaseCallback):
                     "$ai_span_id": self.span_id,
                     "$ai_latency": (_utc_now() - start_time).total_seconds(),
                     "$ai_is_error": exception is not None,
-                    "$ai_input_state": human_message,
+                    "$ai_input_state": {"user_message": human_message},
+                    "$ai_output_state": self.trace_outputs
+                    if exception is None
+                    else str(exception),
                 },
             )
 
@@ -183,20 +200,12 @@ class PosthogTracingCallback(BaseCallback):
             }
         )
 
-        # Avoid capturing Predict spans that are children of CoT or ReAct
-        parent_span_id = span["properties"].get("$ai_parent_span_id")
-        parent_span = self.spans.get(parent_span_id) if parent_span_id else None
-        span_name = span["properties"].get("$ai_span_name")
-        is_predict = span_name == "Predict"
-        is_cot = span_name == "ChainOfThought"
-        parent_name = parent_span and parent_span["properties"].get("$ai_span_name")
-        parent_is_cot = parent_name == "ChainOfThought"
-        parent_is_react = parent_name == "ReAct"
-
-        if is_predict and (parent_is_cot or parent_is_react):
-            return
-        elif is_cot and parent_is_react:
-            span["properties"]["$ai_span_name"] = "Extract"
+        if isinstance(outputs, dict) and "answer" in outputs:
+            self.trace_outputs = {
+                k: v
+                for k, v in outputs.items()
+                if k not in ["module", "native_tool_calls"]
+            }
 
         self._capture_event("$ai_span", timestamp=start_time, **span)
 

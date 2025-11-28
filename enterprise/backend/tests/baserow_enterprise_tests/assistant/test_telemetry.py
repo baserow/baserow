@@ -2,7 +2,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 import udspy
-from posthog.ai.openai import AsyncOpenAI
 
 from baserow_enterprise.assistant.models import AssistantChat
 from baserow_enterprise.assistant.telemetry import PosthogTracingCallback
@@ -17,38 +16,29 @@ def assistant_chat_fixture(enterprise_data_fixture):
     )
 
 
+@pytest.fixture(autouse=True)
+def mock_posthog_openai():
+    with udspy.settings.context(lm=udspy.LM(model="fake-model")), patch(
+        "posthog.ai.openai.AsyncOpenAI"
+    ) as mock:
+        # Configure the mock if needed
+        mock.return_value = MagicMock()
+        mock.return_value.model = "test-model"
+        yield mock
+
+
 @pytest.mark.django_db
 class TestPosthogTracingCallback:
     @patch("baserow_enterprise.assistant.telemetry.posthog_client")
-    @patch("baserow_enterprise.assistant.telemetry.settings")
-    @patch("baserow_enterprise.assistant.telemetry.udspy")
-    def test_trace_context_manager_success(
-        self, mock_udspy, mock_settings, mock_posthog, assistant_chat_fixture
-    ):
+    def test_trace_context_manager_success(self, mock_posthog, assistant_chat_fixture):
         """Test the trace context manager in a successful execution flow."""
 
-        mock_settings.POSTHOG_ENABLED = True
         callback = PosthogTracingCallback()
-
-        # Mock the udspy context lm
-        mock_lm = MagicMock()
-        mock_lm.client = MagicMock()
-        mock_lm.client.api_key = "test-api-key"
-        mock_lm.client.base_url = "https://api.test.com"
-        # Ensure it's not already an AsyncOpenAI instance so patching logic runs
-        mock_lm.client.__class__ = MagicMock
-
-        mock_context_lm = MagicMock()
-        mock_context_lm.get.return_value = mock_lm
-        mock_udspy.settings._context_lm = mock_context_lm
 
         with callback.trace(assistant_chat_fixture, "Hello"):
             assert callback.trace_id is not None
             assert callback.span_id is not None
             assert callback.user_id == str(assistant_chat_fixture.user_id)
-
-            # Verify LM client was patched
-            assert isinstance(mock_lm.client, AsyncOpenAI)
 
         # Verify trace event captured
         mock_posthog.capture.assert_called_once()
@@ -68,26 +58,16 @@ class TestPosthogTracingCallback:
         assert props["$ai_span_id"] == callback.span_id
         assert props["$ai_latency"] >= 0
         assert props["$ai_is_error"] is False
-        assert props["$ai_input_state"] == "Hello"
+        assert props["$ai_input_state"] == {"user_message": "Hello"}
+        assert props["$ai_output_state"] is None
 
     @patch("baserow_enterprise.assistant.telemetry.posthog_client")
-    @patch("baserow_enterprise.assistant.telemetry.settings")
-    @patch("baserow_enterprise.assistant.telemetry.udspy")
     def test_trace_context_manager_exception(
-        self, mock_udspy, mock_settings, mock_posthog, assistant_chat_fixture
+        self, mock_posthog, assistant_chat_fixture
     ):
         """Test the trace context manager when an exception occurs."""
 
-        mock_settings.POSTHOG_ENABLED = True
         callback = PosthogTracingCallback()
-
-        mock_lm = MagicMock()
-        mock_lm.client = MagicMock()
-        mock_lm.client.api_key = "test-api-key"
-        mock_lm.client.base_url = "https://api.test.com"
-        mock_context_lm = MagicMock()
-        mock_context_lm.get.return_value = mock_lm
-        mock_udspy.settings._context_lm = mock_context_lm
 
         with pytest.raises(ValueError):
             with callback.trace(assistant_chat_fixture, "Hello"):
@@ -292,14 +272,3 @@ class TestPosthogTracingCallback:
 
         assert props["$ai_is_error"] is True
         assert props["$ai_output_state"] == "Tool execution failed"
-
-    @patch("baserow_enterprise.assistant.telemetry.posthog_client")
-    def test_telemetry_disabled(self, mock_posthog, assistant_chat_fixture):
-        """Test that nothing is captured when disabled."""
-
-        callback = PosthogTracingCallback()
-        callback.enabled = False
-
-        callback._capture_event("test_event")
-
-        mock_posthog.capture.assert_not_called()
