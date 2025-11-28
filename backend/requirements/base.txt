@@ -679,7 +679,7 @@ tzdata==2025.2
     #   -r base.in
     #   django-celery-beat
     #   kombu
-udspy==0.1.7
+udspy==0.1.8
     # via -r base.in
 unicodecsv==0.14.1
     # via -r base.in
