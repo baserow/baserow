@@ -1,5 +1,9 @@
 # ./dev.sh
 
+> **Deprecated:** `dev.sh` is deprecated and will be removed in a future release.
+> Please use `just` commands instead. See [justfile.md](justfile.md) for the new workflow
+> and [running-the-dev-environment.md](running-the-dev-environment.md) for a migration guide.
+
 `dev.sh` is a helper bash script which makes working with baserow's development
 environment a breeze.
 

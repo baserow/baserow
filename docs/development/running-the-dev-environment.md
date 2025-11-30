@@ -1,154 +1,203 @@
 # Running the dev environment
 
 If you want to contribute to Baserow you need to setup the development environment on
-your local computer. The best way to do this is via `docker-compose` so that you can
+your local computer. The best way to do this is via `docker compose` so that you can
 start the app with the least amount of hassle.
 
-### Quickstart
+> **Note:** The `dev.sh` script is deprecated. Use `just` commands instead as described below.
+> See [justfile.md](justfile.md) for the complete command reference.
 
-If you are familiar with git and docker-compose run these commands to launch Baserow's
-dev environment locally, otherwise please start from the Installing Requirements section
-below.
+## Quickstart
+
+If you are familiar with git and Docker, run these commands to launch Baserow's
+dev environment locally:
 
 ```bash
-$ git clone --branch develop git@github.com:baserow/baserow.git
-# Our supplied ./dev.sh script wraps docker-compose setting the correct env vars for 
-# you to get hot code reloading working well.
-$ ./dev.sh 
-# Run ./dev.sh help for further details.
-$ ./dev.sh help
+# Clone the repository
+git clone --branch develop git@github.com:baserow/baserow.git
+cd baserow
+
+# Start the dev environment (builds images if needed)
+just dc-dev up -d
+
+# View logs
+just logs -f
+
+# Or view specific service logs
+just logs -f backend
 ```
+
+For more details on available commands, run `just --list` or see [justfile.md](justfile.md).
 
 ## Installing requirements
 
-If you haven't already installed docker and docker-compose on your computer you can do
-so by following the instructions on https://docs.docker.com/desktop/ and
-https://docs.docker.com/compose/install/.
+### Required tools
 
-> Docker version 19.03 is the minimum required to build Baserow. It is strongly
-> advised however that you install the latest version of Docker available.
-> Please check that your docker is up to date by running `docker -v`.
+1. **Docker** - Install from https://docs.docker.com/desktop/
+   - Minimum version: 19.03 (latest recommended)
+   - Verify with: `docker -v`
 
-You will also need git installed which you can do by following the instructions on
-https://www.linode.com/docs/development/version-control/how-to-install-git-on-linux-mac-and-windows/
-.
+2. **just** - Command runner for development tasks
+   ```bash
+   # macOS
+   brew install just
 
-Once you have finished installing all the required software you should be able to run
-the following commands in your terminal.
+   # Linux
+   curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to ~/.local/bin
+   ```
+
+3. **Git** - Install from https://git-scm.com/downloads
+   - Verify with: `git --version`
+
+Verify your installation:
 
 ```bash
 $ docker -v
-Docker version 20.10.6, build 370c289
-$ docker-compose -v
-docker-compose version 1.26.2, build eefe0d31
+Docker version 24.0.0, build ...
+$ just --version
+just 1.25.0
 $ git --version
-git version 2.24.3 (Apple Git-128)
+git version 2.40.0
 ```
-
-If all commands return something similar as described in the example, then you are ready
-to proceed!
 
 ## Starting the dev environment
 
 > If you run into any issues starting your development environment feel free to contact
 > us via the form on https://baserow.io/contact.
 
-For example purposes I have created a directory in my home folder named `baserow`. You
-can of course follow the steps in any directory, but in this tutorial I will assume the
-working directory is `~/baserow`.
-
-First we have to clone the repository. Execute the following commands to clone the
-master branch. If you are not familiar with git clone, this will download a copy of
-Baserow's code to your computer.
-
-```
-$ cd ~/baserow
-$ git clone --branch master https://github.com/baserow/baserow.git
-Cloning into 'baserow'...
-...
-$ cd baserow
-```
-
-Now that we have our copy of the repo and have changed directories to the newly
-created `baserow`, we can bring up the containers. You just have to execute the
-docker-compose command using the `docker-compose.yml` file. It might take a while for
-the command to finish, this is because the images have to be built from scratch.
-
-```
-$ ./dev.sh 
-Building backend
-...
-Starting db    ... done
-Starting redis    ... done
-Starting backend    ... done
-Starting web-frontend   ... done
-```
-
-Your dev environment is now running, the database has been automatically migrated for
-you and the baserow templates have been synced. You can now visit http://localhost:3000
-to sign up and login to your Baserow.
-
-## Looking at the web api
-
-Baserow's backend container exposes a rest API. Find the API spec for your local version
-of Baserow at http://localhost:8000/api/redoc/ . To check that it is working correctly
-when you visit http://localhost:8000/api/workspaces/ in a browser you should see the error
-"Authentication credentials were not provided." as no JWT was provided.
-
-## Attaching to the dev environment
-
-The dev environment consists of a number of docker containers, see:
-
-If you use `./dev.sh` by default it will attempt to open tabs in your terminal and
-attach to the running baserow containers. Otherwise you can do so manually by running
-the following commands:
+### Clone the repository
 
 ```bash
-$ # Run the commands below to connect to the various different parts of Baserow
-$ docker attach backend
-$ docker attach celery 
-$ docker attach web-frontend
+git clone --branch develop https://github.com/baserow/baserow.git
+cd baserow
 ```
 
-When attached you can press CTRL-C to end the current containers main process. However
-unlike normal docker containers this one will not exit immediately but instead present
-you with a bash terminal. In this terminal you can then run any admin commands you wish
-or inspect the state of the containers. Simply press up and go through the containers
-bash history to get the original command to restart the containers main process.
-
-## Other useful commands
-
-Below is a quick example of some of the more common useful operations and commands:
+### Build and start containers
 
 ```bash
-$ # View the logs 
-$ docker-compose logs 
-$ # Migrate
-$ ./dev.sh run backend manage migrate
-$ # Restart and Build 
-$ ./dev.sh restart --build 
+# Build images (first time or after Dockerfile changes)
+just dc-dev build --parallel
+
+# Start all services in detached mode
+just dc-dev up -d
 ```
 
-## Keep the servers running
+The first build may take a while as images are built from scratch. Subsequent starts will be much faster.
 
-Both the web-frontend and backend containers need to keep running while you are
-developing. They also monitor file changes and update automatically, so you don't need
-to worry about reloading. Go and make some changes yourself. You should see the result
-right away.
+### Verify it's running
 
-## Working with Docker and Django
+```bash
+# Check container status
+just dc-dev ps
 
-For further reading on how to work with docker containers and django check out:
+# View logs
+just logs -f
+```
 
-- [django's getting started tutorial](https://docs.djangoproject.com/en/3.1/intro/tutorial01/)
-- [docker's getting started tutorial](https://docs.docker.com/get-started/)
-- [docker's cli reference](https://docs.docker.com/engine/reference/run/)
-- [docker composes reference](https://docs.docker.com/compose/)
+Your dev environment is now running! The database has been automatically migrated
+and the Baserow templates have been synced. Visit http://localhost:3000 to sign up and login.
 
-## Baserow further reading
+## Looking at the web API
 
-- See [introduction](../technical/introduction.md) for more details on Baserow's
-  architecture.
-- See [baserow docker api](../installation/install-with-docker.md) for more detail on how
-  Baserow's docker setup can be used and configured.
-- See [dev.sh](dev_sh.md) for further detail on what dev.sh does and why
+Baserow's backend container exposes a REST API:
+
+- **API Documentation**: http://localhost:8000/api/redoc/
+- **API Root**: http://localhost:8000/api/workspaces/ (will show auth error without JWT)
+
+## Working with the dev environment
+
+### Viewing logs
+
+```bash
+# All logs (backend + celery)
+just logs
+
+# Follow logs in real-time
+just logs -f
+
+# Specific services
+just logs backend          # Backend only
+just logs celery           # All celery workers
+just logs frontend         # Web frontend
+just logs -f backend       # Follow backend logs
+```
+
+### Running commands in containers
+
+```bash
+# Open a shell in the backend container
+just dc-dev shell backend bash
+
+# Run Django management commands
+just dc-dev exec backend python manage.py migrate
+just dc-dev exec backend python manage.py createsuperuser
+
+# Run any command
+just dc-dev exec backend python manage.py shell_plus
+```
+
+### Common operations
+
+| Task | Command |
+|------|---------|
+| Start environment | `just dc-dev up -d` |
+| Stop environment | `just dc-dev down` |
+| Rebuild images | `just dc-dev build --parallel` |
+| View logs | `just logs -f` |
+| Run migrations | `just dc-dev exec backend python manage.py migrate` |
+| Open backend shell | `just dc-dev shell backend bash` |
+| Restart a service | `just dc-dev restart backend` |
+
+### Hot reloading
+
+Both the web-frontend and backend containers monitor file changes and update automatically.
+You don't need to restart containers when making code changes - the result should appear right away.
+
+## Alternative: Local development (without Docker)
+
+For faster iteration, you can run the backend natively while using Docker only for services (PostgreSQL, Redis):
+
+```bash
+# Start only database and redis
+just dc-dev up -d db redis
+
+# Initialize the backend (creates venv, installs deps)
+just b init
+
+# Run the development server
+just b run-dev-server
+
+# In another terminal, run Celery workers
+just b run-dev-celery
+```
+
+See [justfile.md](justfile.md) for more details on local development.
+
+## Further reading
+
+- [justfile.md](justfile.md) - Complete command reference
+- [running-tests.md](running-tests.md) - How to run tests
+- [introduction](../technical/introduction.md) - Baserow's architecture
+- [install-with-docker](../installation/install-with-docker.md) - Docker configuration options
+
+---
+
+## Deprecated: dev.sh
+
+> **Warning:** `dev.sh` is deprecated and will be removed in a future release.
+> Please use `just` commands instead.
+
+The `dev.sh` script was the previous way to manage the dev environment. If you're
+migrating from `dev.sh`, here are the equivalent `just` commands:
+
+| dev.sh command | just equivalent |
+|----------------|-----------------|
+| `./dev.sh` | `just dc-dev up -d` |
+| `./dev.sh help` | `just --list` |
+| `./dev.sh build` | `just dc-dev build --parallel` |
+| `./dev.sh restart` | `just dc-dev restart` |
+| `./dev.sh restart --build` | `just dc-dev up -d --build` |
+| `./dev.sh run backend manage migrate` | `just dc-dev exec backend python manage.py migrate` |
+| `docker-compose logs` | `just logs` |
+
+For the full dev.sh documentation (deprecated), see [dev_sh.md](dev_sh.md).
