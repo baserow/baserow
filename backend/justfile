@@ -1,0 +1,502 @@
+# Baserow Backend Justfile
+# Uses uv for Python package management
+
+# Environment file configuration:
+# - .env.dev : Local development (recommended, gitignored)
+# - .env       : Docker/production (used by docker-compose)
+# - .env.test  : Test environment
+#
+# To use a specific env file: ENVFILE=.env.test just <recipe>
+# Default: loads .env.dev if exists, otherwise .env
+
+# Note: just doesn't support dynamic dotenv-filename, so we handle env loading in recipes
+# For automatic env loading, use direnv with .envrc
+
+# Default recipe - show help
+default:
+    @just --list
+
+# Variables
+python_version := "3.11"
+
+# Venv location: use UV_PROJECT_ENVIRONMENT if set (e.g., in Docker), otherwise default to project root
+venv_dir := env("UV_PROJECT_ENVIRONMENT", justfile_directory() / "../.venv")
+
+# Export for uv to use
+export UV_PROJECT_ENVIRONMENT := venv_dir
+
+# Use --active to respect VIRTUAL_ENV from direnv, since venv may be in parent dir
+uv_run := "uv run --active"
+
+# Helper to load .env.local if present (for local dev without direnv)
+# Include this at the start of bash recipes that need env vars
+_load_env := 'if [ -f "../.env.local" ]; then set -a; source "../.env.local"; set +a; fi'
+
+# Source directories
+backend_source_dirs := "src/ ../premium/backend/src/ ../enterprise/backend/src/"
+backend_tests_dirs := "tests/ ../premium/backend/tests/ ../enterprise/backend/tests/"
+backend_tests_dirs_from_root := "backend/tests/ premium/backend/tests/ enterprise/backend/tests/"
+
+# Django settings
+django_settings := env("DJANGO_SETTINGS_MODULE", "baserow.config.settings.dev")
+export DJANGO_SETTINGS_MODULE := django_settings
+runserver_bind := env("RUNSERVER_BIND", "0.0.0.0:8000")
+
+# Log files for dev servers (used by logs command)
+log_file := "/tmp/baserow-backend.log"
+celery_log_file := "/tmp/baserow-celery.log"
+
+# Pytest settings
+pytest_splits := env("PYTEST_SPLITS", "1")
+pytest_split_group := env("PYTEST_SPLIT_GROUP", "1")
+pytest_extra_args := env("PYTEST_EXTRA_ARGS", "")
+
+# =============================================================================
+# Setup & Installation
+# =============================================================================
+
+# Initialize: create Python venv with uv, lock deps, and install everything
+init: _setup-env _create-venv lock sync
+    @echo ""
+    @echo "Backend initialized successfully!"
+    @echo ""
+    @echo "To activate the virtual environment:"
+    @echo "  source {{ venv_dir }}/bin/activate"
+    @echo ""
+    @echo "Or use direnv (recommended):"
+    @echo "  direnv allow"
+    @echo ""
+    @echo "Or run commands directly with:"
+    @echo "  just run <command>"
+    @echo "  uv run <command>"
+
+# Copy .env.local.example to .env.local if it doesn't exist (in project root)
+_setup-env:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ ! -f ../.env.local ] && [ -f ../.env.local.example ]; then
+        echo "Creating .env.local from .env.local.example..."
+        cp ../.env.local.example ../.env.local
+        echo "Please review and edit .env.local as needed."
+    fi
+
+# Print the command to activate the virtual environment
+activate:
+    @echo "Run this command to activate the virtual environment:"
+    @echo ""
+    @echo "  source {{ venv_dir }}/bin/activate"
+    @echo ""
+    @echo "Or if you have direnv installed, run:"
+    @echo "  direnv allow"
+
+# Create Python 3.11 virtual environment with uv
+_create-venv:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ ! -d "{{ venv_dir }}" ]; then
+        echo "Creating Python {{ python_version }} virtual environment..."
+        uv venv --python {{ python_version }} "{{ venv_dir }}"
+    else
+        echo "Virtual environment already exists at {{ venv_dir }}"
+    fi
+
+# Install dependencies (includes baserow + premium + enterprise via uv.sources)
+install: _create-venv sync
+    @echo "Baserow installed successfully!"
+
+# =============================================================================
+# Dependency Management (uv native)
+# =============================================================================
+
+# Generate/update uv.lock from pyproject.toml
+lock:
+    uv lock
+
+# Sync dependencies from uv.lock (production only)
+sync-prod:
+    uv sync --frozen --no-dev
+
+# Sync all dependencies from uv.lock (including dev)
+sync:
+    uv sync --frozen
+
+# Upgrade all dependencies and regenerate lock file
+deps-upgrade:
+    uv lock --upgrade
+
+# Upgrade a specific dependency
+deps-upgrade-package package:
+    uv lock --upgrade-package {{ package }}
+
+# Add a new dependency
+deps-add package:
+    uv add {{ package }}
+
+# Add a new dev dependency
+deps-add-dev package:
+    uv add --dev {{ package }}
+
+# Remove a dependency
+deps-remove package:
+    uv remove {{ package }}
+
+# =============================================================================
+# Code Quality & Linting
+# =============================================================================
+
+# Run all lint checks
+lint: _check-dev
+    {{ uv_run }} flake8 {{ backend_source_dirs }} {{ backend_tests_dirs }}
+    {{ uv_run }} black {{ backend_source_dirs }} {{ backend_tests_dirs }} --check --config=pyproject.toml
+    {{ uv_run }} isort --check --skip generated {{ backend_source_dirs }} {{ backend_tests_dirs }}
+    DJANGO_SETTINGS_MODULE={{ django_settings }} {{ uv_run }} baserow makemigrations --dry-run --check
+    {{ uv_run }} bandit -r --exclude src/baserow/test_utils,src/baserow/config/settings/local.py {{ backend_source_dirs }}
+
+# Alias for lint
+lint-python: lint
+
+# Format code with black
+format: _check-dev
+    {{ uv_run }} black --config=pyproject.toml {{ backend_source_dirs }} {{ backend_tests_dirs }}
+
+# Sort imports with isort
+sort: _check-dev
+    {{ uv_run }} isort --skip generated --overwrite-in-place {{ backend_source_dirs }} {{ backend_tests_dirs }}
+
+# Fix code style (sort imports + format)
+lint-fix: sort format
+
+# Alias for lint-fix
+fix: lint-fix
+
+# =============================================================================
+# Testing
+# =============================================================================
+
+# PYTHONPATH for test fixtures across all test directories
+test_pythonpath := "tests:../premium/backend/tests:../enterprise/backend/tests"
+_pytest := 'PYTHONPATH="' + test_pythonpath + ':${PYTHONPATH:-}" ' + uv_run + ' pytest'
+
+# Run tests. Pass -n=auto to run in parallel with pytest-xdist
+test *ARGS: _check-dev
+    #!/usr/bin/env bash
+    set -euo pipefail
+    {{ _load_env }}
+    {{ _pytest }} {{ ARGS }}
+
+# Run tests with coverage report
+test-coverage: _check-dev
+    #!/usr/bin/env bash
+    set -euo pipefail
+    {{ _load_env }}
+    {{ _pytest }} -n 10 --cov-report term --cov-report html:reports/html --cov=src {{ backend_tests_dirs }}
+
+# Run builder tests
+test-builder: _check-dev
+    #!/usr/bin/env bash
+    set -euo pipefail
+    {{ _load_env }}
+    {{ _pytest }} tests/baserow/contrib/integrations tests/baserow/contrib/builder
+
+# Run automation tests
+test-automation: _check-dev
+    #!/usr/bin/env bash
+    set -euo pipefail
+    {{ _load_env }}
+    {{ _pytest }} tests/baserow/contrib/integrations tests/baserow/contrib/automation
+
+# Regenerate CI test durations
+test-regenerate-ci-durations: _check-dev
+    #!/usr/bin/env bash
+    set -euo pipefail
+    {{ _load_env }}
+    {{ _pytest }} {{ backend_tests_dirs }} --store-durations
+
+
+# =============================================================================
+# Translations
+# =============================================================================
+
+# Generate translation files
+make-translations: _check-dev
+    #!/usr/bin/env bash
+    set -euo pipefail
+    for pkg_dir in ./ ../premium/backend/ ../enterprise/backend/; do
+        echo "Processing $pkg_dir"
+        cd "$pkg_dir"
+        {{ uv_run }} django-admin makemessages -l en --ignore 'tests/*' || true
+        cd -
+    done
+
+# Compile translation files
+compile-translations: _check-dev
+    #!/usr/bin/env bash
+    set -euo pipefail
+    for pkg_dir in ./ ../premium/backend/ ../enterprise/backend/; do
+        echo "Processing $pkg_dir"
+        cd "$pkg_dir"
+        {{ uv_run }} django-admin compilemessages -l en || true
+        cd -
+    done
+
+# =============================================================================
+# CI Tasks
+# =============================================================================
+
+# Run CI Python tests with coverage
+ci-test-python: _check-dev
+    #!/usr/bin/env bash
+    set -euo pipefail
+    mkdir -p reports/
+    cd "{{ justfile_directory() }}/.."
+    COVERAGE_FILE=backend/reports/.coverage.{{ pytest_split_group }} \
+        {{ uv_run }} coverage run \
+        --rcfile=backend/.coveragerc \
+        -m pytest -vv \
+        --durations-path=backend/.test_durations \
+        --splits {{ pytest_splits }} \
+        --group {{ pytest_split_group }} \
+        --junitxml=backend/reports/report.xml \
+        {{ pytest_extra_args }} {{ backend_tests_dirs_from_root }}
+
+# Generate CI coverage report
+ci-coverage-report: _check-dev
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd "{{ justfile_directory() }}/.."
+    cp backend/reports/.coverage.* .
+    export COVERAGE_RCFILE=backend/.coveragerc
+    {{ uv_run }} coverage combine
+    {{ uv_run }} coverage report
+    {{ uv_run }} coverage xml -o coverage.xml
+
+# Check Python startup (full version)
+ci-check-startup-python: _check-dev
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    DJANGO_SETTINGS_MODULE={{ django_settings }} {{ uv_run }} django-admin check
+    DJANGO_SETTINGS_MODULE={{ django_settings }} timeout --preserve-status 10s \
+        {{ uv_run }} gunicorn --workers=1 -b 0.0.0.0:8002 \
+        -k uvicorn.workers.UvicornWorker baserow.config.asgi:application
+
+# Check Python startup (OSS only)
+ci-check-startup-python-oss-only: _check-dev
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    BASEROW_OSS_ONLY=true DJANGO_SETTINGS_MODULE={{ django_settings }} {{ uv_run }} django-admin check
+    BASEROW_OSS_ONLY=true DJANGO_SETTINGS_MODULE={{ django_settings }} timeout --preserve-status 10s \
+        {{ uv_run }} gunicorn --workers=1 -b 0.0.0.0:8002 \
+        -k uvicorn.workers.UvicornWorker baserow.config.asgi:application
+
+# =============================================================================
+# Development
+# =============================================================================
+
+# Server settings
+server_bind := env("SERVER_BIND", "0.0.0.0:8000")
+gunicorn_workers := env("GUNICORN_WORKERS", "5")
+
+# Run development server (Django)
+run-dev-server *ARGS: _check-dev
+    #!/usr/bin/env bash
+    set -euo pipefail
+    {{ _load_env }}
+    {{ uv_run }} baserow runserver {{ ARGS }} 2>&1 | tee {{ log_file }}
+
+# Run production ASGI server (gunicorn + uvicorn)
+run-asgi *ARGS: _check-dev
+    #!/usr/bin/env bash
+    set -euo pipefail
+    {{ _load_env }}
+    {{ uv_run }} gunicorn -w {{ gunicorn_workers }} -b {{ server_bind }} -k uvicorn.workers.UvicornWorker baserow.config.asgi:application {{ ARGS }}
+
+# Run production WSGI server (gunicorn)
+run-wsgi *ARGS: _check-dev
+    #!/usr/bin/env bash
+    set -euo pipefail
+    {{ _load_env }}
+    {{ uv_run }} gunicorn -w {{ gunicorn_workers }} -b {{ server_bind }} baserow.config.wsgi:application {{ ARGS }}
+
+# Run production Celery worker (main queues)
+run-celery: _check-dev
+    #!/usr/bin/env bash
+    set -euo pipefail
+    {{ _load_env }}
+    {{ uv_run }} celery -A baserow worker -Q celery,automation_workflow -l INFO
+
+# Run production Celery export worker
+run-celery-export: _check-dev
+    #!/usr/bin/env bash
+    set -euo pipefail
+    {{ _load_env }}
+    {{ uv_run }} celery -A baserow worker -Q export -l INFO
+
+# Run production Celery beat scheduler
+run-celery-beat: _check-dev
+    #!/usr/bin/env bash
+    set -euo pipefail
+    {{ _load_env }}
+    {{ uv_run }} celery -A baserow beat -l INFO -S redbeat.RedBeatScheduler
+
+# Celery settings
+celery_log_level := env("CELERY_LOG_LEVEL", "INFO")  # INFO default, override with CELERY_LOG_LEVEL=DEBUG
+# Use 'solo' pool on macOS to avoid fork() issues causing SIGSEGV
+# Options: solo (single-threaded), threads, prefork (default, problematic on macOS)
+celery_pool := env("CELERY_POOL", "solo")
+
+# Run all Celery workers and beat together for development
+run-dev-celery: _check-dev
+    #!/usr/bin/env bash
+    set -euo pipefail
+    {{ _load_env }}
+
+    LOG_FILE="{{ celery_log_file }}"
+
+    # Function to prefix output with process name and tee to log file
+    prefix_output() {
+        local prefix="$1"
+        while IFS= read -r line; do
+            echo "[$prefix] $line"
+        done | tee -a "$LOG_FILE"
+    }
+
+    cleanup() {
+        echo ""
+        echo "Stopping all Celery processes..."
+        kill $WORKER_PID $EXPORT_PID $BEAT_PID 2>/dev/null || true
+        wait $WORKER_PID $EXPORT_PID $BEAT_PID 2>/dev/null || true
+        echo "All Celery processes stopped."
+    }
+    trap cleanup EXIT INT TERM
+
+    # Clear log file on start
+    > "$LOG_FILE"
+
+    echo "Starting Celery worker (celery,automation_workflow queues)..."
+    {{ uv_run }} celery -A baserow worker -Q celery,automation_workflow -n default-worker@%h -l {{ celery_log_level }} --pool {{ celery_pool }} 2>&1 | prefix_output "WORKER" &
+    WORKER_PID=$!
+
+    echo "Starting Celery export worker (export queue)..."
+    {{ uv_run }} celery -A baserow worker -Q export -n export-worker@%h -l {{ celery_log_level }} --pool {{ celery_pool }} 2>&1 | prefix_output "EXPORT" &
+    EXPORT_PID=$!
+
+    echo "Starting Celery beat with redbeat scheduler..."
+    {{ uv_run }} celery -A baserow beat -l {{ celery_log_level }} -S redbeat.RedBeatScheduler 2>&1 | prefix_output "BEAT" &
+    BEAT_PID=$!
+
+    echo ""
+    echo "All Celery processes started (pool: {{ celery_pool }}). Press Ctrl+C to stop."
+    echo "Logs: $LOG_FILE"
+    echo ""
+
+    wait
+
+# Run any command in the venv (with .env.local loaded)
+run *args: _check-dev
+    #!/usr/bin/env bash
+    set -euo pipefail
+    {{ _load_env }}
+    {{ uv_run }} {{ args }}
+
+# Run Django manage.py commands (e.g., just b manage makemigrations)
+manage *args: _check-dev
+    #!/usr/bin/env bash
+    set -euo pipefail
+    {{ _load_env }}
+    {{ uv_run }} baserow {{ args }}
+
+# Shortcut for manage
+alias m := manage
+
+# Run database migrations
+migrate *args: _check-dev
+    #!/usr/bin/env bash
+    set -euo pipefail
+    {{ _load_env }}
+    {{ uv_run }} baserow migrate {{ args }}
+
+# Open Django shell with shell_plus and SQL logging
+shell: _check-dev
+    #!/usr/bin/env bash
+    set -euo pipefail
+    {{ _load_env }}
+    {{ uv_run }} baserow shell_plus --print-sql
+
+# Show current environment info
+env-info:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    echo "=== Justfile Settings ==="
+    echo "Django settings:  {{ django_settings }}"
+    echo "Venv directory:   {{ venv_dir }}"
+    echo ""
+
+    ENV_FILE="../.env.local"
+    if [ -f "$ENV_FILE" ]; then
+        echo "=== Environment Variables (from .env.local) ==="
+        # Parse .env.local: skip comments, empty lines, and multi-line values
+        grep -v '^#' "$ENV_FILE" | grep -v '^$' | grep '=' | while IFS= read -r line; do
+            # Skip lines that look like continuations (start with whitespace)
+            if [[ ! "$line" =~ ^[[:space:]] ]]; then
+                # Extract variable name and value (handle values with =)
+                var_name="${line%%=*}"
+                var_value="${line#*=}"
+                # Truncate long values
+                if [ ${#var_value} -gt 60 ]; then
+                    var_value="${var_value:0:57}..."
+                fi
+                printf "%-35s %s\n" "$var_name:" "$var_value"
+            fi
+        done
+        echo ""
+        echo "Source: .env.local"
+    else
+        echo "No .env.local found. Run 'just init' to create one."
+        echo ""
+        echo "Available env files:"
+        echo "  .env.local       - Local dev (auto-loaded by just commands)"
+        echo "  .env.docker-dev  - Docker dev (used by just dc-dev)"
+        echo "  .env             - Production Docker"
+    fi
+
+# =============================================================================
+# Build & Package
+# =============================================================================
+
+# Build wheel packages
+package-build: _check-dev
+    {{ uv_run }} python -m build . -o dist/
+    {{ uv_run }} python -m build ../premium/backend/ -o dist/ || true
+    {{ uv_run }} python -m build ../enterprise/backend/ -o dist/ || true
+
+# ======t=================================================================
+# Cleanup
+# =============================================================================
+
+# Remove build artifacts
+clean:
+    rm -rf dist/*
+
+# Remove virtual environment
+venv-clean:
+    rm -rf "{{ venv_dir }}"
+
+# Remove lock file
+lock-clean:
+    rm -f uv.lock
+
+# Remove all (build artifacts + venv + lock)
+clean-all: clean venv-clean lock-clean
+
+# =============================================================================
+# Internal helpers
+# =============================================================================
+
+# Check if dev environment is set up, install if not
+_check-dev:
+    #!/usr/bin/env bash
+    if [ ! -f "{{ venv_dir }}/bin/python" ] || [ ! -f "uv.lock" ]; then
+        echo "Dev environment not found, running init..."
+        just init
+    fi

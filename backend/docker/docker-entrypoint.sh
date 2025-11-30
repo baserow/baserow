@@ -3,6 +3,33 @@
 set -euo pipefail
 
 # ======================================================
+# RUNTIME USER SWITCHING (for dev containers)
+# ======================================================
+# If BASEROW_DEV_UID is set and we're running as root, switch to the host user.
+# This allows the dev container to be built with a fixed UID (9999) for caching,
+# while running as the host user's UID to avoid permission issues with bind mounts.
+if [[ -n "${BASEROW_DEV_UID:-}" ]] && [[ "$(id -u)" == "0" ]]; then
+    DEV_UID="$BASEROW_DEV_UID"
+    DEV_GID="${BASEROW_DEV_GID:-$DEV_UID}"
+
+    # Create group if it doesn't exist
+    if ! getent group "$DEV_GID" > /dev/null 2>&1; then
+        groupadd -g "$DEV_GID" hostgroup 2>/dev/null || true
+    fi
+
+    # Create user if it doesn't exist
+    if ! id -u "$DEV_UID" > /dev/null 2>&1; then
+        useradd -u "$DEV_UID" -g "$DEV_GID" -d /home/hostuser -m -s /bin/bash hostuser 2>/dev/null || true
+    fi
+
+    # Fix ownership of venv so the host user can modify it (e.g., uv sync)
+    chown -R "$DEV_UID:$DEV_GID" /baserow/venv
+
+    # Re-exec this script as the host user
+    exec su-exec "$DEV_UID:$DEV_GID" "$0" "$@"
+fi
+
+# ======================================================
 # ENVIRONMENT VARIABLES USED DIRECTLY BY THIS ENTRYPOINT
 # ======================================================
 

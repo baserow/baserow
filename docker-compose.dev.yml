@@ -18,22 +18,20 @@ services:
       - $PWD/Caddyfile.dev:/etc/caddy/Caddyfile
 
   backend:
-    image: baserow_backend_dev:latest
+    image: baserow_backend:dev
     environment:
       - BASEROW_BACKEND_DEBUGGER_ENABLED
       - BASEROW_BACKEND_DEBUGGER_PORT=${BASEROW_BACKEND_DEBUGGER_PORT:-5678}
       - BASEROW_DANGEROUS_SILKY_ANALYZE_QUERIES
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
       - BASEROW_EMBEDDINGS_API_URL=${BASEROW_EMBEDDINGS_API_URL:-http://embeddings:80}
+      # Runtime user switching: entrypoint uses su-exec to switch to host user
+      - BASEROW_DEV_UID=${UID}
+      - BASEROW_DEV_GID=${GID}
     build:
       dockerfile: ./backend/Dockerfile
       context: .
       target: dev
-      args:
-        # We allow configuring the UID/GID here so you can run as the dev's actual user
-        # reducing the chance the containers screw up the bind mounted folders.
-        UID: $UID
-        GID: $GID
     ports:
       - "${HOST_PUBLISH_IP:-127.0.0.1}:8000:8000"
       - "${HOST_PUBLISH_IP:-127.0.0.1}:${BASEROW_BACKEND_DEBUGGER_PORT:-5678}:${BASEROW_BACKEND_DEBUGGER_PORT:-5678}"
@@ -50,16 +48,15 @@ services:
       - otel-collector
 
   web-frontend:
-    image: baserow_web-frontend_dev:latest
+    image: baserow_web-frontend:dev
+    environment:
+      # Runtime user switching: entrypoint uses su-exec to switch to host user
+      - BASEROW_DEV_UID=${UID}
+      - BASEROW_DEV_GID=${GID}
     build:
       dockerfile: ./web-frontend/Dockerfile
       context: .
       target: dev
-      args:
-        # We allow configuring the UID/GID here so you can run as the dev's actual user
-        # reducing the chance the containers screw up the bind mounted folders.
-        UID: $UID
-        GID: $GID
     ports:
       - "${HOST_PUBLISH_IP:-127.0.0.1}:3000:3000"
     volumes:
@@ -75,21 +72,16 @@ services:
     tty: true
 
   web-frontend-storybook:
-    image: baserow_web-frontend_dev:latest
+    image: baserow_web-frontend:dev
     restart: unless-stopped
+    depends_on:
+      - web-frontend
     environment:
       FEATURE_FLAGS:
+      BASEROW_DEV_UID: ${UID}
+      BASEROW_DEV_GID: ${GID}
     networks:
       local:
-    build:
-      dockerfile: ./web-frontend/Dockerfile
-      context: .
-      target: dev
-      args:
-        # We allow configuring the UID/GID here so you can run as the dev's actual user
-        # reducing the chance the containers screw up the bind mounted folders.
-        UID: $UID
-        GID: $GID
     command: "storybook-dev"
     ports:
       - "${HOST_PUBLISH_IP:-127.0.0.1}:6006:6006"
@@ -106,20 +98,13 @@ services:
     tty: true
 
   celery:
-    image: baserow_backend_dev:latest
-    build:
-      dockerfile: ./backend/Dockerfile
-      context: .
-      target: dev
-      args:
-        # We allow configuring the UID/GID here so you can run as the dev's actual user
-        # reducing the chance the containers screw up the bind mounted folders.
-        UID: $UID
-        GID: $GID
+    image: baserow_backend:dev
     command: "watch-py celery-worker"
     environment:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
       - BASEROW_DANGEROUS_SILKY_ANALYZE_QUERIES
+      - BASEROW_DEV_UID=${UID}
+      - BASEROW_DEV_GID=${GID}
     volumes:
       - ./backend:/baserow/backend
       - ./premium/backend/:/baserow/premium/backend
@@ -128,23 +113,17 @@ services:
     stdin_open: true
     tty: true
     depends_on:
+      - backend
       - otel-collector
 
   celery-export-worker:
-    image: baserow_backend_dev:latest
+    image: baserow_backend:dev
+    command: "watch-py celery-exportworker"
     environment:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
       - BASEROW_DANGEROUS_SILKY_ANALYZE_QUERIES
-    build:
-      dockerfile: ./backend/Dockerfile
-      context: .
-      target: dev
-      args:
-        # We allow configuring the UID/GID here so you can run as the dev's actual user
-        # reducing the chance the containers screw up the bind mounted folders.
-        UID: $UID
-        GID: $GID
-    command: "watch-py celery-exportworker"
+      - BASEROW_DEV_UID=${UID}
+      - BASEROW_DEV_GID=${GID}
     volumes:
       - ./backend:/baserow/backend
       - ./premium/backend/:/baserow/premium/backend
@@ -153,22 +132,16 @@ services:
     stdin_open: true
     tty: true
     depends_on:
+      - backend
       - otel-collector
 
   celery-beat-worker:
-    image: baserow_backend_dev:latest
+    image: baserow_backend:dev
+    command: "watch-py celery-beat"
     environment:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
-    build:
-      dockerfile: ./backend/Dockerfile
-      context: .
-      target: dev
-      args:
-        # We allow configuring the UID/GID here so you can run as the dev's actual user
-        # reducing the chance the containers screw up the bind mounted folders.
-        UID: $UID
-        GID: $GID
-    command: "watch-py celery-beat"
+      - BASEROW_DEV_UID=${UID}
+      - BASEROW_DEV_GID=${GID}
     volumes:
       - ./backend:/baserow/backend
       - ./premium/backend/:/baserow/premium/backend
@@ -176,20 +149,14 @@ services:
     # Open stdin and tty so when attaching key input works as expected.
     stdin_open: true
     tty: true
+    depends_on:
+      - backend
 
   celery-flower:
-    image: baserow_backend_dev:latest
-    build:
-      dockerfile: ./backend/Dockerfile
-      context: .
-      target: dev
-      args:
-        # We allow configuring the UID/GID here so you can run as the dev's actual user
-        # reducing the chance the containers screw up the bind mounted folders.
-        UID: $UID
-        GID: $GID
+    image: baserow_backend:dev
     restart: unless-stopped
     stop_signal: SIGQUIT
+    command: "celery-flower"
     environment:
       REDIS_HOST:
       REDIS_PORT:
@@ -197,13 +164,14 @@ services:
       REDIS_URL:
       REDIS_USER:
       REDIS_PASSWORD: ${REDIS_PASSWORD:?}
+      BASEROW_DEV_UID: ${UID}
+      BASEROW_DEV_GID: ${GID}
     depends_on:
       - backend
     volumes:
       - media:/baserow/media
     ports:
       - "5555:5555" # web ui
-    command: "celery-flower"
     networks:
       local:
     # Open stdin and tty so when attaching key input works as expected.
@@ -213,14 +181,12 @@ services:
   mjml-email-compiler:
     build:
       target: dev
-      args:
-        # We allow configuring the UID/GID here so you can run as the dev's actual user
-        # reducing the chance the containers screw up the bind mounted folders.
-        UID: $UID
-        GID: $GID
       context: .
       dockerfile: ./web-frontend/Dockerfile
-    image: baserow_web-frontend:latest
+    image: baserow_web-frontend:dev
+    environment:
+      BASEROW_DEV_UID: ${UID}
+      BASEROW_DEV_GID: ${GID}
     command: "bash -c 'cd /baserow/backend/email_compiler/ && yarn install && yarn run watch'"
     volumes:
       - ./backend:/baserow/backend
@@ -237,7 +203,7 @@ services:
     networks:
       local:
 
-  # When switching between dev and local the media files in the media volume will be
+  # When switching between dev and prod the media files in the media volume will be
   # owned by different users. Ensure that we chown them to the user appropriate for the
   # environment here.
   volume-permissions-fixer:

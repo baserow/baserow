@@ -1,9 +1,16 @@
 **/.nuxt
 **/node_modules
 **/.pytest_cache
+**/__pycache__
+**/*.pyc
+**/*.pyo
 *.iml
 .idea/
+.vscode/
 .local/
+.git/
+**/.venv/
 web-frontend/reports/
 backend/reports/
 backend/src/baserow.egg-info
+backend/media/
