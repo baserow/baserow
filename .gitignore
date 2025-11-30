@@ -95,7 +95,13 @@ docker-compose.override.yml
 
 # python
 venv/
+.venv/
 .profiles/
+uv.lock
+
+# Local environment files (not for Docker)
+.env.local
+**/.env.local
 
 web-frontend/plugins/
 backend/plugins/
