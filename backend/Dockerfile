@@ -1,140 +1,222 @@
-# syntax = docker/dockerfile:1.3
-FROM debian:bookworm-slim AS base
+# syntax=docker/dockerfile:1.4
 
-ARG UID
-ENV UID=${UID:-9999}
-ARG GID
-ENV GID=${GID:-9999}
+# =============================================================================
+# Builder for su-exec (replaces gosu, smaller footprint)
+# =============================================================================
+FROM debian:bookworm-slim AS su-exec-builder
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends ca-certificates curl build-essential && \
+    curl -L -o /usr/local/bin/su-exec.c https://github.com/ncopa/su-exec/raw/master/su-exec.c && \
+    gcc -Wall -Werror -static -o /usr/local/bin/su-exec /usr/local/bin/su-exec.c && \
+    chmod 0755 /usr/local/bin/su-exec
+
+# =============================================================================
+# OS packages stage - fully cached (no UID/GID dependency)
+# =============================================================================
+FROM debian:bookworm-slim AS builder-packages
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-# We might be running as a user which already exists in this image. In that situation
-# Everything is OK and we should just continue on.
-RUN groupadd -g $GID baserow_docker_group || exit 0
-RUN useradd --shell /bin/bash -u $UID -g $GID -o -c "" -m baserow_docker_user -l || exit 0
-ENV DOCKER_USER=baserow_docker_user
-ENV POSTGRES_VERSION=15
-ENV BASEROW_IMAGE_TYPE="backend"
-
-# hadolint ignore=DL3013
-RUN apt-get update &&  \
-    apt-get upgrade -y && \
+# Build dependencies - this layer is always cached
+RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     build-essential \
-    lsb-release \
-    ca-certificates \
-    curl \
-    gnupg2 \
-    libpq-dev \
+    python3.11 \
+    python3.11-dev \
     dos2unix \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install uv from official image
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+# Create fixed user for builds (never changes, always cached)
+RUN groupadd -g 9999 baserow && \
+    useradd --shell /bin/bash -u 9999 -g 9999 -o -c "" -m baserow
+
+# =============================================================================
+# Builder stage - compiles dependencies with fixed UID
+# =============================================================================
+FROM builder-packages AS builder
+
+# Create baserow directory structure
+RUN mkdir -p /baserow && chown 9999:9999 /baserow
+
+# uv configuration
+ENV UV_PYTHON_PREFERENCE=only-system \
+    UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    UV_FROZEN=1 \
+    UV_REQUIRE_HASHES=1 \
+    UV_VERIFY_HASHES=1 \
+    UV_PROJECT_ENVIRONMENT=/baserow/venv \
+    UV_CACHE_DIR=/tmp/baserow_uv_cache
+
+USER 9999:9999
+
+# Create venv
+RUN uv venv --python python3.11 /baserow/venv
+
+# Copy source code (needed for editable installs of local packages)
+COPY --chown=9999:9999 ./LICENSE /baserow/LICENSE
+COPY --chown=9999:9999 ./backend /baserow/backend
+COPY --chown=9999:9999 ./premium/backend /baserow/premium/backend
+COPY --chown=9999:9999 ./enterprise/backend /baserow/enterprise/backend
+
+# Install all dependencies including editable local packages
+# hadolint ignore=DL3042
+RUN --mount=type=cache,mode=777,target=$UV_CACHE_DIR,uid=9999,gid=9999 \
+    cd /baserow/backend && uv sync --frozen --no-dev \
+    && find /baserow/venv -type f \( -name "*.c" -o -name "*.h" \) -not -path "*/autobahn/*" -delete \
+    && rm -rf /baserow/backend/tests /baserow/premium/backend/tests /baserow/enterprise/backend/tests \
+    && rm -rf /baserow/backend/templates
+
+# Fix entrypoint script
+RUN dos2unix /baserow/backend/docker/docker-entrypoint.sh && \
+    chmod a+x /baserow/backend/docker/docker-entrypoint.sh
+
+# =============================================================================
+# Builder with dev dependencies
+# =============================================================================
+FROM builder AS builder-dev
+
+# hadolint ignore=DL3042
+RUN --mount=type=cache,mode=777,target=$UV_CACHE_DIR,uid=9999,gid=9999 \
+    cd /baserow/backend && uv sync --frozen
+
+# =============================================================================
+# Runtime packages stage - fully cached (no UID/GID dependency)
+# =============================================================================
+FROM debian:bookworm-slim AS runtime-packages
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+# Runtime dependencies only - this layer is always cached
+RUN apt-get update && \
+    apt-get upgrade -y && \
+    apt-get install -y --no-install-recommends \
+    ca-certificates \
     tini \
-    && \
-    # Postgresql repository has to be added manually to get pre-13 versions.
-    echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list && \
-    curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add - \
-    && \
-    apt-get update && \
-    apt-get install --no-install-recommends -y \
-    postgresql-client-$POSTGRES_VERSION \
+    postgresql-client-15 \
     gettext \
-    procps \
-    python3 \
-    python3-pip \
-    python3-dev \
-    python3-venv\
-    git \
+    python3.11 \
     xmlsec1 \
-    && python3 -m pip install --no-cache-dir --upgrade pip setuptools==78.1.1 --break-system-packages \
-    && rm -rf /usr/lib/python3/dist-packages/setuptools* /usr/lib/python3/dist-packages/pkg_resources* \
     && apt-get autoclean \
     && apt-get clean \
     && apt-get autoremove \
     && rm -rf /var/lib/apt/lists/*
 
-# Install su-exec as a safer alternative to gosu
-RUN curl -L -o /usr/local/bin/su-exec.c https://github.com/ncopa/su-exec/raw/master/su-exec.c \
-    && gcc -Wall -Werror -static -o /usr/local/bin/su-exec /usr/local/bin/su-exec.c \
-    && chmod 0755 /usr/local/bin/su-exec \
-    && rm /usr/local/bin/su-exec.c
+# Copy su-exec from builder (replaces gosu)
+COPY --link --from=su-exec-builder /usr/local/bin/su-exec /usr/local/bin/su-exec
 
-USER $UID:$GID
+# Create fixed user for runtime (never changes, always cached)
+RUN groupadd -g 9999 baserow && \
+    useradd --shell /bin/bash -u 9999 -g 9999 -o -c "" -m baserow
+
+# =============================================================================
+# Production runtime - minimal image with fixed UID
+# =============================================================================
+FROM runtime-packages AS production
+
+ENV DOCKER_USER=baserow
+ENV BASEROW_IMAGE_TYPE="backend"
 
 # In slim docker images, mime.types is removed and we need it for mimetypes guessing
-COPY --chown=$UID:$GID ./backend/docker/mime.types /etc/
+COPY --chown=9999:9999 ./backend/docker/mime.types /etc/
 
-# Install non-dev base dependencies into a virtual env.
-COPY --chown=$UID:$GID ./backend/requirements/base.txt /baserow/requirements/
-RUN python3 -m venv /baserow/venv
+USER 9999:9999
 
-ENV PIP_CACHE_DIR=/tmp/baserow_pip_cache
-# hadolint ignore=SC1091,DL3042,DL3013
-RUN --mount=type=cache,mode=777,target=$PIP_CACHE_DIR,uid=$UID,gid=$GID . /baserow/venv/bin/activate \
-    && pip3 install --no-cache-dir --upgrade pip setuptools==78.1.1 \
-    && pip3 install --no-compile -r /baserow/requirements/base.txt \
-    && find /baserow/venv -type d -name "__pycache__" -prune -exec rm -rf '{}' + \
-    && find /baserow/venv -type f \( -name "*.pyc" -o -name "*.pyo" \) -delete \
-    && find /baserow/venv -type f \( -name "*.c" -o -name "*.h" \) -delete
+# Copy venv and source from builder
+COPY --link --chown=9999:9999 --from=builder /baserow/LICENSE /baserow/LICENSE
+COPY --link --chown=9999:9999 --from=builder /baserow/venv /baserow/venv
+COPY --link --chown=9999:9999 --from=builder /baserow/backend /baserow/backend
+COPY --link --chown=9999:9999 --from=builder /baserow/premium/backend /baserow/premium/backend
+COPY --link --chown=9999:9999 --from=builder /baserow/enterprise/backend /baserow/enterprise/backend
+COPY --link --chown=9999:9999 ./docs /baserow/docs
+COPY --link --chown=9999:9999 ./deploy/plugins/*.sh /baserow/plugins/
+COPY --link --chown=9999:9999 ./backend/templates /baserow/backend/templates
 
-# Build a dev_deps stage which also has the dev dependencies for use by the dev layer.
-FROM base AS dev_deps
-
-COPY ./backend/requirements/dev.txt /baserow/requirements/
-# hadolint ignore=SC1091,DL3042,DL3013
-RUN --mount=type=cache,mode=777,target=$PIP_CACHE_DIR,uid=$UID,gid=$GID . /baserow/venv/bin/activate \
-    && pip3 install --no-cache-dir --upgrade pip setuptools==78.1.1 \
-    && pip3 install -r /baserow/requirements/dev.txt
-
-# The core stage contains all of Baserows source code and sets up the entrypoint
-FROM base AS core
-
-# Copy over backend code.
-COPY --chown=$UID:$GID ./docs /baserow/docs
-# TODO - This copy also re-copies the requirements above, meaning this will be re-run
-#        and not cached even though we already have separate layers above.
-COPY --chown=$UID:$GID ./backend /baserow/backend
-COPY --chown=$UID:$GID ./premium/backend /baserow/premium/backend
-COPY --chown=$UID:$GID ./enterprise/backend /baserow/enterprise/backend
-
-WORKDIR /baserow/backend
-
-# Ensure that Python outputs everything that's printed inside
-# the application rather than buffering it.
+ENV PATH="/baserow/venv/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
 
-COPY --chown=$UID:$GID ./deploy/plugins/*.sh /baserow/plugins/
-
-RUN dos2unix /baserow/backend/docker/docker-entrypoint.sh && \
-    chmod a+x /baserow/backend/docker/docker-entrypoint.sh && \
-    /baserow/venv/bin/pip install --no-cache-dir -e /baserow/backend/ && \
-    /baserow/venv/bin/pip install --no-cache-dir -e /baserow/premium/backend/ && \
-    /baserow/venv/bin/pip install --no-cache-dir -e /baserow/enterprise/backend/
+WORKDIR /baserow/backend
 
 HEALTHCHECK --interval=60s CMD ["/bin/bash", "/baserow/backend/docker/docker-entrypoint.sh", "backend-healthcheck"]
 ENTRYPOINT ["/usr/bin/tini", "--", "/bin/bash", "/baserow/backend/docker/docker-entrypoint.sh"]
 
-FROM core AS dev
-
-COPY --chown=$UID:$GID ./tests /baserow/tests/
-
-USER root
-RUN apt-get update &&  \
-    apt-get install -y --no-install-recommends \
-    graphviz apache2-utils \
-    && apt-get autoclean \
-    && apt-get clean \
-    && apt-get autoremove \
-    && rm -rf /var/lib/apt/lists/*
-USER $UID:$GID
-
-# Override virtualenv with one containing dev dependencies.
-COPY --chown=$UID:$GID --from=dev_deps /baserow/venv /baserow/venv
-
-# Override env variables and initial cmd to start up in dev mode.
-ENV DJANGO_SETTINGS_MODULE='baserow.config.settings.dev'
-CMD ["django-dev"]
-
-FROM core AS local
+# =============================================================================
+# Production target (build with --target prod, tag as :latest)
+# =============================================================================
+FROM production AS prod
 
 ENV DJANGO_SETTINGS_MODULE='baserow.config.settings.base'
 CMD ["gunicorn"]
 
+# =============================================================================
+# Dev packages stage - fully cached (no UID/GID dependency)
+# =============================================================================
+FROM runtime-packages AS dev-packages
+
+# Add dev tools - this layer is always cached
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    build-essential \
+    python3.11-dev \
+    procps \
+    git \
+    graphviz \
+    curl \
+    vim \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install uv for dev (useful for adding packages on the fly)
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+# Install just command runner
+RUN curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin
+
+# =============================================================================
+# Development (build with --target dev, tag as :dev)
+# Starts as root, entrypoint switches to host user via su-exec
+# =============================================================================
+FROM dev-packages AS dev
+
+ENV DOCKER_USER=baserow
+ENV BASEROW_IMAGE_TYPE="backend"
+ENV UV_PYTHON_PREFERENCE=only-system
+ENV UV_PROJECT_ENVIRONMENT=/baserow/venv
+# Disable hash verification for faster dev builds (production still verifies)
+ENV UV_REQUIRE_HASHES=0
+ENV UV_VERIFY_HASHES=0
+
+# In slim docker images, mime.types is removed and we need it for mimetypes guessing
+COPY ./backend/docker/mime.types /etc/
+
+# Copy venv and source from builder-dev (owned by 9999, will be accessible after su-exec)
+COPY --link --from=builder /baserow/LICENSE /baserow/LICENSE
+COPY --link --from=builder-dev /baserow/venv /baserow/venv
+COPY --link --from=builder /baserow/backend /baserow/backend
+COPY --link --from=builder /baserow/premium/backend /baserow/premium/backend
+COPY --link --from=builder /baserow/enterprise/backend /baserow/enterprise/backend
+COPY --link ./docs /baserow/docs
+COPY --link ./deploy/plugins/*.sh /baserow/plugins/
+COPY --link ./backend/templates /baserow/backend/templates
+
+# Copy tests
+COPY --link ./tests /baserow/tests/
+COPY --link ./backend/tests /baserow/backend/tests/
+COPY --link ./premium/backend/tests /baserow/premium/backend/tests/
+COPY --link ./enterprise/backend/tests /baserow/enterprise/backend/tests/
+
+# Make everything owned by baserow user (9999) - entrypoint will switch at runtime
+RUN chown -R 9999:9999 /baserow
+
+ENV PATH="/baserow/venv/bin:$PATH"
+ENV PYTHONUNBUFFERED=1
+ENV DJANGO_SETTINGS_MODULE='baserow.config.settings.dev'
+
+WORKDIR /baserow/backend
+
+HEALTHCHECK --interval=60s CMD ["/bin/bash", "/baserow/backend/docker/docker-entrypoint.sh", "backend-healthcheck"]
+ENTRYPOINT ["/usr/bin/tini", "--", "/bin/bash", "/baserow/backend/docker/docker-entrypoint.sh"]
+CMD ["django-dev"]
