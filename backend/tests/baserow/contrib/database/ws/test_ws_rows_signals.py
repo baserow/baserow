@@ -9,6 +9,7 @@ from freezegun import freeze_time
 from rest_framework import serializers
 from rest_framework.fields import Field
 
+from baserow.contrib.database.rows import signals as row_signals
 from baserow.contrib.database.rows.actions import UpdateRowsActionType
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.rows.registries import (
@@ -383,3 +384,62 @@ def test_rows_history_updated(
         mock_broadcast_many_channel_group.mock_calls == row_history_many_broadcast_calls
     )
     assert mock_broadcast_channel_group.mock_calls == table_and_row_broadcast_calls
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.ws.registries.broadcast_to_channel_group")
+def test_rows_ai_values_generation_error(mock_broadcast_to_channel_group, data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_text_field(table=table)
+    model = table.get_model()
+    row1 = model.objects.create()
+    row2 = model.objects.create()
+
+    row_signals.rows_ai_values_generation_error.send(
+        sender=None,
+        user=user,
+        rows=[row1, row2],
+        field=field,
+        table=table,
+        error_message="Test error message",
+    )
+
+    mock_broadcast_to_channel_group.delay.assert_called_once()
+    args = mock_broadcast_to_channel_group.delay.call_args
+    assert args[0][0] == f"table-{table.id}"
+    assert args[0][1]["type"] == "rows_ai_values_generation_error"
+    assert args[0][1]["table_id"] == table.id
+    assert args[0][1]["field_id"] == field.id
+    assert args[0][1]["row_ids"] == [row1.id, row2.id]
+    assert args[0][1]["error"] == "Test error message"
+    assert args[0][2] is None
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.ws.registries.broadcast_to_channel_group")
+def test_rows_ai_values_generation_error_with_empty_rows(
+    mock_broadcast_to_channel_group, data_fixture
+):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_text_field(table=table)
+
+    row_signals.rows_ai_values_generation_error.send(
+        sender=None,
+        user=user,
+        rows=[],
+        field=field,
+        table=table,
+        error_message="Model not available",
+    )
+
+    mock_broadcast_to_channel_group.delay.assert_called_once()
+    args = mock_broadcast_to_channel_group.delay.call_args
+    assert args[0][0] == f"table-{table.id}"
+    assert args[0][1]["type"] == "rows_ai_values_generation_error"
+    assert args[0][1]["table_id"] == table.id
+    assert args[0][1]["field_id"] == field.id
+    assert args[0][1]["row_ids"] == []
+    assert args[0][1]["error"] == "Model not available"
+    assert args[0][2] is None

@@ -131,7 +131,7 @@ def rows_ai_values_generation_error(
                 "row_ids": [row.id for row in rows],
                 "error": error_message,
             },
-            getattr(user, "web_socket_id", None),
+            None,
             table_id=table.id,
         )
     )
