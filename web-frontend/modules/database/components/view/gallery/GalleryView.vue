@@ -128,7 +128,7 @@
           database.workspace.id
         ) &&
           !$hasPermission(
-            'database.table.view.create_row',
+            'database.table.view.update_row',
             view,
             database.workspace.id
           ))

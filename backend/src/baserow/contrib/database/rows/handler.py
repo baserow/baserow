@@ -751,9 +751,9 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         if view is not None:
             checks.append(view_check)
 
-        # Check multiple permissions regardless because we if a view is provided,
-        # we don't want to execute multiple queries in order to check if the
-        # permission check should fall back on the view.
+        # Check multiple permissions regardless because if a view is provided, we don't
+        # want to execute multiple queries in order to check if the permission check
+        # should fall back on the view.
         check_results = CoreHandler().check_multiple_permissions(
             checks,
             workspace=table.database.workspace,
@@ -786,7 +786,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             raise check_results[table_check]
 
         if isinstance(check_results[view_check], PermissionException):
-            raise check_results[table_check]
+            raise check_results[view_check]
 
         raise PermissionDenied(actor=user)
 

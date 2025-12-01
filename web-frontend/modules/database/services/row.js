@@ -163,7 +163,7 @@ export default (client) => {
 
       return client.delete(`/database/rows/table/${tableId}/${rowId}/`, config)
     },
-    batchDelete(tableId, items, viewId) {
+    batchDelete(tableId, items, viewId = null) {
       const config = { params: {} }
 
       if (viewId !== null) {

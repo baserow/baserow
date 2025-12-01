@@ -373,7 +373,7 @@ def test_cannot_update_row_outside_of_restricted_view(
     database = enterprise_data_fixture.create_database_application(workspace=workspace)
     table = enterprise_data_fixture.create_database_table(database=database)
     text_field = enterprise_data_fixture.create_text_field(table=table, primary=True)
-    normal_view = enterprise_data_fixture.create_grid_view(table=table)
+    enterprise_data_fixture.create_grid_view(table=table)
     restricted_view = enterprise_data_fixture.create_grid_view(
         table=table, ownership_type=RestrictedViewOwnershipType.type
     )
@@ -783,7 +783,7 @@ def test_cannot_delete_rows_outside_of_restricted_view_filters(
     database = enterprise_data_fixture.create_database_application(workspace=workspace)
     table = enterprise_data_fixture.create_database_table(database=database)
     text_field = enterprise_data_fixture.create_text_field(table=table, primary=True)
-    normal_view = enterprise_data_fixture.create_grid_view(table=table)
+    enterprise_data_fixture.create_grid_view(table=table)
     restricted_view = enterprise_data_fixture.create_grid_view(
         table=table, ownership_type=RestrictedViewOwnershipType.type
     )

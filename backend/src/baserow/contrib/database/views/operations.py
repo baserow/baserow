@@ -32,7 +32,7 @@ class ViewRowOperationType(OperationType, abc.ABC):
     context_scope_name = DatabaseViewObjectScopeType.type
 
 
-class CreateViewRowOperationType(ViewOperationType):
+class CreateViewRowOperationType(ViewRowOperationType):
     type = "database.table.view.create_row"
 
 
