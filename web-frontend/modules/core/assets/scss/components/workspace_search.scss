@@ -292,3 +292,9 @@
 .workspace-search__result-highlight {
   background-color: $palette-yellow-100;
 }
+
+.workspace-search__result-empty-badge {
+  color: $palette-neutral-600;
+  font-style: italic;
+  font-weight: 400;
+}

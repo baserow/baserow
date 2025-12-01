@@ -9,26 +9,47 @@ export class DatabaseSearchType extends BaseSearchType {
     this.priority = 1
   }
 
-  buildUrl(result, context = null) {
+  _getApplicationWithTables(result, context) {
     const databaseId = result?.metadata?.database_id || result?.id
-    if (!databaseId) {
+    if (!databaseId || !context?.store) {
+      return null
+    }
+    const application = context.store.getters['application/get'](databaseId)
+    if (application && application.tables && application.tables.length > 0) {
+      return application
+    }
+    return null
+  }
+
+  buildUrl(result, context = null) {
+    const application = this._getApplicationWithTables(result, context)
+    if (!application) {
       return null
     }
 
-    if (context && context.store) {
-      const application = context.store.getters['application/get'](databaseId)
-      if (application && application.tables && application.tables.length > 0) {
-        const tables = application.tables
-          .map((t) => t)
-          .sort((a, b) => a.order - b.order)
+    const databaseId = result?.metadata?.database_id || result?.id
+    const tables = application.tables
+      .map((t) => t)
+      .sort((a, b) => a.order - b.order)
 
-        if (tables.length > 0) {
-          return `/database/${databaseId}/table/${tables[0].id}`
-        }
-      }
+    return `/database/${databaseId}/table/${tables[0].id}`
+  }
+
+  isNavigable(result, context = null) {
+    return this._getApplicationWithTables(result, context) !== null
+  }
+
+  focusInSidebar(result, context = null) {
+    const databaseId = result?.metadata?.database_id || result?.id
+    if (!databaseId || !context?.store) {
+      return false
     }
-
-    return null
+    const application = context.store.getters['application/get'](databaseId)
+    if (application) {
+      context.store.dispatch('application/select', application)
+      return true
+    }
+    return false
   }
 }
 

@@ -64,7 +64,13 @@
                 </div>
                 <div class="workspace-search__result-main">
                   <div class="workspace-search__result-title">
-                    {{ displayFor(result).title }}
+                    {{ displayFor(result).title
+                    }}<span
+                      v-if="!isResultNavigable(result)"
+                      class="workspace-search__result-empty-badge"
+                    >
+                      {{ $t('workspaceSearch.empty') }}</span
+                    >
                   </div>
                   <div
                     v-if="displayFor(result).subtitle"
@@ -470,7 +476,21 @@ export default {
       if (url) {
         this.$router.push(url)
         this.hide()
+      } else {
+        // Try to focus in sidebar as fallback for empty applications
+        const focused = searchTypeRegistry.focusInSidebar(result.type, result, {
+          store: this.$store,
+        })
+        if (focused) {
+          this.hide()
+        }
       }
+    },
+
+    isResultNavigable(result) {
+      return searchTypeRegistry.isNavigable(result.type, result, {
+        store: this.$store,
+      })
     },
 
     buildResultUrl(result) {

@@ -9,28 +9,45 @@ export class AutomationSearchType extends BaseSearchType {
     this.priority = 4
   }
 
-  buildUrl(result, context = null) {
+  _getApplicationWithWorkflows(result, context) {
     const appId = result?.metadata?.application_id || result?.id
-    if (!appId) {
+    if (!appId || !context?.store) {
+      return null
+    }
+    const automation = context.store.getters['application/get'](appId)
+    if (automation && automation.workflows && automation.workflows.length > 0) {
+      return automation
+    }
+    return null
+  }
+
+  buildUrl(result, context = null) {
+    const automation = this._getApplicationWithWorkflows(result, context)
+    if (!automation) {
       return null
     }
 
-    if (context && context.store) {
-      const automation = context.store.getters['application/get'](appId)
-      if (
-        automation &&
-        automation.workflows &&
-        automation.workflows.length > 0
-      ) {
-        const workflows = [...automation.workflows].sort(
-          (a, b) => a.order - b.order
-        )
-        if (workflows.length > 0) {
-          return `/automation/${appId}/workflow/${workflows[0].id}`
-        }
-      }
-    }
+    const appId = result?.metadata?.application_id || result?.id
+    const workflows = [...automation.workflows].sort(
+      (a, b) => a.order - b.order
+    )
+    return `/automation/${appId}/workflow/${workflows[0].id}`
+  }
 
-    return null
+  isNavigable(result, context = null) {
+    return this._getApplicationWithWorkflows(result, context) !== null
+  }
+
+  focusInSidebar(result, context = null) {
+    const appId = result?.metadata?.application_id || result?.id
+    if (!appId || !context?.store) {
+      return false
+    }
+    const application = context.store.getters['application/get'](appId)
+    if (application) {
+      context.store.dispatch('application/select', application)
+      return true
+    }
+    return false
   }
 }

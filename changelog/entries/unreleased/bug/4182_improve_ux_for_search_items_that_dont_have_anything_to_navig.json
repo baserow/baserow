@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Improve UX for search items that don't have anything to navigate to",
+    "issue_origin": "github",
+    "issue_number": 4182,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2025-12-01"
+}

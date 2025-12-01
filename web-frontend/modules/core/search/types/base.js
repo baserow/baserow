@@ -34,4 +34,17 @@ export class BaseSearchType {
       descriptionSegments: [],
     }
   }
+
+  // Returns true if the result can be navigated to (has a valid URL)
+  // Override in subclasses to provide custom logic
+  isNavigable(result, context = null) {
+    return true
+  }
+
+  // Attempts to focus/select the result in the sidebar as a fallback action
+  // Returns true if the action was taken, false otherwise
+  // Override in subclasses to provide custom logic
+  focusInSidebar(result, context = null) {
+    return false
+  }
 }
