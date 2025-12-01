@@ -4,6 +4,7 @@ from typing import List
 import pytest
 
 from baserow.contrib.builder.formula_importer import import_formula
+from baserow.core.formula import BaserowFormulaObject
 from baserow.core.formula.registries import DataProviderType
 from baserow.core.formula.runtime_formula_context import RuntimeFormulaContext
 from baserow.core.utils import MirrorDict
@@ -14,11 +15,21 @@ FORMULAS = [
     {"input": "'test'", "output": "'test'"},
     {"input": "1 + 2", "output": "1 + 2"},
     {
+        "input": "get('test_provider.1.10') = 'test'",
+        "output": "get('test_provider.1.10') = 'test'",
+        "output2": "get('test_provider.10.42') = 'test'",
+    },
+    {
         "input": "get('test_provider.1.10')",
         "output": "get('test_provider.1.10')",
         "output2": "get('test_provider.10.42')",
     },
     {"input": "concat('foo','bar')", "output": "concat('foo','bar')"},
+    {
+        "input": "concat(get('test_provider.1.10'),'bar')",
+        "output": "concat(get('test_provider.1.10'),'bar')",
+        "output2": "concat(get('test_provider.10.42'),'bar')",
+    },
 ]
 
 
@@ -59,9 +70,9 @@ def test_formula_import_formula(formula, mutable_builder_data_provider_registry)
 
     id_mapping = defaultdict(lambda: MirrorDict())
 
-    result = import_formula(formula["input"], id_mapping)
+    result = import_formula(BaserowFormulaObject.create(formula["input"]), id_mapping)
 
-    assert result == formula["output"]
+    assert result["formula"] == formula["output"]
 
 
 @pytest.mark.django_db
@@ -74,6 +85,6 @@ def test_formula_import_formula_with_import(
     id_mapping["first"] = {1: 10}
     id_mapping["second"] = {10: 42}
 
-    result = import_formula(formula["input"], id_mapping)
+    result = import_formula(BaserowFormulaObject.create(formula["input"]), id_mapping)
 
-    assert result == formula.get("output2", formula["output"])
+    assert result["formula"] == formula.get("output2", formula["output"])

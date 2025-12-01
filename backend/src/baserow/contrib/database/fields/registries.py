@@ -1,4 +1,3 @@
-from functools import cached_property
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -43,6 +42,7 @@ from django.db.models import (
 from django.db.models.fields.related import ForeignKey, ManyToManyField
 from django.db.models.functions import Cast, Coalesce
 
+from django_cte import With
 from rest_framework import serializers
 
 from baserow.contrib.database.fields.constants import UPSERT_OPTION_DICT_KEY
@@ -74,13 +74,14 @@ from .exceptions import (
     ReadOnlyFieldHasNoInternalDbValueError,
 )
 from .fields import DurationFieldUsingPostgresFormatting
-from .models import Field, LinkRowField, SelectOption
+from .models import Field, FieldConstraint, LinkRowField
 from .utils import DeferredForeignKeyUpdater
 
 if TYPE_CHECKING:
     from baserow.contrib.database.fields.dependencies.handler import FieldDependants
     from baserow.contrib.database.fields.dependencies.types import FieldDependencies
     from baserow.contrib.database.fields.dependencies.update_collector import (
+        DependencyContext,
         FieldUpdateCollector,
     )
     from baserow.contrib.database.fields.field_cache import FieldCache
@@ -146,6 +147,12 @@ class FieldType(
     """
     Indicates whether this field can generate a list of unique values using the
     `FieldHandler::get_unique_row_values` method.
+    """
+
+    _can_have_db_index = False
+    """
+    Indicates whether a `db_index` can be true on the model field. If so, then it's
+    optionally possible for to add an index to the field.
     """
 
     _can_group_by = False
@@ -215,6 +222,16 @@ class FieldType(
     A field of this type may be used to calculate a match value during import, that
     allows to update existing rows with imported data instead of adding them.
     """
+
+    def get_default_options_field_name(self):
+        """
+        Returns the name of the field that stores the default value for the field type.
+        """
+
+        return f"{self.type}_default"
+
+    def get_default_value(self, field: Field) -> Any:
+        return None
 
     @property
     def db_column_fields(self) -> Set[str]:
@@ -690,6 +707,10 @@ class FieldType(
 
         values = {
             "name": field.name,
+            "db_index": field.db_index,
+            "field_constraints": [
+                {"type_name": c.type_name} for c in field.field_constraints.all()
+            ],
         }
 
         values.update({key: getattr(field, key) for key in self.allowed_fields})
@@ -749,6 +770,13 @@ class FieldType(
         :param field_kwargs: The kwargs that were passed when creating the field
             instance.
         :type field_kwargs: dict
+        """
+
+    def init_field_data(self, field, model):
+        """
+        This hook is called right after the field has been created, when the field data
+        needs to be initialized. This is for example used by the CreateFieldActionType
+        to initialize the field data when the field is created.
         """
 
     def before_update(self, from_field, to_field_values, user, field_kwargs):
@@ -950,6 +978,19 @@ class FieldType(
 
         return self.serialize_to_input_value(field, value)
 
+    def serialize_allowed_fields(self, field: Field) -> Dict[str, Any]:
+        """
+        Serializes the allowed fields of the field to a serialized dict.
+
+        :param field: The field instance that must be serialized.
+        :return: The serialized dict of the allowed fields.
+        """
+
+        serialized = {}
+        for field_name in self.allowed_fields:
+            serialized[field_name] = getattr(field, field_name)
+        return serialized
+
     def export_serialized(
         self, field: Field, include_allowed_fields: bool = True
     ) -> Dict[str, Any]:
@@ -963,6 +1004,15 @@ class FieldType(
         :return: The exported field in as serialized dict.
         """
 
+        # Handle cases where field_constraints relationship might fail
+        # e.g. during Airtable import that uses unsaved field instances
+        try:
+            field_constraints = [
+                {"type_name": c.type_name} for c in field.field_constraints.all()
+            ]
+        except (ValueError, TypeError):
+            field_constraints = []
+
         serialized = {
             "id": field.id,
             "type": self.type,
@@ -971,13 +1021,14 @@ class FieldType(
             "order": field.order,
             "primary": field.primary,
             "read_only": field.read_only,
+            "db_index": field.db_index,
             "immutable_type": field.immutable_type,
             "immutable_properties": field.immutable_properties,
+            "field_constraints": field_constraints,
         }
 
         if include_allowed_fields:
-            for field_name in self.allowed_fields:
-                serialized[field_name] = getattr(field, field_name)
+            serialized.update(self.serialize_allowed_fields(field))
 
         if self.can_have_select_options:
             serialized["select_options"] = [
@@ -1032,20 +1083,20 @@ class FieldType(
         serialized_copy = serialized_values.copy()
         field_id = serialized_copy.pop("id")
         serialized_copy.pop("type")
+        field_constraints = serialized_copy.pop("field_constraints", [])
         select_options = (
             serialized_copy.pop("select_options", [])
             if self.can_have_select_options
             else []
         )
-        should_create_tsvector_column = (
-            not import_export_config.reduce_disk_space_usage
-            and table.tsvectors_are_supported
-        )
-        field = self.model_class(
-            table=table,
-            tsvector_column_created=should_create_tsvector_column,
-            **serialized_copy,
-        )
+
+        select_default = None
+        if self.can_have_select_options:
+            select_default_field_name = self.get_default_options_field_name()
+            if select_default_field_name:
+                select_default = serialized_copy.pop(select_default_field_name, None)
+
+        field = self.model_class(table=table, **serialized_copy)
         field.save()
 
         id_mapping["database_fields"][field_id] = field.id
@@ -1054,16 +1105,20 @@ class FieldType(
         # this field.
         id_mapping["database_field_names"][table.id][field.name] = field
 
+        if field_constraints:
+            FieldConstraint.objects.bulk_create(
+                [
+                    FieldConstraint(field=field, type_name=constraint["type_name"])
+                    for constraint in field_constraints
+                ]
+            )
+
         if self.can_have_select_options:
-            for select_option in select_options:
-                select_option_copy = select_option.copy()
-                select_option_id = select_option_copy.pop("id")
-                select_option_object = SelectOption.objects.create(
-                    field=field, **select_option_copy
-                )
-                id_mapping["database_field_select_options"][
-                    select_option_id
-                ] = select_option_object.id
+            select_options_mapping = self.create_select_options(field, select_options)
+            field = self.after_create_select_options(
+                field, select_default, select_options, select_options_mapping
+            )
+            id_mapping["database_field_select_options"].update(select_options_mapping)
 
         return field
 
@@ -1115,8 +1170,6 @@ class FieldType(
         update statement with the update_collector to correctly set their value after
         the row has been created.
         """
-
-        pass
 
     def get_export_serialized_value(
         self,
@@ -1394,6 +1447,7 @@ class FieldType(
         update_collector: "FieldUpdateCollector",
         field_cache: "FieldCache",
         via_path_to_starting_table: Optional[List[LinkRowField]],
+        dependency_context: "DependencyContext",
     ):
         """
         Called when a row is created in a dependency field (a field that the field
@@ -1417,6 +1471,7 @@ class FieldType(
             update_collector,
             field_cache,
             via_path_to_starting_table,
+            dependency_context,
         )
 
     def row_of_dependency_updated(
@@ -1426,6 +1481,7 @@ class FieldType(
         update_collector: "FieldUpdateCollector",
         field_cache: "FieldCache",
         via_path_to_starting_table: List["LinkRowField"],
+        dependency_context: "DependencyContext",
     ):
         """
         Called when a row or rows are updated in a dependency field (a field that the
@@ -1443,6 +1499,8 @@ class FieldType(
         :param field_cache: An optional field cache to be used when fetching fields.
         :param via_path_to_starting_table: A list of link row fields if any leading
             back to the starting table where the first row was changed.
+        :param dependency_context: A DependencyContext object containing additional
+            information about the dependency and the triggering change.
         """
 
     def row_of_dependency_deleted(
@@ -1452,6 +1510,7 @@ class FieldType(
         update_collector: "FieldUpdateCollector",
         field_cache: "FieldCache",
         via_path_to_starting_table: Optional[List[LinkRowField]],
+        dependency_context: "DependencyContext",
     ):
         """
         Called when a row is deleted in a dependency field (a field that the
@@ -1475,6 +1534,7 @@ class FieldType(
             update_collector,
             field_cache,
             via_path_to_starting_table,
+            dependency_context,
         )
 
     def field_dependency_created(
@@ -1590,36 +1650,50 @@ class FieldType(
 
         return self._can_be_primary_field
 
-    @cached_property
-    def _can_filter_by(self) -> bool:
+    def can_have_db_index(self, field: Field) -> bool:
         """
-        Responsible for returning whether any view filter types are compatible
-        with this field type.
+        Override this method if this field type can have an index.
+
+        :param field: The field object related to the field that's created or updated
+            with the db_index enabled.
+        :return: True if the field can have an index
         """
 
-        from baserow.contrib.database.views.registries import view_filter_type_registry
-
-        compatible_view_filters = [
-            view_filter_type
-            for view_filter_type in view_filter_type_registry.get_all()
-            if self.type in view_filter_type.compatible_field_types
-        ]
-
-        return len(compatible_view_filters) > 0
+        return self._can_have_db_index
 
     def check_can_filter_by(self, field: Field) -> bool:
         """
         Override this method if this field type can sometimes be filtered or sometimes
-        cannot be filtered depending on the individual field state. By default will just
-        return the bool property _can_filter_by so if your field type doesn't depend
-        on the field state and is always just True or False just set _can_filter_by
-        to the desired value.
+        cannot be filtered depending on the individual field state. By default, this
+        method will return whether there are any view filter types compatible with this
+        field type.
 
         :param field: The field to check to see if it can be filtered by or not.
         :return: True if a view can be filtered by this field, False otherwise.
         """
 
-        return self._can_filter_by
+        from baserow.contrib.database.views.registries import view_filter_type_registry
+
+        compatible_vft = [
+            vft
+            for vft in view_filter_type_registry.get_all()
+            if vft.field_is_compatible(field)
+        ]
+
+        return len(compatible_vft) > 0
+
+    def get_compatible_filter_field_type(self, field: Field) -> "FieldType":
+        """
+        Returns the canonical field type to use when determining compatibility with
+        view filters. By default this returns self, but field types that should be
+        treated as another field type for filtering can override this and return that
+        other field type instance.
+
+        :param field: The concrete field instance being checked.
+        :return: The FieldType that should be used for filter compatibility.
+        """
+
+        return self
 
     def check_can_order_by(self, field: Field, sort_type: str) -> bool:
         """
@@ -1686,7 +1760,13 @@ class FieldType(
         return value
 
     def get_group_by_field_filters_and_annotations(
-        self, field: Field, field_name: str, base_queryset: QuerySet, value: Any
+        self,
+        field: Field,
+        field_name: str,
+        base_queryset: QuerySet,
+        value: Any,
+        cte: Dict[str, With],
+        rows: List["GeneratedTableModel"],
     ) -> Tuple[Dict, Dict]:
         """
         The filters that must be applied to match the provided value to the queryset
@@ -1697,6 +1777,9 @@ class FieldType(
         :param field_name: The name of the field in the table that must be looked up.
         :param base_queryset: The base queryset of the items the grouped rows.
         :param value: The unique value that must be looked up.
+        :param cte: A dict containing CTE that must be added to the final queryset.
+            Can be used to improve performance if there are many subqueries.
+        :param rows: The rows where to get the unique values from.
         :return: A tuple containing the filters and annotations as dict.
         """
 
@@ -1737,6 +1820,18 @@ class FieldType(
         :param to_delete: A list of option ids that are removed from the field
             option list.
         """
+
+    def should_update_search_data(
+        self, old_field: Field, new_field_attrs: Dict[str, Any]
+    ) -> bool:
+        """
+        When a field is updated we might need to recalculate the search data for it.
+        This method is called if the new field does not change the type but only its
+        attributes and returns whether or not the search data should be recalculated
+        because of a potential change in the field value due to the new attributes.
+        """
+
+        return False
 
     def should_backup_field_data_for_same_type_update(
         self, old_field: Field, new_field_attrs: Dict[str, Any]
@@ -1929,6 +2024,13 @@ class FieldType(
 
         return field_name
 
+    def to_runtime_formula_value(self, field, value):
+        """
+        Transform the value to be usable in runtime formula land.
+        """
+
+        return value
+
 
 class ReadOnlyFieldType(FieldType):
     read_only = True
@@ -2010,42 +2112,51 @@ class ManyToManyGroupByMixin:
     that the field type must set the `_can_group_by` property to `True`.
     """
 
-    def _get_group_by_agg_expression(self, field_name: str) -> Expression:
-        """
-        Returns the aggregation expression that can be used to group by the field. By
-        default it will return an ArrayAgg expression that will aggregate all the
-        related field values.
-
-        :param field_name: The name of the field in the table.
-        :return: The aggregation expression that can be used to group by the field.
-        """
-
-        return ArrayAgg(
-            f"{field_name}__id",
-            filter=Q(**{f"{field_name}__isnull": False}),
-        )
-
     def get_group_by_field_unique_value(
         self, field: Field, field_name: str, value: Any
     ) -> Any:
         return tuple([v.id for v in value.all()])
 
+    def get_group_by_aggregated_order(self, related_field):
+        return (f"{related_field}_id",)
+
     def get_group_by_field_filters_and_annotations(
-        self, field, field_name, base_queryset, value
+        self, field, field_name, base_queryset, value, cte, rows
     ):
-        filters = {
-            field_name: value,
-        }
-        annotations = {
-            field_name: Subquery(
-                base_queryset.filter(id=OuterRef("id"))
+        through_model = base_queryset.model._meta.get_field(
+            field_name
+        ).remote_field.through
+        reversed_field = through_model._meta.get_fields()[1].name
+        related_field = through_model._meta.get_fields()[2].name
+
+        if field_name not in cte:
+            row_ids = [row.id for row in rows]
+            # Improve performance of the query by creating a CTE with all the
+            # relationships of the field to group by. This is significantly faster than
+            # doing this every row in a separate subquery.
+            aggregated_cte = (
+                through_model.objects.filter(**{f"{reversed_field}_id__in": row_ids})
+                .values(f"{reversed_field}_id")
                 .annotate(
-                    res=Coalesce(
-                        self._get_group_by_agg_expression(field_name),
-                        Value([], output_field=ArrayField(IntegerField())),
-                    ),
+                    res=ArrayAgg(
+                        F(f"{related_field}_id"),
+                        filter=Q(**{f"{related_field}_id__isnull": False}),
+                        ordering=self.get_group_by_aggregated_order(related_field),
+                    )
                 )
-                .values("res")
+            )
+            cte[field_name] = With(aggregated_cte, name=f"{field_name}_cte")
+
+        filters = {field_name: value}
+        annotations = {
+            field_name: Coalesce(
+                Subquery(
+                    cte[field_name]
+                    .queryset()
+                    .filter(**{f"{reversed_field}_id": OuterRef("id")})
+                    .values("res")[:1]
+                ),
+                Value([], output_field=ArrayField(IntegerField())),
             )
         }
         return filters, annotations
@@ -2350,6 +2461,32 @@ class FieldAggregationTypeRegistry(Registry):
     already_registered_exception_class = AggregationTypeAlreadyRegistered
 
 
+class FieldConstraintRegistry(Registry):
+    """
+    The registry that holds all the available field value constraints.
+    A field value constraint can be used to validate the values of a field.
+    """
+
+    name = "field_constraint"
+
+    def get_specific_constraint(self, constraint_name: str, field_type: FieldType):
+        """
+        Returns the specific constraint for the field type and constraint name.
+
+        :param constraint_name: The name of the constraint.
+        :param field_type: The field type to check compatibility with.
+        :return: The specific constraint or None if no specific constraint is found.
+        """
+
+        for constraint in self.registry.values():
+            if (
+                constraint.constraint_name == constraint_name
+                and constraint.is_field_type_compatible(field_type)
+            ):
+                return constraint
+        return None
+
+
 # A default field type registry is created here, this is the one that is used
 # throughout the whole Baserow application to add a new field type.
 field_type_registry: FieldTypeRegistry = FieldTypeRegistry()
@@ -2357,3 +2494,4 @@ field_converter_registry: FieldConverterRegistry = FieldConverterRegistry()
 field_aggregation_registry: FieldAggregationTypeRegistry = (
     FieldAggregationTypeRegistry()
 )
+field_constraint_registry: FieldConstraintRegistry = FieldConstraintRegistry()

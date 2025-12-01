@@ -19,6 +19,7 @@ from django.db.models import QuerySet
 from baserow.contrib.builder.elements.exceptions import (
     ElementDoesNotExist,
     ElementNotInSamePage,
+    ElementTypeDeactivated,
 )
 from baserow.contrib.builder.elements.models import ContainerElement, Element
 from baserow.contrib.builder.elements.registries import (
@@ -48,6 +49,8 @@ class ElementHandler:
         "parent_element_id",
         "place_in_container",
         "visibility",
+        "visibility_condition",
+        "css_classes",
         "styles",
         "style_border_top_color",
         "style_border_top_size",
@@ -78,7 +81,9 @@ class ElementHandler:
     allowed_fields_update = [
         "parent_element_id",
         "place_in_container",
+        "css_classes",
         "visibility",
+        "visibility_condition",
         "styles",
         "style_border_top_color",
         "style_border_top_size",
@@ -337,6 +342,9 @@ class ElementHandler:
             recalculated in this case before calling this method again.
         :return: The created element.
         """
+
+        if element_type.is_deactivated(page.builder.workspace):
+            raise ElementTypeDeactivated()
 
         parent_element_id = kwargs.get("parent_element_id", None)
         place_in_container = kwargs.get("place_in_container", None)
@@ -730,7 +738,7 @@ class ElementHandler:
     ) -> Element:
         """
         Creates an instance using the serialized version previously exported with
-        `.export_element'.
+        `.export_element`.
 
         :param page: The page instance the new element should belong to.
         :param serialized_element: The serialized version of the element.

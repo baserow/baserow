@@ -90,8 +90,7 @@ def test_run_import_shared_view(mock_import_from_airtable_to_workspace, data_fix
 
     job = data_fixture.create_airtable_import_job()
 
-    with pytest.raises(AirtableShareIsNotABase):
-        run_async_job(job.id)
+    run_async_job(job.id)
 
     job.refresh_from_db()
     assert job.state == JOB_FAILED

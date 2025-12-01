@@ -4,13 +4,13 @@
     :class="{
       'create-widget-card--available': isWidgetAvailable,
     }"
-    @click="widgetTypeSelected"
+    @click="widgetVariationSelected"
   >
     <div class="create-widget-card__img-container">
-      <img :src="widgetType.createWidgetImage" />
+      <img :src="variation.createWidgetImage" />
     </div>
     <div class="create-widget-card__name">
-      <span>{{ widgetType.name }}</span>
+      <span>{{ variation.name }}</span>
       <span v-if="!isWidgetAvailable">
         <i class="iconoir-lock create-widget-card__name-locked"></i>
       </span>
@@ -38,6 +38,10 @@ export default {
       type: Object,
       required: true,
     },
+    variation: {
+      type: Object,
+      required: true,
+    },
   },
   computed: {
     isWidgetAvailable() {
@@ -48,13 +52,13 @@ export default {
     },
   },
   methods: {
-    widgetTypeSelected() {
+    widgetVariationSelected() {
       if (!this.isWidgetAvailable) {
         this.$refs.deactivatedModal.show()
         return
       }
 
-      this.$emit('widget-type-selected', this.widgetType.type)
+      this.$emit('widget-variation-selected', this.variation)
     },
   },
 }

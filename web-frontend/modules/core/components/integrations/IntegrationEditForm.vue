@@ -2,13 +2,14 @@
   <form ref="form" @submit.prevent="submit">
     <FormGroup
       required
+      small-label
+      :label="$t('integrationEditForm.name')"
       class="margin-bottom-2"
       :error-message="getFirstErrorMessage('name')"
     >
       <FormInput
         v-model="values.name"
         required
-        :label="$t('integrationEditForm.name')"
         :placeholder="$t('integrationEditForm.namePlaceholder')"
         @blur="v$.values.name.$touch"
       />

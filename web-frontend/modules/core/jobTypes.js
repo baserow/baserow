@@ -101,15 +101,24 @@ export class JobType extends Registerable {
   async beforeUpdate(job, data) {}
 
   async afterUpdate(job, data) {
-    if (job.state === 'finished') {
-      await this.onJobDone(job, data)
-    } else if (job.state === 'failed') {
-      await this.onJobFailed(job, data)
+    switch (job.state) {
+      case 'cancelled':
+        await this.onJobCancelled(job, data)
+        break
+      case 'failed':
+        await this.onJobFailed(job, data)
+        break
+      case 'finished':
+        await this.onJobDone(job, data)
+        break
+      default:
+        break
     }
   }
 
-  async onJobDone(job) {}
-  async onJobFailed(job) {}
+  async onJobDone(job, data) {}
+  async onJobFailed(job, data) {}
+  async onJobCancelled(job, data) {}
 }
 
 export class DuplicateApplicationJobType extends JobType {

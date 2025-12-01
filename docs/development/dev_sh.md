@@ -1,4 +1,4 @@
-## ./dev.sh
+# ./dev.sh
 
 `dev.sh` is a helper bash script which makes working with baserow's development
 environment a breeze.
@@ -19,7 +19,7 @@ experience smooth and useful. In the per container tabs opened by using `./dev.s
   so you can press up to get the command that the container was running before you
   pressed ctrl-c!
 
-### Examples of ./dev.sh usage:
+## Examples of ./dev.sh usage:
 
 ```bash
 $ ./dev.sh # same as the up command above but also ensures the containers run as the running user!
@@ -51,7 +51,7 @@ $ ./dev.sh heroku restart --build
 $ POSTGRES_PORT=5555 ./dev.sh
 ```
 
-### Why ./dev.sh ensures the containers run as you
+## Why ./dev.sh ensures the containers run as you
 
 In dev mode Baserow's source control directories are mounted from your local git repo
 into the containers. By mounting these the containers will see source code changes and
@@ -63,7 +63,7 @@ Additionally, it
 is [best practice](https://medium.com/@mccode/processes-in-containers-should-not-run-as-root-2feae3f0df3b)
 to not run Docker containers as the default root user.
 
-### Customizing the default ./dev.sh behavior
+## Customizing the default ./dev.sh behavior
 
 It is possible to change the way `./dev.sh` script behaves by using built-in pre and post hooks. To do so, place your code in new local files `.local/pre_devsh_hook.sh` or `.local/post_devsh_hook.sh` depending on your needs. These files will be sourced and executed every time the `./dev.sh` script runs.
 

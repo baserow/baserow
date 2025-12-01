@@ -1,0 +1,8 @@
+{
+    "type": "bug",
+    "message": "Resolved a table element bug which allowed users to mark non-filterable fields as filterable to external users.",
+    "domain": "builder",
+    "issue_number": null,
+    "bullet_points": [],
+    "created_at": "2025-08-26"
+}

@@ -20,7 +20,7 @@
 </template>
 
 <script>
-import { escape, truncate } from 'lodash'
+import { truncate } from 'lodash'
 
 export default {
   props: {
@@ -49,10 +49,8 @@ export default {
           .map((v, index) =>
             index === 0
               ? v !== undefined
-                ? escape(
-                    this.fieldType.toAggregationString(this.field, v) ||
-                      this.emptyCount
-                  )
+                ? this.fieldType.toAggregationString(this.field, v) ||
+                  this.emptyCount
                 : this.othersCount
               : v
           )
@@ -76,7 +74,7 @@ export default {
             } else {
               displayValue = item
             }
-            return truncate(escape(displayValue), {
+            return truncate(displayValue, {
               length: 30,
               omission: '…',
             })
@@ -113,7 +111,7 @@ export default {
         const tr = document.createElement('tr')
         for (const cell of row) {
           const td = document.createElement('td')
-          td.innerText = escape(cell)
+          td.innerText = cell
           tr.appendChild(td)
         }
         table.appendChild(tr)

@@ -4,8 +4,12 @@
     :class="{
       'tabs--full-height': fullHeight,
       'tabs--large-offset': largeOffset,
-      'tabs--nopadding': noPadding,
+      'tabs--large': large,
+      'tabs--header-nopadding': headerNoPadding,
+      'tabs--content-no-x-padding': contentNoXPadding,
+      'tabs--content-no-padding': contentNoPadding,
       'tabs--grow-items': growItems,
+      'tabs--rounded': rounded,
     }"
   >
     <ul class="tabs__header">
@@ -13,11 +17,13 @@
         v-for="(tab, index) in tabs"
         :key="`${tab.title} ${tab.tooltip}`"
         v-tooltip="tab.tooltip"
+        :tooltip-position="tab.tooltipPosition"
         class="tabs__item"
         :class="{
           'tabs__item--active': isActive(index),
           'tabs__item--disabled': tab.disabled,
         }"
+        :data-highlight="tab.highlight"
         @click="
           tab.disabled ? $emit('click-disabled', index) : selectTab(index)
         "
@@ -34,6 +40,7 @@
         </a>
       </li>
     </ul>
+
     <slot></slot>
   </div>
 </template>
@@ -69,7 +76,7 @@ export default {
       default: null,
     },
     /**
-     * Whether the tabs container should add some extra space to the left.
+     * Whether the tabs header container should add some extra space to the left.
      */
     largeOffset: {
       type: Boolean,
@@ -77,9 +84,33 @@ export default {
       default: false,
     },
     /**
+     * Whether the tabs are the larger variant.
+     */
+    large: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
+    /**
      * Removes the padding from the tabs container and header.
      */
-    noPadding: {
+    headerNoPadding: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
+    /**
+     * Removes the left and right padding from the tabs container only.
+     */
+    contentNoXPadding: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
+    /**
+     * Removes padding (x and y) from the tabs container only.
+     */
+    contentNoPadding: {
       type: Boolean,
       required: false,
       default: false,
@@ -88,6 +119,16 @@ export default {
      * Whether the tabs header items should grow to use all the available space.
      */
     growItems: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
+    tabItems: {
+      type: [Array, null],
+      required: false,
+      default: null,
+    },
+    rounded: {
       type: Boolean,
       required: false,
       default: false,
@@ -110,7 +151,11 @@ export default {
     },
   },
   created() {
-    this.tabs = this.$children
+    if (this.tabItems) {
+      this.tabs = this.tabItems
+    } else {
+      this.tabs = this.$children
+    }
   },
   mounted() {
     if (this.route) {
@@ -139,9 +184,11 @@ export default {
         this.$emit('update:selectedIndex', i)
         this.internalSelectedIndex = i
       }
-      this.tabs.forEach((tab, index) => {
-        tab.isActive = index === i
-      })
+      if (!this.tabItems) {
+        this.tabs.forEach((tab, index) => {
+          tab.isActive = index === i
+        })
+      }
     },
   },
 }

@@ -55,7 +55,7 @@ Common labels
 {{- define "baserow.labels" -}}
 helm.sh/chart: {{ include "baserow.chart" . }}
 {{ include "baserow.selectorLabels" . }}
-{{ include "baserow.additionalLabels" . }}
+{{- include "baserow.additionalLabels" . }}
 {{- if .Chart.AppVersion }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
@@ -68,7 +68,7 @@ Selector labels
 {{- define "baserow.selectorLabels" -}}
 app.kubernetes.io/name: {{ include "baserow.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
-{{ include "baserow.additionalSelectorLabels" . }}
+{{- include "baserow.additionalSelectorLabels" . }}
 {{- end }}
 
 {{/*

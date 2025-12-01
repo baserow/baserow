@@ -1,0 +1,24 @@
+.auth-code-input {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
+  width: 100%;
+  max-width: 324px;
+
+  &.auth-code-input--full-width {
+    max-width: 100%;
+  }
+}
+
+.auth-code-input__input {
+  height: 52px;
+  font-size: 18px;
+  color: $palette-neutral-900;
+  border-radius: 6px;
+  border: 1px solid $palette-neutral-400;
+  text-align: center;
+}
+
+.auth-code-input__input--filled {
+  background: $palette-neutral-100;
+}

@@ -17,16 +17,16 @@ This doc doesn’t explain and assumes you already know:
 # Quick links
 
 - Our Baserow public repo CI/CD definition file can be
-  found [here](https://gitlab.com/baserow/baserow/-/blob/develop/.gitlab-ci.yml)
+  found [here](https://github.com/baserow/baserow/blob/develop/.gitlab-ci.yml)
 - Our shared CI job definitions
-  from [here](https://gitlab.com/baserow/baserow/-/blob/develop/.gitlab/ci_includes/jobs.yml)
+  from [here](https://github.com/baserow/baserow/blob/develop/.gitlab/ci_includes/jobs.yml)
 - We have two CI base images used by jobs:
     - Any docker build jobs are run using this
       image [here](https://gitlab.com/baserow/baserow/container_registry/3961081) which
       is built using
-      this [Dockerfile](https://gitlab.com/baserow/baserow/-/blob/develop/.gitlab/ci_dind_image/Dockerfile)
+      this [Dockerfile](https://github.com/baserow/baserow/blob/develop/.gitlab/ci_dind_image/Dockerfile)
     - Any non docker build jobs that need various utils run
-      using [this Dockerfile](https://gitlab.com/baserow/baserow/-/blob/develop/.gitlab/ci_util_image/Dockerfile)
+      using [this Dockerfile](https://github.com/baserow/baserow/blob/develop/.gitlab/ci_util_image/Dockerfile)
       with those tools added
     - Push an MR with a change to either of the Dockerfiles and a manually triggered job
       will appear in that branches pipeline which will automatically rebuild and push

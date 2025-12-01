@@ -1,6 +1,6 @@
 import { mapActions, mapGetters } from 'vuex'
 import { DataProviderType } from '@baserow/modules/core/dataProviderTypes'
-import { notifyIf } from '@baserow/modules/core/utils/error'
+import { handleDispatchError } from '@baserow/modules/builder/utils/error'
 import _ from 'lodash'
 
 export default {
@@ -23,6 +23,7 @@ export default {
       getReset: 'elementContent/getReset',
       getPagesDataSourceById: 'dataSource/getPagesDataSourceById',
       getSharedPage: 'page/getSharedPage',
+      getElementAncestors: 'element/getAncestors',
     }),
     reset() {
       return this.getReset(this.element)
@@ -43,8 +44,19 @@ export default {
       }
       return this.$registry.get('service', this.dataSource.type)
     },
+    dataSourceInError() {
+      return !!this.elementType.getDataSourceErrorMessage({
+        workspace: this.workspace,
+        page: this.elementPage,
+        element: this.element,
+        builder: this.builder,
+      })
+    },
     elementContent() {
-      return this.getElementContent(this.element, this.applicationContext)
+      const elementContent = this.elementType.getElementCurrentContent(
+        this.applicationContext
+      )
+      return Array.isArray(elementContent) ? elementContent : []
     },
     hasMorePage() {
       return this.getHasMorePage(this.element)
@@ -69,23 +81,21 @@ export default {
       }
     },
     elementIsInError() {
-      return this.elementType.isInError({
-        page: this.elementPage,
-        element: this.element,
-        builder: this.builder,
-      })
+      return this.elementType.isInError(this.element, this.applicationContext)
     },
   },
   watch: {
     reset() {
       this.debouncedReset()
     },
-    'element.schema_property'(newValue, oldValue) {
+    async 'element.schema_property'(newValue, oldValue) {
+      await this.clearElementContent({ element: this.element })
       if (newValue) {
         this.debouncedReset()
       }
     },
-    'element.data_source_id'() {
+    async 'element.data_source_id'() {
+      await this.clearElementContent({ element: this.element })
       this.debouncedReset()
     },
     'element.items_per_page'() {
@@ -108,13 +118,14 @@ export default {
     },
   },
   async fetch() {
-    if (!this.elementIsInError && this.elementType.fetchAtLoad) {
+    if (this.elementType.fetchAtLoad) {
       await this.fetchContent([0, this.element.items_per_page])
     }
   },
   methods: {
     ...mapActions({
       fetchElementContent: 'elementContent/fetchElementContent',
+      clearElementContent: 'elementContent/clearElementContent',
     }),
     debouncedReset() {
       clearTimeout(this.resetTimeout)
@@ -152,7 +163,13 @@ export default {
         // toasts per element sharing a datasource.
         if (!this.errorNotified) {
           this.errorNotified = true
-          notifyIf(error)
+          handleDispatchError(
+            error,
+            this,
+            this.$t('builderToast.errorDataSourceDispatch', {
+              name: this.dataSource.name,
+            })
+          )
         }
       }
     },
@@ -164,7 +181,7 @@ export default {
     },
     /** Overrides this if you want to prevent data fetching */
     canFetch() {
-      return this.contentFetchEnabled
+      return !this.dataSourceInError && this.contentFetchEnabled
     },
 
     /** Override this if you want to handle content fetch errors */
@@ -181,9 +198,11 @@ export default {
       row,
       rowIndex,
       field = null,
+      ...rest
     }) {
       const newApplicationContext = {
         recordIndexPath: [...applicationContext.recordIndexPath, rowIndex],
+        ...rest,
       }
       if (field) {
         newApplicationContext.field = field

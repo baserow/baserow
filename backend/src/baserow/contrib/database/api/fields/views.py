@@ -1,6 +1,7 @@
 from typing import Any, Dict
 
 from django.conf import settings
+from django.contrib.auth.hashers import check_password
 from django.db import transaction
 
 from drf_spectacular.openapi import OpenApiParameter, OpenApiTypes
@@ -37,8 +38,11 @@ from baserow.contrib.database.api.fields.errors import (
     ERROR_CANNOT_CHANGE_FIELD_TYPE,
     ERROR_CANNOT_CREATE_FIELD_TYPE,
     ERROR_CANNOT_DELETE_PRIMARY_FIELD,
+    ERROR_DB_INDEX_NOT_SUPPORTED,
     ERROR_FAILED_TO_LOCK_FIELD_DUE_TO_CONFLICT,
     ERROR_FIELD_CIRCULAR_REFERENCE,
+    ERROR_FIELD_CONSTRAINT,
+    ERROR_FIELD_CONSTRAINT_DOES_NOT_SUPPORT_DEFAULT_VALUE,
     ERROR_FIELD_DOES_NOT_EXIST,
     ERROR_FIELD_IS_ALREADY_PRIMARY,
     ERROR_FIELD_NOT_IN_TABLE,
@@ -49,10 +53,14 @@ from baserow.contrib.database.api.fields.errors import (
     ERROR_INCOMPATIBLE_FIELD_TYPE_FOR_UNIQUE_VALUES,
     ERROR_INCOMPATIBLE_PRIMARY_FIELD_TYPE,
     ERROR_INVALID_BASEROW_FIELD_NAME,
+    ERROR_INVALID_FIELD_CONSTRAINT,
+    ERROR_INVALID_PASSWORD_FIELD_PASSWORD,
     ERROR_MAX_FIELD_COUNT_EXCEEDED,
     ERROR_RESERVED_BASEROW_FIELD_NAME,
+    ERROR_SELECT_OPTION_DOES_NOT_BELONG_TO_FIELD,
     ERROR_TABLE_HAS_NO_PRIMARY_FIELD,
 )
+from baserow.contrib.database.api.rows.errors import ERROR_ROW_DOES_NOT_EXIST
 from baserow.contrib.database.api.tables.errors import (
     ERROR_FAILED_TO_LOCK_TABLE_DUE_TO_CONFLICT,
     ERROR_TABLE_DOES_NOT_EXIST,
@@ -73,7 +81,10 @@ from baserow.contrib.database.fields.exceptions import (
     CannotChangeFieldType,
     CannotCreateFieldType,
     CannotDeletePrimaryField,
+    DbIndexNotSupportedError,
     FailedToLockFieldDueToConflict,
+    FieldConstraintDoesNotSupportDefaultValueError,
+    FieldConstraintException,
     FieldDoesNotExist,
     FieldIsAlreadyPrimary,
     FieldNotInTable,
@@ -83,18 +94,23 @@ from baserow.contrib.database.fields.exceptions import (
     IncompatibleFieldTypeForUniqueValues,
     IncompatiblePrimaryFieldTypeError,
     InvalidBaserowFieldName,
+    InvalidFieldConstraint,
+    InvalidPasswordFieldPassword,
     MaxFieldLimitExceeded,
     ReservedBaserowFieldNameException,
+    SelectOptionDoesNotBelongToField,
     TableHasNoPrimaryField,
 )
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.job_types import DuplicateFieldJobType
+from baserow.contrib.database.fields.models import PasswordField
 from baserow.contrib.database.fields.operations import (
     CreateFieldOperationType,
     ListFieldsOperationType,
     ReadFieldOperationType,
 )
 from baserow.contrib.database.fields.registries import field_type_registry
+from baserow.contrib.database.rows.exceptions import RowDoesNotExist
 from baserow.contrib.database.table.exceptions import (
     FailedToLockTableDueToConflict,
     TableDoesNotExist,
@@ -103,7 +119,7 @@ from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.tokens.exceptions import NoPermissionToTable
 from baserow.contrib.database.tokens.handler import TokenHandler
 from baserow.core.action.registries import action_type_registry
-from baserow.core.db import specific_iterator
+from baserow.core.db import atomic_with_retry_on_deadlock, specific_iterator
 from baserow.core.exceptions import UserNotInWorkspace
 from baserow.core.handler import CoreHandler
 from baserow.core.jobs.exceptions import MaxJobCountExceeded
@@ -111,12 +127,15 @@ from baserow.core.jobs.handler import JobHandler
 from baserow.core.jobs.registries import job_type_registry
 from baserow.core.trash.exceptions import CannotDeleteAlreadyDeletedItem
 
+from ...rows.handler import RowHandler
 from .serializers import (
     ChangePrimaryFieldParamsSerializer,
     CreateFieldSerializer,
     DuplicateFieldParamsSerializer,
     FieldSerializer,
     FieldSerializerWithRelatedFields,
+    PasswordFieldAuthenticationResponseSerializer,
+    PasswordFieldAuthenticationSerializer,
     RelatedFieldsSerializer,
     UniqueRowValueParamsSerializer,
     UniqueRowValuesSerializer,
@@ -246,13 +265,14 @@ class FieldsView(APIView):
                     "ERROR_INVALID_BASEROW_FIELD_NAME",
                     "ERROR_FIELD_SELF_REFERENCE",
                     "ERROR_FIELD_CIRCULAR_REFERENCE",
+                    "ERROR_IMMUTABLE_FIELD_PROPERTIES",
                 ]
             ),
             401: get_error_schema(["ERROR_NO_PERMISSION_TO_TABLE"]),
             404: get_error_schema(["ERROR_TABLE_DOES_NOT_EXIST"]),
         },
     )
-    @transaction.atomic
+    @atomic_with_retry_on_deadlock()
     @validate_body_custom_fields(
         field_type_registry,
         base_serializer_class=CreateFieldSerializer,
@@ -270,6 +290,11 @@ class FieldsView(APIView):
             CircularFieldDependencyError: ERROR_FIELD_CIRCULAR_REFERENCE,
             FailedToLockTableDueToConflict: ERROR_FAILED_TO_LOCK_TABLE_DUE_TO_CONFLICT,
             CannotCreateFieldType: ERROR_CANNOT_CREATE_FIELD_TYPE,
+            DbIndexNotSupportedError: ERROR_DB_INDEX_NOT_SUPPORTED,
+            FieldConstraintException: ERROR_FIELD_CONSTRAINT,
+            InvalidFieldConstraint: ERROR_INVALID_FIELD_CONSTRAINT,
+            ImmutableFieldProperties: ERROR_IMMUTABLE_FIELD_PROPERTIES,
+            FieldConstraintDoesNotSupportDefaultValueError: ERROR_FIELD_CONSTRAINT_DOES_NOT_SUPPORT_DEFAULT_VALUE,
         }
     )
     def post(self, request, data, table_id):
@@ -401,7 +426,7 @@ class FieldView(APIView):
             404: get_error_schema(["ERROR_FIELD_DOES_NOT_EXIST"]),
         },
     )
-    @transaction.atomic
+    @atomic_with_retry_on_deadlock()
     @map_exceptions(
         {
             FieldDoesNotExist: ERROR_FIELD_DOES_NOT_EXIST,
@@ -415,6 +440,11 @@ class FieldView(APIView):
             FailedToLockFieldDueToConflict: ERROR_FAILED_TO_LOCK_FIELD_DUE_TO_CONFLICT,
             ImmutableFieldType: ERROR_IMMUTABLE_FIELD_TYPE,
             ImmutableFieldProperties: ERROR_IMMUTABLE_FIELD_PROPERTIES,
+            SelectOptionDoesNotBelongToField: ERROR_SELECT_OPTION_DOES_NOT_BELONG_TO_FIELD,
+            DbIndexNotSupportedError: ERROR_DB_INDEX_NOT_SUPPORTED,
+            FieldConstraintException: ERROR_FIELD_CONSTRAINT,
+            InvalidFieldConstraint: ERROR_INVALID_FIELD_CONSTRAINT,
+            FieldConstraintDoesNotSupportDefaultValueError: ERROR_FIELD_CONSTRAINT_DOES_NOT_SUPPORT_DEFAULT_VALUE,
         }
     )
     @require_request_data_type(dict)
@@ -479,7 +509,7 @@ class FieldView(APIView):
             404: get_error_schema(["ERROR_FIELD_DOES_NOT_EXIST"]),
         },
     )
-    @transaction.atomic
+    @atomic_with_retry_on_deadlock()
     @map_exceptions(
         {
             FieldDoesNotExist: ERROR_FIELD_DOES_NOT_EXIST,
@@ -691,3 +721,71 @@ class ChangePrimaryFieldView(APIView):
             related_fields=[old_primary_field],
         )
         return Response(serializer.data)
+
+
+class PasswordFieldAuthenticationView(APIView):
+    authentication_classes = APIView.authentication_classes + [TokenAuthentication]
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
+        tags=["Database table fields"],
+        operation_id="password_field_authentication",
+        description=(
+            "Checks if the provided password and row matches what is stored in the "
+            "cell. The field must have `allow_endpoint_authentication` set to `true` "
+            "in order to work."
+        ),
+        request=PasswordFieldAuthenticationSerializer,
+        responses={
+            200: PasswordFieldAuthenticationResponseSerializer,
+            400: get_error_schema(
+                [
+                    "ERROR_REQUEST_BODY_VALIDATION",
+                ]
+            ),
+            401: get_error_schema(
+                [
+                    "ERROR_NO_PERMISSION_TO_TABLE",
+                    "ERROR_INVALID_PASSWORD_FIELD_PASSWORD",
+                ]
+            ),
+            404: get_error_schema(
+                ["ERROR_FIELD_DOES_NOT_EXIST", "ERROR_ROW_DOES_NOT_EXIST"]
+            ),
+        },
+    )
+    @map_exceptions(
+        {
+            FieldDoesNotExist: ERROR_FIELD_DOES_NOT_EXIST,
+            RowDoesNotExist: ERROR_ROW_DOES_NOT_EXIST,
+            NoPermissionToTable: ERROR_NO_PERMISSION_TO_TABLE,
+            InvalidPasswordFieldPassword: ERROR_INVALID_PASSWORD_FIELD_PASSWORD,
+        }
+    )
+    @validate_body(PasswordFieldAuthenticationSerializer)
+    def post(self, request: Request, data: Dict[str, Any]) -> Response:
+        base_queryset = PasswordField.objects.filter(
+            allow_endpoint_authentication=True
+        ).select_related("table")
+        field = FieldHandler().get_field(data["field_id"], base_queryset=base_queryset)
+        table = field.table
+
+        token_handler = TokenHandler()
+        db_token = token_handler.get_token_from_request(request)
+        if db_token is not None:
+            token_handler.check_table_permissions(db_token, "read", table)
+
+        model = field.table.get_model()
+        row_id = data.get("row_id")
+        row = RowHandler().get_row(request.user, table, row_id, model)
+        raw_password = data.get("password")
+        hashed_password = getattr(row, field.db_column)
+        is_correct = bool(
+            hashed_password and check_password(raw_password, hashed_password)
+        )
+
+        if not is_correct:
+            raise InvalidPasswordFieldPassword()
+
+        serializer = PasswordFieldAuthenticationResponseSerializer({"is_correct": True})
+        return Response(serializer.data, status=status.HTTP_200_OK)

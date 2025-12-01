@@ -22,7 +22,7 @@
         type="tel"
         class="grid-field-text__input"
       />
-      <div v-show="!isValid()" class="grid-view__cell--error align-right">
+      <div v-show="!isValid()" class="grid-view__cell-error align-right">
         {{ getError() }}
       </div>
     </template>

@@ -72,26 +72,25 @@
         </ButtonText>
       </div>
     </Context>
-    <div>
-      <div class="menu-element-form__items">
-        <MenuElementItemForm
-          v-for="(item, index) in values.menu_items"
-          :key="`${item.uid}-${index}`"
-          v-sortable="{
-            id: item.uid,
-            update: orderRootItems,
-            enabled: $hasPermission(
-              'builder.page.element.update',
-              element,
-              workspace.id
-            ),
-            handle: '[data-sortable-handle]',
-          }"
-          :default-values="item"
-          @remove-item="removeMenuItem($event)"
-          @values-changed="updateMenuItem"
-        ></MenuElementItemForm>
-      </div>
+    <div class="menu-element-form__items">
+      <MenuElementItemForm
+        v-for="(item, index) in values.menu_items"
+        :key="`${item.uid}-${index}`"
+        v-sortable="{
+          id: item.uid,
+          update: orderRootItems,
+          enabled: $hasPermission(
+            'builder.page.element.update',
+            element,
+            workspace.id
+          ),
+          handle: '[data-sortable-handle]',
+        }"
+        :icon="getIcon(item.type)"
+        :default-values="item"
+        @remove-item="removeMenuItem($event)"
+        @values-changed="updateMenuItem"
+      />
     </div>
   </form>
 </template>
@@ -185,6 +184,9 @@ export default {
     },
   },
   methods: {
+    getIcon(itemType) {
+      return this.addMenuItemTypes.find(({ type }) => type === itemType).icon
+    },
     addMenuItem(type) {
       const name = getNextAvailableNameInSequence(
         this.$t('menuElementForm.menuItemDefaultName'),

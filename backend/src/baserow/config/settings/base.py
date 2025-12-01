@@ -11,7 +11,6 @@ from urllib.parse import urljoin, urlparse
 from django.core.exceptions import ImproperlyConfigured
 
 import dj_database_url
-import posthog
 import sentry_sdk
 from corsheaders.defaults import default_headers
 from sentry_sdk.integrations.django import DjangoIntegration
@@ -19,6 +18,7 @@ from sentry_sdk.scrubber import DEFAULT_DENYLIST, EventScrubber
 
 from baserow.config.settings.utils import (
     Setting,
+    crontab,
     get_crontab_from_env,
     read_file,
     set_settings_from_env_if_present,
@@ -63,7 +63,9 @@ if "SECRET_KEY" in os.environ:
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("BASEROW_BACKEND_DEBUG", "off") == "on"
 
-ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
+# The `testserver` is needed for the
+# `src/baserow/core/mcp/utils.py::internal_api_request`.
+ALLOWED_HOSTS = ["localhost", "127.0.0.1", "testserver"]
 ALLOWED_HOSTS += os.getenv("BASEROW_EXTRA_ALLOWED_HOSTS", "").split(",")
 
 INSTALLED_APPS = [
@@ -118,6 +120,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "baserow.middleware.BaserowCustomHttp404Middleware",
     "baserow.middleware.ClearContextMiddleware",
+    "baserow.middleware.ClearDBStateMiddleware",
 ]
 
 if otel_is_enabled():
@@ -237,6 +240,40 @@ else:
             os.getenv("DATABASE_OPTIONS", "{}")
         )
 
+DATABASE_READ_REPLICAS = []
+
+# Loop over all environment variables to extract read only replicas. Multiple nodes can
+# be added providing `DATABASE_READ_{n}_URL`, or DATABASE_READ_{n}_NAME, where {n} is
+# the key of the read-only instance.
+for key, value in os.environ.items():
+    if key.startswith("DATABASE_READ_REPLICA_") and key.endswith("_URL"):
+        suffix = key[len("DATABASE_READ_REPLICA_") : -len("_URL")]
+        db_key = f"read_{suffix}"
+        DATABASES[db_key] = dj_database_url.parse(value, conn_max_age=600)
+        DATABASE_READ_REPLICAS.append(db_key)
+    elif key.startswith("DATABASE_READ_") and key.endswith("_NAME"):
+        suffix = key[len("DATABASE_READ_") : -len("_NAME")]
+        db_key = f"read_{suffix}"
+
+        DATABASES[db_key] = {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.getenv(f"DATABASE_READ_{suffix}_NAME"),
+            "USER": os.getenv(f"DATABASE_READ_{suffix}_USER"),
+            "PASSWORD": os.getenv(f"DATABASE_READ_{suffix}_PASSWORD"),
+            "HOST": os.getenv(f"DATABASE_READ_{suffix}_HOST"),
+            "PORT": os.getenv(f"DATABASE_READ_{suffix}_PORT"),
+        }
+
+        options = os.getenv(f"DATABASE_READ_{suffix}_OPTIONS")
+        if options:
+            DATABASES[db_key]["OPTIONS"] = json.loads(options)
+
+        DATABASE_READ_REPLICAS.append(db_key)
+
+
+DATABASE_ROUTERS = ["baserow.config.db_routers.ReadReplicaRouter"]
+
+
 GENERATED_MODEL_CACHE_NAME = "generated-models"
 CACHES = {
     "default": {
@@ -256,9 +293,9 @@ CACHES = {
 }
 
 BUILDER_PUBLICLY_USED_PROPERTIES_CACHE_TTL_SECONDS = int(
-    # Default TTL is 10 minutes: 60 seconds * 10
+    # Default TTL is 2 hours
     os.getenv("BASEROW_BUILDER_PUBLICLY_USED_PROPERTIES_CACHE_TTL_SECONDS")
-    or 600
+    or 60 * 10 * 2
 )
 BUILDER_DISPATCH_ACTION_CACHE_TTL_SECONDS = int(
     # Default TTL is 5 minutes
@@ -417,9 +454,9 @@ SPECTACULAR_SETTINGS = {
     "CONTACT": {"url": "https://baserow.io/contact"},
     "LICENSE": {
         "name": "MIT",
-        "url": "https://gitlab.com/baserow/baserow/-/blob/master/LICENSE",
+        "url": "https://github.com/baserow/baserow/blob/develop/LICENSE",
     },
-    "VERSION": "1.32.5",
+    "VERSION": "2.0.2",
     "SERVE_INCLUDE_SCHEMA": False,
     "TAGS": [
         {"name": "Settings"},
@@ -748,6 +785,27 @@ BATCH_ROWS_SIZE_LIMIT = int(
     os.getenv("BATCH_ROWS_SIZE_LIMIT", 200)
 )  # How many rows can be modified at once.
 
+# Maximum count of records considered as a 'small table' during field rule operations.
+FIELD_RULE_ROWS_LIMIT = int(os.getenv("FIELD_RULE_ROWS_LIMIT", BATCH_ROWS_SIZE_LIMIT))
+
+# Maximum count of records returned by local baserow data source
+INTEGRATION_LOCAL_BASEROW_PAGE_SIZE_LIMIT = int(
+    os.getenv("BASEROW_INTEGRATION_LOCAL_BASEROW_PAGE_SIZE_LIMIT", 200)
+)
+
+AUTOMATION_HISTORY_PAGE_SIZE_LIMIT = int(
+    os.getenv("BASEROW_AUTOMATION_HISTORY_PAGE_SIZE_LIMIT", 100)
+)
+AUTOMATION_WORKFLOW_RATE_LIMIT_MAX_RUNS = int(
+    os.getenv("BASEROW_AUTOMATION_WORKFLOW_RATE_LIMIT_MAX_RUNS", 10)
+)
+AUTOMATION_WORKFLOW_RATE_LIMIT_CACHE_EXPIRY_SECONDS = int(
+    os.getenv("BASEROW_AUTOMATION_WORKFLOW_RATE_LIMIT_CACHE_EXPIRY_SECONDS", 5)
+)
+AUTOMATION_WORKFLOW_MAX_CONSECUTIVE_ERRORS = int(
+    os.getenv("BASEROW_AUTOMATION_WORKFLOW_MAX_CONSECUTIVE_ERRORS", 5)
+)
+
 TRASH_PAGE_SIZE_LIMIT = 200  # How many trash entries can be requested at once.
 
 # How many unique row values can be requested at once.
@@ -784,14 +842,13 @@ STALE_MENTIONS_CLEANUP_INTERVAL_MINUTES = int(
     os.getenv("BASEROW_STALE_MENTIONS_CLEANUP_INTERVAL_MINUTES", "") or 360
 )
 
-MIDNIGHT_CRONTAB_STR = "0 0 * * *"
-BASEROW_STORAGE_USAGE_JOB_CRONTAB = get_crontab_from_env(
-    "BASEROW_STORAGE_USAGE_JOB_CRONTAB", default_crontab=MIDNIGHT_CRONTAB_STR
-)
+# Indicates how frequently the workspace storage should be updated. Once every X number
+# of hours.
+BASEROW_UPDATE_WORKSPACE_STORAGE_USAGE_HOURS = 24
 
-ONE_AM_CRONTRAB_STR = "0 1 * * *"
+ONE_AM_CRONTAB_STR = "0 1 * * *"
 BASEROW_SEAT_USAGE_JOB_CRONTAB = get_crontab_from_env(
-    "BASEROW_SEAT_USAGE_JOB_CRONTAB", default_crontab=ONE_AM_CRONTRAB_STR
+    "BASEROW_SEAT_USAGE_JOB_CRONTAB", default_crontab=ONE_AM_CRONTAB_STR
 )
 
 EMAIL_BACKEND = "djcelery_email.backends.CeleryEmailBackend"
@@ -899,12 +956,6 @@ BASEROW_SYNC_TEMPLATES_PATTERN = os.getenv("BASEROW_SYNC_TEMPLATES_PATTERN", Non
 
 MAX_FIELD_LIMIT = int(os.getenv("BASEROW_MAX_FIELD_LIMIT", 600))
 
-INITIAL_MIGRATION_FULL_TEXT_SEARCH_MAX_FIELD_LIMIT = int(
-    os.getenv(
-        "BASEROW_INITIAL_MIGRATION_FULL_TEXT_SEARCH_MAX_FIELD_LIMIT", MAX_FIELD_LIMIT
-    )
-)
-
 
 # set max events to be returned by every ICal feed. Empty value means no limit.
 BASEROW_ICAL_VIEW_MAX_EVENTS = try_int(
@@ -987,6 +1038,20 @@ BASEROW_WEBHOOK_ROWS_ENTER_VIEW_BATCH_SIZE = int(
     os.getenv("BASEROW_WEBHOOK_ROWS_ENTER_VIEW_BATCH_SIZE", BATCH_ROWS_SIZE_LIMIT)
 )
 
+OAUTH_BACKEND_URL = os.getenv("BASEROW_OAUTH_BACKEND_URL") or PUBLIC_BACKEND_URL
+
+INTEGRATIONS_ALLOW_PRIVATE_ADDRESS = bool(
+    os.getenv("BASEROW_INTEGRATIONS_ALLOW_PRIVATE_ADDRESS", False)
+)
+INTEGRATIONS_PERIODIC_TASK_CRONTAB = crontab(minute="*")
+# The minimum amount of minutes the periodic task's "minute" interval
+# supports. Self-hosters can run every minute, if they choose to.
+INTEGRATIONS_PERIODIC_MINUTE_MIN = int(
+    os.getenv("BASEROW_INTEGRATIONS_PERIODIC_MINUTE_MIN") or 1
+)
+
+TOTP_ISSUER_NAME = os.getenv("BASEROW_TOTP_ISSUER_NAME", "Baserow")
+
 # ======== WARNING ========
 # Please read and understand everything at:
 # https://docs.djangoproject.com/en/3.2/ref/settings/#secure-proxy-ssl-header
@@ -1068,10 +1133,15 @@ PERMISSION_MANAGERS = [
     "element_visibility",
     "member",
     "token",
+    "write_field_values",
     "role",
     "basic",
+    "automation_workflow",
+    "automation_node",
 ]
+
 if "baserow_enterprise" not in INSTALLED_APPS:
+    PERMISSION_MANAGERS.remove("write_field_values")
     PERMISSION_MANAGERS.remove("role")
 if "baserow_premium" not in INSTALLED_APPS:
     PERMISSION_MANAGERS.remove("view_ownership")
@@ -1157,27 +1227,23 @@ DEFAULT_SEARCH_MODE = os.getenv("BASEROW_DEFAULT_SEARCH_MODE", "compat")
 
 # Search specific configuration settings.
 CELERY_SEARCH_UPDATE_HARD_TIME_LIMIT = int(
-    os.getenv("BASEROW_CELERY_SEARCH_UPDATE_HARD_TIME_LIMIT", 60 * 30)
+    os.getenv("BASEROW_CELERY_SEARCH_UPDATE_HARD_TIME_LIMIT", 60 * 60)  # 1 hour
 )
 # By default, Baserow will use Postgres full-text as its
 # search backend. If the product is installed on a system
 # with limited disk space, and less accurate results / degraded
 # search performance is acceptable, then switch this setting off.
-USE_PG_FULLTEXT_SEARCH = str_to_bool(
+PG_FULLTEXT_SEARCH_ENABLED = str_to_bool(
     (os.getenv("BASEROW_USE_PG_FULLTEXT_SEARCH", "true"))
 )
-PG_SEARCH_CONFIG = os.getenv("BASEROW_PG_SEARCH_CONFIG", "simple")
-AUTO_VACUUM_AFTER_SEARCH_UPDATE = str_to_bool(os.getenv("BASEROW_AUTO_VACUUM", "true"))
-TSV_UPDATE_CHUNK_SIZE = int(os.getenv("BASEROW_TSV_UPDATE_CHUNK_SIZE", "2000"))
+PG_FULLTEXT_SEARCH_CONFIG = os.getenv("BASEROW_PG_SEARCH_CONFIG", "simple")
+PG_FULLTEXT_SEARCH_UPDATE_DATA_THROTTLE_SECONDS = float(
+    os.getenv("BASEROW_PG_FULLTEXT_SEARCH_UPDATE_DATA_THROTTLE_SECONDS", 2)  # seconds
+)
 
 POSTHOG_PROJECT_API_KEY = os.getenv("POSTHOG_PROJECT_API_KEY", "")
-POSTHOG_HOST = os.getenv("POSTHOG_HOST", "")
-POSTHOG_ENABLED = POSTHOG_PROJECT_API_KEY and POSTHOG_HOST
-if POSTHOG_ENABLED:
-    posthog.project_api_key = POSTHOG_PROJECT_API_KEY
-    posthog.host = POSTHOG_HOST
-else:
-    posthog.disabled = True
+POSTHOG_HOST = os.getenv("POSTHOG_HOST") or None
+POSTHOG_ENABLED = bool(POSTHOG_PROJECT_API_KEY)
 
 BASEROW_BUILDER_DOMAINS = os.getenv("BASEROW_BUILDER_DOMAINS", None)
 BASEROW_BUILDER_DOMAINS = (
@@ -1216,6 +1282,7 @@ if SENTRY_DSN:
 
 BASEROW_OPENAI_API_KEY = os.getenv("BASEROW_OPENAI_API_KEY", None)
 BASEROW_OPENAI_ORGANIZATION = os.getenv("BASEROW_OPENAI_ORGANIZATION", "") or None
+BASEROW_OPENAI_BASE_URL = os.getenv("BASEROW_OPENAI_BASE_URL", None) or None
 BASEROW_OPENAI_MODELS = os.getenv("BASEROW_OPENAI_MODELS", "")
 BASEROW_OPENAI_MODELS = (
     BASEROW_OPENAI_MODELS.split(",") if BASEROW_OPENAI_MODELS else []
@@ -1248,6 +1315,13 @@ BASEROW_OLLAMA_MODELS = (
     BASEROW_OLLAMA_MODELS.split(",") if BASEROW_OLLAMA_MODELS else []
 )
 
+BASEROW_TWO_WAY_SYNC_MAX_CONSECUTIVE_FAILURES = int(
+    os.getenv("BASEROW_TWO_WAY_SYNC_MAX_CONSECUTIVE_FAILURES", "") or 8
+)
+BASEROW_TWO_WAY_SYNC_MAX_RETRIES = int(
+    os.getenv("BASEROW_TWO_WAY_SYNC_MAX_RETRIES", "") or 3
+)
+
 BASEROW_PREVENT_POSTGRESQL_DATA_SYNC_CONNECTION_TO_DATABASE = str_to_bool(
     os.getenv("BASEROW_PREVENT_POSTGRESQL_DATA_SYNC_CONNECTION_TO_DATABASE", "true")
 )
@@ -1271,6 +1345,7 @@ BASEROW_MAX_HEALTHY_CELERY_QUEUE_SIZE = int(
 
 BASEROW_USE_LOCAL_CACHE = str_to_bool(os.getenv("BASEROW_USE_LOCAL_CACHE", "true"))
 
+BASEROW_EMBEDDINGS_API_URL = os.getenv("BASEROW_EMBEDDINGS_API_URL", "")
 
 # -- CACHALOT SETTINGS --
 
@@ -1364,6 +1439,6 @@ BASEROW_DEADLOCK_MAX_RETRIES = max(
     1,
 )
 BASEROW_DEADLOCK_INITIAL_BACKOFF = max(
-    try_float(os.getenv("BASEROW_DEADLOCK_INITIAL_BACKOFF"), 1),
+    try_float(os.getenv("BASEROW_DEADLOCK_INITIAL_BACKOFF"), 0.2),
     0.1,
 )

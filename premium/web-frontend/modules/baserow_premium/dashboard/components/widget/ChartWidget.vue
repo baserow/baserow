@@ -38,7 +38,11 @@
       </div>
 
       <div class="dashboard-chart-widget__content widget__content">
-        <Chart :data-source="dataSource" :data-source-data="dataForDataSource">
+        <Chart
+          :data-source="dataSource"
+          :data-source-data="dataForDataSource"
+          :series-config="widget.series_config"
+        >
         </Chart>
       </div>
     </template>

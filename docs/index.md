@@ -54,6 +54,8 @@ Baserow by following one the guides below:
   the supported and recommended runtime dependencies.
 * [Monitoring Baserow](installation/monitoring.md): Learn how to monitor your Baserow
   server using open telemetry.
+* [Setup AI-assistant](installation/ai-assistant.md): A quick guide on how to setup the
+  AI-assistant.
 
 ## Baserow Tutorials
 

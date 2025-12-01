@@ -8,7 +8,8 @@ export class DuplicateTableJobType extends JobType {
   }
 
   getName() {
-    return 'duplicateTable'
+    const { i18n } = this.app
+    return i18n.t('duplicateTableJobType.name')
   }
 
   getSidebarText(job) {
@@ -57,5 +58,25 @@ export class DuplicateTableJobType extends JobType {
     })
 
     store.dispatch('job/forceDelete', job)
+  }
+}
+
+export class SyncDataSyncTableJobType extends JobType {
+  static getType() {
+    return 'sync_data_sync_table'
+  }
+
+  getName() {
+    return 'syncDataSyncTable'
+  }
+}
+
+export class FileImportJobType extends JobType {
+  static getType() {
+    return 'file_import'
+  }
+
+  getName() {
+    return 'fileImport'
   }
 }

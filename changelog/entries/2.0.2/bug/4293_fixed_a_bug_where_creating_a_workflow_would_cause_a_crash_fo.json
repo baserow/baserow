@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixed a bug where creating a workflow would cause a crash for another user viewing a different app.",
+    "issue_origin": "github",
+    "issue_number": 4293,
+    "domain": "automation",
+    "bullet_points": [],
+    "created_at": "2025-11-19"
+}

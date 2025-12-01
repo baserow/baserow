@@ -1,4 +1,6 @@
+import { createBuilderElement } from "../../fixtures/builder/builderElement";
 import { expect, test } from "../baserowTest";
+import { baserowConfig } from "../../playwright.config";
 
 test.describe("Builder page test suite", () => {
   test.beforeEach(async ({ builderPagePage }) => {
@@ -9,11 +11,11 @@ test.describe("Builder page test suite", () => {
     await page.getByText("New page").click();
     await page.getByText("Create page").waitFor();
     await page
-      .locator(".modal__wrapper")
+      .locator(".modal__box")
       .getByPlaceholder("Enter a name...")
       .fill("Super page");
     await page
-      .locator(".modal__wrapper")
+      .locator(".modal__box")
       .getByPlaceholder("Enter a path...")
       .fill("/complex/path");
     await page.locator(".button").getByText("Add page").click();
@@ -34,11 +36,11 @@ test.describe("Builder page test suite", () => {
     await page.getByText("Page settings").click();
 
     await page
-      .locator(".modal__wrapper")
+      .locator(".modal__box")
       .getByPlaceholder("Enter a name...")
       .fill("New page name");
     await page
-      .locator(".modal__wrapper")
+      .locator(".modal__box")
       .getByPlaceholder("Enter a path...")
       .fill("/new/path");
 
@@ -65,7 +67,7 @@ test.describe("Builder page test suite", () => {
       page.locator(".modal__box").getByText("Add new element")
     ).toBeHidden();
     await expect(
-      page.locator(".element-preview__name").getByText("Heading")
+      page.locator(".element-preview__name-tag").getByText("Heading")
     ).toBeVisible();
   });
 
@@ -81,18 +83,22 @@ test.describe("Builder page test suite", () => {
       page.locator(".modal__box").getByText("Add new element")
     ).toBeHidden();
     await expect(
-      page.locator(".element-preview__name").getByText("Heading")
+      page.locator(".element-preview__name-tag").getByText("Heading")
     ).toBeVisible();
   });
 
-  test("Can add query parameter to page setting", async ({ page }) => {
+  test("Can add query parameter to page setting", async ({
+    page,
+    builderPagePage,
+  }) => {
     await page.getByText("Page settings").click();
 
     await page
-      .locator(".modal__wrapper")
+      .locator(".modal__box")
       .getByPlaceholder("Enter a name...")
       .fill("New page name");
 
+    // Add two params
     await page
       .getByRole("button", { name: "Add query string parameter" })
       .click();
@@ -100,60 +106,66 @@ test.describe("Builder page test suite", () => {
       .getByRole("button", { name: "Add another query string parameter" })
       .click();
 
+    // Update the name of the two params
     await page
       .locator(".page-settings-query-params .form-input__wrapper")
       .getByRole("textbox")
       .nth(1)
       .fill("my_param");
-
     await page
       .locator(".page-settings-query-params .form-input__wrapper")
       .getByRole("textbox")
       .nth(0)
       .fill("my_param2");
 
-    await page.locator("a").filter({ hasText: "Text" }).first().click();
-    await page
-      .locator("form")
-      .getByRole("list")
-      .locator("a")
-      .filter({ hasText: "Numeric" })
-      .click();
+    // Change the type of a the first param to numeric
+    await page.locator(".dropdown").getByText("Text").first().click();
+    await page.getByTitle("Numeric").first().click();
 
-    await page.locator(".button").getByText("Save").click();
+    const responsePromise = page.waitForResponse((response) => {
+      return response
+        .url()
+        .endsWith(`api/builder/pages/${builderPagePage.builderPage.id}/`);
+    });
+
+    // Save the page
+    await page.getByRole("button", { name: "Save" }).click();
     await expect(
       page.getByText("The page settings have been updated.")
     ).toBeVisible();
 
+    // Close the modal
     await page.getByTitle("Close").click();
     await expect(page.locator(".box__title").getByText("Page")).toBeHidden();
-    await page.getByText("Click to create an element").click();
-    await page.locator(".add-element-card__element-type-icon-link").click();
+
+    // Wait for page update
+    await responsePromise;
+
+    // Create a link programmatically, we don't want to test link
+    await createBuilderElement(builderPagePage.builderPage, "link", {
+      value: "'linkim'",
+      navigate_to_page_id: builderPagePage.builderPage.id,
+      query_parameters: [
+        {
+          name: "my_param2",
+          value: "get('page_parameter.my_param2')",
+        },
+        {
+          name: "my_param",
+          value: "get('page_parameter.my_param')",
+        },
+      ],
+    });
+
+    await page.getByText("linkim");
+
+    // Set the value of page parameters
     await page.getByLabel("my_param=").fill("foo");
     await page.getByLabel("my_param2=").fill("15");
-    await page.getByRole("complementary").getByRole("textbox").click();
-    await page
-      .getByRole("complementary")
-      .getByRole("textbox")
-      .locator("div")
-      .first()
-      .fill("linkim");
-    await page.locator("a").filter({ hasText: "Make a choice" }).click();
-    await page
-      .locator("a")
-      .filter({ hasText: "New page name /default/page?" })
-      .click();
-    // click empty place to close tooltip from prev. step
-    await page.click("body");
-    await page.getByRole("textbox").nth(4).click();
-    await page.getByText("my_param", { exact: true }).first().click();
-    await page.locator('[id="__layout"]').getByRole("textbox").nth(3).click();
-    await page.getByText("my_param2", { exact: true }).first().click();
-    await page.click("body");
+
     await expect(page.getByRole("link", { name: "linkim" })).toHaveAttribute(
       "href",
       /\?my_param2=15&my_param=foo/
     );
-    debugger;
   });
 });

@@ -116,6 +116,14 @@ class IncompatiblePrimaryFieldTypeError(Exception):
         super().__init__(*args, **kwargs)
 
 
+class DbIndexNotSupportedError(Exception):
+    """Raised when trying to enable a db_index to a field that doesn't support is."""
+
+    def __init__(self, field_type=None, *args, **kwargs):
+        self.field_type = field_type
+        super().__init__(*args, **kwargs)
+
+
 class FieldWithSameNameAlreadyExists(Exception):
     """
     Raised when a field is created or updated with a name that matches an
@@ -292,6 +300,23 @@ class ImmutableFieldType(Exception):
     """
 
 
+class FieldConstraintException(Exception):
+    """
+    Raised when a field constraint cannot be applied due to existing data conflicts.
+    """
+
+    def __init__(self, constraint_type=None, *args, **kwargs):
+        self.constraint_type = constraint_type
+        super().__init__(*args, **kwargs)
+
+
+class FieldConstraintDoesNotSupportDefaultValueError(FieldConstraintException):
+    """
+    Raised when a constraint is being set but the field has a default value and the
+    constraint does not support it.
+    """
+
+
 class ImmutableFieldProperties(Exception):
     """
     Raised when trying to change any of the field properties and the field properties
@@ -309,3 +334,24 @@ class SelectOptionDoesNotBelongToField(Exception):
         self.select_option_id = select_option_id
         self.field_id = field_id
         super().__init__(*args, **kwargs)
+
+
+class FieldDataConstraintException(Exception):
+    """
+    Raised when a data operation violates a field constraint.
+    """
+
+
+class InvalidFieldConstraint(Exception):
+    """
+    Raised when a field constraint is invalid.
+    """
+
+    def __init__(self, field_type=None, constraint_type=None, *args, **kwargs):
+        self.constraint_type = constraint_type
+        self.field_type = field_type
+        super().__init__(*args, **kwargs)
+
+
+class InvalidPasswordFieldPassword(Exception):
+    """Raised when the provided password field is invalid."""

@@ -76,6 +76,7 @@ describe('DateTimePickerElement', () => {
       date_format: format.date.name,
       include_time: !!format.time,
       time_format: format.time ? format.time.name : '24',
+      page_id: page.id,
     }
     store.dispatch('element/forceCreate', { page, element })
 

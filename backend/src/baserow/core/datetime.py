@@ -27,7 +27,12 @@ class FormattedDate:
         elif isinstance(value, date):
             self.date = value
         else:
-            self.date = datetime.strptime(value, date_format).date()
+            try:
+                # Try ISO format first
+                self.date = datetime.fromisoformat(value).date()
+            except ValueError:
+                # Fallback to specified format
+                self.date = datetime.strptime(value, date_format).date()
 
         self.date_format = date_format
 
@@ -52,7 +57,12 @@ class FormattedDateTime:
         elif isinstance(value, date):
             self.datetime = datetime.combine(value, datetime.min.time())
         else:
-            self.datetime = datetime.strptime(value, date_format)
+            try:
+                # Try ISO format first
+                self.datetime = datetime.fromisoformat(value)
+            except ValueError:
+                # Fallback to specified format
+                self.datetime = datetime.strptime(value, date_format)
 
         self.date_format = date_format
 

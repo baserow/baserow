@@ -72,4 +72,8 @@ def test_submit_form_emit_action_done_signal(data_fixture):
             "database_id": table.database.id,
             "database_name": table.database.name,
             "values": {text_field.db_column: "test"},
+            "fields_metadata": {
+                text_field.db_column: {"id": text_field.id, "type": "text"},
+                "id": row.id,
+            },
         }

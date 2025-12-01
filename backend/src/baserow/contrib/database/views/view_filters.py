@@ -64,6 +64,7 @@ from baserow.contrib.database.formula import (
 from baserow.contrib.database.formula.types.formula_types import (
     BaserowFormulaDateIntervalType,
     BaserowFormulaDurationType,
+    BaserowFormulaMultipleCollaboratorsType,
     BaserowFormulaMultipleSelectType,
     BaserowFormulaSingleFileType,
     BaserowFormulaSingleSelectType,
@@ -1103,7 +1104,8 @@ class SingleSelectEqualViewFilterType(ViewFilterType):
             return Q()
 
         field_type = field_type_registry.get_by_model(field)
-        filter_function = self.filter_functions[field_type.type]
+        effective_field_type = field_type.get_compatible_filter_field_type(field)
+        filter_function = self.filter_functions[effective_field_type.type]
         return filter_function(field_name, value, model_field, field)
 
     def set_import_serialized_value(self, value, id_mapping):
@@ -1159,7 +1161,8 @@ class SingleSelectIsAnyOfViewFilterType(ViewFilterType):
             return self.default_filter_on_exception()
 
         field_type = field_type_registry.get_by_model(field)
-        filter_function = self.filter_functions[field_type.type]
+        effective_field_type = field_type.get_compatible_filter_field_type(field)
+        filter_function = self.filter_functions[effective_field_type.type]
         return filter_function(field_name, option_ids, model_field, field)
 
     def set_import_serialized_value(self, value: str | None, id_mapping: dict) -> str:
@@ -1418,7 +1421,8 @@ class MultipleSelectHasViewFilterType(ManyToManyHasBaseViewFilter):
             return self.default_filter_on_exception()
 
         field_type = field_type_registry.get_by_model(field)
-        filter_function = self.filter_functions[field_type.type]
+        effective_field_type = field_type.get_compatible_filter_field_type(field)
+        filter_function = self.filter_functions[effective_field_type.type]
         return filter_function(field_name, option_ids, model_field, field)
 
     def set_import_serialized_value(self, value: str | None, id_mapping: dict) -> str:
@@ -1610,13 +1614,21 @@ class EmptyViewFilterType(ViewFilterType):
             BaserowFormulaMultipleSelectType.type,
             MultipleCollaboratorsFieldType.type,
             FormulaFieldType.array_of(BaserowFormulaSingleFileType.type),
+            FormulaFieldType.array_of(BaserowFormulaTextType.type),
+            FormulaFieldType.array_of(BaserowFormulaCharType.type),
+            FormulaFieldType.array_of(BaserowFormulaURLType.type),
+            FormulaFieldType.array_of(BaserowFormulaNumberType.type),
             FormulaFieldType.array_of(BaserowFormulaBooleanType.type),
+            FormulaFieldType.array_of(BaserowFormulaDateType.type),
+            FormulaFieldType.array_of(BaserowFormulaSingleSelectType.type),
+            FormulaFieldType.array_of(BaserowFormulaMultipleSelectType.type),
+            FormulaFieldType.array_of(BaserowFormulaMultipleCollaboratorsType.type),
+            FormulaFieldType.array_of(BaserowFormulaDurationType.type),
         ),
     ]
 
     def get_filter(self, field_name, value, model_field, field):
         field_type = field_type_registry.get_by_model(field)
-
         return field_type.empty_query(field_name, model_field, field)
 
 
@@ -2086,20 +2098,7 @@ class DateIsOnOrAfterMultiStepFilterType(DateMultiStepViewFilterType):
 class DateIsWithinMultiStepFilterType(DateMultiStepViewFilterType):
     type = "date_is_within"
 
-    incompatible_operators = [
-        DateFilterOperators.TODAY,
-        DateFilterOperators.YESTERDAY,
-        DateFilterOperators.ONE_WEEK_AGO,
-        DateFilterOperators.ONE_MONTH_AGO,
-        DateFilterOperators.ONE_YEAR_AGO,
-        DateFilterOperators.THIS_WEEK,
-        DateFilterOperators.THIS_MONTH,
-        DateFilterOperators.THIS_YEAR,
-        DateFilterOperators.NR_DAYS_AGO,
-        DateFilterOperators.NR_WEEKS_AGO,
-        DateFilterOperators.NR_MONTHS_AGO,
-        DateFilterOperators.NR_YEARS_AGO,
-    ]
+    incompatible_operators = [DateFilterOperators.TODAY]
 
     def get_filter_query_dict(
         self,
@@ -2108,7 +2107,12 @@ class DateIsWithinMultiStepFilterType(DateMultiStepViewFilterType):
         upper_bound: Union[date, datetime],
         timezone: datetime_module.tzinfo,
     ) -> Dict[str, Union[date, datetime]]:
+        today = datetime.now(tz=timezone).date()
+        if today < upper_bound:
+            lower_bound = today
+        else:
+            upper_bound = today + timedelta(days=1)
         return {
-            f"{field_name}__gte": datetime.now(tz=timezone).date(),
+            f"{field_name}__gte": lower_bound,
             f"{field_name}__lt": upper_bound,
         }

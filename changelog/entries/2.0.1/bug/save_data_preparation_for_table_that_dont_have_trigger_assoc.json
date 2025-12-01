@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Save data preparation for table that don't have trigger associated to it",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "automation",
+    "bullet_points": [],
+    "created_at": "2025-11-18"
+}

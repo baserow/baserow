@@ -1,140 +1,103 @@
 import moment from '@baserow/modules/core/moment'
+import { DateOnly } from '@baserow/modules/core/utils/date'
+/**
+ * Generate a list of times for the time picker, spaced 30 min apart.
+ * @param {string} timeFormat - The format for the time strings (e.g., 'HH:mm').
+ * @returns {string[]} - An array of formatted time strings.
+ */
+export function generateTimePickerTimes(timeFormat) {
+  const numberOfHalfHoursInADay = 24 * 2
+  return Array.from({ length: numberOfHalfHoursInADay }, (_, i) =>
+    moment()
+      .startOf('day')
+      .add(i * 30, 'minutes')
+      .format(timeFormat)
+  )
+}
 
 /**
- * A wrapper around a `moment.js` date object and its format.
+ * Updates and validates date/time input based on provided parameters.
+ *
+ * @param {string|null} date - Date string to parse
+ * @param {string|null} time - Time string to parse
+ * @param {boolean} includeTime - Whether to include time in the result
+ * @param {boolean} isTimeUpdate - Whether this is a time-specific update
+ * @param {string} dateFormat - Format string for parsing the date
+ * @param {string} timeFormat - Format string for parsing the time
+ * @returns {Date|DateOnly|null} Parsed date/time object, DateOnly object, or null
  */
-export class FormattedDate {
-  /**
-   * Create a new `FormattedDate` object.
-   * @param {string} date - A 'string' representing a date.
-   * @param {?string} format - The date format (e.g, 'DD/MM/YYYY').
-   */
-  constructor(date, format = null) {
-    this.date = moment.utc(date, format || 'YYYY-MM-DD', true)
-    this.format = format || 'YYYY-MM-DD'
-  }
+export function updateDateTime(
+  date,
+  time,
+  includeTime,
+  isTimeUpdate,
+  dateFormat,
+  timeFormat
+) {
+  if (includeTime) {
+    if (!date && !time) {
+      // We return a null value as the user cleaned both inputs
+      return null
+    }
 
-  /**
-   * Return the value of a given unit in this date.
-   * @param {string} unit - The name of the unit to retrieve (e.g, 'year')
-   * @returns {number} - The value of the retrieved unit.
-   */
-  get(unit) {
-    return this.date.get(unit)
-  }
+    if (!date && !isTimeUpdate) {
+      return new Date(NaN)
+    }
 
-  /**
-   * Update a unit of this date with the new value.
-   * @param {string} unit - The name of the unit to update (e.g, 'year')
-   * @param {number} value - New value to update this date.
-   */
-  set(unit, value) {
-    this.date.set(unit, value)
-  }
+    if (!time && isTimeUpdate) {
+      return new Date(NaN)
+    }
 
-  /**
-   * Return whether this date is valid.
-   * @returns {boolean} - `true` if valid, `false` otherwise.
-   */
-  isValid() {
-    return this.date.isValid()
-  }
+    const dateMoment = date ? moment(date, dateFormat, true) : moment()
 
-  /**
-   * Convert the current date into a javascript Date object.
-   * @returns {Date} - The converted date object.
-   */
-  toDate() {
-    return this.date.toDate()
-  }
+    if (!dateMoment.isValid()) {
+      // Date can't be parsed we return an invalid date
+      return new Date(NaN)
+    }
 
-  /**
-   * Return a `string` with this date formatted with `format`.
-   * @returns {string} - The formatted date.
-   */
-  toString(format = this.format) {
-    return this.date.format(format)
-  }
+    const timeMoment = time
+      ? moment(time, timeFormat, true)
+      : moment().startOf('hour')
 
-  /**
-   * Return a `string` with this date in ISO format.
-   * @returns {string} - The date in ISO format.
-   */
-  toJSON() {
-    return this.date.format('YYYY-MM-DD')
+    if (!timeMoment.isValid()) {
+      // Date can't be parsed we return an invalid date
+      return new Date(NaN)
+    }
+
+    // Use currently defined time
+    dateMoment
+      .hour(timeMoment.hours())
+      .minute(timeMoment.minutes())
+      .second(0)
+      .millisecond(0)
+
+    return dateMoment.toDate()
+  } else {
+    if (!date) {
+      // We just cleared the input
+      return null
+    }
+
+    const dateMoment = moment(date, dateFormat, true)
+
+    if (!dateMoment.isValid()) {
+      return new DateOnly(NaN)
+    }
+
+    return new DateOnly(dateMoment.toDate())
   }
 }
 
 /**
- * A wrapper around a `moment.js` date and time object and its format.
+ * Parses a date string value to update the calendar component.
+ * @param {string} value - The string date value from the input.
+ * @param {string} dateFormat - The format of the date input.
+ * @returns {Date|null} - A JS Date object for the calendar or null if invalid.
  */
-export class FormattedDateTime {
-  /**
-   * Create a new `FormattedDateTime` object.
-   * @param {string} datetime - A string representing the date and time.
-   * @param {?string} format - The date and time format (e.g, 'DD/MM/YYYY HH:mm').
-   *                           If not provided it will use ISO 8601 format.
-   * @param {?string} timezone - The timezone (e.g, 'Europe/Lisbon').
-   *                             If not provided it will try to guess it from
-   *                             the locale.
-   */
-  constructor(datetime, format = null, timezone = null) {
-    this.datetime = moment.tz(
-      datetime,
-      format || moment.ISO_8601,
-      true,
-      timezone || moment.tz.guess()
-    )
-    this.format = format || 'YYYY-MM-DD HH:mm'
+export function parseDateForCalendar(value, dateFormat) {
+  if (!value) {
+    return null
   }
-
-  /**
-   * Return the value of a given unit in this date and time.
-   * @param {string} unit - The name of the unit to retrieve (e.g, 'hour')
-   * @returns {number} - The value of the retrieved unit.
-   */
-  get(unit) {
-    return this.datetime.get(unit)
-  }
-
-  /**
-   * Update a unit of this date and time with the new value.
-   * @param {string} unit - The name of the unit to update (e.g, 'hour')
-   * @param {number} value - New value to update this date and time.
-   */
-  set(unit, value) {
-    this.datetime.set(unit, value)
-  }
-
-  /**
-   * Return whether this datetime is valid.
-   * @returns {boolean} - `true` if valid, `false` otherwise.
-   */
-  isValid() {
-    return this.datetime.isValid()
-  }
-
-  /**
-   * Convert the current datetime into a javascript Date object.
-   * @returns {Date} - The converted date object.
-   */
-  toDate() {
-    return this.datetime.toDate()
-  }
-
-  /**
-   * Return a `string` with this date and time formatted with `format`.
-   * @returns {string} - The formatted date and time.
-   */
-  toString(format = this.format) {
-    return this.datetime.format(format)
-  }
-
-  /**
-   * Return a `string` with this date and time in ISO format.
-   * @returns {string} - The date and time in ISO format.
-   */
-  toJSON() {
-    return this.datetime.toISOString()
-  }
+  const parsedDate = moment.utc(value, dateFormat, true) // Strict parsing
+  return parsedDate.isValid() ? parsedDate.toDate() : null
 }

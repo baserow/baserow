@@ -1,0 +1,75 @@
+.generate-ai-values__generate-button {
+  margin-top: 4px;
+}
+
+.generate-ai-values__list {
+  border-top: 1px solid $color-neutral-200;
+  padding: 6px;
+  margin-top: 20px;
+}
+
+.generate-ai-values-job {
+  padding: 10px 0;
+  border-bottom: 1px solid $color-neutral-200;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 7px;
+  }
+
+  &__name {
+    font-size: 13px;
+    font-weight: 600;
+    color: $color-neutral-900;
+    line-height: 1.35;
+    word-break: break-word;
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__started {
+    font-size: 12px;
+    font-weight: 400;
+    color: $color-neutral-600;
+    margin-left: 6px;
+  }
+
+  &__detail {
+    font-size: 12px;
+    color: $color-neutral-600;
+    line-height: 1.35;
+  }
+
+  &__progress-row {
+    display: flex;
+    align-items: center;
+    gap: 50px;
+  }
+
+  &__progress-bar {
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__progress-value {
+    flex-shrink: 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: $color-neutral-700;
+    min-width: 35px;
+    text-align: right;
+    margin-left: auto;
+  }
+
+  &__cancel {
+    color: $color-error-500;
+    flex-shrink: 0;
+  }
+}

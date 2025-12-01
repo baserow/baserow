@@ -11,7 +11,7 @@
       v-tooltip="$t('getFormulaComponent.errorTooltip')"
       tooltip-position="top"
       :hide-tooltip="!isInvalid"
-      @click="emitToEditor('data-component-clicked', node)"
+      @click.stop="emitToEditor('data-node-clicked', node)"
     >
       <template v-for="(part, index) in pathParts">
         <i
@@ -40,13 +40,44 @@ export default {
     NodeViewWrapper,
   },
   mixins: [formulaComponent],
-  inject: ['applicationContext', 'dataProviders'],
+  inject: ['nodesHierarchy'],
   computed: {
     isInvalid() {
-      return this.findNode(this.nodes, _.toPath(this.path)) === null
+      const allRootNodes = this.nodesHierarchy.flatMap(
+        (category) => category.nodes || []
+      )
+
+      let currentLevelNodes = allRootNodes
+      let lastNode = null
+
+      for (const identifier of this.rawPathParts) {
+        let nodeFound = null
+        if (currentLevelNodes) {
+          nodeFound = currentLevelNodes.find(
+            (node) => (node.identifier || node.name) === identifier
+          )
+        }
+
+        if (nodeFound) {
+          currentLevelNodes = nodeFound.nodes
+          lastNode = nodeFound
+        } else if (
+          lastNode &&
+          lastNode.type === 'array' &&
+          (/^\d+$/.test(identifier) || identifier === '*')
+        ) {
+          currentLevelNodes = lastNode.nodes
+        } else {
+          return true
+        }
+      }
+      return false
     },
     path() {
       return this.node.attrs.path
+    },
+    nodesHierarchy() {
+      return this.node.attrs.nodesHierarchy || []
     },
     isSelected() {
       return this.node.attrs.isSelected
@@ -54,55 +85,41 @@ export default {
     rawPathParts() {
       return _.toPath(this.path)
     },
-    dataProviderType() {
-      const pathParts = this.rawPathParts
-      return this.dataProviders.find(
-        (dataProvider) => dataProvider.type === pathParts[0]
-      )
-    },
-    nodes() {
-      return [this.dataProviderType.getNodes(this.applicationContext)]
-    },
     pathParts() {
-      const translatedPathPart = this.rawPathParts.map((_, index) =>
-        this.dataProviderType.getPathTitle(
-          this.applicationContext,
-          this.rawPathParts.slice(0, index + 1)
-        )
+      const allRootNodes = this.nodesHierarchy.flatMap(
+        (category) => category.nodes || []
       )
 
-      translatedPathPart[0] = this.dataProviderType.name
-      return translatedPathPart
-    },
-  },
-  methods: {
-    findNode(nodes, path) {
-      const [identifier, ...rest] = path
+      let currentLevelNodes = allRootNodes
+      let lastNode = null
+      const translatedParts = []
 
-      if (!nodes) {
-        return null
-      }
+      for (const identifier of this.rawPathParts) {
+        let nodeFound = null
+        if (currentLevelNodes) {
+          nodeFound = currentLevelNodes.find(
+            (node) => (node.identifier || node.name) === identifier
+          )
+        }
 
-      const nodeFound = nodes.find((node) => node.identifier === identifier)
-
-      if (!nodeFound) {
-        return null
-      }
-
-      if (rest.length > 0) {
-        if (nodeFound.type === 'array') {
-          const [index, ...afterIndex] = rest
-          // Check that the index is what is expected
-          if (!(index === '*' || /^\d+$/.test(index))) {
-            return null
-          }
-          return this.findNode(nodeFound.nodes, afterIndex)
+        if (nodeFound) {
+          translatedParts.push(nodeFound.name)
+          currentLevelNodes = nodeFound.nodes
+          lastNode = nodeFound
+        } else if (
+          lastNode &&
+          lastNode.type === 'array' &&
+          (/^\d+$/.test(identifier) || identifier === '*')
+        ) {
+          translatedParts.push(
+            identifier === '*' ? `[${this.$t('common.all')}]` : identifier
+          )
         } else {
-          return this.findNode(nodeFound.nodes, rest)
+          translatedParts.push(identifier)
+          currentLevelNodes = null
         }
       }
-
-      return nodeFound
+      return translatedParts
     },
   },
 }

@@ -7,11 +7,11 @@ export const createNewUndoRedoActionGroupId = () => {
 export const UNDO_REDO_ACTION_GROUP_HEADER = 'ClientUndoRedoActionGroupId'
 
 export const getUndoRedoActionRequestConfig = ({ undoRedoActionGroupId }) => {
-  const config = {}
+  const config = { params: {} }
   if (undoRedoActionGroupId != null) {
     config.headers = {
       [UNDO_REDO_ACTION_GROUP_HEADER]: undoRedoActionGroupId,
     }
-    return config
   }
+  return config
 }

@@ -66,15 +66,29 @@
     <Radio v-model="selectedVisibility" :value="visibilityNotLogged">
       {{ $t('visibilityForm.notLoggedInVisitors') }}
     </Radio>
-    <Alert>
+    <Alert class="margin-bottom-2">
       <slot name="title">{{ $t('visibilityForm.warningTitle') }}</slot>
       <!-- eslint-disable-next-line vue/no-v-html vue/no-v-text-v-html-on-component -->
       <p v-html="$t('visibilityForm.warningMessage')"></p>
     </Alert>
+
+    <FormGroup
+      small-label
+      :label="$t('visibilityForm.visibilityCondition')"
+      class="margin-bottom-2"
+      :helper-text="$t('visibilityForm.visibilityConditionHelper')"
+      required
+    >
+      <InjectedFormulaInput
+        v-model="values.visibility_condition"
+        :placeholder="$t('visibilityForm.visibilityConditionPlaceholder')"
+      />
+    </FormGroup>
   </form>
 </template>
 
 <script>
+import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
 import visibilityForm from '@baserow/modules/builder/mixins/visibilityForm'
 import elementForm from '@baserow/modules/builder/mixins/elementForm'
 
@@ -85,6 +99,9 @@ import {
 
 export default {
   name: 'VisibilityForm',
+  components: {
+    InjectedFormulaInput,
+  },
   mixins: [elementForm, visibilityForm],
   data() {
     return {
@@ -92,6 +109,7 @@ export default {
         visibility: VISIBILITY_ALL,
         roles: [],
         role_type: ROLE_TYPE_ALLOW_ALL,
+        visibility_condition: { formula: '' },
       },
     }
   },

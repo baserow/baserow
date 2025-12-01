@@ -28,12 +28,17 @@ from baserow.contrib.dashboard.widgets.actions import (
 )
 from baserow.contrib.dashboard.widgets.exceptions import (
     WidgetDoesNotExist,
+    WidgetImproperlyConfigured,
     WidgetTypeDoesNotExist,
 )
 from baserow.contrib.dashboard.widgets.registries import widget_type_registry
 from baserow.contrib.dashboard.widgets.service import WidgetService
 
-from .errors import ERROR_WIDGET_DOES_NOT_EXIST, ERROR_WIDGET_TYPE_DOES_NOT_EXIST
+from .errors import (
+    ERROR_WIDGET_DOES_NOT_EXIST,
+    ERROR_WIDGET_IMPROPERLY_CONFIGURED,
+    ERROR_WIDGET_TYPE_DOES_NOT_EXIST,
+)
 from .serializers import (
     CreateWidgetSerializer,
     UpdateWidgetSerializer,
@@ -183,6 +188,7 @@ class WidgetView(APIView):
     @map_exceptions(
         {
             WidgetDoesNotExist: ERROR_WIDGET_DOES_NOT_EXIST,
+            WidgetImproperlyConfigured: ERROR_WIDGET_IMPROPERLY_CONFIGURED,
         }
     )
     def patch(self, request, widget_id: int):

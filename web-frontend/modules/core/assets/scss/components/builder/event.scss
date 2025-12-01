@@ -6,6 +6,7 @@
 
 .event__header-left {
   display: flex;
+  align-items: center;
 }
 
 .event__label {
@@ -15,8 +16,17 @@
 
 .event__amount-actions {
   background-color: $color-neutral-100;
+  font-size: 11px;
   padding: 1px 7px;
   border-radius: 3px;
+}
+
+.event__add-action-context {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  gap: 10px;
+  padding: 10px;
 }
 
 .event__toggle {

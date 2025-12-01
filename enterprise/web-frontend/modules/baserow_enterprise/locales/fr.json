@@ -273,7 +273,17 @@
         "callbackUrl": "URL de callback",
         "secret": "Secret",
         "baseUrlPlaceholder": "URL de base du fournisseur d'authentification",
-        "duplicateBaseUrl": "L'URL saisie existe déjà dans un autre fournisseur"
+        "duplicateBaseUrl": "L'URL saisie existe déjà dans un autre fournisseur",
+        "useIdToken": "Utiliser le jeton d'identification (id token) pour obtenir les informations des utilisateurs",
+        "responseSettings": "Attributs de la réponse OIDC",
+        "defaultAttrs": "Par défaut",
+        "customAttrs": "Personnalisés",
+        "emailAttrKey": "Courriel",
+        "firstNameAttrKeyHelper": "Le prénom de l'utilisateur ou le nom complet si le « Nom » n'est pas fourni.",
+        "lastNameAttrKeyHelper": "Nom de famille de l'utilisateur (facultatif). Effacez cette valeur pour fournir le nom complet via \"Prénom\".",
+        "firstNameAttrKey": "Prénom",
+        "emailAttrKeyHelper": "L'adresse électronique qui sera utilisée comme identifiant d'utilisateur. ",
+        "lastNameAttrKey": "Nom"
     },
     "loginButton": {
         "continueWith": "Poursuivre avec"
@@ -286,7 +296,26 @@
         "support": "Assistance en ligne",
         "dataSync": "Synchronisation de données",
         "chartWidget": "Graphique",
-        "advancedWebhooks": "Webhooks avancés"
+        "advancedWebhooks": "Webhooks avancés",
+        "rbacContent": "Gérer les permissions avec précision. Assigner des rôles comme administrateur, architecte, éditeur, commentateur ou spectateur à l'espace de travail, base de données ou niveau de table. Vous pouvez également gérer l'accès par équipe.",
+        "auditLogsContent": "Suivez tout ce qui se passe. Affichez un historique complet des actions dans votre instance ou votre Projet, filtrable par utilisateur, par action, etc.",
+        "coBrandingContent": "Personnalisez l'interface de Baserow avec votre propre logo. Notez que la mention \"Propulsé par Baserow\" est ajoutée.",
+        "supportContent": "Obtenez de l'aide quand vous en avez besoin. Contactez l'équipe de Baserow directement depuis la plateforme.",
+        "fieldLevelPermissions": "Autorisations par colonne",
+        "ssoContent": "Permet des connexions sécurisées et transparentes avec SAML, Google, Facebook, GitHub, GitLab ou OpenID Connect. Supporte plusieurs fournisseurs à la fois. Notez que Baserow, en tant qu'outil, et le système d'authentification du constructeur d'applications prennent tous deux en charge le SSO.",
+        "dataSyncContent": "Maintenez automatiquement les tables à jour en les synchronisant avec d'autres tables Baserow ou des sources externes telles que Jira, GitHub, GitLab ou HubSpot. Il permet également une synchronisation périodique et une synchronisation bidirectionnelle des données pour les types de synchronisation de données pris en charge.",
+        "fieldLevelPermissionsContent": "Contrôlez qui peut modifier des champs spécifiques d'une table. Définissez des autorisations pour les Éditeurs, les Architectes, les Administrateurs, ou désactivez complètement les modifications des valeurs de ces champs.",
+        "advancedWebhooksContent": "Déclencher des webhooks lorsqu'une ligne entre dans une vue spécifique - idéal pour l'automatisation des scénarios basés sur des conditions complexes.",
+        "builderBranding": "Branding de l'application",
+        "builderBrandingContent": "Votre application en marque blanche avec la suppression du tampon « Made with Baserow » dans le pied de page de votre application.",
+        "builderFileInputElement": "Champs fichier",
+        "builderFileInputElementContent": "L'élément d'entrée de fichier vous permet d'ajouter un champ à vos pages d'application pour le téléchargement de fichiers. Donnez à vos utilisateurs la possibilité de stocker des documents ou des images importants.",
+        "builderCustomCode": "Code personnalisé pour les applications",
+        "builderCustomCodeContent": "Vous pouvez ajouter du code CSS/JavaScript personnalisé pour personnaliser davantage l'aspect et le comportement de votre application. Par exemple, vous pouvez intégrer des services externes tels que l'analyse d'audience ou les réseaux sociaux.",
+        "assistant": "Assistant IA",
+        "assistantContent": "Augmentez votre productivité grâce à l'IA. Utilisez le langage naturel pour créer, analyser et visualiser vos données directement dans Baserow.",
+        "dateDependency": "Dépendance de date",
+        "dateDependencyContent": "Vous pouvez définir une dépendance entre deux dates et une durée sous la forme d'une date de début/fin et d'une durée. Avec la dépendance de date, si une valeur change, les autres valeurs seront ajustées en conséquence."
     },
     "chatwootSupportSidebarWorkspace": {
         "directSupport": "Assistance"
@@ -382,7 +411,11 @@
         "projectKeyHelper": "La clé de projet du projet Jira (par exemple, PROJ). On peut la trouver en cliquant sur \"Paramètres du projet\" dans Jira. Si elle n'est pas fournie, tous les tickets seront renvoyés.",
         "jiraUsername": "Nom d'utilisateur Jira",
         "usernameHelper": "Le nom d'utilisateur du compte Jira utilisé pour l'authentification. Il s'agit de l'email que vous utilisez pour vous connecter.",
-        "apiToken": "Jeton d'API Jira"
+        "apiToken": "Jeton d'API Jira",
+        "authenticationLabel": "Authentification",
+        "authenticationHelper": "Choisissez comment vous authentifier auprès de Jira.",
+        "personalAccessToken": "Jeton d'accès personnel Jira",
+        "personalAccessTokenHelper": "Le jeton API du compte Jira utilisé pour l'authentification. Il peut être créé à l'adresse https://confluence.atlassian.com/enterprise/using-personal-access-tokens-1026032365.html."
     },
     "githubIssuesDataSync": {
         "ownerHelper": "Nom d'utilisateur ou propriétaire du dépôt. Typiquement dans le coin supérieur gauche `Propriétaire / dépôt`",
@@ -465,7 +498,13 @@
     "aggregationSeriesForm": {
         "aggregationFieldLabel": "Champ",
         "aggregationTypeLabel": "Résumé",
-        "deleteSeries": "Supprimer la série"
+        "deleteSeries": "Supprimer la série",
+        "lineChart": "Ligne",
+        "barChart": "Barre",
+        "chartType": "Type de graphique",
+        "pieChart": "Diagramme circulaire",
+        "doughnutChart": "Graphique en anneau",
+        "polarAreaChart": "Graphique polaire"
     },
     "aggregationGroupByForm": {
         "groupByFieldLabel": "Grouper par",
@@ -479,7 +518,9 @@
         "sortByFieldLabel": "Trier par"
     },
     "periodicDataSyncDeactivatedNotification": {
-        "body": "La synchronisation périodique des données de {name} a été désactivée car elle a échoué consécutivement trop de fois."
+        "body": "La synchronisation périodique des données de {name} a été désactivée car elle a échoué consécutivement trop de fois.",
+        "failure": "La synchronisation périodique des données {name} a été désactivée car elle a échoué trop de fois consécutives.",
+        "licenseUnavailable": "La synchronisation périodique des données {name} a été désactivée car l'espace de travail ne dispose plus d'une licence valide. Veuillez mettre à jour votre licence pour rétablir la synchronisation automatique."
     },
     "webhook": {
         "rowsEnterVieweventType": "Des lignes entrent dans la vue"
@@ -489,6 +530,192 @@
         "triggerWhenRowsEnterView": "Déclenché lorsque de nouvelles lignes entrent dans la vue."
     },
     "chartWidget": {
-        "name": "Graphique"
+        "name": "Graphique",
+        "bar": "Graphique à barres",
+        "line": "Graphique linéaire"
+    },
+    "fieldPermissionModal": {
+        "description": "Choisissez qui peut modifier les valeurs de {fieldName}.",
+        "linkRowWarning": "Il s'agit d'un champ \"lien vers une table\". Pour s'assurer que les valeurs ne peuvent pas être modifiées à partir de la table liée, veillez à définir les autorisations adéquates sur la table liée également.",
+        "question": "Qui peut modifier ce champ ?",
+        "editorTitle": "Éditeurs et plus (par défaut)",
+        "editorDescription": "Utilisateurs ayant le rôle d'Éditeur, d'Architecte et d'Admin",
+        "builderDescription": "Utilisateurs ayant le rôle d'Architecte et d'Admin",
+        "adminDescription": "Utilisateurs ayant un rôle d'administrateur",
+        "nobodyDescription": "Aucun utilisateur",
+        "title": "Modifier les droits d'accès",
+        "allowInForms": "Permettre à ce champ d'être défini pour les lignes créées à l'aide de formulaires",
+        "adminTitle": "Administrateurs uniquement",
+        "nobodyTitle": "Personne",
+        "builderTitle": "Architectes et plus"
+    },
+    "fileInputElementForm": {
+        "addFileType": "Ajouter un type de fichier",
+        "fileTypesHelper": "Choisissez les extensions de fichier autorisées (une par ligne) par le champ fichier (par exemple, jpg, png, svg, pdf). Vous pouvez spécifier image/*, vidéo/* ou audio/* pour autoriser tous les fichiers de ces types. Laissez le champ vide pour autoriser tous les types de fichiers.",
+        "defaultNameTitle": "Nom de fichier initial|Noms de fichiers initiaux",
+        "defaultNamePlaceholder": "Saisir un nom de fichier...|Saisir des noms de fichiers...",
+        "defaultNameHelp": "Le nombre de noms doit correspondre au nombre d'urls.",
+        "defaultUrlTitle": "URL initial du fichier| URLs initiales des fichiers",
+        "defaultUrlPlaceholder": "Saisir une URL par défaut...|Saisir les URLs par défaut...",
+        "helpTextPlaceholder": "Vide pour valeur par défaut...",
+        "required": "Obligatoire",
+        "fileTypes": "Types de fichiers",
+        "preview": "Prévisualiser les images ?",
+        "maxFileSize": "Taille maximale par fichier",
+        "maxFileSizePlaceholder": "Entrez un nombre...",
+        "multiple": "Plusieurs fichiers ?",
+        "helpTextTitle": "Texte d'aide"
+    },
+    "fileInputElement": {
+        "defaultHelpText": "Glissez-déposez les fichiers ici ou cliquez pour les sélectionner",
+        "fileSizeExceeded": "Fichier trop volumineux. Max {max}Mo."
+    },
+    "fieldPermissionsMenuItem": {
+        "label": "Modifier les droits d'accès"
+    },
+    "advanced": {
+        "license": "Avancé"
+    },
+    "builderSettingTypes": {
+        "customCode": "CSS/JS personnalisés"
+    },
+    "customCodeSettingForm": {
+        "customCSS": "CSS personnalisé",
+        "customJS": "JavaScript personnalisé",
+        "customCSSPlaceholder": "Entrez un code CSS personnalisé...",
+        "customJSPlaceholder": "Entrez un code JS personnalisé...",
+        "externalScripts": "Scripts externes / feuilles de style",
+        "noScript": "Améliorer votre application avec des scripts ou des feuilles de style externes",
+        "customCodeTitle": "Code personnalisé",
+        "customCodeHelp": "Le code personnalisé n'est visible que dans les applications prévisualisées ou publiées. Les résultats ne sont pas visibles dans l'éditeur.",
+        "addExternalScript": "Ajouter un script externe"
+    },
+    "customCodeSettingScriptForm": {
+        "type": "Type",
+        "loadType": "Type de chargement",
+        "url": "URL",
+        "urlPlaceholder": "Entrez l'URL du script...",
+        "crossorigin": "Cross origin",
+        "includeCredentials": "Inclure les informations d'identification",
+        "typeCSS": "CSS",
+        "typeJS": "Javascript",
+        "loadTypeNone": "Normal",
+        "loadTypeDefer": "Différer",
+        "loadTypeAsync": "Async",
+        "crossoriginTypeNone": "Normal",
+        "crossoriginTypeAnonymous": "Anonyme",
+        "crossoriginTypeCredentials": "Utiliser les données d'identification"
+    },
+    "elementType": {
+        "errorUserSourceHasNoLoginOption": "La source d'utilisateurs sélectionnée n'a pas d'option de connexion",
+        "errorUserSourceMissing": "Aucune source utilisateur sélectionnée"
+    },
+    "pieChartWidget": {
+        "name": "Diagramme circulaire",
+        "pie": "Diagramme circulaire",
+        "doughnut": "Graphique en anneau",
+        "polarArea": "Graphique polaire"
+    },
+    "twoWaySyncUpdateFailed": {
+        "title": "Échec de la mise à jour de la synchronisation bidirectionnelle {name} : {error}"
+    },
+    "twoWaySyncDeactivated": {
+        "title": "La synchronisation bidirectionnelle {name} a été désactivée car une mise à jour a échoué trop de fois consécutives. Veuillez synchroniser manuellement et réactiver lorsque le problème sera résolu."
+    },
+    "enterpriseTwoWaySyncStrategyType": {
+        "realtimePushDescription": "Permet de modifier les valeurs des cellules directement dans Baserow et de les envoyer en temps réel à la source de synchronisation des données. Notez que les modifications ne sont pas récupérées en temps réel, car elles dépendent de l'action de synchronisation (périodique) pour être effectuées. Il est fortement recommandé de créer des sauvegardes de la base de données PostgreSQL afin d'éviter toute modification accidentelle."
+    },
+    "assistantSidebarItem": {
+        "title": "Kuma IA"
+    },
+    "assistantPanel": {
+        "title": "Assistant IA",
+        "close": "Fermer l'assistant IA",
+        "history": "Historique de conversation",
+        "back": "Retour"
+    },
+    "assistantWelcomeMessage": {
+        "greet": "Bonjour {name}",
+        "question": "mon nom est Kuma !",
+        "subtitle": "Je suis là pour vous aider à utiliser Baserow. Choisissez parmi les prompts ci-dessous ou écrivez-moi simplement ce dont vous avez besoin !",
+        "promptInviteUsersPrompt": "Comment inviter les utilisateurs dans mon projet ?",
+        "promptCreateTableTitle": "Créer une table",
+        "promptCreateTablePrompt": "Créer une nouvelle table nommée tâches.",
+        "promptWhichTablesTitle": "Quelles tables",
+        "promptWhichTablesPrompt": "Quelles tables sont dans cette base de données ?",
+        "promptCreateFormTitle": "Créer un formulaire",
+        "promptCreateFormPrompt": "Créer un formulaire pour cette table.",
+        "promptCreateFilterTitle": "Créer un filtre",
+        "promptCreateFilterPrompt": "Montrer seulement les lignes où le champ primaire est vide.",
+        "subtitleWithoutSuggestions": "Je suis là pour vous faciliter l'utilisation de Baserow. Dites-moi ce dont vous avez besoin !",
+        "promptCreateDatabaseTitle": "Créer une base de données",
+        "promptCreateDatabasePrompt": "Construire une base de données de gestion de projet.",
+        "promptCreateAutomationTitle": "Créer une automatisation",
+        "promptCreateAutomationPrompt": "Créez une automatisation pour que chaque mardi matin une demande soit envoyée dans le canal Slack des développeurs pour savoir s'il y a une nouvelle fonctionnalité à présenter.",
+        "promptInviteUsersTitle": "Inviter des utilisateurs"
+    },
+    "assistantInputMessage": {
+        "statusWaiting": "L'assistant est prêt à vous aider",
+        "statusRunning": "En cours...",
+        "placeholder": "Demandez-moi ce que vous voulez...",
+        "send": "Envoyer",
+        "stop": "Arréter la génération"
+    },
+    "assistantChatHistoryContext": {
+        "empty": "Aucun historique de conversation",
+        "loading": "Chargement de l'historique de conversation..."
+    },
+    "dateDependencyModal": {
+        "errorTitle": "Dépendance de date",
+        "dependencyFieldTooltip": "Configurer les dépendances de date",
+        "dependencyFieldTooltipError": "Une règle de champ contient une erreur",
+        "contextMenuItemLabel": "Configurer les dépendances de date",
+        "title": "Dépendance de date pour {tableName}",
+        "description": "Spécifiez les lignes qui dépendent des autres. Lorsqu'une ligne est replanifiée, les lignes qui en dépendent sont automatiquement adaptées.",
+        "enableDateDependency": "Activer les dépendances de date",
+        "startDateFieldLabel": "Date de début",
+        "endDateFieldLabel": "Date de fin",
+        "durationFieldLabel": "Durée",
+        "durationFieldHint": "Ce champ doit utiliser le format \"d h\".",
+        "dependencyLinkrowFieldLabel": "Prédécesseurs",
+        "dependencyLinkrowFieldHint": "Utilisez le champ Lien vers une table pour relier une ligne à ses prédécesseurs.",
+        "dependencyBufferTypeLabel": "Logique de replanification",
+        "durationBufferLabel": "Tampon temporel",
+        "dependencyConnectionTypeLabel": "Type",
+        "advancedSettingsLabel": "Paramètres avancés",
+        "includeWeekendsLabel": "Inclure les week-ends dans le calcul des durées",
+        "dependencyFieldForReaderTooltip": "Ce champ est inclus dans la règle de dépendance de date",
+        "fieldInvalidTitle": "Erreur dans la dépendance de date"
+    },
+    "assistant": {
+        "statusThinking": "Réflexions...",
+        "statusAnswering": "Réponse en cours...",
+        "statusCancelling": "Annulation...",
+        "messageCancelled": "Message annulé"
+    },
+    "assistantMessageSources": {
+        "sources": "{count} source | {count} sources"
+    },
+    "assistantMessageActions": {
+        "feedbackContextTitle": "Aidez-nous à nous améliorer",
+        "feedbackContextPlaceholder": "Que pourrions-nous améliorer ? (facultatif)",
+        "copiedToClipboard": "Copié dans le presse-papiers",
+        "copiedContentToast": "La réponse de l'assistant a été copié dans votre presse-papiers",
+        "copyFailed": "Échec de la copie dans le presse-papiers",
+        "disclaimer": "Kuma peut faire des erreurs, veuillez vérifier les réponses"
+    },
+    "dateDependency": {
+        "invalidChildRow": "La ligne suivante est invalide",
+        "invalidParentRow": "La ligne précédente est invalide",
+        "invalidParentEndDateAfterChildStartDate": "La date de fin de la ligne précédente est postérieure à la date de début de la ligne suivante",
+        "invalidStartDateEmpty": "La date de début est vide",
+        "invalidEndDateEmpty": "La date de fin est vide",
+        "invalidEndDateBeforeStartDate": "La date de fin est antérieure à la date de début",
+        "invalidDurationEmpty": "La durée est vide",
+        "invalidDurationValue": "La durée n'est pas valide",
+        "invalidDurationMismatch": "La durée ne correspond pas"
+    },
+    "assistantMessageList": {
+        "disclaimer": "Kuma peut faire des erreurs, veuillez vérifier les réponses"
     }
 }

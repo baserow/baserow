@@ -29,10 +29,14 @@ export default (client) => {
         config
       )
     },
-    triggerImport(workspaceId, resourceId) {
-      return client.post(`/workspaces/${workspaceId}/import/async/`, {
+    triggerImport(workspaceId, resourceId, applicationIds = null) {
+      const data = {
         resource_id: resourceId,
-      })
+      }
+      if (applicationIds && applicationIds.length > 0) {
+        data.application_ids = applicationIds
+      }
+      return client.post(`/workspaces/${workspaceId}/import/async/`, data)
     },
 
     deleteResource(workspaceId, resourceId) {

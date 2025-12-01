@@ -50,7 +50,12 @@ def setup_dev_e2e_users_and_instance_id(User, args, kwargs):
                 user = User.objects.get(email=email)
             user.is_staff = True
             user.save()
-            user.profile.completed_guided_tours = ["sidebar", "database", "builder"]
+            user.profile.completed_guided_tours = [
+                "sidebar",
+                "database",
+                "builder",
+                "automation",
+            ]
             user.profile.save()
             logger.info(
                 f"\033[93mCreated staff user: {user.email} with password: {password}\033[0m"

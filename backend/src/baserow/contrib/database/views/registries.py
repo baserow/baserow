@@ -136,6 +136,16 @@ class ViewType(
     """
 
     can_group_by = False
+    """
+    Indicates if the view supports grouping by fields. If not, it will not be possible
+    to add a group by to the view.
+    """
+
+    can_list_rows = True
+    """
+    Indicates if the view supports listing rows. If not, it will not be possible to
+    fetch rows from the view.
+    """
 
     has_public_info = False
     """
@@ -911,10 +921,11 @@ class ViewFilterType(Instance):
 
     compatible_field_types: List[Union[str, Callable[["Field"], bool]]] = []
     """
-    Defines which field types are compatible with the filter. Only the supported ones
-    can be used in combination with the field. The values in this list can either be
-    the literal field_type.type string, or a callable which takes the field being
-    checked and returns True if compatible or False if not.
+    Defines which field types are compatible with the filter. The values in this list
+    can either be the literal `FieldType.type` string, or a callable taking the
+    concrete field and returning True/False. When checking compatibility the
+    `FieldType.get_compatible_filter_field_type(field)` indirection is applied first,
+    allowing field types to alias themselves to another type for filtering purposes.
     """
 
     def default_filter_on_exception(self):
@@ -985,14 +996,14 @@ class ViewFilterType(Instance):
             return ""
         return value
 
-    def field_is_compatible(self, field):
+    def field_is_compatible(self, field: "Field") -> bool:
         """
         Given a particular instance of a field returns a list of Type[FieldType] which
         are compatible with this particular field type.
 
-        Works by checking the field_type against this view filters list of compatible
-        field types or compatibility checking functions defined in
-        self.allowed_field_types.
+        Works by checking the field's canonical filter type (as returned by
+        `FieldType.get_compatible_filter_field_type(field)`) against this filter's
+        `compatible_field_types`.
 
         :param field: The field to check.
         :return: True if the field is compatible, False otherwise.
@@ -1001,9 +1012,12 @@ class ViewFilterType(Instance):
         from baserow.contrib.database.fields.registries import field_type_registry
 
         field_type = field_type_registry.get_by_model(field.specific_class)
+        # Allow field types to map themselves to another field type for filter
+        # compatibility checks.
+        compatible_field_type = field_type.get_compatible_filter_field_type(field)
 
         return any(
-            callable(t) and t(field) or t == field_type.type
+            (callable(t) and t(field)) or t == compatible_field_type.type
             for t in self.compatible_field_types
         )
 

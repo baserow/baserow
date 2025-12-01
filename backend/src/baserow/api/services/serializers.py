@@ -4,6 +4,7 @@ from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
+from baserow.api.polymorphic import PolymorphicRequestSerializer, PolymorphicSerializer
 from baserow.core.services.models import Service
 from baserow.core.services.registries import service_type_registry
 
@@ -47,6 +48,7 @@ class ServiceSerializer(serializers.ModelSerializer):
             "schema",
             "context_data",
             "context_data_schema",
+            "sample_data",
         )
         extra_kwargs = {
             "id": {"read_only": True},
@@ -55,6 +57,7 @@ class ServiceSerializer(serializers.ModelSerializer):
             "schema": {"read_only": True},
             "context_data": {"read_only": True},
             "context_data_schema": {"read_only": True},
+            "sample_data": {"read_only": True},
         }
 
 
@@ -121,3 +124,23 @@ class UpdateServiceSerializer(serializers.ModelSerializer):
     class Meta:
         model = Service
         fields = ("integration_id",)
+
+
+class PolymorphicServiceSerializer(PolymorphicSerializer):
+    base_class = ServiceSerializer
+    registry = service_type_registry
+
+
+class BasePolymorphicRequestSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Service
+        fields = ("id",)
+
+
+class PolymorphicServiceRequestSerializer(PolymorphicRequestSerializer):
+    base_class = BasePolymorphicRequestSerializer
+    registry = service_type_registry
+
+
+class PublicPolymorphicServiceSerializer(PolymorphicServiceSerializer):
+    extra_params = {"public": True}

@@ -90,86 +90,12 @@ const actions = {
      * If `dataSource` is `null`, this means that we are trying to fetch the content
      * of a nested collection element, such as a repeat nested in a repeat.
      *
-     * The nested collection fetches its content by finding, either the root-level
-     * collection element with a dataSource, or its immediate parent with a schema property.
-     *
-     * If we have a parent with a schema property: this nested collection element
-     * is a child of a collection element using a schema property as well, e.g.:
-     *
-     * - Root collection element (with a dataSource):
-     *       - Parent collection element (with a schema property)
-     *           - Grandchild collection element (this `element`!) with a schema property.
-     *
-     * If we don't have a parent element with a schema property, we are a child of
-     * the root collection element with a dataSource, e.g.:
-     *
-     * - Root collection element (with a dataSource):
-     *      - Parent collection element (this `element`!) with a schema property.
+     * No content is stored for this element directly. It's content will be deduced
+     * from the applicationContext and the content of the parent element
      */
     if (!dataSource) {
-      // We clearly can't have more page for that one
-      commit('SET_HAS_MORE_PAGE', { element, value: false })
-      commit('SET_LOADING', { element, value: false })
-
-      if (!element.schema_property) {
-        // We have a collection element that supports schema properties, and
-        // we have A) no data source and B) no schema property
-        // or,
-        // We have a collection element that doesn't support schema properties
-        // (record selector), and there's no data source.
-        commit('SET_LOADING', { element, value: false })
-        return
-      }
-
-      // Collect all collection element ancestors, with a `data_source_id`.
-      const collectionAncestors = this.app.store.getters[
-        'element/getAncestors'
-      ](page, element, {
-        predicate: (ancestor) =>
-          this.app.$registry.get('element', ancestor.type)
-            .isCollectionElement && ancestor.data_source_id !== null,
-      })
-
-      // Pluck out the root ancestor, which has a data source.
-      const rootAncestorWithDataSource = collectionAncestors[0]
-
-      // Next, find this element's parent.
-      const parent = this.app.store.getters['element/getParent'](page, element)
-
-      // If the parent has a `schema_property`, we'll want to use the
-      // parent's element content for `element` to use. If the parent
-      // doesn't have a property, we'll access to the root ancestor's
-      // (which has a data source) for the content.
-      const targetElement = parent.schema_property
-        ? parent
-        : rootAncestorWithDataSource
-
-      const targetContent =
-        this.app.store.getters['elementContent/getElementContent'](
-          targetElement
-        )
-
-      let elementContent = []
-      if (parent.schema_property) {
-        // If the parent has a `schema_property`, it's an array of values
-        // *inside* `schema_property`, so we just copy the array.
-        elementContent = [...targetContent]
-      } else {
-        // Build a new array of content, for this `element`, which
-        // will only contain the property `schema_property`.
-        elementContent = targetContent.map((obj) => ({
-          [element.schema_property]: obj[element.schema_property],
-        }))
-      }
-
-      commit('CLEAR_CONTENT', {
-        element,
-      })
-      commit('SET_CONTENT', {
-        element,
-        value: elementContent,
-      })
-      // No more content for sure
+      // No data source means no content for this element directly. It will then take
+      // it's content from the parent element so we can fake the end of the loading.
       commit('SET_HAS_MORE_PAGE', { element, value: false })
       commit('SET_LOADING', { element, value: false })
       return
@@ -177,108 +103,89 @@ const actions = {
 
     const serviceType = this.app.$registry.get('service', dataSource.type)
 
-    // We have a data source, but if it doesn't return a list,
-    // it needs to have a `schema_property` to work correctly.
-    if (!serviceType.returnsList && element.schema_property === null) {
-      // If we previously had a list data source, we might have content,
-      // so rather than leave the content *until a schema property is set*,
-      // clear it.
-      commit('CLEAR_CONTENT', {
-        element,
-      })
-      commit('SET_LOADING', { element, value: false })
-      return
-    }
-
     try {
-      if (!serviceType.isInError(dataSource)) {
-        let rangeToFetch = range
-        if (!replace) {
-          // Let's compute the range that really needs to be fetched if necessary
-          const [offset, count] = range
-          rangeToFetch = rangeDiff(getters.getContentRange(element), [
-            offset,
-            offset + count,
-          ])
+      let rangeToFetch = range
+      if (!replace) {
+        // Let's compute the range that really needs to be fetched if necessary
+        const [offset, count] = range
+        rangeToFetch = rangeDiff(getters.getContentRange(element), [
+          offset,
+          offset + count,
+        ])
 
-          // Everything is already loaded we can quit now
-          if (!rangeToFetch || !getters.getHasMorePage(element)) {
-            commit('SET_LOADING', { element, value: false })
-            return
-          }
-          rangeToFetch = [rangeToFetch[0], rangeToFetch[1] - rangeToFetch[0]]
+        // Everything is already loaded we can quit now
+        if (!rangeToFetch || !getters.getHasMorePage(element)) {
+          commit('SET_LOADING', { element, value: false })
+          return
         }
+        rangeToFetch = [rangeToFetch[0], rangeToFetch[1] - rangeToFetch[0]]
+      }
 
-        let service = DataSourceService
-        if (['preview', 'public'].includes(mode)) {
-          service = PublishedBuilderService
-        }
+      let service = DataSourceService
+      if (['preview', 'public'].includes(mode)) {
+        service = PublishedBuilderService
+      }
 
-        if (!queriesInProgress[element.id]) {
-          queriesInProgress[element.id] = {}
-        }
+      if (!queriesInProgress[element.id]) {
+        queriesInProgress[element.id] = {}
+      }
 
-        if (queriesInProgress[element.id][`${rangeToFetch}`]) {
-          queriesInProgress[element.id][`${rangeToFetch}`].abort()
-        }
+      if (queriesInProgress[element.id][`${rangeToFetch}`]) {
+        queriesInProgress[element.id][`${rangeToFetch}`].abort()
+      }
 
-        commit('SET_LOADING', { element, value: true })
+      commit('SET_LOADING', { element, value: true })
 
-        queriesInProgress[element.id][`${rangeToFetch}`] =
-          global.AbortController ? new AbortController() : null
+      queriesInProgress[element.id][`${rangeToFetch}`] = global.AbortController
+        ? new AbortController()
+        : null
 
-        const { data } = await service(this.app.$client).dispatch(
-          dataSource.id,
-          dispatchContext,
-          { range: rangeToFetch, filters, sortings, search, searchMode },
-          queriesInProgress[element.id][`${rangeToFetch}`]?.signal
-        )
+      const { data } = await service(this.app.$client).dispatch(
+        dataSource.id,
+        dispatchContext,
+        { range: rangeToFetch, filters, sortings, search, searchMode },
+        queriesInProgress[element.id][`${rangeToFetch}`]?.signal
+      )
 
-        delete queriesInProgress[element.id][`${rangeToFetch}`]
+      delete queriesInProgress[element.id][`${rangeToFetch}`]
 
-        // With a list-type data source, the data object will return
-        // a `has_next_page` field for paging to the next set of results.
-        const { has_next_page: hasNextPage = false } = data
+      // With a list-type data source, the data object will return
+      // a `has_next_page` field for paging to the next set of results.
+      const { has_next_page: hasNextPage = false } = data
 
-        if (replace) {
-          commit('CLEAR_CONTENT', {
-            element,
-          })
-        }
-
-        if (serviceType.returnsList) {
-          // The service type returns a list of results, we'll set the content
-          // using the results key and set the range for future paging.
-          commit('SET_CONTENT', {
-            element,
-            value: data.results.map((row) => ({
-              ...row,
-              __recordId__: row[serviceType.getIdProperty(service, row)],
-            })),
-            range,
-          })
-        } else {
-          // The service type returns a single row of results, we'll set the
-          // content using the element's schema property. Not how there's no
-          // range for paging, all results are set at once. We default to an
-          // empty array if the property doesn't exist, this will happen if
-          // the property has been removed since the initial configuration.
-          const propertyValue = data[element.schema_property] || []
-          commit('SET_CONTENT', {
-            element,
-            value: propertyValue,
-          })
-        }
-
-        commit('SET_HAS_MORE_PAGE', {
-          element,
-          value: hasNextPage,
-        })
-      } else {
+      if (replace) {
         commit('CLEAR_CONTENT', {
           element,
         })
       }
+
+      if (serviceType.returnsList) {
+        // The service type returns a list of results, we'll set the content
+        // using the results key and set the range for future paging.
+        commit('SET_CONTENT', {
+          element,
+          value: data.results.map((row) => ({
+            ...row,
+            __recordId__: row[serviceType.getIdProperty(service, row)],
+          })),
+          range,
+        })
+      } else {
+        // The service type returns a single row of results, we'll set the
+        // content using the element's schema property. Not how there's no
+        // range for paging, all results are set at once. We default to an
+        // empty array if the property doesn't exist, this will happen if
+        // the property has been removed since the initial configuration.
+        commit('SET_CONTENT', {
+          element,
+          value: data,
+        })
+      }
+
+      commit('SET_HAS_MORE_PAGE', {
+        element,
+        value: hasNextPage,
+      })
     } catch (e) {
       if (!axios.isCancel(e)) {
         // If fetching the content failed, and we're trying to
@@ -289,14 +196,21 @@ const actions = {
           commit('CLEAR_CONTENT', { element })
         }
         // Let's stop all other queries
-        Object.values(queriesInProgress[element.id] | {}).forEach(
+        Object.values(queriesInProgress[element.id] || {}).forEach(
           (controller) => controller.abort()
         )
         queriesInProgress[element.id] = {}
         throw e
       }
     } finally {
-      if (!Object.keys(queriesInProgress[element.id]).length) {
+      // If this element has no active queries in progress, then
+      // we can set loading to false. The variable will be a blank
+      // object if there was an early return and no HTTP request
+      // was made.
+      if (
+        queriesInProgress[element.id] &&
+        !Object.keys(queriesInProgress[element.id]).length
+      ) {
         commit('SET_LOADING', { element, value: false })
       }
     }
@@ -311,20 +225,9 @@ const actions = {
 }
 
 const getters = {
-  getElementContent:
-    (state) =>
-    (element, applicationContext = {}) => {
-      // If we have a recordIndexPath to work with, and the element has
-      // its content loaded, then we're fetching content for a nested
-      // collection+container element, which has a schema property. We'll
-      // return the content at a specific index path, and from that property.
-      const { recordIndexPath = [] } = applicationContext
-      if (recordIndexPath.length && element._.content.length) {
-        const contentAtIndex = element._.content[recordIndexPath[0]]
-        return contentAtIndex?.[element.schema_property] || []
-      }
-      return element._.content
-    },
+  getElementContent: (state) => (element) => {
+    return element._.content || []
+  },
   getHasMorePage: (state) => (element) => {
     return element._.hasNextPage
   },

@@ -245,10 +245,10 @@ chown -R "$DOCKER_USER": "$DATA_DIR"/backups
 
 docker_safe_exec(){
     # When running one off commands we want to become the docker user + ensure signals
-    # are handled correctly. This function achieves both by using tini and gosu.
+    # are handled correctly. This function achieves both by using tini and su-exec.
     CURRENT_USER=$(whoami)
     if [[ "$CURRENT_USER" != "$DOCKER_USER" ]]; then
-      exec tini -s -- gosu "$DOCKER_USER" "$@"
+      exec tini -s -- su-exec "$DOCKER_USER" "$@"
     else
       exec tini -s -- "$@"
     fi
@@ -300,7 +300,7 @@ case "$1" in
       exec /baserow/supervisor/start.sh "${@:2}"
     ;;
     backend-cmd-with-db)
-      run_cmd_with_db gosu "$DOCKER_USER" /baserow/backend/docker/docker-entrypoint.sh "${@:2}"
+      run_cmd_with_db su-exec "$DOCKER_USER" /baserow/backend/docker/docker-entrypoint.sh "${@:2}"
     ;;
     start-only-db)
       check_can_start_embedded_services

@@ -1,8 +1,11 @@
 from typing import TYPE_CHECKING, List
 
-from django.db.models import Field
+from django.db.models import Field, JSONField, Q, Value
 
-from baserow.contrib.database.fields.field_filters import OptionallyAnnotatedQ
+from baserow.contrib.database.fields.field_filters import (
+    AnnotatedQ,
+    OptionallyAnnotatedQ,
+)
 
 from .base import (
     HasValueContainsFilterSupport,
@@ -25,6 +28,25 @@ class MultipleSelectFormulaTypeFilterSupport(
     HasValueContainsFilterSupport,
     HasValueContainsWordFilterSupport,
 ):
+    def get_all_empty_query(
+        self,
+        field_name: str,
+        model_field: Field,
+        field: "BaserowField",
+        in_array: bool = True,
+    ) -> OptionallyAnnotatedQ:
+        any_not_empty = get_jsonb_has_any_in_value_filter_expr(
+            model_field,
+            [0],
+            query_path="$[*].value.size()",
+            comparison_operator=">",
+            join_operator="&&",
+        )
+        return AnnotatedQ(
+            annotation=any_not_empty.annotation,
+            q=~any_not_empty.q | Q(**{f"{field_name}": Value([], JSONField())}),
+        )
+
     def get_in_array_empty_query(
         self, field_name, model_field, field: "BaserowField"
     ) -> OptionallyAnnotatedQ:

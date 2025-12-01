@@ -1,0 +1,8 @@
+{
+    "type": "breaking_change",
+    "message": "Data source now return content with human property names instead of technical ones",
+    "domain": "builder",
+    "issue_number": 4135,
+    "bullet_points": [],
+    "created_at": "2025-11-03"
+}

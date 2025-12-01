@@ -1,4 +1,17 @@
+import {
+  ensureString,
+  ensureNumeric,
+  ensureDateTime,
+  ensureObject,
+  ensureBoolean,
+} from '@baserow/modules/core/utils/validator'
+import moment from '@baserow/modules/core/moment'
+
 export class BaserowRuntimeFormulaArgumentType {
+  constructor({ optional = false } = {}) {
+    this.optional = optional
+  }
+
   /**
    * This function tests if a given value is compatible with its type
    * @param value -  The value being tests
@@ -23,12 +36,33 @@ export class BaserowRuntimeFormulaArgumentType {
 }
 
 export class NumberBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFormulaArgumentType {
+  constructor(options = {}) {
+    super(options)
+    this.castToInt = options.castToInt ?? false
+    this.castToFloat = options.castToFloat ?? false
+  }
+
   test(value) {
-    return !isNaN(value)
+    if (value === undefined) {
+      return false
+    }
+
+    try {
+      ensureNumeric(value)
+      return true
+    } catch (e) {
+      return false
+    }
   }
 
   parse(value) {
-    return parseFloat(value)
+    const val = ensureNumeric(value, { allowNull: true })
+    if (this.castToInt) {
+      return Math.trunc(val)
+    } else if (this.castToFloat) {
+      return parseFloat(val)
+    }
+    return val
   }
 }
 
@@ -38,6 +72,82 @@ export class TextBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFormula
   }
 
   parse(value) {
-    return value.toString()
+    return ensureString(value)
+  }
+}
+
+export class DateTimeBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFormulaArgumentType {
+  test(value) {
+    if (value instanceof Date) {
+      return true
+    }
+    try {
+      ensureDateTime(value, { useStrict: false })
+      return true
+    } catch (e) {
+      return false
+    }
+  }
+
+  parse(value) {
+    return ensureDateTime(value, { useStrict: false })
+  }
+}
+
+export class ObjectBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFormulaArgumentType {
+  test(value) {
+    if (value instanceof Object) {
+      return true
+    }
+
+    try {
+      ensureObject(value)
+      return true
+    } catch (e) {
+      return false
+    }
+  }
+
+  parse(value) {
+    return ensureObject(value)
+  }
+}
+
+export class BooleanBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFormulaArgumentType {
+  test(value) {
+    try {
+      ensureBoolean(value, { useStrict: false })
+      return true
+    } catch (e) {
+      return false
+    }
+  }
+
+  parse(value) {
+    return ensureBoolean(value, { useStrict: false })
+  }
+}
+
+export class TimezoneBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFormulaArgumentType {
+  test(value) {
+    if (value == null || typeof value.toString !== 'function') {
+      return false
+    }
+
+    return moment.tz.names().includes(value)
+  }
+
+  parse(value) {
+    return ensureString(value)
+  }
+}
+
+export class AnyBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFormulaArgumentType {
+  test(value) {
+    return true
+  }
+
+  parse(value) {
+    return value
   }
 }

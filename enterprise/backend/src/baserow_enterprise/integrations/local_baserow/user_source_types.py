@@ -33,6 +33,7 @@ from baserow.contrib.database.table.handler import TableHandler
 from baserow.core.app_auth_providers.handler import AppAuthProviderHandler
 from baserow.core.formula.validator import ensure_string
 from baserow.core.handler import CoreHandler
+from baserow.core.trash.handler import TrashHandler
 from baserow.core.user.exceptions import UserNotFound
 from baserow.core.user_sources.exceptions import UserSourceImproperlyConfigured
 from baserow.core.user_sources.handler import UserSourceHandler
@@ -85,10 +86,10 @@ class LocalBaserowUserSourceType(UserSourceType):
     # A list of fields which the page designer must configure so
     # that the `LocalBaserowUserSource` is considered "configured".
     fields_to_configure = [
-        "table_id",
-        "name_field_id",
-        "email_field_id",
-        "integration_id",
+        "table",
+        "name_field",
+        "email_field",
+        "integration",
     ]
 
     serializer_field_overrides = {
@@ -113,6 +114,23 @@ class LocalBaserowUserSourceType(UserSourceType):
             help_text="The id of the field that contains the user role.",
         ),
     }
+
+    def enhance_queryset(self, queryset):
+        """
+        Allow to enhance the queryset when querying the user_source mainly to improve
+        performances.
+        """
+
+        return (
+            super()
+            .enhance_queryset(queryset)
+            .select_related(
+                "table__database__workspace",
+                "role_field",
+                "email_field",
+                "name_field",
+            )
+        )
 
     def prepare_values(
         self,
@@ -436,15 +454,17 @@ class LocalBaserowUserSourceType(UserSourceType):
         )
 
     def get_user_model(self, user_source: LocalBaserowUserSource):
-        try:
-            # Use table handler to exclude trashed table
-            table = TableHandler().get_table(user_source.table_id)
-        except TableDoesNotExist as exc:
+        if TrashHandler.item_has_a_trashed_parent(
+            user_source.table, check_item_also=True
+        ):
             # As we CASCADE when a table is deleted, the table shouldn't
             # exist only if it's trashed and not yet deleted.
-            raise UserSourceImproperlyConfigured("The table doesn't exist.") from exc
+            raise UserSourceImproperlyConfigured("The table doesn't exist.")
 
-        integration = user_source.integration.specific
+        table = user_source.table
+        integration = user_source.integration
+
+        integration = integration.get_specific(integration.get_type().enhance_queryset)
 
         app_auth_providers = (
             AppAuthProviderHandler.list_app_auth_providers_for_user_source(user_source)
@@ -480,14 +500,32 @@ class LocalBaserowUserSourceType(UserSourceType):
 
         return model
 
-    def is_configured(self, user_source: LocalBaserowUserSource) -> bool:
+    def is_configured(
+        self, user_source: LocalBaserowUserSource, raise_exception=False
+    ) -> bool:
         """
         Returns True if the user source is configured properly. False otherwise.
         """
 
-        return not any(
-            [getattr(user_source, field) is None for field in self.fields_to_configure]
-        )
+        for field in self.fields_to_configure:
+            if (
+                not getattr(user_source, f"{field}_id")
+                or (
+                    field == "table"  # We need to check the hierarchy only for table
+                    and TrashHandler.item_has_a_trashed_parent(
+                        getattr(user_source, field), check_item_also=True
+                    )
+                )
+                or (field != "table" and getattr(user_source, field).trashed)
+            ):
+                if raise_exception:
+                    raise UserSourceImproperlyConfigured(
+                        f"The {field} field is not configured."
+                    )
+                else:
+                    return False
+
+        return True
 
     def gen_uid(self, user_source: LocalBaserowUserSource):
         """
@@ -649,20 +687,11 @@ class LocalBaserowUserSourceType(UserSourceType):
         Creates the user in the configured table.
         """
 
-        if not self.is_configured(user_source):
-            raise UserSourceImproperlyConfigured()
-
-        try:
-            # Use table handler to exclude trashed table
-            table = TableHandler().get_table(user_source.table_id)
-        except TableDoesNotExist as exc:
-            # As we CASCADE when a table is deleted, the table shouldn't
-            # exist only if it's trashed and not yet deleted.
-            raise UserSourceImproperlyConfigured("The table doesn't exist.") from exc
+        self.is_configured(user_source, raise_exception=True)
 
         integration = user_source.integration.specific
 
-        model = table.get_model()
+        model = user_source.table.get_model()
 
         values = {
             user_source.name_field.db_column: name,
@@ -675,7 +704,7 @@ class LocalBaserowUserSourceType(UserSourceType):
             # Use the action to keep track on what's going on
             (user,) = CreateRowsActionType.do(
                 user=integration.authorized_user,
-                table=table,
+                table=user_source.table,
                 rows_values=[values],
                 model=model,
             )
@@ -697,8 +726,7 @@ class LocalBaserowUserSourceType(UserSourceType):
         Authenticates using the given credentials. It uses the password auth provider.
         """
 
-        if not self.is_configured(user_source):
-            raise UserSourceImproperlyConfigured()
+        self.is_configured(user_source, raise_exception=True)
 
         try:
             # Get the unique password auth provider
@@ -807,7 +835,11 @@ class LocalBaserowUserSourceType(UserSourceType):
                 operator.and_,
                 (~Q(**{field: None}) for field in self.fields_to_configure),
             )
-            user_sources = self.model_class.objects.filter(field_q)
+            user_sources = self.enhance_queryset(
+                self.model_class.objects.select_related(
+                    "integration__application__workspace"
+                ).filter(field_q)
+            )
 
         # Narrow down the `user_sources` to only those that pass our `is_configured`
         # check. Often this will be the same filtering as what is done in the ORM, but

@@ -1,12 +1,11 @@
-import RuntimeFormulaContext from '@baserow/modules/core/runtimeFormulaContext'
-import { resolveFormula } from '@baserow/modules/core/formula'
 import { resolveColor } from '@baserow/modules/core/utils/colors'
 import applicationContextMixin from '@baserow/modules/builder/mixins/applicationContext'
+import resolveFormulaMixin from '@baserow/modules/builder/mixins/resolveFormula'
 import { ThemeConfigBlockType } from '@baserow/modules/builder/themeConfigBlockTypes'
 
 export default {
   inject: ['workspace', 'builder', 'currentPage', 'elementPage', 'mode'],
-  mixins: [applicationContextMixin],
+  mixins: [applicationContextMixin, resolveFormulaMixin],
   props: {
     element: {
       type: Object,
@@ -16,15 +15,14 @@ export default {
   computed: {
     workflowActionsInProgress() {
       const workflowActions = this.$store.getters[
-        'workflowAction/getElementWorkflowActions'
+        'builderWorkflowAction/getElementWorkflowActions'
       ](this.elementPage, this.element.id)
-      const { recordIndexPath } = this.applicationContext
-      const dispatchedById = this.elementType.uniqueElementId(
-        this.element,
-        recordIndexPath
-      )
+      const dispatchedById = this.elementType.uniqueElementId({
+        element: this.element,
+        applicationContext: this.applicationContext,
+      })
       return workflowActions.some((workflowAction) =>
-        this.$store.getters['workflowAction/getDispatching'](
+        this.$store.getters['builderWorkflowAction/getDispatching'](
           workflowAction,
           dispatchedById
         )
@@ -37,35 +35,9 @@ export default {
       return this.mode === 'editing'
     },
     elementIsInError() {
-      return this.elementType.isInError({
-        page: this.elementPage,
-        element: this.element,
-        builder: this.builder,
-      })
+      return this.elementType.isInError(this.element, this.applicationContext)
     },
-    runtimeFormulaContext() {
-      /**
-       * This proxy allow the RuntimeFormulaContextClass to act like a regular object.
-       */
-      return new Proxy(
-        new RuntimeFormulaContext(
-          this.$registry.getAll('builderDataProvider'),
-          this.applicationContext
-        ),
-        {
-          get(target, prop) {
-            return target.get(prop)
-          },
-        }
-      )
-    },
-    formulaFunctions() {
-      return {
-        get: (name) => {
-          return this.$registry.get('runtimeFormulaFunction', name)
-        },
-      }
-    },
+
     themeConfigBlocks() {
       return this.$registry.getOrderedList('themeConfigBlock')
     },
@@ -77,17 +49,6 @@ export default {
     },
   },
   methods: {
-    resolveFormula(formula, formulaContext = null, defaultIfError = '') {
-      try {
-        return resolveFormula(
-          formula,
-          this.formulaFunctions,
-          formulaContext || this.runtimeFormulaContext
-        )
-      } catch (e) {
-        return defaultIfError
-      }
-    },
     async fireEvent(event) {
       if (this.mode !== 'editing') {
         if (this.workflowActionsInProgress) {
@@ -95,37 +56,16 @@ export default {
         }
 
         const workflowActions = this.$store.getters[
-          'workflowAction/getElementWorkflowActions'
+          'builderWorkflowAction/getElementWorkflowActions'
         ](this.elementPage, this.element.id).filter(
           ({ event: eventName }) => eventName === event.name
         )
 
-        try {
-          await event.fire({
-            workflowActions,
-            resolveFormula: this.resolveFormula,
-            applicationContext: this.applicationContext,
-          })
-        } catch (e) {
-          let toastTitle = this.$i18n.t(
-            'dispatchWorkflowActionError.defaultTitle'
-          )
-          let toastMessage = this.$i18n.t(
-            'dispatchWorkflowActionError.defaultMessage'
-          )
-          if (e.error !== 'ERROR_WORKFLOW_ACTION_FORM_DATA_INVALID') {
-            toastTitle = this.$i18n.t(
-              'dispatchWorkflowActionError.formDataInvalidTitle'
-            )
-            toastMessage = this.$i18n.t(
-              'dispatchWorkflowActionError.formDataInvalidMessage'
-            )
-          }
-          return this.$store.dispatch('toast/error', {
-            title: toastTitle,
-            message: toastMessage,
-          })
-        }
+        await event.fire({
+          workflowActions,
+          resolveFormula: this.resolveFormula,
+          applicationContext: this.applicationContext,
+        })
       }
     },
     getStyleOverride(key, colorVariables = null) {

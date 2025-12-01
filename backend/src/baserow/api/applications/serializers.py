@@ -4,7 +4,7 @@ from drf_spectacular.openapi import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from baserow.api.polymorphic import PolymorphicSerializer
+from baserow.api.polymorphic import PolymorphicRequestSerializer, PolymorphicSerializer
 from baserow.api.workspaces.serializers import WorkspaceSerializer
 from baserow.core.db import specific_iterator
 from baserow.core.models import Application
@@ -40,6 +40,13 @@ class PolymorphicApplicationResponseSerializer(PolymorphicSerializer):
     request = False
 
 
+class PublicPolymorphicApplicationResponseSerializer(
+    PolymorphicApplicationResponseSerializer
+):
+    name_prefix = "public_"
+    extra_params = {"public": True}
+
+
 class BaseApplicationCreatePolymorphicSerializer(serializers.ModelSerializer):
     type = serializers.ChoiceField(
         choices=lazy(application_type_registry.get_types, list)()
@@ -51,10 +58,9 @@ class BaseApplicationCreatePolymorphicSerializer(serializers.ModelSerializer):
         fields = ("name", "type", "init_with_data")
 
 
-class PolymorphicApplicationCreateSerializer(PolymorphicSerializer):
+class PolymorphicApplicationCreateSerializer(PolymorphicRequestSerializer):
     base_class = BaseApplicationCreatePolymorphicSerializer
     registry = application_type_registry
-    request = True
 
 
 class BaseApplicationUpdatePolymorphicSerializer(serializers.ModelSerializer):
@@ -63,10 +69,9 @@ class BaseApplicationUpdatePolymorphicSerializer(serializers.ModelSerializer):
         fields = ("name",)
 
 
-class PolymorphicApplicationUpdateSerializer(PolymorphicSerializer):
+class PolymorphicApplicationUpdateSerializer(PolymorphicRequestSerializer):
     base_class = BaseApplicationUpdatePolymorphicSerializer
     registry = application_type_registry
-    request = True
 
 
 class OrderApplicationsSerializer(serializers.Serializer):

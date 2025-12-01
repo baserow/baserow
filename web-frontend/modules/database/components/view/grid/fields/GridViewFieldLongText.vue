@@ -11,6 +11,7 @@
       ref="input"
       v-model="copy"
       v-prevent-parent-scroll
+      :disabled="readOnly"
       type="text"
       class="grid-field-long-text__textarea"
     />

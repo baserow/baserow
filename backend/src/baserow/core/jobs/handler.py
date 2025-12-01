@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from typing import List, Optional, Type
+from typing import Any, Dict, List, Optional, Type
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
@@ -8,12 +8,7 @@ from django.db.models import Q, QuerySet
 
 from baserow.core.utils import Progress
 
-from .exceptions import (
-    JobCancelled,
-    JobDoesNotExist,
-    JobNotCancellable,
-    MaxJobCountExceeded,
-)
+from .exceptions import JobCancelled, JobDoesNotExist, JobNotCancellable
 from .models import Job
 from .registries import job_type_registry
 from .signals import job_started
@@ -117,6 +112,8 @@ class JobHandler:
         user: AbstractUser,
         filter_states: Optional[List[str]],
         filter_ids: Optional[List[int]],
+        base_model: Optional[Type[AnyJob]] = None,
+        type_filters: Optional[Dict[str, Any]] = None,
     ) -> QuerySet:
         """
         Returns all jobs belonging to the specified user.
@@ -125,8 +122,14 @@ class JobHandler:
         :param filter_states: A list of states that the jobs should have, or not
             have if prefixed with a !.
         :param filter_ids: A list of specific job ids to return.
+        :param base_model: An optional Job model.
+        :param type_filters: Optional type-specific filters (e.g., field_id for
+            GenerateAIValuesJob).
         :return: A QuerySet with the filtered jobs for the user.
         """
+
+        if base_model is None:
+            base_model = Job
 
         def get_job_states_filter(states):
             states_q = Q()
@@ -137,13 +140,16 @@ class JobHandler:
                     states_q |= Q(state=state)
             return states_q
 
-        queryset = Job.objects.filter(user=user).order_by("-updated_on")
+        queryset = base_model.objects.filter(user=user).order_by("-id")
 
         if filter_states:
             queryset = queryset.filter(get_job_states_filter(filter_states))
 
         if filter_ids:
             queryset = queryset.filter(id__in=filter_ids)
+
+        if type_filters:
+            queryset = queryset.filter(**type_filters)
 
         return queryset.select_related("content_type")
 
@@ -179,20 +185,10 @@ class JobHandler:
 
         job_type = job_type_registry.get(job_type_name)
         model_class = job_type.model_class
-
-        # Check how many job of same type are running simultaneously. If count > max
-        # we don't want to create a new one.
-        running_jobs = model_class.objects.filter(
-            user_id=user.id
-        ).is_pending_or_running()
-        if len(running_jobs) >= job_type.max_count:
-            raise MaxJobCountExceeded(
-                f"You can only launch {job_type.max_count} {job_type_name} job(s) at "
-                "the same time."
-            )
-
         job_values = job_type.prepare_values(kwargs, user)
-        job: AnyJob = model_class.objects.create(user=user, **job_values)
+        job: AnyJob = model_class(user=user, **job_values)
+        job_type.can_schedule_or_raise(job)
+        job.save()
         job_type.after_job_creation(job, kwargs)
 
         if sync:

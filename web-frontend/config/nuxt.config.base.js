@@ -35,7 +35,11 @@ export default function (
   const modules = baseModules.concat(additionalModules)
   return {
     modules,
-    buildModules: ['@nuxtjs/stylelint-module', '@nuxtjs/svg'],
+    buildModules: [
+      '@nuxtjs/stylelint-module',
+      '@nuxtjs/svg',
+      '@nuxtjs/composition-api/module',
+    ],
     sentry: {
       clientIntegrations: {
         Dedupe: {},
@@ -56,6 +60,16 @@ export default function (
           include: /node_modules/,
           type: 'javascript/auto',
         })
+        const zipPkgDir = require('path').dirname(
+          require.resolve('@zip.js/zip.js/package.json')
+        )
+        const zipUmdPath = require('path').join(zipPkgDir, 'dist/zip.min.js')
+        config.resolve.alias = {
+          ...(config.resolve.alias || {}),
+          '@vue2-flow/core': require.resolve('@vue2-flow/core'),
+          // Expose a stable alias pointing to the UMD build path bypassing package exports
+          'zipjs-umd': zipUmdPath,
+        }
       },
       babel: { compact: true },
       transpile: [
@@ -64,6 +78,7 @@ export default function (
         'markdown-it',
         'vue-chartjs',
         'chart.js',
+        '@vue2-flow/core',
       ],
     },
   }

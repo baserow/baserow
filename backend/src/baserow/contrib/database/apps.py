@@ -168,6 +168,7 @@ class DatabaseConfig(AppConfig):
         from .export.registries import table_exporter_registry
         from .fields.registries import (
             field_aggregation_registry,
+            field_constraint_registry,
             field_converter_registry,
             field_type_registry,
         )
@@ -477,6 +478,7 @@ class DatabaseConfig(AppConfig):
             HasNotValueHigherThanFilterType,
             HasNotValueLowerOrEqualTHanFilterType,
             HasNotValueLowerThanFilterType,
+            HasValueComparableToFilter,
             HasValueContainsViewFilterType,
             HasValueContainsWordViewFilterType,
             HasValueEqualViewFilterType,
@@ -484,7 +486,6 @@ class DatabaseConfig(AppConfig):
             HasValueLengthIsLowerThanViewFilterType,
             HasValueLowerOrEqualThanFilter,
             HasValueLowerThanFilter,
-            hasValueComparableToFilter,
         )
 
         view_filter_type_registry.register(HasValueEqualViewFilterType())
@@ -501,7 +502,7 @@ class DatabaseConfig(AppConfig):
         view_filter_type_registry.register(HasNoneSelectOptionEqualViewFilterType())
         view_filter_type_registry.register(HasValueLowerThanFilter())
         view_filter_type_registry.register(HasValueLowerOrEqualThanFilter())
-        view_filter_type_registry.register(hasValueComparableToFilter())
+        view_filter_type_registry.register(HasValueComparableToFilter())
         view_filter_type_registry.register(HasValueHigherOrEqualThanFilter())
         view_filter_type_registry.register(HasNotValueHigherOrEqualTHanFilterType())
         view_filter_type_registry.register(HasNotValueHigherThanFilterType())
@@ -785,7 +786,9 @@ class DatabaseConfig(AppConfig):
             ListFieldsOperationType,
             ReadFieldOperationType,
             RestoreFieldOperationType,
+            SubmitAnonymousFieldValuesOperationType,
             UpdateFieldOperationType,
+            WriteFieldValuesOperationType,
         )
         from .formula import TypeFormulaOperationType
         from .operations import (
@@ -896,6 +899,8 @@ class DatabaseConfig(AppConfig):
         operation_type_registry.register(DeleteRelatedLinkRowFieldOperationType())
         operation_type_registry.register(DuplicateFieldOperationType())
         operation_type_registry.register(UpdateViewFieldOptionsOperationType())
+        operation_type_registry.register(WriteFieldValuesOperationType())
+        operation_type_registry.register(SubmitAnonymousFieldValuesOperationType())
         operation_type_registry.register(DeleteViewSortOperationType())
         operation_type_registry.register(DeleteViewGroupByOperationType())
         operation_type_registry.register(UpdateViewSlugOperationType())
@@ -1014,23 +1019,100 @@ class DatabaseConfig(AppConfig):
         notification_type_registry.register(WebhookDeactivatedNotificationType())
         notification_type_registry.register(WebhookPayloadTooLargeNotificationType())
 
+        from baserow.contrib.database.mcp.rows.tools import (
+            CreateRowMcpTool,
+            DeleteRowMcpTool,
+            ListRowsMcpTool,
+            UpdateRowMcpTool,
+        )
+        from baserow.contrib.database.mcp.table.tools import ListTablesMcpTool
+        from baserow.core.mcp.registries import mcp_tool_registry
+
+        mcp_tool_registry.register(ListTablesMcpTool())
+        mcp_tool_registry.register(ListRowsMcpTool())
+        mcp_tool_registry.register(CreateRowMcpTool())
+        mcp_tool_registry.register(UpdateRowMcpTool())
+        mcp_tool_registry.register(DeleteRowMcpTool())
+
+        from baserow.contrib.database.rows.history_providers import (
+            CreateRowHistoryProvider,
+            CreateRowsHistoryProvider,
+            DeleteRowHistoryProvider,
+            DeleteRowsHistoryProvider,
+            RestoreFromTrashHistoryProvider,
+            UpdateRowsHistoryProvider,
+        )
+        from baserow.contrib.database.rows.registries import (
+            row_history_provider_registry,
+        )
+
+        row_history_provider_registry.register(CreateRowHistoryProvider())
+        row_history_provider_registry.register(CreateRowsHistoryProvider())
+        row_history_provider_registry.register(DeleteRowsHistoryProvider())
+        row_history_provider_registry.register(DeleteRowHistoryProvider())
+        row_history_provider_registry.register(UpdateRowsHistoryProvider())
+        row_history_provider_registry.register(RestoreFromTrashHistoryProvider())
+
+        from baserow.core.search.registries import workspace_search_registry
+
+        from .search_types import (
+            DatabaseSearchType,
+            FieldDefinitionSearchType,
+            RowSearchType,
+            TableSearchType,
+        )
+
+        workspace_search_registry.register(DatabaseSearchType())
+        workspace_search_registry.register(FieldDefinitionSearchType())
+        workspace_search_registry.register(RowSearchType())
+        workspace_search_registry.register(TableSearchType())
+
+        from baserow.contrib.database.fields.field_constraints import (
+            RatingTypeUniqueWithEmptyConstraint,
+            TextTypeUniqueWithEmptyConstraint,
+            UniqueWithEmptyConstraint,
+        )
+
+        field_constraint_registry.register(TextTypeUniqueWithEmptyConstraint())
+        field_constraint_registry.register(RatingTypeUniqueWithEmptyConstraint())
+        field_constraint_registry.register(UniqueWithEmptyConstraint())
+
+        from baserow.contrib.database.field_rules.actions import (
+            CreateFieldRuleActionType,
+            DeleteFieldRuleActionType,
+            UpdateFieldRuleActionType,
+        )
+        from baserow.contrib.database.field_rules.operations import (
+            ReadFieldRuleOperationType,
+            SetFieldRuleOperationType,
+        )
+
+        operation_type_registry.register(SetFieldRuleOperationType())
+        operation_type_registry.register(ReadFieldRuleOperationType())
+        action_type_registry.register(CreateFieldRuleActionType())
+        action_type_registry.register(UpdateFieldRuleActionType())
+        action_type_registry.register(DeleteFieldRuleActionType())
+
         # The signals must always be imported last because they use the registries
         # which need to be filled first.
         import baserow.contrib.database.data_sync.signals  # noqa: F403, F401
-        import baserow.contrib.database.search.signals  # noqa: F403, F401
         import baserow.contrib.database.ws.signals  # noqa: F403, F401
 
         post_migrate.connect(safely_update_formula_versions, sender=self)
         pre_migrate.connect(clear_generated_model_cache_receiver, sender=self)
 
+        import baserow.contrib.database.field_rules.receivers  # noqa: F401
+        import baserow.contrib.database.field_rules.signals  # noqa: F401
         import baserow.contrib.database.fields.receivers  # noqa: F401
         import baserow.contrib.database.fields.tasks  # noqa: F401
         import baserow.contrib.database.rows.history  # noqa: F401
         import baserow.contrib.database.rows.tasks  # noqa: F401
+        import baserow.contrib.database.search.receivers  # noqa: F403, F401
         import baserow.contrib.database.search.tasks  # noqa: F401
         import baserow.contrib.database.table.receivers  # noqa: F401
         import baserow.contrib.database.views.receivers  # noqa: F401
         import baserow.contrib.database.views.tasks  # noqa: F401
+        from baserow.contrib.database.fields.models import SelectOption
 
         # Make sure that from now on, no model can make the User cache to expire,
         # because that can be a problem if some other thread tries to access the related
@@ -1038,6 +1120,7 @@ class DatabaseConfig(AppConfig):
         # NOTE: Make sure all FK or M2M fields to User are created with
         # `related_name="+"` because the relation won't be created on the user side.
         get_user_model()._meta._expire_cache = lambda *a, **kw: None
+        SelectOption._meta._expire_cache = lambda *a, **kw: None
 
         # date/datetime min/max year handling - replace overflowed date with None
         pg_init()

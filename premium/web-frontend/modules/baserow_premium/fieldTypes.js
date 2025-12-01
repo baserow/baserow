@@ -12,6 +12,8 @@ import GridViewFieldAIGenerateValuesContextItem from '@baserow_premium/component
 import PremiumFeatures from '@baserow_premium/features'
 import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
 import { AIPaidFeature } from '@baserow_premium/paidFeatures'
+import _ from 'lodash'
+import WorkspaceSettingsModal from '@baserow/modules/core/components/workspace/WorkspaceSettingsModal.vue'
 
 export class AIFieldType extends FieldType {
   static getType() {
@@ -27,8 +29,11 @@ export class AIFieldType extends FieldType {
     return i18n.t('premiumFieldType.ai')
   }
 
-  getIsReadOnly() {
-    return true
+  isReadOnlyField(field) {
+    if (field && _.isBoolean(field.read_only)) {
+      return field.read_only
+    }
+    return false
   }
 
   getGridViewFieldComponent() {
@@ -47,11 +52,14 @@ export class AIFieldType extends FieldType {
     return FieldAISubForm
   }
 
-  getCardComponent(field) {
+  getBaserowFieldType(field) {
     return this.app.$registry
       .get('aiFieldOutputType', field.ai_output_type)
       .getBaserowFieldType()
-      .getCardComponent(field)
+  }
+
+  getCardComponent(field) {
+    return this.getBaserowFieldType(field).getCardComponent(field)
   }
 
   getRowHistoryEntryComponent(field) {
@@ -62,36 +70,24 @@ export class AIFieldType extends FieldType {
     return {}
   }
 
-  getEmptyValue(field) {
+  getDefaultValue(field) {
     return null
   }
 
   getCardValueHeight(field) {
-    return this.app.$registry
-      .get('aiFieldOutputType', field.ai_output_type)
-      .getBaserowFieldType()
-      .getCardValueHeight(field)
+    return this.getBaserowFieldType(field).getCardValueHeight(field)
   }
 
   getSort(name, order, field) {
-    return this.app.$registry
-      .get('aiFieldOutputType', field.ai_output_type)
-      .getBaserowFieldType()
-      .getSort(name, order, field)
+    return this.getBaserowFieldType(field).getSort(name, order, field)
   }
 
   getCanSortInView(field) {
-    return this.app.$registry
-      .get('aiFieldOutputType', field.ai_output_type)
-      .getBaserowFieldType()
-      .getCanSortInView(field)
+    return this.getBaserowFieldType(field).getCanSortInView(field)
   }
 
   getDocsDataType(field) {
-    return this.app.$registry
-      .get('aiFieldOutputType', field.ai_output_type)
-      .getBaserowFieldType()
-      .getDocsDataType(field)
+    return this.getBaserowFieldType(field).getDocsDataType(field)
   }
 
   getDocsDescription(field) {
@@ -104,136 +100,99 @@ export class AIFieldType extends FieldType {
   }
 
   getDocsResponseExample(field) {
-    return this.app.$registry
-      .get('aiFieldOutputType', field.ai_output_type)
-      .getBaserowFieldType()
-      .getDocsResponseExample(field)
+    return this.getBaserowFieldType(field).getDocsResponseExample(field)
   }
 
   prepareValueForCopy(field, value) {
-    return this.app.$registry
-      .get('aiFieldOutputType', field.ai_output_type)
-      .getBaserowFieldType()
-      .prepareValueForCopy(field, value)
+    return this.getBaserowFieldType(field).prepareValueForCopy(field, value)
   }
 
   getContainsFilterFunction(field) {
-    return this.app.$registry
-      .get('aiFieldOutputType', field.ai_output_type)
-      .getBaserowFieldType()
-      .getContainsFilterFunction(field)
+    return this.getBaserowFieldType(field).getContainsFilterFunction(field)
   }
 
   getContainsWordFilterFunction(field) {
-    return this.app.$registry
-      .get('aiFieldOutputType', field.ai_output_type)
-      .getBaserowFieldType()
-      .getContainsWordFilterFunction(field)
+    return this.getBaserowFieldType(field).getContainsWordFilterFunction(field)
   }
 
   toHumanReadableString(field, value) {
-    return this.app.$registry
-      .get('aiFieldOutputType', field.ai_output_type)
-      .getBaserowFieldType()
-      .toHumanReadableString(field, value)
+    return this.getBaserowFieldType(field).toHumanReadableString(field, value)
   }
 
   getSortIndicator(field) {
-    return this.app.$registry
-      .get('aiFieldOutputType', field.ai_output_type)
-      .getBaserowFieldType()
-      .getSortIndicator(field)
+    return this.getBaserowFieldType(field).getSortIndicator(field)
   }
 
   canRepresentDate(field) {
-    return this.app.$registry
-      .get('aiFieldOutputType', field.ai_output_type)
-      .getBaserowFieldType()
-      .canRepresentDate(field)
+    return this.getBaserowFieldType(field).canRepresentDate(field)
   }
 
   getCanGroupByInView(field) {
-    return this.app.$registry
-      .get('aiFieldOutputType', field.ai_output_type)
-      .getBaserowFieldType()
-      .getCanGroupByInView(field)
+    return this.getBaserowFieldType(field).getCanGroupByInView(field)
   }
 
   parseInputValue(field, value) {
-    return this.app.$registry
-      .get('aiFieldOutputType', field.ai_output_type)
-      .getBaserowFieldType()
-      .parseInputValue(field, value)
+    return this.getBaserowFieldType(field).parseInputValue(field, value)
   }
 
   canRepresentFiles(field) {
-    return this.app.$registry
-      .get('aiFieldOutputType', field.ai_output_type)
-      .getBaserowFieldType()
-      .canRepresentFiles(field)
+    return this.getBaserowFieldType(field).canRepresentFiles(field)
   }
 
   getHasEmptyValueFilterFunction(field) {
-    return this.app.$registry
-      .get('aiFieldOutputType', field.ai_output_type)
-      .getBaserowFieldType()
-      .getHasEmptyValueFilterFunction(field)
+    return this.getBaserowFieldType(field).getHasEmptyValueFilterFunction(field)
   }
 
   getHasValueContainsFilterFunction(field) {
-    return this.app.$registry
-      .get('aiFieldOutputType', field.ai_output_type)
-      .getBaserowFieldType()
-      .getHasValueContainsFilterFunction(field)
+    return this.getBaserowFieldType(field).getHasValueContainsFilterFunction(
+      field
+    )
   }
 
   getHasValueContainsWordFilterFunction(field) {
-    return this.app.$registry
-      .get('aiFieldOutputType', field.ai_output_type)
-      .getBaserowFieldType()
-      .getHasValueContainsWordFilterFunction(field)
+    return this.getBaserowFieldType(
+      field
+    ).getHasValueContainsWordFilterFunction(field)
   }
 
   getHasValueLengthIsLowerThanFilterFunction(field) {
-    return this.app.$registry
-      .get('aiFieldOutputType', field.ai_output_type)
-      .getBaserowFieldType()
-      .getHasValueLengthIsLowerThanFilterFunction(field)
+    return this.getBaserowFieldType(
+      field
+    ).getHasValueLengthIsLowerThanFilterFunction(field)
   }
 
   getGroupByComponent(field) {
-    return this.app.$registry
-      .get('aiFieldOutputType', field.ai_output_type)
-      .getBaserowFieldType()
-      .getGroupByComponent(field)
+    return this.getBaserowFieldType(field).getGroupByComponent(field)
   }
 
   getRowValueFromGroupValue(field, value) {
-    return this.app.$registry
-      .get('aiFieldOutputType', field.ai_output_type)
-      .getBaserowFieldType()
-      .getRowValueFromGroupValue(field, value)
+    return this.getBaserowFieldType(field).getRowValueFromGroupValue(
+      field,
+      value
+    )
   }
 
   getGroupValueFromRowValue(field, value) {
-    return this.app.$registry
-      .get('aiFieldOutputType', field.ai_output_type)
-      .getBaserowFieldType()
-      .getGroupValueFromRowValue(field, value)
+    return this.getBaserowFieldType(field).getGroupValueFromRowValue(
+      field,
+      value
+    )
   }
 
   isEqual(field, value1, value2) {
-    return this.app.$registry
-      .get('aiFieldOutputType', field.ai_output_type)
-      .getBaserowFieldType()
-      .isEqual(field, value1, value2)
+    return this.getBaserowFieldType(field).isEqual(field, value1, value2)
+  }
+
+  parseFilterValue(field, filterValue) {
+    return this.getBaserowFieldType(field).parseFilterValue(field, filterValue)
+  }
+
+  formatFilterValue(field, value) {
+    return this.getBaserowFieldType(field).formatFilterValue(field, value)
   }
 
   canBeReferencedByFormulaField(field) {
-    return this.app.$registry
-      .get('aiFieldOutputType', field.ai_output_type)
-      .getBaserowFieldType()
-      .canBeReferencedByFormulaField(field)
+    return this.getBaserowFieldType(field).canBeReferencedByFormulaField(field)
   }
 
   getGridViewContextItemsOnCellsSelection(field) {
@@ -246,6 +205,14 @@ export class AIFieldType extends FieldType {
     )
   }
 
+  getDisabledClickModal(workspace) {
+    return [WorkspaceSettingsModal, { workspace }]
+  }
+
+  getDisabledTooltip() {
+    return 'Click to configure API key'
+  }
+
   isDeactivated(workspaceId) {
     return !this.app.$hasFeature(PremiumFeatures.PREMIUM, workspaceId)
   }
@@ -255,6 +222,18 @@ export class AIFieldType extends FieldType {
       PaidFeaturesModal,
       { 'initial-selected-type': AIPaidFeature.getType() },
     ]
+  }
+
+  prepareValueForUpdate(field, value) {
+    return this.getBaserowFieldType(field).prepareValueForUpdate(field, value)
+  }
+
+  prepareValueForPaste(field, value) {
+    return this.getBaserowFieldType(field).prepareValueForPaste(field, value)
+  }
+
+  getCompatibleFilterFieldType(field) {
+    return this.getBaserowFieldType(field)
   }
 }
 

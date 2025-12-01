@@ -43,8 +43,10 @@ def test_can_export_every_interesting_different_field_to_json(
     "positive_int": "",
     "negative_decimal": "",
     "positive_decimal": "",
+    "decimal_with_default": "1.8",
     "rating": 0,
     "boolean": false,
+    "boolean_with_default": true,
     "datetime_us": "",
     "date_us": "",
     "datetime_eu": "",
@@ -79,7 +81,12 @@ def test_can_export_every_interesting_different_field_to_json(
     "multiple_collaborators_link_row": [],
     "file": [],
     "single_select": "",
+    "single_select_with_default": "BB",
     "multiple_select": [],
+    "multiple_select_with_default": [
+        "M-1",
+        "M-2"
+    ],
     "multiple_collaborators": [],
     "phone_number": "",
     "formula_text": "test FORMULA",
@@ -121,8 +128,10 @@ def test_can_export_every_interesting_different_field_to_json(
     "positive_int": 1,
     "negative_decimal": "-1.2",
     "positive_decimal": "1.2",
+    "decimal_with_default": "1.8",
     "rating": 3,
     "boolean": true,
+    "boolean_with_default": true,
     "datetime_us": "02/01/2020 01:23",
     "date_us": "02/01/2020",
     "datetime_eu": "01/02/2020 01:23",
@@ -195,10 +204,15 @@ def test_can_export_every_interesting_different_field_to_json(
         }
     ],
     "single_select": "A",
+    "single_select_with_default": "BB",
     "multiple_select": [
         "D",
         "C",
         "E"
+    ],
+    "multiple_select_with_default": [
+        "M-1",
+        "M-2"
     ],
     "multiple_collaborators": [
         "User2 <user2@example.com>",
@@ -351,8 +365,10 @@ def test_can_export_every_interesting_different_field_to_xml(
       <positive-int/>
       <negative-decimal/>
       <positive-decimal/>
+      <decimal-with-default>1.8</decimal-with-default>
       <rating>0</rating>
       <boolean>false</boolean>
+      <boolean-with-default>true</boolean-with-default>
       <datetime-us/>
       <date-us/>
       <datetime-eu/>
@@ -387,7 +403,12 @@ def test_can_export_every_interesting_different_field_to_xml(
       <multiple-collaborators-link-row/>
       <file/>
       <single-select/>
+      <single-select-with-default>BB</single-select-with-default>
       <multiple-select/>
+      <multiple-select-with-default>
+         <item>M-1</item>
+         <item>M-2</item>
+      </multiple-select-with-default>
       <multiple-collaborators/>
       <phone-number/>
       <formula-text>test FORMULA</formula-text>
@@ -429,8 +450,10 @@ def test_can_export_every_interesting_different_field_to_xml(
       <positive-int>1</positive-int>
       <negative-decimal>-1.2</negative-decimal>
       <positive-decimal>1.2</positive-decimal>
+      <decimal-with-default>1.8</decimal-with-default>
       <rating>3</rating>
       <boolean>true</boolean>
+      <boolean-with-default>true</boolean-with-default>
       <datetime-us>02/01/2020 01:23</datetime-us>
       <date-us>02/01/2020</date-us>
       <datetime-eu>01/02/2020 01:23</datetime-eu>
@@ -503,11 +526,16 @@ def test_can_export_every_interesting_different_field_to_xml(
          </item>
       </file>
       <single-select>A</single-select>
+      <single-select-with-default>BB</single-select-with-default>
       <multiple-select>
          <item>D</item>
          <item>C</item>
          <item>E</item>
       </multiple-select>
+      <multiple-select-with-default>
+         <item>M-1</item>
+         <item>M-2</item>
+      </multiple-select-with-default>
       <multiple-collaborators>
          <item>User2 &lt;user2@example.com&gt;</item>
          <item>User3 &lt;user3@example.com&gt;</item>
@@ -737,8 +765,10 @@ def test_can_export_every_interesting_different_field_to_excel(
         "positive_int",
         "negative_decimal",
         "positive_decimal",
+        "decimal_with_default",
         "rating",
         "boolean",
+        "boolean_with_default",
         "datetime_us",
         "date_us",
         "datetime_eu",
@@ -773,7 +803,9 @@ def test_can_export_every_interesting_different_field_to_excel(
         "multiple_collaborators_link_row",
         "file",
         "single_select",
+        "single_select_with_default",
         "multiple_select",
+        "multiple_select_with_default",
         "multiple_collaborators",
         "phone_number",
         "formula_text",
@@ -811,8 +843,10 @@ def test_can_export_every_interesting_different_field_to_excel(
         None,
         None,
         None,
+        "1.8",
         "0",
         "False",
+        "True",
         None,
         None,
         None,
@@ -847,7 +881,9 @@ def test_can_export_every_interesting_different_field_to_excel(
         None,
         None,
         None,
+        "BB",
         None,
+        "M-1,M-2",
         None,
         None,
         "test FORMULA",
@@ -885,7 +921,9 @@ def test_can_export_every_interesting_different_field_to_excel(
         "1",
         "-1.2",
         "1.2",
+        "1.8",
         "3",
+        "True",
         "True",
         "02/01/2020 01:23",
         "02/01/2020",
@@ -921,7 +959,9 @@ def test_can_export_every_interesting_different_field_to_excel(
         '"User2 <user2@example.com>,User3 <user3@example.com>",User2 <user2@example.com>',
         "a.txt (http://localhost:8000/media/user_files/hashed_name.txt),b.txt (http://localhost:8000/media/user_files/other_name.txt)",
         "A",
+        "BB",
         "D,C,E",
+        "M-1,M-2",
         "User2 <user2@example.com>,User3 <user3@example.com>",
         "+4412345678",
         "test FORMULA",

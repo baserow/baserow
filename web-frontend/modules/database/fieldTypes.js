@@ -19,6 +19,7 @@ import { formulaFieldArrayFilterMixin } from '@baserow/modules/database/arrayFil
 import {
   parseNumberValue,
   formatNumberValue,
+  formatDecimalNumber,
 } from '@baserow/modules/database/utils/number'
 
 import moment from '@baserow/modules/core/moment'
@@ -33,9 +34,11 @@ import FieldTextSubForm from '@baserow/modules/database/components/field/FieldTe
 import FieldLongTextSubForm from '@baserow/modules/database/components/field/FieldLongTextSubForm'
 import FieldDateSubForm from '@baserow/modules/database/components/field/FieldDateSubForm'
 import FieldLinkRowSubForm from '@baserow/modules/database/components/field/FieldLinkRowSubForm'
-import FieldSelectOptionsSubForm from '@baserow/modules/database/components/field/FieldSelectOptionsSubForm'
+import FieldMultipleSelectOptionsSubForm from '@baserow/modules/database/components/field/FieldMultipleSelectOptionsSubForm'
+import FieldSingleSelectOptionsSubForm from '@baserow/modules/database/components/field/FieldSingleSelectOptionsSubForm'
 import FieldCollaboratorSubForm from '@baserow/modules/database/components/field/FieldCollaboratorSubForm'
 import FieldPasswordSubForm from '@baserow/modules/database/components/field/FieldPasswordSubForm'
+import FieldBooleanSubForm from '@baserow/modules/database/components/field/FieldBooleanSubForm'
 
 import GridViewFieldText from '@baserow/modules/database/components/view/grid/fields/GridViewFieldText'
 import GridViewFieldLongText from '@baserow/modules/database/components/view/grid/fields/GridViewFieldLongText'
@@ -161,6 +164,7 @@ import RowEditFieldFormula from '@baserow/modules/database/components/row/RowEdi
 import {
   DEFAULT_FORM_VIEW_FIELD_COMPONENT_KEY,
   DEFAULT_SORT_TYPE_KEY,
+  LINKED_ITEMS_DEFAULT_LOAD_COUNT,
 } from '@baserow/modules/database/constants'
 import ViewService from '@baserow/modules/database/services/view'
 import FormService from '@baserow/modules/database/services/view/form'
@@ -315,6 +319,10 @@ export class FieldType extends Registerable {
     return null
   }
 
+  getCompatibleFilterFieldType(field) {
+    return this
+  }
+
   /**
    * In some cases, for example with the kanban view or the gallery view, we want to
    * only show the visible cards. In order to calculate the correct position of
@@ -326,10 +334,31 @@ export class FieldType extends Registerable {
   }
 
   /**
-   * Because we want to show a new row immediately after creating we need to have an
-   * empty value to show right away.
+   * Should return the empty value for the field type.
    */
   getEmptyValue(field) {
+    return null
+  }
+
+  /**
+   * Because we want to show a new row immediately after creating we need to have an
+   * default value to show right away.
+   *
+   * @param field - The field object.
+   * @param flat - If true, returns a simplified default value suitable for
+   *  backend operations (such as IDs or primitives). If false, returns the
+   *  full object representation, which may include additional metadata for
+   *  frontend use. This allows flexibility depending on whether a minimal or
+   *  detailed value is required.
+   */
+  getDefaultValue(field, flat) {
+    return null
+  }
+
+  /**
+   * Returns the name of the field that contains the default value.
+   */
+  getDefaultValueFieldName() {
     return null
   }
 
@@ -337,7 +366,18 @@ export class FieldType extends Registerable {
    * Should return true if the provided value is empty.
    */
   isEmpty(field, value) {
-    if (Array.isArray(value) && value.length === 0) {
+    const isEmptyValue = (v) => {
+      return (
+        [null, undefined].includes(v) ||
+        String(v).trim() === '' ||
+        (Array.isArray(v) && v.length === 0)
+      )
+    }
+    if (
+      Array.isArray(value) &&
+      (value.length === 0 ||
+        value.every((i) => isEmptyValue(i.value ?? i.name)))
+    ) {
       return true
     }
     if (
@@ -347,10 +387,7 @@ export class FieldType extends Registerable {
     ) {
       return true
     }
-    if (typeof value === 'string') {
-      return value.trim() === ''
-    }
-    return [null, false].includes(value)
+    return value === false || isEmptyValue(value)
   }
 
   /**
@@ -440,7 +477,6 @@ export class FieldType extends Registerable {
     this.type = this.getType()
     this.iconClass = this.getIconClass()
     this.canBePrimaryField = this.getCanBePrimaryField()
-    this.isReadOnly = this.getIsReadOnly()
 
     if (this.type === null) {
       throw new Error('The type name of a view type must be set.')
@@ -471,7 +507,6 @@ export class FieldType extends Registerable {
       type: this.type,
       iconClass: this.iconClass,
       name: this.getName(),
-      isReadOnly: this.isReadOnly,
       canImport: this.getCanImport(),
       canBePrimaryField: this.canBePrimaryField,
     }
@@ -586,6 +621,14 @@ export class FieldType extends Registerable {
    */
   prepareValueForPaste(field, clipboardData, richClipboardData) {
     return clipboardData
+  }
+
+  /**
+   * This hook is called just before a row is duplicated, and the create request is
+   * made. It allows to modify the value if needed.
+   */
+  prepareValueForDuplicate(field, value) {
+    return value
   }
 
   /**
@@ -784,7 +827,7 @@ export class FieldType extends Registerable {
    * call submitted to the backend, so the user will immediately see it.
    */
   getNewRowValue(field) {
-    return this.getEmptyValue(field)
+    return this.getDefaultValue(field)
   }
 
   /**
@@ -797,12 +840,47 @@ export class FieldType extends Registerable {
   }
 
   /**
-   * Determines whether the fieldType is a read only field. Read only fields will be
-   * excluded from update requests to the backend. It is also not possible to change
-   * the value by for example pasting.
+   * Determines whether the field type is inherently read-only, such as a
+   * FormulaFieldType or CreatedOnFieldType, which are always read-only. Some fields may
+   * have the `read_only` attribute set, indicating that while the field type itself is
+   * not inherently read-only, the specific field instance is, such as in the case of
+   * data-synced fields. Read-only fields are excluded from update requests to the
+   * backend and cannot have their values modified, for example, by pasting.
    */
-  getIsReadOnly() {
-    return false
+  isReadOnlyField(field) {
+    return Boolean(field.read_only)
+  }
+
+  /**
+   * Determines if it is possible to write values to the field. This is used to
+   * determine if the field values are editable in the UI. To be able to write
+   * values, the field type must not be read-only and the user must have
+   * permission to write to the field.
+   */
+  canWriteFieldValues(field) {
+    return (
+      !this.isReadOnlyField(field) &&
+      this.app.$hasPermission(
+        'database.table.field.write_values',
+        field,
+        field.workspace_id
+      )
+    )
+  }
+
+  /**
+   * Determines if it is possible to submit anonymous values to the field. This is used
+   * to determine if the field will be shown in form views.
+   */
+  canSubmitAnonymousValues(field) {
+    return (
+      !this.isReadOnlyField(field) &&
+      this.app.$hasPermission(
+        'database.table.field.submit_anonymous_values',
+        field,
+        field.workspace_id
+      )
+    )
   }
 
   /**
@@ -887,6 +965,21 @@ export class FieldType extends Registerable {
   }
 
   /**
+   * Can return a modal vue component that's opened when the user clicks in this
+   * field type, but `isEnabled` is false. Should return [component, props as {}]
+   */
+  getDisabledClickModal(workspace) {
+    return null
+  }
+
+  /**
+   * Can return a tooltip text that's shown on hover when the `isEnabled` is False.
+   */
+  getDisabledTooltip(workspace) {
+    return null
+  }
+
+  /**
    * Indicates whether the field is visible, but in a deactivated state.
    */
   isDeactivated(workspaceId) {
@@ -909,6 +1002,28 @@ export class FieldType extends Registerable {
 
   toBaserowFormulaType(field) {
     return this.getType()
+  }
+
+  /**
+   * Checks if all required data for the given field and rows is loaded. Returns true if
+   * any data is missing and needs to be refetched from the server. This is useful, for
+   * example, when copying link row fields with many relations: not all related data is
+   * loaded immediately for performance reasons, but full data is needed for copy/paste
+   * operations.
+   *
+   * @param {Object} field - The field object.
+   * @param {Array} rows - The rows to check.
+   * @returns {boolean} - True if data needs to be refetched, false otherwise.
+   */
+  shouldRefetchFieldData(field, rows) {
+    return false
+  }
+
+  /**
+   * Indicates whether it's possible to enable the database index for a field.
+   */
+  canHaveDbIndex(fieldValues) {
+    return false
   }
 }
 
@@ -987,7 +1102,16 @@ export class TextFieldType extends FieldType {
   }
 
   getEmptyValue(field) {
-    return field.text_default
+    return ''
+  }
+
+  getDefaultValueFieldName() {
+    return 'text_default'
+  }
+
+  getDefaultValue(field, flat) {
+    const defaultValueFieldName = this.getDefaultValueFieldName()
+    return field[defaultValueFieldName] || this.getEmptyValue(field)
   }
 
   canUpsert() {
@@ -1035,6 +1159,10 @@ export class TextFieldType extends FieldType {
   }
 
   getCanGroupByInView(field) {
+    return true
+  }
+
+  canHaveDbIndex(fieldValues) {
     return true
   }
 }
@@ -1101,7 +1229,7 @@ export class LongTextFieldType extends FieldType {
     }
   }
 
-  getEmptyValue(field) {
+  getDefaultValue(field, flat) {
     return ''
   }
 
@@ -1153,6 +1281,10 @@ export class LongTextFieldType extends FieldType {
   getCanGroupByInView(field) {
     return !field.long_text_enable_rich_text
   }
+
+  canHaveDbIndex(fieldValues) {
+    return true
+  }
 }
 
 export class LinkRowFieldType extends FieldType {
@@ -1197,10 +1329,14 @@ export class LinkRowFieldType extends FieldType {
     )
     components[DEFAULT_FORM_VIEW_FIELD_COMPONENT_KEY].component =
       FormViewFieldLinkRow
-    components.multiple = {
-      name: i18n.t('fieldType.linkRowMultiple'),
-      component: FormViewFieldMultipleLinkRow,
-      properties: {},
+    // No need to offer the multiple variant if the field type is configured to only
+    // select one relation.
+    if (field.link_row_multiple_relationships) {
+      components.multiple = {
+        name: i18n.t('fieldType.linkRowMultiple'),
+        component: FormViewFieldMultipleLinkRow,
+        properties: {},
+      }
     }
     return components
   }
@@ -1211,6 +1347,10 @@ export class LinkRowFieldType extends FieldType {
 
   getRowHistoryEntryComponent() {
     return RowHistoryFieldLinkRow
+  }
+
+  getDefaultValue(field, flat) {
+    return []
   }
 
   getEmptyValue(field) {
@@ -1393,22 +1533,42 @@ export class LinkRowFieldType extends FieldType {
   prepareValueForPaste(field, clipboardData, richClipboardData) {
     if (
       this.checkRichValueIsCompatible(richClipboardData) &&
+      richClipboardData &&
       field.link_row_table_id === richClipboardData.tableId
     ) {
       if (richClipboardData === null) {
         return []
       }
-      return richClipboardData.value
+      let value = richClipboardData.value
+      // Strip the remaining relationships because the backend will fail when trying
+      // to add them and the field doesn't allow it.
+      if (!field.link_row_multiple_relationships) {
+        value = value.slice(0, 1)
+      }
+      return value
     } else {
       // Fallback to text version
       try {
-        const data = this.app.$papa.stringToArray(clipboardData)
-
+        let data = this.app.$papa.stringToArray(clipboardData)
+        // Strip the remaining relationships because the backend will fail when trying
+        // to add them and the field doesn't allow it.
+        if (!field.link_row_multiple_relationships) {
+          data = data.slice(0, 1)
+        }
         return data.map((name) => ({ id: null, value: name }))
       } catch (e) {
         return []
       }
     }
+  }
+
+  prepareValueForDuplicate(field, value) {
+    // Strip the remaining values because the backend will fail when trying to add
+    // them and the field doesn't allow it.
+    if (!field.link_row_multiple_relationships) {
+      value = value.slice(0, 1)
+    }
+    return value
   }
 
   toHumanReadableString(field, value) {
@@ -1488,7 +1648,7 @@ export class LinkRowFieldType extends FieldType {
       }
     }
 
-    return items.length > 0 ? items : this.getEmptyValue()
+    return items.length > 0 ? items : this.getDefaultValue()
   }
 
   getCanImport() {
@@ -1505,6 +1665,16 @@ export class LinkRowFieldType extends FieldType {
     }
 
     return false
+  }
+
+  shouldRefetchFieldData(field, rows) {
+    return rows.some((row) => {
+      const fieldValue = row[`field_${field.id}`]
+      return (
+        fieldValue?.length === LINKED_ITEMS_DEFAULT_LOAD_COUNT &&
+        !row._?.fullyLoaded
+      )
+    })
   }
 }
 
@@ -1556,6 +1726,20 @@ export class NumberFieldType extends FieldType {
 
   getSortIndicator() {
     return ['text', '1', '9']
+  }
+
+  getDefaultValueFieldName() {
+    return 'number_default'
+  }
+
+  getDefaultValue(field, flat) {
+    const defaultValueFieldName = this.getDefaultValueFieldName()
+    const defaultValue = field[defaultValueFieldName]
+    if (defaultValue === null || defaultValue === undefined) {
+      return null
+    }
+    const decimalPlaces = field.number_decimal_places || 0
+    return new BigNumber(defaultValue).toFixed(decimalPlaces)
   }
 
   canUpsert() {
@@ -1651,7 +1835,7 @@ export class NumberFieldType extends FieldType {
   }
 
   toHumanReadableString(field, value, delimiter = ', ') {
-    return NumberFieldType.formatNumber(field, value)
+    return formatDecimalNumber(field, value)
   }
 
   getDocsDataType(field) {
@@ -1722,6 +1906,10 @@ export class NumberFieldType extends FieldType {
     const res = parseNumberValue(field, String(value ?? ''), false)
     return res === null || res.isNaN() ? '' : res.toString()
   }
+
+  canHaveDbIndex(fieldValues) {
+    return true
+  }
 }
 
 BigNumber.config({ EXPONENTIAL_AT: NumberFieldType.getMaxNumberLength() })
@@ -1770,6 +1958,14 @@ export class RatingFieldType extends FieldType {
 
   getSortIndicator() {
     return ['text', '1', '9']
+  }
+
+  getDefaultValueFieldName() {
+    return 'rating_default'
+  }
+
+  getDefaultValue(field, flat) {
+    return 0
   }
 
   getEmptyValue(field) {
@@ -1849,7 +2045,7 @@ export class RatingFieldType extends FieldType {
     const valueParsed = parseInt(value, 10)
 
     if (isNaN(valueParsed) || valueParsed < 0) {
-      return this.getEmptyValue()
+      return this.getDefaultValue()
     }
 
     if (valueParsed > field.max_value) {
@@ -1864,6 +2060,10 @@ export class RatingFieldType extends FieldType {
   }
 
   getCanGroupByInView(field) {
+    return true
+  }
+
+  canHaveDbIndex(fieldValues) {
     return true
   }
 }
@@ -1884,6 +2084,10 @@ export class BooleanFieldType extends FieldType {
 
   getAlias() {
     return 'checkbox'
+  }
+
+  getFormComponent() {
+    return FieldBooleanSubForm
   }
 
   getGridViewFieldComponent() {
@@ -1908,6 +2112,15 @@ export class BooleanFieldType extends FieldType {
 
   getEmptyValue(field) {
     return false
+  }
+
+  getDefaultValueFieldName() {
+    return 'boolean_default'
+  }
+
+  getDefaultValue(field, flat) {
+    const defaultValueFieldName = this.getDefaultValueFieldName()
+    return field[defaultValueFieldName] || this.getEmptyValue(field)
   }
 
   getSortIndicator() {
@@ -2012,6 +2225,10 @@ export class BooleanFieldType extends FieldType {
 
   parseFilterValue(field, value) {
     return this.parseInputValue(field, String(value ?? ''))
+  }
+
+  canHaveDbIndex(fieldValues) {
+    return true
   }
 }
 
@@ -2243,6 +2460,10 @@ class BaseDateFieldType extends FieldType {
   toBaserowFormulaType(field) {
     return 'date'
   }
+
+  canHaveDbIndex(fieldValues) {
+    return true
+  }
 }
 
 export class DateFieldType extends BaseDateFieldType {
@@ -2284,7 +2505,7 @@ export class DateFieldType extends BaseDateFieldType {
 }
 
 export class CreatedOnLastModifiedBaseFieldType extends BaseDateFieldType {
-  getIsReadOnly() {
+  isReadOnlyField() {
     return true
   }
 
@@ -2423,7 +2644,7 @@ export class LastModifiedByFieldType extends FieldType {
     return {}
   }
 
-  getIsReadOnly() {
+  isReadOnlyField() {
     return true
   }
 
@@ -2565,7 +2786,7 @@ export class CreatedByFieldType extends FieldType {
     return {}
   }
 
-  getIsReadOnly() {
+  isReadOnlyField() {
     return true
   }
 
@@ -2905,7 +3126,7 @@ export class URLFieldType extends FieldType {
     }
   }
 
-  getEmptyValue(field) {
+  getDefaultValue(field, flat) {
     return ''
   }
 
@@ -3008,7 +3229,7 @@ export class EmailFieldType extends FieldType {
     }
   }
 
-  getEmptyValue(field) {
+  getDefaultValue(field, flat) {
     return ''
   }
 
@@ -3068,6 +3289,10 @@ export class FileFieldType extends FieldType {
 
   static getType() {
     return 'file'
+  }
+
+  getEmptyValue(field) {
+    return []
   }
 
   static getIconClass() {
@@ -3188,7 +3413,7 @@ export class FileFieldType extends FieldType {
     }
   }
 
-  getEmptyValue(field) {
+  getDefaultValue(field, flat) {
     return []
   }
 
@@ -3275,7 +3500,7 @@ export class SingleSelectFieldType extends SelectOptionBaseFieldType {
   }
 
   getFormComponent() {
-    return FieldSelectOptionsSubForm
+    return FieldSingleSelectOptionsSubForm
   }
 
   getGridViewFieldComponent() {
@@ -3494,7 +3719,7 @@ export class SingleSelectFieldType extends SelectOptionBaseFieldType {
       (option) => option.value === value
     )
 
-    return selectedOption ?? this.getEmptyValue()
+    return selectedOption ?? this.getDefaultValue(field)
   }
 
   getCanImport() {
@@ -3518,6 +3743,24 @@ export class SingleSelectFieldType extends SelectOptionBaseFieldType {
     const value2Id = value2?.id || null
     return value1Id === value2Id
   }
+
+  getDefaultValueFieldName() {
+    return 'single_select_default'
+  }
+
+  getDefaultValue(field, flat) {
+    const defaultValueFieldName = this.getDefaultValueFieldName()
+    const defaultValue = field[defaultValueFieldName]
+    if (defaultValue != null) {
+      const defaultValueOption = field.select_options.find(
+        (option) => option.id === defaultValue
+      )
+      if (defaultValueOption) {
+        return flat ? defaultValue : defaultValueOption
+      }
+    }
+    return this.getEmptyValue(field)
+  }
 }
 
 export class MultipleSelectFieldType extends SelectOptionBaseFieldType {
@@ -3535,7 +3778,7 @@ export class MultipleSelectFieldType extends SelectOptionBaseFieldType {
   }
 
   getFormComponent() {
-    return FieldSelectOptionsSubForm
+    return FieldMultipleSelectOptionsSubForm
   }
 
   getGridViewFieldComponent() {
@@ -3747,8 +3990,26 @@ export class MultipleSelectFieldType extends SelectOptionBaseFieldType {
     return genericContainsWordFilter
   }
 
-  getEmptyValue() {
+  getEmptyValue(field) {
     return []
+  }
+
+  getDefaultValueFieldName() {
+    return 'multiple_select_default'
+  }
+
+  getDefaultValue(field, flat) {
+    const defaultValueFieldName = this.getDefaultValueFieldName()
+    const defaultValue = field[defaultValueFieldName]
+    if (defaultValue == null) {
+      return this.getEmptyValue(field)
+    }
+    if (flat) {
+      return defaultValue
+    }
+    return (defaultValue || [])
+      .map((id) => field.select_options.find((opt) => opt.id === id))
+      .filter(Boolean)
   }
 
   shouldFetchFieldSelectOptions() {
@@ -3773,7 +4034,7 @@ export class MultipleSelectFieldType extends SelectOptionBaseFieldType {
       values.includes(option.value)
     )
 
-    return selectOptions.length > 0 ? selectOptions : this.getEmptyValue()
+    return selectOptions.length > 0 ? selectOptions : this.getDefaultValue()
   }
 
   getCanImport() {
@@ -3858,7 +4119,7 @@ export class PhoneNumberFieldType extends FieldType {
     }
   }
 
-  getEmptyValue(field) {
+  getDefaultValue(field, flat) {
     return ''
   }
 
@@ -4011,7 +4272,7 @@ export class FormulaFieldType extends mix(
     return this.getFormulaType(field)?.getSortTypes(field)
   }
 
-  getEmptyValue(field) {
+  getDefaultValue(field, flat) {
     return null
   }
 
@@ -4071,7 +4332,7 @@ export class FormulaFieldType extends mix(
     return []
   }
 
-  getIsReadOnly() {
+  isReadOnlyField() {
     return true
   }
 
@@ -4121,6 +4382,15 @@ export class FormulaFieldType extends mix(
 
   toBaserowFormulaType(field) {
     return this.getFormulaType(field).toBaserowFormulaType(field)
+  }
+
+  canHaveDbIndex(fieldValues) {
+    // Not all the formula types are compatible with the indexes, but the downside
+    // is that the frontend only knows the new formula type after saving, so it's
+    // impossible to preemptively know if indexes are supported. We're therefore
+    // always allowing indexes, and if the formula type is not compatible, the
+    // backend will fail, and will show the correct error in the form.
+    return true
   }
 }
 
@@ -4275,7 +4545,7 @@ export class MultipleCollaboratorsFieldType extends FieldType {
     return components
   }
 
-  getEmptyValue() {
+  getDefaultValue(field, flat) {
     return []
   }
 
@@ -4475,7 +4745,7 @@ export class UUIDFieldType extends FieldType {
     return {}
   }
 
-  getIsReadOnly() {
+  isReadOnlyField() {
     return true
   }
 
@@ -4534,6 +4804,10 @@ export class UUIDFieldType extends FieldType {
   canBeReferencedByFormulaField() {
     return true
   }
+
+  canHaveDbIndex(fieldValues) {
+    return true
+  }
 }
 
 export class AutonumberFieldType extends FieldType {
@@ -4554,7 +4828,7 @@ export class AutonumberFieldType extends FieldType {
     return {}
   }
 
-  getIsReadOnly() {
+  isReadOnlyField() {
     return true
   }
 
@@ -4639,6 +4913,10 @@ export class AutonumberFieldType extends FieldType {
   }
 
   canBeReferencedByFormulaField() {
+    return true
+  }
+
+  canHaveDbIndex(fieldValues) {
     return true
   }
 }

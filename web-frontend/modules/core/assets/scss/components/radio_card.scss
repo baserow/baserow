@@ -1,0 +1,50 @@
+.radio-card {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  padding: 14px 16px 16px;
+  border-radius: 6px;
+  border: 1.5px solid $palette-neutral-400;
+
+  @include elevation($elevation-low);
+}
+
+.radio-card--selected {
+  border: 1.5px solid $palette-blue-500;
+}
+
+.radio-card__input {
+  padding-top: 5px;
+}
+
+.radio-card__content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.radio-card__labels {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  padding-top: 2px;
+}
+
+.radio-card__label {
+  padding-top: 4px;
+  font-size: 13px;
+  color: $palette-neutral-1200;
+  font-weight: 500;
+}
+
+.radio-card__badge {
+  min-width: 0;
+}
+
+.radio-card__description {
+  color: $palette-neutral-900;
+  line-height: 20px;
+  font-size: 12px;
+  word-break: break-word;
+}

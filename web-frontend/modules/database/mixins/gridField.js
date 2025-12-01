@@ -147,7 +147,7 @@ export default {
           if (
             value !== oldValue &&
             !this.readOnly &&
-            !this.field._.type.isReadOnly
+            this.canWriteFieldValues(this.field)
           ) {
             this.$emit('update', value, oldValue)
           }
@@ -165,15 +165,24 @@ export default {
         keyDownEventListener
       )
 
-      const copyEventListener = async (event) => {
+      const copyEventListener = (event) => {
         if (!this.canKeyDown(event) || !this.canKeyboardShortcut(event)) return
 
-        await this.copySelectionToClipboard(
-          Promise.resolve([
-            [this.field],
-            [{ [`field_${this.field.id}`]: this.value }],
-          ])
+        const { textData, jsonData } = this.prepareValuesForCopy(
+          [this.field],
+          [{ [`field_${this.field.id}`]: this.value }]
         )
+        const { tsvData } = this.formatClipboardDataAndStoreRichCopy({
+          textData,
+          jsonData,
+        })
+
+        try {
+          navigator.clipboard.writeText(tsvData)
+        } catch (err) {
+          console.error('Failed to copy: ', err)
+        }
+
         // prevent Safari from beeping since the window.getSelection() is empty
         event.preventDefault()
       }
@@ -208,12 +217,11 @@ export default {
                 jsonData !== null ? jsonData[0][0] : undefined
               )
             const oldValue = this.value
-
             if (
               value !== undefined &&
               value !== oldValue &&
               !this.readOnly &&
-              !this.field._.type.isReadOnly
+              this.canWriteFieldValues(this.field)
             ) {
               this.$emit('update', value, oldValue)
             }
@@ -225,6 +233,12 @@ export default {
         } catch (e) {}
       }
       this.addEventListenerWithAutoRemove(document, 'paste', pasteEventListener)
+    },
+    /** Returns true if the field is read only. */
+    canWriteFieldValues(field) {
+      return this.$registry
+        .get('field', field.type)
+        .canWriteFieldValues(field, this.readOnly)
     },
     /**
      * Adds all the event listeners related to all the field types, for example when a

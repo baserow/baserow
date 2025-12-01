@@ -187,6 +187,15 @@ export default {
           email: this.values.email,
           password: this.values.password,
         })
+        if (data.two_factor_auth) {
+          this.$emit(
+            'two-factor-auth',
+            data.two_factor_auth,
+            this.values.email,
+            data.token
+          )
+          return
+        }
 
         // If there is an invitation we can immediately accept that one after the user
         // successfully signs in.

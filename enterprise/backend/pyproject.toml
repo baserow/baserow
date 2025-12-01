@@ -12,15 +12,15 @@ description="""Baserow is an open source no-code database tool and Airtable \
 # mixed license
 license={file="LICENSE"}
 requires-python=">=3.11"
-version = "1.32.5"
+version = "2.0.2"
 classifiers = []
 
 [project.urls]
 Homepage = "https://baserow.io"
-"Bug Tracker" = "https://gitlab.com/baserow/baserow/-/issues/"
+"Bug Tracker" = "https://github.com/baserow/baserow/issues/"
 Documentation = "https://baserow.io/user-docs"
 Support = "https://community.baserow.io/"
-Changelog = "https://gitlab.com/baserow/baserow/-/issues/"
+Changelog = "https://github.com/baserow/baserow/blob/develop/changelog.md"
 
 [tool.black]
 exclude = '''

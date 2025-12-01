@@ -164,7 +164,14 @@ class FilterBuilder:
         :return: The annotated and filtered queryset.
         """
 
-        return queryset.annotate(**self._annotation).filter(self._q_filters)
+        filtered_queryset = queryset.annotate(**self._annotation).filter(
+            self._q_filters
+        )
+
+        # When using OR conditions in filters that involve joined tables, the SQL query
+        # may produce duplicate rows because multiple join paths can match the same
+        # record. Applying distinct() ensures we return only unique results.
+        return filtered_queryset.distinct()
 
     def get_filters_and_annotations(self) -> Tuple[Q, Dict[str, Any]]:
         """

@@ -146,8 +146,8 @@ class DataSourceService:
             raise DataSourceNotInSamePage()
 
         if service_type:
-            # Verify the `service_type` is dispatch-able by DISPATCH_DATA_SOURCE.
-            if service_type.dispatch_type != DispatchTypes.DISPATCH_DATA_SOURCE:
+            # Verify the `service_type` is dispatch-able as DATA.
+            if not service_type.can_be_dispatched_as(DispatchTypes.DATA):
                 raise InvalidServiceTypeDispatchSource()
             prepared_values = service_type.prepare_values(kwargs, user)
         else:
@@ -227,10 +227,10 @@ class DataSourceService:
         # swap to `new_service_type` instead.
         service_type_for_preparation = service_type
 
-        new_service_type = kwargs.get("new_service_type", None)
+        new_service_type: ServiceType = kwargs.get("new_service_type", None)
         if new_service_type:
-            # Verify the new `service_type` is dispatch-able by DISPATCH_DATA_SOURCE.
-            if new_service_type.dispatch_type != DispatchTypes.DISPATCH_DATA_SOURCE:
+            # Verify the new `service_type` is dispatch-able as DATA.
+            if not new_service_type.can_be_dispatched_as(DispatchTypes.DATA):
                 raise InvalidServiceTypeDispatchSource()
             # If we're changing service types, we need to prepare the values with
             # the new one, instead of the old one.
@@ -278,18 +278,6 @@ class DataSourceService:
             self, data_source_id=data_source.id, page=page, user=user
         )
 
-    def remove_unused_field_names(
-        self,
-        row: Dict[str, Any],
-        field_names: List[str],
-    ) -> Dict[str, Any]:
-        """
-        Given a row dictionary, return a version of it that only contains keys
-        existing in the field_names list.
-        """
-
-        return {key: value for key, value in row.items() if key in field_names}
-
     def dispatch_data_sources(
         self,
         user,
@@ -330,22 +318,17 @@ class DataSourceService:
                 new_results[data_source.id] = results[data_source.id]
                 continue
 
-            field_names = dispatch_context.public_allowed_properties.get(
+            allowed_field_names = dispatch_context.public_allowed_properties.get(
                 "external", {}
             ).get(data_source.service.id, [])
 
-            if data_source.service.get_type().returns_list:
-                new_results[data_source.id] = {
-                    **results[data_source.id],
-                    "results": [
-                        self.remove_unused_field_names(row, field_names)
-                        for row in results[data_source.id]["results"]
-                    ],
-                }
-            else:
-                new_results[data_source.id] = self.remove_unused_field_names(
-                    results[data_source.id], field_names
-                )
+            new_results[
+                data_source.id
+            ] = data_source.service.get_type().sanitize_result(
+                data_source.service.specific,
+                results[data_source.id],
+                allowed_field_names,
+            )
 
         return new_results
 

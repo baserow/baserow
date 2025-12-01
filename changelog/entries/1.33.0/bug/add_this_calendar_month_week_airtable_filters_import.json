@@ -1,0 +1,8 @@
+{
+  "type": "bug",
+  "message": "Add `thisCalendarMonth` and `thisCalendarWeek` Airtable import filters.",
+  "domain": "builder",
+  "issue_number": null,
+  "bullet_points": [],
+  "created_at": "2025-04-14"
+}

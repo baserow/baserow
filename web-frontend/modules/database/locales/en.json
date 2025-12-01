@@ -71,6 +71,7 @@
     "updateSyncConfig": "Update sync configuration"
   },
   "duplicateTableJobType": {
+    "name": "Duplicate table",
     "duplicating": "Duplicating",
     "duplicatedTitle": "Table duplicated"
   },
@@ -230,11 +231,27 @@
     "json": "JSON",
     "queryParameter": "Query parameter"
   },
+  "apiDocsPasswordFieldAuthentication": {
+    "title": "{name} authentication",
+    "description": "Checks if the provided password and row matches what is stored in the cell.",
+    "fieldId": "The field ID where to check the password for.",
+    "rowId": "The row ID where to check the password for.",
+    "password": "The password that must be checked if it's correct."
+  },
+  "apiDocsListTables": {
+    "listTables": "List all tables",
+    "listTablesDescription": "This endpoint only works in combination with the token authentication. It lists all the tables that the token has either create, read, update or delete access to."
+  },
   "fieldTextSubForm": {
     "placeholder": "Default text"
   },
   "fieldSingleSelectSubForm": {
-    "optionsLabel": "Options"
+    "optionsLabel": "Options",
+    "defaultOptionLabel": "Default option"
+  },
+  "fieldMultipleSelectSubForm": {
+    "optionsLabel": "Options",
+    "defaultOptionsLabel": "Default options"
   },
   "fieldSingleSelectDropdown": {
     "notFound": "Option not found"
@@ -262,7 +279,11 @@
     "selectTableLabel": "Select a table to link to",
     "hasRelatedFieldLabel": "Create related field in linked table",
     "limitToView": "Limit selection to view",
-    "limitToViewDescription": "Note that this is only visual. It's still possible to make relationships outside of the view via the related table or API."
+    "limitToViewDescription": "Note that this is only visual. It's still possible to make relationships outside of the view via the related table or API.",
+    "allowMultipleRelations": "Allow multiple relationships"
+  },
+  "fieldBooleanSubForm": {
+    "defaultValue": "Default"
   },
   "fieldSelectOptions": {
     "add": "Add an option"
@@ -281,7 +302,9 @@
     "spacePeriod": "Space, period (1 000 000.00)",
     "commaPeriod": "Comma, period (1,000,000.00)",
     "periodComma": "Period, comma (1.000.000,00)",
-    "noFormatting": "No formatting"
+    "noFormatting": "No formatting",
+    "defaultValueLabel": "Default value",
+    "defaultValuePlaceholder": "Enter a default value"
   },
   "fieldDurationSubForm": {
     "durationFormatLabel": "Duration format"
@@ -299,7 +322,12 @@
     "fieldAlreadyExists": "A field with this name already exists.",
     "nameNotAllowed": "This field name is not allowed.",
     "nameTooLong": "This field name is too long.",
-    "addDescription": "Add description"
+    "addDescription": "Add description",
+    "dbIndex": "Index",
+    "dbIndexError": "This field type cannot have an index. Please remove it before saving or change the field type.",
+    "dbIndexDescription": "Indexing can significantly improve filtering performance, but slows down create, update, and delete operations.",
+    "defaultValueDisabledByConstraint": "Cannot set a default value with a unique constraint",
+    "dbIndexDisabledTooltip": "Indexing is not available for this field type."
   },
   "fieldSelectThroughFieldSubForm": {
     "noTable": "You need at least one link to table field to create this field.",
@@ -354,7 +382,8 @@
     }
   },
   "rowEditFieldLinkRow": {
-    "addLink": "Choose a link"
+    "addLink": "Choose a link",
+    "keepOnlyOneValue": "Keep only one value. This field only supports one relationship. The value is saved if there is only one relationship left."
   },
   "tableCSVImporter": {
     "chooseFileLabel": "Choose CSV file",
@@ -443,7 +472,10 @@
     "filePreview": "File content preview",
     "importPreview": "Import preview",
     "useUpsertField": "Update rows if they already exist",
-    "upsertTooltip": "Match existing rows using a unique field to overwrite data with imported values."
+    "upsertTooltip": "Match existing rows using a unique field to overwrite data with imported values.",
+    "stateRowCreation": "Importing...",
+    "statePreValidation": "Validating data...",
+    "stateCreateTable": "Creating table..."
   },
   "formulaAdvancedEditContext": {
     "textAreaFormulaInputPlaceholder": "Click to edit the formula",
@@ -631,7 +663,9 @@
     "duplicate": "Duplicate field",
     "sortField": "Sort",
     "hideField": "Hide field",
-    "dataSyncField": "The field is read only and part of the table's data sync."
+    "dataSyncField": "The field is read only and part of the table's data sync.",
+    "dataSyncFieldTwoWaySync": "The field is synchronized with the table's data sync.",
+    "noWriteValues": "Changes to this field are restricted."
   },
   "gridViewRow": {
     "rowNotMatchingFilters": "Row does not match filters",
@@ -652,6 +686,7 @@
     "copyCells": "Copy cells",
     "copyCellsWithHeader": "Copy cells with header",
     "generateCellsValues": "Generate values with AI",
+    "generateAllAiValues": "Generate all AI values",
     "rowCount": "No rows | 1 row | {count} rows",
     "hiddenRowsInsertedTitle": "Rows added",
     "hiddenRowsInsertedMessage": "{number} newly added rows have been added, but are not visible because of the active filters.",
@@ -665,7 +700,8 @@
     "dropFileHere": "Drop files here"
   },
   "gridViewFieldLinkRow": {
-    "unnamed": "unnamed row {value}"
+    "unnamed": "unnamed row {value}",
+    "keepOnlyOneValue": "Keep only one value"
   },
   "gridViewIdentifierOptions": {
     "id": "Row identifier",
@@ -731,7 +767,6 @@
   },
   "viewAggregationType": {
     "count": "Count",
-    "emptyCount": "Empty",
     "notEmptyCount": "Filled",
     "emptyPercentage": "Percent empty",
     "notEmptyPercentage": "Percent filled",
@@ -809,7 +844,8 @@
     "addConditionGroup": "Add condition group",
     "showFieldAs": "Show field as",
     "noSelectOptions": "There are no select options available.",
-    "noCollaboratorsAvailable": "There are no collaborators available."
+    "noCollaboratorsAvailable": "There are no collaborators available.",
+    "cannotSumitValues": "This field is read-only and won't be displayed in the form."
   },
   "duplicateFieldContext": {
     "duplicate": "Duplicate field",
@@ -864,7 +900,8 @@
     "addLogo": "Add a logo",
     "titlePlaceholder": "Title",
     "descriptionPlaceholder": "Description",
-    "noFields": "This form doesn't have any fields. Click on a field in the left sidebar to add one."
+    "noFieldsTitle": "This form doesn't have any fields",
+    "noFieldsContent": "Click on a field in the left sidebar to add one."
   },
   "table": {
     "adjacentRow": {
@@ -896,7 +933,7 @@
   },
   "collaboratorAddedToRowNotification": {
     "title": "{sender} assigned you to {fieldName} in row {rowId} in {tableName}",
-    "deletedUser": "A deleted user"
+    "unknownUser": "An unknown user"
   },
   "formSubmittedNotification": {
     "title": "{formName} has been submitted in table {tableName}:",
@@ -905,10 +942,20 @@
   "rowHistorySidebar": {
     "name": "History",
     "empty": "No changes yet. You'll be able to track any changes to this row here.",
-    "you": "You"
+    "you": "You",
+    "created": "created this row",
+    "updated": "updated this row",
+    "submitted": "submitted this row",
+    "deleted": "deleted this row",
+    "restored": "restored this row",
+    "createdUndo": "undo row creation",
+    "updatedUndo": "undo row update",
+    "deletedUndo": "undo row deletion"
   },
   "fieldPasswordSubForm": {
-    "description": "It's not yet possible to directly do anything with the password field, this is only used by the user authentication in the application builder."
+    "allowEndpointAuthentication": "Allow API endpoint authentication",
+    "allowEndpointAuthenticationHelp": "This exposes an endpoint where the row ID and password can be checked if it's correct. This allows using Baserow as authentication backend.",
+    "description": "The password field can also be used by the user authentication in the application builder."
   },
   "rowEditFieldPassword": {
     "setPassword": "Set password"
@@ -1001,7 +1048,7 @@
   },
   "databaseStep": {
     "title": "Create your first database",
-    "description": "Select what where you'd like to start from:",
+    "description": "Select where you'd like to start from:",
     "databaseNameLabel": "Database name",
     "scratch": "Scratch",
     "import": "File",
@@ -1036,7 +1083,10 @@
     "next": "Next",
     "fields": "Select the fields you would like to sync",
     "create": "Create and sync table",
-    "error": "Something went wrong during the sync"
+    "error": "Something went wrong during the sync",
+    "autoAddLabel": "Auto add new properties",
+    "autoAddHelper": "Automatically adds and synchronizes newly available properties from the data source into the Baserow table. Note that in order for this to work, all properties must be synced.",
+    "twoWaySyncLabel": "Two-way sync"
   },
   "syncTableModal": {
     "title": "Sync {name}",
@@ -1093,5 +1143,12 @@
   "viewOptionsGuidedTourStep": {
     "title": "View Options",
     "content": "Click on the three dots next to the view to export, import, duplicate, and configure a webhook."
+  },
+  "fieldRules": {
+    "errorTitle": "Error during field rule processing",
+    "ruleDoesNotExist": "Rule doesn't exist",
+    "ruleTypeDoesNotExist": "Rule type doesn't exist",
+    "ruleAlreadyExists": "Rule already exists"
+
   }
 }

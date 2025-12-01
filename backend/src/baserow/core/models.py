@@ -58,6 +58,12 @@ __all__ = [
     "ImportExportTrustedSource",
 ]
 
+from baserow.core.trash.registries import (
+    DefaultTrashOperationType,
+    TrashOperationType,
+    trash_operation_type_registry,
+)
+
 User = get_user_model()
 
 
@@ -566,6 +572,22 @@ class TrashEntry(models.Model):
     # this permits to trash items together with a single entry
     related_items = models.JSONField(default=dict, null=True)
 
+    # A field to store additional restoration data that can be used by the
+    # TrashableItemType.restore method to restore the item in a specific way.
+    # For example, if the item was trashed with and related data needs to be
+    # restored with a specific state.
+    additional_restoration_data = models.JSONField(default=dict, null=True)
+
+    # Optionally store the trash operation type that was used to trash this item.
+    trash_operation_type = models.CharField(
+        max_length=125,
+        null=True,
+        blank=True,
+        help_text="Optionally provide the trash operation type associated with this "
+        "trash entry. The trash operation type gives additional context about how this "
+        "trash entry was created, and if it has specific restoration requirements.",
+    )
+
     class Meta:
         constraints = [
             UniqueConstraint(
@@ -583,6 +605,22 @@ class TrashEntry(models.Model):
                 fields=["-trashed_at", "trash_item_type", "workspace", "application"]
             )
         ]
+
+    @property
+    def managed(self) -> bool:
+        """
+        Returns whether this trash entry is managed internally and
+        cannot be restored manually.
+
+        :return: True if the trash entry is managed, false otherwise.
+        """
+
+        return self.get_operation_type().managed
+
+    def get_operation_type(self) -> TrashOperationType:
+        return trash_operation_type_registry.get(
+            self.trash_operation_type or DefaultTrashOperationType.type
+        )
 
 
 class DuplicateApplicationJob(
@@ -788,3 +826,32 @@ class ImportExportTrustedSource(models.Model):
         help_text="The public key used to verify the signature of the export."
     )
     created_at = models.DateTimeField(auto_now_add=True)
+
+
+class SchemaOperation(CreatedAndUpdatedOnMixin, models.Model):
+    """
+    Keeps track of schema operations that have been applied to database tables.
+
+    This is only useful for schema operations that cannot be handled by Django's
+    built-in migration framework, that we want to do only once and are somehow dynamic
+    or conditional.
+
+    For example, we might want to add a table field or migrate some data only if a
+    certain extension is installed in the database (i.e. vector).
+
+    Even if this table is born to add and migrate pgvector fields, it can be used for
+    other similar use cases in the future.
+    """
+
+    content_type = models.ForeignKey(
+        ContentType,
+        on_delete=models.CASCADE,
+        help_text="The content type of the model that the operation was applied to.",
+    )
+    operation = models.CharField(
+        max_length=64,
+        help_text="A unique identifier for the operation that was applied.",
+    )
+
+    class Meta:
+        unique_together = [["content_type_id", "operation"]]

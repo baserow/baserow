@@ -18,6 +18,9 @@
       :read-only="false"
       class="filters__items"
       :prepare-value="prepareValue"
+      :placeholder="
+        $t('localBaserowTableServiceConditionalForm.textFilterInputPlaceholder')
+      "
       @deleteFilter="deleteFilter($event)"
       @updateFilter="updateFilter($event)"
       @updateFilterType="$emit('update:filterType', $event.value)"
@@ -29,12 +32,18 @@
       >
         <InjectedFormulaInput
           v-if="filter.value_is_formula && propFilterType.hasEditableValue"
-          v-model="filter.value"
+          :value="getFormulaObject(filter)"
           class="filters__value--formula-input"
           :placeholder="
             $t(
               'localBaserowTableServiceConditionalForm.formulaFilterInputPlaceholder'
             )
+          "
+          @input="
+            updateFilter({
+              filter,
+              values: { value: $event.formula, mode: $event.mode },
+            })
           "
         />
       </template>
@@ -134,7 +143,13 @@ export default {
      * will add/update them in a haphazard way.
      */
     getSortedDataSourceFilters() {
-      const dataSourceFilters = [...this.value]
+      // The `value` prop is an array of filters with an object `value`
+      // containing the formula string. The `ViewFieldConditionsForm` however
+      // expects the `value` to be the formula string itself, so we have
+      // to convert it here.
+      const dataSourceFilters = this.value.map((filterConf) => {
+        return { ...filterConf, value: filterConf.value.formula }
+      })
       return dataSourceFilters.sort((a, b) => a.order - b.order)
     },
     /*
@@ -163,7 +178,7 @@ export default {
             id: uuidv1(),
             field: field.id,
             type: 'equal',
-            value: '',
+            value: { formula: '', mode: 'raw' },
             value_is_formula: false,
           })
           this.$emit('input', newFilters)
@@ -187,7 +202,16 @@ export default {
     updateFilter({ filter, values }) {
       const newFilters = this.value.map((filterConf) => {
         if (filterConf.id === filter.id) {
-          return { ...filterConf, ...values }
+          // Convert the formula value string into our Baserow formula object.
+          const { value_is_formula: valueIsFormula } = { ...filter, ...values }
+          return {
+            ...filterConf,
+            ...values,
+            value: {
+              formula: values.value,
+              mode: valueIsFormula ? values.mode || 'simple' : 'raw',
+            },
+          }
         }
         return filterConf
       })
@@ -207,9 +231,12 @@ export default {
       } else if (filter.value) {
         newValue = `'${filter.value}'`
       }
-      emitUpdate({
-        value: newValue,
-        value_is_formula: !filter.value_is_formula,
+      this.updateFilter({
+        filter,
+        values: {
+          value: newValue,
+          value_is_formula: !filter.value_is_formula,
+        },
       })
     },
     /*
@@ -226,6 +253,23 @@ export default {
       // value is reset to a blank string by prepareValue. As we want to skip
       // this function, we have to reset manually here.
       return filterType.hasEditableValue ? value : ''
+    },
+    /**
+     * Baserow formula (i.e. non-database formulas) are objects, and within
+     * them is the actual formula string. This method is responsible for
+     * returning that formula string so that it can be passed to the
+     * `InjectedFormulaInput` component.
+     * @param {Object} filter - The filter object.
+     * @returns {Object} The formula object with the formula string.
+     */
+    getFormulaObject(filter) {
+      const originalFilter = this.value.find((f) => f.id === filter.id)
+      return {
+        ...originalFilter.value,
+        mode: originalFilter.value_is_formula
+          ? originalFilter.value.mode || 'simple'
+          : 'raw',
+      }
     },
   },
 }

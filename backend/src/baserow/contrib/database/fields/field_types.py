@@ -1,3 +1,4 @@
+import json
 import re
 import uuid
 from abc import ABC, abstractmethod
@@ -46,6 +47,7 @@ from django.db.models import (
     When,
     Window,
 )
+from django.db.models.fields import NOT_PROVIDED
 from django.db.models.fields.related import ManyToManyField
 from django.db.models.functions import Cast, Coalesce, RowNumber
 
@@ -77,6 +79,7 @@ from baserow.contrib.database.api.fields.serializers import (
     FileFieldRequestSerializer,
     FileFieldResponseSerializer,
     IntegerOrStringField,
+    LimitListSerializer,
     LinkRowFieldSerializerMixin,
     LinkRowRequestSerializer,
     LinkRowValueSerializer,
@@ -94,6 +97,7 @@ from baserow.contrib.database.api.views.errors import (
     ERROR_VIEW_NOT_IN_TABLE,
 )
 from baserow.contrib.database.db.functions import RandomUUID
+from baserow.contrib.database.fields.exceptions import SelectOptionDoesNotBelongToField
 from baserow.contrib.database.fields.filter_support.formula import (
     FormulaFieldTypeArrayFilterSupport,
 )
@@ -101,6 +105,9 @@ from baserow.contrib.database.fields.utils.expression import (
     get_collaborator_extractor,
     get_select_option_extractor,
     wrap_in_subquery,
+)
+from baserow.contrib.database.fields.utils.field_constraint import (
+    validate_default_value_with_constraints,
 )
 from baserow.contrib.database.formula import (
     BASEROW_FORMULA_TYPE_ALLOWED_FIELDS,
@@ -152,7 +159,7 @@ from baserow.core.registries import ImportExportConfig
 from baserow.core.storage import ExportZipFile, get_default_storage
 from baserow.core.user_files.exceptions import UserFileDoesNotExist
 from baserow.core.user_files.handler import UserFileHandler
-from baserow.core.utils import list_to_comma_separated_string
+from baserow.core.utils import grouper, list_to_comma_separated_string
 
 from .constants import (
     BASEROW_BOOLEAN_FIELD_FALSE_VALUES,
@@ -168,7 +175,7 @@ from .dependencies.exceptions import (
 from .dependencies.handler import FieldDependants, FieldDependencyHandler
 from .dependencies.models import FieldDependency
 from .dependencies.types import FieldDependencies
-from .dependencies.update_collector import FieldUpdateCollector
+from .dependencies.update_collector import DependencyContext, FieldUpdateCollector
 from .exceptions import (
     AllProvidedCollaboratorIdsMustBeValidUsers,
     AllProvidedMultipleSelectValuesMustBeSelectOption,
@@ -292,6 +299,8 @@ class TextFieldMatchingRegexFieldType(FieldType, ABC):
           altering a column to being an email type.
     """
 
+    _can_have_db_index = True
+
     @property
     @abstractmethod
     def regex(self):
@@ -328,6 +337,7 @@ class TextFieldMatchingRegexFieldType(FieldType, ABC):
             blank=True,
             null=True,
             validators=[self.validator],
+            db_index=instance.db_index,
             **kwargs,
         )
 
@@ -391,6 +401,7 @@ class CharFieldMatchingRegexFieldType(TextFieldMatchingRegexFieldType):
             null=True,
             max_length=self.max_length,
             validators=[self.validator],
+            db_index=instance.db_index,
             **kwargs,
         )
 
@@ -412,6 +423,7 @@ class TextFieldType(CollationSortMixin, FieldType):
     allowed_fields = ["text_default"]
     serializer_field_names = ["text_default"]
     _can_group_by = True
+    _can_have_db_index = True
 
     can_upsert = True
 
@@ -429,7 +441,11 @@ class TextFieldType(CollationSortMixin, FieldType):
 
     def get_model_field(self, instance, **kwargs):
         return models.TextField(
-            default=instance.text_default or None, blank=True, null=True, **kwargs
+            default=instance.text_default or None,
+            blank=True,
+            null=True,
+            db_index=instance.db_index,
+            **kwargs,
         )
 
     def random_value(self, instance, fake, cache):
@@ -459,6 +475,7 @@ class LongTextFieldType(CollationSortMixin, FieldType):
     model_class = LongTextField
     allowed_fields = ["long_text_enable_rich_text"]
     serializer_field_names = ["long_text_enable_rich_text"]
+    _can_have_db_index = True
     can_upsert = True
 
     def check_can_group_by(self, field: Field, sort_type: str) -> bool:
@@ -497,7 +514,9 @@ class LongTextFieldType(CollationSortMixin, FieldType):
         }
 
     def get_model_field(self, instance, **kwargs):
-        return models.TextField(blank=True, null=True, **kwargs)
+        return models.TextField(
+            blank=True, null=True, db_index=instance.db_index, **kwargs
+        )
 
     def random_value(self, instance, fake, cache):
         return fake.text()
@@ -556,6 +575,7 @@ class NumberFieldType(FieldType):
         "number_prefix",
         "number_suffix",
         "number_separator",
+        "number_default",
     ]
     serializer_field_names = [
         "number_decimal_places",
@@ -564,6 +584,7 @@ class NumberFieldType(FieldType):
         "number_prefix",
         "number_suffix",
         "number_separator",
+        "number_default",
     ]
     serializer_field_overrides = {
         "number_type": MustBeEmptyField(
@@ -575,7 +596,23 @@ class NumberFieldType(FieldType):
     }
     _can_group_by = True
     _db_column_fields = ["number_decimal_places"]
+    _can_have_db_index = True
     can_upsert = True
+
+    def serialize_allowed_fields(self, field: Field) -> Dict[str, Any]:
+        serialized = {}
+        for field_name in self.allowed_fields:
+            value = getattr(field, field_name)
+            # number default is Decimal
+            if field_name == "number_default" and value is not None:
+                value = str(value)
+            serialized[field_name] = value
+        return serialized
+
+    def serialize_to_input_value(self, field: Field, value: any) -> any:
+        if field.specific.number_decimal_places == 0:
+            return int(value)
+        return value
 
     def prepare_value_for_db(self, instance: NumberField, value):
         if value is None:
@@ -612,12 +649,15 @@ class NumberFieldType(FieldType):
         return value
 
     def get_serializer_field(self, instance: NumberField, **kwargs):
-        required = kwargs.get("required", False)
+        required = kwargs.pop("required", False)
 
         kwargs["decimal_places"] = instance.number_decimal_places
 
         if not instance.number_negative:
             kwargs["min_value"] = Decimal("0")
+
+        if not required and instance.number_default is not None:
+            kwargs["default"] = instance.number_default
 
         return serializers.DecimalField(
             **{
@@ -647,13 +687,20 @@ class NumberFieldType(FieldType):
             # precision we keep it as a string.
             instance = field_object["field"]
             if instance.number_decimal_places == 0:
-                return int(value)
+                try:
+                    return int(value)
+                except (ValueError, TypeError):
+                    pass
 
             # DRF's Decimal Serializer knows how to quantize and format the decimal
             # correctly so lets use it instead of trying to do it ourselves.
             return self.get_serializer_field(instance).to_representation(value)
 
         formatted_value = self.get_serializer_field(instance).to_representation(value)
+
+        if formatted_value == "NaN":
+            return "NaN"
+
         fractional_part = ""
         if instance.number_decimal_places == 0:
             integer_part = formatted_value.split(".")[0]
@@ -690,11 +737,14 @@ class NumberFieldType(FieldType):
 
     def get_model_field(self, instance, **kwargs):
         kwargs["decimal_places"] = instance.number_decimal_places
-
+        default = instance.number_default
+        if default is not None:
+            kwargs["default"] = default
         return models.DecimalField(
             max_digits=self.MAX_DIGITS + kwargs["decimal_places"],
             null=True,
             blank=True,
+            db_index=instance.db_index,
             **kwargs,
         )
 
@@ -752,12 +802,20 @@ class NumberFieldType(FieldType):
         self, formula_type: BaserowFormulaNumberType
     ) -> NumberField:
         return NumberField(
-            number_decimal_places=formula_type.number_decimal_places,
+            number_decimal_places=formula_type.number_decimal_places or 0,
             number_negative=True,
             number_prefix=formula_type.number_prefix,
             number_suffix=formula_type.number_suffix,
             number_separator=formula_type.number_separator,
         )
+
+    def should_update_search_data(
+        self, old_field: NumberField, new_field_attrs: Dict[str, Any]
+    ) -> bool:
+        new_number_decimal_places = new_field_attrs.get(
+            "number_decimal_places", old_field.number_decimal_places
+        )
+        return old_field.number_decimal_places != new_number_decimal_places
 
     def should_backup_field_data_for_same_type_update(
         self, old_field: NumberField, new_field_attrs: Dict[str, Any]
@@ -809,6 +867,19 @@ class NumberFieldType(FieldType):
             raise ValueError(f"Invalid value for number field: {value}")
         return value
 
+    def to_runtime_formula_value(self, field, value):
+        """
+        Transform the value to be usable in runtime formula land.
+        """
+
+        if value is None or value == "":
+            return None
+
+        if field.number_decimal_places == 0:
+            return int(Decimal(value))
+
+        return float(Decimal(value))
+
 
 class RatingFieldType(FieldType):
     type = "rating"
@@ -817,6 +888,7 @@ class RatingFieldType(FieldType):
     serializer_field_names = ["max_value", "color", "style"]
     _can_group_by = True
     _db_column_fields = []
+    _can_have_db_index = True
     can_upsert = True
 
     def prepare_value_for_db(self, instance, value):
@@ -912,6 +984,7 @@ class RatingFieldType(FieldType):
             blank=False,
             null=False,
             default=0,
+            db_index=instance.db_index,
             **kwargs,
         )
 
@@ -932,6 +1005,12 @@ class RatingFieldType(FieldType):
     ) -> "RatingField":
         return RatingField()
 
+    def should_update_search_data(
+        self, old_field: RatingField, new_field_attrs: Dict[str, Any]
+    ) -> bool:
+        new_max_value = new_field_attrs.get("max_value", old_field.max_value)
+        return old_field.max_value > new_max_value
+
     def should_backup_field_data_for_same_type_update(
         self, old_field: RatingField, new_field_attrs: Dict[str, Any]
     ) -> bool:
@@ -942,7 +1021,10 @@ class RatingFieldType(FieldType):
 class BooleanFieldType(FieldType):
     type = "boolean"
     model_class = BooleanField
+    allowed_fields = ["boolean_default"]
+    serializer_field_names = ["boolean_default"]
     _can_group_by = True
+    _can_have_db_index = True
     can_upsert = True
 
     def get_alter_column_prepare_new_value(self, connection, from_field, to_field):
@@ -962,10 +1044,15 @@ class BooleanFieldType(FieldType):
         """
 
     def get_serializer_field(self, instance, **kwargs):
-        return BaserowBooleanField(**{"required": False, "default": False, **kwargs})
+        required = kwargs.get("required", False)
+        if not required:
+            kwargs["default"] = instance.boolean_default
+        return BaserowBooleanField(**{"required": required, **kwargs})
 
     def get_model_field(self, instance, **kwargs):
-        return models.BooleanField(default=False, **kwargs)
+        return models.BooleanField(
+            default=instance.boolean_default, db_index=instance.db_index, **kwargs
+        )
 
     def random_value(self, instance, fake, cache):
         return fake.pybool()
@@ -1027,12 +1114,13 @@ class DateFieldType(FieldType):
             ),
         )
     }
-    serializer_extra_kwargs = {"date_force_timezone_offset": {"write_only": True}}
+    serializer_field_extra_kwargs = {"date_force_timezone_offset": {"write_only": True}}
     api_exceptions_map = {
         DateForceTimezoneOffsetValueError: ERROR_DATE_FORCE_TIMEZONE_OFFSET_ERROR
     }
     _can_group_by = True
     _db_column_fields = ["date_include_time"]
+    _can_have_db_index = True
     can_upsert = True
 
     def can_represent_date(self, field):
@@ -1201,6 +1289,7 @@ class DateFieldType(FieldType):
     def get_model_field(self, instance, **kwargs):
         kwargs["null"] = True
         kwargs["blank"] = True
+        kwargs["db_index"] = instance.db_index
         if instance.date_include_time:
             return models.DateTimeField(**kwargs)
         else:
@@ -1378,6 +1467,26 @@ class DateFieldType(FieldType):
         )
         return old_field.date_include_time and not new_date_include_time
 
+    def should_update_search_data(
+        self, old_field: DateField, new_field_attrs: Dict[str, Any]
+    ) -> bool:
+        new_date_include_time = new_field_attrs.get(
+            "date_include_time", old_field.date_include_time
+        )
+        new_date_format = new_field_attrs.get("date_format", old_field.date_format)
+        new_date_time_format = new_field_attrs.get(
+            "date_time_format", old_field.date_time_format
+        )
+        new_force_timezone = new_field_attrs.get(
+            "date_force_timezone", old_field.date_force_timezone
+        )
+        return (
+            old_field.date_include_time != new_date_include_time
+            or old_field.date_format != new_date_format
+            or old_field.date_time_format != new_date_time_format
+            or old_field.date_force_timezone != new_force_timezone
+        )
+
     def serialize_metadata_for_row_history(
         self,
         field: Field,
@@ -1404,7 +1513,7 @@ class DateFieldType(FieldType):
         return value
 
     def get_group_by_field_filters_and_annotations(
-        self, field, field_name, base_queryset, value
+        self, field, field_name, base_queryset, value, cte, rows
     ):
         filters = {field_name: value}
         annotations = {}
@@ -1436,6 +1545,7 @@ class CreatedOnLastModifiedBaseFieldType(ReadOnlyFieldType, DateFieldType):
     def get_model_field(self, instance, **kwargs):
         kwargs["null"] = True
         kwargs["blank"] = True
+        kwargs["db_index"] = instance.db_index
         kwargs.update(self.model_field_kwargs)
         return self.model_field_class(**kwargs)
 
@@ -2065,6 +2175,17 @@ class DurationFieldType(FieldType):
             new_duration_format, old_field.duration_format
         )
 
+    def should_update_search_data(
+        self, old_field: DurationField, new_field_attrs: Dict[str, Any]
+    ) -> bool:
+        new_duration_format = new_field_attrs.get(
+            "duration_format", old_field.duration_format
+        )
+
+        return is_duration_format_conversion_lossy(
+            new_duration_format, old_field.duration_format
+        )
+
     def force_same_type_alter_column(self, from_field, to_field):
         return is_duration_format_conversion_lossy(
             to_field.duration_format, from_field.duration_format
@@ -2145,6 +2266,7 @@ class LinkRowFieldType(
         "link_row_relation_id",
         "link_row_limit_selection_view_id",
         "link_row_limit_selection_view",
+        "link_row_multiple_relationships",
     ]
     serializer_field_names = [
         "link_row_table_id",
@@ -2153,7 +2275,9 @@ class LinkRowFieldType(
         "link_row_related_field",
         "link_row_limit_selection_view_id",
         "link_row_table_primary_field",
+        "link_row_multiple_relationships",
     ]
+    serializer_extra_args = ["limit_linked_items"]
     serializer_mixins = [LinkRowFieldSerializerMixin]
     serializer_field_overrides = {
         "link_row_table_id": serializers.IntegerField(
@@ -2188,6 +2312,7 @@ class LinkRowFieldType(
         "link_row_table",
         "has_related_field",
         "link_row_limit_selection_view_id",
+        "link_row_multiple_relationships",
     ]
     request_serializer_field_overrides = {
         "has_related_field": serializers.BooleanField(required=False),
@@ -2212,6 +2337,12 @@ class LinkRowFieldType(
             default=-1,
             help_text="The ID of the view in the related table where row selection "
             "must be limited to.",
+        ),
+        "link_row_multiple_relationships": serializers.BooleanField(
+            required=False,
+            help_text="Indicates whether it's allowed set multiple relationships per "
+            "row. If disabled, it doesn't guarantee single relationships because they "
+            "could have already existed or created through reversed relationship.",
         ),
     }
 
@@ -2378,10 +2509,18 @@ class LinkRowFieldType(
         remote_model = remote_field.model
 
         primary_field_object = next(
-            object
-            for object in remote_model._field_objects.values()
-            if object["field"].primary
+            (
+                object
+                for object in remote_model._field_objects.values()
+                if object["field"].primary
+            ),
+            None,
         )
+        if primary_field_object is None:
+            # Every table should have a primary field, but it's not strictly enforeced
+            # and if it doesn't (i.e. some tests), we return an empty expression.
+            return Value("")
+
         primary_field = primary_field_object["field"]
         primary_field_type = primary_field_object["type"]
         qs = remote_model.objects.filter(
@@ -2422,15 +2561,14 @@ class LinkRowFieldType(
         field_kwargs = kwargs.get(f"field_{field.id}", {})
         link_row_join = field_kwargs.get("link_row_join", None)
 
-        primary_field_object = None
-        try:
-            primary_field_object = next(
+        primary_field_object = next(
+            (
                 object
                 for object in remote_model._field_objects.values()
                 if object["field"].primary
-            )
-        except StopIteration:
-            pass
+            ),
+            None,
+        )
 
         # The list of fields to prefetch is going to be the primary field
         # if it exists together with any joined field for lookup
@@ -2484,6 +2622,20 @@ class LinkRowFieldType(
             return val.strip() if isinstance(val, str) else val
 
         for row_index, values in values_by_row.items():
+            if (
+                instance.link_row_multiple_relationships is False
+                and isinstance(values, list)
+                and len(values) > 1
+            ):
+                error = ValidationError(
+                    f"This link row field only accept one relationship.",
+                    code="invalid_value",
+                )
+                if continue_on_error:
+                    for row_index in invalid_values:
+                        values_by_row[row_index] = error
+                else:
+                    raise error
             values_by_row[row_index] = [preprocess_value(val) for val in values]
 
         for row_index, values in values_by_row.items():
@@ -2743,6 +2895,10 @@ class LinkRowFieldType(
         """
 
         required = kwargs.pop("required", False)
+        kwargs.pop("limit_linked_items", None)  # not needed in the request.
+
+        if instance.link_row_multiple_relationships is False:
+            kwargs["max_length"] = 1
         return LinkRowRequestSerializer(required=required, **kwargs)
 
     def get_response_serializer_field(self, instance, **kwargs):
@@ -2758,21 +2914,24 @@ class LinkRowFieldType(
 
         link_row_join: LinkRowJoin = kwargs.pop("link_row_join", None)
         if link_row_join is None:
-            return serializers.ListSerializer(
-                child=LinkRowValueSerializer(), **{"required": False, **kwargs}
+            inner_serializer = LinkRowValueSerializer
+        else:
+            inner_serializer = type(
+                str("LinkRowLookupValueSerializer"),
+                (LinkRowValueSerializer,),
+                {
+                    f"{target_field.field_ref}": target_field.field_serializer
+                    for target_field in link_row_join.target_fields
+                },
             )
-        attrs = {
-            f"{target_field.field_ref}": target_field.field_serializer
-            for target_field in link_row_join.target_fields
-        }
-        base_class = LinkRowValueSerializer
-        inner_serializer = type(
-            str("LinkRowLookupValueSerializer"),
-            (base_class,),
-            attrs,
-        )
-        return serializers.ListSerializer(
-            child=inner_serializer(), **{"required": False, **kwargs}
+
+        return LimitListSerializer(
+            child=inner_serializer(),
+            **{
+                "required": False,
+                "limit": kwargs.pop("limit_linked_items", None),
+                **kwargs,
+            },
         )
 
     def get_serializer_help_text(self, instance):
@@ -3249,6 +3408,9 @@ class LinkRowFieldType(
             "link_row_limit_selection_view_id"
         ] = field.link_row_limit_selection_view_id
         serialized["has_related_field"] = field.link_row_table_has_related_field
+        serialized[
+            "link_row_multiple_relationships"
+        ] = field.link_row_multiple_relationships
         return serialized
 
     def import_serialized(
@@ -3413,6 +3575,14 @@ class LinkRowFieldType(
         )
         return old_field.link_row_table_id != new_link_row_table_id
 
+    def should_update_search_data(
+        self, old_field: LinkRowField, new_field_attrs: Dict[str, Any]
+    ) -> bool:
+        new_link_row_table_id = new_field_attrs.get(
+            "link_row_table_id", old_field.link_row_table_id
+        )
+        return old_field.link_row_table_id != new_link_row_table_id
+
     def get_dependants_which_will_break_when_field_type_changes(
         self, field: LinkRowField, to_field_type: "FieldType", field_cache: "FieldCache"
     ) -> "FieldDependants":
@@ -3438,6 +3608,7 @@ class LinkRowFieldType(
         update_collector: FieldUpdateCollector,
         field_cache: "FieldCache",
         via_path_to_starting_table: List["LinkRowField"],
+        dependency_context: DependencyContext,
     ):
         update_collector.add_field_which_has_changed(
             field, via_path_to_starting_table, send_field_updated_signal=False
@@ -3448,6 +3619,7 @@ class LinkRowFieldType(
             update_collector,
             field_cache,
             via_path_to_starting_table,
+            dependency_context,
         )
 
     def field_dependency_updated(
@@ -3503,7 +3675,7 @@ class LinkRowFieldType(
         }
 
     def are_row_values_equal(self, value1: any, value2: any) -> bool:
-        return set(value1) == set(value2)
+        return set(value1 or []) == set(value2 or [])
 
     def empty_query(
         self,
@@ -3777,11 +3949,11 @@ class FileFieldType(FieldType):
         qs = cache[queryset_name]
 
         values = []
-        for _ in range(randrange(0, min(3, count))):  # nosec
+        for _ in range(randrange(1, min(3, count))):  # nosec
             try:
-                instance = next(qs)
-                serialized = instance.serialize()
-                serialized["visible_name"] = instance.original_name
+                user_file = next(qs)
+                serialized = user_file.serialize()
+                serialized["visible_name"] = user_file.original_name
                 values.append(serialized)
             except StopIteration:
                 cache[queryset_name] = get_random_objects_iterator()
@@ -3827,12 +3999,19 @@ class FileFieldType(FieldType):
             if files_zip is None:
                 files.append(file)
             else:
-                with files_zip.open(file["name"]) as stream:
-                    # Try to upload the user file with the original name to make sure
-                    # that if the was already uploaded, it will not be uploaded again.
-                    user_file = user_file_handler.upload_user_file(
-                        None, file["original_name"], stream, storage=storage
-                    )
+                try:
+                    with files_zip.open(file["name"]) as stream:
+                        # Try to upload the user file with the original name
+                        # to make sure that if the was already uploaded, it will
+                        # not be uploaded again.
+                        user_file = user_file_handler.upload_user_file(
+                            None, file["original_name"], stream, storage=storage
+                        )
+                except KeyError:
+                    # File not found in zip archive - skip this file and
+                    # let the import process report handle missing files
+                    # appropriately
+                    continue
 
                 value = user_file.serialize()
                 value["visible_name"] = file["visible_name"]
@@ -3849,27 +4028,131 @@ class SelectOptionBaseFieldType(FieldType):
     allowed_fields = ["select_options"]
     serializer_field_names = ["select_options"]
     serializer_field_overrides = {
-        "select_options": SelectOptionSerializer(many=True, required=False)
+        "select_options": SelectOptionSerializer(many=True, required=False),
     }
     _can_group_by = True
     _db_column_fields = []
 
+    def get_default_value(self, field: Field) -> Any:
+        return getattr(field, self.get_default_options_field_name(), None)
+
+    def create_select_options(self, field, select_options):
+        """
+        Creates the select options for the field.
+
+        :param field: The field instance.
+        :param select_options: List of select options to create.
+        :return: Mapping of select option ids before creation to
+            their ids after creation
+        """
+
+        mapping = {}
+        for select_option in select_options:
+            select_option_copy = select_option.copy()
+            select_option_id = select_option_copy.pop("id")
+            select_option_object = SelectOption.objects.create(
+                field=field, **select_option_copy
+            )
+            mapping[select_option_id] = select_option_object.id
+        return mapping
+
+    def after_create_select_options(
+        self, field, select_default, select_options, mapping
+    ):
+        """
+        Called after creating the select options.
+        Can be used i.e. to set default options for field
+
+        :param field: The field instance.
+        :param select_default: The default value to set.
+        :param select_options: List of select options to search through.
+        :param mapping: Mapping of select option ids before creation to
+            their ids after creation
+        """
+
+        return field
+
+    def get_default_options_index(self, default, select_options):
+        """
+        Returns the index of the default option in the select_options list.
+
+        :param default: The id of the default option to find.
+        :param select_options: List of select options to search through.
+
+        """
+
+        return None
+
+    def get_options_by_index(self, field, index):
+        """
+        Returns the option at the given index in the select_options list.
+
+        :param field: The field instance.
+        :param index: The index of the option to retrieve.
+
+        """
+
+        return None
+
+    def get_validated_default_value(
+        self, from_field, default_index, has_new_default_value, select_default_value
+    ):
+        return None
+
     def before_create(
         self, table, primary, allowed_field_values, order, user, field_kwargs
     ):
-        if "select_options" in allowed_field_values:
-            return allowed_field_values.pop("select_options")
+        select_options = allowed_field_values.pop("select_options", [])
+        default_value_field_name = f"{self.type}_default"
+        select_default_value = allowed_field_values.pop(default_value_field_name, None)
+        return select_options, select_default_value
 
     def after_create(self, field, model, user, connection, before, field_kwargs):
-        if before and len(before) > 0:
-            FieldHandler().update_field_select_options(user, field, before)
+        select_options, select_default_value = before
+
+        default_index = self.get_default_options_index(
+            select_default_value, select_options
+        )
+
+        if select_options and len(select_options) > 0:
+            FieldHandler().update_field_select_options(user, field, select_options)
+
+            default_value = self.get_options_by_index(field, default_index)
+            if default_value is not None:
+                default_value_field_name = self.get_default_options_field_name()
+                if hasattr(field, default_value_field_name):
+                    setattr(field, default_value_field_name, default_value)
+                    field.save(update_fields=[default_value_field_name])
 
     def before_update(self, from_field, to_field_values, user, kwargs):
+        default_value_field_name = self.get_default_options_field_name()
+
+        default_index = None
+        has_new_default_value = default_value_field_name in to_field_values
+
+        if has_new_default_value:
+            select_default_value = to_field_values[default_value_field_name]
+        else:
+            select_default_value = getattr(from_field, default_value_field_name, None)
+
         if "select_options" in to_field_values:
-            FieldHandler().update_field_select_options(
-                user, from_field, to_field_values["select_options"]
+            select_options = to_field_values["select_options"]
+
+            default_index = self.get_default_options_index(
+                select_default_value, select_options
             )
+
+            FieldHandler().update_field_select_options(user, from_field, select_options)
             to_field_values.pop("select_options")
+        else:
+            select_options = list(from_field.select_options.values())
+            default_index = self.get_default_options_index(
+                select_default_value, select_options
+            )
+        default_value = self.get_validated_default_value(
+            from_field, default_index, has_new_default_value, select_default_value
+        )
+        to_field_values[default_value_field_name] = default_value
 
     def should_backup_field_data_for_same_type_update(
         self, old_field: SingleSelectField, new_field_attrs: Dict[str, Any]
@@ -3883,6 +4166,11 @@ class SelectOptionBaseFieldType(FieldType):
 
         # If there are any deleted options we need to backup
         return old_field.select_options.exclude(id__in=updated_ids).exists()
+
+    def should_update_search_data(self, old_field, new_field_attrs):
+        return self.should_backup_field_data_for_same_type_update(
+            old_field, new_field_attrs
+        )
 
     def enhance_queryset_in_bulk(self, queryset, field_objects, **kwargs):
         existing_multi_field_prefetches = queryset.get_multi_field_prefetches()
@@ -3937,21 +4225,130 @@ class SelectOptionBaseFieldType(FieldType):
             raise ValueError("The provided value does not contain a valid option id.")
         return option_ids
 
+    def get_select_options_help_text(self, instance):
+        try:
+            select_option_pair = ", ".join(
+                [
+                    f"{select_option.id}={json.dumps(select_option.value)}"
+                    for select_option in instance.select_options.all()
+                ]
+            )
+        except ValueError:
+            # Happens when the instance does not yet have a primary key.
+            return self.get_serializer_help_text(instance)
+        return f"(in format option_id=option_value): " f"{select_option_pair}"
+
 
 class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
     type = "single_select"
     model_class = SingleSelectField
+    allowed_fields = ["select_options", "single_select_default"]
+    serializer_field_names = ["select_options", "single_select_default"]
     _can_order_by_types = [DEFAULT_SORT_TYPE_KEY, SINGLE_SELECT_SORT_BY_ORDER]
 
-    def get_serializer_field(self, instance, **kwargs):
-        required = kwargs.get("required", False)
-        field_serializer = IntegerOrStringField(
-            **{
-                "required": required,
-                "allow_null": not required,
-                **kwargs,
-            },
+    serializer_field_overrides = {
+        "select_options": SelectOptionSerializer(many=True, required=False),
+        "single_select_default": serializers.IntegerField(
+            required=False, allow_null=True
+        ),
+    }
+
+    def init_field_data(self, field, model):
+        if field.single_select_default:
+            field_data = {
+                self.get_default_options_field_name(): field.single_select_default
+            }
+            validate_default_value_with_constraints(
+                self,
+                [{"type_name": c.type_name} for c in field.field_constraints.all()],
+                field_data,
+                field,
+            )
+            model.objects.all().update(
+                **{f"{field.db_column}_id": field.single_select_default}
+            )
+
+    def get_default_options_index(self, default, select_options):
+        if default is None:
+            return None
+        return next(
+            (
+                index
+                for index, option in enumerate(select_options)
+                if option.get("id") == default
+                or option.get(UPSERT_OPTION_DICT_KEY) == default
+            ),
+            None,
         )
+
+    def get_options_by_index(self, field, index):
+        if index is None:
+            return None
+        try:
+            return field.select_options.all()[index].id
+        except IndexError:
+            return None
+
+    def after_create_select_options(
+        self, field, select_default, select_options, mapping
+    ):
+        if select_default is not None:
+            mapped_default = mapping.get(select_default, None)
+            field_name = self.get_default_options_field_name()
+            if hasattr(field, field_name):
+                setattr(field, field_name, mapped_default)
+                field.save(update_fields=[field_name])
+        return field
+
+    def get_instance_default_value(self, instance, default_value):
+        """
+        Checks if the provided default value is a valid option and returns it.
+        If the default value is not a valid option, it returns None.
+        """
+
+        default_value = default_value or instance.single_select_default
+        if default_value is None or default_value == NOT_PROVIDED:
+            return None
+
+        if default_value in [option.id for option in instance.select_options.all()]:
+            return default_value
+
+    def get_validated_default_value(
+        self, from_field, default_index, has_new_default_value, select_default_value
+    ):
+        if default_index is not None:
+            default_value = self.get_options_by_index(from_field, default_index)
+        else:
+            if has_new_default_value and select_default_value is not None:
+                raise SelectOptionDoesNotBelongToField(
+                    select_default_value,
+                    field_id=from_field.id,
+                )
+            else:
+                default_value = None
+        return default_value
+
+    def get_serializer_field(self, instance, **kwargs):
+        required = kwargs.pop("required", False)
+
+        serializer_kwargs = {
+            "required": required,
+            "allow_null": not required,
+            **kwargs,
+        }
+
+        if not required:
+            default_value = self.get_instance_default_value(
+                instance, kwargs.get("single_select_default", None)
+            )
+            serializer_kwargs["default"] = default_value
+
+        serializer_kwargs["help_text"] = (
+            f"Accepts one of the following option ids as integer value"
+            f" {self.get_select_options_help_text(instance)}."
+        )
+
+        field_serializer = IntegerOrStringField(**serializer_kwargs)
         return field_serializer
 
     def get_response_serializer_field(self, instance, **kwargs):
@@ -4053,6 +4450,7 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
             # Ignore empty and select values
             if value is None or isinstance(value, SelectOption):
                 continue
+
             if continue_on_error and value not in option_map:
                 values_by_row[row_index] = ValidationError(
                     f"The provided value {value} is not a valid option.",
@@ -4109,6 +4507,13 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         return value.value
 
     def get_model_field(self, instance, **kwargs):
+        default = self.get_instance_default_value(
+            instance, kwargs.get("single_select_default", None)
+        )
+
+        if default is not None:
+            kwargs["default"] = default
+
         return SingleSelectForeignKey(
             to=SelectOption,
             on_delete=models.SET_NULL,
@@ -4247,7 +4652,7 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         if not select_options:
             return None
 
-        return select_options[randrange(0, len(select_options))]  # nosec
+        return select_options[randrange(1, len(select_options))]  # nosec
 
     def contains_query(self, field_name, value, model_field, field):
         value = value.strip()
@@ -4270,6 +4675,7 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         select_option_mapping = id_mapping["database_field_select_options"]
 
         if not value or value not in select_option_mapping:
+            setattr(row, field_name + "_id", None)
             return
 
         setattr(row, field_name + "_id", select_option_mapping[value])
@@ -4328,6 +4734,107 @@ class MultipleSelectFieldType(
     can_get_unique_values = False
     is_many_to_many_field = True
     _can_group_by = True
+    allowed_fields = ["select_options", "multiple_select_default"]
+    serializer_field_names = ["select_options", "multiple_select_default"]
+
+    serializer_field_overrides = {
+        "select_options": SelectOptionSerializer(many=True, required=False),
+        "multiple_select_default": serializers.ListField(
+            child=serializers.IntegerField(), required=False, allow_null=True
+        ),
+    }
+
+    def init_field_data(self, field, model):
+        if field.multiple_select_default:
+            through_model = model._meta.get_field(field.db_column).remote_field.through
+            row_id_field = through_model._meta.fields[1].name
+            option_id_field = through_model._meta.fields[2].name
+            batch_size = 10000
+            all_row_ids = model.objects.values_list("id", flat=True).iterator(
+                chunk_size=batch_size
+            )
+
+            for row_ids_batch in grouper(batch_size, all_row_ids):
+                through_model.objects.bulk_create(
+                    [
+                        through_model(
+                            **{
+                                f"{row_id_field}_id": row_id,
+                                f"{option_id_field}_id": option_id,
+                            }
+                        )
+                        for row_id in row_ids_batch
+                        for option_id in field.multiple_select_default
+                    ],
+                    ignore_conflicts=True,
+                )
+
+    def get_default_options_index(self, default, select_options):
+        if default is None or default == []:
+            return []
+        return [
+            index
+            for index, option in enumerate(select_options)
+            if option.get("id") in default
+            or option.get(UPSERT_OPTION_DICT_KEY) in default
+        ]
+
+    def get_options_by_index(self, field, index):
+        if not index:
+            return None
+        all_option_ids = [option.id for option in field.select_options.all()]
+        result = []
+        for i in index:
+            try:
+                result.append(all_option_ids[i])
+            except IndexError:
+                continue
+        return result
+
+    def after_create_select_options(
+        self, field, select_default, select_options, mapping
+    ):
+        if select_default:
+            mapped_default = [mapping[key] for key in select_default if key in mapping]
+            field_name = self.get_default_options_field_name()
+            if hasattr(field, field_name):
+                setattr(field, field_name, mapped_default)
+                field.save(update_fields=[field_name])
+        return field
+
+    def get_validated_default_value(
+        self, from_field, default_index, has_new_default_value, select_default_value
+    ):
+        default_value = self.get_options_by_index(from_field, default_index)
+        if not select_default_value:
+            return []
+        if len(select_default_value) == len(default_value):
+            return default_value
+        else:
+            missing_options = set(select_default_value) - set(default_value)
+            if has_new_default_value and missing_options:
+                raise SelectOptionDoesNotBelongToField(
+                    ", ".join(map(str, missing_options)),
+                    field_id=from_field.id,
+                )
+            else:
+                return default_value
+
+    def get_instance_default_value(self, instance, default_value):
+        """
+        Checks if the provided default value is a valid option and returns it.
+        If the default value is not a valid option, it returns None.
+        """
+
+        default_value = default_value or instance.multiple_select_default
+        if (
+            default_value == NOT_PROVIDED
+            or default_value == []
+            or default_value is None
+        ):
+            return []
+        existing_options = instance.select_options.all()
+        return [option.id for option in existing_options if option.id in default_value]
 
     def to_baserow_formula_type(self, field) -> BaserowFormulaType:
         return BaserowFormulaMultipleSelectType(nullable=True)
@@ -4338,10 +4845,22 @@ class MultipleSelectFieldType(
     def get_serializer_field(self, instance, **kwargs):
         required = kwargs.pop("required", False)
         source = kwargs.pop("source", None)
+
+        if required is False:
+            default = self.get_instance_default_value(
+                instance, kwargs.get("multiple_select_default", None)
+            )
+            if default:
+                kwargs["default"] = default
+
         field_serializer = IntegerOrStringField(
             **{
                 "required": required,
                 "allow_null": not required,
+                "help_text": (
+                    f"Accepts multiple option ids as an array of integer values"
+                    f" {self.get_select_options_help_text(instance)}."
+                ),
                 **kwargs,
             },
         )
@@ -4538,7 +5057,7 @@ class MultipleSelectFieldType(
         if not select_options:
             return None
 
-        return sample(select_options, randint(0, len(select_options)))  # nosec
+        return sample(select_options, randint(1, len(select_options)))  # nosec
 
     def get_export_value(self, value, field_object, rich_value=False):
         if value is None:
@@ -4590,6 +5109,10 @@ class MultipleSelectFieldType(
             "db_table": instance.through_table_name,
             "db_constraint": False,
         }
+
+        default = self.get_instance_default_value(instance, None)
+        if default is not None:
+            shared_kwargs["default"] = default
 
         MultipleSelectManyToManyField(
             to=select_option_model, related_name=related_name, **shared_kwargs
@@ -4704,6 +5227,12 @@ class MultipleSelectFieldType(
 
         return OptionallyAnnotatedOrderBy(annotation=annotation, order=order)
 
+    def get_group_by_aggregated_order(self, related_field):
+        # The multiple select field must be ordered by the id of the entry in the
+        # through table because it respects the insertion order. It respects the
+        # `MultipleSelectManyToManyDescriptor::related_manager_cls::_apply_rel_ordering`
+        return ("id",) + super().get_group_by_aggregated_order(related_field)
+
     def before_field_options_update(
         self, field, to_create=None, to_update=None, to_delete=None
     ):
@@ -4752,26 +5281,21 @@ class MultipleSelectFieldType(
         }
 
     def are_row_values_equal(self, value1: any, value2: any) -> bool:
-        return set(value1) == set(value2)
+        return set(value1 or []) == set(value2 or [])
 
     def get_formula_reference_to_model_field(
         self, model_field, db_column, already_in_subquery
     ):
+        agg_expr = JSONBAgg(
+            get_select_option_extractor(db_column, model_field),
+            filter=Q(**{f"{db_column}__isnull": False}),
+            ordering=(f"{db_column}__order", f"{db_column}__id"),
+        )
         if already_in_subquery:
-            return Coalesce(
-                JSONBAgg(
-                    get_select_option_extractor(db_column, model_field),
-                    filter=Q(**{f"{db_column}__isnull": False}),
-                ),
-                Value([], output_field=JSONField()),
-            )
+            return Coalesce(agg_expr, Value([], output_field=JSONField()))
         else:
             return Coalesce(
-                wrap_in_subquery(
-                    JSONBAgg(get_select_option_extractor(db_column, model_field)),
-                    db_column,
-                    model_field.model,
-                ),
+                wrap_in_subquery(agg_expr, db_column, model_field.model),
                 Value([], output_field=JSONField()),
             )
 
@@ -4840,6 +5364,7 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
         "formula_type",
     ]
     allowed_fields = BASEROW_FORMULA_TYPE_ALLOWED_FIELDS + CORE_FORMULA_FIELDS
+    serializer_extra_args = ["limit_linked_items"]
     request_serializer_field_names = (
         BASEROW_FORMULA_TYPE_REQUEST_SERIALIZER_FIELD_NAMES + CORE_FORMULA_FIELDS
     )
@@ -4861,6 +5386,13 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
             **self.request_serializer_field_overrides,
             **get_baserow_formula_type_serializer_field_overrides(),
         }
+
+    def empty_query(self, field_name, model_field, field) -> Q:
+        (
+            field_instance,
+            field_type,
+        ) = self.get_field_instance_and_type_from_formula_field(field)
+        return field_type.empty_query(field_name, model_field, field_instance)
 
     @staticmethod
     def _stack_error_mapper(e):
@@ -4918,19 +5450,38 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
         formula_type = self.to_baserow_formula_type(formula_field_instance)
         return formula_type.get_baserow_field_instance_and_type()
 
+    def _filter_serializer_field_kwargs(
+        self, field_type: FieldType, **kwargs
+    ) -> Dict[str, Any]:
+        """
+        Filters the serializer kwargs to only include those that are relevant for
+        the formula field type.
+        """
+
+        kwargs_to_remove = set(self.serializer_extra_args) - set(
+            getattr(field_type, "serializer_extra_args", [])
+        )
+
+        return {
+            key: value for key, value in kwargs.items() if key not in kwargs_to_remove
+        }
+
     def get_serializer_field(self, instance: FormulaField, **kwargs):
         (
             field_instance,
             field_type,
         ) = self.get_field_instance_and_type_from_formula_field(instance)
-        return field_type.get_serializer_field(field_instance, **kwargs)
+
+        field_kwargs = self._filter_serializer_field_kwargs(field_type, **kwargs)
+        return field_type.get_serializer_field(field_instance, **field_kwargs)
 
     def get_response_serializer_field(self, instance, **kwargs):
         (
             field_instance,
             field_type,
         ) = self.get_field_instance_and_type_from_formula_field(instance)
-        return field_type.get_response_serializer_field(field_instance, **kwargs)
+        field_kwargs = self._filter_serializer_field_kwargs(field_type, **kwargs)
+        return field_type.get_response_serializer_field(field_instance, **field_kwargs)
 
     def get_model_field(self, instance: FormulaField, **kwargs):
         # When typed_table is False we are constructing a table model without
@@ -4965,6 +5516,7 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
             blank=True,
             expression=expression,
             expression_field=expression_field_type,
+            db_index=instance.db_index,
             **kwargs,
         )
 
@@ -5145,7 +5697,7 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
             )
         )
         for dependant_fields_group in all_dependent_fields_grouped_by_depth:
-            for table_id, dependant_field in dependant_fields_group:
+            for table_id, dependant_field, _ in dependant_fields_group:
                 if not isinstance(dependant_field, FormulaField):
                     # LinkRowFields might depends on FormulaFields, but we can't update
                     # them here because this is only valid for FormulaFields.
@@ -5173,6 +5725,7 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
         update_collector: FieldUpdateCollector,
         field_cache: "FieldCache",
         via_path_to_starting_table: Optional[List[LinkRowField]],
+        dependency_context: DependencyContext,
     ):
         self._update_field_values(
             field, update_collector, field_cache, via_path_to_starting_table
@@ -5184,6 +5737,7 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
             update_collector,
             field_cache,
             via_path_to_starting_table,
+            dependency_context,
         )
 
     def _update_field_values(
@@ -5351,7 +5905,10 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
         # TODO: To improve performance, group formula fields at the same level and
         # in the same table and apply updates in one go.
         if apply_updates:
-            update_collector.apply_updates_and_get_updated_fields(field_cache)
+            update_collector.apply_updates_and_get_updated_fields(
+                field_cache,
+                skip_search_updates=True,  # will be updated at the end of the import
+            )
 
     def check_can_order_by(self, field, order_type):
         # The formula types are not compatible with the order type. Therefore,
@@ -5377,6 +5934,12 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
         return self.to_baserow_formula_type(field.specific).get_value_for_filter(
             row, field
         )
+
+    def should_update_search_data(
+        self, old_field: LinkRowField, new_field_attrs: Dict[str, Any]
+    ) -> bool:
+        new_formula = new_field_attrs.get("formula", old_field.formula)
+        return old_field.formula != new_formula
 
     def should_backup_field_data_for_same_type_update(
         self, old_field: FormulaField, new_field_attrs: Dict[str, Any]
@@ -5432,6 +5995,9 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
             field_type,
         ) = self.get_field_instance_and_type_from_formula_field(field)
         return field_type.parse_filter_value(field_instance, model_field, value)
+
+    def can_have_db_index(self, field: Field) -> bool:
+        return self.to_baserow_formula_type(field.specific).can_have_db_index
 
 
 class CountFieldType(FormulaFieldType):
@@ -5810,6 +6376,24 @@ class RollupFieldType(FormulaFieldType):
     ) -> QuerySet[Field]:
         return queryset.select_related("through_field", "target_field")
 
+    def should_update_search_data(
+        self, old_field: LinkRowField, new_field_attrs: Dict[str, Any]
+    ) -> bool:
+        new_through_field_id = new_field_attrs.get(
+            "through_field_id", old_field.through_field_id
+        )
+        new_target_field_id = new_field_attrs.get(
+            "target_field_id", old_field.target_field_id
+        )
+        new_rollup_function = new_field_attrs.get(
+            "rollup_function", old_field.rollup_function
+        )
+        return (
+            old_field.through_field_id != new_through_field_id
+            or old_field.target_field_id != new_target_field_id
+            or old_field.rollup_function != new_rollup_function
+        )
+
 
 class LookupFieldType(FormulaFieldType):
     type = "lookup"
@@ -6113,6 +6697,20 @@ class LookupFieldType(FormulaFieldType):
     ) -> QuerySet[Field]:
         return queryset.select_related("through_field", "target_field")
 
+    def should_update_search_data(
+        self, old_field: LinkRowField, new_field_attrs: Dict[str, Any]
+    ) -> bool:
+        new_through_field_id = new_field_attrs.get(
+            "through_field_id", old_field.through_field_id
+        )
+        new_target_field_id = new_field_attrs.get(
+            "target_field_id", old_field.target_field_id
+        )
+        return (
+            old_field.through_field_id != new_through_field_id
+            or old_field.target_field_id != new_target_field_id
+        )
+
 
 class MultipleCollaboratorsFieldType(
     CollationSortMixin,
@@ -6172,7 +6770,7 @@ class MultipleCollaboratorsFieldType(
         self, row: "GeneratedTableModel", field_name: str
     ) -> List[int]:
         related_objects = getattr(row, field_name)
-        return [{"id": related_object.id} for related_object in related_objects.all()]
+        return [related_object.id for related_object in related_objects.all()]
 
     def get_response_serializer_field(self, instance, **kwargs):
         required = kwargs.get("required", False)
@@ -6196,7 +6794,7 @@ class MultipleCollaboratorsFieldType(
                 set,
                 tuple,
             ),
-        ) or not all([isinstance(v, dict) for v in value]):
+        ) or not all([isinstance(v, (dict, int)) for v in value]):
             raise ValidationError(
                 f"The value for field {instance.id} is not a valid list of dictionaries",
                 code="invalid",
@@ -6208,7 +6806,7 @@ class MultipleCollaboratorsFieldType(
         if len(value) == 0:
             return []
 
-        user_ids = [v["id"] for v in value]
+        user_ids = [v["id"] if isinstance(v, dict) else v for v in value]
         workspace = instance.table.database.workspace
         workspace_users_count = WorkspaceUser.objects.filter(
             user_id__in=user_ids, workspace_id=workspace.id
@@ -6226,7 +6824,7 @@ class MultipleCollaboratorsFieldType(
         rows_by_value = defaultdict(list)
         all_user_ids = set()
         for row_index, values in values_by_row.items():
-            user_ids = [v["id"] for v in values]
+            user_ids = [v["id"] if isinstance(v, dict) else v for v in values]
             for user_id in user_ids:
                 rows_by_value[user_id].append(row_index)
             all_user_ids = all_user_ids.union(user_ids)
@@ -6309,7 +6907,9 @@ class MultipleCollaboratorsFieldType(
         }
 
     def are_row_values_equal(self, value1: any, value2: any) -> bool:
-        return {v["id"] for v in value1} == {v["id"] for v in value2}
+        v1 = set([v["id"] if isinstance(v, dict) else v for v in value1])
+        v2 = set([v["id"] if isinstance(v, dict) else v for v in value2])
+        return v1 == v2
 
     def get_model_field(self, instance, **kwargs):
         return None
@@ -6449,7 +7049,7 @@ class MultipleCollaboratorsFieldType(
         if not collaborators:
             return None
 
-        return sample(collaborators, randint(0, len(collaborators)))  # nosec
+        return sample(collaborators, randint(1, len(collaborators)))  # nosec
 
     def random_to_input_value(self, field, value):
         return [{"id": user_id} for user_id in value]
@@ -6484,6 +7084,12 @@ class MultipleCollaboratorsFieldType(
             order = order.asc(nulls_first=True)
 
         return OptionallyAnnotatedOrderBy(annotation=annotation, order=order)
+
+    def get_group_by_aggregated_order(self, related_field):
+        # The multiple select field must be ordered by the id of the entry in the
+        # through table because it respects the insertion order. It respects the
+        # `MultipleSelectManyToManyDescriptor::related_manager_cls::_apply_rel_ordering`
+        return ("id",) + super().get_group_by_aggregated_order(related_field)
 
     def get_value_for_filter(self, row: "GeneratedTableModel", field) -> any:
         related_objects = getattr(row, field.db_column)
@@ -6541,6 +7147,7 @@ class UUIDFieldType(ReadOnlyFieldType):
     model_class = UUIDField
     can_be_in_form_view = False
     keep_data_on_duplication = True
+    _can_have_db_index = True
 
     def get_serializer_field(self, instance, **kwargs):
         return serializers.UUIDField(required=False, **kwargs)
@@ -6552,6 +7159,7 @@ class UUIDFieldType(ReadOnlyFieldType):
         return models.UUIDField(
             default=uuid.uuid4,
             null=True,
+            db_index=instance.db_index,
             **kwargs,
         )
 
@@ -6645,6 +7253,7 @@ class AutonumberFieldType(ReadOnlyFieldType):
             help_text="The id of the view to use for the initial ordering.",
         )
     }
+    _can_have_db_index = True
 
     def get_serializer_field(self, instance, **kwargs):
         return serializers.IntegerField(required=False, **kwargs)
@@ -6655,7 +7264,7 @@ class AutonumberFieldType(ReadOnlyFieldType):
         )
 
     def get_model_field(self, instance, **kwargs):
-        return IntegerFieldWithSequence(null=True, **kwargs)
+        return IntegerFieldWithSequence(null=True, db_index=instance.db_index, **kwargs)
 
     def after_rows_imported(
         self,
@@ -6855,6 +7464,8 @@ class PasswordFieldType(FieldType):
     _can_order_by_types = []
     _can_be_primary_field = False
     can_get_unique_values = False
+    allowed_fields = ["allow_endpoint_authentication"]
+    serializer_field_names = ["allow_endpoint_authentication"]
 
     def get_serializer_field(self, instance, **kwargs):
         # If a string value is provided, the password will be set. If `None` is

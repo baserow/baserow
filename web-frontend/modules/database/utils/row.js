@@ -10,15 +10,15 @@ import { clone } from '@baserow/modules/core/utils/object'
 export function prepareRowForRequest(row, fields, registry) {
   return fields.reduce((preparedRow, field) => {
     const name = `field_${field.id}`
-    const fieldType = registry.get('field', field._.type.type)
+    const fieldType = registry.get('field', field.type)
 
-    if (fieldType.isReadOnly) {
+    if (!fieldType.canWriteFieldValues(field)) {
       return preparedRow
     }
 
     preparedRow[name] = Object.prototype.hasOwnProperty.call(row, name)
       ? (preparedRow[name] = fieldType.prepareValueForUpdate(field, row[name]))
-      : fieldType.getEmptyValue(field)
+      : fieldType.getDefaultValue(field)
 
     return preparedRow
   }, {})
@@ -55,7 +55,7 @@ export function prepareNewOldAndUpdateRequestValues(
     id: row.id,
     [`field_${field.id}`]: oldValue,
   }
-  const updateRequestValues = {}
+  const updateRequestValues = { id: row.id }
 
   // Loop over all fields except the one that we're going to update, to figure out
   // if the `onRowChange` return value of the field has changed. If so, we want to
@@ -98,13 +98,34 @@ export function extractRowReadOnlyValues(row, allFields, registry) {
     const fieldType = registry.get('field', field.type)
     const fieldKey = `field_${field.id}`
     if (
-      (fieldType.getIsReadOnly() || field.read_only) &&
+      fieldType.isReadOnlyField(field) &&
       Object.prototype.hasOwnProperty.call(row, fieldKey)
     ) {
       readOnlyValues[fieldKey] = row[fieldKey]
     }
   })
   return readOnlyValues
+}
+
+export function extractChangedFields(
+  row,
+  allFields,
+  updatedFieldIds,
+  registry
+) {
+  const rowValues = { id: row.id }
+  allFields.forEach((field) => {
+    const fieldType = registry.get('field', field.type)
+    const fieldKey = `field_${field.id}`
+    if (
+      (fieldType.isReadOnlyField(field) &&
+        Object.prototype.hasOwnProperty.call(row, fieldKey)) ||
+      updatedFieldIds.includes(field.id)
+    ) {
+      rowValues[fieldKey] = row[fieldKey]
+    }
+  })
+  return rowValues
 }
 
 /**

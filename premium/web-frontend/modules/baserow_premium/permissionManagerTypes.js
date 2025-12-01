@@ -9,6 +9,7 @@ export class ViewOwnershipPermissionManagerType extends PermissionManagerType {
     const operationsOnAnExistingViewAllowedIfPersonalViewAndCreatedBy = [
       'database.table.view.create_filter',
       'database.table.view.create_sort',
+      'database.table.view.create_decoration',
       'database.table.view.sort.update',
       'database.table.view.sort.delete',
       'database.table.view.update_field_options',
@@ -18,6 +19,8 @@ export class ViewOwnershipPermissionManagerType extends PermissionManagerType {
       'database.table.view.filter.update',
       'database.table.view.filter.delete',
       'database.table.view.update_field_options',
+      'database.table.view.decoration.update',
+      'database.table.view.decoration.delete',
     ]
     const { store } = this.app
     const userId = store.getters['auth/getUserId']

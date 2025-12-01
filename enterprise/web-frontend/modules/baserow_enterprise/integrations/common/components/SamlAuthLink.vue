@@ -70,6 +70,13 @@ export default {
         return () => {}
       },
     },
+    afterLogin: {
+      type: Function,
+      required: false,
+      default: () => {
+        return () => {}
+      },
+    },
   },
   setup() {
     return { v$: useVuelidate({ $lazy: true }) }

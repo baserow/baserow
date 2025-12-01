@@ -13,7 +13,7 @@ from baserow.core.user_files.models import UserFile
 class FormViewWorkspaceStorageUsageItem(WorkspaceStorageUsageItemType):
     type = "form_view"
 
-    def calculate_storage_usage(self, workspace_id: int) -> UsageInMB:
+    def calculate_storage_usage_workspace(self, workspace_id: int) -> UsageInMB:
         form_views = FormView.objects.filter(
             table__database__workspace_id=workspace_id,
             table__trashed=False,

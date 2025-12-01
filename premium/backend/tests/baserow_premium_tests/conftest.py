@@ -1,6 +1,5 @@
 from collections import defaultdict
 from typing import Dict, Generator, List, Set, Union
-from unittest.mock import patch
 
 from django.contrib.auth.models import AbstractUser
 
@@ -10,20 +9,9 @@ from baserow_premium.license.license_types import PremiumLicenseType
 from baserow_premium.license.plugin import LicensePlugin
 from baserow_premium.license.registries import LicenseType, license_type_registry
 from baserow_premium.plugins import PremiumPlugin
-from fakeredis import FakeRedis, FakeServer
 
 from baserow.core.cache import local_cache
 from baserow.test_utils.pytest_conftest import *  # noqa: F403, F401
-
-
-@pytest.fixture(scope="function", autouse=True)
-def mock_periodic_field_update_handler_redis_client():
-    redis_client_fn = "baserow.contrib.database.fields.periodic_field_update_handler._get_redis_client"
-    fake_redis_server = FakeServer()
-    with patch(
-        redis_client_fn, lambda: FakeRedis(server=fake_redis_server)
-    ) as _fixture:
-        yield _fixture
 
 
 @pytest.fixture

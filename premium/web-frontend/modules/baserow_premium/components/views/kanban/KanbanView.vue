@@ -52,27 +52,42 @@
         @refresh="$emit('refresh', $event)"
         @row-context="showRowContext($event.event, $event.row)"
       ></KanbanViewStack>
-      <a
-        v-if="
-          !readOnly &&
-          !singleSelectField.immutable_properties &&
-          $hasPermission(
-            'database.table.field.update',
-            table,
-            database.workspace.id
-          )
-        "
-        ref="addOptionContextLink"
-        class="kanban-view__add-stack"
-        @click="$refs.addOptionContext.toggle($refs.addOptionContextLink)"
-      >
-        <i class="iconoir-plus"></i>
-      </a>
-      <KanbanViewCreateStackContext
-        ref="addOptionContext"
-        :fields="fields"
-        :store-prefix="storePrefix"
-      ></KanbanViewCreateStackContext>
+      <div class="kanban-view__stack-wrapper">
+        <div class="kanban-view__stack">
+          <div class="kanban-view__stack-head">
+            <Button
+              v-if="
+                !readOnly &&
+                !singleSelectField.immutable_properties &&
+                $hasPermission(
+                  'database.table.field.update',
+                  table,
+                  database.workspace.id
+                )
+              "
+              ref="addOptionContextLink"
+              tag="a"
+              type="secondary"
+              size="regular"
+              icon="iconoir-plus"
+              :full-width="true"
+              @click="
+                $refs.addOptionContext.toggle(
+                  $refs.addOptionContextLink.$el,
+                  'bottom',
+                  'right'
+                )
+              "
+              >{{ $t('kanbanView.addStack') }}</Button
+            >
+            <KanbanViewCreateStackContext
+              ref="addOptionContext"
+              :fields="fields"
+              :store-prefix="storePrefix"
+            ></KanbanViewCreateStackContext>
+          </div>
+        </div>
+      </div>
     </div>
     <RowCreateModal
       ref="rowCreateModal"
@@ -307,10 +322,13 @@ export default {
     },
     openCreateRowModal(event) {
       const defaults = {}
+      const name = `field_${this.singleSelectField.id}`
       if (event.option !== null) {
-        const name = `field_${this.singleSelectField.id}`
         defaults[name] = clone(event.option)
+      } else {
+        defaults[name] = null
       }
+
       this.$refs.rowCreateModal.show(defaults)
     },
     async createRow({ row, callback }) {
@@ -352,18 +370,23 @@ export default {
      * when editing row from a different table, when editing is complete, we need
      * to refresh the 'main' row that's 'under' the RowEdit modal.
      */
-    async refreshRow(row) {
-      try {
-        await this.$store.dispatch(
-          this.storePrefix + 'view/kanban/refreshRowFromBackend',
-          {
-            table: this.table,
-            row,
-          }
-        )
-      } catch (error) {
-        notifyIf(error, 'row')
+    refreshRow(row) {
+      if (this.refreshingRow) {
+        return
       }
+      this.refreshingRow = true
+      this.$nextTick(async () => {
+        try {
+          await this.$store.dispatch(
+            this.storePrefix + 'view/kanban/refreshRowFromBackend',
+            { table: this.table, row }
+          )
+        } catch (error) {
+          notifyIf(error, 'row')
+        } finally {
+          this.refreshingRow = false
+        }
+      })
     },
     /**
      * Populates a new row and opens the row edit modal

@@ -20,6 +20,7 @@ from baserow.core.registries import Plugin, plugin_registry
 from baserow.core.user.handler import UserHandler
 from baserow.core.user.utils import generate_session_tokens_for_user
 from baserow.core.utils import generate_hash
+from baserow.test_utils.helpers import AnyStr
 
 User = get_user_model()
 
@@ -276,6 +277,24 @@ def test_token_password_auth_disabled(api_client, data_fixture):
         "error": "ERROR_AUTH_PROVIDER_DISABLED",
         "detail": "Authentication provider is disabled.",
     }
+
+
+@pytest.mark.django_db
+def test_token_auth_2fa_required(api_client, data_fixture):
+    data_fixture.create_password_provider(enabled=True)
+    user, token = data_fixture.create_user_and_token(
+        email="test@localhost", password="test"
+    )
+    data_fixture.configure_totp(user)
+
+    response = api_client.post(
+        reverse("api:user:token_auth"),
+        {"email": "test@localhost", "password": "test"},
+        format="json",
+    )
+
+    assert response.status_code == HTTP_200_OK, response.json()
+    assert response.json() == {"two_factor_auth": "totp", "token": AnyStr()}
 
 
 @pytest.mark.django_db
@@ -771,3 +790,33 @@ def test_token_blacklist(api_client, data_fixture):
     response_json = response.json()
     assert response.status_code == HTTP_401_UNAUTHORIZED
     assert response_json["error"] == "ERROR_INVALID_REFRESH_TOKEN"
+
+
+@pytest.mark.django_db
+def test_token_auth_two_factor_token_is_not_access_token(api_client, data_fixture):
+    data_fixture.create_password_provider()
+    user = data_fixture.create_user(email="test@example.com", password="password")
+    data_fixture.configure_totp(user)
+
+    response = api_client.post(
+        reverse("api:user:token_auth"),
+        {"email": "test@example.com", "password": "password"},
+        format="json",
+    )
+
+    response_json = response.json()
+    two_fa_token = response_json["token"]
+
+    # using 2fa token as access token should not work
+    response = api_client.patch(
+        reverse("api:user:account"),
+        {
+            "first_name": "Changed name",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {two_fa_token}",
+    )
+
+    response_json = response.json()
+    assert response.status_code == HTTP_401_UNAUTHORIZED, response_json
+    assert response_json["error"] == "ERROR_INVALID_ACCESS_TOKEN"

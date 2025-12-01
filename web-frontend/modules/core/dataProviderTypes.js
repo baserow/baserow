@@ -150,21 +150,18 @@ export class DataProviderType extends Registerable {
    * This function returns an object that can be read by the data explorer to display
    * the data available from each data provider.
    *
-   * Make sure to implement `getDataContent`, `getDataSchema` and `getContextDataSchema` for every data provider
-   * if they should show data in the data explorer.
+   * Make sure to implement `getDataContent`, `getDataSchema` and `getContextDataSchema`
+   * for every data provider if they should show data in the data explorer.
    *
    * @param {Object} applicationContext the application context.
    * @returns {{identifier: string, name: string, nodes: []}}
    */
   getNodes(applicationContext) {
     const schema = this.getDataSchema(applicationContext)
-
     if (schema === null) {
       return {}
     }
-
-    const result = this._toNode(applicationContext, [this.type], schema)
-    return result
+    return this._toNode(applicationContext, [this.type], schema)
   }
 
   /**
@@ -177,7 +174,7 @@ export class DataProviderType extends Registerable {
   _toNode(applicationContext, pathParts, schema) {
     const identifier = pathParts.at(-1)
     const name = this.getPathTitle(applicationContext, pathParts)
-    const order = schema?.order || null
+    const order = schema?.order ?? null
 
     if (schema === null) {
       return {
@@ -189,17 +186,46 @@ export class DataProviderType extends Registerable {
       }
     }
 
+    if (schema.anyOf) {
+      const schemaObject = schema.anyOf.find((s) => s.type === 'object')
+
+      return {
+        name,
+        identifier,
+        order,
+        type: 'union',
+        icon: this.getIconForNode({ type: 'union' }),
+        nodes: [
+          // Always allow direct access to the entire value
+          {
+            name: `${name} (${this.app.i18n.t('common.value')})`,
+            identifier: '',
+            order: 0,
+            type: 'unknown',
+            icon: this.getIconForNode({ type: 'union' }),
+          },
+
+          // If it is an object, show the individual properties
+          ...(schemaObject && schemaObject.properties
+            ? Object.entries(schemaObject.properties).map(([key, subSchema]) =>
+                this._toNode(applicationContext, [...pathParts, key], subSchema)
+              )
+            : []),
+        ],
+      }
+    }
+
     if (schema.type === 'array') {
       return {
         name,
         identifier,
+        order,
         icon: this.getIconForNode(schema),
         type: 'array',
-        nodes: this._toNode(
-          applicationContext,
-          [...pathParts, null],
-          schema.items
-        ).nodes,
+        nodes: schema.items
+          ? this._toNode(applicationContext, [...pathParts, null], schema.items)
+              .nodes
+          : [],
       }
     }
 
@@ -209,14 +235,15 @@ export class DataProviderType extends Registerable {
         identifier,
         order,
         icon: this.getIconForNode(schema),
-        nodes: Object.entries(schema.properties).map(
-          ([identifier, subSchema]) =>
-            this._toNode(
-              applicationContext,
-              [...pathParts, identifier],
-              subSchema
+        nodes: schema.properties
+          ? Object.entries(schema.properties).map(([identifier, subSchema]) =>
+              this._toNode(
+                applicationContext,
+                [...pathParts, identifier],
+                subSchema
+              )
             )
-        ),
+          : [],
       }
     }
 
@@ -271,7 +298,8 @@ export class DataProviderType extends Registerable {
     }
 
     if (schemaNode.type === 'object') {
-      return this.getSchemaNode(schemaNode.properties[first], rest)
+      const properties = schemaNode.properties || {}
+      return this.getSchemaNode(properties[first], rest)
     }
   }
 

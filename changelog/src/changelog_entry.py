@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from typing import Dict, List, Optional, Union
 
 GITLAB_URL = os.environ.get("GITLAB_URL", "https://gitlab.com/baserow/baserow")
+GITHUB_URL = os.environ.get("GITHUB_URL", "https://github.com/baserow/baserow")
 
 
 class ChangelogEntry(abc.ABC):
@@ -17,6 +18,7 @@ class ChangelogEntry(abc.ABC):
         self,
         domain_type_name: str,
         message: str,
+        issue_origin: str,
         issue_number: Optional[int] = None,
         bullet_points: List[str] = None,
     ) -> Dict[str, any]:
@@ -26,18 +28,24 @@ class ChangelogEntry(abc.ABC):
         return {
             "type": self.type,
             "message": message,
-            "domain": domain_type_name,
+            "issue_origin": issue_origin,
             "issue_number": issue_number,
+            "domain": domain_type_name,
             "bullet_points": bullet_points,
             "created_at": datetime.now(tz=timezone.utc).strftime("%Y-%m-%d"),
         }
 
     @staticmethod
-    def get_markdown_string(message: str, issue_number: Union[int, None] = None) -> str:
+    def get_markdown_string(
+        message: str,
+        issue_number: Union[int, None] = None,
+        issue_origin: Optional[str] = "gitlab",
+    ) -> str:
         string = f"* {message}"
 
         if issue_number is not None:
-            string += f" [#{issue_number}]({GITLAB_URL}/-/issues/{issue_number})"
+            url_prefix = GITLAB_URL if issue_origin == "gitlab" else GITHUB_URL
+            string += f" [#{issue_number}]({url_prefix}/-/issues/{issue_number})"
 
         return string
 

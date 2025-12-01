@@ -18,6 +18,10 @@ from baserow.config.celery import app
 from baserow.core.import_export.handler import ImportExportHandler
 from baserow.core.models import ImportExportResource
 
+DELETE_MARKED_IMPORT_EXPORT_RESOURCES_TIME_LIMIT = (
+    60 * settings.BASEROW_IMPORT_EXPORT_RESOURCE_CLEANUP_INTERVAL_MINUTES
+)
+
 
 @app.task(bind=True, queue="export")
 def mark_import_export_resources_for_deletion(
@@ -39,7 +43,14 @@ def mark_import_export_resources_for_deletion(
     ).update(marked_for_deletion=True)
 
 
-@app.task(base=Singleton, bind=True, queue="export")
+@app.task(
+    base=Singleton,
+    bind=True,
+    queue="export",
+    soft_time_limit=DELETE_MARKED_IMPORT_EXPORT_RESOURCES_TIME_LIMIT,
+    time_limit=DELETE_MARKED_IMPORT_EXPORT_RESOURCES_TIME_LIMIT,
+    lock_expiry=DELETE_MARKED_IMPORT_EXPORT_RESOURCES_TIME_LIMIT,
+)
 def delete_marked_import_export_resources(self):
     """
     Deletes all ImportExportResources that are marked for deletion.

@@ -37,6 +37,7 @@ from baserow.api.utils import (
 from baserow.core.storage import ExportZipFile
 
 from .exceptions import InstanceTypeAlreadyRegistered, InstanceTypeDoesNotExist
+from .formula import BaserowFormulaObject
 
 if typing.TYPE_CHECKING:
     from django.contrib.contenttypes.models import ContentType
@@ -50,6 +51,10 @@ class Instance(object):
 
     type: str
     """A unique string that identifies the instance."""
+
+    compat_type: str = ""
+    """ If this instance has been renamed, and we want to support
+        compatibility of the original `type`, implement it with `compat_type`. """
 
     def __init__(self):
         if not self.type:
@@ -143,10 +148,17 @@ class CustomFieldsInstanceMixin:
     This property is useful if you want to add some custom behaviour for example.
     """
 
-    serializer_extra_kwargs = None
+    serializer_field_extra_kwargs = None
     """
     The extra kwargs that must be added to the serializer fields. This property is
-    useful if you want to add some custom `write_only` field for example.
+    useful if you want to add some custom `write_only` attribute to a field for example.
+    """
+
+    serializer_extra_args = []
+    """
+    A list of extra args that can be passed to the serializer. This is useful if
+    you want to add some custom behaviour, like limiting the number of items returned by
+    a link row field, for example.
     """
 
     def __init__(self):
@@ -195,7 +207,9 @@ class CustomFieldsInstanceMixin:
         #    as serializers are callable) which lazy loads a serializer mixin, or
         # 2) Serializers can provide a serializer mixin directly.
         dynamic_serializer_mixins = []
-        for serializer_mixin in self.get_serializer_mixins(request_serializer):
+        for serializer_mixin in self.get_serializer_mixins(
+            request_serializer, extra_params, **kwargs
+        ):
             if isinstance(serializer_mixin, FunctionType):
                 dynamic_serializer_mixins.append(serializer_mixin())
             else:
@@ -206,7 +220,7 @@ class CustomFieldsInstanceMixin:
             field_names,
             field_overrides=field_overrides,
             base_mixins=dynamic_serializer_mixins,
-            meta_extra_kwargs=self.serializer_extra_kwargs,
+            meta_extra_kwargs=self.serializer_field_extra_kwargs,
             meta_ref_name=meta_ref_name,
             base_class=base_class,
             *args,
@@ -255,7 +269,9 @@ class CustomFieldsInstanceMixin:
 
         return serializer_class(model_instance_or_instances, context=context, **kwargs)
 
-    def get_serializer_mixins(self, request_serializer: bool) -> List:
+    def get_serializer_mixins(
+        self, request_serializer: bool, extra_params: Dict, **kwargs
+    ) -> List:
         if request_serializer and self.request_serializer_mixins is not None:
             return self.request_serializer_mixins
         else:
@@ -307,7 +323,7 @@ class CustomFieldsInstanceMixin:
 
 class PublicCustomFieldsInstanceMixin(CustomFieldsInstanceMixin):
     """
-    A mixin for instance with custom fields but some field should remains private
+    A mixin for instance with custom fields but some field should remain private
     when used in some APIs.
     """
 
@@ -335,6 +351,31 @@ class PublicCustomFieldsInstanceMixin(CustomFieldsInstanceMixin):
     `public_serializer_field_overrides` property.
     """
 
+    public_serializer_mixins = None
+    """
+    The serializer mixins that must be added to the public serializer. This property is
+    useful if you want to add some custom SerializerMethodField for example.
+    """
+
+    public_request_serializer_mixins = None
+    """
+    The serializer mixins that must be added to the public serializer for requests.
+    This property is useful if you want to add some custom behaviour for example.
+    """
+
+    def get_serializer_mixins(
+        self, request_serializer: bool, extra_params=None, **kwargs
+    ) -> List:
+        public = extra_params.get("public", False)
+
+        if public:
+            if request_serializer and self.public_request_serializer_mixins is not None:
+                return self.public_request_serializer_mixins
+            if self.public_serializer_mixins is not None:
+                return self.public_serializer_mixins
+
+        return super().get_serializer_mixins(request_serializer, extra_params, **kwargs)
+
     def get_field_overrides(
         self, request_serializer: bool, extra_params=None, **kwargs
     ) -> Dict:
@@ -342,7 +383,7 @@ class PublicCustomFieldsInstanceMixin(CustomFieldsInstanceMixin):
 
         if public:
             if (
-                request_serializer is not None
+                request_serializer
                 and self.public_request_serializer_field_overrides is not None
             ):
                 return self.public_request_serializer_field_overrides
@@ -358,7 +399,7 @@ class PublicCustomFieldsInstanceMixin(CustomFieldsInstanceMixin):
 
         if public:
             if (
-                request_serializer is not None
+                request_serializer
                 and self.public_request_serializer_field_names is not None
             ):
                 return self.public_request_serializer_field_names
@@ -721,12 +762,28 @@ class Registry(Generic[InstanceSubClass]):
         :rtype: InstanceModelInstance
         """
 
+        # If the `type_name` isn't in the registry, we may raise DoesNotExist.
         if type_name not in self.registry:
-            raise self.does_not_exist_exception_class(
-                type_name, f"The {self.name} type {type_name} does not exist."
-            )
+            # But first, we'll test to see if it matches an Instance's
+            # `compat_name`. If it does, we'll use that Instance's `type`.
+            type_name_via_compat = self.get_by_type_name_by_compat(type_name)
+            if type_name_via_compat:
+                type_name = type_name_via_compat
+            else:
+                raise self.does_not_exist_exception_class(
+                    type_name, f"The {self.name} type {type_name} does not exist."
+                )
 
         return self.registry[type_name]
+
+    def get_by_type_name_by_compat(self, compat_name: str) -> Optional[str]:
+        """
+        Returns a registered instance's `type` by using the compatibility name.
+        """
+
+        for instance in self.get_all():
+            if instance.compat_type == compat_name:
+                return instance.type
 
     def get_by_type(self, instance_type: Type[InstanceSubClass]) -> InstanceSubClass:
         return self.get(instance_type.type)
@@ -884,6 +941,21 @@ class ModelRegistryMixin(Generic[DjangoModel, InstanceSubClass]):
 
         return all_matching_non_abstract_types
 
+    def get_model_names(self) -> list[tuple[str, str]]:
+        """
+        Returns a list of app_name, model_name pairs of models
+        available in the registry.
+        """
+
+        all_model_names = []
+        for value in self.registry.values():
+            model_name = (
+                value.model_class._meta.app_label,
+                value.model_class._meta.model_name,
+            )
+            all_model_names.append(model_name)
+        return all_model_names
+
 
 class CustomFieldsRegistryMixin(Generic[DjangoModel]):
     def get_serializer(
@@ -980,7 +1052,9 @@ class InstanceWithFormulaMixin:
         """
 
         for formula_field in self.simple_formula_fields:
-            formula = getattr(instance, formula_field)
+            formula: BaserowFormulaObject = BaserowFormulaObject.to_formula(
+                getattr(instance, formula_field)
+            )
             new_formula = yield formula
             if new_formula is not None:
                 setattr(instance, formula_field, new_formula)

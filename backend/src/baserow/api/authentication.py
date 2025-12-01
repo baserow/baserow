@@ -65,10 +65,9 @@ class JSONWebTokenAuthentication(JWTAuthentication):
             )
 
         set_user_session_data_from_request(user, request)
-        setup_user_in_baggage_and_spans(user, request)
-        setup_user_in_sentry(user)
-
-        return user, token
+        with setup_user_in_baggage_and_spans(user, request):
+            setup_user_in_sentry(user)
+            return user, token
 
 
 class JSONWebTokenAuthenticationExtension(OpenApiAuthenticationExtension):

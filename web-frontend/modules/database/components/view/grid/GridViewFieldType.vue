@@ -22,8 +22,17 @@
         <i :class="`grid-view__description-icon ${field._.type.iconClass}`"></i>
         <i
           v-if="synced"
-          v-tooltip="$t('gridViewFieldType.dataSyncField')"
-          class="grid-view__description-icon-synced iconoir-data-transfer-down"
+          v-tooltip="
+            table.data_sync.two_way_sync && canWriteFieldValues
+              ? $t('gridViewFieldType.dataSyncFieldTwoWaySync')
+              : $t('gridViewFieldType.dataSyncField')
+          "
+          class="grid-view__description-extra-icon iconoir-data-transfer-down"
+        ></i>
+        <i
+          v-else-if="!canWriteFieldValues"
+          v-tooltip="$t('gridViewFieldType.noWriteValues')"
+          class="grid-view__description-extra-icon iconoir-lock"
         ></i>
       </div>
 
@@ -39,6 +48,17 @@
         <i v-tooltip="field.error" class="iconoir-warning-triangle"></i>
       </div>
       <span class="grid-view__description-options">
+        <component
+          :is="component"
+          v-for="(component, i) in getIconsBefore()"
+          :key="i"
+          :workspace="database.workspace"
+          :database="database"
+          :table="table"
+          :view="view"
+          :field="field"
+        />
+
         <HelpIcon
           v-if="field.description"
           :tooltip="field.description || ''"
@@ -48,6 +68,7 @@
             'tooltip__content--expandable-plain-text',
           ]"
           :icon="'info-empty'"
+          :tooltip-duration="0.2"
         />
 
         <a
@@ -387,6 +408,11 @@ export default {
         return p.field_id === this.field.id
       })
     },
+    canWriteFieldValues() {
+      return this.$registry
+        .get('field', this.field.type)
+        .canWriteFieldValues(this.field)
+    },
   },
   beforeCreate() {
     this.$options.computed = {
@@ -499,6 +525,22 @@ export default {
     },
     getCanSortInView(field) {
       return this.$registry.get('field', field.type).getCanSortInView(field)
+    },
+
+    getIconsBefore() {
+      const opts = Object.values(this.$registry.getAll('plugin'))
+        .reduce((components, plugin) => {
+          components = components.concat(
+            plugin.getGridViewFieldTypeIconsBefore(
+              this.database.workspace,
+              this.view,
+              this.field
+            )
+          )
+          return components
+        }, [])
+        .filter((component) => component !== null)
+      return opts
     },
   },
 }

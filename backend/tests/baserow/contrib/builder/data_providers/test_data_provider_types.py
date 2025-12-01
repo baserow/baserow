@@ -1,3 +1,4 @@
+import json
 from collections import defaultdict
 from unittest.mock import MagicMock, Mock, patch
 
@@ -23,21 +24,25 @@ from baserow.contrib.builder.data_providers.data_provider_types import (
     PreviousActionProviderType,
     UserDataProviderType,
 )
-from baserow.contrib.builder.data_providers.exceptions import (
-    DataProviderChunkInvalidException,
-    FormDataProviderChunkInvalidException,
-)
 from baserow.contrib.builder.data_sources.builder_dispatch_context import (
     BuilderDispatchContext,
 )
 from baserow.contrib.builder.data_sources.exceptions import DataSourceDoesNotExist
+from baserow.contrib.builder.elements.exceptions import ElementImproperlyConfigured
 from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.formula_importer import import_formula
 from baserow.contrib.builder.workflow_actions.models import EventTypes
 from baserow.contrib.database.fields.handler import FieldHandler
-from baserow.core.formula.exceptions import InvalidBaserowFormula
+from baserow.core.formula.exceptions import (
+    InvalidFormulaContext,
+    InvalidFormulaContextContent,
+    InvalidRuntimeFormula,
+)
 from baserow.core.formula.registries import DataProviderType
-from baserow.core.services.exceptions import ServiceImproperlyConfigured
+from baserow.core.formula.types import BaserowFormulaObject
+from baserow.core.services.exceptions import (
+    ServiceImproperlyConfiguredDispatchException,
+)
 from baserow.core.services.types import DispatchResult
 from baserow.core.user_sources.constants import DEFAULT_USER_ROLE_PREFIX
 from baserow.core.user_sources.user_source_user import UserSourceUser
@@ -70,7 +75,7 @@ def test_page_parameter_data_provider_get_data_chunk():
     page_parameter_provider = PageParameterDataProviderType()
 
     fake_request = MagicMock()
-    fake_request.data = {"page_parameter": {"id": 42}}
+    fake_request.data = {"metadata": json.dumps({"page_parameter": {"id": 42}})}
 
     dispatch_context = BuilderDispatchContext(fake_request, None)
 
@@ -89,7 +94,9 @@ def test_form_data_provider_get_data_chunk(mock_validate):
     form_data_provider = FormDataProviderType()
 
     fake_request = MagicMock()
-    fake_request.data = {"form_data": {"1": "hello", "2": ["a", "b"]}}
+    fake_request.data = {
+        "metadata": json.dumps({"form_data": {"1": "hello", "2": ["a", "b"]}})
+    }
 
     dispatch_context = BuilderDispatchContext(fake_request, None)
     mock_validate.side_effect = lambda x, y, z: y
@@ -111,7 +118,9 @@ def test_form_data_provider_get_data_chunk(mock_validate):
 @patch("baserow.contrib.builder.data_providers.data_provider_types.ElementHandler")
 def test_form_data_provider_validate_data_chunk(mock_handler):
     mock_element = Mock()
+    mock_element.id = 42
     mock_element_type = Mock()
+    mock_element_type.type = "elt_type"
 
     mock_element.get_type.return_value = mock_element_type
     mock_handler().get_element.return_value = mock_element
@@ -122,13 +131,25 @@ def test_form_data_provider_validate_data_chunk(mock_handler):
     assert form_data_provider.validate_data_chunk("1", "horse", {}) == "something"
 
     def raise_exc(x, y, z):
-        raise FormDataProviderChunkInvalidException()
+        raise ValueError("Error")
 
     mock_element_type.is_valid.side_effect = raise_exc
-    with pytest.raises(FormDataProviderChunkInvalidException) as exc:
+    with pytest.raises(InvalidFormulaContextContent) as exc:
         assert form_data_provider.validate_data_chunk("1", 42, {})
 
-    assert exc.value.args[0].startswith("Provided value for form element with ID")
+    assert exc.value.args[0] == "Error"
+
+    def raise_element_exc(x, y, z):
+        raise ElementImproperlyConfigured("Error")
+
+    mock_element_type.is_valid.side_effect = raise_element_exc
+    with pytest.raises(InvalidRuntimeFormula) as exc:
+        assert form_data_provider.validate_data_chunk("1", 42, {})
+
+    assert (
+        exc.value.args[0]
+        == "The form element with ID 42 of type elt_type is misconfigured: Error"
+    )
 
 
 @pytest.mark.django_db
@@ -178,6 +199,67 @@ def test_data_source_data_provider_get_data_chunk(data_fixture):
 
 
 @pytest.mark.django_db
+def test_data_source_data_provider_get_data_chunk_with_list_data_source(data_fixture):
+    user = data_fixture.create_user()
+    table, fields, rows = data_fixture.build_table(
+        user=user,
+        columns=[
+            ("Name", "text"),
+            ("My Color", "text"),
+        ],
+        rows=[
+            ["BMW", "Blue"],
+            ["Audi", "Orange"],
+            ["Volkswagen", "White"],
+            ["Volkswagen", "Green"],
+        ],
+    )
+    builder = data_fixture.create_builder_application(user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        user=user, application=builder
+    )
+    page = data_fixture.create_builder_page(user=user, builder=builder)
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        user=user,
+        page=page,
+        integration=integration,
+        table=table,
+        name="Items",
+    )
+
+    data_source_provider = DataSourceDataProviderType()
+
+    dispatch_context = BuilderDispatchContext(
+        HttpRequest(), page, only_expose_public_allowed_properties=False
+    )
+
+    assert (
+        data_source_provider.get_data_chunk(
+            dispatch_context, [data_source.id, "0", fields[1].db_column]
+        )
+        == "Blue"
+    )
+
+    assert (
+        data_source_provider.get_data_chunk(
+            dispatch_context, [data_source.id, "2", fields[1].db_column]
+        )
+        == "White"
+    )
+
+    assert (
+        data_source_provider.get_data_chunk(
+            dispatch_context, [data_source.id, "0", "id"]
+        )
+        == rows[0].id
+    )
+
+    assert data_source_provider.get_data_chunk(
+        dispatch_context, [data_source.id, "*", fields[1].db_column]
+    ) == ["Blue", "Orange", "White", "Green"]
+
+
+@pytest.mark.django_db
 def test_data_source_data_provider_get_data_chunk_with_formula(data_fixture):
     user = data_fixture.create_user()
     table, fields, rows = data_fixture.build_table(
@@ -213,8 +295,12 @@ def test_data_source_data_provider_get_data_chunk_with_formula(data_fixture):
 
     fake_request = HttpRequest()
     fake_request.data = {
-        "data_source": {"page_id": page.id},
-        "page_parameter": {"id": 2},
+        "metadata": json.dumps(
+            {
+                "data_source": {"page_id": page.id},
+                "page_parameter": {"id": 2},
+            }
+        )
     }
 
     dispatch_context = BuilderDispatchContext(
@@ -290,8 +376,12 @@ def test_data_source_data_provider_get_data_chunk_with_formula_using_datasource(
 
     fake_request = HttpRequest()
     fake_request.data = {
-        "data_source": {"page_id": page.id},
-        "page_parameter": {"id": 2},
+        "metadata": json.dumps(
+            {
+                "data_source": {"page_id": page.id},
+                "page_parameter": {"id": 2},
+            }
+        )
     }
 
     dispatch_context = BuilderDispatchContext(
@@ -365,8 +455,12 @@ def test_data_source_data_provider_get_data_chunk_with_formula_using_list_dataso
 
     fake_request = HttpRequest()
     fake_request.data = {
-        "data_source": {"page_id": page.id},
-        "page_parameter": {"id": 2},
+        "metadata": json.dumps(
+            {
+                "data_source": {"page_id": page.id},
+                "page_parameter": {"id": 2},
+            }
+        )
     }
     fake_request.GET = {"count": 20}
 
@@ -433,12 +527,16 @@ def test_data_source_data_provider_get_data_chunk_with_formula_to_missing_dataso
 
     fake_request = HttpRequest()
     fake_request.data = {
-        "page_parameter": {},
+        "metadata": json.dumps(
+            {
+                "page_parameter": {},
+            }
+        )
     }
 
     dispatch_context = BuilderDispatchContext(fake_request, page)
 
-    with pytest.raises(ServiceImproperlyConfigured):
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException):
         data_source_provider.get_data_chunk(
             dispatch_context, [data_source.id, fields[1].db_column]
         )
@@ -500,18 +598,26 @@ def test_data_source_data_provider_get_data_chunk_with_formula_recursion(
 
     fake_request = HttpRequest()
     fake_request.data = {
-        "data_source": {"page_id": page.id},
-        "page_parameter": {},
+        "metadata": json.dumps(
+            {
+                "data_source": {"page_id": page.id},
+                "page_parameter": {},
+            }
+        )
     }
 
     dispatch_context = BuilderDispatchContext(
         fake_request, page, only_expose_public_allowed_properties=False
     )
 
-    with pytest.raises(ServiceImproperlyConfigured):
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException) as exc:
         data_source_provider.get_data_chunk(
             dispatch_context, [data_source.id, fields[1].db_column]
         )
+
+    assert (
+        exc.value.args[0] == 'Error in formula for "row_id": Formula recursion detected'
+    )
 
 
 @pytest.mark.django_db
@@ -649,17 +755,26 @@ def test_data_source_data_provider_get_data_chunk_with_formula_using_datasource_
 
     fake_request = HttpRequest()
     fake_request.data = {
-        "page_parameter": {},
+        "metadata": json.dumps(
+            {
+                "page_parameter": {},
+            }
+        )
     }
 
     dispatch_context = BuilderDispatchContext(
         fake_request, page, only_expose_public_allowed_properties=False
     )
 
-    with pytest.raises(ServiceImproperlyConfigured):
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException) as exc:
         data_source_provider.get_data_chunk(
             dispatch_context, [data_source.id, fields[1].db_column]
         )
+
+    assert (
+        exc.value.args[0]
+        == "You can't reference a data source after the current data source"
+    )
 
 
 @pytest.mark.django_db
@@ -676,9 +791,12 @@ def test_data_source_formula_import_only_datasource(data_fixture):
     id_mapping = defaultdict(lambda: MirrorDict())
     id_mapping["builder_data_sources"] = {data_source.id: data_source2.id}
 
-    result = import_formula(f"get('data_source.{data_source.id}.field_10')", id_mapping)
+    result = import_formula(
+        BaserowFormulaObject.create(f"get('data_source.{data_source.id}.field_10')"),
+        id_mapping,
+    )
 
-    assert result == f"get('data_source.{data_source2.id}.field_10')"
+    assert result["formula"] == f"get('data_source.{data_source2.id}.field_10')"
 
 
 @pytest.mark.django_db
@@ -699,10 +817,15 @@ def test_data_source_formula_import_get_row_datasource_and_field(data_fixture):
     id_mapping["database_fields"] = {field_1.id: field_2.id}
 
     result = import_formula(
-        f"get('data_source.{data_source.id}.field_{field_1.id}')", id_mapping
+        BaserowFormulaObject.create(
+            f"get('data_source.{data_source.id}.field_{field_1.id}')"
+        ),
+        id_mapping,
     )
 
-    assert result == f"get('data_source.{data_source2.id}.field_{field_2.id}')"
+    assert (
+        result["formula"] == f"get('data_source.{data_source2.id}.field_{field_2.id}')"
+    )
 
 
 @pytest.mark.django_db
@@ -721,10 +844,16 @@ def test_data_source_formula_import_list_row_datasource_and_field(data_fixture):
     id_mapping["database_fields"] = {field_1.id: field_2.id}
 
     result = import_formula(
-        f"get('data_source.{data_source.id}.10.field_{field_1.id}')", id_mapping
+        BaserowFormulaObject.create(
+            f"get('data_source.{data_source.id}.10.field_{field_1.id}')"
+        ),
+        id_mapping,
     )
 
-    assert result == f"get('data_source.{data_source2.id}.10.field_{field_2.id}')"
+    assert (
+        result["formula"]
+        == f"get('data_source.{data_source2.id}.10.field_{field_2.id}')"
+    )
 
 
 @pytest.mark.django_db
@@ -732,15 +861,19 @@ def test_data_source_formula_import_missing_get_row_datasource(data_fixture):
     id_mapping = defaultdict(lambda: MirrorDict())
     id_mapping["builder_data_sources"] = {}
 
-    result = import_formula(f"get('data_source.42.field_24')", id_mapping)
+    result = import_formula(
+        BaserowFormulaObject.create("get('data_source.42.field_24')"), id_mapping
+    )
 
-    assert result == f"get('data_source.42.field_24')"
+    assert result["formula"] == f"get('data_source.42.field_24')"
 
     id_mapping["builder_data_sources"] = {42: 42}
 
-    result = import_formula(f"get('data_source.42.field_24')", id_mapping)
+    result = import_formula(
+        BaserowFormulaObject.create("get('data_source.42.field_24')"), id_mapping
+    )
 
-    assert result == f"get('data_source.42.field_24')"
+    assert result["formula"] == "get('data_source.42.field_24')"
 
 
 @pytest.mark.django_db
@@ -779,7 +912,11 @@ def test_data_source_context_data_provider_get_data_chunk(data_fixture):
 
     fake_request = MagicMock()
     fake_request.data = {
-        "page_parameter": {},
+        "metadata": json.dumps(
+            {
+                "page_parameter": {},
+            }
+        )
     }
     dispatch_context = BuilderDispatchContext(
         fake_request, page, only_expose_public_allowed_properties=False
@@ -864,12 +1001,12 @@ def test_table_element_formula_migration_with_current_row_provider(data_fixture)
     id_mapping["database_fields"] = {fields[0].id: fields2[0].id}
 
     result = import_formula(
-        f"get('current_record.field_{fields[0].id}')",
+        BaserowFormulaObject.create(f"get('current_record.field_{fields[0].id}')"),
         id_mapping,
         data_source_id=data_source2.id,
     )
 
-    assert result == f"get('current_record.field_{fields2[0].id}')"
+    assert result["formula"] == f"get('current_record.field_{fields2[0].id}')"
 
 
 @pytest.mark.django_db
@@ -899,16 +1036,28 @@ def test_previous_action_data_provider_get_data_chunk(data_fixture):
 
     fake_request = MagicMock()
     fake_request.data = {
-        "previous_action": {str(workflow_action.id): {"path": {"to": 100}}}
+        "metadata": json.dumps(
+            {"previous_action": {str(workflow_action.id): {"path": {"to": 100}}}}
+        )
     }
     dispatch_context = BuilderDispatchContext(fake_request, None)
 
-    with pytest.raises(DataProviderChunkInvalidException):
+    with pytest.raises(InvalidFormulaContext):
         previous_action_data_provider.get_data_chunk(
             dispatch_context, [str(workflow_action.id), "path", "to"]
         )
 
-    fake_request.data["previous_action"]["current_dispatch_id"] = "something"
+    fake_request.data = {
+        "metadata": json.dumps(
+            {
+                "previous_action": {
+                    "current_dispatch_id": "something",
+                    str(workflow_action.id): {"path": {"to": 100}},
+                }
+            }
+        )
+    }
+    dispatch_context = BuilderDispatchContext(fake_request, None)
 
     assert (
         previous_action_data_provider.get_data_chunk(
@@ -917,7 +1066,7 @@ def test_previous_action_data_provider_get_data_chunk(data_fixture):
         == 100
     )
 
-    with pytest.raises(DataProviderChunkInvalidException):
+    with pytest.raises(InvalidFormulaContext):
         previous_action_data_provider.get_data_chunk(dispatch_context, ["invalid"])
 
 
@@ -942,10 +1091,14 @@ def test_previous_action_data_provider_get_data_chunk_returns_cached_result(
 
     fake_request = MagicMock()
     fake_request.data = {
-        "previous_action": {
-            "current_dispatch_id": "abc123",
-            str(workflow_action.id): {},
-        }
+        "metadata": json.dumps(
+            {
+                "previous_action": {
+                    "current_dispatch_id": "abc123",
+                    str(workflow_action.id): {},
+                }
+            }
+        )
     }
     dispatch_context = BuilderDispatchContext(fake_request, None)
 
@@ -974,9 +1127,13 @@ def test_previous_action_data_provider_post_dispatch_caches_result():
 
     fake_request = MagicMock()
     fake_request.data = {
-        "previous_action": {
-            "current_dispatch_id": "foo-bar-123",
-        }
+        "metadata": json.dumps(
+            {
+                "previous_action": {
+                    "current_dispatch_id": "foo-bar-123",
+                }
+            }
+        )
     }
     dispatch_context = BuilderDispatchContext(fake_request, None)
 
@@ -1016,9 +1173,13 @@ def test_previous_action_data_provider_post_dispatch_with_empty_response_cache_r
 
     fake_request = MagicMock()
     fake_request.data = {
-        "previous_action": {
-            "current_dispatch_id": "foo-bar-123",
-        }
+        "metadata": json.dumps(
+            {
+                "previous_action": {
+                    "current_dispatch_id": "foo-bar-123",
+                }
+            }
+        )
     }
     dispatch_context = BuilderDispatchContext(fake_request, None)
 
@@ -1096,7 +1257,11 @@ def test_user_data_provider_get_data_chunk(data_fixture):
 
     fake_request = MagicMock()
     fake_request.data = {
-        "page_parameter": {},
+        "metadata": json.dumps(
+            {
+                "page_parameter": {},
+            }
+        )
     }
     fake_request.user_source_user = AnonymousUser()
 
@@ -1139,7 +1304,11 @@ def test_translate_default_user_role_returns_same_role(data_fixture):
 
     fake_request = MagicMock()
     fake_request.data = {
-        "page_parameter": {},
+        "metadata": json.dumps(
+            {
+                "page_parameter": {},
+            }
+        )
     }
     fake_request.user_source_user = AnonymousUser()
 
@@ -1172,7 +1341,11 @@ def test_translate_default_user_role_returns_translated_role(data_fixture):
 
     fake_request = MagicMock()
     fake_request.data = {
-        "page_parameter": {},
+        "metadata": json.dumps(
+            {
+                "page_parameter": {},
+            }
+        )
     }
 
     dispatch_context = BuilderDispatchContext(fake_request, page)
@@ -1193,7 +1366,7 @@ def test_current_record_provider_get_data_chunk_without_record_index(data_fixtur
     user, token = data_fixture.create_user_and_token()
 
     fake_request = HttpRequest()
-    fake_request.data = {}
+    fake_request.data = {"metadata": json.dumps({})}
 
     builder = data_fixture.create_builder_application(user=user)
     page = data_fixture.create_builder_page(user=user, builder=builder)
@@ -1208,7 +1381,9 @@ def test_current_record_provider_get_data_chunk_without_record_index(data_fixtur
 def test_current_record_provider_get_data_chunk_for_idx():
     current_record_provider = CurrentRecordDataProviderType()
     fake_request = HttpRequest()
-    fake_request.data = {"current_record": {"index": 123, "record_id": 123}}
+    fake_request.data = {
+        "metadata": json.dumps({"current_record": {"index": 123, "record_id": 123}})
+    }
     dispatch_context = BuilderDispatchContext(fake_request, None)
     assert current_record_provider.get_data_chunk(dispatch_context, ["__idx__"]) == 123
 
@@ -1248,7 +1423,11 @@ def test_current_record_provider_get_data_chunk(data_fixture):
 
     fake_request = HttpRequest()
     fake_request.user = user
-    fake_request.data = {"current_record": {"index": 0, "record_id": rows[0].id}}
+    fake_request.data = {
+        "metadata": json.dumps(
+            {"current_record": {"index": 0, "record_id": rows[0].id}}
+        )
+    }
 
     dispatch_context = BuilderDispatchContext(
         fake_request, page, workflow_action, only_expose_public_allowed_properties=False
@@ -1326,6 +1505,7 @@ def test_data_source_data_extract_properties_calls_correct_service_type(
     expected = "123"
 
     mocked_service_type = MagicMock()
+    mocked_service_type.returns_list = False
     mocked_service_type.extract_properties.return_value = expected
     mocked_data_source = MagicMock()
     mocked_data_source.service.specific.get_type = MagicMock(
@@ -1340,6 +1520,15 @@ def test_data_source_data_extract_properties_calls_correct_service_type(
     assert result == {mocked_data_source.service_id: expected}
     mocked_get_data_source.assert_called_once_with(int(data_source_id), with_cache=True)
     mocked_service_type.extract_properties.assert_called_once_with([expected])
+
+    mocked_service_type.returns_list = True
+    mocked_service_type.extract_properties.reset_mock()
+
+    result = DataSourceDataProviderType().extract_properties(
+        [data_source_id, "1", expected]
+    )
+    mocked_service_type.extract_properties.assert_called_once_with([expected])
+    assert result == {mocked_data_source.service_id: expected}
 
 
 @pytest.mark.django_db
@@ -1422,6 +1611,7 @@ def test_data_source_context_extract_properties_calls_correct_service_type(
     expected = "123"
 
     mocked_service_type = MagicMock()
+    mocked_service_type.returns_list = False
     mocked_service_type.extract_properties.return_value = expected
     mocked_data_source = MagicMock()
     mocked_data_source.service.specific.get_type = MagicMock(
@@ -1436,6 +1626,17 @@ def test_data_source_context_extract_properties_calls_correct_service_type(
     assert result == {mocked_data_source.service_id: expected}
     mocked_get_data_source.assert_called_once_with(int(data_source_id), with_cache=True)
     mocked_service_type.extract_properties.assert_called_once_with([expected])
+
+    mocked_service_type.returns_list = True
+    mocked_service_type.extract_properties.reset_mock()
+    mocked_service_type.reset_mock()
+
+    result = DataSourceContextDataProviderType().extract_properties(
+        [data_source_id, expected]
+    )
+
+    mocked_service_type.extract_properties.assert_called_once_with([expected])
+    assert result == {mocked_data_source.service_id: expected}
 
 
 @pytest.mark.django_db
@@ -1504,12 +1705,12 @@ def test_data_source_context_data_provider_extract_properties_raises_if_data_sou
     """
     Test the DataSourceContextDataProviderType::extract_properties() method.
 
-    Ensure that InvalidBaserowFormula is raised if the Data Source doesn't exist.
+    Ensure that InvalidRuntimeFormula is raised if the Data Source doesn't exist.
     """
 
     mock_get_data_source.side_effect = DataSourceDoesNotExist()
 
-    with pytest.raises(InvalidBaserowFormula):
+    with pytest.raises(InvalidRuntimeFormula):
         DataSourceContextDataProviderType().extract_properties(path)
 
     mock_get_data_source.assert_called_once_with(int(path[0]), with_cache=True)
@@ -1531,12 +1732,12 @@ def test_data_source_data_provider_extract_properties_raises_if_data_source_does
     """
     Test the DataSourceDataProviderType::extract_properties() method.
 
-    Ensure that InvalidBaserowFormula is raised if the Data Source doesn't exist.
+    Ensure that InvalidRuntimeFormula is raised if the Data Source doesn't exist.
     """
 
     mock_get_data_source.side_effect = DataSourceDoesNotExist()
 
-    with pytest.raises(InvalidBaserowFormula):
+    with pytest.raises(InvalidRuntimeFormula):
         DataSourceDataProviderType().extract_properties(path)
 
     mock_get_data_source.assert_called_once_with(int(path[0]), with_cache=True)
@@ -1573,12 +1774,12 @@ def test_current_record_extract_properties_raises_if_data_source_doesnt_exist(
     """
     Test the CurrentRecordDataProviderType::extract_properties() method.
 
-    Ensure that InvalidBaserowFormula is raised if the Data Source doesn't exist.
+    Ensure that InvalidRuntimeFormula is raised if the Data Source doesn't exist.
     """
 
     mock_get_data_source.side_effect = DataSourceDoesNotExist()
 
-    with pytest.raises(InvalidBaserowFormula):
+    with pytest.raises(InvalidRuntimeFormula):
         CurrentRecordDataProviderType().extract_properties(path, invalid_data_source_id)
 
     mock_get_data_source.assert_called_once_with(
@@ -1606,8 +1807,11 @@ def test_current_record_extract_properties_calls_correct_service_type(
 
     expected_field = "field_123"
     mocked_service_type = MagicMock()
+    mocked_service_type.returns_list = True
     mocked_service_type.extract_properties.return_value = expected_field
+
     mocked_data_source = MagicMock()
+    mocked_data_source.service_id = 42
     mocked_data_source.service.specific.get_type = MagicMock(
         return_value=mocked_service_type
     )
@@ -1620,9 +1824,7 @@ def test_current_record_extract_properties_calls_correct_service_type(
 
     assert result == {mocked_data_source.service_id: expected_field}
     mock_get_data_source.assert_called_once_with(fake_element_id, with_cache=True)
-    mocked_service_type.extract_properties.assert_called_once_with(
-        ["0", expected_field]
-    )
+    mocked_service_type.extract_properties.assert_called_once_with([expected_field])
 
 
 @pytest.mark.django_db
@@ -1683,10 +1885,10 @@ def test_current_record_extract_properties_called_with_correct_path(
     if returns_list:
         if schema_property:
             mock_service_type.extract_properties.assert_called_once_with(
-                ["0", schema_property, *path]
+                [schema_property, *path]
             )
         else:
-            mock_service_type.extract_properties.assert_called_once_with(["0", *path])
+            mock_service_type.extract_properties.assert_called_once_with(path)
         assert result == {service_id: ["field_999"]}
     else:
         if schema_property:
@@ -1817,7 +2019,7 @@ def test_previous_action_extract_properties_raises_if_invalid_service_id():
     """
 
     # The service ID of 100 doesn't exist
-    with pytest.raises(InvalidBaserowFormula):
+    with pytest.raises(InvalidRuntimeFormula):
         PreviousActionProviderType().extract_properties(["100", "field_123"])
 
 

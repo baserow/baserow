@@ -15,7 +15,11 @@ from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowUpsertRowServiceType,
 )
 from baserow.core.exceptions import PermissionException
-from baserow.core.services.exceptions import DoesNotExist, ServiceImproperlyConfigured
+from baserow.core.services.exceptions import (
+    DoesNotExist,
+    InvalidContextContentDispatchException,
+    ServiceImproperlyConfiguredDispatchException,
+)
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.registries import service_type_registry
 from baserow.core.utils import MirrorDict
@@ -46,7 +50,7 @@ def test_create_local_baserow_get_row_service(data_fixture):
 
     assert service.view.id == view.id
     assert service.table.id == view.table_id
-    assert service.row_id == "1"
+    assert service.row_id["formula"] == "1"
 
 
 @pytest.mark.django_db
@@ -97,6 +101,7 @@ def test_export_import_local_baserow_get_row_service(data_fixture):
         "integration_id": service.integration_id,
         "search_query": service.search_query,
         "filter_type": "Or",
+        "sample_data": None,
         "filters": [
             {
                 "field_id": service_filter.field_id,
@@ -172,7 +177,7 @@ def test_update_local_baserow_get_row_service(data_fixture):
     service.refresh_from_db()
 
     assert service.specific.table is None
-    assert service.specific.search_query == ""
+    assert service.specific.search_query["formula"] == ""
     assert service.specific.integration is None
 
 
@@ -214,8 +219,8 @@ def test_local_baserow_get_row_service_dispatch_transform(data_fixture):
 
     assert result.data == {
         "id": rows[1].id,
-        fields[0].db_column: "Audi",
-        fields[1].db_column: "Orange",
+        fields[0].name: "Audi",
+        fields[1].name: "Orange",
         "order": AnyStr(),
     }
 
@@ -327,7 +332,7 @@ def test_local_baserow_get_row_service_dispatch_data_with_service_integer_search
 
     assert result.data == {
         "id": rows[2].id,
-        fields[0].db_column: "42",
+        fields[0].name: "42",
         "order": AnyStr(),
     }
 
@@ -382,21 +387,21 @@ def test_local_baserow_get_row_service_dispatch_validation_error(data_fixture):
     )
     service_type = LocalBaserowGetRowUserServiceType()
 
-    with pytest.raises(ServiceImproperlyConfigured):
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException):
         service_type.dispatch(service, dispatch_context)
 
     service = data_fixture.create_local_baserow_get_row_service(
         integration=integration, table=table, row_id="''"
     )
 
-    with pytest.raises(ServiceImproperlyConfigured):
+    with pytest.raises(InvalidContextContentDispatchException):
         service_type.dispatch(service, dispatch_context)
 
     service = data_fixture.create_local_baserow_get_row_service(
         integration=integration, table=table, row_id="wrong formula"
     )
 
-    with pytest.raises(ServiceImproperlyConfigured):
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException):
         service_type.dispatch(service, dispatch_context)
 
 
@@ -452,18 +457,25 @@ def test_local_baserow_get_row_service_dispatch_data_no_row_id(data_fixture):
 
     assert dispatch_data["data"].id == rows[0].id
 
-    # If the `row_id` is a formula, and its resolved value is blank, ensure we're
-    # raising `ServiceImproperlyConfigured`. We don't want to use the "no row ID"
-    # behaviour of returning the first row if we're using formulas.
+    # If the `row_id` is a formula, and its resolved value is blank or invalid,
+    # ensure we're raising `InvalidContextContentDispatchException`.
+    # We don't want to use the "no row ID" behaviour of returning the first row if
+    # we're using formulas.
     service.row_id = 'get("page_parameter.id")'
     service.save()
     dispatch_context = FakeDispatchContext(context={"page_parameter": {"id": ""}})
-    with pytest.raises(ServiceImproperlyConfigured) as exc:
+    with pytest.raises(InvalidContextContentDispatchException) as exc:
+        service_type.resolve_service_formulas(service, dispatch_context)
+
+    assert exc.value.args[0] == 'Value error for "row_id": The value is required'
+
+    dispatch_context = FakeDispatchContext(context={"page_parameter": {"id": "p"}})
+    with pytest.raises(InvalidContextContentDispatchException) as exc:
         service_type.resolve_service_formulas(service, dispatch_context)
 
     assert (
-        exc.value.args[0] == "The result of the `row_id` formula must "
-        "be an integer or convertible to an integer."
+        exc.value.args[0] == 'Value error for "row_id": '
+        "The value must be an integer or convertible to an integer."
     )
 
 
@@ -498,7 +510,7 @@ def test_import_datasource_provider_formula_using_get_row_service_containing_no_
     duplicated_element = duplicated_page.element_set.first()
     duplicated_data_source = duplicated_page.datasource_set.first()
     assert (
-        duplicated_element.specific.placeholder
+        duplicated_element.specific.placeholder["formula"]
         == f"get('data_source.{duplicated_data_source.id}')"
     )
 
@@ -576,7 +588,6 @@ def test_import_formula_local_baserow_get_row_user_service_type(data_fixture):
 
     duplicated_page = PageService().duplicate_page(user, page)
     data_source2 = duplicated_page.datasource_set.first()
-    id_mapping = {}
     id_mapping = {"builder_data_sources": {data_source.id: data_source2.id}}
 
     from baserow.contrib.builder.formula_importer import import_formula
@@ -586,14 +597,20 @@ def test_import_formula_local_baserow_get_row_user_service_type(data_fixture):
     )
 
     # See the docstring to understand why these formulas looks truncated.
-    assert imported_service.search_query == f"get('data_source.{data_source2.id}')"
-    assert imported_service.row_id == f"get('data_source.{data_source2.id}')"
+    assert (
+        imported_service.search_query["formula"]
+        == f"get('data_source.{data_source2.id}')"
+    )
+    assert imported_service.row_id["formula"] == f"get('data_source.{data_source2.id}')"
 
     imported_service_filter = imported_service.service_filters.get(order=0)
-    assert imported_service_filter.value == f"get('data_source.{data_source2.id}')"
+    assert (
+        imported_service_filter.value["formula"]
+        == f"get('data_source.{data_source2.id}')"
+    )
 
     imported_service_filter = imported_service.service_filters.get(order=1)
-    assert imported_service_filter.value == "FooServiceFilter"
+    assert imported_service_filter.value["formula"] == "FooServiceFilter"
 
 
 @pytest.mark.django_db
@@ -757,26 +774,27 @@ def test_dispatch_transform_passes_field_ids(mock_get_serializer, field_names):
     """
 
     mock_serializer_instance = MagicMock()
-    mock_serializer_instance.data.return_value = "foo"
     mock_serializer = MagicMock(return_value=mock_serializer_instance)
+    mock_serializer.data = {}
     mock_get_serializer.return_value = mock_serializer
 
     service_type = LocalBaserowGetRowUserServiceType()
 
     dispatch_data = {
         "baserow_table_model": MagicMock(),
-        "data": [],
+        "data": {},
     }
     dispatch_data["public_allowed_properties"] = field_names
 
     results = service_type.dispatch_transform(dispatch_data)
 
-    assert results.data == mock_serializer_instance.data
+    assert results.data == mock_serializer.data
     mock_get_serializer.assert_called_once_with(
         dispatch_data["baserow_table_model"],
         RowSerializer,
         is_response=True,
         field_ids=None,
+        user_field_names=True,
     )
 
 

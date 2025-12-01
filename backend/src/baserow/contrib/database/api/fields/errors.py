@@ -1,5 +1,6 @@
 from rest_framework.status import (
     HTTP_400_BAD_REQUEST,
+    HTTP_401_UNAUTHORIZED,
     HTTP_404_NOT_FOUND,
     HTTP_409_CONFLICT,
 )
@@ -50,6 +51,12 @@ ERROR_INCOMPATIBLE_PRIMARY_FIELD_TYPE = (
     "ERROR_INCOMPATIBLE_PRIMARY_FIELD_TYPE",
     HTTP_400_BAD_REQUEST,
     "The field type {e.field_type} is not compatible with the primary field.",
+)
+ERROR_DB_INDEX_NOT_SUPPORTED = (
+    "ERROR_DB_INDEX_NOT_SUPPORTED",
+    HTTP_400_BAD_REQUEST,
+    "The field type {e.field_type} does not support database indexes. Explicitly set "
+    "`db_index` to `false` to fix this error.",
 )
 ERROR_SELF_REFERENCING_LINK_ROW_CANNOT_HAVE_RELATED_FIELD = (
     "ERROR_SELF_REFERENCING_LINK_ROW_CANNOT_HAVE_RELATED_FIELD",
@@ -181,4 +188,29 @@ ERROR_SELECT_OPTION_DOES_NOT_BELONG_TO_FIELD = (
     "ERROR_SELECT_OPTION_DOES_NOT_BELONG_TO_FIELD",
     HTTP_400_BAD_REQUEST,
     "Select option {e.select_option_id} does not belong to field {e.field_id}",
+)
+ERROR_FIELD_CONSTRAINT = (
+    "ERROR_FIELD_CONSTRAINT",
+    HTTP_400_BAD_REQUEST,
+    "Cannot apply field constraint due to existing data conflicts.",
+)
+ERROR_FIELD_DATA_CONSTRAINT = (
+    "ERROR_FIELD_DATA_CONSTRAINT",
+    HTTP_400_BAD_REQUEST,
+    "The operation violates a field constraint",
+)
+ERROR_INVALID_FIELD_CONSTRAINT = (
+    "ERROR_INVALID_FIELD_CONSTRAINT",
+    HTTP_400_BAD_REQUEST,
+    "The field constraint {e.constraint_type} is not supported for field {e.field_type}.",
+)
+ERROR_INVALID_PASSWORD_FIELD_PASSWORD = (
+    "ERROR_INVALID_PASSWORD_FIELD_PASSWORD",
+    HTTP_401_UNAUTHORIZED,
+    "The provided password in incorrect.",
+)
+ERROR_FIELD_CONSTRAINT_DOES_NOT_SUPPORT_DEFAULT_VALUE = (
+    "ERROR_FIELD_CONSTRAINT_DOES_NOT_SUPPORT_DEFAULT_VALUE",
+    HTTP_400_BAD_REQUEST,
+    "Cannot set this constraint when default value is set.",
 )

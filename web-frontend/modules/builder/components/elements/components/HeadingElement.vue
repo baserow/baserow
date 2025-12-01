@@ -1,5 +1,6 @@
 <template>
   <div
+    class="heading-element"
     :class="{
       'element--no-value': !resolvedValue,
     }"

@@ -24,18 +24,17 @@ export default {
       return `${this.field.uid}_click`
     },
     workflowActionsInProgress() {
-      const { recordIndexPath } = this.applicationContext
-      const dispatchedById = this.elementType.uniqueElementId(
-        this.element,
-        recordIndexPath
-      )
+      const dispatchedById = this.elementType.uniqueElementId({
+        element: this.element,
+        applicationContext: this.applicationContext,
+      })
       const workflowActions = this.$store.getters[
-        'workflowAction/getElementWorkflowActions'
+        'builderWorkflowAction/getElementWorkflowActions'
       ](this.elementPage, this.element.id)
       return workflowActions
         .filter((wa) => wa.event === this.eventName)
         .some((workflowAction) =>
-          this.$store.getters['workflowAction/getDispatching'](
+          this.$store.getters['builderWorkflowAction/getDispatching'](
             workflowAction,
             dispatchedById
           )

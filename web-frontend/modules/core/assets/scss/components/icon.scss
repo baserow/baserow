@@ -1,0 +1,32 @@
+.icon {
+  font-size: 15px;
+  color: $palette-neutral-1200;
+
+  &--secondary {
+    color: $palette-neutral-700;
+  }
+
+  &--warning {
+    color: $palette-yellow-600;
+  }
+
+  &--error {
+    color: $palette-red-600;
+  }
+
+  &--success {
+    color: $color-success-500;
+  }
+
+  &--small {
+    font-size: 13px;
+  }
+
+  &--large {
+    font-size: 17px;
+  }
+
+  &--x-large {
+    font-size: 20px;
+  }
+}

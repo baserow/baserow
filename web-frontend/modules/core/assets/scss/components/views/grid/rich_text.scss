@@ -4,6 +4,11 @@
 
 .grid-field-rich-text__cell-content {
   padding: 0 10px;
+
+  &--preview {
+    height: 100%;
+    overflow: hidden;
+  }
 }
 
 .grid-field-rich-text {

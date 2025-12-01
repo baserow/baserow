@@ -37,13 +37,77 @@ class CoreConfig(AppConfig):
         from baserow.core.formula.registries import formula_runtime_function_registry
         from baserow.core.formula.runtime_formula_types import (
             RuntimeAdd,
+            RuntimeAnd,
+            RuntimeCapitalize,
             RuntimeConcat,
+            RuntimeDateTimeFormat,
+            RuntimeDay,
+            RuntimeDivide,
+            RuntimeEqual,
+            RuntimeGenerateUUID,
             RuntimeGet,
+            RuntimeGetProperty,
+            RuntimeGreaterThan,
+            RuntimeGreaterThanOrEqual,
+            RuntimeHour,
+            RuntimeIf,
+            RuntimeIsEven,
+            RuntimeIsOdd,
+            RuntimeLessThan,
+            RuntimeLessThanOrEqual,
+            RuntimeLower,
+            RuntimeMinus,
+            RuntimeMinute,
+            RuntimeMonth,
+            RuntimeMultiply,
+            RuntimeNotEqual,
+            RuntimeNow,
+            RuntimeOr,
+            RuntimeRandomBool,
+            RuntimeRandomFloat,
+            RuntimeRandomInt,
+            RuntimeRound,
+            RuntimeSecond,
+            RuntimeToday,
+            RuntimeUpper,
+            RuntimeYear,
         )
 
         formula_runtime_function_registry.register(RuntimeConcat())
         formula_runtime_function_registry.register(RuntimeGet())
         formula_runtime_function_registry.register(RuntimeAdd())
+        formula_runtime_function_registry.register(RuntimeMinus())
+        formula_runtime_function_registry.register(RuntimeMultiply())
+        formula_runtime_function_registry.register(RuntimeDivide())
+        formula_runtime_function_registry.register(RuntimeEqual())
+        formula_runtime_function_registry.register(RuntimeNotEqual())
+        formula_runtime_function_registry.register(RuntimeLessThan())
+        formula_runtime_function_registry.register(RuntimeLessThanOrEqual())
+        formula_runtime_function_registry.register(RuntimeGreaterThan())
+        formula_runtime_function_registry.register(RuntimeGreaterThanOrEqual())
+        formula_runtime_function_registry.register(RuntimeUpper())
+        formula_runtime_function_registry.register(RuntimeLower())
+        formula_runtime_function_registry.register(RuntimeCapitalize())
+        formula_runtime_function_registry.register(RuntimeRound())
+        formula_runtime_function_registry.register(RuntimeIsEven())
+        formula_runtime_function_registry.register(RuntimeIsOdd())
+        formula_runtime_function_registry.register(RuntimeDateTimeFormat())
+        formula_runtime_function_registry.register(RuntimeDay())
+        formula_runtime_function_registry.register(RuntimeMonth())
+        formula_runtime_function_registry.register(RuntimeYear())
+        formula_runtime_function_registry.register(RuntimeHour())
+        formula_runtime_function_registry.register(RuntimeMinute())
+        formula_runtime_function_registry.register(RuntimeSecond())
+        formula_runtime_function_registry.register(RuntimeNow())
+        formula_runtime_function_registry.register(RuntimeToday())
+        formula_runtime_function_registry.register(RuntimeGetProperty())
+        formula_runtime_function_registry.register(RuntimeRandomInt())
+        formula_runtime_function_registry.register(RuntimeRandomFloat())
+        formula_runtime_function_registry.register(RuntimeRandomBool())
+        formula_runtime_function_registry.register(RuntimeGenerateUUID())
+        formula_runtime_function_registry.register(RuntimeIf())
+        formula_runtime_function_registry.register(RuntimeAnd())
+        formula_runtime_function_registry.register(RuntimeOr())
 
         from baserow.core.permission_manager import (
             AllowIfTemplatePermissionManagerType,
@@ -240,6 +304,23 @@ class CoreConfig(AppConfig):
         action_type_registry.register(EmptyTrashActionType())
         action_type_registry.register(RestoreFromTrashActionType())
 
+        from baserow.core.trash.registries import (
+            DefaultTrashOperationType,
+            trash_operation_type_registry,
+        )
+
+        trash_operation_type_registry.register(DefaultTrashOperationType())
+
+        from baserow.core.mcp.actions import (
+            CreateMCPEndpointActionType,
+            DeleteMCPEndpointActionType,
+            UpdateMCPEndpointActionType,
+        )
+
+        action_type_registry.register(CreateMCPEndpointActionType())
+        action_type_registry.register(UpdateMCPEndpointActionType())
+        action_type_registry.register(DeleteMCPEndpointActionType())
+
         from baserow.core.user.actions import (
             CancelUserDeletionActionType,
             ChangeUserPasswordActionType,
@@ -306,6 +387,13 @@ class CoreConfig(AppConfig):
         from baserow.core.registries import auth_provider_type_registry
 
         auth_provider_type_registry.register(PasswordAuthProviderType())
+
+        from baserow.core.two_factor_auth.registries import (
+            TOTPAuthProviderType,
+            two_factor_auth_type_registry,
+        )
+
+        two_factor_auth_type_registry.register(TOTPAuthProviderType())
 
         import baserow.core.notifications.receivers  # noqa: F401
         import baserow.core.notifications.tasks  # noqa: F401
@@ -417,6 +505,22 @@ class CoreConfig(AppConfig):
         operation_type_registry.register(AuthenticateUserSourceOperationType())
         operation_type_registry.register(LoginUserSourceOperationType())
 
+        from baserow.core.mcp.operations import (
+            CreateMCPEndpointOperationType,
+            DeleteMCPEndpointOperationType,
+            ReadMCPEndpointOperationType,
+            UpdateMCPEndpointOperationType,
+        )
+
+        operation_type_registry.register(CreateMCPEndpointOperationType())
+        operation_type_registry.register(ReadMCPEndpointOperationType())
+        operation_type_registry.register(UpdateMCPEndpointOperationType())
+        operation_type_registry.register(DeleteMCPEndpointOperationType())
+
+        from baserow.core.mcp.object_scopes import MCPEndpointObjectScopeType
+
+        object_scope_type_registry.register(MCPEndpointObjectScopeType())
+
         plugin_dir.register(DebugModeHealthCheck)
         if getattr(settings, "HEROKU_ENABLED", False):
             plugin_dir.register(HerokuExternalFileStorageConfiguredHealthCheck)
@@ -424,6 +528,16 @@ class CoreConfig(AppConfig):
 
         import baserow.core.import_export.tasks  # noqa: F403, F401
         import baserow.core.integrations.receivers  # noqa: F403, F401
+
+        # pgvector extension setup. Because the extension is optional, we must
+        # dynamically check if it's available and adjust the models accordingly.
+        from baserow.core.pgvector import try_migrate_vector_fields
+
+        post_migrate.connect(
+            try_migrate_vector_fields,
+            sender=self,
+            dispatch_uid="baserow_core_pgvector_post_migrate",
+        )
 
 
 # noinspection PyPep8Naming

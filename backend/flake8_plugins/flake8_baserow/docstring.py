@@ -18,7 +18,7 @@ except ImportError:
 
 
 DocstringType = Union[ast.Constant, ast.Str]
-ERR_MSG = "X1 - Baserow plugin: missing empty line after docstring"
+ERR_MSG = "BDC001 - Baserow plugin: missing empty line after docstring"
 
 
 class Token:

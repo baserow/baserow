@@ -104,6 +104,7 @@ local           : Use the local environment (no source is mounted, non-dev image
 all_in_one      : Use the all_in_one environment.
 heroku          : Use the heroku environment.
 cloudron        : Use the cloudron environment.
+run             : Run a command inside a container. See examples below.
 restart         : Stop the environment first before relaunching.
 restart_wipe    : Stop the environment, delete all of the compose file named volumes.
 down            : Down the environment and don't up after.
@@ -119,6 +120,12 @@ dont_build_deps : When building environments which require other environments to
                   passing this flag.
 no_e2e          : Disabled the e2e testing tab.
 help            : Show this message.
+
+Run examples:
+./dev.sh run backend help
+./dev.sh run backend shell
+./dev.sh run backend lint-shell
+...
 """
 }
 

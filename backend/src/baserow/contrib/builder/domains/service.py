@@ -41,6 +41,7 @@ class DomainService:
         user: AbstractUser,
         domain_id: int,
         base_queryset: Optional[QuerySet] = None,
+        for_update: bool = False,
     ) -> Domain:
         """
         Gets a domain by ID
@@ -48,12 +49,16 @@ class DomainService:
         :param user: The user requesting the domain
         :param domain_id: The ID of the domain
         :param base_queryset: Can be used to already apply changes to the qs used
+        :param for_update: Ensure only one update can happen at a time.
         :return: The model instance of the Domain
         """
 
         base_queryset = base_queryset if base_queryset is not None else Domain.objects
         base_queryset = base_queryset.select_related("builder", "builder__workspace")
-        domain = self.handler.get_domain(domain_id, base_queryset=base_queryset)
+
+        domain = self.handler.get_domain(
+            domain_id, base_queryset=base_queryset, for_update=for_update
+        )
 
         CoreHandler().check_permissions(
             user,

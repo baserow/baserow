@@ -1,0 +1,9 @@
+{
+  "type": "bug",
+  "message": "Change WebSocket connection closed error message.",
+  "issue_origin": "github",
+  "issue_number": null,
+  "domain": "core",
+  "bullet_points": [],
+  "created_at": "2025-11-24"
+}

@@ -1,0 +1,14 @@
+.two-factor-enabled__type {
+  display: inline-block;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
+  margin-bottom: 10px;
+  margin-right: 8px;
+}
+
+.two-factor-enabled__description {
+  color: $palette-neutral-900;
+  margin-bottom: 14px;
+  line-height: 20px;
+}

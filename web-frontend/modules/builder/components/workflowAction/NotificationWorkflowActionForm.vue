@@ -38,8 +38,8 @@ export default {
   data() {
     return {
       values: {
-        title: '',
-        description: '',
+        title: {},
+        description: {},
       },
     }
   },

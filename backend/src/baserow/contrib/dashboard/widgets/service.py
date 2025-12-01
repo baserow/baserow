@@ -135,6 +135,7 @@ class WidgetService:
         Updates a widget given the user permissions.
 
         :param user: The user trying to update the widget.
+        :param widget_id: The ID of the widget to update.
         :param kwargs: Attributes of the widget.
         :raises WidgetDoesNotExist: If the widget can't be found.
         :raises PermissionException: Raised when user doesn't have the
@@ -155,6 +156,9 @@ class WidgetService:
         )
 
         updated_widget = self.handler.update_widget(widget, **kwargs)
+        updated_widget = updated_widget.widget.get_type().after_update(
+            updated_widget, **kwargs
+        )
         widget_updated.send(self, user=user, widget=updated_widget.widget)
         return updated_widget
 

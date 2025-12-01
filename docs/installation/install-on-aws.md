@@ -13,11 +13,11 @@ Baserow can be deployed to AWS in the following ways:
    horizontally scalable but easy to
    set up deployment. **See below for a detailed guide.**
 2. Using
-   this [docker-compose](https://gitlab.com/baserow/baserow/-/blob/develop/docker-compose.no-caddy.yml)
+   this [docker-compose](https://github.com/baserow/baserow/blob/develop/docker-compose.no-caddy.yml)
    file or our [sample K8S configuration](./install-with-k8s.md) as a starting point to
    configure ECS/Fargate tasks for more advanced, production ready, one service per
    container model. **See below for a detailed guide**
-3. Using the [Baserow community maintained helm chart](./install-with-helm.md) and EKS.
+3. Using the [Official Baserow helm chart](./install-with-helm.md) and EKS.
 4. Customizing our [sample K8S configuration](./install-with-k8s.md) and using that with
    EKS.
 5. Installing and using docker/docker-compose on an EC2 instance with
@@ -49,7 +49,7 @@ overview this is what any AWS deployment of Baserow will need:
 
 ## Option 1) Deploying the all-in-one image to Fargate/ECS
 
-The `baserow/baserow:1.32.5` image runs all of Baserow’s various services inside the
+The `baserow/baserow:2.0.2` image runs all of Baserow’s various services inside the
 container for ease of use.
 
 This image is designed for single server deployments or simple deployments to
@@ -67,7 +67,7 @@ Run.
     * You don't need to worry about configuring and linking together the different
       services that make up a Baserow deployment.
     * Configuring load balancers is easier as you can just directly route through all
-      requests to any horizontally scaled container running `baserow/baserow:1.32.5`.
+      requests to any horizontally scaled container running `baserow/baserow:2.0.2`.
 
 #### Cons
 
@@ -75,7 +75,7 @@ Run.
 * Potentially higher resource usage overall as each of the all-in-one containers will
   come with its internal services, so you have less granular control over scaling
   specific services.
-    * For example if you deploy 10 `baserow/baserow:1.32.5` containers horizontally you
+    * For example if you deploy 10 `baserow/baserow:2.0.2` containers horizontally you
       by default end up with:
         * 10 web-frontend services
         * 10 backend services
@@ -139,9 +139,9 @@ in-tool file download button to work correctly. An example rule is provided belo
 ```
 cors_rule {
 allowed_headers = ["*"]
-allowed_methods = ["GET"]
-allowed_origins = ["REPLACE_WITH_YOUR_BASEROW_PUBLIC)URL"]
-expose_headers  = ["ETag"]
+allowed_methods = ["GET", "HEAD", "OPTIONS"]
+allowed_origins = ["REPLACE_WITH_YOUR_BASEROW_PUBLIC_URL"]
+expose_headers  = ["ETag", "Content-Length", "Content-Type"]
 max_age_seconds = 3000
 }
 ```
@@ -188,18 +188,18 @@ Generally, the Redis server is not the bottleneck in Baserow deployments as they
 Now create a target group on port 80 and ALB ready to route traffic to the Baserow
 containers.
 
-When setting up the health check for the ALB the `baserow/baserow:1.32.5` container
+When setting up the health check for the ALB the `baserow/baserow:2.0.2` container
 ,which you'll be deploying next, choose port `80` and health check
 URL `/api/_health/`. We recommend a long grace period of 900 seconds to account for
 first-time migrations being run on the first container's startup.
 
 #### 5) Launching Baserow on ECS/Fargate
 
-Now we are ready to spin up our `baserow/baserow:1.32.5` containers. See below for a
+Now we are ready to spin up our `baserow/baserow:2.0.2` containers. See below for a
 full task definition and environment variables. We recommend launching the containers
 with 2vCPUs and 4 GB of RAM each to start with. In short, you will want to:
 
-1. Select the `baserow/baserow:1.32.5` image.
+1. Select the `baserow/baserow:2.0.2` image.
 2. Add a port mapping of `80` on TCP as this is where this images HTTP server is
    listening by default.
 3. Mark the container as essential.
@@ -209,7 +209,7 @@ with 2vCPUs and 4 GB of RAM each to start with. In short, you will want to:
 > found [here](./configuration.md).
 
 | Env variable                  | Description                                                                                                                                                                                                                                                                                                                                                                                                                               |
-|-------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `DISABLE_VOLUME_CHECK=true`   | *Must be set to true*. Needed to disable the check designed to help non-technical users who are not configuring an external Postgres and S3. Because we are configuring external services we do not need any volume mounted into the container.                                                                                                                                                                                           |
 | `BASEROW_PUBLIC_URL`          | The public URL or IP that will be used to access baserow in your user's browser. Always should start with http:// https:// even if accessing via an IP address.                                                                                                                                                                                                                                                                           |
 | `DATABASE_HOST`               | The hostname of the Postgres database Baserow will use to store its data in.                                                                                                                                                                                                                                                                                                                                                              |
@@ -244,7 +244,7 @@ container_definitions    = <<DEFINITION
   [
     {
       "name": "baserow_task",
-      "image": "baserow/baserow:1.32.5", 
+      "image": "baserow/baserow:2.0.2", 
       "logConfiguration": {                     #logs are not mandatory
                 "logDriver": "awslogs",
                 "options": {
@@ -368,10 +368,10 @@ in-tool settings, active enterprise licenses, promote other users to being staff
 
 ## Option 2) Deploying Baserow as separate services to Fargate/ECS
 
-The `baserow/backend:1.32.5` and `baserow/web-frontend:1.32.5` images allow you to run
+The `baserow/backend:2.0.2` and `baserow/web-frontend:2.0.2` images allow you to run
 Baserow's various services as separate containers.
 
-These images are used by the community Helm chart, our various docker-compose.yml
+These images are used by the Official Helm chart, our various docker-compose.yml
 example setups and are best for production environments where you want full control and
 flexibility managing Baserow.
 
@@ -434,14 +434,14 @@ new cluster for Baserow and then proceed to make the following task definitions.
 > If you are familiar with K8S then [this sample config](./install-with-k8s.md) gives an
 > overview of the services.
 >
-Alternatively [this docker-compose](https://gitlab.com/baserow/baserow/-/blob/develop/docker-compose.no-caddy.yml)
+Alternatively [this docker-compose](https://github.com/baserow/baserow/blob/develop/docker-compose.no-caddy.yml)
 > can also be used as reference
 
 #### 6) The backend WSGI service
 
 This service is our HTTP REST API service. When creating the task definition you should:
 
-1. In the task defintion use the `baserow/backend:1.32.5` image
+1. In the task defintion use the `baserow/backend:2.0.2` image
 2. Under docker configuration set `gunicorn-wsgi,--timeout,60` as the Command.
 
 > We recommend setting the timeout of each HTTP API request to 60 seconds in the
@@ -456,7 +456,7 @@ This service is our HTTP REST API service. When creating the task definition you
    file to share these is also a good idea.
 
 | Env variable                  | Description                                                                                                                                                                                                                                                                                                                                                                                                                               |
-|-------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `BASEROW_PUBLIC_URL`          | The public URL or IP that will be used to access baserow in your user's browser. Always should start with http:// https:// even if accessing via an IP address.                                                                                                                                                                                                                                                                           |
 | `DATABASE_HOST`               | The hostname of the Postgres database Baserow will use to store its data in.                                                                                                                                                                                                                                                                                                                                                              |
 | `DATABASE_USER`               | The username of the database user Baserow will use to connect to the database at `DATABASE_HOST`.                                                                                                                                                                                                                                                                                                                                         |
@@ -484,7 +484,7 @@ This service is our HTTP REST API service. When creating the task definition you
 This service is our Websocket API service and when configuring the task definition you
 should:
 
-1. Use the `baserow/backend:1.32.5`
+1. Use the `baserow/backend:2.0.2`
 2. Under docker configuration set `gunicorn` as the Command.
 3. We recommend 2vCPUs and 4 GB of RAM per container to start with.
 4. Map the container port `8000`/`TCP`
@@ -496,7 +496,7 @@ should:
 This service is our asynchronous high priority task worker queue used for realtime
 collaboration and sending emails.
 
-1. Use the `baserow/backend:1.32.5` image with `celery-worker` as the image command.
+1. Use the `baserow/backend:2.0.2` image with `celery-worker` as the image command.
 2. Under docker configuration set `celery-worker` as the Command.
 3. No port mappings needed.
 4. We recommend 2vCPUs and 4 GB of RAM per container to start with.
@@ -509,7 +509,7 @@ This service is our asynchronous slow/low priority task worker queue for batch
 processes and running potentially slow operations for users like table exports and
 imports etc.
 
-1. Use the `baserow/backend:1.32.5` image.
+1. Use the `baserow/backend:2.0.2` image.
 2. Under docker configuration set `celery-exportworker` as the Command.
 3. No port mappings needed.
 4. We recommend 2vCPUs and 4 GB of RAM per container to start with.
@@ -520,7 +520,7 @@ imports etc.
 
 This service is our CRON task scheduler that can have multiple replicas deployed.
 
-1. Use the `baserow/backend:1.32.5` image.
+1. Use the `baserow/backend:2.0.2` image.
 2. Under docker configuration set `celery-beat` as the Command.
 3. No port mapping needed.
 4. We recommend 1vCPUs and 3 GB of RAM per container to start with.
@@ -537,7 +537,7 @@ This service is our CRON task scheduler that can have multiple replicas deployed
 Finally, this service is used for server side rendering and serving the frontend of
 Baserow.
 
-1. Use the `baserow/web-frontend:1.32.5` image with no arguments needed.
+1. Use the `baserow/web-frontend:2.0.2` image with no arguments needed.
 2. Map the container port `3000`
 3. We recommend 2vCPUs and 4 GB of RAM per container to start with.
 4. Mark the container as essential.

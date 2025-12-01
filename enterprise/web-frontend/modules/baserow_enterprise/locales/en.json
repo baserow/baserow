@@ -3,6 +3,9 @@
     "cannotDisableAllAuthProvidersTitle": "Last enabled provider",
     "cannotDisableAllAuthProvidersDescription": "It is not possible to disable or delete last enabled provider."
   },
+  "advanced": {
+    "license": "Advanced"
+  },
   "enterprise": {
     "license": "Enterprise",
     "sidebarTooltip": "Your account has access to the enterprise features globally",
@@ -275,6 +278,16 @@
     "baseUrlPlaceholder": "Provider's base URL",
     "duplicateBaseUrl": "The entered URL already exists in another provider",
     "invalidBaseUrl": "The entered URL is not a valid provider URL",
+    "useIdToken": "Use id token to get user information",
+    "responseSettings": "OIDC Response Attributes",
+    "defaultAttrs": "Default",
+    "customAttrs": "Custom",
+    "emailAttrKey": "Email",
+    "emailAttrKeyHelper": "The email address that will be used as username for the user. ",
+    "firstNameAttrKey": "First name",
+    "lastNameAttrKey": "Last Name",
+    "firstNameAttrKeyHelper": "The first name of the user or the full name if 'Last name' is not provided.",
+    "lastNameAttrKeyHelper": "Last name of the user (optional). Clear this value to provide the full name via 'First name'.",
     "callbackUrl": "Callback URL"
   },
   "loginButton": {
@@ -288,13 +301,82 @@
     "auditLogs": "Audit logs",
     "auditLogsContent": "Track everything that happens. View a full history of actions across your instance or workspace, filterable by user, action, and more.",
     "dataSync": "Data sync",
-    "dataSyncContent": "Automatically keep tables up to date by syncing with other Baserow tables, or external sources like Jira, GitHub, GitLab, or HubSpot.",
+    "dataSyncContent": "Automatically keep tables up to date by syncing with other Baserow tables, or external sources like Jira, GitHub, GitLab, or HubSpot. It also allows to sync periodically, and enables two-way data sync for supported data sync types.",
     "coBranding": "Co-branding logo replacement",
     "coBrandingContent": "Customize the Baserow interface with your own logo. Note that \"powered by Baserow\" is added.",
     "support": "Direct support",
     "supportContent": "Get help when you need it. Reach out to the Baserow team directly from within the platform.",
     "advancedWebhooks": "Advanced webhooks",
-    "advancedWebhooksContent": "Trigger webhooks when a row enters a specific view — great for automating workflows based on filter conditions."
+    "advancedWebhooksContent": "Trigger webhooks when a row enters a specific view — great for automating workflows based on filter conditions.",
+    "fieldLevelPermissions": "Field-level permissions",
+    "fieldLevelPermissionsContent": "Control who can edit specific fields in a table. Set permissions for editors, builders, admins, or completely disable modifications to field values.",
+    "builderBranding": "Application branding",
+    "builderBrandingContent": "White label the branding of your application by removing the 'Made with Baserow' branding in the footer of your application.",
+    "builderFileInputElement": "File input element",
+    "builderFileInputElementContent": "The file input element allows you to add a field to your application pages for uploading files. Give your users the ability to store important documents or images.",
+    "builderCustomCode": "Custom code for applications",
+    "builderCustomCodeContent": "You can add custom CSS/JavaScript code to further customize the look and behaviour of your application. For example, you can integrate external services like analytics or social media.",
+    "dateDependency": "Date dependency",
+    "dateDependencyContent": "You can define a dependency between two dates and a duration as start/end date and duration. With date dependency, if one value change, other values will be adjusted accordingly."
+  },
+  "assistantSidebarItem": {
+    "title": "Kuma AI"
+  },
+  "assistantPanel": {
+    "title": "AI Assistant",
+    "close": "Close AI Assistant",
+    "history": "Chat History",
+    "back": "Back"
+  },
+  "assistantWelcomeMessage": {
+    "greet": "Hey {name}",
+    "question": "my name is Kuma!",
+    "subtitle": "I’ll help you bear the load so it never feels heavy. Choose from the prompts below or just tell me what you need!",
+    "subtitleWithoutSuggestions": "I’ll help you bear the load so it never feels heavy. Just tell me what you need!",
+    "promptCreateDatabaseTitle": "Create a database",
+    "promptCreateDatabasePrompt": "Build a project management database.",
+    "promptCreateAutomationTitle": "Create an automation",
+    "promptCreateAutomationPrompt": "Create an automation that every Tuesday in the morning asks in the Slack developers channel if there is anything to demo.",
+    "promptInviteUsersTitle": "Invite users",
+    "promptInviteUsersPrompt": "How do I invite users to my workspace?",
+    "promptCreateTableTitle": "Create a table",
+    "promptCreateTablePrompt": "Create a new table named tasks.",
+    "promptWhichTablesTitle": "Which tables",
+    "promptWhichTablesPrompt": "Which tables do I have in this database?",
+    "promptCreateFormTitle": "Create a form",
+    "promptCreateFormPrompt": "Create a form for this table.",
+    "promptCreateFilterTitle": "Create a filter",
+    "promptCreateFilterPrompt": "Show only rows where the primary field is empty."
+  },
+  "assistantInputMessage": {
+    "statusWaiting": "Assistant is ready to help",
+    "statusRunning": "Running...",
+    "placeholder": "Ask me anything...",
+    "send": "Send message",
+    "stop": "Stop generation"
+  },
+  "assistant": {
+    "statusThinking": "Thinking...",
+    "statusAnswering": "Answering...",
+    "statusCancelling": "Cancelling...",
+    "messageCancelled": "Message cancelled"
+  },
+  "assistantChatHistoryContext": {
+    "empty": "No chat history available",
+    "loading": "Loading chat history..."
+  },
+  "assistantMessageSources": {
+    "sources": "{count} source | {count} sources"
+  },
+  "assistantMessageList": {
+    "disclaimer": "Kuma can make mistakes, please double-check responses"
+  },
+  "assistantMessageActions": {
+    "feedbackContextTitle": "Help us improve",
+    "feedbackContextPlaceholder": "What could we improve? (optional)",
+    "copiedToClipboard": "Copied to clipboard",
+    "copiedContentToast": "The Assistant's response content has been copied to your clipboard",
+    "copyFailed": "Failed to copy to clipboard"
   },
   "chatwootSupportSidebarWorkspace": {
     "directSupport": "Direct support"
@@ -383,12 +465,16 @@
   "jiraIssuesDataSync": {
     "jiraUrl": "Jira instance URL",
     "urlHelper": "The base URL of your Jira instance (e.g., https://your-domain.atlassian.net).",
+    "authenticationLabel": "Authentication",
+    "authenticationHelper": "Choose how to authenticate with Jira.",
     "projectKey": "Jira project key (optional)",
     "projectKeyHelper": "The project key of the Jira project (e.g., PROJ). Can be found by clicking on `Project settings` in Jira. If not provided, all the issues will be returned.",
     "jiraUsername": "Jira username",
     "usernameHelper": "The username of the Jira account used to authenticate. This is the email that you use to sign in.",
     "apiToken": "Jira API token",
-    "apiTokenHelper": "The API token of the Jira account used for authentication. Can be created at https://id.atlassian.com/manage-profile/security/api-tokens."
+    "apiTokenHelper": "The API token of the Jira account used for authentication. Can be created at https://id.atlassian.com/manage-profile/security/api-tokens.",
+    "personalAccessToken": "Jira Personal Access Token",
+    "personalAccessTokenHelper": "The API token of the Jira account used for authentication. Can be created at https://confluence.atlassian.com/enterprise/using-personal-access-tokens-1026032365.html."
   },
   "githubIssuesDataSync": {
     "owner": "Owner",
@@ -443,7 +529,15 @@
     "placeholderWithOIDC": "{login} with {provider}"
   },
   "chartWidget": {
-    "name": "Chart"
+    "name": "Chart",
+    "bar": "Bar chart",
+    "line": "Line chart"
+  },
+  "pieChartWidget": {
+    "name": "Pie chart",
+    "pie": "Pie chart",
+    "doughnut": "Doughnut chart",
+    "polarArea": "Polar area chart"
   },
   "groupedAggregateRowsDataSourceForm": {
     "series": "Series",
@@ -456,7 +550,13 @@
   "aggregationSeriesForm": {
     "aggregationFieldLabel": "Field",
     "aggregationTypeLabel": "Summary",
-    "deleteSeries": "Delete series"
+    "deleteSeries": "Delete series",
+    "chartType": "Chart type",
+    "barChart": "Bar",
+    "lineChart": "Line",
+    "pieChart": "Pie",
+    "doughnutChart": "Doughnut",
+    "polarAreaChart": "Polar area"
   },
   "aggregationGroupByForm": {
     "groupByFieldLabel": "Group by",
@@ -470,7 +570,14 @@
     "descending": "Descending"
   },
   "periodicDataSyncDeactivatedNotification": {
-    "body": "{name} periodic data sync has been deactivated because it failed too many times consecutively."
+    "failure": "{name} periodic data sync has been deactivated because it failed too many times consecutively.",
+    "licenseUnavailable": "{name} periodic data sync has been disabled because the workspace no longer has a valid license. Please update your license to restore automatic syncing."
+  },
+  "twoWaySyncUpdateFailed": {
+    "title": "{name} two-way sync update failed: {error}"
+  },
+  "twoWaySyncDeactivated": {
+    "title": "{name} two-way sync deactivated because an update failed too many times consecutively. Please manually sync, and reactivate when the problem is resolved."
   },
   "webhook": {
     "rowsEnterVieweventType": "Rows enter view"
@@ -478,5 +585,114 @@
   "webhookForm": {
     "triggerWhenRowsEnterView": "Triggered when rows enter the view.",
     "helpTriggerWhenRowsEnterView": "Triggers only when `Rows enter view` is selected and rows that now match the filters enter the view."
+  },
+  "fileInputElementForm": {
+    "defaultNameTitle": "Initial file name|Initial file names",
+    "defaultNamePlaceholder": "Enter a file name...|Enter a file names...",
+    "defaultNameHelp": "The number of names must match the number of urls.",
+    "defaultUrlTitle": "Initial file URL|Initial file URLs",
+    "defaultUrlPlaceholder": "Enter a default URL...|Enter a default URLs..",
+    "helpTextTitle": "Help text",
+    "helpTextPlaceholder": "Keep empty for default...",
+    "multiple": "Multiple files?",
+    "required": "Required",
+    "fileTypes": "File types",
+    "fileTypesHelper": "Choose which file extensions are allowed (one per line) by the file input (e.g. jpg, png, svg, pdf). you can specify image/*, video/* or audio/* to allow all files of these types. Leave empty to permit all file types.",
+    "preview": "Preview images?",
+    "maxFileSize": "Maximum file size",
+    "maxFileSizePlaceholder": "Enter a number...",
+    "addFileType": "Add file type"
+  },
+  "fileInputElement": {
+    "defaultHelpText": "Drag and drop files here or click to select",
+    "fileSizeExceeded": "File too large. Max {max}MB."
+  },
+  "fieldPermissionModal": {
+    "title": "Edit field permissions",
+    "description": "Choose who can edit values in {fieldName}.",
+    "question": "Who can edit this field?",
+    "editorTitle": "Editors and higher (default)",
+    "editorDescription": "Users with Editor, Builder, and Admin roles",
+    "builderTitle": "Builders and higher",
+    "builderDescription": "Users with Builder and Admin roles",
+    "adminTitle": "Admins only",
+    "adminDescription": "Users with Admin roles",
+    "nobodyTitle": "Nobody",
+    "nobodyDescription": "No users",
+    "allowInForms": "Allow this field to be set in rows created through forms",
+    "linkRowWarning": "This is a 'Link to table' field. To ensure values cannot be changed from the linked table, please make ensure to set the right permissions on the linked table as well."
+  },
+  "builderSettingTypes": {
+    "customCode": "Custom CSS/JS"
+  },
+  "customCodeSettingForm": {
+    "customCSS": "Custom CSS",
+    "customJS": "Custom JavaScript",
+    "customCSSPlaceholder": "Enter some custom CSS code...",
+    "customJSPlaceholder": "Enter some custom JS code...",
+    "externalScripts": "External scripts / stylesheets",
+    "noScript": "Enhance your application with external scripts or stylesheets",
+    "customCodeTitle": "Custom code",
+    "customCodeHelp": "Custom code is only visible in preview or published applications, The results aren't visible in the editor.",
+    "addExternalScript": "Add an external script"
+  },
+  "customCodeSettingScriptForm": {
+    "type": "Type",
+    "loadType": "Load type",
+    "url": "URL",
+    "urlPlaceholder": "Enter the script URL...",
+    "crossorigin": "Cross origin",
+    "includeCredentials": "Include credentials",
+    "typeCSS": "CSS",
+    "typeJS": "Javascript",
+    "loadTypeNone": "Normal",
+    "loadTypeDefer": "Defer",
+    "loadTypeAsync": "Async",
+    "crossoriginTypeNone": "Normal",
+    "crossoriginTypeAnonymous": "Anonymous",
+    "crossoriginTypeCredentials": "Use credentials"
+  },
+  "elementType": {
+    "errorUserSourceHasNoLoginOption": "The selected user source has no login option",
+    "errorUserSourceMissing": "No user source selected"
+  },
+  "fieldPermissionsMenuItem": {
+    "label": "Edit field permissions"
+  },
+  "enterpriseTwoWaySyncStrategyType": {
+    "realtimePushDescription": "Allows editing the cell values directly in Baserow, and pushes it in real-time to the data sync source. Note that the changes are not pulled in real-time because they rely on the (periodic) sync action to complete. It's highly recommended to create backups of the PostgreSQL database to avoid accidental changes."
+  },
+  "dateDependencyModal": {
+    "errorTitle": "Date dependency",
+    "dependencyFieldTooltip": "Configure date dependencies",
+    "dependencyFieldTooltipError": "A field rule contains an error",
+    "contextMenuItemLabel": "Configure date dependencies",
+    "title": "Date dependency for {tableName}",
+    "description": "Specify which rows depend on others. When a row is rescheduled, its dependent rows are automatically adjusted.",
+    "enableDateDependency": "Enable date dependencies for Projects",
+    "startDateFieldLabel": "Start date",
+    "endDateFieldLabel": "End date",
+    "durationFieldLabel": "Duration",
+    "durationFieldHint": "This field must use the “d h” format.",
+    "dependencyLinkrowFieldLabel": "Predecessors",
+    "dependencyLinkrowFieldHint": "Use a Link to table field to connect a row to its predecessors.",
+    "dependencyBufferTypeLabel": "Rescheduling logic",
+    "durationBufferLabel": "Time buffer",
+    "dependencyConnectionTypeLabel": "Type",
+    "advancedSettingsLabel": "Advanced settings",
+    "includeWeekendsLabel": "Include weekends when calculating durations",
+    "dependencyFieldForReaderTooltip": "This field is included in date dependency field rule",
+    "fieldInvalidTitle": "Date dependency field error"
+  },
+  "dateDependency": {
+    "invalidChildRow": "Successor row is invalid",
+    "invalidParentRow": "Predecessor row is invalid",
+    "invalidParentEndDateAfterChildStartDate": "Predecessor row end date is after successor start date",
+    "invalidStartDateEmpty": "Start date is empty",
+    "invalidEndDateEmpty": "End date is empty",
+    "invalidEndDateBeforeStartDate": "End date is before start date",
+    "invalidDurationEmpty": "Duration is empty",
+    "invalidDurationValue": "Duration value is not valid",
+    "invalidDurationMismatch": "Duration value mismatch"
   }
 }

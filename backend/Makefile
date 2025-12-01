@@ -152,7 +152,7 @@ lint: .check-dev
 	$(VISORT) --check --skip generated $(BACKEND_SOURCE_DIRS) $(BACKEND_TESTS_DIRS)
 	# TODO: make baserow command reading dotenv files
 	DJANGO_SETTINGS_MODULE=$(DJANGO_SETTINGS_MODULE) $(VBASEROW) makemigrations --dry-run --check
-	$(VBANDIT) -r --exclude src/baserow/test_utils $(BACKEND_SOURCE_DIRS)
+	$(VBANDIT) -r --exclude src/baserow/test_utils,src/baserow/config/settings/local.py $(BACKEND_SOURCE_DIRS)
 
 lint-python: lint
 
@@ -170,20 +170,32 @@ sort: .check-dev
 test: .check-dev
 	$(VPYTEST) $(BACKEND_TESTS_DIRS) || exit;
 
+test-diff: .check-dev
+	$(VPYTEST) $(BACKEND_TESTS_DIRS) --testmon || exit;
+
 test-coverage: .check-dev
 	$(VPYTEST) -n 10 --cov-report term --cov-report html:reports/html --cov=src $(BACKEND_TESTS_DIRS) || exit;
 
 test-builder: .check-dev
-	$(VPYTEST) tests/baserow/contrib/builder || exit
+	$(VPYTEST) tests/baserow/contrib/integrations tests/baserow/contrib/builder || exit
 
 test-builder-parallel: .check-dev
-	$(VPYTEST) tests/baserow/contrib/builder -n 10 || exit
+	$(VPYTEST) tests/baserow/contrib/integrations tests/baserow/contrib/builder -n 10 || exit
+
+test-automation: .check-dev
+	$(VPYTEST) tests/baserow/contrib/integrations tests/baserow/contrib/automation || exit
+
+test-automation-parallel: .check-dev
+	$(VPYTEST) tests/baserow/contrib/integrations tests/baserow/contrib/automation -n 10 || exit
 
 test-regenerate-ci-durations: .check-dev
 	$(VPYTEST) $(BACKEND_TESTS_DIRS) --store-durations || exit;
 
 test-parallel: .check-dev
 	$(VPYTEST) $(BACKEND_TESTS_DIRS) -n 10 || exit;
+
+test-diff-parallel: .check-dev
+	$(VPYTEST) $(BACKEND_TESTS_DIRS) --testmon -n 10 || exit;
 
 .make-django-cmd: .check-dev
 	for pkg_dir in $(SOURCE_DIRS); do echo $$pkg_dir ; cd $$pkg_dir ; \
@@ -221,10 +233,19 @@ ci-coverage-report: .check-dev
 	$(VCOVERAGE) xml -o coverage.xml
 
 
+define check_startup_python
+	@set -euo pipefail; set -x; \
+	BASEROW_OSS_ONLY=$(1) DJANGO_SETTINGS_MODULE=$(DJANGO_SETTINGS_MODULE) $(VDJANGO) check; \
+	BASEROW_OSS_ONLY=$(1) DJANGO_SETTINGS_MODULE=$(DJANGO_SETTINGS_MODULE) timeout --preserve-status 10s \
+		$(VGUNICORN) --workers=1 -b 0.0.0.0:8002 \
+		-k uvicorn.workers.UvicornWorker baserow.config.asgi:application
+endef
+
 ci-check-startup-python: .check-dev
-	DJANGO_SETTINGS_MODULE=$(DJANGO_SETTINGS_MODULE) timeout --preserve-status 10s \
-	    $(VGUNICORN) --workers=1 -b 0.0.0.0:8002 \
-	        -k uvicorn.workers.UvicornWorker baserow.config.asgi:application;
+	$(call check_startup_python,)
+
+ci-check-startup-python-oss-only: .check-dev
+	$(call check_startup_python,true)
 
 
 # clean targets

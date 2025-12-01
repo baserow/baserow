@@ -1,0 +1,9 @@
+{
+  "type": "feature",
+  "message": "Added the AI agent workflow action.",
+  "domain": "builder",
+  "issue_number": 4116,
+  "issue_origin": "github",
+  "bullet_points": [],
+  "created_at": "2025-11-03"
+}

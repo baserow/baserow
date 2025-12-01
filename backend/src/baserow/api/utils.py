@@ -47,12 +47,13 @@ def apply_exception_mapping(mapping, exc, with_fallback=False):
     value = _search_up_class_hierarchy_for_mapping(exc, mapping)
     status_code = status.HTTP_400_BAD_REQUEST
     detail = ""
+    error = None
 
     if callable(value):
         value = value(exc)
-        error = value
         if value is None:
             return None
+
     if isinstance(value, str):
         error = value
     elif isinstance(value, tuple):
@@ -64,7 +65,7 @@ def apply_exception_mapping(mapping, exc, with_fallback=False):
     elif value is None and with_fallback:
         error = "UNKNOWN_ERROR"
         status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
-        detail = f"{exc}"
+        detail = str(exc)
 
     return status_code, error, detail
 

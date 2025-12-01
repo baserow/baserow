@@ -94,6 +94,14 @@ export default {
   head() {
     return {
       title: this.$t('signup.headTitle'),
+      link: [
+        {
+          rel: 'canonical',
+          href:
+            this.$config.PUBLIC_WEB_FRONTEND_URL +
+            this.$router.resolve({ name: 'signup' }).href,
+        },
+      ],
     }
   },
   computed: {

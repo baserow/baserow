@@ -4,27 +4,29 @@ import os
 import sys
 import threading
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import date, datetime
+from decimal import Decimal
 from functools import partial
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, AsyncGenerator, Dict, List, Optional
 from unittest.mock import patch
 
 from django.conf import settings as django_settings
-from django.core import cache
+from django.core.cache import cache
 from django.core.management import call_command
-from django.db import DEFAULT_DB_ALIAS, OperationalError, connection
+from django.db import DEFAULT_DB_ALIAS, OperationalError, connection, transaction
 from django.db.migrations.executor import MigrationExecutor
 from django.test.utils import CaptureQueriesContext
 
 import pytest
+from asgiref.sync import async_to_sync
 from faker import Faker
 from loguru import logger
 from pygments import highlight
 from pygments.formatters import TerminalFormatter
 from pygments.lexers import PostgresLexer
 from pyinstrument import Profiler
-from rest_framework.test import APIRequestFactory
+from rest_framework.test import APIClient, APIRequestFactory
 from sqlparse import format
 
 from baserow.contrib.database.application_types import DatabaseApplicationType
@@ -58,7 +60,10 @@ def fake():
 # This solution is taken from: https://bit.ly/3UJ90co
 @pytest.fixture(scope="session")
 def async_event_loop():
-    loop = asyncio.get_event_loop()
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
     yield loop
     loop.close()
 
@@ -82,11 +87,40 @@ def data_fixture(fake):
     return Fixtures(fake)
 
 
+class StreamingAPIClient(APIClient):
+    """Custom API client that properly handles streaming responses"""
+
+    async def _consume_async_generator(self, async_gen: AsyncGenerator) -> List:
+        """Helper to consume async generator"""
+        chunks = []
+        async for chunk in async_gen:
+            chunks.append(chunk)
+        return chunks
+
+    def request(self, **kwargs):
+        response = super().request(**kwargs)
+
+        # If it's a streaming response, don't consume it yet, but store the original
+        # streaming_content so we can consume it later if needed.
+        if hasattr(response, "streaming_content"):
+            response._streaming_content = response.streaming_content
+
+            def stream_chunks() -> list[str]:
+                content = response._streaming_content
+
+                if hasattr(content, "__aiter__"):
+                    return async_to_sync(self._consume_async_generator)(content)
+                else:
+                    return list(content)
+
+            response.stream_chunks = stream_chunks
+
+        return response
+
+
 @pytest.fixture()
 def api_client():
-    from rest_framework.test import APIClient
-
-    return APIClient()
+    return StreamingAPIClient()
 
 
 @pytest.fixture
@@ -99,9 +133,22 @@ def api_request_factory():
 
 
 @pytest.fixture(autouse=True)
-def reset_cache():
-    """Automatically reset the short cache before each test."""
+def clear_cache():
+    """Automatically clear all caches before each test."""
 
+    # fakeredis cache
+    cache.clear()
+
+    # Workspace search table cache
+    from baserow.contrib.database.search.handler import (
+        _generate_search_table_model,
+        _workspace_search_table_exists,
+    )
+
+    _generate_search_table_model.cache_clear()
+    _workspace_search_table_exists.cache_clear()
+
+    # Thread-local cache
     with local_cache.context():
         yield
 
@@ -214,6 +261,17 @@ def mutable_user_source_registry():
 
 
 @pytest.fixture()
+def mutable_trash_operation_type_registry():
+    from baserow.core.trash.registries import trash_operation_type_registry
+
+    before = trash_operation_type_registry.registry.copy()
+    trash_operation_type_registry.get_for_class.cache_clear()
+    yield trash_operation_type_registry
+    trash_operation_type_registry.get_for_class.cache_clear()
+    trash_operation_type_registry.registry = before
+
+
+@pytest.fixture()
 def mutable_builder_workflow_action_registry():
     from baserow.contrib.builder.workflow_actions.registries import (
         builder_workflow_action_type_registry,
@@ -240,6 +298,45 @@ def mutable_webhook_event_type_registry():
         webhook_event_type_registry.get_for_class.cache_clear()
         yield webhook_event_type_registry
         webhook_event_type_registry.get_for_class.cache_clear()
+
+
+@pytest.fixture()
+def mutable_element_type_registry():
+    from baserow.contrib.builder.elements.registries import element_type_registry
+
+    before = element_type_registry.registry.copy()
+    yield element_type_registry
+    element_type_registry.registry = before
+
+
+@pytest.fixture()
+def stub_trash_operation_type(data_fixture, mutable_trash_operation_type_registry):
+    @contextlib.contextmanager
+    def stubbed(
+        type_managed=False,
+        type_send_deleted_signal=True,
+        type_send_created_signal=True,
+    ):
+        from baserow.core.trash.registries import (
+            TrashOperationType,
+            trash_operation_type_registry,
+        )
+
+        class StubbedTrashOperationType(TrashOperationType):
+            type = "stubbed"
+            managed = type_managed
+            send_post_trash_deleted_signal = type_send_deleted_signal
+            send_post_restore_created_signal = type_send_created_signal
+
+        operation_type = StubbedTrashOperationType()
+        mutable_trash_operation_type_registry.registry[
+            StubbedTrashOperationType.type
+        ] = StubbedTrashOperationType()
+        trash_operation_type_registry.get_for_class.cache_clear()
+
+        yield operation_type
+
+    return stubbed
 
 
 @pytest.fixture()
@@ -711,54 +808,7 @@ def migrator(second_separate_database_for_migrations, reset_schema):
 
 @pytest.fixture
 def disable_full_text_search(settings):
-    settings.USE_PG_FULLTEXT_SEARCH = False
-
-
-@pytest.fixture
-def enable_singleton_testing(settings):
-    # celery-singleton uses redis to store the lock state
-    # so we need to mock redis to make sure the tests don't fail
-    settings.CACHES = {
-        **django_settings.CACHES,
-        "default": {"BACKEND": "django.core.cache.backends.dummy.DummyCache"},
-    }
-    from fakeredis import FakeRedis, FakeServer
-
-    fake_redis_server = FakeServer()
-    with patch(
-        "baserow.celery_singleton_backend.get_redis_connection",
-        lambda *a, **kw: FakeRedis(server=fake_redis_server),
-    ):
-        yield
-
-
-@pytest.fixture
-def enable_locmem_testing(settings):
-    """
-    Enables in-memory cache and redis for a test
-
-    :param settings:
-    :return:
-    """
-
-    # celery-singleton uses redis to store the lock state
-    # so we need to mock redis to make sure the tests don't fail
-    settings.CACHES = {
-        **django_settings.CACHES,
-        "default": {
-            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
-            "LOCATION": "testloc",
-        },
-    }
-    from fakeredis import FakeRedis, FakeServer
-
-    fake_redis_server = FakeServer()
-    with patch(
-        "baserow.celery_singleton_backend.get_redis_connection",
-        lambda *a, **kw: FakeRedis(server=fake_redis_server),
-    ):
-        yield
-        cache.cache.clear()
+    settings.PG_FULLTEXT_SEARCH_ENABLED = False
 
 
 @pytest.fixture(autouse=True)
@@ -783,12 +833,22 @@ def fake_import_formula(formula, id_mapping):
 
 
 class FakeDispatchContext(DispatchContext):
+    own_properties = [
+        "context",
+        "_public_allowed_properties",
+        "_searchable_fields",
+        "_search_query",
+        "_count",
+    ]
+
     def __init__(self, **kwargs):
         super().__init__()
         self.context = kwargs.pop("context", {})
         self._public_allowed_properties = kwargs.pop("public_allowed_properties", None)
         self._searchable_fields = kwargs.pop("searchable_fields", [])
         self._search_query = kwargs.pop("search_query", None)
+        self._count = kwargs.pop("count", 100)
+
         for key, value in kwargs.items():
             setattr(self, key, value)
 
@@ -817,7 +877,7 @@ class FakeDispatchContext(DispatchContext):
         return None
 
     def range(self, service):
-        return [0, 100]
+        return [0, self._count]
 
     def __getitem__(self, key: str) -> Any:
         if key == "test":
@@ -944,3 +1004,88 @@ def baserow_db_setup(django_db_setup, django_db_blocker):
 @pytest.fixture()
 def use_tmp_media_root(tmpdir, settings):
     settings.MEDIA_ROOT = tmpdir
+
+
+@pytest.fixture
+def create_postgresql_test_table():
+    table_name = "test_table"
+
+    column_definitions = {
+        "text_col": "TEXT",
+        "char_col": "CHAR(10)",
+        "int_col": "INTEGER",
+        "float_col": "REAL",
+        "numeric_col": "NUMERIC",
+        "numeric2_col": "NUMERIC(100, 4)",
+        "smallint_col": "SMALLINT",
+        "bigint_col": "BIGINT",
+        "decimal_col": "DECIMAL",
+        "date_col": "DATE",
+        "datetime_col": "TIMESTAMP",
+        "boolean_col": "BOOLEAN",
+    }
+
+    # Create the schema of the initial table.
+    create_table_sql = f"""
+    CREATE TABLE {table_name} (
+        id SERIAL PRIMARY KEY,
+        {', '.join([f"{col_name} {col_type}" for col_name, col_type in column_definitions.items()])}
+    )
+    """
+
+    # Inserts a couple of random rows for testing purposes.
+    insert_sql = f"""
+    INSERT INTO {table_name} ({', '.join(column_definitions.keys())})
+    VALUES (
+        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+    )
+    """
+
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(create_table_sql)
+
+            cursor.execute(
+                insert_sql,
+                (
+                    "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Maecenas non nunc et sapien ultricies blandit. ",
+                    "Short char",
+                    10,
+                    10.10,
+                    100,
+                    "10.4444",
+                    200,
+                    99999999,
+                    Decimal("99999999.22"),
+                    date(2023, 1, 17),
+                    datetime(2022, 2, 28, 12, 00),
+                    True,
+                ),
+            )
+            cursor.execute(
+                insert_sql,
+                (
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                ),
+            )
+
+        transaction.commit()
+
+        yield table_name  # Provide table name to tests that need to access it
+
+    finally:
+        # Drop the table after test completes or fails
+        with connection.cursor() as cursor:
+            cursor.execute(f"DROP TABLE IF EXISTS {table_name}")
+        transaction.commit()

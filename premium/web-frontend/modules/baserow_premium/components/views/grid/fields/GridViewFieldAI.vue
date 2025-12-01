@@ -22,8 +22,9 @@
       :is="outputGridViewFieldComponent"
       v-else
       ref="cell"
+      :read-only="readOnly || generating"
       v-bind="$props"
-      :read-only="true"
+      v-on="$listeners"
     >
       <template v-if="!readOnly && editing" #default="{ editing }">
         <div style="background-color: #fff; padding: 8px">
@@ -47,11 +48,12 @@
       </template>
     </component>
     <component
-      :is="deactivatedClickComponent"
+      :is="deactivatedClickComponent[0]"
       v-if="isDeactivated && workspace"
       ref="clickModal"
+      v-bind="deactivatedClickComponent[1]"
+      name="ai-field"
       :workspace="workspace"
-      :name="fieldName"
     ></component>
   </div>
 </template>
@@ -76,11 +78,27 @@ export default {
         .getGridViewFieldComponent(this.field)
     },
   },
+  watch: {
+    value(newValue) {
+      const outputType = this.$registry.get(
+        'aiFieldOutputType',
+        this.field.ai_output_type
+      )
+      this.$nextTick(() => {
+        if (this.$refs.cell) {
+          outputType.updateValue(this.$refs.cell, newValue)
+        }
+      })
+    },
+  },
   methods: {
     save() {
       this.opened = false
       this.editing = false
       this.afterSave()
+    },
+    canSaveByPressingEnter(event) {
+      return this.$refs.cell.canSaveByPressingEnter(event)
     },
     canUnselectByClickingOutside(event) {
       if (this.isDeactivated && this.workspace) {

@@ -43,6 +43,7 @@
       "
       ref="unselectedField"
       :workspace-id="props.workspaceId"
+      :row="props.row"
       :field="props.field"
       :value="props.row['field_' + props.field.id]"
       :state="props.state"

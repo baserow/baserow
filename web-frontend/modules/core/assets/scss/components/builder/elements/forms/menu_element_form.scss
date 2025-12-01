@@ -16,20 +16,6 @@
   padding: 10px;
 }
 
-%menu-element-form-expandable-item {
-  display: flex;
-  align-items: center;
-  margin: 5px 0;
-  user-select: none;
-  cursor: pointer;
-}
-
-.menu-element-form__item-header {
-  @extend %menu-element-form-expandable-item;
-
-  background-color: $palette-neutral-100;
-}
-
 .menu-element-form__item-error {
   font-size: 20px;
   color: #ffbdb4;
@@ -37,48 +23,48 @@
   padding-right: 3px;
 }
 
-.menu-element-form__item-name {
-  flex: 1;
-  padding-right: 5px;
-
-  @extend %ellipsis;
-}
-
 .menu-element-form__item-handle {
-  width: 8px;
-  height: 36px;
-  background-image: radial-gradient($color-neutral-200 40%, transparent 40%);
-  background-size: 4px 4px;
+  width: 10px;
+  height: 16px;
+  background-image: radial-gradient($color-neutral-400 40%, transparent 40%);
+  background-size: 5px 5px;
   background-repeat: repeat;
-  margin: 2px;
-  margin-right: 12px;
   cursor: grab;
-  visibility: hidden;
 
-  .menu-element-form__item-header:hover & {
-    visibility: visible;
+  &:hover {
+    background-image: radial-gradient($color-neutral-500 40%, transparent 40%);
   }
 }
 
-.menu-element-form__item-header--outline {
-  @extend %menu-element-form-expandable-item;
+.menu-element-form__item-title {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
 
+.menu-element-form__item-wrapper {
+  padding: 4px 0;
+}
+
+.menu-element-form__item-header--outline {
+  display: flex;
+  align-items: center;
+  padding: 18px 12px;
+  user-select: none;
+  cursor: auto;
+  font-weight: 500;
+  gap: 8px;
   background-color: $color-neutral-10;
   border: 1px dashed $color-neutral-200;
+
+  @include rounded($rounded);
 }
 
-.menu-element-form__item {
-  margin: 5px 10px;
-  width: 100%;
+.menu-element-form__item-delete {
+  cursor: pointer;
 }
 
-.menu-element-form__item-child {
-  margin-right: -10px;
-  width: calc(100% - 10px);
-}
-
-.menu-element-form__add-sub-link-container {
-  display: flex;
-  justify-content: flex-end;
-  margin-left: 15px;
+.menu-element-item-form__children:last-child {
+  padding-bottom: 6px;
 }

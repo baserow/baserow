@@ -6,7 +6,9 @@ from typing import Any, List, Optional, Set, Type, Union
 
 from django.contrib.postgres.fields import ArrayField, JSONField
 from django.db import models
-from django.db.models import Expression, F, Func, Q, QuerySet, TextField, Value
+from django.db.models import Expression, F
+from django.db.models import Field as DjangoField
+from django.db.models import Func, Q, QuerySet, TextField, Value
 from django.db.models.functions import Cast, Concat
 
 from dateutil import parser
@@ -18,7 +20,10 @@ from baserow.contrib.database.fields.expressions import (
     extract_jsonb_list_values_to_array,
     json_extract_path,
 )
-from baserow.contrib.database.fields.field_filters import OptionallyAnnotatedQ
+from baserow.contrib.database.fields.field_filters import (
+    AnnotatedQ,
+    OptionallyAnnotatedQ,
+)
 from baserow.contrib.database.fields.field_sortings import OptionallyAnnotatedOrderBy
 from baserow.contrib.database.fields.filter_support.base import (
     HasAllValuesEqualFilterSupport,
@@ -55,6 +60,7 @@ from baserow.contrib.database.formula.ast.tree import (
 )
 from baserow.contrib.database.formula.expression_generator.django_expressions import (
     ComparisonOperator,
+    JSONArrayCompareIntervalValueExpr,
     JSONArrayCompareNumericValueExpr,
 )
 from baserow.contrib.database.formula.registries import formula_function_registry
@@ -152,6 +158,7 @@ class BaserowFormulaTextType(
     type = "text"
     baserow_field_type = "text"
     can_order_by_in_array = True
+    can_have_db_index = True
 
     def __init__(self, *args, **kwargs):
         unwrap_cast_to_text = kwargs.pop("unwrap_cast_to_text", True)
@@ -181,6 +188,9 @@ class BaserowFormulaTextType(
                 field_name, "value", "text", output_field=models.TextField()
             )
         )
+
+    def get_in_array_empty_value(self, field: "Field") -> Any:
+        return [None, ""]
 
 
 class BaserowFormulaURLType(BaserowFormulaTextType, BaserowFormulaValidType):
@@ -361,6 +371,7 @@ class BaserowFormulaNumberType(
     MAX_DIGITS = 50
     can_order_by_in_array = True
     can_group_by = True
+    can_have_db_index = True
 
     def __init__(
         self,
@@ -498,6 +509,7 @@ class BaserowFormulaNumberType(
 
 
 class BaserowFormulaBooleanType(
+    HasValueEmptyFilterSupport,
     HasAllValuesEqualFilterSupport,
     HasValueEqualFilterSupport,
     BaserowFormulaTypeHasEmptyBaserowExpression,
@@ -507,6 +519,10 @@ class BaserowFormulaBooleanType(
     baserow_field_type = "boolean"
     can_order_by_in_array = True
     can_group_by = True
+    can_have_db_index = True
+
+    def get_in_array_empty_value(self, field: "Field") -> Any:
+        return None
 
     @property
     def comparable_types(self) -> List[Type["BaserowFormulaValidType"]]:
@@ -577,8 +593,6 @@ class BaserowFormulaDateIntervalTypeMixin:
     Empty mixin to allow us to check if a type is a date interval type or a duration
     type. NOTE: This can be removed once the BaserowFormulaDateIntervalType is removed.
     """
-
-    pass
 
 
 # Deprecated, use BaserowFormulaDurationType instead
@@ -698,6 +712,7 @@ class BaserowFormulaDurationType(
     BaserowFormulaTypeHasEmptyBaserowExpression,
     BaserowFormulaValidType,
     BaserowFormulaDateIntervalTypeMixin,
+    HasValueEmptyFilterSupport,
 ):
     type = "duration"
     baserow_field_type = "duration"
@@ -708,6 +723,9 @@ class BaserowFormulaDurationType(
     def __init__(self, duration_format: str = D_H_M_S, **kwargs):
         super().__init__(**kwargs)
         self.duration_format = duration_format
+
+    def get_in_array_empty_value(self, field: "Field") -> Any:
+        return None
 
     @property
     def comparable_types(self) -> List[Type["BaserowFormulaValidType"]]:
@@ -796,6 +814,31 @@ class BaserowFormulaDurationType(
             field_name, "value", "interval", output_field=models.DurationField()
         )
 
+    def get_has_numeric_value_comparable_to_filter_query(
+        self,
+        field_name: str,
+        value: str,
+        model_field: models.Field,
+        field: "Field",
+        comparison_op: ComparisonOperator,
+    ) -> "OptionallyAnnotatedQ":
+        try:
+            value = int(value)
+        except (TypeError, ValueError):
+            return Q()
+
+        return get_array_json_filter_expression(
+            JSONArrayCompareIntervalValueExpr,
+            field_name,
+            Value(value),
+            comparison_op=comparison_op,
+        )
+
+    def get_in_array_is_query(self, field_name, value, model_field, field):
+        return self.get_has_numeric_value_comparable_to_filter_query(
+            field_name, value, model_field, field, ComparisonOperator.EQUAL
+        )
+
 
 class BaserowFormulaDateType(
     HasValueEmptyFilterSupport, HasValueContainsFilterSupport, BaserowFormulaValidType
@@ -813,6 +856,7 @@ class BaserowFormulaDateType(
     can_represent_date = True
     can_order_by_in_array = True
     can_group_by = True
+    can_have_db_index = True
 
     def __init__(
         self,
@@ -951,7 +995,9 @@ class BaserowFormulaDateType(
         return f"{date_or_datetime}({self.date_format}{optional_time_format})"
 
 
-class BaserowFormulaSingleFileType(BaserowJSONBObjectBaseType):
+class BaserowFormulaSingleFileType(
+    HasValueEmptyFilterSupport, BaserowJSONBObjectBaseType
+):
     type = "single_file"
     can_group_by = False
     can_order_by = False
@@ -977,6 +1023,35 @@ class BaserowFormulaSingleFileType(BaserowJSONBObjectBaseType):
     @property
     def db_column_fields(self) -> Set[str]:
         return {}
+
+    def get_all_empty_query(
+        self,
+        field_name: str,
+        model_field: Field,
+        field,
+        in_array: bool = True,
+    ) -> OptionallyAnnotatedQ:
+        empty_value = self.get_in_array_empty_value(field)
+        any_not_empty = get_jsonb_has_any_in_value_filter_expr(
+            model_field,
+            empty_value,
+            query_path="$[*].name",
+            comparison_operator="!=",
+            join_operator="&&",
+        )
+        return AnnotatedQ(
+            annotation=any_not_empty.annotation,
+            q=~any_not_empty.q | Q(**{f"{field_name}": Value([], JSONField())}),
+        )
+
+    def get_in_array_empty_query(
+        self, field_name, model_field, field
+    ) -> OptionallyAnnotatedQ:
+        # Use get_jsonb_has_any_in_value_filter_expr with size() to check if the array
+        # is empty.
+        return get_jsonb_has_any_in_value_filter_expr(
+            model_field, [0], query_path="$[*].size()"
+        )
 
     def get_model_field(self, instance, **kwargs) -> models.Field:
         return JSONField(default=dict, **kwargs)
@@ -1087,6 +1162,7 @@ class BaserowFormulaArrayType(
         "array_formula_type",
     ]
     can_group_by = False
+    serializer_extra_args = ["limit_linked_items"]
 
     def __init__(self, sub_type: BaserowFormulaValidType, **kwargs):
         super().__init__(**kwargs)
@@ -1198,7 +1274,10 @@ class BaserowFormulaArrayType(
     def get_serializer_field(self, instance, **kwargs) -> Optional[Field]:
         required = kwargs.get("required", False)
 
-        from baserow.contrib.database.api.fields.serializers import ArrayValueSerializer
+        from baserow.contrib.database.api.fields.serializers import (
+            ArrayValueSerializer,
+            LimitListSerializer,
+        )
 
         (
             instance,
@@ -1210,11 +1289,12 @@ class BaserowFormulaArrayType(
             )
         else:
             serializer = field_type.get_response_serializer_field(instance)
-        return serializers.ListSerializer(
+        return LimitListSerializer(
             **{
                 "required": required,
                 "allow_null": not required,
                 "child": serializer,
+                "limit": kwargs.pop("limit_linked_items", None),
                 **kwargs,
             }
         )
@@ -1641,12 +1721,77 @@ class BaserowFormulaMultipleSelectType(
         return get_jsonb_contains_word_filter_expr(model_field, value)
 
 
-class BaserowFormulaMultipleCollaboratorsType(BaserowJSONBObjectBaseType):
+class BaserowFormulaMultipleCollaboratorsType(
+    HasValueContainsWordFilterSupport,
+    HasValueContainsFilterSupport,
+    HasValueEmptyFilterSupport,
+    HasValueEqualFilterSupport,
+    BaserowJSONBObjectBaseType,
+):
     type = "multiple_collaborators"
     baserow_field_type = "multiple_collaborators"
     can_order_by = False
     can_order_by_in_array = False
     can_group_by = False
+
+    def get_in_array_contains_word_query(
+        self, field_name: str, value: str, model_field: DjangoField, field: "Field"
+    ) -> OptionallyAnnotatedQ:
+        return get_jsonb_contains_word_filter_expr(
+            model_field, value, query_path="$[*].value.first_name"
+        )
+
+    def get_in_array_contains_query(
+        self, field_name: str, value: str, model_field: DjangoField, field: "Field"
+    ) -> OptionallyAnnotatedQ:
+        return get_jsonb_contains_filter_expr(
+            model_field, value, query_path="$[*].value.first_name"
+        )
+
+    def get_in_array_is_query(
+        self, field_name: str, value: str, model_field: DjangoField, field: "Field"
+    ) -> OptionallyAnnotatedQ:
+        try:
+            value = [int(value)]
+
+        except (TypeError, ValueError):
+            return Q()
+
+        return get_jsonb_has_any_in_value_filter_expr(
+            model_field, value, query_path="$[*].value.id"
+        )
+
+    def get_in_array_empty_query(
+        self, field_name: str, model_field: DjangoField, field: "Field"
+    ) -> OptionallyAnnotatedQ:
+        return get_jsonb_has_any_in_value_filter_expr(
+            model_field, [0], query_path="$[*].value.size()"
+        )
+
+    def get_all_empty_query(
+        self, field_name: str, model_field: Field, field, in_array: bool = True
+    ) -> OptionallyAnnotatedQ:
+        if in_array:
+            any_not_empty = get_jsonb_has_any_in_value_filter_expr(
+                model_field,
+                [0],
+                query_path="$[*].value.size()",
+                comparison_operator=">",
+                join_operator="&&",
+            )
+        else:
+            empty_value = self.get_in_array_empty_value(field)
+            any_not_empty = get_jsonb_has_any_in_value_filter_expr(
+                model_field,
+                empty_value,
+                query_path=f"$[*].first_name",
+                comparison_operator="!=",
+                join_operator="&&",
+            )
+        return AnnotatedQ(
+            annotation=any_not_empty.annotation,
+            q=~any_not_empty.q | Q(**{f"{field_name}": Value([], JSONField())}),
+        )
 
     @property
     def comparable_types(self) -> List[Type["BaserowFormulaValidType"]]:

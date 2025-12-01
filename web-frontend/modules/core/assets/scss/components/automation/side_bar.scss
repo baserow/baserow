@@ -1,0 +1,10 @@
+.side-bar-automation__link-text {
+  // Ensure the workflow name takes up all the available space.
+  flex: 1;
+
+  // Only display ellipsis when the user *isn't* editing the workflow
+  // name in-place.
+  &:not([contenteditable='true']) {
+    @extend %ellipsis;
+  }
+}

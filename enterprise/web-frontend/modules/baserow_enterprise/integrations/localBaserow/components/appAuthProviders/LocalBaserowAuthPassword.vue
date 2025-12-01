@@ -73,6 +73,13 @@ export default {
         return () => {}
       },
     },
+    afterLogin: {
+      type: Function,
+      required: false,
+      default: () => {
+        return () => {}
+      },
+    },
   },
   setup() {
     const instance = getCurrentInstance()
@@ -122,14 +129,16 @@ export default {
         this.values.password = ''
         this.values.email = ''
         this.v$.$reset()
-        this.$emit('after-login')
+        await this.afterLogin()
       } catch (error) {
         if (error.handler) {
           const response = error.handler.response
           if (response && response.status === 401) {
             this.values.password = ''
             this.v$.$reset()
-            this.$refs.passwordRef.focus()
+            if (this.$refs?.passwordRef) {
+              this.$refs.passwordRef.focus()
+            }
 
             if (response.data?.error === 'ERROR_INVALID_CREDENTIALS') {
               this.showError(

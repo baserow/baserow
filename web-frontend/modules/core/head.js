@@ -8,6 +8,10 @@ export default {
       content:
         'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no',
     },
+    {
+      name: 'format-detection',
+      content: 'telephone=no, email=no, address=no, date=no',
+    },
   ],
   link: [
     {

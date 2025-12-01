@@ -2,6 +2,7 @@ import Vue from 'vue'
 import axios from 'axios'
 import _ from 'lodash'
 import BigNumber from 'bignumber.js'
+import { createNewUndoRedoActionGroupId } from '@baserow/modules/database/utils/action'
 
 import { uuid } from '@baserow/modules/core/utils/string'
 import { clone } from '@baserow/modules/core/utils/object'
@@ -23,18 +24,84 @@ import { RefreshCancelledError } from '@baserow/modules/core/errors'
 import {
   prepareRowForRequest,
   prepareNewOldAndUpdateRequestValues,
-  extractRowReadOnlyValues,
   updateRowMetadataType,
   getRowMetadata,
+  extractChangedFields,
 } from '@baserow/modules/database/utils/row'
 import { getDefaultSearchModeFromEnv } from '@baserow/modules/database/utils/search'
 import { fieldValuesAreEqualInObjects } from '@baserow/modules/database/utils/groupBy'
+import {
+  GRID_VIEW_MULTI_SELECT_AREA,
+  GRID_VIEW_MULTI_SELECT_CHECKBOX,
+  LINKED_ITEMS_LOAD_ALL,
+} from '@baserow/modules/database/constants'
 
 const ORDER_STEP = '1'
 const ORDER_STEP_BEFORE = '0.00000000000000000001'
 const REFRESH_ROW_DELAY = 1000
 
-export function populateRow(row, metadata = {}) {
+/**
+ * Populates fresh rows from text (or JSON) data. The number of returned rows will match
+ * the number of rows from tsvData list.
+ *
+ * @param tsvData a list of values in text format
+ * @param jsonData (optional) a list of values from json. Should match in number with
+ *  tsvData
+ * @param fieldsInOrder a list of fields used
+ * @param registry
+ * @param fromRows (optional) a list of existing rows which will be used to pre-populate
+ * @param forUpdate (optional) if true, the values will be prepared to be used for an update
+ * request. If false, the values won't be prepared and will contain the rich values prepared
+ * for paste.
+ *  rows
+ * @returns {*[]}
+ */
+function populateRows({
+  tsvData,
+  jsonData,
+  fieldsInOrder,
+  registry,
+  fromRows,
+  forUpdate = true,
+}) {
+  const newRows = []
+
+  // Prepare the values for update and update the row objects.
+  tsvData.forEach((tsvRow, rowIndex) => {
+    const oldRow = fromRows ? fromRows[rowIndex] : {}
+    const row = {}
+    if (oldRow) {
+      row.id = oldRow.id
+    }
+
+    fieldsInOrder.forEach((field, fieldIndex) => {
+      const fieldType = registry.get('field', field.type)
+      // We can't pre-filter because we need the correct filter index.
+      if (!fieldType.canWriteFieldValues(field)) {
+        return
+      }
+
+      const fieldId = `field_${field.id}`
+      const textValue = tsvRow[fieldIndex]
+      const jsonValue = jsonData != null ? jsonData[rowIndex][fieldIndex] : null
+      const preparedValue = fieldType.prepareValueForPaste(
+        field,
+        textValue,
+        jsonValue
+      )
+      if (forUpdate) {
+        row[fieldId] = fieldType.prepareValueForUpdate(field, preparedValue)
+      } else {
+        row[fieldId] = preparedValue
+      }
+    })
+    newRows.push(row)
+  })
+
+  return newRows
+}
+
+export function populateRow(row, metadata = {}, fullyLoaded = true) {
   row._ = {
     metadata: getRowMetadata(row, metadata),
     persistentId: uuid(),
@@ -53,6 +120,11 @@ export function populateRow(row, metadata = {}) {
     // between cells.
     selected: false,
     selectedFieldId: -1,
+    // When loaded together with other rows, some fields might not be fetched
+    // completely. This flag indicates that the row has been fully loaded, including all
+    // the linked items and array values.
+    fetching: false,
+    fullyLoaded,
   }
 
   return row
@@ -82,6 +154,8 @@ export const state = () => ({
   multiSelectActive: false,
   // Indicates if the user is clicking and holding the mouse over a cell
   multiSelectHolding: false,
+  // Indicates the current selection type: 'checkbox', 'area', or null
+  selectionType: null,
   /**
    * The indexes for head and tail cells in a multi-select grid.
    * Multi-Select works by tracking four different indexes, these are:
@@ -146,6 +220,7 @@ export const state = () => ({
   // in the array, then that cell is a loading state. This is for example used for
   // fields that use a background worker to compute the value like the AI field.
   pendingFieldOps: {},
+  checkboxSelectedRows: [], // Array of row IDs selected by checkboxes
 })
 
 export const mutations = {
@@ -163,6 +238,8 @@ export const mutations = {
     state.activeSearchTerm = ''
     state.hideRowsNotMatchingSearch = true
     state.pendingFieldOps = {}
+    state.checkboxSelectedRows = []
+    state.selectionType = null
   },
   SET_ACTIVE_GROUP_BYS(state, groupBys) {
     state.activeGroupBys = groupBys
@@ -216,7 +293,9 @@ export const mutations = {
     state,
     { rows, prependToRows, appendToRows, count, bufferStartIndex, bufferLimit }
   ) {
-    state.count = count
+    if (count !== undefined) {
+      state.count = count
+    }
     state.bufferStartIndex = bufferStartIndex
     state.bufferLimit = bufferLimit
 
@@ -236,6 +315,16 @@ export const mutations = {
         state.rows.length - Math.abs(appendToRows)
       )
     }
+    rows.forEach((row) => {
+      if (state.checkboxSelectedRows.includes(row.id)) {
+        if (!row._.selectedBy) {
+          row._.selectedBy = []
+        }
+        if (!row._.selectedBy.includes(0)) {
+          row._.selectedBy.push(0)
+        }
+      }
+    })
   },
   REPLACE_ALL_FIELD_OPTIONS(state, fieldOptions) {
     state.fieldOptions = fieldOptions
@@ -358,19 +447,21 @@ export const mutations = {
     state.multiSelectHolding = value
   },
   SET_MULTISELECT_ACTIVE(state, value) {
-    state.multiSelectActive = value
+    Vue.set(state, 'multiSelectActive', value)
   },
-  CLEAR_MULTISELECT(state) {
-    state.multiSelectActive = false
+  CLEAR_AREA_SELECTION(state) {
     state.multiSelectHolding = false
     state.multiSelectHeadRowIndex = -1
     state.multiSelectHeadFieldIndex = -1
     state.multiSelectTailRowIndex = -1
     state.multiSelectTailFieldIndex = -1
   },
-  CLEAR_MULTISELECT_START(state) {
+  CLEAR_AREA_START_SELECTION(state) {
     state.multiSelectStartRowIndex = -1
     state.multiSelectStartFieldIndex = -1
+  },
+  CLEAR_CHECKBOX_SELECTION(state) {
+    state.checkboxSelectedRows = []
   },
   ADD_FIELD_TO_ROWS_IN_BUFFER(state, { field, value }) {
     const name = `field_${field.id}`
@@ -427,6 +518,14 @@ export const mutations = {
       state.rows.splice(index, 0, state.rows.splice(oldIndex, 1)[0])
     }
   },
+  SET_ROW_FETCHING(state, { row, value }) {
+    const index = state.rows.findIndex((item) => item.id === row.id)
+    if (index !== -1) {
+      const existingRowState = state.rows[index]
+      existingRowState._.fetching = value
+      existingRowState._.fullyLoaded = !value
+    }
+  },
   UPDATE_ROW_IN_BUFFER(state, { row, values, metadata = false }) {
     const index = state.rows.findIndex((item) => item.id === row.id)
     if (index !== -1) {
@@ -457,6 +556,14 @@ export const mutations = {
 
       if (index === -1) {
         continue
+      }
+
+      // When row is added, we set UUID as temporary id. Once backend
+      // returns the row with proper ID we need to make sure that the
+      // checkbox selection is properly updated.
+      const selectedIndex = state.checkboxSelectedRows.indexOf(oldRow.id)
+      if (selectedIndex !== -1) {
+        state.checkboxSelectedRows[selectedIndex] = newRow.id
       }
 
       stateRowsCopy[index].id = newRow.id
@@ -634,6 +741,35 @@ export const mutations = {
   UPDATE_ROW_HEIGHT(state, value) {
     state.rowHeight = value
   },
+  ADD_CHECKBOX_SELECTED_ROW(state, rowId) {
+    if (!state.checkboxSelectedRows.includes(rowId)) {
+      state.checkboxSelectedRows.push(rowId)
+    }
+  },
+  REMOVE_CHECKBOX_SELECTED_ROW(state, rowId) {
+    const index = state.checkboxSelectedRows.indexOf(rowId)
+    if (index > -1) {
+      state.checkboxSelectedRows.splice(index, 1)
+    }
+  },
+  CLEAR_CHECKBOX_SELECTED_ROWS(state) {
+    state.checkboxSelectedRows = []
+  },
+  SET_SELECTION_TYPE(state, type) {
+    state.selectionType = type
+  },
+  SET_MULTISELECT_HEAD_ROW_INDEX(state, value) {
+    state.multiSelectHeadRowIndex = value
+  },
+  SET_MULTISELECT_HEAD_FIELD_INDEX(state, value) {
+    state.multiSelectHeadFieldIndex = value
+  },
+  SET_MULTISELECT_TAIL_ROW_INDEX(state, value) {
+    state.multiSelectTailRowIndex = value
+  },
+  SET_MULTISELECT_TAIL_FIELD_INDEX(state, value) {
+    state.multiSelectTailFieldIndex = value
+  },
 }
 
 // Contains the info needed for the delayed scroll top action.
@@ -779,6 +915,7 @@ export const actions = {
           groupBy: getGroupBy(rootGetters, getters.getLastGridId),
           orderBy: getOrderBy(view, getters.getAdhocSorting),
           filters: getFilters(view, getters.getAdhocFiltering),
+          excludeCount: getters.canExcludeCount,
         })
         .then(({ data }) => {
           // Don't do anything if the gridId does not match the current view gridId
@@ -790,7 +927,7 @@ export const actions = {
 
           data.results.forEach((row) => {
             const metadata = extractRowMetadata(data, row.id)
-            populateRow(row, metadata)
+            populateRow(row, metadata, false)
           })
           commit('ADD_ROWS', {
             rows: data.results,
@@ -962,7 +1099,7 @@ export const actions = {
     }
     data.results.forEach((row) => {
       const metadata = extractRowMetadata(data, row.id)
-      populateRow(row, metadata)
+      populateRow(row, metadata, false)
     })
     commit('CLEAR_ROWS')
     commit('ADD_ROWS', {
@@ -1021,9 +1158,9 @@ export const actions = {
           count >= bufferEndIndex
             ? getters.getBufferStartIndex
             : Math.max(0, count - limit)
-        return { limit, offset }
+        return { limit, offset, count }
       })
-      .then(({ limit, offset }) =>
+      .then(({ limit, offset, count }) =>
         GridService(this.$client)
           .fetchRows({
             gridId,
@@ -1038,9 +1175,10 @@ export const actions = {
             groupBy: getGroupBy(rootGetters, getters.getLastGridId),
             orderBy: getOrderBy(view, adhocSorting),
             filters: getFilters(view, adhocFiltering),
+            excludeCount: true, // We already have it from the previous request.
           })
           .then(({ data }) => ({
-            data,
+            data: { ...data, count },
             offset,
           }))
       )
@@ -1055,7 +1193,7 @@ export const actions = {
         // at the same scroll offset.
         data.results.forEach((row) => {
           const metadata = extractRowMetadata(data, row.id)
-          populateRow(row, metadata)
+          populateRow(row, metadata, false)
         })
         commit('ADD_ROWS', {
           rows: data.results,
@@ -1435,10 +1573,7 @@ export const actions = {
   setAddRowHover({ commit }, value) {
     commit('SET_ADD_ROW_HOVER', value)
   },
-  setSelectedCell(
-    { commit, getters, rootGetters },
-    { rowId, fieldId, fields }
-  ) {
+  setSelectedCell({ commit, getters }, { rowId, fieldId, fields }) {
     commit('SET_SELECTED_CELL', { rowId, fieldId })
 
     const rowIndex = getters.getRowIndexById(rowId)
@@ -1456,6 +1591,7 @@ export const actions = {
     { commit, getters, rootGetters, dispatch },
     { direction, fields }
   ) {
+    const selectionType = getters.getSelectionType
     const rowIndex = getters.getMultiSelectStartRowIndex
     const fieldIndex = getters.getMultiSelectStartFieldIndex
     const [newRowIndex, newFieldIndex] = updatePositionFn[direction](
@@ -1469,6 +1605,13 @@ export const actions = {
     const field = visibleFieldEntries[newFieldIndex]
 
     if (row && field) {
+      if (
+        selectionType === GRID_VIEW_MULTI_SELECT_CHECKBOX &&
+        getters.hasSelectedCell
+      ) {
+        dispatch('clearCheckboxSelections')
+        dispatch('setSelectionType', { selectionType: null })
+      }
       dispatch('setSelectedCell', {
         rowId: row.id,
         fieldId: parseInt(field[0]),
@@ -1479,6 +1622,13 @@ export const actions = {
       const oldField = visibleFieldEntries[fieldIndex]
 
       if (oldRow && oldField) {
+        if (
+          selectionType === GRID_VIEW_MULTI_SELECT_CHECKBOX &&
+          getters.hasSelectedCell
+        ) {
+          dispatch('clearCheckboxSelections')
+          dispatch('setSelectionType', { selectionType: null })
+        }
         dispatch('setSelectedCell', {
           rowId: oldRow.id,
           fieldId: parseInt(oldField[0]),
@@ -1486,7 +1636,10 @@ export const actions = {
         })
       }
     }
-    dispatch('clearAndDisableMultiSelect')
+
+    if (selectionType !== GRID_VIEW_MULTI_SELECT_CHECKBOX) {
+      dispatch('clearAndDisableMultiSelect')
+    }
   },
   setMultiSelectHolding({ commit }, value) {
     commit('SET_MULTISELECT_HOLDING', value)
@@ -1494,31 +1647,26 @@ export const actions = {
   setMultiSelectActive({ commit }, value) {
     commit('SET_MULTISELECT_ACTIVE', value)
   },
-  clearAndDisableMultiSelect({ commit }) {
-    commit('CLEAR_MULTISELECT')
+  clearCheckboxSelections({ commit }) {
+    commit('CLEAR_CHECKBOX_SELECTION')
+  },
+  clearAndDisableMultiSelect({ commit, dispatch, state }) {
+    commit('CLEAR_AREA_SELECTION')
+    dispatch('clearCheckboxSelections', { commit, state })
     commit('SET_MULTISELECT_ACTIVE', false)
+    commit('SET_SELECTION_TYPE', null)
   },
   multiSelectStart({ getters, commit, dispatch }, { rowId, fieldIndex }) {
-    commit('CLEAR_MULTISELECT')
+    dispatch('setSelectionType', { selectionType: GRID_VIEW_MULTI_SELECT_AREA })
 
     const rowIndex = getters.getRowIndexById(rowId)
-
-    // Set the head and tail index to highlight the first cell
-    dispatch('updateMultipleSelectIndexes', {
-      position: 'head',
-      rowIndex,
-      fieldIndex,
-    })
-    dispatch('updateMultipleSelectIndexes', {
-      position: 'tail',
-      rowIndex,
-      fieldIndex,
-    })
-    commit('CLEAR_MULTISELECT_START')
+    // Update the store to show that the mouse is being held for multi-select
     commit('SET_MULTISELECT_START_ROW_INDEX', rowIndex)
     commit('SET_MULTISELECT_START_FIELD_INDEX', fieldIndex)
-
-    // Update the store to show that the mouse is being held for multi-select
+    commit('SET_MULTISELECT_HEAD_ROW_INDEX', rowIndex)
+    commit('SET_MULTISELECT_HEAD_FIELD_INDEX', fieldIndex)
+    commit('SET_MULTISELECT_TAIL_ROW_INDEX', rowIndex)
+    commit('SET_MULTISELECT_TAIL_FIELD_INDEX', fieldIndex)
     commit('SET_MULTISELECT_HOLDING', true)
     // Do not enable multi-select if only a single cell is selected
     commit('SET_MULTISELECT_ACTIVE', false)
@@ -1528,6 +1676,7 @@ export const actions = {
     { rowId, fieldIndex }
   ) {
     commit('SET_MULTISELECT_ACTIVE', true)
+    dispatch('setSelectionType', { selectionType: GRID_VIEW_MULTI_SELECT_AREA })
     dispatch('setMultiSelectHeadOrTail', { rowId, fieldIndex })
   },
   multiSelectShiftChange({ getters, commit, dispatch }, { direction }) {
@@ -1544,6 +1693,9 @@ export const actions = {
 
     if (!getters.isMultiSelectActive) {
       commit('SET_MULTISELECT_ACTIVE', true)
+      dispatch('setSelectionType', {
+        selectionType: GRID_VIEW_MULTI_SELECT_AREA,
+      })
       dispatch('updateMultipleSelectIndexes', {
         position: 'head',
         rowIndex: getters.getMultiSelectStartRowIndex,
@@ -1654,10 +1806,8 @@ export const actions = {
   correctMultiSelect({ getters, commit }) {
     const headRowIndex = getters.getMultiSelectHeadRowIndex
     const tailRowIndex = getters.getMultiSelectTailRowIndex
-
     const headFieldIndex = getters.getMultiSelectHeadFieldIndex
     const tailFieldIndex = getters.getMultiSelectTailFieldIndex
-
     const startRowIndex = getters.getMultiSelectStartRowIndex
     const startFieldIndex = getters.getMultiSelectStartFieldIndex
 
@@ -1665,8 +1815,8 @@ export const actions = {
     const maxFieldIndex = getters.getNumberOfVisibleFields - 1
 
     if (headRowIndex > maxRowIndex || headFieldIndex > maxFieldIndex) {
-      commit('CLEAR_MULTISELECT')
-      commit('CLEAR_MULTISELECT_START')
+      commit('CLEAR_AREA_SELECTION')
+      commit('CLEAR_AREA_START_SELECTION')
       return
     }
 
@@ -1691,26 +1841,64 @@ export const actions = {
    * If one or more rows are not in the buffer, they are fetched from the backend.
    */
   async getCurrentSelection({ dispatch, getters }, { fields }) {
-    const [minFieldIndex, maxFieldIndex] =
-      getters.getMultiSelectFieldIndexSorted
-
+    const selectionType = getters.getSelectionType
     let rows = []
-    fields = fields.slice(minFieldIndex, maxFieldIndex + 1)
+    let fieldsToUse = fields
+    let fetchParams = null
 
-    if (getters.areMultiSelectRowsWithinBuffer) {
-      rows = getters.getSelectedRows
-    } else {
-      // Fetch rows from backend
-      const [minRowIndex, maxRowIndex] = getters.getMultiSelectRowIndexSorted
-      const limit = maxRowIndex - minRowIndex + 1
-      rows = await dispatch('fetchRowsByIndex', {
-        startIndex: minRowIndex,
-        limit,
-        fields,
+    const allFieldsDataInBuffer = (rows, fields) => {
+      return fields.every((field) => {
+        const fieldType = this.$registry.get('field', field.type)
+        return !fieldType.shouldRefetchFieldData(field, rows)
       })
     }
 
-    return [fields, rows]
+    if (selectionType === GRID_VIEW_MULTI_SELECT_CHECKBOX) {
+      const selectedRows = getters.getCheckboxSelectedRows
+      const allRowIds = getters.getAllRows.map((r) => r.id)
+      const selectedRowIds = getters.getCheckboxSelectedRowsIds
+
+      if (
+        selectedRowIds.every((id) => allRowIds.includes(id)) &&
+        allFieldsDataInBuffer(selectedRows, fields)
+      ) {
+        rows = selectedRows
+      } else {
+        fetchParams = {
+          startIndex: 0,
+          limit: this.$config.BASEROW_ROW_PAGE_SIZE_LIMIT,
+          fields,
+          rowIds: selectedRowIds,
+          limitLinkedItems: LINKED_ITEMS_LOAD_ALL,
+        }
+      }
+    } else {
+      const [minFieldIndex, maxFieldIndex] =
+        getters.getMultiSelectFieldIndexSorted
+      fieldsToUse = fields.slice(minFieldIndex, maxFieldIndex + 1)
+
+      if (
+        getters.areMultiSelectRowsWithinBuffer &&
+        allFieldsDataInBuffer(getters.getSelectedRows, fieldsToUse)
+      ) {
+        rows = getters.getSelectedRows
+      } else {
+        const [minRowIndex, maxRowIndex] = getters.getMultiSelectRowIndexSorted
+        const limit = maxRowIndex - minRowIndex + 1
+        fetchParams = {
+          startIndex: minRowIndex,
+          limit,
+          fields: fieldsToUse,
+        }
+      }
+    }
+
+    if (fetchParams) {
+      // Fetch rows from backend
+      rows = await dispatch('fetchRowsByIndex', fetchParams)
+    }
+
+    return [fieldsToUse, rows]
   },
   /**
    * This function is called if a user attempts to access rows that are
@@ -1720,7 +1908,7 @@ export const actions = {
    */
   async fetchRowsByIndex(
     { getters, rootGetters },
-    { startIndex, limit, fields, excludeFields }
+    { startIndex, limit, fields, excludeFields, rowIds, limitLinkedItems }
   ) {
     if (fields !== undefined) {
       fields = fields.map((field) => `field_${field.id}`)
@@ -1744,6 +1932,9 @@ export const actions = {
       filters: getFilters(view, getters.getAdhocFiltering),
       includeFields: fields,
       excludeFields,
+      excludeCount: getters.canExcludeCount,
+      limitLinkedItems,
+      rowIds,
     })
     return data.results
   },
@@ -1769,7 +1960,7 @@ export const actions = {
    * and it does not match the filters it can be removed from the store.
    */
   removeRowSelectedBy(
-    { dispatch, commit },
+    { commit, dispatch },
     { grid, row, field, fields, getScrollTop, isRowOpenedInModal = undefined }
   ) {
     commit('REMOVE_ROW_SELECTED_BY', { row, fieldId: field.id })
@@ -1787,11 +1978,28 @@ export const actions = {
    * row from a *different* table using ForeignRowEditModal or just RowEditModal
    * component in general.
    */
-  async refreshRowFromBackend({ commit, getters, dispatch }, { table, row }) {
-    const { data } = await RowService(this.$client).get(table.id, row.id)
+  async refreshRowFromBackend(
+    { commit, getters, rootGetters },
+    { table, row }
+  ) {
+    commit('SET_ROW_FETCHING', { row, value: true })
+    try {
+      const gridId = getters.getLastGridId
+      const publicUrl = rootGetters['page/view/public/getIsPublic']
+      const publicAuthToken = rootGetters['page/view/public/getAuthToken']
+      const { data } = await ViewService(this.$client).fetchRow(
+        table.id,
+        row.id,
+        gridId,
+        publicUrl,
+        publicAuthToken
+      )
+      commit('UPDATE_ROW_IN_BUFFER', { row, values: data })
+    } finally {
+      commit('SET_ROW_FETCHING', { row, value: false })
+    }
     // Use the return value to update the desired row with latest values from the
     // backend.
-    commit('UPDATE_ROW_IN_BUFFER', { row, values: data })
   },
   /**
    * Called when the user wants to create a new row. Optionally a `before` row
@@ -1830,224 +2038,254 @@ export const actions = {
       before = null,
       selectPrimaryCell = false,
       isRowOpenedInModal = undefined,
+      undoRedoActionGroupId = null,
     }
   ) {
-    // Create an object of default field values that can be used to fill the row with
-    // missing default values
-    const fieldNewRowValueMap = fields.reduce((map, field) => {
-      const name = `field_${field.id}`
-      const fieldType = this.$registry.get('field', field._.type.type)
-      map[name] = fieldType.getNewRowValue(field)
-      return map
-    }, {})
-
-    const step = before ? ORDER_STEP_BEFORE : ORDER_STEP
-
-    // If before is not provided, then the row is added last. Because we don't know
-    // the total amount of rows in the table, we are going to add find the highest
-    // existing order in the buffer and increase that by one.
-    let order = getters.getHighestOrder
-      .integerValue(BigNumber.ROUND_CEIL)
-      .plus(step)
-      .toString()
-    if (before !== null) {
-      // It's okay to temporary set an order that just subtracts the
-      // ORDER_STEP_BEFORE because there will never be a conflict with rows because
-      // of the fraction ordering.
-      order = new BigNumber(before.order)
-        .minus(new BigNumber(step * rows.length))
-        .toString()
-    }
-
-    const index =
-      before === null
-        ? getters.getBufferEndIndex
-        : getters.getAllRows.findIndex((r) => r.id === before.id)
-
-    const rowsPopulated = rows.map((row) => {
-      row = { ...clone(fieldNewRowValueMap), ...row }
-      row = populateRow(row)
-      row.id = uuid()
-      row.order = order
-      row._.loading = true
-
-      order = new BigNumber(order).plus(new BigNumber(step)).toString()
-
-      return row
-    })
-
-    const isSingleRowInsertion = rowsPopulated.length === 1
-    const oldCount = getters.getCount
-    const canUpdateOptimistically = canRowsBeOptimisticallyUpdatedInView(
-      this.$registry,
-      view,
-      fields,
-      getters.getActiveSearchTerm
+    const taskQueue = createAndUpdateRowQueue.getOrCreateQueue(
+      `table_${table.id}`
     )
-    if (canUpdateOptimistically) {
-      // When a single row is inserted we don't want to deal with filters, sorts and
-      // search just yet. Therefore it is okay to just insert the row into the buffer.
-      if (isSingleRowInsertion) {
-        commit('UPDATE_GROUP_BY_METADATA_COUNT', {
-          fields,
-          registry: this.$registry,
-          row: rowsPopulated[0],
-          increase: true,
-          decrease: false,
-        })
+    const taskId = taskQueue.add(async () => {
+      // Create an object of default field values that can be used to fill the row with
+      // missing default values
+      const fieldNewRowValueMap = fields.reduce((map, field) => {
+        const name = `field_${field.id}`
+        const fieldType = this.$registry.get('field', field._.type.type)
+        map[name] = fieldType.getNewRowValue(field)
+        return map
+      }, {})
+
+      const step = before ? ORDER_STEP_BEFORE : ORDER_STEP
+
+      // If before is not provided, then the row is added last. Because we don't know
+      // the total amount of rows in the table, we are going to add find the highest
+      // existing order in the buffer and increase that by one.
+      let order = getters.getHighestOrder
+        .integerValue(BigNumber.ROUND_CEIL)
+        .plus(step)
+        .toString()
+      if (before !== null) {
+        // It's okay to temporary set an order that just subtracts the
+        // ORDER_STEP_BEFORE because there will never be a conflict with rows because
+        // of the fraction ordering.
+        order = new BigNumber(before.order)
+          .minus(new BigNumber(step * rows.length))
+          .toString()
+      }
+
+      const index =
+        before === null
+          ? getters.getBufferEndIndex
+          : getters.getAllRows.findIndex((r) => r.id === before.id)
+
+      const fieldPermissionsMap = fields.reduce((map, field) => {
+        const fieldType = this.$registry.get('field', field._.type.type)
+        map[`field_${field.id}`] = fieldType.canWriteFieldValues(field)
+        return map
+      }, {})
+      const rowsPopulated = rows.map((row) => {
+        // Exclude fields where the user does not have the permission to edit
+        const permittedValues = Object.entries(row).reduce(
+          (map, [key, value]) => {
+            if (fieldPermissionsMap[key] === true) {
+              map[key] = value
+            }
+            return map
+          },
+          {}
+        )
+        row = { ...clone(fieldNewRowValueMap), ...permittedValues }
+        row = populateRow(row)
+        row.id = uuid()
+        row.order = order
+        row._.loading = true
+
+        order = new BigNumber(order).plus(new BigNumber(step)).toString()
+
+        return row
+      })
+
+      const isSingleRowInsertion = rowsPopulated.length === 1
+      const oldCount = getters.getCount
+      const canUpdateOptimistically = canRowsBeOptimisticallyUpdatedInView(
+        this.$registry,
+        view,
+        fields,
+        getters.getActiveSearchTerm
+      )
+      if (canUpdateOptimistically) {
+        // When a single row is inserted we don't want to deal with filters, sorts and
+        // search just yet. Therefore it is okay to just insert the row into the buffer.
+        if (isSingleRowInsertion) {
+          commit('UPDATE_GROUP_BY_METADATA_COUNT', {
+            fields,
+            registry: this.$registry,
+            row: rowsPopulated[0],
+            increase: true,
+            decrease: false,
+          })
+          commit('INSERT_NEW_ROWS_IN_BUFFER_AT_INDEX', {
+            rows: rowsPopulated,
+            index,
+          })
+        } else {
+          // When inserting multiple rows we will need to deal with filters, sorts or search
+          // not matching. `createdNewRow` deals with exactly that for us.
+          for (const rowPopulated of rowsPopulated) {
+            await dispatch('createdNewRow', {
+              view,
+              fields,
+              values: rowPopulated,
+              metadata: {},
+              populate: false,
+            })
+          }
+        }
+      } else {
+        // just insert rows in the buffer and delay dealing with filters, sorts or search
+        // until we get the response from the backend.
         commit('INSERT_NEW_ROWS_IN_BUFFER_AT_INDEX', {
           rows: rowsPopulated,
           index,
         })
-      } else {
-        // When inserting multiple rows we will need to deal with filters, sorts or search
-        // not matching. `createdNewRow` deals with exactly that for us.
-        for (const rowPopulated of rowsPopulated) {
-          await dispatch('createdNewRow', {
-            view,
-            fields,
-            values: rowPopulated,
-            metadata: {},
-            populate: false,
-          })
-        }
       }
-    } else {
-      // just insert rows in the buffer and delay dealing with filters, sorts or search
-      // until we get the response from the backend.
-      commit('INSERT_NEW_ROWS_IN_BUFFER_AT_INDEX', {
-        rows: rowsPopulated,
-        index,
-      })
-    }
 
-    dispatch('visibleByScrollTop')
+      dispatch('visibleByScrollTop')
 
-    // Check if not all rows are visible.
-    const diff = oldCount - getters.getCount + rowsPopulated.length
-    if (!isSingleRowInsertion && diff > 0) {
-      dispatch(
-        'toast/success',
-        {
-          title: this.$i18n.t('gridView.hiddenRowsInsertedTitle'),
-          message: this.$i18n.t('gridView.hiddenRowsInsertedMessage', {
-            number: diff,
-          }),
-        },
-        { root: true }
-      )
-    }
-
-    const primaryField = fields.find((f) => f.primary)
-    if (selectPrimaryCell && primaryField && isSingleRowInsertion) {
-      await dispatch('setSelectedCell', {
-        rowId: rowsPopulated[0].id,
-        fieldId: primaryField.id,
-        fields,
-      })
-    }
-
-    // The backend expects slightly different values than what we have in the row
-    // buffer. Therefore, we need to prepare the rows before we can send them to the
-    // backend.
-    const rowsPrepared = rows.map((row) => {
-      row = { ...clone(fieldNewRowValueMap), ...row }
-      row = prepareRowForRequest(row, fields, this.$registry)
-      return row
-    })
-
-    // Lock the newly created rows with their persistent ID, so that if the user
-    // changes the value before the row is created, that request is queued.
-    rowsPopulated.forEach((row) => {
-      createAndUpdateRowQueue.lock(row._.persistentId)
-    })
-
-    try {
-      const { data } = await RowService(this.$client).batchCreate(
-        table.id,
-        rowsPrepared,
-        before !== null ? before.id : null
-      )
-
-      const fieldsToFinalize = fields
-        .filter(
-          (field) =>
-            field.read_only ||
-            this.$registry.get('field', field._.type.type).isReadOnly
+      // Check if not all rows are visible.
+      const diff = oldCount - getters.getCount + rowsPopulated.length
+      if (!isSingleRowInsertion && diff > 0) {
+        dispatch(
+          'toast/success',
+          {
+            title: this.$i18n.t('gridView.hiddenRowsInsertedTitle'),
+            message: this.$i18n.t('gridView.hiddenRowsInsertedMessage', {
+              number: diff,
+            }),
+          },
+          { root: true }
         )
-        .map((field) => `field_${field.id}`)
-      commit('FINALIZE_ROWS_IN_BUFFER', {
-        oldRows: rowsPopulated,
-        newRows: data.items,
-        fields: fieldsToFinalize,
+      }
+
+      const primaryField = fields.find((f) => f.primary)
+      if (selectPrimaryCell && primaryField && isSingleRowInsertion) {
+        await dispatch('setSelectedCell', {
+          rowId: rowsPopulated[0].id,
+          fieldId: primaryField.id,
+          fields,
+        })
+      }
+
+      // The backend expects slightly different values than what we have in the row
+      // buffer. Therefore, we need to prepare the rows before we can send them to the
+      // backend.
+      const rowsPrepared = rows.map((row) => {
+        row = { ...clone(fieldNewRowValueMap), ...row }
+        row = prepareRowForRequest(row, fields, this.$registry)
+        return row
       })
 
-      for (let i = 0; i < data.items.length; i += 1) {
-        const item = data.items[i]
-        // Use the updated row in the buffer if it exists, otherwise use the populated
-        // row object to update inner state.
-        const row = state.rows.find((r) => r.id === item.id) || rowsPopulated[i]
-        if (!canUpdateOptimistically) {
+      // Lock the newly created rows with their persistent ID, so that if the user
+      // changes the value before the row is created, that request is queued.
+      rowsPopulated.forEach((row) => {
+        createAndUpdateRowQueue.lock(row._.persistentId)
+      })
+
+      try {
+        let data = {}
+        // We're queueing this task, so other tasks, that may read state and modify it,
+        // won't overalp.
+
+        const resp = await RowService(this.$client).batchCreate(
+          table.id,
+          rowsPrepared,
+          before !== null ? before.id : null,
+          undoRedoActionGroupId
+        )
+        data = resp.data
+        const updatedFieldIds = data.metadata?.updated_field_ids || []
+        const fieldsToFinalize = fields
+          .filter(
+            (field) =>
+              this.$registry.get('field', field.type).isReadOnlyField(field) ||
+              updatedFieldIds.includes(field.id)
+          )
+          .map((field) => `field_${field.id}`)
+        commit('FINALIZE_ROWS_IN_BUFFER', {
+          oldRows: rowsPopulated,
+          newRows: data.items,
+          fields: fieldsToFinalize,
+        })
+
+        for (let i = 0; i < data.items.length; i += 1) {
+          const item = data.items[i]
+          // Use the updated row in the buffer if it exists, otherwise use the populated
+          // row object to update inner state.
+          const row =
+            state.rows.find((r) => r.id === item.id) || rowsPopulated[i]
+          if (!canUpdateOptimistically) {
+            commit('UPDATE_GROUP_BY_METADATA_COUNT', {
+              fields,
+              registry: this.$registry,
+              row,
+              increase: true,
+              decrease: false,
+            })
+          }
+          dispatch('onRowChange', { view, row, fields })
+          const rowId = row.id
+          setTimeout(() => {
+            // Get the latest row so that any changes that might have been made in the
+            // meantime are included. This is needed to pass the correct row into the
+            // `refreshRow` that shows/hide the row.
+            const row = getters.getRow(rowId)
+            if (row && !row._.selected) {
+              dispatch('refreshRow', {
+                grid: view,
+                row,
+                fields,
+                isRowOpenedInModal,
+              })
+            }
+          }, REFRESH_ROW_DELAY)
+        }
+
+        await dispatch('fetchAllFieldAggregationData', {
+          view,
+        })
+      } catch (error) {
+        if (isSingleRowInsertion) {
           commit('UPDATE_GROUP_BY_METADATA_COUNT', {
             fields,
             registry: this.$registry,
-            row,
-            increase: true,
-            decrease: false,
+            row: rowsPopulated[0],
+            increase: false,
+            decrease: true,
           })
-        }
-        dispatch('onRowChange', { view, row, fields })
-        const rowId = row.id
-        setTimeout(() => {
-          // Get the latest row so that any changes that might have been made in the
-          // meantime are included. This is needed to pass the correct row into the
-          // `refreshRow` that shows/hide the row.
-          const row = getters.getRow(rowId)
-          if (row && !row._.selected) {
-            dispatch('refreshRow', {
-              grid: view,
-              row,
+          commit('DELETE_ROW_IN_BUFFER', rowsPopulated[0])
+        } else {
+          // When we have multiple rows we will need to re-evaluate where the rest of the
+          // rows are now positioned. Therefore, we need to call `deletedExistingRow` to
+          // deal with all the potential edge cases
+          for (const rowPopulated of rowsPopulated) {
+            await dispatch('deletedExistingRow', {
+              view,
               fields,
-              isRowOpenedInModal,
+              row: rowPopulated,
             })
           }
-        }, REFRESH_ROW_DELAY)
-      }
-
-      await dispatch('fetchAllFieldAggregationData', {
-        view,
-      })
-    } catch (error) {
-      if (isSingleRowInsertion) {
-        commit('UPDATE_GROUP_BY_METADATA_COUNT', {
-          fields,
-          registry: this.$registry,
-          row: rowsPopulated[0],
-          increase: false,
-          decrease: true,
-        })
-        commit('DELETE_ROW_IN_BUFFER', rowsPopulated[0])
-      } else {
-        // When we have multiple rows we will need to re-evaluate where the rest of the
-        // rows are now positioned. Therefore, we need to call `deletedExistingRow` to
-        // deal with all the potential edge cases
-        for (const rowPopulated of rowsPopulated) {
-          await dispatch('deletedExistingRow', {
-            view,
-            fields,
-            row: rowPopulated,
-          })
         }
+        throw error
+      } finally {
+        // Release the lock because now the update requests can come through if they
+        // were made. Even if the rows were not created, we have to release the ids to
+        // clear the memory.
+
+        rowsPopulated.forEach((row) => {
+          createAndUpdateRowQueue.release(row._.persistentId)
+        })
       }
-      throw error
-    } finally {
-      // Release the lock because now the update requests can come through if they
-      // were made. Even if the rows were not created, we have to release the ids to
-      // clear the memory.
-      rowsPopulated.forEach((row) => {
-        createAndUpdateRowQueue.release(row._.persistentId)
-      })
-    }
+    })
+    await taskQueue.waitFor(taskId)
 
     dispatch('fetchByScrollTopDelayed', {
       scrollTop: getters.getScrollTop,
@@ -2230,137 +2468,164 @@ export const actions = {
       isRowOpenedInModal = undefined,
     }
   ) {
-    /**
-     * This helper function will make sure that the values of the related row are
-     * updated the right way.
-     */
-    const updateValues = async (values, optimisticUpdate) => {
-      const rowExistsInBuffer = getters.getRow(row.id) !== undefined
-
-      if (rowExistsInBuffer) {
-        // If the row exists in the buffer, we can visually show to the user that
-        // the values have changed, without immediately reflecting the change in
-        // the buffer.
-        if (optimisticUpdate) {
-          commit('UPDATE_GROUP_BY_METADATA_COUNT', {
-            fields,
-            registry: this.$registry,
-            row,
-            increase: false,
-            decrease: true,
-          })
-        }
-        commit('UPDATE_ROW_VALUES', {
-          row,
-          values: { ...values },
-        })
-        if (optimisticUpdate) {
-          commit('UPDATE_GROUP_BY_METADATA_COUNT', {
-            fields,
-            registry: this.$registry,
-            row,
-            increase: true,
-            decrease: false,
-          })
-          await dispatch('onRowChange', { view, row, fields })
-        }
-      } else {
-        // If the row doesn't exist in the buffer, it could be that the new values
-        // bring in into there. Dispatching the `updatedExistingRow` will make
-        // sure that will happen in the right way.
-        await dispatch('updatedExistingRow', { view, fields, row, values })
-        // There is a chance that the row is not in the buffer, but it does exist in
-        // the view. In that case, the `updatedExistingRow` action has not done
-        // anything. There is a possibility that the row is visible in the row edit
-        // modal, but then it won't be updated, so we have to update it forcefully.
-        commit('UPDATE_ROW_VALUES', {
-          row,
-          values: { ...values },
-        })
-        await dispatch('fetchByScrollTopDelayed', {
-          scrollTop: getters.getScrollTop,
-          fields,
-        })
-      }
-    }
-
-    const { newRowValues, oldRowValues, updateRequestValues } =
-      prepareNewOldAndUpdateRequestValues(
-        row,
-        fields,
-        field,
-        value,
-        oldValue,
-        this.$registry
-      )
-
-    const canUpdateOptimistically = canRowsBeOptimisticallyUpdatedInView(
-      this.$registry,
-      view,
-      fields,
-      getters.getActiveSearchTerm
+    // Add the update actual update function to the queue so that the same row
+    // will never be updated concurrency, and so that the value won't be
+    // updated if the row hasn't been created yet
+    const taskQueue = createAndUpdateRowQueue.getOrCreateQueue(
+      `table_${table.id}`
     )
-    if (!canUpdateOptimistically) {
-      commit('SET_ROW_LOADING', { row, value: true })
-    }
 
-    // When possible update the values before making a request to the backend to make
-    // it feel instant for the user. If we can't safely do it in the frontend, then
-    // we have to show a loading state and update the row after the request has been
-    // made.
-    await updateValues(newRowValues, canUpdateOptimistically)
+    const taskId = taskQueue.add(async () => {
+      /**
+       * This helper function will make sure that the values of the related row are
+       * updated the right way.
+       */
+      const updateValues = async (row, values, optimisticUpdate) => {
+        const rowExistsInBuffer = getters.getRow(row.id) !== undefined
 
-    try {
-      // Add the update actual update function to the queue so that the same row
-      // will never be updated concurrency, and so that the value won't be
-      // updated if the row hasn't been created yet.
-      await createAndUpdateRowQueue.add(async () => {
-        const updatedRow = await RowService(this.$client).update(
-          table.id,
-          row.id,
-          updateRequestValues
-        )
-        // Extract only the read-only values because we don't want to update the other
-        // values that might have been updated in the meantime.
-        const readOnlyData = extractRowReadOnlyValues(
-          updatedRow.data,
+        if (rowExistsInBuffer) {
+          // If the row exists in the buffer, we can visually show to the user that
+          // the values have changed, without immediately reflecting the change in
+          // the buffer.
+          if (optimisticUpdate) {
+            commit('UPDATE_GROUP_BY_METADATA_COUNT', {
+              fields,
+              registry: this.$registry,
+              row,
+              increase: false,
+              decrease: true,
+            })
+          }
+          commit('UPDATE_ROW_VALUES', {
+            row,
+            values: { ...values },
+          })
+          if (optimisticUpdate) {
+            commit('UPDATE_GROUP_BY_METADATA_COUNT', {
+              fields,
+              registry: this.$registry,
+              row,
+              increase: true,
+              decrease: false,
+            })
+            await dispatch('onRowChange', { view, row, fields })
+          }
+        } else {
+          // If the row doesn't exist in the buffer, it could be that the new values
+          // bring in into there. Dispatching the `updatedExistingRow` will make
+          // sure that will happen in the right way.
+          await dispatch('updatedExistingRow', { view, fields, row, values })
+          // There is a chance that the row is not in the buffer, but it does exist in
+          // the view. In that case, the `updatedExistingRow` action has not done
+          // anything. There is a possibility that the row is visible in the row edit
+          // modal, but then it won't be updated, so we have to update it forcefully.
+          commit('UPDATE_ROW_VALUES', {
+            row,
+            values: { ...values },
+          })
+          await dispatch('fetchByScrollTopDelayed', {
+            scrollTop: getters.getScrollTop,
+            fields,
+          })
+        }
+      }
+
+      const { newRowValues, oldRowValues, updateRequestValues } =
+        prepareNewOldAndUpdateRequestValues(
+          row,
           fields,
+          field,
+          value,
+          oldValue,
           this.$registry
         )
-        // Update the remaining values like formula, which depend on the backend.
-        await updateValues(readOnlyData, true)
-        // If we can't optimistically update the row, refresh it to stop the loading
-        // state, show proper messages, and update its position and state.
-        if (!canUpdateOptimistically) {
-          const rowId = row.id
-          commit('SET_ROW_LOADING', { row, value: false })
-          setTimeout(() => {
-            // Get the latest row so that updated `readOnlyData` values are included,
-            // and any other changes that might have been made in the meantime. This is
-            // needed to pass the correct row into the `refreshRow` that shows/hide the
-            // row.
-            const row = getters.getRow(rowId)
-            if (row && !row._.selected) {
-              dispatch('refreshRow', {
-                grid: view,
-                row,
-                fields,
-                isRowOpenedInModal,
-              })
-            }
-          }, REFRESH_ROW_DELAY)
+
+      const canUpdateOptimistically = canRowsBeOptimisticallyUpdatedInView(
+        this.$registry,
+        view,
+        fields,
+        getters.getActiveSearchTerm
+      )
+      if (!canUpdateOptimistically) {
+        commit('SET_ROW_LOADING', { row, value: true })
+      }
+
+      // When possible update the values before making a request to the backend to make
+      // it feel instant for the user. If we can't safely do it in the frontend, then
+      // we have to show a loading state and update the row after the request has been
+      // made.
+      await updateValues(row, newRowValues, canUpdateOptimistically)
+      try {
+        const batchResponse = await RowService(this.$client).batchUpdate(
+          table.id,
+          [updateRequestValues]
+        )
+
+        const updatedRows = []
+          .concat(batchResponse.data.items)
+          .concat(batchResponse.data.metadata?.cascade_update?.rows || [])
+
+        const updatedFieldIds =
+          batchResponse.data.metadata?.updated_field_ids || []
+
+        const otherFieldsChangedInBackend = !_.isEqual(updatedFieldIds, [
+          field.id,
+        ])
+
+        for (const updatedRowData of updatedRows) {
+          // Extract only the read-only values because we don't want to update the other
+          // values that might have been updated in the meantime.
+          const rowData = extractChangedFields(
+            updatedRowData,
+            fields,
+            updatedFieldIds,
+            this.$registry
+          )
+
+          // The backend may update rows that are not in the current buffer.
+          // In that case, the row will be `undefined`, and we don't need to
+          // update it.
+          const existing = getters.getRow(rowData.id)
+          if (existing === undefined) {
+            continue
+          }
+          // Update the remaining values like formula, which depend on the backend.
+          await updateValues(existing, rowData, true)
+
+          // If we can't optimistically update the row, refresh it to stop the loading
+          // state, show proper messages, and update its position and state. Also, if the
+          // backend changed other fields, we should refresh sorting/search/filtering.
+          if (!canUpdateOptimistically || otherFieldsChangedInBackend) {
+            commit('SET_ROW_LOADING', { row: existing, value: false })
+            setTimeout(() => {
+              // Get the latest row so that updated `readOnlyData` values are included,
+              // and any other changes that might have been made in the meantime. This is
+              // needed to pass the correct row into the `refreshRow` that shows/hide the
+              // row.
+              const row = getters.getRow(existing.id)
+              if (row && !row._.selected) {
+                dispatch('refreshRow', {
+                  grid: view,
+                  row,
+                  fields,
+                  isRowOpenedInModal,
+                })
+              }
+            }, REFRESH_ROW_DELAY)
+          }
         }
         dispatch('fetchAllFieldAggregationData', {
           view,
         })
-      }, row._.persistentId)
-    } catch (error) {
-      if (!canUpdateOptimistically) {
-        commit('SET_ROW_LOADING', { row, value: false })
+      } catch (error) {
+        if (!canUpdateOptimistically) {
+          commit('SET_ROW_LOADING', { row, value: false })
+        }
+        await updateValues(row, oldRowValues, true)
+        throw error
       }
-      await updateValues(oldRowValues, true)
-      throw error
-    }
+    }, row._.persistentId)
+    await taskQueue.waitFor(taskId)
   },
   /**
    * Set the multiple select indexes using the row and field head and tail indexes.
@@ -2369,6 +2634,7 @@ export const actions = {
     { commit, dispatch },
     { rowHeadIndex, fieldHeadIndex, rowTailIndex, fieldTailIndex }
   ) {
+    dispatch('setSelectionType', { selectionType: GRID_VIEW_MULTI_SELECT_AREA })
     dispatch('updateMultipleSelectIndexes', {
       position: 'head',
       rowIndex: rowHeadIndex,
@@ -2404,7 +2670,11 @@ export const actions = {
           ? getters.getMultiSelectTailRowIndex
           : getters.getMultiSelectHeadRowIndex
       if (Math.abs(previousIndex - rowIndex) > limit - 1) {
-        return
+        if (rowIndex > previousIndex) {
+          rowIndex = previousIndex + limit - 1
+        } else {
+          rowIndex = previousIndex - limit + 1
+        }
       }
     }
 
@@ -2450,23 +2720,32 @@ export const actions = {
     const isSingleCellCopied =
       copiedRowsCount === 1 && copiedCellsInRowsCount === 1
 
+    const selectedRowsCount =
+      getters.getMultiSelectTailRowIndex -
+      getters.getMultiSelectHeadRowIndex +
+      1
+    const selectedFieldsCount =
+      getters.getMultiSelectTailFieldIndex -
+      getters.getMultiSelectHeadFieldIndex +
+      1
+
+    const isSingleRowCopied = copiedRowsCount === 1 && selectedRowsCount > 1
+
     if (isSingleCellCopied) {
       // the textData and jsonData are recreated
       // to fill the entire multi selection
-      const selectedRowsCount =
-        getters.getMultiSelectTailRowIndex -
-        getters.getMultiSelectHeadRowIndex +
-        1
-      const selectedFieldsCount =
-        getters.getMultiSelectTailFieldIndex -
-        getters.getMultiSelectHeadFieldIndex +
-        1
+
       const rowTextArray = Array(selectedFieldsCount).fill(textData[0][0])
       textData = Array(selectedRowsCount).fill(rowTextArray)
 
       if (jsonData) {
         const rowJsonArray = Array(selectedFieldsCount).fill(jsonData[0][0])
         jsonData = Array(selectedRowsCount).fill(rowJsonArray)
+      }
+    } else if (isSingleRowCopied) {
+      textData = Array(selectedRowsCount).fill(textData[0])
+      if (jsonData) {
+        jsonData = Array(selectedRowsCount).fill(jsonData[0])
       }
     }
 
@@ -2485,34 +2764,25 @@ export const actions = {
         fieldHeadIndex + copiedCellsInRowsCount
       ) - 1
 
-    if (isSingleCellCopied) {
+    if (isSingleCellCopied || isSingleRowCopied) {
       // we want the tail indexes to follow the multi select exactly
       rowTailIndex = getters.getMultiSelectTailRowIndex
       fieldTailIndex = getters.getMultiSelectTailFieldIndex
     }
 
-    const newRowsCount = copiedRowsCount - (rowTailIndex - rowHeadIndex + 1)
-
-    // Create extra missing rows
-    if (newRowsCount > 0) {
-      await dispatch('createNewRows', {
-        view,
-        table,
-        fields: allFieldsInTable,
-        rows: Array.from(Array(newRowsCount), (element, index) => {
-          return {}
-        }),
-        selectPrimaryCell: false,
-      })
-      rowTailIndex = rowTailIndex + newRowsCount
-    }
-
-    if (!isSingleCellCopied && selectUpdatedCells) {
+    if (
+      !(isSingleCellCopied || isSingleRowCopied) &&
+      selectUpdatedCells &&
+      !(view.sortings || view.group_bys || view.filters)
+    ) {
       // Expand the selection of the multiple select to the cells that we're going to
       // paste in, so the user can see which values have been updated. This is because
       // it could be that there are more or less values in the clipboard compared to
       // what was originally selected.
-
+      // However, we should not mark multiple rows as selected if the view has
+      // any filtering/sorting/grouping by, as rows pasted may be scattered/hidden
+      // in the view. Multiselect will not show correct contents then, and we can't
+      // select disjoined rows.
       await dispatch('setMultipleSelect', {
         rowHeadIndex,
         fieldHeadIndex,
@@ -2520,6 +2790,12 @@ export const actions = {
         fieldTailIndex,
       })
     }
+
+    const newRowsCount = copiedRowsCount - (rowTailIndex - rowHeadIndex + 1)
+    const textDataToCreate = textData.slice(copiedRowsCount - newRowsCount)
+    const jsonDataToCreate = jsonData
+      ? jsonData.slice(copiedRowsCount - newRowsCount)
+      : undefined
 
     // Figure out which rows are already in the buffered and temporarily store them
     // in an array.
@@ -2535,8 +2811,8 @@ export const actions = {
     // Check if there are fields that can be updated. If there aren't any fields,
     // maybe because the provided index is outside of the available fields or
     // because there are only read only fields, we don't want to do anything.
-    const writeFields = fieldsInOrder.filter(
-      (field) => !field._.type.isReadOnly
+    const writeFields = fieldsInOrder.filter((field) =>
+      this.$registry.get('field', field.type).canWriteFieldValues(field)
     )
     if (writeFields.length === 0) {
       return
@@ -2561,46 +2837,58 @@ export const actions = {
           : [...rowsInOrder, ...rowsNotInBuffer]
     }
 
+    // before populating existing rows with new values and calling RowService,
+    // ensure no createRows is running. There can be a parallel createRows action
+    // performing another request to create those rows in the backend.
+    // If we call RowService too soon here, we'll send placeholder .id values (uuid)
+    // to a PATCH operation.
+    const taskQueue = createAndUpdateRowQueue.getOrCreateQueue(
+      `table_${table.id}`
+    )
+    await taskQueue.waitAll()
+
     // Create a copy of the existing (old) rows, which are needed to create the
     // comparison when checking if the rows still matches the filters and position.
     const oldRowsInOrder = clone(rowsInOrder)
-    // Prepare the values that must be send to the server.
-    const valuesForUpdate = []
-    // Prepare the values for update and update the row objects.
 
-    rowsInOrder.forEach((row, rowIndex) => {
-      valuesForUpdate[rowIndex] = { id: row.id }
-
-      fieldsInOrder.forEach((field, fieldIndex) => {
-        // We can't pre-filter because we need the correct filter index.
-        if (field._.type.isReadOnly) {
-          return
-        }
-
-        const fieldId = `field_${field.id}`
-        const textValue = textData[rowIndex][fieldIndex]
-        const jsonValue =
-          jsonData != null ? jsonData[rowIndex][fieldIndex] : undefined
-        const fieldType = this.$registry.get('field', field.type)
-        const preparedValue = fieldType.prepareValueForPaste(
-          field,
-          textValue,
-          jsonValue
-        )
-        const newValue = fieldType.prepareValueForUpdate(field, preparedValue)
-        valuesForUpdate[rowIndex][fieldId] = newValue
-      })
+    // Prepare the values for update and update the row objects. The resulting list
+    // of objects will be send to the backend.
+    const valuesForUpdate = populateRows({
+      tsvData: textData.slice(0, rowsInOrder.length),
+      jsonData: jsonData ? jsonData.slice(0, rowsInOrder.length) : null,
+      fieldsInOrder,
+      registry: this.$registry,
+      fromRows: rowsInOrder,
     })
 
     // We don't have to update the rows in the buffer before the request is being made
     // because we're showing a loading animation to the user indicating that the
     // rows are being updated.
+    const undoRedoActionGroupId = createNewUndoRedoActionGroupId()
     const { data: responseData } = await RowService(this.$client).batchUpdate(
       table.id,
-      valuesForUpdate
+      valuesForUpdate,
+      undoRedoActionGroupId
     )
     const updatedRows = responseData.items
-
+    // Create extra missing rows
+    if (newRowsCount > 0) {
+      await dispatch('createNewRows', {
+        view,
+        table,
+        fields: allFieldsInTable,
+        rows: populateRows({
+          tsvData: textDataToCreate,
+          jsonData: jsonDataToCreate,
+          fieldsInOrder,
+          registry: this.$registry,
+          forUpdate: false,
+        }),
+        selectPrimaryCell: false,
+        undoRedoActionGroupId,
+      })
+      rowTailIndex = rowTailIndex + newRowsCount
+    }
     // Loop over the old rows, find the matching updated row and update them in the
     // buffer accordingly.
     for (const row of oldRowsInOrder) {
@@ -2614,6 +2902,7 @@ export const actions = {
         fields: allFieldsInTable,
         row,
         values,
+        undoRedoActionGroupId,
       })
     }
 
@@ -2649,7 +2938,11 @@ export const actions = {
     const newRowExists = newRow._.matchFilters && newRow._.matchSearch
 
     if (oldRowExists && !newRowExists) {
-      await dispatch('deletedExistingRow', { view, fields, row })
+      await dispatch('deletedExistingRow', {
+        view,
+        fields,
+        row,
+      })
     } else if (!oldRowExists && newRowExists) {
       await dispatch('createdNewRow', {
         view,
@@ -2833,27 +3126,33 @@ export const actions = {
     { dispatch, getters },
     { table, view, fields, getScrollTop }
   ) {
-    if (!getters.isMultiSelectActive) {
+    const selectionType = getters.getSelectionType
+    let rowsToDelete = []
+
+    if (selectionType === GRID_VIEW_MULTI_SELECT_CHECKBOX) {
+      rowsToDelete = getters.getCheckboxSelectedRows
+    } else if (selectionType === GRID_VIEW_MULTI_SELECT_AREA) {
+      if (getters.areMultiSelectRowsWithinBuffer) {
+        rowsToDelete = getters.getSelectedRows
+      } else {
+        const [minRowIndex, maxRowIndex] = getters.getMultiSelectRowIndexSorted
+        const limit = maxRowIndex - minRowIndex + 1
+        rowsToDelete = await dispatch('fetchRowsByIndex', {
+          startIndex: minRowIndex,
+          limit,
+          includeFields: fields,
+        })
+      }
+    }
+
+    if (rowsToDelete.length === 0) {
       return
     }
-    let rows = []
-    if (getters.areMultiSelectRowsWithinBuffer) {
-      rows = getters.getSelectedRows
-    } else {
-      // Rows not in buffer, fetch from backend
-      const [minRowIndex, maxRowIndex] = getters.getMultiSelectRowIndexSorted
-      const limit = maxRowIndex - minRowIndex + 1
 
-      rows = await dispatch('fetchRowsByIndex', {
-        startIndex: minRowIndex,
-        limit,
-        includeFields: fields,
-      })
-    }
-    const rowIdsToDelete = rows.map((r) => r.id)
+    const rowIdsToDelete = rowsToDelete.map((r) => r.id)
     await RowService(this.$client).batchDelete(table.id, rowIdsToDelete)
 
-    for (const row of rows) {
+    for (const row of rowsToDelete) {
       await dispatch('deletedExistingRow', {
         view,
         fields,
@@ -3170,8 +3469,54 @@ export const actions = {
       { root: true }
     )
   },
-  setRowHeight({ commit, dispatch }, value) {
+  setRowHeight({ commit, dispatch, getters }, value) {
     commit('UPDATE_ROW_HEIGHT', value)
+  },
+  toggleCheckboxRowSelection({ commit, dispatch, state, getters }, { row }) {
+    const rowId = row.id
+    const limit = this.$config.BASEROW_ROW_PAGE_SIZE_LIMIT
+    const checked = state.checkboxSelectedRows.includes(rowId)
+
+    if (!checked && state.checkboxSelectedRows.length >= limit) {
+      return
+    }
+
+    if (!checked) {
+      commit('ADD_CHECKBOX_SELECTED_ROW', rowId)
+    } else if (state.checkboxSelectedRows.length === 1) {
+      dispatch('clearCheckboxSelections')
+      commit('SET_MULTISELECT_ACTIVE', false)
+      commit('SET_SELECTION_TYPE', null)
+    } else {
+      commit('REMOVE_CHECKBOX_SELECTED_ROW', rowId)
+    }
+    if (
+      state.checkboxSelectedRows.length > 0 &&
+      getters.getSelectionType !== GRID_VIEW_MULTI_SELECT_CHECKBOX
+    ) {
+      dispatch('setSelectionType', {
+        selectionType: GRID_VIEW_MULTI_SELECT_CHECKBOX,
+      })
+    }
+  },
+  setSelectionType({ commit, dispatch, getters }, { selectionType }) {
+    commit('SET_SELECTION_TYPE', selectionType)
+
+    if (selectionType === GRID_VIEW_MULTI_SELECT_CHECKBOX) {
+      commit('SET_MULTISELECT_ACTIVE', true)
+      commit('CLEAR_AREA_SELECTION')
+      commit('CLEAR_AREA_START_SELECTION')
+    } else if (selectionType === GRID_VIEW_MULTI_SELECT_AREA) {
+      commit('SET_MULTISELECT_ACTIVE', true)
+      dispatch('clearCheckboxSelections', { commit, state })
+    } else {
+      commit('CLEAR_AREA_SELECTION')
+      dispatch('clearCheckboxSelections', { commit, state })
+      commit('SET_MULTISELECT_ACTIVE', false)
+    }
+  },
+  clearCheckboxSelectedRows({ commit }) {
+    commit('CLEAR_CHECKBOX_SELECTED_ROWS')
   },
 }
 
@@ -3184,6 +3529,12 @@ export const getters = {
   },
   getCount(state) {
     return state.count
+  },
+  canExcludeCount(state) {
+    // If the count has already been set for the view, there's no need to fetch it again
+    // considering it's slow for large tables. Every time something changes in the view,
+    // the refresh action is called making sure the count is up to date.
+    return state.count > 0
   },
   getRowHeight(state) {
     return state.rowHeight
@@ -3379,14 +3730,22 @@ export const getters = {
   },
   // Return all rows within a multi-select grid if they are within the current row buffer
   getSelectedRows(state, getters) {
-    const [minRow, maxRow] = getters.getMultiSelectRowIndexSorted
+    const selectionType = getters.getSelectionType
 
+    if (selectionType === GRID_VIEW_MULTI_SELECT_CHECKBOX) {
+      return state.rows.filter((row) =>
+        state.checkboxSelectedRows.includes(row.id)
+      )
+    }
+
+    const [minRow, maxRow] = getters.getMultiSelectRowIndexSorted
     if (getters.areMultiSelectRowsWithinBuffer) {
       return state.rows.slice(
         minRow - state.bufferStartIndex,
         maxRow - state.bufferStartIndex + 1
       )
     }
+    return []
   },
   getSelectedFields: (state, getters) => (fields) => {
     const [minField, maxField] = getters.getMultiSelectFieldIndexSorted
@@ -3428,6 +3787,17 @@ export const getters = {
   hasPendingFieldOps: (state) => (fieldId, rowId) => {
     const key = getPendingOperationKey(fieldId, rowId)
     return state.pendingFieldOps[key] !== undefined
+  },
+  getCheckboxSelectedRows: (state) => {
+    return state.rows.filter((row) =>
+      state.checkboxSelectedRows.includes(row.id)
+    )
+  },
+  getCheckboxSelectedRowsIds: (state) => {
+    return state.checkboxSelectedRows
+  },
+  getSelectionType(state) {
+    return state.selectionType
   },
 }
 

@@ -12,6 +12,12 @@ DATA_SYNC_INTERVAL_MANUAL = "MANUAL"
 DATA_SYNC_INTERVAL_DAILY = "DAILY"
 DATA_SYNC_INTERVAL_HOURLY = "HOURLY"
 
+DEACTIVATION_REASON_FAILURE = "FAILURE"
+DEACTIVATION_REASON_LICENSE_UNAVAILABLE = "LICENSE_UNAVAILABLE"
+
+JIRA_ISSUES_DATA_SYNC_API_TOKEN = "API_TOKEN"  # nosec B105
+JIRA_ISSUES_DATA_SYNC_PERSONAL_ACCESS_TOKEN = "PERSONAL_ACCESS_TOKEN"  # nosec B105
+
 
 class PeriodicDataSyncInterval(models.Model):
     data_sync = models.OneToOneField(
@@ -40,6 +46,18 @@ class PeriodicDataSyncInterval(models.Model):
         default=0,
         help_text="The number of failed sync data sync operations that have failed. "
         "This is used to deactivate the periodic sync if it keeps failing.",
+    )
+    deactivation_reason = models.CharField(
+        max_length=20,
+        choices=(
+            (DEACTIVATION_REASON_FAILURE, DEACTIVATION_REASON_FAILURE),
+            (
+                DEACTIVATION_REASON_LICENSE_UNAVAILABLE,
+                DEACTIVATION_REASON_LICENSE_UNAVAILABLE,
+            ),
+        ),
+        null=True,
+        help_text="The reason why the periodic data sync was deactivated.",
     )
     authorized_user = models.ForeignKey(
         User,
@@ -86,13 +104,31 @@ class JiraIssuesDataSync(DataSync):
         max_length=255,
         help_text="The project key of the Jira project (e.g., PROJ).",
     )
+    jira_authentication = models.CharField(
+        choices=(
+            (JIRA_ISSUES_DATA_SYNC_API_TOKEN, JIRA_ISSUES_DATA_SYNC_API_TOKEN),
+            (
+                JIRA_ISSUES_DATA_SYNC_PERSONAL_ACCESS_TOKEN,
+                JIRA_ISSUES_DATA_SYNC_PERSONAL_ACCESS_TOKEN,
+            ),
+        ),
+        default=JIRA_ISSUES_DATA_SYNC_API_TOKEN,
+        db_default=JIRA_ISSUES_DATA_SYNC_API_TOKEN,
+    )
     jira_username = models.CharField(
         max_length=255,
-        help_text="The username of the Jira account used to authenticate.",
+        blank=True,
+        help_text=(
+            f"The username of the Jira account used to authenticate. Is only used if "
+            f"the `jira_authentication` is equal `{JIRA_ISSUES_DATA_SYNC_API_TOKEN}`"
+        ),
     )
     jira_api_token = models.CharField(
         max_length=255,
-        help_text="The API token of the Jira account used for authentication.",
+        help_text=(
+            "The API or personal access token of the Jira account used for "
+            "authentication."
+        ),
     )
 
 

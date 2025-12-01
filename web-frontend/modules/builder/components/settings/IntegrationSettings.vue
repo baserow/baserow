@@ -14,6 +14,7 @@
         >
           <Presentation
             :image="getIntegrationType(integration).image"
+            :icon="getIntegrationType(integration).iconClass"
             :title="integration.name"
             :subtitle="getIntegrationType(integration).getSummary(integration)"
             :rounded-icon="false"

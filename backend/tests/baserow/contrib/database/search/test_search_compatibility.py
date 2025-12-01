@@ -13,9 +13,7 @@ from baserow.core.user_files.handler import UserFileHandler
 
 
 @pytest.mark.django_db(transaction=True)
-def test_search_compatibility_between_current_and_postgres(
-    data_fixture, tmpdir, enable_singleton_testing
-):
+def test_search_compatibility_between_current_and_postgres(data_fixture, tmpdir):
     query_searches = {
         "text": [
             ["Peter Evans", "Peter Evans"],  # full-text, compat exact

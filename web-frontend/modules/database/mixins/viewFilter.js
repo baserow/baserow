@@ -31,6 +31,11 @@ export default {
       type: Boolean,
       required: true,
     },
+    placeholder: {
+      type: String,
+      required: false,
+      default: '',
+    },
   },
   computed: {
     field() {

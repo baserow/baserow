@@ -1,5 +1,6 @@
 import { getUndoRedoActionRequestConfig } from '@baserow/modules/database/utils/action'
 import addPublicAuthTokenHeader from '@baserow/modules/database/utils/publicView'
+import RowService from '@baserow/modules/database/services/row'
 
 export default (client) => {
   return {
@@ -149,6 +150,23 @@ export default (client) => {
         addPublicAuthTokenHeader(config, publicAuthToken)
       }
       return client.get(`/database/views/${viewSlug}/public/info/`, config)
+    },
+    fetchRow(
+      tableId,
+      rowId,
+      viewSlug = null,
+      publicUrl = false,
+      publicAuthToken = null
+    ) {
+      if (!publicUrl) {
+        return RowService(client).get(tableId, rowId)
+      }
+
+      const config = {}
+      if (publicAuthToken) {
+        addPublicAuthTokenHeader(config, publicAuthToken)
+      }
+      return client.get(`/database/views/${viewSlug}/row/${rowId}/`, config)
     },
   }
 }

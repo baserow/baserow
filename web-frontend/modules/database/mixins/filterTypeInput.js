@@ -30,6 +30,7 @@ export default {
       // This can be used to avoid changing the value if the user is editing it
       // Or can be set i.e. by onFocus event
       focused: false,
+      copy: null,
     }
   },
   watch: {

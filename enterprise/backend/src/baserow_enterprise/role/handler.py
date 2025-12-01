@@ -101,12 +101,13 @@ class RoleAssignmentHandler:
     @classmethod
     def _get_role_caches(cls):
         if not getattr(cls, "_init", False):
-            cls._init = True
-            cls._role_cache_by_uid = {}
-            cls._role_cache_by_id = {}
+            role_by_uid = {}
+            role_by_id = {}
             for role in Role.objects.prefetch_related("operations").all():
-                cls._role_cache_by_uid[role.uid] = role
-                cls._role_cache_by_id[role.id] = role
+                role_by_uid[role.uid] = role
+                role_by_id[role.id] = role
+            cls._role_cache_by_uid, cls._role_cache_by_id = role_by_uid, role_by_id
+            cls._init = True
 
         return cls._role_cache_by_uid, cls._role_cache_by_id
 

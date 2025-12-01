@@ -1,0 +1,50 @@
+.enable-with-qr-code__step {
+  display: flex;
+  flex-direction: row;
+  gap: 16px;
+  padding-bottom: 24px;
+}
+
+.enable-with-qr-code__step:not(:last-child) {
+  margin-bottom: 24px;
+  border-bottom: 1px solid $palette-neutral-200;
+}
+
+.enable-with-qr-code__number {
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  width: 36px;
+  height: 36px;
+  padding: 8px;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  border-radius: 80px;
+  border: 1px solid #e0e3e5;
+  background: $palette-neutral-100;
+}
+
+.enable-with-qr-code__step-heading {
+  font-size: 13px;
+  color: $palette-neutral-1200;
+  font-weight: 500;
+  padding-bottom: 6px;
+  padding-top: 10px;
+}
+
+.enable-with-qr-code__step-description {
+  color: $palette-neutral-900;
+  margin-bottom: 24px;
+  line-height: 20px;
+}
+
+.enable-with-qr-code__step-qr-code {
+  width: 160px;
+  margin-left: -16px;
+}
+
+.enable-with-qr-code__copy {
+  margin-left: -2px;
+}

@@ -1,0 +1,13 @@
+.two-factor-auth-empty {
+  margin: auto;
+  text-align: center;
+}
+
+.two-factor-auth-empty__icon {
+  display: inline-block;
+  padding: 12px;
+  margin-bottom: 24px;
+  border-radius: 6px;
+  border: 1px solid $palette-neutral-200;
+  box-shadow: 0 1px 2px 0 rgba(7, 8, 16, 0.1);
+}

@@ -3,7 +3,6 @@
     class="value-provider-list"
     :class="{
       [`value-provider-list--${direction}`]: true,
-      'value-provider-list--read-only': readOnly,
     }"
   >
     <div
@@ -13,7 +12,7 @@
       :class="{
         active: valueProviderType.getType() === decoration.value_provider_type,
       }"
-      @click="!readOnly && $emit('select', valueProviderType.getType())"
+      @click="$emit('select', valueProviderType.getType())"
     >
       <DecoratorValueProviderItem :value-provider-type="valueProviderType" />
       <i

@@ -175,6 +175,8 @@ class OpenIdConnectAppAuthProviderType(
                 "authorization_endpoint": "https://example.com/auth",
                 "token_endpoint": "https://example.com/token",
                 "userinfo_endpoint": "https://example.com/userinfo",
+                "jwks_uri": "http://example.com/jwks",
+                "issuer": "http://example.com/issuer",
             }
             mock_get.return_value = response_mock
 

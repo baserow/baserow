@@ -167,6 +167,8 @@ describe('CalendarView component', () => {
         matchSearch: true,
         fieldSearchMatches: [],
         loading: true,
+        fetching: false,
+        fullyLoaded: false,
       },
     }
     expect(mockDeleteRowHandler.mock.calls[0][0]).toEqual(expectedRow)
@@ -252,6 +254,8 @@ describe('CalendarView component', () => {
         matchSearch: true,
         fieldSearchMatches: [],
         loading: true,
+        fetching: false,
+        fullyLoaded: false,
       },
     }
     expect(mockDeleteRowHandler.mock.calls[0][0]).toEqual(expectedRow)

@@ -1,0 +1,8 @@
+{
+  "type": "bug",
+  "message": "Fix bug where the MCP server didn't accept the single and multiple select ids correctly.",
+  "domain": "database",
+  "issue_number": null,
+  "bullet_points": [],
+  "created_at": "2025-06-16"
+}

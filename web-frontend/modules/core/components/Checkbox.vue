@@ -31,7 +31,7 @@
         </defs>
       </svg>
       <svg
-        v-show="checked && indeterminate"
+        v-show="indeterminate"
         class="checkbox__tick-indeterminate"
         xmlns="http://www.w3.org/2000/svg"
         width="8"
@@ -96,6 +96,17 @@ export default {
       required: false,
       default: false,
     },
+    /**
+     * The size of the button.
+     */
+    size: {
+      required: false,
+      type: String,
+      default: 'regular',
+      validator(value) {
+        return ['small', 'regular'].includes(value)
+      },
+    },
   },
   data() {
     return {
@@ -115,7 +126,9 @@ export default {
       return {
         'checkbox--disabled': this.disabled,
         'checkbox--checked': this.checked,
+        'checkbox--indeterminate': this.indeterminate,
         'checkbox--error': this.error,
+        'checkbox--small': this.size === 'small',
       }
     },
     hasSlot() {

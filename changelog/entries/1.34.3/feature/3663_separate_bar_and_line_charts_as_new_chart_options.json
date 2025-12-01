@@ -1,0 +1,8 @@
+{
+    "type": "feature",
+    "message": "Separate bar and line charts as new chart options",
+    "domain": "dashboard",
+    "issue_number": 3663,
+    "bullet_points": [],
+    "created_at": "2025-06-19"
+}

@@ -1,0 +1,8 @@
+{
+    "type": "bug",
+    "message": "Fix formula recursion error when the same data source is used twice in one formula of workflow action",
+    "domain": "builder",
+    "issue_number": 4195,
+    "bullet_points": [],
+    "created_at": "2025-11-10"
+}

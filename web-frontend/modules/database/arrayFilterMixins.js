@@ -317,14 +317,17 @@ export const hasNestedSelectOptionValueContainsFilterMixin = Object.assign(
   {},
   hasValueContainsFilterMixin,
   {
+    _getHasValueContainsFilterFunction(cellValue, filterValue) {
+      return cellValue.some((v) =>
+        genericHasValueContainsFilter(v?.value || [], filterValue)
+      )
+    },
     getHasValueContainsFilterFunction(field) {
       return (cellValue, filterValue) => {
         if (!Array.isArray(cellValue) || cellValue.length === 0) {
           return false
         }
-        return cellValue.some((v) =>
-          genericHasValueContainsFilter(v?.value || [], filterValue)
-        )
+        return this._getHasValueContainsFilterFunction(cellValue, filterValue)
       }
     },
   }
@@ -334,13 +337,19 @@ export const hasNestedSelectOptionValueContainsWordFilterMixin = Object.assign(
   {},
   hasValueContainsWordFilterMixin,
   {
+    _getHasValueContainsWordFilterFunction(cellValue, filterValue) {
+      return cellValue.some((v) =>
+        genericHasValueContainsWordFilter(v?.value || [], filterValue)
+      )
+    },
     getHasValueContainsWordFilterFunction(field) {
       return (cellValue, filterValue) => {
         if (!Array.isArray(cellValue) || cellValue.length === 0) {
           return false
         }
-        return cellValue.some((v) =>
-          genericHasValueContainsWordFilter(v?.value || [], filterValue)
+        return this._getHasValueContainsWordFilterFunction(
+          cellValue,
+          filterValue
         )
       }
     },
@@ -373,6 +382,13 @@ export const hasMultipleSelectOptionIdEqualMixin = Object.assign(
   {},
   hasValueEqualFilterMixin,
   {
+    _getHasValueEqualFilterFunctionForRowValues(rowValueIdSets, filterValues) {
+      // Compare if any of the linked row values match exactly the filter values
+      return rowValueIdSets.some((rowValueIdSet) =>
+        _.isEqual(rowValueIdSet, new Set(filterValues))
+      )
+    },
+
     getHasValueEqualFilterFunction(field) {
       return (cellValue, filterValue) => {
         if (!Array.isArray(cellValue)) {
@@ -388,9 +404,9 @@ export const hasMultipleSelectOptionIdEqualMixin = Object.assign(
         const rowValueIdSets = cellValue.map(
           (v) => new Set(v?.value.map((i) => i.id))
         )
-        // Compare if any of the linked row values match exactly the filter values
-        return rowValueIdSets.some((rowValueIdSet) =>
-          _.isEqual(rowValueIdSet, new Set(filterValues))
+        return this._getHasValueEqualFilterFunctionForRowValues(
+          rowValueIdSets,
+          filterValues
         )
       }
     },

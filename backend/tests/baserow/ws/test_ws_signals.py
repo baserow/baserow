@@ -4,6 +4,7 @@ from unittest.mock import patch
 from django.db import transaction
 
 import pytest
+from freezegun import freeze_time
 from pytest_unordered import unordered
 
 from baserow.core.handler import CoreHandler
@@ -484,7 +485,8 @@ def test_job_started(mock_broadcast_to_users, data_fixture):
     data_fixture.register_temp_job_types()
 
     user = data_fixture.create_user()
-    JobHandler().create_and_start_job(user, "tmp_job_type_1")
+    with freeze_time("2024-01-01 12:00:00"):
+        JobHandler().create_and_start_job(user, "tmp_job_type_1")
 
     mock_broadcast_to_users.delay.assert_called_once()
     args = mock_broadcast_to_users.delay.call_args
@@ -498,5 +500,7 @@ def test_job_started(mock_broadcast_to_users, data_fixture):
             "state": "started",
             "human_readable_error": "",
             "test_field": 42,
+            "created_on": "2024-01-01T12:00:00Z",
+            "updated_on": "2024-01-01T12:00:00Z",
         },
     }

@@ -1,0 +1,8 @@
+{
+    "type": "bug",
+    "message": "Fixed bug that prevented older browsers from checking the error state of a Collection element.",
+    "domain": "builder",
+    "issue_number": 3591,
+    "bullet_points": [],
+    "created_at": "2025-05-01"
+}

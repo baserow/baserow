@@ -1,7 +1,7 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, List, Optional
 
 from django.contrib.auth import get_user_model
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from django.db.models import Expression, F
 from django.utils.functional import lazy
 
@@ -9,6 +9,8 @@ from baserow_premium.api.fields.exceptions import (
     ERROR_GENERATIVE_AI_DOES_NOT_SUPPORT_FILE_FIELD,
 )
 from baserow_premium.fields.exceptions import GenerativeAITypeDoesNotSupportFileField
+from baserow_premium.license.features import PREMIUM
+from baserow_premium.license.handler import LicenseHandler
 from rest_framework import serializers
 
 from baserow.api.generative_ai.errors import (
@@ -16,11 +18,18 @@ from baserow.api.generative_ai.errors import (
     ERROR_MODEL_DOES_NOT_BELONG_TO_TYPE,
 )
 from baserow.contrib.database.api.fields.errors import ERROR_FIELD_DOES_NOT_EXIST
+from baserow.contrib.database.fields.dependencies.models import FieldDependency
+from baserow.contrib.database.fields.dependencies.types import FieldDependencies
+from baserow.contrib.database.fields.dependencies.update_collector import (
+    DependencyContext,
+    FieldUpdateCollector,
+)
+from baserow.contrib.database.fields.field_cache import FieldCache
 from baserow.contrib.database.fields.field_types import (
     CollationSortMixin,
     SelectOptionBaseFieldType,
 )
-from baserow.contrib.database.fields.models import Field
+from baserow.contrib.database.fields.models import Field, LinkRowField
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.formula import BaserowFormulaType
 from baserow.core.formula.serializers import FormulaSerializerField
@@ -32,14 +41,16 @@ from baserow.core.generative_ai.registries import (
     GenerativeAIWithFilesModelType,
     generative_ai_model_type_registry,
 )
+from baserow.core.jobs.handler import JobHandler
 
 from .models import AIField
 from .registries import ai_field_output_registry
-from .visitors import replace_field_id_references
+from .visitors import extract_field_id_dependencies, replace_field_id_references
 
 User = get_user_model()
 
 if TYPE_CHECKING:
+    from baserow.contrib.database.fields.registries import StartingRowType
     from baserow.contrib.database.table.models import GeneratedTableModel
 
 
@@ -60,6 +71,8 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         "ai_temperature",
         "ai_prompt",
         "ai_file_field_id",
+        "ai_auto_update",
+        "ai_auto_update_user_id",
     ]
     serializer_field_names = SelectOptionBaseFieldType.allowed_fields + [
         "ai_generative_ai_type",
@@ -68,6 +81,7 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         "ai_temperature",
         "ai_prompt",
         "ai_file_field_id",
+        "ai_auto_update",
     ]
     serializer_field_overrides = {
         "ai_output_type": serializers.ChoiceField(
@@ -87,8 +101,6 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         "ai_prompt": FormulaSerializerField(
             help_text="The prompt that must run for each row. Must be an formula.",
             required=False,
-            allow_blank=True,
-            default="",
         ),
         "ai_file_field_id": serializers.IntegerField(
             min_value=1,
@@ -96,6 +108,13 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
             required=False,
             allow_null=True,
             default=None,
+        ),
+        "ai_auto_update": serializers.BooleanField(
+            default=False,
+            required=False,
+            allow_null=True,
+            help_text="If set, AI field will be recalculated if a value of a "
+            "referenced field has been changed.",
         ),
         **SelectOptionBaseFieldType.serializer_field_overrides,
     }
@@ -108,6 +127,13 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
     can_get_unique_values = True
     can_have_select_options = True
 
+    def get_internal_value_from_db(
+        self, row: "GeneratedTableModel", field_name: str
+    ) -> Any:
+        field_object = row.get_field_object(field_name)
+        baserow_field_type = self.get_baserow_field_type(field_object["field"])
+        return baserow_field_type.get_internal_value_from_db(row, field_name)
+
     def get_baserow_field_type(self, instance):
         output_type = ai_field_output_registry.get(instance.ai_output_type)
         baserow_field_type = field_type_registry.get_by_type(
@@ -116,7 +142,6 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         return baserow_field_type
 
     def get_serializer_field(self, instance, **kwargs):
-        kwargs["read_only"] = True
         baserow_field_type = self.get_baserow_field_type(instance)
         return baserow_field_type.get_serializer_field(instance, **kwargs)
 
@@ -161,6 +186,18 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
     def contains_query(self, field_name, value, model_field, field):
         baserow_field_type = self.get_baserow_field_type(field)
         return baserow_field_type.contains_query(field_name, value, model_field, field)
+
+    def parse_filter_value(self, field, model_field, value):
+        baserow_field_type = self.get_baserow_field_type(field)
+        return baserow_field_type.parse_filter_value(field, model_field, value)
+
+    def get_compatible_filter_field_type(self, field):
+        """
+        For AI fields, return the underlying core field type used for filtering.
+        """
+
+        ai_field_instance = field.specific if hasattr(field, "specific") else field
+        return self.get_baserow_field_type(ai_field_instance)
 
     def contains_word_query(self, field_name, value, model_field, field):
         baserow_field_type = self.get_baserow_field_type(field)
@@ -238,11 +275,22 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         )
 
     def get_group_by_field_filters_and_annotations(
-        self, field, field_name, base_queryset, value
+        self, field, field_name, base_queryset, value, cte, rows
     ):
         baserow_field_type = self.get_baserow_field_type(field)
         return baserow_field_type.get_group_by_field_filters_and_annotations(
-            field, field_name, base_queryset, value
+            field, field_name, base_queryset, value, cte, rows
+        )
+
+    def get_formula_reference_to_model_field(
+        self, model_field, db_column, already_in_subquery
+    ):
+        instance = model_field.model.get_field_object(
+            model_field.name, include_trash=True
+        )["field"]
+        baserow_field_type = self.get_baserow_field_type(instance)
+        return baserow_field_type.get_formula_reference_to_model_field(
+            model_field, db_column, already_in_subquery
         )
 
     def get_export_serialized_value(
@@ -296,6 +344,99 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         ):
             raise GenerativeAITypeDoesNotSupportFileField()
 
+    def get_field_dependencies(
+        self, field_instance: AIField, field_cache: "FieldCache"
+    ) -> FieldDependencies:
+        field_ids = extract_field_id_dependencies(field_instance.ai_prompt["formula"])
+        return [
+            FieldDependency(
+                dependency_id=field_id,
+                dependant=field_instance,
+                via=None,
+            )
+            for field_id in field_ids
+        ]
+
+    def _handle_dependent_rows_change(
+        self,
+        field: AIField,
+        starting_row: "StartingRowType",
+    ):
+        """
+        Schedules the recalculation of the AI field for the rows that depend on the
+        starting row via field dependencies.
+        """
+
+        if not field.ai_auto_update:
+            return
+
+        try:
+            user = field.ai_auto_update_user
+        except (
+            User.DoesNotExist
+        ):  # If the field comes from the cache might contains stale data
+            user = None
+        # The user than enabled the auto update is no longer available. Let's disable
+        # the auto_update To avoid this from being called over and over again.
+        # TODO: send a notification to the workspace admins?
+        workspace = field.table.database.workspace
+        if not user or not LicenseHandler.user_has_feature(PREMIUM, user, workspace):
+            field.ai_auto_update = False
+            field.ai_auto_update_user = None
+            field.save()
+            return
+
+        if isinstance(starting_row, list):
+            row_ids = [row.id for row in starting_row]
+        else:
+            row_ids = [starting_row.id]
+
+        transaction.on_commit(
+            lambda: JobHandler().create_and_start_job(
+                user, "generate_ai_values", field_id=field.id, row_ids=row_ids
+            )
+        )
+
+    def row_of_dependency_deleted(
+        self,
+        field: Field,
+        starting_row: "StartingRowType",
+        update_collector: "FieldUpdateCollector",
+        field_cache: "FieldCache",
+        via_path_to_starting_table: Optional[List[LinkRowField]],
+        dependency_context: "DependencyContext",
+    ):
+        # no need to process deletion for AI field, so we just do a noop.
+        return
+
+    def row_of_dependency_created(
+        self,
+        field: AIField,
+        starting_row: "StartingRowType",
+        update_collector: "FieldUpdateCollector",
+        field_cache: "FieldCache",
+        via_path_to_starting_table: Optional[List[LinkRowField]],
+        dependency_context: DependencyContext,
+    ):
+        if dependency_context.depth == 0:
+            self._handle_dependent_rows_change(field, starting_row)
+
+    def row_of_dependency_updated(
+        self,
+        field: AIField,
+        starting_row: "StartingRowType",
+        update_collector: "FieldUpdateCollector",
+        field_cache: "FieldCache",
+        via_path_to_starting_table: List["LinkRowField"],
+        dependency_context: DependencyContext,
+    ):
+        # For AI fields, a dependency depth higher than 0 means another AI field is
+        # involved, but we need to wait for that field to finish updating before we can
+        # recalculate this one.
+        # Note: empty dependency_context is used when
+        if dependency_context.depth == 0:
+            self._handle_dependent_rows_change(field, starting_row)
+
     def before_create(
         self, table, primary, allowed_field_values, order, user, field_kwargs
     ):
@@ -309,6 +450,8 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         self._validate_field_kwargs(
             ai_output_type, ai_type, model_type, ai_file_field_id, workspace=workspace
         )
+        if allowed_field_values.get("ai_auto_update"):
+            allowed_field_values["ai_auto_update_user_id"] = user.id if user else None
 
         return super().before_create(
             table, primary, allowed_field_values, order, user, field_kwargs
@@ -338,6 +481,12 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         self._validate_field_kwargs(
             ai_output_type, ai_type, model_type, ai_file_field_id, workspace=workspace
         )
+
+        # Set the auto update user if the auto update is being enabled.
+        if to_field_values.get("ai_auto_update") and (
+            update_field is None or not update_field.ai_auto_update
+        ):
+            to_field_values["ai_auto_update_user_id"] = user.id if user else None
 
         return super().before_update(from_field, to_field_values, user, field_kwargs)
 

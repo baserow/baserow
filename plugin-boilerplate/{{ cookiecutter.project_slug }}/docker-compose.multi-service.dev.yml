@@ -1,5 +1,3 @@
-version: "3.4"
-
 # MAKE SURE YOU HAVE SET THE REQUIRED VARIABLES IN the .env FILE.configs:
 
 # This compose file starts up a dev version of the plugin with hot code reloading.
@@ -158,7 +156,7 @@ services:
   db:
     # Please ensure the postgres-client's major version in the backend image is kept in
     # sync with this major version so pg_dump remains compatible.
-    image: postgres:${POSTGRES_IMAGE_VERSION:-12}
+    image: postgres:${POSTGRES_IMAGE_VERSION:-13}
     env_file:
       - .env
     environment:

@@ -8,6 +8,7 @@
       @input="$emit('input', $event)"
     />
     <div
+      :id="forInput"
       ref="opener"
       class="color-input__input"
       tabindex="0"
@@ -31,6 +32,9 @@ import { resolveColor } from '@baserow/modules/core/utils/colors'
 export default {
   name: 'ColorInput',
   components: { ColorPickerContext },
+  inject: {
+    forInput: { from: 'forInput', default: null },
+  },
   props: {
     value: {
       type: String,

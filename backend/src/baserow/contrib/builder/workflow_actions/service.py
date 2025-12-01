@@ -291,18 +291,6 @@ class BuilderWorkflowActionService:
 
         return full_order
 
-    def remove_unused_field_names(
-        self,
-        row: dict[str, Any],
-        field_names: List[str],
-    ) -> dict[str, Any]:
-        """
-        Given a row dictionary, return a version of it that only contains keys
-        existing in the field_names list.
-        """
-
-        return {key: value for key, value in row.items() if key in field_names}
-
     def dispatch_action(
         self,
         user,
@@ -338,11 +326,15 @@ class BuilderWorkflowActionService:
         )
 
         # Remove unfiltered fields
-        field_names = dispatch_context.public_allowed_properties.get(
+        allowed_field_names = dispatch_context.public_allowed_properties.get(
             "external", {}
         ).get(workflow_action.service.id, [])
 
+        data = workflow_action.service.get_type().sanitize_result(
+            workflow_action.service.specific, result.data, allowed_field_names
+        )
+
         return DispatchResult(
-            data=self.remove_unused_field_names(result.data, field_names),
+            data=data,
             status=result.status,
         )

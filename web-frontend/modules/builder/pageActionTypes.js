@@ -35,6 +35,14 @@ export class PageActionType extends Registerable {
   onClick({ component, button }) {
     component.toggle(button, 'bottom', 'left', 4)
   }
+
+  /**
+   * The props that are added to the Button component related to this action. This can
+   * be used to change the type to secondary, or add an icon.
+   */
+  get buttonProps() {
+    return {}
+  }
 }
 
 export class PublishPageActionType extends PageActionType {
@@ -64,6 +72,10 @@ export class PublishPageActionType extends PageActionType {
 
   getOrder() {
     return 20
+  }
+
+  get buttonProps() {
+    return { type: 'primary' }
   }
 }
 
@@ -115,5 +127,9 @@ export class PreviewPageActionType extends PageActionType {
 
   getOrder() {
     return 10
+  }
+
+  get buttonProps() {
+    return { type: 'secondary', icon: 'iconoir-play' }
   }
 }

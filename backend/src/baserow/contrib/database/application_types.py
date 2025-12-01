@@ -20,6 +20,9 @@ from baserow.contrib.database.api.serializers import DatabaseSerializer
 from baserow.contrib.database.db.schema import safe_django_schema_editor
 from baserow.contrib.database.fields.field_cache import FieldCache
 from baserow.contrib.database.fields.registries import field_type_registry
+from baserow.contrib.database.fields.utils.field_constraint import (
+    build_django_field_constraints,
+)
 from baserow.contrib.database.models import Database, Field, View
 from baserow.contrib.database.operations import ListTablesDatabaseTableOperationType
 from baserow.contrib.database.table.handler import TableHandler
@@ -44,6 +47,8 @@ from .constants import (
 from .data_sync.registries import data_sync_type_registry
 from .db.atomic import read_repeatable_single_database_atomic_transaction
 from .export_serialized import DatabaseExportSerializedStructure
+from .field_rules.handlers import FieldRuleHandler
+from .field_rules.models import FieldRule
 from .fields.utils import DeferredFieldImporter, DeferredForeignKeyUpdater
 from .search.handler import SearchHandler
 from .table.models import GeneratedTableModel, Table
@@ -80,6 +85,7 @@ class DatabaseApplicationType(ApplicationType):
             database.table_set(manager="objects_and_trash")
             .all()
             .select_related("database__workspace")
+            .prefetch_related("field_set")
         )
 
         for table in database_tables:
@@ -169,10 +175,21 @@ class DatabaseApplicationType(ApplicationType):
                 progress.increment()
 
             serialized_data_sync = None
+            serialized_field_rules = []
             if hasattr(table, "data_sync"):
                 data_sync = table.data_sync.specific
                 data_sync_type = data_sync_type_registry.get_by_model(data_sync)
                 serialized_data_sync = data_sync_type.export_serialized(data_sync)
+
+            if hasattr(table, "field_rules"):
+                field_rules_handler = FieldRuleHandler(table)
+
+                for (
+                    rule,
+                    rule_type,
+                ) in field_rules_handler.applicable_rules_with_types:
+                    exported_field_rule = field_rules_handler.export_rule(rule)
+                    serialized_field_rules.append(exported_field_rule)
 
             structure = DatabaseExportSerializedStructure.table(
                 id=table.id,
@@ -182,6 +199,7 @@ class DatabaseApplicationType(ApplicationType):
                 views=serialized_views,
                 rows=serialized_rows,
                 data_sync=serialized_data_sync,
+                field_rules=serialized_field_rules,
             )
 
             for serialized_structure in serialization_processor_registry.get_all():
@@ -225,6 +243,9 @@ class DatabaseApplicationType(ApplicationType):
                 "view_set__viewgroupby_set",
                 "view_set__viewdecoration_set",
                 "data_sync__synced_properties",
+                Prefetch(
+                    "field_rules", queryset=specific_queryset(FieldRule.objects.all())
+                ),
             )
         )
 
@@ -411,7 +432,9 @@ class DatabaseApplicationType(ApplicationType):
                 id_mapping,
                 deferred_fk_update_collector,
             )
-            SearchHandler.after_field_created(external_field)
+            SearchHandler.schedule_update_search_data(
+                external_table, fields=[external_field]
+            )
             progress.increment()
 
         deferred_fk_update_collector.run_deferred_fk_updates(
@@ -569,6 +592,8 @@ class DatabaseApplicationType(ApplicationType):
 
         self._import_data_sync(serialized_tables, id_mapping, import_export_config)
 
+        self._import_field_rules(serialized_tables, id_mapping, import_export_config)
+
         return imported_tables
 
     def _import_extra_metadata(
@@ -578,7 +603,7 @@ class DatabaseApplicationType(ApplicationType):
         for serialized_table in serialized_tables:
             table = serialized_table["_object"]
             if not import_export_config.reduce_disk_space_usage:
-                SearchHandler.entire_field_values_changed_or_created(table)
+                SearchHandler.schedule_update_search_data(table)
             for (
                 serialized_structure_processor
             ) in serialization_processor_registry.get_all():
@@ -597,6 +622,18 @@ class DatabaseApplicationType(ApplicationType):
                 table, serialized_data_sync, id_mapping, import_export_config
             )
 
+    def _import_field_rules(self, serialized_tables, id_mapping, import_export_config):
+        for serialized_table in serialized_tables:
+            if not serialized_table.get("field_rules", None):
+                continue
+            table = serialized_table["_object"]
+            field_rules_handler = FieldRuleHandler(table)
+            serialized_rules = serialized_table["field_rules"]
+            for serialized_rule in serialized_rules:
+                field_rules_handler.import_rule(
+                    serialized_rule, id_mapping["database_fields"]
+                )
+
     def _import_table_rows(
         self,
         serialized_tables: List[Dict[str, Any]],
@@ -614,6 +651,8 @@ class DatabaseApplicationType(ApplicationType):
         :param serialized_tables: The serialized tables to import the rows into.
         :param imported_fields: The imported fields that were created during the import.
         :param user_email_mapping: A mapping of user emails to user instances.
+        :param deferred_fk_update_collector: A collector that collects all the foreign
+            keys to update them later when the model with all the fields is created.
         :param id_mapping: A mapping of any table ids that might be referenced in
             serialized_tables to their new/existing ids to use in this import.
         :param files_zip: An optional zip of files which can be used to retrieve
@@ -860,6 +899,14 @@ class DatabaseApplicationType(ApplicationType):
                     if getattr(date_field, attr, False):
                         setattr(date_field, attr, False)
 
+            for field_instance in serialized_table["field_instances"]:
+                if field_instance.field_constraints.exists():
+                    constraints = build_django_field_constraints(
+                        field_instance, field_instance.field_constraints.all()
+                    )
+                    for constraint in constraints:
+                        schema_editor.add_constraint(table_model, constraint)
+
     def _import_table_views(
         self,
         serialized_table: Dict[str, Any],
@@ -912,7 +959,6 @@ class DatabaseApplicationType(ApplicationType):
                 database=database,
                 name=serialized_table["name"],
                 order=serialized_table["order"],
-                needs_background_update_column_added=True,
                 last_modified_by_column_added=True,
             )
             id_mapping["database_tables"][serialized_table["id"]] = table_instance.id

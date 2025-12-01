@@ -35,7 +35,7 @@ from baserow.contrib.dashboard.exceptions import DashboardDoesNotExist
 from baserow.core.services.exceptions import (
     DoesNotExist,
     InvalidServiceTypeDispatchSource,
-    ServiceImproperlyConfigured,
+    ServiceImproperlyConfiguredDispatchException,
     ServiceTypeDoesNotExist,
 )
 from baserow.core.services.registries import service_type_registry
@@ -237,7 +237,7 @@ class DispatchDashboardDataSourceView(APIView):
         {
             DashboardDataSourceDoesNotExist: ERROR_DASHBOARD_DATA_SOURCE_DOES_NOT_EXIST,
             DashboardDataSourceImproperlyConfigured: ERROR_DASHBOARD_DATA_SOURCE_IMPROPERLY_CONFIGURED,
-            ServiceImproperlyConfigured: ERROR_DASHBOARD_DATA_SOURCE_IMPROPERLY_CONFIGURED,
+            ServiceImproperlyConfiguredDispatchException: ERROR_DASHBOARD_DATA_SOURCE_IMPROPERLY_CONFIGURED,
             DoesNotExist: ERROR_DASHBOARD_DATA_DOES_NOT_EXIST,
         }
     )

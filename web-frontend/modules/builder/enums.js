@@ -158,6 +158,7 @@ export const DATA_PROVIDERS_ALLOWED_FORM_ELEMENTS = [
 export const DATA_PROVIDERS_ALLOWED_DATA_SOURCES = [
   UserDataProviderType.getType(),
   PageParameterDataProviderType.getType(),
+  DataSourceDataProviderType.getType(),
 ]
 
 /**

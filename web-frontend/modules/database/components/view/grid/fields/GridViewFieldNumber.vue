@@ -17,7 +17,7 @@
         @keypress="onKeyPress($event)"
         @paste="onPaste($event)"
       />
-      <div v-show="!valid" class="grid-view__cell--error align-right">
+      <div v-show="!valid" class="grid-view__cell-error align-right">
         {{ error }}
       </div>
     </template>

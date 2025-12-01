@@ -1,6 +1,8 @@
 from io import BytesIO
 from unittest.mock import MagicMock, patch
 
+from django.core.files.uploadedfile import SimpleUploadedFile
+
 import pytest
 from rest_framework.exceptions import ValidationError
 
@@ -17,10 +19,16 @@ from baserow.contrib.integrations.local_baserow.models import (
 from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowUpsertRowServiceType,
 )
+from baserow.core.formula import BaserowFormulaObject
+from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
+from baserow.core.formula.types import BASEROW_FORMULA_MODE_SIMPLE
 from baserow.core.handler import CoreHandler
 from baserow.core.registries import ImportExportConfig
-from baserow.core.services.exceptions import ServiceImproperlyConfigured
-from baserow.test_utils.helpers import AnyStr
+from baserow.core.services.exceptions import (
+    InvalidContextContentDispatchException,
+    ServiceImproperlyConfiguredDispatchException,
+)
+from baserow.test_utils.helpers import AnyInt, AnyStr
 from baserow.test_utils.pytest_conftest import FakeDispatchContext
 
 
@@ -64,6 +72,68 @@ def test_local_baserow_upsert_row_service_dispatch_data_without_row_id(
     assert getattr(dispatch_data["data"], ingredient.db_column) == str(
         formula_context["page_parameter"]["id"]
     )
+
+
+@pytest.mark.django_db
+def test_local_baserow_upsert_row_service_dispatch_data_without_row_id_with_file(
+    data_fixture, fake
+):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        application=page.builder, user=user
+    )
+    database = data_fixture.create_database_application(
+        workspace=page.builder.workspace
+    )
+    table = TableHandler().create_table_and_fields(
+        user=user,
+        database=database,
+        name=data_fixture.fake.name(),
+        fields=[
+            ("File", "file", {}),
+        ],
+    )
+    file_field = table.field_set.get(name="File")
+
+    service = data_fixture.create_local_baserow_upsert_row_service(
+        integration=integration,
+        table=table,
+    )
+    service_type = service.get_type()
+    service.field_mappings.create(field=file_field, value='get("form.file")')
+
+    image = fake.image()
+
+    formula_context = {
+        "form": {
+            "file": {
+                "__file__": True,
+                "name": "superfile",
+                "file": SimpleUploadedFile(
+                    name="avatar.png", content=image, content_type="image/png"
+                ),
+            }
+        }
+    }
+    dispatch_context = FakeDispatchContext(context=formula_context)
+
+    dispatch_values = service_type.resolve_service_formulas(service, dispatch_context)
+    dispatch_data = service_type.dispatch_data(
+        service, dispatch_values, dispatch_context
+    )
+    assert getattr(dispatch_data["data"], file_field.db_column) == [
+        {
+            "image_height": 256,
+            "image_width": 256,
+            "is_image": True,
+            "mime_type": "image/png",
+            "name": AnyStr(),
+            "size": AnyInt(),
+            "uploaded_at": AnyStr(),
+            "visible_name": "superfile",
+        },
+    ]
 
 
 @pytest.mark.django_db
@@ -273,7 +343,7 @@ def test_local_baserow_upsert_row_service_dispatch_data_with_unknown_row_id(
     service_type = service.get_type()
     dispatch_context = FakeDispatchContext()
     dispatch_values = service_type.resolve_service_formulas(service, dispatch_context)
-    with pytest.raises(ServiceImproperlyConfigured) as exc:
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException) as exc:
         service_type.dispatch_data(service, dispatch_values, dispatch_context)
     assert exc.value.args[0] == "The row with id 9999999999999 does not exist."
 
@@ -364,7 +434,7 @@ def test_local_baserow_upsert_row_service_dispatch_transform(
     assert dict(serialized_row.data) == {
         "id": dispatch_data["data"].id,
         "order": "1.00000000000000000000",
-        ingredient.db_column: str(2),
+        ingredient.name: str(2),
     }
 
 
@@ -406,25 +476,30 @@ def test_local_baserow_upsert_row_service_dispatch_data_incompatible_value(
     dispatch_context = FakeDispatchContext()
 
     field_mapping = service.field_mappings.create(field=boolean_field, value="'Horse'")
-    with pytest.raises(ServiceImproperlyConfigured) as exc:
+    with pytest.raises(InvalidContextContentDispatchException) as exc:
         service_type.dispatch_data(
             service, {"table": table, field_mapping.id: "Horse"}, dispatch_context
         )
+
+    assert (
+        exc.value.args[0]
+        == f'Value error for field "{boolean_field.name}": Value is not a valid boolean '
+        "or convertible to a boolean."
+    )
 
     service.field_mappings.all().delete()
 
     field_mapping = service.field_mappings.create(
         field=single_field, value="'99999999999'"
     )
-    with pytest.raises(ServiceImproperlyConfigured) as exc:
+    with pytest.raises(InvalidContextContentDispatchException) as exc:
         service_type.dispatch_data(
             service, {"table": table, field_mapping.id: "99999999999"}, dispatch_context
         )
 
     assert exc.value.args[0] == (
-        "The result value of the formula is not valid for the "
-        f"field `{single_field.name} ({single_field.db_column})`: "
-        "The provided select option value '99999999999' is not a valid select option."
+        f'Value error for field "{single_field.name}": The provided select option '
+        "value '99999999999' is not a valid select option."
     )
 
 
@@ -477,11 +552,11 @@ def test_local_baserow_upsert_row_service_dispatch_data_convert_value(data_fixtu
         "id": 1,
         "order": "1.00000000000000000000",
         # The string 'true' was converted to a boolean value
-        table.field_set.get(name="boolean").db_column: True,
+        table.field_set.get(name="boolean").name: True,
         # The string 'text' is unchanged
-        table.field_set.get(name="text").db_column: "text",
+        table.field_set.get(name="text").name: "text",
         # The string '1' is converted to a list with a single item
-        table.field_set.get(name="array").db_column: [
+        table.field_set.get(name="array").name: [
             {"id": 1, "value": "unnamed row 1", "order": AnyStr()}
         ],
     }
@@ -516,27 +591,26 @@ def test_local_baserow_upsert_row_service_resolve_service_formulas(
     dispatch_context = FakeDispatchContext()
 
     # We're creating a row.
-    assert service.row_id == ""
-    assert service_type.resolve_service_formulas(service, dispatch_context) == {
-        "table": table,
-    }
+    service.row_id = BaserowFormulaObject(
+        formula="",
+        mode=BASEROW_FORMULA_MODE_SIMPLE,
+        version=BASEROW_FORMULA_VERSION_INITIAL,
+    )
+    assert service_type.resolve_service_formulas(service, dispatch_context) == {}
 
     # We're updating a row, but the ID isn't an integer
-    service.row_id = "'horse'"
-    with pytest.raises(ServiceImproperlyConfigured) as exc:
+    service.row_id = BaserowFormulaObject(
+        formula="'horse'",
+        mode=BASEROW_FORMULA_MODE_SIMPLE,
+        version=BASEROW_FORMULA_VERSION_INITIAL,
+    )
+    with pytest.raises(InvalidContextContentDispatchException) as exc:
         service_type.resolve_service_formulas(service, dispatch_context)
 
     assert exc.value.args[0] == (
-        "The result of the `row_id` formula must "
-        "be an integer or convertible to an integer."
+        'Value error for "row_id": '
+        "The value must be an integer or convertible to an integer."
     )
-
-    # We're updating a row, but the ID formula can't be resolved
-    service.row_id = "'horse"
-    with pytest.raises(ServiceImproperlyConfigured) as exc:
-        service_type.resolve_service_formulas(service, dispatch_context)
-
-    assert exc.value.args[0].startswith("The `row_id` formula can't be resolved")
 
 
 @pytest.mark.django_db
@@ -609,11 +683,11 @@ def test_export_import_local_baserow_upsert_row_service(
 
     assert imported_field_mapping.field == imported_field
     assert (
-        imported_field_mapping.value
+        imported_field_mapping.value["formula"]
         == f"get('data_source.{imported_data_source.id}.{imported_field.db_column}')"
     )
     assert (
-        imported_upsert_row_service.row_id
+        imported_upsert_row_service.row_id["formula"]
         == f"get('data_source.{imported_data_source.id}.{imported_field.db_column}')"
     )
 
@@ -708,8 +782,8 @@ def test_dispatch_transform_passes_field_ids(
     """
 
     mock_serializer_instance = MagicMock()
-    mock_serializer_instance.data.return_value = "foo"
     mock_serializer = MagicMock(return_value=mock_serializer_instance)
+    mock_serializer.data = {}
     mock_get_serializer.return_value = mock_serializer
 
     service_type = LocalBaserowUpsertRowServiceType()
@@ -722,12 +796,13 @@ def test_dispatch_transform_passes_field_ids(
 
     results = service_type.dispatch_transform(dispatch_data)
 
-    assert results.data == mock_serializer_instance.data
+    assert results.data == mock_serializer.data
     mock_get_serializer.assert_called_once_with(
         dispatch_data["baserow_table_model"],
         RowSerializer,
         is_response=True,
         field_ids=expected,
+        user_field_names=True,
     )
 
 

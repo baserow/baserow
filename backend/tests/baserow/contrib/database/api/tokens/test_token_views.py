@@ -497,8 +497,9 @@ def test_update_token(api_client, data_fixture):
     assert response_json["permissions"]["read"][0] == ["database", database_1.id]
     assert response_json["permissions"]["update"] is False
     assert len(response_json["permissions"]["delete"]) == 2
-    assert response_json["permissions"]["delete"][0] == ["table", table_1.id]
-    assert response_json["permissions"]["delete"][1] == ["table", table_3.id]
+    assert response_json["permissions"]["delete"] == unordered(
+        ["table", table_1.id], ["table", table_3.id]
+    )
 
     assert TokenPermission.objects.all().count() == 4
     assert TokenPermission.objects.filter(

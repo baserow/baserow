@@ -18,6 +18,11 @@ export class BaserowPlugin extends Registerable {
   userCreated(user, context) {}
 
   /**
+   * Hook that is called when the initial workspace is created for a user. This happens
+   * when the user cancels the onboarding, for example.
+   */
+  initialWorkspaceCreated(workspace) {}
+  /**
    * Every registered plugin can have a component that's rendered at the top of the
    * left sidebar.
    */
@@ -37,6 +42,14 @@ export class BaserowPlugin extends Registerable {
    * the workspace context.
    */
   getSidebarWorkspaceComponents(workspace) {
+    return null
+  }
+
+  /**
+   * Every registered plugin can display an additional item in the right sidebar within
+   * the workspace context.
+   */
+  getRightSidebarWorkspaceComponents(workspace) {
     return null
   }
 
@@ -143,6 +156,28 @@ export class BaserowPlugin extends Registerable {
   }
 
   /**
+   * Every registered plugin can display multiple additional context menu items in the
+   * view context menu displayed at the top bar (three dots menu) in the View view.
+   * @returns {*[]}
+   */
+  getAdditionalViewContextComponents(workspace, view) {
+    return []
+  }
+
+  /**
+   * Provides additional icons before 'standard' icons in the field header in a
+   * grid view.
+   *
+   * @param workspace
+   * @param view
+   * @param field
+   * @returns {*[]}
+   */
+  getGridViewFieldTypeIconsBefore(workspace, view, field) {
+    return []
+  }
+
+  /**
    * If set, `getExtraSnapshotModalComponents` will allow plugins to decide what kind of
    * copy is shown in the snapshots modal's Alert box.
    */
@@ -207,5 +242,10 @@ export class BaserowPlugin extends Registerable {
    */
   getLogoComponentOrder() {
     return 50
+  }
+
+  /* Allow plugins to add scripts in the head section of a builder application */
+  getBuilderApplicationHeaderAddition({ builder, mode }) {
+    return {}
   }
 }

@@ -4,7 +4,7 @@
     class="field-rich-text--preview grid-view__cell grid-field-rich-text__cell"
   >
     <div
-      class="grid-field-rich-text__cell-content"
+      class="grid-field-rich-text__cell-content grid-field-rich-text__cell-content--preview"
       v-html="$options.methods.renderFormattedValue(parent, props)"
     ></div>
   </div>

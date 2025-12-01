@@ -3,7 +3,10 @@
     <header
       ref="header"
       class="layout__col-2-1 header"
-      :class="{ 'header--overflow': headerOverflow }"
+      :class="[
+        { 'header--overflow': headerOverflow },
+        getViewHeaderClassNames(view),
+      ]"
     >
       <div v-show="tableLoading" class="header__loading"></div>
       <ul v-if="!tableLoading" class="header__filter">
@@ -13,7 +16,7 @@
         <li class="header__filter-item header__filter-item--grids">
           <a
             ref="viewsSelectToggle"
-            class="header__filter-link"
+            class="header__filter-link active"
             :class="{ 'header__filter-link--disabled': views === null }"
             data-highlight="views"
             @click="views !== null && openTableViewsContext()"
@@ -168,13 +171,14 @@
         </li>
         <li
           v-if="
+            hasSelectedView &&
             hasCompatibleDecorator &&
-            !readOnly &&
-            $hasPermission(
-              'database.table.view.decoration.update',
-              view,
-              database.workspace.id
-            )
+            (adhocDecorations ||
+              $hasPermission(
+                'database.table.view.create_decoration',
+                view,
+                database.workspace.id
+              ))
           "
           class="header__filter-item"
         >
@@ -183,7 +187,7 @@
             :view="view"
             :table="table"
             :fields="fields"
-            :read-only="readOnly"
+            :read-only="adhocDecorations"
             :disable-sort="disableSort"
             @changed="refresh()"
           ></ViewDecoratorMenu>
@@ -247,6 +251,7 @@ import ShareViewLink from '@baserow/modules/database/components/view/ShareViewLi
 import ExternalLinkBaserowLogo from '@baserow/modules/core/components/ExternalLinkBaserowLogo'
 import ViewGroupBy from '@baserow/modules/database/components/view/ViewGroupBy'
 import DefaultErrorPage from '@baserow/modules/core/components/DefaultErrorPage'
+import { waitFor } from '@baserow/modules/core/utils/queue'
 
 /**
  * This page component is the skeleton for a table. Depending on the selected view it
@@ -340,6 +345,9 @@ export default {
       // Indicates if the elements within the header are overflowing. In case of true,
       // we can hide certain values to make sure that it fits within the header.
       headerOverflow: false,
+      // Indicates whether the table is currently being refreshed using via the
+      // `refresh-table` signal.
+      isRefreshing: false,
     }
   },
   computed: {
@@ -434,6 +442,24 @@ export default {
         )
       )
     },
+    adhocDecorations() {
+      if (this.readOnly) {
+        return true
+      }
+
+      return (
+        this.$hasPermission(
+          'database.table.view.list_decoration',
+          this.view,
+          this.database.workspace.id
+        ) &&
+        !this.$hasPermission(
+          'database.table.view.create_decoration',
+          this.view,
+          this.database.workspace.id
+        )
+      )
+    },
     ...mapGetters({
       isPublic: 'page/view/public/getIsPublic',
     }),
@@ -470,6 +496,13 @@ export default {
     getViewHeaderComponent(view) {
       const type = this.$registry.get('view', view.type)
       return type.getHeaderComponent()
+    },
+    getViewHeaderClassNames(view) {
+      if (!this.hasSelectedView) {
+        return ''
+      }
+      const type = this.$registry.get('view', view.type)
+      return type.getHeaderClassNames(view)
     },
     getAdditionalTableHeaderComponents(view, isPublic) {
       const opts = Object.values(this.$registry.getAll('plugin'))
@@ -518,6 +551,29 @@ export default {
         return
       }
 
+      const callCallback = async () => {
+        if (event && Object.prototype.hasOwnProperty.call(event, 'callback')) {
+          await event.callback()
+        }
+      }
+
+      if (this.isRefreshing) {
+        try {
+          // If the table is already refreshing, then we don't have to do anything,
+          // apart from waiting for the refresh to complete.
+          await waitFor(() => !this.isRefreshing, 5, 30000)
+        } catch (error) {
+          // If the timeout is reached, then the table has been refreshing for too
+          // long
+        }
+        // Regardless of the refreshing was completed, the callback must be called,
+        // otherwise, the state of the table might not be updated correctly.
+        await callCallback()
+        return
+      }
+
+      this.isRefreshing = true
+
       const includeFieldOptions =
         typeof event === 'object' ? event.includeFieldOptions : false
 
@@ -556,13 +612,15 @@ export default {
       ) {
         await this.$refs.view.refresh()
       }
+      // Before the callback is called, mark the table as not refreshing anymore, so
+      // that other callbacks that are waiting can be resolved the moment the table has
+      // been refreshed.
+      this.isRefreshing = false
       // It might be possible that the event has a callback that needs to be called
       // after the rows are refreshed. This is for example the case when a field has
       // changed. In that case we want to update the field in the store after the rows
       // have been refreshed to prevent incompatible values in field types.
-      if (event && Object.prototype.hasOwnProperty.call(event, 'callback')) {
-        await event.callback()
-      }
+      await callCallback()
       this.$nextTick(() => {
         this.viewLoading = false
       })

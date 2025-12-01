@@ -1,0 +1,8 @@
+{
+    "type": "bug",
+    "message": "Fix styling issues when using Text element with markdown format.",
+    "domain": "builder",
+    "issue_number": 3632,
+    "bullet_points": [],
+    "created_at": "2025-05-20"
+}

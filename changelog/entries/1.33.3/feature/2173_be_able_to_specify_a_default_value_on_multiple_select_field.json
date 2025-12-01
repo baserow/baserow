@@ -1,0 +1,8 @@
+{
+    "type": "feature",
+    "message": "Be able to specify a default value on multiple select field",
+    "domain": "database",
+    "issue_number": 2173,
+    "bullet_points": [],
+    "created_at": "2025-05-13"
+}

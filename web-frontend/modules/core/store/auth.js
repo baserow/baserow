@@ -79,6 +79,9 @@ export const mutations = {
     }
     _.mergeWith(state.additional, data, customizer)
   },
+  SET_ADDITIONAL_DATA(state, additional) {
+    state.additional = additional
+  },
   LOGOFF(state) {
     state.token = null
     state.refreshToken = null
@@ -135,18 +138,31 @@ export const mutations = {
 
 export const actions = {
   /**
-   * Authenticate a user by his email and password. If successful commit the
-   * token to the state and start the refresh timeout to stay authenticated.
+   * Authenticate a user by his email and password.
    */
   async login({ getters, dispatch }, { email, password }) {
     const { data } = await AuthService(this.$client).login(email, password)
-    dispatch('setUserData', data)
-
-    if (!getters.getPreventSetToken) {
-      setToken(this.app, getters.refreshToken)
-      setUserSessionCookie(this.app, getters.signedUserSession)
+    return dispatch('loginWithData', { data })
+  },
+  /**
+   * Authenticate a user by data returned from an auth endpoint.
+   * If successful, commit the token to the state and start the refresh
+   * timeout to stay authenticated.
+   */
+  loginWithData({ getters, dispatch }, { data }) {
+    if (data.user) {
+      dispatch('setUserData', data)
+      if (!getters.getPreventSetToken) {
+        setToken(this.app, getters.refreshToken)
+        setUserSessionCookie(this.app, getters.signedUserSession)
+      }
+      return data.user
+    } else if (data.two_factor_auth) {
+      return {
+        two_factor_auth: data.two_factor_auth,
+        token: data.token,
+      }
     }
-    return data.user
   },
   /**
    * Register a new user and immediately authenticate. If successful commit the
@@ -289,6 +305,9 @@ export const actions = {
   },
   forceSetUserData({ commit }, data) {
     commit('SET_USER_DATA', data)
+  },
+  forceSetAdditionalData({ commit }, data) {
+    commit('SET_ADDITIONAL_DATA', data)
   },
   preventSetToken({ commit }) {
     commit('SET_PREVENT_SET_TOKEN', true)

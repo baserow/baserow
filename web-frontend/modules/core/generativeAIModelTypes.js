@@ -1,4 +1,5 @@
 import { Registerable } from '@baserow/modules/core/registry'
+import { url, helpers } from '@vuelidate/validators'
 
 export class GenerativeAIModelType extends Registerable {
   get name() {
@@ -58,6 +59,15 @@ export class OpenAIModelType extends GenerativeAIModelType {
       {
         key: 'organization',
         label: i18n.t('generativeAIModelType.openaiOrganization'),
+        optional: true,
+      },
+      {
+        key: 'base_url',
+        label: i18n.t('generativeAIModelType.openaiBaseUrl'),
+        description: i18n.t('generativeAIModelType.openaiBaseUrlDescription'),
+        validations: {
+          url: helpers.withMessage(this.app.i18n.t('error.invalidURL'), url),
+        },
       },
       modelSettings(
         i18n.t('generativeAIModelType.openaiModelsLabel'),
@@ -200,6 +210,7 @@ export class OpenRouterModelType extends GenerativeAIModelType {
       {
         key: 'organization',
         label: i18n.t('generativeAIModelType.openRouterOrganization'),
+        optional: true,
       },
       modelSettings(
         i18n.t('generativeAIModelType.openRouterModelsLabel'),

@@ -1,0 +1,128 @@
+.mcp-endpoint__head {
+  display: flex;
+  margin-bottom: 12px;
+}
+
+.mcp-endpoint__name {
+  min-width: 0;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.mcp-endpoint__meta {
+  display: flex;
+}
+
+.mcp-endpoint__more {
+  flex: 0 0;
+  font-size: 14px;
+  padding: 0 6px;
+  margin-left: 6px;
+  color: $color-neutral-900;
+
+  @include rounded($rounded);
+
+  &:hover {
+    text-decoration: none;
+    background-color: $color-neutral-200;
+  }
+}
+
+.mcp-endpoint__workspace {
+  @extend %ellipsis;
+
+  color: $color-neutral-600;
+  font-size: 12px;
+  margin-right: 12px;
+}
+
+.mcp-endpoint__link {
+  display: flex;
+  width: 100%;
+  align-items: center;
+}
+
+.mcp-endpoint__box {
+  @extend %ellipsis;
+
+  background-color: $palette-neutral-100;
+  line-height: 32px;
+  padding: 0 8px;
+  font-family: monospace;
+  font-size: 10px;
+  border: solid 1px $palette-neutral-400;
+  overscroll-behavior: none;
+  height: 32px;
+  min-width: 0;
+  flex-basis: 100%;
+
+  @include scrollable-overflow;
+  @include rounded($rounded);
+
+  &.view-sharing__shared-link-box--short {
+    width: 484px;
+  }
+}
+
+.mcp-endpoint__link-action {
+  flex-shrink: 0;
+  position: relative;
+  width: 32px;
+  height: 32px;
+  vertical-align: center;
+  margin-left: 4px;
+  line-height: 32px;
+  font-size: 14px;
+  text-align: center;
+  color: $palette-neutral-900;
+
+  @include rounded($rounded);
+
+  &:hover {
+    background-color: $color-neutral-100;
+  }
+}
+
+.mcp-endpoint__warning {
+  font-size: 11px;
+  color: $palette-yellow-700;
+}
+
+.mcp-endpoint__instructions {
+  &.markdown code {
+    display: inline-block;
+    padding: 0 6px;
+    background-color: $color-neutral-100;
+
+    @include rounded($rounded);
+  }
+
+  &.markdown p {
+    margin-bottom: 20px;
+    font-size: 13px;
+    line-height: 140%;
+  }
+
+  &.markdown ul,
+  &.markdown ol {
+    padding-left: 1.5em;
+  }
+
+  &.markdown li {
+    font-size: 13px;
+    line-height: 140%;
+    margin-bottom: 6px;
+    color: $palette-neutral-900;
+  }
+}
+
+.mcp-endpoint__code {
+  display: block;
+  width: 100%;
+  padding: 6px;
+  font-size: 12px;
+  background-color: $color-neutral-100;
+  line-height: 140%;
+
+  @include rounded($rounded);
+}

@@ -15,7 +15,8 @@
         "action management"
     ],
     "categories": [
-        "Business Operations"
+        "Business Operations",
+        "🔥 Most Popular"
     ],
     "export": [
         {
@@ -36,9 +37,6 @@
                             "description": null,
                             "order": 1,
                             "primary": true,
-                            "read_only": true,
-                            "immutable_type": true,
-                            "immutable_properties": true,
                             "text_default": ""
                         },
                         {
@@ -47,10 +45,7 @@
                             "name": "Email",
                             "description": null,
                             "order": 2,
-                            "primary": false,
-                            "read_only": true,
-                            "immutable_type": true,
-                            "immutable_properties": true
+                            "primary": false
                         },
                         {
                             "id": 55112,
@@ -58,10 +53,7 @@
                             "name": "Phone",
                             "description": null,
                             "order": 3,
-                            "primary": false,
-                            "read_only": true,
-                            "immutable_type": true,
-                            "immutable_properties": true
+                            "primary": false
                         },
                         {
                             "id": 55113,
@@ -69,10 +61,7 @@
                             "name": "Picture",
                             "description": null,
                             "order": 4,
-                            "primary": false,
-                            "read_only": true,
-                            "immutable_type": true,
-                            "immutable_properties": true
+                            "primary": false
                         },
                         {
                             "id": 55114,
@@ -81,9 +70,6 @@
                             "description": null,
                             "order": 5,
                             "primary": false,
-                            "read_only": true,
-                            "immutable_type": true,
-                            "immutable_properties": true,
                             "text_default": ""
                         },
                         {
@@ -2317,9 +2303,6 @@
                             "description": null,
                             "order": 1,
                             "primary": true,
-                            "read_only": true,
-                            "immutable_type": true,
-                            "immutable_properties": true,
                             "text_default": ""
                         },
                         {
@@ -2329,9 +2312,6 @@
                             "description": null,
                             "order": 2,
                             "primary": false,
-                            "read_only": true,
-                            "immutable_type": true,
-                            "immutable_properties": true,
                             "long_text_enable_rich_text": false
                         },
                         {
@@ -2341,9 +2321,6 @@
                             "description": null,
                             "order": 3,
                             "primary": false,
-                            "read_only": true,
-                            "immutable_type": true,
-                            "immutable_properties": true,
                             "text_default": ""
                         },
                         {
@@ -2353,9 +2330,6 @@
                             "description": null,
                             "order": 4,
                             "primary": false,
-                            "read_only": true,
-                            "immutable_type": true,
-                            "immutable_properties": true,
                             "number_decimal_places": 0,
                             "number_negative": false,
                             "number_prefix": "",

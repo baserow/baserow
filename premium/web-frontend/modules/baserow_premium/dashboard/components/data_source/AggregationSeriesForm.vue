@@ -11,7 +11,8 @@
       >
         <Dropdown
           :value="values.aggregation_type"
-          :error="fieldHasErrors('aggregation_type')"
+          :error="!disabled && fieldHasErrors('aggregation_type')"
+          :disabled="disabled || loading"
           @change="aggregationTypeChanged"
         >
           <DropdownItem
@@ -29,10 +30,12 @@
         required
         horizontal
         horizontal-narrow
+        class="margin-bottom-2"
       >
         <Dropdown
           v-model="values.field_id"
-          :error="fieldHasErrors('field_id')"
+          :error="!disabled && fieldHasErrors('field_id')"
+          :disabled="disabled || loading"
           @change="v$.values.field_id.$touch"
         >
           <DropdownItem
@@ -45,11 +48,38 @@
           </DropdownItem>
         </Dropdown>
       </FormGroup>
+      <FormGroup
+        small-label
+        :label="$t('aggregationSeriesForm.chartType')"
+        required
+        horizontal
+        horizontal-narrow
+      >
+        <Dropdown
+          :value="
+            currentSeriesConfig.series_chart_type ||
+            widget.default_series_chart_type
+          "
+          :error="fieldHasErrors('chart_type')"
+          :disabled="disabled || loading"
+          @change="seriesChartTypeChanged"
+        >
+          <DropdownItem
+            v-for="variation in widgetVariations"
+            :key="variation.params.default_series_chart_type"
+            :name="variation.name"
+            :value="variation.params.default_series_chart_type"
+            :icon="variation.dropdownIcon"
+          >
+          </DropdownItem>
+        </Dropdown>
+      </FormGroup>
     </FormSection>
     <FormSection v-if="aggregationSeries.length > 1">
       <ButtonText
         icon="iconoir-bin"
         type="secondary"
+        :disabled="disabled || loading"
         @click="$emit('delete-series', seriesIndex)"
         >{{ $t('aggregationSeriesForm.deleteSeries') }}</ButtonText
       >
@@ -82,14 +112,29 @@ export default {
       type: Number,
       required: true,
     },
+    disabled: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
+    widget: {
+      type: Object,
+      required: true,
+    },
+    loading: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
   },
   setup() {
     return { v$: useVuelidate() }
   },
   data() {
     return {
-      allowedValues: ['field_id', 'aggregation_type'],
+      allowedValues: ['id', 'field_id', 'aggregation_type'],
       values: {
+        id: null,
         field_id: null,
         aggregation_type: null,
       },
@@ -151,6 +196,18 @@ export default {
     compatibleTableFieldIds() {
       return this.compatibleFields.map((field) => field.id)
     },
+    currentSeriesConfig() {
+      const series = this.aggregationSeries[this.seriesIndex]
+      return (
+        this.widget.series_config.find(
+          (item) => item.series_id === series.id
+        ) || {}
+      )
+    },
+    widgetVariations() {
+      const widgetType = this.$registry.get('dashboardWidget', this.widget.type)
+      return widgetType.variations
+    },
   },
   mounted() {
     this.v$.$touch()
@@ -200,6 +257,13 @@ export default {
         this.values.field_id = null
       }
       this.v$.values.aggregation_type.$touch()
+    },
+    seriesChartTypeChanged(chartType) {
+      const seriesConfig = {
+        series_id: this.aggregationSeries[this.seriesIndex].id,
+        series_chart_type: chartType,
+      }
+      this.$emit('series-config-changed', seriesConfig)
     },
   },
 }

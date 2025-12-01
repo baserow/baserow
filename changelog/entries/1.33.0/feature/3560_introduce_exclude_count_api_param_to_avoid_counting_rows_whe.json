@@ -1,0 +1,8 @@
+{
+    "type": "feature",
+    "message": "Introduce `exclude_count` API param to avoid counting rows when paginating data",
+    "domain": "database",
+    "issue_number": 3560,
+    "bullet_points": [],
+    "created_at": "2025-04-07"
+}

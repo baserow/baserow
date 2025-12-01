@@ -1,0 +1,22 @@
+.save-backup-code__description {
+  font-size: 13px;
+  color: $palette-neutral-900;
+  margin-bottom: 24px;
+}
+
+.save-backup-code__subtitle {
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 12px;
+}
+
+.save-backup-code__code {
+  color: $palette-neutral-900;
+  font-size: 12px;
+  border-radius: 6px;
+  line-height: 20px;
+  padding: 12px 16px;
+  border: 1px solid $palette-neutral-400;
+  background: $palette-neutral-100;
+  margin-bottom: 24px;
+}

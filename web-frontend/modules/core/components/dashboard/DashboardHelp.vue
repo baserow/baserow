@@ -3,7 +3,7 @@
     v-if="displayAlert"
     type="blank"
     close-button
-    position="bottom"
+    class="dashboard__help"
     :width="396"
     @close="handleAlertClose"
   >
@@ -22,13 +22,13 @@
     <template #actions>
       <Button
         tag="a"
-        href="https://gitlab.com/baserow/baserow"
+        href="https://github.com/baserow/baserow"
         target="_blank"
         rel="noopener noreferrer"
         type="secondary"
-        icon="baserow-icon-gitlab"
+        icon="iconoir-github"
       >
-        {{ $t('dashboard.starOnGitlab') }}</Button
+        {{ $t('dashboard.starOnGitHub') }}</Button
       >
       <ButtonIcon
         v-tooltip="$t('dashboard.shareOnTwitter')"
@@ -76,7 +76,7 @@
 </template>
 
 <script>
-const helpDisplayCookieName = 'baserow_dashboard_alert_closed'
+const helpDisplayCookieName = 'baserow_dashboard_alert_closed_v2'
 
 export default {
   name: 'DashboardHelp',

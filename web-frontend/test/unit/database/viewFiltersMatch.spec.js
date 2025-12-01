@@ -51,6 +51,7 @@ import {
   NumberFieldType,
   SingleSelectFieldType,
   MultipleSelectFieldType,
+  MultipleCollaboratorsFieldType,
 } from '@baserow/modules/database/fieldTypes'
 
 export const dateBeforeCases = [
@@ -520,6 +521,48 @@ export const dateInThisYear = [
   {
     rowValue: '2022-06-01T12:00:00.000000Z',
     filterValue: 'Europe/Berlin?',
+    expected: true,
+  },
+]
+export const dateWithinDaysAgo = [
+  {
+    rowValue: moment().tz('Europe/Berlin').subtract(1, 'days').format(),
+    filterValue: 'Europe/Berlin?1',
+    expected: true,
+  },
+  {
+    rowValue: '1970-08-11T23:30:37.940086Z',
+    filterValue: 'Europe/Berlin?2',
+    expected: false,
+  },
+  {
+    rowValue: moment().utc().subtract(2, 'days').format(),
+    filterValue: 'UTC?3',
+    expected: true,
+  },
+  {
+    rowValue: moment().utc().format(),
+    filterValue: '?1',
+    expected: true,
+  },
+  {
+    rowValue: moment().utc().format(),
+    filterValue: 'UTC?1',
+    expected: true,
+  },
+  {
+    rowValue: moment().utc().format(),
+    filterValue: '?',
+    expected: true,
+  },
+  {
+    rowValue: moment().utc().add(1, 'days').format(),
+    filterValue: '?',
+    expected: true,
+  },
+  {
+    rowValue: moment().utc().add(1, 'days').format(),
+    filterValue: '',
     expected: true,
   },
 ]
@@ -2652,7 +2695,7 @@ describe('All Tests', () => {
       values.filterType
     )
     const fieldType = new FormulaFieldType({ app: testApp._app })
-    const field = { formula_type: 'url', formula: '' }
+    const field = { formula_type: 'url', formula: '', type: 'formula' }
     const result = filterClass.matches(
       values.rowValue !== undefined
         ? values.rowValue
@@ -2717,4 +2760,190 @@ describe('All Tests', () => {
     )
     expect(result).toBe(values.expectedResult)
   })
+})
+
+const MultipleCollaboratorsEmptyCases = [
+  {
+    filterType: 'empty',
+    rowValue: [],
+    filterValue: null,
+    expected: true,
+  },
+  {
+    filterType: 'empty',
+    rowValue: [{ id: 1, name: 'foo' }],
+    filterValue: null,
+    expected: false,
+  },
+]
+
+describe('Multiple collaborators view filters', () => {
+  let testApp = null
+
+  beforeAll(() => {
+    testApp = new TestApp()
+  })
+
+  afterEach(() => {
+    testApp.afterEach()
+  })
+
+  test.each(MultipleCollaboratorsEmptyCases)(
+    'Multiple collaborators is empty.',
+    (values) => {
+      const fieldType = new MultipleCollaboratorsFieldType({ app: testApp })
+      const field = { type: 'multiple_collaborators' }
+      const result = new EmptyViewFilterType({
+        app: testApp,
+      }).matches(values.rowValue, values.filterValue, field, fieldType)
+      expect(result).toBe(values.expected)
+    }
+  )
+
+  test.each(MultipleCollaboratorsEmptyCases)(
+    'Multiple collaborators is not empty.',
+    (values) => {
+      const fieldType = new MultipleCollaboratorsFieldType({ app: testApp })
+      const field = { type: 'multiple_collaborators' }
+      const result = new NotEmptyViewFilterType({
+        app: testApp,
+      }).matches(values.rowValue, values.filterValue, field, fieldType)
+      expect(result).toBe(!values.expected)
+    }
+  )
+
+  test.each(MultipleCollaboratorsEmptyCases)(
+    'Multiple collaborators formula is empty.',
+    (values) => {
+      const field = {
+        type: 'formula',
+        formula_type: 'multiple_collaborators',
+      }
+      const fieldType = new FormulaFieldType({ app: testApp })
+      const result = new EmptyViewFilterType({
+        app: testApp,
+      }).matches(values.rowValue, values.filterValue, field, fieldType)
+      expect(result).toBe(values.expected)
+    }
+  )
+
+  test.each(MultipleCollaboratorsEmptyCases)(
+    'Multiple collaborators formula is not empty.',
+    (values) => {
+      const field = {
+        type: 'formula',
+        formula_type: 'multiple_collaborators',
+      }
+      const fieldType = new FormulaFieldType({ app: testApp })
+      const result = new NotEmptyViewFilterType({
+        app: testApp,
+      }).matches(values.rowValue, values.filterValue, field, fieldType)
+      expect(result).toBe(!values.expected)
+    }
+  )
+})
+
+const emptyFilterValueCases = [
+  {
+    filterType: 'equal',
+    rowValue: 'test',
+    filterValue: '',
+    expected: null,
+  },
+  {
+    filterType: 'not_equal',
+    rowValue: 'test',
+    filterValue: '',
+    expected: null,
+  },
+  {
+    filterType: 'higher_than',
+    rowValue: 5,
+    filterValue: '',
+    expected: null,
+  },
+  {
+    filterType: 'higher_than_or_equal',
+    rowValue: 5,
+    filterValue: '',
+    expected: null,
+  },
+  {
+    filterType: 'lower_than',
+    rowValue: 5,
+    filterValue: '',
+    expected: null,
+  },
+  {
+    filterType: 'lower_than_or_equal',
+    rowValue: 5,
+    filterValue: '',
+    expected: null,
+  },
+]
+
+const emptyFilterValueSingleSelectCases = [
+  {
+    filterType: 'single_select_equal',
+    rowValue: { id: 1, value: 'Option A', color: 'blue' },
+    filterValue: '',
+    expected: null,
+  },
+  {
+    filterType: 'single_select_not_equal',
+    rowValue: { id: 1, value: 'Option A', color: 'blue' },
+    filterValue: '',
+    expected: null,
+  },
+]
+
+describe('Empty filter value tests', () => {
+  let testApp = null
+
+  beforeAll(() => {
+    testApp = new TestApp()
+  })
+
+  afterEach(() => {
+    testApp.afterEach()
+  })
+
+  test.each(emptyFilterValueCases)(
+    'Filter type %s with empty value should return null',
+    (values) => {
+      const filterClass = testApp._app.$registry.get(
+        'viewFilter',
+        values.filterType
+      )
+      const result = filterClass.matches(
+        values.rowValue,
+        values.filterValue,
+        { type: 'text' },
+        {
+          getMatchesParsedValues: (rowValue, filterValue) => ({
+            rowVal: rowValue,
+            filterVal: filterValue,
+          }),
+        }
+      )
+      expect(result).toBe(values.expected)
+    }
+  )
+
+  test.each(emptyFilterValueSingleSelectCases)(
+    'Filter type %s with empty value should return null',
+    (values) => {
+      const filterClass = testApp._app.$registry.get(
+        'viewFilter',
+        values.filterType
+      )
+      const result = filterClass.matches(
+        values.rowValue,
+        values.filterValue,
+        { type: 'single_select' },
+        {}
+      )
+      expect(result).toBe(values.expected)
+    }
+  )
 })

@@ -1,0 +1,8 @@
+{
+    "type": "bug",
+    "message": "Fix collection element broken when they are in container",
+    "domain": "builder",
+    "issue_number": null,
+    "bullet_points": [],
+    "created_at": "2025-11-13"
+}

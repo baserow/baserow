@@ -215,7 +215,16 @@ export const parseNumberValue = (field, value, roundDecimals = true) => {
     : parsedNumber
 }
 
-export const formatFrontendNumber = (field, value) => {
+/**
+ * Formats a decimal number sent from the backend according to the field's number
+ * format.
+ * @param {Object} field - The field object containing number format options.
+ * @param {string|number|null} value - The decimal value (with a dot as a decimal
+ * separator) to format, can be a string or a number or null.
+ * @returns {string} - The number formatted as a string accordingly to the field
+ * formatting options, or an empty string if the value is null or empty.
+ */
+export const formatDecimalNumber = (field, value) => {
   if (value == null || value === '') {
     return ''
   }

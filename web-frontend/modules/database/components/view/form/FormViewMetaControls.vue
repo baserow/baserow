@@ -21,46 +21,16 @@
       :label="$t('formViewMetaControls.whenSubmittedLabel')"
       required
     >
-      <ul class="choice-items choice-items--inline">
-        <li>
-          <a
-            class="choice-items__link"
-            :class="{
-              active: view.submit_action === 'MESSAGE',
-              disabled: readOnly,
-            }"
-            @click="
-              !readOnly &&
-                view.submit_action !== 'MESSAGE' &&
-                $emit('updated-form', { submit_action: 'MESSAGE' })
-            "
-            ><span>{{ $t('formViewMetaControls.showMessage') }}</span>
-            <i
-              v-if="view.submit_action === 'MESSAGE'"
-              class="choice-items__icon-active iconoir-check-circle"
-            ></i
-          ></a>
-        </li>
-        <li>
-          <a
-            class="choice-items__link"
-            :class="{
-              active: view.submit_action === 'REDIRECT',
-              disabled: readOnly,
-            }"
-            @click="
-              !readOnly &&
-                view.submit_action !== 'REDIRECT' &&
-                $emit('updated-form', { submit_action: 'REDIRECT' })
-            "
-            ><span>{{ $t('formViewMetaControls.urlRedirect') }}</span>
-            <i
-              v-if="view.submit_action === 'REDIRECT'"
-              class="choice-items__icon-active iconoir-check-circle"
-            ></i
-          ></a>
-        </li>
-      </ul>
+      <SegmentControl
+        v-if="!readOnly"
+        :active-index="
+          submitActions.findIndex((s) => s.type === view.submit_action)
+        "
+        :segments="submitActions"
+        @update:activeIndex="
+          $emit('updated-form', { submit_action: submitActions[$event].type })
+        "
+      ></SegmentControl>
     </FormGroup>
 
     <FormGroup
@@ -169,6 +139,20 @@ export default {
     return {
       values: values.values,
       v$: useVuelidate(rules, values, { $lazy: true }),
+    }
+  },
+  data() {
+    return {
+      submitActions: [
+        {
+          type: 'MESSAGE',
+          label: this.$t('formViewMetaControls.showMessage'),
+        },
+        {
+          type: 'REDIRECT',
+          label: this.$t('formViewMetaControls.urlRedirect'),
+        },
+      ],
     }
   },
   watch: {

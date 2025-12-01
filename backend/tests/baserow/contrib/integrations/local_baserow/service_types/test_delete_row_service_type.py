@@ -7,7 +7,7 @@ from baserow.contrib.integrations.local_baserow.models import LocalBaserowDelete
 from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowDeleteRowServiceType,
 )
-from baserow.core.services.exceptions import ServiceImproperlyConfigured
+from baserow.core.services.exceptions import DoesNotExist
 from baserow.core.services.handler import ServiceHandler
 from baserow.test_utils.pytest_conftest import FakeDispatchContext
 
@@ -37,7 +37,7 @@ def test_create_local_baserow_delete_row_service(data_fixture):
     )
 
     assert service.table.id == table.id
-    assert service.row_id == ""
+    assert service.row_id["formula"] == ""
 
 
 @pytest.mark.django_db
@@ -65,7 +65,7 @@ def test_update_local_baserow_delete_row_service(data_fixture):
 
     service.refresh_from_db()
 
-    assert service.row_id == "1"
+    assert service.row_id["formula"] == "1"
 
 
 @pytest.mark.django_db
@@ -110,7 +110,7 @@ def test_local_baserow_delete_row_service_dispatch_data_row_not_exist(data_fixtu
 
     dispatch_context = FakeDispatchContext()
     dispatch_values = service_type.resolve_service_formulas(service, dispatch_context)
-    with pytest.raises(ServiceImproperlyConfigured) as exc:
+    with pytest.raises(DoesNotExist) as exc:
         service_type.dispatch_data(service, dispatch_values, dispatch_context)
     assert exc.value.args[0] == "The row with id 1 does not exist."
 

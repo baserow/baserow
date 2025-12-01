@@ -22,7 +22,7 @@
         type="text"
         class="grid-field-text__input"
       />
-      <div v-show="!valid" class="grid-view__cell--error align-right">
+      <div v-show="!valid" class="grid-view__cell-error align-right">
         {{ error }}
       </div>
     </template>

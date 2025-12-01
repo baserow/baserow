@@ -16,6 +16,7 @@
             'tooltip__content--expandable-plain-text',
           ]"
           :icon="'info-empty'"
+          :tooltip-duration="0.2"
         />
       </span>
       <i
@@ -54,7 +55,7 @@
       :workspace-id="database.workspace.id"
       :field="field"
       :value="row['field_' + field.id]"
-      :read-only="readOnly || field.read_only"
+      :read-only="readOnly || isReadOnlyField(field)"
       :row-is-created="!!row.id"
       :row="row"
       :all-fields-in-table="allFieldsInTable"
@@ -126,6 +127,9 @@ export default {
     },
   },
   methods: {
+    isReadOnlyField(field) {
+      return !this.$registry.get('field', field.type).canWriteFieldValues(field)
+    },
     getFieldComponent(type) {
       return this.$registry
         .get('field', type)

@@ -4,7 +4,7 @@
       ref="contextLink"
       class="header__filter-link"
       :class="{
-        'active--purple': view.group_bys.length > 0,
+        'active active--purple': view.group_bys.length > 0,
       }"
       @click="$refs.context.toggle($refs.contextLink, 'bottom', 'left', 4)"
     >

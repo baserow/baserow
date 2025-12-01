@@ -127,6 +127,7 @@ export default {
         return {
           name: applicationType.getNamePlural(),
           type: applicationType.getType(),
+          developmentStage: applicationType.developmentStage,
           applications: this.applications
             .filter((application) => {
               return (

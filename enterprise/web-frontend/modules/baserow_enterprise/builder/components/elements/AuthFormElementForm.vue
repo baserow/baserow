@@ -58,7 +58,7 @@ export default {
       allowedValues: ['user_source_id', 'styles', 'login_button_label'],
       values: {
         user_source_id: null,
-        login_button_label: '',
+        login_button_label: {},
         styles: {},
       },
     }

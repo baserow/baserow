@@ -122,7 +122,7 @@ class RowPageType(PageType):
 
         return True
 
-    def get_group_name(self, table_id, row_id, **kwargs):
+    def get_group_name(self, table_id, row_id, *args, **kwargs):
         return f"table-{table_id}-row-{row_id}"
 
     def get_permission_channel_group_name(self, table_id, **kwargs):

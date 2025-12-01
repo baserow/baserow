@@ -7,7 +7,7 @@
           v-if="!readOnly && !isDeactivated"
           class="form-view__sidebar-fields-actions"
         >
-          <li v-show="fields.length > 0">
+          <li v-if="fields.length > 0">
             <a
               @click="
                 updateFieldOptionsOfFields(
@@ -20,7 +20,7 @@
               >{{ $t('formSidebar.actions.addAll') }}</a
             >
           </li>
-          <li v-show="enabledFields.length > 0">
+          <li v-if="enabledFields.length > 0">
             <a
               @click="
                 updateFieldOptionsOfFields(

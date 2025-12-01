@@ -1,6 +1,7 @@
 <template>
   <component
     :is="getFieldComponent(field.type)"
+    :row="row"
     :field="field"
     :value="row[`field_${field.id}`]"
     :selected="false"

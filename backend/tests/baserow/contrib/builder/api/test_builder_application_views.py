@@ -6,14 +6,13 @@ import pytest
 from rest_framework.status import HTTP_200_OK
 
 from baserow.api.user_files.serializers import UserFileSerializer
-from baserow.contrib.builder.models import Builder
 from baserow.contrib.builder.pages.models import Page
-from baserow.contrib.builder.theme.registries import theme_config_block_registry
 
 
 @pytest.mark.django_db
 def test_list_builder_applications_theme_config_block_created_number_of_queries(
-    api_client, data_fixture, django_assert_num_queries
+    api_client,
+    data_fixture,
 ):
     user, token = data_fixture.create_user_and_token(
         email="test@test.nl", password="password", first_name="Test1"
@@ -66,13 +65,11 @@ def test_list_builder_applications_equal_number_of_queries_n_builders(
     data_fixture.create_builder_application(workspace=workspace, order=1)
     data_fixture.create_builder_application(workspace=workspace, order=2)
 
-    # Force the `ThemeConfigBlockType` to be created.
-    for theme_config_block_type in theme_config_block_registry.get_all():
-        related_name = theme_config_block_type.related_name_in_builder_model
-        [
-            getattr(builder, related_name) for builder in Builder.objects.all()
-        ]  # noqa: W0106
-
+    # Force the `ThemeConfigBlockType` and other stuff to be created first.
+    response = api_client.get(
+        url,
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
     with CaptureQueriesContext(connection) as queries_request_1:
         response = api_client.get(
             url,
@@ -80,13 +77,11 @@ def test_list_builder_applications_equal_number_of_queries_n_builders(
         )
         assert response.status_code == HTTP_200_OK
 
-    # Force the `ThemeConfigBlockType` to be created.
-    for theme_config_block_type in theme_config_block_registry.get_all():
-        related_name = theme_config_block_type.related_name_in_builder_model
-        [
-            getattr(builder, related_name) for builder in Builder.objects.all()
-        ]  # noqa: W0106
-
+    # Force the `ThemeConfigBlockType` and other stuff to be created first.
+    response = api_client.get(
+        url,
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
     with CaptureQueriesContext(connection) as queries_request_2:
         response = api_client.get(
             url,
@@ -96,8 +91,8 @@ def test_list_builder_applications_equal_number_of_queries_n_builders(
 
     # The number of queries should not increase because another builder application
     # is added, with its own theme.
-    assert len(queries_request_1.captured_queries) == len(
-        queries_request_2.captured_queries
+    assert len(queries_request_2.captured_queries) == len(
+        queries_request_1.captured_queries
     )
 
 
@@ -157,37 +152,32 @@ def test_get_builder_application(api_client, data_fixture):
     assert response_json["theme"]["body_text_color"] == "#070810ff"
     del response_json["theme"]
 
-    assert response_json == {
-        "favicon_file": UserFileSerializer(application.favicon_file).data,
-        "id": application.id,
-        "name": application.name,
-        "order": application.order,
-        "created_on": application.created_on.isoformat(timespec="microseconds").replace(
-            "+00:00", "Z"
-        ),
-        "type": "builder",
-        "workspace": {
-            "id": workspace.id,
-            "name": workspace.name,
-            "generative_ai_models_enabled": {},
-        },
-        "login_page_id": None,
-        "pages": [
-            {
-                "id": application.shared_page.id,
-                "builder_id": application.id,
-                "order": 1,
-                "name": "__shared__",
-                "path": "__shared__",
-                "path_params": [],
-                "query_params": [],
-                "shared": True,
-                "visibility": Page.VISIBILITY_TYPES.ALL.value,
-                "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
-                "roles": [],
-            },
-        ],
+    assert (
+        response_json["favicon_file"]
+        == UserFileSerializer(application.favicon_file).data
+    )
+    assert response_json["workspace"] == {
+        "id": workspace.id,
+        "name": workspace.name,
+        "generative_ai_models_enabled": {},
     }
+    assert response_json["pages"] == [
+        {
+            "id": application.shared_page.id,
+            "builder_id": application.id,
+            "order": 1,
+            "name": "__shared__",
+            "path": "__shared__",
+            "path_params": [],
+            "query_params": [],
+            "shared": True,
+            "visibility": Page.VISIBILITY_TYPES.ALL.value,
+            "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
+            "roles": [],
+        },
+    ]
+    assert response_json["login_page_id"] is None
+    assert response_json["type"] == "builder"
 
 
 @pytest.mark.django_db
@@ -216,36 +206,29 @@ def test_list_builder_applications(api_client, data_fixture):
     assert response_json[0]["theme"]["body_text_color"] == "#070810ff"
     del response_json[0]["theme"]
 
-    assert response_json == [
+    assert (
+        response_json[0]["favicon_file"]
+        == UserFileSerializer(application.favicon_file).data
+    )
+    assert response_json[0]["workspace"] == {
+        "id": workspace.id,
+        "name": workspace.name,
+        "generative_ai_models_enabled": {},
+    }
+    assert response_json[0]["pages"] == [
         {
-            "favicon_file": UserFileSerializer(application.favicon_file).data,
-            "created_on": application.created_on.isoformat(
-                timespec="microseconds"
-            ).replace("+00:00", "Z"),
-            "id": application.id,
-            "name": application.name,
-            "order": application.order,
-            "type": "builder",
-            "workspace": {
-                "id": workspace.id,
-                "name": workspace.name,
-                "generative_ai_models_enabled": {},
-            },
-            "login_page_id": None,
-            "pages": [
-                {
-                    "id": application.shared_page.id,
-                    "builder_id": application.id,
-                    "order": 1,
-                    "name": "__shared__",
-                    "path": "__shared__",
-                    "path_params": [],
-                    "query_params": [],
-                    "shared": True,
-                    "visibility": Page.VISIBILITY_TYPES.ALL.value,
-                    "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
-                    "roles": [],
-                },
-            ],
-        }
+            "id": application.shared_page.id,
+            "builder_id": application.id,
+            "order": 1,
+            "name": "__shared__",
+            "path": "__shared__",
+            "path_params": [],
+            "query_params": [],
+            "shared": True,
+            "visibility": Page.VISIBILITY_TYPES.ALL.value,
+            "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
+            "roles": [],
+        },
     ]
+    assert response_json[0]["login_page_id"] is None
+    assert response_json[0]["type"] == "builder"

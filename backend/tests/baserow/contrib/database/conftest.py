@@ -1,14 +1,32 @@
-from unittest.mock import patch
+from unittest import mock
 
 import pytest
-from fakeredis import FakeRedis, FakeServer
+
+from baserow.contrib.database.field_rules.registries import FieldRulesTypeRegistry
+from tests.baserow.contrib.database.utils import (
+    DummyFieldRuleType,
+    DummyUniqueFieldRuleType,
+)
 
 
-@pytest.fixture(scope="function", autouse=True)
-def mock_periodic_field_update_handler_redis_client():
-    redis_client_fn = "baserow.contrib.database.fields.periodic_field_update_handler._get_redis_client"
-    fake_redis_server = FakeServer()
-    with patch(
-        redis_client_fn, lambda: FakeRedis(server=fake_redis_server)
-    ) as _fixture:
-        yield _fixture
+@pytest.fixture
+def fake_field_rule_registry():
+    local_field_rules_registry = FieldRulesTypeRegistry()
+    local_field_rules_registry.register(DummyFieldRuleType())
+    local_field_rules_registry.register(DummyUniqueFieldRuleType())
+
+    with (
+        mock.patch(
+            "baserow.contrib.database.field_rules.handlers.FieldRuleHandler.registry",
+            new=local_field_rules_registry,
+        ) as registry,
+        mock.patch(
+            "baserow.contrib.database.field_rules.registries.field_rules_type_registry",
+            new=local_field_rules_registry,
+        ),
+        mock.patch(
+            "baserow.contrib.database.api.field_rules.views.field_rules_type_registry",
+            new=local_field_rules_registry,
+        ),
+    ):
+        yield registry

@@ -1,10 +1,9 @@
 const FF_ENABLE_ALL = '*'
-export const FF_AUTOMATION = 'automation'
 
 /**
  * A comma separated list of feature flags used to enable in-progress or not ready
  * features for developers. See docs/development/feature-flags.md for more info
- * @param env: The environment that should be used to get the flags from
+ * @param env The environment that should be used to get the flags from
  * @returns {string[]}
  */
 function getFeatureFlags(env = process.env) {
@@ -15,8 +14,8 @@ function getFeatureFlags(env = process.env) {
 
 /**
  * Checks if a feature is enabled
- * @param featureFlags: The list of feature flags
- * @param flag: The flag that is being checked for
+ * @param featureFlags The list of feature flags
+ * @param flag The flag that is being checked for
  * @returns {boolean|*}
  */
 function featureFlagIsEnabled(featureFlags, flag) {

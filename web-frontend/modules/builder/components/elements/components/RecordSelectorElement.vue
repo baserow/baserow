@@ -67,17 +67,13 @@
 
 <script>
 import _ from 'lodash'
-import {
-  ensureArray,
-  ensureInteger,
-  ensureString,
-} from '@baserow/modules/core/utils/validator'
+import { ensureString } from '@baserow/modules/core/utils/validator'
 import formElement from '@baserow/modules/builder/mixins/formElement'
 import collectionElement from '@baserow/modules/builder/mixins/collectionElement'
 import RuntimeFormulaContext from '@baserow/modules/core/runtimeFormulaContext'
 import InfiniteScroll from '@baserow/modules/core/components/helpers/InfiniteScroll.vue'
-import { notifyIf } from '@baserow/modules/core/utils/error'
 import DataSourceService from '@baserow/modules/builder/services/dataSource'
+import { handleDispatchError } from '@baserow/modules/builder/utils/error'
 
 export default {
   name: 'RecordSelectorElement',
@@ -120,22 +116,6 @@ export default {
     },
     resolvedLabel() {
       return ensureString(this.resolveFormula(this.element.label))
-    },
-    resolvedDefaultValue() {
-      const resolvedFormula = this.resolveFormula(this.element.default_value)
-      if (this.element.multiple) {
-        try {
-          return ensureArray(resolvedFormula).map(ensureInteger)
-        } catch {
-          return []
-        }
-      } else {
-        try {
-          return ensureInteger(resolvedFormula)
-        } catch {
-          return null
-        }
-      }
     },
     resolvedPlaceholder() {
       return ensureString(this.resolveFormula(this.element.placeholder))
@@ -273,8 +253,6 @@ export default {
       try {
         this.loading = true
         await this.loadMore()
-      } catch (e) {
-        notifyIf(e, 'application')
       } finally {
         this.loading = false
       }
@@ -301,8 +279,7 @@ export default {
 
       this.loading = true
       try {
-        const service = DataSourceService(this.$client)
-        const data = await service.getRecordNames(
+        const data = await DataSourceService(this.$client).getRecordNames(
           this.element.data_source_id,
           recordIds
         )
@@ -313,8 +290,14 @@ export default {
             actualName: name,
           })
         )
-      } catch (e) {
-        notifyIf(e, 'application')
+      } catch (error) {
+        handleDispatchError(
+          error,
+          this,
+          this.$t('builderToast.errorDataSourceDispatch', {
+            name: this.dataSource.name,
+          })
+        )
       } finally {
         this.loading = false
       }
@@ -328,7 +311,7 @@ export default {
     canFetch() {
       // We want to fetch data only if the dropdown have been opened at least once.
       // It's not necessary otherwise
-      return this.openedOnce && this.contentFetchEnabled
+      return this.openedOnce && collectionElement.methods.canFetch.call(this)
     },
     getErrorMessage() {
       return this.displayFormDataError ? this.$t('error.requiredField') : ''

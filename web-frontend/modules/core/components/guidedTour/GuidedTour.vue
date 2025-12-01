@@ -4,7 +4,11 @@
     class="guided-tour-step__container"
     @click.stop
   >
-    <Highlight ref="highlight" :get-parent="getParent">
+    <Highlight
+      ref="highlight"
+      :get-parent="getParent"
+      :padding="currentStep.highlightPadding ?? 2"
+    >
       <GuidedTourStep
         v-if="currentStep"
         :step="stepIndex + 1"
@@ -109,13 +113,19 @@ export default {
       this.stepIndex = 0
 
       try {
-        const completed = this.activeGuidedTours.map((t) => t.getType())
+        const completed = this.activeGuidedTours
+          .filter((t) => t.saveCompleted)
+          .map((t) => t.getType())
         const { data } = await AuthService(this.$client).update({
           completed_guided_tours: completed,
         })
         await this.$store.dispatch('auth/forceUpdateUserData', { user: data })
       } catch (error) {
         notifyIf(error)
+      }
+
+      for (const tour of Object.values(this.activeGuidedTours)) {
+        await tour.completed()
       }
     },
   },

@@ -1,0 +1,123 @@
+.date-dependency__circle {
+  r: 4px;
+  stroke: $palette-neutral-600;
+  stroke-width: 1px;
+  fill: $palette-neutral-100;
+  visibility: hidden;
+  cursor: grab;
+  pointer-events: all;
+
+  &:hover {
+    visibility: visible;
+    r: 6px
+  }
+
+  &--handle {
+    r: 6px;
+    fill: $palette-green-500;
+    stroke-width: 2px;
+    pointer-events: none;
+  }
+
+  &--end {
+    pointer-events: all;
+  }
+}
+
+
+.date-dependency__drop-zone {
+  pointer-events: none;
+  display: none;
+  fill:transparent;
+
+    &--droppable {
+      display: block;
+      visibility: visible;
+      pointer-events: all;
+    }
+}
+
+
+.date-dependency__container {
+  padding-top: 16px;
+}
+
+
+.date-dependency__help-icon {
+  padding-right: 2px;
+}
+
+
+.date-dependency__path {
+  fill: none;
+  stroke-width: 1px;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  pointer-events: stroke;
+
+  &--creating {
+    fill: none;
+    stroke-dasharray: 4 1;
+    stroke: $palette-blue-400;
+    pointer-events: none;
+  }
+
+  &--invalid {
+    stroke: $palette-red-500;
+    stroke-dasharray: 5 4;
+  }
+
+  &:hover {
+    stroke-width: 3px;
+  }
+
+}
+
+.date-dependency__text {
+  stroke-dasharray: none;
+  stroke-width: 0;
+  visibility: hidden;
+
+  &--invalid {
+    fill: $palette-red-500;
+  }
+}
+
+.date-dependency__connection-group {
+  stroke: $palette-neutral-500;
+  fill: none;
+  pointer-events: none;
+
+  &:hover {
+    stroke-width: 4px;
+    pointer-events: all;
+
+    // When a connection group is hovered, we want to show error text too.
+    .date-dependency__text {
+      visibility: visible;
+    }
+  }
+}
+
+.date-dependency__timeline-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+
+  &--draggable {
+    pointer-events: all;
+    cursor: grabbing;
+  }
+}
+
+.date-dependency__drawable {
+  pointer-events: none;
+
+  &--draggable {
+    pointer-events: all;
+  }
+
+}

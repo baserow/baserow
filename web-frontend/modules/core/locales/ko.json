@@ -145,7 +145,10 @@
     "exportWorkspaceForm": {
         "exportSettingsLabel": "내보내기 설정",
         "onlyStructureLabel": "구조만 내보내기",
-        "onlyStructureDescription": "활성화하면 애플리케이션의 구조만 내보내집니다. 데이터는 포함되지 않습니다."
+        "onlyStructureDescription": "활성화하면 애플리케이션의 구조만 내보내집니다. 데이터는 포함되지 않습니다.",
+        "selectDataToExport": "내보낼 데이터를 선택하세요",
+        "selectAll": "모두 선택",
+        "deselectAll": "모두 선택 해제"
     },
     "importWorkspaceModal": {
         "title": "Baserow 데이터 가져오기",
@@ -172,7 +175,8 @@
         "untrustedPublicKeyMessage": "제공된 파일은 신뢰할 수 없는 공개 키로 서명되었습니다. 관리자에게 공개 키를 신뢰할 수 있는 키 목록에 추가하거나 서명 확인을 비활성화하여 이 파일을 가져올 수 있도록 요청하세요.",
         "importingState": "불러오기...",
         "importingTableStructure": "생성 중: {table}",
-        "importingTableData": "데이터 가져오기: {table}"
+        "importingTableData": "데이터 가져오기: {table}",
+        "uploadAndImport": "업로드 & 가져오기"
     },
     "dashboardWorkspace": {
         "createApplication": "새로 만들기"
@@ -254,7 +258,9 @@
         "openRouterModelsDescription": "Baserow에서 사용할 수 있는 [OpenRouter 모델](https://openrouter.ai/models) 의 목록을 쉼표로 구분하여 제공하세요. (예 : `openai/gpt-4o,anthropic/claude-3-haiku`)",
         "openRouter": "OpenRouter",
         "openRouterOrganization": "조직 (선택 사항)",
-        "openRouterModelsLabel": "활성화된 모델"
+        "openRouterModelsLabel": "활성화된 모델",
+        "openaiBaseUrl": "기본 URL",
+        "openaiBaseUrlDescription": "비어 있으면 기본적으로 기본 OpenAI 기반 URL을 사용합니다. 선택적으로 https://eu.api.openai.com/v1, https://<your-resource-name>.openai.azure.com 또는 기타 OpenAI 호환 API로 변경할 수 있습니다."
     },
     "generativeAIWorkspaceSettings": {
         "title": "생성형 AI 설정",
@@ -281,7 +287,8 @@
     },
     "trashSidebar": {
         "title": "휴지통",
-        "unnamedWorkspace": "이름 없는 작업공간 {id}"
+        "unnamedWorkspace": "이름 없는 작업공간 {id}",
+        "workspaces": "작업공간"
     },
     "trashContents": {
         "message": "지난 {duration} 동안 삭제된 항목 복원",
@@ -434,7 +441,8 @@
         "emptyWorkspaceMessage": "새 데이터베이스나 애플리케이션을 생성하여 시작하세요.",
         "addNew": "새로 추가...",
         "noWorkspace": "작업공간 없음",
-        "noWorkspaceDescription": "새 작업공간을 생성하여 시작하세요"
+        "noWorkspaceDescription": "새 작업공간을 생성하여 시작하세요",
+        "starOnGitHub": "GitHub에서 우리를 별표로 표시하세요"
     },
     "dashboardApplication": {
         "createdAt": "생성됨"
@@ -602,7 +610,8 @@
         "errorJobCannotBeCancelledTitle": "취소할 수 없음",
         "errorJobCannotBeCancelledDescription": "작업이 이미 완료되어 취소할 수 없습니다.\n첫 번째 스냅샷을 삭제하여 제거하세요.",
         "errorJobAlreadyRunningTitle": "이미 실행 중",
-        "errorJobAlreadyRunningDescription": "다른 가져오기 작업이 이미 실행 중입니다. 새로운 작업을 시작하려면 해당 작업이 완료될 때까지 기다려야 합니다."
+        "errorJobAlreadyRunningDescription": "다른 가져오기 작업이 이미 실행 중입니다. 새로운 작업을 시작하려면 해당 작업이 완료될 때까지 기다려야 합니다.",
+        "stateCanceled": "취소"
     },
     "datetime": {
         "secondsAgo": "방금 전 | 1초 전 | {n}초 전",
@@ -629,7 +638,9 @@
                 "role": "기본 역할",
                 "highestRole": "최고 역할",
                 "highestRoleHelpText": "이 작업공간의 어떤 것에서 직접 또는 팀에서 할당된 이 사용자의 최고 역할",
-                "teams": "팀"
+                "teams": "팀",
+                "highestRoleInstanceHelpText": "인스턴스에서 이 사용자가 갖는 가장 높은 역할",
+                "2fa": "2FA"
             },
             "actions": {
                 "copyEmail": "이메일 복사",
@@ -687,7 +698,7 @@
         "warningTitle": "경고"
     },
     "integrationEditForm": {
-        "name": "통합 이름",
+        "name": "이름",
         "namePlaceholder": "통합 이름 입력..."
     },
     "integrationDropdown": {
@@ -728,7 +739,8 @@
         "submitButton": "빈도 업데이트"
     },
     "formulaInputField": {
-        "errorInvalidFormula": "공식이 유효하지 않습니다."
+        "errorInvalidFormula": "공식이 유효하지 않습니다.",
+        "advancedFormulaMode": "고급 수식 모드"
     },
     "dataExplorer": {
         "noMatchingNodesText": "일치하는 결과가 없습니다.",
@@ -813,7 +825,8 @@
         "labelButton": "업로드"
     },
     "dataExplorerNode": {
-        "showMore": "더 많은 반복 표시"
+        "showMore": "더 많은 반복 표시",
+        "selectNode": "선택"
     },
     "user": {
         "isStaff": "직원 여부",
@@ -927,5 +940,171 @@
     },
     "colorPickerContext": {
         "pickColorPlaceholder": "또는 미리 정의된 색상을 선택"
+    },
+    "guidedTourStep": {
+        "step": "{totalSteps}단계 중 {step}단계",
+        "gotIt": "알겠습니다",
+        "next": "다음",
+        "back": "뒤로"
+    },
+    "welcomeGuidedTourStep": {
+        "title": "Baserow에 오신 것을 환영합니다",
+        "content": "간단한 둘러보기를 통해 기본적인 사용법을 익혀보세요. 몇 번의 클릭만으로 데이터를 손쉽게 정리하고 시각화하는 방법을 배울 수 있습니다",
+        "buttonText": "둘러보기 시작"
+    },
+    "controlCenterGuidedTourStep": {
+        "title": "당신의 Baserow 제어 센터",
+        "content": "왼쪽 사이드바를 통해 워크스페이스를 관리할 수 있습니다:\n\n- 홈 – 메인 대시보드에 접근합니다.\n- 알림 – 변경 사항 및 멘션을 실시간으로 확인합니다.\n- 멤버 초대 – 팀원을 추가하여 함께 협업하세요.\n- 휴지통 – 삭제된 항목을 확인하고 복구할 수 있습니다."
+    },
+    "createNewGuidedTourStep": {
+        "title": "새 데이터베이스 또는 애플리케이션 만들기",
+        "content": "“새로 추가…”를 클릭하여 프로젝트, 부서 또는 팀을 위한 새 데이터베이스, 애플리케이션, 또는 대시보드를 설정하세요."
+    },
+    "mcpEndpointSettings": {
+        "noEndpointsMessage": "MCP(모델 컨텍스트 프로토콜) 서버 엔드포인트가 추가되지 않았습니다. 이러한 엔드포인트는 Claude와 같은 LLM과 직접 통합하여 LLM이 Baserow에서 직접 작업을 수행하도록 하는 데 사용할 수 있습니다. 시작하려면 서버 엔드포인트를 생성하세요.",
+        "title": "MCP 서버",
+        "createEndpoint": "엔드포인트 생성",
+        "createNewTitle": "MCP 서버 엔드포인트 생성",
+        "backToOverview": "뒤로"
+    },
+    "mcpEndpoint": {
+        "endpointURLIntro": "MCP(Model Context Protocol) 서버 URL은 MCP 서버를 지원하는 모든 클라이언트에 추가할 수 있습니다. 이는 LLM이 사용자를 대신하여 작업 공간에서 작업을 수행할 수 있도록 직접 액세스하는 고유한 엔드포인트입니다.",
+        "claudeInstructions": "Claude Desktop과 Baserow MCP를 시작하는 간단한 세 단계입니다.\n\n1. 탐색 모음에서 Claude Desktop 설정을 엽니다(⌘+,).\n1. \"개발\" 탭으로 이동하여 \"구성 편집\"을 클릭합니다.\n1. 다음 JSON 구성을 `claude_desktop_config.json`에 포함합니다.",
+        "windsurfInstructions": "Windsurf에서 Cascase를 사용하여 MCP를 설정하는 간단한 두 단계입니다.\n\n1. Windsurf - 설정 -> 고급 설정 또는 명령 팔레트 -> Windsurf 설정 페이지 열기로 이동합니다.\n1. Cascade 섹션까지 아래로 스크롤하면 새 서버를 추가하고, 기존 서버를 보고, `mcp_config.json`에서 원시 JSON 구성 파일을 볼 수 있는 버튼이 있습니다. 다음 내용을 추가합니다.",
+        "detailLabel": "더보기",
+        "reveal": "전체 URL 공개",
+        "warning": "MCP URL은 Baserow의 데이터를 수정할 수 있는 권한이 있으므로 비밀번호처럼 안전하게 다루어야 합니다.",
+        "cursorInstructions": "커서와 Baserow MCP를 시작하는 간단한 세 단계입니다.\n\n1. 커서 설정(⇧+⌘+J)을 엽니다.\n1. \"MCP\" 탭으로 이동하여 \"MCP 서버 추가\"를 클릭합니다.\n1. 다음 JSON 구성을 추가합니다."
+    },
+    "mcpEndpointForm": {
+        "nameLabel": "이름",
+        "workspaceLabel": "작업공간"
+    },
+    "importWorkspaceForm": {
+        "selectApplicationsToImport": "가져올 애플리케이션을 선택하세요"
+    },
+    "workspaceSearch": {
+        "title": "검색",
+        "searchEverything": "검색...",
+        "searching": "검색 중...",
+        "noResults": "검색 결과가 없습니다",
+        "noResultsSubtitle": "\"{searchTerm}\"와(과) 일치하는 항목을 찾을 수 없습니다",
+        "welcome": "작업 공간의 모든 것을 검색하세요",
+        "welcomeSubtitle": "위의 검색창을 사용하여 애플리케이션, 테이블, 필드 등을 찾아보세요",
+        "navigate": "탐색",
+        "select": "선택",
+        "close": "닫기",
+        "types": {
+            "applications": "애플리케이션",
+            "tables": "테이블",
+            "fields": "필드",
+            "rows": "행"
+        }
+    },
+    "action": {
+        "cancel": "취소",
+        "submit": "제출"
+    },
+    "coreHTTPTriggerServiceForm": {
+        "title": "웹훅 URL",
+        "urlVersion": "버전",
+        "urlVersionPublished": "게시됨",
+        "urlVersionTest": "테스트",
+        "copyUrl": "웹훅 URL 복사",
+        "urlCopied": "웹훅 URL이 클립보드에 복사되었습니다",
+        "description": "이 웹훅은 HTTP 요청을 수신하고 요청 데이터를 페이로드로 사용하여 워크플로를 트리거합니다.",
+        "methodsOptionLabel": "허용된 HTTP 메서드",
+        "methodsOptionDescription": "이 웹훅에 허용되는 HTTP 메서드를 제어합니다. GET을 제외하면 웹훅이 실수로 트리거될 가능성이 줄어듭니다.",
+        "methodsOptionAll": "전체",
+        "methodsOptionExcludeGet": "GET 제외"
+    },
+    "twoFactorAuthSettings": {
+        "title": "2단계 인증",
+        "loadingError": "2단계 인증을 로드할 수 없습니다."
+    },
+    "disableTwoFactorAuth": {
+        "title": "2FA를 비활성화하시겠습니까?",
+        "description": "계정 보안이 한 단계 더 약화됩니다. 누군가 비밀번호를 알아내면 계정에 로그인할 수 있습니다.",
+        "cancel": "그대로 두세요",
+        "disable": "비활성화",
+        "successTitle": "2단계 인증이 비활성화되었습니다",
+        "errorWrongPasswordTitle": "잘못된 비밀번호",
+        "errorWrongPasswordMessage": "입력한 비밀번호가 귀하의 비밀번호와 일치하지 않습니다."
+    },
+    "enableTwoFactorOptions": {
+        "cancel": "취소",
+        "continue": "계속"
+    },
+    "saveBackupCode": {
+        "description": "인증 앱이나 휴대폰에 접근할 수 없어 인증 코드를 수신하거나 생성할 수 없는 경우 이 백업 코드를 사용할 수 있습니다. 이 코드는 한 번만 사용 가능합니다. 로그인 없이도 접근할 수 있도록 반드시 기록하거나 안전한 장소에 복사해 두십시오.",
+        "backupCodes": "백업 코드",
+        "copy": "복사",
+        "continue": "계속",
+        "backupCodesCopiedTitle": "복사됨!",
+        "backupCodesCopiedMessage": "백업 코드가 클립보드에 복사되었습니다."
+    },
+    "totpAuthType": {
+        "name": "인증 앱",
+        "description": "앱을 사용하여 2단계 인증 코드를 받으세요. Google Authenticator, Authy, Microsoft Authenticator 등의 앱을 사용하는 것이 좋습니다.",
+        "enabledDescription": "인증 앱을 통해 인증 코드를 받게 됩니다. 다른 앱이나 인증 방식을 설정하려면 2FA를 비활성화하고 다시 설정하세요.",
+        "sideLabel": "추천"
+    },
+    "twoFactorEnabled": {
+        "enabled": "활성화됨",
+        "disable": "2FA 비활성화"
+    },
+    "totpLogin": {
+        "backupCodesTitle": "백업 코드를 입력하세요",
+        "backupCodesDescription": "일회용 백업 코드로 로그인하세요.",
+        "authenticate": "인증",
+        "goBack": "돌아가기",
+        "totpTitle": "2단계 인증",
+        "totpDescription": "인증 앱에서 코드를 입력하세요.",
+        "verify": "확인",
+        "useBackupCode": "백업 코드 사용",
+        "verificationFailed": "검증에 실패했습니다",
+        "verificationFailedDescription": "입력한 코드가 올바르지 않습니다.",
+        "loginExpired": "로그인이 만료되었습니다",
+        "loginExpiredDescription": "비밀번호를 다시 입력해 주세요.",
+        "rateLimit": "시도가 너무 많습니다."
+    },
+    "formulaInputContext": {
+        "variables": "변수",
+        "functions": "기능",
+        "operators": "연산자",
+        "search": "검색",
+        "useRegularInputModalTitle": "이 필드에 일반 입력을 사용하시겠습니까?",
+        "useRegularInput": "일반적인 입력을 사용",
+        "useAdvancedInput": "고급 입력 사용",
+        "useAdvancedInputModalTitle": "이 필드에 고급 입력을 사용하시겠습니까?",
+        "modalMessage": "해당 필드의 내용이 삭제되며 복구할 수 없습니다."
+    },
+    "twoFactorAuthField": {
+        "enabled": "활성화됨",
+        "disabled": "비활성화됨"
+    },
+    "twoFactorAuthEmpty": {
+        "title": "아직 2FA를 활성화하지 않았습니다",
+        "description": "귀하의 계정에 보안을 한층 더 강화하세요.",
+        "enable": "2FA 활성화",
+        "notAllowedTitle": "2FA가 활성화되지 않았습니다",
+        "notAllowedDescription": "2FA 추가는 비밀번호 기반 계정에만 가능합니다."
+    },
+    "nodeHelpTooltip": {
+        "exampleLabel": "예시",
+        "result": "결과: {result}"
+    },
+    "enableWithQRCode": {
+        "scanQRCode": "QR코드 스캔",
+        "scanQRCodeDescription": "Google Authenticator, Authy 또는 Microsoft Authenticator와 같은 앱으로 코드를 스캔하세요.",
+        "clickToCopy": "또는 여기를 클릭하여 코드를 복사하세요.",
+        "secretCopiedTitle": "시크릿 복사됨",
+        "secretCopiedMessage": "TOTP 비밀번호가 클립보드에 복사되었습니다.",
+        "enterCode": "표시된 코드를 입력하세요",
+        "enterCodeDescription": "앱에 표시된 6자리 코드를 입력하여 올바르게 설정되었는지 확인하세요.",
+        "verificationFailed": "검증에 실패했습니다",
+        "verificationFailedDescription": "입력한 코드가 유효하지 않습니다.",
+        "provisioningFailed": "프로비저닝에 실패했습니다",
+        "checkSuccess": "2단계 인증을 성공적으로 활성화했습니다"
     }
 }

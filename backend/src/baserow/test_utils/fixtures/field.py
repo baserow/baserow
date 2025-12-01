@@ -43,17 +43,6 @@ class FieldFixtures:
             model_field = to_model._meta.get_field(field.db_column)
             schema_editor.add_field(to_model, model_field)
 
-        if field.tsvector_column_created:
-            self.create_tsv_for_field(field)
-
-    def create_tsv_for_field(self, field):
-        with safe_django_schema_editor() as schema_editor:
-            model = field.table.get_model(
-                fields=[field], field_ids=[], add_dependencies=False
-            )
-            tsv_model_field = model._meta.get_field(field.tsv_db_column)
-            schema_editor.add_field(model, tsv_model_field)
-
     def create_select_option(self, user=None, **kwargs):
         if "value" not in kwargs:
             kwargs["value"] = self.fake.name()

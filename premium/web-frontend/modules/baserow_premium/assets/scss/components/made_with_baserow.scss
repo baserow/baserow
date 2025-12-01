@@ -1,0 +1,22 @@
+.made-with-baserow {
+  display: flex;
+  gap: 5px;
+  position: fixed;
+  bottom: 12px;
+  right: 12px;
+  z-index: 100;
+  padding: 8px;
+  border: 1px solid $color-neutral-200;
+  color: $color-neutral-600;
+  font-weight: 500;
+  background-color: $white;
+  font-size: 11px;
+
+  &:hover {
+    text-decoration: none;
+    background-color: $color-neutral-100;
+  }
+
+  @include rounded($rounded);
+  @include elevation($elevation-low);
+}

@@ -1,6 +1,12 @@
 import pytest
 
 from baserow.contrib.builder.pages.service import PageService
+from baserow.core.formula import BaserowFormulaObject
+from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
+from baserow.core.formula.types import (
+    BASEROW_FORMULA_MODE_RAW,
+    BASEROW_FORMULA_MODE_SIMPLE,
+)
 
 
 @pytest.mark.django_db
@@ -63,14 +69,30 @@ def test_import_export_tags_collection_field_type(data_fixture):
 
     tags_with_formula = imported_table_element.fields.get(name="Colors as formula")
     assert tags_with_formula.config == {
-        "values": f"get('data_source.{data_source2.id}.0.{name_field.db_column}')",
-        "colors": f"get('data_source.{data_source2.id}.0.{color_field.db_column}')",
+        "values": BaserowFormulaObject(
+            formula=f"get('data_source.{data_source2.id}.0.{name_field.db_column}')",
+            version=BASEROW_FORMULA_VERSION_INITIAL,
+            mode=BASEROW_FORMULA_MODE_SIMPLE,
+        ),
+        "colors": BaserowFormulaObject(
+            formula=f"get('data_source.{data_source2.id}.0.{color_field.db_column}')",
+            version=BASEROW_FORMULA_VERSION_INITIAL,
+            mode=BASEROW_FORMULA_MODE_SIMPLE,
+        ),
         "colors_is_formula": True,
     }
 
     tags_without_formula = imported_table_element.fields.get(name="Colors as hex")
     assert tags_without_formula.config == {
-        "values": "'a,b,c'",
+        "values": BaserowFormulaObject(
+            formula="'a,b,c'",
+            version=BASEROW_FORMULA_VERSION_INITIAL,
+            mode=BASEROW_FORMULA_MODE_SIMPLE,
+        ),
         "colors_is_formula": False,
-        "colors": "#d06060ff",
+        "colors": BaserowFormulaObject(
+            formula="#d06060ff",
+            version=BASEROW_FORMULA_VERSION_INITIAL,
+            mode=BASEROW_FORMULA_MODE_RAW,
+        ),
     }

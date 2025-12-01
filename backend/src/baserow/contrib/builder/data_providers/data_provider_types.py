@@ -5,18 +5,14 @@ from django.conf import settings
 from django.core.cache import cache
 from django.utils.translation import gettext as _
 
-from baserow.contrib.builder.data_providers.exceptions import (
-    DataProviderChunkInvalidException,
-    FormDataProviderChunkInvalidException,
-)
+from rest_framework import serializers
+
 from baserow.contrib.builder.data_sources.builder_dispatch_context import (
     BuilderDispatchContext,
 )
-from baserow.contrib.builder.data_sources.exceptions import (
-    DataSourceDoesNotExist,
-    DataSourceImproperlyConfigured,
-)
+from baserow.contrib.builder.data_sources.exceptions import DataSourceDoesNotExist
 from baserow.contrib.builder.data_sources.handler import DataSourceHandler
+from baserow.contrib.builder.elements.exceptions import ElementImproperlyConfigured
 from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.mixins import (
     CollectionElementTypeMixin,
@@ -26,7 +22,11 @@ from baserow.contrib.builder.elements.models import FormElement
 from baserow.contrib.builder.workflow_actions.handler import (
     BuilderWorkflowActionHandler,
 )
-from baserow.core.formula.exceptions import FormulaRecursion, InvalidBaserowFormula
+from baserow.core.formula.exceptions import (
+    InvalidFormulaContext,
+    InvalidFormulaContextContent,
+    InvalidRuntimeFormula,
+)
 from baserow.core.formula.registries import DataProviderType
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.types import DispatchResult
@@ -39,7 +39,18 @@ from baserow.core.workflow_actions.models import WorkflowAction
 RE_DEFAULT_ROLE = re.compile(rf"{DEFAULT_USER_ROLE_PREFIX}(\d+)")
 
 
-class PageParameterDataProviderType(DataProviderType):
+class BuilderDataProviderType(DataProviderType):
+    def get_request_serializer(self):
+        """
+        Returns the serializer used to parse data for this data provider.
+        """
+
+        return serializers.DictField(
+            help_text="Data for this provider.", required=False, allow_null=True
+        )
+
+
+class PageParameterDataProviderType(BuilderDataProviderType):
     """
     This data provider reads page parameter information from the data sent by the
     frontend during the dispatch. The data are then available for the formulas.
@@ -60,12 +71,12 @@ class PageParameterDataProviderType(DataProviderType):
 
         first_part = path[0]
 
-        return dispatch_context.request.data.get("page_parameter", {}).get(
+        return dispatch_context.request_data.get("page_parameter", {}).get(
             first_part, None
         )
 
 
-class FormDataProviderType(DataProviderType):
+class FormDataProviderType(BuilderDataProviderType):
     type = "form_data"
 
     def validate_data_chunk(
@@ -74,7 +85,7 @@ class FormDataProviderType(DataProviderType):
         """
         :param element_id: The ID of the element we're validating.
         :param data_chunk: The form data value which we're validating.
-        :raises FormDataProviderChunkInvalidException: if the validation fails.
+        :raises InvalidFormulaContextContent: if the validation fails.
         """
 
         element: Type[FormElement] = ElementHandler().get_element(element_id)  # type: ignore
@@ -82,11 +93,14 @@ class FormDataProviderType(DataProviderType):
 
         try:
             return element_type.is_valid(element, data_chunk, dispatch_context)
-        except FormDataProviderChunkInvalidException as exc:
-            raise FormDataProviderChunkInvalidException(
-                f"Provided value for form element with ID {element.id} of "
-                f"type {element_type.type} is invalid. {str(exc)}"
-            )
+        except ElementImproperlyConfigured as exc:
+            raise InvalidRuntimeFormula(
+                f"The form element with ID {element.id} of "
+                f"type {element_type.type} is misconfigured: {str(exc)}"
+            ) from exc
+
+        except (TypeError, ValueError) as exc:
+            raise InvalidFormulaContextContent(str(exc)) from exc
 
     def get_data_chunk(self, dispatch_context: DispatchContext, path: List[str]):
         # The path can come in two lengths:
@@ -100,7 +114,7 @@ class FormDataProviderType(DataProviderType):
 
         element_id = path[0]
         data_chunk = get_value_at_path(
-            dispatch_context.request.data.get("form_data", {}), path
+            dispatch_context.request_data.get("form_data", {}), path
         )
 
         return self.validate_data_chunk(int(element_id), data_chunk, dispatch_context)
@@ -124,36 +138,57 @@ class FormDataProviderType(DataProviderType):
         return [str(form_element_id), *rest]
 
 
-class DataSourceDataProviderType(DataProviderType):
+class DataSourceDataProviderType(BuilderDataProviderType):
     """
     The data source provider can read data from registered page data sources.
     """
 
     type = "data_source"
 
+    def get_request_serializer(self):
+        from baserow.contrib.builder.api.data_providers.serializers import (
+            DispatchDataSourceDataSourceContextSerializer,
+        )
+
+        return DispatchDataSourceDataSourceContextSerializer(
+            required=False,
+            default={},
+            allow_null=True,
+            help_text="The data source dispatch data.",
+        )
+
     def get_data_chunk(self, dispatch_context: BuilderDispatchContext, path: List[str]):
         """Load a data chunk from a datasource of the page in context."""
 
         data_source_id, *rest = path
 
-        data_source = DataSourceHandler().get_data_source_with_cache(
-            dispatch_context.page, int(data_source_id)
-        )
-
-        # Declare the call and check for recursion
         try:
-            dispatch_context.add_call(data_source.id)
-        except FormulaRecursion:
-            raise DataSourceImproperlyConfigured("Recursion detected.")
+            data_source = DataSourceHandler().get_data_source_with_cache(
+                dispatch_context.page, int(data_source_id)
+            )
+        except DataSourceDoesNotExist as exc:
+            # The data source has probably been deleted
+            raise InvalidRuntimeFormula() from exc
 
         dispatch_result = DataSourceHandler().dispatch_data_source(
             data_source, dispatch_context
         )
 
-        if data_source.service.get_type().returns_list:
-            dispatch_result = dispatch_result["results"]
+        service = data_source.service.specific
 
-        return get_value_at_path(dispatch_result, rest)
+        if service.get_type().returns_list:
+            dispatch_result = dispatch_result["results"]
+            if len(rest) >= 2:
+                prepared_path = [
+                    rest[0],
+                    *service.get_type().prepare_value_path(service, rest[1:]),
+                ]
+            else:
+                prepared_path = rest
+        else:
+            prepared_path = service.get_type().prepare_value_path(service, rest)
+
+        return get_value_at_path(dispatch_result, prepared_path)
 
     def import_path(self, path, id_mapping, **kwargs):
         """
@@ -187,8 +222,8 @@ class DataSourceDataProviderType(DataProviderType):
         extract_properties() method and return a dict where the keys are the
         Service IDs and the values are the field names.
 
-        E.g. given that path is: ['96', '1', 'field_5191'], returns
-        {1: ['field_5191']}.
+        E.g. given that path is: ['96', 'field_5191'] or ['86', '1', 'field_2345'],
+        returns {42: ['field_5191']}.
         """
 
         if not path:
@@ -206,13 +241,18 @@ class DataSourceDataProviderType(DataProviderType):
             )
         except DataSourceDoesNotExist as exc:
             # The data source has probably been deleted
-            raise InvalidBaserowFormula() from exc
+            raise InvalidRuntimeFormula() from exc
 
         service_type = data_source.service.specific.get_type()
+
+        if service_type.returns_list:
+            # We remove the row id from the path
+            _, *rest = rest
+
         return {data_source.service_id: service_type.extract_properties(rest, **kwargs)}
 
 
-class DataSourceContextDataProviderType(DataProviderType):
+class DataSourceContextDataProviderType(BuilderDataProviderType):
     """
     The data source context provider provides extra metadata related to the data source.
     """
@@ -223,9 +263,14 @@ class DataSourceContextDataProviderType(DataProviderType):
         """Load a data chunk from a datasource of the page in context."""
 
         data_source_id, *rest = path
-        data_source = DataSourceHandler().get_data_source_with_cache(
-            dispatch_context.page, int(data_source_id)
-        )
+
+        try:
+            data_source = DataSourceHandler().get_data_source_with_cache(
+                dispatch_context.page, int(data_source_id)
+            )
+        except DataSourceDoesNotExist as exc:
+            # The data source has probably been deleted
+            raise InvalidRuntimeFormula() from exc
 
         service_type = data_source.service.get_type()
         context_data = service_type.get_context_data(data_source.service)
@@ -260,7 +305,7 @@ class DataSourceContextDataProviderType(DataProviderType):
         extract_properties() method and return a dict where the keys are the
         Service IDs and the values are the field names.
 
-        E.g. given that path is: ['96', '1', 'field_5191'], returns
+        E.g. given that path is: ['1', 'field_5191'], returns
         {1: ['field_5191']}.
         """
 
@@ -279,13 +324,14 @@ class DataSourceContextDataProviderType(DataProviderType):
             )
         except DataSourceDoesNotExist as exc:
             # The data source has probably been deleted
-            raise InvalidBaserowFormula() from exc
+            raise InvalidRuntimeFormula() from exc
 
         service_type = data_source.service.specific.get_type()
+
         return {data_source.service_id: service_type.extract_properties(rest, **kwargs)}
 
 
-class CurrentRecordDataProviderType(DataProviderType):
+class CurrentRecordDataProviderType(BuilderDataProviderType):
     """
     The frontend data provider to get the current row content
     """
@@ -302,7 +348,7 @@ class CurrentRecordDataProviderType(DataProviderType):
         """
 
         try:
-            current_record_data = dispatch_context.request.data["current_record"]
+            current_record_data = dispatch_context.request_data["current_record"]
             current_record = current_record_data["index"]
             current_record_id = current_record_data["record_id"]
         except KeyError:
@@ -322,8 +368,7 @@ class CurrentRecordDataProviderType(DataProviderType):
         data_source_id = first_collection_element_ancestor.specific.data_source_id
 
         # Narrow down our range to just our record index.
-        dispatch_context = dispatch_context.from_context(
-            dispatch_context,
+        dispatch_context = dispatch_context.clone(
             offset=0,
             count=1,
             only_record_id=current_record_id,
@@ -385,17 +430,13 @@ class CurrentRecordDataProviderType(DataProviderType):
             )
         except DataSourceDoesNotExist as exc:
             # The data source is probably not accessible so we raise an invalid formula
-            raise InvalidBaserowFormula() from exc
+            raise InvalidRuntimeFormula() from exc
 
         service_type = data_source.service.specific.get_type()
 
         if service_type.returns_list:
-            # Here we add a fake row part to make it match the usual shape
-            # for this path
             if schema_property:
-                path = ["0", schema_property, *path]
-            else:
-                path = ["0", *path]
+                path = [schema_property, *path]
         else:
             # Current Record could also use Get Row service type (via Repeat
             # element), so we need to add the field name if it is available.
@@ -407,7 +448,7 @@ class CurrentRecordDataProviderType(DataProviderType):
         return {data_source.service_id: service_type.extract_properties(path, **kwargs)}
 
 
-class PreviousActionProviderType(DataProviderType):
+class PreviousActionProviderType(BuilderDataProviderType):
     """
     The previous action provider can read data from registered page workflow actions.
     """
@@ -425,17 +466,17 @@ class PreviousActionProviderType(DataProviderType):
     def get_data_chunk(self, dispatch_context: DispatchContext, path: List[str]):
         previous_action_id, *rest = path
 
-        previous_action_results = dispatch_context.request.data.get(
+        previous_action_results = dispatch_context.request_data.get(
             "previous_action", {}
         )
 
         if previous_action_id not in previous_action_results:
             message = "The previous action id is not present in the dispatch context"
-            raise DataProviderChunkInvalidException(message)
+            raise InvalidFormulaContext(message)
 
         if "current_dispatch_id" not in previous_action_results:
             message = "The dispatch id is missing in the dispatch context"
-            raise DataProviderChunkInvalidException(message)
+            raise InvalidFormulaContext(message)
 
         dispatch_id = previous_action_results.get("current_dispatch_id")
 
@@ -449,9 +490,15 @@ class PreviousActionProviderType(DataProviderType):
             cache_key = self.get_dispatch_action_cache_key(
                 dispatch_id, workflow_action.id
             )
-            return get_value_at_path(cache.get(cache_key), rest)
+            dispatch_result = cache.get(cache_key)
+            service = workflow_action.service.specific
+            prepared_path = service.get_type().prepare_value_path(service, rest)
         else:
-            return get_value_at_path(previous_action_results[previous_action_id], rest)
+            # Frontend actions
+            dispatch_result = previous_action_results[previous_action_id]
+            prepared_path = rest
+
+        return get_value_at_path(dispatch_result, prepared_path)
 
     def post_dispatch(
         self,
@@ -470,7 +517,7 @@ class PreviousActionProviderType(DataProviderType):
         the cache.
         """
 
-        if dispatch_id := dispatch_context.request.data.get("previous_action", {}).get(
+        if dispatch_id := dispatch_context.request_data.get("previous_action", {}).get(
             "current_dispatch_id"
         ):
             cache_key = self.get_dispatch_action_cache_key(
@@ -533,7 +580,7 @@ class PreviousActionProviderType(DataProviderType):
                 previous_id
             )
         except WorkflowActionDoesNotExist as exc:
-            raise InvalidBaserowFormula() from exc
+            raise InvalidRuntimeFormula() from exc
 
         service_type = previous_action.service.specific.get_type()
         return {
@@ -541,7 +588,7 @@ class PreviousActionProviderType(DataProviderType):
         }
 
 
-class UserDataProviderType(DataProviderType):
+class UserDataProviderType(BuilderDataProviderType):
     """
     This data provider user the user in `request.user_source_user` to resolve formula
     paths. This property is injected into the request by the
@@ -549,6 +596,17 @@ class UserDataProviderType(DataProviderType):
     """
 
     type = "user"
+
+    def get_request_serializer(self):
+        """
+        Returns the serializer used to parse data for this data provider.
+        """
+
+        from baserow.contrib.builder.api.data_providers.serializers import (
+            DispatchDataSourceUserContextSerializer,
+        )
+
+        return DispatchDataSourceUserContextSerializer(required=False, allow_null=True)
 
     def translate_default_user_role(self, user: UserSourceUser) -> str:
         """

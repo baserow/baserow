@@ -1,0 +1,8 @@
+{
+    "type": "bug",
+    "message": "Fix code blocks in markdown code for text element",
+    "domain": "builder",
+    "issue_number": 3634,
+    "bullet_points": [],
+    "created_at": "2025-05-21"
+}

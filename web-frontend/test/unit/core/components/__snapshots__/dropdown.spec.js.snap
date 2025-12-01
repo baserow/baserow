@@ -3,6 +3,7 @@
 exports[`Dropdown component Test slots 1`] = `
 <div
   class="dropdown"
+  role="list"
   tabindex="0"
 >
   <a
@@ -49,6 +50,7 @@ exports[`Dropdown component Test slots 1`] = `
     >
       <li
         class="select__item select__item--no-options visible active"
+        role="listitem"
       >
         <a
           class="select__item-link"
@@ -79,6 +81,7 @@ exports[`Dropdown component Test slots 1`] = `
 exports[`Dropdown component With items 1`] = `
 <div
   class="dropdown"
+  role="list"
   tabindex="0"
 >
   <a
@@ -120,6 +123,7 @@ exports[`Dropdown component With items 1`] = `
     >
       <li
         class="select__item select__item--no-options visible"
+        role="listitem"
       >
         <a
           class="select__item-link"
@@ -160,6 +164,7 @@ exports[`Dropdown component With items 1`] = `
 exports[`Dropdown component With items 2`] = `
 <div
   class="dropdown"
+  role="list"
   tabindex="0"
 >
   <a
@@ -206,6 +211,7 @@ exports[`Dropdown component With items 2`] = `
     >
       <li
         class="select__item select__item--no-options visible active"
+        role="listitem"
       >
         <a
           class="select__item-link"
@@ -237,6 +243,7 @@ exports[`Dropdown component With items 2`] = `
        
       <li
         class="select__item select__item--no-options visible"
+        role="listitem"
       >
         <a
           class="select__item-link"
@@ -268,6 +275,7 @@ exports[`Dropdown component With items 2`] = `
        
       <li
         class="select__item select__item--no-options visible disabled"
+        role="listitem"
       >
         <a
           class="select__item-link"
@@ -299,6 +307,7 @@ exports[`Dropdown component With items 2`] = `
        
       <li
         class="select__item select__item--no-options visible"
+        role="listitem"
       >
         <a
           class="select__item-link"
@@ -332,6 +341,7 @@ exports[`Dropdown component With items 2`] = `
        
       <li
         class="select__item select__item--no-options visible"
+        role="listitem"
       >
         <a
           class="select__item-link"
@@ -378,6 +388,7 @@ exports[`Dropdown component With items 2`] = `
 exports[`Dropdown component With items 3`] = `
 <div
   class="dropdown dropdown--floating"
+  role="list"
   tabindex="0"
 >
   <!---->
@@ -406,6 +417,7 @@ exports[`Dropdown component With items 3`] = `
     >
       <li
         class="select__item select__item--no-options visible active"
+        role="listitem"
       >
         <a
           class="select__item-link"
@@ -437,6 +449,7 @@ exports[`Dropdown component With items 3`] = `
        
       <li
         class="select__item select__item--no-options visible"
+        role="listitem"
       >
         <a
           class="select__item-link"
@@ -477,6 +490,7 @@ exports[`Dropdown component With items 3`] = `
 exports[`Dropdown component basics 1`] = `
 <div
   class="dropdown"
+  role="list"
   tabindex="0"
 >
   <a
@@ -533,6 +547,7 @@ exports[`Dropdown component basics 1`] = `
 exports[`Dropdown component basics 2`] = `
 <div
   class="dropdown"
+  role="list"
   tabindex="0"
 >
   <a
@@ -576,6 +591,7 @@ exports[`Dropdown component basics 2`] = `
 exports[`Dropdown component basics 3`] = `
 <div
   class="dropdown dropdown--disabled"
+  role="list"
   tabindex=""
 >
   <a
@@ -632,6 +648,7 @@ exports[`Dropdown component basics 3`] = `
 exports[`Dropdown component change value prop 1`] = `
 <div
   class="dropdown"
+  role="list"
   tabindex="0"
 >
   <a
@@ -678,6 +695,7 @@ exports[`Dropdown component change value prop 1`] = `
     >
       <li
         class="select__item select__item--no-options visible"
+        role="listitem"
       >
         <a
           class="select__item-link"
@@ -709,6 +727,7 @@ exports[`Dropdown component change value prop 1`] = `
        
       <li
         class="select__item select__item--no-options visible active"
+        role="listitem"
       >
         <a
           class="select__item-link"
@@ -749,6 +768,7 @@ exports[`Dropdown component change value prop 1`] = `
 exports[`Dropdown component test focus 1`] = `
 <div
   class="dropdown"
+  role="list"
   tabindex=""
 >
   <a
@@ -795,6 +815,7 @@ exports[`Dropdown component test focus 1`] = `
     >
       <li
         class="select__item select__item--no-options visible active hover"
+        role="listitem"
       >
         <a
           class="select__item-link"
@@ -835,6 +856,7 @@ exports[`Dropdown component test focus 1`] = `
 exports[`Dropdown component test focus 2`] = `
 <div
   class="dropdown"
+  role="list"
   tabindex="0"
 >
   <a
@@ -881,6 +903,7 @@ exports[`Dropdown component test focus 2`] = `
     >
       <li
         class="select__item select__item--no-options visible active hover"
+        role="listitem"
       >
         <a
           class="select__item-link"
@@ -921,6 +944,7 @@ exports[`Dropdown component test focus 2`] = `
 exports[`Dropdown component test interactions 1`] = `
 <div
   class="dropdown"
+  role="list"
   tabindex=""
 >
   <a
@@ -967,6 +991,7 @@ exports[`Dropdown component test interactions 1`] = `
     >
       <li
         class="select__item select__item--no-options visible active hover"
+        role="listitem"
       >
         <a
           class="select__item-link"
@@ -998,6 +1023,7 @@ exports[`Dropdown component test interactions 1`] = `
        
       <li
         class="select__item select__item--no-options visible"
+        role="listitem"
       >
         <a
           class="select__item-link"
@@ -1038,6 +1064,7 @@ exports[`Dropdown component test interactions 1`] = `
 exports[`Dropdown component test interactions 2`] = `
 <div
   class="dropdown"
+  role="list"
   tabindex="0"
 >
   <a
@@ -1084,6 +1111,7 @@ exports[`Dropdown component test interactions 2`] = `
     >
       <li
         class="select__item select__item--no-options visible active hover"
+        role="listitem"
       >
         <a
           class="select__item-link"
@@ -1115,6 +1143,7 @@ exports[`Dropdown component test interactions 2`] = `
        
       <li
         class="select__item select__item--no-options visible"
+        role="listitem"
       >
         <a
           class="select__item-link"

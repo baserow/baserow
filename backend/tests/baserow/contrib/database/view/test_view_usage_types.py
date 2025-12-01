@@ -15,7 +15,9 @@ def test_form_view_workspace_storage_usage_item(data_fixture):
     database = data_fixture.create_database_application(workspace=workspace)
     table = data_fixture.create_database_table(user=user, database=database)
 
-    usage = FormViewWorkspaceStorageUsageItem().calculate_storage_usage(workspace.id)
+    usage = FormViewWorkspaceStorageUsageItem().calculate_storage_usage_workspace(
+        workspace.id
+    )
 
     assert usage == 0
 
@@ -28,7 +30,9 @@ def test_form_view_workspace_storage_usage_item(data_fixture):
         logo_image=logo_image,
     )
 
-    usage = FormViewWorkspaceStorageUsageItem().calculate_storage_usage(workspace.id)
+    usage = FormViewWorkspaceStorageUsageItem().calculate_storage_usage_workspace(
+        workspace.id
+    )
 
     assert usage == 6
 
@@ -48,12 +52,16 @@ def test_form_view_workspace_storage_usage_item_trashed_database(data_fixture):
         logo_image=logo_image,
     )
 
-    usage = FormViewWorkspaceStorageUsageItem().calculate_storage_usage(workspace.id)
+    usage = FormViewWorkspaceStorageUsageItem().calculate_storage_usage_workspace(
+        workspace.id
+    )
 
     assert usage == 6
 
     TrashHandler().trash(user, workspace, database, database)
-    usage = FormViewWorkspaceStorageUsageItem().calculate_storage_usage(workspace.id)
+    usage = FormViewWorkspaceStorageUsageItem().calculate_storage_usage_workspace(
+        workspace.id
+    )
     assert usage == 0
 
 
@@ -72,12 +80,16 @@ def test_form_view_workspace_storage_usage_item_trashed_table(data_fixture):
         logo_image=logo_image,
     )
 
-    usage = FormViewWorkspaceStorageUsageItem().calculate_storage_usage(workspace.id)
+    usage = FormViewWorkspaceStorageUsageItem().calculate_storage_usage_workspace(
+        workspace.id
+    )
 
     assert usage == 6
 
     TrashHandler().trash(user, workspace, database, table)
-    usage = FormViewWorkspaceStorageUsageItem().calculate_storage_usage(workspace.id)
+    usage = FormViewWorkspaceStorageUsageItem().calculate_storage_usage_workspace(
+        workspace.id
+    )
     assert usage == 0
 
 
@@ -96,7 +108,9 @@ def test_form_view_workspace_storage_usage_item_duplicate_ids(data_fixture):
         logo_image=image,
     )
 
-    usage = FormViewWorkspaceStorageUsageItem().calculate_storage_usage(workspace.id)
+    usage = FormViewWorkspaceStorageUsageItem().calculate_storage_usage_workspace(
+        workspace.id
+    )
 
     assert usage == 2  # Instead of 4
 
@@ -125,7 +139,9 @@ def test_form_view_workspace_storage_usage_item_duplicate_ids_within_image_categ
         logo_image=logo_image,
     )
 
-    usage = FormViewWorkspaceStorageUsageItem().calculate_storage_usage(workspace.id)
+    usage = FormViewWorkspaceStorageUsageItem().calculate_storage_usage_workspace(
+        workspace.id
+    )
 
     assert usage == 6  # Instead of 12
 
@@ -159,7 +175,9 @@ def test_form_view_workspace_storage_usage_item_performance(data_fixture):
 
     profiler = Profiler()
     profiler.start()
-    usage = FormViewWorkspaceStorageUsageItem().calculate_storage_usage(workspace.id)
+    usage = FormViewWorkspaceStorageUsageItem().calculate_storage_usage_workspace(
+        workspace.id
+    )
     profiler.stop()
 
     print(profiler.output_text(unicode=True, color=True))

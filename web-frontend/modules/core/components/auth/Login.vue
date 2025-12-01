@@ -1,8 +1,19 @@
 <template>
   <div>
-    <EmailNotVerified v-if="displayEmailNotVerified" :email="emailToVerify">
+    <component
+      :is="twoFactorComponent"
+      v-if="twoFactorRequired"
+      :email="twoFactorEmail"
+      :token="twoFaToken"
+      @success="success"
+      @expired="twoFactorExpired"
+    />
+    <EmailNotVerified
+      v-else-if="displayEmailNotVerified"
+      :email="emailToVerify"
+    >
     </EmailNotVerified>
-    <template v-if="!displayEmailNotVerified">
+    <template v-else>
       <div v-if="displayHeader">
         <div class="auth__logo">
           <nuxt-link :to="{ name: 'index' }">
@@ -43,6 +54,7 @@
             settings.allow_reset_password && !passwordLoginHidden
           "
           @success="success"
+          @two-factor-auth="setTwoFactorRequired"
           @email-not-verified="emailNotVerified"
         >
         </PasswordLogin>
@@ -70,9 +82,11 @@ import {
   isRelativeUrl,
   addQueryParamsToRedirectUrl,
 } from '@baserow/modules/core/utils/url'
+import TOTPLogin from '@baserow/modules/core/components/auth/TOTPLogin'
 
 export default {
   components: {
+    TOTPLogin,
     PasswordLogin,
     LoginButtons,
     LangPicker,
@@ -116,6 +130,10 @@ export default {
       passwordLoginHiddenIfDisabled: true,
       displayEmailNotVerified: false,
       emailToVerify: null,
+      twoFactorComponent: null,
+      twoFactorRequired: false,
+      twoFactorEmail: null,
+      twoFaToken: null,
     }
   },
   computed: {
@@ -161,10 +179,23 @@ export default {
           await this.$nuxt.$router.push({ name: 'dashboard' })
         }
       }
+      this.$emit('success')
     },
     emailNotVerified(email) {
       this.displayEmailNotVerified = true
       this.emailToVerify = email
+    },
+    setTwoFactorRequired(type, email, token) {
+      const twoFaType = this.$registry.get('twoFactorAuth', type)
+      this.twoFactorComponent = twoFaType.loginComponent
+      this.twoFactorRequired = true
+      this.twoFactorEmail = email
+      this.twoFaToken = token
+    },
+    twoFactorExpired() {
+      this.twoFaToken = null
+      this.twoFactorRequired = false
+      this.twoFactorComponent = null
     },
   },
 }

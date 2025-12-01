@@ -4,7 +4,7 @@
       v-if="
         !readOnly &&
         // Can't create rows in a table data sync table.
-        !table.data_sync &&
+        (!table.data_sync || table.data_sync.two_way_sync) &&
         $hasPermission(
           'database.table.create_row',
           table,
@@ -477,18 +477,24 @@ export default {
      * when editing row from a different table, when editing is complete, we need
      * to refresh the 'main' row that's 'under' the RowEdit modal.
      */
-    async refreshRow(row) {
-      try {
-        await this.$store.dispatch(
-          this.storePrefix + 'view/gallery/refreshRowFromBackend',
-          {
-            table: this.table,
-            row,
-          }
-        )
-      } catch (error) {
-        notifyIf(error, 'row')
+    refreshRow(row) {
+      if (this.refreshingRow) {
+        return
       }
+      this.refreshingRow = true
+
+      this.$nextTick(async () => {
+        try {
+          await this.$store.dispatch(
+            this.storePrefix + 'view/gallery/refreshRowFromBackend',
+            { table: this.table, row }
+          )
+        } catch (error) {
+          notifyIf(error, 'row')
+        } finally {
+          this.refreshingRow = false
+        }
+      })
     },
     /**
      * Calls the fieldCreated callback and shows the hidden fields section

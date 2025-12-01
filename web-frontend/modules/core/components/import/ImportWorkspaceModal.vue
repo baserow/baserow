@@ -23,18 +23,32 @@
           :file-types-acceptable="fileTypesAcceptable"
           @input="addFile($event)"
         />
-        <SelectedFileDetails
-          v-else
-          :import-file="importFile"
-          :workspace-id="workspace.id"
-          @import-workspace-reset="reset"
-        />
+        <div v-else>
+          <SelectedFileDetails
+            :import-file="importFile"
+            :workspace-id="workspace.id"
+            @import-workspace-reset="reset"
+          />
 
-        <div class="import-workspace__actions">
           <div
-            :style="{ visibility: uploading ? 'visible' : 'hidden' }"
-            class="import-workspace__progress"
+            v-if="applicationGroups.length > 0"
+            class="import-workspace__application-selection"
           >
+            <ImportApplicationSelector
+              :application-groups="applicationGroups"
+              :selected-application-ids="selectedApplicationIds"
+              @update="updateSelectedApplications"
+            />
+          </div>
+        </div>
+
+        <div
+          class="import-workspace__button-section"
+          :class="{
+            'import-workspace__button-section--with-progress': uploading,
+          }"
+        >
+          <div v-if="uploading" class="import-workspace__progress">
             <ProgressBar
               :value="percentage"
               :status="$t('importWorkspaceModal.uploading')"
@@ -44,13 +58,15 @@
             type="primary"
             size="large"
             :loading="uploading"
-            :disabled="uploading || !importFile"
+            :disabled="isUploadDisabled"
             @click="process()"
           >
             <template v-if="!uploading && hasFailed">{{
               $t('uploadFileUserFileUpload.retry')
             }}</template>
-            <template v-else>{{ $t('importWorkspaceModal.upload') }}</template>
+            <template v-else>{{
+              $t('importWorkspaceModal.uploadAndImport')
+            }}</template>
           </Button>
         </div>
       </div>
@@ -63,36 +79,47 @@
           @import-workspace-reset="reset"
         >
         </SelectedFileDetails>
-        <ImportWorkspaceForm
-          ref="form"
-          class="import-workspace__actions"
-          @submitted="importWorkspace"
+
+        <div
+          v-if="applicationGroups.length > 0"
+          class="import-workspace__application-selection"
         >
-          <template #select-applications>
-            <div
-              :style="{
-                paddingRight: '16px',
-                visibility:
-                  jobIsRunning || jobIsFinished ? 'visible' : 'hidden',
-              }"
-            >
-              <ProgressBar
-                :value="job?.progress_percentage || 0"
-                :status="jobHumanReadableState"
-              />
-            </div>
-          </template>
-          <template #default>
-            <Button
-              v-if="currentStage !== STAGES.DONE"
-              size="large"
-              :loading="importing"
-              :disabled="importing"
-            >
-              {{ $t('importWorkspaceModal.import') }}
-            </Button>
-          </template>
-        </ImportWorkspaceForm>
+          <ImportApplicationSelector
+            :application-groups="applicationGroups"
+            :selected-application-ids="selectedApplicationIds"
+            :disabled="importing"
+            @update="updateSelectedApplications"
+          />
+        </div>
+
+        <ImportWorkspaceForm ref="form" @submitted="importWorkspace" />
+
+        <div
+          class="import-workspace__button-section"
+          :class="{
+            'import-workspace__button-section--with-progress':
+              jobIsRunning || jobIsFinished,
+          }"
+        >
+          <div
+            v-if="jobIsRunning || jobIsFinished"
+            class="import-workspace__progress"
+          >
+            <ProgressBar
+              :value="job?.progress_percentage || 0"
+              :status="jobHumanReadableState"
+            />
+          </div>
+          <Button
+            v-if="currentStage !== STAGES.DONE"
+            size="large"
+            :loading="importing"
+            :disabled="importing"
+            @click="submitForm"
+          >
+            {{ $t('importWorkspaceModal.import') }}
+          </Button>
+        </div>
       </div>
     </div>
   </Modal>
@@ -116,6 +143,11 @@ import {
   IMPORT_SERIALIZED_IMPORTING_TABLE_STRUCTURE,
   IMPORT_SERIALIZED_IMPORTING_TABLE_DATA,
 } from '@baserow/modules/core/constants'
+import ImportApplicationSelector from '@baserow/modules/core/components/import/ImportApplicationSelector.vue'
+import {
+  convertManifestToApplicationGroups,
+  extractManifestFromZip,
+} from '@baserow/modules/core/utils/zipManifest'
 
 const STAGES = {
   UPLOAD: 'upload',
@@ -126,7 +158,12 @@ const STAGES = {
 
 export default {
   name: 'ImportWorkspace',
-  components: { UploadFileDropzone, SelectedFileDetails, ImportWorkspaceForm },
+  components: {
+    UploadFileDropzone,
+    SelectedFileDetails,
+    ImportWorkspaceForm,
+    ImportApplicationSelector,
+  },
   mixins: [modal, error, job],
   props: {
     workspace: {
@@ -146,6 +183,8 @@ export default {
       iconClass: '',
       currentStage: STAGES.UPLOAD,
       STAGES,
+      applicationGroups: [],
+      selectedApplicationIds: [],
     }
   },
   computed: {
@@ -164,6 +203,12 @@ export default {
     signatureCheckEnabled() {
       return this.$store.getters['settings/get'].verify_import_signature
     },
+    isUploadDisabled() {
+      const noSelectionWhenShown =
+        this.applicationGroups.length > 0 &&
+        this.selectedApplicationIds.length === 0
+      return this.uploading || !this.importFile || noSelectionWhenShown
+    },
   },
   watch: {
     'workspace.id'() {
@@ -172,22 +217,36 @@ export default {
     },
   },
   methods: {
+    submitForm() {
+      this.$refs.form.submit()
+    },
     show(...args) {
       this.hideError()
       this.checkPendingImport()
       modal.methods.show.bind(this)(...args)
     },
-    addFile(event) {
+    async addFile(event) {
       const files = getFilesFromEvent(event)
       if (files.length > 0) {
         this.importFile = files[0]
+        await this.extractManifestFromFile()
       }
     },
 
     async process() {
-      await this.upload()
-      if (this.currentStage === STAGES.IMPORT) {
-        await this.importWorkspace()
+      if (
+        this.applicationGroups.length > 0 &&
+        this.selectedApplicationIds.length > 0
+      ) {
+        await this.upload()
+        if (this.currentStage === STAGES.IMPORT) {
+          await this.importWorkspace()
+        }
+      } else {
+        await this.upload()
+        if (this.currentStage === STAGES.IMPORT) {
+          await this.importWorkspace()
+        }
       }
     },
 
@@ -222,6 +281,32 @@ export default {
         this.percentage = 0
       }
     },
+
+    async extractManifestFromFile() {
+      try {
+        const manifest = await extractManifestFromZip(this.importFile)
+        this.applicationGroups = convertManifestToApplicationGroups(manifest)
+
+        this.selectedApplicationIds = this.applicationGroups
+          .flatMap((group) => group.applications)
+          .map((app) => app.id)
+      } catch (error) {
+        this.applicationGroups = []
+        this.selectedApplicationIds = []
+
+        this.$store.dispatch('toast/error', {
+          title: 'Could not read ZIP file',
+          message:
+            error.message ||
+            'The ZIP file does not contain a valid manifest.json file.',
+        })
+      }
+    },
+
+    updateSelectedApplications(selectedApplicationIds) {
+      this.selectedApplicationIds = selectedApplicationIds
+    },
+
     checkPendingImport() {
       const runningJob = this.$store.getters['job/getUnfinishedJobs'].find(
         (job) => {
@@ -238,6 +323,7 @@ export default {
         this.importing = true
       }
     },
+
     async onJobFinished() {
       this.importing = false
       this.currentStage = STAGES.DONE
@@ -274,6 +360,8 @@ export default {
       this.currentStage = STAGES.UPLOAD
       this.resourceId = null
       this.hideError()
+      this.applicationGroups = []
+      this.selectedApplicationIds = []
     },
 
     close() {
@@ -287,7 +375,11 @@ export default {
       try {
         const { data: job } = await ImportWorkspaceService(
           this.$client
-        ).triggerImport(this.workspace.id, this.resourceId)
+        ).triggerImport(
+          this.workspace.id,
+          this.resourceId,
+          this.selectedApplicationIds
+        )
         await this.createAndMonitorJob(job)
       } catch (error) {
         this.importing = false
@@ -313,6 +405,31 @@ export default {
         return this.$t('importWorkspaceModal.importingState')
       }
       return ''
+    },
+
+    async extractApplications() {
+      this.importing = true
+      this.hideError()
+      try {
+        const { data } = await ImportWorkspaceService(
+          this.$client
+        ).extractApplications(this.workspace.id, this.importFile.id)
+        this.applicationGroups = data.application_groups
+        this.selectedApplicationIds = data.selected_application_ids
+      } catch (error) {
+        this.handleError(error, 'import_export', {
+          ERROR_RESOURCE_IS_INVALID: new ResponseErrorMessage(
+            this.$t('importWorkspaceModal.invalidResourceTitle'),
+            this.$t('importWorkspaceModal.invalidResourceMessage')
+          ),
+          ERROR_UNTRUSTED_PUBLIC_KEY: new ResponseErrorMessage(
+            this.$t('importWorkspaceModal.untrustedPublicKeyTitle'),
+            this.$t('importWorkspaceModal.untrustedPublicKeyMessage')
+          ),
+        })
+      } finally {
+        this.importing = false
+      }
     },
   },
 }

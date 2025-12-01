@@ -14,12 +14,14 @@
   >
     <label
       v-if="label && !hasLabelSlot"
-      :for="id"
+      :for="forInput"
       class="control__label"
       :class="{ 'control__label--small': smallLabel }"
     >
       <span>{{ label }}</span>
-      <span v-if="!required" class="control__required">Optional</span>
+      <span v-if="!required" class="control__required">{{
+        $t('common.optional')
+      }}</span>
       <HelpIcon
         v-if="helpIconTooltip"
         :tooltip="helpIconTooltip"
@@ -82,8 +84,12 @@
 </template>
 
 <script>
+import { uuid } from '@baserow/modules/core/utils/string'
 export default {
   name: 'FormGroup',
+  provide() {
+    return { forInput: this.forInput }
+  },
   props: {
     /**
      * Must be set to true to display the error slot.
@@ -100,14 +106,6 @@ export default {
       type: String,
       required: false,
       default: '',
-    },
-    /**
-     * The id of the form group.
-     */
-    id: {
-      type: String,
-      required: false,
-      default: null,
     },
     /**
      * The label of the form group.
@@ -184,6 +182,7 @@ export default {
   data() {
     return {
       protectedEditValue: false,
+      forInput: uuid(),
     }
   },
   computed: {

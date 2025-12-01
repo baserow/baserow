@@ -1,3 +1,4 @@
+import json
 from unittest.mock import patch
 
 from django.urls import reverse
@@ -104,14 +105,19 @@ def test_record_selector_element_form_submission(api_client, data_fixture):
             "all": {workflow_action.service.id: ["id", f"field_{fields[0].id}"]},
             "external": {workflow_action.service.id: ["id", f"field_{fields[0].id}"]},
         }
+        payload = {
+            "metadata": json.dumps(
+                {
+                    "form_data": {
+                        # Select the first item from the record selector list
+                        f"{record_selector_element.id}": rows[0].id,
+                    }
+                }
+            )
+        }
         response = api_client.post(
             url,
-            {
-                "form_data": {
-                    # Select the first item from the record selector list
-                    f"{record_selector_element.id}": rows[0].id,
-                }
-            },
+            payload,
             format="json",
             HTTP_AUTHORIZATION=f"JWT {token}",
         )
@@ -120,4 +126,4 @@ def test_record_selector_element_form_submission(api_client, data_fixture):
     assert "id" in response.json()
     # The created item should have "field_1" set to the first item of the
     # record selector list
-    assert response.json()[f"field_{fields[0].id}"] == f"{rows[0].id}"
+    assert response.json()[fields[0].name] == f"{rows[0].id}"

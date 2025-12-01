@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING, Any, Dict, Iterable, Optional, Union
 from zipfile import ZipFile
 
 from django.core.files.storage import Storage
-from django.db.models import Q, QuerySet
+from django.db.models import QuerySet
 from django.db.utils import DatabaseError, IntegrityError
 
 from baserow.contrib.builder.data_sources.builder_dispatch_context import (
@@ -10,7 +10,6 @@ from baserow.contrib.builder.data_sources.builder_dispatch_context import (
 )
 from baserow.contrib.builder.data_sources.exceptions import (
     DataSourceDoesNotExist,
-    DataSourceImproperlyConfigured,
     DataSourceNameNotUniqueError,
 )
 from baserow.contrib.builder.data_sources.models import DataSource
@@ -20,6 +19,9 @@ from baserow.contrib.builder.types import DataSourceDict
 from baserow.core.cache import local_cache
 from baserow.core.integrations.models import Integration
 from baserow.core.integrations.registries import integration_type_registry
+from baserow.core.services.exceptions import (
+    ServiceImproperlyConfiguredDispatchException,
+)
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
 from baserow.core.services.registries import ServiceType
@@ -168,8 +170,16 @@ class DataSourceHandler:
 
             # Distribute specific services to their data_source
             for data_source in data_sources:
-                if data_source.service_id:
-                    data_source.service = specific_services_map[data_source.service_id]
+                service_id = data_source.service_id
+                if service_id is not None and service_id in specific_services_map:
+                    service = specific_services_map[service_id]
+                    # Only attach the service if it's not trashed
+                    data_source.service = service if not service.trashed else None
+                else:
+                    # Clear the service since it's likely trashed
+                    data_source.service = None
+
+            data_sources = [d for d in data_sources if d.service is not None]
 
         else:
             data_source_queryset.select_related(
@@ -214,8 +224,12 @@ class DataSourceHandler:
         if with_shared:
             # Get the data source for the same builder on the shared page
             data_source_queryset = data_source_queryset.filter(
-                Q(page=page) | Q(page__builder_id=page.builder_id, page__shared=True)
-            )
+                page__in=[page.builder.shared_page, page]
+                # We order by shared page because shared pages must appear before local
+                # data source so that later we can reference previous data sources
+                # only in formulas.
+            ).order_by("-page__shared", "order", "id")
+
         else:
             data_source_queryset = data_source_queryset.filter(page=page)
 
@@ -478,16 +492,28 @@ class DataSourceHandler:
 
         data_sources_dispatch = {}
         for data_source in data_sources:
-            # Add the initial call to the call stack
-            dispatch_context.add_call(data_source.id)
+            if (
+                dispatch_context.public_allowed_properties is not None
+                and data_source.service_id
+                not in dispatch_context.public_allowed_properties["all"]
+            ):
+                # We ignore data sources that have no used properties at all.
+                # It means they are not used at least for the current user.
+                if data_source.service.get_type().returns_list:
+                    data_sources_dispatch[data_source.id] = {
+                        "has_next_page": False,
+                        "results": [],
+                    }
+                else:
+                    data_sources_dispatch[data_source.id] = {}
+                continue
+
             try:
                 data_sources_dispatch[data_source.id] = self.dispatch_data_source(
                     data_source, dispatch_context
                 )
             except Exception as e:
                 data_sources_dispatch[data_source.id] = e
-            # Reset the stack as we are starting a new dispatch
-            dispatch_context.reset_call_stack()
 
         return data_sources_dispatch
 
@@ -499,28 +525,46 @@ class DataSourceHandler:
 
         :param data_source: The data source to be dispatched.
         :param dispatch_context: The context used for the dispatch.
-        :raises DataSourceImproperlyConfigured: If the data source is
+        :raises ServiceImproperlyConfiguredDispatchException: If the data source is
           not properly configured.
         :return: The result of dispatching the data source.
         """
 
         if not data_source.service_id:
-            raise DataSourceImproperlyConfigured("The service type is missing.")
+            raise ServiceImproperlyConfiguredDispatchException(
+                "The service type is missing."
+            )
+        cache = dispatch_context.cache
+        page = dispatch_context.page
+        current_data_source_dispatched = dispatch_context.data_source or data_source
 
-        if data_source.id not in dispatch_context.cache.setdefault(
-            "data_source_contents", {}
-        ):
+        if current_data_source_dispatched != data_source:
+            data_sources = self.get_data_sources_with_cache(page)
+            ordered_ids = [d.id for d in data_sources]
+            if ordered_ids.index(current_data_source_dispatched.id) < ordered_ids.index(
+                data_source.id
+            ):
+                raise ServiceImproperlyConfiguredDispatchException(
+                    "You can't reference a data source after the current data source"
+                )
+
+        # Clone the dispatch context to keep the call stack as it is
+        cloned_dispatch_context = dispatch_context.clone(
+            data_source=current_data_source_dispatched
+        )
+        # Declare the call and check for recursion
+        cloned_dispatch_context.add_call(data_source.id)
+
+        if data_source.id not in cache.setdefault("data_source_contents", {}):
             service_dispatch = self.service_handler.dispatch_service(
-                data_source.service.specific, dispatch_context
+                data_source.service.specific, cloned_dispatch_context
             )
 
             # Cache the dispatch in the formula cache if we have formulas that need
             # it later
-            dispatch_context.cache["data_source_contents"][
-                data_source.id
-            ] = service_dispatch.data
+            cache["data_source_contents"][data_source.id] = service_dispatch.data
 
-        return dispatch_context.cache["data_source_contents"][data_source.id]
+        return cache["data_source_contents"][data_source.id]
 
     def move_data_source(
         self, data_source: DataSourceForUpdate, before: Optional[DataSource] = None

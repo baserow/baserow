@@ -1,0 +1,90 @@
+.ab-avatar {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  font-size: var(--body-font-size, 14px);
+  font-weight: var(--body-font-weight, 400);
+  color: var(--body-text-color, $black);
+  overflow: hidden;
+  flex-shrink: 0;
+
+  @include rounded($rounded-md);
+}
+
+.ab-avatar__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.ab-avatar__icon {
+  font-size: 1em;
+}
+
+.ab-avatar--small {
+  width: 14px;
+  height: 14px;
+  font-size: 7px;
+
+  @include rounded($rounded);
+
+  .ab-avatar__icon {
+    font-size: 0.8em;
+  }
+}
+
+.ab-avatar--medium {
+  width: 24px;
+  height: 24px;
+}
+
+.ab-avatar--large {
+  width: 32px;
+  height: 32px;
+  font-size: 11px;
+
+  .ab-avatar__icon {
+    font-size: 1.2em;
+  }
+}
+
+.ab-avatar--x-large {
+  width: 48px;
+  height: 48px;
+  font-size: 13px;
+
+  .ab-avatar__icon {
+    font-size: 1.6em;
+  }
+}
+
+.ab-avatar--rounded {
+  @include rounded($rounded-3xl);
+}
+
+.ab-avatar--neutral {
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--body-text-color, $black),
+      var(--page-background-color, $color-neutral-500) 80%
+    );
+  background: color-mix(
+    in srgb,
+    var(--body-text-color, $black),
+    var(--page-background-color, $color-neutral-500) 95%
+  );
+  color: color-mix(
+    in srgb,
+    var(--body-text-color, $black),
+    var(--page-background-color, $color-neutral-500) 50%
+  );
+}
+
+.ab-avatar--transparent {
+  background: transparent;
+
+  .ab-avatar__icon {
+    color: $palette-neutral-1100;
+  }
+}

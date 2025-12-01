@@ -1,0 +1,128 @@
+.workflow-node-content {
+  z-index: 1;
+  position: relative;
+  pointer-events: initial;
+  display: inline-flex;
+  height: 72px;
+  padding: 16px;
+  align-items: center;
+  gap: 16px;
+  flex-shrink: 0;
+  width: 400px;
+  border: 1.5px solid $palette-neutral-200;
+  background: $white;
+  cursor: pointer;
+  background-size: 50px 57px;
+
+  @include elevation($elevation-low);
+  @include rounded($rounded-xl);
+
+  &.workflow-node-content--selected {
+    border: 1.5px solid $palette-blue-500;
+  }
+
+  &.workflow-node-content--utility {
+    box-shadow: none;
+    background: $palette-neutral-50;
+    border: 1.5px dashed $palette-neutral-400;
+
+    &.workflow-node-content--selected {
+      border: 1.5px dashed $palette-blue-500;
+    }
+  }
+}
+
+.workflow-node-content__drag-handle {
+  position: absolute;
+  left: 0;
+  top: 4px;
+  width: 14px;
+  height: 62px;
+  cursor: grab;
+  background-image: radial-gradient(
+      circle,
+      $palette-neutral-400 1px,
+      transparent 1px
+    ),
+    radial-gradient(circle, $palette-neutral-400 1px, transparent 1px);
+  background-repeat: repeat-y;
+  background-position: 3px center, 0 center;
+  background-size: auto 4px;
+  display: none;
+
+  .workflow-node-content:hover & {
+    display: block;
+  }
+}
+
+.workflow-node-content::before {
+  content: attr(data-before-label);
+  position: absolute;
+  top: -25px;
+  left: 0;
+  color: $palette-neutral-900;
+  font-weight: 500;
+
+  .workflow-node-content__wrapper--dragging & {
+    display: none;
+  }
+}
+
+.workflow-node-content__more--wrapper {
+  display: flex;
+  margin-left: auto;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.workflow-node-content__more-icon {
+  color: $palette-neutral-800;
+  font-size: 20px;
+  width: 25px;
+  height: 25px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  @include rounded($rounded-md);
+
+  &:hover {
+    background-color: $palette-neutral-100;
+  }
+}
+
+.workflow-node-content__icon {
+  display: flex;
+  height: 40px;
+  padding: 12px;
+  justify-content: center;
+  gap: 8px;
+  background: $white;
+  border: 1px solid $palette-neutral-200;
+
+  @include elevation($elevation-low);
+  @include rounded($rounded-md);
+
+  &:has(img) {
+    padding: 8px;
+  }
+}
+
+.workflow-node-content__title {
+  font-size: 16px;
+  font-weight: 500;
+  color: $palette-neutral-1200;
+  min-width: 0;
+  flex: 1;
+
+  &:last-child {
+    margin-bottom: 30px;
+  }
+
+  @extend %ellipsis;
+}
+
+.workflow-node-content__wrapper--dragging {
+  opacity: 0.5;
+}

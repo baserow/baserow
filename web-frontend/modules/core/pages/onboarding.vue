@@ -249,7 +249,13 @@ export default {
     async cancel() {
       this.cancelling = true
       try {
-        await WorkspaceService(this.$client).createInitialWorkspace()
+        const { data: workspace } = await WorkspaceService(
+          this.$client
+        ).createInitialWorkspace()
+
+        for (const plugin of Object.values(this.$registry.getAll('plugin'))) {
+          await plugin.initialWorkspaceCreated(workspace)
+        }
       } catch (error) {
         notifyIf(error)
       }

@@ -23,14 +23,10 @@ export default function DashboardModule(options) {
     configRoutes.push(...routes)
   })
 
+  let alreadyExtended = false
   this.nuxt.hook('i18n:extend-messages', function (additionalMessages) {
-    additionalMessages.push({ en })
-    additionalMessages.push({ nl })
-    additionalMessages.push({ fr })
-    additionalMessages.push({ de })
-    additionalMessages.push({ es })
-    additionalMessages.push({ it })
-    additionalMessages.push({ pl })
-    additionalMessages.push({ ko })
+    if (alreadyExtended) return
+    additionalMessages.push({ en, fr, nl, de, es, it, pl, ko })
+    alreadyExtended = true
   })
 }

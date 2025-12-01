@@ -2,7 +2,7 @@
 
 > Any questions, problems or suggestions with this guide? Ask a question in our
 > [community](https://community.baserow.io/) or contribute the change yourself at
-> https://gitlab.com/baserow/baserow/-/tree/develop/docs .
+> https://github.com/baserow/baserow/tree/develop/docs .
 
 > Docker version 19.03 is the minimum required to build Baserow. It is strongly
 > advised however that you install the latest version of Docker available.
@@ -10,16 +10,16 @@
 
 Baserow consists of a number of services, two of which are built and provided as 
 separate standalone images by us:
-* `baserow/backend:1.32.5` which by default starts the Gunicorn Django backend server 
+* `baserow/backend:2.0.2` which by default starts the Gunicorn Django backend server 
   for Baserow but is also used to start the celery workers and celery beat services.
-* `baserow/web-frontend:1.32.5` which is a Nuxt server providing Server Side rendering 
+* `baserow/web-frontend:2.0.2` which is a Nuxt server providing Server Side rendering 
   for the website.
 
 If you want to use your own container orchestration software like Kubernetes then these
 images let you run and scale these different parts of Baserow independently. 
 
 For an example of how to use these images see the
-[`docker-compose.yml`](https://gitlab.com/baserow/baserow/-/blob/master/docker-compose.yml) 
+[`docker-compose.yml`](https://github.com/baserow/baserow/blob/master/docker-compose.yml) 
 in the root of our repository. 
 
 ## All Services needed to run Baserow
@@ -27,10 +27,10 @@ in the root of our repository.
 These are all the services you need to set up to run a Baserow using the standalone 
 images:
 
-* `baserow/backend:1.32.5` (default command is `gunicorn`)
-* `baserow/backend:1.32.5` with command `celery-worker`
-* `baserow/backend:1.32.5` with command `celery-export-worker`
-* `baserow/web-frontend:1.32.5` (default command is `nuxt-local`)
+* `baserow/backend:2.0.2` (default command is `gunicorn`)
+* `baserow/backend:2.0.2` with command `celery-worker`
+* `baserow/backend:2.0.2` with command `celery-export-worker`
+* `baserow/web-frontend:2.0.2` (default command is `nuxt-local`)
 * A postgres database 
 * A redis server
 
@@ -48,7 +48,7 @@ images:
   `BASEROW_CADDY_ADDRESSES` environment variable used in other installation methods 
   has no affect.
 * You must set a `SECRET_KEY` environment variable for the backend gunicorn server.
-* See our example [`Caddyfile`](https://gitlab.com/baserow/baserow/-/blob/master/Caddyfile)
+* See our example [`Caddyfile`](https://github.com/baserow/baserow/blob/master/Caddyfile)
   for an example on how to setup a reverse proxy correctly with Baserow. In summary you
   need to:
   * Redirect `/api/` and `/ws/` requests to the backend gunicorn service without 

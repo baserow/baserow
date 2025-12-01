@@ -60,16 +60,49 @@ class LocalBaserowFilterableServiceMixin(models.Model):
         "or to any filter (OR).",
     )
 
+    @property
+    def service_filters_with_untrashed_fields(self):
+        return [
+            f
+            for f in self.service_filters.all()
+            if not f.field_id or not f.field.trashed
+        ]
+
+    class Meta:
+        abstract = True
+
+
+class LocalBaserowFilterableSortableMixin(models.Model):
+    """
+    A mixin which can be applied to LocalBaserow services to denote that they're
+    sortable.
+    """
+
+    @property
+    def service_sorts_with_untrashed_fields(self):
+        return [
+            f for f in self.service_sorts.all() if not f.field_id or not f.field.trashed
+        ]
+
     class Meta:
         abstract = True
 
 
 class LocalBaserowListRows(
-    LocalBaserowViewService, LocalBaserowFilterableServiceMixin, SearchableServiceMixin
+    LocalBaserowViewService,
+    LocalBaserowFilterableServiceMixin,
+    LocalBaserowFilterableSortableMixin,
+    SearchableServiceMixin,
 ):
     """
     A model for the local baserow list rows service configuration data.
     """
+
+    default_result_count = models.PositiveIntegerField(
+        default=20,
+        db_default=20,
+        help_text="The default record count returned with each page.",
+    )
 
 
 class LocalBaserowAggregateRows(
@@ -91,7 +124,10 @@ class LocalBaserowAggregateRows(
 
 
 class LocalBaserowGetRow(
-    LocalBaserowViewService, LocalBaserowFilterableServiceMixin, SearchableServiceMixin
+    LocalBaserowViewService,
+    LocalBaserowFilterableServiceMixin,
+    LocalBaserowFilterableSortableMixin,
+    SearchableServiceMixin,
 ):
     """
     A model for the local baserow get row service configuration data.
@@ -116,16 +152,30 @@ class LocalBaserowDeleteRow(LocalBaserowTableService):
     row_id = FormulaField()
 
 
+class LocalBaserowRowsCreated(LocalBaserowTableService):
+    """
+    A model for the local baserow rows created trigger service.
+    """
+
+
+class LocalBaserowRowsUpdated(LocalBaserowTableService):
+    """
+    A model for the local baserow rows updated trigger service.
+    """
+
+
+class LocalBaserowRowsDeleted(LocalBaserowTableService):
+    """
+    A model for the local baserow rows deleted trigger service.
+    """
+
+
 class LocalBaserowTableServiceRefinementManager(models.Manager):
     """
-    Manager for the `LocalBaserowTableService` filter and sort models.
-    Ensures that we exclude filters and sort with a trashed field.
+    Kept for legacy purposes (in migrations)
     """
 
     use_in_migrations = True
-
-    def get_queryset(self):
-        return super().get_queryset().filter(field__trashed=False)
 
 
 class LocalBaserowTableServiceFilter(ServiceFilter):
@@ -134,7 +184,6 @@ class LocalBaserowTableServiceFilter(ServiceFilter):
     """
 
     objects = LocalBaserowTableServiceRefinementManager()
-    objects_and_trash = models.Manager()
 
     field = models.ForeignKey(
         "database.Field",
@@ -175,7 +224,6 @@ class LocalBaserowTableServiceSort(ServiceSort):
     """
 
     objects = LocalBaserowTableServiceRefinementManager()
-    objects_and_trash = models.Manager()
 
     field = models.ForeignKey(
         "database.Field",

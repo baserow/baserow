@@ -6,25 +6,27 @@ import ViewService from '@baserow/modules/database/services/view'
 import KanbanService from '@baserow_premium/services/views/kanban'
 import {
   extractRowMetadata,
+  getFilters,
   getRowSortFunction,
   matchSearchFilters,
-  getFilters,
 } from '@baserow/modules/database/utils/view'
 import RowService from '@baserow/modules/database/services/row'
 import FieldService from '@baserow/modules/database/services/field'
 import { SingleSelectFieldType } from '@baserow/modules/database/fieldTypes'
 import {
-  extractRowReadOnlyValues,
+  extractChangedFields,
+  getRowMetadata,
   prepareNewOldAndUpdateRequestValues,
   prepareRowForRequest,
   updateRowMetadataType,
-  getRowMetadata,
 } from '@baserow/modules/database/utils/row'
 
-export function populateRow(row, metadata = {}) {
+export function populateRow(row, metadata = {}, fullyLoaded = true) {
   row._ = {
     metadata: getRowMetadata(row, metadata),
     dragging: false,
+    fetching: false,
+    fullyLoaded,
   }
   return row
 }
@@ -35,7 +37,7 @@ export function populateStack(stack, data) {
   })
   stack.results.forEach((row) => {
     const metadata = extractRowMetadata(data, row.id)
-    populateRow(row, metadata)
+    populateRow(row, metadata, false)
   })
   return stack
 }
@@ -53,6 +55,8 @@ export const state = () => ({
   draggingOriginalBefore: null,
   // If true, ad hoc filtering is used instead of persistent one
   adhocFiltering: false,
+  // Indicates whether row(s) are currently being created.
+  creating: false,
 })
 
 export const mutations = {
@@ -181,11 +185,25 @@ export const mutations = {
   UPDATE_ROW_VALUES(state, { row, values }) {
     Object.assign(row, values)
   },
+  SET_ROW_FETCHING(state, { row, value }) {
+    Object.keys(state.stacks).forEach((stack) => {
+      const rows = state.stacks[stack].results
+      const index = rows.findIndex((item) => item?.id === row.id)
+      if (index !== -1) {
+        const existingRowState = rows[index]
+        existingRowState._.fetching = value
+        existingRowState._.fullyLoaded = !value
+      }
+    })
+  },
   UPDATE_ROW_METADATA(state, { row, rowMetadataType, updateFunction }) {
     updateRowMetadataType(row, rowMetadataType, updateFunction)
   },
   SET_ADHOC_FILTERING(state, adhocFiltering) {
     state.adhocFiltering = adhocFiltering
+  },
+  SET_CREATING(state, value) {
+    state.creating = value
   },
 }
 
@@ -275,7 +293,8 @@ export const actions = {
     const count = data.rows[selectOptionId].count
     const rows = data.rows[selectOptionId].results
     rows.forEach((row) => {
-      populateRow(row)
+      const metadata = extractRowMetadata(data, row.id)
+      populateRow(row, metadata, false)
     })
     commit('ADD_ROWS_TO_STACK', { selectOptionId, count, rows })
   },
@@ -403,10 +422,12 @@ export const actions = {
   ) {
     const preparedRow = prepareRowForRequest(values, fields, this.$registry)
 
+    commit('SET_CREATING', true)
     const { data } = await RowService(this.$client).create(
       table.id,
       preparedRow
     )
+    commit('SET_CREATING', false)
     return await dispatch('createdNewRow', {
       view,
       values: data,
@@ -630,11 +651,28 @@ export const actions = {
    * row from a *different* table using ForeignRowEditModal or just RowEditModal
    * component in general.
    */
-  async refreshRowFromBackend({ commit, getters, dispatch }, { table, row }) {
-    const { data } = await RowService(this.$client).get(table.id, row.id)
-    // Use the return value to update the desired row with latest values from the
-    // backend.
-    commit('UPDATE_ROW', { row, values: data })
+  async refreshRowFromBackend(
+    { commit, getters, rootGetters },
+    { table, row }
+  ) {
+    const gridId = getters.getLastKanbanId
+    const publicUrl = rootGetters['page/view/public/getIsPublic']
+    const publicAuthToken = rootGetters['page/view/public/getAuthToken']
+    commit('SET_ROW_FETCHING', { row, value: true })
+    try {
+      const { data } = await ViewService(this.$client).fetchRow(
+        table.id,
+        row.id,
+        gridId,
+        publicUrl,
+        publicAuthToken
+      )
+      // Use the return value to update the desired row with latest values from the
+      // backend.
+      commit('UPDATE_ROW', { row, values: data })
+    } finally {
+      commit('SET_ROW_FETCHING', { row, value: false })
+    }
   },
   /**
    * The dragging of rows to other stacks and position basically consists of three+
@@ -865,14 +903,19 @@ export const actions = {
       // will never be updated concurrency, and so that the value won't be
       // updated if the row hasn't been created yet.
       await updateRowQueue.add(async () => {
-        const { data } = await RowService(this.$client).update(
+        const updateRowsData = [
+          Object.assign({ id: row.id }, updateRequestValues),
+        ]
+        const { data } = await RowService(this.$client).batchUpdate(
           table.id,
-          row.id,
-          updateRequestValues
+          updateRowsData
         )
-        const readOnlyData = extractRowReadOnlyValues(
-          data,
+        const updatedFieldIds = data.metadata?.updated_field_ids || []
+
+        const readOnlyData = extractChangedFields(
+          data.items[0],
           fields,
+          updatedFieldIds,
           this.$registry
         )
         commit('UPDATE_ROW', { row, values: readOnlyData })
@@ -1098,6 +1141,9 @@ export const getters = {
   },
   getAdhocFiltering(state) {
     return state.adhocFiltering
+  },
+  getCreating(state) {
+    return state.creating
   },
 }
 

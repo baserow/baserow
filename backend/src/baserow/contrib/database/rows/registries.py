@@ -6,8 +6,10 @@ from django.db.models import QuerySet
 from rest_framework.fields import Field
 
 from baserow.contrib.database.rows.models import RowHistory
+from baserow.contrib.database.rows.types import ActionData
 from baserow.core.models import Workspace
 from baserow.core.registry import Instance, Registry
+from baserow.core.types import AnyUser
 
 
 class RowMetadataRegistry(Registry):
@@ -139,5 +141,24 @@ class ChangeRowHistoryType(Instance, abc.ABC):
         return queryset
 
 
+class RowHistoryProviderType(Instance, abc.ABC):
+    """
+    Generic row history provider ABC. This class acts as an interface
+    definition for any history provider class hierarchy that should act on
+    `action_done` signal and provide row changes entries.
+    """
+
+    @abc.abstractmethod
+    def get_row_history(self, user: AnyUser, params: ActionData) -> list[RowHistory]:
+        """
+        Returns a list of RowHistory instances related to the action.
+        """
+
+
+class RowHistoryProviderRegistry(Registry[RowHistoryProviderType]):
+    name = "row_history_provider"
+
+
 row_metadata_registry = RowMetadataRegistry()
 change_row_history_registry = ChangeRowHistoryRegistry()
+row_history_provider_registry = RowHistoryProviderRegistry()

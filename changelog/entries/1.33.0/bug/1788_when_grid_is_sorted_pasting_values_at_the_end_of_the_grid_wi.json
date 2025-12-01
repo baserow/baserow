@@ -1,0 +1,8 @@
+{
+    "type": "bug",
+    "message": "When grid is sorted, pasting values at the end of the grid will populate new rows instead of changing existing ones.",
+    "domain": "database",
+    "issue_number": 1788,
+    "bullet_points": [],
+    "created_at": "2025-04-01"
+}

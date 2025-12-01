@@ -24,7 +24,7 @@
 
     <div class="form-input__wrapper">
       <input
-        :id="id"
+        :id="forInput"
         ref="input"
         class="form-input__input"
         :class="{ 'form-input__input--text-invisible': textInvisible }"
@@ -63,12 +63,10 @@
 <script>
 export default {
   name: 'FormInput',
+  inject: {
+    forInput: { from: 'forInput', default: null },
+  },
   props: {
-    id: {
-      type: String,
-      required: false,
-      default: null,
-    },
     error: {
       type: Boolean,
       required: false,

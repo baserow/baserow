@@ -156,11 +156,9 @@ export default {
       if (!this.selectedDataSourceType) {
         return 20
       }
-      return this.selectedDataSourceType.maxResultLimit
-    },
-    elementHasContent() {
-      const { element } = this.applicationContext
-      return this.$store.getters['elementContent/getElementContent'](element)
+      return this.selectedDataSourceType.getMaxResultLimit(
+        this.selectedDataSource
+      )
     },
     ...mapGetters({
       getElementSelected: 'element/getSelected',

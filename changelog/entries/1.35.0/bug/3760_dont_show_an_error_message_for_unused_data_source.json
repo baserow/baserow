@@ -1,0 +1,8 @@
+{
+    "type": "bug",
+    "message": "Don't show an error message for unused data source",
+    "domain": "builder",
+    "issue_number": 3760,
+    "bullet_points": [],
+    "created_at": "2025-07-23"
+}

@@ -1,5 +1,5 @@
 # syntax = docker/dockerfile:1.3
-FROM debian:bookworm-slim as base
+FROM debian:bookworm-slim AS base
 
 ARG UID
 ENV UID=${UID:-9999}
@@ -16,6 +16,7 @@ ENV DOCKER_USER=baserow_docker_user
 ENV POSTGRES_VERSION=15
 ENV BASEROW_IMAGE_TYPE="backend"
 
+# hadolint ignore=DL3013
 RUN apt-get update &&  \
     apt-get upgrade -y && \
     apt-get install -y --no-install-recommends \
@@ -42,12 +43,19 @@ RUN apt-get update &&  \
     python3-dev \
     python3-venv\
     git \
-    gosu \
     xmlsec1 \
+    && python3 -m pip install --no-cache-dir --upgrade pip setuptools==78.1.1 --break-system-packages \
+    && rm -rf /usr/lib/python3/dist-packages/setuptools* /usr/lib/python3/dist-packages/pkg_resources* \
     && apt-get autoclean \
     && apt-get clean \
     && apt-get autoremove \
     && rm -rf /var/lib/apt/lists/*
+
+# Install su-exec as a safer alternative to gosu
+RUN curl -L -o /usr/local/bin/su-exec.c https://github.com/ncopa/su-exec/raw/master/su-exec.c \
+    && gcc -Wall -Werror -static -o /usr/local/bin/su-exec /usr/local/bin/su-exec.c \
+    && chmod 0755 /usr/local/bin/su-exec \
+    && rm /usr/local/bin/su-exec.c
 
 USER $UID:$GID
 
@@ -59,18 +67,25 @@ COPY --chown=$UID:$GID ./backend/requirements/base.txt /baserow/requirements/
 RUN python3 -m venv /baserow/venv
 
 ENV PIP_CACHE_DIR=/tmp/baserow_pip_cache
-# hadolint ignore=SC1091,DL3042
-RUN --mount=type=cache,mode=777,target=$PIP_CACHE_DIR,uid=$UID,gid=$GID . /baserow/venv/bin/activate && pip3 install  -r /baserow/requirements/base.txt
+# hadolint ignore=SC1091,DL3042,DL3013
+RUN --mount=type=cache,mode=777,target=$PIP_CACHE_DIR,uid=$UID,gid=$GID . /baserow/venv/bin/activate \
+    && pip3 install --no-cache-dir --upgrade pip setuptools==78.1.1 \
+    && pip3 install --no-compile -r /baserow/requirements/base.txt \
+    && find /baserow/venv -type d -name "__pycache__" -prune -exec rm -rf '{}' + \
+    && find /baserow/venv -type f \( -name "*.pyc" -o -name "*.pyo" \) -delete \
+    && find /baserow/venv -type f \( -name "*.c" -o -name "*.h" \) -delete
 
 # Build a dev_deps stage which also has the dev dependencies for use by the dev layer.
-FROM base as dev_deps
+FROM base AS dev_deps
 
 COPY ./backend/requirements/dev.txt /baserow/requirements/
-# hadolint ignore=SC1091,DL3042
-RUN --mount=type=cache,mode=777,target=$PIP_CACHE_DIR,uid=$UID,gid=$GID . /baserow/venv/bin/activate && pip3 install -r /baserow/requirements/dev.txt
+# hadolint ignore=SC1091,DL3042,DL3013
+RUN --mount=type=cache,mode=777,target=$PIP_CACHE_DIR,uid=$UID,gid=$GID . /baserow/venv/bin/activate \
+    && pip3 install --no-cache-dir --upgrade pip setuptools==78.1.1 \
+    && pip3 install -r /baserow/requirements/dev.txt
 
 # The core stage contains all of Baserows source code and sets up the entrypoint
-FROM base as core
+FROM base AS core
 
 # Copy over backend code.
 COPY --chown=$UID:$GID ./docs /baserow/docs
@@ -84,7 +99,7 @@ WORKDIR /baserow/backend
 
 # Ensure that Python outputs everything that's printed inside
 # the application rather than buffering it.
-ENV PYTHONUNBUFFERED 1
+ENV PYTHONUNBUFFERED=1
 
 COPY --chown=$UID:$GID ./deploy/plugins/*.sh /baserow/plugins/
 
@@ -97,7 +112,7 @@ RUN dos2unix /baserow/backend/docker/docker-entrypoint.sh && \
 HEALTHCHECK --interval=60s CMD ["/bin/bash", "/baserow/backend/docker/docker-entrypoint.sh", "backend-healthcheck"]
 ENTRYPOINT ["/usr/bin/tini", "--", "/bin/bash", "/baserow/backend/docker/docker-entrypoint.sh"]
 
-FROM core as dev
+FROM core AS dev
 
 COPY --chown=$UID:$GID ./tests /baserow/tests/
 
@@ -118,7 +133,7 @@ COPY --chown=$UID:$GID --from=dev_deps /baserow/venv /baserow/venv
 ENV DJANGO_SETTINGS_MODULE='baserow.config.settings.dev'
 CMD ["django-dev"]
 
-FROM core as local
+FROM core AS local
 
 ENV DJANGO_SETTINGS_MODULE='baserow.config.settings.base'
 CMD ["gunicorn"]

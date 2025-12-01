@@ -209,7 +209,8 @@
         "placeholder": "Standaard tekst"
     },
     "fieldSingleSelectSubForm": {
-        "optionsLabel": "Opties"
+        "optionsLabel": "Opties",
+        "defaultOptionLabel": "Standaardoptie"
     },
     "fieldSingleSelectDropdown": {
         "notFound": "Optie niet gevonden"
@@ -234,7 +235,8 @@
         "selectTableLabel": "Selecteer een tabel om naar te linken",
         "hasRelatedFieldLabel": "Maak gerelateerd veld",
         "limitToView": "Selectie beperken tot weergave",
-        "limitToViewDescription": "Merk op dat dit alleen visueel is. Het is nog steeds mogelijk om relaties te leggen buiten de weergave via de gerelateerde tabel of API."
+        "limitToViewDescription": "Merk op dat dit alleen visueel is. Het is nog steeds mogelijk om relaties te leggen buiten de weergave via de gerelateerde tabel of API.",
+        "allowMultipleRelations": "Meerdere relaties toestaan"
     },
     "fieldSelectOptions": {
         "add": "Een optie toevoegen"
@@ -253,7 +255,9 @@
         "commaPeriod": "Komma, punt (1,000,000.00)",
         "periodComma": "Punt, komma (1.000.000,00)",
         "prefixPlaceholder": "Voorvoegsel",
-        "noFormatting": "Geen opmaak"
+        "noFormatting": "Geen opmaak",
+        "defaultValueLabel": "Standaardwaarde",
+        "defaultValuePlaceholder": "Voer een standaardwaarde in"
     },
     "fieldContext": {
         "editField": "Veld bewerken",
@@ -268,7 +272,12 @@
         "nameNotAllowed": "Deze veldnaam is niet toegestaan.",
         "nameTooLong": "Deze veldnaam is te lang.",
         "addDescription": "Beschrijving toevoegen",
-        "description": "Beschrijving"
+        "description": "Beschrijving",
+        "dbIndex": "Index",
+        "dbIndexError": "Dit veldtype kan geen index hebben. Verwijder deze voordat u het veldtype opslaat of wijzigt.",
+        "dbIndexDescription": "Indexeren kan de filterprestaties aanzienlijk verbeteren, maar vertraagt het maken, bijwerken en verwijderen.",
+        "defaultValueDisabledByConstraint": "Kan geen standaardwaarde instellen met een unieke beperking",
+        "dbIndexDisabledTooltip": "Indexering is niet beschikbaar voor dit veldtype."
     },
     "fieldLookupSubForm": {
         "noTable": "Je hebt minstens één link-rij veld nodig om een lookup veld te maken.",
@@ -314,7 +323,8 @@
         }
     },
     "rowEditFieldLinkRow": {
-        "addLink": "Nog een link toevoegen"
+        "addLink": "Nog een link toevoegen",
+        "keepOnlyOneValue": "Bewaar slechts één waarde. Dit veld ondersteunt slechts één relatie. De waarde wordt bewaard als er nog maar één relatie is."
     },
     "tableCSVImporter": {
         "chooseFileLabel": "Kies CSV-bestand",
@@ -522,7 +532,9 @@
         "insertLeft": "Links invoegen",
         "insertRight": "Rechts invoegen",
         "duplicate": "Dupliceer veld",
-        "dataSyncField": "Het veld is alleen-lezen en maakt deel uit van de data sync van de tabel."
+        "dataSyncField": "Het veld is alleen-lezen en maakt deel uit van de data sync van de tabel.",
+        "noWriteValues": "Wijzigingen in dit veld zijn beperkt.",
+        "dataSyncFieldTwoWaySync": "Het veld wordt gesynchroniseerd met de gegevenssynchronisatie van de tabel."
     },
     "gridViewRow": {
         "rowNotMatchingFilters": "Rij komt niet overeen met filters",
@@ -549,10 +561,12 @@
         "generateCellsValues": "Genereer waardes met AI",
         "AIValuesGenerationErrorTitle": "AI-waardegeneratie mislukt",
         "AIValuesGenerationErrorMessage": "Controleer alsjeblieft je API_KEY en controleer het geselecteerde model.",
-        "copyCellsWithHeader": "Cellen met koptekst kopiëren"
+        "copyCellsWithHeader": "Cellen met koptekst kopiëren",
+        "generateAllAiValues": "Genereer alle AI-waarden"
     },
     "gridViewFieldLinkRow": {
-        "unnamed": "onbenoemde rij {value}"
+        "unnamed": "onbenoemde rij {value}",
+        "keepOnlyOneValue": "Slechts één waarde behouden"
     },
     "gridViewIdentifierOptions": {
         "id": "Rij identificatie",
@@ -726,7 +740,8 @@
         "includeAllSelectOptionsHelper": "Kies de keuzes die in het formulier moeten worden opgenomen met behulp van deze dropdown",
         "noSelectOptions": "Er zijn geen keuzes beschikbaar.",
         "includeAllSelectOptions": "inclusief alle keuzes",
-        "noCollaboratorsAvailable": "Er zijn geen medewerkers beschikbaar."
+        "noCollaboratorsAvailable": "Er zijn geen medewerkers beschikbaar.",
+        "cannotSumitValues": "Dit veld is alleen-lezen en wordt niet weergegeven in het formulier."
     },
     "duplicateFieldContext": {
         "duplicate": "Dupliceer veld",
@@ -822,7 +837,9 @@
         "addLogo": "Logo toevoegen",
         "noFields": "Dit formulier heeft nog geen velden. Klik op een veld in de linker zijbalk om er een toe te voegen.",
         "descriptionPlaceholder": "Beschrijving",
-        "titlePlaceholder": "Titel"
+        "titlePlaceholder": "Titel",
+        "noFieldsTitle": "Dit formulier heeft geen velden",
+        "noFieldsContent": "Klik op een veld in de linkerzijbalk om er een toe te voegen."
     },
     "gridViewFieldFile": {
         "dropHere": "Laat hier los",
@@ -838,7 +855,8 @@
     },
     "duplicateTableJobType": {
         "duplicatedTitle": "Tabel dupliceerd",
-        "duplicating": "Dupliceren"
+        "duplicating": "Dupliceren",
+        "name": "Dupliceer tabel"
     },
     "fileField": {
         "errorEmptyFileNameMessage": "U kunt geen lege naam voor een bestand instellen.",
@@ -872,7 +890,15 @@
     "rowHistorySidebar": {
         "you": "Jij",
         "name": "Geschiedenis",
-        "empty": "Nog geen wijzigingen. Wijzigingen in deze rij kun je hier volgen."
+        "empty": "Nog geen wijzigingen. Wijzigingen in deze rij kun je hier volgen.",
+        "created": "deze rij is aangemaakt",
+        "updated": "deze rij is bijgewerkt",
+        "submitted": "deze rij is ingediend",
+        "restored": "deze rij is hersteld",
+        "createdUndo": "rij maken ongedaan maken",
+        "updatedUndo": "rij update ongedaan maken",
+        "deletedUndo": "rij verwijderen ongedaan maken",
+        "deleted": "deze rij is verwijderd"
     },
     "viewGroupByContext": {
         "groupBy": "Groepeer op",
@@ -883,7 +909,8 @@
     },
     "collaboratorAddedToRowNotification": {
         "title": "{sender} heeft u toegewezen aan {fieldName} in rij {rowId} in {tableName}",
-        "deletedUser": "Een verwijderde gebruiker"
+        "deletedUser": "Een verwijderde gebruiker",
+        "unknownUser": "Een onbekende gebruiker"
     },
     "fieldCollaboratorSubForm": {
         "notifyUserWhenAdded": "Gebruiker op de hoogte stellen wanneer toegevoegd"
@@ -900,7 +927,9 @@
         "durationFormatLabel": "Duur format"
     },
     "fieldPasswordSubForm": {
-        "description": "Het is nog niet mogelijk om direct iets te doen met het wachtwoordveld, dit wordt alleen gebruikt door de gebruikersauthenticatie in de applicatiebouwer."
+        "description": "Het is nog niet mogelijk om direct iets te doen met het wachtwoordveld, dit wordt alleen gebruikt door de gebruikersauthenticatie in de applicatiebouwer.",
+        "allowEndpointAuthentication": "API endpoint authenticatie toestaan",
+        "allowEndpointAuthenticationHelp": "Dit stelt een eindpunt beschikbaar waar de rij-ID en het wachtwoord kunnen worden gecontroleerd op juistheid. Hierdoor kan Baserow worden gebruikt als backend voor authenticatie."
     },
     "rowEditFieldPassword": {
         "setPassword": "Stel een wachtwoord in"
@@ -1058,7 +1087,10 @@
         "fields": "Selecteer de velden die je wilt synchroniseren",
         "create": "Tabel maken en synchroniseren",
         "error": "Er is iets misgegaan tijdens de synchronisatie",
-        "next": "Volgende"
+        "next": "Volgende",
+        "autoAddLabel": "Automatisch nieuwe eigenschappen toevoegen",
+        "autoAddHelper": "Voegt automatisch nieuw beschikbare eigenschappen toe aan de tabel en synchroniseert deze. Merk op dat om dit te laten werken, alle eigenschappen gesynchroniseerd moeten zijn.",
+        "twoWaySyncLabel": "Bidirectionele synchronisatie"
     },
     "syncTableModal": {
         "title": "Sync {name}",
@@ -1132,5 +1164,29 @@
     "viewOptionsGuidedTourStep": {
         "title": "Weergave opties",
         "content": "Klik op de drie puntjes naast de weergave om een webhook te exporteren, importeren, dupliceren en configureren."
+    },
+    "fieldBooleanSubForm": {
+        "defaultValue": "Standaard"
+    },
+    "apiDocsListTables": {
+        "listTables": "Toon alle tabellen",
+        "listTablesDescription": "Dit eindpunt werkt alleen in combinatie met token authenticatie. Het geeft een overzicht van alle tabellen waartoe het token toegang heeft (maken, lezen, bijwerken of verwijderen)."
+    },
+    "fieldMultipleSelectSubForm": {
+        "optionsLabel": "Opties",
+        "defaultOptionsLabel": "Standaardopties"
+    },
+    "apiDocsPasswordFieldAuthentication": {
+        "title": "{name} authenticatie",
+        "description": "Controleert of het opgegeven wachtwoord en de rij overeenkomen met wat is opgeslagen in de cel.",
+        "fieldId": "De veld-ID waarop het wachtwoord moet worden gecontroleerd.",
+        "rowId": "De rij-ID waarvoor het wachtwoord moet worden gecontroleerd.",
+        "password": "Het wachtwoord waarvan gecontroleerd moet worden of het correct is."
+    },
+    "fieldRules": {
+        "errorTitle": "Fout tijdens verwerking veldregel",
+        "ruleDoesNotExist": "Regel bestaat niet",
+        "ruleTypeDoesNotExist": "Regeltype bestaat niet",
+        "ruleAlreadyExists": "Regel bestaat al"
     }
 }

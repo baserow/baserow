@@ -205,10 +205,10 @@ export class ApplicationType extends Registerable {
   }
 
   /**
-   * Adds a visual `beta` label indicator when creating a new one.
+   * Returns the development stage of the application type.
    */
-  isBeta() {
-    return false
+  get developmentStage() {
+    return null
   }
 
   getOrder() {

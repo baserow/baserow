@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-03-05 11:01+0000\n"
+"POT-Creation-Date: 2025-11-17 15:17+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,6 +17,146 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: src/baserow_enterprise/assistant/assistant.py:461
+msgid "Thinking..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/assistant.py:469
+msgid ""
+"I wanted to search the documentation for you, but the search tool isn't "
+"currently available.\n"
+"\n"
+"To enable documentation search, you'll need to set up the local knowledge "
+"base. \n"
+"\n"
+"You can find setup instructions at: https://baserow.io/user-docs"
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/automation/tools.py:38
+msgid "Listing workflows..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/automation/utils.py:283
+#, python-format
+msgid "Creating workflow '%(name)s'..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/automation/utils.py:296
+#, python-format
+msgid "Creating trigger '%(label)s'..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/automation/utils.py:316
+#, python-format
+msgid "Creating node '%(label)s'..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/automation/utils.py:381
+#, python-format
+msgid "Generating formulas for node '%(label)s'..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/core/tools.py:44
+#, python-format
+msgid "Listing %(builder_types)ss..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/core/tools.py:103
+#, python-format
+msgid "Creating %(builder_type)s %(builder_name)s..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/database/tools.py:92
+#, python-format
+msgid "Listing tables in %(database_names)s..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/database/tools.py:151
+#, python-format
+msgid "Inspecting %(table_names)s schema..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/database/tools.py:230
+#, python-format
+msgid "Creating table %(table_name)s..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/database/tools.py:272
+msgid "Preparing example rows for these new tables..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/database/tools.py:368
+#, python-format
+msgid "Listing rows in %(table_name)s "
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/database/tools.py:506
+#, python-format
+msgid "Listing views in %(table_name)s..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/database/tools.py:557
+#, python-format
+msgid "Creating filters in %(view_name)s..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/database/tools.py:602
+#, python-format
+msgid "Creating %(view_type)s view %(view_name)s"
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/database/tools.py:781
+msgid "Generating formula..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/database/utils.py:127
+#, python-format
+msgid "Creating field %(field_name)s..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/database/utils.py:417
+#, python-format
+msgid "Creating rows in %(table_name)s "
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/database/utils.py:458
+#, python-format
+msgid "Updating rows in %(table_name)s "
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/database/utils.py:497
+#, python-format
+msgid "Deleting rows in %(table_name)s "
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/navigation/tools.py:39
+#, python-format
+msgid "Navigating to %(location)s..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/search_user_docs/tools.py:102
+msgid "Exploring the knowledge base..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/types.py:220
+#, python-format
+msgid "table %(table_name)s"
+msgstr ""
+
+#: src/baserow_enterprise/assistant/types.py:232
+#, python-format
+msgid "view %(view_name)s"
+msgstr ""
+
+#: src/baserow_enterprise/assistant/types.py:239
+msgid "home"
+msgstr ""
+
+#: src/baserow_enterprise/assistant/types.py:249
+#, python-format
+msgid "workflow %(workflow_name)s"
+msgstr ""
 
 #: src/baserow_enterprise/audit_log/job_types.py:36
 msgid "User Email"
@@ -71,16 +211,51 @@ msgstr ""
 msgid "Data sync table \"%(table_name)s\" (%(table_id)s) updated"
 msgstr ""
 
-#: src/baserow_enterprise/data_sync/notification_types.py:66
+#: src/baserow_enterprise/data_sync/notification_types.py:106
 #, python-format
 msgid "%(name)s periodic data sync has been deactivated."
 msgstr ""
 
-#: src/baserow_enterprise/data_sync/notification_types.py:73
+#: src/baserow_enterprise/data_sync/notification_types.py:115
+msgid ""
+"The periodic data sync has been disabled because the workspace no longer has "
+"a valid license for data sync features. Please update your license to "
+"restore automatic syncing."
+msgstr ""
+
+#: src/baserow_enterprise/data_sync/notification_types.py:121
 #, python-format
 msgid ""
-"The periodic data sync failed more than %(max_failures)s consecutive "
-"timesand was therefore deactivated."
+"The periodic data sync failed more than %(max_failures)s consecutive times "
+"and was therefore deactivated."
+msgstr ""
+
+#: src/baserow_enterprise/data_sync/notification_types.py:150
+#, python-format
+msgid "%(table_name)s two-way sync update failed."
+msgstr ""
+
+#: src/baserow_enterprise/data_sync/notification_types.py:180
+#, python-format
+msgid "%(table_name)s two-way sync deactivated."
+msgstr ""
+
+#: src/baserow_enterprise/data_sync/notification_types.py:187
+msgid ""
+"The two-way sync was deactivated because an update failed too many times "
+"consecutively. Please manually sync, and reactivate when the problem is "
+"resolved."
+msgstr ""
+
+#: src/baserow_enterprise/field_permissions/actions.py:25
+msgid "Update field permissions"
+msgstr ""
+
+#: src/baserow_enterprise/field_permissions/actions.py:27
+#, python-format
+msgid ""
+"Field \"%(field_name)s\" (%(field_id)s): permissions updated to role "
+"\"%(role)s\" and \"allow in forms\" set to \"%(allow_in_forms)s\""
 msgstr ""
 
 #: src/baserow_enterprise/role/actions.py:28
@@ -94,9 +269,8 @@ msgstr ""
 #: src/baserow_enterprise/role/actions.py:32
 #, python-format
 msgid ""
-"Role %(role_uid)s assigned to subject type "
-"\"%(subject_type_name)s\" (%(subject_id)s) on scope type "
-"\"%(scope_type_name)s\" (%(scope_id)s)."
+"Role %(role_uid)s assigned to subject type \"%(subject_type_name)s\" "
+"(%(subject_id)s) on scope type \"%(scope_type_name)s\" (%(scope_id)s)."
 msgstr ""
 
 #: src/baserow_enterprise/teams/actions.py:21

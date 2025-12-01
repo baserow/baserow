@@ -19,10 +19,9 @@
 
 <script>
 import formElement from '@baserow/modules/builder/mixins/formElement'
-import { ensureString } from '@baserow/modules/core/utils/validator'
 import ABDateTimePicker from '@baserow/modules/builder/components/elements/baseComponents/ABDateTimePicker.vue'
 import { DATE_FORMATS, TIME_FORMATS } from '@baserow/modules/builder/enums'
-import { FormattedDate, FormattedDateTime } from '@baserow/modules/builder/date'
+import { ensureString } from '@baserow/modules/core/utils/validator'
 
 export default {
   name: 'DateTimePickerElement',
@@ -49,40 +48,8 @@ export default {
     DATE_FORMATS() {
       return DATE_FORMATS
     },
-    resolvedDefaultValue() {
-      const resolvedFormula = this.resolveFormula(this.element.default_value)
-      if (!resolvedFormula) {
-        return null
-      }
-      const FormattedDateOrDateTimeClass = this.element.include_time
-        ? FormattedDateTime
-        : FormattedDate
-
-      // Try to parse the date/datetime initially as an ISO string
-      let value = new FormattedDateOrDateTimeClass(resolvedFormula)
-
-      // If the previous fails, try again with the element current format
-      if (!value.isValid()) {
-        const dateFormat = DATE_FORMATS[this.element.date_format].format
-        const timeFormat = TIME_FORMATS[this.element.time_format].format
-        const format = this.element.include_time
-          ? `${dateFormat} ${timeFormat}`
-          : dateFormat
-        value = new FormattedDateOrDateTimeClass(resolvedFormula, format)
-      }
-
-      return value
-    },
     resolvedLabel() {
       return ensureString(this.resolveFormula(this.element.label))
-    },
-  },
-  watch: {
-    resolvedDefaultValue: {
-      handler(value) {
-        this.inputValue = value
-      },
-      immediate: true,
     },
   },
   methods: {

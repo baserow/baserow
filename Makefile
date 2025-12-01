@@ -180,6 +180,12 @@ docker-frontend-attach:
 docker-frontend-logs:
 	$(DOCKERC) $(DOCKER_SPLIT_CONF) logs -tf web-frontend
 
+docker-db-logs:
+	$(DOCKERC) $(DOCKER_SPLIT_CONF) logs -tf db
+
+docker-db-shell:
+	$(DOCKERC) $(DOCKER_SPLIT_CONF) exec db bash
+
 clean: SUBCMD=clean
 clean: .subcmd docker-clean
 

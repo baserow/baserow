@@ -1,8 +1,8 @@
 .sidebar {
   @include absolute(0);
 
-  background-color: $color-neutral-50;
-  border-right: solid 1px $color-neutral-200;
+  background-color: $palette-neutral-25;
+  border-right: solid 1px $palette-neutral-200;
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -165,9 +165,19 @@
 
   .sidebar--collapsed & {
     flex-direction: column;
-    gap: 8px;
     margin-top: 0;
-    margin-bottom: 8px;
+    margin-bottom: 16px;
+  }
+}
+
+.sidebar__foot-separator {
+  width: 1px;
+  height: 16px;
+  background-color: $palette-neutral-200;
+
+  .sidebar--collapsed & {
+    width: 16px;
+    height: 1px;
   }
 }
 
@@ -299,4 +309,74 @@
 .sidebar__item-count {
   margin-left: auto;
   color: $palette-neutral-700;
+}
+
+.sidebar__search {
+  margin-bottom: 8px;
+  display: block;
+  width: 100%;
+  padding: 0;
+  background-color: transparent;
+
+  &:hover,
+  &:not(.tree__action--disabled):hover {
+    background-color: transparent;
+  }
+}
+
+.sidebar__search-input {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  line-height: 36px;
+  width: 100%;
+  padding: 0 48px 0 8px;
+  background-color: $white;
+  border: 1px solid $palette-neutral-400;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  @include rounded($rounded-md);
+  @include elevation($elevation-low);
+}
+
+.sidebar__search-icon {
+  color: $palette-neutral-700;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.sidebar__search-placeholder {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 12px;
+  color: $palette-neutral-700;
+  font-weight: 400;
+}
+
+.sidebar__search-shortcut {
+  position: absolute;
+  top: calc(50% - 8px);
+  right: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+
+  kbd {
+    border: 0;
+    background-color: $palette-neutral-100;
+    border-radius: 3px;
+    font-family: inherit;
+    font-size: 10px;
+    font-weight: 700;
+    color: $palette-neutral-700;
+    height: 16px;
+    line-height: 16px;
+    padding: 0;
+    min-width: 16px;
+    text-align: center;
+  }
 }

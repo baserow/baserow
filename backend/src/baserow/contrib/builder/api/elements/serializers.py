@@ -32,6 +32,7 @@ from baserow.contrib.builder.workflow_actions.registries import (
 )
 from baserow.core.exceptions import InstanceTypeDoesNotExist
 from baserow.core.formula.serializers import FormulaSerializerField
+from baserow.core.formula.types import BASEROW_FORMULA_MODE_RAW
 
 
 class ElementSerializer(serializers.ModelSerializer):
@@ -49,6 +50,10 @@ class ElementSerializer(serializers.ModelSerializer):
     def get_type(self, instance):
         return element_type_registry.get_by_model(instance.specific_class).type
 
+    visibility_condition = FormulaSerializerField(
+        help_text=Element._meta.get_field("visibility_condition").help_text,
+    )
+
     style_background_file = UserFileField(
         allow_null=True,
         help_text="The background image file",
@@ -64,7 +69,9 @@ class ElementSerializer(serializers.ModelSerializer):
             "order",
             "parent_element_id",
             "place_in_container",
+            "css_classes",
             "visibility",
+            "visibility_condition",
             "styles",
             "style_border_top_color",
             "style_border_top_size",
@@ -130,6 +137,10 @@ class CreateElementSerializer(serializers.ModelSerializer):
         validators=[image_file_validation],
     )
 
+    visibility_condition = FormulaSerializerField(
+        help_text=Element._meta.get_field("visibility_condition").help_text,
+    )
+
     class Meta:
         model = Element
         fields = (
@@ -138,7 +149,9 @@ class CreateElementSerializer(serializers.ModelSerializer):
             "type",
             "parent_element_id",
             "place_in_container",
+            "css_classes",
             "visibility",
+            "visibility_condition",
             "styles",
             "style_border_top_color",
             "style_border_top_size",
@@ -178,10 +191,16 @@ class UpdateElementSerializer(serializers.ModelSerializer):
         validators=[image_file_validation],
     )
 
+    visibility_condition = FormulaSerializerField(
+        help_text=Element._meta.get_field("visibility_condition").help_text,
+    )
+
     class Meta:
         model = Element
         fields = (
+            "css_classes",
             "visibility",
+            "visibility_condition",
             "styles",
             "style_border_top_color",
             "style_border_top_size",
@@ -261,7 +280,7 @@ class DuplicateElementSerializer(serializers.Serializer):
 
 class PageParameterValueSerializer(serializers.Serializer):
     name = serializers.CharField()
-    value = FormulaSerializerField(allow_blank=True)
+    value = FormulaSerializerField()
 
 
 @extend_schema_serializer(exclude_fields=("config",))
@@ -360,7 +379,7 @@ class UpdateCollectionFieldSerializer(serializers.ModelSerializer):
         help_text=CollectionField._meta.get_field("type").help_text,
     )
 
-    value = FormulaSerializerField(allow_blank=True)
+    value = FormulaSerializerField()
 
 
 class ChoiceOptionSerializer(serializers.ModelSerializer):
@@ -405,8 +424,6 @@ class MenuItemSerializer(serializers.ModelSerializer):
     )
     navigate_to_url = FormulaSerializerField(
         help_text=LinkElement._meta.get_field("navigate_to_url").help_text,
-        default="",
-        allow_blank=True,
         required=False,
     )
     page_parameters = PageParameterValueSerializer(
@@ -481,3 +498,40 @@ class NestedMenuItemsMixin(serializers.Serializer):
         return MenuItemSerializer(
             root_items, many=True, context={"all_items": menu_items}
         ).data
+
+
+@extend_schema_field(OpenApiTypes.STR)
+class CollectionFieldOptionalFormulaSerializerField(FormulaSerializerField):
+    """
+    This field can be used to store a formula which mode depends on a field aside. If
+    `is_formula_field_name` property is `True`,
+    then the value will be treated as a simple formula otherwise, the value
+    will be treated as raw formula.
+    """
+
+    def __init__(self, *args, is_formula_field_name=None, **kwargs):
+        self.is_formula_field_name = is_formula_field_name
+        super().__init__(*args, **kwargs)
+
+    def to_representation(self, value):
+        value = super().to_representation(value)
+
+        is_formula = getattr(self.parent.instance, "config", {}).get(
+            self.is_formula_field_name, False
+        )
+
+        if not is_formula:
+            # We force the type to raw as it's not a formula
+            # For compat with unmigrated values.
+            value["mode"] = BASEROW_FORMULA_MODE_RAW
+
+        return value
+
+    def to_internal_value(self, data):
+        data = super().to_internal_value(data)
+
+        is_formula = self.parent.data.get(self.is_formula_field_name, False)
+        if not is_formula:
+            data["mode"] = BASEROW_FORMULA_MODE_RAW
+
+        return data

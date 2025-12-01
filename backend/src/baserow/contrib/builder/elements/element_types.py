@@ -29,10 +29,8 @@ from baserow.contrib.builder.api.elements.serializers import (
     MenuItemSerializer,
     NestedMenuItemsMixin,
 )
-from baserow.contrib.builder.data_providers.exceptions import (
-    FormDataProviderChunkInvalidException,
-)
 from baserow.contrib.builder.data_sources.handler import DataSourceHandler
+from baserow.contrib.builder.elements.exceptions import ElementImproperlyConfigured
 from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.mixins import (
     CollectionElementTypeMixin,
@@ -96,8 +94,13 @@ from baserow.core.formula import (
     get_parse_tree_for_formula,
     resolve_formula,
 )
+from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
 from baserow.core.formula.registries import formula_runtime_function_registry
-from baserow.core.formula.types import BaserowFormula
+from baserow.core.formula.types import (
+    BASEROW_FORMULA_MODE_SIMPLE,
+    BaserowFormula,
+    BaserowFormulaObject,
+)
 from baserow.core.formula.validator import (
     ensure_array,
     ensure_boolean,
@@ -229,12 +232,16 @@ class FormContainerElementType(ContainerElementTypeMixin, ElementType):
     simple_formula_fields = ["submit_button_label"]
 
     class SerializedDict(ContainerElementTypeMixin.SerializedDict):
-        submit_button_label: BaserowFormula
+        submit_button_label: BaserowFormulaObject
         reset_initial_values_post_submission: bool
 
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
         return {
-            "submit_button_label": "'Submit'",
+            "submit_button_label": BaserowFormulaObject(
+                formula="'Submit'",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
             "reset_initial_values_post_submission": True,
         }
 
@@ -253,9 +260,6 @@ class FormContainerElementType(ContainerElementTypeMixin, ElementType):
                 help_text=FormContainerElement._meta.get_field(
                     "submit_button_label"
                 ).help_text,
-                required=False,
-                allow_blank=True,
-                default="",
             ),
             "reset_initial_values_post_submission": serializers.BooleanField(
                 help_text=FormContainerElement._meta.get_field(
@@ -339,10 +343,17 @@ class TableElementType(CollectionElementWithFieldsTypeMixin, ElementType):
             ),
         }
 
+    def enhance_queryset(self, queryset):
+        return super().enhance_queryset(queryset).prefetch_related("fields")
+
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
         return {
             "data_source_id": None,
-            "button_load_more_label": "'test'",
+            "button_load_more_label": BaserowFormulaObject(
+                formula="'test'",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
             "orientation": get_default_table_orientation(),
         }
 
@@ -405,7 +416,11 @@ class RepeatElementType(
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
         return {
             "data_source_id": None,
-            "button_load_more_label": "'test'",
+            "button_load_more_label": BaserowFormulaObject(
+                formula="'test'",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
             "orientation": RepeatElement.ORIENTATIONS.VERTICAL,
         }
 
@@ -415,7 +430,7 @@ class RecordSelectorElementType(
 ):
     type = "record_selector"
     model_class = RecordSelectorElement
-    simple_formula_fields = [
+    simple_formula_fields = CollectionElementTypeMixin.simple_formula_fields + [
         "label",
         "default_value",
         "placeholder",
@@ -428,11 +443,11 @@ class RecordSelectorElementType(
 
     class SerializedDict(CollectionElementTypeMixin.SerializedDict):
         required: bool
-        label: BaserowFormula
-        default_value: BaserowFormula
-        placeholder: BaserowFormula
+        label: BaserowFormulaObject
+        default_value: BaserowFormulaObject
+        placeholder: BaserowFormulaObject
         multiple: bool
-        option_name_suffix: BaserowFormula
+        option_name_suffix: BaserowFormulaObject
 
     @property
     def serializer_field_overrides(self):
@@ -454,25 +469,16 @@ class RecordSelectorElementType(
             ),
             "label": FormulaSerializerField(
                 help_text=RecordSelectorElement._meta.get_field("label").help_text,
-                required=False,
-                allow_blank=True,
-                default="",
             ),
             "default_value": FormulaSerializerField(
                 help_text=RecordSelectorElement._meta.get_field(
                     "default_value"
                 ).help_text,
-                required=False,
-                allow_blank=True,
-                default="",
             ),
             "placeholder": FormulaSerializerField(
                 help_text=RecordSelectorElement._meta.get_field(
                     "placeholder"
                 ).help_text,
-                required=False,
-                allow_blank=True,
-                default="",
             ),
             "multiple": serializers.BooleanField(
                 help_text=RecordSelectorElement._meta.get_field("multiple").help_text,
@@ -483,9 +489,6 @@ class RecordSelectorElementType(
                 help_text=RecordSelectorElement._meta.get_field(
                     "option_name_suffix"
                 ).help_text,
-                required=False,
-                allow_blank=True,
-                default="",
             ),
         }
 
@@ -551,7 +554,9 @@ class RecordSelectorElementType(
                 # to populate the formula context with the `data_source_id`
                 # of the element so that we can resolve them.
                 formula_context = kwargs | self.import_context_addition(instance)
-                tree = get_parse_tree_for_formula(instance.option_name_suffix)
+                tree = get_parse_tree_for_formula(
+                    instance.option_name_suffix["formula"]
+                )
                 properties = merge_dicts_no_duplicates(
                     properties,
                     FormulaFieldVisitor(**formula_context).visit(tree),
@@ -588,11 +593,27 @@ class RecordSelectorElementType(
         return {
             "data_source_id": None,
             "required": False,
-            "label": "",
-            "default_value": "",
-            "placeholder": "",
+            "label": BaserowFormulaObject(
+                formula="",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
+            "default_value": BaserowFormulaObject(
+                formula="",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
+            "placeholder": BaserowFormulaObject(
+                formula="",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
             "multiple": False,
-            "option_name_suffix": "",
+            "option_name_suffix": BaserowFormulaObject(
+                formula="",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
         }
 
     def is_valid(
@@ -606,8 +627,8 @@ class RecordSelectorElementType(
         """
 
         if not element.data_source_id:
-            msg = "Record selector requires a valid data source."
-            raise FormDataProviderChunkInvalidException(msg)
+            msg = "A valid data source is required"
+            raise ElementImproperlyConfigured(msg)
 
         data_source = DataSourceHandler().get_data_source(element.data_source_id)
 
@@ -627,26 +648,26 @@ class RecordSelectorElementType(
                 "The value must be an array of integers, or convertible to an"
                 "array of integers"
             )
-            raise FormDataProviderChunkInvalidException(msg) from err
+            raise TypeError(msg) from err
 
         if element.multiple:
             if element.required and not record_ids:
-                msg = "This value is required"
-                raise FormDataProviderChunkInvalidException(msg)
+                msg = "The value is required"
+                raise ValueError(msg)
 
             if not record_ids.issubset(available_record_ids):
                 msg = f"{value} is not a valid option"
-                raise FormDataProviderChunkInvalidException(msg)
+                raise ValueError(msg)
         else:
             record_id = value
 
             if not record_id:
                 if element.required:
-                    msg = "This value is required"
-                    raise FormDataProviderChunkInvalidException(msg)
+                    msg = "The value is required"
+                    raise ValueError(msg)
             elif record_id not in available_record_ids:
                 msg = f"{record_id} is not a valid option"
-                raise FormDataProviderChunkInvalidException(msg)
+                raise ValueError(msg)
 
         return value
 
@@ -663,7 +684,7 @@ class HeadingElementType(ElementType):
     simple_formula_fields = ["value"]
 
     class SerializedDict(ElementDict):
-        value: BaserowFormula
+        value: BaserowFormulaObject
         level: int
 
     @property
@@ -679,9 +700,6 @@ class HeadingElementType(ElementType):
         overrides = {
             "value": FormulaSerializerField(
                 help_text="The value of the element. Must be an formula.",
-                required=False,
-                allow_blank=True,
-                default="",
             ),
             "level": serializers.IntegerField(
                 help_text="The level of the heading from 1 to 6.",
@@ -700,7 +718,14 @@ class HeadingElementType(ElementType):
         return overrides
 
     def get_pytest_params(self, pytest_data_fixture):
-        return {"value": "'Corporis perspiciatis'", "level": 2}
+        return {
+            "value": BaserowFormulaObject(
+                formula="'Corporis perspiciatis'",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
+            "level": 2,
+        }
 
 
 class TextElementType(ElementType):
@@ -715,16 +740,20 @@ class TextElementType(ElementType):
     simple_formula_fields = ["value"]
 
     class SerializedDict(ElementDict):
-        value: BaserowFormula
+        value: BaserowFormulaObject
         format: str
 
     def get_pytest_params(self, pytest_data_fixture):
         return {
-            "value": "'Suscipit maxime eos ea vel commodi dolore. "
-            "Eum dicta sit rerum animi. Sint sapiente eum cupiditate nobis vel. "
-            "Maxime qui nam consequatur. "
-            "Asperiores corporis perspiciatis nam harum veritatis. "
-            "Impedit qui maxime aut illo quod ea molestias.'",
+            "value": BaserowFormulaObject(
+                formula="'Suscipit maxime eos ea vel commodi dolore. "
+                "Eum dicta sit rerum animi. Sint sapiente eum cupiditate nobis vel. "
+                "Maxime qui nam consequatur. "
+                "Asperiores corporis perspiciatis nam harum veritatis. "
+                "Impedit qui maxime aut illo quod ea molestias.'",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
             "format": TextElement.TEXT_FORMATS.PLAIN,
         }
 
@@ -741,9 +770,6 @@ class TextElementType(ElementType):
         return {
             "value": FormulaSerializerField(
                 help_text="The value of the element. Must be a formula.",
-                required=False,
-                allow_blank=True,
-                default="",
             ),
             "format": serializers.ChoiceField(
                 choices=TextElement.TEXT_FORMATS.choices,
@@ -790,7 +816,7 @@ class NavigationElementManager:
         navigate_to_page_id: int
         page_parameters: List
         query_parameters: List
-        navigate_to_url: BaserowFormula
+        navigate_to_url: BaserowFormulaObject
         target: str
 
     def deserialize_property(
@@ -833,9 +859,6 @@ class NavigationElementManager:
                 help_text=NavigationElementMixin._meta.get_field(
                     "navigate_to_url"
                 ).help_text,
-                default="",
-                allow_blank=True,
-                required=False,
             ),
             "page_parameters": PageParameterValueSerializer(
                 many=True,
@@ -870,7 +893,11 @@ class NavigationElementManager:
         return {
             "navigation_type": "custom",
             "navigate_to_page_id": None,
-            "navigate_to_url": '"http://example.com"',
+            "navigate_to_url": BaserowFormulaObject(
+                formula='"http://example.com"',
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
             "page_parameters": [],
             "query_parameters": [],
             "target": "blank",
@@ -928,7 +955,7 @@ class NavigationElementManager:
 
             if page_parameter_type is None:
                 raise DRFValidationError(
-                    f"Page path parameter {page_parameter} does not exist."
+                    f"Page path parameter {page_parameter['name']} does not exist"
                 )
 
 
@@ -964,7 +991,7 @@ class LinkElementType(ElementType):
         )
 
     class SerializedDict(ElementDict, NavigationElementManager.SerializedDict):
-        value: BaserowFormula
+        value: BaserowFormulaObject
         variant: str
 
     def formula_generator(
@@ -980,13 +1007,13 @@ class LinkElementType(ElementType):
         yield from super().formula_generator(element)
 
         for index, data in enumerate(element.page_parameters):
-            new_formula = yield data["value"]
+            new_formula = yield BaserowFormulaObject.to_formula(data["value"])
             if new_formula is not None:
                 element.page_parameters[index]["value"] = new_formula
                 yield element
 
         for index, data in enumerate(element.query_parameters or []):
-            new_formula = yield data["value"]
+            new_formula = yield BaserowFormulaObject.to_formula(data["value"])
             if new_formula is not None:
                 element.query_parameters[index]["value"] = new_formula
                 yield element
@@ -1030,9 +1057,6 @@ class LinkElementType(ElementType):
             | {
                 "value": FormulaSerializerField(
                     help_text="The value of the element. Must be an formula.",
-                    required=False,
-                    allow_blank=True,
-                    default="",
                 ),
                 "variant": serializers.ChoiceField(
                     choices=LinkElement.VARIANTS.choices,
@@ -1055,7 +1079,11 @@ class LinkElementType(ElementType):
 
     def get_pytest_params(self, pytest_data_fixture):
         return NavigationElementManager().get_pytest_params(pytest_data_fixture) | {
-            "value": "'test'",
+            "value": BaserowFormulaObject(
+                formula="'test'",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
             "variant": "link",
         }
 
@@ -1098,15 +1126,23 @@ class ImageElementType(ElementType):
     class SerializedDict(ElementDict):
         image_source_type: str
         image_file_id: int
-        image_url: BaserowFormula
-        alt_text: BaserowFormula
+        image_url: BaserowFormulaObject
+        alt_text: BaserowFormulaObject
 
     def get_pytest_params(self, pytest_data_fixture):
         return {
             "image_source_type": ImageElement.IMAGE_SOURCE_TYPES.UPLOAD,
             "image_file_id": None,
-            "image_url": "'https://test.com/image.png'",
-            "alt_text": "'some alt text'",
+            "image_url": BaserowFormulaObject(
+                formula="'https://test.com/image.png'",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
+            "alt_text": BaserowFormulaObject(
+                formula="'some alt text'",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
         }
 
     @property
@@ -1124,15 +1160,9 @@ class ImageElementType(ElementType):
             "image_file": UserFileSerializer(required=False),
             "image_url": FormulaSerializerField(
                 help_text=ImageElement._meta.get_field("image_url").help_text,
-                required=False,
-                allow_blank=True,
-                default="",
             ),
             "alt_text": FormulaSerializerField(
                 help_text=ImageElement._meta.get_field("alt_text").help_text,
-                required=False,
-                allow_blank=True,
-                default="",
             ),
             "styles": DynamicConfigBlockSerializer(
                 required=False,
@@ -1155,8 +1185,15 @@ class ImageElementType(ElementType):
         from baserow.contrib.builder.theme.theme_config_block_types import (
             ImageThemeConfigBlockType,
         )
+        from baserow.core.formula.serializers import FormulaSerializerField
 
         overrides = {
+            "image_url": FormulaSerializerField(
+                help_text=ImageElement._meta.get_field("image_url").help_text
+            ),
+            "alt_text": FormulaSerializerField(
+                help_text=ImageElement._meta.get_field("alt_text").help_text
+            ),
             "image_file": UserFileField(
                 allow_null=True,
                 required=False,
@@ -1244,7 +1281,7 @@ class RatingElementType(ElementType):
     simple_formula_fields = ["value"]
 
     class SerializedDict(ElementDict):
-        value: BaserowFormula
+        value: BaserowFormulaObject
         max_value: str
         color: str
         rating_style: str
@@ -1252,7 +1289,11 @@ class RatingElementType(ElementType):
     def get_pytest_params(self, pytest_data_fixture):
         return {
             "max_value": 5,
-            "value": "5",
+            "value": BaserowFormulaObject(
+                formula="5",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
             "color": "dark-orange",
             "rating_style": "star",
         }
@@ -1263,10 +1304,7 @@ class RatingElementType(ElementType):
 
         return {
             "value": FormulaSerializerField(
-                help_text=RatingElement._meta.get_field("value").help_text,
-                required=False,
-                allow_blank=True,
-                default="",
+                help_text=RatingElement._meta.get_field("value").help_text
             ),
         }
 
@@ -1293,9 +1331,9 @@ class RatingInputElementType(InputElementType):
     simple_formula_fields = ["value", "label"]
 
     class SerializedDict(ElementDict):
-        label: BaserowFormula
+        label: BaserowFormulaObject
         required: bool
-        value: BaserowFormula
+        value: BaserowFormulaObject
         max_value: str
         color: str
         rating_style: str
@@ -1303,10 +1341,18 @@ class RatingInputElementType(InputElementType):
     def get_pytest_params(self, pytest_data_fixture):
         return {
             "max_value": 5,
-            "value": "5",
+            "value": BaserowFormulaObject(
+                formula="5",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
             "color": "dark-orange",
             "rating_style": "star",
-            "label": "",
+            "label": BaserowFormulaObject(
+                formula="",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
             "required": False,
         }
 
@@ -1316,10 +1362,7 @@ class RatingInputElementType(InputElementType):
 
         return super().serializer_field_overrides | {
             "label": FormulaSerializerField(
-                help_text=RatingInputElement._meta.get_field("label").help_text,
-                required=False,
-                allow_blank=True,
-                default="",
+                help_text=RatingInputElement._meta.get_field("label").help_text
             ),
             "required": serializers.BooleanField(
                 help_text=RatingInputElement._meta.get_field("required").help_text,
@@ -1328,9 +1371,6 @@ class RatingInputElementType(InputElementType):
             ),
             "value": FormulaSerializerField(
                 help_text=RatingInputElement._meta.get_field("value").help_text,
-                required=False,
-                allow_blank=True,
-                default="",
             ),
         }
 
@@ -1343,16 +1383,14 @@ class RatingInputElementType(InputElementType):
         """
         :param element: The element we're trying to use form data in.
         :param value: The form data value, which may be invalid.
+        :param dispatch_context: The context the element is being used in.
         :return: Whether the value is valid or not for this element.
-
         """
 
         if (element.required and value is None) or not (
             value is None or 0 <= value <= element.max_value
         ):
-            raise FormDataProviderChunkInvalidException(
-                "The value is required for this element."
-            )
+            raise ValueError("The value is required")
         return value
 
 
@@ -1382,11 +1420,11 @@ class InputTextElementType(InputElementType):
     simple_formula_fields = ["label", "default_value", "placeholder"]
 
     class SerializedDict(ElementDict):
-        label: BaserowFormula
+        label: BaserowFormulaObject
         required: bool
         validation_type: str
         placeholder: str
-        default_value: BaserowFormula
+        default_value: BaserowFormulaObject
         is_multiline: bool
         rows: int
         input_type: str
@@ -1404,15 +1442,9 @@ class InputTextElementType(InputElementType):
         overrides = {
             "label": FormulaSerializerField(
                 help_text=InputTextElement._meta.get_field("label").help_text,
-                required=False,
-                allow_blank=True,
-                default="",
             ),
             "default_value": FormulaSerializerField(
                 help_text=InputTextElement._meta.get_field("default_value").help_text,
-                required=False,
-                allow_blank=True,
-                default="",
             ),
             "required": serializers.BooleanField(
                 help_text=InputTextElement._meta.get_field("required").help_text,
@@ -1420,10 +1452,7 @@ class InputTextElementType(InputElementType):
                 required=False,
             ),
             "placeholder": FormulaSerializerField(
-                help_text=InputTextElement._meta.get_field("placeholder").help_text,
-                required=False,
-                allow_blank=True,
-                default="",
+                help_text=InputTextElement._meta.get_field("placeholder").help_text
             ),
             "is_multiline": serializers.BooleanField(
                 help_text=InputTextElement._meta.get_field("is_multiline").help_text,
@@ -1455,10 +1484,22 @@ class InputTextElementType(InputElementType):
 
     def get_pytest_params(self, pytest_data_fixture):
         return {
-            "label": "",
+            "label": BaserowFormulaObject(
+                formula="",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
             "required": False,
-            "placeholder": "",
-            "default_value": "'Corporis perspiciatis'",
+            "placeholder": BaserowFormulaObject(
+                formula="",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
+            "default_value": BaserowFormulaObject(
+                formula="'Corporis perspiciatis'",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
             "is_multiline": False,
             "rows": 1,
             "input_type": "text",
@@ -1475,23 +1516,19 @@ class InputTextElementType(InputElementType):
 
         if not value:
             if element.required:
-                raise FormDataProviderChunkInvalidException(f"The value is required.")
+                raise ValueError("The value is required")
 
         elif element.validation_type == "integer":
             try:
                 return ensure_numeric(value)
-            except (ValueError, TypeError, InvalidOperation, ValidationError) as exc:
-                raise FormDataProviderChunkInvalidException(
-                    f"{value} must be a valid number."
-                ) from exc
+            except (InvalidOperation, ValidationError) as exc:
+                raise TypeError(f"{value} is not a valid number") from exc
 
         elif element.validation_type == "email":
             try:
                 validate_email(value)
             except ValidationError as exc:
-                raise FormDataProviderChunkInvalidException(
-                    f"{value} must be a valid email."
-                ) from exc
+                raise ValueError(f"{value} is not a valid email") from exc
         return value
 
 
@@ -1503,7 +1540,7 @@ class ButtonElementType(ElementType):
     simple_formula_fields = ["value"]
 
     class SerializedDict(ElementDict):
-        value: BaserowFormula
+        value: BaserowFormulaObject
 
     @property
     def serializer_field_overrides(self):
@@ -1518,9 +1555,6 @@ class ButtonElementType(ElementType):
         overrides = {
             "value": FormulaSerializerField(
                 help_text=ButtonElement._meta.get_field("value").help_text,
-                required=False,
-                allow_blank=True,
-                default="",
             ),
             "styles": DynamicConfigBlockSerializer(
                 required=False,
@@ -1533,7 +1567,13 @@ class ButtonElementType(ElementType):
         return overrides
 
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
-        return {"value": "'Some value'"}
+        return {
+            "value": BaserowFormulaObject(
+                formula="'Some value'",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            )
+        }
 
 
 class CheckboxElementType(InputElementType):
@@ -1544,9 +1584,9 @@ class CheckboxElementType(InputElementType):
     simple_formula_fields = ["label", "default_value"]
 
     class SerializedDict(ElementDict):
-        label: BaserowFormula
+        label: BaserowFormulaObject
         required: bool
-        default_value: BaserowFormula
+        default_value: BaserowFormulaObject
 
     @property
     def serializer_field_overrides(self):
@@ -1561,15 +1601,9 @@ class CheckboxElementType(InputElementType):
         overrides = {
             "label": FormulaSerializerField(
                 help_text=CheckboxElement._meta.get_field("label").help_text,
-                required=False,
-                allow_blank=True,
-                default="",
             ),
             "default_value": FormulaSerializerField(
                 help_text=CheckboxElement._meta.get_field("default_value").help_text,
-                required=False,
-                allow_blank=True,
-                default="",
             ),
             "required": serializers.BooleanField(
                 help_text=CheckboxElement._meta.get_field("required").help_text,
@@ -1590,22 +1624,28 @@ class CheckboxElementType(InputElementType):
         self, element: CheckboxElement, value: Any, dispatch_context: DispatchContext
     ) -> bool:
         if element.required and not value:
-            raise FormDataProviderChunkInvalidException(
-                "The value is required for this element."
-            )
+            raise ValueError("The value is required")
 
         try:
             return ensure_boolean(value)
         except ValidationError as exc:
-            raise FormDataProviderChunkInvalidException(
-                "The value must be a boolean or convertible to a boolean."
+            raise ValueError(
+                "The value must be a boolean or convertible to a boolean"
             ) from exc
 
     def get_pytest_params(self, pytest_data_fixture):
         return {
-            "label": "",
+            "label": BaserowFormulaObject(
+                formula="",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
             "required": False,
-            "default_value": "",
+            "default_value": BaserowFormulaObject(
+                formula="",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
         }
 
 
@@ -1656,16 +1696,16 @@ class ChoiceElementType(FormElementTypeMixin, ElementType):
     ]
 
     class SerializedDict(ElementDict):
-        label: BaserowFormula
+        label: BaserowFormulaObject
         required: bool
-        placeholder: BaserowFormula
-        default_value: BaserowFormula
+        placeholder: BaserowFormulaObject
+        default_value: BaserowFormulaObject
         options: List
         multiple: bool
         show_as_dropdown: bool
         option_type: str
-        formula_value: BaserowFormula
-        formula_name: BaserowFormula
+        formula_value: BaserowFormulaObject
+        formula_name: BaserowFormulaObject
 
     @property
     def serializer_field_overrides(self):
@@ -1680,26 +1720,17 @@ class ChoiceElementType(FormElementTypeMixin, ElementType):
         overrides = {
             "label": FormulaSerializerField(
                 help_text=ChoiceElement._meta.get_field("label").help_text,
-                required=False,
-                allow_blank=True,
-                default="",
             ),
             "default_value": FormulaSerializerField(
                 help_text=ChoiceElement._meta.get_field("default_value").help_text,
-                required=False,
-                allow_blank=True,
-                default="",
             ),
             "required": serializers.BooleanField(
                 help_text=ChoiceElement._meta.get_field("required").help_text,
                 default=False,
                 required=False,
             ),
-            "placeholder": serializers.CharField(
-                help_text=ChoiceElement._meta.get_field("placeholder").help_text,
-                required=False,
-                allow_blank=True,
-                default="",
+            "placeholder": FormulaSerializerField(
+                help_text=ChoiceElement._meta.get_field("placeholder").help_text
             ),
             "options": ChoiceOptionSerializer(
                 source="choiceelementoption_set", many=True, required=False
@@ -1722,15 +1753,9 @@ class ChoiceElementType(FormElementTypeMixin, ElementType):
             ),
             "formula_value": FormulaSerializerField(
                 help_text=ChoiceElement._meta.get_field("formula_value").help_text,
-                required=False,
-                allow_blank=True,
-                default="",
             ),
             "formula_name": FormulaSerializerField(
                 help_text=ChoiceElement._meta.get_field("formula_name").help_text,
-                required=False,
-                allow_blank=True,
-                default="",
             ),
             "styles": DynamicConfigBlockSerializer(
                 required=False,
@@ -1828,15 +1853,35 @@ class ChoiceElementType(FormElementTypeMixin, ElementType):
 
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
         return {
-            "label": "'test'",
-            "default_value": "'option 1'",
+            "label": BaserowFormulaObject(
+                formula="'test'",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
+            "default_value": BaserowFormulaObject(
+                formula="'option 1'",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
             "required": False,
-            "placeholder": "'some placeholder'",
+            "placeholder": BaserowFormulaObject(
+                formula="'some placeholder'",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
             "multiple": False,
             "show_as_dropdown": True,
             "option_type": ChoiceElement.OPTION_TYPE.MANUAL,
-            "formula_value": "",
-            "formula_name": "",
+            "formula_value": BaserowFormulaObject(
+                formula="",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
+            "formula_name": BaserowFormulaObject(
+                formula="",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
         }
 
     def after_create(self, instance: ChoiceElement, values: Dict):
@@ -1894,31 +1939,23 @@ class ChoiceElementType(FormElementTypeMixin, ElementType):
             try:
                 value = ensure_array(value)
             except ValidationError as exc:
-                raise FormDataProviderChunkInvalidException(
-                    "The value must be an array or convertible to an array."
+                raise ValueError(
+                    "The value must be an array or convertible to an array"
                 ) from exc
 
             if not value:
                 if element.required:
-                    raise FormDataProviderChunkInvalidException(
-                        "The value is required."
-                    )
+                    raise ValueError("The value is required")
             else:
                 for v in value:
                     if v not in options:
-                        raise FormDataProviderChunkInvalidException(
-                            f"{value} is not a valid option."
-                        )
+                        raise ValueError(f"{value} is not a valid option")
         else:
             if not value:
                 if element.required and value not in options:
-                    raise FormDataProviderChunkInvalidException(
-                        "The value is required."
-                    )
+                    raise ValueError("The value is required")
             elif value not in options:
-                raise FormDataProviderChunkInvalidException(
-                    f"{value} is not a valid option."
-                )
+                raise ValueError(f"{value} is not a valid option")
 
         return value
 
@@ -1932,8 +1969,8 @@ class IFrameElementType(ElementType):
 
     class SerializedDict(ElementDict):
         source_type: str
-        url: BaserowFormula
-        embed: BaserowFormula
+        url: BaserowFormulaObject
+        embed: BaserowFormulaObject
         height: int
 
     @property
@@ -1949,15 +1986,9 @@ class IFrameElementType(ElementType):
             ),
             "url": FormulaSerializerField(
                 help_text=IFrameElement._meta.get_field("url").help_text,
-                required=False,
-                allow_blank=True,
-                default="",
             ),
             "embed": FormulaSerializerField(
                 help_text=IFrameElement._meta.get_field("embed").help_text,
-                required=False,
-                allow_blank=True,
-                default="",
             ),
             "height": serializers.IntegerField(
                 help_text=IFrameElement._meta.get_field("height").help_text,
@@ -1973,8 +2004,16 @@ class IFrameElementType(ElementType):
     def get_pytest_params(self, pytest_data_fixture):
         return {
             "source_type": IFrameElement.IFRAME_SOURCE_TYPE.URL,
-            "url": "",
-            "embed": "",
+            "url": BaserowFormulaObject(
+                formula="",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
+            "embed": BaserowFormulaObject(
+                formula="",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
             "height": 300,
         }
 
@@ -2004,9 +2043,9 @@ class DateTimePickerElementType(FormElementTypeMixin, ElementType):
     ]
 
     class SerializedDict(ElementDict):
-        label: BaserowFormula
+        label: BaserowFormulaObject
         required: bool
-        default_value: BaserowFormula
+        default_value: BaserowFormulaObject
         date_format: str
         include_time: bool
         time_format: str
@@ -2018,9 +2057,6 @@ class DateTimePickerElementType(FormElementTypeMixin, ElementType):
         overrides = {
             "label": FormulaSerializerField(
                 help_text=DateTimePickerElement._meta.get_field("label").help_text,
-                required=False,
-                allow_blank=True,
-                default="",
             ),
             "required": serializers.BooleanField(
                 help_text=DateTimePickerElement._meta.get_field("required").help_text,
@@ -2030,10 +2066,7 @@ class DateTimePickerElementType(FormElementTypeMixin, ElementType):
             "default_value": FormulaSerializerField(
                 help_text=DateTimePickerElement._meta.get_field(
                     "default_value"
-                ).help_text,
-                required=False,
-                allow_blank=True,
-                default="",
+                ).help_text
             ),
             "date_format": serializers.ChoiceField(
                 help_text=DateTimePickerElement._meta.get_field(
@@ -2087,16 +2120,24 @@ class DateTimePickerElementType(FormElementTypeMixin, ElementType):
                     else FormattedDate(value, date_format)
                 )
             except ValueError as exc:
-                msg = f"The value '{value}' is not a valid date."
-                raise FormDataProviderChunkInvalidException(msg, exc)
+                msg = f"'{value}' is not a valid date"
+                raise ValueError(msg) from exc
 
         return value
 
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
         return {
             "required": False,
-            "label": "",
-            "default_value": "",
+            "label": BaserowFormulaObject(
+                formula="",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
+            "default_value": BaserowFormulaObject(
+                formula="",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
             "date_format": DATE_FORMAT_CHOICES[0][0],
             "include_time": False,
             "time_format": DATE_TIME_FORMAT_CHOICES[0][0],
@@ -2454,20 +2495,21 @@ class MenuElementType(ElementType):
 
         for item in element.menu_items.all():
             for index, data in enumerate(item.page_parameters or []):
-                new_formula = yield data["value"]
+                new_formula = yield BaserowFormulaObject.to_formula(data["value"])
                 if new_formula is not None:
                     item.page_parameters[index]["value"] = new_formula
                     yield item
 
             for index, data in enumerate(item.query_parameters or []):
-                new_formula = yield data["value"]
+                new_formula = yield BaserowFormulaObject.to_formula(data["value"])
                 if new_formula is not None:
                     item.query_parameters[index]["value"] = new_formula
                     yield item
 
             for formula_field in NavigationElementManager.simple_formula_fields:
-                formula = getattr(item, formula_field, "")
-                new_formula = yield formula
+                new_formula = yield BaserowFormulaObject.to_formula(
+                    getattr(item, formula_field, "")
+                )
                 if new_formula is not None:
                     setattr(item, formula_field, new_formula)
                     yield item

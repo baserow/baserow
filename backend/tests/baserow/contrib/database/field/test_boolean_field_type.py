@@ -147,3 +147,65 @@ def test_boolean_field_adjacent_row(data_fixture):
 
     assert previous_row.id == row_b.id
     assert next_row.id == row_a.id
+
+
+@pytest.mark.django_db
+def test_boolean_field_default_value(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+
+    boolean_field = data_fixture.create_boolean_field(table=table, name="Boolean")
+
+    row_handler = RowHandler()
+
+    model = table.get_model()
+    row_1 = row_handler.force_create_row(
+        user=user,
+        table=table,
+    )
+    row_2 = row_handler.force_create_row(
+        user=user,
+        table=table,
+        values={f"field_{boolean_field.id}": True},
+    )
+    assert getattr(row_1, f"field_{boolean_field.id}") is False
+    assert getattr(row_2, f"field_{boolean_field.id}") is True
+
+    field_handler = FieldHandler()
+    boolean_field = field_handler.update_field(
+        user=user, field=boolean_field, boolean_default=True
+    )
+
+    row_3 = row_handler.force_create_row(
+        user=user,
+        table=table,
+    )
+    row_4 = row_handler.force_create_row(
+        user=user,
+        table=table,
+        values={f"field_{boolean_field.id}": False},
+    )
+    assert getattr(row_3, f"field_{boolean_field.id}") is True
+    assert getattr(row_4, f"field_{boolean_field.id}") is False
+
+    boolean_field = field_handler.update_field(
+        user=user, field=boolean_field, boolean_default=False
+    )
+
+    row_5 = row_handler.force_create_row(
+        user=user,
+        table=table,
+    )
+    assert getattr(row_5, f"field_{boolean_field.id}") is False
+
+    row_1.refresh_from_db()
+    row_2.refresh_from_db()
+    row_3.refresh_from_db()
+    row_4.refresh_from_db()
+    row_5.refresh_from_db()
+
+    assert getattr(row_1, f"field_{boolean_field.id}") is False
+    assert getattr(row_2, f"field_{boolean_field.id}") is True
+    assert getattr(row_3, f"field_{boolean_field.id}") is True
+    assert getattr(row_4, f"field_{boolean_field.id}") is False
+    assert getattr(row_5, f"field_{boolean_field.id}") is False

@@ -311,10 +311,22 @@ ALL_AIRTABLE_FILTERS_PER_TYPE = {
             "baserow_value": "fldE3rb2UYv3a605v_selvostaiXnRkaHXI",
         },
         {
+            "operator": "=",
+            "value": None,
+            "baserow_filter_type": "multiple_select_has",
+            "baserow_value": "",
+        },
+        {
             "operator": "doesNotContain",
             "value": ["selvostaiXnRkaHXI"],
             "baserow_filter_type": "multiple_select_has_not",
             "baserow_value": "fldE3rb2UYv3a605v_selvostaiXnRkaHXI",
+        },
+        {
+            "operator": "doesNotContain",
+            "value": None,
+            "baserow_filter_type": "multiple_select_has_not",
+            "baserow_value": "",
         },
         {
             "operator": "isEmpty",
@@ -349,10 +361,22 @@ ALL_AIRTABLE_FILTERS_PER_TYPE = {
             "baserow_value": "fldWmh0gNFmvYHLwy_selTvmx6xRumPDwa7,fldWmh0gNFmvYHLwy_selTvmx6xRumPDwa8",
         },
         {
+            "operator": "isAnyOf",
+            "value": None,
+            "baserow_filter_type": "single_select_is_any_of",
+            "baserow_value": "",
+        },
+        {
             "operator": "isNoneOf",
             "value": ["selTvmx6xRumPDwa7", "selTvmx6xRumPDwa8"],
             "baserow_filter_type": "single_select_is_none_of",
             "baserow_value": "fldWmh0gNFmvYHLwy_selTvmx6xRumPDwa7,fldWmh0gNFmvYHLwy_selTvmx6xRumPDwa8",
+        },
+        {
+            "operator": "isNoneOf",
+            "value": None,
+            "baserow_filter_type": "single_select_is_none_of",
+            "baserow_value": "",
         },
         {
             "operator": "isEmpty",
@@ -550,6 +574,16 @@ ALL_AIRTABLE_FILTERS_PER_TYPE = {
         {
             "operator": "isWithin",
             "value": {
+                "mode": "nextYear",
+                "timeZone": "Europe/Amsterdam",
+                "shouldUseCorrectTimeZoneForFormulaicColumn": True,
+            },
+            "baserow_filter_type": "date_is_within",
+            "baserow_value": "Europe/Amsterdam??next_year",
+        },
+        {
+            "operator": "isWithin",
+            "value": {
                 "mode": "nextMonth",
                 "timeZone": "Europe/Amsterdam",
                 "shouldUseCorrectTimeZoneForFormulaicColumn": True,
@@ -565,7 +599,27 @@ ALL_AIRTABLE_FILTERS_PER_TYPE = {
                 "shouldUseCorrectTimeZoneForFormulaicColumn": True,
             },
             "baserow_filter_type": "date_is_within",
-            "baserow_value": "Europe/Amsterdam?0?nr_years_ago",
+            "baserow_value": "Europe/Amsterdam??this_year",
+        },
+        {
+            "operator": "isWithin",
+            "value": {
+                "mode": "thisCalendarMonth",
+                "timeZone": "Europe/Amsterdam",
+                "shouldUseCorrectTimeZoneForFormulaicColumn": True,
+            },
+            "baserow_filter_type": "date_is_within",
+            "baserow_value": "Europe/Amsterdam??this_month",
+        },
+        {
+            "operator": "isWithin",
+            "value": {
+                "mode": "thisCalendarWeek",
+                "timeZone": "Europe/Amsterdam",
+                "shouldUseCorrectTimeZoneForFormulaicColumn": True,
+            },
+            "baserow_filter_type": "date_is_within",
+            "baserow_value": "Europe/Amsterdam??this_week",
         },
         {
             "operator": "isWithin",

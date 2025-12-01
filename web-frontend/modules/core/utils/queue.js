@@ -46,6 +46,18 @@ export class TaskQueue {
     await task.wait
   }
 
+  /**
+   * waits for all queued tasks
+   *
+   * @returns {Promise<void>}
+   */
+  async waitAll() {
+    const waitlist = Array.from(this.queue, (item) => {
+      return item.wait
+    })
+    await Promise.all(waitlist)
+  }
+
   start() {
     if (this.running) {
       return
@@ -56,8 +68,10 @@ export class TaskQueue {
 
   async run() {
     while (this.queue.length > 0 && this.running && !this.locked) {
-      const task = this.queue.shift()
+      // need to keep queue filled when task is running
+      const task = this.queue[0]
       await task.run()
+      this.queue.shift()
     }
     this.running = false
     this.done()
@@ -128,4 +142,27 @@ export class GroupTaskQueue {
     const queue = this.getOrCreateQueue(groupId)
     queue.release()
   }
+}
+
+/**
+ * Helper function that resolves when the `checkFunction` returns true.
+ */
+export function waitFor(checkFunction, interval = 5, timeout = 10000) {
+  return new Promise((resolve, reject) => {
+    const startTime = Date.now()
+
+    const check = () => {
+      const loaded = checkFunction()
+
+      if (loaded) {
+        resolve()
+      } else if (Date.now() - startTime >= timeout) {
+        reject(new Error('Timeout waiting.'))
+      } else {
+        setTimeout(check, interval)
+      }
+    }
+
+    check()
+  })
 }

@@ -24,6 +24,7 @@ import {
   KanbanViewPaidFeature,
   TimelineViewPaidFeature,
 } from '@baserow_premium/paidFeatures'
+import { waitFor } from '@baserow/modules/core/utils/queue'
 
 class PremiumViewType extends ViewType {
   getDeactivatedText() {
@@ -196,6 +197,19 @@ export class KanbanViewType extends PremiumViewType {
     storePrefix = ''
   ) {
     if (this.isCurrentView(store, tableId)) {
+      try {
+        // A realtime row update signal can be received before the rows are created.
+        // In that case, there is a race condition because the row doesn't have the
+        // ID yet, so it can't be updated. This can be resolved by waiting all rows
+        // to be created.
+        await waitFor(
+          () => !store.getters[storePrefix + 'view/kanban/getCreating']
+        )
+      } catch (error) {
+        // If the timeout is reached, then just continue with the update because the
+        // realtime update must come through eventually, otherwise the page is not
+        // up to date.
+      }
       await store.dispatch(storePrefix + 'view/kanban/updatedExistingRow', {
         view: store.getters['view/getSelected'],
         fields,
@@ -222,7 +236,7 @@ export class KanbanViewType extends PremiumViewType {
     fieldType,
     storePrefix = ''
   ) {
-    const value = fieldType.getEmptyValue(field)
+    const value = fieldType.getDefaultValue(field)
     await dispatch(
       storePrefix + 'view/kanban/addField',
       { field, value },
@@ -410,6 +424,19 @@ export class CalendarViewType extends PremiumViewType {
     storePrefix = ''
   ) {
     if (this.isCurrentView(store, tableId)) {
+      try {
+        // A realtime row update signal can be received before the rows are created.
+        // In that case, there is a race condition because the row doesn't have the
+        // ID yet, so it can't be updated. This can be resolved by waiting all rows
+        // to be created.
+        await waitFor(
+          () => !store.getters[storePrefix + 'view/calendar/getCreating']
+        )
+      } catch (error) {
+        // If the timeout is reached, then just continue with the update because the
+        // realtime update must come through eventually, otherwise the page is not
+        // up to date.
+      }
       await store.dispatch(storePrefix + 'view/calendar/updatedExistingRow', {
         view: store.getters['view/getSelected'],
         fields,
@@ -436,7 +463,7 @@ export class CalendarViewType extends PremiumViewType {
     fieldType,
     storePrefix = ''
   ) {
-    const value = fieldType.getEmptyValue(field)
+    const value = fieldType.getDefaultValue(field)
     await dispatch(
       storePrefix + 'view/calendar/addField',
       { field, value },

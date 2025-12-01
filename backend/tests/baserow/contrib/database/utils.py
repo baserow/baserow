@@ -5,9 +5,17 @@ from typing import Callable, Iterable
 
 from django.contrib.auth.models import AbstractUser
 from django.db import OperationalError
+from django.db.models import QuerySet
 
 from channels.testing import WebsocketCommunicator
 
+from baserow.contrib.database.field_rules.exceptions import FieldRuleAlreadyExistsError
+from baserow.contrib.database.field_rules.models import FieldRule
+from baserow.contrib.database.field_rules.registries import (
+    FieldRuleType,
+    FieldRuleValidity,
+    RowRuleValidity,
+)
 from baserow.contrib.database.fields.models import (
     Field,
     FormulaField,
@@ -66,6 +74,7 @@ class LookupFieldSetup:
     target_field: Field
     row_handler: RowHandler
     view_handler: ViewHandler
+    extra: dict
 
 
 @dataclasses.dataclass
@@ -120,9 +129,12 @@ def autonumber_field_factory(data_fixture, table, user, **kwargs):
 
 
 def single_select_field_factory(data_fixture, table, user):
-    return data_fixture.create_single_select_field(
+    field = data_fixture.create_single_select_field(
         name="target", user=user, table=table
     )
+    data_fixture.create_select_option(field=field, value="1")
+    data_fixture.create_select_option(field=field, value="2")
+    return field
 
 
 def single_select_field_value_factory(data_fixture, target_field, value=None):
@@ -134,9 +146,12 @@ def single_select_field_value_factory(data_fixture, target_field, value=None):
 
 
 def multiple_select_field_factory(data_fixture, table, user):
-    return data_fixture.create_multiple_select_field(
+    field = data_fixture.create_multiple_select_field(
         name="target", user=user, table=table
     )
+    data_fixture.create_select_option(field=field, value="1")
+    data_fixture.create_select_option(field=field, value="2")
+    return field
 
 
 def multiple_select_field_value_factory(data_fixture, target_field, value=None):
@@ -144,6 +159,28 @@ def multiple_select_field_value_factory(data_fixture, target_field, value=None):
         return []
     option = data_fixture.create_select_option(field=target_field, value=value)
     return [option.id]
+
+
+def multiple_collaborators_field_factory(data_fixture, table, user):
+    data_fixture.create_user(workspace=table.database.workspace)
+    data_fixture.create_user(workspace=table.database.workspace)
+    return data_fixture.create_multiple_collaborators_field(
+        name="target", user=user, table=table
+    )
+
+
+def file_field_factory(data_fixture, table, user):
+    data_fixture.create_user_file(
+        original_name=f"a.txt",
+        sha256_hash="a",
+        uploaded_by=user,
+    )
+    data_fixture.create_user_file(
+        original_name=f"b.txt",
+        sha256_hash="b",
+        uploaded_by=user,
+    )
+    return data_fixture.create_file_field(name="target", user=user, table=table)
 
 
 def duration_field_factory(
@@ -217,6 +254,7 @@ def setup_linked_table_and_lookup(
         lookup_field=lookup_field,
         view_handler=view_handler,
         model=model,
+        extra={},
     )
 
 
@@ -283,3 +321,35 @@ def get_deadlock_error(message: str = "Deadlock detected"):
     error = OperationalError(message)
     error.__cause__ = errors.DeadlockDetected()
     return error
+
+
+class DummyFieldRuleType(FieldRuleType):
+    type = "dummy"
+    model_class = FieldRule
+
+    def validate_row(
+        self, row: GeneratedTableModel, rule: FieldRule
+    ) -> RowRuleValidity:
+        return RowRuleValidity(row_id=row.id, rule_id=rule.id, is_valid=True)
+
+    def validate_rows(
+        self, table: Table, rule: FieldRule, queryset: QuerySet | None = None
+    ):
+        return
+
+    def validate_rule(self, rule: FieldRule) -> FieldRuleValidity:
+        return FieldRuleValidity(
+            table_id=rule.table_id,
+            rule_id=rule.id,
+            # one can inject rule validity by setting rule.set_is_valid
+            is_valid=getattr(rule, "set_is_valid", True),
+            error_text="",
+        )
+
+
+class DummyUniqueFieldRuleType(DummyFieldRuleType):
+    type = "dummy_uniq"
+
+    def before_rule_created(self, table: Table, in_data: dict):
+        if table.field_rules.all().exists():
+            raise FieldRuleAlreadyExistsError()

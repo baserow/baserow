@@ -9,6 +9,8 @@ from baserow.core.registry import (
     InstanceWithFormulaMixin,
     ModelInstanceMixin,
 )
+from baserow.core.services.dispatch_context import DispatchContext
+from baserow.core.services.types import DispatchResult
 from baserow.core.workflow_actions.models import WorkflowAction
 from baserow.core.workflow_actions.types import WorkflowActionDictSubClass
 
@@ -86,3 +88,11 @@ class WorkflowActionType(
         """
 
         return pytest_params
+
+    @abstractmethod
+    def dispatch(
+        self, workflow_action: "WorkflowAction", dispatch_context: DispatchContext
+    ) -> DispatchResult:
+        """Dispatches the provided workflow action."""
+
+        ...

@@ -462,8 +462,16 @@ export default {
         { __id__: 2, id: 2, name: 'Header 2' },
       ],
       rows: [
-        { 'Header 1': 'Row 1 cell 1', 'Header 2': 'Row 1 cell 2' },
-        { 'Header 1': 'Row 2 cell 1', 'Header 2': 'Row 2 cell 2' },
+        {
+          1: 'Row 1 cell 1',
+          2: 'Row 1 cell 2',
+          __id__: 0,
+        },
+        {
+          1: 'Row 2 cell 1',
+          2: 'Row 2 cell 2',
+          __id__: 1,
+        },
       ],
       defaultValuesWhenEmpty: {
         table_border_size: minMax.table_border_size.min,

@@ -1,8 +1,8 @@
-import typing
 from enum import Enum
-from typing import NewType
+from typing import TYPE_CHECKING, NewType
 
 from django.contrib.contenttypes.models import ContentType
+from django.contrib.postgres.fields import ArrayField
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils.functional import cached_property
@@ -46,8 +46,9 @@ from baserow.core.utils import remove_special_characters, to_snake_case
 
 from .fields import SerialField
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     from baserow.contrib.database.fields.dependencies.handler import FieldDependants
+    from baserow.contrib.database.fields.registries import FieldType  # noqa: F401
 
 NUMBER_MAX_DECIMAL_PLACES = 10
 
@@ -123,7 +124,7 @@ class Field(
     CreatedAndUpdatedOnMixin,
     OrderableMixin,
     PolymorphicContentTypeMixin,
-    WithRegistry,
+    WithRegistry["FieldType"],
     models.Model,
 ):
     """
@@ -159,32 +160,42 @@ class Field(
         help_text="Indicates whether a `tsvector` has been created for this field yet. "
         "This value will be False for fields created before the full text "
         "search release which haven't been lazily migrated yet. Or for "
-        "users who have turned off full text search entirely.",
+        "users who have turned off full text search entirely. "
+        "DEPRECATED: remove in a future version and drop tsv_column in database table",
+    )
+    search_data_initialized_at = models.DateTimeField(
+        null=True,
+        help_text=(
+            "The timestamp when this field's tsvector values were first generated "
+            "and added to the workspace search table. "
+            "If null, the search data has not yet been initialized."
+        ),
     )
     description = models.TextField(
         help_text="Field description", default=None, null=True
     )
-    # TODO Remove null=True in a future release.
     read_only = models.BooleanField(
-        null=True,
         default=False,
         help_text="Indicates whether the field is read-only regardless of the field "
         "type. If true, then it won't be possible to update the cell value via the "
         "API.",
     )
-    # TODO Remove null=True in a future release.
     immutable_type = models.BooleanField(
-        null=True,
         default=False,
         help_text="Indicates whether the field type is immutable. If true, then it "
         "won't be possible to change the field type via the API.",
     )
-    # TODO Remove null=True in a future release.
     immutable_properties = models.BooleanField(
-        null=True,
         default=False,
         help_text="Indicates whether the field properties are immutable. If true, "
         "then it won't be possible to change the properties and the type via the API.",
+    )
+    db_index = models.BooleanField(
+        db_default=False,
+        default=False,
+        help_text="If true, then an index will be added to the Baserow field to "
+        "increase lookup and filter speed. Note that this comes at a performance cost "
+        "when creating the row and updating the cell.",
     )
 
     class Meta:
@@ -305,6 +316,22 @@ class AbstractSelectOption(
         return f"<SelectOption {self.value} ({self.id})>"
 
 
+class FieldConstraint(TrashableModelMixin, CreatedAndUpdatedOnMixin, models.Model):
+    field = models.ForeignKey(
+        Field,
+        on_delete=models.CASCADE,
+        related_name="field_constraints",
+        help_text="The field this constraint belongs to.",
+    )
+    type_name = models.CharField(
+        max_length=255, help_text="The type name of the constraint."
+    )
+
+    class Meta:
+        unique_together = ("field", "type_name")
+        ordering = ("type_name",)
+
+
 class SelectOption(AbstractSelectOption):
     @classmethod
     def get_max_value_length(cls):
@@ -362,6 +389,14 @@ class NumberField(Field):
         help_text="The thousand and decimal separator to use for the field.",
     )
 
+    number_default = models.DecimalField(
+        max_digits=50,
+        decimal_places=20,
+        null=True,
+        blank=True,
+        help_text="The default value for field if none is provided.",
+    )
+
     def save(self, *args, **kwargs):
         """Check if the number_decimal_places has a valid choice."""
 
@@ -415,11 +450,22 @@ class RatingField(Field):
 
 
 class BooleanField(Field):
-    pass
+    boolean_default = models.BooleanField(
+        default=False,
+        db_default=False,
+        help_text="The default value for field if none is provided.",
+    )
 
 
 class DateField(Field, BaseDateMixin):
-    pass
+    date_default_now = models.BooleanField(
+        default=False,
+        db_default=False,
+        help_text=(
+            "If enabled, the default value for new rows will be set to the current date "
+            "and time when the row is created. If disabled, no default value will be set."
+        ),
+    )
 
 
 class LastModifiedField(Field, BaseDateMixin):
@@ -473,6 +519,13 @@ class LinkRowField(Field):
         "rows that don't match the view.",
         blank=True,
         null=True,
+    )
+    link_row_multiple_relationships = models.BooleanField(
+        default=True,
+        db_default=True,
+        help_text="Indicates whether it's allowed set multiple relationships per row. "
+        "If disabled, it doesn't guarantee single relationships because they could "
+        "have already existed or created through reversed relationship.",
     )
 
     @property
@@ -530,11 +583,28 @@ class FileField(Field):
 
 
 class SingleSelectField(Field):
-    pass
+    single_select_default = models.PositiveBigIntegerField(
+        null=True,
+        blank=True,
+        help_text=(
+            "The default value for the field if none is provided. Can be None if no default "
+            "is set, or the ID of an available select option."
+        ),
+    )
 
 
 class MultipleSelectField(Field):
     THROUGH_DATABASE_TABLE_PREFIX = MULTIPLE_SELECT_THROUGH_TABLE_PREFIX
+
+    multiple_select_default = ArrayField(
+        models.PositiveBigIntegerField(),
+        null=True,
+        blank=True,
+        help_text=(
+            "The default value for the field if none is provided. Can be None if no default "
+            "is set, or the IDs of an available select options."
+        ),
+    )
 
     @property
     def through_table_name(self):
@@ -850,6 +920,16 @@ class MultipleCollaboratorsField(Field):
             "collaborator."
         ),
     )
+    multiple_collaborators_default = ArrayField(
+        models.PositiveBigIntegerField(),
+        null=True,
+        blank=True,
+        help_text=(
+            "The default value for the field if none is provided. Can be None if no "
+            "default is set, or the IDs of available collaborators or value 0 to "
+            "automatically set the current user when row is created."
+        ),
+    )
 
     @property
     def through_table_name(self):
@@ -872,7 +952,13 @@ class AutonumberField(Field):
 
 
 class PasswordField(Field):
-    pass
+    allow_endpoint_authentication = models.BooleanField(
+        db_default=False,
+        default=False,
+        help_text="If true, then it's possible to use the "
+        "`password_field_authentication` API endpoint to check if the password is "
+        "correct. This can be used to use Baserow as authentication backend.",
+    )
 
 
 class DuplicateFieldJob(

@@ -15,9 +15,6 @@ import zipstream
 from rest_framework.exceptions import ValidationError
 
 from baserow.api.exceptions import RequestBodyValidationException
-from baserow.contrib.builder.data_providers.exceptions import (
-    FormDataProviderChunkInvalidException,
-)
 from baserow.contrib.builder.data_sources.builder_dispatch_context import (
     BuilderDispatchContext,
 )
@@ -37,6 +34,7 @@ from baserow.contrib.builder.elements.element_types import (
     TextElementType,
     collection_element_types,
 )
+from baserow.contrib.builder.elements.exceptions import ElementImproperlyConfigured
 from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.mixins import (
     ContainerElementTypeMixin,
@@ -228,11 +226,15 @@ def test_link_collection_field_import_export_formula(data_fixture):
     expected_formula = f"get('data_source.{data_source_2.id}.field_1')"
     expected_query_formula = f"get('data_source.{data_source_2.id}.field_2')"
     imported_field = imported_element.fields.all()[0]
-    assert imported_field.config["link_name"] == expected_formula
-    assert imported_field.config["navigate_to_url"] == expected_formula
-    assert imported_field.config["page_parameters"][0]["value"] == expected_formula
+    assert imported_field.config["link_name"]["formula"] == expected_formula
+    assert imported_field.config["navigate_to_url"]["formula"] == expected_formula
     assert (
-        imported_field.config["query_parameters"][0]["value"] == expected_query_formula
+        imported_field.config["page_parameters"][0]["value"]["formula"]
+        == expected_formula
+    )
+    assert (
+        imported_field.config["query_parameters"][0]["value"]["formula"]
+        == expected_query_formula
     )
 
 
@@ -271,10 +273,13 @@ def test_link_element_import_export_formula(data_fixture):
 
     expected_formula = f"get('data_source.{data_source_2.id}.field_1')"
     expected_query_formula = f"get('data_source.{data_source_2.id}.field_2')"
-    assert imported_element.navigate_to_url == expected_formula
-    assert imported_element.value == expected_formula
-    assert imported_element.page_parameters[0]["value"] == expected_formula
-    assert imported_element.query_parameters[0]["value"] == expected_query_formula
+    assert imported_element.navigate_to_url["formula"] == expected_formula
+    assert imported_element.value["formula"] == expected_formula
+    assert imported_element.page_parameters[0]["value"]["formula"] == expected_formula
+    assert (
+        imported_element.query_parameters[0]["value"]["formula"]
+        == expected_query_formula
+    )
 
 
 @pytest.mark.django_db
@@ -298,7 +303,7 @@ def test_form_container_element_import_export_formula(data_fixture):
     imported_element = element_type.import_serialized(page, serialized, id_mapping)
 
     expected_formula = f"get('data_source.{data_source_2.id}.field_1')"
-    assert imported_element.submit_button_label == expected_formula
+    assert imported_element.submit_button_label["formula"] == expected_formula
 
 
 @pytest.mark.parametrize(
@@ -337,7 +342,7 @@ def test_text_element_import_export_formula(data_fixture):
     imported_element = element_type.import_serialized(page, serialized, id_mapping)
 
     expected_formula = f"get('data_source.{data_source_2.id}.field_1')"
-    assert imported_element.value == expected_formula
+    assert imported_element.value["formula"] == expected_formula
 
 
 @pytest.mark.django_db
@@ -361,9 +366,9 @@ def test_input_text_element_import_export_formula(data_fixture):
     imported_element = element_type.import_serialized(page, serialized, id_mapping)
 
     expected_formula = f"get('data_source.{data_source_2.id}.field_1')"
-    assert imported_element.label == expected_formula
-    assert imported_element.default_value == expected_formula
-    assert imported_element.placeholder == expected_formula
+    assert imported_element.label["formula"] == expected_formula
+    assert imported_element.default_value["formula"] == expected_formula
+    assert imported_element.placeholder["formula"] == expected_formula
 
 
 @pytest.mark.django_db
@@ -386,8 +391,8 @@ def test_image_element_import_export_formula(data_fixture):
     imported_element = element_type.import_serialized(page, serialized, id_mapping)
 
     expected_formula = f"get('data_source.{data_source_2.id}.field_1')"
-    assert imported_element.image_url == expected_formula
-    assert imported_element.alt_text == expected_formula
+    assert imported_element.image_url["formula"] == expected_formula
+    assert imported_element.alt_text["formula"] == expected_formula
 
 
 @pytest.mark.django_db
@@ -409,7 +414,7 @@ def test_button_element_import_export_formula(data_fixture):
     imported_element = element_type.import_serialized(page, serialized, id_mapping)
 
     expected_formula = f"get('data_source.{data_source_2.id}.field_1')"
-    assert imported_element.value == expected_formula
+    assert imported_element.value["formula"] == expected_formula
 
 
 def test_rating_input_element_type_is_valid_with_valid_value():
@@ -438,9 +443,9 @@ def test_rating_input_element_type_is_valid_with_required_element():
     assert element_type.is_valid(element, 3, dispatch_context) == 3
 
     # Test with None value (should raise exception)
-    with pytest.raises(FormDataProviderChunkInvalidException) as excinfo:
+    with pytest.raises(ValueError) as excinfo:
         element_type.is_valid(element, None, dispatch_context)
-    assert "The value is required for this element." in str(excinfo.value)
+    assert "The value is required" in str(excinfo.value)
 
 
 def test_rating_input_element_type_is_valid_with_out_of_range_values():
@@ -453,9 +458,9 @@ def test_rating_input_element_type_is_valid_with_out_of_range_values():
 
     # Test with values outside the valid range
     for invalid_value in [-1, 6, 10]:
-        with pytest.raises(FormDataProviderChunkInvalidException) as excinfo:
+        with pytest.raises(ValueError) as excinfo:
             element_type.is_valid(element, invalid_value, dispatch_context)
-        assert "The value is required for this element." in str(excinfo.value)
+        assert "The value is required" in str(excinfo.value)
 
 
 def test_rating_input_element_type_is_valid_edge_cases():
@@ -498,28 +503,28 @@ def test_choice_element_import_export_formula(data_fixture):
     imported_element = element_type.import_serialized(page, serialized, id_mapping)
 
     expected_formula = f"get('data_source.{data_source_2.id}.field_1')"
-    assert imported_element.label == expected_formula
-    assert imported_element.default_value == expected_formula
-    assert imported_element.placeholder == expected_formula
-    assert imported_element.formula_name == expected_formula
-    assert imported_element.formula_value == expected_formula
+    assert imported_element.label["formula"] == expected_formula
+    assert imported_element.default_value["formula"] == expected_formula
+    assert imported_element.placeholder["formula"] == expected_formula
+    assert imported_element.formula_name["formula"] == expected_formula
+    assert imported_element.formula_value["formula"] == expected_formula
 
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
     "required,type,value,result",
     [
-        (True, "integer", "", False),
+        (True, "integer", "", ValueError),
         (True, "integer", 42, 42),
         (True, "integer", "4.2", 4.2),
-        (True, "integer", "4,2", False),
+        (True, "integer", "4,2", TypeError),
         (True, "integer", "42", 42),
-        (True, "integer", "horse", False),
+        (True, "integer", "horse", TypeError),
         (False, "integer", "", ""),
         (True, "email", "foo@bar.com", "foo@bar.com"),
-        (True, "email", "foobar.com", False),
+        (True, "email", "foobar.com", ValueError),
         (False, "email", "", ""),
-        (True, "any", "", False),
+        (True, "any", "", ValueError),
         (True, "any", 42, 42),
         (True, "any", "42", "42"),
         (True, "any", "horse", "horse"),
@@ -527,7 +532,7 @@ def test_choice_element_import_export_formula(data_fixture):
     ],
 )
 def test_input_text_element_is_valid(data_fixture, required, type, value, result):
-    if result is not False:
+    if result not in [TypeError, ValueError]:
         assert (
             InputTextElementType().is_valid(
                 InputTextElement(validation_type=type, required=required),
@@ -537,7 +542,7 @@ def test_input_text_element_is_valid(data_fixture, required, type, value, result
             == result
         ), repr(f"{value} != {result}")
     else:
-        with pytest.raises(FormDataProviderChunkInvalidException):
+        with pytest.raises(result):
             InputTextElementType().is_valid(
                 InputTextElement(validation_type=type, required=required),
                 value,
@@ -587,17 +592,17 @@ def test_choice_element_is_valid(data_fixture):
 
     choice.required = True
 
-    with pytest.raises(FormDataProviderChunkInvalidException):
+    with pytest.raises(ValueError):
         ChoiceElementType().is_valid(choice, "", {})
 
     assert ChoiceElementType().is_valid(choice, "uk", {}) == "uk"
 
     choice.multiple = True
 
-    with pytest.raises(FormDataProviderChunkInvalidException):
+    with pytest.raises(ValueError):
         ChoiceElementType().is_valid(choice, [], {})
 
-    with pytest.raises(FormDataProviderChunkInvalidException):
+    with pytest.raises(ValueError):
         ChoiceElementType().is_valid(choice, [""], {})
 
     assert ChoiceElementType().is_valid(choice, ["uk"], {}) == ["uk"]
@@ -605,10 +610,10 @@ def test_choice_element_is_valid(data_fixture):
     assert ChoiceElementType().is_valid(choice, ["uk", "it"], {}) == ["uk", "it"]
     assert ChoiceElementType().is_valid(choice, "uk,it", {}) == ["uk", "it"]
 
-    with pytest.raises(FormDataProviderChunkInvalidException):
+    with pytest.raises(ValueError):
         ChoiceElementType().is_valid(choice, ["uk", "it", "pt"], {})
 
-    with pytest.raises(FormDataProviderChunkInvalidException):
+    with pytest.raises(ValueError):
         ChoiceElementType().is_valid(choice, "uk,it,pt", {})
 
     choice.multiple = False
@@ -622,14 +627,14 @@ def test_choice_element_is_valid(data_fixture):
     assert ChoiceElementType().is_valid(choice, [], {}) == []
     assert ChoiceElementType().is_valid(choice, "", {}) == []
 
-    with pytest.raises(FormDataProviderChunkInvalidException):
+    with pytest.raises(ValueError):
         ChoiceElementType().is_valid(choice, [""], {})
 
     assert ChoiceElementType().is_valid(choice, ["uk"], {}) == ["uk"]
     assert ChoiceElementType().is_valid(choice, ["uk", "it"], {}) == ["uk", "it"]
     assert ChoiceElementType().is_valid(choice, "uk,it", {}) == ["uk", "it"]
 
-    with pytest.raises(FormDataProviderChunkInvalidException):
+    with pytest.raises(ValueError):
         ChoiceElementType().is_valid(choice, ["uk", "it", "pt"], {})
 
     choice.choiceelementoption_set.create(value="", name="Blank")
@@ -639,9 +644,9 @@ def test_choice_element_is_valid(data_fixture):
     assert ChoiceElementType().is_valid(choice, "", {}) == ""
 
     choice.multiple = True
-    with pytest.raises(FormDataProviderChunkInvalidException):
+    with pytest.raises(ValueError):
         ChoiceElementType().is_valid(choice, [], {})
-    with pytest.raises(FormDataProviderChunkInvalidException):
+    with pytest.raises(ValueError):
         ChoiceElementType().is_valid(choice, "", {})
 
     assert ChoiceElementType().is_valid(choice, [""], {}) == [""]
@@ -655,7 +660,7 @@ def test_choice_element_is_valid(data_fixture):
         "",
     ]
 
-    with pytest.raises(FormDataProviderChunkInvalidException):
+    with pytest.raises(ValueError):
         ChoiceElementType().is_valid(choice, ["uk", "it", "", "pt"], {})
 
     choice.multiple = False
@@ -675,7 +680,7 @@ def test_choice_element_is_valid(data_fixture):
         "",
     ]
 
-    with pytest.raises(FormDataProviderChunkInvalidException):
+    with pytest.raises(ValueError):
         ChoiceElementType().is_valid(choice, ["uk", "it", "", "pt"], {})
 
 
@@ -715,7 +720,7 @@ def test_choice_element_is_valid_formula_data_source(data_fixture):
         only_expose_public_allowed_properties=False,
     )
 
-    with pytest.raises(FormDataProviderChunkInvalidException):
+    with pytest.raises(ValueError):
         ChoiceElementType().is_valid(choice, "Invalid", dispatch_context)
 
     # Call is_valid with a valid option simply returns its value
@@ -767,7 +772,7 @@ def test_choice_element_is_valid_formula_context(data_fixture):
 
     # Call is_valid with an option that is not present in the list raises an exception
     dispatch_context = BuilderDispatchContext(HttpRequest(), page, offset=0, count=20)
-    with pytest.raises(FormDataProviderChunkInvalidException):
+    with pytest.raises(ValueError):
         ChoiceElementType().is_valid(choice, "Invalid", dispatch_context)
 
     # Call is_valid with a valid option simply returns its value
@@ -822,7 +827,7 @@ def test_page_with_element_using_form_data_has_dependencies_import_first(data_fi
 
     form_input_clone = InputTextElement.objects.get(page=page_clone)
     heading_clone = HeadingElement.objects.get(page=page_clone)
-    assert heading_clone.value == f"get('form_data.{form_input_clone.id}')"
+    assert heading_clone.value["formula"] == f"get('form_data.{form_input_clone.id}')"
 
 
 @pytest.mark.django_db
@@ -845,16 +850,16 @@ def test_checkbox_element_import_export_formula(data_fixture):
     imported_element = element_type.import_serialized(page, serialized, id_mapping)
 
     expected_formula = f"get('data_source.{data_source_2.id}.field_1')"
-    assert imported_element.label == expected_formula
-    assert imported_element.default_value == expected_formula
+    assert imported_element.label["formula"] == expected_formula
+    assert imported_element.default_value["formula"] == expected_formula
 
 
 @pytest.mark.django_db
 def test_checkbox_text_element_is_valid(data_fixture):
-    with pytest.raises(FormDataProviderChunkInvalidException):
+    with pytest.raises(ValueError):
         CheckboxElementType().is_valid(CheckboxElement(required=True), False, {})
 
-    with pytest.raises(FormDataProviderChunkInvalidException):
+    with pytest.raises(ValueError):
         CheckboxElementType().is_valid(CheckboxElement(required=True), 0, {})
 
     assert (
@@ -903,8 +908,8 @@ def test_iframe_element_import_export_formula(data_fixture):
     imported_element = element_type.import_serialized(page, serialized, id_mapping)
 
     expected_formula = f"get('data_source.{data_source_2.id}.field_1')"
-    assert imported_element.url == expected_formula
-    assert imported_element.embed == expected_formula
+    assert imported_element.url["formula"] == expected_formula
+    assert imported_element.embed["formula"] == expected_formula
 
 
 @pytest.mark.django_db
@@ -956,7 +961,7 @@ def test_image_element_import_export(data_fixture, fake, storage):
         )
 
     expected_formula = f"get('data_source.{data_source_2.id}.field_1')"
-    assert imported_element.image_url == expected_formula
+    assert imported_element.image_url["formula"] == expected_formula
     assert (
         imported_element.image_file_id is not None
         and imported_element.image_file_id != element_to_export.image_file_id
@@ -988,9 +993,9 @@ def test_choice_element_import_export(data_fixture):
     imported_element = element_type.import_serialized(page, serialized, id_mapping)
 
     expected_formula = f"get('data_source.{data_source_2.id}.field_1')"
-    assert imported_element.label == expected_formula
-    assert imported_element.default_value == expected_formula
-    assert imported_element.placeholder == expected_formula
+    assert imported_element.label["formula"] == expected_formula
+    assert imported_element.default_value["formula"] == expected_formula
+    assert imported_element.placeholder["formula"] == expected_formula
 
     assert imported_element.multiple is True
 
@@ -1133,6 +1138,13 @@ def test_sanitize_element_roles_removes_invalid_roles(
             # Although the initial roles contains a Default User Role, it is
             # not valid, so we expect an empty list.
             [],
+        ),
+        (
+            (100, 7777),
+            [f"{DEFAULT_USER_ROLE_PREFIX}100", f"{DEFAULT_USER_ROLE_PREFIX}900"],
+            [f"{DEFAULT_USER_ROLE_PREFIX}7777"],
+            # the 900 id is missing in the datasource map so we don't keep that one.
+            [f"{DEFAULT_USER_ROLE_PREFIX}7777"],
         ),
     ],
 )
@@ -1368,7 +1380,7 @@ def test_choice_element_validation_none_vs_empty(
         assert ChoiceElementType().is_valid(choice, value, {}) is value
 
     for value in invalid_choices:
-        with pytest.raises(FormDataProviderChunkInvalidException):
+        with pytest.raises(ValueError):
             ChoiceElementType().is_valid(choice, value, {})
 
 
@@ -1474,12 +1486,12 @@ def test_record_element_is_valid(data_fixture):
     )
 
     # Record selector with no data sources is invalid
-    with pytest.raises(FormDataProviderChunkInvalidException):
+    with pytest.raises(ElementImproperlyConfigured):
         element = RecordSelectorElement()
         RecordSelectorElementType().is_valid(element, "", dispatch_context)
 
     # Record selector that is required should not accept empty values
-    with pytest.raises(FormDataProviderChunkInvalidException):
+    with pytest.raises(ValueError):
         element = RecordSelectorElement(data_source=data_source, required=True)
         RecordSelectorElementType().is_valid(element, "", dispatch_context)
 
@@ -1490,7 +1502,7 @@ def test_record_element_is_valid(data_fixture):
             RecordSelectorElementType().is_valid(element, row_id, dispatch_context)
             == row_id
         )
-    with pytest.raises(FormDataProviderChunkInvalidException):
+    with pytest.raises(ValueError):
         RecordSelectorElementType().is_valid(element, "-1", dispatch_context)
 
     # Record selector that is not required should accept empty values
@@ -1504,18 +1516,18 @@ def test_record_element_is_valid(data_fixture):
             RecordSelectorElementType().is_valid(element, row_id, dispatch_context)
             == row_id
         )
-    with pytest.raises(FormDataProviderChunkInvalidException):
+    with pytest.raises(ValueError):
         RecordSelectorElementType().is_valid(element, "-1", dispatch_context)
 
     # Record selector that is multiple and required should not accept empty values
-    with pytest.raises(FormDataProviderChunkInvalidException):
+    with pytest.raises(ValueError):
         element = RecordSelectorElement(
             data_source=data_source, required=True, multiple=True
         )
         RecordSelectorElementType().is_valid(element, "", dispatch_context)
 
     # Record selector that is multiple should not accept invalid values
-    with pytest.raises(FormDataProviderChunkInvalidException):
+    with pytest.raises(TypeError):
         element = RecordSelectorElement(
             data_source=data_source, required=False, multiple=True
         )
@@ -1529,7 +1541,7 @@ def test_record_element_is_valid(data_fixture):
         RecordSelectorElementType().is_valid(element, row_ids, dispatch_context)
         == row_ids
     )
-    with pytest.raises(FormDataProviderChunkInvalidException):
+    with pytest.raises(ValueError):
         RecordSelectorElementType().is_valid(element, [], dispatch_context)
 
     # Record selector that is multiple and not required should accept empty values
@@ -1546,7 +1558,7 @@ def test_record_element_is_valid(data_fixture):
         RecordSelectorElementType().is_valid(element, row_ids, dispatch_context)
         == row_ids
     )
-    with pytest.raises(FormDataProviderChunkInvalidException):
+    with pytest.raises(ValueError):
         RecordSelectorElementType().is_valid(element, "-1", dispatch_context)
 
 
@@ -1616,7 +1628,7 @@ def test_repeat_element_import_export(data_fixture):
     "required,date_format,include_time,time_format,value,expected",
     [
         (False, "ISO", False, "24", None, "None"),
-        (True, "ISO", False, "24", None, FormDataProviderChunkInvalidException),
+        (True, "ISO", False, "24", None, ValueError),
         (True, "ISO", False, "24", "2024-04-25T00:00:00.000Z", "2024-04-25"),
         (True, "ISO", True, "24", "2024-04-25T14:30:00.000Z", "2024-04-25 14:30"),
         (True, "EU", False, "24", "2024-04-25T00:00:00.000Z", "25/04/2024"),
@@ -1635,8 +1647,8 @@ def test_datetime_picker_element_is_valid(
         include_time=include_time,
         time_format=time_format,
     )
-    if expected is FormDataProviderChunkInvalidException:
-        with pytest.raises(FormDataProviderChunkInvalidException):
+    if expected is ValueError:
+        with pytest.raises(ValueError):
             element_type.is_valid(element, value, {})
     else:
         assert str(element_type.is_valid(element, value, {})) == expected

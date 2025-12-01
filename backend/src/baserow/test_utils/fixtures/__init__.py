@@ -1,9 +1,14 @@
 from baserow.core.db import get_collation_name
+from baserow.test_utils.fixtures.two_factor_auth import TwoFactorAuthFixtures
 
 from .airtable import AirtableFixtures
 from .app_auth_provider import AppAuthProviderFixtures
 from .application import ApplicationFixtures
 from .auth_provider import AuthProviderFixtures
+from .automation_history import AutomationHistoryFixtures
+from .automation_node import AutomationNodeFixtures
+from .automation_workflow import AutomationWorkflowFixtures
+from .automation_workflow_history import AutomationWorkflowHistoryFixtures
 from .dashboard_data_source import DashboardDataSourceFixtures
 from .data_source import DataSourceFixtures
 from .data_sync import DataSyncFixtures
@@ -15,6 +20,7 @@ from .generative_ai import GenerativeAIFixtures
 from .import_export import ImportExportWorkspaceFixtures
 from .integration import IntegrationFixtures
 from .job import JobFixtures
+from .mcp import MCPFixtures
 from .notifications import NotificationsFixture
 from .page import PageFixtures
 from .row import RowFixture
@@ -41,10 +47,15 @@ class Fixtures(
     UserFileFixtures,
     WorkspaceFixtures,
     ApplicationFixtures,
+    AutomationWorkflowFixtures,
+    AutomationWorkflowHistoryFixtures,
+    AutomationNodeFixtures,
+    AutomationHistoryFixtures,
     TableFixtures,
     ViewFixtures,
     FieldFixtures,
     TokenFixtures,
+    TwoFactorAuthFixtures,
     TemplateFixtures,
     RowFixture,
     TableWebhookFixture,
@@ -69,6 +80,7 @@ class Fixtures(
     ImportExportWorkspaceFixtures,
     DashboardDataSourceFixtures,
     WidgetFixtures,
+    MCPFixtures,
 ):
     def __init__(self, fake=None):
         self.fake = fake

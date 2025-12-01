@@ -57,12 +57,16 @@
               small-label
               :label="setting.label"
               :error="v$.settings[type][setting.key].$error"
+              :error-message="
+                getSettingErrorMessage(v$.settings[type][setting.key])
+              "
               required
               class="margin-bottom-2"
             >
               <FormInput
                 v-model.trim="v$.settings[type][setting.key].$model"
                 :error="v$.settings[type][setting.key].$error"
+                :placeholder="setting.placeholder || null"
               />
 
               <template v-if="setting.description" #helper>
@@ -199,11 +203,17 @@ export default {
         enabled[typeName].length > 0
       )
     },
+    getSettingErrorMessage(object) {
+      if (!object.$error || !object.$errors || object.$errors.length === 0) {
+        return null
+      }
+      return object.$errors.map((error) => error.$message).join(' ')
+    },
   },
   validations() {
     const settings = this.modelTypes.reduce((acc, [type, modelType]) => {
       acc[type] = modelType.getSettings().reduce((acc, setting) => {
-        acc[setting.key] = {}
+        acc[setting.key] = setting.validations || {}
         return acc
       }, {})
       return acc

@@ -18,10 +18,10 @@ classifiers = []
 
 [project.urls]
 Homepage = "https://baserow.io"
-"Bug Tracker" = "https://gitlab.com/baserow/baserow/-/issues/"
+"Bug Tracker" = "https://github.com/baserow/baserow/issues/"
 Documentation = "https://baserow.io/user-docs"
 Support = "https://community.baserow.io/"
-Changelog = "https://gitlab.com/baserow/baserow/-/issues/"
+Changelog = "https://github.com/baserow/baserow/blob/develop/changelog.md"
 
 
 [project.scripts]

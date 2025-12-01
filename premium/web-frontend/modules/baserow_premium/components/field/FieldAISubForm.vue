@@ -60,20 +60,38 @@
       </template>
     </FormGroup>
 
+    <FormGroup small-label>
+      <template #label>
+        {{ $t('fieldAISubForm.autoUpdate') }}
+        <HelpIcon
+          :tooltip="$t('fieldAISubForm.autoUpdateHelp')"
+          :tooltip-content-classes="['tooltip__content--expandable']"
+        />
+      </template>
+      <div class="control" :style="{ marginTop: '4px' }">
+        <div class="control__elements">
+          <Checkbox v-model="v$.values.ai_auto_update.$model">{{
+            $t('fieldAISubForm.autoUpdateDescription')
+          }}</Checkbox>
+        </div>
+      </div>
+    </FormGroup>
+
     <FormGroup
       small-label
       :label="$t('fieldAISubForm.prompt')"
-      :error="fieldHasErrors('ai_prompt')"
+      :error="v$.values.ai_prompt?.formula.$error"
       required
     >
       <div style="max-width: 366px">
         <FormulaInputField
-          v-model="v$.values.ai_prompt.$model"
-          :data-providers="dataProviders"
-          :application-context="applicationContext"
+          :value="formulaStr"
+          :mode="localMode"
+          :nodes-hierarchy="nodesHierarchy"
           :placeholder="$t('fieldAISubForm.promptPlaceholder')"
-          @input="v$.values.ai_prompt.$touch()"
-        ></FormulaInputField>
+          @input="updatedFormulaStr"
+          @update:mode="updateMode"
+        />
       </div>
       <template #error> {{ $t('error.requiredField') }}</template>
     </FormGroup>
@@ -99,6 +117,8 @@ import fieldSubForm from '@baserow/modules/database/mixins/fieldSubForm'
 import FormulaInputField from '@baserow/modules/core/components/formula/FormulaInputField'
 import SelectAIModelForm from '@baserow/modules/core/components/ai/SelectAIModelForm'
 import { TextAIFieldOutputType } from '@baserow_premium/aiFieldOutputTypes'
+import { buildFormulaFunctionNodes } from '@baserow/modules/core/formula'
+import { getDataNodesFromDataProvider } from '@baserow/modules/core/utils/dataProviders'
 
 export default {
   name: 'FieldAISubForm',
@@ -109,16 +129,31 @@ export default {
   },
   data() {
     return {
-      allowedValues: ['ai_prompt', 'ai_file_field_id', 'ai_output_type'],
+      allowedValues: [
+        'ai_prompt',
+        'ai_file_field_id',
+        'ai_output_type',
+        'ai_auto_update',
+      ],
       values: {
-        ai_prompt: '',
+        ai_prompt: { formula: '', mode: 'simple' },
         ai_output_type: TextAIFieldOutputType.getType(),
         ai_file_field_id: null,
+        ai_auto_update: false,
       },
       fileFieldSupported: false,
+      localMode: 'simple',
     }
   },
   computed: {
+    /**
+     * Extract the formula string from the value object, the FormulaInputField
+     * component only needs the formula string itself.
+     * @returns {String} The formula string.
+     */
+    formulaStr() {
+      return this.values.ai_prompt.formula
+    },
     // Return the reactive object that can be updated in runtime.
     workspace() {
       return this.$store.getters['workspace/get'](this.database.workspace.id)
@@ -137,6 +172,29 @@ export default {
     },
     dataProviders() {
       return [this.$registry.get('databaseDataProvider', 'fields')]
+    },
+    nodesHierarchy() {
+      const hierarchy = []
+
+      const filteredDataNodes = getDataNodesFromDataProvider(
+        this.dataProviders,
+        this.applicationContext
+      )
+
+      if (filteredDataNodes.length > 0) {
+        hierarchy.push({
+          name: this.$t('runtimeFormulaTypes.formulaTypeData'),
+          type: 'data',
+          icon: 'iconoir-database',
+          nodes: filteredDataNodes,
+        })
+      }
+
+      // Add functions and operators from the registry
+      const formulaNodes = buildFormulaFunctionNodes(this)
+      hierarchy.push(...formulaNodes)
+
+      return hierarchy
     },
     isDeactivated() {
       return this.$registry
@@ -163,7 +221,37 @@ export default {
       )
     },
   },
+  watch: {
+    'values.ai_prompt.mode': {
+      handler(newMode) {
+        if (newMode && newMode !== this.localMode) {
+          this.localMode = newMode
+        }
+      },
+      immediate: true,
+    },
+  },
   methods: {
+    /**
+     * When `FormulaInputField` emits a new formula string, we need to emit the
+     * entire value object with the updated formula string.
+     * @param {String} newFormulaStr The new formula string.
+     */
+    updatedFormulaStr(newFormulaStr) {
+      this.v$.values.ai_prompt.formula.$model = newFormulaStr
+      this.$emit('input', { formula: newFormulaStr })
+    },
+    /**
+     * When the mode changes, update the local mode value
+     * @param {String} newMode The new mode value
+     */
+    updateMode(newMode) {
+      this.localMode = newMode
+      this.values.ai_prompt = {
+        ...this.values.ai_prompt,
+        mode: newMode,
+      }
+    },
     setFileFieldSupported(generativeAIType) {
       if (generativeAIType) {
         const modelType = this.$registry.get(
@@ -183,9 +271,10 @@ export default {
   validations() {
     return {
       values: {
-        ai_prompt: { required },
+        ai_prompt: { formula: { required } },
         ai_file_field_id: {},
         ai_output_type: {},
+        ai_auto_update: {},
       },
     }
   },

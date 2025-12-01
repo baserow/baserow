@@ -5,11 +5,12 @@
     </h2>
     <div class="create-widget-modal__cards">
       <CreateWidgetCard
-        v-for="widgetType in widgetTypes"
-        :key="widgetType.type"
+        v-for="widgetVariation in widgetVariations"
+        :key="widgetVariation.name"
         :dashboard="dashboard"
-        :widget-type="widgetType"
-        @widget-type-selected="widgetTypeSelected"
+        :widget-type="widgetVariation.type"
+        :variation="widgetVariation"
+        @widget-variation-selected="widgetVariationSelected"
       >
       </CreateWidgetCard>
     </div>
@@ -32,12 +33,17 @@ export default {
   },
   computed: {
     widgetTypes() {
-      return this.$registry.getAll('dashboardWidget')
+      return this.$registry.getOrderedList('dashboardWidget')
+    },
+    widgetVariations() {
+      return this.widgetTypes.reduce((acc, widgetType) => {
+        return acc.concat(widgetType.variations)
+      }, [])
     },
   },
   methods: {
-    widgetTypeSelected(widgetType) {
-      this.$emit('widget-type-selected', widgetType)
+    widgetVariationSelected(widgetVariation) {
+      this.$emit('widget-variation-selected', widgetVariation)
       this.hide()
     },
   },

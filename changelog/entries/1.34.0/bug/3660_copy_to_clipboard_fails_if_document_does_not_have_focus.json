@@ -1,0 +1,8 @@
+{
+    "type": "bug",
+    "message": "Fix for copy to clipboard fails if document does not have focus on Chrome",
+    "domain": "database",
+    "issue_number": 3660,
+    "bullet_points": [],
+    "created_at": "2025-06-05"
+}

@@ -2,13 +2,13 @@ import enum
 
 import pytest
 from baserow_premium.fields.ai_field_output_types import StrictEnumOutputParser
-from baserow_premium.fields.tasks import generate_ai_values_for_rows
 from langchain_core.prompts import PromptTemplate
 
 from baserow.core.generative_ai.registries import (
     GenerativeAIModelType,
     generative_ai_model_type_registry,
 )
+from baserow.core.jobs.handler import JobHandler
 
 
 def test_strict_enum_output_parser():
@@ -100,7 +100,13 @@ def test_choice_output_type(premium_data_fixture, api_client):
     row_1 = model.objects.create()
     row_2 = model.objects.create()
 
-    generate_ai_values_for_rows(user.id, field.id, [row_1.id, row_2.id])
+    JobHandler().create_and_start_job(
+        user,
+        "generate_ai_values",
+        sync=True,
+        field_id=field.id,
+        row_ids=[row_1.id, row_2.id],
+    )
 
     row_1.refresh_from_db()
     row_2.refresh_from_db()

@@ -1,13 +1,15 @@
 import abc
 from decimal import Decimal
-from typing import List, Optional
+from typing import Callable, Generic, List, Optional, TypeVar
 
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
-from django.db.models import Case, Manager, QuerySet, Value, When
+from django.db.models import Case, QuerySet, Value, When
 from django.db.models.fields import NOT_PROVIDED
 from django.db.models.fields.mixins import FieldCacheMixin
 from django.utils.functional import cached_property
+
+from django_cte import CTEManager
 
 from baserow.core.db import (
     get_highest_order_of_queryset,
@@ -222,6 +224,16 @@ class PolymorphicContentTypeMixin:
     def specific(self):
         """Returns this instance in its most specific subclassed form."""
 
+        return self.get_specific()
+
+    def get_specific(self, enhance_queryset: Callable = None):
+        """
+        Returns this instance in its most specific subclassed form.
+
+        :param enhance_queryset: Allow to enhance the queryset before querying the
+          specific instance.
+        """
+
         self._ensure_content_type_is_set()
         model_class = self.specific_class
         if model_class is None:
@@ -230,7 +242,12 @@ class PolymorphicContentTypeMixin:
             return self
         else:
             content_type = ContentType.objects.get_for_id(self.content_type_id)
-            return content_type.get_object_for_this_type(id=self.id)
+            # We deliberately want to use the `_base_manager` here so it's works exactly
+            # so that trashed objects will still be fetched.
+            queryset = content_type.model_class()._base_manager
+            if callable(enhance_queryset):
+                queryset = enhance_queryset(queryset)
+            return queryset.get(id=self.id)
 
     @cached_property
     def specific_class(self):
@@ -324,7 +341,10 @@ class PolymorphicContentTypeMixin:
         del self.specific_class
 
 
-class WithRegistry:
+T = TypeVar("T", bound="Instance")
+
+
+class WithRegistry(Generic[T]):
     """
     Add shortcuts to models related to a registry.
     """
@@ -334,10 +354,24 @@ class WithRegistry:
     def get_type_registry() -> ModelRegistryMixin:
         """Must return the registry related to this model class."""
 
-    def get_type(self) -> Instance:
+    def get_type(self) -> T:
         """Returns the type for this model instance"""
 
         return self.get_type_registry().get_by_model(self.specific_class)
+
+
+class BigAutoFieldMixin(models.Model):
+    """
+    This mixin introduces a BigAutoField as the primary key for the model.
+    It is useful for models that require a large number of unique IDs.
+    """
+
+    id = models.BigAutoField(
+        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+    )
+
+    class Meta:
+        abstract = True
 
 
 class CreatedAndUpdatedOnMixin(models.Model):
@@ -399,7 +433,7 @@ def make_trashable_mixin(parent):
     class TrashableMixin(models.Model):
         objects = no_trash_manager()
         trash = trash_only_manager()
-        objects_and_trash = Manager()
+        objects_and_trash = CTEManager()
 
         class Meta:
             abstract = True
@@ -413,14 +447,14 @@ ParentWorkspaceTrashableModelMixin = make_trashable_mixin("workspace")
 class TrashableModelMixin(models.Model):
     """
     This mixin allows this model to be trashed and restored from the trash by adding
-    new columns recording it's trash status.
+    new columns recording its trash status.
     """
 
     trashed = models.BooleanField(default=False, db_index=True)
 
     objects = NoTrashManager()
     trash = TrashOnlyManager()
-    objects_and_trash = Manager()
+    objects_and_trash = CTEManager()
 
     class Meta:
         abstract = True

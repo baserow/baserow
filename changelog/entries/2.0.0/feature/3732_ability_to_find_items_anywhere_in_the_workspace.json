@@ -1,0 +1,8 @@
+{
+    "type": "feature",
+    "message": "Ability to find items anywhere in the workspace",
+    "domain": "database",
+    "issue_number": 3732,
+    "bullet_points": [],
+    "created_at": "2025-10-09"
+}

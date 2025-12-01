@@ -14,7 +14,9 @@ from baserow.contrib.dashboard.data_sources.handler import DashboardDataSourceHa
 from baserow.contrib.dashboard.data_sources.models import DashboardDataSource
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.integrations.local_baserow.models import LocalBaserowAggregateRows
-from baserow.core.services.exceptions import ServiceImproperlyConfigured
+from baserow.core.services.exceptions import (
+    ServiceImproperlyConfiguredDispatchException,
+)
 from baserow.core.services.models import Service
 from baserow.core.services.registries import service_type_registry
 
@@ -392,5 +394,5 @@ def test_dispatch_data_source_improperly_configured(data_fixture):
     )
     dispatch_context = DashboardDispatchContext(HttpRequest())
 
-    with pytest.raises(ServiceImproperlyConfigured):
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException):
         DashboardDataSourceHandler().dispatch_data_source(data_source, dispatch_context)

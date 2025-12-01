@@ -8,8 +8,8 @@ msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2024-01-18 13:32+0000\n"
-"PO-Revision-Date: 2024-04-13 18:01+0000\n"
-"Last-Translator: PiotrEsse <piotr.esse@spero.click>\n"
+"PO-Revision-Date: 2025-06-03 13:48+0000\n"
+"Last-Translator: Cezary Statkiewicz <cezary@baserow.io>\n"
 "Language-Team: Polish <https://hosted.weblate.org/projects/baserow/"
 "backend-database/pl/>\n"
 "Language: pl\n"
@@ -18,7 +18,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=3; plural=(n==1 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 "
 "|| n%100>=20) ? 1 : 2);\n"
-"X-Generator: Weblate 5.5-dev\n"
+"X-Generator: Weblate 5.12-dev\n"
 
 #: src/baserow/contrib/database/action/scopes.py:9
 #, python-format
@@ -338,8 +338,8 @@ msgid ""
 "The Database Token (%(token_name)s) name changed from "
 "\"%(original_token_name)s\" to \"%(token_name)s\""
 msgstr ""
-"Nazwa tokena bazy danych (%(token_name)s) została zmieniona z \""
-"%(original_token_name)s\" na \"%(token_name)s\"."
+"Nazwa tokena bazy danych (%(token_name)s) została zmieniona z "
+"\"%(original_token_name)s\" na \"%(token_name)s\""
 
 #: src/baserow/contrib/database/tokens/actions.py:94
 msgid "Update DB token permissions"
@@ -414,7 +414,7 @@ msgstr "Aktualizacja grupy filtrów widoku"
 #: src/baserow/contrib/database/views/actions.py:444
 #, python-format
 msgid "View filter group updated to \"%(filter_type)s\""
-msgstr "Zaktualizowano grupę filtrów widoku do \"%(filter_type)s\"."
+msgstr "Zaktualizowano grupę filtrów widoku do \"%(filter_type)s\""
 
 #: src/baserow/contrib/database/views/actions.py:536
 msgid "Delete a view filter group"

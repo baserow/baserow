@@ -14,6 +14,11 @@ def load_test_data():
     print("Add basic users...")
     user_handler = UserHandler()
 
+    # Allow to import any external archive
+    core_settings = CoreHandler().get_settings()
+    core_settings.verify_import_signature = False
+    core_settings.save()
+
     for i in range(3):
         # Create main admin
         email = f"admin{i + 1}@baserow.io" if i > 0 else "admin@baserow.io"
@@ -24,6 +29,12 @@ def load_test_data():
 
         admin.is_staff = True
         admin.save()
+
+        user_handler.update_user(
+            admin,
+            completed_onboarding=True,
+            completed_guided_tours=["sidebar", "database", "builder", "automation"],
+        )
 
         try:
             workspace = Workspace.objects.get(

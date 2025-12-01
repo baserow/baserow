@@ -1,6 +1,4 @@
-<!-- If you have a question about Baserow please post it on the community forum
-     https://community.baserow.io/ !-->
-
-<!-- Please choose a type of issue from the Description dropdown box above !-->
-
-/label ~"needs feedback ⚠️"
+**WARNING!** There is no point in creating an issue on GitLab. This repository is just a
+mirror of https://github.com/baserow/baserow. Please create your issue there, or if you
+have a question about Baserow, please post it on the community forum 
+https://community.baserow.io/.

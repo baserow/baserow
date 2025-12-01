@@ -35,18 +35,25 @@ export const ContainerElementTypeMixin = (Base) =>
      * A Container element without any child elements is invalid. Return true
      * if there are no children, otherwise return false.
      */
-    isInError({ page, element, builder }) {
+    getErrorMessage(element, applicationContext) {
+      const { builder } = applicationContext
+
+      const elementPage = this.app.store.getters['page/getById'](
+        builder,
+        element.page_id
+      )
+
       const children = this.app.store.getters['element/getChildren'](
-        page,
+        elementPage,
         element
       )
 
       // A container element needs at least one child.
       if (!children.length) {
-        return true
+        return this.app.i18n.t('elementType.errorEmptyContainer')
       }
 
-      return super.isInError({ page, element, builder })
+      return super.getErrorMessage(element, applicationContext)
     }
   }
 
@@ -90,7 +97,8 @@ export const CollectionElementTypeMixin = (Base) =>
      * the results down to the properties which are `filterable`, `sortable`,
      * and `searchable`, and then returning the property value.
      * @param {string} option - the `filterable`, `sortable` or `searchable`
-     *  property option. If the value is `true` then the property will be
+     *  property option. If the value is `true`, and the property itself is
+     *  actually capable of being refined, then the property will be
      *  included in the adhoc header component.
      * @param {object} element - the element we want to extract options from.
      * @param {object} dataSource - the dataSource used by `element`.
@@ -103,10 +111,12 @@ export const CollectionElementTypeMixin = (Base) =>
         : []
       return Object.entries(schemaProperties)
         .filter(
-          ([schemaProperty, _]) =>
-            this.getPropertyOptionsByProperty(element, schemaProperty)[
-              option
-            ] || false
+          ([schemaProperty, propertyValues]) =>
+            (propertyValues[option] &&
+              this.getPropertyOptionsByProperty(element, schemaProperty)[
+                option
+              ]) ||
+            false
         )
         .map(([_, property]) => property)
     }
@@ -156,12 +166,27 @@ export const CollectionElementTypeMixin = (Base) =>
      * A simple check to return whether this collection element has a
      * "source of data" (i.e. a data source, or a schema property).
      * Should not be used as an "in error" or validation check, use
-     * `isInError` for this purpose as it is more thorough.
+     * `getErrorMessage` for this purpose as it is more thorough.
      * @param element - The element we want to check for a source of data.
      * @returns {Boolean} - Whether the element has a source of data.
      */
     hasSourceOfData(element) {
       return Boolean(element.data_source_id || element.schema_property)
+    }
+
+    getElementContentInStore(element) {
+      return (
+        this.app.store.getters['elementContent/getElementContent'](element) ||
+        []
+      )
+    }
+
+    getDataSourceForElement({ builder, page, element }) {
+      const sharedPage = this.app.store.getters['page/getSharedPage'](builder)
+      return this.app.store.getters['dataSource/getPagesDataSourceById'](
+        [sharedPage, page],
+        element.data_source_id
+      )
     }
 
     /**
@@ -281,7 +306,7 @@ export const CollectionElementTypeMixin = (Base) =>
     }
 
     /**
-     * A collection element is in error if:
+     * A collection element is in error because of data source error if:
      *
      * - No parent (including self) collection elements have a valid data_source_id.
      * - The parent with the valid data_source_id points to a data_source
@@ -292,7 +317,7 @@ export const CollectionElementTypeMixin = (Base) =>
      * @param {Object} builder - The builder
      * @returns {Boolean} - Whether the element is in error.
      */
-    isInError({ page, element, builder }) {
+    getDataSourceErrorMessage({ workspace, page, element, builder }) {
       // We get all parents with a valid data_source_id
       const collectionAncestorsWithDataSource = this.app.store.getters[
         'element/getAncestors'
@@ -305,12 +330,16 @@ export const CollectionElementTypeMixin = (Base) =>
 
       // No parent with a data_source_id means we are in error
       if (collectionAncestorsWithDataSource.length === 0) {
-        return true
+        return this.$t('elementType.errorParentWithDataSourceMissing')
       }
+
+      // A manual index is preferred over `.at()` since there are a lot of
+      // users on older browsers. See GitLab issue #3591.
+      const lastIndex = collectionAncestorsWithDataSource.length - 1
 
       // We consider the closest parent collection element with a data_source_id
       // The closest parent might be the current element itself
-      const parentWithDataSource = collectionAncestorsWithDataSource.at(-1)
+      const parentWithDataSource = collectionAncestorsWithDataSource[lastIndex]
 
       // We now check if the parent element configuration is correct.
       const sharedPage = this.app.store.getters['page/getSharedPage'](builder)
@@ -320,23 +349,47 @@ export const CollectionElementTypeMixin = (Base) =>
 
       // The data source is missing. May be it has been removed.
       if (!dataSource) {
-        return true
+        return this.app.i18n.t('elementType.errorDataSourceMissing')
       }
 
       const serviceType = this.app.$registry.get('service', dataSource.type)
 
       // If the data source type doesn't return a list, we should have a schema_property
       if (!serviceType.returnsList && !parentWithDataSource.schema_property) {
-        return true
+        return this.app.i18n.t('elementType.errorSchemaPropertyMissing')
       }
 
       // If the current element is not the one with the data source it should have
       // a schema_property
       if (parentWithDataSource.id !== element.id && !element.schema_property) {
-        return true
+        return this.app.i18n.t('elementType.errorSchemaPropertyMissing')
+      }
+      return null
+    }
+
+    /**
+     * Check data source errors.
+     */
+    getErrorMessage(element, applicationContext) {
+      const { workspace, builder } = applicationContext
+
+      const elementPage = this.app.store.getters['page/getById'](
+        builder,
+        element.page_id
+      )
+
+      const dataSourceErrorMessage = this.getDataSourceErrorMessage({
+        workspace,
+        page: elementPage,
+        element,
+        builder,
+      })
+
+      if (dataSourceErrorMessage) {
+        return dataSourceErrorMessage
       }
 
-      return super.isInError({ page, element, builder })
+      return super.getErrorMessage(element, applicationContext)
     }
   }
 
@@ -348,10 +401,13 @@ export const MultiPageElementTypeMixin = (Base) =>
       return true
     }
 
-    isVisible({ element, currentPage }) {
-      if (!super.isVisible({ element, currentPage })) {
+    isVisible({ element, applicationContext }) {
+      if (!super.isVisible({ element, applicationContext })) {
         return false
       }
+
+      const { page: currentPage } = applicationContext
+
       switch (element.share_type) {
         case SHARE_TYPES.ALL:
           return true

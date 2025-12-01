@@ -91,7 +91,12 @@
           <div class="form-view-survey__center-inner-1">
             <div class="form-view-survey__center-inner-2">
               <div v-if="fields.length === 0" class="form-view__no-fields">
-                {{ $t('formViewModePreviewForm.noFields') }}
+                <div class="form-view__no-fields-title">
+                  {{ $t('formViewModePreviewForm.noFieldsTitle') }}
+                </div>
+                <div class="form-view__no-fields-content">
+                  {{ $t('formViewModePreviewForm.noFieldsContent') }}
+                </div>
               </div>
               <FormViewMetaControls
                 v-else

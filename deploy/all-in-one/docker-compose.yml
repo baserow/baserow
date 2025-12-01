@@ -1,4 +1,3 @@
-version: "3.4"
 services:
   # A dev / testing /example compose file for quickly setting up an all in one
   baserow_all_in_one:

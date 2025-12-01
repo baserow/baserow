@@ -3,7 +3,8 @@
     :selected-index="selectedTabIndex"
     full-height
     grow-items
-    no-padding
+    header-no-padding
+    content-no-x-padding
     class="row-edit-modal-sidebar"
   >
     <Tab

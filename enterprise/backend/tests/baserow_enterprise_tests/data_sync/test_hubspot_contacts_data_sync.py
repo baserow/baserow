@@ -620,7 +620,7 @@ def test_sync_data_sync_table_without_license(enterprise_data_fixture):
 @override_settings(DEBUG=True)
 @responses.activate
 def test_async_sync_data_sync_table_without_license(
-    api_client, enterprise_data_fixture
+    api_client, enterprise_data_fixture, synced_roles
 ):
     responses.add(
         responses.GET,

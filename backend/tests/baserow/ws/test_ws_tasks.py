@@ -507,3 +507,63 @@ async def test_broadcast_to_users_individual_payloads(data_fixture):
 
     await communicator_1.disconnect()
     await communicator_2.disconnect()
+
+
+@pytest.mark.django_db
+def test_broadcast_application_created_does_not_fail_for_trashed_applications(
+    data_fixture,
+):
+    from baserow.ws.tasks import broadcast_application_created
+
+    application = data_fixture.create_database_application()
+    application.trashed = True
+    application.save()
+
+    try:
+        broadcast_application_created(application.id)
+    except Exception as e:
+        pytest.fail(f"broadcast_application_created raised an exception: {e}")
+
+
+@pytest.mark.django_db
+def test_broadcast_to_permitted_users_does_not_fail_for_trashed_objects(data_fixture):
+    from baserow.ws.tasks import broadcast_to_permitted_users
+
+    user_1, token_1 = data_fixture.create_user_and_token()
+
+    workspace = data_fixture.create_workspace(users=[user_1])
+    application = data_fixture.create_database_application(workspace=workspace)
+
+    workspace.trashed = True
+    workspace.save()
+
+    try:
+        broadcast_to_permitted_users(
+            workspace.id,
+            "workspace.create_application",
+            "application",
+            application.id,
+            {},
+            None,
+        )
+    except Exception as e:
+        pytest.fail(f"broadcast_to_permitted_users raised an exception: {e}")
+
+    # Now let's try with a deleted scope
+    workspace.trashed = False
+    workspace.save()
+
+    application_id = application.id
+    application.delete()
+
+    try:
+        broadcast_to_permitted_users(
+            workspace.id,
+            "workspace.create_application",
+            "application",
+            application_id,
+            {},
+            None,
+        )
+    except Exception as e:
+        pytest.fail(f"broadcast_to_permitted_users raised an exception: {e}")

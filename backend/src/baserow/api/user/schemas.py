@@ -56,7 +56,20 @@ refresh_token_schema = {
     }
 }
 
-create_user_response_schema = build_object_type(
+two_factor_required_response_schema = build_object_type(
+    {
+        "two_factor_auth": {
+            "type": "string",
+            "description": "The type of the two factor auth that is required to perform.",
+        },
+        "token": {
+            "type": "string",
+            "description": "The temporary token for verifying authentication using 2fa.",
+        },
+    }
+)
+
+success_create_user_response_schema = build_object_type(
     {
         **user_response_schema,
         **access_token_schema,
@@ -64,8 +77,16 @@ create_user_response_schema = build_object_type(
     }
 )
 
+authenticated_user_response_schema = {
+    "oneOf": [
+        success_create_user_response_schema,
+        two_factor_required_response_schema,
+    ],
+}
+
+
 if jwt_settings.ROTATE_REFRESH_TOKENS:
-    authenticate_user_schema = create_user_response_schema
+    authenticate_user_schema = authenticated_user_response_schema
 else:
     authenticate_user_schema = build_object_type(
         {

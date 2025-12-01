@@ -126,35 +126,32 @@ def test_view_empty_count_aggregation_for_interesting_table(data_fixture):
     view_handler = ViewHandler()
 
     aggregation_query = []
+    aggregation_type = view_aggregation_type_registry.get("empty_count")
+
+    compatible_fields = []
     for field in model._field_objects.values():
-        aggregation_query.append(
-            (
-                field["field"],
-                "empty_count",
-            )
-        )
+        if aggregation_type.field_is_compatible(field["field"]):
+            compatible_fields.append(field["field"])
+
+    for field in compatible_fields:
+        aggregation_query.append((field, aggregation_type.type))
 
     result_empty = view_handler.get_field_aggregations(
         user, grid_view, aggregation_query, model=model, with_total=True
     )
 
     aggregation_query = []
-    for field in model._field_objects.values():
-        aggregation_query.append(
-            (
-                field["field"],
-                "not_empty_count",
-            )
-        )
+    aggregation_type = view_aggregation_type_registry.get("not_empty_count")
+    for field in compatible_fields:
+        aggregation_query.append((field, aggregation_type.type))
 
     result_not_empty = view_handler.get_field_aggregations(
         user, grid_view, aggregation_query, model=model
     )
 
-    for field in model._field_objects.values():
+    for field in compatible_fields:
         assert (
-            result_empty[field["field"].db_column]
-            + result_not_empty[field["field"].db_column]
+            result_empty[field.db_column] + result_not_empty[field.db_column]
             == result_empty["total"]
         )
 

@@ -40,6 +40,7 @@ class ChangelogHandler:
         changelog_entry_type_name: str,
         message: str,
         issue_number: Optional[int] = None,
+        issue_origin: Optional[str] = "github",
         release: str = UNRELEASED_FOLDER_NAME,
         bullet_points: List[str] = None,
     ) -> str:
@@ -57,7 +58,11 @@ class ChangelogHandler:
 
         with open(full_path, "w+") as entry_file:
             entry = changelog_entry_type().generate_entry_dict(
-                domain_type_name, message, issue_number, bullet_points=bullet_points
+                domain_type_name,
+                message,
+                issue_origin,
+                issue_number,
+                bullet_points=bullet_points,
             )
             json.dump(entry, entry_file, indent=4)
 
@@ -161,8 +166,13 @@ class ChangelogHandler:
                     )
                     entry_message = f"{domain_prefix}{entry['message']}"
 
+                    # Note: if no `issue_origin` is found, we default to "gitlab"
+                    # for compatibility with older entries. All new entries will
+                    # point to "github" as their origin.
                     entry_markdown_string = entry_type.get_markdown_string(
-                        entry_message, entry["issue_number"]
+                        entry_message,
+                        entry["issue_number"],
+                        entry.get("issue_origin", "gitlab"),
                     )
 
                     changelog_file.write(
@@ -193,7 +203,8 @@ class ChangelogHandler:
             # Delete all .gitignore files in the subfolders of release folder because
             # there is not reason to have empty folders there.
             for gitignore_file in glob.glob(
-                f"{release_path}/**/.gitkeep", recursive=True):
+                f"{release_path}/**/.gitkeep", recursive=True
+            ):
                 os.remove(gitignore_file)
 
             # Delete all empty subfolders in the release folder because we don't need
@@ -213,7 +224,7 @@ class ChangelogHandler:
         except FileExistsError:
             print(f'Release with name "{release_name}" already exists.')
         except OSError as e:
-            print(f'OS error occurred: {e}')
+            print(f"OS error occurred: {e}")
         return None
 
     @staticmethod

@@ -124,3 +124,8 @@ ERROR_VIEW_OWNERSHIP_TYPE_DOES_NOT_EXIST = (
     HTTP_404_NOT_FOUND,
     "The view ownership type does not exist.",
 )
+ERROR_VIEW_DOES_NOT_SUPPORT_LISTING_ROWS = (
+    "ERROR_VIEW_DOES_NOT_SUPPORT_LISTING_ROWS",
+    HTTP_400_BAD_REQUEST,
+    "This view type does not support listing rows.",
+)

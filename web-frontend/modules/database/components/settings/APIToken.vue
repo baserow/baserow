@@ -279,6 +279,8 @@ export default {
         return
       }
 
+      this.deleteLoading = true
+
       try {
         await TokenService(this.$client).delete(token.id)
         this.deleteLoading = false

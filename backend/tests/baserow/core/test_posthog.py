@@ -26,7 +26,7 @@ class TestActionType(ActionType):
 
 @pytest.mark.django_db
 @override_settings(POSTHOG_ENABLED=False)
-@patch("baserow.core.posthog.posthog")
+@patch("baserow.core.posthog.posthog_client")
 def test_not_capture_event_if_not_enabled(mock_posthog, data_fixture):
     user = data_fixture.create_user()
     capture_user_event(user, "test", {})
@@ -35,7 +35,7 @@ def test_not_capture_event_if_not_enabled(mock_posthog, data_fixture):
 
 @pytest.mark.django_db
 @override_settings(POSTHOG_ENABLED=True)
-@patch("baserow.core.posthog.posthog")
+@patch("baserow.core.posthog.posthog_client")
 def test_capture_event_if_enabled(mock_posthog, data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace()

@@ -16,11 +16,12 @@ def test_domain_created_signal_sent(domain_created_mock, data_fixture):
     user = data_fixture.create_user()
     builder = data_fixture.create_builder_application(user=user)
 
-    domain = DomainService().create_domain(
+    service = DomainService()
+    domain = service.create_domain(
         user, CustomDomainType(), builder, domain_name="test"
     )
 
-    assert domain_created_mock.called_with(domain=domain, user=user)
+    domain_created_mock.send.assert_called_once_with(service, domain=domain, user=user)
 
 
 @pytest.mark.django_db
@@ -41,10 +42,11 @@ def test_domain_deleted_signal_sent(domain_deleted_mock, data_fixture):
     builder = data_fixture.create_builder_application(user=user)
     domain = data_fixture.create_builder_custom_domain(builder=builder)
 
-    DomainService().delete_domain(user, domain)
+    service = DomainService()
+    service.delete_domain(user, domain)
 
-    assert domain_deleted_mock.called_with(
-        builder=builder, domain_id=domain.id, user=user
+    domain_deleted_mock.send.assert_called_once_with(
+        service, builder=builder, domain_id=domain.id, user=user
     )
 
 
@@ -115,9 +117,10 @@ def test_domain_updated_signal_sent(domain_updated_mock, data_fixture):
     builder = data_fixture.create_builder_application(user=user)
     domain = data_fixture.create_builder_custom_domain(builder=builder)
 
-    DomainService().update_domain(user, domain, domain_name="new.com")
+    service = DomainService()
+    service.update_domain(user, domain, domain_name="new.com")
 
-    assert domain_updated_mock.called_with(domain=domain, user=user)
+    domain_updated_mock.send.assert_called_once_with(service, domain=domain, user=user)
 
 
 @pytest.mark.django_db
@@ -149,12 +152,11 @@ def test_domains_reordered_signal_sent(domains_reordered_mock, data_fixture):
     domain_one = data_fixture.create_builder_custom_domain(builder=builder, order=1)
     domain_two = data_fixture.create_builder_custom_domain(builder=builder, order=2)
 
-    full_order = DomainService().order_domains(
-        user, builder, [domain_two.id, domain_one.id]
-    )
+    service = DomainService()
+    full_order = service.order_domains(user, builder, [domain_two.id, domain_one.id])
 
-    assert domains_reordered_mock.called_with(
-        builder=builder, order=full_order, user=user
+    domains_reordered_mock.send.assert_called_once_with(
+        service, builder=builder, order=full_order, user=user
     )
 
 
@@ -248,9 +250,10 @@ def test_publish_domain(domain_updated_mock, data_fixture):
     domain1 = data_fixture.create_builder_custom_domain(builder=builder)
 
     progress = Progress(100)
-    domain = DomainService().publish(user, domain1, progress)
+    service = DomainService()
+    domain = service.publish(user, domain1, progress)
 
-    assert domain_updated_mock.called_with(domain=domain, user=user)
+    domain_updated_mock.send.assert_called_once_with(service, domain=domain, user=user)
 
 
 @pytest.mark.django_db()

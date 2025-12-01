@@ -85,6 +85,7 @@ class FormulaFieldConverter(RecreateFieldConverter):
                 to_field
             )
             formula_field_type_changed = from_field_type.type != to_field_type.type
+            db_index_changed = from_field.db_index != to_field.db_index
 
             def has_different_db_column_attrs():
                 return any(
@@ -97,6 +98,7 @@ class FormulaFieldConverter(RecreateFieldConverter):
 
             recreate_field = (
                 formula_field_type_changed
+                or db_index_changed
                 or from_field.error
                 or has_different_db_column_attrs()
                 or force_recreate_column

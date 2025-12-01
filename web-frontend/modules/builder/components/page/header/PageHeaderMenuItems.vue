@@ -4,13 +4,17 @@
       v-for="itemType in pageHeaderItemTypes"
       :key="itemType.getType()"
       class="header__filter-item"
+      :data-highlight="`builder-${itemType.type}`"
     >
       <a
         :ref="`button_${itemType.type}`"
         :data-item-type="itemType.type"
         class="header__filter-link"
         :class="{
-          'active--error': itemType.isInError({ builder, page: currentPage }),
+          'active active--error': itemType.isInError({
+            builder,
+            page: currentPage,
+          }),
         }"
         @click="
           itemType.onClick(

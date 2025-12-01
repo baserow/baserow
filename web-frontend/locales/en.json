@@ -9,11 +9,21 @@
     "billable": "Billable",
     "all": "All",
     "beta": "Beta",
+    "alpha": "Alpha",
     "summarize": "Summarize",
     "enabled": "Enabled",
     "disabled": "Disabled",
+    "optional": "Optional",
     "or": "or",
-    "and": "and"
+    "and": "and",
+    "monday": "Monday",
+    "tuesday": "Tuesday",
+    "wednesday": "Wednesday",
+    "thursday": "Thursday",
+    "friday": "Friday",
+    "saturday": "Saturday",
+    "sunday": "Sunday",
+    "value": "value"
   },
   "action": {
     "close": "Close",
@@ -74,14 +84,18 @@
     "cantSelectTableTitle": "Couldn't select the database.",
     "cantSelectTableDescription": "The database couldn't be selected because it doesn't have any tables. Use the sidebar to create one.",
     "cantSelectPageTitle": "Couldn't select the application.",
-    "cantSelectPageDescription": "The application builder couldn't be selected because it doesn't have any pages. Use the sidebar to create one."
+    "cantSelectPageDescription": "The application builder couldn't be selected because it doesn't have any pages. Use the sidebar to create one.",
+    "cantSelectAutomationWorkflowTitle": "Couldn't select the automation.",
+    "cantSelectAutomationWorkflowDescription": "The automation couldn't be selected because it doesn't have any workflows. Use the sidebar to create one."
   },
   "settingType": {
     "account": "Account",
     "password": "Password",
     "emailNotifications": "Email notifications",
     "tokens": "Database tokens",
-    "deleteAccount": "Delete account"
+    "deleteAccount": "Delete account",
+    "mcpEndpoint": "MCP server",
+    "twoFactorAuth": "Two-factor auth"
   },
   "userFileUploadType": {
     "file": "my device",
@@ -106,7 +120,8 @@
     "minMaxValueField": "The field value must be between {min} and {max}.",
     "invalidURL": "Please enter a valid URL.",
     "email": "The field must be an email.",
-    "alreadyInUse": "This field name is already in use."
+    "alreadyInUse": "This field name is already in use.",
+    "copyFailed": "Copy to clipboard failed. Please try again."
   },
   "permission": {
     "admin": "Admin",
@@ -199,6 +214,24 @@
     "autonumber": "A read-only field that automatically increments a number for each new row.",
     "password": "A write-only field that holds a hashed password. The value will be `null` if not set, or `true` if it has been set. It accepts a string to set it."
   },
+  "fieldConstraint": {
+    "uniqueWithEmpty": "Unique with empty"
+  },
+  "fieldConstraintsSubform": {
+    "title": "Constraints",
+    "description": "Define rules that field values must follow.",
+    "addConstraint": "Add constraint",
+    "noConstraintsAvailable": "No constraints are available for this field type.",
+    "readonlyFieldMessage": "Constraints cannot be applied to read only fields.",
+    "errorGenericData": "Cannot apply field constraint due to existing data conflicts.",
+    "errorUniqueOrEmpty": "Some values in this field are duplicated. Remove or edit duplicates before applying this constraint.",
+    "errorInvalidConstraint": "This field constraint is not supported for this field type.",
+    "errorDoesNotSupportDefaultValue": "Cannot set this constraint when default value is set.",
+    "noConstraintsCompatibleWithDefaultValue": "No constraints are compatible when a default value is enabled."
+  },
+  "fieldConstraintParametersText": {
+    "placeholder": "Enter constraint value"
+  },
   "viewFilter": {
     "hasEmptyValue": "has empty value",
     "hasNotEmptyValue": "doesn't have empty value",
@@ -218,6 +251,8 @@
     "filenameContains": "filename contains",
     "has": "has",
     "hasNot": "doesn't have",
+    "hasAnyOf": "has any of",
+    "hasNotAnyOf": "doesn't have any of",
     "higherThan": "higher than",
     "higherThanOrEqual": "higher than or equal",
     "is": "is",
@@ -303,6 +338,8 @@
   "trashType": {
     "workspace": "workspace",
     "application": "application",
+    "automation_workflow": "automation workflow",
+    "automation_node": "automation node",
     "table": "table",
     "field": "field",
     "row": "row",
@@ -423,7 +460,13 @@
     "cannotCreateRowsInTableTitle": "Can't create rows",
     "cannotCreateRowsInTableDescription": "It's not possible to create rows in this table.",
     "databaseDeadlockTitle": "Action failed",
-    "databaseDeadlockDescription": "The action couldn't be completed due to multiple conflicting operations on the data at the same time. Please try again."
+    "databaseDeadlockDescription": "The action couldn't be completed due to multiple conflicting operations on the data at the same time. Please try again.",
+    "databaseUniquePrimaryPropertyNotFoundTitle": "No unique primary property found",
+    "databaseUniquePrimaryPropertyNotFoundDescription": "This typically happens if the data sync source doesn't contain any property to get a unique row value from. In case of a table, it could be that there is no primary key.",
+    "fieldConstraintTitle": "Field constraint violation",
+    "fieldConstraintDescription": "Unable to apply constraint.",
+    "fieldDataConstraintTitle": "Field data constraint violation",
+    "fieldDataConstraintDescription": "Unable to to complete operation due to existing constraints violation."
   },
   "importerType": {
     "csv": "Import a CSV file",
@@ -434,6 +477,7 @@
   "apiDocs": {
     "intro": "Introduction",
     "authent": "Authentication",
+    "listTables": "List tables",
     "table": "{name} table",
     "filters": "Filters",
     "errors": "HTTP Errors",
@@ -456,10 +500,11 @@
     "pathParameters": "Path parameters",
     "requestBodySchema": "Request body schema",
     "userFieldNamesDescription": "When the `user_field_names` GET parameter is provided and its value is one of the following: `y`, `yes`, `true`, `t`, `on`, `1`, or empty string, the field names returned by this endpoint will be the actual names of the fields.\n\nIf the `user_field_names` GET parameter is not provided, or if it does not match any of the above values, then all returned field names will be `field_` followed by the id of the field. For example `field_1` refers to the field with an id of `1`.",
-    "sendWebhookEventsDescription": "A flag query parameter that triggers webhooks after the operation, if set to `y`, `yes`, `true`, `t`, `on`, `1`, `or` left empty. Defaults to `true`",
+    "sendWebhookEventsDescription": "A flag query parameter that triggers webhooks after the operation, if set to `y`, `yes`, `true`, `t`, `on`, `1`, or left empty. Defaults to `true`",
     "singleRow": "Single",
     "batchRows": "Batch",
-    "fileUploads": "File uploads"
+    "fileUploads": "File uploads",
+    "apiDocs": "List all tables"
   },
   "exporterType": {
     "csv": "Export to CSV"
@@ -592,5 +637,63 @@
     "submit": "Send test email",
     "success": "Successfully sent test email",
     "configLink": "Email Configuration Help"
+  },
+  "assistantMessageSources": {
+    "sources": "{count} source | {count} sources"
+  },
+  "runtimeFormulaTypes": {
+    "concatDescription": "Joined arguments together as a single text.",
+    "getDescription": "Returns the resolved value of a Baserow formula.",
+    "addDescription": "Adds two arguments together.",
+    "minusDescription": "Subtracts the second argument from the first.",
+    "multiplyDescription": "Multiplies the two arguments.",
+    "divideDescription": "Divides the first argument from the second.",
+    "equalDescription": "Checks if both arguments are equal.",
+    "notEqualDescription": "Checks if both arguments are not equal.",
+    "greaterThanDescription": "Checks if the first argument is greater than the second.",
+    "lessThanDescription": "Checks if the first argument is less than the second.",
+    "greaterThanOrEqualDescription": "Checks if the first argument is greater than or equal to the second.",
+    "upperDescription": "Converts the argument to upper case.",
+    "lowerDescription": "Converts the argument to lower case.",
+    "capitalizeDescription": "Capitalizes the argument's first letter.",
+    "roundDescription": "Rounds the first argument to the number of decimal places specified by the second argument.",
+    "evenDescription": "Return true if the argument is even, false otherwise.",
+    "oddDescription": "Return true if the argument is odd, false otherwise.",
+    "dateTimeDescription": "Formats the date time argument using the format and timezone arguments. If the timezone is left blank, it will default to the browser's timezone.",
+    "dayDescription": "Returns the day from the date time argument.",
+    "monthDescription": "Returns the month from the date time argument.",
+    "yearDescription": "Returns the year from the date time argument.",
+    "hourDescription": "Returns the hour from the date time argument.",
+    "minuteDescription": "Returns the minute from the date time argument.",
+    "secondDescription": "Returns the second from the date time argument.",
+    "todayDescription": "Returns the current date.",
+    "getPropertyDescription": "Returns the property from the object.",
+    "randomIntDescription": "Returns a random integer from the range specified by the arguments.",
+    "randomFloatDescription": "Returns a random float from the range specified by the arguments.",
+    "randomBoolDescription": "Returns a random boolean of true or false.",
+    "generateUUIDDescription": "Returns a random UUID4 string.",
+    "ifDescription": "If the first argument is true, returns the second argument, otherwise returns the third argument.",
+    "andDescription": "Returns true if all arguments are true, otherwise returns false.",
+    "orDescription": "Returns true if any argument is true, otherwise returns false.",
+    "formulaTypeFormula": "Function | Functions",
+    "formulaTypeOperator": "Operator | Operators",
+    "formulaTypeData": "Data",
+    "formulaTypeDataEmpty": "No data available",
+    "categoryText": "Text",
+    "categoryNumber": "Number",
+    "categoryBoolean": "Boolean",
+    "categoryDate": "Date",
+    "categoryCondition": "Condition"
+  },
+  "formulaInputContext": {
+    "useRegularInput": "Use regular input",
+    "useRegularInputModalTitle": "Switch to regular input?",
+    "useAdvancedInputModalTitle": "Switch to advanced input?",
+    "useAdvancedInput": "Use advanced input",
+    "modalMessage": "Switching to a different input mode will clear the current formula. Are you sure you want to continue?"
+  },
+  "nodeExplorer": {
+    "noResults": "No results found",
+    "resetSearch": "Reset search"
   }
 }

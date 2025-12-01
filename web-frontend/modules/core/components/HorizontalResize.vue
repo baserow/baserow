@@ -25,6 +25,11 @@ export default {
       required: false,
       default: false,
     },
+    right: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
   },
   data() {
     return {
@@ -53,7 +58,12 @@ export default {
     move(event) {
       event.preventDefault()
       const difference = event.clientX - this.mouseStart
-      let newWidth = Math.max(this.startWidth + difference, this.min)
+      let newWidth = 0
+      if (this.right) {
+        newWidth = Math.max(this.startWidth - difference, this.min)
+      } else {
+        newWidth = Math.max(this.startWidth + difference, this.min)
+      }
       if (this.max) {
         newWidth = Math.min(newWidth, this.max)
       }

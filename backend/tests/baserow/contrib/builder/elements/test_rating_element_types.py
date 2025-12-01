@@ -4,6 +4,9 @@ import pytest
 
 from baserow.contrib.builder.elements.models import RatingElement, RatingStyleChoices
 from baserow.contrib.builder.elements.registries import element_type_registry
+from baserow.core.formula import BaserowFormulaObject
+from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
+from baserow.core.formula.types import BASEROW_FORMULA_MODE_SIMPLE
 from baserow.core.utils import MirrorDict
 
 
@@ -13,7 +16,7 @@ def test_rating_element_type_export_import(data_fixture):
     element = data_fixture.create_builder_element(
         RatingElement,
         page=page,
-        value="4",
+        value="'4'",
         max_value=5,
         color="#FF0000",
         rating_style=RatingStyleChoices.STAR,
@@ -23,7 +26,11 @@ def test_rating_element_type_export_import(data_fixture):
 
     assert exported["id"] == element.id
     assert exported["type"] == "rating"
-    assert exported["value"] == "4"
+    assert exported["value"] == BaserowFormulaObject(
+        formula="'4'",
+        mode=BASEROW_FORMULA_MODE_SIMPLE,
+        version=BASEROW_FORMULA_VERSION_INITIAL,
+    )
     assert exported["max_value"] == 5
     assert exported["color"] == "#FF0000"
     assert exported["rating_style"] == RatingStyleChoices.STAR

@@ -9,13 +9,14 @@ from django.test.utils import CaptureQueriesContext
 
 import pytest
 from freezegun import freeze_time
+from pytest_unordered import unordered
 from rest_framework.status import (
     HTTP_200_OK,
     HTTP_204_NO_CONTENT,
     HTTP_400_BAD_REQUEST,
     HTTP_401_UNAUTHORIZED,
     HTTP_404_NOT_FOUND,
-    HTTP_503_SERVICE_UNAVAILABLE,
+    HTTP_409_CONFLICT,
 )
 
 from baserow.contrib.database.fields.handler import FieldHandler
@@ -227,9 +228,10 @@ def test_cannot_batch_create_rows_with_data_sync(api_client, data_fixture):
     assert response.json()["error"] == "ERROR_CANNOT_CREATE_ROWS_IN_TABLE"
 
 
+@pytest.mark.parametrize("include_metadata", [True, False])
 @pytest.mark.django_db
 @pytest.mark.api_rows
-def test_batch_create_rows(api_client, data_fixture):
+def test_batch_create_rows(api_client, data_fixture, include_metadata):
     user, jwt_token = data_fixture.create_user_and_token()
     table = data_fixture.create_database_table(user=user)
     text_field = data_fixture.create_text_field(
@@ -238,8 +240,14 @@ def test_batch_create_rows(api_client, data_fixture):
     number_field = data_fixture.create_number_field(
         table=table, order=1, name="Horsepower"
     )
+    number_field_2 = data_fixture.create_number_field(
+        table=table, order=2, name="Price", number_default=1000
+    )
     boolean_field = data_fixture.create_boolean_field(
-        table=table, order=2, name="For sale"
+        table=table, order=3, name="For sale"
+    )
+    boolean_field_2 = data_fixture.create_boolean_field(
+        table=table, order=4, name="Available", boolean_default=True
     )
     model = table.get_model()
     url = reverse("api:database:rows:batch", kwargs={"table_id": table.id})
@@ -248,12 +256,16 @@ def test_batch_create_rows(api_client, data_fixture):
             {
                 f"field_{text_field.id}": "green",
                 f"field_{number_field.id}": 120,
+                f"field_{number_field_2.id}": 2000,
                 f"field_{boolean_field.id}": True,
+                f"field_{boolean_field_2.id}": False,
             },
             {
                 f"field_{text_field.id}": "yellow",
                 f"field_{number_field.id}": 240,
                 f"field_{boolean_field.id}": False,
+                # Not providing number_field_2 should use the default 1000 value
+                # Not providing boolean_field_2 should use the default True value
             },
         ]
     }
@@ -263,18 +275,33 @@ def test_batch_create_rows(api_client, data_fixture):
                 "id": 1,
                 f"field_{text_field.id}": "green",
                 f"field_{number_field.id}": "120",
+                f"field_{number_field_2.id}": "2000",
                 f"field_{boolean_field.id}": True,
+                f"field_{boolean_field_2.id}": False,
                 "order": "1.00000000000000000000",
             },
             {
                 "id": 2,
                 f"field_{text_field.id}": "yellow",
                 f"field_{number_field.id}": "240",
+                f"field_{number_field_2.id}": "1000",
                 f"field_{boolean_field.id}": False,
+                f"field_{boolean_field_2.id}": True,
                 "order": "2.00000000000000000000",
             },
         ]
     }
+    if include_metadata:
+        expected_response_body["metadata"] = {
+            "updated_field_ids": [
+                text_field.id,
+                number_field.id,
+                number_field_2.id,
+                boolean_field.id,
+                boolean_field_2.id,
+            ]
+        }
+        url = f"{url}?include_metadata=true"
 
     response = api_client.post(
         url,
@@ -289,8 +316,75 @@ def test_batch_create_rows(api_client, data_fixture):
     row_2 = model.objects.get(pk=2)
     assert getattr(row_1, f"field_{text_field.id}") == "green"
     assert getattr(row_2, f"field_{text_field.id}") == "yellow"
-    assert row_1.needs_background_update
-    assert row_2.needs_background_update
+    assert getattr(row_1, f"field_{number_field.id}") == 120
+    assert getattr(row_2, f"field_{number_field.id}") == 240
+    assert getattr(row_1, f"field_{number_field_2.id}") == 2000
+    assert getattr(row_2, f"field_{number_field_2.id}") == 1000
+    assert getattr(row_1, f"field_{boolean_field.id}") is True
+    assert getattr(row_2, f"field_{boolean_field.id}") is False
+    assert getattr(row_1, f"field_{boolean_field_2.id}") is False
+    assert getattr(row_2, f"field_{boolean_field_2.id}") is True
+
+    # Test creating rows without providing any values
+    request_body_empty = {
+        "items": [
+            {},  # Empty values should use defaults
+            {},
+        ]
+    }
+    expected_response_body_empty = {
+        "items": [
+            {
+                "id": 3,
+                f"field_{text_field.id}": "white",  # text_default
+                f"field_{number_field.id}": None,
+                f"field_{number_field_2.id}": "1000",  # number_default=1000
+                f"field_{boolean_field.id}": False,  # default without boolean_default
+                f"field_{boolean_field_2.id}": True,  # boolean_default=True
+                "order": "3.00000000000000000000",
+            },
+            {
+                "id": 4,
+                f"field_{text_field.id}": "white",
+                f"field_{number_field.id}": None,
+                f"field_{number_field_2.id}": "1000",
+                f"field_{boolean_field.id}": False,
+                f"field_{boolean_field_2.id}": True,
+                "order": "4.00000000000000000000",
+            },
+        ]
+    }
+
+    if include_metadata:
+        expected_response_body_empty["metadata"] = {
+            "updated_field_ids": [
+                text_field.id,
+                number_field.id,
+                number_field_2.id,
+                boolean_field.id,
+                boolean_field_2.id,
+            ]
+        }
+
+    response = api_client.post(
+        url,
+        request_body_empty,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json() == expected_response_body_empty
+    row_3 = model.objects.get(pk=3)
+    row_4 = model.objects.get(pk=4)
+    assert getattr(row_3, f"field_{number_field.id}") is None
+    assert getattr(row_4, f"field_{number_field.id}") is None
+    assert getattr(row_3, f"field_{number_field_2.id}") == 1000
+    assert getattr(row_4, f"field_{number_field_2.id}") == 1000
+    assert getattr(row_3, f"field_{boolean_field.id}") is False
+    assert getattr(row_4, f"field_{boolean_field.id}") is False
+    assert getattr(row_3, f"field_{boolean_field_2.id}") is True
+    assert getattr(row_4, f"field_{boolean_field_2.id}") is True
 
 
 @pytest.mark.django_db
@@ -328,7 +422,7 @@ def test_batch_create_rows_deadlock(api_client, data_fixture):
             HTTP_AUTHORIZATION=f"JWT {jwt_token}",
         )
 
-    assert response.status_code == HTTP_503_SERVICE_UNAVAILABLE
+    assert response.status_code == HTTP_409_CONFLICT
     assert response.json()["error"] == "ERROR_DATABASE_DEADLOCK"
 
 
@@ -1207,9 +1301,10 @@ def test_batch_update_rows_with_read_only_field(api_client, data_fixture):
     )
 
 
+@pytest.mark.parametrize("include_metadata", [True, False])
 @pytest.mark.django_db
 @pytest.mark.api_rows
-def test_batch_update_rows(api_client, data_fixture):
+def test_batch_update_rows(api_client, data_fixture, include_metadata):
     user, jwt_token = data_fixture.create_user_and_token()
     table = data_fixture.create_database_table(user=user)
     text_field = data_fixture.create_text_field(
@@ -1224,7 +1319,6 @@ def test_batch_update_rows(api_client, data_fixture):
     model = table.get_model()
     row_1 = model.objects.create()
     row_2 = model.objects.create()
-    model.objects.update(needs_background_update=False)
     url = reverse("api:database:rows:batch", kwargs={"table_id": table.id})
     request_body = {
         "items": [
@@ -1260,6 +1354,14 @@ def test_batch_update_rows(api_client, data_fixture):
             },
         ]
     }
+    if include_metadata:
+        expected_response_body["metadata"] = {
+            "cascade_update": {"field_ids": [], "rows": []},
+            "updated_field_ids": unordered(
+                [text_field.id, number_field.id, boolean_field.id]
+            ),
+        }
+        url = f"{url}?include_metadata=true"
 
     response = api_client.patch(
         url,
@@ -1274,8 +1376,86 @@ def test_batch_update_rows(api_client, data_fixture):
     row_2.refresh_from_db()
     assert getattr(row_1, f"field_{text_field.id}") == "green"
     assert getattr(row_2, f"field_{text_field.id}") == "yellow"
-    assert row_1.needs_background_update
-    assert row_2.needs_background_update
+    assert getattr(row_1, f"field_{boolean_field.id}") is True
+    assert getattr(row_2, f"field_{boolean_field.id}") is False
+
+
+@pytest.mark.parametrize("include_metadata", [True, False])
+@pytest.mark.django_db
+@pytest.mark.api_rows
+def test_batch_update_rows_with_different_fields(
+    api_client, data_fixture, include_metadata
+):
+    user, jwt_token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(
+        table=table, order=0, name="Color", text_default="white"
+    )
+    number_field = data_fixture.create_number_field(
+        table=table, order=1, name="Horsepower"
+    )
+    boolean_field = data_fixture.create_boolean_field(
+        table=table, order=2, name="For sale"
+    )
+    model = table.get_model()
+    row_1 = model.objects.create()
+    row_2 = model.objects.create()
+    url = reverse("api:database:rows:batch", kwargs={"table_id": table.id})
+    request_body = {
+        "items": [
+            {
+                f"id": row_1.id,
+                f"field_{text_field.id}": "green",
+                f"field_{boolean_field.id}": True,
+            },
+            {
+                f"id": row_2.id,
+                f"field_{number_field.id}": 240,
+            },
+        ]
+    }
+    expected_response_body = {
+        "items": [
+            {
+                f"id": row_1.id,
+                f"field_{text_field.id}": "green",
+                f"field_{number_field.id}": None,
+                f"field_{boolean_field.id}": True,
+                "order": "1.00000000000000000000",
+            },
+            {
+                f"id": row_2.id,
+                f"field_{text_field.id}": "white",
+                f"field_{number_field.id}": "240",
+                f"field_{boolean_field.id}": False,
+                "order": "1.00000000000000000000",
+            },
+        ]
+    }
+    if include_metadata:
+        expected_response_body["metadata"] = {
+            "cascade_update": {"field_ids": [], "rows": []},
+            "updated_field_ids": unordered(
+                [text_field.id, number_field.id, boolean_field.id]
+            ),
+        }
+        url = f"{url}?include_metadata=true"
+
+    response = api_client.patch(
+        url,
+        request_body,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json() == expected_response_body
+    row_1.refresh_from_db()
+    row_2.refresh_from_db()
+    assert getattr(row_1, f"field_{text_field.id}") == "green"
+    assert getattr(row_2, f"field_{text_field.id}") == "white"  # default val
+    assert getattr(row_1, f"field_{boolean_field.id}") is True
+    assert getattr(row_2, f"field_{boolean_field.id}") is False
 
 
 @pytest.mark.django_db
@@ -1291,7 +1471,6 @@ def test_batch_update_rows_deadlock(api_client, data_fixture):
     model = table.get_model()
     row_1 = model.objects.create()
     row_2 = model.objects.create()
-    model.objects.update(needs_background_update=False)
     url = reverse("api:database:rows:batch", kwargs={"table_id": table.id})
     request_body = {
         "items": [
@@ -1316,7 +1495,7 @@ def test_batch_update_rows_deadlock(api_client, data_fixture):
             format="json",
             HTTP_AUTHORIZATION=f"JWT {jwt_token}",
         )
-    assert response.status_code == HTTP_503_SERVICE_UNAVAILABLE
+    assert response.status_code == HTTP_409_CONFLICT
     assert response.json()["error"] == "ERROR_DATABASE_DEADLOCK"
 
 
@@ -1337,7 +1516,6 @@ def test_batch_update_rows_with_disabled_webhook_events(api_client, data_fixture
     model = table.get_model()
     row_1 = model.objects.create()
     row_2 = model.objects.create()
-    model.objects.update(needs_background_update=False)
 
     data_fixture.create_table_webhook(
         table=table,
@@ -2270,7 +2448,7 @@ def test_batch_delete_rows_deadlock(api_client, data_fixture):
             format="json",
             HTTP_AUTHORIZATION=f"JWT {jwt_token}",
         )
-    assert response.status_code == HTTP_503_SERVICE_UNAVAILABLE
+    assert response.status_code == HTTP_409_CONFLICT
     assert response.json()["error"] == "ERROR_DATABASE_DEADLOCK"
 
 
@@ -2537,3 +2715,77 @@ def test_batch_delete_rows_disabled_webhook_events(api_client, data_fixture):
         )
         assert response.status_code == HTTP_204_NO_CONTENT
         m.assert_not_called()
+
+
+@pytest.mark.django_db
+@pytest.mark.api_rows
+def test_batch_create_rows_single_select_default(api_client, data_fixture):
+    user, jwt_token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+
+    option_field = data_fixture.create_single_select_field(
+        table=table, name="option_field", order=1
+    )
+    option_1 = data_fixture.create_select_option(
+        field=option_field, value="1", color="blue"
+    )
+    option_2 = data_fixture.create_select_option(
+        field=option_field, value="2", color="red"
+    )
+
+    field_handler = FieldHandler()
+    option_field = field_handler.update_field(
+        user=user, field=option_field, single_select_default=option_1.id
+    )
+
+    model = table.get_model()
+    url = reverse("api:database:rows:batch", kwargs={"table_id": table.id})
+
+    request_body = {
+        "items": [
+            {
+                f"field_{option_field.id}": option_2.id,
+            },
+            {
+                # Not providing a value should use the default (active)
+            },
+        ]
+    }
+
+    expected_response_body = {
+        "items": [
+            {
+                "id": 1,
+                f"field_{option_field.id}": {
+                    "id": option_2.id,
+                    "value": "2",
+                    "color": "red",
+                },
+                "order": "1.00000000000000000000",
+            },
+            {
+                "id": 2,
+                f"field_{option_field.id}": {
+                    "id": option_1.id,
+                    "value": "1",
+                    "color": "blue",
+                },
+                "order": "2.00000000000000000000",
+            },
+        ]
+    }
+
+    response = api_client.post(
+        url,
+        request_body,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json() == expected_response_body
+
+    row_1 = model.objects.get(pk=1)
+    row_2 = model.objects.get(pk=2)
+    assert getattr(row_1, f"field_{option_field.id}").id == option_2.id
+    assert getattr(row_2, f"field_{option_field.id}").id == option_1.id

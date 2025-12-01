@@ -1,0 +1,11 @@
+.slack-bot-form__instructions {
+  color: $palette-neutral-900;
+  padding-left: 20px;
+  line-height: 170%;
+
+  & pre {
+    margin: 0;
+    display: inline;
+    background-color: $color-neutral-100;
+  }
+}

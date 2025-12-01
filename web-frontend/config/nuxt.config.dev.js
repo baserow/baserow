@@ -1,30 +1,38 @@
-import StyleLintPlugin from 'stylelint-webpack-plugin'
-
 import base from './nuxt.config.base.js'
 
-export default Object.assign(base(), {
-  vue: {
-    config: {
-      productionTip: false,
-      devtools: true,
-      performance: true,
-      silent: false,
+const baseConfig = base()
+export default {
+  ...baseConfig,
+  ...{
+    vue: {
+      config: {
+        productionTip: false,
+        devtools: true,
+        performance: true,
+        silent: false,
+      },
+    },
+    dev: true,
+    build: {
+      cache: true,
+      hardSource: true,
+      sourceMap: true,
+      parallel: true,
+      quite: true,
+      optimization: {
+        splitChunks: {
+          chunks: 'async',
+        },
+      },
+      ...baseConfig.build,
+      ...{
+        extend(config, ctx) {
+          baseConfig.build.extend(config, ctx)
+          if (ctx.isDev) {
+            config.devtool = ctx.isClient ? 'source-map' : 'inline-source-map'
+          }
+        },
+      },
     },
   },
-  dev: true,
-  build: {
-    extend(config, ctx) {
-      config.node = { fs: 'empty' }
-      if (ctx.isDev) {
-        config.devtool = ctx.isClient ? 'source-map' : 'inline-source-map'
-      }
-    },
-    babel: { compact: true },
-    plugins: [
-      new StyleLintPlugin({
-        syntax: 'scss',
-      }),
-    ],
-    transpile: ['axios', '@vuelidate/core', '@vuelidate/validators'],
-  },
-})
+}

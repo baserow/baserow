@@ -29,6 +29,12 @@
   position: absolute;
 }
 
-.modal-progress__export-button {
+.modal-progress__export-button,
+.modal-progress__primary-button {
   flex: 0 0 160px;
+}
+
+.modal-progress__cancel-button {
+  margin-right: 12px;
+  color: $color-error-500;
 }

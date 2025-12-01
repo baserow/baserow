@@ -38,7 +38,10 @@ export default function BuilderModule(options) {
     configRoutes.push(...routes)
   })
 
+  let alreadyExtended = false
   this.nuxt.hook('i18n:extend-messages', function (additionalMessages) {
-    additionalMessages.push({ en, fr, nl, de, it, es, pl, ko })
+    if (alreadyExtended) return
+    additionalMessages.push({ en, fr, nl, de, es, it, pl, ko })
+    alreadyExtended = true
   })
 }

@@ -123,17 +123,23 @@ class DiscriminatorMappingSerializerExtension(OpenApiSerializerExtension):
 
         for key, serializer_class in mapping.items():
             sub_serializer = force_instance(serializer_class)
-            resolved_sub_serializer = auto_schema.resolve_serializer(
-                sub_serializer, direction
-            )
-            sub_components.append((key, resolved_sub_serializer.ref))
+            resolved = auto_schema.resolve_serializer(sub_serializer, direction)
+            schema = resolved.ref
+
+            if isinstance(schema, list):
+                for item in schema:
+                    sub_components.append((key, item))
+            else:
+                sub_components.append((key, schema))
 
         return {
-            "oneOf": [ref for _, ref in sub_components],
+            "oneOf": [schema for _, schema in sub_components],
             "discriminator": {
                 "propertyName": self.target.type_field_name,
                 "mapping": {
-                    resource_type: ref["$ref"] for resource_type, ref in sub_components
+                    key: value["$ref"]
+                    for key, value in sub_components
+                    if isinstance(value, dict) and "$ref" in value
                 },
             },
         }
@@ -174,13 +180,21 @@ class DiscriminatorCustomFieldsMappingSerializerExtension(
     def map_serializer(self, auto_schema, direction):
         mapping = {}
 
-        for types in self.target.registry.registry.values():
-            name = types.type
+        forced_type = getattr(self.target, "forced_type", None)
+
+        types = (
+            self.target.registry.registry.values()
+            if not forced_type
+            else [self.target.registry.get(forced_type)]
+        )
+
+        for type_ in types:
+            name = type_.type
 
             if self.target.name_prefix:
                 name = f"{self.target.name_prefix}{name}"
 
-            mapping[name] = types.get_serializer_class(
+            mapping[name] = type_.get_serializer_class(
                 base_class=self.target.base_class,
                 request_serializer=self.target.request,
                 extra_params=self.target.extra_params,
@@ -197,4 +211,15 @@ class PolymorphicMappingSerializerExtensionMixin(
     """
 
     target_class = "baserow.api.polymorphic.PolymorphicSerializer"
+    match_subclasses = True
+
+
+class PolymorphicRequestMappingSerializerExtensionMixin(
+    CustomFieldRegistryMappingSerializerExtension
+):
+    """
+    Extension to correctly display Polymorphic request serializer documentation.
+    """
+
+    target_class = "baserow.api.polymorphic.PolymorphicRequestSerializer"
     match_subclasses = True

@@ -19,8 +19,8 @@ export const state = () => ({
 })
 
 export const mutations = {
-  SET_ITEMS(state, applications) {
-    state.items = applications
+  SET_ITEMS(state, fields) {
+    state.items = fields
   },
   SET_LOADING(state, value) {
     state.loading = value
@@ -87,7 +87,7 @@ export const actions = {
     }
     return getters.getAll
   },
-  forceSetFields({ commit }, { fields }) {
+  forceSetFields({ commit, rootGetters }, { fields }) {
     fields.forEach((part, index) => {
       populateField(fields[index], this.$registry)
     })

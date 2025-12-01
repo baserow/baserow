@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING, Any, NamedTuple, Optional, TypedDict, Union
 
 if TYPE_CHECKING:
     from django.contrib.auth.models import AbstractUser  # noqa: F401
+    from django.contrib.auth.models import AnonymousUser  # noqa: F401
 
     from baserow.contrib.automation.models import Automation
     from baserow.contrib.builder.models import Builder
@@ -34,7 +35,7 @@ class PermissionCheck(NamedTuple):
 
     @property
     def actor(self) -> Actor:
-        from django.contrib.auth.models import AnonymousUser
+        from django.contrib.auth.models import AnonymousUser  # noqa: F401,F811
 
         return self.original_actor or AnonymousUser
 
@@ -46,3 +47,4 @@ class PermissionObjectResult(TypedDict):
 
 Email = str
 UserEmailMapping = dict[Email, "AbstractUser"]
+AnyUser = "AbstractUser | AnonymousUser"

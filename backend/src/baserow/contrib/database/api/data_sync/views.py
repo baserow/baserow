@@ -31,6 +31,8 @@ from baserow.contrib.database.data_sync.exceptions import (
     DataSyncDoesNotExist,
     PropertyNotFound,
     SyncError,
+    TwoWayDataSyncNotSupported,
+    UniquePrimaryPropertyNotFound,
 )
 from baserow.contrib.database.data_sync.handler import DataSyncHandler
 from baserow.contrib.database.data_sync.job_types import SyncDataSyncTableJobType
@@ -53,6 +55,8 @@ from .errors import (
     ERROR_DATA_SYNC_DOES_NOT_EXIST,
     ERROR_PROPERTY_NOT_FOUND,
     ERROR_SYNC_ERROR,
+    ERROR_TWO_WAY_DATA_SYNC_NOT_SUPPORTED,
+    ERROR_UNIQUE_PRIMARY_PROPERTY_NOT_FOUND,
 )
 from .serializers import (
     CreateDataSyncSerializer,
@@ -97,6 +101,7 @@ class DataSyncsView(APIView):
                     "ERROR_REQUEST_BODY_VALIDATION",
                     "ERROR_SYNC_ERROR",
                     "ERROR_PROPERTY_NOT_FOUND",
+                    "ERROR_TWO_WAY_DATA_SYNC_NOT_SUPPORTED",
                 ]
             ),
             404: get_error_schema(["ERROR_APPLICATION_DOES_NOT_EXIST"]),
@@ -114,6 +119,8 @@ class DataSyncsView(APIView):
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
             PropertyNotFound: ERROR_PROPERTY_NOT_FOUND,
             SyncError: ERROR_SYNC_ERROR,
+            TwoWayDataSyncNotSupported: ERROR_TWO_WAY_DATA_SYNC_NOT_SUPPORTED,
+            UniquePrimaryPropertyNotFound: ERROR_UNIQUE_PRIMARY_PROPERTY_NOT_FOUND,
         }
     )
     def post(
@@ -209,6 +216,7 @@ class DataSyncView(APIView):
                     "ERROR_USER_NOT_IN_GROUP",
                     "ERROR_PROPERTY_NOT_FOUND",
                     "ERROR_SYNC_ERROR",
+                    "ERROR_TWO_WAY_DATA_SYNC_NOT_SUPPORTED",
                 ]
             ),
             404: get_error_schema(["ERROR_DATA_SYNC_DOES_NOT_EXIST"]),
@@ -221,6 +229,7 @@ class DataSyncView(APIView):
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
             PropertyNotFound: ERROR_PROPERTY_NOT_FOUND,
             SyncError: ERROR_SYNC_ERROR,
+            TwoWayDataSyncNotSupported: ERROR_TWO_WAY_DATA_SYNC_NOT_SUPPORTED,
         }
     )
     def patch(self, request, data_sync_id):

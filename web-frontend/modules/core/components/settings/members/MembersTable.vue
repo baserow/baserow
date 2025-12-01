@@ -73,6 +73,7 @@ import CrudTable from '@baserow/modules/core/components/crudTable/CrudTable'
 import WorkspaceService from '@baserow/modules/core/services/workspace'
 import CrudTableColumn from '@baserow/modules/core/crudTable/crudTableColumn'
 import SimpleField from '@baserow/modules/core/components/crudTable/fields/SimpleField'
+import TwoFactorAuthField from '@baserow/modules/core/components/crudTable/fields/TwoFactorAuthField'
 import MoreField from '@baserow/modules/core/components/crudTable/fields/MoreField'
 import MemberRoleField from '@baserow/modules/core/components/settings/members/MemberRoleField'
 import WorkspaceMemberInviteModal from '@baserow/modules/core/components/workspace/WorkspaceMemberInviteModal'
@@ -145,6 +146,12 @@ export default {
             userId: this.userId,
             workspaceId: this.workspace.id,
           }
+        ),
+        new CrudTableColumn(
+          'two_factor_auth',
+          this.$t('membersSettings.membersTable.columns.2fa'),
+          TwoFactorAuthField,
+          false
         ),
         new CrudTableColumn(null, null, MoreField, false, false, true),
       ]

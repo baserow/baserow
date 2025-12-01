@@ -32,7 +32,7 @@ export class Registerable {
    * of all registered items.
    * @returns order weight. Lower value first in the list.
    */
-  getSort() {
+  getOrder() {
     return 0
   }
 
@@ -105,7 +105,7 @@ export class Registry {
     }
     if (!Object.prototype.hasOwnProperty.call(this.registry[namespace], type)) {
       throw new Error(
-        `The type ${type} is not found under namespace ${namespace} in the registry.`
+        `The type "${type}" is not found under namespace "${namespace}" in the registry.`
       )
     }
     return this.registry[namespace][type]
@@ -121,6 +121,11 @@ export class Registry {
       )
     }
     return this.registry[namespace]
+  }
+
+  /** Returns an array of the types */
+  getList(namespace) {
+    return Object.values(this.getAll(namespace))
   }
 
   /**
@@ -145,5 +150,29 @@ export class Registry {
       return false
     }
     return true
+  }
+
+  /**
+   * Returns the specific constraint for the field type and constraint type name.
+   *
+   * @param {string} namespace - The registry namespace (e.g., 'fieldConstraint')
+   * @param {string} constraintTypeName - The type name of the constraint
+   * @param {string} fieldType - The field type to check compatibility with
+   * @returns {Registerable|null} The specific constraint or null if no compatible constraint is found
+   */
+  getSpecificConstraint(namespace, constraintTypeName, fieldType) {
+    if (!Object.prototype.hasOwnProperty.call(this.registry, namespace)) {
+      return null
+    }
+
+    for (const constraint of Object.values(this.registry[namespace])) {
+      if (
+        constraint.getTypeName() === constraintTypeName &&
+        constraint.getCompatibleFieldTypes().includes(fieldType)
+      ) {
+        return constraint
+      }
+    }
+    return null
   }
 }

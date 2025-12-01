@@ -122,9 +122,7 @@ def test_job_progress_changed_bug_regression(data_fixture, mutable_job_type_regi
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.flaky(retries=3, delay=1)
-def test_job_cancel_before_run(
-    data_fixture, test_thread, mutable_job_type_registry, enable_locmem_testing
-):
+def test_job_cancel_before_run(data_fixture, test_thread, mutable_job_type_registry):
     # marker that the job started
     m_start = threading.Event()
 
@@ -174,9 +172,7 @@ def test_job_cancel_before_run(
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.flaky(retries=3, delay=1)
-def test_job_cancel_when_running(
-    data_fixture, test_thread, mutable_job_type_registry, enable_locmem_testing
-):
+def test_job_cancel_when_running(data_fixture, test_thread, mutable_job_type_registry):
     # marker that the job started
     m_start = threading.Event()
 
@@ -235,9 +231,7 @@ def test_job_cancel_when_running(
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.flaky(retries=3, delay=1)
-def test_job_cancel_failed(
-    data_fixture, test_thread, mutable_job_type_registry, enable_locmem_testing
-):
+def test_job_cancel_failed(data_fixture, test_thread, mutable_job_type_registry):
     # marker that the job started
     m_start = threading.Event()
 
@@ -279,9 +273,7 @@ def test_job_cancel_failed(
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.flaky(retries=3, delay=1)
-def test_job_cancel_finished(
-    data_fixture, test_thread, mutable_job_type_registry, enable_locmem_testing
-):
+def test_job_cancel_finished(data_fixture, test_thread, mutable_job_type_registry):
     m_start = threading.Event()
     m_set_stop = threading.Event()
     m_end = threading.Event()
@@ -324,9 +316,7 @@ def test_job_cancel_finished(
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.flaky(retries=3, delay=1)
-def test_job_cancel_cancelled(
-    data_fixture, test_thread, mutable_job_type_registry, enable_locmem_testing
-):
+def test_job_cancel_cancelled(data_fixture, test_thread, mutable_job_type_registry):
     m_start = threading.Event()
     m_set_stop = threading.Event()
     m_end = threading.Event()

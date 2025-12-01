@@ -15,7 +15,9 @@ import {
   AccountSettingsType,
   PasswordSettingsType,
   EmailNotificationsSettingsType,
+  MCPEndpointSettingsType,
   DeleteAccountSettingsType,
+  TwoFactorAuthSettingsType,
 } from '@baserow/modules/core/settingsTypes'
 import { GenerativeAIWorkspaceSettingsType } from '@baserow/modules/core/workspaceSettingsTypes'
 import {
@@ -64,6 +66,8 @@ import {
 } from '@baserow/modules/core/onboardingTypes'
 import { SidebarGuidedTourType } from '@baserow/modules/core/guidedTourTypes'
 
+import { TOTPAuthType } from '@baserow/modules/core/twoFactorAuthTypes'
+
 import settingsStore from '@baserow/modules/core/store/settings'
 import applicationStore from '@baserow/modules/core/store/application'
 import authProviderStore from '@baserow/modules/core/store/authProvider'
@@ -76,6 +80,7 @@ import integrationStore from '@baserow/modules/core/store/integration'
 import userSourceStore from '@baserow/modules/core/store/userSource'
 import notificationStore from '@baserow/modules/core/store/notification'
 import userSourceUserStore from '@baserow/modules/core/store/userSourceUser'
+import workspaceSearchStore from '@baserow/modules/core/store/workspaceSearch'
 import routeMounted from '@baserow/modules/core/store/routeMounted'
 
 import en from '@baserow/modules/core/locales/en.json'
@@ -89,8 +94,40 @@ import ko from '@baserow/modules/core/locales/ko.json'
 import { DefaultErrorPageType } from '@baserow/modules/core/errorPageTypes'
 import {
   RuntimeAdd,
+  RuntimeMinus,
+  RuntimeMultiply,
+  RuntimeDivide,
+  RuntimeGreaterThan,
+  RuntimeGreaterThanOrEqual,
+  RuntimeLessThan,
+  RuntimeLessThanOrEqual,
   RuntimeConcat,
   RuntimeGet,
+  RuntimeEqual,
+  RuntimeNotEqual,
+  RuntimeUpper,
+  RuntimeLower,
+  RuntimeCapitalize,
+  RuntimeRound,
+  RuntimeIsEven,
+  RuntimeIsOdd,
+  RuntimeDateTimeFormat,
+  RuntimeDay,
+  RuntimeMonth,
+  RuntimeYear,
+  RuntimeHour,
+  RuntimeMinute,
+  RuntimeSecond,
+  RuntimeNow,
+  RuntimeToday,
+  RuntimeGetProperty,
+  RuntimeRandomInt,
+  RuntimeRandomFloat,
+  RuntimeRandomBool,
+  RuntimeGenerateUUID,
+  RuntimeIf,
+  RuntimeAnd,
+  RuntimeOr,
 } from '@baserow/modules/core/runtimeFormulaTypes'
 
 import priorityBus from '@baserow/modules/core/plugins/priorityBus'
@@ -145,7 +182,9 @@ export default (context, inject) => {
   registry.register('settings', new AccountSettingsType(context))
   registry.register('settings', new PasswordSettingsType(context))
   registry.register('settings', new EmailNotificationsSettingsType(context))
+  registry.register('settings', new MCPEndpointSettingsType(context))
   registry.register('settings', new DeleteAccountSettingsType(context))
+  registry.register('settings', new TwoFactorAuthSettingsType(context))
 
   registry.register(
     'workspaceSettings',
@@ -204,6 +243,7 @@ export default (context, inject) => {
   store.registerModule('userSource', userSourceStore)
   store.registerModule('notification', notificationStore)
   store.registerModule('userSourceUser', userSourceUserStore)
+  store.registerModule('workspaceSearch', workspaceSearchStore)
   store.registerModule('routeMounted', routeMounted)
 
   registry.register('authProvider', new PasswordAuthProviderType(context))
@@ -228,6 +268,47 @@ export default (context, inject) => {
   registry.register('runtimeFormulaFunction', new RuntimeConcat(context))
   registry.register('runtimeFormulaFunction', new RuntimeGet(context))
   registry.register('runtimeFormulaFunction', new RuntimeAdd(context))
+  registry.register('runtimeFormulaFunction', new RuntimeMinus(context))
+  registry.register('runtimeFormulaFunction', new RuntimeMultiply(context))
+  registry.register('runtimeFormulaFunction', new RuntimeDivide(context))
+  registry.register('runtimeFormulaFunction', new RuntimeGreaterThan(context))
+  registry.register(
+    'runtimeFormulaFunction',
+    new RuntimeGreaterThanOrEqual(context)
+  )
+  registry.register('runtimeFormulaFunction', new RuntimeLessThan(context))
+  registry.register(
+    'runtimeFormulaFunction',
+    new RuntimeLessThanOrEqual(context)
+  )
+  registry.register('runtimeFormulaFunction', new RuntimeEqual(context))
+  registry.register('runtimeFormulaFunction', new RuntimeNotEqual(context))
+  registry.register('runtimeFormulaFunction', new RuntimeUpper(context))
+  registry.register('runtimeFormulaFunction', new RuntimeLower(context))
+  registry.register('runtimeFormulaFunction', new RuntimeCapitalize(context))
+  registry.register('runtimeFormulaFunction', new RuntimeRound(context))
+  registry.register('runtimeFormulaFunction', new RuntimeIsEven(context))
+  registry.register('runtimeFormulaFunction', new RuntimeIsOdd(context))
+  registry.register(
+    'runtimeFormulaFunction',
+    new RuntimeDateTimeFormat(context)
+  )
+  registry.register('runtimeFormulaFunction', new RuntimeDay(context))
+  registry.register('runtimeFormulaFunction', new RuntimeMonth(context))
+  registry.register('runtimeFormulaFunction', new RuntimeYear(context))
+  registry.register('runtimeFormulaFunction', new RuntimeHour(context))
+  registry.register('runtimeFormulaFunction', new RuntimeMinute(context))
+  registry.register('runtimeFormulaFunction', new RuntimeSecond(context))
+  registry.register('runtimeFormulaFunction', new RuntimeNow(context))
+  registry.register('runtimeFormulaFunction', new RuntimeToday(context))
+  registry.register('runtimeFormulaFunction', new RuntimeGetProperty(context))
+  registry.register('runtimeFormulaFunction', new RuntimeRandomInt(context))
+  registry.register('runtimeFormulaFunction', new RuntimeRandomFloat(context))
+  registry.register('runtimeFormulaFunction', new RuntimeRandomBool(context))
+  registry.register('runtimeFormulaFunction', new RuntimeGenerateUUID(context))
+  registry.register('runtimeFormulaFunction', new RuntimeIf(context))
+  registry.register('runtimeFormulaFunction', new RuntimeAnd(context))
+  registry.register('runtimeFormulaFunction', new RuntimeOr(context))
 
   registry.register('roles', new AdminRoleType(context))
   registry.register('roles', new MemberRoleType(context))
@@ -250,9 +331,12 @@ export default (context, inject) => {
     new BaserowVersionUpgradeNotificationType(context)
   )
 
+  registry.register('twoFactorAuth', new TOTPAuthType(context))
+
   registry.register('onboarding', new TeamOnboardingType(context))
   registry.register('onboarding', new MoreOnboardingType(context))
   registry.register('onboarding', new WorkspaceOnboardingType(context))
+
   registry.register('onboarding', new InviteOnboardingType(context))
 
   registry.register('guidedTour', new SidebarGuidedTourType(context))

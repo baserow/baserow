@@ -72,17 +72,7 @@
           />
         </div>
       </div>
-      <div
-        v-if="
-          $hasPermission(
-            'database.table.view.create_decoration',
-            view,
-            database.workspace.id
-          )
-        "
-        ref="addDecoratorLink"
-        class="context__footer"
-      >
+      <div ref="addDecoratorLink" class="context__footer">
         <ButtonText
           icon="iconoir-plus"
           class="choose-select-field__link margin-right-auto"
@@ -158,6 +148,7 @@ export default {
         await this.$store.dispatch('view/deleteDecoration', {
           view: this.view,
           decoration,
+          readOnly: this.readOnly,
         })
       } catch (error) {
         notifyIf(error, 'view')
@@ -179,6 +170,7 @@ export default {
             }),
           },
           decoration,
+          readOnly: this.readOnly,
         })
       } catch (error) {
         notifyIf(error, 'view')
@@ -194,6 +186,7 @@ export default {
         await this.$store.dispatch('view/createDecoration', {
           view: this.view,
           values: decoration,
+          readOnly: this.readOnly,
         })
       } catch (error) {
         notifyIf(error, 'view')
@@ -205,6 +198,7 @@ export default {
           view: this.view,
           values: { value_provider_conf: options },
           decoration,
+          readOnly: this.readOnly,
         })
       } catch (error) {
         notifyIf(error, 'view')

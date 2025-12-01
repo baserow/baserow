@@ -123,7 +123,10 @@ def broadcast_to_permitted_users(
     from baserow.core.models import Workspace, WorkspaceUser
     from baserow.core.registries import object_scope_type_registry
 
-    workspace = Workspace.objects.get(id=workspace_id)
+    try:
+        workspace = Workspace.objects.get(id=workspace_id)
+    except Workspace.DoesNotExist:
+        return  # trashed in the meantime
 
     users_in_workspace = [
         workspace_user.user
@@ -141,7 +144,10 @@ def broadcast_to_permitted_users(
         else scope_model_class.objects
     )
 
-    scope = objects.get(id=scope_id)
+    try:
+        scope = objects.get(id=scope_id)
+    except scope_model_class.DoesNotExist:
+        return  # trashed or deleted in the meantime
 
     user_ids = [
         u.id
@@ -187,18 +193,56 @@ def broadcast_to_users_individual_payloads(
 
 
 @app.task(bind=True)
+def broadcast_many_to_channel_group(
+    self,
+    payloads: list[tuple[str, dict]],
+    ignore_web_socket_id: str | None = None,
+    exclude_user_ids: list[int] | None = None,
+):
+    """
+    Broadcasts a list of JSON payloads to all the users within the channel workspace
+     having the provided name for each payload.
+
+    :param payload: A list of pairs: channel workspace and payload dictionary
+        containing data that must be broadcast. Each pair can be sent to a different
+        channel group.
+    :param ignore_web_socket_id: The web socket id to which messages must not be
+        sent. This is normally the web socket id that has originally made the change
+        request.
+    :param exclude_user_ids: A list of User ids which should be excluded from
+        receiving messages.
+    """
+
+    from asgiref.sync import async_to_sync
+    from channels.layers import get_channel_layer
+
+    channel_layer = get_channel_layer()
+    for channel_group_name, payload in payloads:
+        async_to_sync(send_message_to_channel_group)(
+            channel_layer,
+            channel_group_name,
+            {
+                "type": "broadcast_to_group",
+                "payload": payload,
+                "ignore_web_socket_id": ignore_web_socket_id,
+                "exclude_user_ids": exclude_user_ids,
+            },
+        )
+
+
+@app.task(bind=True)
 def broadcast_to_channel_group(
     self,
-    workspace,
+    channel_group_name,
     payload,
     ignore_web_socket_id=None,
     exclude_user_ids=None,
 ):
     """
-    Broadcasts a JSON payload all the users within the channel workspace having the
+    Broadcasts a JSON payload all the users within the channel group having the
     provided name.
 
-    :param workspace: The name of the channel workspace where the payload must be
+    :param channel_group_name: The name of the channel group where the payload must be
         broadcast to.
     :type workspace: str
     :param payload: A dictionary object containing the payload that must be broadcast.
@@ -218,7 +262,7 @@ def broadcast_to_channel_group(
     channel_layer = get_channel_layer()
     async_to_sync(send_message_to_channel_group)(
         channel_layer,
-        workspace,
+        channel_group_name,
         {
             "type": "broadcast_to_group",
             "payload": payload,
@@ -253,7 +297,6 @@ def broadcast_to_group(self, workspace_id, payload, ignore_web_socket_id=None):
             "user_id"
         )
     ]
-
     if len(user_ids) == 0:
         return
 
@@ -291,7 +334,7 @@ def broadcast_to_groups(
 
 @app.task(bind=True)
 def broadcast_application_created(
-    self, application_id: int, ignore_web_socket_id: Optional[int]
+    self, application_id: int, ignore_web_socket_id: Optional[int] = None
 ):
     """
     This task is called when an application is created. We made this a task instead of
@@ -299,8 +342,7 @@ def broadcast_application_created(
     a lot of computational power and should therefore not run on a gunicorn worker.
 
     :param application_id: The id of the application that was created
-    :param ignore_web_socket_id: The web socket id to ignore
-    :return:
+    :param ignore_web_socket_id: If provided, the web_socket_id to ignore
     """
 
     from baserow.api.applications.serializers import (
@@ -310,7 +352,11 @@ def broadcast_application_created(
     from baserow.core.models import Application, WorkspaceUser
     from baserow.core.operations import ReadApplicationOperationType
 
-    application = Application.objects.get(id=application_id).specific
+    try:
+        application = Application.objects.get(id=application_id).specific
+    except Application.DoesNotExist:
+        return  # trashed in the meantime
+
     workspace = application.workspace
     users_in_workspace = [
         workspace_user.user

@@ -9,7 +9,7 @@ export class ServiceType extends Registerable {
    * The integration type necessary to access this service.
    */
   get integrationType() {
-    throw new Error('Must be set on the type.')
+    return null
   }
 
   /**
@@ -19,52 +19,26 @@ export class ServiceType extends Registerable {
     return null
   }
 
+  get icon() {
+    return 'iconoir-question-mark'
+  }
+
+  /**
+   * Whether the service is valid.
+   * @param service - The service object.
+   * @returns {String} - The error message
+   */
+  getErrorMessage({ service }) {
+    return null
+  }
+
   /**
    * Whether the service is valid.
    * @param service - The service object.
    * @returns {boolean} - If the service is valid.
    */
-  isInError({ service }) {
-    return false
-  }
-
-  /**
-   * Whether the service returns a collection of records.
-   */
-  get returnsList() {
-    return false
-  }
-
-  /**
-   * In a service which returns a list, this method is used to
-   * return the name of the given record.
-   */
-  getRecordName(service, record) {
-    throw new Error('Must be set on the type.')
-  }
-
-  /**
-   * In a service which returns a list, this method is used to
-   * return the id of the given record.
-   */
-  getIdProperty(service, record) {
-    throw new Error('Must be set on the type.')
-  }
-
-  /**
-   * The maximum number of records that can be returned by this service
-   */
-  get maxResultLimit() {
-    return 1
-  }
-
-  /**
-   * This method can be used to process service data
-   * in the frontend when displaying raw data
-   * is not enough.
-   */
-  getResult(service, data) {
-    return null
+  isInError(params) {
+    return Boolean(this.getErrorMessage(params))
   }
 
   /**
@@ -72,6 +46,13 @@ export class ServiceType extends Registerable {
    */
   getDataSchema(applicationContext, service) {
     throw new Error('Must be set on the type.')
+  }
+
+  /**
+   * Returns sample data for the given service.
+   */
+  getSampleData(service) {
+    return service.sample_data || null
   }
 
   /**
@@ -89,7 +70,68 @@ export class ServiceType extends Registerable {
     return this.name
   }
 
+  /**
+   * Allow to customize way data are accessed from service
+   */
+  prepareValuePath(service, path) {
+    return path
+  }
+
   getOrder() {
     return 0
   }
 }
+
+export const DataSourceServiceTypeMixin = (Base) =>
+  class extends Base {
+    isDataSource = true
+
+    /**
+     * Whether the service returns a collection of records.
+     */
+    get returnsList() {
+      return false
+    }
+
+    /**
+     * In a service which returns a list, this method is used to
+     * return the name of the given record.
+     */
+    getRecordName(service, record) {
+      throw new Error('Must be set on the type.')
+    }
+
+    /**
+     * In a service which returns a list, this method is used to
+     * return the id of the given record.
+     */
+    getIdProperty(service, record) {
+      throw new Error('Must be set on the type.')
+    }
+
+    /**
+     * The maximum number of records that can be returned by this service
+     */
+    getMaxResultLimit(service) {
+      return null
+    }
+
+    /**
+     * This method can be used to process service data
+     * in the frontend when displaying raw data
+     * is not enough.
+     */
+    getResult(service, data) {
+      return null
+    }
+  }
+
+export const WorkflowActionServiceTypeMixin = (Base) =>
+  class extends Base {
+    isWorkflowAction = true
+  }
+
+export const TriggerServiceTypeMixin = (Base) =>
+  class extends Base {
+    isTrigger = true
+  }

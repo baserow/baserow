@@ -1,6 +1,7 @@
 import WidgetService from '@baserow/modules/dashboard/services/widget'
 import DataSourceService from '@baserow/modules/dashboard/services/dataSource'
 import IntegrationService from '@baserow/modules/core/services/integration'
+import Vue from 'vue'
 import debounce from 'lodash/debounce'
 
 export const state = () => ({
@@ -64,6 +65,9 @@ export const mutations = {
   },
   UPDATE_WIDGET(state, { widgetId, values }) {
     const widget = state.widgets.find((widget) => widget.id === widgetId)
+    if (Array.isArray(values.series_config)) {
+      Vue.set(widget, 'series_config', [...values.series_config])
+    }
     Object.assign(widget, values)
   },
   DELETE_WIDGET(state, widgetId) {
@@ -120,12 +124,19 @@ export const actions = {
   handleWidgetUpdated({ commit }, widget) {
     commit('UPDATE_WIDGET', { widgetId: widget.id, values: widget })
   },
-  async updateDataSource({ commit, dispatch }, { dataSourceId, values }) {
+  async updateDataSource(
+    { commit, dispatch },
+    { dataSourceId, values, widget }
+  ) {
     commit('UPDATE_DATA', { dataSourceId, values: null })
     const { data } = await DataSourceService(this.$client).update(
       dataSourceId,
       values
     )
+    if (widget) {
+      const widgetType = this.$registry.get('dashboardWidget', widget.type)
+      await widgetType.dataSourceUpdated(widget, data)
+    }
     await dispatch('handleDataSourceUpdated', data)
   },
   async handleDataSourceUpdated({ commit, dispatch }, dataSource) {

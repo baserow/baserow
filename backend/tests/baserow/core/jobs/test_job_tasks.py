@@ -144,8 +144,7 @@ def test_run_task_failing_time_limit(mock_get_by_model, data_fixture):
 
     job = data_fixture.create_fake_job()
 
-    with pytest.raises(SoftTimeLimitExceeded):
-        run_async_job(job.id)
+    run_async_job(job.id)
 
     job.refresh_from_db()
     assert job.state == JOB_FAILED
@@ -165,8 +164,7 @@ def test_run_task_with_exception_mapping(mock_get_by_model, data_fixture):
 
     job = data_fixture.create_fake_job()
 
-    with pytest.raises(ConnectionError):
-        run_async_job(job.id)
+    run_async_job(job.id)
 
     job.refresh_from_db()
     assert job.state == JOB_FAILED

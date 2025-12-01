@@ -1,0 +1,8 @@
+{
+    "type": "feature",
+    "message": "Duration lookup field type filters",
+    "domain": "database",
+    "issue_number": 3471,
+    "bullet_points": [],
+    "created_at": "2025-10-29"
+}

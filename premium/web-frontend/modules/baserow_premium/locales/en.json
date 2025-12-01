@@ -113,10 +113,12 @@
     "title": "Group field",
     "chooseField": "Which single select field should the cards be stacked by?"
   },
+  "kanbanView": {
+    "addStack": "Add stack"
+  },
   "kanbanViewStack": {
     "uncategorized": "Uncategorized",
-    "tryAgain": "Try again",
-    "new": "New"
+    "tryAgain": "Try again"
   },
   "calendarViewType": {
     "sharedViewText": "Allow anyone to see the data in this view or sync events to your external calendar.",
@@ -243,6 +245,7 @@
     "contactSalesMoreSeats": "Contact Sales for more seats",
     "automaticSeatsProgressBarStatus": "{seats_taken} / {seats} paid seats and {free_users_count} free seats in use",
     "premiumFeatureName": "Premium",
+    "advancedFeatureName": "Advanced",
     "enterpriseFeatureName": "Enterprise",
     "supportFeatureName": "Support"
   },
@@ -335,7 +338,10 @@
     "fileFieldHelp": "The first compatible file in the field will be used as the knowledge base for the prompt. The file has to be a text file with the supported file extension like .txt, .md, .pdf, .docx.",
     "outputType": "Output type",
     "outputTypeTooltip": "Select your desired output format to guide the LLM in generating responses that match your desired options.",
-    "outputTypeChangedWarning": "Clears the generated cell values."
+    "outputTypeChangedWarning": "Clears the generated cell values.",
+    "autoUpdate": "Auto update",
+    "autoUpdateHelp": "When enabled, the AI field value will be automatically regenerated when any of the referenced fields in the prompt are updated.",
+    "autoUpdateDescription": "Regenerate when referenced fields change"
   },
   "rowEditFieldAI": {
     "generate": "Generate",
@@ -347,7 +353,7 @@
     "label": "Prompt",
     "labelDescription": "Describe the formula you would like to generate",
     "generate": "Generate",
-    "noModels": "Your Baserow instance and workspace doesn't have any AI models configured. Click on the three dots next to your workspace, then on settings to configure them."
+    "noModels": "Your Baserow instance and workspace doesn't have any AI models configured. Navigate to the homepage, click on the name of your workspace, then on settings to configure them."
   },
   "formulaFieldAI": {
     "generateWithAI": "Generate using AI",
@@ -361,5 +367,38 @@
   },
   "publicViewExport": {
     "export": "Export"
+  },
+  "chart": {
+    "true": "true",
+    "false": "false",
+    "other": "Other"
+  },
+  "generateAIValuesModal": {
+    "title": "Generate all AI values",
+    "noPreviousJobs": "No previous jobs",
+    "started": "Started",
+    "finished": "Completed",
+    "running": "Running",
+    "failed": "Failed",
+    "cancelled": "Cancelled",
+    "pending": "Pending",
+    "view": "View: {name}",
+    "table": "Table: All rows",
+    "deletedView": "View: ID {viewId} (deleted)",
+    "rows": "Rows: {count} rows"
+  },
+  "generateAIValuesForm": {
+    "scopeLabel": "Scope",
+    "entireTable": "Entire table",
+    "skipPopulated": "Generate only values for empty cells",
+    "warningTitle": "Token Usage Warning",
+    "warningMessage": "Geenerating all AI values will consume API tokens and may take substantial time depending on the number of rows."
+  },
+  "generateAIValuesFormFooter": {
+    "generate": "Generate with AI",
+    "close": "Close"
+  },
+  "jobType": {
+    "generateAIValues": "Regenerate AI field values"
   }
 }

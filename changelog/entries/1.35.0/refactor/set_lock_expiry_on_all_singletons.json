@@ -1,0 +1,8 @@
+{
+  "type": "refactor",
+  "message": "All lock_expiry to add singleton celery tasks.",
+  "domain": "core",
+  "issue_number": null,
+  "bullet_points": [],
+  "created_at": "2025-07-23"
+}

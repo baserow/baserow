@@ -6,6 +6,7 @@ from .views import (
     DuplicateViewView,
     OrderViewsView,
     PublicViewAuthView,
+    PublicViewGetRowView,
     PublicViewInfoView,
     PublicViewLinkRowFieldLookupView,
     RotateViewSlugView,
@@ -42,7 +43,7 @@ urlpatterns = view_type_registry.api_urls + [
         name="filter_item",
     ),
     re_path(
-        r"filter-group/(?P<filter_group_id>[0-9]+)/$",
+        r"filter-group/(?P<view_filter_group_id>[0-9]+)/$",
         ViewFilterGroupView.as_view(),
         name="filter_group_item",
     ),
@@ -107,5 +108,10 @@ urlpatterns = view_type_registry.api_urls + [
         r"(?P<slug>[-\w]+)/public/info/$",
         PublicViewInfoView.as_view(),
         name="public_info",
+    ),
+    re_path(
+        r"(?P<slug>[-\w]+)/row/(?P<row_id>[0-9]+)/$",
+        PublicViewGetRowView.as_view(),
+        name="public_row",
     ),
 ]

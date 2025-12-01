@@ -3,6 +3,7 @@ from django.test.utils import override_settings
 
 import pytest
 import responses
+from pytest_unordered import unordered
 from rest_framework.status import (
     HTTP_200_OK,
     HTTP_204_NO_CONTENT,
@@ -312,7 +313,7 @@ def test_create_webhook_with_event_config(api_client, data_fixture):
     assert response_json["failed_triggers"] == 0
     assert response_json["events"] == ["rows.updated"]
     assert response_json["event_config"] == [
-        {"event_type": "rows.updated", "fields": [field_1.id, field_2.id]}
+        {"event_type": "rows.updated", "fields": unordered([field_1.id, field_2.id])}
     ]
     assert response_json["headers"] == {}
     assert response_json["calls"] == []
@@ -512,7 +513,7 @@ def test_update_webhook_with_event_config(api_client, data_fixture):
     assert response_json["id"] == webhook.id
     assert response_json["events"] == ["rows.updated"]
     assert response_json["event_config"] == [
-        {"event_type": "rows.updated", "fields": [field_1.id, field_2.id]}
+        {"event_type": "rows.updated", "fields": unordered([field_1.id, field_2.id])}
     ]
 
     response = api_client.patch(
@@ -527,7 +528,7 @@ def test_update_webhook_with_event_config(api_client, data_fixture):
     assert response.status_code == HTTP_200_OK
     assert response_json["events"] == ["rows.updated", "rows.deleted"]
     assert response_json["event_config"] == [
-        {"event_type": "rows.updated", "fields": [field_1.id, field_2.id]},
+        {"event_type": "rows.updated", "fields": unordered([field_1.id, field_2.id])},
         {"event_type": "rows.deleted"},
     ]
 

@@ -1,5 +1,5 @@
 <template>
-  <div class="switch" :class="classNames" @click="toggle(value)">
+  <div class="switch" :class="classNames" @click="click">
     <div v-if="hasSlot" class="switch__label"><slot></slot></div>
   </div>
 </template>
@@ -56,6 +56,10 @@ export default {
     },
   },
   methods: {
+    click($event) {
+      this.toggle(this.value)
+      this.$emit('click', $event)
+    },
     toggle(value) {
       if (this.disabled) {
         return

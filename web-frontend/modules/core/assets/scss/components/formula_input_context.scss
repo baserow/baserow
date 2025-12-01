@@ -1,0 +1,68 @@
+.formula-input-context {
+  width: 400px;
+  display: flex;
+  flex-direction: column;
+  max-height: inherit;
+
+  .node-explorer {
+    flex: 1;
+    min-height: 0;
+  }
+
+  &__tab-content {
+    padding: 12px;
+  }
+
+  &__section {
+    &:not(:last-child) {
+      margin-bottom: 20px;
+    }
+  }
+
+  &__section-title {
+    font-size: 11px;
+    color: $palette-neutral-900;
+    font-weight: 500;
+    margin-bottom: 8px;
+    text-transform: capitalize;
+  }
+
+  &__items {
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    margin: 0;
+  }
+
+  &__item {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px 8px 7px;
+    border-radius: 4px;
+    cursor: pointer;
+    gap: 8px;
+
+    &:hover {
+      background-color: $palette-neutral-100;
+    }
+  }
+
+  &__item-icon {
+    font-size: 14px;
+    color: $palette-neutral-900;
+    flex-shrink: 0;
+  }
+}
+
+.formula-input-context__footer {
+  flex-shrink: 0;
+  padding: 12px 16px;
+  border-top: 1px solid $palette-neutral-200;
+  height: 36px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  background-color: $white;
+
+  @include rounded($rounded);
+}

@@ -18,7 +18,7 @@ import RowEditFieldMultipleCollaboratorsReadOnly from '@baserow/modules/database
 import RowEditFieldArray from '@baserow/modules/database/components/row/RowEditFieldArray'
 import RowEditFieldLinkURL from '@baserow/modules/database/components/row/RowEditFieldLinkURL'
 import RowEditFieldButton from '@baserow/modules/database/components/row/RowEditFieldButton'
-import RowEditFieldDurationReadOnly from '@baserow/modules/database/components/row/RowEditFieldDurationReadOnly.vue'
+import RowEditFieldDurationReadOnly from '@baserow/modules/database/components/row/RowEditFieldDurationReadOnly'
 import FunctionalFormulaArrayItem from '@baserow/modules/database/components/formula/array/FunctionalFormulaArrayItem'
 import FunctionalFormulaArrayDurationItem from '@baserow/modules/database/components/formula/array/FunctionalFormulaArrayDurationItem'
 import FunctionalFormulaArrayNumberItem from '@baserow/modules/database/components/formula/array/FunctionalFormulaArrayNumberItem'
@@ -34,21 +34,21 @@ import RowEditFieldBlank from '@baserow/modules/database/components/row/RowEditF
 import RowCardFieldBlank from '@baserow/modules/database/components/card/RowCardFieldBlank'
 import RowCardFieldLinkURL from '@baserow/modules/database/components/card/RowCardFieldLinkURL'
 import RowCardFieldButton from '@baserow/modules/database/components/card/RowCardFieldButton'
-import GridViewFieldButton from '@baserow/modules/database/components/view/grid/fields/GridViewFieldButton.vue'
-import GridViewFieldLinkURL from '@baserow/modules/database/components/view/grid/fields/GridViewFieldLinkURL.vue'
-import GridViewFieldText from '@baserow/modules/database/components/view/grid/fields/GridViewFieldText.vue'
-import RowEditFieldFileReadOnly from '@baserow/modules/database/components/row/RowEditFieldFileReadOnly.vue'
-import FunctionalGridViewSingleFile from '@baserow/modules/database/components/view/grid/fields/FunctionalGridViewSingleFile.vue'
-import FunctionalFormulaFileArrayItem from '@baserow/modules/database/components/formula/array/FunctionalFormulaFileArrayItem.vue'
-import SingleFileArrayModal from '@baserow/modules/database/components/view/grid/fields/SingleFileArrayModal.vue'
-import GridViewSingleFile from '@baserow/modules/database/components/view/grid/fields/GridViewSingleFile.vue'
-import RowEditSingleFileReadOnly from '@baserow/modules/database/components/row/RowEditSingleFileReadOnly.vue'
-import RowCardFieldSingleFile from '@baserow/modules/database/components/card/RowCardFieldSingleFile.vue'
-import RowEditFieldURL from '@baserow/modules/database/components/row/RowEditFieldURL.vue'
-import FunctionalGridViewFieldURL from '@baserow/modules/database/components/view/grid/fields/FunctionalGridViewFieldURL.vue'
-import GridViewFieldURL from '@baserow/modules/database/components/view/grid/fields/GridViewFieldURL.vue'
-import RowCardFieldURL from '@baserow/modules/database/components/card/RowCardFieldURL.vue'
-import FunctionalFormulaURLArrayItem from '@baserow/modules/database/components/formula/array/FunctionalFormulaURLArrayItem.vue'
+import GridViewFieldButton from '@baserow/modules/database/components/view/grid/fields/GridViewFieldButton'
+import GridViewFieldLinkURL from '@baserow/modules/database/components/view/grid/fields/GridViewFieldLinkURL'
+import GridViewFieldText from '@baserow/modules/database/components/view/grid/fields/GridViewFieldText'
+import RowEditFieldFileReadOnly from '@baserow/modules/database/components/row/RowEditFieldFileReadOnly'
+import FunctionalGridViewSingleFile from '@baserow/modules/database/components/view/grid/fields/FunctionalGridViewSingleFile'
+import FunctionalFormulaFileArrayItem from '@baserow/modules/database/components/formula/array/FunctionalFormulaFileArrayItem'
+import SingleFileArrayModal from '@baserow/modules/database/components/view/grid/fields/SingleFileArrayModal'
+import GridViewSingleFile from '@baserow/modules/database/components/view/grid/fields/GridViewSingleFile'
+import RowEditSingleFileReadOnly from '@baserow/modules/database/components/row/RowEditSingleFileReadOnly'
+import RowCardFieldSingleFile from '@baserow/modules/database/components/card/RowCardFieldSingleFile'
+import RowEditFieldURL from '@baserow/modules/database/components/row/RowEditFieldURL'
+import FunctionalGridViewFieldURL from '@baserow/modules/database/components/view/grid/fields/FunctionalGridViewFieldURL'
+import GridViewFieldURL from '@baserow/modules/database/components/view/grid/fields/GridViewFieldURL'
+import RowCardFieldURL from '@baserow/modules/database/components/card/RowCardFieldURL'
+import FunctionalFormulaURLArrayItem from '@baserow/modules/database/components/formula/array/FunctionalFormulaURLArrayItem'
 import { mix } from '@baserow/modules/core/mixins'
 import {
   hasEmptyValueFilterMixin,
@@ -66,14 +66,16 @@ import {
   hasMultipleSelectOptionIdEqualMixin,
 } from '@baserow/modules/database/arrayFilterMixins'
 import _ from 'lodash'
-import ViewFilterTypeBoolean from '@baserow/modules/database/components/view/ViewFilterTypeBoolean.vue'
+import ViewFilterTypeBoolean from '@baserow/modules/database/components/view/ViewFilterTypeBoolean'
 import {
   genericHasAllValuesEqualFilter,
   genericHasValueContainsFilter,
+  genericHasValueContainsWordFilter,
 } from '@baserow/modules/database/utils/fieldFilters'
-import ViewFilterTypeDuration from '@baserow/modules/database/components/view/ViewFilterTypeDuration.vue'
-import ViewFilterTypeMultipleSelectOptions from '@baserow/modules/database/components/view/ViewFilterTypeMultipleSelectOptions.vue'
+import ViewFilterTypeDuration from '@baserow/modules/database/components/view/ViewFilterTypeDuration'
+import ViewFilterTypeMultipleSelectOptions from '@baserow/modules/database/components/view/ViewFilterTypeMultipleSelectOptions'
 import { DEFAULT_SORT_TYPE_KEY } from '@baserow/modules/database/constants'
+import ViewFilterTypeCollaborators from '@baserow/modules/database/components/view/ViewFilterTypeCollaborators'
 
 export class BaserowFormulaTypeDefinition extends Registerable {
   getIconClass() {
@@ -522,7 +524,11 @@ export class BaserowFormulaDateType extends mix(
   }
 }
 
-export class BaserowFormulaDurationType extends BaserowFormulaTypeDefinition {
+export class BaserowFormulaDurationType extends mix(
+  hasEmptyValueFilterMixin,
+  hasNumericValueComparableToFilterMixin,
+  BaserowFormulaTypeDefinition
+) {
   static getType() {
     return 'duration'
   }
@@ -1064,6 +1070,10 @@ export class BaserowFormulaMultipleSelectType extends mix(
 }
 
 export class BaserowFormulaMultipleCollaboratorsType extends mix(
+  hasEmptyValueFilterMixin,
+  hasNestedSelectOptionValueContainsFilterMixin,
+  hasNestedSelectOptionValueContainsWordFilterMixin,
+  hasMultipleSelectOptionIdEqualMixin,
   BaserowFormulaTypeDefinition
 ) {
   static getType() {
@@ -1079,7 +1089,7 @@ export class BaserowFormulaMultipleCollaboratorsType extends mix(
   }
 
   getFilterInputComponent(field, filterType) {
-    return null
+    return ViewFilterTypeCollaborators
   }
 
   getRowEditFieldComponent(field) {
@@ -1108,6 +1118,24 @@ export class BaserowFormulaMultipleCollaboratorsType extends mix(
 
   canGroupByInView() {
     return false
+  }
+
+  _getHasValueEqualFilterFunctionForRowValues(rowValueIdSets, filterValues) {
+    return rowValueIdSets.some((rowValueIdSet) =>
+      rowValueIdSet.isSupersetOf(new Set(filterValues))
+    )
+  }
+
+  _getHasValueContainsFilterFunction(cellValue, filterValue) {
+    return cellValue.some((v) =>
+      genericHasValueContainsFilter(v?.value || [], filterValue, 'name')
+    )
+  }
+
+  _getHasValueContainsWordFilterFunction(cellValue, filterValue) {
+    return cellValue.some((v) =>
+      genericHasValueContainsWordFilter(v?.value || [], filterValue, 'name')
+    )
   }
 }
 

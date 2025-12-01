@@ -1,0 +1,76 @@
+name: Publish Helm Chart
+
+on:
+  push:
+    tags:
+      - "*"
+
+jobs:
+  publish-helm-chart:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+
+      - name: Package Helm Chart
+        id: package
+        run: |
+          cd deploy/helm
+          rm -f baserow/Chart.lock
+
+          # Add Helm repositories
+          helm repo add bitnami https://charts.bitnami.com/bitnami
+          helm repo add caddy https://caddyserver.github.io/ingress
+
+          # Build dependencies
+          helm dependency build baserow
+
+          # Package the chart
+          helm package baserow
+
+          # Get chart details
+          CHART_FILE=$(ls baserow-*.tgz)
+          echo "chart-file=$CHART_FILE" >> $GITHUB_OUTPUT
+
+          HELM_CHART_VERSION=$(helm show chart baserow | grep '^version:' | awk '{print $2}')
+          echo "chart-version=$HELM_CHART_VERSION" >> $GITHUB_OUTPUT
+
+          echo "Packaged chart: $CHART_FILE (version: $HELM_CHART_VERSION)"
+
+      - name: Upload Helm Chart Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: helm-chart
+          path: deploy/helm/baserow-*.tgz
+          retention-days: 30
+
+      - name: Generate GitHub App Token
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+        id: generate-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.CHART_REPO_APP_ID }}
+          private-key: ${{ secrets.CHART_REPO_APP_PRIVATE_KEY }}
+          owner: ${{ vars.CHART_REPO_OWNER }}
+          repositories: ${{ vars.CHART_REPO_NAME }}
+
+      - name: Trigger Chart Repository Update
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+        run: |
+          curl -X POST \
+            -H "Accept: application/vnd.github.v3+json" \
+            -H "Authorization: Bearer ${{ steps.generate-token.outputs.token }}" \
+            https://api.github.com/repos/${{ vars.CHART_REPO_OWNER }}/${{ vars.CHART_REPO_NAME }}/dispatches \
+            -d '{
+              "event_type": "helm-chart-published",
+              "client_payload": {
+                "chart_file": "${{ steps.package.outputs.chart-file }}",
+                "chart_version": "${{ steps.package.outputs.chart-version }}",
+                "app_version": "${{ github.ref_name }}",
+                "source_repo": "${{ github.event.repository.name }}",
+                "source_run_id": "${{ github.run_id }}"
+              }
+            }'

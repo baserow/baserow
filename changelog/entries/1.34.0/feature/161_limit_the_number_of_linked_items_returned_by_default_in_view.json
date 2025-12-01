@@ -1,0 +1,8 @@
+{
+    "type": "feature",
+    "message": "Limit the number of linked items returned by default in views.",
+    "domain": "database",
+    "issue_number": 161,
+    "bullet_points": [],
+    "created_at": "2025-05-12"
+}

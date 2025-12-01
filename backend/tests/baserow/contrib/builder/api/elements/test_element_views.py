@@ -114,7 +114,7 @@ def test_create_element(api_client, data_fixture):
     response_json = response.json()
     assert response.status_code == HTTP_200_OK
     assert response_json["type"] == "heading"
-    assert response_json["value"] == ""
+    assert response_json["value"] == {"formula": "", "version": "0.1", "mode": "simple"}
 
     response = api_client.post(
         url,
@@ -128,25 +128,43 @@ def test_create_element(api_client, data_fixture):
 
     response_json = response.json()
     assert response.status_code == HTTP_200_OK
-    assert response_json["value"] == '"test"'
+    assert response_json["value"] == {
+        "formula": '"test"',
+        "version": "0.1",
+        "mode": "simple",
+    }
 
 
 @pytest.mark.django_db
-def test_create_element_bad_request(api_client, data_fixture):
+def test_create_element_deactivated_type(
+    api_client, data_fixture, mutable_element_type_registry
+):
     user, token = data_fixture.create_user_and_token()
     page = data_fixture.create_builder_page(user=user)
+
+    regular_element_type = next(
+        filter(
+            lambda t: not t.is_multi_page_element,
+            mutable_element_type_registry.get_all(),
+        )
+    )
+
+    prev_is_deactivated = regular_element_type.is_deactivated
+    regular_element_type.is_deactivated = lambda x: True
 
     url = reverse("api:builder:element:list", kwargs={"page_id": page.id})
     response = api_client.post(
         url,
-        {"type": "heading", "value": []},
+        {"type": regular_element_type.type, "value": ""},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
 
+    regular_element_type.is_deactivated = prev_is_deactivated
+
     response_json = response.json()
     assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response_json["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+    assert response_json["error"] == "ERROR_ELEMENT_TYPE_DEACTIVATED"
 
 
 @pytest.mark.django_db
@@ -236,7 +254,7 @@ def test_update_element(api_client, data_fixture):
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
     assert response.status_code == HTTP_200_OK
-    assert response.json()["value"] == '"unusual suspect"'
+    assert response.json()["value"]["formula"] == '"unusual suspect"'
     assert response.json()["level"] == 3
 
 
@@ -257,23 +275,6 @@ def test_update_element_styles(api_client, data_fixture):
     assert response.json()["styles"] == {
         "typography": {"heading_1_text_color": "#CCCCCCCC"}
     }
-
-
-@pytest.mark.django_db
-def test_update_element_bad_request(api_client, data_fixture):
-    user, token = data_fixture.create_user_and_token()
-    page = data_fixture.create_builder_page(user=user)
-    element1 = data_fixture.create_builder_heading_element(page=page)
-
-    url = reverse("api:builder:element:item", kwargs={"element_id": element1.id})
-    response = api_client.patch(
-        url,
-        {"value": []},
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
-    assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
 
 
 @pytest.mark.django_db

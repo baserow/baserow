@@ -48,6 +48,7 @@
         <div v-show="isValidRow(row)" class="timeline-grid__row">
           <!-- Pass strings instead of moment objects to prevent unnecessary re-renders -->
           <TimelineGridRow
+            ::ref="`row-${row.id}`"
             :label="getRowLabel(row)"
             :start-date="getRowDateValue(row, startDateField)?.format()"
             :end-date="getRowDateValue(row, endDateField)?.format()"
@@ -91,6 +92,12 @@
         />
       </div>
     </template>
+    <TimelineGridRowFieldRules
+      :rows="rowsBuffer"
+      :view="$parent.view"
+      :fields="$parent.fields"
+      :store-prefix="$parent.storePrefix"
+    />
   </div>
 </template>
 
@@ -99,12 +106,32 @@ import moment from '@baserow/modules/core/moment'
 import { getFieldTimezone } from '@baserow/modules/database/utils/date'
 import TimelineGridRow from '@baserow_premium/components/views/timeline/TimelineGridRow'
 import TimelineGridShowRowButton from '@baserow_premium/components/views/timeline/TimelineGridShowRowButton'
+import TimelineGridRowFieldRules from '@baserow_premium/components/views/timeline/TimelineGridRowFieldRules.vue'
 
 export default {
   name: 'TimelineGrid',
   components: {
+    TimelineGridRowFieldRules,
     TimelineGridRow,
     TimelineGridShowRowButton,
+  },
+  provide: function () {
+    const that = this
+    return {
+      getRowPosition: (rowItem) => {
+        if (!rowItem.item) {
+          return
+        }
+        const pos = that.getRowStyleProps(rowItem.item)
+        const out = {
+          left: pos.leftPadding + pos.left,
+          top: rowItem.position.top,
+          width: pos.width,
+          height: that.rowHeight,
+        }
+        return out
+      },
+    }
   },
   props: {
     columnsBuffer: {
@@ -207,10 +234,10 @@ export default {
       return this.columnsBuffer[lastColumn].item?.date || null
     },
     startDateFieldReadOnly() {
-      return this.startDateField.read_only || false
+      return this.isReadOnlyField(this.startDateField)
     },
     endDateFieldReadOnly() {
-      return this.endDateField.read_only || false
+      return this.isReadOnlyField(this.endDateField)
     },
     // Decorations from the viewDecoration mixin
     firstCellDecorations() {
@@ -230,6 +257,14 @@ export default {
     },
   },
   methods: {
+    /*
+     * Returns true if the given field is read only or the user doesn't have the
+     * permissions to update values.
+     */
+    isReadOnlyField(field) {
+      const fieldType = this.$registry.get('field', field.type)
+      return !fieldType.canWriteFieldValues(field)
+    },
     /*
      * Returns the left offset of the given date in the timeline grid.
      */
@@ -400,25 +435,27 @@ export default {
      * This method is called when a row is resized or moved.
      */
     updateRow(row, { startOffset, endOffset }) {
-      let field, start, end
+      const startField = this.startDateField
+      const newStartDate = this.getRowDateValue(row, startField).clone()
+
       if (startOffset !== 0) {
         const numberOfUnits = Math.round(startOffset / this.stepPx)
-        field = this.startDateField
-        const fieldType = this.$registry.get('field', field.type)
-        const newDate = this.getRowDateValue(row, field)
-          .clone()
-          .add(numberOfUnits, this.step)
-        start = fieldType.formatValue(field, newDate)
+        newStartDate.add(numberOfUnits, this.step)
       }
+      const start = this.$registry
+        .get('field', startField.type)
+        .formatValue(startField, newStartDate)
+
+      const endField = this.endDateField
+      const newEndDate = this.getRowDateValue(row, endField).clone()
       if (endOffset !== 0) {
         const numberOfUnits = Math.round(endOffset / this.stepPx)
-        field = this.endDateField
-        const fieldType = this.$registry.get('field', field.type)
-        const newDate = this.getRowDateValue(row, field)
-          .clone()
-          .add(numberOfUnits, this.step)
-        end = fieldType.formatValue(field, newDate)
+        newEndDate.add(numberOfUnits, this.step)
       }
+      const end = this.$registry
+        .get('field', endField.type)
+        .formatValue(endField, newEndDate)
+
       this.$emit('update-row', { row, start, end })
     },
     /*

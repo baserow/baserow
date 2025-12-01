@@ -1,0 +1,8 @@
+{
+  "type": "refactor",
+  "message": "Automatically fill the premium seats when registering the license.",
+  "domain": "core",
+  "issue_number": null,
+  "bullet_points": [],
+  "created_at": "2025-05-19"
+}

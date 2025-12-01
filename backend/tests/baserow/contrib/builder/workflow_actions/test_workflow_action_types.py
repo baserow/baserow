@@ -9,15 +9,33 @@ from baserow.contrib.builder.workflow_actions.registries import (
     builder_workflow_action_type_registry,
 )
 from baserow.contrib.builder.workflow_actions.workflow_action_types import (
-    DeleteRowWorkflowActionType,
+    LocalBaserowWorkflowActionType,
+    LogoutWorkflowActionType,
     NotificationWorkflowActionType,
     OpenPageWorkflowActionType,
-    RefreshDataSourceWorkflowAction,
-    UpsertRowWorkflowActionType,
-    service_backed_workflow_actions,
+    RefreshDataSourceWorkflowActionType,
 )
+from baserow.core.formula import BaserowFormulaObject
+from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
+from baserow.core.formula.types import BASEROW_FORMULA_MODE_SIMPLE
+from baserow.core.services.exceptions import InvalidServiceTypeDispatchSource
 from baserow.core.utils import MirrorDict
 from baserow.core.workflow_actions.registries import WorkflowActionType
+
+
+def local_baserow_service_backed_workflow_actions():
+    """
+    Responsible for returning all workflow action types which are backed by a local
+    baserow service.
+
+    :return: A list of workflow action types backed by a local baserow service.
+    """
+
+    return [
+        workflow_action_type
+        for workflow_action_type in builder_workflow_action_type_registry.get_all()
+        if issubclass(workflow_action_type.__class__, LocalBaserowWorkflowActionType)
+    ]
 
 
 def pytest_generate_tests(metafunc):
@@ -80,11 +98,8 @@ def test_import_workflow_action(data_fixture, workflow_action_type: WorkflowActi
     assert workflow_action.id != 9999
     assert isinstance(workflow_action, workflow_action_type.model_class)
 
-    if not issubclass(
-        workflow_action_type.__class__,
-        (UpsertRowWorkflowActionType, DeleteRowWorkflowActionType),
-    ):
-        for key, value in pytest_params.items():
+    for key, value in pytest_params.items():
+        if key != "service":
             assert getattr(workflow_action, key) == value
 
 
@@ -132,11 +147,20 @@ def test_export_import_upsert_row_workflow_action_type(data_fixture):
             "id": service.id,
             "integration_id": integration.id,
             "type": "local_baserow_upsert_row",
-            "row_id": "",
+            "row_id": BaserowFormulaObject(
+                formula="",
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+            ),
             "table_id": table.id,
             "field_mappings": [
-                {"field_id": field.id, "value": field_mapping.value, "enabled": True}
+                {
+                    "field_id": field.id,
+                    "value": field_mapping.value,
+                    "enabled": True,
+                }
             ],
+            "sample_data": None,
         },
     }
 
@@ -168,18 +192,18 @@ def test_export_import_upsert_row_workflow_action_type(data_fixture):
     # in its formula.
     imported_field_mapping = new_workflow_action.service.field_mappings.all()[0]
     assert (
-        imported_field_mapping.value
+        imported_field_mapping.value["formula"]
         == f"get('data_source.{data_source2.id}.{field.db_column}')"
     )
 
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
-    "builder_workflow_service_type",
-    service_backed_workflow_actions(),
+    "local_baserow_builder_workflow_action_type",
+    local_baserow_service_backed_workflow_actions(),
 )
-def test_builder_workflow_service_type_prepare_values_with_instance(
-    builder_workflow_service_type,
+def test_builder_local_baserow_workflow_service_type_prepare_values_with_instance(
+    local_baserow_builder_workflow_action_type,
     data_fixture,
 ):
     user, token = data_fixture.create_user_and_token()
@@ -192,7 +216,7 @@ def test_builder_workflow_service_type_prepare_values_with_instance(
     database = data_fixture.create_database_application(workspace=workspace)
     table = data_fixture.create_database_table(database=database)
     workflow_action = data_fixture.create_builder_workflow_service_action(
-        builder_workflow_service_type.model_class,
+        local_baserow_builder_workflow_action_type.model_class,
         page=page,
         element=element,
         event=EventTypes.CLICK,
@@ -204,7 +228,7 @@ def test_builder_workflow_service_type_prepare_values_with_instance(
     field = data_fixture.create_text_field(table=table)
     model = table.get_model()
     row2 = model.objects.create(**{f"field_{field.id}": "Cheese"})
-    builder_workflow_service_type.prepare_values(
+    local_baserow_builder_workflow_action_type.prepare_values(
         {
             "service": {
                 "row_id": row2.id,
@@ -215,7 +239,7 @@ def test_builder_workflow_service_type_prepare_values_with_instance(
         user,
         workflow_action,
     )
-    assert service.row_id == row2.id
+    assert service.row_id["formula"] == str(row2.id)
     assert service.table_id == table.id
     assert service.integration_id == integration.id
 
@@ -229,7 +253,7 @@ def test_refresh_data_source_returns_value_from_id_mapping(mock_deserialize):
     and a value is provided.
     """
 
-    action = RefreshDataSourceWorkflowAction()
+    action = RefreshDataSourceWorkflowActionType()
     mock_result = MagicMock()
     id_mapping = {"builder_data_sources": {"1": mock_result}}
 
@@ -277,7 +301,7 @@ def test_refresh_data_source_returns_value_from_super_method(
 
     mock_result = MagicMock()
     mock_deserialize.return_value = mock_result
-    action = RefreshDataSourceWorkflowAction()
+    action = RefreshDataSourceWorkflowActionType()
 
     args = ["data_source_id", value, id_mapping]
     result = action.deserialize_property(*args)
@@ -317,8 +341,8 @@ def test_import_notification_workflow_action(data_fixture):
     )
 
     expected_formula = f"get('data_source.{data_source_2.id}.field_1')"
-    assert imported_workflow_action.title == expected_formula
-    assert imported_workflow_action.description == expected_formula
+    assert imported_workflow_action.title["formula"] == expected_formula
+    assert imported_workflow_action.description["formula"] == expected_formula
 
 
 @pytest.mark.django_db
@@ -363,8 +387,34 @@ def test_import_open_page_workflow_action(data_fixture):
 
     expected_formula = f"get('data_source.{data_source_2.id}.field_1')"
     expected_query_formula = f"get('data_source.{data_source_2.id}.field_2')"
-    assert imported_workflow_action.navigate_to_url == expected_formula
-    assert imported_workflow_action.page_parameters[0]["value"] == expected_formula
+    assert imported_workflow_action.navigate_to_url["formula"] == expected_formula
     assert (
-        imported_workflow_action.query_parameters[0]["value"] == expected_query_formula
+        imported_workflow_action.page_parameters[0]["value"]["formula"]
+        == expected_formula
     )
+    assert (
+        imported_workflow_action.query_parameters[0]["value"]["formula"]
+        == expected_query_formula
+    )
+
+
+@pytest.mark.parametrize(
+    "workflow_action",
+    [
+        NotificationWorkflowActionType,
+        OpenPageWorkflowActionType,
+        LogoutWorkflowActionType,
+        RefreshDataSourceWorkflowActionType,
+    ],
+)
+def test_builder_workflow_action_type_dispatch(workflow_action):
+    """Ensure the base dispatch() raises an exception."""
+
+    instance = workflow_action()
+    mock_workflow_action = MagicMock()
+    mock_dispatch_context = MagicMock()
+
+    with pytest.raises(InvalidServiceTypeDispatchSource) as e:
+        instance.dispatch(mock_workflow_action, mock_dispatch_context)
+
+    assert str(e.value) == "This service cannot be dispatched."

@@ -2,10 +2,10 @@ ARG FROM_BACKEND_IMAGE=baserow_backend
 ARG FROM_WEBFRONTEND_IMAGE=baserow_web-frontend
 # This is pinned as version pinning is done by the CI setting FROM_IMAGE.
 # hadolint ignore=DL3006
-FROM $FROM_BACKEND_IMAGE as backend_image_base
+FROM $FROM_BACKEND_IMAGE AS backend_image_base
 # hadolint ignore=DL3006
-FROM $FROM_WEBFRONTEND_IMAGE as web_frontend_image_base
-FROM debian:bookworm-slim as base
+FROM $FROM_WEBFRONTEND_IMAGE AS web_frontend_image_base
+FROM debian:bookworm-slim AS base
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
@@ -19,13 +19,14 @@ ENV DOCKER_USER=${DOCKER_USER:-baserow_docker_user}
 ENV DATA_DIR=/baserow/data
 ENV BASEROW_PLUGIN_DIR=$DATA_DIR/plugins
 ENV POSTGRES_VERSION=15
-ENV NODE_MAJOR=21
+ENV NODE_MAJOR=24
 ENV POSTGRES_LOCATION=/etc/postgresql/15/main
 ENV BASEROW_IMAGE_TYPE="all-in-one"
 
 # ========================
 # = APT-GET UPDATE/UPGRADE/INSTALL DEPS + NODE + CADDY
 # ========================
+# hadolint ignore=DL3013
 RUN apt-get update && \
     apt-get upgrade -y && \
     DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install --no-install-recommends -y \
@@ -46,6 +47,7 @@ RUN apt-get update && \
     apt-get update && \
     apt-get install --no-install-recommends -y \
     postgresql-$POSTGRES_VERSION \
+    postgresql-${POSTGRES_VERSION}-pgvector \
     postgresql-client-$POSTGRES_VERSION \
     libpq-dev \
     redis-server \
@@ -55,12 +57,13 @@ RUN apt-get update && \
     python3-venv \
     tini \
     psmisc \
-    gosu \
     gawk \
     git \
     xmlsec1 \
     procps \
     nodejs && \
+    python3 -m pip install --no-cache-dir --upgrade pip setuptools==78.1.1 --break-system-packages && \
+    rm -rf /usr/lib/python3/dist-packages/setuptools* /usr/lib/python3/dist-packages/pkg_resources* && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* &&  \
     # ========================
@@ -95,6 +98,12 @@ RUN apt-get update && \
     # Sedding changes the owner, change it back.
     sed -i '/^logfile/d' /etc/redis/redis.conf && \
     chown redis:redis /etc/redis/redis.conf
+
+# Install su-exec as a safer alternative to gosu
+RUN curl -L -o /usr/local/bin/su-exec.c https://github.com/ncopa/su-exec/raw/master/su-exec.c \
+    && gcc -Wall -Werror -static -o /usr/local/bin/su-exec /usr/local/bin/su-exec.c \
+    && chmod 0755 /usr/local/bin/su-exec \
+    && rm /usr/local/bin/su-exec.c
 
 # In slim docker images, mime.types is removed and we need it for mimetypes guessing
 COPY --chown=$UID:$GID ./backend/docker/mime.types /etc/

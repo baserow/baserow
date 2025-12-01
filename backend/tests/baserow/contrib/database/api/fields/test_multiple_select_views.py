@@ -535,3 +535,238 @@ def test_batch_update_rows_when_single_select_formula_in_an_error_state(
     )
 
     assert response.status_code == HTTP_200_OK
+
+
+@pytest.mark.django_db
+def test_multiple_select_field_with_default_value(api_client, data_fixture):
+    user, jwt_token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+
+    # New field with new option as default
+    response = api_client.post(
+        reverse("api:database:fields:list", kwargs={"table_id": table.id}),
+        {
+            "name": "Multiple",
+            "type": "multiple_select",
+            "select_options": [
+                {"value": "Option 1", "color": "blue", "id": -1},
+                {"value": "Option 2", "color": "red", "id": -2},
+            ],
+            "multiple_select_default": [-1],  # Set first option as default
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+    assert response.status_code == HTTP_200_OK
+
+    field_data = response.json()
+
+    select_option_1_id = field_data["select_options"][0]["id"]
+    select_option_2_id = field_data["select_options"][1]["id"]
+    assert len(field_data["select_options"]) == 2
+    assert field_data["multiple_select_default"] == [select_option_1_id]
+
+    # Update the field to use existing option as default
+    response = api_client.patch(
+        reverse("api:database:fields:item", kwargs={"field_id": field_data["id"]}),
+        {
+            "multiple_select_default": [
+                select_option_1_id,
+                select_option_2_id,
+            ]
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    updated_field = response.json()
+    assert updated_field["multiple_select_default"] == [
+        select_option_1_id,
+        select_option_2_id,
+    ]
+
+    # Add new option but do not set it as default
+    response = api_client.patch(
+        reverse("api:database:fields:item", kwargs={"field_id": field_data["id"]}),
+        {
+            "select_options": [
+                {"value": "Option 1", "color": "blue", "id": select_option_1_id},
+                {"value": "Option 2", "color": "red", "id": select_option_2_id},
+                {"value": "Option 3", "color": "green", "id": -1},
+            ]
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    updated_field = response.json()
+    select_option_3_id = updated_field["select_options"][2]["id"]
+    assert updated_field["multiple_select_default"] == [
+        select_option_1_id,
+        select_option_2_id,
+    ]
+
+    # Add new option and set it as default in the same update
+    response = api_client.patch(
+        reverse("api:database:fields:item", kwargs={"field_id": field_data["id"]}),
+        {
+            "select_options": [
+                {"value": "Option 1", "color": "blue", "id": select_option_1_id},
+                {"value": "Option 2", "color": "red", "id": select_option_2_id},
+                {"value": "Option 3", "color": "green", "id": select_option_3_id},
+                {"value": "Option 4", "color": "yellow", "id": -1},
+            ],
+            "multiple_select_default": [
+                select_option_1_id,
+                select_option_2_id,
+                select_option_3_id,
+                -1,
+            ],
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    final_field = response.json()
+    select_option_4_id = final_field["select_options"][3]["id"]
+    assert len(final_field["select_options"]) == 4
+    assert final_field["multiple_select_default"] == [
+        select_option_1_id,
+        select_option_2_id,
+        select_option_3_id,
+        select_option_4_id,
+    ]
+
+    # Update the field to use non-existing option as default
+    invalid_option_id = 50000000
+    response = api_client.patch(
+        reverse("api:database:fields:item", kwargs={"field_id": field_data["id"]}),
+        {"multiple_select_default": [select_option_1_id, invalid_option_id]},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    updated_field = response.json()
+    assert updated_field["error"] == "ERROR_SELECT_OPTION_DOES_NOT_BELONG_TO_FIELD"
+    assert (
+        updated_field["detail"]
+        == f"Select option {invalid_option_id} does not belong to field {field_data['id']}"
+    )
+
+    # Delete option that is set in default, but don't send it in the request
+    # and verify default is updated
+    response = api_client.patch(
+        reverse("api:database:fields:item", kwargs={"field_id": field_data["id"]}),
+        {
+            "select_options": [
+                {"value": "Option 1", "color": "blue", "id": select_option_1_id},
+                {"value": "Option 2", "color": "red", "id": select_option_2_id},
+            ]
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    deleted_field = response.json()
+    assert len(deleted_field["select_options"]) == 2
+    assert deleted_field["multiple_select_default"] == [
+        select_option_1_id,
+        select_option_2_id,
+    ]
+
+    # Delete option that is set in default, but also set it as default - expect error
+    response = api_client.patch(
+        reverse("api:database:fields:item", kwargs={"field_id": field_data["id"]}),
+        {
+            "select_options": [
+                {"value": "Option 1", "color": "blue", "id": select_option_1_id},
+            ],
+            "multiple_select_default": [
+                select_option_1_id,
+                select_option_2_id,
+            ],
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    deleted_field = response.json()
+    assert deleted_field["error"] == "ERROR_SELECT_OPTION_DOES_NOT_BELONG_TO_FIELD"
+    assert (
+        deleted_field["detail"]
+        == f"Select option {select_option_2_id} does not belong to field {field_data['id']}"
+    )
+
+    # Delete option that is set in default but also update properly default
+    response = api_client.patch(
+        reverse("api:database:fields:item", kwargs={"field_id": field_data["id"]}),
+        {
+            "select_options": [
+                {"value": "Option 1", "color": "blue", "id": select_option_1_id},
+            ],
+            "multiple_select_default": [
+                select_option_1_id,
+            ],
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    deleted_field = response.json()
+    assert len(deleted_field["select_options"]) == 1
+    assert deleted_field["multiple_select_default"] == [
+        select_option_1_id,
+    ]
+
+    # Clear default without updating options - default is updated
+    response = api_client.patch(
+        reverse("api:database:fields:item", kwargs={"field_id": field_data["id"]}),
+        {
+            "multiple_select_default": [],
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    deleted_field = response.json()
+    assert len(deleted_field["select_options"]) == 1
+    assert deleted_field["multiple_select_default"] == []
+
+
+@pytest.mark.django_db
+def test_add_multiple_select_field_with_default_sets_existing_rows(
+    api_client, data_fixture
+):
+    user, jwt_token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    model = table.get_model()
+
+    for _ in range(3):
+        model.objects.create()
+
+    # Add a new multiple select field with new options and a default value
+    response = api_client.post(
+        reverse("api:database:fields:list", kwargs={"table_id": table.id}),
+        {
+            "name": "Multi",
+            "type": "multiple_select",
+            "select_options": [
+                {"value": "A", "color": "blue", "id": -1},
+                {"value": "B", "color": "red", "id": -2},
+            ],
+            "multiple_select_default": [-1, -2],
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    field_data = response.json()
+    field_id = field_data["id"]
+    select_option_ids = [opt["id"] for opt in field_data["select_options"]]
+    assert field_data["multiple_select_default"] == select_option_ids
+
+    model = table.get_model()
+    for row in model.objects.all():
+        value = getattr(row, f"field_{field_id}").all()
+        value_ids = sorted([v.id for v in value])
+        assert value_ids == sorted(select_option_ids)

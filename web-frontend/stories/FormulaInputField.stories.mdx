@@ -1,0 +1,617 @@
+import { Meta, Story, Props, Canvas } from '@storybook/addon-docs/blocks'
+import { config, withDesign } from 'storybook-addon-designs'
+import { action } from '@storybook/addon-actions'
+
+import FormulaInputField from '@baserow/modules/core/components/formula/FormulaInputField'
+
+<Meta
+    title="Baserow/Form Elements/FormulaInputField"
+    component={FormulaInputField}
+    parameters={{
+        backgrounds: {
+            default: 'light',
+            values: [
+                { name: 'white', value: '#ffffff' },
+                { name: 'light', value: '#eeeeee' },
+                { name: 'dark', value: '#222222' },
+            ],
+        },
+    }}
+    decorators={[withDesign]}
+    argTypes={{
+        value: {
+            control: {
+                type: 'text',
+            },
+            defaultValue: '',
+        },
+        placeholder: {
+            control: {
+                type: 'text',
+            },
+            defaultValue: 'Enter a formula...',
+        },
+        disabled: {
+            control: {
+                type: 'boolean',
+                options: [true, false],
+            },
+            defaultValue: false,
+        },
+        small: {
+            control: {
+                type: 'boolean',
+                options: [true, false],
+            },
+            defaultValue: false,
+        },
+        mode: {
+            control: {
+                type: 'select',
+                options: ['advanced', 'simple', 'raw'],
+            },
+            defaultValue: 'advanced',
+        },
+        loading: {
+            control: {
+                type: 'boolean',
+                options: [true, false],
+            },
+            defaultValue: false,
+        },
+        contextPosition: {
+            control: {
+                type: 'select',
+                options: ['bottom', 'left', 'right'],
+            },
+            defaultValue: 'bottom',
+        },
+        readOnly: {
+            control: {
+                type: 'boolean',
+                options: [true, false],
+            },
+            defaultValue: false,
+        },
+    }}
+/>
+
+# FormulaInputField
+
+The FormulaInputField component is used to input and edit formulas with syntax highlighting, validation, and auto-completion. It supports functions, operators, and data references.
+
+export const mockApplicationContext = {
+    page: {
+        id: 1,
+        name: 'Test Page',
+    },
+}
+
+export const mockNodesHierarchy = [
+    {
+        name: 'Data',
+        type: 'data',
+        identifier: null,
+        icon: null,
+        order: null,
+        description: null,
+        example: null,
+        highlightingColor: null,
+        nodes: [
+            {
+                name: 'User',
+                type: 'data',
+                identifier: 'user',
+                icon: 'iconoir-question-mark',
+                order: null,
+                description: null,
+                example: null,
+                highlightingColor: null,
+                signature: null,
+                nodes: [
+                    {
+                        name: 'Is authenticated',
+                        type: 'data',
+                        identifier: 'is_authenticated',
+                        description: null,
+                        icon: 'baserow-icon-circle-checked',
+                        highlightingColor: null,
+                        description: null,
+                        example: null,
+                        order: null,
+                        signature: null,
+                    },
+                    {
+                        name: 'Id',
+                        type: 'data',
+                        identifier: 'id',
+                        description: null,
+                        icon: 'baserow-icon-hashtag',
+                        highlightingColor: null,
+                        description: null,
+                        example: null,
+                        order: null,
+                        signature: null,
+                    },
+                    {
+                        name: 'Email',
+                        type: 'data',
+                        identifier: 'email',
+                        description: null,
+                        icon: 'iconoir-text',
+                        highlightingColor: null,
+                        description: null,
+                        example: null,
+                        order: null,
+                        signature: null,
+                    },
+                    {
+                        name: 'Username',
+                        type: 'data',
+                        identifier: 'username',
+                        description: null,
+                        icon: 'iconoir-text',
+                        highlightingColor: null,
+                        description: null,
+                        example: null,
+                        order: null,
+                        signature: null,
+                    },
+                    {
+                        name: 'Role',
+                        type: 'data',
+                        identifier: 'role',
+                        description: null,
+                        icon: 'iconoir-text',
+                        highlightingColor: null,
+                        description: null,
+                        example: null,
+                        order: null,
+                        signature: null,
+                    },
+                ],
+            },
+            {
+                name: 'Data records',
+                type: 'data',
+                identifier: 'data_source',
+                highlightingColor: null,
+                description: null,
+                example: null,
+                order: null,
+                icon: 'iconoir-question-mark',
+                signature: null,
+                nodes: [
+                    {
+                        name: 'List rows',
+                        type: 'data',
+                        identifier: '543',
+                        description: null,
+                        highlightingColor: null,
+                        example: null,
+                        icon: 'iconoir-list',
+                        type: 'array',
+                        order: null,
+                        nodes: [
+                            {
+                                name: 'Id',
+                                type: 'data',
+                                order: null,
+                                description: null,
+                                highlightingColor: null,
+                                example: null,
+                                icon: 'baserow-icon-hashtag',
+                                identifier: 'id',
+                                signature: null,
+                            },
+                            {
+                                name: 'Name',
+                                type: 'data',
+                                description: null,
+                                example: null,
+                                highlightingColor: null,
+                                order: null,
+                                icon: 'iconoir-text',
+                                identifier: 'field_7094',
+                                signature: null,
+                            },
+                            {
+                                name: 'Last name',
+                                type: 'data',
+                                order: null,
+                                description: null,
+                                example: null,
+                                highlightingColor: null,
+                                icon: 'iconoir-text',
+                                identifier: 'field_7095',
+                                signature: null,
+                            },
+                            {
+                                name: 'Notes',
+                                type: 'data',
+                                description: null,
+                                example: null,
+                                highlightingColor: null,
+                                order: null,
+                                icon: 'iconoir-text',
+                                identifier: 'field_7096',
+                                signature: null,
+                            },
+                            {
+                                name: 'Active',
+                                type: 'data',
+                                description: null,
+                                example: null,
+                                highlightingColor: null,
+                                order: null,
+                                icon: 'baserow-icon-circle-checked',
+                                identifier: 'field_7097',
+                                signature: null,
+                            },
+                        ],
+                    },
+                ],
+            },
+        ],
+    },
+    {
+        name: 'Functions',
+        type: 'function',
+        identifier: null,
+        order: null,
+        signature: null,
+        description: null,
+        example: null,
+        highlightingColor: null,
+        icon: null,
+        nodes: [
+            {
+                name: 'Text',
+                identifier: null,
+                order: null,
+                signature: null,
+                description: null,
+                example: null,
+                highlightingColor: null,
+                icon: null,
+                nodes: [
+                    {
+                        name: 'concat',
+                        type: 'function',
+                        description:
+                            'Concatenates multiple text values together',
+                        example: "concat('Hello', ' ', 'World')",
+                        highlightingColor: 'blue',
+                        icon: 'iconoir-text',
+                        identifier: null,
+                        order: null,
+                        signature: {
+                            parameters: [
+                                {
+                                    type: 'string',
+                                    required: true,
+                                },
+                            ],
+                            variadic: true,
+                            minArgs: 1,
+                            maxArgs: null,
+                        },
+                    },
+                    {
+                        name: 'upper',
+                        type: 'function',
+                        description: 'Converts text to uppercase',
+                        example: "upper('hello world')",
+                        highlightingColor: 'blue',
+                        icon: 'iconoir-text',
+                        identifier: null,
+                        order: null,
+                        signature: {
+                            parameters: [
+                                {
+                                    type: 'string',
+                                    required: true,
+                                },
+                            ],
+                            variadic: false,
+                            minArgs: 1,
+                            maxArgs: 1,
+                        },
+                    },
+                    {
+                        name: 'lower',
+                        type: 'function',
+                        description: 'Converts text to lowercase',
+                        example: "lower('HELLO WORLD')",
+                        highlightingColor: 'blue',
+                        icon: 'iconoir-text',
+                        identifier: null,
+                        order: null,
+                        signature: {
+                            parameters: [
+                                {
+                                    type: 'string',
+                                    required: true,
+                                },
+                            ],
+                            variadic: false,
+                            minArgs: 1,
+                            maxArgs: 1,
+                        },
+                    },
+                    {
+                        name: 'substring',
+                        type: 'function',
+                        description: 'Extracts a portion of text',
+                        example: "substring('Hello World', 0, 5)",
+                        highlightingColor: 'blue',
+                        icon: 'iconoir-text',
+                        identifier: null,
+                        order: null,
+                        signature: {
+                            parameters: [
+                                {
+                                    type: 'text',
+                                    required: true,
+                                },
+                                {
+                                    type: 'number',
+                                    required: true,
+                                },
+                                {
+                                    type: 'number',
+                                    required: false,
+                                },
+                            ],
+                            variadic: false,
+                            minArgs: 2,
+                            maxArgs: 3,
+                        },
+                    },
+                ],
+            },
+            {
+                name: 'Math',
+                type: 'function',
+                identifier: null,
+                order: null,
+                signature: null,
+                description: null,
+                example: null,
+                highlightingColor: null,
+                icon: null,
+                nodes: [
+                    {
+                        name: 'round',
+                        type: 'function',
+                        description:
+                            'Rounds a number to specified decimal places',
+                        highlightingColor: 'green',
+                        example: 'round(3.14159, 2)',
+                        icon: 'iconoir-calculator',
+                        identifier: null,
+                        order: null,
+                        signature: {
+                            parameters: [
+                                {
+                                    type: 'number',
+                                    required: true,
+                                },
+                                {
+                                    type: 'number',
+                                    required: false,
+                                },
+                            ],
+                            variadic: false,
+                            minArgs: 1,
+                            maxArgs: 2,
+                        },
+                    },
+                    {
+                        name: 'sum',
+                        type: 'function',
+                        description: 'Calculates the sum of multiple numbers',
+                        example: 'sum(1, 2, 3, 4)',
+                        highlightingColor: 'green',
+                        icon: 'iconoir-calculator',
+                        identifier: null,
+                        order: null,
+                        signature: {
+                            parameters: [
+                                {
+                                    type: 'number',
+                                    required: true,
+                                },
+                                {
+                                    type: 'number',
+                                    required: false,
+                                },
+                            ],
+                            variadic: true,
+                            minArgs: 1,
+                            maxArgs: null,
+                        },
+                    },
+                ],
+            },
+        ],
+    },
+    {
+        name: 'Operators',
+        type: 'operator',
+        nodes: [
+            {
+                name: 'Arithmetic',
+                example: null,
+                signature: null,
+                highlightingColor: null,
+                icon: null,
+                identifier: null,
+                order: null,
+                description: null,
+                nodes: [
+                    {
+                        name: 'add',
+                        type: 'operator',
+                        description: 'Adds two numbers',
+                        example: '5 + 3',
+                        highlightingColor: 'green',
+                        icon: 'iconoir-calculator',
+                        identifier: null,
+                        order: null,
+                        signature: {
+                            operator: '+',
+                            parameters: [
+                                {
+                                    type: 'number',
+                                    required: true,
+                                },
+                                {
+                                    type: 'number',
+                                    required: true,
+                                },
+                            ],
+                            variadic: false,
+                            minArgs: 2,
+                            maxArgs: 2,
+                        },
+                    },
+                    {
+                        name: 'multiply',
+                        type: 'operator',
+                        description: 'Multiplies two numbers',
+                        example: '5 * 3',
+                        highlightingColor: 'green',
+                        icon: 'iconoir-calculator',
+                        signature: {
+                            operator: '*',
+                            parameters: [
+                                {
+                                    type: 'number',
+                                    required: true,
+                                },
+                                {
+                                    type: 'number',
+                                    required: true,
+                                },
+                            ],
+                            variadic: false,
+                            minArgs: 2,
+                            maxArgs: 2,
+                        },
+                    },
+                ],
+            },
+        ],
+    },
+    {
+        name: 'Other',
+        type: 'function',
+        identifier: null,
+        order: null,
+        signature: null,
+        description: null,
+        example: null,
+        highlightingColor: null,
+        icon: null,
+        empty: true,
+        emptyText: 'No data available',
+    },
+]
+
+export const Template = (args, { argTypes }) => ({
+    components: { FormulaInputField },
+    props: Object.keys(argTypes),
+    data() {
+        return {
+            formulaValue: 'concat("pwet")',
+            currentMode: args.mode,
+            mockNodesHierarchy,
+        }
+    },
+    template: `
+    <div style="padding: 20px; max-width: 600px;">
+        <FormulaInputField
+            v-bind="$props"
+            :value="formulaValue"
+            :mode="currentMode"
+            :nodes-hierarchy="mockNodesHierarchy"
+            @input="onInput"
+            @update:mode="onModeChanged"
+        />
+        <!-- Display emitted formula value -->
+        <div style="margin-top: 16px; padding: 12px; background: #f5f5f5; border-radius: 4px; border-left: 4px solid #007bff;">
+            <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #333;">Emitted Formula:</h4>
+            <code style="background: #fff; padding: 4px 8px; border-radius: 3px; font-family: monospace; color: #e83e8c; word-break: break-all; line-height:26px">
+                {{ formulaValue || '(empty)' }}
+            </code>
+        </div>
+    </div>
+    `,
+    methods: {
+        onInput(value) {
+            this.formulaValue = value
+            action('input')(value)
+        },
+        onModeChanged(value) {
+            this.currentMode = value
+            action('update:mode')(value)
+        },
+    },
+})
+
+export const designConfig = {
+    type: 'figma',
+    url: 'https://www.figma.com/design/pARSkP8ldSqMVxV1t2gYYT/Application-builder?node-id=1314-35740&m=dev',
+}
+
+<Canvas>
+    <Story
+        name="Default"
+        parameters={{
+            design: config(designConfig),
+        }}
+        args={{
+            value: '',
+            placeholder: 'Enter a formula...',
+        }}
+    >
+        {Template.bind({})}
+    </Story>
+</Canvas>
+
+## Example
+
+```javascript
+<FormulaInputField
+    v-model="formulaValue"
+    :nodes-hierarchy="mockNodesHierarchy"
+    placeholder="Enter a formula..."
+    context-position="bottom"
+    @input="onFormulaChange"
+/>
+```
+
+## Features
+
+-   **Syntax Highlighting**: Functions and operators are highlighted with colors
+-   **Real-time Validation**: Shows errors for invalid formulas or incorrect function arguments
+-   **Auto-completion**: Suggests functions and operators as you type
+-   **Data Explorer**: Browse available data sources and fields
+-   **Advanced/Simple Mode**: Toggle between advanced formula editor and simple input
+-   **Function Documentation**: Shows function signatures and examples
+-   **Flexible Context Position**: Position the context menu in different locations relative to the input field
+
+## Context Positioning
+
+The `context-position` prop allows you to control where the formula context menu appears, ensuring it never covers the input field:
+
+-   **`bottom`** (default): Below the input field
+-   **`left`**: To the left side of the input field
+-   **`right`**: To the right side of the input field
+
+The context menu is automatically positioned to avoid covering the input field, maintaining optimal usability.
+
+## Props
+
+<Props of={FormulaInputField} />{' '}

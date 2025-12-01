@@ -25,6 +25,8 @@ import {
   HasDateOnOrAfterViewFilterType,
   HasNotDateOnOrAfterViewFilterType,
   HasDateWithinViewFilterType,
+  HasValueLowerThanViewFilterType,
+  HasNotValueLowerThanViewFilterType,
 } from '@baserow/modules/database/arrayViewFilters'
 import {
   FormulaFieldType,
@@ -40,6 +42,7 @@ import {
   dateAfterCases,
   dateBeforeOrEqualCases,
   dateAfterOrEqualCases,
+  dateWithinDaysAgo,
   dateWithinDays,
   dateWithinWeeks,
   dateWithinMonths,
@@ -2012,6 +2015,14 @@ describe('Date array view filters', () => {
     }
   )
 
+  test.each(dateWithinDaysAgo)('HasDateWithinDaysAgo', (values) => {
+    const rowValue = [{ value: values.rowValue }]
+    const result = new HasDateWithinViewFilterType({
+      app: testApp,
+    }).matches(rowValue, `${values.filterValue}?nr_days_ago`, {})
+    expect(result).toBe(values.expected)
+  })
+
   test.each(dateWithinDays)('HasDateWithinDays', (values) => {
     const rowValue = [{ value: values.rowValue }]
     const result = new HasDateWithinViewFilterType({
@@ -2035,4 +2046,737 @@ describe('Date array view filters', () => {
     }).matches(rowValue, `${values.filterValue}?nr_months_from_now`, {})
     expect(result).toBe(values.expected)
   })
+})
+
+describe('Empty / not Empty array view filters', () => {
+  let testApp = null
+  let fieldType = null
+
+  const testCases = [
+    {
+      fieldDefinition: {
+        type: 'lookup',
+        formula_type: 'array',
+        array_formula_type: 'text',
+      },
+      values: [
+        {
+          cellValue: [],
+          expected: true,
+        },
+        {
+          cellValue: [{ value: '' }],
+          expected: true,
+        },
+      ],
+    },
+    {
+      fieldDefinition: {
+        type: 'lookup',
+        formula_type: 'array',
+        array_formula_type: 'number',
+      },
+      values: [
+        {
+          cellValue: [],
+          expected: true,
+        },
+        {
+          cellValue: [{ value: 3 }],
+          expected: false,
+        },
+      ],
+    },
+    {
+      fieldDefinition: {
+        type: 'lookup',
+        formula_type: 'array',
+        array_formula_type: 'date',
+      },
+      values: [
+        {
+          cellValue: [],
+          expected: true,
+        },
+        {
+          cellValue: [{ value: '10/01/21' }],
+          expected: false,
+        },
+      ],
+    },
+    {
+      fieldDefinition: {
+        type: 'lookup',
+        formula_type: 'array',
+        array_formula_type: 'single_select',
+      },
+      values: [
+        {
+          cellValue: [],
+          expected: true,
+        },
+        {
+          cellValue: [{ value: { id: 1, value: 'a' } }],
+          expected: false,
+        },
+      ],
+    },
+    {
+      fieldDefinition: {
+        type: 'lookup',
+        formula_type: 'array',
+        array_formula_type: 'multiple_select',
+      },
+      values: [
+        {
+          cellValue: [],
+          expected: true,
+        },
+        {
+          cellValue: [{ value: [{ id: 1, value: 'a' }] }],
+          expected: false,
+        },
+      ],
+    },
+  ]
+
+  beforeAll(() => {
+    testApp = new TestApp()
+    fieldType = new FormulaFieldType({
+      app: testApp._app,
+    })
+  })
+
+  afterEach(() => {
+    testApp.afterEach()
+  })
+
+  test.each(testCases)('isEmptyCases %j', (testCase) => {
+    const fieldDefinition = testCase.fieldDefinition
+    testCase.values.forEach((testValues) => {
+      const result = new EmptyViewFilterType({
+        app: testApp._app,
+      }).matches(testValues.cellValue, null, fieldDefinition, fieldType)
+      expect(result).toBe(testValues.expected)
+    })
+  })
+
+  test.each(testCases)('isNotEmptyCases %j', (testCase) => {
+    const fieldDefinition = testCase.fieldDefinition
+    testCase.values.forEach((testValues) => {
+      const result = new NotEmptyViewFilterType({
+        app: testApp._app,
+      }).matches(testValues.cellValue, null, fieldDefinition, fieldType)
+      expect(result).toBe(!testValues.expected)
+    })
+  })
+})
+
+const MultipleCollaboratorsEmptyCases = [
+  {
+    filterType: 'empty',
+    rowValue: [],
+    expected: true,
+  },
+  {
+    filterType: 'empty',
+    rowValue: [{ id: 1, value: [] }],
+    expected: true,
+  },
+  {
+    filterType: 'empty',
+    rowValue: [{ id: 2, value: [{ id: 1, name: 'foo' }] }],
+    expected: false,
+  },
+  {
+    filterType: 'empty',
+    rowValue: [
+      { id: 2, value: [{ id: 1, name: 'foo' }] },
+      { id: 1, value: [] },
+    ],
+    expected: false,
+  },
+]
+
+const MultipleCollaboratorsArrayFiltersCases = [
+  {
+    rowValue: [],
+    filterValue: {
+      hasValueEqual: '1',
+      hasValueContains: 'fo',
+      hasValueContainsWord: 'foo',
+    },
+    // expected is false, because there's no empty value in the list
+    expected: {
+      hasEmptyValue: false,
+      hasValueEqual: false,
+      hasValueContains: false,
+      hasValueContainsWord: false,
+    },
+  },
+  {
+    rowValue: [{ id: 1, value: [] }],
+    filterValue: {
+      hasValueEqual: '1',
+      hasValueContains: 'fo',
+      hasValueContainsWord: 'foo',
+    },
+    expected: {
+      hasEmptyValue: true,
+      hasValueEqual: false,
+      hasValueContains: false,
+      hasValueContainsWord: false,
+    },
+  },
+  {
+    rowValue: [
+      {
+        id: 2,
+        value: [
+          { id: 1, name: 'foo' },
+          { id: 2, name: 'bar' },
+        ],
+      },
+      { id: 3, value: [{ id: 2, name: 'bar' }] },
+    ],
+    filterValue: {
+      hasValueEqual: '1',
+      hasValueContains: 'fo',
+      hasValueContainsWord: 'foo',
+    },
+    expected: {
+      hasEmptyValue: false,
+      hasValueEqual: true,
+      hasValueContains: true,
+      hasValueContainsWord: true,
+    },
+  },
+  {
+    rowValue: [
+      { id: 2, value: [{ id: 1, name: 'foo' }] },
+      { id: 1, value: [] },
+    ],
+    filterValue: {
+      hasValueEqual: '2',
+      hasValueContains: 'fo',
+      hasValueContainsWord: 'foo',
+    },
+    expected: {
+      hasEmptyValue: true,
+      hasValueEqual: false,
+      hasValueContains: true,
+      hasValueContainsWord: true,
+    },
+  },
+
+  {
+    rowValue: [
+      {
+        id: 2,
+        value: [
+          { id: 1, name: 'foo' },
+          { id: 2, name: 'bar' },
+        ],
+      },
+      { id: 3, value: [{ id: 2, name: 'bar' }] },
+    ],
+    filterValue: {
+      hasValueEqual: '100',
+      hasValueContains: 'za',
+      hasValueContainsWord: 'zap!',
+    },
+    expected: {
+      hasEmptyValue: false,
+      hasValueEqual: false,
+      hasValueContains: false,
+      hasValueContainsWord: false,
+    },
+  },
+]
+
+describe('Multiple collaborators view filters', () => {
+  let testApp = null
+  let fieldType = null
+  const field = {
+    type: 'lookup',
+    formula_type: 'array',
+    array_formula_type: 'multiple_collaborators',
+  }
+
+  beforeAll(() => {
+    testApp = new TestApp()
+    fieldType = new FormulaFieldType({ app: testApp.getApp() })
+  })
+
+  afterEach(() => {
+    testApp.afterEach()
+  })
+
+  test.each(MultipleCollaboratorsEmptyCases)(
+    'Multiple collaborators is empty.',
+    (values) => {
+      const result = new EmptyViewFilterType({
+        app: testApp.getApp(),
+      }).matches(values.rowValue, '', field, fieldType)
+      expect(result).toBe(values.expected)
+    }
+  )
+
+  test.each(MultipleCollaboratorsEmptyCases)(
+    'Multiple collaborators is not empty.',
+    (values) => {
+      const result = new NotEmptyViewFilterType({
+        app: testApp.getApp(),
+      }).matches(values.rowValue, '', field, fieldType)
+      expect(result).toBe(!values.expected)
+    }
+  )
+
+  test.each(MultipleCollaboratorsArrayFiltersCases)(
+    'Multiple collaborators has empty value empty %j.',
+    (values) => {
+      const result = new HasEmptyValueViewFilterType({
+        app: testApp.getApp(),
+      }).matches(values.rowValue, '', field, fieldType)
+      expect(result).toBe(values.expected.hasEmptyValue)
+    }
+  )
+
+  test.each(MultipleCollaboratorsArrayFiltersCases)(
+    'Multiple collaborators has not empty value empty %j.',
+    (values) => {
+      const result = new HasNotEmptyValueViewFilterType({
+        app: testApp.getApp(),
+      }).matches(values.rowValue, '', field, fieldType)
+      expect(result).toBe(!values.expected.hasEmptyValue)
+    }
+  )
+
+  test.each(MultipleCollaboratorsArrayFiltersCases)(
+    'Multiple collaborators has value equal %j.',
+    (values) => {
+      const result = new HasValueEqualViewFilterType({
+        app: testApp.getApp(),
+      }).matches(
+        values.rowValue,
+        values.filterValue.hasValueEqual,
+        field,
+        fieldType
+      )
+      expect(result).toBe(values.expected.hasValueEqual)
+    }
+  )
+
+  test.each(MultipleCollaboratorsArrayFiltersCases)(
+    'Multiple collaborators has not value equal %j.',
+    (values) => {
+      const result = new HasNotValueEqualViewFilterType({
+        app: testApp.getApp(),
+      }).matches(
+        values.rowValue,
+        values.filterValue.hasValueEqual,
+        field,
+        fieldType
+      )
+      expect(result).toBe(!values.expected.hasValueEqual)
+    }
+  )
+
+  test.each(MultipleCollaboratorsArrayFiltersCases)(
+    'Multiple collaborators has value contains %j.',
+    (values) => {
+      const result = new HasValueContainsViewFilterType({
+        app: testApp.getApp(),
+      }).matches(
+        values.rowValue,
+        values.filterValue.hasValueContains,
+        field,
+        fieldType
+      )
+      expect(result).toBe(values.expected.hasValueContains)
+    }
+  )
+
+  test.each(MultipleCollaboratorsArrayFiltersCases)(
+    'Multiple collaborators has not value contains %j.',
+    (values) => {
+      const result = new HasNotValueContainsViewFilterType({
+        app: testApp.getApp(),
+      }).matches(
+        values.rowValue,
+        values.filterValue.hasValueContains,
+        field,
+        fieldType
+      )
+      expect(result).toBe(!values.expected.hasValueContains)
+    }
+  )
+
+  test.each(MultipleCollaboratorsArrayFiltersCases)(
+    'Multiple collaborators has value contains word %j.',
+    (values) => {
+      const result = new HasValueContainsWordViewFilterType({
+        app: testApp.getApp(),
+      }).matches(
+        values.rowValue,
+        values.filterValue.hasValueContainsWord,
+        field,
+        fieldType
+      )
+      expect(result).toBe(values.expected.hasValueContainsWord)
+    }
+  )
+
+  test.each(MultipleCollaboratorsArrayFiltersCases)(
+    'Multiple collaborators has not value contains word %j.',
+    (values) => {
+      const result = new HasNotValueContainsWordViewFilterType({
+        app: testApp.getApp(),
+      }).matches(
+        values.rowValue,
+        values.filterValue.hasValueContainsWord,
+        field,
+        fieldType
+      )
+      expect(result).toBe(!values.expected.hasValueContainsWord)
+    }
+  )
+})
+
+const durationEmptyCases = [
+  {
+    cellValue: [],
+    expected: true,
+  },
+  {
+    cellValue: [{ value: 1 }],
+    expected: false,
+  },
+  {
+    cellValue: [{ value: null }],
+    expected: true,
+  },
+  {
+    cellValue: [{ value: '1' }, { value: null }],
+    expected: false,
+  },
+]
+
+describe('Duration view filters', () => {
+  let testApp = null
+
+  beforeAll(() => {
+    testApp = new TestApp()
+  })
+
+  afterEach(() => {
+    testApp.afterEach()
+  })
+
+  test.each(durationEmptyCases)('Duration is empty %j', (testValues) => {
+    const fieldType = new FormulaFieldType({ app: testApp })
+    const field = {
+      type: 'lookup',
+      formula_type: 'array',
+      array_formula_type: 'duration',
+    }
+    const result = new EmptyViewFilterType({
+      app: testApp,
+    }).matches(testValues.cellValue, '', field, fieldType)
+    expect(result).toBe(testValues.expected)
+  })
+
+  test.each(durationEmptyCases)('Duration is not empty %j', (testValues) => {
+    const fieldType = new FormulaFieldType({ app: testApp })
+    const field = {
+      type: 'lookup',
+      formula_type: 'array',
+      array_formula_type: 'duration',
+    }
+    const result = new NotEmptyViewFilterType({
+      app: testApp,
+    }).matches(testValues.cellValue, '', field, fieldType)
+    expect(result).toBe(!testValues.expected)
+  })
+})
+
+describe('Duration lookup filters', () => {
+  let testApp = null
+  let fieldType = null
+  const field = {
+    type: 'lookup',
+    formula_type: 'array',
+    array_formula_type: 'duration',
+  }
+
+  beforeAll(() => {
+    testApp = new TestApp()
+    fieldType = new FormulaFieldType({ app: testApp.getApp() })
+  })
+
+  afterEach(() => {
+    testApp.afterEach()
+  })
+
+  const DurationLookupFilterCases = [
+    {
+      rowValue: [],
+      filterValue: {
+        hasEmptyValue: '',
+        hasValueEqual: '86400',
+        hasValueLower: '86400',
+        hasValueLowerOrEqual: '86400',
+        hasValueHigher: '86400',
+        hasValueHigherOrEqual: '86400',
+      },
+
+      expected: {
+        hasEmptyValue: false,
+        hasValueEqual: false,
+        hasValueLower: false,
+        hasValueLowerOrEqual: false,
+        hasValueHigher: false,
+        hasValueHigherOrEqual: false,
+      },
+    },
+    {
+      rowValue: [{ id: 1, value: [] }],
+      filterValue: {
+        hasEmptyValue: '',
+        hasValueEqual: '86400',
+        hasValueLower: '86400',
+        hasValueLowerOrEqual: '86400',
+        hasValueHigher: '86400',
+        hasValueHigherOrEqual: '86400',
+      },
+
+      expected: {
+        hasEmptyValue: true,
+        hasValueEqual: false,
+        hasValueLower: false,
+        hasValueLowerOrEqual: false,
+        hasValueHigher: false,
+        hasValueHigherOrEqual: false,
+      },
+    },
+
+    {
+      rowValue: [{ id: 1, value: 100 }],
+      filterValue: {
+        hasEmptyValue: '',
+        hasValueEqual: '200',
+        hasValueLower: '200',
+        hasValueLowerOrEqual: '200',
+        hasValueHigher: '200',
+        hasValueHigherOrEqual: '200',
+      },
+
+      expected: {
+        hasEmptyValue: false,
+        hasValueEqual: false,
+        hasValueLower: true,
+        hasValueLowerOrEqual: true,
+        hasValueHigher: false,
+        hasValueHigherOrEqual: false,
+      },
+    },
+
+    {
+      rowValue: [
+        { id: 1, value: 100 },
+        { id: 2, value: 200 },
+      ],
+      filterValue: {
+        hasEmptyValue: '',
+        hasValueEqual: '200',
+        hasValueLower: '200',
+        hasValueLowerOrEqual: '200',
+        hasValueHigher: '200',
+        hasValueHigherOrEqual: '200',
+      },
+
+      expected: {
+        hasEmptyValue: false,
+        hasValueEqual: true,
+        hasValueLower: true,
+        hasValueLowerOrEqual: true,
+        hasValueHigher: false,
+        hasValueHigherOrEqual: true,
+      },
+    },
+
+    {
+      rowValue: [
+        { id: 1, value: 100 },
+        { id: 2, value: 200 },
+      ],
+      filterValue: {
+        hasEmptyValue: '',
+        hasValueEqual: '101',
+        hasValueLower: '101',
+        hasValueLowerOrEqual: '101',
+        hasValueHigher: '101',
+        hasValueHigherOrEqual: '101',
+      },
+
+      expected: {
+        hasEmptyValue: false,
+        hasValueEqual: false,
+        hasValueLower: true,
+        hasValueLowerOrEqual: false,
+        hasValueHigher: true,
+        hasValueHigherOrEqual: true,
+      },
+    },
+  ]
+
+  test.each(DurationLookupFilterCases)(
+    'duration lookup has empty value %j.',
+    (values) => {
+      const result = new HasEmptyValueViewFilterType({
+        app: testApp.getApp(),
+      }).matches(
+        values.rowValue,
+        values.filterValue.hasEmptyValue,
+        field,
+        fieldType
+      )
+      expect(result).toBe(values.expected.hasEmptyValue)
+    }
+  )
+
+  test.each(DurationLookupFilterCases)(
+    'duration lookup has not empty value %j.',
+    (values) => {
+      const result = new HasNotEmptyValueViewFilterType({
+        app: testApp.getApp(),
+      }).matches(
+        values.rowValue,
+        values.filterValue.hasEmptyValue,
+        field,
+        fieldType
+      )
+      expect(result).toBe(!values.expected.hasEmptyValue)
+    }
+  )
+
+  test.each(DurationLookupFilterCases)(
+    'duration lookup has value equal %j.',
+    (values) => {
+      const result = new HasValueEqualViewFilterType({
+        app: testApp.getApp(),
+      }).matches(
+        values.rowValue,
+        values.filterValue.hasValueEqual,
+        field,
+        fieldType
+      )
+      expect(result).toBe(values.expected.hasValueEqual)
+    }
+  )
+
+  test.each(DurationLookupFilterCases)(
+    'duration lookup has not value equal %j.',
+    (values) => {
+      const result = new HasNotValueEqualViewFilterType({
+        app: testApp.getApp(),
+      }).matches(
+        values.rowValue,
+        values.filterValue.hasValueEqual,
+        field,
+        fieldType
+      )
+      expect(result).toBe(!values.expected.hasValueEqual)
+    }
+  )
+
+  test.each(DurationLookupFilterCases)(
+    'duration lookup has value lower %j.',
+    (values) => {
+      const result = new HasValueLowerThanViewFilterType({
+        app: testApp.getApp(),
+      }).matches(
+        values.rowValue,
+        values.filterValue.hasValueLower,
+        field,
+        fieldType
+      )
+      expect(result).toBe(values.expected.hasValueLower)
+    }
+  )
+
+  test.each(DurationLookupFilterCases)(
+    'duration lookup has not value lower %j.',
+    (values) => {
+      const result = new HasNotValueLowerThanViewFilterType({
+        app: testApp.getApp(),
+      }).matches(
+        values.rowValue,
+        values.filterValue.hasValueLower,
+        field,
+        fieldType
+      )
+      expect(result).toBe(!values.expected.hasValueLower)
+    }
+  )
+
+  test.each(DurationLookupFilterCases)(
+    'duration lookup has value higher %j.',
+    (values) => {
+      const result = new HasValueHigherThanViewFilterType({
+        app: testApp.getApp(),
+      }).matches(
+        values.rowValue,
+        values.filterValue.hasValueHigher,
+        field,
+        fieldType
+      )
+      expect(result).toBe(values.expected.hasValueHigher)
+    }
+  )
+
+  test.each(DurationLookupFilterCases)(
+    'duration lookup has not value higher %j.',
+    (values) => {
+      const result = new HasNotValueHigherThanViewFilterType({
+        app: testApp.getApp(),
+      }).matches(
+        values.rowValue,
+        values.filterValue.hasValueHigher,
+        field,
+        fieldType
+      )
+      expect(result).toBe(!values.expected.hasValueHigher)
+    }
+  )
+
+  test.each(DurationLookupFilterCases)(
+    'duration lookup has value higher or equal %j.',
+    (values) => {
+      const result = new HasValueHigherThanOrEqualViewFilterType({
+        app: testApp.getApp(),
+      }).matches(
+        values.rowValue,
+        values.filterValue.hasValueHigherOrEqual,
+        field,
+        fieldType
+      )
+      expect(result).toBe(values.expected.hasValueHigherOrEqual)
+    }
+  )
+
+  test.each(DurationLookupFilterCases)(
+    'duration lookup has not value higher or equal %j.',
+    (values) => {
+      const result = new HasNotValueHigherThanOrEqualViewFilterType({
+        app: testApp.getApp(),
+      }).matches(
+        values.rowValue,
+        values.filterValue.hasValueHigherOrEqual,
+        field,
+        fieldType
+      )
+      expect(result).toBe(!values.expected.hasValueHigherOrEqual)
+    }
+  )
 })

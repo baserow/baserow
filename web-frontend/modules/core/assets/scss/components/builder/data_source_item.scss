@@ -1,9 +1,34 @@
+.data-source-item__wrapper {
+  position: relative;
+  padding: 10px 0;
+}
+
 .data-source-item {
   @include elevation($elevation-low);
   @include rounded($rounded);
 
+  position: relative;
   padding: 20px;
   border: 1px solid $palette-neutral-200;
   display: flex;
   cursor: pointer;
+}
+
+.data-source-item__handle {
+  width: 8px;
+  height: 24px;
+  background-image: radial-gradient($color-neutral-300 40%, transparent 40%);
+  background-size: 4px 4px;
+  background-repeat: repeat;
+  margin: 2px;
+  margin-right: 12px;
+  cursor: grab;
+  visibility: hidden;
+  position: absolute;
+  left: 4px;
+  top: 25px;
+
+  .data-source-item:hover & {
+    visibility: visible;
+  }
 }

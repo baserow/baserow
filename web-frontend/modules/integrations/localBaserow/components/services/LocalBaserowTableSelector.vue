@@ -1,5 +1,5 @@
 <template>
-  <FormRow>
+  <FormRow class="margin-bottom-2">
     <FormGroup
       :label="$t('localBaserowTableSelector.databaseFieldLabel')"
       small-label

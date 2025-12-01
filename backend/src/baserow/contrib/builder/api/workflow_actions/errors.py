@@ -18,17 +18,6 @@ ERROR_WORKFLOW_ACTION_CANNOT_BE_DISPATCHED = (
     "The requested workflow action cannot be dispatched.",
 )
 
-ERROR_WORKFLOW_ACTION_IMPROPERLY_CONFIGURED = (
-    "ERROR_WORKFLOW_ACTION_IMPROPERLY_CONFIGURED",
-    HTTP_400_BAD_REQUEST,
-    "The workflow_action configuration is incorrect: {e}",
-)
-
-ERROR_WORKFLOW_ACTION_FORM_DATA_INVALID = (
-    "ERROR_WORKFLOW_ACTION_FORM_DATA_INVALID",
-    HTTP_400_BAD_REQUEST,
-    "The form data provided to the workflow action contained invalid values.",
-)
 
 ERROR_DATA_DOES_NOT_EXIST = (
     "ERROR_DATA_DOES_NOT_EXIST",

@@ -1,5 +1,6 @@
 import Vue from 'vue'
 import axios from 'axios'
+import _ from 'lodash'
 import { RefreshCancelledError } from '@baserow/modules/core/errors'
 import { clone } from '@baserow/modules/core/utils/object'
 import { GroupTaskQueue } from '@baserow/modules/core/utils/queue'
@@ -11,13 +12,14 @@ import {
   getRowSortFunction,
   matchSearchFilters,
 } from '@baserow/modules/database/utils/view'
+import ViewService from '@baserow/modules/database/services/view'
 import RowService from '@baserow/modules/database/services/row'
 import {
-  extractRowReadOnlyValues,
+  extractChangedFields,
+  getRowMetadata,
   prepareNewOldAndUpdateRequestValues,
   prepareRowForRequest,
   updateRowMetadataType,
-  getRowMetadata,
 } from '@baserow/modules/database/utils/row'
 import { getDefaultSearchModeFromEnv } from '@baserow/modules/database/utils/search'
 import fieldOptionsStoreFactory from '@baserow/modules/database/store/view/fieldOptions'
@@ -59,7 +61,7 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
   const fieldOptionsStore =
     fieldOptions !== undefined ? fieldOptions : fieldOptionsStoreFactory()
 
-  const populateRow = (row, metadata = {}) => {
+  const populateRow = (row, metadata = {}, fullyLoaded) => {
     if (customPopulateRow) {
       customPopulateRow(row, metadata)
     }
@@ -76,6 +78,9 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
     // implementation is finished.
     row._.matchSearch = true
     row._.fieldSearchMatches = []
+
+    row._.fetching = false
+    row._.fullyLoaded = fullyLoaded
     return row
   }
 
@@ -172,6 +177,8 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
     // key was pressed.
     draggingOriginalBefore: null,
     activeSearchTerm: '',
+    // Indicates whether row(s) are currently being created.
+    creating: false,
   })
 
   const mutations = {
@@ -225,6 +232,14 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
         Object.assign(state.rows[index], values)
       } else {
         Object.assign(row, values)
+      }
+    },
+    SET_ROW_FETCHING(state, { row, value }) {
+      const index = state.rows.findIndex((item) => item?.id === row.id)
+      if (index !== -1) {
+        const existingRowState = state.rows[index]
+        existingRowState._.fetching = value
+        existingRowState._.fullyLoaded = !value
       }
     },
     UPDATE_ROW_AT_INDEX(state, { index, values }) {
@@ -283,6 +298,9 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
     SET_ADHOC_SORTING(state, adhocSorting) {
       state.adhocSorting = adhocSorting
     },
+    SET_CREATING(state, value) {
+      state.creating = value
+    },
   }
 
   const actions = {
@@ -330,7 +348,7 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
       const rows = Array(data.count).fill(null)
       data.results.forEach((row, index) => {
         const metadata = extractRowMetadata(data, row.id)
-        rows[index] = populateRow(row, metadata)
+        rows[index] = populateRow(row, metadata, false)
       })
       commit('SET_ROWS', rows)
       return data
@@ -523,7 +541,11 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
 
           data.results.forEach((row, index) => {
             const metadata = extractRowMetadata(data, row.id)
-            rows[rangeToFetch.offset + index] = populateRow(row, metadata)
+            rows[rangeToFetch.offset + index] = populateRow(
+              row,
+              metadata,
+              false
+            )
           })
 
           if (includeFieldOptions) {
@@ -652,11 +674,28 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
      * row from a *different* table using ForeignRowEditModal or just RowEditModal
      * component in general.
      */
-    async refreshRowFromBackend({ commit, getters, dispatch }, { table, row }) {
-      const { data } = await RowService(this.$client).get(table.id, row.id)
-      // Use the return value to update the desired row with latest values from the
-      // backend.
-      commit('UPDATE_ROW', { row, values: data })
+    async refreshRowFromBackend(
+      { commit, getters, rootGetters },
+      { table, row }
+    ) {
+      commit('SET_ROW_FETCHING', { row, value: true })
+      const gridId = getters.getViewId
+      const publicUrl = rootGetters['page/view/public/getIsPublic']
+      const publicAuthToken = rootGetters['page/view/public/getAuthToken']
+      try {
+        const { data } = await ViewService(this.$client).fetchRow(
+          table.id,
+          row.id,
+          gridId,
+          publicUrl,
+          publicAuthToken
+        )
+        // Use the return value to update the desired row with latest values from the
+        // backend.
+        commit('UPDATE_ROW', { row, values: data })
+      } finally {
+        commit('SET_ROW_FETCHING', { row, value: false })
+      }
     },
     /**
      * Creates a new row and adds it to the store if needed.
@@ -667,10 +706,12 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
     ) {
       const preparedRow = prepareRowForRequest(values, fields, this.$registry)
 
+      commit('SET_CREATING', true)
       const { data } = await RowService(this.$client).create(
         table.id,
         preparedRow
       )
+      commit('SET_CREATING', false)
       return await dispatch('afterNewRowCreated', {
         view,
         fields,
@@ -732,7 +773,7 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
      * are prepared by the `prepareNewOldAndUpdateRequestValues` function.
      */
     async updatePreparedRowValues(
-      { commit, dispatch },
+      { commit, dispatch, getters },
       { table, view, row, fields, values, oldValues, updateRequestValues }
     ) {
       await dispatch('afterExistingRowUpdated', {
@@ -755,17 +796,42 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
         // will never be updated concurrency, and so that the value won't be
         // updated if the row hasn't been created yet.
         await updateRowQueue.add(async () => {
-          const { data } = await RowService(this.$client).update(
+          const updateRowsData = [
+            Object.assign({ id: row.id }, updateRequestValues),
+          ]
+          commit('SET_ROW_FETCHING', { row, value: true })
+          const { data } = await RowService(this.$client).batchUpdate(
             table.id,
-            row.id,
-            updateRequestValues
+            updateRowsData
           )
-          const readOnlyData = extractRowReadOnlyValues(
-            data,
-            fields,
-            this.$registry
+
+          const updatedRows = []
+            .concat(data.items)
+            .concat(data.metadata?.cascade_update?.rows || [])
+
+          const updatedFieldIds = _.uniq(
+            []
+              .concat(data.metadata?.updated_field_ids || [])
+              .concat(data.metadata?.cascade_update?.field_ids || [])
           )
-          commit('UPDATE_ROW', { row, values: readOnlyData })
+
+          for (const updatedRowData of updatedRows) {
+            const rowToUpdate = getters.getRow(updatedRowData.id)
+            // The backend may update rows that are not in the current buffer.
+            // In that case, the row will be `undefined`, and we don't need to
+            // update it.
+            if (rowToUpdate === undefined) {
+              continue
+            }
+
+            const updateValues = extractChangedFields(
+              updatedRowData,
+              fields,
+              updatedFieldIds,
+              this.$registry
+            )
+            commit('UPDATE_ROW', { row: rowToUpdate, values: updateValues })
+          }
         }, row.id)
       } catch (error) {
         dispatch('afterExistingRowUpdated', {
@@ -779,6 +845,8 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
           values: { ...oldValues },
         })
         throw error
+      } finally {
+        commit('SET_ROW_FETCHING', { row, value: false })
       }
     },
     /**
@@ -1186,7 +1254,7 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
       return state.fetching
     },
     getRow: (state) => (id) => {
-      return state.rows.find((row) => row.id === id)
+      return state.rows.find((row) => row?.id === id)
     },
     getRows(state) {
       return state.rows
@@ -1211,6 +1279,9 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
     },
     getAdhocSorting(state) {
       return state.adhocSorting
+    },
+    getCreating(state) {
+      return state.creating
     },
   }
 

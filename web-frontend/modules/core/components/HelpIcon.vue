@@ -64,7 +64,7 @@ export default {
      * */
     tooltipContentClasses: {
       type: [Array, String],
-      requred: false,
+      required: false,
       default: () => [],
     },
   },

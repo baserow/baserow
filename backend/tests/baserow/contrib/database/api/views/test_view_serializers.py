@@ -82,8 +82,14 @@ def test_serialize_group_by_metadata_on_all_fields_in_interesting_table(data_fix
     ]
 
     single_select_options = Field.objects.get(name="single_select").select_options.all()
+    single_select_with_default_options = Field.objects.get(
+        name="single_select_with_default"
+    ).select_options.all()
     multiple_select_options = Field.objects.get(
         name="multiple_select"
+    ).select_options.all()
+    multiple_select_with_default_options = Field.objects.get(
+        name="multiple_select_with_default"
     ).select_options.all()
 
     actual_result_per_field_name = {}
@@ -132,10 +138,16 @@ def test_serialize_group_by_metadata_on_all_fields_in_interesting_table(data_fix
             {"count": 1, "field_positive_decimal": "1.2"},
             {"count": 1, "field_positive_decimal": None},
         ],
+        "decimal_with_default": [
+            {"count": 2, "field_decimal_with_default": "1.8"},
+        ],
         "rating": [{"count": 1, "field_rating": 0}, {"count": 1, "field_rating": 3}],
         "boolean": [
             {"count": 1, "field_boolean": False},
             {"count": 1, "field_boolean": True},
+        ],
+        "boolean_with_default": [
+            {"count": 2, "field_boolean_with_default": True},
         ],
         "datetime_us": [
             {"count": 1, "field_datetime_us": "2020-02-01T01:23:00Z"},
@@ -194,6 +206,14 @@ def test_serialize_group_by_metadata_on_all_fields_in_interesting_table(data_fix
             {"count": 1, "field_single_select": single_select_options[0].id},
             {"count": 1, "field_single_select": None},
         ],
+        "single_select_with_default": [
+            {
+                "count": 2,
+                "field_single_select_with_default": single_select_with_default_options[
+                    1
+                ].id,
+            },
+        ],
         "multiple_select": [
             {"count": 1, "field_multiple_select": []},
             {
@@ -202,6 +222,15 @@ def test_serialize_group_by_metadata_on_all_fields_in_interesting_table(data_fix
                     multiple_select_options[1].id,
                     multiple_select_options[0].id,
                     multiple_select_options[2].id,
+                ],
+            },
+        ],
+        "multiple_select_with_default": [
+            {
+                "count": 2,
+                "field_multiple_select_with_default": [
+                    multiple_select_with_default_options[0].id,
+                    multiple_select_with_default_options[1].id,
                 ],
             },
         ],

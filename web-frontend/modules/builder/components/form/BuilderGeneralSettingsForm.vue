@@ -9,6 +9,24 @@
         :label-button="$t('generalSettings.labelButton')"
       />
     </FormGroup>
+    <FormGroup
+      :label="$t('builderLoginPageForm.pageDropdownLabel')"
+      required
+      class="margin-top-4"
+      :help-icon-tooltip="$t('builderLoginPageForm.pageDropdownDescription')"
+    >
+      <Dropdown
+        v-model="values.login_page_id"
+        :placeholder="$t('builderLoginPageForm.pageDropdownPlaceholder')"
+      >
+        <DropdownItem
+          v-for="page in builderPages"
+          :key="page.id"
+          :name="page.name"
+          :value="page.id"
+        />
+      </Dropdown>
+    </FormGroup>
   </form>
 </template>
 
@@ -21,11 +39,16 @@ import form from '@baserow/modules/core/mixins/form'
 export default {
   name: 'BuilderGeneralSettingsForm',
   mixins: [form],
-  props: {},
+  props: {
+    builder: {
+      type: Object,
+      required: true,
+    },
+  },
   data() {
     return {
-      values: { favicon_file: null },
-      allowedValues: ['favicon_file'],
+      values: { favicon_file: null, login_page_id: null },
+      allowedValues: ['favicon_file', 'login_page_id'],
     }
   },
   computed: {
@@ -34,6 +57,9 @@ export default {
     },
     FAVICON_IMAGE_FILE_TYPES() {
       return FAVICON_IMAGE_FILE_TYPES
+    },
+    builderPages() {
+      return this.$store.getters['page/getVisiblePages'](this.builder)
     },
   },
 }

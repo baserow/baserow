@@ -15,7 +15,17 @@
         "summarize": "Samenvatten",
         "enabled": "Ingeschakeld",
         "or": "of",
-        "and": "en"
+        "and": "en",
+        "optional": "Optioneel",
+        "alpha": "Alfa",
+        "monday": "Maandag",
+        "tuesday": "Dinsdag",
+        "wednesday": "Woensdag",
+        "thursday": "Donderdag",
+        "friday": "Vrijdag",
+        "saturday": "Zaterdag",
+        "sunday": "Zondag",
+        "value": "waarde"
     },
     "action": {
         "upload": "Uploaden",
@@ -76,14 +86,18 @@
         "automation": "Automatisering",
         "automationDefaultName": "Automatisering zonder titel",
         "automationDesc": "Automatiseer terugkerende taken en workflows.",
-        "automations": "Automatiseringen"
+        "automations": "Automatiseringen",
+        "cantSelectAutomationWorkflowDescription": "De automatisering kon niet worden geselecteerd omdat deze geen workflows heeft. Gebruik de zijbalk om er een te maken.",
+        "cantSelectAutomationWorkflowTitle": "Kan de automatisering niet selecteren."
     },
     "settingType": {
         "account": "Account",
         "password": "Wachtwoord",
         "tokens": "API-tokens",
         "deleteAccount": "Account verwijderen",
-        "emailNotifications": "E-mail notificaties"
+        "emailNotifications": "E-mail notificaties",
+        "mcpEndpoint": "MCP server",
+        "twoFactorAuth": "Tweefactorauth"
     },
     "userFileUploadType": {
         "file": "mijn apparaat",
@@ -108,7 +122,8 @@
         "invalidURL": "Voer een geldige URL in.",
         "alreadyInUse": "Deze veldnaam is al in gebruik.",
         "invalidCharacters": "Dit veld bevat ongeldige tekens.",
-        "decimalField": "Het veld moet een decimaal zijn."
+        "decimalField": "Het veld moet een decimaal zijn.",
+        "copyFailed": "Kopiëren naar klembord mislukt. Probeer het opnieuw."
     },
     "permission": {
         "admin": "Beheerder",
@@ -291,7 +306,9 @@
         "hasDateOnOrAfter": "heeft datum op of na",
         "hasNotDateOnOrAfter": "heeft geen datum op of na",
         "hasDateWithin": "heeft datum binnen",
-        "hasNotDateWithin": "heeft geen datum binnen"
+        "hasNotDateWithin": "heeft geen datum binnen",
+        "hasAnyOf": "heeft een van",
+        "hasNotAnyOf": "heeft niets van"
     },
     "viewType": {
         "grid": "Raster",
@@ -312,7 +329,9 @@
         "field": "veld",
         "row": "rij",
         "view": "weergave",
-        "rows": "rijen"
+        "rows": "rijen",
+        "automation_workflow": "automatiseringWorkflow",
+        "automation_node": "automatisering knooppunt"
     },
     "webhook": {
         "request": "Verzoek",
@@ -426,7 +445,15 @@
         "fieldIsAlreadyPrimaryTitle": "Veld is al primair",
         "incompatiblePrimaryFieldTypeTitle": "Veld is niet compatibel",
         "cannotCreateRowsInTableTitle": "Kan geen rijen maken",
-        "cannotCreateRowsInTableDescription": "Het is niet mogelijk om rijen te maken in deze tabel."
+        "cannotCreateRowsInTableDescription": "Het is niet mogelijk om rijen te maken in deze tabel.",
+        "databaseDeadlockTitle": "Actie mislukt",
+        "databaseDeadlockDescription": "De actie kon niet worden voltooid vanwege meerdere conflicterende bewerkingen op de gegevens op hetzelfde moment. Probeer het opnieuw.",
+        "databaseUniquePrimaryPropertyNotFoundDescription": "Dit gebeurt meestal als de gegevenssynchronisatiebron geen eigenschap bevat om een unieke rijwaarde uit te halen. In het geval van een tabel kan het zijn dat er geen primaire sleutel is.",
+        "databaseUniquePrimaryPropertyNotFoundTitle": "Geen unieke primaire eigenschap gevonden",
+        "fieldConstraintTitle": "Schending veldbeperking",
+        "fieldConstraintDescription": "Kan beperking niet toepassen.",
+        "fieldDataConstraintTitle": "Schending beperking veldgegevens",
+        "fieldDataConstraintDescription": "Kan de bewerking niet voltooien vanwege schending van bestaande beperkingen."
     },
     "importerType": {
         "csv": "Een CSV-bestand importeren",
@@ -462,7 +489,9 @@
         "uploadFileViaUrl": "Bestand uploaden via URL",
         "uploadFileViaUrlDescription": "Uploadt een bestand naar Baserow door het te downloaden van de opgegeven URL.",
         "fileUploads": "Bestandsuploads",
-        "sendWebhookEventsDescription": "Een vlag query parameter die webhooks triggert na de bewerking, indien ingesteld op `ja`, `yes`, `true`, `t`, `on`, `1`, `of` leeg gelaten. Standaard ingesteld op `true`."
+        "sendWebhookEventsDescription": "Een vlag query parameter die webhooks triggert na de bewerking, indien ingesteld op `ja`, `yes`, `true`, `t`, `on`, `1`, `of` leeg gelaten. Standaard ingesteld op `true`.",
+        "listTables": "Toon tabellen",
+        "apiDocs": "Toon alle tabellen"
     },
     "exporterType": {
         "csv": "Exporteren naar CSV"
@@ -597,5 +626,81 @@
     "health": {
         "title": "Baserow gezondheidscontroles",
         "description": "Deze controles tonen de huidige status van uw Baserow-installatie."
+    },
+    "fieldConstraint": {
+        "uniqueWithEmpty": "Uniek met leeg"
+    },
+    "fieldConstraintsSubform": {
+        "title": "Beperkingen",
+        "description": "Definieer regels waaraan veldwaarden moeten voldoen.",
+        "addConstraint": "Beperking toevoegen",
+        "noConstraintsAvailable": "Er zijn geen beperkingen beschikbaar voor dit veldtype.",
+        "readonlyFieldMessage": "Beperkingen kunnen niet worden toegepast op alleen-lezen velden.",
+        "errorGenericData": "Kan veldbeperking niet toepassen vanwege bestaande gegevensconflicten.",
+        "errorUniqueOrEmpty": "Sommige waarden in dit veld zijn gedupliceerd. Verwijder of bewerk duplicaten voordat je deze beperking toepast.",
+        "errorInvalidConstraint": "Deze veldbeperking wordt niet ondersteund voor dit veldtype.",
+        "errorDoesNotSupportDefaultValue": "Kan deze beperking niet instellen wanneer de standaardwaarde is ingesteld.",
+        "noConstraintsCompatibleWithDefaultValue": "Er zijn geen beperkingen compatibel wanneer een standaardwaarde is ingeschakeld."
+    },
+    "fieldConstraintParametersText": {
+        "placeholder": "Beperkingswaarde invoeren"
+    },
+    "assistantMessageSources": {
+        "sources": "{count} source | {count} sources"
+    },
+    "runtimeFormulaTypes": {
+        "concatDescription": "Voeg argumenten samen als één tekst.",
+        "getDescription": "Geeft de vaste waarde van een Baserow formule terug.",
+        "addDescription": "Telt twee argumenten bij elkaar op.",
+        "minusDescription": "Trekt het tweede argument af van het eerste.",
+        "multiplyDescription": "Vermenigvuldigt de twee argumenten.",
+        "divideDescription": "Deelt het eerste argument met de tweede.",
+        "equalDescription": "Controleert of beide argumenten gelijk zijn.",
+        "notEqualDescription": "Controleert of beide argumenten niet gelijk zijn.",
+        "greaterThanDescription": "Controleert of het eerste argument groter is dan het tweede.",
+        "lessThanDescription": "Controleert of het eerste argument minder is dan het tweede.",
+        "greaterThanOrEqualDescription": "Controleert of het eerste argument meer of gelijk is aan het tweede.",
+        "upperDescription": "Converteert het argument naar hoofdletters.",
+        "lowerDescription": "Converteert het argument naar kleine letters.",
+        "capitalizeDescription": "Zet de eerste letter van het argument met een hoofdletter.",
+        "roundDescription": "Rondt het eerste argument af op het aantal decimalen dat wordt opgegeven door het tweede argument.",
+        "evenDescription": "Geeft true terug als het argument even is, anders false.",
+        "oddDescription": "Geeft true terug als het argument oneven is, anders false.",
+        "dateTimeDescription": "Formatteert het datum-tijd argument met het format en tijdzone argument. Als de tijdzone leeg wordt gelaten, wordt standaard de tijdzone van de browser gebruikt.",
+        "dayDescription": "Geeft als resultaat de dag van het datum-tijdargument.",
+        "monthDescription": "Geeft als resultaat de maand van het datum-tijdargument.",
+        "yearDescription": "Geeft het jaar van het datum-tijdargument.",
+        "hourDescription": "Geeft het uur van het datum-tijdargument.",
+        "minuteDescription": "Geeft de minuten van het datum-tijdargument.",
+        "secondDescription": "Geeft de seconde van het datum-tijdargument.",
+        "todayDescription": "Geeft de huidige datum.",
+        "getPropertyDescription": "Geeft de eigenschap van het object terug.",
+        "randomIntDescription": "Geeft een willekeurig geheel getal terug uit het bereik opgegeven door de argumenten.",
+        "randomFloatDescription": "Geeft een willekeurige float terug uit het bereik opgegeven door de argumenten.",
+        "randomBoolDescription": "Geeft een willekeurig booleaans waar of onwaar terug.",
+        "generateUUIDDescription": "Geeft een willekeurige UUID4-tekenreeks terug.",
+        "ifDescription": "Als het eerste argument waar is, retourneert het tweede argument, anders retourneert het derde argument.",
+        "andDescription": "Geeft true als alle argumenten waar zijn, anders false.",
+        "orDescription": "Geeft waar als een van de argumenten waar is, anders onwaar.",
+        "formulaTypeFormula": "Functie | Functies",
+        "formulaTypeOperator": "Operator | Operators",
+        "formulaTypeData": "Data",
+        "formulaTypeDataEmpty": "Geen gegevensbronnen beschikbaar",
+        "categoryText": "Tekst",
+        "categoryNumber": "Nummer",
+        "categoryBoolean": "Boolean",
+        "categoryDate": "Datum",
+        "categoryCondition": "Voorwaarde"
+    },
+    "formulaInputContext": {
+        "useRegularInput": "Gebruik regelmatige invoer",
+        "useAdvancedInput": "Geavanceerde invoer gebruiken",
+        "useRegularInputModalTitle": "Overschakelen op gewone invoer?",
+        "useAdvancedInputModalTitle": "Overschakelen naar geavanceerde invoer?",
+        "modalMessage": "Als u overschakelt naar een andere invoermodus, wordt de huidige formule gewist. Weet u zeker dat u wilt doorgaan?"
+    },
+    "nodeExplorer": {
+        "noResults": "Geen resultaten gevonden",
+        "resetSearch": "Zoeken herstellen"
     }
 }

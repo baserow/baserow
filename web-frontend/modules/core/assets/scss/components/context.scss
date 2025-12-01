@@ -58,6 +58,7 @@
   position: relative;
   color: $palette-neutral-800;
   text-align: left;
+  width: 16px;
   font-size: 16px;
 
   .context__menu-item-link--loading & {
@@ -107,15 +108,6 @@
     .context__menu-item-icon {
       color: $palette-neutral-1300;
     }
-
-    &.context__menu-item-link--delete {
-      background: $palette-red-50;
-      color: $palette-red-800;
-
-      .context__menu-item-icon {
-        color: $palette-red-800;
-      }
-    }
   }
 
   &:active:not(.disabled) {
@@ -125,8 +117,19 @@
     .context__menu-item-icon {
       color: $palette-neutral-600;
     }
+  }
 
-    &.context__menu-item-link--delete {
+  &.context__menu-item-link--delete {
+    &:hover:not(.disabled) {
+      background: $palette-red-50;
+      color: $palette-red-800;
+
+      .context__menu-item-icon {
+        color: $palette-red-800;
+      }
+    }
+
+    &:active:not(.disabled) {
       background: $palette-red-100;
       color: $palette-red-500;
 

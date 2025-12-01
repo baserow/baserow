@@ -25,6 +25,7 @@ from baserow.contrib.database.api.fields.errors import (
     ERROR_MAX_FIELD_NAME_LENGTH_EXCEEDED,
     ERROR_RESERVED_BASEROW_FIELD_NAME,
 )
+from baserow.contrib.database.api.tokens.authentications import TokenAuthentication
 from baserow.contrib.database.fields.exceptions import (
     InvalidBaserowFieldName,
     MaxFieldLimitExceeded,
@@ -58,6 +59,7 @@ from baserow.contrib.database.table.operations import (
     ImportRowsDatabaseTableOperationType,
     ReadDatabaseTableOperationType,
 )
+from baserow.contrib.database.tokens.handler import TokenHandler
 from baserow.core.action.registries import action_type_registry
 from baserow.core.exceptions import ApplicationDoesNotExist, UserNotInWorkspace
 from baserow.core.handler import CoreHandler
@@ -80,7 +82,73 @@ from .serializers import (
     TableImportSerializer,
     TableSerializer,
     TableUpdateSerializer,
+    TableWithoutDataSyncSerializer,
 )
+
+
+class AllTablesView(APIView):
+    authentication_classes = (TokenAuthentication,)
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
+        tags=["Database tables"],
+        operation_id="list_all_token_tables",
+        description=(
+            "This endpoint only works in combination with the token authentication. It "
+            "lists all the tables that the token has either create, read, update or "
+            "delete access to."
+        ),
+        responses={
+            200: TableWithoutDataSyncSerializer(many=True),
+        },
+    )
+    @map_exceptions(
+        {
+            ApplicationDoesNotExist: ERROR_APPLICATION_DOES_NOT_EXIST,
+            UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
+        }
+    )
+    def get(self, request):
+        """Lists all the tables that token has access to."""
+
+        token = TokenHandler().get_token_from_request(request)
+        permissions = token.tokenpermission_set.all()
+        tables_queryset = Table.objects.filter(
+            database__workspace_id=token.workspace_id
+        )
+
+        if permissions.filter(database__isnull=True, table__isnull=True).exists():
+            accessible_tables = tables_queryset
+        else:
+            accessible_tables = Table.objects.none()
+
+            database_ids = permissions.filter(
+                database__isnull=False, table__isnull=True
+            ).values_list("database_id", flat=True)
+
+            if database_ids:
+                accessible_tables = accessible_tables | tables_queryset.filter(
+                    database_id__in=database_ids
+                )
+
+            table_ids = permissions.filter(table__isnull=False).values_list(
+                "table_id", flat=True
+            )
+
+            if table_ids:
+                accessible_tables = accessible_tables | tables_queryset.filter(
+                    id__in=table_ids
+                )
+
+        tables = CoreHandler().filter_queryset(
+            request.user,
+            ListTablesDatabaseTableOperationType.type,
+            accessible_tables,
+            workspace=token.workspace,
+        )
+
+        serializer = TableWithoutDataSyncSerializer(tables, many=True)
+        return Response(serializer.data)
 
 
 class TablesView(APIView):

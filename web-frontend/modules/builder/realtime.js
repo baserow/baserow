@@ -67,11 +67,14 @@ export const registerRealtimeEvents = (realtime) => {
     const selectedPage = store.getters['page/getSelected']
     if (selectedPage.id === data.page_id) {
       const builder = store.getters['application/get'](selectedPage.builder_id)
-      store.dispatch('element/forceDelete', {
-        builder,
-        page: selectedPage,
-        elementId: data.element_id,
-      })
+      if (builder) {
+        // Sometimes we don't have the builder somehow
+        store.dispatch('element/forceDelete', {
+          builder,
+          page: selectedPage,
+          elementId: data.element_id,
+        })
+      }
     }
   })
 
@@ -79,12 +82,15 @@ export const registerRealtimeEvents = (realtime) => {
     const selectedPage = store.getters['page/getSelected']
     if (selectedPage.id === element.page_id) {
       const builder = store.getters['application/get'](selectedPage.builder_id)
-      store.dispatch('element/forceUpdate', {
-        builder,
-        page: selectedPage,
-        element,
-        values: element,
-      })
+      if (builder) {
+        // Sometimes we don't have the builder somehow
+        store.dispatch('element/forceUpdate', {
+          builder,
+          page: selectedPage,
+          element,
+          values: element,
+        })
+      }
     }
   })
 
@@ -92,14 +98,17 @@ export const registerRealtimeEvents = (realtime) => {
     const selectedPage = store.getters['page/getSelected']
     if (selectedPage.id === data.page_id) {
       const builder = store.getters['application/get'](selectedPage.builder_id)
-      store.dispatch('element/forceMove', {
-        builder,
-        page: selectedPage,
-        elementId: data.element_id,
-        beforeElementId: data.before_id,
-        parentElementId: data.parent_element_id,
-        placeInContainer: data.place_in_container,
-      })
+      if (builder) {
+        // Sometimes we don't have the builder somehow
+        store.dispatch('element/forceMove', {
+          builder,
+          page: selectedPage,
+          elementId: data.element_id,
+          beforeElementId: data.before_id,
+          parentElementId: data.parent_element_id,
+          placeInContainer: data.place_in_container,
+        })
+      }
     }
   })
 
@@ -122,16 +131,23 @@ export const registerRealtimeEvents = (realtime) => {
   realtime.registerEvent('elements_moved', ({ store, app }, { elements }) => {
     elements.forEach((element) => {
       const selectedPage = store.getters['page/getSelected']
-      const builder = store.getters['application/get'](selectedPage.builder_id)
-      store.dispatch('element/forceUpdate', {
-        builder,
-        page: selectedPage,
-        element,
-        values: {
-          order: element.order,
-          place_in_container: element.place_in_container,
-        },
-      })
+      if (selectedPage.id === element.page_id) {
+        const builder = store.getters['application/get'](
+          selectedPage.builder_id
+        )
+        if (builder) {
+          // Sometimes we don't have the builder somehow
+          store.dispatch('element/forceUpdate', {
+            builder,
+            page: selectedPage,
+            element,
+            values: {
+              order: element.order,
+              place_in_container: element.place_in_container,
+            },
+          })
+        }
+      }
     })
   })
 }

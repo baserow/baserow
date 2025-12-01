@@ -127,3 +127,168 @@ def test_import_applications(data_fixture, api_client, tmpdir, use_tmp_media_roo
     assert response_json["state"] == "finished"
     assert response_json["progress_percentage"] == 100
     assert len(response_json["installed_applications"]) > 0
+
+
+@pytest.mark.import_export_workspace
+@pytest.mark.django_db(transaction=True)
+def test_import_specific_application_ids(
+    data_fixture, api_client, tmpdir, use_tmp_media_root
+):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+
+    sources_path = os.path.join(
+        settings.BASE_DIR, "../../../tests/baserow/api/import_export/sources"
+    )
+
+    data_fixture.disable_import_signature_verification()
+
+    resource = data_fixture.create_import_export_resource(
+        created_by=user, original_name="multiple_applications_export.zip", is_valid=True
+    )
+
+    with open(f"{sources_path}/multiple_applications_export.zip", "rb") as export_file:
+        content = export_file.read()
+        data_fixture.create_import_export_resource_file(
+            resource=resource, content=content
+        )
+
+        response = api_client.post(
+            reverse(
+                "api:workspaces:import_workspace_async",
+                kwargs={"workspace_id": workspace.id},
+            ),
+            data={
+                "resource_id": resource.id,
+                "application_ids": [2],
+            },
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+    assert response.status_code == HTTP_202_ACCEPTED
+    job_id = response.json()["id"]
+
+    response = api_client.get(
+        reverse("api:jobs:item", kwargs={"job_id": job_id}),
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    response_json = response.json()
+    assert response.status_code == HTTP_200_OK
+    assert response_json["state"] == "finished"
+    assert response_json["progress_percentage"] == 100
+    assert response_json["installed_applications"] is not None
+    installed_applications = response_json["installed_applications"]
+    assert len(installed_applications) == 1
+    assert installed_applications[0]["name"] == "Database 2"
+
+
+@pytest.mark.import_export_workspace
+@pytest.mark.django_db(transaction=True)
+def test_import_without_application_ids(
+    data_fixture, api_client, tmpdir, use_tmp_media_root
+):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+
+    sources_path = os.path.join(
+        settings.BASE_DIR, "../../../tests/baserow/api/import_export/sources"
+    )
+
+    data_fixture.disable_import_signature_verification()
+
+    resource = data_fixture.create_import_export_resource(
+        created_by=user, original_name="multiple_applications_export.zip", is_valid=True
+    )
+
+    with open(f"{sources_path}/multiple_applications_export.zip", "rb") as export_file:
+        content = export_file.read()
+        data_fixture.create_import_export_resource_file(
+            resource=resource, content=content
+        )
+
+        response = api_client.post(
+            reverse(
+                "api:workspaces:import_workspace_async",
+                kwargs={"workspace_id": workspace.id},
+            ),
+            data={
+                "resource_id": resource.id,
+            },
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+    assert response.status_code == HTTP_202_ACCEPTED
+    job_id = response.json()["id"]
+
+    response = api_client.get(
+        reverse("api:jobs:item", kwargs={"job_id": job_id}),
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    response_json = response.json()
+    assert response.status_code == HTTP_200_OK
+    assert response_json["state"] == "finished"
+    assert response_json["progress_percentage"] == 100
+    assert response_json["installed_applications"] is not None
+    installed_applications = response_json["installed_applications"]
+    assert len(installed_applications) == 2
+    assert installed_applications[0]["name"] == "Database 1"
+    assert installed_applications[1]["name"] == "Database 2"
+
+
+@pytest.mark.import_export_workspace
+@pytest.mark.django_db(transaction=True)
+def test_import_with_nonexistent_application_ids(
+    data_fixture, api_client, tmpdir, use_tmp_media_root
+):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+
+    sources_path = os.path.join(
+        settings.BASE_DIR, "../../../tests/baserow/api/import_export/sources"
+    )
+
+    data_fixture.disable_import_signature_verification()
+
+    resource = data_fixture.create_import_export_resource(
+        created_by=user, original_name="multiple_applications_export.zip", is_valid=True
+    )
+
+    with open(f"{sources_path}/multiple_applications_export.zip", "rb") as export_file:
+        content = export_file.read()
+        data_fixture.create_import_export_resource_file(
+            resource=resource, content=content
+        )
+
+        response = api_client.post(
+            reverse(
+                "api:workspaces:import_workspace_async",
+                kwargs={"workspace_id": workspace.id},
+            ),
+            data={
+                "resource_id": resource.id,
+                "application_ids": [1, 999999],
+            },
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+    assert response.status_code == HTTP_202_ACCEPTED
+    job_id = response.json()["id"]
+
+    response = api_client.get(
+        reverse("api:jobs:item", kwargs={"job_id": job_id}),
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    response_json = response.json()
+
+    assert response.status_code == HTTP_200_OK
+    assert response_json["state"] == "failed"
+    assert response_json["human_readable_error"] == (
+        "One or more of the specified application IDs were not"
+        " found in the export file."
+    )

@@ -22,10 +22,9 @@ export default {
     }
   },
   watch: {
-    copy(newVal) {
+    copy(newCopy) {
       if (this.editing) {
-        const oldVal = this.value
-        this.$emit('edit', this.prepareValue(newVal), oldVal)
+        this.$emit('edit', this.prepareValue(newCopy), this.value)
       }
     },
   },
@@ -156,8 +155,19 @@ export default {
     prepareCopy(value) {
       return value
     },
+    /**
+     * Method that can be called to prepare the value before saving it. This can
+     * be overridden in the component.
+     */
     prepareValue(copy) {
       return copy
+    },
+    /**
+     * Method that can be called to refresh the copy when the value is changed. This
+     * can be overridden in the component.
+     */
+    refreshCopy(newValue) {
+      this.copy = this.prepareCopy(newValue)
     },
     /**
      * Method that can be called when in the editing state. It will bring the

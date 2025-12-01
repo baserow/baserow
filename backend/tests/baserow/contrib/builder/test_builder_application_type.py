@@ -35,11 +35,15 @@ from baserow.core.action.models import Action
 from baserow.core.action.registries import action_type_registry
 from baserow.core.actions import CreateApplicationActionType
 from baserow.core.db import specific_iterator
+from baserow.core.formula import BaserowFormulaObject
+from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
+from baserow.core.formula.types import BASEROW_FORMULA_MODE_SIMPLE
 from baserow.core.registries import ImportExportConfig, application_type_registry
 from baserow.core.storage import ExportZipFile
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.user_files.handler import UserFileHandler
 from baserow.core.user_sources.registries import DEFAULT_USER_ROLE_PREFIX
+from baserow.test_utils.helpers import AnyStr
 from baserow_enterprise.integrations.local_baserow.user_source_types import (
     LocalBaserowUserSourceType,
 )
@@ -147,12 +151,9 @@ def test_builder_application_export(data_fixture):
         application=builder, authorized_user=user, name="test"
     )
 
-    with patch(
-        "uuid.uuid4", return_value=uuid.UUID("12345678-1234-5678-1234-567812345678")
-    ):
-        user_source = data_fixture.create_user_source_with_first_type(
-            application=builder, user=user, integration=integration
-        )
+    user_source = data_fixture.create_user_source_with_first_type(
+        application=builder, user=user, integration=integration
+    )
 
     auth_provider = data_fixture.create_app_auth_provider_with_first_type(
         user_source=user_source
@@ -212,13 +213,14 @@ def test_builder_application_export(data_fixture):
                 "order": "1.00000000000000000000",
                 "service": {
                     "id": datasource2.service.id,
+                    "sample_data": None,
                     "integration_id": integration.id,
                     "filter_type": "AND",
                     "filters": [],
-                    "row_id": "",
+                    "row_id": datasource2.service.row_id,
                     "view_id": None,
                     "table_id": None,
-                    "search_query": "",
+                    "search_query": datasource2.service.search_query,
                     "type": "local_baserow_get_row",
                 },
             },
@@ -228,12 +230,14 @@ def test_builder_application_export(data_fixture):
                 "order": "2.00000000000000000000",
                 "service": {
                     "id": datasource3.service.id,
+                    "sample_data": None,
                     "integration_id": integration.id,
+                    "default_result_count": 20,
                     "filters": [],
                     "sortings": [],
                     "view_id": None,
                     "table_id": None,
-                    "search_query": "",
+                    "search_query": datasource3.service.search_query,
                     "filter_type": "AND",
                     "type": "local_baserow_list_rows",
                 },
@@ -247,6 +251,12 @@ def test_builder_application_export(data_fixture):
                 "parent_element_id": None,
                 "place_in_container": None,
                 "visibility": "all",
+                "visibility_condition": BaserowFormulaObject(
+                    formula="",
+                    mode=BASEROW_FORMULA_MODE_SIMPLE,
+                    version=BASEROW_FORMULA_VERSION_INITIAL,
+                ),
+                "css_classes": "",
                 "styles": {},
                 "style_border_top_color": "border",
                 "style_border_top_size": 0,
@@ -281,7 +291,7 @@ def test_builder_application_export(data_fixture):
                 "id": element4.id,
                 "type": "table",
                 "schema_property": None,
-                "button_load_more_label": "",
+                "button_load_more_label": element4.button_load_more_label,
                 "order": str(element4.order),
                 "roles": [],
                 "role_type": "allow_all",
@@ -292,7 +302,13 @@ def test_builder_application_export(data_fixture):
                 },
                 "parent_element_id": None,
                 "place_in_container": None,
+                "css_classes": "",
                 "visibility": "all",
+                "visibility_condition": BaserowFormulaObject(
+                    formula="",
+                    mode=BASEROW_FORMULA_MODE_SIMPLE,
+                    version=BASEROW_FORMULA_VERSION_INITIAL,
+                ),
                 "styles": {},
                 "style_border_top_color": "border",
                 "style_border_top_size": 0,
@@ -364,13 +380,14 @@ def test_builder_application_export(data_fixture):
                         "order": "1.00000000000000000000",
                         "service": {
                             "id": shared_datasource.service.id,
+                            "sample_data": None,
                             "integration_id": integration.id,
                             "filter_type": "AND",
                             "filters": [],
-                            "row_id": "",
+                            "row_id": shared_datasource.service.row_id,
                             "view_id": None,
                             "table_id": None,
-                            "search_query": "",
+                            "search_query": shared_datasource.service.search_query,
                             "type": "local_baserow_get_row",
                         },
                     },
@@ -396,8 +413,8 @@ def test_builder_application_export(data_fixture):
                         "element_id": element1.id,
                         "event": EventTypes.CLICK.value,
                         "page_id": page1.id,
-                        "description": "hello",
-                        "title": "there",
+                        "description": workflow_action_1.description,
+                        "title": workflow_action_1.title,
                     }
                 ],
                 "data_sources": [
@@ -407,13 +424,14 @@ def test_builder_application_export(data_fixture):
                         "order": "1.00000000000000000000",
                         "service": {
                             "id": datasource1.service.id,
+                            "sample_data": None,
                             "integration_id": integration.id,
                             "filter_type": "AND",
                             "filters": [],
-                            "row_id": "",
+                            "row_id": datasource1.service.row_id,
                             "view_id": None,
                             "table_id": None,
-                            "search_query": "",
+                            "search_query": datasource1.service.search_query,
                             "type": "local_baserow_get_row",
                         },
                     },
@@ -425,7 +443,13 @@ def test_builder_application_export(data_fixture):
                         "order": str(element1.order),
                         "parent_element_id": None,
                         "place_in_container": None,
+                        "css_classes": "",
                         "visibility": "all",
+                        "visibility_condition": BaserowFormulaObject(
+                            formula="",
+                            mode=BASEROW_FORMULA_MODE_SIMPLE,
+                            version=BASEROW_FORMULA_VERSION_INITIAL,
+                        ),
                         "styles": {},
                         "style_border_top_color": "border",
                         "style_border_top_size": 0,
@@ -462,7 +486,13 @@ def test_builder_application_export(data_fixture):
                         "order": str(element2.order),
                         "parent_element_id": None,
                         "place_in_container": None,
+                        "css_classes": "",
                         "visibility": "all",
+                        "visibility_condition": BaserowFormulaObject(
+                            formula="",
+                            mode=BASEROW_FORMULA_MODE_SIMPLE,
+                            version=BASEROW_FORMULA_VERSION_INITIAL,
+                        ),
                         "styles": {},
                         "style_border_top_color": "border",
                         "style_border_top_size": 0,
@@ -498,7 +528,13 @@ def test_builder_application_export(data_fixture):
                         "type": "column",
                         "parent_element_id": None,
                         "place_in_container": None,
+                        "css_classes": "",
                         "visibility": "all",
+                        "visibility_condition": BaserowFormulaObject(
+                            formula="",
+                            mode=BASEROW_FORMULA_MODE_SIMPLE,
+                            version=BASEROW_FORMULA_VERSION_INITIAL,
+                        ),
                         "styles": {},
                         "style_border_top_color": "border",
                         "style_border_top_size": 0,
@@ -536,7 +572,13 @@ def test_builder_application_export(data_fixture):
                         "type": "text",
                         "parent_element_id": element_container.id,
                         "place_in_container": "0",
+                        "css_classes": "",
                         "visibility": "all",
+                        "visibility_condition": BaserowFormulaObject(
+                            formula="",
+                            mode=BASEROW_FORMULA_MODE_SIMPLE,
+                            version=BASEROW_FORMULA_VERSION_INITIAL,
+                        ),
                         "styles": {},
                         "style_border_top_color": "border",
                         "style_border_top_size": 0,
@@ -592,7 +634,7 @@ def test_builder_application_export(data_fixture):
                 "role_field_id": None,
                 "table_id": None,
                 "type": "local_baserow",
-                "uid": "12345678123456781234567812345678",
+                "uid": AnyStr(),
                 "auth_providers": [
                     {
                         "id": auth_provider.id,
@@ -788,6 +830,7 @@ PAGE_2_IMPORT_REFERENCE = {
             "order": "2.00000000000000000000",
             "service": {
                 "id": 2,
+                "default_result_count": 20,
                 "integration_id": 42,
                 "view_id": None,
                 "table_id": None,
@@ -1141,8 +1184,8 @@ def test_builder_application_import(data_fixture):
     [workflow_action] = BuilderWorkflowActionHandler().get_workflow_actions(page1)
 
     assert workflow_action.element_id == element1.id
-    assert workflow_action.description == "'hello'"
-    assert workflow_action.title == "'there'"
+    assert workflow_action.description["formula"] == "'hello'"
+    assert workflow_action.title["formula"] == "'there'"
 
 
 IMPORT_REFERENCE_COMPLEX = {

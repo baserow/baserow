@@ -1,0 +1,8 @@
+{
+    "type": "feature",
+    "message": "Allow to add custom CSS/JS and external scripts to a published application",
+    "domain": "builder",
+    "issue_number": 2344,
+    "bullet_points": [],
+    "created_at": "2025-06-05"
+}

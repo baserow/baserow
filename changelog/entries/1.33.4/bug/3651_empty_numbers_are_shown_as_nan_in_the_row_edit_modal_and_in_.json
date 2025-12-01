@@ -1,0 +1,8 @@
+{
+  "type": "bug",
+  "message": "Fix bug where empty numeric fields were displayed as `NaN` in the row edit modal and in forms",
+  "domain": "database",
+  "issue_number": 3651,
+  "bullet_points": [],
+  "created_at": "2025-05-29"
+}

@@ -6,6 +6,7 @@ from django.shortcuts import redirect
 
 from drf_spectacular.openapi import OpenApiParameter, OpenApiTypes
 from drf_spectacular.utils import extend_schema
+from loguru import logger
 from rest_framework.permissions import AllowAny
 from rest_framework.request import Request
 from rest_framework.views import APIView
@@ -147,10 +148,17 @@ class OAuth2CallbackView(APIView):
 
         provider = AuthProviderHandler.get_auth_provider_by_id(provider_id)
 
+        logger.debug(
+            "OAuth2 callback request GET query params: {0}", dict(request.query_params)
+        )
+        logger.debug("OAuth2 callback session data: {0}", request.session._session)
+
         code = request.query_params.get("code", None)
         user_info, original_url = provider.get_type().get_user_info(
             provider, code, request.session
         )
+        logger.debug("OAuth2 extracted user info: {0}", user_info)
+
         (
             user,
             _,

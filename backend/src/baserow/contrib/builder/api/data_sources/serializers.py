@@ -1,9 +1,10 @@
+import json
+
 from django.utils.functional import lazy
 
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
-from rest_framework.exceptions import ValidationError
 
 from baserow.api.serializers import CommaSeparatedIntegerValuesField
 from baserow.api.services.serializers import (
@@ -11,8 +12,10 @@ from baserow.api.services.serializers import (
     ServiceSerializer,
     UpdateServiceSerializer,
 )
+from baserow.contrib.builder.data_providers.registries import (
+    builder_data_provider_type_registry,
+)
 from baserow.contrib.builder.data_sources.models import DataSource
-from baserow.contrib.builder.elements.models import Element
 from baserow.core.services.registries import service_type_registry
 
 
@@ -163,41 +166,34 @@ class GetRecordIdsSerializer(serializers.Serializer):
     record_ids = CommaSeparatedIntegerValuesField()
 
 
-class DispatchDataSourceDataSourceContextSerializer(serializers.Serializer):
-    element = serializers.PrimaryKeyRelatedField(
-        required=False,
-        default=None,
-        allow_null=True,
-        queryset=Element.objects.select_related("page__builder").all(),
-        help_text="Optionally provide an `element` to the data source. Currently only "
-        "used in element-level filtering, sorting and searching if the "
-        "element is a collection element.",
-    )
+class DynamicMetadataSerializer(serializers.Serializer):
+    """
+    A base serializer that builds fields dynamically from the registry.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        for data_provider_type in builder_data_provider_type_registry.get_all():
+            self.fields[
+                data_provider_type.type
+            ] = data_provider_type.get_request_serializer()
+
+    def to_internal_value(self, data):
+        # Accept either a string or a dict
+        if isinstance(data, str):
+            try:
+                data = json.loads(data)
+            except json.JSONDecodeError:
+                raise serializers.ValidationError("Invalid JSON format in metadata")
+
+        return super().to_internal_value(data)
 
 
 class DispatchDataSourceRequestSerializer(serializers.Serializer):
-    data_source = DispatchDataSourceDataSourceContextSerializer(
+    metadata = DynamicMetadataSerializer(
         required=False,
-        default={},
-        help_text="The data source dispatch context data.",
+        help_text="Metadata of the dispatch payload. Can be either an object or a "
+        "serialized string.",
+        allow_null=True,
     )
-
-    def is_valid(self, *args, **kwargs):
-        """
-        Responsible for validating the data source dispatch request. Ensures that
-        the dispatched element belongs to the same page as the data source.
-        """
-
-        super().is_valid(*args, **kwargs)
-
-        data_source = self.context.get("data_source")
-        element = self.validated_data.get("data_source").get("element")
-        if element:
-            if (
-                element.page_id != data_source.page_id
-                and element.page.builder.shared_page.id != data_source.page_id
-            ):
-                raise ValidationError(
-                    "The data source is not available for the dispatched element.",
-                    code="PAGE_MISMATCH",
-                )

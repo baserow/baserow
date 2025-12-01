@@ -9,7 +9,7 @@ class LocalisedSearchVector(SearchVector):
     A `SearchVector` which is responsible for two additional requirements:
 
     1. The `SearchVector.config` is always set to what the value of
-        `PG_SEARCH_CONFIG` is set to.
+        `PG_FULLTEXT_SEARCH_CONFIG` is set to.
     2. The `Expression` given to it is always wrapped in `special_char_tokenizer`,
         a Django `Func` which converts specific characters in the text into spaces.
         See `special_char_tokenizer`'s docstring for more detailed information.

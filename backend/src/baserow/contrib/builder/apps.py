@@ -277,12 +277,16 @@ class BuilderConfig(AppConfig):
 
         from .workflow_actions.registries import builder_workflow_action_type_registry
         from .workflow_actions.workflow_action_types import (
+            AIAgentWorkflowActionType,
+            CoreHttpRequestActionType,
+            CoreSMTPEmailActionType,
             CreateRowWorkflowActionType,
             DeleteRowWorkflowActionType,
             LogoutWorkflowActionType,
             NotificationWorkflowActionType,
             OpenPageWorkflowActionType,
-            RefreshDataSourceWorkflowAction,
+            RefreshDataSourceWorkflowActionType,
+            SlackWriteMessageWorkflowActionType,
             UpdateRowWorkflowActionType,
         )
 
@@ -293,7 +297,13 @@ class BuilderConfig(AppConfig):
         builder_workflow_action_type_registry.register(DeleteRowWorkflowActionType())
         builder_workflow_action_type_registry.register(LogoutWorkflowActionType())
         builder_workflow_action_type_registry.register(
-            RefreshDataSourceWorkflowAction()
+            RefreshDataSourceWorkflowActionType()
+        )
+        builder_workflow_action_type_registry.register(CoreHttpRequestActionType())
+        builder_workflow_action_type_registry.register(CoreSMTPEmailActionType())
+        builder_workflow_action_type_registry.register(AIAgentWorkflowActionType())
+        builder_workflow_action_type_registry.register(
+            SlackWriteMessageWorkflowActionType()
         )
 
         from .elements.collection_field_types import (
@@ -323,7 +333,18 @@ class BuilderConfig(AppConfig):
 
         connect_to_data_source_pre_delete_signal()
 
+        from baserow.contrib.builder.workflow_actions.receivers import (
+            connect_to_builder_workflow_action_pre_delete_signal,
+        )
+
+        connect_to_builder_workflow_action_pre_delete_signal()
+
         # The signals must always be imported last because they use the registries
         # which need to be filled first.
         import baserow.contrib.builder.signals  # noqa: F403, F401
         import baserow.contrib.builder.ws.signals  # noqa: F403, F401
+        from baserow.core.search.registries import workspace_search_registry
+
+        from .search_types import BuilderSearchType
+
+        workspace_search_registry.register(BuilderSearchType())

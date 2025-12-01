@@ -196,7 +196,9 @@ class DomainView(APIView):
 
         domain = (
             DomainService()
-            .get_domain(request.user, domain_id, base_queryset=base_queryset)
+            .get_domain(
+                request.user, domain_id, base_queryset=base_queryset, for_update=True
+            )
             .specific
         )
         domain_type = type_from_data_or_registry(
@@ -250,11 +252,7 @@ class DomainView(APIView):
     )
     @transaction.atomic
     def delete(self, request, domain_id: int):
-        base_queryset = Domain.objects.select_for_update(of=("self",))
-
-        domain = DomainService().get_domain(
-            request.user, domain_id, base_queryset=base_queryset
-        )
+        domain = DomainService().get_domain(request.user, domain_id, for_update=True)
 
         DomainService().delete_domain(request.user, domain)
 

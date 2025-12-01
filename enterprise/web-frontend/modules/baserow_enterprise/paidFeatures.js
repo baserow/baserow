@@ -6,7 +6,7 @@ export class SSOPaidFeature extends PaidFeature {
   }
 
   getPlan() {
-    return 'Enterprise'
+    return 'Advanced'
   }
 
   getIconClass() {
@@ -32,7 +32,7 @@ export class AuditLogPaidFeature extends PaidFeature {
   }
 
   getPlan() {
-    return 'Enterprise'
+    return 'Advanced'
   }
 
   getIconClass() {
@@ -58,7 +58,7 @@ export class RBACPaidFeature extends PaidFeature {
   }
 
   getPlan() {
-    return 'Enterprise'
+    return 'Advanced'
   }
 
   getIconClass() {
@@ -84,7 +84,7 @@ export class DataSyncPaidFeature extends PaidFeature {
   }
 
   getPlan() {
-    return 'Enterprise'
+    return 'Advanced'
   }
 
   getIconClass() {
@@ -101,6 +101,58 @@ export class DataSyncPaidFeature extends PaidFeature {
 
   getContent() {
     return this.app.i18n.t('enterpriseFeatures.dataSyncContent')
+  }
+}
+
+export class AdvancedWebhooksPaidFeature extends PaidFeature {
+  static getType() {
+    return 'advanced_webhooks'
+  }
+
+  getPlan() {
+    return 'Advanced'
+  }
+
+  getIconClass() {
+    return 'iconoir-web-window'
+  }
+
+  getName() {
+    return this.app.i18n.t('enterpriseFeatures.advancedWebhooks')
+  }
+
+  getImage() {
+    return '/img/features/advanced_webhooks.png'
+  }
+
+  getContent() {
+    return this.app.i18n.t('enterpriseFeatures.advancedWebhooksContent')
+  }
+}
+
+export class FieldLevelPermissionsPaidFeature extends PaidFeature {
+  static getType() {
+    return 'field_level_permissions'
+  }
+
+  getPlan() {
+    return 'Advanced'
+  }
+
+  getIconClass() {
+    return 'iconoir-lock'
+  }
+
+  getName() {
+    return this.app.i18n.t('enterpriseFeatures.fieldLevelPermissions')
+  }
+
+  getImage() {
+    return '/img/features/field_level_permissions.png'
+  }
+
+  getContent() {
+    return this.app.i18n.t('enterpriseFeatures.fieldLevelPermissionsContent')
   }
 }
 
@@ -130,39 +182,13 @@ export class CoBrandingPaidFeature extends PaidFeature {
   }
 }
 
-export class AdvancedWebhooksPaidFeature extends PaidFeature {
-  static getType() {
-    return 'advanced_webhooks'
-  }
-
-  getPlan() {
-    return 'Enterprise'
-  }
-
-  getIconClass() {
-    return 'iconoir-web-window'
-  }
-
-  getName() {
-    return this.app.i18n.t('enterpriseFeatures.advancedWebhooks')
-  }
-
-  getImage() {
-    return '/img/features/advanced_webhooks.png'
-  }
-
-  getContent() {
-    return this.app.i18n.t('enterpriseFeatures.advancedWebhooksContent')
-  }
-}
-
-export class SupportWebhooksPaidFeature extends PaidFeature {
+export class SupportPaidFeature extends PaidFeature {
   static getType() {
     return 'support'
   }
 
   getPlan() {
-    return 'Enterprise'
+    return 'Advanced'
   }
 
   getIconClass() {
@@ -179,5 +205,109 @@ export class SupportWebhooksPaidFeature extends PaidFeature {
 
   getContent() {
     return this.app.i18n.t('enterpriseFeatures.supportContent')
+  }
+}
+
+export class BuilderBrandingPaidFeature extends PaidFeature {
+  static getType() {
+    return 'builder_branding'
+  }
+
+  getPlan() {
+    return 'Advanced'
+  }
+
+  getIconClass() {
+    return 'iconoir-eye-close'
+  }
+
+  getName() {
+    return this.app.i18n.t('enterpriseFeatures.builderBranding')
+  }
+
+  getImage() {
+    return null
+  }
+
+  getContent() {
+    return this.app.i18n.t('enterpriseFeatures.builderBrandingContent')
+  }
+}
+
+export class BuilderFileInputElementPaidFeature extends PaidFeature {
+  static getType() {
+    return 'builder_file_input'
+  }
+
+  getPlan() {
+    return 'Advanced'
+  }
+
+  getIconClass() {
+    return 'iconoir-attachment'
+  }
+
+  getName() {
+    return this.app.i18n.t('enterpriseFeatures.builderFileInputElement')
+  }
+
+  getImage() {
+    return null
+  }
+
+  getContent() {
+    return this.app.i18n.t('enterpriseFeatures.builderFileInputElementContent')
+  }
+}
+
+export class BuilderCustomCodePaidFeature extends PaidFeature {
+  static getType() {
+    return 'builder_custom_code'
+  }
+
+  getPlan() {
+    return 'Advanced'
+  }
+
+  getIconClass() {
+    return 'iconoir-code-brackets'
+  }
+
+  getName() {
+    return this.app.i18n.t('enterpriseFeatures.builderCustomCode')
+  }
+
+  getImage() {
+    return null
+  }
+
+  getContent() {
+    return this.app.i18n.t('enterpriseFeatures.builderCustomCodeContent')
+  }
+}
+
+export class DateDependencyPaidFeature extends PaidFeature {
+  static getType() {
+    return 'date_dependency'
+  }
+
+  getPlan() {
+    return 'Advanced'
+  }
+
+  getIconClass() {
+    return 'baserow-icon-dependency'
+  }
+
+  getName() {
+    return this.app.i18n.t('enterpriseFeatures.dateDependency')
+  }
+
+  getImage() {
+    return '/img/features/date_dependency.png'
+  }
+
+  getContent() {
+    return this.app.i18n.t('enterpriseFeatures.dateDependencyContent')
   }
 }

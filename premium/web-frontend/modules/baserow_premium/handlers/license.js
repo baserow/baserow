@@ -49,11 +49,10 @@ export class LicenseHandler {
     // the best overview of the active licenses. If doesn't exist if the user isn't
     // authenticated. In that case, we can check if there are instance wide licenses
     // in the settings.
-    const instanceWideLicenses = (
-      userData?.active_licenses?.instance_wide
-      || settings?.instance_wide_licenses
-      || {}
-    )
+    const instanceWideLicenses =
+      userData?.active_licenses?.instance_wide ||
+      settings?.instance_wide_licenses ||
+      {}
     return Object.entries(instanceWideLicenses)
       .filter(
         ([key, enabled]) => enabled && this.$registry.exists('license', key)
@@ -84,6 +83,7 @@ export class LicenseHandler {
     const perWorkspaceLicenses =
       this.getters['auth/getAdditionalUserData']?.active_licenses
         ?.per_workspace || {}
+
     return Object.entries(perWorkspaceLicenses[workspaceId] || {})
       .filter(
         ([key, enabled]) => enabled && this.$registry.exists('license', key)

@@ -89,7 +89,7 @@ class WorkspaceInvitationAcceptedNotificationType(
     @classmethod
     def get_notification_title_for_email(cls, notification, context):
         return _(
-            "%(user)s accepted your invitation to collaborate to %(workspace_name)s."
+            "%(user)s accepted your invitation to collaborate on %(workspace_name)s."
         ) % {
             "user": notification.sender.first_name,
             "workspace_name": notification.data["invited_to_workspace_name"],
@@ -130,7 +130,7 @@ class WorkspaceInvitationRejectedNotificationType(
     @classmethod
     def get_notification_title_for_email(cls, notification, context):
         return _(
-            "%(user)s rejected your invitation to collaborate to %(workspace_name)s."
+            "%(user)s rejected your invitation to collaborate on %(workspace_name)s."
         ) % {
             "user": notification.sender.first_name,
             "workspace_name": notification.data["invited_to_workspace_name"],

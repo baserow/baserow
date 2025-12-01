@@ -33,3 +33,10 @@ class SyncDataSyncTableAlreadyRunning(Exception):
     Raised when the table is sync is initiated, but it's already running. Only one sync
     can be running concurrently.
     """
+
+
+class TwoWayDataSyncNotSupported(Exception):
+    """
+    Raised when two-way sync is being enabled for a data sync type that doesn't support
+    it.
+    """

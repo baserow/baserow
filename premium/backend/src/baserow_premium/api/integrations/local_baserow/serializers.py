@@ -7,12 +7,12 @@ from rest_framework import serializers
 
 
 class LocalBaserowTableServiceAggregationSeriesSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(required=False)
     field_id = serializers.IntegerField(allow_null=True)
-    order = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = LocalBaserowTableServiceAggregationSeries
-        fields = ("order", "aggregation_type", "field_id")
+        fields = ("id", "aggregation_type", "field_id")
 
 
 class LocalBaserowTableServiceAggregationGroupBySerializer(serializers.ModelSerializer):

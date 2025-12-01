@@ -9,6 +9,7 @@ import {
   QUERY_PARAM_TYPE_HANDLER_FUNCTIONS,
 } from '@baserow/modules/builder/enums'
 import { extractSubSchema } from '@baserow/modules/core/utils/schema'
+import { handleDispatchError } from '@baserow/modules/builder/utils/error'
 
 export class DataSourceDataProviderType extends DataProviderType {
   constructor(...args) {
@@ -28,6 +29,23 @@ export class DataSourceDataProviderType extends DataProviderType {
     return this.app.i18n.t('dataProviderType.dataSource')
   }
 
+  showDataSourceErrors(page, failedDataSources) {
+    failedDataSources.forEach(({ id, error }) => {
+      const fakeError = { response: { data: error } }
+      const dataSource = this.app.store.getters[
+        'dataSource/getPageDataSourceById'
+      ](page, id)
+      const dataSourceName = dataSource?.name || `Data Source ${id}`
+      handleDispatchError(
+        fakeError,
+        this.app,
+        this.app.i18n.t('builderToast.errorDataSourceDispatch', {
+          name: dataSourceName,
+        })
+      )
+    })
+  }
+
   /**
    * Dispatch all the shared data sources.
    * @param {Object} applicationContext
@@ -40,7 +58,7 @@ export class DataSourceDataProviderType extends DataProviderType {
     const dataSources =
       this.app.store.getters['dataSource/getPageDataSources'](page)
 
-    await this.app.store.dispatch(
+    const failedDataSources = await this.app.store.dispatch(
       'dataSourceContent/fetchPageDataSourceContent',
       {
         page,
@@ -52,6 +70,8 @@ export class DataSourceDataProviderType extends DataProviderType {
         mode: applicationContext.mode,
       }
     )
+
+    this.showDataSourceErrors(page, failedDataSources)
   }
 
   /**
@@ -64,7 +84,7 @@ export class DataSourceDataProviderType extends DataProviderType {
     )
 
     // Dispatch the data sources
-    await this.app.store.dispatch(
+    const failedDataSources = await this.app.store.dispatch(
       'dataSourceContent/fetchPageDataSourceContent',
       {
         page: applicationContext.page,
@@ -76,6 +96,8 @@ export class DataSourceDataProviderType extends DataProviderType {
         mode: applicationContext.mode,
       }
     )
+
+    this.showDataSourceErrors(applicationContext.page, failedDataSources)
   }
 
   getDataSourceDispatchContext(applicationContext) {
@@ -93,13 +115,37 @@ export class DataSourceDataProviderType extends DataProviderType {
       applicationContext.page,
       this.app.store.getters['page/getSharedPage'](applicationContext.builder),
     ]
+
     const dataSource = this.app.store.getters[
       'dataSource/getPagesDataSourceById'
     ](pages, parseInt(dataSourceId))
 
     const content = this.getDataSourceContent(applicationContext, dataSource)
 
-    return content ? getValueAtPath(content, rest.join('.')) : null
+    let preparedPath
+
+    if (!content) {
+      return null
+    }
+
+    const serviceType = this.app.$registry.get('service', dataSource.type)
+
+    if (serviceType.returnsList) {
+      // if it returns a list let's consume the next path token which is the row
+      if (rest.length >= 2) {
+        const [row, ...afterRow] = rest
+        preparedPath = [
+          row,
+          ...serviceType.prepareValuePath(dataSource, afterRow),
+        ]
+      } else {
+        preparedPath = rest
+      }
+    } else {
+      preparedPath = serviceType.prepareValuePath(dataSource, rest)
+    }
+
+    return getValueAtPath(content, preparedPath)
   }
 
   getDataSourceContent(applicationContext, dataSource) {
@@ -157,17 +203,28 @@ export class DataSourceDataProviderType extends DataProviderType {
       applicationContext.page,
     ]
 
-    const dataSources =
+    const allDataSources =
       this.app.store.getters['dataSource/getPagesDataSources'](pages)
+
+    // If we have a data source id in the application context we keep data sources
+    // until this one because we can't use the ones after
+    const dataSources = applicationContext.dataSource?.id
+      ? _.takeWhile(
+          allDataSources,
+          ({ id }) => id !== applicationContext.dataSource.id
+        )
+      : allDataSources
 
     const result = Object.fromEntries(
       dataSources
-        .map((dataSource) => {
+        .map((dataSource, index) => {
           const dsSchema = this.getDataSourceSchema(dataSource)
           if (dsSchema) {
-            delete dsSchema.$schema
+            // We don't use the schema directly as it comes from the store and can't
+            // be mutated
+            return [dataSource.id, { ...dsSchema, order: index }]
           }
-          return [dataSource.id, dsSchema]
+          return [dataSource.id, null]
         })
         .filter(([, schema]) => schema)
     )
@@ -238,8 +295,8 @@ export class DataSourceContextDataProviderType extends DataProviderType {
 
   getDataSchema(applicationContext) {
     const pages = [
-      applicationContext.page,
       this.app.store.getters['page/getSharedPage'](applicationContext.builder),
+      applicationContext.page,
     ]
 
     const dataSources =
@@ -248,12 +305,16 @@ export class DataSourceContextDataProviderType extends DataProviderType {
     const contextDataSchema = Object.fromEntries(
       dataSources
         .filter((dataSource) => dataSource?.type)
-        .map((dataSource) => [
-          dataSource.id,
-          this.app.$registry
+        .map((dataSource, index) => {
+          const dsSchema = this.app.$registry
             .get('service', dataSource.type)
-            .getContextDataSchema(dataSource),
-        ])
+            .getContextDataSchema(dataSource)
+
+          if (dsSchema) {
+            dsSchema.order = index
+          }
+          return [dataSource.id, dsSchema]
+        })
         .filter(([, schema]) => schema)
     )
 
@@ -399,77 +460,16 @@ export class CurrentRecordDataProviderType extends DataProviderType {
   }
 
   getDataChunk(applicationContext, path) {
-    const content = this.getDataContent(applicationContext)
-    return getValueAtPath(content, path.join('.'))
-  }
+    const { element, recordIndexPath = [0] } = applicationContext
 
-  getCollectionAncestors({ page, element, allowSameElement }) {
-    const allCollectionAncestry = this.app.store.getters[
-      'element/getAncestors'
-    ](page, element, {
-      predicate: (ancestor) =>
-        this.app.$registry.get('element', ancestor.type).isCollectionElement,
-      includeSelf: allowSameElement,
-    })
+    const elementType = this.app.$registry.get('element', element.type)
 
-    // Choose the right-most index of the ancestry which points
-    // to a data source. If `allowSameElement` is `true`, this could
-    // result in `element`'s `data_source_id`, rather than its parent
-    // element's `data_source_id`.
-    const lastIndex = _.findLastIndex(
-      allCollectionAncestry,
-      (ancestor) => ancestor.data_source_id !== null
-    )
+    // Special case for the index
+    if (path.length === 1 && path[0] === this.indexKey) {
+      return recordIndexPath.at(-1)
+    }
 
-    return allCollectionAncestry.slice(lastIndex)
-  }
-
-  getDataContent(applicationContext) {
-    // `recordIndexPath` defaults to `[0]` if it's not present, which can happen in
-    // places where it can't be provided, such as the elements context.
-    const {
-      page,
-      element,
-      recordIndexPath = [0],
-      allowSameElement = false,
-    } = applicationContext
-
-    const collectionAncestry = this.getCollectionAncestors({
-      page,
-      element,
-      allowSameElement,
-    })
-
-    const elementWithContent = collectionAncestry.at(-1)
-    const contentRows =
-      this.app.store.getters['elementContent/getElementContent'](
-        elementWithContent
-      )
-
-    // Copy the record index path, as we'll be shifting the first element.
-    const mappedRecordIndex = [...recordIndexPath]
-    const dataPaths = collectionAncestry
-      .map((ancestor, index) => {
-        if (ancestor.data_source_id) {
-          // If we have a data source id, and no schema property, or
-          // we have a data source id and a schema property
-          return [mappedRecordIndex.shift()]
-        } else {
-          // We have just a schema property
-          return [ancestor.schema_property, mappedRecordIndex.shift()]
-        }
-      })
-      .flat()
-
-    // Get the value at the dataPaths path. If the formula is invalid,
-    // as the ds/property has changed, and the value can't be found,
-    // we'll return an empty object.
-    const row = getValueAtPath(contentRows, dataPaths) || {}
-
-    // Add the index value
-    row[this.indexKey] = dataPaths.at(-1)
-
-    return row
+    return elementType.getElementCurrentContent(applicationContext, path)
   }
 
   getDataSourceSchema(dataSource) {
@@ -501,9 +501,11 @@ export class CurrentRecordDataProviderType extends DataProviderType {
   ) {
     const pages = [page, this.app.store.getters['page/getSharedPage'](builder)]
 
+    const elementType = this.app.$registry.get('element', element.type)
+
     // Find the first collection ancestor with a `data_source`. If we
     // find one, this is what we'll use to generate the schema.
-    const collectionAncestors = this.getCollectionAncestors({
+    const collectionAncestors = elementType.getCollectionAncestry({
       page,
       element,
       allowSameElement,
@@ -535,8 +537,7 @@ export class CurrentRecordDataProviderType extends DataProviderType {
   getDataSchema(applicationContext) {
     // `allowSameElement` is set if we want to consider the current element in the
     // collection ancestry list. If so it will be used to get the data source id if
-    // it's the first collection element. For instance, we don't
-    //
+    // it's the first collection element.
     // `followSameElementSchemaProperties` can be passed in the `applicationContext`
     // to control whether we wish to fetch schema property for the current element
     // or not.
@@ -655,7 +656,38 @@ export class FormDataProviderType extends DataProviderType {
   }
 
   getActionDispatchContext(applicationContext) {
-    return this.getDataContent(applicationContext)
+    const { page } = applicationContext
+    const dataContent = this.getDataContent(applicationContext)
+
+    const files = {}
+
+    const updatedValue = Object.fromEntries(
+      Object.entries(dataContent)
+        .filter(([elementId, value]) => {
+          const element = this.app.store.getters['element/getElementById'](
+            page,
+            elementId
+          )
+          const elementType = this.app.$registry.get('element', element.type)
+          return !elementType.isDeactivated({
+            workspace: applicationContext.workspace,
+          })
+        })
+        .map(([elementId, value]) => {
+          const element = this.app.store.getters['element/getElementById'](
+            page,
+            elementId
+          )
+          const elementType = this.app.$registry.get('element', element.type)
+
+          return [
+            elementId,
+            elementType.beforeActionDispatchContext(element, value, files),
+          ]
+        })
+    )
+
+    return [updatedValue, files]
   }
 
   /**
@@ -689,10 +721,12 @@ export class FormDataProviderType extends DataProviderType {
    */
   formElementsInNamespacePath(applicationContext, targetElement) {
     const { page } = applicationContext
+
     const targetNamespacePath =
       this.app.store.getters['element/getElementNamespacePath'](
         targetElement
       ).join('.')
+
     const elements = this.app.store.getters['element/getElementsOrdered'](page)
     return elements.filter((element) => {
       const elementType = this.app.$registry.get('element', element.type)
@@ -704,6 +738,7 @@ export class FormDataProviderType extends DataProviderType {
         this.app.store.getters['element/getElementNamespacePath'](element).join(
           '.'
         )
+
       return targetNamespacePath.startsWith(elementNamespacePath)
     })
   }
@@ -714,19 +749,22 @@ export class FormDataProviderType extends DataProviderType {
   }
 
   getDataContent(applicationContext) {
+    const { element: targetElement } = applicationContext
     const formData = this.app.store.getters['formData/getFormData'](
       applicationContext.page
     )
-    const { element: targetElement, recordIndexPath } = applicationContext
+
     const accessibleFormElements = this.formElementsInNamespacePath(
       applicationContext,
       targetElement
     )
+
     return Object.fromEntries(
       accessibleFormElements.map((element) => {
         const uniqueElementId = this.app.$registry
           .get('element', element.type)
-          .uniqueElementId(element, recordIndexPath)
+          .uniqueElementId({ element, applicationContext })
+
         const formEntry = getValueAtPath(formData, uniqueElementId)
         return [element.id, formEntry?.value]
       })
@@ -801,7 +839,26 @@ export class PreviousActionDataProviderType extends DataProviderType {
 
   getDataChunk(applicationContext, path) {
     const content = this.getDataContent(applicationContext)
-    return getValueAtPath(content, path.join('.'))
+
+    const [workflowActionId, ...rest] = path
+
+    const workflowAction = this.app.store.getters[
+      'builderWorkflowAction/getWorkflowActionById'
+    ](applicationContext.page, parseInt(workflowActionId))
+
+    const actionType = this.app.$registry.get(
+      'workflowAction',
+      workflowAction.type
+    )
+
+    if (!content[workflowActionId]) {
+      return null
+    }
+
+    return getValueAtPath(
+      content[workflowActionId],
+      actionType.prepareValuePath(workflowAction, rest)
+    )
   }
 
   getWorkflowActionSchema(workflowAction) {
@@ -823,7 +880,7 @@ export class PreviousActionDataProviderType extends DataProviderType {
     const page = applicationContext.page
 
     const previousActions = this.app.store.getters[
-      'workflowAction/getElementPreviousWorkflowActions'
+      'builderWorkflowAction/getElementPreviousWorkflowActions'
     ](page, applicationContext.element.id, applicationContext.workflowAction)
 
     const previousActionSchema = _.chain(previousActions)
@@ -857,7 +914,7 @@ export class PreviousActionDataProviderType extends DataProviderType {
       const workflowActionId = parseInt(pathParts[1])
 
       const action = this.app.store.getters[
-        'workflowAction/getWorkflowActionById'
+        'builderWorkflowAction/getWorkflowActionById'
       ](page, workflowActionId)
 
       if (!action) {
@@ -881,10 +938,18 @@ export class UserDataProviderType extends DataProviderType {
     const { is_authenticated: isAuthenticated, id } =
       this.getDataContent(applicationContext)
 
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+
     if (isAuthenticated) {
-      return id
+      return {
+        id,
+        timezone,
+      }
     } else {
-      return null
+      return {
+        id: null,
+        timezone,
+      }
     }
   }
 

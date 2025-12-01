@@ -5,16 +5,21 @@
     :class="{
       'element-preview--active': isSelected,
       'element-preview--parent-of-selected': isParentOfSelectedElement,
-      'element-preview--in-error': inError,
-      'element-preview--first-element': isFirstElement,
+      'element-preview--in-error': !!errorMessage,
+      'element-preview--on-top': isSelected && isAboveThreshold,
       'element-preview--not-visible':
         !isVisible && !isSelected && !isParentOfSelectedElement,
     }"
     @click="onSelect"
   >
-    <div v-if="isSelected" class="element-preview__name">
-      {{ elementType.name }}
-      <i v-if="!isVisible" class="iconoir-eye-off" />
+    <div v-if="isSelected" class="element-preview__tags">
+      <div class="element-preview__name-tag">
+        {{ elementType.name }}
+        <i v-if="!isVisible" class="iconoir-eye-off" />
+      </div>
+      <div v-if="errorMessage" class="element-preview__error-tag">
+        {{ errorMessage }}
+      </div>
     </div>
     <InsertElementButton
       v-show="isSelected"
@@ -37,7 +42,6 @@
       :element="element"
       :mode="mode"
       class="element--read-only"
-      :application-context-additions="applicationContextAdditions"
       :show-element-id="showElementId"
       @move="$emit('move', $event)"
     />
@@ -53,11 +57,6 @@
       ref="addElementModal"
       :page="elementPage"
     />
-
-    <i
-      v-if="inError"
-      class="element-preview__error-icon iconoir-warning-circle"
-    ></i>
   </div>
 </template>
 
@@ -70,12 +69,7 @@ import AddElementModal from '@baserow/modules/builder/components/elements/AddEle
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { mapActions, mapGetters } from 'vuex'
 import { checkIntermediateElements } from '@baserow/modules/core/utils/dom'
-import {
-  VISIBILITY_NOT_LOGGED,
-  VISIBILITY_LOGGED_IN,
-  ROLE_TYPE_ALLOW_EXCEPT,
-  ROLE_TYPE_DISALLOW_EXCEPT,
-} from '@baserow/modules/builder/constants'
+import applicationContextMixin from '@baserow/modules/builder/mixins/applicationContext'
 
 export default {
   name: 'ElementPreview',
@@ -85,7 +79,8 @@ export default {
     InsertElementButton,
     PageElement,
   },
-  inject: ['workspace', 'builder', 'mode', 'currentPage'],
+  mixins: [applicationContextMixin],
+  inject: ['workspace', 'builder', 'mode', 'currentPage', 'pageTopData'],
   props: {
     element: {
       type: Object,
@@ -96,11 +91,6 @@ export default {
       required: false,
       default: false,
     },
-    applicationContextAdditions: {
-      type: Object,
-      required: false,
-      default: null,
-    },
     showElementId: {
       type: Boolean,
       required: false,
@@ -110,6 +100,8 @@ export default {
   data() {
     return {
       isDuplicating: false,
+      isAboveThreshold: false,
+      observer: null,
     }
   },
   computed: {
@@ -119,6 +111,9 @@ export default {
       getClosestSiblingElement: 'element/getClosestSiblingElement',
       loggedUser: 'userSourceUser/getUser',
     }),
+    pageTop() {
+      return this.pageTopData.value
+    },
     elementSelected() {
       return this.getElementSelected(this.builder)
     },
@@ -130,40 +125,10 @@ export default {
       )
     },
     isVisible() {
-      if (
-        !this.elementType.isVisible({
-          element: this.element,
-          currentPage: this.currentPage,
-        })
-      ) {
-        return false
-      }
-
-      const isAuthenticated = this.$store.getters[
-        'userSourceUser/isAuthenticated'
-      ](this.builder)
-      const user = this.loggedUser(this.builder)
-      const roles = this.element.roles
-      const roleType = this.element.role_type
-
-      const visibility = this.element.visibility
-      if (visibility === VISIBILITY_LOGGED_IN) {
-        if (!isAuthenticated) {
-          return false
-        }
-
-        if (roleType === ROLE_TYPE_ALLOW_EXCEPT) {
-          return !roles.includes(user.role)
-        } else if (roleType === ROLE_TYPE_DISALLOW_EXCEPT) {
-          return roles.includes(user.role)
-        } else {
-          return true
-        }
-      } else if (visibility === VISIBILITY_NOT_LOGGED) {
-        return !isAuthenticated
-      } else {
-        return true
-      }
+      return this.elementType.isVisible({
+        element: this.element,
+        applicationContext: this.applicationContext,
+      })
     },
     DIRECTIONS: () => DIRECTIONS,
     directions() {
@@ -243,12 +208,11 @@ export default {
         this.element.parent_element_id
       )
     },
-    inError() {
-      return this.elementType.isInError({
-        page: this.elementPage,
-        element: this.element,
-        builder: this.builder,
-      })
+    errorMessage() {
+      return this.elementType.getErrorMessage(
+        this.element,
+        this.applicationContext
+      )
     },
   },
   watch: {
@@ -268,6 +232,9 @@ export default {
           this.$el.scrollIntoView({ behavior: 'smooth', block: 'start' })
         }
       }
+    },
+    pageTop() {
+      this.setupIntersectionObserver()
     },
     /**
      * If the currently selected element in the Page Preview has moved, ensure
@@ -290,6 +257,12 @@ export default {
     if (this.isFirstElement) {
       this.actionSelectElement({ builder: this.builder, element: this.element })
     }
+    this.setupIntersectionObserver()
+  },
+  beforeDestroy() {
+    if (this.observer) {
+      this.observer.disconnect()
+    }
   },
   methods: {
     ...mapActions({
@@ -297,6 +270,26 @@ export default {
       actionDeleteElement: 'element/delete',
       actionSelectElement: 'element/select',
     }),
+    setupIntersectionObserver() {
+      if (this.observer) {
+        this.observer.disconnect()
+      }
+
+      const options = {
+        root: null,
+        rootMargin: `-${this.pageTop}px 0px 0px 0px`,
+        threshold: [0, 1],
+      }
+
+      this.observer = new IntersectionObserver((entries) => {
+        const rect = entries[0].boundingClientRect
+        this.isAboveThreshold = rect.top < this.pageTop
+      }, options)
+
+      this.$nextTick(() => {
+        this.observer.observe(this.$el)
+      })
+    },
     onMove(direction) {
       this.$emit('move', { element: this.element, direction })
     },

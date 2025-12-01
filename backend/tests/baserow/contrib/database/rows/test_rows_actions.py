@@ -1313,3 +1313,61 @@ def test_can_undo_redo_update_rows_interesting_field_types(data_fixture):
         )
     ) == [multi_select_option_2.id]
     assert getattr(row_table_1, f"field_{formula_field.id}") == "New value"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_import_rows_respects_primary_priority_sorting(data_fixture):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(
+        user=user, name="Sample database"
+    )
+    table = data_fixture.create_database_table(database=database, name="Sample table")
+
+    single_select = data_fixture.create_single_select_field(
+        table=table, name="Single select", order=4, primary=False
+    )
+    data_fixture.create_select_option(
+        field=single_select, value="A", color="dark-green", order=0
+    )
+    data_fixture.create_select_option(
+        field=single_select, value="B", color="light-blue", order=1
+    )
+
+    name_field = data_fixture.create_text_field(
+        table=table, name="Name", order=5, primary=True
+    )
+
+    text_field = data_fixture.create_text_field(
+        table=table, name="Text", order=8, primary=False
+    )
+
+    data_fixture.create_formula_field(
+        table=table,
+        name="Formula",
+        order=58,
+        formula="field('Text')",
+        formula_type="text",
+        internal_formula="field('Text')",
+        nullable=True,
+        recalculate=True,
+    )
+
+    data = [["N", "A", "text"]]
+
+    created_rows, error_report = ImportRowsActionType.do(
+        user,
+        table,
+        data={"data": data, "configuration": None},
+        progress=None,
+    )
+
+    assert error_report == {}
+    assert len(created_rows) == 1
+
+    row = created_rows[0]
+    model = table.get_model()
+    stored = model.objects.get(id=row.id)
+
+    assert getattr(stored, name_field.db_column) == "N"
+    assert getattr(stored, text_field.db_column) == "text"
+    assert getattr(stored, single_select.db_column).value == "A"

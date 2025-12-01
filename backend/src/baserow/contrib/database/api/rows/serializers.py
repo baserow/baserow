@@ -28,12 +28,67 @@ class RowSerializer(serializers.ModelSerializer):
         extra_kwargs = {"id": {"read_only": True}, "order": {"read_only": True}}
 
 
-def serialize_rows_for_response(rows, model, user_field_names=False, many=True):
+class CascadeUpdateSerializer(serializers.Serializer):
+    rows = serializers.ListField(
+        child=RowSerializer(),
+        allow_empty=True,
+        allow_null=False,
+        read_only=True,
+        required=False,
+        help_text="A list of rows that have been updated as cascade update.",
+    )
+    field_ids = serializers.ListField(
+        child=serializers.IntegerField(required=True),
+        allow_empty=False,
+        allow_null=False,
+        read_only=True,
+        required=False,
+        help_text="A list of field ids that has been changed in cascade update",
+    )
+
+
+class BatchOperationMetadataSerializer(serializers.Serializer):
+    updated_field_ids = serializers.ListField(
+        child=serializers.IntegerField(required=True),
+        allow_empty=False,
+        allow_null=False,
+        read_only=True,
+        required=False,
+        help_text="A list of field ids that has been changed during the operation",
+    )
+    cascade_update = CascadeUpdateSerializer(
+        required=False,
+        help_text=(
+            "Optional object containing "
+            "information about cascade "
+            "updates performed during this "
+            "operation."
+        ),
+    )
+
+
+class BatchUpdateRowsSerializer(serializers.Serializer):
+    items = serializers.ListField(
+        child=RowSerializer(),
+        min_length=1,
+        max_length=settings.BATCH_ROWS_SIZE_LIMIT,
+    )
+    metadata = BatchOperationMetadataSerializer(
+        required=False,
+        help_text="An optional object containing metadata "
+        "information about the operation",
+    )
+
+
+def serialize_rows_for_response(
+    rows, model, user_field_names=False, many=True, field_ids=None
+):
     return get_row_serializer_class(
         model,
         RowSerializer,
         is_response=True,
         user_field_names=user_field_names,
+        field_ids=field_ids,
     )(rows, many=many).data
 
 
@@ -51,6 +106,7 @@ def get_row_serializer_class(
     field_kwargs=None,
     include_id=False,
     required_fields=None,
+    extra_kwargs=None,
 ):
     """
     Generates a Django rest framework model serializer based on the available fields
@@ -85,6 +141,10 @@ def get_row_serializer_class(
     :param required_fields: List of field names that should be present even when
         performing partial validation.
     :type required_fields: list[str]
+    :param extra_kwargs: A dict containing additional kwargs for the serializer. To be
+        passed to the field serializer, the key in this dictionary must be listed in the
+        fieldType.serializer_extra_args list.
+    :type extra_kwargs: dict
     :return: The generated serializer.
     :rtype: ModelSerializer
     """
@@ -104,16 +164,16 @@ def get_row_serializer_class(
 
         if field_id_matches and field_name_matches:
             name = field["field"].name if user_field_names else field["name"]
-            extra_kwargs = field_kwargs.get(field["name"], {})
+            field_extra_kwargs = field_kwargs.get(field["name"], {})
             # If the field is configured to be read-only, then we want the API to
             # respond with an error if the key is provided. It should be possible to
             # update the cell value via handlers because the value is then managed by
             # something internally.
             if field["field"].read_only:
-                if "validators" not in extra_kwargs:
-                    extra_kwargs["validators"] = []
-                extra_kwargs["validators"].append(is_read_only)
-                extra_kwargs.pop("required", None)
+                if "validators" not in field_extra_kwargs:
+                    field_extra_kwargs["validators"] = []
+                field_extra_kwargs["validators"].append(is_read_only)
+                field_extra_kwargs.pop("required", None)
 
             if field["name"] != name:
                 # If we are building a serializer with names which do not match the
@@ -121,15 +181,24 @@ def get_row_serializer_class(
                 # We don't always do this if user_field_names is True as a user could
                 # have named fields "field_1" etc, in which case if we also set source
                 # DRF would crash as it only wants source set if the db column differs.
-                extra_kwargs["source"] = field["name"]
+                field_extra_kwargs["source"] = field["name"]
+
+            if extra_kwargs is not None:
+                field_extra_kwargs.update(
+                    {
+                        key: value
+                        for key, value in extra_kwargs.items()
+                        if key in field["type"].serializer_extra_args
+                    }
+                )
 
             if is_response:
                 serializer = field["type"].get_response_serializer_field(
-                    field["field"], **extra_kwargs
+                    field["field"], **field_extra_kwargs
                 )
             else:
                 serializer = field["type"].get_serializer_field(
-                    field["field"], **extra_kwargs
+                    field["field"], **field_extra_kwargs
                 )
             field_overrides[name] = serializer
             field_names.append(name)
@@ -147,6 +216,46 @@ def get_row_serializer_class(
     )
 
 
+def get_batch_operation_metadata_serializer(row_serializer_class):
+    cascade_update_fields = dict(
+        rows=serializers.ListField(
+            child=row_serializer_class(required=True),
+            allow_empty=True,
+            allow_null=False,
+            read_only=True,
+            required=False,
+            help_text="A list of rows that have been updated as cascade update.",
+        ),
+        field_ids=serializers.ListField(
+            child=serializers.IntegerField(required=True),
+            allow_empty=False,
+            allow_null=False,
+            read_only=True,
+            required=False,
+            help_text="A list of field ids that has been changed in cascade update",
+        ),
+    )
+
+    cascade_serializer_class = type(
+        "CascadeUpdate", (CascadeUpdateSerializer,), cascade_update_fields
+    )
+    fields = {
+        "cascade_update": cascade_serializer_class(required=False),
+        "updated_field_ids": serializers.ListField(
+            child=serializers.IntegerField(required=True),
+            allow_empty=False,
+            allow_null=False,
+            read_only=True,
+            required=False,
+            help_text="A list of field ids that has been changed during the operation",
+        ),
+    }
+    serializer_cls = type(
+        "OperationMetadataSerializer", (BatchOperationMetadataSerializer,), fields
+    )
+    return serializer_cls
+
+
 def get_batch_row_serializer_class(row_serializer_class):
     class_name = "BatchRowSerializer"
 
@@ -162,6 +271,11 @@ def get_batch_row_serializer_class(row_serializer_class):
             max_length=settings.BATCH_ROWS_SIZE_LIMIT,
         ),
         "validate": validate,
+        "metadata": get_batch_operation_metadata_serializer(row_serializer_class)(
+            required=False,
+            help_text="An optional object containing metadata "
+            "information about the operation",
+        ),
     }
 
     class_object = type(class_name, (serializers.Serializer,), fields)
@@ -218,6 +332,13 @@ def get_example_row_serializer_class(
             "add_order": False,
             "add_metadata": False,
             "read_only_fields": False,
+        },
+        "public_get": {
+            "class_name": "ExamplePublicRowResponseSerializer",
+            "add_id": True,
+            "add_order": True,
+            "add_metadata": False,
+            "read_only_fields": True,
         },
     }
 
@@ -403,15 +524,9 @@ class ListRowsQueryParamsSerializer(
     view_id = serializers.IntegerField(required=False)
 
 
-class BatchUpdateRowsSerializer(serializers.Serializer):
-    items = serializers.ListField(
-        child=RowSerializer(),
-        min_length=1,
-        max_length=settings.BATCH_ROWS_SIZE_LIMIT,
-    )
-
-
-def get_example_batch_rows_serializer_class(example_type="get", user_field_names=False):
+def get_example_batch_rows_serializer_class(
+    example_type="get", user_field_names=False, request_serializer=False
+):
     config = {
         "get": {
             "class_name": "ExampleBatchRowsResponseSerializer",
@@ -422,24 +537,39 @@ def get_example_batch_rows_serializer_class(example_type="get", user_field_names
         "patch_batch": {"class_name": "ExampleBatchUpdateRowsRequestSerializer"},
     }
     class_name = config[example_type]["class_name"]
+    cache_key = (
+        class_name,
+        request_serializer,
+    )
 
     if not hasattr(get_example_batch_rows_serializer_class, "cache"):
         get_example_batch_rows_serializer_class.cache = {}
 
-    if class_name in get_example_batch_rows_serializer_class.cache:
-        return get_example_batch_rows_serializer_class.cache[class_name]
-
+    if cache_key in get_example_batch_rows_serializer_class.cache:
+        return get_example_batch_rows_serializer_class.cache[cache_key]
+    example_row_serializer_class = get_example_row_serializer_class(
+        example_type=example_type, user_field_names=user_field_names
+    )
     fields = {
         "items": serializers.ListField(
-            child=get_example_row_serializer_class(
-                example_type=example_type, user_field_names=user_field_names
-            )(),
+            child=example_row_serializer_class(),
             min_length=1,
             max_length=settings.BATCH_ROWS_SIZE_LIMIT,
         )
     }
+
+    if not (request_serializer or example_type == "get"):
+        metadata_serializer_class = get_batch_operation_metadata_serializer(
+            example_row_serializer_class
+        )
+
+        fields["metadata"] = metadata_serializer_class(
+            required=False,
+            help_text="An optional object containing metadata "
+            "information about the operation",
+        )
     class_object = type(class_name, (serializers.Serializer,), fields)
-    get_example_batch_rows_serializer_class.cache[class_name] = class_object
+    get_example_batch_rows_serializer_class.cache[cache_key] = class_object
     return class_object
 
 
@@ -483,6 +613,7 @@ class RowHistorySerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "action_type",
+            "action_command_type",
             "user",
             "timestamp",
             "before",

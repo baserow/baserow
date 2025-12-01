@@ -89,6 +89,7 @@
           ref="domainSettingsModal"
           hide-after-create
           :builder="builder"
+          :workspace="workspace"
         />
       </div>
     </div>
@@ -111,6 +112,7 @@ export default {
   name: 'PublishActionModal',
   components: { BuilderSettingsModal, LastPublishedDomainDate },
   mixins: [modal, error, jobProgress],
+  inject: ['workspace'],
   props: {
     builder: {
       type: Object,
@@ -162,11 +164,19 @@ export default {
     async publishSite() {
       this.loading = true
       this.hideError()
-      const { data: job } = await PublishedDomainService(this.$client).publish({
-        id: this.selectedDomainId,
-      })
-
-      this.startJobPoller(job)
+      try {
+        const { data: job } = await PublishedDomainService(
+          this.$client
+        ).publish({
+          id: this.selectedDomainId,
+        })
+        this.startJobPoller(job)
+      } catch (error) {
+        notifyIf(error)
+      } finally {
+        this.fetchingDomains = false
+        this.loading = false
+      }
     },
     onJobFailed() {
       this.showError(

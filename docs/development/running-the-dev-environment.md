@@ -11,7 +11,7 @@ dev environment locally, otherwise please start from the Installing Requirements
 below.
 
 ```bash
-$ git clone --branch develop https://gitlab.com/baserow/baserow.git
+$ git clone --branch develop git@github.com:baserow/baserow.git
 # Our supplied ./dev.sh script wraps docker-compose setting the correct env vars for 
 # you to get hot code reloading working well.
 $ ./dev.sh 
@@ -63,7 +63,7 @@ Baserow's code to your computer.
 
 ```
 $ cd ~/baserow
-$ git clone --branch master https://gitlab.com/baserow/baserow.git
+$ git clone --branch master https://github.com/baserow/baserow.git
 Cloning into 'baserow'...
 ...
 $ cd baserow
@@ -149,6 +149,6 @@ For further reading on how to work with docker containers and django check out:
 
 - See [introduction](../technical/introduction.md) for more details on Baserow's
   architecture.
-- See [baserow docker api](../technical/baserow-docker-api.md) for more detail on how
+- See [baserow docker api](../installation/install-with-docker.md) for more detail on how
   Baserow's docker setup can be used and configured.
 - See [dev.sh](dev_sh.md) for further detail on what dev.sh does and why

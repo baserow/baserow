@@ -291,12 +291,14 @@ const actions = {
           resolve()
         } catch (error) {
           // Revert to old values on error
-          await dispatch('forceUpdate', {
-            builder,
-            page,
-            element,
-            values: updateContext.lastUpdatedValues,
-          })
+          if (updateContext.lastUpdatedValues) {
+            await dispatch('forceUpdate', {
+              builder,
+              page,
+              element,
+              values: updateContext.lastUpdatedValues,
+            })
+          }
           updateContext.lastUpdatedValues = null
           reject(error)
         }
@@ -442,7 +444,7 @@ const actions = {
     )
     const workflowActionPromises = workflowActions.map((workflowAction) =>
       dispatch(
-        'workflowAction/forceCreate',
+        'builderWorkflowAction/forceCreate',
         { page, workflowAction },
         { root: true }
       )

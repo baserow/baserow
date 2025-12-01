@@ -973,6 +973,10 @@ def test_get_public_calendar_view_with_single_select_and_cover(
                 "description": None,
                 "immutable_properties": False,
                 "immutable_type": False,
+                "database_id": PUBLIC_PLACEHOLDER_ENTITY_ID,
+                "workspace_id": PUBLIC_PLACEHOLDER_ENTITY_ID,
+                "db_index": False,
+                "field_constraints": [],
             },
             {
                 "id": public_field.id,
@@ -986,6 +990,10 @@ def test_get_public_calendar_view_with_single_select_and_cover(
                 "description": None,
                 "immutable_properties": False,
                 "immutable_type": False,
+                "database_id": PUBLIC_PLACEHOLDER_ENTITY_ID,
+                "workspace_id": PUBLIC_PLACEHOLDER_ENTITY_ID,
+                "db_index": False,
+                "field_constraints": [],
             },
         ],
         "view": {

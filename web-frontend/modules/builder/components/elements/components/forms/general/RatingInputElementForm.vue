@@ -59,9 +59,9 @@ export default {
   data() {
     return {
       values: {
-        value: '',
+        value: {},
         required: false,
-        label: '',
+        label: {},
       },
       allowedValues: ['value', 'required', 'label'],
     }

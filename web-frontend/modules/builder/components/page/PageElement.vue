@@ -2,22 +2,21 @@
   <div
     v-if="elementMode === 'editing' || isVisible"
     class="element__wrapper"
-    :class="elementClasses"
+    :class="wrapperClasses"
     :style="elementStyles"
   >
     <div class="element__inner-wrapper">
       <span v-if="showElementId" class="element--element-id">{{
         element.id
       }}</span>
+      <!-- See element store to understand why we are using the element uid as key here -->
       <component
         :is="component"
         :key="element._.uid"
         :element="element"
-        :application-context-additions="{
-          element,
-          page: elementPage,
-        }"
         class="element"
+        :application-context-additions="{ element }"
+        :class="elementClasses"
         @move="$emit('move', $event)"
       />
     </div>
@@ -25,7 +24,7 @@
 </template>
 
 <script>
-import { resolveColor } from '@baserow/modules/core/utils/colors'
+import { resolveColor, colorContrast } from '@baserow/modules/core/utils/colors'
 import { ThemeConfigBlockType } from '@baserow/modules/builder/themeConfigBlockTypes'
 
 import {
@@ -35,19 +34,13 @@ import {
   BACKGROUND_MODES,
 } from '@baserow/modules/builder/enums'
 import applicationContextMixin from '@baserow/modules/builder/mixins/applicationContext'
-import {
-  VISIBILITY_NOT_LOGGED,
-  VISIBILITY_LOGGED_IN,
-  ROLE_TYPE_ALLOW_EXCEPT,
-  ROLE_TYPE_DISALLOW_EXCEPT,
-} from '@baserow/modules/builder/constants'
 
 import { mapGetters } from 'vuex'
 
 export default {
   name: 'PageElement',
   mixins: [applicationContextMixin],
-  inject: ['builder', 'mode', 'currentPage'],
+  inject: ['workspace', 'builder', 'mode', 'currentPage'],
   provide() {
     return { mode: this.elementMode, elementPage: this.elementPage }
   },
@@ -102,54 +95,25 @@ export default {
     elementType() {
       return this.$registry.get('element', this.element.type)
     },
+    elementClasses() {
+      return this.element.css_classes.replaceAll('"', '')
+    },
     isVisible() {
-      const elementType = this.$registry.get('element', this.element.type)
-      const isInError = elementType.isInError({
-        page: this.elementPage,
-        element: this.element,
-        builder: this.builder,
-      })
+      const isInError = this.elementType.isInError(
+        this.element,
+        this.applicationContext
+      )
 
       if (this.mode !== 'editing' && isInError) {
         return false
       }
 
-      if (
-        !this.elementType.isVisible({
-          element: this.element,
-          currentPage: this.currentPage,
-        })
-      ) {
-        return false
-      }
-
-      const isAuthenticated = this.$store.getters[
-        'userSourceUser/isAuthenticated'
-      ](this.builder)
-      const user = this.loggedUser(this.builder)
-      const roles = this.element.roles
-      const roleType = this.element.role_type
-
-      const visibility = this.element.visibility
-      if (visibility === VISIBILITY_LOGGED_IN) {
-        if (!isAuthenticated) {
-          return false
-        }
-
-        if (roleType === ROLE_TYPE_ALLOW_EXCEPT) {
-          return !roles.includes(user.role)
-        } else if (roleType === ROLE_TYPE_DISALLOW_EXCEPT) {
-          return roles.includes(user.role)
-        } else {
-          return true
-        }
-      } else if (visibility === VISIBILITY_NOT_LOGGED) {
-        return !isAuthenticated
-      } else {
-        return true
-      }
+      return this.elementType.isVisible({
+        element: this.element,
+        applicationContext: this.applicationContext,
+      })
     },
-    elementClasses() {
+    wrapperClasses() {
       if (this.element?.parent_element_id) {
         return {
           'element__wrapper--full-width':
@@ -181,7 +145,6 @@ export default {
                 this.colorVariables
               )
             : 'none',
-
         '--element-background-image':
           this.element.style_background_file !== null
             ? `url(${this.element.style_background_file.url})`
@@ -219,6 +182,15 @@ export default {
           this.element.style_background_radius || 0
         }px`,
         '--element-border-radius': `${this.element.style_border_radius || 0}px`,
+      }
+
+      if (this.element.style_background === BACKGROUND_TYPES.COLOR) {
+        styles['--element-background-color-contrast'] = colorContrast(
+          this.resolveColor(
+            this.element.style_background_color,
+            this.colorVariables
+          )
+        )
       }
 
       if (this.element.style_background_file !== null) {

@@ -1,0 +1,6 @@
+.file-input-element {
+  .element--read-only & {
+    pointer-events: none;
+    user-select: none;
+  }
+}

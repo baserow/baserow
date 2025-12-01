@@ -9,7 +9,7 @@ export default {
       if (
         !collaboratorValue ||
         typeof collaboratorValue !== 'object' ||
-        !collaboratorValue.id
+        (!collaboratorValue.id && !collaboratorValue.name)
       ) {
         return ''
       }

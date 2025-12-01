@@ -11,6 +11,7 @@ import ProgressBar from '@baserow/modules/core/components/ProgressBar'
 import Checkbox from '@baserow/modules/core/components/Checkbox'
 import Radio from '@baserow/modules/core/components/Radio'
 import RadioGroup from '@baserow/modules/core/components/RadioGroup'
+import RadioCard from '@baserow/modules/core/components/RadioCard'
 import Scrollbars from '@baserow/modules/core/components/Scrollbars'
 import Error from '@baserow/modules/core/components/Error'
 import SwitchInput from '@baserow/modules/core/components/SwitchInput'
@@ -62,6 +63,7 @@ import Thumbnail from '@baserow/modules/core/components/Thumbnail'
 import ColorInput from '@baserow/modules/core/components/ColorInput'
 import SelectSearch from '@baserow/modules/core/components/SelectSearch'
 import SwitchButton from '@baserow/modules/core/components/SwitchButton'
+import Icon from '@baserow/modules/core/components/Icon'
 
 function setupVue(Vue) {
   Vue.component('Context', Context)
@@ -73,6 +75,7 @@ function setupVue(Vue) {
   Vue.component('Checkbox', Checkbox)
   Vue.component('Radio', Radio)
   Vue.component('RadioGroup', RadioGroup)
+  Vue.component('RadioCard', RadioCard)
   Vue.component('Scrollbars', Scrollbars)
   Vue.component('Alert', Alert)
   Vue.component('Error', Error)
@@ -113,6 +116,7 @@ function setupVue(Vue) {
   Vue.component('FormSection', FormSection)
   Vue.component('SegmentControl', SegmentControl)
   Vue.component('SwitchButton', SwitchButton)
+  Vue.component('Icon', Icon)
 
   Vue.filter('lowercase', lowercase)
   Vue.filter('uppercase', uppercase)

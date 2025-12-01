@@ -84,7 +84,13 @@ class RuntimeFormulaFunction(ABC, Instance):
         :return: If the number of arguments is correct
         """
 
-        return self.num_args is None or len(args) <= self.num_args
+        if self.num_args is None:
+            return True
+
+        required_args = len([arg for arg in self.args if not arg.optional])
+        total_args = len(self.args)
+
+        return len(args) >= required_args and len(args) <= total_args
 
     def validate_type_of_args(self, args: FormulaArgs) -> Optional[FormulaArg]:
         """

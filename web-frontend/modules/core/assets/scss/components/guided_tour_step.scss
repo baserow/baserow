@@ -36,9 +36,22 @@
 
   // Positioned in the middle of the screen.
   &--center {
-    left: 0;
-    top: 0;
+    left: 50%;
+    top: 50%;
     transform: translateY(-50%) translateX(-50%);
+  }
+
+  // Positioned left from the parent, aligned to the top of it.
+  &--left-top {
+    left: 0;
+    transform: translateX(calc(-100% - 12px));
+
+    &::after {
+      right: -8px;
+      top: 12px;
+      border-width: 6px 0 6px 8px;
+      border-color: transparent transparent transparent $palette-neutral-1200;
+    }
   }
 
   // Positioned right from the parent, aligned to the top of it.
@@ -76,7 +89,7 @@
     }
   }
 
-  // Position at the bottom of the parent, aligned to the left of it.
+  // Position at the bottom of the parent, aligned to the right of it.
   &--bottom-right {
     left: 100%;
     top: calc(100% + 12px);
@@ -87,6 +100,36 @@
       top: -6px;
       border-width: 0 8px 6px;
       border-color: transparent transparent $palette-neutral-1200 transparent;
+    }
+  }
+
+  // Position at the bottom of the parent, centered horizontally.
+  &--bottom-center {
+    left: 50%;
+    top: calc(100% + 12px);
+    transform: translateX(-50%);
+
+    &::after {
+      left: 50%;
+      top: -6px;
+      transform: translateX(-50%);
+      border-width: 0 8px 6px;
+      border-color: transparent transparent $palette-neutral-1200 transparent;
+    }
+  }
+
+  // Position at the top of the parent, centered horizontally.
+  &--top-center {
+    left: 50%;
+    top: 0;
+    transform: translateX(-50%) translateY(calc(-100% - 12px));
+
+    &::after {
+      left: 50%;
+      bottom: -6px;
+      transform: translateX(-50%);
+      border-width: 6px 8px 0;
+      border-color: $palette-neutral-1200 transparent transparent transparent;
     }
   }
 }
@@ -122,6 +165,10 @@
     margin-bottom: 10px;
     font-size: 12px;
     line-height: 20px;
+  }
+
+  .markdown strong {
+    color: $palette-neutral-300;
   }
 
   .markdown ul {

@@ -29,12 +29,23 @@ from django.db.transaction import Atomic, get_connection
 
 from loguru import logger
 
-from baserow.contrib.database.exceptions import DeadlockException
+from baserow.core.exceptions import DeadlockException
 from baserow.core.psycopg import is_deadlock_error, sql
 
 from .utils import find_intermediate_order
 
 ModelInstance = TypeVar("ModelInstance", bound=object)
+
+
+def get_database_dsn() -> str:
+    """
+    Constructs the database DSN from the default database settings.
+
+    :return: The database DSN as a string.
+    """
+
+    db = settings.DATABASES["default"]
+    return f"postgres://{db['USER']}:{db['PASSWORD']}@{db['HOST']}:{db['PORT']}/{db['NAME']}"
 
 
 class LockedAtomicTransaction(Atomic):
@@ -850,6 +861,7 @@ def atomic_with_retry_on_deadlock(
                         )
                         raise DeadlockException() from exc
                     time.sleep(backoff)
+                    logger.debug("Retrying transaction after deadlock")
                     backoff *= 1.5 + random.uniform(0, jitter)  # nosec: B311
                 retries += 1
 

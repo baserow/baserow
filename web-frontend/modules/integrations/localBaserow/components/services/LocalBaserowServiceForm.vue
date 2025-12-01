@@ -1,6 +1,7 @@
 <template>
   <form @submit.prevent>
     <FormGroup
+      v-if="enableIntegrationPicker"
       :label="$t('localBaserowServiceForm.integrationDropdownLabel')"
       small-label
       required
@@ -8,7 +9,7 @@
     >
       <IntegrationDropdown
         v-model="values.integration_id"
-        :application="builder"
+        :application="application"
         :integrations="integrations"
         :integration-type="integrationType"
       />
@@ -16,9 +17,10 @@
     <LocalBaserowTableSelector
       v-if="selectedIntegration"
       v-model="fakeTableId"
-      disallow-data-synced-tables
+      :view-id.sync="values.view_id"
       :databases="databases"
-      :display-view-dropdown="false"
+      :display-view-dropdown="enableViewPicker"
+      :disallow-data-synced-tables="disallowDataSyncedTables"
     />
     <FormGroup
       v-if="enableRowId && values.integration_id"
@@ -38,7 +40,7 @@
 
 <script>
 import LocalBaserowTableSelector from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowTableSelector'
-import { LocalBaserowIntegrationType } from '@baserow/modules/integrations/integrationTypes'
+import { LocalBaserowIntegrationType } from '@baserow/modules/integrations/localBaserow/integrationTypes'
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
 import IntegrationDropdown from '@baserow/modules/core/components/integrations/IntegrationDropdown'
 import form from '@baserow/modules/core/mixins/form'
@@ -57,27 +59,71 @@ export default {
     InjectedFormulaInput,
   },
   mixins: [form],
-  inject: ['builder'],
   props: {
+    application: {
+      type: Object,
+      required: true,
+    },
     enableRowId: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
+    /**
+     * Whether to show the view picker or not.
+     * By default, we do show it, but in some cases,
+     * we don't want to allow the user to select a view.
+     */
+    enableViewPicker: {
+      type: Boolean,
+      required: false,
+      default: true,
+    },
+    /**
+     * Whether to show the integration picker or not.
+     * By default, we show it, but in some cases, we've
+     * already collected the integration ID.
+     */
+    enableIntegrationPicker: {
+      type: Boolean,
+      required: false,
+      default: true,
+    },
+    /**
+     * Whether to disallow the selection of data synced tables. Data sources
+     * can select them, but a create-row workflow action cannot.
+     */
+    disallowDataSyncedTables: {
       type: Boolean,
       required: false,
       default: false,
     },
   },
   data() {
+    const values = { table_id: null, integration_id: null }
+    const allowedValues = ['table_id', 'integration_id']
+    if (this.enableRowId) {
+      values.row_id = {}
+      allowedValues.push('row_id')
+    }
+    if (this.enableViewPicker) {
+      values.view_id = null
+      allowedValues.push('view_id')
+    }
     return {
-      allowedValues: ['row_id', 'table_id', 'integration_id'],
-      values: {
-        row_id: '',
-        table_id: null,
-        integration_id: null,
-      },
+      values,
+      allowedValues,
     }
   },
   computed: {
     integrations() {
-      return this.$store.getters['integration/getIntegrations'](this.builder)
+      const allIntegrations = this.$store.getters[
+        'integration/getIntegrations'
+      ](this.application)
+      return allIntegrations.filter(
+        (integration) =>
+          integration.type === LocalBaserowIntegrationType.getType()
+      )
     },
     fakeTableId: {
       get() {
@@ -99,7 +145,7 @@ export default {
     },
     selectedIntegration() {
       return this.$store.getters['integration/getIntegrationById'](
-        this.builder,
+        this.application,
         this.values.integration_id
       )
     },
@@ -110,8 +156,8 @@ export default {
   watch: {
     'values.table_id': {
       handler(newValue, oldValue) {
-        if (oldValue && newValue !== oldValue) {
-          this.values.row_id = ''
+        if (this.enableRowId && oldValue && newValue !== oldValue) {
+          this.values.row_id = {}
         }
       },
     },

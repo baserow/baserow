@@ -5,7 +5,10 @@ import pytest
 from freezegun import freeze_time
 from pytest_unordered import unordered
 
+from baserow.contrib.database.fields.handler import FieldHandler
+from baserow.contrib.database.fields.utils.duration import parse_duration_value
 from baserow.contrib.database.rows.handler import RowHandler
+from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.views.array_view_filters import (
     HasDateAfterViewFilterType,
     HasDateBeforeViewFilterType,
@@ -30,14 +33,19 @@ from baserow.contrib.database.views.view_filters import (
     DateIsOnOrBeforeMultiStepFilterType,
     DateIsWithinMultiStepFilterType,
 )
+from baserow.core.handler import CoreHandler
 from tests.baserow.contrib.database.utils import (
     boolean_field_factory,
     date_field_factory,
     datetime_field_factory,
+    duration_field_factory,
     email_field_factory,
+    file_field_factory,
     long_text_field_factory,
+    multiple_collaborators_field_factory,
     multiple_select_field_factory,
     multiple_select_field_value_factory,
+    number_field_factory,
     phone_number_field_factory,
     setup_linked_table_and_lookup,
     single_select_field_factory,
@@ -57,6 +65,14 @@ from .date_utils import (
 
 if typing.TYPE_CHECKING:
     from baserow.test_utils.fixtures import Fixtures
+
+
+def duration_value(val: str, format: str = "d h") -> str:
+    """
+    Parses symbolic duration value to a proper number of seconds for the test.
+    """
+
+    return str(int(parse_duration_value(val, format)))
 
 
 class BooleanLookupRow(int, Enum):
@@ -140,6 +156,131 @@ def boolean_lookup_filter_proc(
     q = test_setup.view_handler.get_queryset(test_setup.grid_view)
     assert len(q) == len(selected)
     assert set([r.id for r in q]) == set([r.id for r in selected])
+
+
+@pytest.mark.parametrize(
+    "field_factory",
+    [
+        text_field_factory,
+        long_text_field_factory,
+        email_field_factory,
+        phone_number_field_factory,
+        url_field_factory,
+        number_field_factory,
+        single_select_field_factory,
+        multiple_select_field_factory,
+        date_field_factory,
+        datetime_field_factory,
+        duration_field_factory,
+        multiple_collaborators_field_factory,
+        file_field_factory,
+    ],
+)
+@pytest.mark.django_db
+def test_empty_not_empty_array_filter(field_factory, data_fixture):
+    user = data_fixture.create_user()
+    table_a, table_b, link_a_to_b = data_fixture.create_two_linked_tables(user=user)
+    target_field = field_factory(data_fixture, table_b, user)
+    lookup_field = data_fixture.create_lookup_field(
+        name="lookup",
+        table=table_a,
+        through_field=link_a_to_b,
+        target_field=target_field,
+        through_field_name=link_a_to_b.name,
+        target_field_name=target_field.name,
+    )
+    view = data_fixture.create_grid_view(user=user, table=table_a)
+    view_filter = data_fixture.create_view_filter(
+        view=view, field=lookup_field, type="empty"
+    )
+
+    row_handler = RowHandler()
+    row_empty_b1, row_empty_b2 = row_handler.force_create_rows(
+        user, table_b, [{}, {}]
+    ).created_rows
+    field_type = target_field.get_type()
+    random_value = field_type.random_value(target_field, data_fixture.fake, {})
+
+    b3_value = field_type.random_to_input_value(target_field, random_value)
+    assert b3_value  # Ensure we're not getting empty value
+
+    row_b3 = row_handler.force_create_row(
+        user, table_b, {target_field.db_column: b3_value}
+    )
+
+    model_a = table_a.get_model()
+    row_a1, row_a2, row_a3, row_a4, row_a5, row_a6 = row_handler.force_create_rows(
+        user,
+        table_a,
+        [
+            {},
+            {link_a_to_b.db_column: [row_empty_b1.id]},
+            {link_a_to_b.db_column: [row_empty_b2.id]},
+            {link_a_to_b.db_column: [row_empty_b1.id, row_empty_b2.id]},
+            {link_a_to_b.db_column: [row_b3.id, row_empty_b2.id]},
+            {link_a_to_b.db_column: [row_b3.id]},
+        ],
+        model=model_a,
+    ).created_rows
+
+    handler = ViewHandler()
+    ids = [r.id for r in handler.apply_filters(view, model_a.objects.all()).all()]
+    assert ids == [row_a1.id, row_a2.id, row_a3.id, row_a4.id]
+
+    view_filter.type = "not_empty"
+    view_filter.save()
+
+    ids = [r.id for r in handler.apply_filters(view, model_a.objects.all()).all()]
+    assert ids == [row_a5.id, row_a6.id]
+
+
+@pytest.mark.parametrize(
+    "fixture_method_name",
+    [
+        "create_last_modified_field",
+        "create_created_on_field",
+        "create_autonumber_field",
+        "create_uuid_field",
+    ],
+)
+@pytest.mark.django_db
+def test_empty_not_empty_read_only_array_filter(fixture_method_name, data_fixture):
+    user = data_fixture.create_user()
+    table_a, table_b, link_a_to_b = data_fixture.create_two_linked_tables(user=user)
+    target_field = getattr(data_fixture, fixture_method_name)(table=table_b)
+    lookup_field = data_fixture.create_lookup_field(
+        name="lookup",
+        table=table_a,
+        through_field=link_a_to_b,
+        target_field=target_field,
+        through_field_name=link_a_to_b.name,
+        target_field_name=target_field.name,
+    )
+    view = data_fixture.create_grid_view(user=user, table=table_a)
+    view_filter = data_fixture.create_view_filter(
+        view=view, field=lookup_field, type="empty"
+    )
+
+    row_handler = RowHandler()
+    (row_b1,) = row_handler.create_rows(user, table_b, [{}]).created_rows
+
+    model_a = table_a.get_model()
+    row_a1, row_a2, row_a3 = row_handler.force_create_rows(
+        user,
+        table_a,
+        [{}, {link_a_to_b.db_column: [row_b1.id]}, {link_a_to_b.db_column: []}],
+        model=model_a,
+    ).created_rows
+
+    handler = ViewHandler()
+    ids = [r.id for r in handler.apply_filters(view, model_a.objects.all()).all()]
+    assert ids == [row_a1.id, row_a3.id]
+
+    view_filter.type = "not_empty"
+    view_filter.save()
+
+    ids = [r.id for r in handler.apply_filters(view, model_a.objects.all()).all()]
+    assert ids == [row_a2.id]
 
 
 @pytest.mark.parametrize(
@@ -2395,6 +2536,108 @@ def test_has_none_select_option_equal_filter_single_select_field(data_fixture):
     assert row_2.id in ids
 
 
+def setup_multiple_collaborators_fields(data_fixture):
+    test_setup = setup_linked_table_and_lookup(
+        data_fixture, multiple_collaborators_field_factory
+    )
+
+    # tables layout:
+    #   table A:
+    #     row A: one collab, Collaborator A
+    #     row B: two collabs, Collaborator A, Collaborator B
+    #     row C: no collaborator,
+    #   table B (test table for filters):
+    #     one value row, [ row A ]
+    #     two values row, [row A, row B]
+    #     two values, one empty, [row A, row C - empty ]
+    #     no values, []
+
+    user = test_setup.user
+    user.first_name = "derp"
+    user.save()
+    table = test_setup.table
+    other_table = test_setup.other_table
+    other_user_A = data_fixture.create_user(first_name="test user")
+    other_user_B = data_fixture.create_user(first_name="other user")
+    database = test_setup.table.database
+    workspace = database.workspace
+    chandler = CoreHandler()
+    thandler = TableHandler()
+    fhandler = FieldHandler()
+    rhandler = RowHandler()
+
+    chandler.add_user_to_workspace(workspace, other_user_A)
+    chandler.add_user_to_workspace(workspace, other_user_B)
+    text_field_a = data_fixture.create_text_field(
+        table=table, user=user, name="pk", primary=True
+    )
+    text_field_b = data_fixture.create_text_field(
+        table=other_table, user=user, name="pk", primary=True
+    )
+
+    related_table_rows = [
+        {
+            text_field_b.db_column: "relA",
+            test_setup.target_field.db_column: [other_user_A.id],
+        },
+        {
+            text_field_b.db_column: "relB",
+            test_setup.target_field.db_column: [other_user_A.id, other_user_B.id],
+        },
+        {text_field_b.db_column: "relC", test_setup.target_field.db_column: []},
+    ]
+
+    related_rows = rhandler.force_create_rows(
+        user,
+        table=other_table,
+        rows_values=related_table_rows,
+        send_webhook_events=False,
+        send_realtime_update=False,
+    )
+
+    related_rows = {
+        getattr(r, text_field_b.db_column): r for r in related_rows.created_rows
+    }
+
+    table_rows = [
+        {
+            text_field_a.db_column: "A",
+            test_setup.link_row_field.db_column: [related_rows["relA"].id],
+        },
+        {
+            text_field_a.db_column: "B",
+            test_setup.link_row_field.db_column: [
+                related_rows["relA"].id,
+                related_rows["relB"].id,
+            ],
+        },
+        {
+            text_field_a.db_column: "C",
+            test_setup.link_row_field.db_column: [
+                related_rows["relA"].id,
+                related_rows["relC"].id,
+            ],
+        },
+        {text_field_a.db_column: "D", test_setup.link_row_field.db_column: []},
+    ]
+    created_rows = rhandler.force_create_rows(
+        user=user,
+        table=table,
+        rows_values=table_rows,
+        send_webhook_events=False,
+        send_realtime_update=False,
+    )
+
+    created_rows = {
+        getattr(r, text_field_a.db_column): r for r in created_rows.created_rows
+    }
+
+    test_setup.extra["other_users"] = {
+        u.first_name: u for u in [other_user_A, other_user_B]
+    }
+    return test_setup, created_rows, related_rows
+
+
 def setup_multiple_select_rows(data_fixture):
     test_setup = setup_linked_table_and_lookup(
         data_fixture, multiple_select_field_factory
@@ -2445,6 +2688,476 @@ def setup_multiple_select_rows(data_fixture):
         values={f"field_{test_setup.link_row_field.id}": [other_row_B.id]},
     )
     return test_setup, [row_1, row_2, row_3], [*row_A_value, *row_B_value]
+
+
+def setup_duration_lookup_fields(data_fixture):
+    test_setup = setup_linked_table_and_lookup(data_fixture, duration_field_factory)
+
+    # tables layout:
+    #  referenced B:
+    #   * row B1 [no value]
+    #   * row B2 [1h value]
+    #   * row B3 [1d value]
+    #   * row B4 [1d 6h value]
+    #
+    #  table A:
+    #  * A1 - no values []
+    #  * A2 - empty value [B1]
+    #  * A3 - 1h value [B2]
+    #  * A4 - 1h, 1d 6h value [B2, B4]
+    #  * A5 - 1h, 1d [B2, B3]
+    #  * A6 - 1d 6h [B4]
+    #  * A7 - 1h + empty [B2, B1]
+
+    user = test_setup.user
+    user.first_name = "derp"
+    user.save()
+    table = test_setup.table
+    other_table = test_setup.other_table
+    database = test_setup.table.database
+    workspace = database.workspace
+    chandler = CoreHandler()
+    thandler = TableHandler()
+    fhandler = FieldHandler()
+    rhandler = RowHandler()
+
+    pk_A = data_fixture.create_text_field(
+        table=table, user=user, name="pk", primary=True
+    )
+    pk_B = data_fixture.create_text_field(
+        table=other_table, user=user, name="pk", primary=True
+    )
+    pk_b_name = pk_B.db_column
+    pk_a_name = pk_A.db_column
+    dur_b_name = test_setup.target_field.db_column
+    lookup_name = test_setup.link_row_field.db_column
+
+    related_table_rows = [
+        {pk_b_name: "B1", dur_b_name: None},
+        {pk_b_name: "B2", dur_b_name: "1h"},
+        {pk_b_name: "B3", dur_b_name: "1d"},
+        {pk_b_name: "B4", dur_b_name: "1d 6h"},
+    ]
+
+    related_rows = rhandler.force_create_rows(
+        user,
+        table=other_table,
+        rows_values=related_table_rows,
+        send_webhook_events=False,
+        send_realtime_update=False,
+    )
+
+    related_rows = {getattr(r, pk_b_name): r for r in related_rows.created_rows}
+
+    def rel(row_name):
+        return related_rows[row_name].id
+
+    table_rows = [
+        {pk_a_name: "A1", lookup_name: []},
+        {pk_a_name: "A2", lookup_name: [rel("B1")]},
+        {pk_a_name: "A3", lookup_name: [rel("B2")]},
+        {pk_a_name: "A4", lookup_name: [rel("B2"), rel("B4")]},
+        {pk_a_name: "A5", lookup_name: [rel("B2"), rel("B3")]},
+        {pk_a_name: "A6", lookup_name: [rel("B4")]},
+        {pk_a_name: "A7", lookup_name: [rel("B2"), rel("B1")]},
+    ]
+    created_rows = rhandler.force_create_rows(
+        user=user,
+        table=table,
+        rows_values=table_rows,
+        send_webhook_events=False,
+        send_realtime_update=False,
+    )
+
+    created_rows = {getattr(r, pk_a_name): r for r in created_rows.created_rows}
+
+    return test_setup, created_rows, related_rows
+
+
+@pytest.mark.django_db
+@pytest.mark.field_multiple_collaborators
+def test_has_or_has_not_empty_value_filter_multiple_collaborators_lookup_type(
+    data_fixture,
+):
+    test_setup, created_rows, related_rows = setup_multiple_collaborators_fields(
+        data_fixture
+    )
+
+    view_filter = data_fixture.create_view_filter(
+        view=test_setup.grid_view,
+        field=test_setup.lookup_field,
+        type="has_empty_value",
+        value="",
+    )
+    ids = [
+        r.id
+        for r in test_setup.view_handler.apply_filters(
+            test_setup.grid_view, test_setup.model.objects.all()
+        ).all()
+    ]
+    assert len(ids) == 1
+    assert created_rows["C"].id in ids
+
+    view_filter.type = "has_not_empty_value"
+    view_filter.save()
+
+    ids = [
+        r.id
+        for r in test_setup.view_handler.apply_filters(
+            test_setup.grid_view, test_setup.model.objects.all()
+        ).all()
+    ]
+    assert ids == [created_rows["A"].id, created_rows["B"].id, created_rows["D"].id]
+
+
+@pytest.mark.django_db
+@pytest.mark.field_multiple_collaborators
+def test_has_or_doesnt_have_value_equal_filter_multiple_collaborators_lookup_field_types(
+    data_fixture,
+):
+    test_setup, created_rows, related_rows = setup_multiple_collaborators_fields(
+        data_fixture
+    )
+
+    view_filter = data_fixture.create_view_filter(
+        view=test_setup.grid_view,
+        field=test_setup.lookup_field,
+        type="has_value_equal",
+        value=str(test_setup.extra["other_users"]["other user"].id),
+    )
+    ids = [
+        r.id
+        for r in test_setup.view_handler.apply_filters(
+            test_setup.grid_view, test_setup.model.objects.all()
+        ).all()
+    ]
+    assert len(ids) == 1
+    assert created_rows["B"].id in ids
+
+    view_filter.type = "has_not_value_equal"
+    view_filter.save()
+
+    ids = [
+        r.id
+        for r in test_setup.view_handler.apply_filters(
+            test_setup.grid_view, test_setup.model.objects.all()
+        ).all()
+    ]
+    assert ids == [created_rows[row_id].id for row_id in ["A", "C", "D"]]
+
+
+@pytest.mark.django_db
+@pytest.mark.field_multiple_collaborators
+def test_has_or_doesnt_have_value_contains_filter_multiple_collaborators_lookup_field_types(
+    data_fixture,
+):
+    test_setup, created_rows, related_rows = setup_multiple_collaborators_fields(
+        data_fixture
+    )
+
+    view_filter = data_fixture.create_view_filter(
+        view=test_setup.grid_view,
+        field=test_setup.lookup_field,
+        type="has_value_contains",
+        value="oth",
+    )
+    ids = [
+        r.id
+        for r in test_setup.view_handler.apply_filters(
+            test_setup.grid_view, test_setup.model.objects.all()
+        ).all()
+    ]
+    assert len(ids) == 1
+    assert created_rows["B"].id in ids
+
+    view_filter.type = "has_not_value_contains"
+    view_filter.save()
+
+    ids = [
+        r.id
+        for r in test_setup.view_handler.apply_filters(
+            test_setup.grid_view, test_setup.model.objects.all()
+        ).all()
+    ]
+    assert ids == [created_rows[row_id].id for row_id in ["A", "C", "D"]]
+
+
+@pytest.mark.django_db
+@pytest.mark.field_multiple_collaborators
+def test_has_or_doesnt_have_value_contains_word_filter_multiple_collaborators_lookup_field_types(
+    data_fixture,
+):
+    test_setup, created_rows, related_rows = setup_multiple_collaborators_fields(
+        data_fixture
+    )
+
+    view_filter = data_fixture.create_view_filter(
+        view=test_setup.grid_view,
+        field=test_setup.lookup_field,
+        type="has_value_contains_word",
+        value="other",
+    )
+    ids = [
+        r.id
+        for r in test_setup.view_handler.apply_filters(
+            test_setup.grid_view, test_setup.model.objects.all()
+        ).all()
+    ]
+    assert len(ids) == 1
+    assert created_rows["B"].id in ids
+
+    view_filter.type = "has_not_value_contains_word"
+    view_filter.save()
+
+    ids = [
+        r.id
+        for r in test_setup.view_handler.apply_filters(
+            test_setup.grid_view, test_setup.model.objects.all()
+        ).all()
+    ]
+    assert ids == [created_rows[row_id].id for row_id in ["A", "C", "D"]]
+
+
+@pytest.mark.django_db
+@pytest.mark.field_duration
+def test_has_or_has_not_empty_value_filter_duration_lookup_type(
+    data_fixture,
+):
+    test_setup, created_rows, related_rows = setup_duration_lookup_fields(data_fixture)
+
+    view_filter = data_fixture.create_view_filter(
+        view=test_setup.grid_view,
+        field=test_setup.lookup_field,
+        type="has_empty_value",
+        value="",
+    )
+    ids = [
+        r.id
+        for r in test_setup.view_handler.apply_filters(
+            test_setup.grid_view, test_setup.model.objects.all()
+        ).all()
+    ]
+    assert [created_rows["A2"].id, created_rows["A7"].id] == ids
+
+    view_filter.type = "has_not_empty_value"
+    view_filter.save()
+
+    ids = [
+        r.id
+        for r in test_setup.view_handler.apply_filters(
+            test_setup.grid_view, test_setup.model.objects.all()
+        ).all()
+    ]
+    assert ids == [created_rows["A1"].id] + [
+        created_rows[f"A{row_name}"].id for row_name in range(3, 7)
+    ]
+
+
+@pytest.mark.django_db
+@pytest.mark.field_duration
+def test_has_or_has_not_value_higher_than_filter_duration_lookup_type(
+    data_fixture,
+):
+    test_setup, created_rows, related_rows = setup_duration_lookup_fields(data_fixture)
+
+    view_filter = data_fixture.create_view_filter(
+        view=test_setup.grid_view,
+        field=test_setup.lookup_field,
+        type="has_value_higher",
+        value=duration_value("1d"),
+    )
+    ids = [
+        r.id
+        for r in test_setup.view_handler.apply_filters(
+            test_setup.grid_view, test_setup.model.objects.all()
+        ).all()
+    ]
+    assert [
+        created_rows["A4"].id,
+        created_rows["A6"].id,
+    ] == ids
+
+    view_filter.type = "has_not_value_higher"
+    view_filter.save()
+
+    ids = [
+        r.id
+        for r in test_setup.view_handler.apply_filters(
+            test_setup.grid_view, test_setup.model.objects.all()
+        ).all()
+    ]
+    # A1,A2,A3,A5,A6,A7
+    assert ids == [
+        created_rows[f"A{row_name}"].id
+        for row_name in range(1, 8)
+        if row_name not in {4, 6}
+    ]
+
+
+@pytest.mark.django_db
+@pytest.mark.field_duration
+def test_has_or_has_not_value_higher_or_equal_than_filter_duration_lookup_type(
+    data_fixture,
+):
+    test_setup, created_rows, related_rows = setup_duration_lookup_fields(data_fixture)
+
+    view_filter = data_fixture.create_view_filter(
+        view=test_setup.grid_view,
+        field=test_setup.lookup_field,
+        type="has_value_higher_or_equal",
+        value=duration_value("1d"),
+    )
+    ids = [
+        r.id
+        for r in test_setup.view_handler.apply_filters(
+            test_setup.grid_view, test_setup.model.objects.all()
+        ).all()
+    ]
+    assert [
+        created_rows["A4"].id,
+        created_rows["A5"].id,
+        created_rows["A6"].id,
+    ] == ids
+
+    view_filter.type = "has_not_value_higher_or_equal"
+    view_filter.save()
+
+    ids = [
+        r.id
+        for r in test_setup.view_handler.apply_filters(
+            test_setup.grid_view, test_setup.model.objects.all()
+        ).all()
+    ]
+    assert ids == [
+        created_rows[f"A{row_name}"].id
+        for row_name in range(1, 8)
+        if row_name not in {4, 5, 6}
+    ]
+
+
+@pytest.mark.django_db
+@pytest.mark.field_duration
+def test_has_or_has_not_value_lower_or_equal_than_filter_duration_lookup_type(
+    data_fixture,
+):
+    test_setup, created_rows, related_rows = setup_duration_lookup_fields(data_fixture)
+
+    view_filter = data_fixture.create_view_filter(
+        view=test_setup.grid_view,
+        field=test_setup.lookup_field,
+        type="has_value_lower_or_equal",
+        value=duration_value("1d"),
+    )
+    ids = [
+        r.id
+        for r in test_setup.view_handler.apply_filters(
+            test_setup.grid_view, test_setup.model.objects.all()
+        ).all()
+    ]
+
+    assert ids == [
+        created_rows[f"A{row_name}"].id
+        for row_name in range(1, 8)
+        if row_name not in {1, 2, 6}
+    ]
+
+    view_filter.type = "has_not_value_lower_or_equal"
+    view_filter.save()
+
+    ids = [
+        r.id
+        for r in test_setup.view_handler.apply_filters(
+            test_setup.grid_view, test_setup.model.objects.all()
+        ).all()
+    ]
+    assert ids == [
+        created_rows[f"A{row_name}"].id
+        for row_name in range(1, 8)
+        if row_name in {1, 2, 6}
+    ]
+
+
+@pytest.mark.django_db
+@pytest.mark.field_duration
+def test_has_or_has_not_value_lower_than_filter_duration_lookup_type(
+    data_fixture,
+):
+    test_setup, created_rows, related_rows = setup_duration_lookup_fields(data_fixture)
+
+    view_filter = data_fixture.create_view_filter(
+        view=test_setup.grid_view,
+        field=test_setup.lookup_field,
+        type="has_value_lower",
+        value=duration_value("1d"),
+    )
+    ids = [
+        r.id
+        for r in test_setup.view_handler.apply_filters(
+            test_setup.grid_view, test_setup.model.objects.all()
+        ).all()
+    ]
+
+    assert ids == [
+        created_rows[f"A{row_name}"].id
+        for row_name in range(1, 8)
+        if row_name not in {1, 2, 6}
+    ]
+
+    view_filter.type = "has_not_value_lower"
+    view_filter.save()
+
+    ids = [
+        r.id
+        for r in test_setup.view_handler.apply_filters(
+            test_setup.grid_view, test_setup.model.objects.all()
+        ).all()
+    ]
+    assert ids == [
+        created_rows[f"A{row_name}"].id
+        for row_name in range(1, 8)
+        if row_name in {1, 2, 6}
+    ]
+
+
+@pytest.mark.django_db
+@pytest.mark.field_duration
+def test_has_or_has_not_value_equal_duration_lookup_type(
+    data_fixture,
+):
+    test_setup, created_rows, related_rows = setup_duration_lookup_fields(data_fixture)
+
+    view_filter = data_fixture.create_view_filter(
+        view=test_setup.grid_view,
+        field=test_setup.lookup_field,
+        type="has_value_equal",
+        value=duration_value("1d"),
+    )
+    ids = [
+        r.id
+        for r in test_setup.view_handler.apply_filters(
+            test_setup.grid_view, test_setup.model.objects.all()
+        ).all()
+    ]
+
+    assert ids == [
+        created_rows[f"A{row_name}"].id for row_name in range(1, 8) if row_name in {5}
+    ]
+
+    view_filter.type = "has_not_value_equal"
+    view_filter.save()
+
+    ids = [
+        r.id
+        for r in test_setup.view_handler.apply_filters(
+            test_setup.grid_view, test_setup.model.objects.all()
+        ).all()
+    ]
+
+    assert ids == [
+        created_rows[f"A{row_name}"].id
+        for row_name in range(1, 8)
+        if row_name not in {5}
+    ]
 
 
 @pytest.mark.django_db

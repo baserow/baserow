@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from baserow.core.formula.runtime_formula_context import RuntimeFormulaContext
 from baserow.core.services.models import Service
@@ -8,7 +8,13 @@ from baserow.core.services.utils import ServiceAdhocRefinements
 
 
 class DispatchContext(RuntimeFormulaContext, ABC):
-    own_properties = []
+    own_properties = [
+        "only_record_id",
+        "update_sample_data_for",
+        "use_sample_data",
+        "force_outputs",
+        "event_payload",
+    ]
 
     """
     Should return the record id requested for the given service. Used by list
@@ -17,36 +23,60 @@ class DispatchContext(RuntimeFormulaContext, ABC):
     """
     only_record_id = None
 
-    def __init__(self):
+    def __init__(
+        self,
+        only_record_id=None,
+        event_payload: Any = None,
+        update_sample_data_for: Optional[List[Service]] = None,
+        use_sample_data: bool = False,
+        force_outputs: Dict[int, str] = None,
+    ):
+        """
+        This abstract base class provides context needed by specific
+        services when they are dispatched during service execution.
+
+        :param only_record_id: Filters a queryset by a specific ID.
+        :param event_payload: The event data for an optional trigger if any.
+        :param update_sample_data_for: Updates the sample_data for only the
+            provided services. Used in conjunction with use_sample_data.
+        :param use_sample_data: Whether to use or update the sample_data.
+        :param force_outputs: Mapping of service IDs and previous service
+            outputs. Can be used to force a specific service to be dispatched.
+        """
+
         self.cache = {}  # can be used by data providers to save queries
+        self.only_record_id = only_record_id
+        self.update_sample_data_for = update_sample_data_for
+        self.use_sample_data = use_sample_data
+        self.force_outputs = force_outputs
+        self.event_payload = event_payload
         super().__init__()
 
     @abstractmethod
-    def range(self, service: Service):
+    def range(self, service: Service) -> tuple[int, int | None]:
         """
         Should return the pagination requested for the given service.
 
         :params service: The service we want the pagination for.
+        :return: a tuple were the first value is the offset to apply and the second
+          value is the count of records to return. The count can be None it which case
+          the default number of record should be returned.
         """
 
-    @classmethod
-    def from_context(
-        cls, context: RuntimeFormulaContextSubClass, **kwargs
-    ) -> RuntimeFormulaContextSubClass:
+    def clone(self, **kwargs) -> RuntimeFormulaContextSubClass:
         """
-        Return a new DispatchContext instance from the given context, without
-        losing the original cached data.
-
-        :params context: The context to create a new DispatchContext instance from.
+        Return a new DispatchContext instance cloned from the current context, without
+        losing the original cached data and call stack but updating some properties.
         """
 
         new_values = {}
-        for prop in cls.own_properties:
-            new_values[prop] = getattr(context, prop)
+        for prop in self.own_properties:
+            new_values[prop] = getattr(self, prop)
         new_values.update(kwargs)
 
-        new_context = cls(**new_values)
-        new_context.cache = {**context.cache}
+        new_context = self.__class__(**new_values)
+        new_context.cache = {**self.cache}
+        new_context.call_stack = set(self.call_stack)
 
         return new_context
 

@@ -11,6 +11,7 @@
     @input="$emit('input', toValue($event.target.value))"
     @focus="$emit('focus', $event)"
     @click="$emit('click', $event)"
+    @keydown="$emit('keydown', $event)"
   ></textarea>
   <input
     v-else
@@ -23,6 +24,7 @@
     @input="$emit('input', toValue($event.target.value))"
     @focus="$emit('focus', $event)"
     @click="$emit('click', $event)"
+    @keydown="$emit('keydown', $event)"
   />
 </template>
 

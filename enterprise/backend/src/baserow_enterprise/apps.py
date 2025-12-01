@@ -31,6 +31,9 @@ class BaserowEnterpriseConfig(AppConfig):
         from baserow_enterprise.api.member_data_types import (
             EnterpriseMemberTeamsDataType,
         )
+        from baserow_enterprise.assistant.operations import (
+            ChatAssistantChatOperationType,
+        )
         from baserow_enterprise.role.actions import BatchAssignRoleActionType
         from baserow_enterprise.scopes import TeamsActionScopeType
         from baserow_enterprise.teams.actions import (
@@ -59,6 +62,11 @@ class BaserowEnterpriseConfig(AppConfig):
         from baserow_enterprise.trash_types import TeamTrashableItemType
 
         from .emails_context_types import EnterpriseEmailContextType
+        from .field_permissions.actions import UpdateFieldPermissionsActionType
+        from .field_permissions.operations import (
+            ReadFieldPermissionsOperationType,
+            UpdateFieldPermissionsOperationType,
+        )
         from .plugins import EnterprisePlugin
         from .role.member_data_types import EnterpriseRolesDataType
         from .role.operations import (
@@ -75,12 +83,23 @@ class BaserowEnterpriseConfig(AppConfig):
 
         email_context_registry.register(EnterpriseEmailContextType())
 
+        from baserow.core.registries import application_type_registry
+        from baserow_enterprise.builder.application_types import (
+            EnterpriseBuilderApplicationType,
+        )
+
+        # We replace the original application type with the enterprise one to
+        # add the custom code serializers
+        application_type_registry.unregister(EnterpriseBuilderApplicationType.type)
+        application_type_registry.register(EnterpriseBuilderApplicationType())
+
         action_type_registry.register(CreateTeamActionType())
         action_type_registry.register(UpdateTeamActionType())
         action_type_registry.register(DeleteTeamActionType())
         action_type_registry.register(CreateTeamSubjectActionType())
         action_type_registry.register(DeleteTeamSubjectActionType())
         action_type_registry.register(BatchAssignRoleActionType())
+        action_type_registry.register(UpdateFieldPermissionsActionType())
 
         trash_item_type_registry.register(TeamTrashableItemType())
 
@@ -109,6 +128,17 @@ class BaserowEnterpriseConfig(AppConfig):
         operation_type_registry.register(ReadRoleTableOperationType())
         operation_type_registry.register(UpdateRoleTableOperationType())
         operation_type_registry.register(ListWorkspaceAuditLogEntriesOperationType())
+        operation_type_registry.register(UpdateFieldPermissionsOperationType())
+        operation_type_registry.register(ReadFieldPermissionsOperationType())
+        operation_type_registry.register(ChatAssistantChatOperationType())
+
+        from baserow.contrib.database.field_rules.registries import (
+            field_rules_type_registry,
+        )
+
+        from .date_dependency.field_rule_types import DateDependencyFieldRuleType
+
+        field_rules_type_registry.register(DateDependencyFieldRuleType())
 
         from baserow.core.registries import subject_type_registry
 
@@ -116,17 +146,21 @@ class BaserowEnterpriseConfig(AppConfig):
 
         from baserow.core.registries import permission_manager_type_registry
 
+        from .field_permissions.permission_manager import FieldPermissionManagerType
         from .role.permission_manager import RolePermissionManagerType
 
+        permission_manager_type_registry.register(FieldPermissionManagerType())
         permission_manager_type_registry.register(RolePermissionManagerType())
 
         from baserow_premium.license.registries import license_type_registry
 
         from baserow_enterprise.license_types import (
+            AdvancedLicenseType,
             EnterpriseLicenseType,
             EnterpriseWithoutSupportLicenseType,
         )
 
+        license_type_registry.register(AdvancedLicenseType())
         license_type_registry.register(EnterpriseWithoutSupportLicenseType())
         license_type_registry.register(EnterpriseLicenseType())
 
@@ -187,9 +221,20 @@ class BaserowEnterpriseConfig(AppConfig):
         from baserow.contrib.builder.elements.registries import element_type_registry
         from baserow_enterprise.builder.elements.element_types import (
             AuthFormElementType,
+            FileInputElementType,
         )
 
         element_type_registry.register(AuthFormElementType())
+        element_type_registry.register(FileInputElementType())
+
+        from baserow.contrib.database.data_sync.registries import (
+            two_way_sync_strategy_type_registry,
+        )
+        from baserow_enterprise.data_sync.two_way_sync_strategy_types import (
+            RealtimePushTwoWaySyncStrategy,
+        )
+
+        two_way_sync_strategy_type_registry.register(RealtimePushTwoWaySyncStrategy())
 
         from baserow.contrib.database.data_sync.registries import (
             data_sync_type_registry,
@@ -200,6 +245,7 @@ class BaserowEnterpriseConfig(AppConfig):
             HubspotContactsDataSyncType,
             JiraIssuesDataSyncType,
             LocalBaserowTableDataSyncType,
+            PostgreSQLDataSyncType,
         )
 
         data_sync_type_registry.register(LocalBaserowTableDataSyncType())
@@ -207,6 +253,9 @@ class BaserowEnterpriseConfig(AppConfig):
         data_sync_type_registry.register(GitHubIssuesDataSyncType())
         data_sync_type_registry.register(GitLabIssuesDataSyncType())
         data_sync_type_registry.register(HubspotContactsDataSyncType())
+
+        data_sync_type_registry.unregister(PostgreSQLDataSyncType.type)
+        data_sync_type_registry.register(PostgreSQLDataSyncType())
 
         from baserow_enterprise.data_sync.actions import (
             UpdatePeriodicDataSyncIntervalActionType,
@@ -222,7 +271,19 @@ class BaserowEnterpriseConfig(AppConfig):
         webhook_event_type_registry.register(RowsEnterViewEventType())
 
         # Create default roles
-        post_migrate.connect(sync_default_roles_after_migrate, sender=self)
+        post_migrate.connect(
+            sync_default_roles_after_migrate,
+            sender=self,
+            dispatch_uid="sync_default_roles_after_migrate",
+        )
+
+        # Make sure that the assistant knowledge base is up to date after running the
+        # migrations.
+        post_migrate.connect(
+            sync_assistant_knowledge_base,
+            sender=self,
+            dispatch_uid="sync_assistant_knowledge_base",
+        )
 
         from baserow_enterprise.teams.receivers import (
             connect_to_post_delete_signals_to_cascade_deletion_to_team_subjects,
@@ -239,14 +300,56 @@ class BaserowEnterpriseConfig(AppConfig):
         from baserow.core.notifications.registries import notification_type_registry
         from baserow_enterprise.data_sync.notification_types import (
             PeriodicDataSyncDeactivatedNotificationType,
+            TwoWaySyncDeactivatedNotificationType,
+            TwoWaySyncUpdateFailedNotificationType,
         )
 
         notification_type_registry.register(
             PeriodicDataSyncDeactivatedNotificationType()
         )
+        notification_type_registry.register(TwoWaySyncUpdateFailedNotificationType())
+        notification_type_registry.register(TwoWaySyncDeactivatedNotificationType())
+
+        from baserow_enterprise.assistant.tools import (
+            CreateBuildersToolType,
+            GenerateDatabaseFormulaToolType,
+            GetTablesSchemaToolType,
+            ListBuildersToolType,
+            ListRowsToolType,
+            ListTablesToolType,
+            ListViewsToolType,
+            ListWorkflowsToolType,
+            NavigationToolType,
+            RowsToolFactoryToolType,
+            SearchDocsToolType,
+            TableAndFieldsToolFactoryToolType,
+            ViewsToolFactoryToolType,
+            WorkflowToolFactoryToolType,
+        )
+        from baserow_enterprise.assistant.tools.registries import (
+            assistant_tool_registry,
+        )
+
+        assistant_tool_registry.register(SearchDocsToolType())
+        assistant_tool_registry.register(NavigationToolType())
+
+        assistant_tool_registry.register(ListBuildersToolType())
+        assistant_tool_registry.register(CreateBuildersToolType())
+        assistant_tool_registry.register(ListTablesToolType())
+        assistant_tool_registry.register(GetTablesSchemaToolType())
+        assistant_tool_registry.register(TableAndFieldsToolFactoryToolType())
+        assistant_tool_registry.register(GenerateDatabaseFormulaToolType())
+        assistant_tool_registry.register(ListRowsToolType())
+        assistant_tool_registry.register(RowsToolFactoryToolType())
+        assistant_tool_registry.register(ListViewsToolType())
+        assistant_tool_registry.register(ViewsToolFactoryToolType())
+
+        assistant_tool_registry.register(ListWorkflowsToolType())
+        assistant_tool_registry.register(WorkflowToolFactoryToolType())
 
         # The signals must always be imported last because they use the registries
         # which need to be filled first.
+        import baserow_enterprise.assistant.tasks  # noqa: F
         import baserow_enterprise.audit_log.signals  # noqa: F
         import baserow_enterprise.ws.signals  # noqa: F
 
@@ -268,20 +371,70 @@ def sync_default_roles_after_migrate(sender, **kwargs):
             # Note: we used to migrate `NO_ROLE` to `NO_ACCESS` here.
             # This was moved to 0010_rename_no_role_to_no_access.
             with LockedAtomicTransaction(Role):
-                for role_name, operations in tqdm(
+                all_old_roles = {
+                    r.uid: r for r in Role.objects.all().prefetch_related("operations")
+                }
+                all_old_operations = {op.name: op for op in Operation.objects.all()}
+
+                for role_name, role_operations in tqdm(
                     default_roles.items(), desc="Syncing default roles"
                 ):
-                    role, _ = Role.objects.update_or_create(
-                        uid=role_name,
-                        defaults={"name": f"role.{role_name}", "default": True},
-                    )
-                    role.operations.clear()
-
-                    to_add = []
-                    for operation_type in operations:
-                        operation, _ = Operation.objects.get_or_create(
-                            name=operation_type.type
+                    # Create any missing role or update existing ones
+                    role = all_old_roles.get(role_name, None)
+                    if role is None:
+                        role = Role.objects.create(
+                            uid=role_name,
+                            name=f"role.{role_name}",
+                            default=True,
                         )
-                        to_add.append(operation)
+                    elif not role.default or role.name != f"role.{role_name}":
+                        role.name = f"role.{role_name}"
+                        role.default = True
+                        role.save(update_fields=["name", "default"])
 
-                    role.operations.add(*to_add)
+                    # Create any missing operations for the role
+                    new_ops = Operation.objects.bulk_create(
+                        [
+                            Operation(name=op.type)
+                            for op in role_operations
+                            if op.type not in all_old_operations
+                        ],
+                    )
+                    all_old_operations.update({op.name: op for op in new_ops})
+
+                    old_role_ops = set(op.name for op in role.operations.all())
+                    new_role_ops = set(op.type for op in role_operations)
+
+                    roles_to_add = new_role_ops - old_role_ops
+                    if roles_to_add:
+                        role.operations.add(
+                            *[all_old_operations[op] for op in roles_to_add],
+                        )
+
+                    to_remove = old_role_ops - new_role_ops
+                    if to_remove:
+                        role.operations.remove(
+                            *[all_old_operations[op] for op in to_remove],
+                        )
+
+
+def sync_assistant_knowledge_base(sender, **kwargs):
+    from baserow_enterprise.assistant.tasks import (
+        sync_assistant_knowledge_base as sync_assistant_knowledge_base_task,
+    )
+    from baserow_enterprise.assistant.tools.search_user_docs.handler import (
+        KnowledgeBaseHandler,
+    )
+
+    if KnowledgeBaseHandler().can_have_knowledge_base():
+        print(
+            "Submitting the sync assistant knowledge base task to run asynchronously "
+            "in celery after the migration..."
+        )
+        sync_assistant_knowledge_base_task.delay()
+    else:
+        print(
+            "Skipping assistant knowledge base sync because this instance does not "
+            "have the `BASEROW_EMBEDDINGS_API_URL` environment variable "
+            "configured or the PostgreSQL server does not have the pgvector extension."
+        )

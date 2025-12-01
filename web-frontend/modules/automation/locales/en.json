@@ -1,1 +1,201 @@
-{}
+{
+  "automationWelcomeGuidedTourStep": {
+    "title": "Welcome to Baserow Automations!",
+    "content": "Let's take a quick tour. You'll see how to set up triggers, add actions, test your workflow, and publish it — no coding required."
+  },
+  "automationGraphGuidedTourStep": {
+    "title": "Manage your workflow graph here",
+    "content": "Create a trigger and actions here to define what the workflow should do. Select a trigger or action to configure it in the side panel."
+  },
+  "automationTestRunGuidedTourStep": {
+    "title": "Test your workflow",
+    "content": "When you're ready, start a test run to see your workflow in action. The trigger will run once to simulate a full execution."
+  },
+  "automationHistoryGuidedTourStep": {
+    "title": "View workflow history",
+    "content": "Use the history panel to review past test runs and published executions. It's a great way to debug or confirm results."
+  },
+  "automationPublishGuidedTourStep": {
+    "title": "Publish your workflow",
+    "content": "Once you've tested and refined your setup, publish your workflow to make it live. Its trigger will now run automatically on schedule."
+  },
+  "automationWorkflowStateGuidedTourStep": {
+    "title": "Control workflow state",
+    "content": "From here, you can pause or resume your workflow at any time. You're always in control of whether it's active or disabled."
+  },
+  "automationDocsGuidedTourStep": {
+    "title": "Explore the documentation",
+    "content": "If you ever get stuck or want to learn more, click the highlighted button for detailed guides and FAQs about building automations in Baserow."
+  },
+  "sidebarComponentAutomation": {
+    "createAutomationWorkflow": "New workflow"
+  },
+  "createAutomationWorkflowModal": {
+    "header": "Create workflow",
+    "submit": "Add workflow"
+  },
+  "automationWorkflowForm": {
+    "defaultName": "Workflow",
+    "nameTitle": "Name",
+    "nameSubtitle": "Unique name of the workflow",
+    "namePlaceholder": "Enter a name..."
+  },
+  "duplicateAutomationWorkflowJobType": {
+    "name": "Duplicate automation workflow",
+    "duplicating": "Duplicating",
+    "duplicatedTitle": "Workflow duplicated"
+  },
+  "automationWorkflowErrors": {
+    "errorNameNotUnique": "A workflow with this name already exists"
+  },
+  "trashType": {
+    "workflow": "workflow",
+    "automation": "automation"
+  },
+  "generalSettings": {
+    "titleOverview": "General",
+    "nameLabel": "Automation name",
+    "notificationLabel": "Notifications",
+    "notificationCheckboxLabel": "Get notified when this automation fails",
+    "cantUpdateAutomationTitle": "Couldn't Update Automation",
+    "cantUpdateAutomationDescription": "Sorry, could not update the automation."
+  },
+  "integrationSettings": {
+    "title": "Integrations",
+    "noIntegrationMessage": "You have not yet created any integrations. They can be created by adding data source, action or user authentication.",
+    "integrationMessage": "You can create new integrations by adding data source, action or user authentication."
+  },
+  "automationHeader": {
+    "startTestRun": "Start test run",
+    "stopTestRun": "Stop test run",
+    "publishBtn": "Publish",
+    "settingsBtn": "Settings",
+    "historyBtn": "History",
+    "docsBtn": "Docs",
+    "switchLabelDraft": "Draft",
+    "switchLabelDisabled": "Disabled",
+    "switchLabelPaused": "Paused",
+    "switchLabelLive": "Live",
+    "lastPublished": "Last published"
+  },
+  "dataProviderType": {
+    "currentIteration": "Current iteration",
+    "item": "Item",
+    "previousNode": "Previous node"
+  },
+  "nodeSidePanel": {
+    "labelTitle": "Label"
+  },
+  "historySidePanel": {
+    "title": "History",
+    "noRunsTitle": "No runs yet",
+    "noRunsDescription": "When this workflow has run, the results will be shown here.",
+    "statusSuccess": "Ran successfully",
+    "statusError": "Failed to run",
+    "statusDisabled": "Disabled by Baserow",
+    "completedInSeconds": "Completed in {s} seconds.",
+    "completedInLessThanSecond": "Completed in less than 1 second.",
+    "testRun": "Test"
+  },
+  "nodeType": {
+    "triggerDeletionError": "Triggers cannot be deleted, only replaced.",
+    "localBaserowRowsCreatedLabel": "Rows are created in {tableName}",
+    "localBaserowRowsUpdatedLabel": "Rows are updated in {tableName}",
+    "localBaserowRowsDeletedLabel": "Rows are deleted in {tableName}",
+    "localBaserowCreateRowLabel": "Create a row in {tableName}",
+    "localBaserowUpdateRowLabel": "Update a row in {tableName}",
+    "localBaserowDeleteRowLabel": "Delete a row in {tableName}",
+    "localBaserowGetRowLabel": "Read a row in {tableName}",
+    "localBaserowListRowsLabel": "List rows in {tableName}",
+    "localBaserowAggregateRowsLabel": "Summarize rows in {tableName}",
+    "httpRequestLabel": "Send an HTTP request",
+    "smtpEmailLabel": "Send an email",
+    "routerLabel": "Follow 1 of {edgeCount} branches",
+    "iterationLabel": "Iterate on items",
+    "routerDefaultEdgeLabelFallback": "Default",
+    "routerWithOutputNodesDeleteError": "Cannot be deleted until its {outputCount} output nodes are removed.",
+    "routerWithOutputNodesReplaceError": "Cannot be replaced until its {outputCount} output nodes are removed.",
+    "iteratorWithChildrenNodesDeleteError": "Cannot be deleted until its child nodes are removed.",
+    "iteratorWithChildrenNodesReplaceError": "Cannot be replaced until its child nodes are removed.",
+    "periodicTriggerLabel": "Periodic trigger",
+    "aiAgent": "AI prompt",
+    "slackWriteMessageName": "Send a Slack message",
+    "slackWriteMessageLabel": "Send a message to #{channel}"
+  },
+  "workflowNode": {
+    "actionDelete": "Delete",
+    "actionReplace": "Replace",
+    "actionDuplicate": "Duplicate",
+    "actionConfigure": "Configure",
+    "beforeLabelTrigger": "Starts when",
+    "beforeLabelAction": "Then",
+    "beforeLabelCondition": "If condition is met",
+    "beforeLabelConditionDefault": "If no condition(s) are met",
+    "beforeLabelRepeat": "For each item",
+    "moreEdit": "Edit",
+    "moreReplace": "Replace",
+    "nodeOptions": "Node options",
+    "displayLabelDebug": "ID: {id} | Prev: {previousNodeId} | {outputUid}",
+    "moreDuplicate": "Duplicate"
+  },
+  "workflowAddNode": {
+    "displayTitle": "Create automation node"
+  },
+  "workflowNodeContext": {
+    "searchPlaceholderTrigger": "Search for a trigger...",
+    "searchPlaceholderActions": "Search for actions...",
+    "noResults": "No results found"
+  },
+  "serviceType": {
+    "periodicTrigger": "Periodic trigger",
+    "periodicTriggerDescription": "Triggers the workflow on a periodic basis at specified intervals",
+    "periodicTriggerTriggeredAt": "Triggered at",
+    "errorIntervalMissing": "An interval is required.",
+    "coreHTTPTrigger": "HTTP trigger",
+    "coreHTTPTriggerDescription": "Receive HTTP requests to trigger workflows"
+  },
+  "periodicTriggerServiceForm": {
+    "intervalLabel": "Interval",
+    "intervalHelper": "Choose how frequently you want this workflow to run",
+    "everyMinute": "Every minute",
+    "everyHour": "Every hour",
+    "everyDay": "Every day",
+    "everyWeek": "Every week",
+    "everyMonth": "Every month",
+    "hour": "Hour",
+    "minute": "Minute",
+    "dayOfWeek": "Day of week",
+    "dayOfMonth": "Day of month",
+    "hourPlaceholder": "0-23",
+    "minutePlaceholder": "0-59",
+    "dayOfMonthPlaceholder": "1-31",
+    "minuteHelper": "This workflow will run every minute",
+    "hourHelper": "This workflow will run every hour at the specified minute in your local timezone ({timezone})",
+    "dayHelper": "This workflow will run every day at the specified time in your local timezone ({timezone})",
+    "weekHelper": "This workflow will run every week on the specified day and time in your local timezone ({timezone})",
+    "monthHelper": "This workflow will run every month on the specified day and time in your local timezone ({timezone})",
+    "deactivatedTitle": "Periodic trigger deactivated",
+    "deactivatedText": "This periodic trigger has been automatically deactivated due to consecutive failures."
+  },
+  "workflowEditor": {
+    "chooseEvent": "Choose an event..."
+  },
+  "simulateDispatch": {
+    "sampleDataLabel": "Output",
+    "triggerNodeAwaitingEvent": "The node is waiting. Please manually trigger the event to populate the payload and complete the test.",
+    "simulationInProgress": "Node test is in progress...",
+    "errorNodeNotConfigured": "The node must be configured before it can be tested.",
+    "errorPreviousNodeNotConfigured": "The previous node \"{node}\" must be configured.",
+    "errorPreviousNodesNotTested": "The previous node \"{node}\" must be tested first.",
+    "buttonLabelTest": "Test event",
+    "buttonLabelTestAgain": "Test event again",
+    "testNodeDescription": "Test this event to confirm the configuration is correct. Data from this test can be used in later steps.",
+    "buttonLabelShowPayload": "Show payload",
+    "buttonLabelShowError": "Show error",
+    "sampleDataModalTitle": "Payload for {nodeLabel}",
+    "sampleDataModalSubTitle": "JSON payload",
+    "sampleDataCopy": "Copy",
+    "errorOccurred": "An error occurred...",
+    "sampleDataCopied": "Payload copied to clipboard"
+  }
+}

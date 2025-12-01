@@ -107,7 +107,28 @@
         "invalidElementValue": "Valeur non valide : {value}",
         "ratingInput": "Champ de notation",
         "rating": "Notation",
-        "ratingInputDescription": "Un champ de notation"
+        "ratingInputDescription": "Un champ de notation",
+        "fileInputDescription": "Un champ de formulaire pour envoyer des fichiers",
+        "fileInput": "Champ fichier",
+        "errorPageParameterInError": "Au moins un paramètre de page est mal configuré",
+        "errorNavigationUrlMissing": "Propriété URL de navigation manquante",
+        "errorImageFileMissing": "Fichier image manquant",
+        "errorImageUrlMissing": "Propriété « Image URL » manquante",
+        "errorNoWorkflowAction": "Aucune action de workflow n'est configurée",
+        "errorOptionsMissing": "Aucune option configurée",
+        "errorIframeUrlMissing": "Propriété URL IFrame manquante",
+        "errorIframeContentMissing": "Contenu de l'IFrame manquant",
+        "errorNoMenuItem": "Aucun élément de menu n'est configuré",
+        "errorMenuItemInError": "Au moins un menu est mal configuré",
+        "errorSubMenuItemInError": "Au moins un sous-menu est mal configuré",
+        "errorValueMissing": "Propriété des valeurs manquantes",
+        "errorEmptyContainer": "Ce conteneur est vide",
+        "errorParentWithDataSourceMissing": "Aucune source de données sélectionnée sur l'élément ou un conteneur parent",
+        "errorDataSourceMissing": "Aucune source de données sélectionnée",
+        "errorSchemaPropertyMissing": "Aucune propriété de schéma sélectionnée",
+        "errorWorkflowActionInError": "Au moins une action est mal configurée",
+        "errorCollectionFieldInError": "Au moins un champ est mal configuré",
+        "errorNavigateToPageMissing": "Propriété Naviguer vers manquante"
     },
     "elementMenu": {
         "moveDown": "Descendre",
@@ -127,7 +148,8 @@
     },
     "duplicatePageJobType": {
         "duplicating": "Duplication",
-        "duplicatedTitle": "Page dupliquée"
+        "duplicatedTitle": "Page dupliquée",
+        "name": "Duplication de page"
     },
     "pageSidePanelType": {
         "general": "Général",
@@ -360,7 +382,7 @@
         "validationTypeIntegerLabel": "Nombre",
         "validationTypeEmailLabel": "Courriel",
         "validationTypeEmailDescription": "N'autoriser que les courriels dans ce champ.",
-        "validationTypeIntegerDescription": "N'autoriser que les valeurs numériques dans ce champ.",
+        "validationTypeIntegerDescription": "N'autoriser que les valeurs numériques dans ce champ (accepte les entiers et les décimaux).",
         "inputTypeTextLabel": "Texte",
         "inputTypePasswordLabel": "Mot de passe",
         "inputType": "Type de l'entrée",
@@ -391,7 +413,8 @@
         "orientationHorizontal": "Horizontale",
         "orientationVertical": "Verticale",
         "buttonLoadMoreLabel": "Libellé « afficher plus »",
-        "propertySelectorMissingArrays": "Aucun champ à valeurs multiples n'a été trouvé pour être utilisé comme données."
+        "propertySelectorMissingArrays": "Aucun champ à valeurs multiples n'a été trouvé pour être utilisé comme données.",
+        "noName": "Aucun nom"
     },
     "mainThemeConfigBlock": {
         "colorsLabel": "Couleurs",
@@ -416,7 +439,10 @@
         "boxLeft": "Gauche",
         "boxRight": "Droit",
         "backgroundImageMode": "Mode de remplissage",
-        "backgroundImage": "Image"
+        "backgroundImage": "Image",
+        "cssClasses": "Classes CSS",
+        "cssClassesHelp": "Définissez une liste de classes séparées par des espaces pour cet élément qui apparaîtra dans le code HTML généré.",
+        "cssClassesPlaceholder": "classe1 classe2..."
     },
     "buttonElementForm": {
         "valuePlaceholder": "Saisir le texte...",
@@ -488,7 +514,12 @@
         "createRowLabel": "Création de ligne",
         "logoutLabel": "Déconnexion",
         "refreshDataSourceLabel": "Actualiser une source de données",
-        "deleteRowLabel": "Supprimer une ligne"
+        "deleteRowLabel": "Supprimer une ligne",
+        "httpRequest": "Envoyer une requête HTTP",
+        "errorNavigateToPageMissing": "Propriété Naviguer vers manquante",
+        "errorPageParameterInError": "Au moins un paramètre de page est mal configuré",
+        "errorNavigationUrlMissing": "Propriété URL de destination manquante",
+        "errorDataSourceMissing": "Aucune source de données sélectionnée"
     },
     "getFormulaComponent": {
         "errorTooltip": "Référence invalide"
@@ -547,7 +578,8 @@
         "tags": "Étiquettes",
         "button": "Bouton",
         "image": "Image",
-        "rating": "Notation"
+        "rating": "Notation",
+        "errorValueMissing": "Valeur manquante"
     },
     "createUserSourceForm": {
         "userSourceName": "Nom",
@@ -676,7 +708,10 @@
         "errorFetchingRolesMessage": "Il y a eu un problème lors de la récupération des rôles d'utilisateur.",
         "rolesAllMembersOf": "Tous les membres de {name}",
         "noRole": "Sans rôle",
-        "errorFetchingRolesTitle": "Impossible de récupérer les rôles des utilisateurs"
+        "errorFetchingRolesTitle": "Impossible de récupérer les rôles des utilisateurs",
+        "visibilityCondition": "Conditions de visibilité",
+        "visibilityConditionHelper": "Si le résultat de cette formule est vrai et que le statut du visiteur ci-dessus est vrai, l'élément sera visible. Cette condition n'affecte que la visibilité de l'élément. Pour exclure des données de la réponse du serveur, utilisez l'option de filtrage du rôle de l'utilisateur ci-dessus.",
+        "visibilityConditionPlaceholder": "Condition..."
     },
     "imageInput": {
         "labelDescription": "Description par défaut",
@@ -1125,5 +1160,48 @@
         "stroke": "Barrer",
         "italic": "Italique",
         "uppercase": "Majuscules"
+    },
+    "abFileInput": {
+        "delete": "Supprimer"
+    },
+    "automationSettingsModal": {
+        "title": "Scénario"
+    },
+    "elementsGuidedTourStep": {
+        "title": "Ajouter des éléments à votre page",
+        "content": "Toutes les applications ont besoin de composants ! Ajoutez des éléments tels que des tableaux, des formulaires, des boutons, etc. pour donner vie à votre application."
+    },
+    "dataGuidedTourStep": {
+        "title": "Connectez vos données",
+        "content": "Liez vos tables Baserow ici pour afficher, filtrer et mettre à jour vos données de manière dynamique sur différents éléments."
+    },
+    "previewGuidedTourStep": {
+        "title": "Votre centre de contrôle",
+        "content": "C'est ici que vous configurez les pages de votre application. Ajoutez des éléments, prévisualisez le résultat et structurez votre application exactement comme vous le souhaitez."
+    },
+    "devicesGuidedTourStep": {
+        "title": "Prévisualisation sur différents appareils",
+        "content": "Passez d'un aperçu pour ordinateur de bureau à un aperçu pour tablette et à un aperçu pour mobile afin de voir comment votre application se présente sur différentes tailles d'écran. Assurez-vous que votre design fonctionne parfaitement sur tous les appareils !"
+    },
+    "sidePanelGuidedTourStep": {
+        "title": "Panneau latéral : Personnaliser les éléments",
+        "content": "*Onglet Général** - Configurez l'élément sélectionné.\n\n**Onglet Style** - Personnalisez le remplissage, la marge, les bordures, etc.\n\n**Onglet Visibilité** - Contrôlez qui peut voir cet élément : les utilisateurs connectés, les utilisateurs déconnectés ou des rôles spécifiques.\n\n**Onglet Événements** - Si l'élément prend en charge des actions, configurez-les ici pour une interactivité dynamique."
+    },
+    "previewPublishGuidedTourStep": {
+        "title": "Prévisualiser et publier votre application",
+        "content": "Cliquez sur **Preview** pour tester votre application en privé. Lorsque vous êtes prêt, cliquez sur **Publier** pour la partager avec le public via un domaine."
+    },
+    "builderToast": {
+        "details": "Détails",
+        "defaultTitle": "Erreur inattendue",
+        "defaultMessage": "Une erreur inattendue s'est produite. Veuillez réessayer plus tard.",
+        "invalidContextTitle": "Demande non valide",
+        "invalidContextMessage": "La demande n'est pas valide.",
+        "InvalidContentTitle": "Formulaire invalide",
+        "invalidContentMessage": "Un ou plusieurs champs contiennent des valeurs non valides.",
+        "serviceMisconfiguredTitle": "Configuration incomplète",
+        "serviceMisconfiguredMessage": "Veuillez vérifier la configuration.",
+        "errorWorkflowActionDispatch": "L'action « {nom} » a échoué : ",
+        "errorDataSourceDispatch": "Échec du chargement de « {name} » : "
     }
 }

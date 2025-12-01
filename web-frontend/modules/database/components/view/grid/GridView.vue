@@ -45,6 +45,7 @@
       @row-hover="setRowHover($event.row, $event.value)"
       @row-context="showRowContext($event.event, $event.row)"
       @row-dragging="rowDragStart"
+      @row-select="handleRowSelect"
       @cell-mousedown-left="multiSelectStart"
       @cell-mouseover="multiSelectHold"
       @cell-mouseup-left="multiSelectStop"
@@ -190,7 +191,7 @@
         <li
           v-if="
             !readOnly &&
-            !table.data_sync &&
+            (!table.data_sync || table.data_sync.two_way_sync) &&
             $hasPermission(
               'database.table.delete_row',
               table,
@@ -210,7 +211,7 @@
         </li>
       </ul>
       <ul v-show="!isMultiSelectActive" class="context__menu">
-        <li>
+        <li class="context__menu-item">
           <a
             class="context__menu-item-link"
             @click=";[selectRow($event, selectedRow), $refs.rowContext.hide()]"
@@ -222,7 +223,7 @@
         <li
           v-if="
             !readOnly &&
-            !table.data_sync &&
+            (!table.data_sync || table.data_sync.two_way_sync) &&
             $hasPermission(
               'database.table.create_row',
               table,
@@ -242,7 +243,7 @@
         <li
           v-if="
             !readOnly &&
-            !table.data_sync &&
+            (!table.data_sync || table.data_sync.two_way_sync) &&
             $hasPermission(
               'database.table.create_row',
               table,
@@ -262,7 +263,7 @@
         <li
           v-if="
             !readOnly &&
-            !table.data_sync &&
+            (!table.data_sync || table.data_sync.two_way_sync) &&
             $hasPermission(
               'database.table.create_row',
               table,
@@ -303,14 +304,14 @@
         <li
           v-if="
             !readOnly &&
-            !table.data_sync &&
+            (!table.data_sync || table.data_sync.two_way_sync) &&
             $hasPermission(
               'database.table.delete_row',
               table,
               database.workspace.id
             )
           "
-          class="context__menu-item"
+          class="context__menu-item context__menu-item--with-separator"
         >
           <a class="context__menu-item-link" @click="deleteRow(selectedRow)">
             <i class="context__menu-item-icon iconoir-bin"></i>
@@ -376,9 +377,9 @@ import GridViewRowDragging from '@baserow/modules/database/components/view/grid/
 import RowEditModal from '@baserow/modules/database/components/row/RowEditModal'
 import gridViewHelpers from '@baserow/modules/database/mixins/gridViewHelpers'
 import {
-  sortFieldsByOrderAndIdFunction,
-  filterVisibleFieldsFunction,
   filterHiddenFieldsFunction,
+  filterVisibleFieldsFunction,
+  sortFieldsByOrderAndIdFunction,
 } from '@baserow/modules/database/utils/view'
 import viewHelpers from '@baserow/modules/database/mixins/viewHelpers'
 import { isElement } from '@baserow/modules/core/utils/dom'
@@ -388,7 +389,11 @@ import { clone } from '@baserow/modules/core/utils/object'
 import copyPasteHelper from '@baserow/modules/database/mixins/copyPasteHelper'
 import GridViewRowsAddContext from '@baserow/modules/database/components/view/grid/fields/GridViewRowsAddContext'
 import { copyToClipboard } from '@baserow/modules/database/utils/clipboard'
-import { GRID_VIEW_SIZE_TO_ROW_HEIGHT_MAPPING } from '@baserow/modules/database/constants'
+import {
+  GRID_VIEW_SIZE_TO_ROW_HEIGHT_MAPPING,
+  GRID_VIEW_MULTI_SELECT_CHECKBOX,
+  GRID_VIEW_MULTI_SELECT_AREA,
+} from '@baserow/modules/database/constants'
 
 export default {
   name: 'GridView',
@@ -437,6 +442,9 @@ export default {
       // global keyboard shortcut must be blocked if a single line text field cell is
       // in an editing state for example.
       selectedCellComponents: [],
+      // Set to true when the row is being refreshed to avoid multiple fields
+      // submitting multiple refresh requests at the same time.
+      refreshingRow: false,
     }
   },
   computed: {
@@ -701,7 +709,18 @@ export default {
     },
     duplicateSelectedRow(event, selectedRow) {
       event.preventFieldCellUnselect = true
-      this.addRowAfter(selectedRow, selectedRow)
+      const duplicatedRow = clone(selectedRow)
+      this.fields.forEach((field) => {
+        const fieldType = this.$registry.get('field', field.type)
+        const fieldKey = `field_${field.id}`
+        if (Object.prototype.hasOwnProperty.call(duplicatedRow, fieldKey)) {
+          duplicatedRow[fieldKey] = fieldType.prepareValueForDuplicate(
+            field,
+            duplicatedRow[fieldKey]
+          )
+        }
+      })
+      this.addRowAfter(selectedRow, duplicatedRow)
       this.$refs.rowContext.hide()
     },
     copyLinkToSelectedRow(event, selectedRow) {
@@ -770,18 +789,23 @@ export default {
      * when editing row from a different table, when editing is complete, we need
      * to refresh the 'main' row that's 'under' the RowEdit modal.
      */
-    async refreshRow(row) {
-      try {
-        await this.$store.dispatch(
-          this.storePrefix + 'view/grid/refreshRowFromBackend',
-          {
-            table: this.table,
-            row,
-          }
-        )
-      } catch (error) {
-        notifyIf(error, 'row')
+    refreshRow(row) {
+      if (this.refreshingRow) {
+        return
       }
+      this.refreshingRow = true
+      this.$nextTick(async () => {
+        try {
+          await this.$store.dispatch(
+            this.storePrefix + 'view/grid/refreshRowFromBackend',
+            { table: this.table, row }
+          )
+        } catch (error) {
+          notifyIf(error, 'row')
+        } finally {
+          this.refreshingRow = false
+        }
+      })
     },
     /**
      * Called when a cell value has been updated. This can for example happen via the
@@ -994,6 +1018,33 @@ export default {
       })
       this.lastHoveredRow = row
     },
+    handleRowSelect({ row, value }) {
+      if (
+        this.$store.getters[this.storePrefix + 'view/grid/isMultiSelectActive']
+      ) {
+        this.$store.dispatch(
+          this.storePrefix + 'view/grid/clearAndDisableMultiSelect'
+        )
+      }
+
+      if (value) {
+        this.$store.dispatch(this.storePrefix + 'view/grid/addRowSelectedBy', {
+          row,
+          field: this.fields[0],
+        })
+      } else {
+        this.$store.dispatch(
+          this.storePrefix + 'view/grid/removeRowSelectedBy',
+          {
+            grid: this.view,
+            row,
+            field: this.fields[0],
+            fields: this.fields,
+            getScrollTop: () => this.$refs.left.$refs.body.scrollTop,
+          }
+        )
+      }
+    },
     showRowContext(event, row) {
       this.selectedRow = row
       this.$refs.rowContext.toggleNextToMouse(event)
@@ -1065,7 +1116,6 @@ export default {
 
       const element = component.$el
       this.scrollToCellElement(element, 'both', field)
-
       this.$store.dispatch(this.storePrefix + 'view/grid/addRowSelectedBy', {
         row,
         field,
@@ -1252,6 +1302,11 @@ export default {
      * Stop multi-select.
      */
     multiSelectStop({ event, row, field }) {
+      const selectionType =
+        this.$store.getters[this.storePrefix + 'view/grid/getSelectionType']
+      if (selectionType === GRID_VIEW_MULTI_SELECT_CHECKBOX) {
+        return
+      }
       this.$store.dispatch(
         this.storePrefix + 'view/grid/setMultiSelectHolding',
         false
@@ -1263,6 +1318,13 @@ export default {
      * outside of GridViewRows.
      */
     cancelMultiSelectIfActive(event) {
+      const selectionType =
+        this.$store.getters[this.storePrefix + 'view/grid/getSelectionType']
+
+      if (selectionType !== GRID_VIEW_MULTI_SELECT_AREA) {
+        return
+      }
+
       if (
         this.$store.getters[
           this.storePrefix + 'view/grid/isMultiSelectActive'
@@ -1398,26 +1460,21 @@ export default {
      * Prepare and copy the multi-select cells into the clipboard,
      * formatted as TSV
      */
-    async copySelection(event, includeHeader = false) {
+    copySelection(event, includeHeader = false) {
       const gridStore = this.storePrefix + 'view/grid'
       if (!this.$store.getters[`${gridStore}/isMultiSelectActive`]) {
         return
       }
-      try {
-        this.$store.dispatch('toast/setCopying', true)
-        await this.copySelectionToClipboard(
-          this.$store.dispatch(`${gridStore}/getCurrentSelection`, {
-            fields: this.allVisibleFields,
-          }),
-          includeHeader
-        )
-      } catch (error) {
-        notifyIf(error, 'view')
-      } finally {
-        this.$store.dispatch('toast/setCopying', false)
-        // prevent Safari from beeping since window.getSelection() is empty
-        event.preventDefault()
-      }
+
+      this.copySelectionToClipboard(
+        this.$store.dispatch(`${gridStore}/getCurrentSelection`, {
+          fields: this.allVisibleFields,
+        }),
+        includeHeader
+      )
+
+      // prevent Safari from beeping since window.getSelection() is empty
+      event.preventDefault()
     },
     /**
      * Called when the @paste event is triggered from the `GridViewSection` component.

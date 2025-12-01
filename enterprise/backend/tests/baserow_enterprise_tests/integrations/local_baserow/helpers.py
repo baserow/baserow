@@ -81,7 +81,7 @@ def populate_local_baserow_test_data(data_fixture, role_name="", extra_fields=No
         password_field=password_field,
     )
 
-    DomainHandler().publish(domain)
+    domain = DomainHandler().publish(domain)
 
     published_builder = domain.published_to
 

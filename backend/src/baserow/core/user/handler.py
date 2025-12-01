@@ -7,7 +7,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser, update_last_login
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
-from django.db import transaction
+from django.db import router, transaction
 from django.db.models import Count, Q, QuerySet
 from django.db.utils import IntegrityError
 from django.utils import translation
@@ -548,7 +548,7 @@ class UserHandler(metaclass=baserow_trace_methods(tracer)):
         """
 
         delete_qs = UserLogEntry.objects.filter(timestamp__lt=cutoff)
-        delete_qs._raw_delete(delete_qs.db)
+        delete_qs._raw_delete(using=router.db_for_write(delete_qs.model))
 
     def schedule_user_deletion(self, user: AbstractUser):
         """

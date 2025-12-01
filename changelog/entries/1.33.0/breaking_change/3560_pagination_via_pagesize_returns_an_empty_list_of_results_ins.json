@@ -1,0 +1,8 @@
+{
+    "type": "breaking_change",
+    "message": "Pagination now returns an empty list instead of \"ERROR_INVALID_PAGE\" when the page exceeds the maximum.",
+    "domain": "database",
+    "issue_number": 3560,
+    "bullet_points": [],
+    "created_at": "2025-04-07"
+}

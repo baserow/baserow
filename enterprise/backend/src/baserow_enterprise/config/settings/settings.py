@@ -75,3 +75,11 @@ def setup(settings):
         os.getenv("BASEROW_ENTERPRISE_MAX_PERIODIC_DATA_SYNC_CONSECUTIVE_ERRORS", "")
         or 4
     )
+
+    # AI Assistant settings
+    settings.BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL = os.getenv(
+        "BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL", ""
+    )
+    settings.BASEROW_ENTERPRISE_ASSISTANT_LLM_TEMPERATURE = float(
+        os.getenv("BASEROW_ENTERPRISE_ASSISTANT_LLM_TEMPERATURE", "") or 0.3
+    )

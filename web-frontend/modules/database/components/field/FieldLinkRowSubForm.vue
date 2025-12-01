@@ -36,6 +36,11 @@
           $t('fieldLinkRowSubForm.hasRelatedFieldLabel')
         }}</Checkbox>
       </div>
+      <div class="margin-bottom-1">
+        <Checkbox v-model="values.link_row_multiple_relationships">{{
+          $t('fieldLinkRowSubForm.allowMultipleRelations')
+        }}</Checkbox>
+      </div>
       <div>
         <Checkbox v-model="limitToViewToggle" @input="limitToViewToggleChange"
           >{{ $t('fieldLinkRowSubForm.limitToView') }}
@@ -86,11 +91,13 @@ export default {
       allowedValues: [
         'link_row_table_id',
         'has_related_field',
+        'link_row_multiple_relationships',
         'link_row_limit_selection_view_id',
       ],
       values: {
         link_row_table_id: null,
         has_related_field: true,
+        link_row_multiple_relationships: true,
         link_row_limit_selection_view_id: null,
       },
       initialLinkRowTableId: null,

@@ -1,10 +1,13 @@
+from django.contrib.auth.models import AbstractUser
 from django.db import transaction
 from django.dispatch import Signal, receiver
 
+from baserow.contrib.database.fields.models import Field
 from baserow.core.models import Workspace
 from baserow.core.registries import object_scope_type_registry, subject_type_registry
 from baserow.core.signals import workspace_user_updated
 from baserow.core.types import ScopeObject, Subject
+from baserow.ws.tasks import broadcast_to_users
 from baserow_enterprise.role.constants import (
     NO_ACCESS_ROLE_UID,
     NO_ROLE_LOW_PRIORITY_ROLE_UID,
@@ -26,6 +29,8 @@ team_subject_restored = Signal()
 role_assignment_created = Signal()
 role_assignment_updated = Signal()
 role_assignment_deleted = Signal()
+
+field_permissions_updated = Signal()
 
 
 NO_ACCESS_ROLES = [NO_ACCESS_ROLE_UID, NO_ROLE_LOW_PRIORITY_ROLE_UID]
@@ -111,5 +116,32 @@ def send_unsubscribe_subject_from_table(
     transaction.on_commit(
         lambda: unsubscribe_subject_from_tables_currently_subscribed_to_task.delay(
             subject_id, subject_type_name, scope_id, scope_type_name, workspace_id
+        )
+    )
+
+
+@receiver(field_permissions_updated)
+def notify_users_about_updated_field_permissions(
+    sender,
+    user: AbstractUser,
+    workspace: Workspace,
+    field: Field,
+    role: str,
+    allow_in_forms: bool,
+    **kwargs,
+):
+    workspace_user_ids = workspace.workspaceuser_set.values_list("user_id", flat=True)
+
+    transaction.on_commit(
+        lambda: broadcast_to_users.delay(
+            list(workspace_user_ids),
+            {
+                "type": "field_permissions_updated",
+                "workspace_id": workspace.id,
+                "field_id": field.id,
+                "role": role,
+                "allow_in_forms": allow_in_forms,
+            },
+            getattr(user, "web_socket_id", None),
         )
     )

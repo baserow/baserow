@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Optional
+from typing import List, Optional
 
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
@@ -33,7 +33,15 @@ class RoleBasedSeatUsageSummaryCalculator:
         return cls._get_seat_usage(None)
 
     @classmethod
-    def _get_seat_usage(cls, workspace: Optional[Workspace]) -> SeatUsageSummary:
+    def get_seat_usage_for_specific_users(cls, user_ids: List[int]) -> SeatUsageSummary:
+        return cls._get_seat_usage(None, user_ids=user_ids)
+
+    @classmethod
+    def _get_seat_usage(
+        cls,
+        workspace: Optional[Workspace],
+        user_ids: Optional[List[int]] = None,
+    ) -> SeatUsageSummary:
         """
         Checks all the various sources of role information (WorkspaceUser.permissions
         and the RoleAssignments) and calculates how many free/paid/per role seats are in
@@ -84,6 +92,23 @@ class RoleBasedSeatUsageSummaryCalculator:
             valid_applications = valid_applications.filter(workspace=workspace)
             valid_teams = valid_teams.filter(workspace=workspace)
             valid_workspaces = valid_workspaces.filter(id=workspace.id)
+
+        if user_ids is not None:
+            all_workspace_permission = all_workspace_permission.filter(
+                user_id__in=user_ids,
+            )
+            workspace_ids = all_workspace_permission.values_list(
+                "workspace_id", flat=True
+            )
+            activated_user_ids = activated_user_ids.filter(
+                id__in=user_ids,
+            )
+            valid_tables = valid_tables.filter(database__workspace_id__in=workspace_ids)
+            valid_applications = valid_applications.filter(
+                workspace_id__in=workspace_ids
+            )
+            valid_teams = valid_teams.filter(workspace_id__in=workspace_ids)
+            valid_workspaces = valid_workspaces.filter(id__in=workspace_ids)
 
         # These querysets list all the user ids and the related permissions stored in
         # the role assignment table. This works with direct assignments, but also via

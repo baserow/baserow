@@ -18,10 +18,7 @@
 <script>
 import Rating from '@baserow/modules/database/components/Rating'
 import formElement from '@baserow/modules/builder/mixins/formElement'
-import {
-  ensurePositiveInteger,
-  ensureString,
-} from '@baserow/modules/core/utils/validator'
+import { ensureString } from '@baserow/modules/core/utils/validator'
 import { useVuelidate } from '@vuelidate/core'
 import { required } from '@vuelidate/validators'
 
@@ -35,13 +32,6 @@ export default {
     return { v$: useVuelidate() }
   },
   computed: {
-    resolvedDefaultValue() {
-      try {
-        return ensurePositiveInteger(this.resolveFormula(this.element.value))
-      } catch {
-        return 0
-      }
-    },
     labelResolved() {
       return ensureString(this.resolveFormula(this.element.label))
     },
@@ -51,14 +41,6 @@ export default {
           value: this.element.required ? { required } : {},
         },
       }
-    },
-  },
-  watch: {
-    resolvedDefaultValue: {
-      handler(value) {
-        this.inputValue = value
-      },
-      immediate: true,
     },
   },
   validations() {

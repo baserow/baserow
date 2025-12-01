@@ -24,12 +24,21 @@ def test_get_table_serializer(data_fixture):
     )
     data_fixture.create_number_field(table=table, order=1, name="Horsepower")
     data_fixture.create_boolean_field(table=table, order=3, name="For sale")
+    data_fixture.create_boolean_field(
+        table=table, order=4, name="Available", boolean_default=True
+    )
     data_fixture.create_number_field(
         table=table,
-        order=4,
+        order=5,
         name="Price",
         number_negative=True,
         number_decimal_places=2,
+    )
+    data_fixture.create_number_field(
+        table=table,
+        order=6,
+        name="Stock",
+        number_default=100,
     )
 
     model = table.get_model(attribute_names=True)
@@ -42,7 +51,9 @@ def test_get_table_serializer(data_fixture):
         "color": "white",
         "horsepower": None,
         "for_sale": False,
+        "available": True,
         "price": None,
+        "stock": "100",
     }
 
     # text field
@@ -106,6 +117,23 @@ def test_get_table_serializer(data_fixture):
     assert not serializer_instance.is_valid()
     assert len(serializer_instance.errors["for_sale"]) == 1
 
+    # boolean field with default=True
+    serializer_instance = serializer_class(data={"available": True})
+    assert serializer_instance.is_valid()
+    assert serializer_instance.data["available"] is True
+
+    serializer_instance = serializer_class(data={"available": False})
+    assert serializer_instance.is_valid()
+    assert serializer_instance.data["available"] is False
+
+    serializer_instance = serializer_class(data={"available": None})
+    assert not serializer_instance.is_valid()
+    assert len(serializer_instance.errors["available"]) == 1
+
+    serializer_instance = serializer_class(data={"available": "abc"})
+    assert not serializer_instance.is_valid()
+    assert len(serializer_instance.errors["available"]) == 1
+
     # price field
     serializer_instance = serializer_class(data={"price": 120})
     assert serializer_instance.is_valid()
@@ -123,6 +151,25 @@ def test_get_table_serializer(data_fixture):
     assert serializer_instance.is_valid()
     assert serializer_instance.data["price"] is None
 
+    # number field with default
+    serializer_instance = serializer_class(data={"stock": 50})
+    assert serializer_instance.is_valid()
+    assert serializer_instance.data["stock"] == "50"
+
+    # Test that omitting the field uses the default value
+    serializer_instance = serializer_class(data={})
+    assert serializer_instance.is_valid()
+    assert serializer_instance.data["stock"] == "100"
+
+    # Test that explicitly setting None returns None
+    serializer_instance = serializer_class(data={"stock": None})
+    assert serializer_instance.is_valid()
+    assert serializer_instance.data["stock"] is None
+
+    serializer_instance = serializer_class(data={"stock": "abc"})
+    assert not serializer_instance.is_valid()
+    assert len(serializer_instance.errors["stock"]) == 1
+
     # not existing value
     serializer_instance = serializer_class(data={"NOT_EXISTING": True})
     assert serializer_instance.is_valid()
@@ -130,19 +177,30 @@ def test_get_table_serializer(data_fixture):
         "color": "white",
         "horsepower": None,
         "for_sale": False,
+        "available": True,
         "price": None,
+        "stock": "100",
     }
 
     # all fields
     serializer_instance = serializer_class(
-        data={"color": "green", "horsepower": 120, "for_sale": True, "price": 120.22}
+        data={
+            "color": "green",
+            "horsepower": 120,
+            "for_sale": True,
+            "available": False,
+            "price": 120.22,
+            "stock": 75,
+        }
     )
     assert serializer_instance.is_valid()
     assert serializer_instance.data == {
         "color": "green",
         "horsepower": "120",
         "for_sale": True,
+        "available": False,
         "price": "120.22",
+        "stock": "75",
     }
 
     # adding an extra field and only use that one.
@@ -254,18 +312,24 @@ def test_get_example_row_serializer_class():
 
 
 @pytest.mark.django_db
-def test_get_row_serializer_with_user_field_names(data_fixture):
+def test_get_row_serializer_with_user_field_names(
+    data_fixture, django_assert_num_queries
+):
     table, user, row, _, context = setup_interesting_test_table(data_fixture)
     model = table.get_model()
-    serializer_class = get_row_serializer_class(
-        model, RowSerializer, is_response=True, user_field_names=True
-    )
+
+    # get_row_serializer_class should nevere make any queries to the database
+    with django_assert_num_queries(0):
+        serializer_class = get_row_serializer_class(
+            model, RowSerializer, is_response=True, user_field_names=True
+        )
     serializer_instance = serializer_class([row], many=True)
     u2, u3 = context["user2"], context["user3"]
     expected_result = json.loads(
         json.dumps(
             {
                 "boolean": True,
+                "boolean_with_default": True,
                 "date_eu": "2020-02-01",
                 "date_us": "2020-02-01",
                 "datetime_eu": "2020-02-01T01:23:00Z",
@@ -289,6 +353,7 @@ def test_get_row_serializer_with_user_field_names(data_fixture):
                     {"id": 2, "value": "-123.456", "order": "2.00000000000000000000"},
                     {"id": 3, "value": "", "order": "3.00000000000000000000"},
                 ],
+                "decimal_with_default": "1.8",
                 "duration_hm": 3660.0,
                 "duration_hms": 3666.0,
                 "duration_hms_s": 3666.6,
@@ -370,6 +435,11 @@ def test_get_row_serializer_with_user_field_names(data_fixture):
                     "id": SelectOption.objects.get(value="A").id,
                     "value": "A",
                 },
+                "single_select_with_default": {
+                    "color": "blue",
+                    "id": SelectOption.objects.get(value="BB").id,
+                    "value": "BB",
+                },
                 "multiple_collaborators": [
                     {"id": context["user2"].id, "name": context["user2"].first_name},
                     {"id": context["user3"].id, "name": context["user3"].first_name},
@@ -401,6 +471,18 @@ def test_get_row_serializer_with_user_field_names(data_fixture):
                         "color": "green",
                         "id": SelectOption.objects.get(value="E").id,
                         "value": "E",
+                    },
+                ],
+                "multiple_select_with_default": [
+                    {
+                        "color": "pink",
+                        "id": SelectOption.objects.get(value="M-1").id,
+                        "value": "M-1",
+                    },
+                    {
+                        "color": "purple",
+                        "id": SelectOption.objects.get(value="M-2").id,
+                        "value": "M-2",
                     },
                 ],
                 "text": "text",
@@ -536,3 +618,39 @@ def test_remap_serialized_row_to_user_field_names(data_fixture):
         ],
         "Test 1": "Test value",
     }
+
+
+@pytest.mark.django_db
+def test_get_table_serializer_single_select_default(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(name="Cars", user=user)
+    single_select_field = data_fixture.create_single_select_field(
+        table=table, order=0, name="Status"
+    )
+
+    option_1 = data_fixture.create_select_option(
+        field=single_select_field, value="Active", color="blue"
+    )
+    option_2 = data_fixture.create_select_option(
+        field=single_select_field, value="Inactive", color="red"
+    )
+
+    field_handler = FieldHandler()
+    single_select_field = field_handler.update_field(
+        user=user, field=single_select_field, single_select_default=option_1.id
+    )
+
+    model = table.get_model(attribute_names=True)
+    serializer_class = get_row_serializer_class(model=model)
+
+    serializer_instance = serializer_class(data={})
+    assert serializer_instance.is_valid()
+    assert serializer_instance.data == {"status": option_1.id}
+
+    serializer_instance = serializer_class(data={"status": option_2.id})
+    assert serializer_instance.is_valid()
+    assert serializer_instance.data == {"status": option_2.id}
+
+    serializer_instance = serializer_class(data={"status": None})
+    assert serializer_instance.is_valid()
+    assert serializer_instance.data["status"] is None

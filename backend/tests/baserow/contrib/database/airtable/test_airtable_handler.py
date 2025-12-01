@@ -315,6 +315,8 @@ def test_to_baserow_database_export():
         "read_only": False,
         "immutable_type": False,
         "immutable_properties": False,
+        "db_index": False,
+        "field_constraints": [],
     }
     assert baserow_database_export["tables"][0]["fields"][1] == {
         "type": "email",
@@ -326,6 +328,8 @@ def test_to_baserow_database_export():
         "read_only": False,
         "immutable_type": False,
         "immutable_properties": False,
+        "db_index": False,
+        "field_constraints": [],
     }
     assert len(baserow_database_export["tables"][0]["rows"]) == 3
     assert baserow_database_export["tables"][0]["rows"][0] == {
@@ -776,6 +780,8 @@ def test_to_baserow_database_export_without_primary_value():
             "read_only": False,
             "immutable_type": False,
             "immutable_properties": False,
+            "db_index": False,
+            "field_constraints": [],
         }
     ]
     assert baserow_database_export["tables"][2]["rows"][0] == {

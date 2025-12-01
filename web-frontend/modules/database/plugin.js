@@ -1,5 +1,9 @@
 import { DatabaseApplicationType } from '@baserow/modules/database/applicationTypes'
-import { DuplicateTableJobType } from '@baserow/modules/database/jobTypes'
+import {
+  DuplicateTableJobType,
+  SyncDataSyncTableJobType,
+  FileImportJobType,
+} from '@baserow/modules/database/jobTypes'
 import {
   GridViewType,
   GalleryViewType,
@@ -157,6 +161,13 @@ import {
   PDFBrowserFilePreview,
   GoogleDocFilePreview,
 } from '@baserow/modules/database/filePreviewTypes'
+
+import {
+  TextTypeUniqueWithEmptyConstraintType,
+  RatingTypeUniqueWithEmptyConstraintType,
+  GenericUniqueWithEmptyConstraintType,
+} from '@baserow/modules/database/fieldConstraintTypes'
+
 import { APITokenSettingsType } from '@baserow/modules/database/settingsTypes'
 
 import tableStore from '@baserow/modules/database/store/table'
@@ -169,6 +180,7 @@ import rowModal from '@baserow/modules/database/store/rowModal'
 import publicStore from '@baserow/modules/database/store/view/public'
 import rowModalNavigationStore from '@baserow/modules/database/store/rowModalNavigation'
 import rowHistoryStore from '@baserow/modules/database/store/rowHistory'
+import fieldRulesStore from '@baserow/modules/database/store/fieldRules'
 
 import { registerRealtimeEvents } from '@baserow/modules/database/realtime'
 import { CSVTableExporterType } from '@baserow/modules/database/exporterTypes'
@@ -352,6 +364,13 @@ import {
   SettingsConfigureDataSyncType,
 } from '@baserow/modules/database/configureDataSyncTypes'
 import { DatabaseGuidedTourType } from '@baserow/modules/database/guidedTourTypes'
+import {
+  DatabaseSearchType,
+  DatabaseTableSearchType,
+  DatabaseFieldSearchType,
+  DatabaseRowSearchType,
+} from '@baserow/modules/database/searchTypes'
+import { searchTypeRegistry } from '@baserow/modules/core/search/types/registry'
 
 export default (context) => {
   const { store, app, isDev } = context
@@ -375,6 +394,7 @@ export default (context) => {
   store.registerModule('rowModal', rowModal)
   store.registerModule('rowModalNavigation', rowModalNavigationStore)
   store.registerModule('rowHistory', rowHistoryStore)
+  store.registerModule('fieldRules', fieldRulesStore)
   store.registerModule('page/view/grid', gridStore)
   store.registerModule('page/view/gallery', galleryStore)
   store.registerModule('page/view/form', formStore)
@@ -385,10 +405,15 @@ export default (context) => {
 
   app.$registry.registerNamespace('viewDecorator')
   app.$registry.registerNamespace('decoratorValueProvider')
+  app.$registry.registerNamespace('twoWaySyncStrategy')
 
   app.$registry.register('plugin', new DatabasePlugin(context))
   app.$registry.register('application', new DatabaseApplicationType(context))
+
   app.$registry.register('job', new DuplicateTableJobType(context))
+  app.$registry.register('job', new SyncDataSyncTableJobType(context))
+  app.$registry.register('job', new FileImportJobType(context))
+
   app.$registry.register('view', new GridViewType(context))
   app.$registry.register('view', new GalleryViewType(context))
   app.$registry.register('view', new FormViewType(context))
@@ -711,6 +736,19 @@ export default (context) => {
   app.$registry.register('field', new UUIDFieldType(context))
   app.$registry.register('field', new AutonumberFieldType(context))
   app.$registry.register('field', new PasswordFieldType(context))
+
+  app.$registry.register(
+    'fieldConstraint',
+    new TextTypeUniqueWithEmptyConstraintType(context)
+  )
+  app.$registry.register(
+    'fieldConstraint',
+    new RatingTypeUniqueWithEmptyConstraintType(context)
+  )
+  app.$registry.register(
+    'fieldConstraint',
+    new GenericUniqueWithEmptyConstraintType(context)
+  )
 
   app.$registry.register('importer', new CSVImporterType(context))
   app.$registry.register('importer', new PasteImporterType(context))
@@ -1083,4 +1121,11 @@ export default (context) => {
   app.$registry.register('guidedTour', new DatabaseGuidedTourType(context))
 
   registerRealtimeEvents(app.$realtime)
+
+  app.$registry.registerNamespace('fieldContextItem')
+
+  searchTypeRegistry.register(new DatabaseSearchType())
+  searchTypeRegistry.register(new DatabaseTableSearchType())
+  searchTypeRegistry.register(new DatabaseFieldSearchType())
+  searchTypeRegistry.register(new DatabaseRowSearchType())
 }

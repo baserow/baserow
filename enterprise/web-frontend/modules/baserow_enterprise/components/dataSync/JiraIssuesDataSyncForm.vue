@@ -23,6 +23,30 @@
     </FormGroup>
 
     <FormGroup
+      :error="fieldHasErrors('jira_authentication')"
+      :helper-text="$t('jiraIssuesDataSync.authenticationHelper')"
+      required
+      small-label
+      class="margin-bottom-2"
+    >
+      <template #label>{{
+        $t('jiraIssuesDataSync.authenticationLabel')
+      }}</template>
+      <Dropdown
+        v-model="values.jira_authentication"
+        :disabled="disabled"
+        size="large"
+      >
+        <DropdownItem name="API Token" value="API_TOKEN"></DropdownItem>
+        <DropdownItem
+          name="Personal access token"
+          value="PERSONAL_ACCESS_TOKEN"
+        ></DropdownItem>
+      </Dropdown>
+    </FormGroup>
+
+    <FormGroup
+      v-if="values.jira_authentication === 'API_TOKEN'"
       :error="fieldHasErrors('jira_username')"
       :helper-text="$t('jiraIssuesDataSync.usernameHelper')"
       required
@@ -46,7 +70,11 @@
 
     <FormGroup
       :error="fieldHasErrors('jira_api_token')"
-      :helper-text="$t('jiraIssuesDataSync.apiTokenHelper')"
+      :helper-text="
+        values.jira_authentication === 'API_TOKEN'
+          ? $t('jiraIssuesDataSync.apiTokenHelper')
+          : $t('jiraIssuesDataSync.personalAccessTokenHelper')
+      "
       required
       small-label
       class="margin-bottom-2"
@@ -54,7 +82,11 @@
       @enabled-protected-edit="values.jira_api_token = ''"
       @disable-protected-edit="values.jira_api_token = undefined"
     >
-      <template #label>{{ $t('jiraIssuesDataSync.apiToken') }}</template>
+      <template #label>{{
+        values.jira_authentication === 'API_TOKEN'
+          ? $t('jiraIssuesDataSync.apiToken')
+          : $t('jiraIssuesDataSync.personalAccessToken')
+      }}</template>
       <FormInput
         ref="jira_api_token"
         v-model="v$.values.jira_api_token.$model"
@@ -111,6 +143,7 @@ export default {
   data() {
     const allowedValues = [
       'jira_url',
+      'jira_authentication',
       'jira_username',
       'jira_project_key',
       'jira_api_token',
@@ -119,6 +152,7 @@ export default {
       allowedValues,
       values: {
         jira_url: '',
+        jira_authentication: 'API_TOKEN',
         jira_username: '',
         jira_project_key: '',
         jira_api_token: this.update ? undefined : '',
@@ -138,7 +172,9 @@ export default {
         jira_username: {
           required: helpers.withMessage(
             this.$t('error.requiredField'),
-            required
+            requiredIf(() => {
+              return this.values.jira_authentication === 'API_TOKEN'
+            })
           ),
         },
         jira_api_token: {

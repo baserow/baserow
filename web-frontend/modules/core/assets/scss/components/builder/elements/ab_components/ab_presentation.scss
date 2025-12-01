@@ -1,0 +1,39 @@
+.ab-presentation {
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+
+.ab-presentation__content {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  gap: 0.3em;
+}
+
+.ab-presentation__avatar {
+  margin-right: 12px;
+}
+
+.ab-presentation__title {
+  font-size: var(--body-font-size, 14px);
+  font-weight: var(--body-font-weight, 400);
+  color: var(--body-text-color, $black);
+  text-align: var(--body-text-alignment, left);
+  font-family: var(--body-font-family, Inter);
+  line-height: 1.3em;
+
+  @extend %ellipsis;
+}
+
+.ab-presentation__subtitle {
+  font-size: calc(var(--body-font-size, 14px) - 2px);
+  color: color-mix(
+    in srgb,
+    var(--body-text-color, $black),
+    var(--page-background-color, $color-neutral-500) 50%
+  );
+  line-height: 1.3em;
+
+  @extend %ellipsis;
+}

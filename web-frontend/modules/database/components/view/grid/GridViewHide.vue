@@ -4,7 +4,7 @@
       ref="contextLink"
       class="header__filter-link"
       :class="{
-        'active--error': hiddenFields.length > 0,
+        'active active--error': hiddenFields.length > 0,
       }"
       @click="$refs.context.toggle($refs.contextLink, 'bottom', 'left', 4)"
     >

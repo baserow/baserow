@@ -7,6 +7,7 @@ from .views import (
     ChangePrimaryFieldView,
     FieldsView,
     FieldView,
+    PasswordFieldAuthenticationView,
     UniqueRowValueFieldView,
 )
 
@@ -29,5 +30,10 @@ urlpatterns = field_type_registry.api_urls + [
         r"(?P<field_id>[0-9]+)/duplicate/async/$",
         AsyncDuplicateFieldView.as_view(),
         name="async_duplicate",
+    ),
+    re_path(
+        r"password-authentication/$",
+        PasswordFieldAuthenticationView.as_view(),
+        name="password_authentication",
     ),
 ]

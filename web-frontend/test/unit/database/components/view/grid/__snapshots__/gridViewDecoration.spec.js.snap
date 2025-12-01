@@ -79,12 +79,16 @@ exports[`GridView component with decoration Default component with first_cell de
                   class="grid-view__row-info"
                 >
                   <div
-                    class="grid-view__row-count"
+                    class="grid-view__row-count grid-view__row-count--hide-on-hover"
                     title="2"
                   >
-                    
-            2
-          
+                    <div
+                      class="grid-view__row-count-content"
+                    >
+                      
+              2
+            
+                    </div>
                   </div>
                    
                   <div
@@ -95,7 +99,7 @@ exports[`GridView component with decoration Default component with first_cell de
                     class="grid-view__row-more"
                   >
                     <i
-                      class="iconoir-expand"
+                      class="baserow-icon-enlarge-row"
                     />
                   </a>
                    
@@ -217,6 +221,7 @@ exports[`GridView component with decoration Default component with first_cell de
             <span
               class="grid-view__description-options"
             >
+               
               <!---->
                
               <a
@@ -268,6 +273,7 @@ exports[`GridView component with decoration Default component with first_cell de
             <span
               class="grid-view__description-options"
             >
+               
               <!---->
                
               <a
@@ -319,6 +325,7 @@ exports[`GridView component with decoration Default component with first_cell de
             <span
               class="grid-view__description-options"
             >
+               
               <!---->
                
               <a
@@ -715,6 +722,7 @@ exports[`GridView component with decoration Default component with row wrapper d
             <span
               class="grid-view__description-options"
             >
+               
               <!---->
                
               <a
@@ -766,6 +774,7 @@ exports[`GridView component with decoration Default component with row wrapper d
             <span
               class="grid-view__description-options"
             >
+               
               <!---->
                
               <a
@@ -817,6 +826,7 @@ exports[`GridView component with decoration Default component with row wrapper d
             <span
               class="grid-view__description-options"
             >
+               
               <!---->
                
               <a
@@ -1084,12 +1094,16 @@ exports[`GridView component with decoration Default component with unavailable d
                   class="grid-view__row-info"
                 >
                   <div
-                    class="grid-view__row-count"
+                    class="grid-view__row-count grid-view__row-count--hide-on-hover"
                     title="2"
                   >
-                    
-            2
-          
+                    <div
+                      class="grid-view__row-count-content"
+                    >
+                      
+              2
+            
+                    </div>
                   </div>
                    
                   <div
@@ -1100,7 +1114,7 @@ exports[`GridView component with decoration Default component with unavailable d
                     class="grid-view__row-more"
                   >
                     <i
-                      class="iconoir-expand"
+                      class="baserow-icon-enlarge-row"
                     />
                   </a>
                    
@@ -1216,6 +1230,7 @@ exports[`GridView component with decoration Default component with unavailable d
             <span
               class="grid-view__description-options"
             >
+               
               <!---->
                
               <a
@@ -1267,6 +1282,7 @@ exports[`GridView component with decoration Default component with unavailable d
             <span
               class="grid-view__description-options"
             >
+               
               <!---->
                
               <a
@@ -1318,6 +1334,7 @@ exports[`GridView component with decoration Default component with unavailable d
             <span
               class="grid-view__description-options"
             >
+               
               <!---->
                
               <a

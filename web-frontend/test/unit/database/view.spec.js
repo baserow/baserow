@@ -482,6 +482,7 @@ describe('View Tests', () => {
     mockServer.mock
       .onGet(`/database/views/table/${table.id}/`)
       .reply(200, [gridView, galleryView])
+    mockServer.mock.onGet(`/database/field-rules/${table.id}/`).reply(200, [])
 
     const fields = mockServer.createFields(application, table, [
       {
@@ -541,6 +542,13 @@ describe('View Tests', () => {
         viewId: 1,
       }
     )
+    mockServer.mock
+      .onGet(`/database/field-rules/${firstTable.id}/`)
+      .reply(200, [])
+    mockServer.mock
+      .onGet(`/database/field-rules/${secondTable.id}/`)
+      .reply(200, [])
+
     mockServer.mock
       .onGet(`/database/views/table/${firstTable.id}/`)
       .reply(200, [firstTableGridView])

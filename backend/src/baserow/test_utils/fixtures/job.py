@@ -1,3 +1,5 @@
+from typing import Type
+
 from rest_framework import serializers
 from rest_framework.status import HTTP_404_NOT_FOUND
 
@@ -14,6 +16,16 @@ TEST_EXCEPTION = (
 
 class TestException(Exception):
     ...
+
+
+class TmpJobType1FiltersSerializer(serializers.Serializer):
+    """Just for testing: expose a filter on progress_percentage"""
+
+    tmp_job_type_1_progress_percentage = serializers.IntegerField(
+        min_value=0,
+        required=False,
+        help_text="Filter by the progress percentage.",
+    )
 
 
 class TmpJobType1(JobType):
@@ -50,6 +62,11 @@ class TmpJobType1(JobType):
 
     def run(self, job, progress):
         pass
+
+    def get_filters_serializer(self) -> Type[serializers.Serializer] | None:
+        """Returns the filters serializer for this job type."""
+
+        return TmpJobType1FiltersSerializer
 
 
 class TmpJobType2(JobType):

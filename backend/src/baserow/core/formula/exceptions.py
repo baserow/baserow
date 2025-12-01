@@ -2,15 +2,35 @@ from django.conf import settings
 
 from loguru import logger
 
+from baserow.core.formula.parser.exceptions import BaserowFormulaException
 from baserow.core.utils import exception_capturer
 
 
-class InvalidBaserowFormula(Exception):
+class RuntimeFormulaException(BaserowFormulaException):
     """Raised when manipulating an invalid formula"""
 
 
-class FormulaRecursion(Exception):
+class RuntimeFormulaRecursion(RuntimeFormulaException):
     """Raised when the formula context detects a recursion."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__("Formula recursion detected", *args, **kwargs)
+
+
+class InvalidRuntimeFormula(RuntimeFormulaException):
+    """Raised when manipulating an invalid formula"""
+
+
+class InvalidFormulaContext(RuntimeFormulaException):
+    """
+    The provided formula context is not valid.
+    """
+
+
+class InvalidFormulaContextContent(RuntimeFormulaException):
+    """
+    The content of formula context is not valid.
+    """
 
 
 def formula_exception_handler(e):

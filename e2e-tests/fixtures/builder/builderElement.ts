@@ -1,6 +1,5 @@
 import { getClient } from "../../client";
 import { BuilderPage } from "./builderPage";
-import { User } from "../user";
 
 export class BuilderElement {
   constructor(

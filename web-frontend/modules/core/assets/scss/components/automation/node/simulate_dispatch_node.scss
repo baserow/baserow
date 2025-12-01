@@ -1,0 +1,45 @@
+.simulate-dispatch-node {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  padding-bottom: 10px;
+}
+
+.simulate-dispatch-node__button {
+  justify-content: center;
+}
+
+.simulate-dispatch-node__sample-data-label {
+  font-weight: 500;
+  margin-bottom: 10px;
+
+  .simulate-dispatch-node__sample-data--error & {
+    color: $palette-red-600;
+  }
+}
+
+.simulate-dispatch-node__sample-data-code {
+  padding: 10px;
+  background-color: $color-neutral-100;
+
+  @include rounded($rounded);
+
+  pre,
+  code {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 7;
+    margin: 0;
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .simulate-dispatch-node__sample-data--error & {
+    background-color: $palette-red-50;
+  }
+}
+
+.simulate-dispatch-node__button-icon {
+  color: $palette-neutral-600;
+}

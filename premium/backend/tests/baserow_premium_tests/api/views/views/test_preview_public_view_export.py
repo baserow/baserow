@@ -468,7 +468,6 @@ def test_create_public_view_export_respecting_ad_hoc_order_by(
                 },
                 format="json",
             )
-            print(response.json())
 
         job_id = response.json().pop("id")
         response = api_client.get(

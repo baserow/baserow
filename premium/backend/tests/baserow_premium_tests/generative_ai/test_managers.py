@@ -42,9 +42,8 @@ def test_upload_files_from_file_field(premium_data_fixture):
     )
 
     assert len(generative_ai_model_type._files) == 1
-    assert (
-        generative_ai_model_type._files[file_ids[0]]["file_name"]
-        == f"/baserow/media/user_files/{user_file_1.name}"
+    assert generative_ai_model_type._files[file_ids[0]]["file_name"].endswith(
+        f"/baserow/media/user_files/{user_file_1.name}"
     )
 
 

@@ -227,14 +227,17 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
         is permitted, False operation is disallowed and return `None` if it can't take
         a definitive answer.
 
-        If None of the permission manager replied with a final answer for a check,
+        If None of the permission managers replied with a final answer for a check,
         the operation is denied by default for this check.
 
-        :param checks: The list of check to do. Each check is a triplet of
+        :param checks: The list of checks to do. Each check is a triplet of
             (actor, permission_name, scope).
         :param workspace: The optional workspace in which the operations take place.
-        :param include_trash: If true then also checks if the given workspace has been
+        :param include_trash: If true, then also checks if the given workspace has been
             trashed instead of raising a DoesNotExist exception.
+        :param return_permissions_exceptions: Raise an exception when the permission is
+            disallowed when `True`. Return `False` instead when `False`.
+            `False` by default.
         :return: A dictionary with one entry for each check of the parameter as key and
             whether the operation is allowed or not as value.
         """
@@ -1442,9 +1445,13 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
         allowed_values = extract_allowed(
             kwargs, self.default_create_allowed_fields + application_type.allowed_fields
         )
+        prepared_values = application_type.prepare_value_for_db(allowed_values)
+
         application = application_type.create_application(
-            user, workspace, init_with_data=init_with_data, **allowed_values
+            user, workspace, init_with_data=init_with_data, **prepared_values
         )
+
+        application_type.after_create(application, kwargs)
 
         application_created.send(self, application=application, user=user)
         return application
@@ -1490,14 +1497,21 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
         allowed_values = extract_allowed(
             kwargs, self.default_update_allowed_fields + application_type.allowed_fields
         )
+        prepared_values = application_type.prepare_value_for_db(
+            allowed_values, application
+        )
+
         original_allowed_values = {
             allowed_value: getattr(application, allowed_value)
-            for allowed_value in allowed_values
+            for allowed_value in prepared_values
         }
-        for key, value in allowed_values.items():
+
+        for key, value in prepared_values.items():
             setattr(application, key, value)
 
         application.save()
+
+        application_type.after_update(application, kwargs)
 
         application_updated.send(self, application=application, user=user)
 
@@ -1657,7 +1671,9 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
         )
 
         application_id = application.id
-        TrashHandler.trash(user, application.workspace, application, application)
+        TrashHandler.trash(
+            user, application.workspace, application, application.specific
+        )
 
         application_deleted.send(
             self, application_id=application_id, application=application, user=user
@@ -1761,19 +1777,6 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
             exported_applications, key=application_priority_sort, reverse=True
         )
 
-        # Sort the serialized applications so that we import:
-        # Database first
-        # Applications second
-        # Everything else after that.
-        def application_priority_sort(application_to_sort):
-            return application_type_registry.get(
-                application_to_sort["type"]
-            ).import_application_priority
-
-        prioritized_applications = sorted(
-            exported_applications, key=application_priority_sort, reverse=True
-        )
-
         # If files_buffer is a bytes object, decompress it. Otherwise, use it directly
         # as a file-like object. This can be used when files are not saved in a zip
         # file, but the object provides a way to download and used them on the fly.
@@ -1840,7 +1843,9 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
     # is slow, and so we disable instrumenting it to save significant resources in
     # telemetry platforms receiving the instrumentation.
     @disable_instrumentation
-    def sync_templates(self, storage=None, pattern: str | None = None):
+    def sync_templates(
+        self, storage=None, pattern: str | None = None, force: bool = False
+    ):
         """
         Synchronizes the JSON template files with the templates stored in the database.
         We need to have a copy in the database so that the user can live preview a
@@ -1856,6 +1861,7 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
         :param storage: Storage to use to get the files.
         :param pattern: A regular expression to match names to sync. If None then
             all found templates will be synced.
+        :param force: Force template sync even if they already exist.
         """
 
         clean_templates = False
@@ -1897,6 +1903,7 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
                     installed_templates,
                     installed_categories,
                     storage,
+                    force=force,
                 )
 
         if clean_templates:
@@ -1929,6 +1936,7 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
         installed_templates,
         installed_categories,
         storage,
+        force: bool = False,
     ):
         """
         Sync a specific template to the database.
@@ -1943,6 +1951,7 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
         :type installed_categories: List[TemplateCategory]
         :param storage: The storage where the files can be loaded from.
         :type storage: Storage or None
+        :param force: Force template sync even if they already exist.
         :return: None
         """
 
@@ -1971,7 +1980,7 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
         if (
             installed_template
             and installed_template.workspace
-            and installed_template.export_hash != export_hash
+            and (installed_template.export_hash != export_hash or force)
         ):
             TrashHandler.permanently_delete(installed_template.workspace)
 
@@ -1980,7 +1989,11 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
         # create a new workspace and import the exported applications into that
         # workspace.
         imported_id_mapping = None
-        if not installed_template or installed_template.export_hash != export_hash:
+        if (
+            not installed_template
+            or installed_template.export_hash != export_hash
+            or force
+        ):
             # It is optionally possible for a template to have additional files.
             # They are stored in a ZIP file and are generated when the template
             # is exported. They for example contain file field files.
@@ -2109,7 +2122,9 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
             parsed_json["export"],
             files_buffer=files_buffer,
             import_export_config=ImportExportConfig(
-                include_permission_data=False, reduce_disk_space_usage=False
+                include_permission_data=False,
+                reduce_disk_space_usage=False,
+                is_duplicate=True,
             ),
             storage=storage,
             progress_builder=progress_builder,

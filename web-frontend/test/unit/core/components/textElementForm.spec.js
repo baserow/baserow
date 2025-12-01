@@ -7,7 +7,7 @@ describe('TextElementForm', () => {
 
   const defaultProps = {
     defaultValues: {
-      value: 'test text',
+      value: { formula: 'test text' },
       format: TEXT_FORMAT_TYPES.PLAIN,
       styles: {},
       // Add some non-allowed properties
@@ -78,7 +78,7 @@ describe('TextElementForm', () => {
       'styles',
     ])
     expect(lastEmittedValues).toEqual({
-      value: 'test text',
+      value: { formula: 'test text' },
       format: TEXT_FORMAT_TYPES.MARKDOWN,
       styles: { color: 'red' },
     })

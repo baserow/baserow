@@ -1,5 +1,5 @@
 <template>
-  <div class="device-selector">
+  <div class="device-selector" data-highlight="builder-devices">
     <div
       v-for="(deviceType, index) in deviceTypes"
       :key="index"

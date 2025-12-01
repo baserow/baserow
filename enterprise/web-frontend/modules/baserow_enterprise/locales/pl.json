@@ -100,7 +100,8 @@
         "password": "Uwierzytelnianie e-mailem i hasłem",
         "ssoSamlProviderNameUnconfigured": "Nieskonfigurowane SSO SAML",
         "ssoOIDCProviderNameUnconfigured": "Nieskonfigurowane połączenie OpenId",
-        "saml": "Dostawca SSO SAML"
+        "saml": "Dostawca SSO SAML",
+        "ssoSamlProviderName": "SSO SAML: {domain}"
     },
     "samlSettingsForm": {
         "invalidDomain": "Nieprawidłowa nazwa domeny",
@@ -289,7 +290,16 @@
         "support": "Wsparcie bezpośrednie",
         "dataSync": "Synchronizacja danych",
         "chartWidget": "Widżet wykresu",
-        "advancedWebhooks": "Zaawansowane webhooki"
+        "advancedWebhooks": "Zaawansowane webhooki",
+        "rbacContent": "Zarządzaj precyzyjnie uprawnieniami. Przypisuj role, jak administrator, twórca aplikacji, edytor, czy widz, na poziomie przestrzeni roboczej, bazie danych, czy tabeli. Uprawnienia można nadawać też zespołom.",
+        "dataSyncContent": "Automatycznie aktualizuj tabele synchronizowane z innymi tabelami w Baserow, albo źródłami zewnętrznymi, jak Jira, GitHub, GitLab, albo HubSpot.",
+        "supportContent": "Uzyskaj pomoc, kiedy jej potrzebujesz. Skontaktuj się z zespołem Baserow bezpośrednio z platformy.",
+        "auditLogsContent": "Śledź wszystko, co się dzieje. Przeglądaj pełną historię akcji w całej instancji, albo w przestrzeni roboczej, filtruj po użytkownikach, akcjach i innych cechach.",
+        "ssoContent": "Włącz bezpieczne i bezproblemowe logowanie za pomocą SAML, Google, Facebooka, GitHuba, GitLaba, albo OpenID Connect. Wspieramy wielu dostawców jednocześnie. Należy pamiętać, że zarówno Baserow jako narzędzie, a także kreator aplikacji wspierają SSO.",
+        "coBrandingContent": "Dostosuj interfejs Baserow za pomocą swojego logo. Należy pamiętać, że będzie dodane \"powered by Baserow\".",
+        "advancedWebhooksContent": "Wyzwalaj webhooki kiedy wiersz pojawia się w danym widoku - znakomite do automatyzacji przepływu pracy opartego na filtrowaniu.",
+        "fieldLevelPermissions": "Uprawnienia na poziomie pola",
+        "fieldLevelPermissionsContent": "Kontroluj, kto może zmieniać dane pole w tabeli. Ustaw uprawnienia dla edytorów, twórców, administratorów, albo zupełnie zabroń modyfikacji wartości w polu."
     },
     "chatwootSupportSidebarWorkspace": {
         "directSupport": "Bezpośrednie wsparcie"
@@ -316,7 +326,8 @@
     },
     "appAuthProviderType": {
         "localBaserowPassword": "E-mail/hasło",
-        "openIdConnect": "Połączenie OpenID"
+        "openIdConnect": "Połączenie OpenID",
+        "commonSaml": "Saml SSO"
     },
     "localBaserowPasswordAppAuthProviderForm": {
         "passwordFieldLabel": "Wybierz pole hasła",
@@ -389,7 +400,8 @@
         "owner": "Właściciel",
         "ownerHelper": "Użytkownik lub właściciel repozytorium. Zazwyczaj w lewym górnym rogu `własciciel/repo`",
         "repo": "Repozytorium",
-        "apiToken": "Żeton API"
+        "apiToken": "Żeton API",
+        "apiTokenHelper": "Może być wygenerowany pod adresem https://github.com/settings/tokens poprzez kliknięcie na `Generate new token`, wybranie `All repositories`, a następnie pod `Repository permissions` ustawienie `Issues` na `read-only`."
     },
     "exportWorkspaceModalWarning": {
         "message": "Pamiętaj, że eksport nie będzie zawierać żadnych uprawnień ustawionych na aplikacjach i ich tabelach."
@@ -398,5 +410,98 @@
         "acsTitle": "URL pojedynczego logowania (kliknij aby skopiować)",
         "relayStateTitle": "Domyślny URL stanu przekaźnika (kliknij aby skopiować)",
         "addDomainNotice": "Dostępne, jeśli została dostępna jedna domena lub więcej"
+    },
+    "gitlabIssuesDataSync": {
+        "url": "Bazowy URL",
+        "projectId": "ID Projektu",
+        "accessTokenHelper": "Może zostać wygenerowany na https://gitlab.com/-/user_settings/personal_access_tokens przez kliknięcie na `Add new token`, i wybór `read_api`.",
+        "urlHelper": "Bazowy URL Twojej instancji GitLab (np. https://gitlabl.com).",
+        "projectIdHelper": "ID projektu, z którego chcesz zsynchronizować zagadnienia. Możesz znaleźć na stronie projektu (np. https://gitlab.com/baserow/baserow), kliknij na trzy kropki w prawym górnym rogu, a potem na 'Copy project ID: 12345678'.",
+        "accessToken": "Token dostępu"
+    },
+    "samlAuthLink": {
+        "provideEmail": "Podaj adres e-mail dla konta SAML",
+        "placeholderWithSaml": "{login} za pomocą SAML",
+        "emailPlaceholder": "Podaj swój e-mail..."
+    },
+    "configureDataSyncPeriodicInterval": {
+        "deactivatedTitle": "Ustawienia cykliczne synchronizacji danych wyłączone",
+        "activate": "Aktywuj synchronizację cykliczną",
+        "enterprise": "Synchronizacja cykliczna jest dostępna w wersji zaawansowanej/korporacyjnej.",
+        "more": "Więcej informacji",
+        "deactivatedText": "Ustawienia cykliczne synchronizacji danych zostały wyłączone, ponieważ nie udało się zsynchronizować za dużo razy. Spróbuj zsynchronizować ręcznie, a jeśli to zadziała, kliknij na przycisk aktywacji.",
+        "title": "Ustawienia cykliczne",
+        "saved": "Zapisano"
+    },
+    "dataSyncPeriodicIntervalForm": {
+        "daily": "Dziennie",
+        "hourly": "Godzinowo",
+        "whenHelper": "Podaj dokładną godzinę, minutę i sekundę, kiedy powinna nastąpić synchronizacja danych.",
+        "intervalLabel": "Przedział",
+        "intervalHelper": "Jak często dane powinny być automatycznie synchronizowane cyklicznie.",
+        "hour": "Godzina",
+        "minute": "Minuta",
+        "second": "Sekunda",
+        "whenHourlyHelper": "Podaj dokładną minutę i sekundę, kiedy powinna nastąpić synchronizacja danych.",
+        "manual": "Tryb ręczny"
+    },
+    "hubspotContactsDataSync": {
+        "accessToken": "Token dostępu aplikacji prywatnej",
+        "accessTokenHelper": "Aby wygenerować token dostępu do prywatnej aplikacji w HubSpot, kliknij na Settings na górnym pasku, przejdź do Integrations > Private Apps, i utwórz nową aplikację prywatną. Dodaj następujące zakresy: crm.objects.contacts.read, crm.schemas.contacts.read i crm.objects.custom.read. Następnie kliknij Create app aby wygenerować token."
+    },
+    "oidcAuthLink": {
+        "placeholderWithOIDC": "{login} z {provider}"
+    },
+    "chartWidget": {
+        "name": "Wykres"
+    },
+    "groupedAggregateRowsDataSourceForm": {
+        "series": "Serie",
+        "data": "Dane",
+        "sourceFieldLabel": "Źródło",
+        "viewFieldLabel": "Widok",
+        "addSeries": "Dodaj serię",
+        "notSelected": "Nie wybrano"
+    },
+    "aggregationSeriesForm": {
+        "aggregationFieldLabel": "Pole",
+        "aggregationTypeLabel": "Podsumowanie",
+        "deleteSeries": "Usuń serię"
+    },
+    "aggregationGroupByForm": {
+        "groupByNone": "Brak",
+        "groupByRowId": "Identyfikator wiersza",
+        "groupByFieldLabel": "Grupuj po"
+    },
+    "aggregationSortByForm": {
+        "sortByFieldLabel": "Sortuj według",
+        "none": "Brak",
+        "ascending": "Rosnąco",
+        "descending": "Malejąco"
+    },
+    "webhook": {
+        "rowsEnterVieweventType": "Wiersze pojawiają się w widoku"
+    },
+    "webhookForm": {
+        "triggerWhenRowsEnterView": "Uruchamia się, kiedy wiersze pojawiają się w widoku.",
+        "helpTriggerWhenRowsEnterView": "Uruchamia się, jeśli `Wiersze pojawiają się w widoku` jest wybrane i wiersze, które pasują do filtrów, pojawiły się w widoku."
+    },
+    "fileInputElementForm": {
+        "defaultNamePlaceholder": "Podaj nazwę pliku...|Podaj nazwy plików...",
+        "defaultUrlTitle": "Początkowy adres URL pliku|Początkowe adresy URL plików",
+        "helpTextTitle": "Tekst pomocy",
+        "helpTextPlaceholder": "Pozostaw puste, aby użyć wartości domyślnej...",
+        "multiple": "Wiele plików na raz?",
+        "required": "Wymagane",
+        "fileTypes": "Typy plików",
+        "defaultNameTitle": "Początkowa nazwa pliku|początkowe nazwy plików",
+        "defaultNameHelp": "Ilość nazw musi pasować do ilości adresów URL.",
+        "defaultUrlPlaceholder": "Podaj domyślny adres URL...|Podaj domyślne adresy URL.."
+    },
+    "periodicDataSyncDeactivatedNotification": {
+        "body": "Synchronizacja cykliczna {name} została wyłączona, ponieważ nie udała się zbyt wiele razy pod rząd."
+    },
+    "configureDataSyncModal": {
+        "periodicInterval": "Ustawienia cykliczne"
     }
 }

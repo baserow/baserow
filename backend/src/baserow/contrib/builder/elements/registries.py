@@ -23,6 +23,8 @@ from rest_framework.exceptions import ValidationError
 from baserow.contrib.builder.formula_importer import import_formula
 from baserow.contrib.builder.mixins import BuilderInstanceWithFormulaMixin
 from baserow.contrib.builder.pages.models import Page
+from baserow.core.formula.types import BaserowFormulaObject
+from baserow.core.models import Workspace
 from baserow.core.registry import (
     CustomFieldsInstanceMixin,
     CustomFieldsRegistryMixin,
@@ -66,6 +68,13 @@ class ElementType(
     # By default, the priority is `0`, the lowest value. If this property is
     # not overridden, then the instance is imported last.
     import_element_priority = 0
+
+    def is_deactivated(self, workspace: Workspace) -> bool:
+        """
+        Returns whether this element type is deactivated for the given workspace.
+        """
+
+        return False
 
     def prepare_value_for_db(self, values: Dict, instance: Optional[Element] = None):
         """
@@ -159,8 +168,7 @@ class ElementType(
         This hook is called right after the element has been updated.
 
         :param instance: The updated element instance.
-        :param values: The values that were passed when creating the field
-            instance.
+        :param values: The values that were passed when updating the instance.
         :param changes: A dictionary containing all changes which were made to the
             element prior to `after_update` being called.
         """
@@ -280,10 +288,13 @@ class ElementType(
             prefix = str(DEFAULT_USER_ROLE_PREFIX)
             if role.startswith(prefix) and user_sources_mapping:
                 old_user_source_id = int(role[len(prefix) :])
-                new_user_source_id = user_sources_mapping[old_user_source_id]
-                new_role_name = f"{prefix}{new_user_source_id}"
-                if new_role_name in existing_roles:
-                    sanitized_roles.append(new_role_name)
+                # if the user source has been removed in the meantime we can't have
+                # a match so we just ignore it.
+                if old_user_source_id in user_sources_mapping:
+                    new_user_source_id = user_sources_mapping[old_user_source_id]
+                    new_role_name = f"{prefix}{new_user_source_id}"
+                    if new_role_name in existing_roles:
+                        sanitized_roles.append(new_role_name)
 
         return sanitized_roles
 
@@ -380,6 +391,24 @@ class ElementType(
         :param pytest_data_fixture: A Pytest data fixture which can be used to
             create related objects when the import / export functionality is tested.
         """
+
+    def formula_generator(
+        self, element: Element
+    ) -> Generator[str | Instance, str, None]:
+        """
+        Generator that returns formula fields for the LinkElementType.
+
+        Unlike other Element types, this one has its formula fields in the
+        page_parameters and query_prameters JSON fields.
+        """
+
+        yield from super().formula_generator(element)
+
+        # Deal with visibility_condition
+        new_formula = yield element.visibility_condition
+        if new_formula is not None:
+            element.visibility_condition = new_formula
+            yield element
 
 
 ElementTypeSubClass = TypeVar("ElementTypeSubClass", bound=ElementType)
@@ -576,7 +605,7 @@ class CollectionFieldType(
 
         for formula_field in self.simple_formula_fields:
             formula = collection_field.config.get(formula_field, "")
-            new_formula = yield formula
+            new_formula = yield BaserowFormulaObject.to_formula(formula)
             if new_formula is not None:
                 collection_field.config[formula_field] = new_formula
                 yield collection_field

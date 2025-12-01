@@ -1,5 +1,7 @@
 from typing import TYPE_CHECKING, Any
 
+from django.utils import timezone
+
 from baserow.core.formula.types import FormulaContext
 from baserow.core.utils import to_path
 
@@ -38,3 +40,12 @@ class RuntimeFormulaContext(FormulaContext):
             self,
             rest,
         )
+
+    def get_timezone_name(self) -> str:
+        """
+        Returns the current IANA timezone name, e.g. "Europe/Amsterdam".
+
+        Defaults to "UTC".
+        """
+
+        return timezone.get_current_timezone_name()

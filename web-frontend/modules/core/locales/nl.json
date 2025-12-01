@@ -149,7 +149,8 @@
     },
     "trashSidebar": {
         "title": "Prullenbak",
-        "unnamedWorkspace": "Naamloze werkruimte {id}"
+        "unnamedWorkspace": "Naamloze werkruimte {id}",
+        "workspaces": "Werkruimtes"
     },
     "trashContents": {
         "message": "Herstel items verwijderd in de afgelopen {duration}",
@@ -253,7 +254,8 @@
         "tutorialsMessage": "Ontdek het potentieel van Baserow",
         "emptyWorkspaceMessage": "Begin met het maken van een nieuwe database of applicatie.",
         "addNew": "Nieuwe toevoegen...",
-        "noWorkspace": "Geen werkruimte"
+        "noWorkspace": "Geen werkruimte",
+        "starOnGitHub": "Geef een ster op GitHub"
     },
     "login": {
         "title": "Inloggen",
@@ -474,7 +476,8 @@
         "errorJobAlreadyRunningTitle": "Al aan de gang",
         "errorJobAlreadyRunningDescription": "Er loopt al een andere importjob. U moet wachten tot die klaar is voordat u een andere start.",
         "errorJobCannotBeCancelledTitle": "Kan niet annuleren",
-        "errorJobCannotBeCancelledDescription": "Het is niet mogelijk om de taak te annuleren omdat deze al is voltooid.\nVerwijder de eerste snapshot in de onderstaande lijst om deze te verwijderen."
+        "errorJobCannotBeCancelledDescription": "Het is niet mogelijk om de taak te annuleren omdat deze al is voltooid.\nVerwijder de eerste snapshot in de onderstaande lijst om deze te verwijderen.",
+        "stateCanceled": "Geannuleerd"
     },
     "pastingNotification": {
         "title": "Plakken...",
@@ -506,7 +509,9 @@
                 "name": "Naam",
                 "teams": "Teams",
                 "highestRole": "Hoogste rol",
-                "highestRoleHelpText": "De hoogste rol die deze gebruiker rechtstreeks of vanuit een team aan hem is toegekend, op alles in deze werkruimte"
+                "highestRoleHelpText": "De hoogste rol die deze gebruiker rechtstreeks of vanuit een team aan hem is toegekend, op alles in deze werkruimte",
+                "highestRoleInstanceHelpText": "De hoogste rol die deze gebruiker heeft in de instantie",
+                "2fa": "2FA"
             },
             "actions": {
                 "copyEmail": "E-mail kopiëren",
@@ -701,7 +706,8 @@
         "noMatchingNodesText": "Er zijn geen overeenkomende gegevensverstrekkers gevonden."
     },
     "formulaInputField": {
-        "errorInvalidFormula": "De formule is ongeldig."
+        "errorInvalidFormula": "De formule is ongeldig.",
+        "advancedFormulaMode": "Geavanceerde formule-modus"
     },
     "userPasswordChangedToast": {
         "title": "Wachtwoord veranderd",
@@ -764,7 +770,9 @@
         "openRouter": "OpenRouter",
         "openRouterModelsLabel": "Ingeschakelde modellen",
         "openRouterModelsDescription": "Geef een lijst met door komma's gescheiden [OpenRouter modellen] (https://openrouter.ai/models) die kunnen worden gebruikt in Baserow. (bijv. `openai/gpt-4o,anthropic/claude-3-haiku`)",
-        "openRouterApiKeyDescription": "Geef een OpenRouter API-key op als u de integratie wilt inschakelen. [get an API key](https://openrouter.ai/settings/keys)."
+        "openRouterApiKeyDescription": "Geef een OpenRouter API-key op als u de integratie wilt inschakelen. [get an API key](https://openrouter.ai/settings/keys).",
+        "openaiBaseUrl": "Basis URL",
+        "openaiBaseUrlDescription": "Gebruikt standaard de OpenAI basis URL als deze leeg is. Kan optioneel worden gewijzigd in https://eu.api.openai.com/v1, https://<uw-bronnaam>.openai.azure.com, of een andere OpenAI-compatibele API."
     },
     "generativeAIWorkspaceSettings": {
         "title": "Generatieve AI-instellingen",
@@ -862,7 +870,8 @@
         "viewMore": "Meer bekijken"
     },
     "dataExplorerNode": {
-        "showMore": "Meer herhalingen tonen"
+        "showMore": "Meer herhalingen tonen",
+        "selectNode": "Selecteer"
     },
     "exportWorkspaceModal": {
         "exportSettings": "Export instellingen",
@@ -882,7 +891,10 @@
     "exportWorkspaceForm": {
         "exportSettingsLabel": "Export instellingen",
         "onlyStructureDescription": "Als ingeschakeld, wordt alleen de structuur van de applicaties geëxporteerd. De data wordt niet meegenomen.",
-        "onlyStructureLabel": "Alleen structuur exporteren"
+        "onlyStructureLabel": "Alleen structuur exporteren",
+        "selectDataToExport": "Gegevens selecteren om te exporteren",
+        "selectAll": "Selecteer alles",
+        "deselectAll": "Deselecteer alles"
     },
     "importWorkspaceModal": {
         "title": "Baserow data importeren",
@@ -909,7 +921,8 @@
         "untrustedPublicKeyMessage": "Het geleverde bestand is ondertekend met een onbetrouwbare openbare sleutel. Vraag je beheerder om de openbare sleutel toe te voegen aan de lijst van vertrouwde sleutels of de handtekeningverificatie uit te schakelen om dit bestand te kunnen importeren.",
         "importingState": "Importeren",
         "importingTableStructure": "Aanmaken: {table}",
-        "importingTableData": "Gegevens importeren: {tabel}"
+        "importingTableData": "Gegevens importeren: {tabel}",
+        "uploadAndImport": "Uploaden en importeren"
     },
     "user": {
         "isStaff": "Is personeel",
@@ -1044,5 +1057,152 @@
     "controlCenterGuidedTourStep": {
         "content": "In de linkerzijbalk kun je je werkruimte beheren:\n\n- Home - Toegang tot je hoofddashboard.\n- Meldingen - Blijf op de hoogte van wijzigingen en vermeldingen.\n- Nodig anderen uit - Werk samen door teamleden toe te voegen.\n- Prullenbak - Al je verwijderde items weergeven en herstellen.",
         "title": "Jouw Baserow Controle Centrum"
+    },
+    "mcpEndpointSettings": {
+        "title": "MCP server",
+        "backToOverview": "Terug",
+        "noEndpointsMessage": "Er zijn geen MCP (Model Context Protocol) server eindpunten toegevoegd. Deze kunnen worden gebruikt om direct te integreren met een LLM zoals Claude, en de LLM direct acties te laten uitvoeren in Baserow. Maak een server eindpunt om te beginnen.",
+        "createEndpoint": "Eindpunt maken",
+        "createNewTitle": "MCP-server eindpunt maken"
+    },
+    "mcpEndpointForm": {
+        "workspaceLabel": "Werkruimte",
+        "nameLabel": "Naam"
+    },
+    "mcpEndpoint": {
+        "reveal": "Volledige URL weergeven",
+        "warning": "Behandel je MCP URL als een wachtwoord, omdat je hiermee gegevens in Baserow kunt wijzigen.",
+        "detailLabel": "Meer details",
+        "claudeInstructions": "Drie eenvoudige stappen om aan de slag te gaan met Claude Desktop en de Baserow MCP.\n\n1. Open de instellingen van Claude Desktop in de navigatiebalk (⌘+,)\n1. Ga naar het tabblad \"Ontwikkelen\" en klik op \"Edit Config\".\n1. Neem de volgende JSON-configuratie op in `claude_desktop_config.json`.",
+        "windsurfInstructions": "Twee eenvoudige stappen om MCP in te stellen met Cascase in Windsurf.\n\n1. Navigeer naar Windsurf - Settings -> Advanced Settings of Command Palette -> Open Windsurf settings page.\n1. Scroll naar beneden naar de Cascade sectie en je zult de optie vinden om een nieuwe server toe te voegen, bestaande servers te bekijken en een knop om het ruwe JSON config bestand `mcp_config.json` te bekijken. Voeg daar het volgende aan toe:",
+        "endpointURLIntro": "De MCP (Model Context Protocol) server URL kan worden toegevoegd aan elke client die MCP-servers ondersteunt. Het is een uniek eindpunt dat de LLM directe toegang geeft om namens jou acties uit te voeren in de werkruimte.",
+        "cursorInstructions": "Drie eenvoudige stappen om aan de slag te gaan met Cursor en het Baserow MCP.\n\n1. Cursorinstellingen openen (⇧+⌘+J)\n1. Navigeer naar het tabblad \"MCP\" en klik op \"Add MCP Server\" (MCP-server toevoegen)\n1. Voeg de volgende JSON-configuratie toe."
+    },
+    "importWorkspaceForm": {
+        "selectApplicationsToImport": "Applicaties selecteren om te importeren"
+    },
+    "workspaceSearch": {
+        "title": "Zoek",
+        "searchEverything": "Zoek...",
+        "searching": "Zoeken...",
+        "noResults": "Geen resultaten gevonden",
+        "noResultsSubtitle": "We konden niets vinden dat overeenkomt met \"{searchTerm}\"",
+        "welcome": "Doorzoek alles in je werkruimte",
+        "welcomeSubtitle": "Gebruik het zoekvak hierboven om toepassingen, tabellen, velden en meer te vinden",
+        "navigate": "Navigatie",
+        "select": "Selecteer",
+        "close": "Sluit",
+        "types": {
+            "applications": "Applicaties",
+            "tables": "Tabellen",
+            "fields": "Velden",
+            "rows": "Rijen"
+        }
+    },
+    "action": {
+        "cancel": "Annuleren",
+        "submit": "Verstuur"
+    },
+    "twoFactorAuthSettings": {
+        "title": "Tweefactorauthenticatie",
+        "loadingError": "Kon tweefactorconfiguratie niet laden."
+    },
+    "disableTwoFactorAuth": {
+        "title": "Weet je zeker dat je 2FA wilt uitschakelen?",
+        "description": "Je account verliest een extra beveiligingslaag. Als iemand achter je wachtwoord komt, kan hij of zij misschien inloggen op je account.",
+        "cancel": "Laat het aan",
+        "disable": "Uitschakelen",
+        "successTitle": "Tweefactorauthenticatie is uitgeschakeld",
+        "errorWrongPasswordTitle": "Verkeerd wachtwoord",
+        "errorWrongPasswordMessage": "Het ingevoerde wachtwoord komt niet overeen met uw wachtwoord."
+    },
+    "enableTwoFactorOptions": {
+        "cancel": "Annuleren",
+        "continue": "Ga verder"
+    },
+    "saveBackupCode": {
+        "description": "Als je de toegang tot de authenticator-app of telefoon verliest en geen verificatiecodes kunt ontvangen of genereren, kun je deze back-up gebruiken. Je kunt het maar één keer gebruiken. Zorg ervoor dat je het opschrijft of kopieert naar een veilige plek zodat je het kunt openen zonder in te loggen.",
+        "backupCodes": "Back-up codes",
+        "copy": "Kopiëren",
+        "continue": "Ga verder",
+        "backupCodesCopiedTitle": "Gekopieerd!",
+        "backupCodesCopiedMessage": "Back-upcodes gekopieerd naar klembord."
+    },
+    "totpAuthType": {
+        "name": "Authenticator-app",
+        "description": "Gebruik een app om tweefactorauthenticatiecodes te krijgen. We raden aan apps te gebruiken zoals Google Authenticator, Authy en Microsoft Authenticator.",
+        "enabledDescription": "Je ontvangt verificatiecodes via een authenticatie-app. Om een andere app of methode in te stellen, schakel je gewoon 2FA uit en stel je opnieuw in.",
+        "sideLabel": "Aanbevolen"
+    },
+    "twoFactorEnabled": {
+        "enabled": "Ingeschakeld",
+        "disable": "2FA uitschakelen"
+    },
+    "totpLogin": {
+        "backupCodesTitle": "Back-upcode invoeren",
+        "backupCodesDescription": "Log in met je eenmalige back-upcode.",
+        "authenticate": "Authenticeren",
+        "goBack": "Ga terug",
+        "totpTitle": "Tweefacturauthenticatie",
+        "totpDescription": "Voer de code van je authenticator-app in.",
+        "verify": "Controleer",
+        "useBackupCode": "Gebruik back-upcode",
+        "verificationFailed": "Verificatie mislukt",
+        "verificationFailedDescription": "De ingevoerde code is niet correct.",
+        "loginExpired": "Inloggen verlopen",
+        "loginExpiredDescription": "Geef je wachtwoord opnieuw op.",
+        "rateLimit": "Te veel pogingen."
+    },
+    "formulaInputContext": {
+        "variables": "Variables",
+        "functions": "Functies",
+        "operators": "Operators",
+        "search": "Zoeken",
+        "useRegularInputModalTitle": "Normale invoer gebruiken voor dit veld?",
+        "useRegularInput": "Gebruik regelmatige invoer",
+        "useAdvancedInput": "Geavanceerde invoer gebruiken",
+        "useAdvancedInputModalTitle": "Geavanceerde invoer gebruiken voor dit veld?",
+        "modalMessage": "De inhoud van je veld zal worden gewist en het zal niet mogelijk zijn om het te herstellen."
+    },
+    "coreHTTPTriggerServiceForm": {
+        "title": "Webhook URL",
+        "urlVersion": "Versie",
+        "urlVersionPublished": "Gepubliceerd",
+        "urlVersionTest": "Test",
+        "copyUrl": "URL webhook kopiëren",
+        "urlCopied": "Webhook URL gekopieerd naar klembord",
+        "description": "Deze webhook zal HTP verzoeken ontvangen en de workflow starten met de verzoekgegevens als de lading.",
+        "methodsOptionLabel": "Toegestane HTTP-methoden",
+        "methodsOptionDescription": "Bepaalt welke HTTP-methodes zijn toegestaan voor deze webhook. Het uitsluiten van GET vermindert de kans dat de webhook per ongeluk wordt geactiveerd.",
+        "methodsOptionAll": "Alle",
+        "methodsOptionExcludeGet": "GET uitsluiten"
+    },
+    "twoFactorAuthEmpty": {
+        "title": "Je hebt 2FA nog niet ingeschakeld",
+        "description": "Voeg een extra beveiligingslaag toe aan je account.",
+        "enable": "2FA inschakelen",
+        "notAllowedTitle": "2FA niet ingeschakeld",
+        "notAllowedDescription": "Het toevoegen van 2FA is alleen mogelijk voor accounts met een wachtwoord."
+    },
+    "nodeHelpTooltip": {
+        "exampleLabel": "Voorbeeld",
+        "result": "Resultaat: {result}"
+    },
+    "enableWithQRCode": {
+        "scanQRCode": "QR-code scannen",
+        "scanQRCodeDescription": "Scan de code met een app zoals Google Authenticator, Authy of Microsoft Authenticator.",
+        "clickToCopy": "Je kunt ook hier klikken om de code te kopiëren.",
+        "secretCopiedTitle": "Geheim gekopieerd",
+        "secretCopiedMessage": "TOTP geheim gekopieerd naar klembord.",
+        "enterCode": "Voer de getoonde code in",
+        "enterCodeDescription": "Voer een 6-cijferige code in die door de app wordt getoond om te bevestigen dat je de app correct hebt ingesteld.",
+        "verificationFailed": "Verificatie mislukt",
+        "verificationFailedDescription": "De ingevoerde code is ongeldig.",
+        "provisioningFailed": "Voorziening mislukt",
+        "checkSuccess": "Tweefactorauthenticatie succesvol ingeschakeld"
+    },
+    "twoFactorAuthField": {
+        "enabled": "Ingeschakeld",
+        "disabled": "Uitgeschakeld"
     }
 }

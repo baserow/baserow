@@ -29,7 +29,8 @@
           <a
             class="context__menu-item-link context__menu-item-link--with-desc"
             :class="{
-              active: subject[roleValueColumn] === role.uid,
+              active:
+                !role.isDeactivated && subject[roleValueColumn] === role.uid,
               disabled: role.isDeactivated,
             }"
             @click="
@@ -64,18 +65,21 @@
               {{ role.description }}
             </div>
             <i
-              v-if="subject[roleValueColumn] === role.uid"
+              v-if="
+                !role.isDeactivated && subject[roleValueColumn] === role.uid
+              "
               class="context__menu-active-icon iconoir-check"
             ></i>
           </a>
-          <component
-            :is="deactivatedClickModal(role)[0]"
-            :ref="'deactivatedClickModal-' + role.uid"
-            :v-if="deactivatedClickModal(role)"
-            v-bind="deactivatedClickModal(role)[1]"
-            :name="$t('editRoleContext.additionalRoles')"
-            :workspace="workspace"
-          ></component>
+          <template v-if="deactivatedClickModal(role)">
+            <component
+              :is="deactivatedClickModal(role)[0]"
+              :ref="'deactivatedClickModal-' + role.uid"
+              v-bind="deactivatedClickModal(role)[1]"
+              :name="$t('editRoleContext.additionalRoles')"
+              :workspace="workspace"
+            ></component>
+          </template>
         </li>
         <li
           v-if="allowRemovingRole"
@@ -145,7 +149,10 @@ export default {
         .getDeactivatedClickModal()
     },
     clickOnDeactivatedItem(value) {
-      this.$refs[`deactivatedClickModal-${value}`][0].show()
+      const ref = this.$refs[`deactivatedClickModal-${value}`]
+      if (ref) {
+        ref[0].show()
+      }
     },
   },
 }

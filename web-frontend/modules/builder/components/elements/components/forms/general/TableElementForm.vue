@@ -81,7 +81,11 @@
         :placeholder="$t('elementForms.textInputPlaceholder')"
       />
     </FormGroup>
-    <FormSection class="margin-bottom-2" :title="$t('tableElementForm.fields')">
+    <FormSection
+      :key="element.data_source_id"
+      class="margin-bottom-2"
+      :title="$t('tableElementForm.fields')"
+    >
       <template v-if="values.fields?.length">
         <ButtonText
           v-show="selectedDataSourceReturnsList"
@@ -94,7 +98,7 @@
           {{ $t('tableElementForm.refreshFieldsFromDataSource') }}
         </ButtonText>
         <div>
-          <Expandable
+          <SidebarExpandable
             v-for="(field, index) in values.fields"
             :key="field.id"
             v-sortable="{
@@ -107,32 +111,21 @@
               ),
               handle: '[data-sortable-handle]',
             }"
-            class="table-element-form__field"
+            toggle-on-click
           >
-            <template #header="{ toggle, expanded }">
-              <div
-                class="table-element-form__field-header"
-                @click.stop="toggle"
-              >
-                <div
-                  class="table-element-form__field-handle"
-                  data-sortable-handle
-                />
-                <div class="table-element-form__field-name">
-                  <i
-                    v-if="!expanded && fieldInError(field)"
-                    class="table-element-form__field-error iconoir-warning-circle"
-                  ></i>
-                  {{ field.name }}
-                </div>
-                <i
-                  :class="
-                    expanded
-                      ? 'iconoir-nav-arrow-down'
-                      : 'iconoir-nav-arrow-right'
-                  "
-                />
-              </div>
+            <template #title>
+              <span v-if="field.name">{{ field.name }}</span>
+              <span v-else class="color-neutral">
+                ({{ $t('tableElementForm.noName') }})
+              </span>
+              <Icon
+                v-if="getFieldErrorMessage(field)"
+                :key="getFieldErrorMessage(field)"
+                v-tooltip="getFieldErrorMessage(field)"
+                icon="iconoir-warning-circle"
+                size="medium"
+                type="error"
+              />
             </template>
             <template #default>
               <FormGroup
@@ -148,12 +141,6 @@
                   class="table-element-form__field-label"
                 >
                 </FormInput>
-                <template
-                  v-if="v$.values.fields.$model.length > 1"
-                  #after-input
-                >
-                  <ButtonIcon icon="iconoir-bin" @click="removeField(field)" />
-                </template>
               </FormGroup>
 
               <FormGroup
@@ -187,7 +174,14 @@
                 @values-changed="updateField(field, $event)"
               />
             </template>
-          </Expandable>
+            <template #footer>
+              <template v-if="v$.values.fields.$model.length > 1">
+                <ButtonText icon="iconoir-bin" @click="removeField(field)">
+                  {{ $t('action.delete') }}
+                </ButtonText>
+              </template>
+            </template>
+          </SidebarExpandable>
         </div>
         <ButtonText
           type="primary"
@@ -279,6 +273,7 @@ import CustomStyle from '@baserow/modules/builder/components/elements/components
 import ServiceSchemaPropertySelector from '@baserow/modules/core/components/services/ServiceSchemaPropertySelector'
 import DataSourceDropdown from '@baserow/modules/builder/components/dataSource/DataSourceDropdown'
 import PropertyOptionForm from '@baserow/modules/builder/components/elements/components/forms/general/settings/PropertyOptionForm'
+import SidebarExpandable from '@baserow/modules/builder/components/SidebarExpandable.vue'
 
 export default {
   name: 'TableElementForm',
@@ -289,6 +284,7 @@ export default {
     InjectedFormulaInput,
     DeviceSelector,
     CustomStyle,
+    SidebarExpandable,
   },
   mixins: [collectionElementForm],
   setup() {
@@ -312,7 +308,7 @@ export default {
         items_per_page: 1,
         styles: {},
         orientation: {},
-        button_load_more_label: '',
+        button_load_more_label: {},
       },
     }
   },
@@ -353,7 +349,7 @@ export default {
           this.$t('tableElementForm.fieldDefaultName'),
           this.v$.values.fields.$model.map(({ name }) => name)
         ),
-        value: '',
+        value: {},
         type: 'text',
         id: uuid(), // Temporary id
         uid: uuid(),
@@ -399,9 +395,10 @@ export default {
         (fieldId) => fieldById[fieldId]
       )
     },
-    fieldInError(field) {
-      return this.collectionTypes[field.type].isInError({
+    getFieldErrorMessage(field) {
+      return this.collectionTypes[field.type].getErrorMessage({
         field,
+        element: this.element,
         builder: this.builder,
       })
     },
@@ -445,10 +442,6 @@ export default {
         fields: {
           $each: helpers.forEach({
             name: {
-              required: helpers.withMessage(
-                this.$t('error.requiredField'),
-                required
-              ),
               maxLength: helpers.withMessage(
                 this.$t('error.maxLength', { max: 255 }),
                 maxLength(225)

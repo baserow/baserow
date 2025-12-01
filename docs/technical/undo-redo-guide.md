@@ -1,6 +1,6 @@
-## Undo/Redo Technical Guide
+# Undo/Redo Technical Guide
 
-### Actions
+## Actions
 
 A ActionType is a class which defines how to `do`, `undo` and `redo` a particular action
 in Baserow. It can freely use Handlers to do the logic, but it almost certainly
@@ -26,7 +26,7 @@ workspace_to_delete)`).
    this `dataclass` will be created again from the json in the `Action` row and provided
    to the function.
 
-### Quick summary of the Action Table
+## Quick summary of the Action Table
 
 See baserow.core.action.models.Action for more details.
 
@@ -34,7 +34,7 @@ See baserow.core.action.models.Action for more details.
 | ------ | ------ | ------ | ------ | ------ |---------------------|-----------------------------| ------ | ------ |
 | 1 | 2 | 'some-uuid-from-client' | 'root' | datetime | 'workspace_created' | '{created_workspace_id:10}' |  null | null |
 
-### ActionHandler and Undo/Redo endpoints
+## ActionHandler and Undo/Redo endpoints
 
 The `ActionHandler` has `undo` and `redo` methods which can be used to trigger an
 undo/redo for a user. There are two corresponding endpoints in `/api/user/undo`
@@ -83,7 +83,7 @@ undo, the UI would send workspace 5 as the category and I wouldn't be able to un
 rename of table 20 until I switched back into a part of the UI where the workspace 6
 category is active.
 
-### Undo Redo Worked Example
+## Undo Redo Worked Example
 
 1. User A opens Table 10, which is in Application 2 in Workspace 1.
     1. On page load a ClientSessionId `example_client_session_id` is generated and
@@ -124,7 +124,7 @@ category is active.
         1. UpdateTableAction using the params undoes the action
         2. Action.undone_at is set to `datetime.now(tz=timezone.utc)` indicating it has now been undone
 
-### What happens when an undo/redo fails
+## What happens when an undo/redo fails
 
 Imagine a situation when two users are working on a table at the same time, in order
 they:

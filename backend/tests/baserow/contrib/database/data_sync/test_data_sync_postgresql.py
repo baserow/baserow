@@ -8,103 +8,21 @@ from django.test.utils import override_settings
 from django.urls import reverse
 
 import pytest
-from rest_framework.status import HTTP_200_OK
+from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST
 
 from baserow.contrib.database.data_sync.exceptions import SyncError
 from baserow.contrib.database.data_sync.handler import DataSyncHandler
-from baserow.contrib.database.data_sync.models import PostgreSQLDataSync
+from baserow.contrib.database.data_sync.models import (
+    DataSync,
+    PostgreSQLDataSync,
+    SyncDataSyncTableJob,
+)
 from baserow.contrib.database.data_sync.postgresql_data_sync_type import (
     TextPostgreSQLSyncProperty,
 )
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import NumberField
 from baserow.core.db import specific_iterator
-
-
-# Fixture to create a test table
-@pytest.fixture
-def create_postgresql_test_table():
-    table_name = "test_table"
-
-    column_definitions = {
-        "text_col": "TEXT",
-        "char_col": "CHAR(10)",
-        "int_col": "INTEGER",
-        "float_col": "REAL",
-        "numeric_col": "NUMERIC",
-        "numeric2_col": "NUMERIC(100, 4)",
-        "smallint_col": "SMALLINT",
-        "bigint_col": "BIGINT",
-        "decimal_col": "DECIMAL",
-        "date_col": "DATE",
-        "datetime_col": "TIMESTAMP",
-        "boolean_col": "BOOLEAN",
-    }
-
-    # Create the schema of the initial table.
-    create_table_sql = f"""
-    CREATE TABLE {table_name} (
-        id SERIAL PRIMARY KEY,
-        {', '.join([f"{col_name} {col_type}" for col_name, col_type in column_definitions.items()])}
-    )
-    """
-
-    # Inserts a couple of random rows for testing purposes.
-    insert_sql = f"""
-    INSERT INTO {table_name} ({', '.join(column_definitions.keys())})
-    VALUES (
-        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
-    )
-    """
-
-    try:
-        with connection.cursor() as cursor:
-            cursor.execute(create_table_sql)
-
-            cursor.execute(
-                insert_sql,
-                (
-                    "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Maecenas non nunc et sapien ultricies blandit. ",
-                    "Short char",
-                    10,
-                    10.10,
-                    100,
-                    "10.4444",
-                    200,
-                    99999999,
-                    Decimal("99999999.22"),
-                    date(2023, 1, 17),
-                    datetime(2022, 2, 28, 12, 00),
-                    True,
-                ),
-            )
-            cursor.execute(
-                insert_sql,
-                (
-                    None,
-                    None,
-                    None,
-                    None,
-                    None,
-                    None,
-                    None,
-                    None,
-                    None,
-                    None,
-                    None,
-                    None,
-                ),
-            )
-
-        transaction.commit()
-
-        yield table_name  # Provide table name to tests that need to access it
-
-    finally:
-        # Drop the table after test completes or fails
-        with connection.cursor() as cursor:
-            cursor.execute(f"DROP TABLE IF EXISTS {table_name}")
-        transaction.commit()
 
 
 @pytest.mark.django_db(transaction=True)
@@ -156,7 +74,7 @@ def test_create_postgresql_data_sync(data_fixture, create_postgresql_test_table)
 
     fields = specific_iterator(data_sync.table.field_set.all().order_by("id"))
     assert len(fields) == 12
-    assert fields[0].name == "id"
+    assert fields[0].name == "id 2"
     assert isinstance(fields[0], NumberField)
     assert fields[0].primary is True
     assert fields[0].read_only is True
@@ -322,6 +240,64 @@ def test_sync_postgresql_data_sync_nothing_changed(
     # working as expected.
     assert row_1.updated_on == row_1_last_modified
     assert row_2.updated_on == row_2_last_modified
+
+
+@pytest.mark.django_db(transaction=True)
+def test_sync_postgresql_data_sync_auto_add_new_properties(
+    data_fixture, create_postgresql_test_table
+):
+    default_database = settings.DATABASES["default"]
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="postgresql",
+        auto_add_new_properties=True,
+        synced_properties=[
+            "id",
+            "text_col",
+            "char_col",
+            "int_col",
+            "float_col",
+            "numeric_col",
+            "numeric2_col",
+            "smallint_col",
+            "bigint_col",
+            "decimal_col",
+            "date_col",
+            "datetime_col",
+            "boolean_col",
+        ],
+        postgresql_host=default_database["HOST"],
+        postgresql_username=default_database["USER"],
+        postgresql_password=default_database["PASSWORD"],
+        postgresql_port=default_database["PORT"],
+        postgresql_database=default_database["NAME"],
+        postgresql_table=create_postgresql_test_table,
+        postgresql_sslmode=default_database["OPTIONS"].get("sslmode", "prefer"),
+    )
+
+    with transaction.atomic():
+        handler.sync_data_sync_table(user=user, data_sync=data_sync)
+
+    with transaction.atomic():
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f"""
+                ALTER TABLE {create_postgresql_test_table} ADD COLUMN new_col TEXT;
+            """
+            )
+
+    with transaction.atomic():
+        handler.sync_data_sync_table(user=user, data_sync=data_sync)
+
+    data_sync.refresh_from_db()
+    synced_properties = [field.name for field in data_sync.table.field_set.all()]
+    assert "new_col" in synced_properties
 
 
 @pytest.mark.django_db(transaction=True)
@@ -836,3 +812,119 @@ def test_update_data_sync_table_changing_table_with_different_primary_key(
     assert getattr(rows[0], f"field_{fields[0].id}") == Decimal("1")
     assert getattr(rows[1], f"field_{fields[0].id}") == Decimal("2")
     assert getattr(rows[2], f"field_{fields[0].id}") == Decimal("3")
+
+
+@pytest.mark.django_db(transaction=True)
+def test_create_data_sync_via_api_without_a_primary_property(
+    data_fixture, api_client, create_postgresql_test_table
+):
+    default_database = settings.DATABASES["default"]
+    user, token = data_fixture.create_user_and_token()
+    database = data_fixture.create_database_application(user=user)
+
+    with connection.cursor() as cursor:
+        cursor.execute(
+            f"""
+            CREATE TABLE {create_postgresql_test_table}_3 (id integer)
+            """
+        )
+
+    url = reverse("api:database:data_sync:list", kwargs={"database_id": database.id})
+    response = api_client.post(
+        url,
+        {
+            "table_name": "Test 1",
+            "type": "postgresql",
+            "synced_properties": ["id"],
+            "postgresql_host": default_database["HOST"],
+            "postgresql_username": default_database["USER"],
+            "postgresql_password": default_database["PASSWORD"],
+            "postgresql_port": default_database["PORT"],
+            "postgresql_database": default_database["NAME"],
+            "postgresql_table": create_postgresql_test_table + "_3",
+            "postgresql_sslmode": default_database["OPTIONS"].get("sslmode", "prefer"),
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response_json["error"] == "ERROR_UNIQUE_PRIMARY_PROPERTY_NOT_FOUND"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_create_data_sync_with_negative_int_and_positive_baserow_number_field(
+    data_fixture, api_client, create_postgresql_test_table
+):
+    default_database = settings.DATABASES["default"]
+    user, token = data_fixture.create_user_and_token()
+    database = data_fixture.create_database_application(user=user)
+
+    url = reverse("api:database:data_sync:list", kwargs={"database_id": database.id})
+    response = api_client.post(
+        url,
+        {
+            "table_name": "Test 1",
+            "type": "postgresql",
+            "synced_properties": ["id", "int_col"],
+            "postgresql_host": default_database["HOST"],
+            "postgresql_username": default_database["USER"],
+            "postgresql_password": default_database["PASSWORD"],
+            "postgresql_port": default_database["PORT"],
+            "postgresql_database": default_database["NAME"],
+            "postgresql_table": create_postgresql_test_table,
+            "postgresql_sslmode": default_database["OPTIONS"].get("sslmode", "prefer"),
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    data_sync_id = response.json()["data_sync"]["id"]
+
+    data_sync = DataSync.objects.get(pk=data_sync_id)
+    fields = specific_iterator(data_sync.table.field_set.all().order_by("id"))
+    assert len(fields) == 2
+
+    FieldHandler().update_field(user=user, field=fields[1], number_negative=False)
+
+    # Inserts a couple of random rows for testing purposes.
+    insert_sql = f"""
+    INSERT INTO {create_postgresql_test_table} (int_col)
+    VALUES (%s)
+    """
+
+    with connection.cursor() as cursor:
+        cursor.execute(
+            insert_sql,
+            (-10,),
+        )
+
+    transaction.commit()
+
+    api_client.post(
+        reverse(
+            "api:database:data_sync:sync_table",
+            kwargs={"data_sync_id": data_sync_id},
+        ),
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    job = SyncDataSyncTableJob.objects.all().first()
+
+    response = api_client.get(
+        reverse(
+            "api:jobs:item",
+            kwargs={"job_id": job.id},
+        ),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    job = response.json()
+    assert job["state"] == "failed"
+    assert job["type"] == "sync_data_sync_table"
+    assert job["progress_percentage"] > 0
+    assert job["data_sync"]["id"] == data_sync_id
+    assert (
+        job["human_readable_error"]
+        == f"The value for field {fields[1].id} cannot be negative."
+    )

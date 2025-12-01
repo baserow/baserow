@@ -27,6 +27,7 @@
           ref="userSourcesSettingsModal"
           hide-after-create
           :builder="builder"
+          :workspace="workspace"
           @created="$emit('input', $event)"
         />
       </template>
@@ -41,6 +42,7 @@ import { UserSourcesBuilderSettingsType } from '@baserow/modules/builder/builder
 export default {
   name: 'UserSourceDropdown',
   components: { BuilderSettingsModal },
+  inject: ['workspace'],
   props: {
     value: {
       type: Number,

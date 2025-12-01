@@ -1,9 +1,13 @@
 <template>
-  <div class="grid-view__cell grid-field-many-to-many__cell active">
+  <div
+    v-prevent-parent-scroll
+    class="grid-view__cell grid-field-many-to-many__cell active"
+    :class="{ invalid: removingRelationships }"
+  >
     <div class="grid-field-many-to-many__list">
       <component
         :is="publicGrid || !canAccessLinkedTable ? 'span' : 'a'"
-        v-for="item in value"
+        v-for="item in visibleValues"
         :key="item.id"
         class="grid-field-many-to-many__item"
         @click.prevent="showForeignRowModal(item)"
@@ -25,20 +29,32 @@
           class="grid-field-many-to-many__loading"
         ></span>
         <a
-          v-else-if="canAccessLinkedTable"
+          v-else-if="!shouldFetchRow && canAccessLinkedTable"
           class="grid-field-many-to-many__remove"
           @click.prevent.stop="removeValue($event, value, item.id)"
         >
           <i class="iconoir-cancel"></i>
         </a>
       </component>
+      <div
+        v-if="shouldFetchRow && isFetchingRow"
+        class="grid-field-many-to-many__item grid-field-many-to-many__item--loading"
+      >
+        <div class="loading"></div>
+      </div>
       <a
-        v-if="canAccessLinkedTable"
+        v-if="!shouldFetchRow && canAccessLinkedTable && canAddValue"
         class="grid-field-many-to-many__item grid-field-many-to-many__item--link"
         @click.prevent="showModal()"
       >
         <i class="iconoir-plus"></i>
       </a>
+    </div>
+    <div
+      v-show="removingRelationships"
+      class="grid-view__cell-error align-right"
+    >
+      {{ $t('gridViewFieldLinkRow.keepOnlyOneValue') }}
     </div>
     <SelectRowModal
       v-if="canAccessLinkedTable"
@@ -47,8 +63,9 @@
       :new-row-presets="presetsForNewRowInLinkedTable"
       :view-id="field.link_row_limit_selection_view_id"
       :value="value"
-      :multiple="true"
+      :multiple="field.link_row_multiple_relationships"
       :persistent-field-options-key="getPersistentFieldOptionsKey(field.id)"
+      :store-prefix="storePrefix"
       @selected="addValue(value, $event)"
       @unselected="removeValue({}, value, $event.row.id)"
       @hidden="hideModal"
@@ -60,6 +77,7 @@
       :fields-sortable="false"
       :can-modify-fields="false"
       :read-only="readOnly"
+      :store-prefix="storePrefix"
       @hidden="hideModal"
       @refresh-row="$emit('refresh-row')"
     ></ForeignRowEditModal>
@@ -73,6 +91,7 @@ import { getPersistentFieldOptionsKey } from '@baserow/modules/database/utils/fi
 import { isElement } from '@baserow/modules/core/utils/dom'
 import gridField from '@baserow/modules/database/mixins/gridField'
 import linkRowField from '@baserow/modules/database/mixins/linkRowField'
+import arrayLoading from '@baserow/modules/database/mixins/arrayLoading'
 import SelectRowModal from '@baserow/modules/database/components/row/SelectRowModal'
 import ForeignRowEditModal from '@baserow/modules/database/components/row/ForeignRowEditModal'
 import { notifyIf } from '@baserow/modules/core/utils/error'
@@ -82,7 +101,7 @@ import { isPrintableUnicodeCharacterKeyPress } from '@baserow/modules/core/utils
 export default {
   name: 'GridViewFieldLinkRow',
   components: { ForeignRowEditModal, SelectRowModal },
-  mixins: [gridField, linkRowField],
+  mixins: [gridField, linkRowField, arrayLoading],
   data() {
     return {
       modalOpen: false,
@@ -217,7 +236,7 @@ export default {
       return linkRowField.methods.removeValue.call(this, event, value, id)
     },
     showModal() {
-      if (!this.canAccessLinkedTable) {
+      if (!this.canAccessLinkedTable || !this.canAddValue) {
         return
       }
 

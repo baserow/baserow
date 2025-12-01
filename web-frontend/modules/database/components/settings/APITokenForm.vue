@@ -29,6 +29,7 @@
       <Dropdown
         v-model="v$.values.workspace.$model"
         class="col-4"
+        size="large"
         @hide="v$.values.workspace.$touch"
       >
         <DropdownItem

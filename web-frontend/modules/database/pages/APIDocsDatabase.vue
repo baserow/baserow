@@ -41,6 +41,7 @@
       :database="database"
       :navigate="navigate"
       :nav-active="navActive"
+      :password-fields="passwordFields"
     />
     <div class="api-docs__body">
       <APIDocsIntro :database="database" />
@@ -114,6 +115,13 @@
           :get-delete-list-url="getDeleteListURL"
           :get-batch-delete-request-example="getBatchDeleteRequestExample"
         />
+        <div v-for="field in passwordFields[table.id]" :key="field.id">
+          <APIDocsTablePasswordFieldAuthentication
+            v-model="exampleData"
+            :field="field"
+            :table="table"
+          />
+        </div>
       </div>
       <APIDocsUploadFile
         v-model="exampleData"
@@ -121,6 +129,7 @@
         :get-upload-file-example="getUploadFileExample"
         :get-upload-file-response="getUploadFileResponse"
       />
+      <APIDocsListTables v-model="exampleData" />
       <APIDocsUploadFileViaURL
         v-model="exampleData"
         :get-upload-file-response="getUploadFileResponse"
@@ -154,16 +163,22 @@ import APIDocsTableMoveRow from '@baserow/modules/database/components/docs/secti
 import APIDocsTableDeleteRow from '@baserow/modules/database/components/docs/sections/APIDocsTableDeleteRow'
 import APIDocsUploadFile from '@baserow/modules/database/components/docs/sections/APIDocsUploadFile'
 import APIDocsUploadFileViaURL from '@baserow/modules/database/components/docs/sections/APIDocsUploadFileViaURL'
+import APIDocsListTables from '@baserow/modules/database/components/docs/sections/APIDocsListTables'
 import APIDocsFilters from '@baserow/modules/database/components/docs/sections/APIDocsFilters'
 import APIDocsErrors from '@baserow/modules/database/components/docs/sections/APIDocsErrors'
-import APIDocsMenu from '@baserow/modules/database/components/docs/sections/APIDocsMenu.vue'
+import APIDocsMenu from '@baserow/modules/database/components/docs/sections/APIDocsMenu'
+import APIDocsTablePasswordFieldAuthentication from '@baserow/modules/database/components/docs/sections/APIDocsPasswordFieldAuthentication.vue'
 
 // Re-use the FileFieldType docs response example.
-import { FileFieldType } from '@baserow/modules/database/fieldTypes'
+import {
+  FileFieldType,
+  PasswordFieldType,
+} from '@baserow/modules/database/fieldTypes'
 
 export default {
   name: 'APIDocsDatabase',
   components: {
+    APIDocsTablePasswordFieldAuthentication,
     APIDocsSelectDatabase,
     APIDocsIntro,
     APIDocsAuth,
@@ -180,6 +195,7 @@ export default {
     APIDocsFilters,
     APIDocsErrors,
     APIDocsMenu,
+    APIDocsListTables,
   },
   middleware: ['authenticated', 'workspacesAndApplications'],
   async asyncData({ store, params, error, app }) {
@@ -230,13 +246,24 @@ export default {
         })
       )
     },
+    passwordFields() {
+      return Object.fromEntries(
+        Object.entries(this.fieldData).map(([key, fields]) => {
+          return [
+            key,
+            fields.filter(
+              (field) =>
+                field.type === PasswordFieldType.getType() &&
+                field.allow_endpoint_authentication
+            ),
+          ]
+        })
+      )
+    },
     withoutReadOnly() {
       return Object.fromEntries(
         Object.entries(this.fields).map(([key, fields]) => {
-          return [
-            key,
-            fields.filter((field) => !field._.isReadOnly && !field.read_only),
-          ]
+          return [key, fields.filter((field) => !this.isReadOnlyField(field))]
         })
       )
     },
@@ -281,9 +308,8 @@ export default {
         responseExample: fieldType.getDocsResponseExample(field),
         fieldResponseExample: fieldType.getDocsFieldResponseExample(
           field,
-          fieldType.isReadOnly
+          fieldType.isReadOnlyField(field)
         ),
-        isReadOnly: fieldType.isReadOnly,
       }
       return field
     },
@@ -324,7 +350,7 @@ export default {
       let fieldsToLoopOver = this.fields[table.id]
       if (!response) {
         fieldsToLoopOver = fieldsToLoopOver.filter(
-          (field) => !field._.isReadOnly
+          (field) => !this.isReadOnlyField(field)
         )
       }
 
@@ -427,6 +453,12 @@ export default {
       return {
         url: 'https://baserow.io/assets/photo.png',
       }
+    },
+    /**
+     * Returns true if the field is read only.
+     */
+    isReadOnlyField(field) {
+      return !this.$registry.get('field', field.type).canWriteFieldValues(field)
     },
     /**
      * Generates the 'upload file via URL' URI.

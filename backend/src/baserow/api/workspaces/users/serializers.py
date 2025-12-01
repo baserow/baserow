@@ -5,6 +5,7 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from baserow.api.mixins import UnknownFieldRaisesExceptionSerializerMixin
+from baserow.api.two_factor_auth.serializers import TwoFactorAuthSerializer
 from baserow.api.user.registries import member_data_registry
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.models import WorkspaceUser
@@ -19,6 +20,7 @@ class WorkspaceUserSerializer(serializers.ModelSerializer):
         source="user.profile.to_be_deleted",
         help_text="True if user account is pending deletion.",
     )
+    two_factor_auth = serializers.SerializerMethodField()
 
     class Meta:
         model = WorkspaceUser
@@ -31,6 +33,7 @@ class WorkspaceUserSerializer(serializers.ModelSerializer):
             "created_on",
             "user_id",
             "to_be_deleted",
+            "two_factor_auth",
         )
 
     @extend_schema_field(OpenApiTypes.STR)
@@ -40,6 +43,14 @@ class WorkspaceUserSerializer(serializers.ModelSerializer):
     @extend_schema_field(OpenApiTypes.STR)
     def get_email(self, object):
         return object.user.email
+
+    def get_two_factor_auth(self, object):
+        try:
+            provider = object.user.two_factor_auth_providers.all()[0]
+        except IndexError:
+            provider = None
+
+        return TwoFactorAuthSerializer(provider).data
 
 
 def get_member_data_types_request_serializer():

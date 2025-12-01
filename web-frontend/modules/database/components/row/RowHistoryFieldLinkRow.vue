@@ -37,22 +37,24 @@ export default {
       return this.removedItems.concat(this.addedItems)
     },
     removedItems() {
-      return this.entry.before[this.fieldIdentifier].filter((before) => {
-        return (
-          this.entry.after[this.fieldIdentifier].findIndex(
-            (item) => item === before
-          ) === -1
-        )
-      })
+      const itemsBefore = this.entry.before[this.fieldIdentifier]
+      const itemsAfter = this.entry.after[this.fieldIdentifier] || []
+      if (!itemsBefore) {
+        return []
+      }
+      return itemsBefore.filter(
+        (before) => itemsAfter.findIndex((item) => item === before) === -1
+      )
     },
     addedItems() {
-      return this.entry.after[this.fieldIdentifier].filter((after) => {
-        return (
-          this.entry.before[this.fieldIdentifier].findIndex(
-            (item) => item === after
-          ) === -1
-        )
-      })
+      const itemsBefore = this.entry.before[this.fieldIdentifier] || []
+      const itemsAfter = this.entry.after[this.fieldIdentifier]
+      if (!itemsAfter) {
+        return []
+      }
+      return itemsAfter.filter(
+        (after) => itemsBefore.findIndex((item) => item === after) === -1
+      )
     },
   },
   methods: {

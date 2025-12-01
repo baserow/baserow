@@ -8,9 +8,10 @@ from baserow.contrib.builder.pages.models import Page
 from baserow.core.db import specific_iterator
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.models import Integration
+from baserow.core.registries import ImportExportConfig
 from baserow.core.services.exceptions import (
     ServiceDoesNotExist,
-    ServiceImproperlyConfigured,
+    ServiceImproperlyConfiguredDispatchException,
 )
 from baserow.core.services.models import Service
 from baserow.core.services.registries import ServiceType, service_type_registry
@@ -165,8 +166,9 @@ class ServiceHandler:
         Updates and service with values. Will also check if the values are allowed
         to be set on the service first.
 
+        :param service_type: The type of the service.
         :param service: The service that should be updated.
-        :param values: The values that should be set on the service.
+        :param kwargs: The values that should be set on the service.
         :return: The updated service.
         """
 
@@ -217,8 +219,13 @@ class ServiceHandler:
         :return: The result of dispatching the service.
         """
 
-        if service.integration_id is None:
-            raise ServiceImproperlyConfigured("The integration property is missing.")
+        if (
+            service.integration_id is None
+            and service.get_type().integration_type is not None
+        ):
+            raise ServiceImproperlyConfiguredDispatchException(
+                "No integration selected"
+            )
 
         return service.get_type().dispatch(service, dispatch_context)
 
@@ -245,6 +252,7 @@ class ServiceHandler:
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
         cache: Optional[Dict] = None,
+        import_export_config: Optional[ImportExportConfig] = None,
     ):
         service_type = service_type_registry.get(serialized_service["type"])
 
@@ -256,4 +264,5 @@ class ServiceHandler:
             files_zip=files_zip,
             storage=storage,
             import_formula=import_formula,
+            import_export_config=import_export_config,
         )

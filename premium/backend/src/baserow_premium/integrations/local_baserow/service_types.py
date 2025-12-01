@@ -42,7 +42,9 @@ from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowViewServiceType,
 )
 from baserow.core.services.dispatch_context import DispatchContext
-from baserow.core.services.exceptions import ServiceImproperlyConfigured
+from baserow.core.services.exceptions import (
+    ServiceImproperlyConfiguredDispatchException,
+)
 from baserow.core.services.registries import DispatchTypes
 from baserow.core.services.types import DispatchResult
 from baserow.core.utils import atomic_if_not_already
@@ -60,7 +62,7 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
     integration_type = LocalBaserowIntegrationType.type
     type = "local_baserow_grouped_aggregate_rows"
     model_class = LocalBaserowGroupedAggregateRows
-    dispatch_type = DispatchTypes.DISPATCH_DATA_SOURCE
+    dispatch_types = [DispatchTypes.DATA]
     serializer_mixins = LocalBaserowTableServiceFilterableMixin.mixin_serializer_mixins
 
     def get_schema_name(self, service: LocalBaserowGroupedAggregateRows) -> str:
@@ -124,6 +126,7 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
         self,
         service: LocalBaserowGroupedAggregateRows,
         aggregation_series: list[ServiceAggregationSeriesDict] | None = None,
+        id_mapping: dict | None = None,
     ):
         with atomic_if_not_already():
             table_fields = service.table.field_set.all()
@@ -181,7 +184,6 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
 
                 return True
 
-            service.service_aggregation_series.all().delete()
             if aggregation_series is not None:
                 if (
                     len(aggregation_series)
@@ -191,15 +193,69 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
                         detail=f"The number of series exceeds the maximum allowed length of {settings.BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_SERIES}.",
                         code="max_length_exceeded",
                     )
-                LocalBaserowTableServiceAggregationSeries.objects.bulk_create(
-                    [
-                        LocalBaserowTableServiceAggregationSeries(
-                            **agg_series, service=service, order=index
-                        )
-                        for index, agg_series in enumerate(aggregation_series)
-                        if validate_agg_series(agg_series)
+
+                existing_series = service.service_aggregation_series.all()
+                existing_series_by_id = {
+                    series.id: series for series in existing_series
+                }
+
+                # If id_mapping is provided we assume that we are importing
+                id_mapping_old_series_ids = []
+                if id_mapping is not None:
+                    if "service_aggregation_series" not in id_mapping:
+                        id_mapping["service_aggregation_series"] = {}
+                    id_mapping_old_series_ids = [
+                        current_series.pop("id", None)
+                        for current_series in aggregation_series
                     ]
+
+                series_to_add = []
+                series_to_update = []
+                order = 1
+                for agg_series in aggregation_series:
+                    validate_agg_series(agg_series)
+
+                    if "id" in agg_series:
+                        if agg_series["id"] not in existing_series_by_id:
+                            raise DRFValidationError(
+                                detail=f"The series with id {agg_series['id']} does not exist.",
+                                code="invalid_series",
+                            )
+                        to_update = existing_series_by_id.pop(agg_series["id"])
+                        to_update.field_id = agg_series["field_id"]
+                        to_update.aggregation_type = agg_series["aggregation_type"]
+                        to_update.order = order
+                        series_to_update.append(to_update)
+                    else:
+                        series_to_add.append(
+                            LocalBaserowTableServiceAggregationSeries(
+                                **agg_series, service=service, order=order
+                            )
+                        )
+                    order += 1
+
+                LocalBaserowTableServiceAggregationSeries.objects.bulk_update(
+                    series_to_update,
+                    fields=["field_id", "aggregation_type", "order"],
                 )
+
+                created_series = (
+                    LocalBaserowTableServiceAggregationSeries.objects.bulk_create(
+                        series_to_add
+                    )
+                )
+
+                if id_mapping is not None:
+                    for i in range(len(created_series)):
+                        id_mapping["service_aggregation_series"][
+                            id_mapping_old_series_ids[i]
+                        ] = created_series[i].id
+
+                service.service_aggregation_series.filter(
+                    id__in=existing_series_by_id.keys()
+                ).delete()
+
+                service.refresh_from_db()
 
     def _update_service_aggregation_group_bys(
         self,
@@ -389,6 +445,7 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
         if prop_name == "service_aggregation_series":
             return [
                 {
+                    "id": series.id,
                     "field_id": series.field_id,
                     "aggregation_type": series.aggregation_type,
                 }
@@ -463,11 +520,12 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
                 else:
                     sort["reference"] = None
 
-        self._update_service_aggregation_series(service, series)
-        self._update_service_aggregation_group_bys(service, group_bys)
-        self._update_service_sorts(
-            service, [sort for sort in sorts if sort["reference"] is not None]
-        )
+        if service.table_id is not None:
+            self._update_service_aggregation_series(service, series, id_mapping)
+            self._update_service_aggregation_group_bys(service, group_bys)
+            self._update_service_sorts(
+                service, [sort for sort in sorts if sort["reference"] is not None]
+            )
 
         return service
 
@@ -513,9 +571,10 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
         :return: Aggregation results.
         """
 
-        table = resolved_values["table"]
+        table = service.table
         model = self.get_table_model(service)
         queryset = self.build_queryset(service, table, dispatch_context, model=model)
+        other_buckets_qs = queryset.all()
 
         group_by_values = []
         for group_by in service.service_aggregation_group_bys.all():
@@ -524,7 +583,7 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
                 group_by_values.append(model.get_primary_field().db_column)
                 break
             if group_by.field.trashed:
-                raise ServiceImproperlyConfigured(
+                raise ServiceImproperlyConfiguredDispatchException(
                     f"The field with ID {group_by.field.id} is trashed."
                 )
             try:
@@ -532,7 +591,7 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
                     group_by.field.get_type()
                 )
             except FieldTypeDoesNotExist:
-                raise ServiceImproperlyConfigured(
+                raise ServiceImproperlyConfiguredDispatchException(
                     f"The field with ID {group_by.field.id} cannot be used for group by."
                 )
             group_by_values.append(group_by.field.db_column)
@@ -543,29 +602,29 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
         combined_agg_dict = {}
         defined_agg_series = service.service_aggregation_series.all()
         if len(defined_agg_series) == 0:
-            raise ServiceImproperlyConfigured(
+            raise ServiceImproperlyConfiguredDispatchException(
                 f"There are no aggregation series defined."
             )
 
         series_agg_used = set()
         for agg_series in defined_agg_series:
             if agg_series.field is None:
-                raise ServiceImproperlyConfigured(
+                raise ServiceImproperlyConfiguredDispatchException(
                     f"The aggregation series field has to be set."
                 )
             if agg_series.field.trashed:
-                raise ServiceImproperlyConfigured(
+                raise ServiceImproperlyConfiguredDispatchException(
                     f"The field with ID {agg_series.field.id} is trashed."
                 )
             model_field = model._meta.get_field(agg_series.field.db_column)
             try:
                 agg_type = grouped_aggregation_registry.get(agg_series.aggregation_type)
             except AggregationTypeDoesNotExist as ex:
-                raise ServiceImproperlyConfigured(
+                raise ServiceImproperlyConfiguredDispatchException(
                     f"The the aggregation type {agg_series.aggregation_type} doesn't exist."
                 ) from ex
             if not agg_type.field_is_compatible(agg_series.field):
-                raise ServiceImproperlyConfigured(
+                raise ServiceImproperlyConfiguredDispatchException(
                     f"The field with ID {agg_series.field.id} is not compatible "
                     f"with the aggregation type {agg_series.aggregation_type}."
                 )
@@ -574,7 +633,7 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
                 f"field_{agg_series.field.id}_{agg_series.aggregation_type}"
             )
             if series_aggregation_reference in series_agg_used:
-                raise ServiceImproperlyConfigured(
+                raise ServiceImproperlyConfiguredDispatchException(
                     f"The series with field ID {agg_series.field.id} and "
                     f"aggregation type {agg_series.aggregation_type} can only be defined once."
                 )
@@ -589,6 +648,7 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
         for key, value in combined_agg_dict.items():
             if isinstance(value, AnnotatedAggregation):
                 queryset = queryset.annotate(**value.annotations)
+                other_buckets_qs = other_buckets_qs.annotate(**value.annotations)
                 combined_agg_dict[key] = value.aggregation
 
         allowed_sort_references = [
@@ -609,7 +669,7 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
         sort_annotations = {}
         for sort_by in service.service_aggregation_sorts.all():
             if sort_by.reference not in allowed_sort_references:
-                raise ServiceImproperlyConfigured(
+                raise ServiceImproperlyConfiguredDispatchException(
                     f"The sort reference '{sort_by.reference}' cannot be used for sorting."
                 )
 
@@ -658,10 +718,48 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
             queryset = queryset.annotate(**combined_agg_dict)
             queryset = queryset.order_by(*sorts)
             queryset = queryset[
-                : settings.BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS
+                : settings.BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS + 1
             ]
 
             results = [process_individual_result(result) for result in queryset]
+            buckets_count = len(queryset)
+            if (
+                buckets_count
+                > settings.BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS
+            ):
+                # The number of buckets don't fit in the limit
+                # so we will aggregate all the other buckets into one
+                bucket_db_column = group_by_values[0]
+                results = results[
+                    : settings.BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS
+                    - 1
+                ]
+                buckets_taken = [result[bucket_db_column] for result in results]
+                other_buckets_qs = other_buckets_qs.exclude(
+                    **{f"{bucket_db_column}__in": buckets_taken}
+                )
+
+                other_bucket_results = other_buckets_qs.aggregate(**combined_agg_dict)
+                other_bucket_results = process_individual_result(other_bucket_results)
+                other_bucket_primary_field = (
+                    {f"{model.get_primary_field().db_column}": "OTHER_VALUES"}
+                    if "id" in group_by_values
+                    else {}
+                )
+                results.append(
+                    {
+                        f"{bucket_db_column}": "OTHER_VALUES",
+                        **other_bucket_primary_field,
+                        **other_bucket_results,
+                    }
+                )
+                first_sort_by = service.service_aggregation_sorts.first()
+                if first_sort_by and first_sort_by.sort_on == "SERIES":
+                    results = sorted(
+                        results,
+                        key=lambda x: x[first_sort_by.reference],
+                        reverse=True if first_sort_by.direction == "DESC" else False,
+                    )
         else:
             results = queryset.aggregate(**combined_agg_dict)
             results = process_individual_result(results)

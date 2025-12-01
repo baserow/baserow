@@ -14,6 +14,9 @@ from baserow.contrib.builder.elements.models import (
 from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.elements.service import ElementService
 from baserow.contrib.builder.workflow_actions.models import NotificationWorkflowAction
+from baserow.core.formula import BaserowFormulaObject
+from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
+from baserow.core.formula.types import BASEROW_FORMULA_MODE_SIMPLE
 from baserow.core.utils import MirrorDict
 
 
@@ -218,14 +221,28 @@ def test_duplicate_table_element_with_current_record_formulas(data_fixture):
     result = ElementHandler().duplicate_element(table_element)
 
     assert [f.config for f in result["elements"][0].fields.all()] == [
-        {"value": f"get('current_record.field_{fields[0].id}')"},
+        {
+            "value": BaserowFormulaObject(
+                formula=f"get('current_record.field_{fields[0].id}')",
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+            )
+        },
         {
             "page_parameters": [],
             "query_parameters": [],
             "navigate_to_page_id": None,
             "navigation_type": "custom",
-            "navigate_to_url": f"get('current_record.field_{fields[0].id}')",
-            "link_name": f"get('current_record.field_{fields[0].id}')",
+            "navigate_to_url": BaserowFormulaObject(
+                formula=f"get('current_record.field_{fields[0].id}')",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
+            "link_name": BaserowFormulaObject(
+                formula=f"get('current_record.field_{fields[0].id}')",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
             "target": "self",
             "variant": LinkElement.VARIANTS.BUTTON,
         },
@@ -267,7 +284,13 @@ def test_import_table_element_with_current_record_formulas_with_update(data_fixt
         "fields": [
             {
                 "name": "Field 1",
-                "config": {"value": f"get('current_record.field_42')"},
+                "config": {
+                    "value": BaserowFormulaObject(
+                        formula="get('current_record.field_42')",
+                        mode=BASEROW_FORMULA_MODE_SIMPLE,
+                        version=BASEROW_FORMULA_VERSION_INITIAL,
+                    )
+                },
                 "type": "text",
                 "uid": uuids[0],
             },
@@ -278,8 +301,16 @@ def test_import_table_element_with_current_record_formulas_with_update(data_fixt
                     "query_parameters": [],
                     "navigate_to_page_id": None,
                     "navigation_type": "custom",
-                    "navigate_to_url": f"get('current_record.field_42')",
-                    "link_name": f"get('current_record.field_42')",
+                    "navigate_to_url": BaserowFormulaObject(
+                        formula="get('current_record.field_42')",
+                        mode=BASEROW_FORMULA_MODE_SIMPLE,
+                        version=BASEROW_FORMULA_VERSION_INITIAL,
+                    ),
+                    "link_name": BaserowFormulaObject(
+                        formula="get('current_record.field_42')",
+                        mode=BASEROW_FORMULA_MODE_SIMPLE,
+                        version=BASEROW_FORMULA_VERSION_INITIAL,
+                    ),
                     "target": "self",
                     "variant": LinkElement.VARIANTS.BUTTON,
                 },
@@ -301,14 +332,28 @@ def test_import_table_element_with_current_record_formulas_with_update(data_fixt
     assert imported_table_element.specific.data_source_id == data_source1.id
 
     assert [f.config for f in imported_table_element.specific.fields.all()] == [
-        {"value": f"get('current_record.field_{fields[0].id}')"},
+        {
+            "value": BaserowFormulaObject(
+                formula=f"get('current_record.field_{fields[0].id}')",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            )
+        },
         {
             "page_parameters": [],
             "query_parameters": [],
             "navigate_to_page_id": None,
             "navigation_type": "custom",
-            "navigate_to_url": f"get('current_record.field_{fields[0].id}')",
-            "link_name": f"get('current_record.field_{fields[0].id}')",
+            "navigate_to_url": BaserowFormulaObject(
+                formula=f"get('current_record.field_{fields[0].id}')",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
+            "link_name": BaserowFormulaObject(
+                formula=f"get('current_record.field_{fields[0].id}')",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
             "target": "self",
             "variant": LinkElement.VARIANTS.BUTTON,
         },
@@ -491,7 +536,7 @@ def test_table_element_import_field_with_formula_with_current_record(data_fixtur
 
     table_element = table_element_type.import_serialized(page, exported, id_mapping)
     assert (
-        table_element.fields.first().config["label"]
+        table_element.fields.first().config["label"]["formula"]
         == f"get('current_record.field_{fields[0].id}')"
     )
 

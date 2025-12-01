@@ -3,8 +3,30 @@
     "page": "Page",
     "of": "of {pages}"
   },
+  "workspaceSearch": {
+    "title": "Search",
+    "searchEverything": "Search...",
+    "searching": "Searching...",
+    "noResults": "No results found",
+    "noResultsSubtitle": "We couldn't find anything matching \"{searchTerm}\"",
+    "welcome": "Search everything in your workspace",
+    "welcomeSubtitle": "Use the search box above to find applications, tables, fields, and more",
+    "navigate": "Navigate",
+    "select": "Select",
+    "close": "Close",
+    "types": {
+      "applications": "Applications",
+      "tables": "Tables",
+      "fields": "Fields",
+      "rows": "Rows"
+    }
+  },
   "copied": {
     "label": "Copied!"
+  },
+  "action": {
+    "cancel": "Cancel",
+    "submit": "Submit"
   },
   "sidebarApplication": {
     "rename": "Rename",
@@ -48,6 +70,56 @@
     "changedTitle": "Changed",
     "changedDescription": "Your account information has been changed.",
     "submitButton": "Update account"
+  },
+  "twoFactorAuthSettings": {
+    "title": "Two-factor authentication",
+    "loadingError": "Could not load two-factor configuration."
+  },
+  "disableTwoFactorAuth": {
+    "title": "Are you sure you want to disable 2FA?",
+    "description": "Your account will lose an extra layer of security. If someone finds out your password, they might be able to log in to your account.",
+    "cancel": "Leave it on",
+    "disable": "Disable",
+    "successTitle": "Two-factor authentication has been disabled",
+    "errorWrongPasswordTitle": "Wrong password",
+    "errorWrongPasswordMessage": "The password entered doesn't match your password."
+  },
+  "enableTwoFactorOptions": {
+    "cancel": "Cancel",
+    "continue": "Continue"
+  },
+  "saveBackupCode": {
+    "description": "If you lose access to your authenticator app or phone and can’t receive or generate authentication codes, you can use this backup. You can only use it once. Make sure you write it down or copy it into a safe place so that you can access it without logging in.",
+    "backupCodes": "Backup codes",
+    "copy": "Copy",
+    "continue": "Continue",
+    "backupCodesCopiedTitle": "Copied!",
+    "backupCodesCopiedMessage": "Backup codes copied to clipboard."
+  },
+  "totpAuthType": {
+    "name": "Authenticator app",
+    "description": "Use an app to get two-factor authentication codes. We recommend using apps such as Google Authenticator, Authy and Microsoft Authenticator.",
+    "enabledDescription": "You'll receive verification codes via an authenticator app. To set up different app or method, simply disable 2FA and setup again.",
+    "sideLabel": "Recommended"
+  },
+  "twoFactorEnabled": {
+    "enabled": "Enabled",
+    "disable": "Disable 2FA"
+  },
+  "totpLogin": {
+    "backupCodesTitle": "Enter backup code",
+    "backupCodesDescription": "Log in with your single-use backup code.",
+    "authenticate": "Authenticate",
+    "goBack": "Go back",
+    "totpTitle": "Two-factor authentication",
+    "totpDescription": "Enter the code from your authenticator app.",
+    "verify": "Verify",
+    "useBackupCode": "Use backup code",
+    "verificationFailed": "Verification failed",
+    "verificationFailedDescription": "The entered code is not correct.",
+    "loginExpired": "Login expired",
+    "loginExpiredDescription": "Please provide your password again.",
+    "rateLimit": "Too many attempts."
   },
   "settingsModal": {
     "title": "My settings"
@@ -143,6 +215,9 @@
   },
   "exportWorkspaceForm": {
     "exportSettingsLabel": "Export settings",
+    "selectDataToExport": "Select data to export",
+    "selectAll": "Select all",
+    "deselectAll": "Deselect all",
     "onlyStructureLabel": "Export structure only",
     "onlyStructureDescription": "If enabled, only the structure of the applications will be exported. The data will not be included."
   },
@@ -151,6 +226,7 @@
     "description": "You can import an existing Baserow data by uploading the .zip file from other Baserow instance.",
     "import": "Import data",
     "upload": "Upload",
+    "uploadAndImport": "Upload & Import",
     "cancel": "Cancel",
     "done": "Done",
     "close": "Close",
@@ -172,6 +248,9 @@
     "importingState": "Importing...",
     "importingTableStructure": "Creating: {table}",
     "importingTableData": "Importing data: {table}"
+  },
+  "importWorkspaceForm": {
+    "selectApplicationsToImport": "Select applications to import"
   },
   "dashboardWorkspace": {
     "createApplication": "Create new"
@@ -233,6 +312,8 @@
     "openaiOrganization": "Organization (optional)",
     "openaiModelsLabel": "Enabled Models",
     "openaiModelsDescription": "Provide a list of comma separated [OpenAI models](https://platform.openai.com/docs/models/continuous-model-upgrades) that can be used in Baserow. (e.g. `gpt-3.5-turbo,gpt-4`)",
+    "openaiBaseUrl": "Base URL",
+    "openaiBaseUrlDescription": "Uses the default OpenAI base URL by default if empty. Can optionally be changed to https://eu.api.openai.com/v1, https://<your-resource-name>.openai.azure.com, or any other OpenAI compatible API.",
     "anthropic": "Anthropic",
     "anthropicApiKeyLabel": "API Key",
     "anthropicApiKeyDescription": "Provide an Anthropic API key if you would like to enable the integration. [Instructions on getting an API key](https://docs.anthropic.com/en/api/getting-started).",
@@ -346,11 +427,11 @@
   },
   "connectingToast": {
     "title": "Reconnecting",
-    "content": "Reconnecting with server."
+    "content": "Trying to reestablish real-time updates."
   },
   "failedConnectingToast": {
     "title": "Failed",
-    "content": "Connection to the server has failed. Please refresh the page.",
+    "content": "Real-time updates could not be reestablished. Please refresh to continue.",
     "action": "Refresh page"
   },
   "authorizationErrorToast": {
@@ -416,7 +497,7 @@
     "tweetContent": "Check out @baserow an open source no-code database tool and Airtable alternative!",
     "redditTitle": "'Baserow - An open source no-code database",
     "becomeGithubSponsor": "Become a GitHub sponsor",
-    "starOnGitlab": "Star us on GitLab",
+    "starOnGitHub": "Star us on GitHub",
     "shareOnTwitter": "Tweet about Baserow",
     "shareOnReddit": "Share on Reddit",
     "shareOnFacebook": "Share on Facebook",
@@ -594,6 +675,7 @@
     "statePending": "Waiting to start...",
     "stateStarted": "Started...",
     "stateFinished": "Finished",
+    "stateCanceled": "Canceled",
     "stateFailed": "Failed",
     "errorJobCannotBeCancelledTitle": "Could not cancel",
     "errorJobCannotBeCancelledDescription": "It’s not possible to cancel the job as it has already been completed.\nPlease delete the first snapshot in the list below to remove it.",
@@ -607,7 +689,7 @@
     "daysAgo": "0 days ago | 1 day ago | {n} days ago",
     "monthsAgo": "0 months ago | 1 month ago | {n} months ago",
     "yearsAgo": "0 years ago | 1 year ago | {n} years ago",
-    "lessThanMinuteAgo": "less than minute ago",
+    "lessThanMinuteAgo": "less than a minute ago",
     "justNow": "just now"
   },
   "crudTableSearch": {
@@ -625,7 +707,9 @@
         "role": "Default role",
         "highestRole": "Highest Role",
         "highestRoleHelpText": "The highest role this user assigned to them directly or from a team, on anything in this workspace",
-        "teams": "Teams"
+        "highestRoleInstanceHelpText": "The highest role this user has in the instance",
+        "teams": "Teams",
+        "2fa": "2FA"
       },
       "actions": {
         "copyEmail": "Copy email",
@@ -683,7 +767,7 @@
     "warningTitle": "Warning"
   },
   "integrationEditForm": {
-    "name": "Integration name",
+    "name": "Name",
     "namePlaceholder": "Enter integration name..."
   },
   "integrationDropdown": {
@@ -724,11 +808,27 @@
     "submitButton": "Update frequency"
   },
   "formulaInputField": {
-    "errorInvalidFormula": "The formula is invalid."
+    "errorInvalidFormula": "The formula is invalid.",
+    "advancedFormulaMode": "Advanced formula mode"
+  },
+  "formulaInputContext": {
+    "variables": "Variables",
+    "functions": "Functions",
+    "operators": "Operators",
+    "search": "Search",
+    "useRegularInputModalTitle": "Use regular input for this field?",
+    "useRegularInput": "Use regular input",
+    "useAdvancedInput": "Use advanced input",
+    "useAdvancedInputModalTitle": "Use advanced input for this field?",
+    "modalMessage": "Your field’s content will be cleared and it will not be possible to recover it."
   },
   "dataExplorer": {
     "noMatchingNodesText": "No matching results were found.",
     "noProvidersText": "No data providers were found. To get started you can, for example, add a data source or page parameter."
+  },
+  "dataExplorerNode": {
+    "showMore": "Show more repetitions",
+    "selectNode": "Select"
   },
   "richTextEditorBubbleMenu": {
     "bold": "Bold",
@@ -810,9 +910,6 @@
   "imageInput": {
     "labelDescription": "Select an image to upload...",
     "labelButton": "Upload"
-  },
-  "dataExplorerNode": {
-    "showMore": "Show more repetitions"
   },
   "user": {
     "isStaff": "Is staff",
@@ -901,6 +998,10 @@
     "delete": "Delete user",
     "edit": "Edit { username }"
   },
+  "twoFactorAuthField": {
+    "enabled": "Enabled",
+    "disabled": "Disabled"
+  },
   "adminDashboard": {
     "title": "Dashboard",
     "totals": "Totals",
@@ -942,5 +1043,62 @@
   "createNewGuidedTourStep": {
     "title": "Create a new database or application",
     "content": "Click “Add new…” to set up a new database, application or dashboard for your project, department, or team."
+  },
+  "mcpEndpointSettings": {
+    "title": "MCP server",
+    "createEndpoint": "Create endpoint",
+    "createNewTitle": "Create MCP server endpoint",
+    "backToOverview": "Back",
+    "noEndpointsMessage": "No MCP (Model Context Protocol) server endpoints have been added. These can be used to directly integrate with an LLM like Claude, and let the LLM perform actions directly in Baserow. Create a server endpoint to get started."
+  },
+  "mcpEndpointForm": {
+    "nameLabel": "Name",
+    "workspaceLabel": "Workspace"
+  },
+  "mcpEndpoint": {
+    "detailLabel": "More details",
+    "endpointURLIntro": "The MCP (Model Context Protocol) server URL can be added to any client that supports MCP servers. It's a unique endpoint that gives the LLM direct access to perform actions in the workspace on your behalf.",
+    "reveal": "Reveal full URL",
+    "warning": "Treat your MCP URL like a password, as it has the ability to modify data in Baserow.",
+    "claudeInstructions": "Three simple steps to get started with Claude Desktop and the Baserow MCP.\n\n1. Open the Claude Desktop settings from the navigation bar. (⌘+,)\n1. Go to the \"Develop\" tab, and click on \"Edit Config\".\n1. Include the following JSON configuration in `claude_desktop_config.json`.",
+    "cursorInstructions": "Three simple steps to get started with Cursor and the Baserow MCP.\n\n1. Open Cursor settings (⇧+⌘+J)\n1. Navigate to the \"MCP\" tab and click \"Add MCP Server\"\n1. Add the following JSON configuration.",
+    "windsurfInstructions": "Two easy steps to set up MCP with Cascase in Windsurf.\n\n1. Navigate to Windsurf - Settings -> Advanced Settings or Command Palette -> Open Windsurf settings page.\n1. Scroll down to the Cascade section and you will find the option to add a new server, view existing servers, and a button to view the raw JSON config file at `mcp_config.json`. Add the following to it:"
+  },
+  "coreHTTPTriggerServiceForm": {
+    "title": "Webhook URL",
+    "urlVersion": "Version",
+    "urlVersionPublished": "Published",
+    "urlVersionTest": "Test",
+    "copyUrl": "Copy Webhook URL",
+    "urlCopied": "Webhook URL copied to clipboard",
+    "description": "This webhook will receive HTTP requests and trigger the workflow with the request data as the payload.",
+    "methodsOptionLabel": "Allowed HTTP methods",
+    "methodsOptionDescription": "Controls which HTTP methods are allowed for this webhook. Excluding GET reduces the chance of the webhook being triggered accidentally.",
+    "methodsOptionAll": "All",
+    "methodsOptionExcludeGet": "Exclude GET"
+  },
+  "twoFactorAuthEmpty": {
+    "title": "You have not yet enabled 2FA",
+    "description": "Add an extra layer of security to your account.",
+    "enable": "Enable 2FA",
+    "notAllowedTitle": "2FA not enabled",
+    "notAllowedDescription": "Adding 2FA is only possible to password-based accounts."
+  },
+  "nodeHelpTooltip": {
+    "exampleLabel": "Example",
+    "result": "Result: {result}"
+  },
+  "enableWithQRCode": {
+    "scanQRCode": "Scan QR code",
+    "scanQRCodeDescription": "Scan the code with an app like Google Authenticator, Authy or Microsoft Authenticator.",
+    "clickToCopy": "Alternatively, click here to copy the code.",
+    "secretCopiedTitle": "Secret copied",
+    "secretCopiedMessage": "TOTP secret copied to clipboard.",
+    "enterCode": "Enter the code shown",
+    "enterCodeDescription": "Enter a 6-digit code shown by the app to confirm that you have set it up correctly.",
+    "verificationFailed": "Verification failed",
+    "verificationFailedDescription": "The entered code is not valid.",
+    "provisioningFailed": "Provisioning failed",
+    "checkSuccess": "Successfully enabled two-factor authentication"
   }
 }

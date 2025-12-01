@@ -1,5 +1,6 @@
 .gallery-view {
   overflow: hidden;
+  background-color: $white;
 
   @include absolute(0);
 }
@@ -35,6 +36,10 @@
     visibility: hidden;
   }
 
+  &.gallery-view__card--dragging-clone {
+    @include elevation($elevation-high);
+  }
+
   .gallery-view__cards--dragging & {
     // Must be kept in sync with the timeout of bufferedRowsDragAndDrop.js::rowMoved
     transition: transform 0.1s ease-out 0s;
@@ -45,7 +50,7 @@
         .gallery-view__card--dragging
       ) {
       cursor: pointer;
-      box-shadow: 0 1px 3px 0 rgba($black, 0.32);
+      border-color: $palette-neutral-300;
     }
   }
 }

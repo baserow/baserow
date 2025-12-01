@@ -33,6 +33,7 @@ from baserow.config.settings.base import BASEROW_DEFAULT_ZIP_COMPRESS_LEVEL
 from baserow.contrib.database.constants import EXPORT_WORKSPACE_CREATE_ARCHIVE
 from baserow.core.handler import CoreHandler
 from baserow.core.import_export.exceptions import (
+    ImportExportApplicationIdsNotFound,
     ImportExportResourceDoesNotExist,
     ImportExportResourceInBeingImported,
     ImportExportResourceInvalidFile,
@@ -828,6 +829,7 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
         import_export_config: ImportExportConfig,
         zip_file: ZipFile,
         storage: Storage,
+        application_ids: Optional[List[int]] = None,
         progress_builder: Optional[ChildProgressBuilder] = None,
     ) -> List[Application]:
         """
@@ -844,6 +846,9 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
         :param zip_file: The ZipFile instance containing the applications to be
             imported.
         :param storage: The storage instance to use for file operations.
+        :param application_ids: Optional list of application IDs to import from the
+            resource. If not provided, all applications in the resource will be
+            imported.
         :param progress: A progress instance that allows tracking of the import
             progress.
         :return: A list of imported Application instances.
@@ -865,6 +870,31 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
         prioritized_applications = sorted(
             manifest["applications"].keys(), key=application_priority_sort, reverse=True
         )
+
+        if application_ids:
+            available_application_ids = set()
+            for app_type in prioritized_applications:
+                for item in manifest["applications"][app_type]["items"]:
+                    available_application_ids.add(item.get("id"))
+
+            missing_application_ids = set(application_ids) - available_application_ids
+            if missing_application_ids:
+                raise ImportExportApplicationIdsNotFound(
+                    f"The following application IDs were not found in the export: {sorted(missing_application_ids)}"
+                )
+
+            filtered_manifest = {"applications": {}}
+            for app_type in prioritized_applications:
+                filtered_items = []
+                for item in manifest["applications"][app_type]["items"]:
+                    if item.get("id") in application_ids:
+                        filtered_items.append(item)
+                if filtered_items:
+                    filtered_manifest["applications"][app_type] = {
+                        "items": filtered_items
+                    }
+            manifest = filtered_manifest
+            prioritized_applications = list(filtered_manifest["applications"].keys())
 
         application_count = sum(
             len(manifest["applications"][application_type]["items"])
@@ -942,6 +972,7 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
         user: AbstractUser,
         workspace: Workspace,
         resource: ImportExportResource,
+        application_ids: Optional[List[int]] = None,
         storage: Optional[Storage] = None,
         progress_builder: Optional[ChildProgressBuilder] = None,
     ) -> List[Application]:
@@ -952,6 +983,9 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
         :param workspace: The workspace into which the applications will be imported.
             for storing temporary files.
         :param resource: The resource containing the zip file to be imported.
+        :param application_ids: Optional list of application IDs to import from the
+            resource. If not provided, all applications in the resource will be
+            imported.
         :param storage: The storage instance to use for file operations.
             If not provided, the default storage will be used.
         :param progress_builder: A progress builder that allows for publishing progress.
@@ -1033,6 +1067,7 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
                     import_export_config,
                     zip_file,
                     storage,
+                    application_ids,
                     progress.create_child_builder(represents_progress=80),
                 )
 

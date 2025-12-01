@@ -1,9 +1,12 @@
+from unittest import mock
+
 from django.urls import reverse
 
 import pytest
 from rest_framework.exceptions import AuthenticationFailed
 
 from baserow.api.user_sources.authentication import UserSourceJSONWebTokenAuthentication
+from baserow.core.models import Application
 from baserow.core.user.exceptions import UserNotFound
 from baserow.core.user_sources.constants import USER_SOURCE_CLAIM
 from baserow.core.user_sources.user_source_user import UserSourceUser
@@ -103,6 +106,65 @@ def test_user_source_dont_authenticate_with_unpublished_user_source(
     auth = UserSourceJSONWebTokenAuthentication()
     with pytest.raises(AuthenticationFailed), stub_user_source_registry():
         auth.authenticate(fake_request)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "use_user_source_auth_header",
+    [
+        True,
+        False,
+    ],
+)
+def test_user_source_authentication_handles_deleted_application(
+    data_fixture,
+    api_request_factory,
+    stub_user_source_registry,
+    use_user_source_auth_header,
+):
+    """
+    Ensure that an appropriate error is returned if the application doesn't
+    exist, e.g. it was deleted.
+    """
+
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    user_source = data_fixture.create_user_source_with_first_type(application=builder)
+
+    us_token = data_fixture.create_user_source_user(
+        user_source=user_source,
+    ).get_refresh_token()
+
+    if use_user_source_auth_header:
+        auth_header = {
+            "HTTP_USERSOURCEAUTHORIZATION": f"JWT {us_token.access_token}",
+        }
+    else:
+        auth_header = {
+            "HTTP_AUTHORIZATION": f"JWT {us_token.access_token}",
+        }
+
+    fake_request = api_request_factory.post(
+        reverse(
+            "api:user_sources:token_auth",
+            kwargs={"user_source_id": user_source.id},
+        ),
+        {},
+        **auth_header,
+    )
+    fake_request.user = user
+
+    auth = UserSourceJSONWebTokenAuthentication(
+        use_user_source_authentication_header=use_user_source_auth_header
+    )
+
+    with mock.patch(
+        "baserow.api.user_sources.authentication.CoreHandler.check_permissions",
+        side_effect=Application.DoesNotExist("This builder app doesn't exist!"),
+    ):
+        with stub_user_source_registry():
+            with pytest.raises(AuthenticationFailed) as e:
+                auth.authenticate(fake_request)
 
 
 @pytest.mark.django_db

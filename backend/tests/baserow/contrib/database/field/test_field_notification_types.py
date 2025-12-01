@@ -25,7 +25,11 @@ from baserow.core.action.registries import action_type_registry
 from baserow.core.notifications.handler import NotificationHandler
 from baserow.core.notifications.models import NotificationRecipient
 from baserow.core.trash.handler import TrashHandler
-from baserow.test_utils.helpers import AnyInt, assert_undo_redo_actions_are_valid
+from baserow.test_utils.helpers import (
+    AnyInt,
+    AnyStr,
+    assert_undo_redo_actions_are_valid,
+)
 
 
 @pytest.mark.django_db(transaction=True)
@@ -843,13 +847,17 @@ def test_notifications_are_not_sent_twice_on_undo_redo_row_update(
 
     with transaction.atomic(), freeze_time("2023-07-06 12:00"):
         row = RowHandler().create_row(user=user_1, table=table, model=model)
-        (row,) = action_type_registry.get_by_type(UpdateRowsActionType).do(
-            user=user_1,
-            table=table,
-            rows_values=[
-                {"id": row.id, rich_text_field.db_column: f"Hello @{user_2.id}!"}
-            ],
-            model=model,
+        (row,) = (
+            action_type_registry.get_by_type(UpdateRowsActionType)
+            .do(
+                user=user_1,
+                table=table,
+                rows_values=[
+                    {"id": row.id, rich_text_field.db_column: f"Hello @{user_2.id}!"}
+                ],
+                model=model,
+            )
+            .updated_rows
         )
 
     # Ensure the mention is created in the apposite table
@@ -1055,6 +1063,172 @@ def test_email_notifications_are_created_correctly_for_mentions_in_rich_text_fie
             {
                 "title": (
                     f"Lisa Smith mentioned you in RichTextField in row unnamed row {row.id} in Example."
+                ),
+                "description": None,
+                "url": notification_url,
+            }
+        ],
+        "new_notifications_count": 1,
+        "unlisted_notifications_count": 0,
+    }
+    user_2_summary_email_context = user_2_summary_email.get_context()
+
+    for k, v in expected_context.items():
+        assert user_2_summary_email_context[k] == v
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.ws.tasks.broadcast_to_users.apply")
+def test_anonymous_user_can_send_collaborator_notification_via_public_form(
+    mocked_broadcast_to_users, api_client, data_fixture
+):
+    """Test that anonymous users can trigger CollaboratorAddedToRowNotificationType via
+    public form submission."""
+
+    user_1, token_1 = data_fixture.create_user_and_token(email="owner@test.nl")
+    user_2, token_2 = data_fixture.create_user_and_token(email="collaborator@test.nl")
+    workspace = data_fixture.create_workspace(members=[user_1, user_2])
+    database = data_fixture.create_database_application(
+        user=user_1, workspace=workspace, name="Test Database"
+    )
+    table = data_fixture.create_database_table(name="Test Table", database=database)
+
+    # Create a collaborator field with notifications enabled
+    collaborator_field = data_fixture.create_multiple_collaborators_field(
+        user=user_1, table=table, name="Assignees", notify_user_when_added=True
+    )
+
+    # Create a public form view
+    form = data_fixture.create_form_view(table=table, public=True)
+    data_fixture.create_form_view_field_option(
+        form, collaborator_field, required=False, enabled=True, order=1
+    )
+
+    with freeze_time("2023-07-06 12:00"):
+        # Submit form as anonymous user (no authentication token)
+        url = reverse("api:database:views:form:submit", kwargs={"slug": form.slug})
+        response = api_client.post(
+            url,
+            {f"field_{collaborator_field.id}": [{"id": user_2.id}]},
+            format="json",
+            # No HTTP_AUTHORIZATION header - anonymous submission
+        )
+        assert response.status_code == HTTP_200_OK
+
+    # Verify that user_2 received a notification
+    response = api_client.get(
+        reverse("api:notifications:list", kwargs={"workspace_id": workspace.id}),
+        HTTP_AUTHORIZATION=f"JWT {token_2}",
+    )
+    assert response.status_code == HTTP_200_OK
+    response_json = response.json()
+    assert response_json["count"] == 1
+
+    notification = response_json["results"][0]
+    assert notification["type"] == CollaboratorAddedToRowNotificationType.type
+    assert notification["sender"] is None  # Anonymous user, so no sender
+    assert notification["data"]["field_id"] == collaborator_field.id
+    assert notification["data"]["field_name"] == collaborator_field.name
+    assert notification["data"]["table_id"] == table.id
+    assert notification["data"]["table_name"] == table.name
+    assert notification["data"]["database_id"] == database.id
+    assert notification["data"]["database_name"] == database.name
+
+    # Verify WebSocket notification was sent
+    assert mocked_broadcast_to_users.call_count == 1
+    args = mocked_broadcast_to_users.call_args_list
+    assert args[0][0] == call(
+        [user_2.id],
+        {
+            "type": "notifications_created",
+            "notifications": [
+                {
+                    "id": AnyInt(),
+                    "type": CollaboratorAddedToRowNotificationType.type,
+                    "sender": None,  # Anonymous submission
+                    "created_on": "2023-07-06T12:00:00Z",
+                    "data": {
+                        "row_id": AnyInt(),
+                        "row_name": AnyStr(),
+                        "field_id": collaborator_field.id,
+                        "field_name": collaborator_field.name,
+                        "table_id": table.id,
+                        "table_name": table.name,
+                        "database_id": database.id,
+                        "database_name": database.name,
+                    },
+                    "workspace": {"id": workspace.id},
+                    "read": False,
+                }
+            ],
+        },
+    )
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.core.notifications.handler.get_mail_connection")
+def test_email_notifications_show_unknown_user_for_anonymous_form_submissions(
+    mock_get_mail_connection, api_client, data_fixture
+):
+    mock_connection = MagicMock()
+    mock_get_mail_connection.return_value = mock_connection
+
+    user_1, _ = data_fixture.create_user_and_token(email="owner@test.nl")
+    user_2, _ = data_fixture.create_user_and_token(email="collaborator@test.nl")
+    workspace = data_fixture.create_workspace(members=[user_1, user_2])
+    database = data_fixture.create_database_application(
+        user=user_1, workspace=workspace, name="Test Database"
+    )
+    table = data_fixture.create_database_table(name="Test Table", database=database)
+
+    # Create a collaborator field with notifications enabled
+    collaborator_field = data_fixture.create_multiple_collaborators_field(
+        user=user_1, table=table, name="Assignees", notify_user_when_added=True
+    )
+
+    # Create a public form view
+    form = data_fixture.create_form_view(table=table, public=True)
+    data_fixture.create_form_view_field_option(
+        form, collaborator_field, required=False, enabled=True, order=1
+    )
+
+    with freeze_time("2023-07-06 12:00"):
+        # Submit form as anonymous user (no authentication token)
+        url = reverse("api:database:views:form:submit", kwargs={"slug": form.slug})
+        response = api_client.post(
+            url,
+            {f"field_{collaborator_field.id}": [{"id": user_2.id}]},
+            format="json",
+            # No HTTP_AUTHORIZATION header - anonymous submission
+        )
+        assert response.status_code == HTTP_200_OK
+        created_row_id = response.json()["row_id"]
+
+    # Force to send the notifications
+    res = NotificationHandler.send_unread_notifications_by_email_to_users_matching_filters(
+        Q(pk=user_2.pk)
+    )
+    assert res.users_with_notifications == [user_2]
+    assert len(res.users_with_notifications[0].unsent_email_notifications) == 1
+    assert res.users_with_notifications[0].total_unsent_count == 1
+    assert res.remaining_users_to_notify_count == 0
+
+    mock_get_mail_connection.assert_called_once_with(fail_silently=False)
+    summary_emails = mock_connection.send_messages.call_args[0][0]
+    assert len(summary_emails) == 1
+    user_2_summary_email = summary_emails[0]
+    assert user_2_summary_email.to == [user_2.email]
+    assert user_2_summary_email.get_subject() == "You have 1 new notification - Baserow"
+
+    notif = NotificationRecipient.objects.get(recipient=user_2)
+    notification_url = f"http://localhost:3000/notification/{notif.workspace_id}/{notif.notification_id}"
+
+    # Verify that the email title shows "An unknown user" for anonymous submissions
+    expected_context = {
+        "notifications": [
+            {
+                "title": (
+                    f"An unknown user assigned you to Assignees in row unnamed row {created_row_id} in Test Table."
                 ),
                 "description": None,
                 "url": notification_url,

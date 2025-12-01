@@ -6,12 +6,19 @@ from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.dispatch import receiver
 
-import posthog
 from loguru import logger
+from posthog import Posthog
 
 from baserow.core.action.signals import ActionCommandType, action_done
 from baserow.core.models import Workspace
 from baserow.core.utils import exception_capturer
+
+posthog_client = Posthog(
+    settings.POSTHOG_PROJECT_API_KEY,
+    settings.POSTHOG_HOST,
+    # disabled=True will automatically avoid sending any data, even if capture is called
+    disabled=not settings.POSTHOG_ENABLED,
+)
 
 
 def capture_event(distinct_id: str, event: str, properties: dict):
@@ -28,7 +35,7 @@ def capture_event(distinct_id: str, event: str, properties: dict):
         return
 
     try:
-        posthog.capture(
+        posthog_client.capture(
             distinct_id=distinct_id,
             event=event,
             properties=properties,

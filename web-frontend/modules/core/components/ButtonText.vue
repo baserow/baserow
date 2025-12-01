@@ -8,6 +8,7 @@
     v-on="$listeners"
   >
     <i v-if="icon !== '' && !loading" class="button-text__icon" :class="icon" />
+    <img v-else-if="image" alt="" :src="image" class="button-text__image" />
 
     <i v-if="loading" class="button-text__spinner"></i>
     <span v-if="$slots.default" class="button-text__label"><slot /></span>
@@ -59,6 +60,14 @@ export default {
       default: '',
     },
     /**
+     * The image of the button. If no icon is provided, this image will be shown.
+     */
+    image: {
+      required: false,
+      type: String,
+      default: null,
+    },
+    /**
      * If true a loading icon will be shown.
      */
     loading: {
@@ -75,31 +84,37 @@ export default {
       default: false,
     },
     /**
-     * The href attribute of the button.
+     * If the button is a link, this is the href.
      */
     href: {
       required: false,
       type: String,
-      default: '',
+      default: null,
     },
     /**
-     * The rel attribute of the button.
+     * If the button is a link, this is the rel. Available values are: nofollow, noopener, noreferrer.
      */
     rel: {
       required: false,
       type: String,
-      default: '',
+      default: null,
+      validator(value) {
+        const validRelValues = ['nofollow', 'noopener', 'noreferrer']
+        const relValues = value.split(' ')
+
+        return relValues.every((relValue) => validRelValues.includes(relValue))
+      },
     },
     /**
-     * The target attribute of the button.
+     * If the button is a link, this is the target. Available values are: _blank, _self, _parent, _top.
      */
     target: {
       required: false,
       type: String,
+      default: null,
       validator(value) {
-        return ['_blank', '_self'].includes(value)
+        return ['_blank', '_self', '_parent', '_top'].includes(value)
       },
-      default: '_self',
     },
   },
   computed: {
@@ -116,14 +131,16 @@ export default {
       if (this.tag === 'a') {
         attr.href = this.href
         attr.target = this.target
-        attr.rel = this.target
+        attr.rel = this.rel
       }
 
-      return Object.keys(attr).forEach((key) => {
+      Object.keys(attr).forEach((key) => {
         if (attr[key] === null) {
           delete attr[key]
         }
       })
+
+      return attr
     },
   },
 }

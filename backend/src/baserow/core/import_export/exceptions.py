@@ -13,3 +13,7 @@ class ImportExportResourceInBeingImported(Exception):
 
 class ImportExportResourceUntrustedSignature(Exception):
     message = """The signature of the resource is not trusted."""
+
+
+class ImportExportApplicationIdsNotFound(Exception):
+    message = """One or more of the specified application IDs were not found in the export file."""

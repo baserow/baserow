@@ -1,4 +1,5 @@
 import dataclasses
+from collections.abc import Iterable
 from copy import deepcopy
 from decimal import Decimal
 from typing import Any, Dict, List, Optional, Tuple, Type
@@ -20,9 +21,13 @@ from baserow.contrib.database.rows.handler import (
     GeneratedTableModelForUpdate,
     RowHandler,
 )
-from baserow.contrib.database.rows.types import FileImportDict
+from baserow.contrib.database.rows.types import FileImportDict, UpdatedRowsData
 from baserow.contrib.database.table.handler import TableHandler
-from baserow.contrib.database.table.models import GeneratedTableModel, Table
+from baserow.contrib.database.table.models import (
+    FieldObject,
+    GeneratedTableModel,
+    Table,
+)
 from baserow.core.action.models import Action
 from baserow.core.action.registries import (
     ActionScopeStr,
@@ -31,6 +36,44 @@ from baserow.core.action.registries import (
 )
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import Progress
+
+
+def are_equal_on_create(field_identifier, after_value, before_value) -> bool:
+    """
+    Dummy equal check for created row.
+
+    Some fields require specific types/values to be passed to
+    FieldType.are_values_equal().
+    At the moment of creation we don't have knowledge what values should be used, but
+    that's fine, because all we need is to know if a value inserted is different from
+    empty one for a field.
+    :param field_identifier:
+    :param before_value:
+    :param after_value:
+    :return:
+    """
+
+    # Both field values are empty, but they may be empty in a different way. Initially,
+    # we set an empty string for all values, regardless the field type. `after_value`
+    # was processed by field type logic and ORM layer, so it can be of a different type,
+    # but still an empty value, i.e. `None`.
+    if not before_value and not after_value:
+        return True
+    return before_value == after_value
+
+
+def get_row_values(
+    row: GeneratedTableModel, fields: Iterable[FieldObject]
+) -> dict[str, Any]:
+    """
+    Extracts fields and field values from a row for requested fields.
+    """
+
+    rh = RowHandler()
+    field_ids = [f["field"].id for f in fields if not f["type"].read_only]
+    out = rh.get_internal_values_for_fields(row, field_ids)
+    out["id"] = row.id
+    return out
 
 
 class CreateRowActionType(UndoableActionType):
@@ -51,6 +94,8 @@ class CreateRowActionType(UndoableActionType):
         database_id: int
         database_name: str
         row_id: int
+        fields_metadata: dict[str, Any]
+        row_values: Dict[str, Any]
 
     @classmethod
     def do(
@@ -85,12 +130,12 @@ class CreateRowActionType(UndoableActionType):
         :return: The created row instance.
         """
 
-        if table.is_data_synced_table:
+        if table.is_read_only_data_synced_table:
             raise CannotCreateRowsInTable(
                 "Can't create rows because it has a data sync."
             )
-
-        row = RowHandler().create_row(
+        rh = RowHandler()
+        row = rh.create_row(
             user,
             table,
             values=values,
@@ -99,10 +144,27 @@ class CreateRowActionType(UndoableActionType):
             user_field_names=user_field_names,
             send_webhook_events=send_webhook_events,
         )
+        tmodel = table.get_model()
+        fields = tmodel.get_field_objects()
 
         workspace = table.database.workspace
+        fields_metadata = rh.get_fields_metadata_for_rows(
+            [row],
+            [
+                f["field"]
+                for f in fields
+                if f["name"] != "id" and not f["type"].read_only
+            ],
+        )[row.id]
+        row_values = get_row_values(row, fields)
         params = cls.Params(
-            table.id, table.name, table.database.id, table.database.name, row.id
+            table.id,
+            table.name,
+            table.database.id,
+            table.database.name,
+            row.id,
+            fields_metadata=fields_metadata,
+            row_values=row_values,
         )
         cls.register_action(
             user, params, scope=cls.scope(table.id), workspace=workspace
@@ -145,6 +207,8 @@ class CreateRowsActionType(UndoableActionType):
         database_id: int
         database_name: str
         row_ids: List[int]
+        fields_metadata: dict[int, dict[str, Any]]
+        rows_values: List[Dict[str, Any]]
         trashed_rows_entry_id: Optional[int] = None
 
     @classmethod
@@ -176,31 +240,43 @@ class CreateRowsActionType(UndoableActionType):
         :return: The created list of rows instances.
         """
 
-        if table.is_data_synced_table:
+        if table.is_read_only_data_synced_table:
             raise CannotCreateRowsInTable(
                 "Can't create rows because it has a data sync."
             )
-
-        rows = (
-            RowHandler()
-            .create_rows(
-                user,
-                table,
-                rows_values,
-                before_row=before_row,
-                model=model,
-                send_webhook_events=send_webhook_events,
-            )
-            .created_rows
+        rh = RowHandler()
+        created_rows = rh.create_rows(
+            user,
+            table,
+            rows_values,
+            before_row=before_row,
+            model=model,
+            send_webhook_events=send_webhook_events,
         )
+        rows = created_rows.created_rows
 
         workspace = table.database.workspace
+        tmodel = table.get_model()
+        fields = tmodel.get_field_objects()
+
+        fields_metadata = rh.get_fields_metadata_for_rows(
+            rows,
+            [
+                f["field"]
+                for f in fields
+                if f["name"] != "id" and not f["type"].read_only
+            ],
+        )
+        values = [get_row_values(row, fields) for row in rows]
+
         params = cls.Params(
             table.id,
             table.name,
             table.database.id,
             table.database.name,
-            [row.id for row in rows],
+            row_ids=[row.id for row in rows],
+            fields_metadata=fields_metadata,
+            rows_values=values,
         )
         cls.register_action(
             user, params, scope=cls.scope(table.id), workspace=workspace
@@ -271,7 +347,7 @@ class ImportRowsActionType(UndoableActionType):
         :return: The created list of rows instances and the error report.
         """
 
-        if table.is_data_synced_table:
+        if table.is_read_only_data_synced_table:
             raise CannotCreateRowsInTable(
                 "Can't create rows because it has a data sync."
             )
@@ -339,6 +415,8 @@ class DeleteRowActionType(UndoableActionType):
         database_id: int
         database_name: str
         row_id: int
+        values: dict[str, Any]
+        fields_metadata: dict[str, Any]
 
     @classmethod
     def do(
@@ -365,20 +443,36 @@ class DeleteRowActionType(UndoableActionType):
         :raises RowDoesNotExist: When the row with the provided id does not exist.
         """
 
-        if table.is_data_synced_table:
+        if table.is_read_only_data_synced_table:
             raise CannotDeleteRowsInTable(
                 "Can't delete rows because it has a data sync."
             )
 
-        RowHandler().delete_row_by_id(
+        rh = RowHandler()
+        row = rh.delete_row_by_id(
             user, table, row_id, model=model, send_webhook_events=send_webhook_events
         )
 
         database = table.database
-        params = cls.Params(table.id, table.name, database.id, database.name, row_id)
+        tmodel = table.get_model()
+        fields = tmodel.get_field_objects()
+
+        fields_metadata = rh.get_fields_metadata_for_rows(
+            [row], [f["field"] for f in fields]
+        )[row.id]
+        params = cls.Params(
+            table.id,
+            table.name,
+            database.id,
+            database.name,
+            row_id,
+            values=get_row_values(row, fields),
+            fields_metadata=fields_metadata,
+        )
         cls.register_action(
             user, params, scope=cls.scope(table.id), workspace=database.workspace
         )
+        return row
 
     @classmethod
     def scope(cls, table_id) -> ActionScopeStr:
@@ -416,6 +510,8 @@ class DeleteRowsActionType(UndoableActionType):
         database_name: str
         row_ids: List[int]
         trashed_rows_entry_id: int
+        rows_values: list[dict[str, Any]]
+        fields_metadata: dict[str, [dict[str, Any]]]
 
     @classmethod
     def do(
@@ -442,27 +538,38 @@ class DeleteRowsActionType(UndoableActionType):
         :raises RowDoesNotExist: When the row with the provided id does not exist.
         """
 
-        if table.is_data_synced_table:
+        if table.is_read_only_data_synced_table:
             raise CannotDeleteRowsInTable(
                 "Can't delete rows because it has a data sync."
             )
 
-        trashed_rows_entry = RowHandler().delete_rows(
+        rh = RowHandler()
+        trashed_rows_entry = rh.delete_rows(
             user, table, row_ids, model=model, send_webhook_events=send_webhook_events
         )
 
         workspace = table.database.workspace
+        tmodel = table.get_model()
+        fields = tmodel.get_field_objects()
+
+        fields_metadata = rh.get_fields_metadata_for_rows(
+            trashed_rows_entry.rows, [f["field"] for f in fields]
+        )
+        rows_values = [get_row_values(row, fields) for row in trashed_rows_entry.rows]
         params = cls.Params(
             table.id,
             table.name,
             table.database.id,
             table.database.name,
             row_ids,
-            trashed_rows_entry.id,
+            trashed_rows_entry_id=trashed_rows_entry.id,
+            fields_metadata=fields_metadata,
+            rows_values=rows_values,
         )
         cls.register_action(
             user, params, scope=cls.scope(table.id), workspace=workspace
         )
+        return trashed_rows_entry
 
     @classmethod
     def scope(cls, table_id) -> ActionScopeStr:
@@ -789,7 +896,10 @@ class UpdateRowsActionType(UndoableActionType):
         database_id: int
         database_name: str
         row_ids: List[int]
-        row_values: List[Dict[str, Any]]  # TODO: rename to rows_values
+        # Note: while `row_values` is a typo, we should not change it, because
+        # .Params are used in audit log as well. If this changes, we will need
+        # to support both versions of the structure.
+        row_values: List[Dict[str, Any]]
         original_rows_values_by_id: Dict[int, Dict[str, Any]]
         updated_fields_metadata_by_row_id: Dict[int, Dict[str, Any]]
 
@@ -801,7 +911,7 @@ class UpdateRowsActionType(UndoableActionType):
         rows_values: List[Dict[str, Any]],
         model: Optional[Type[GeneratedTableModel]] = None,
         send_webhook_events: bool = True,
-    ) -> List[GeneratedTableModelForUpdate]:
+    ) -> UpdatedRowsData:
         """
         Updates field values in batch based on provided rows with the new values.
         See the baserow.contrib.database.rows.handler.RowHandler.update_rows
@@ -844,7 +954,7 @@ class UpdateRowsActionType(UndoableActionType):
         )
         cls.register_action(user, params, cls.scope(table.id), workspace=workspace)
 
-        return updated_rows
+        return result
 
     @classmethod
     def serialized_to_params(cls, serialized_params: Any) -> Any:

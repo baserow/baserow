@@ -128,12 +128,35 @@ export class ViewFilterType extends Registerable {
   }
 
   /**
-   * Returns if a given field is compatible with this view filter or not. Uses the
-   * list provided by getCompatibleFieldTypes to calculate this.
+   * Returns if a given field is compatible with this view filter or not.
+   *
+   * Checks compatibility by resolving the field's canonical filter type via
+   * getCompatibleFilterFieldType(field) and then matching against
+   * this.compatibleFieldTypes (strings or predicates).
    */
   fieldIsCompatible(field) {
-    const valuesMap = this.getCompatibleFieldTypes().map((type) => [type, true])
-    return this.getCompatibleFieldValue(field, valuesMap, false)
+    // Resolve the canonical field type for filter compatibility.
+    const fieldType = this.app.$registry.get('field', field.type)
+    const canonicalFieldType = fieldType
+      ? fieldType.getCompatibleFilterFieldType(field)
+      : fieldType
+
+    const compareType = canonicalFieldType
+      ? canonicalFieldType.constructor.getType()
+      : field.type
+
+    // Check static compatible list and predicates
+    for (const typeOrFunc of this.compatibleFieldTypes) {
+      if (typeOrFunc instanceof Function) {
+        if (typeOrFunc(field)) {
+          return true
+        }
+      } else if (compareType === typeOrFunc) {
+        return true
+      }
+    }
+
+    return false
   }
 
   /**
@@ -152,12 +175,21 @@ export class ViewFilterType extends Registerable {
    * @returns {any} The value that is compatible with the field or the notFoundValue.
    */
   getCompatibleFieldValue(field, valuesMap, notFoundValue = null) {
+    // Resolve the canonical field type for filter compatibility.
+    const fieldType = this.app?.$registry?.get('field', field.type)
+    const canonicalFieldType = fieldType
+      ? fieldType.getCompatibleFilterFieldType(field)
+      : fieldType
+    const compareType = canonicalFieldType
+      ? canonicalFieldType.constructor.getType()
+      : field.type
+
     for (const [typeOrFunc, value] of valuesMap) {
       if (typeOrFunc instanceof Function) {
         if (typeOrFunc(field)) {
           return value
         }
-      } else if (field.type === typeOrFunc) {
+      } else if (compareType === typeOrFunc) {
         return value
       }
     }
@@ -402,7 +434,10 @@ export class EqualViewFilterType extends SpecificFieldFilterType {
       fieldType
     )
 
-    return filterVal === '' || rowVal === filterVal
+    if (filterVal === '') {
+      return null
+    }
+    return rowVal === filterVal
   }
 }
 
@@ -449,7 +484,12 @@ export class NotEqualViewFilterType extends SpecificFieldFilterType {
       field,
       fieldType
     )
-    return filterVal === '' || rowVal !== filterVal
+
+    if (filterVal === '') {
+      return null
+    }
+
+    return rowVal !== filterVal
   }
 }
 
@@ -947,17 +987,7 @@ export class DateIsWithinMultiStepViewFilterType extends DateMultiStepViewFilter
   }
 
   getIncompatibleOperators() {
-    return [
-      DateFilterOperators.TODAY.value,
-      DateFilterOperators.YESTERDAY.value,
-      DateFilterOperators.ONE_WEEK_AGO.value,
-      DateFilterOperators.ONE_MONTH_AGO.value,
-      DateFilterOperators.ONE_YEAR_AGO.value,
-      DateFilterOperators.THIS_WEEK.value,
-      DateFilterOperators.THIS_MONTH.value,
-      DateFilterOperators.THIS_YEAR.value,
-      DateFilterOperators.NR_DAYS_AGO.value,
-    ]
+    return [DateFilterOperators.TODAY.value]
   }
 
   getName() {
@@ -971,7 +1001,15 @@ export class DateIsWithinMultiStepViewFilterType extends DateMultiStepViewFilter
       startOfToday.tz(timezone)
     }
     startOfToday.startOf('day')
-    return rowDate.isSameOrAfter(startOfToday) && rowDate.isBefore(upperBound)
+
+    let start = lowerBound
+    let end = upperBound
+    if (startOfToday.isBefore(upperBound)) {
+      start = startOfToday
+    } else {
+      end = startOfToday.add(1, 'day')
+    }
+    return rowDate.isSameOrAfter(start) && rowDate.isBefore(end)
   }
 }
 
@@ -2048,7 +2086,7 @@ export class HigherThanViewFilterType extends NumericComparisonViewFilterType {
 
   matches(rowValue, filterValue, field, fieldType) {
     if (filterValue === '') {
-      return true
+      return null
     }
 
     const { rowVal, filterVal } = this.getMatchesParsedValues(
@@ -2077,7 +2115,7 @@ export class HigherThanOrEqualViewFilterType extends NumericComparisonViewFilter
 
   matches(rowValue, filterValue, field, fieldType) {
     if (filterValue === '') {
-      return true
+      return null
     }
 
     const { rowVal, filterVal } = this.getMatchesParsedValues(
@@ -2106,7 +2144,7 @@ export class LowerThanViewFilterType extends NumericComparisonViewFilterType {
 
   matches(rowValue, filterValue, field, fieldType) {
     if (filterValue === '') {
-      return true
+      return null
     }
     const { rowVal, filterVal } = this.getMatchesParsedValues(
       rowValue,
@@ -2135,7 +2173,7 @@ export class LowerThanOrEqualViewFilterType extends NumericComparisonViewFilterT
 
   matches(rowValue, filterValue, field, fieldType) {
     if (filterValue === '') {
-      return true
+      return null
     }
 
     const { rowVal, filterVal } = this.getMatchesParsedValues(
@@ -2211,10 +2249,11 @@ export class SingleSelectEqualViewFilterType extends ViewFilterType {
   }
 
   matches(rowValue, filterValue, field, fieldType) {
-    return (
-      filterValue === '' ||
-      (rowValue !== null && rowValue.id === parseInt(filterValue))
-    )
+    if (filterValue === '') {
+      return null
+    }
+
+    return rowValue !== null && rowValue.id === parseInt(filterValue)
   }
 }
 
@@ -2244,8 +2283,11 @@ export class SingleSelectNotEqualViewFilterType extends ViewFilterType {
   }
 
   matches(rowValue, filterValue, field, fieldType) {
+    if (filterValue === '') {
+      return null
+    }
+
     return (
-      filterValue === '' ||
       rowValue === null ||
       (rowValue !== null && rowValue.id !== parseInt(filterValue))
     )
@@ -2329,7 +2371,7 @@ export class MultipleSelectHasFilterType extends ViewFilterType {
 
   getName() {
     const { i18n } = this.app
-    return i18n.t('viewFilter.has')
+    return i18n.t('viewFilter.hasAnyOf')
   }
 
   getExample() {
@@ -2378,7 +2420,7 @@ export class MultipleSelectHasNotFilterType extends ViewFilterType {
 
   getName() {
     const { i18n } = this.app
-    return i18n.t('viewFilter.hasNot')
+    return i18n.t('viewFilter.hasNotAnyOf')
   }
 
   getExample() {
@@ -2784,18 +2826,22 @@ export class EmptyViewFilterType extends ViewFilterType {
         'multiple_select',
         'multiple_collaborators',
         FormulaFieldType.arrayOf('single_file'),
-        FormulaFieldType.arrayOf('boolean')
+        FormulaFieldType.arrayOf('text'),
+        FormulaFieldType.arrayOf('char'),
+        FormulaFieldType.arrayOf('boolean'),
+        FormulaFieldType.arrayOf('date'),
+        FormulaFieldType.arrayOf('number'),
+        FormulaFieldType.arrayOf('url'),
+        FormulaFieldType.arrayOf('single_select'),
+        FormulaFieldType.arrayOf('multiple_select'),
+        FormulaFieldType.arrayOf('multiple_collaborators'),
+        FormulaFieldType.arrayOf('duration')
       ),
     ]
   }
 
   matches(rowValue, filterValue, field, fieldType) {
-    return (
-      rowValue === null ||
-      (Array.isArray(rowValue) && rowValue.length === 0) ||
-      rowValue === false ||
-      rowValue.toString().trim() === ''
-    )
+    return fieldType.isEmpty(field, rowValue)
   }
 }
 
@@ -2852,17 +2898,21 @@ export class NotEmptyViewFilterType extends ViewFilterType {
         'multiple_select',
         'multiple_collaborators',
         FormulaFieldType.arrayOf('single_file'),
-        FormulaFieldType.arrayOf('boolean')
+        FormulaFieldType.arrayOf('text'),
+        FormulaFieldType.arrayOf('char'),
+        FormulaFieldType.arrayOf('boolean'),
+        FormulaFieldType.arrayOf('date'),
+        FormulaFieldType.arrayOf('number'),
+        FormulaFieldType.arrayOf('url'),
+        FormulaFieldType.arrayOf('single_select'),
+        FormulaFieldType.arrayOf('multiple_select'),
+        FormulaFieldType.arrayOf('multiple_collaborators'),
+        FormulaFieldType.arrayOf('duration')
       ),
     ]
   }
 
   matches(rowValue, filterValue, field, fieldType) {
-    return !(
-      rowValue === null ||
-      (Array.isArray(rowValue) && rowValue.length === 0) ||
-      rowValue === false ||
-      rowValue.toString().trim() === ''
-    )
+    return !fieldType.isEmpty(field, rowValue)
   }
 }

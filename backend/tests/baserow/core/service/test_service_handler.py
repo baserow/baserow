@@ -4,7 +4,7 @@ from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.integrations.local_baserow.models import LocalBaserowGetRow
 from baserow.core.services.exceptions import (
     ServiceDoesNotExist,
-    ServiceImproperlyConfigured,
+    ServiceImproperlyConfiguredDispatchException,
 )
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
@@ -78,7 +78,7 @@ def test_update_service(data_fixture):
     )
 
     assert service_updated.service.view.id == view.id
-    assert service_updated.service.search_query == search_query
+    assert service_updated.service.search_query["formula"] == search_query
 
 
 @pytest.mark.django_db
@@ -239,5 +239,5 @@ def test_delete_service(data_fixture):
 def test_dispatch_local_baserow_get_row_service_missing_integration(data_fixture):
     service = data_fixture.create_local_baserow_get_row_service(integration=None)
 
-    with pytest.raises(ServiceImproperlyConfigured):
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException):
         ServiceHandler().dispatch_service(service, {})

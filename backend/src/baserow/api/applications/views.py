@@ -81,22 +81,20 @@ class AllApplicationsView(APIView):
         returned.
         """
 
-        workspaces = CoreService().list_workspaces(request.user)
+        workspaces = CoreService().list_workspaces(request.user).order_by("id")
 
-        applications_qs = Application.objects.none()
+        all_applications = []
         for workspace in workspaces:
             workspace_applications_qs = CoreService().list_applications_in_workspace(
                 request.user, workspace
             )
-            applications_qs = applications_qs.union(
-                workspace_applications_qs.order_by(), all=True
-            )
+            all_applications += list(workspace_applications_qs.order_by("order", "id"))
 
         data = [
             PolymorphicApplicationResponseSerializer(
                 application, context={"request": request}
             ).data
-            for application in applications_qs.order_by("workspace_id", "order", "id")
+            for application in all_applications
         ]
 
         return Response(data)
@@ -160,6 +158,7 @@ class ApplicationsView(APIView):
             ).data
             for application in applications
         ]
+
         return Response(data)
 
     @extend_schema(
@@ -283,7 +282,7 @@ class ApplicationView(APIView):
             CLIENT_UNDO_REDO_ACTION_GROUP_ID_SCHEMA_PARAMETER,
         ],
         tags=["Applications"],
-        operation_id="update_application",
+        operation_id="workspace_update_application",
         description=(
             "Updates the existing application related to the provided "
             "`application_id` param if the authorized user is in the application's "
@@ -354,7 +353,7 @@ class ApplicationView(APIView):
             CLIENT_UNDO_REDO_ACTION_GROUP_ID_SCHEMA_PARAMETER,
         ],
         tags=["Applications"],
-        operation_id="delete_application",
+        operation_id="workspace_delete_application",
         description=(
             "Deletes an application if the authorized user is in the application's "
             "workspace. All the related children are also going to be deleted. For example "

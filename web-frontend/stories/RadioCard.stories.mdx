@@ -1,0 +1,103 @@
+import { Meta, Story, Props, Canvas } from '@storybook/addon-docs/blocks'
+import { config, withDesign } from 'storybook-addon-designs'
+import { action } from '@storybook/addon-actions'
+import { useArgs } from '@storybook/client-api'
+
+import RadioCard from '@baserow/modules/core/components/RadioCard'
+
+<Meta
+    title="Baserow/Form Elements/Radio/RadioCard"
+    component={RadioCard}
+    parameters={{
+        backgrounds: {
+            default: 'white',
+            values: [
+                { name: 'white', value: '#ffffff' },
+                { name: 'light', value: '#eeeeee' },
+                { name: 'dark', value: '#222222' },
+            ],
+        },
+    }}
+    decorators={[
+        withDesign,
+        (story, context) => {
+            const [_, updateArgs] = useArgs()
+            return story({ ...context, updateArgs })
+        },
+    ]}
+    argTypes={{
+        default: {
+            control: 'text',
+            description: 'Slot content',
+            defaultValue: 'Label',
+        },
+        modelValue: {
+            control: {
+                type: 'text',
+            },
+            defaultValue: '',
+        },
+        value: {
+            control: {
+                type: 'text',
+            },
+            defaultValue: 'option1',
+        },
+        label: {
+            control: {
+                type: 'text',
+            },
+            defaultValue: 'Label',
+        },
+        badgeLabel: {
+            control: {
+                type: 'text',
+            },
+            defaultValue: 'Badge label',
+        },
+    }}
+/>
+
+# RadioCard
+
+The RadioCard component behaves like the Radio component but instead of the native circle button, it uses a custom card design.
+
+export const Template = (args, { argTypes, updateArgs }) => ({
+    methods: {
+        action,
+        handleInput(value) {
+            const modelValue = value
+            updateArgs({ ...args, modelValue })
+            action('handleInput')(modelValue)
+        },
+    },
+    components: { RadioCard },
+    props: Object.keys(argTypes),
+    template: `<RadioCard v-bind="$props" @input="handleInput">${args.default}</RadioCard>`,
+})
+
+export const designConfig = {
+    type: 'figma',
+    url: 'https://www.figma.com/file/W7R2rQW7ohsZMeHRfEcPFW/Design-Library?node-id=53%3A1852&mode=dev',
+}
+
+<Canvas>
+    <Story
+        name="RadioCard"
+        parameters={{
+            design: config(designConfig),
+        }}
+    >
+        {Template.bind({})}
+    </Story>
+</Canvas>
+
+## Example
+
+```javascript
+<RadioCard></RadioCard>
+```
+
+## Props
+
+<Props of={RadioCard} />

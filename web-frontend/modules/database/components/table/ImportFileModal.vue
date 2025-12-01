@@ -92,7 +92,7 @@
 
       <ImportErrorReport :job="job" :error="error"></ImportErrorReport>
 
-      <Tabs v-if="dataLoaded" no-padding>
+      <Tabs v-if="dataLoaded" header-no-padding content-no-x-padding>
         <Tab :title="$t('importFileModal.importPreview')">
           <SimpleGrid
             class="import-modal__preview"
@@ -277,9 +277,8 @@ export default {
      * All writable fields.
      */
     writableFields() {
-      return this.fields.filter(
-        ({ type, read_only: readOnly }) =>
-          !this.fieldTypes[type].getIsReadOnly() && !readOnly
+      return this.fields.filter((field) =>
+        this.fieldTypes[field.type].canWriteFieldValues(field)
       )
     },
     /**
@@ -475,6 +474,17 @@ export default {
         importConfiguration.upsert_values = []
       }
 
+      const mappedFieldIds = Object.values(this.mapping).filter(
+        (id) => id !== 0
+      )
+      const skippedFieldIds = this.writableFields
+        .filter((field) => !mappedFieldIds.includes(field.id))
+        .map((field) => field.id)
+
+      if (skippedFieldIds.length > 0) {
+        importConfiguration.skipped_fields = skippedFieldIds
+      }
+
       if (typeof this.getData === 'function') {
         try {
           this.showProgressBar = true
@@ -507,7 +517,7 @@ export default {
 
           // Template row with default values
           const defaultRow = this.writableFields.map((field) =>
-            this.fieldTypes[field.type].getEmptyValue(field)
+            this.fieldTypes[field.type].getDefaultValue(field, true)
           )
 
           // Precompute the prepare value function for each field

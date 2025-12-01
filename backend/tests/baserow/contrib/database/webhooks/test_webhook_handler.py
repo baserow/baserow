@@ -12,6 +12,7 @@ from baserow.contrib.database.webhooks.exceptions import (
 )
 from baserow.contrib.database.webhooks.handler import WebhookHandler
 from baserow.contrib.database.webhooks.models import TableWebhook, TableWebhookCall
+from baserow.contrib.database.webhooks.registries import webhook_event_type_registry
 from baserow.core.exceptions import UserNotInWorkspace
 
 
@@ -48,36 +49,60 @@ def test_find_webhooks_to_call(data_fixture):
 
     handler = WebhookHandler()
 
-    webhooks = handler.find_webhooks_to_call(table_1.id, "rows.created")
+    webhooks = handler.find_webhooks_to_call(
+        webhook_event_type_registry.get("rows.created"),
+        table=table_1,
+        model=table_1.get_model(),
+    )
     webhook_ids = [webhook.id for webhook in webhooks]
     assert len(webhook_ids) == 2
     assert webhook_1.id in webhook_ids
     assert webhook_2.id in webhook_ids
 
-    webhooks = handler.find_webhooks_to_call(table_1.id, "rows.updated")
+    webhooks = handler.find_webhooks_to_call(
+        webhook_event_type_registry.get("rows.updated"),
+        table=table_1,
+        model=table_1.get_model(),
+    )
     webhook_ids = [webhook.id for webhook in webhooks]
     assert len(webhook_ids) == 2
     assert webhook_1.id in webhook_ids
     assert webhook_4.id in webhook_ids
 
-    webhooks = handler.find_webhooks_to_call(table_1.id, "rows.deleted")
+    webhooks = handler.find_webhooks_to_call(
+        webhook_event_type_registry.get("rows.deleted"),
+        table=table_1,
+        model=table_1.get_model(),
+    )
     webhook_ids = [webhook.id for webhook in webhooks]
     assert len(webhook_ids) == 2
     assert webhook_1.id in webhook_ids
     assert webhook_4.id in webhook_ids
 
-    webhooks = handler.find_webhooks_to_call(table_2.id, "rows.created")
+    webhooks = handler.find_webhooks_to_call(
+        webhook_event_type_registry.get("rows.created"),
+        table=table_2,
+        model=table_2.get_model(),
+    )
     webhook_ids = [webhook.id for webhook in webhooks]
     assert len(webhook_ids) == 1
     assert webhook_5.id in webhook_ids
 
-    webhooks = handler.find_webhooks_to_call(table_2.id, "rows.updated")
+    webhooks = handler.find_webhooks_to_call(
+        webhook_event_type_registry.get("rows.updated"),
+        table=table_2,
+        model=table_2.get_model(),
+    )
     webhook_ids = [webhook.id for webhook in webhooks]
     assert len(webhook_ids) == 2
     assert webhook_5.id in webhook_ids
     assert webhook_6.id in webhook_ids
 
-    webhooks = handler.find_webhooks_to_call(table_2.id, "rows.deleted")
+    webhooks = handler.find_webhooks_to_call(
+        webhook_event_type_registry.get("rows.deleted"),
+        table=table_2,
+        model=table_2.get_model(),
+    )
     webhook_ids = [webhook.id for webhook in webhooks]
     assert len(webhook_ids) == 1
     assert webhook_5.id in webhook_ids

@@ -12,6 +12,10 @@ from baserow.version import VERSION as BASEROW_VERSION
 
 T = TypeVar("T")
 
+# This var is to invalidate global cache when we can't bump the Baserow version for
+# some reason.
+GLOBAL_CACHE_VERSION = 2
+
 
 class LocalCache:
     """
@@ -174,7 +178,7 @@ class GlobalCache:
 
         key = key if invalidate_key is None else invalidate_key
 
-        return f"{BASEROW_VERSION}_{key}__current_version"
+        return f"{BASEROW_VERSION}_{GLOBAL_CACHE_VERSION}_{key}__current_version"
 
     def _get_cache_key_with_version(self, key: str) -> str:
         """
@@ -185,7 +189,20 @@ class GlobalCache:
         """
 
         version = cache.get(self._get_version_cache_key(key), 0)
-        return f"{BASEROW_VERSION}_{key}__version_{version}"
+        return f"{BASEROW_VERSION}_{GLOBAL_CACHE_VERSION}_{key}__version_{version}"
+
+    def _get_versioned_cache_key(
+        self, key: str, invalidate_key: None | str = None
+    ) -> str:
+        version_key = self._get_version_cache_key(key, invalidate_key)
+
+        version = cache.get(version_key, 0)
+
+        cache_key_to_use = (
+            f"{BASEROW_VERSION}_{GLOBAL_CACHE_VERSION}_{key}__version_{version}"
+        )
+
+        return cache_key_to_use
 
     def get(
         self,
@@ -215,12 +232,7 @@ class GlobalCache:
         :return: The cached value if it exists; otherwise, the newly set value.
         """
 
-        version_key = self._get_version_cache_key(key, invalidate_key)
-
-        version = cache.get(version_key, 0)
-
-        cache_key_to_use = f"{BASEROW_VERSION}_{key}__version_{version}"
-
+        cache_key_to_use = self._get_versioned_cache_key(key, invalidate_key)
         cached = cache.get(cache_key_to_use, SENTINEL)
 
         if cached is SENTINEL:
@@ -233,12 +245,12 @@ class GlobalCache:
                 # We check again to make sure it hasn't been populated in the meantime
                 # while acquiring the lock
                 if cached is SENTINEL:
+                    logger.debug(f"Global cache miss for: {key}")
                     if callable(default):
                         cached = default()
                     else:
                         cached = default
 
-                    logger.debug(f"Global cache miss for: {key}")
                     cache.set(
                         cache_key_to_use,
                         cached,
@@ -258,6 +270,41 @@ class GlobalCache:
             logger.debug(f"Global cache hit for: {key}")
 
         return cached
+
+    def update(
+        self,
+        key: str,
+        callback: Callable[[T], T],
+        default_value: T | Callable[[], T] = None,
+        invalidate_key: None | str = None,
+        timeout: int = 60,
+    ) -> T:
+        cache_key_to_use = self._get_versioned_cache_key(key, invalidate_key)
+
+        use_lock = hasattr(cache, "lock")
+        if use_lock:
+            cache_lock = cache.lock(f"{cache_key_to_use}__lock", timeout=10)
+            cache_lock.acquire()
+
+        try:
+            default = default_value() if callable(default_value) else default_value
+            initial_value = cache.get(cache_key_to_use, default)
+            new_value = callback(initial_value)
+            cache.set(
+                cache_key_to_use,
+                new_value,
+                timeout=timeout,
+            )
+        finally:
+            if use_lock:
+                try:
+                    cache_lock.release()
+                except LockNotOwnedError:
+                    # If the lock release fails, it might be because of the timeout
+                    # and it's been stolen so we don't really care
+                    pass
+
+        return new_value
 
     def invalidate(self, key: None | str = None, invalidate_key: None | str = None):
         """

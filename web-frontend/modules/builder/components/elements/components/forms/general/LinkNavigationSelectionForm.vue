@@ -9,14 +9,17 @@
       <Dropdown v-model="navigateTo" :show-search="false">
         <template #selectedValue>
           <template v-if="destinationPage">
-            {{ destinationPage.name }}
+            <span
+              v-tooltip:[tooltipOptions]="destinationPagePathWithParams"
+              class="link-navigation-selection-form__navigate-option-page-name"
+            >
+              {{ destinationPage.name }}
+            </span>
             <span
               v-tooltip:[tooltipOptions]="destinationPagePathWithParams"
               class="link-navigation-selection-form__navigate-option-page-path"
             >
-              <span>
-                {{ destinationPagePathWithParams }}
-              </span>
+              {{ destinationPagePathWithParams }}
             </span>
           </template>
           <span v-else>{{
@@ -139,7 +142,7 @@ export default {
       values: {
         navigation_type: 'page',
         navigate_to_page_id: null,
-        navigate_to_url: '',
+        navigate_to_url: {},
         page_parameters: [],
         query_parameters: [],
         target: 'self',
@@ -237,7 +240,7 @@ export default {
       this.values.page_parameters = (
         this.destinationPage?.path_params || []
       ).map(({ name }, index) => {
-        const previousValue = this.values.page_parameters[index]?.value || ''
+        const previousValue = this.values.page_parameters[index]?.value || {}
         return { name, value: previousValue }
       })
 
@@ -245,7 +248,7 @@ export default {
       this.values.query_parameters = (
         this.destinationPage?.query_params || []
       ).map(({ name }, index) => {
-        const previousValue = this.values.query_parameters[index]?.value || ''
+        const previousValue = this.values.query_parameters[index]?.value || {}
         return { name, value: previousValue }
       })
 

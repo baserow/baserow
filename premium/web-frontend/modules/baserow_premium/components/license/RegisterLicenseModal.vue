@@ -6,7 +6,7 @@
     <div>
       <i18n path="registerLicenseModal.licenseDescription" tag="p">
         <template #pricingLink>
-          <a target="_blank" :href="$config.BASEROW_PRICING_URL">{{
+          <a target="_blank" :href="viewPricingURL">{{
             $t('registerLicenseModal.viewPricing')
           }}</a>
         </template>
@@ -37,15 +37,27 @@ import error from '@baserow/modules/core/mixins/error'
 import LicenseService from '@baserow_premium/services/license'
 import RegisterLicenseForm from '@baserow_premium/components/license/RegisterLicenseForm'
 import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandler'
+import {getPricingURL} from '@baserow_premium/utils/pricing'
 
 export default {
   name: 'RegisterLicenseModal',
   components: { RegisterLicenseForm },
   mixins: [modal, error],
+  props: {
+    instanceId: {
+      required: true,
+      type: String,
+    },
+  },
   data() {
     return {
       loading: false,
     }
+  },
+  computed: {
+    viewPricingURL() {
+      return getPricingURL(this.instanceId)
+    },
   },
   methods: {
     async submit(values) {

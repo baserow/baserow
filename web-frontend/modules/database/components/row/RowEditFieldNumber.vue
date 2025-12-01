@@ -31,6 +31,7 @@
 </template>
 
 <script>
+import BigNumber from 'bignumber.js'
 import rowEditField from '@baserow/modules/database/mixins/rowEditField'
 import rowEditFieldInput from '@baserow/modules/database/mixins/rowEditFieldInput'
 import numberField from '@baserow/modules/database/mixins/numberField'
@@ -51,16 +52,18 @@ export default {
     },
   },
   created() {
-    this.updateFormattedValue(this.field, this.value)
+    // Backend values are unformatted decimals, so make sure to format them correctly.
+    if (this.value != null && this.value !== '') {
+      this.updateFormattedValue(this.field, new BigNumber(this.value))
+    }
   },
   methods: {
     initCopy(value) {
       this.copy = this.prepareCopy(value ?? '')
-      this.updateCopy(this.field, this.copy)
-      this.updateFormattedValue(this.field, this.copy)
+      this.updateFormattedValue(this.field, this.copy ?? '')
     },
-    handleInput(value) {
-      this.updateCopy(this.field, value)
+    handleInput(newCopy) {
+      this.updateCopy(this.field, newCopy)
       this.$emit('input', this.copy)
     },
   },

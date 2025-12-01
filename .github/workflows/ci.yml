@@ -1,0 +1,1317 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches:
+      - develop
+      - master
+  pull_request:
+
+# Customize the workflow run name to show branch/PR info
+run-name: "CI: ${{ github.event_name == 'pull_request' && github.event.pull_request.title || github.ref_name }}"
+
+# Automatically cancel in-progress workflows for the same branch/PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_REPO: ${{ github.repository }}
+  CI_IMAGE_TAG_PREFIX: ci-
+  DEVELOP_BRANCH_NAME: develop
+  REAL_GITHUB_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  check-build-and-publish:
+    name: Check build and publish
+    runs-on: ubuntu-latest
+    outputs:
+      should_build_and_publish: ${{ steps.setflag.outputs.should_build_and_publish }}
+      should_trigger_saas: ${{ steps.setflag.outputs.should_trigger_saas }}
+    steps:
+      - id: setflag
+        shell: bash
+        run: |
+          if [[ -n "${{ secrets.RELEASE_DOCKER_REPOSITORY }}" && \
+                -n "${{ secrets.RELEASE_DOCKER_REGISTRY }}" && \
+                -n "${{ secrets.RELEASE_DOCKER_USERNAME }}" && \
+                -n "${{ secrets.RELEASE_DOCKER_PASSWORD }}" ]]; then
+            echo "should_build_and_publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_build_and_publish=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          if [[ -n "${{ secrets.GITLAB_SAAS_PAT }}" ]]; then
+            echo "should_trigger_saas=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_trigger_saas=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # ==========================================================================
+  # BUILD STAGE - Build Docker images for backend and frontend
+  # ==========================================================================
+
+  build-backend:
+    name: Build Backend Dev Image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.image.outputs.full }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate image tag
+        id: image
+        run: |
+          IMAGE_NAME="${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/backend_dev"
+          IMAGE_TAG="${{ env.CI_IMAGE_TAG_PREFIX }}${{ env.REAL_GITHUB_SHA }}"
+          FULL_IMAGE="${IMAGE_NAME}:${IMAGE_TAG}"
+          echo "full=${FULL_IMAGE}" >> $GITHUB_OUTPUT
+
+      - name: Determine cache sources
+        id: cache
+        run: |
+          BRANCH_NAME="${GITHUB_REF_NAME}"
+          TRUNCATED_BRANCH="${BRANCH_NAME:0:100}"
+          TRUNCATED_BRANCH="${TRUNCATED_BRANCH//\//-}"
+
+          IMAGE_NAME="${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/backend_dev"
+          BRANCH_CACHE="${IMAGE_NAME}:${{ env.CI_IMAGE_TAG_PREFIX }}${TRUNCATED_BRANCH}"
+          DEVELOP_CACHE="${IMAGE_NAME}:${{ env.CI_IMAGE_TAG_PREFIX }}${{ env.DEVELOP_BRANCH_NAME }}"
+
+          echo "branch=${BRANCH_CACHE}" >> $GITHUB_OUTPUT
+          echo "develop=${DEVELOP_CACHE}" >> $GITHUB_OUTPUT
+
+      - name: Build and push backend dev image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: backend/Dockerfile
+          target: dev
+          push: true
+          tags: ${{ steps.image.outputs.full }}
+          cache-from: |
+            type=registry,ref=${{ steps.cache.outputs.branch }}
+            type=registry,ref=${{ steps.cache.outputs.develop }}
+          cache-to: type=inline
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ env.REAL_GITHUB_SHA }}
+            org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
+
+  build-frontend:
+    name: Build Web-Frontend Dev Image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.image.outputs.full }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate image tag
+        id: image
+        run: |
+          IMAGE_NAME="${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/web-frontend_dev"
+          IMAGE_TAG="${{ env.CI_IMAGE_TAG_PREFIX }}${{ env.REAL_GITHUB_SHA }}"
+          FULL_IMAGE="${IMAGE_NAME}:${IMAGE_TAG}"
+          echo "full=${FULL_IMAGE}" >> $GITHUB_OUTPUT
+
+      - name: Determine cache sources
+        id: cache
+        run: |
+          BRANCH_NAME="${GITHUB_REF_NAME}"
+          TRUNCATED_BRANCH="${BRANCH_NAME:0:100}"
+          TRUNCATED_BRANCH="${TRUNCATED_BRANCH//\//-}"
+
+          IMAGE_NAME="${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/web-frontend_dev"
+          BRANCH_CACHE="${IMAGE_NAME}:${{ env.CI_IMAGE_TAG_PREFIX }}${TRUNCATED_BRANCH}"
+          DEVELOP_CACHE="${IMAGE_NAME}:${{ env.CI_IMAGE_TAG_PREFIX }}${{ env.DEVELOP_BRANCH_NAME }}"
+
+          echo "branch=${BRANCH_CACHE}" >> $GITHUB_OUTPUT
+          echo "develop=${DEVELOP_CACHE}" >> $GITHUB_OUTPUT
+
+      - name: Build and push web-frontend dev image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: web-frontend/Dockerfile
+          target: dev
+          push: true
+          tags: ${{ steps.image.outputs.full }}
+          cache-from: |
+            type=registry,ref=${{ steps.cache.outputs.branch }}
+            type=registry,ref=${{ steps.cache.outputs.develop }}
+          cache-to: type=inline
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ env.REAL_GITHUB_SHA }}
+            org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
+
+  # ==========================================================================
+  # LINT STAGE - Run linting on backend, frontend, and Dockerfiles
+  # ==========================================================================
+
+  # Detect which files have changed to skip unnecessary jobs
+  detect-changes:
+    name: Detect Changed Files
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      dockerfiles: ${{ steps.filter.outputs.dockerfiles }}
+      mjml: ${{ steps.filter.outputs.mjml }}
+      zapier: ${{ steps.filter.outputs.zapier }}
+      helm: ${{ steps.filter.outputs.helm }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check changed files
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+              - 'premium/backend/**'
+              - 'enterprise/backend/**'
+              - '.github/workflows/ci.yml'
+            frontend:
+              - 'web-frontend/**'
+              - 'premium/web-frontend/**'
+              - 'enterprise/web-frontend/**'
+              - '.github/workflows/ci.yml'
+            dockerfiles:
+              - '**/Dockerfile'
+              - '.github/workflows/ci.yml'
+            mjml:
+              - '**/*.eta'
+              - '.github/workflows/ci.yml'
+            zapier:
+              - 'integrations/zapier/**'
+              - '.github/workflows/ci.yml'
+            helm:
+              - 'deploy/helm/**'
+              - '.github/workflows/ci.yml'
+              - '.github/workflows/trigger-helm-chart-upload.yml'
+  backend-lint:
+    name: Backend Lint
+    runs-on: ubuntu-latest
+    needs:
+      - build-backend
+      - detect-changes
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Exit early if backend not changed and not develop/master
+        run: |
+          if [[ "${{ needs.detect-changes.outputs.backend }}" != "true" && \
+                "${{ github.ref_name }}" != "develop" && \
+                "${{ github.ref_name }}" != "master" ]]; then
+            echo "No backend changes detected — skipping backend lint."
+            exit 0
+          fi
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run backend lint
+        run: docker run --rm ${{ needs.build-backend.outputs.image }} lint
+
+  frontend-lint:
+    name: Web-Frontend Lint
+    runs-on: ubuntu-latest
+    needs:
+      - build-frontend
+      - detect-changes
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Exit early if frontend not changed and not develop/master
+        run: |
+          if [[ "${{ needs.detect-changes.outputs.frontend }}" != "true" && \
+                "${{ github.ref_name }}" != "develop" && \
+                "${{ github.ref_name }}" != "master" ]]; then
+            echo "No backend changes detected — skipping backend lint."
+            exit 0
+          fi
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run frontend lint
+        run: docker run --rm ${{ needs.build-frontend.outputs.image }} lint
+
+  dockerfile-lint:
+    name: Dockerfile Lint (hadolint)
+    runs-on: ubuntu-latest
+    needs:
+      - backend-lint
+      - frontend-lint
+      - detect-changes
+    permissions:
+      contents: read
+    steps:
+      - name: Exit early if dockerfiles not changed and not develop/master
+        run: |
+          if [[ "${{ needs.detect-changes.outputs.dockerfiles }}" != "true" && \
+                "${{ github.ref_name }}" != "develop" && \
+                "${{ github.ref_name }}" != "master" ]]; then
+            echo "No backend changes detected — skipping backend lint."
+            exit 0
+          fi
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run hadolint on all Dockerfiles
+        run: |
+          mkdir -p reports
+          docker run --rm -i \
+            -v "$(pwd)":/opt/hadolint \
+            -w /opt/hadolint \
+            hadolint/hadolint:2.9.3-debian \
+            hadolint --ignore DL3008 -f json \
+              backend/Dockerfile \
+              web-frontend/Dockerfile \
+              heroku.Dockerfile \
+              deploy/*/Dockerfile > reports/hadolint.json || true
+
+      - name: Display hadolint results
+        run: |
+          if [ -s reports/hadolint.json ]; then
+            cat reports/hadolint.json
+          else
+            echo "No hadolint issues found!"
+          fi
+
+      - name: Upload hadolint results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hadolint-results
+          path: reports/hadolint.json
+          retention-days: 7
+
+  helm-chart-lint:
+    name: Helm Chart Lint
+    runs-on: ubuntu-latest
+    needs:
+      - detect-changes
+    permissions:
+      contents: read
+    steps:
+      - name: Exit early if helm not changed and not develop/master
+        run: |
+          if [[ "${{ needs.detect-changes.outputs.helm }}" != "true" && \
+                "${{ github.ref_name }}" != "develop" && \
+                "${{ github.ref_name }}" != "master" ]]; then
+            echo "No backend changes detected — skipping backend lint."
+            exit 0
+          fi
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+
+      - name: Lint Helm Chart
+        run: |
+          cd deploy/helm
+          rm -f baserow/Chart.lock
+
+          # Add Helm repositories
+          helm repo add bitnami https://charts.bitnami.com/bitnami
+          helm repo add caddy https://caddyserver.github.io/ingress
+
+          # Build dependencies
+          helm dependency build baserow
+
+          # Lint the chart with strict mode
+          helm lint baserow --strict
+
+  # ==========================================================================
+  # TEST STAGE - Run backend and frontend tests
+  # ==========================================================================
+
+  backend-check-startup:
+    name: Backend Startup Check
+    runs-on: ubuntu-latest
+    needs:
+      - build-backend
+      - backend-lint
+      - detect-changes
+    permissions:
+      contents: read
+      packages: read
+    services:
+      db:
+        image: pgvector/pgvector:pg13
+        env:
+          POSTGRES_USER: baserow
+          POSTGRES_PASSWORD: baserow
+          POSTGRES_DB: baserow
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Exit early if backend not changed and not develop/master
+        run: |
+          if [[ "${{ needs.detect-changes.outputs.backend }}" != "true" && \
+                "${{ github.ref_name }}" != "develop" && \
+                "${{ github.ref_name }}" != "master" ]]; then
+            echo "No backend changes detected — skipping backend lint."
+            exit 0
+          fi
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check backend startup
+        run: |
+          docker run --rm --network="${{ job.services.db.network }}" \
+            -e DATABASE_HOST=db \
+            -e DATABASE_PORT=5432 \
+            -e DATABASE_NAME=baserow \
+            -e DATABASE_USER=baserow \
+            -e DATABASE_PASSWORD=baserow \
+            ${{ needs.build-backend.outputs.image }} ci-check-startup
+          docker run --rm --network="${{ job.services.db.network }}" \
+            -e DATABASE_HOST=db \
+            -e DATABASE_PORT=5432 \
+            -e DATABASE_NAME=baserow \
+            -e DATABASE_USER=baserow \
+            -e DATABASE_PASSWORD=baserow \
+            ${{ needs.build-backend.outputs.image }} ci-check-startup-oss-only
+
+  test-backend:
+    name: Backend Tests (Group ${{ matrix.group }})
+    runs-on: ubuntu-latest
+    needs:
+      - build-backend
+      - backend-lint
+      - detect-changes
+    permissions:
+      contents: read
+      packages: read
+      checks: write
+      pull-requests: write
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    services:
+      db:
+        image: pgvector/pgvector:pg13
+        env:
+          POSTGRES_USER: baserow
+          POSTGRES_PASSWORD: baserow
+          POSTGRES_DB: baserow
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Exit early if backend not changed and not develop/master
+        run: |
+          if [[ "${{ needs.detect-changes.outputs.backend }}" != "true" && \
+                "${{ github.ref_name }}" != "develop" && \
+                "${{ github.ref_name }}" != "master" ]]; then
+            echo "No backend changes detected — skipping backend lint."
+            exit 0
+          fi
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run backend tests for group ${{ matrix.group }}
+        run: |
+          mkdir -p reports
+          docker run \
+            --name=baserow_backend_test_container \
+            --network="${{ job.services.db.network }}" \
+            -e PYTEST_SPLITS=10 \
+            -e PYTEST_SPLIT_GROUP=${{ matrix.group }} \
+            -e DATABASE_HOST=db \
+            -e DATABASE_PORT=5432 \
+            -e DATABASE_NAME=baserow \
+            -e DATABASE_USER=baserow \
+            -e DATABASE_PASSWORD=baserow \
+            -e SECRET_KEY=test-secret-key \
+            ${{ needs.build-backend.outputs.image }} ci-test
+          docker cp baserow_backend_test_container:/baserow/backend/reports/. ./reports
+          docker rm baserow_backend_test_container
+
+      - name: Upload test reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-test-reports-group-${{ matrix.group }}
+          path: reports/
+          retention-days: 7
+          include-hidden-files: true
+
+      - name: Publish test results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        if: always()
+        with:
+          files: reports/report.xml
+          check_name: Backend Tests (Group ${{ matrix.group }})
+          comment_mode: off
+
+  test-frontend:
+    name: Web-Frontend Tests (Shard ${{ matrix.shard }})
+    runs-on: ubuntu-latest
+    needs:
+      - build-frontend
+      - frontend-lint
+      - detect-changes
+    permissions:
+      contents: read
+      packages: read
+      checks: write
+      pull-requests: write
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - name: Exit early if frontend not changed and not develop/master
+        run: |
+          if [[ "${{ needs.detect-changes.outputs.frontend }}" != "true" && \
+                "${{ github.ref_name }}" != "develop" && \
+                "${{ github.ref_name }}" != "master" ]]; then
+            echo "No backend changes detected — skipping backend lint."
+            exit 0
+          fi
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run web-frontend tests for shard ${{ matrix.shard }}
+        run: |
+          mkdir -p reports
+          docker run \
+            --name=webfrontend_test \
+            -e JEST_SHARD_INDEX=${{ matrix.shard }} \
+            -e JEST_SHARD_TOTAL=4 \
+            ${{ needs.build-frontend.outputs.image }} ci-test | tee reports/stdout.txt
+          docker cp webfrontend_test:/baserow/reports/. ./reports
+          docker rm webfrontend_test
+
+      - name: Upload test reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: web-frontend-test-reports-shard-${{ matrix.shard }}
+          path: reports/
+          retention-days: 7
+          include-hidden-files: true
+
+      - name: Publish test results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        if: always()
+        with:
+          files: reports/junit.xml
+          check_name: Web-Frontend Tests (Shard ${{ matrix.shard }})
+          comment_mode: off
+
+  test-zapier:
+    name: Zapier Integration Tests
+    runs-on: ubuntu-latest
+    needs:
+      - backend-lint
+      - frontend-lint
+      - detect-changes
+    permissions:
+      contents: read
+    steps:
+      - name: Exit early if zapier not changed and not develop/master
+        run: |
+          if [[ "${{ needs.detect-changes.outputs.zapier }}" != "true" && \
+                "${{ github.ref_name }}" != "develop" && \
+                "${{ github.ref_name }}" != "master" ]]; then
+            echo "No backend changes detected — skipping backend lint."
+            exit 0
+          fi
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+
+      - name: Run Zapier tests
+        run: |
+          cd integrations/zapier
+          yarn install
+          yarn run zapier test
+
+  check-mjml-compiled:
+    name: Check MJML Email Templates Compiled
+    runs-on: ubuntu-latest
+    needs:
+      - backend-lint
+      - frontend-lint
+      - detect-changes
+    permissions:
+      contents: read
+    steps:
+      - name: Exit early if mjml not changed and not develop/master
+        run: |
+          if [[ "${{ needs.detect-changes.outputs.mjml }}" != "true" && \
+                "${{ github.ref_name }}" != "develop" && \
+                "${{ github.ref_name }}" != "master" ]]; then
+            echo "No backend changes detected — skipping backend lint."
+            exit 0
+          fi
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+
+      - name: Compile MJML templates
+        run: |
+          cd backend/email_compiler
+          yarn install
+          yarn run compile
+
+      - name: Check for uncompiled changes
+        run: |
+          if ! git diff --exit-code; then
+            echo "Error: Uncompiled changes found to MJML email templates"
+            echo "Please run the compiler in backend/email_compiler/ and commit the changes"
+            exit 1
+          fi
+
+  # ==========================================================================
+  # E2E TESTS - End-to-end tests with Playwright
+  # ==========================================================================
+
+  test-e2e:
+    name: E2E Tests (Shard ${{ matrix.shard }})
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    needs:
+      - detect-changes
+      - build-backend
+      - build-frontend
+      - backend-lint
+      - frontend-lint
+    permissions:
+      contents: read
+      packages: read
+      checks: write
+      pull-requests: write
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    services:
+      db:
+        image: pgvector/pgvector:pg13
+        env:
+          POSTGRES_USER: baserow
+          POSTGRES_PASSWORD: baserow
+          POSTGRES_DB: baserow
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:6-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      s3mock:
+        image: adobe/s3mock:3.12.0
+        env:
+          initialBuckets: testbucket
+        ports:
+          - 9090:9090
+    steps:
+      - name: Exit early if no relevant changes
+        run: |
+          if [[ "${{ needs.detect-changes.outputs.backend }}" != "true" && \
+                "${{ needs.detect-changes.outputs.frontend }}" != "true" && \
+                "${{ needs.detect-changes.outputs.dockerfiles }}" != "true" && \
+                "${{ github.ref_name }}" != "develop" && \
+                "${{ github.ref_name }}" != "master" ]]; then
+            echo "No backend, frontend, or Dockerfile changes detected — skipping job."
+            exit 0
+          fi
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "yarn"
+          cache-dependency-path: "e2e-tests/yarn.lock"
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Start backend service
+        run: |
+          docker run -d --network="${{ job.services.db.network }}" \
+            --name backend \
+            -e DATABASE_HOST=db \
+            -e DATABASE_NAME=baserow \
+            -e DATABASE_USER=baserow \
+            -e DATABASE_PASSWORD=baserow \
+            -e REDIS_URL=redis://redis:6379 \
+            -e SECRET_KEY=test \
+            -e AWS_ACCESS_KEY_ID=anyvalue \
+            -e AWS_SECRET_ACCESS_KEY=anyvalue \
+            -e AWS_STORAGE_BUCKET_NAME=testbucket \
+            -e AWS_S3_ENDPOINT_URL=http://s3mock:9090 \
+            -e AWS_S3_CUSTOM_DOMAIN=localhost:9090/testbucket \
+            -e AWS_S3_USE_SSL=no \
+            -e AWS_S3_URL_PROTOCOL=http: \
+            -e FEATURE_FLAGS="*" \
+            -e DJANGO_SETTINGS_MODULE=baserow.config.settings.e2e \
+            -e BASEROW_TRIGGER_SYNC_TEMPLATES_AFTER_MIGRATION=false \
+            -p 8000:8000 \
+            ${{ needs.build-backend.outputs.image }} gunicorn
+
+      - name: Start celery worker
+        run: |
+          docker run -d --network="${{ job.services.db.network }}" \
+            --name celery \
+            -e DATABASE_HOST=db \
+            -e DATABASE_NAME=baserow \
+            -e DATABASE_USER=baserow \
+            -e DATABASE_PASSWORD=baserow \
+            -e REDIS_URL=redis://redis:6379 \
+            -e SECRET_KEY=test \
+            -e AWS_ACCESS_KEY_ID=anyvalue \
+            -e AWS_SECRET_ACCESS_KEY=anyvalue \
+            -e AWS_STORAGE_BUCKET_NAME=testbucket \
+            -e AWS_S3_ENDPOINT_URL=http://s3mock:9090 \
+            -e AWS_S3_CUSTOM_DOMAIN=localhost:9090/testbucket \
+            -e AWS_S3_USE_SSL=no \
+            -e AWS_S3_URL_PROTOCOL=http: \
+            -e FEATURE_FLAGS="*" \
+            -e DJANGO_SETTINGS_MODULE=baserow.config.settings.e2e \
+            -e BASEROW_RUN_MINIMAL=yes \
+            -e BASEROW_AMOUNT_OF_WORKERS=1 \
+            ${{ needs.build-backend.outputs.image }} celery-worker
+
+      - name: Start web-frontend service
+        run: |
+          docker run -d --network="${{ job.services.db.network }}" \
+            --name web-frontend \
+            -e PUBLIC_BACKEND_URL=http://localhost:8000 \
+            -e PUBLIC_WEB_FRONTEND_URL=http://localhost:3000 \
+            -e PRIVATE_BACKEND_URL=http://backend:8000 \
+            -e FEATURE_FLAGS="*" \
+            -e NODE_OPTIONS=--max-old-space-size=8192 \
+            -p 3000:3000 \
+            ${{ needs.build-frontend.outputs.image }} nuxt-dev-no-attach
+
+      - name: Install Playwright
+        run: |
+          cd e2e-tests
+          yarn install
+          npx playwright install --with-deps firefox
+
+      - name: Wait for services
+        env:
+          BASEROW_E2E_STARTUP_MAX_WAIT_TIME_SECONDS: 300
+          PUBLIC_BACKEND_URL: http://localhost:8000
+          PUBLIC_WEB_FRONTEND_URL: http://localhost:3000
+          PRIVATE_BACKEND_URL: http://backend:8000
+        run: |
+          cd e2e-tests
+          ./wait-for-services.sh
+
+      - name: Run E2E tests (shard ${{ matrix.shard }})
+        env:
+          PUBLIC_BACKEND_URL: http://localhost:8000
+          PUBLIC_WEB_FRONTEND_URL: http://localhost:3000
+          PRIVATE_BACKEND_URL: http://backend:8000
+        run: |
+          cd e2e-tests
+          CI=1 npx playwright test --timeout=30000 --grep-invert=@slow --shard=${{ matrix.shard }}/4 --project=firefox
+
+      - name: Upload E2E test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-test-results-shard-${{ matrix.shard }}
+          path: e2e-tests/blob-report/
+          retention-days: 7
+          include-hidden-files: true
+
+      - name: Cleanup containers
+        if: always()
+        run: |
+          docker stop backend web-frontend celery || true
+          docker rm backend web-frontend celery || true
+
+  collect-e2e-reports:
+    name: Collect E2E Test Reports
+    runs-on: ubuntu-latest
+    needs: [test-e2e]
+    permissions:
+      contents: read
+      checks: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+
+      - name: Download all E2E test results
+        uses: actions/download-artifact@v4
+        with:
+          pattern: e2e-test-results-shard-*
+          path: e2e-tests/blob-report
+          merge-multiple: true
+
+      - name: Merge Playwright reports
+        run: |
+          cd e2e-tests
+          yarn install
+          npx playwright merge-reports --reporter html blob-report/
+
+      - name: Upload merged E2E report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-test-report-merged
+          path: e2e-tests/playwright-report/
+          retention-days: 30
+
+  # ==========================================================================
+  # COVERAGE STAGE - Collect and report test coverage
+  # ==========================================================================
+
+  collect-coverage:
+    name: Collect Backend Coverage
+    runs-on: ubuntu-latest
+    needs: [test-backend]
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install coverage tool
+        run: pip install coverage
+
+      - name: Download all backend test reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: backend-test-reports-group-*
+          path: reports-download
+          merge-multiple: true
+
+      - name: Combine coverage reports
+        run: |
+          echo "Listing downloaded files:"
+          find reports-download -type f
+          cp reports-download/.coverage* $GITHUB_WORKSPACE/ 2>/dev/null || echo "No coverage files found"
+          cd $GITHUB_WORKSPACE
+          coverage combine || echo "::warning::No coverage data to combine"
+          coverage report || echo "::warning::No coverage report generated"
+          ls -la .coverage* || true
+
+      - name: Verify .coverage file exists
+        run: |
+          if [ ! -f $GITHUB_WORKSPACE/.coverage ]; then
+            echo "::error::No .coverage file found after combining coverage!"
+            exit 1
+          fi
+
+      - name: Upload combined coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage-report
+          path: ${{ github.workspace }}/.coverage
+          include-hidden-files: true
+          retention-days: 30
+          overwrite: true
+
+      - name: Comment coverage report on PR
+        if: github.event_name == 'pull_request'
+        uses: py-cov-action/python-coverage-comment-action@v3.38
+        continue-on-error: true
+        with:
+          GITHUB_TOKEN: ${{ github.token }}
+          MERGE_COVERAGE_FILES: false
+          COVERAGE_PATH: ${{ github.workspace }}
+
+  # ==========================================================================
+  # Build and publish stage - builds production grade images and publishes
+  # ==========================================================================
+
+  build-final-backend:
+    name: Build Final Backend Image
+    runs-on: ubuntu-latest
+    if: needs.check-build-and-publish.outputs.should_build_and_publish == 'true' && (github.ref_name == 'develop' || github.ref_name == 'master')
+    needs:
+      - test-backend
+      - test-e2e
+      - backend-lint
+      - check-build-and-publish
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push final backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: backend/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/backend:ci-tested-${{ env.REAL_GITHUB_SHA }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/backend_dev:ci-${{ env.REAL_GITHUB_SHA }}
+          cache-to: type=inline
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ env.REAL_GITHUB_SHA }}
+            org.opencontainers.image.title=backend
+            org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
+
+  build-final-web-frontend:
+    name: Build Final Web-Frontend Image
+    runs-on: ubuntu-latest
+    if: needs.check-build-and-publish.outputs.should_build_and_publish == 'true' && (github.ref_name == 'develop' || github.ref_name == 'master')
+    needs:
+      - test-frontend
+      - test-e2e
+      - frontend-lint
+      - check-build-and-publish
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push final web-frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: web-frontend/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/web-frontend:ci-tested-${{ env.REAL_GITHUB_SHA }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/web-frontend_dev:ci-${{ env.REAL_GITHUB_SHA }}
+          cache-to: type=inline
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ env.REAL_GITHUB_SHA }}
+            org.opencontainers.image.title=web-frontend
+            org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
+
+  build-final-all-in-one:
+    name: Build All-in-One Image
+    runs-on: ubuntu-latest
+    if: needs.check-build-and-publish.outputs.should_build_and_publish == 'true' && (github.ref_name == 'develop' || github.ref_name == 'master')
+    needs:
+      - build-final-backend
+      - build-final-web-frontend
+      - check-build-and-publish
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push all-in-one image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: deploy/all-in-one/Dockerfile
+          push: true
+          build-args: |
+            FROM_BACKEND_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/backend:ci-tested-${{ env.REAL_GITHUB_SHA }}
+            FROM_WEBFRONTEND_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/web-frontend:ci-tested-${{ env.REAL_GITHUB_SHA }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/baserow:ci-tested-${{ env.REAL_GITHUB_SHA }}
+          cache-to: type=inline
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ env.REAL_GITHUB_SHA }}
+            org.opencontainers.image.title=baserow
+            org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
+
+  build-cloudron:
+    name: Build Cloudron Image
+    runs-on: ubuntu-latest
+    if: needs.check-build-and-publish.outputs.should_build_and_publish == 'true' && (github.ref_name == 'develop' || github.ref_name == 'master')
+    needs:
+      - build-final-all-in-one
+      - check-build-and-publish
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push Cloudron image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: deploy/cloudron/Dockerfile
+          push: true
+          build-args: |
+            FROM_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/baserow:ci-tested-${{ env.REAL_GITHUB_SHA }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/cloudron:ci-tested-${{ env.REAL_GITHUB_SHA }}
+          cache-to: type=inline
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ env.REAL_GITHUB_SHA }}
+            org.opencontainers.image.title=cloudron
+            org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
+
+  publish-develop-latest-backend:
+    name: Publish develop-latest backend image
+    runs-on: ubuntu-latest
+    if: needs.check-build-and-publish.outputs.should_build_and_publish == 'true' && github.ref_name == 'develop'
+    needs:
+      - build-final-backend
+      - check-build-and-publish
+    env:
+      RELEASE_DOCKER_REGISTRY: ${{ secrets.RELEASE_DOCKER_REGISTRY }}
+      RELEASE_DOCKER_REPOSITORY: ${{ secrets.RELEASE_DOCKER_REPOSITORY }}
+      RELEASE_DOCKER_USERNAME: ${{ secrets.RELEASE_DOCKER_USERNAME }}
+      RELEASE_DOCKER_PASSWORD: ${{ secrets.RELEASE_DOCKER_PASSWORD }}
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.RELEASE_DOCKER_REGISTRY }}
+          username: ${{ env.RELEASE_DOCKER_USERNAME }}
+          password: ${{ env.RELEASE_DOCKER_PASSWORD }}
+
+      - name: Create and push develop-latest image on Docker Hub
+        run: |
+          SOURCE=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/backend:ci-tested-${{ env.REAL_GITHUB_SHA }}
+          TARGET=${{ env.RELEASE_DOCKER_REPOSITORY }}/backend:develop-latest
+          echo "Publishing $SOURCE → $TARGET"
+          docker buildx imagetools create -t $TARGET $SOURCE
+
+  publish-webfrontend-develop-latest-image:
+    name: Publish develop-latest web-frontend image
+    runs-on: ubuntu-latest
+    if: needs.check-build-and-publish.outputs.should_build_and_publish == 'true' && github.ref_name == 'develop'
+    needs:
+      - build-final-web-frontend
+      - check-build-and-publish
+    env:
+      RELEASE_DOCKER_REGISTRY: ${{ secrets.RELEASE_DOCKER_REGISTRY }}
+      RELEASE_DOCKER_REPOSITORY: ${{ secrets.RELEASE_DOCKER_REPOSITORY }}
+      RELEASE_DOCKER_USERNAME: ${{ secrets.RELEASE_DOCKER_USERNAME }}
+      RELEASE_DOCKER_PASSWORD: ${{ secrets.RELEASE_DOCKER_PASSWORD }}
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.RELEASE_DOCKER_REGISTRY }}
+          username: ${{ env.RELEASE_DOCKER_USERNAME }}
+          password: ${{ env.RELEASE_DOCKER_PASSWORD }}
+
+      - name: Create and push develop-latest image on Docker Hub
+        run: |
+          SOURCE=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/web-frontend:ci-tested-${{ env.REAL_GITHUB_SHA }}
+          TARGET=${{ env.RELEASE_DOCKER_REPOSITORY }}/web-frontend:develop-latest
+          echo "Publishing $SOURCE → $TARGET"
+          docker buildx imagetools create -t $TARGET $SOURCE
+
+  publish-all-in-one-develop-latest-image:
+    name: Publish develop-latest all-in-one image
+    runs-on: ubuntu-latest
+    if: needs.check-build-and-publish.outputs.should_build_and_publish == 'true' && github.ref_name == 'develop'
+    needs:
+      - build-final-all-in-one
+      - check-build-and-publish
+    env:
+      RELEASE_DOCKER_REGISTRY: ${{ secrets.RELEASE_DOCKER_REGISTRY }}
+      RELEASE_DOCKER_REPOSITORY: ${{ secrets.RELEASE_DOCKER_REPOSITORY }}
+      RELEASE_DOCKER_USERNAME: ${{ secrets.RELEASE_DOCKER_USERNAME }}
+      RELEASE_DOCKER_PASSWORD: ${{ secrets.RELEASE_DOCKER_PASSWORD }}
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.RELEASE_DOCKER_REGISTRY }}
+          username: ${{ env.RELEASE_DOCKER_USERNAME }}
+          password: ${{ env.RELEASE_DOCKER_PASSWORD }}
+
+      - name: Create and push develop-latest image on Docker Hub
+        run: |
+          SOURCE=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/baserow:ci-tested-${{ env.REAL_GITHUB_SHA }}
+          TARGET=${{ env.RELEASE_DOCKER_REPOSITORY }}/baserow:develop-latest
+          echo "Publishing $SOURCE → $TARGET"
+          docker buildx imagetools create -t $TARGET $SOURCE
+
+  publish-cloudron-develop-latest-image:
+    name: Publish develop-latest Cloudron image
+    runs-on: ubuntu-latest
+    if: needs.check-build-and-publish.outputs.should_build_and_publish == 'true' && github.ref_name == 'develop'
+    needs:
+      - build-cloudron
+      - check-build-and-publish
+    env:
+      RELEASE_DOCKER_REGISTRY: ${{ secrets.RELEASE_DOCKER_REGISTRY }}
+      RELEASE_DOCKER_REPOSITORY: ${{ secrets.RELEASE_DOCKER_REPOSITORY }}
+      RELEASE_DOCKER_USERNAME: ${{ secrets.RELEASE_DOCKER_USERNAME }}
+      RELEASE_DOCKER_PASSWORD: ${{ secrets.RELEASE_DOCKER_PASSWORD }}
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.RELEASE_DOCKER_REGISTRY }}
+          username: ${{ env.RELEASE_DOCKER_USERNAME }}
+          password: ${{ env.RELEASE_DOCKER_PASSWORD }}
+
+      - name: Create and push develop-latest image on Docker Hub
+        run: |
+          SOURCE=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/cloudron:ci-tested-${{ env.REAL_GITHUB_SHA }}
+          TARGET=${{ env.RELEASE_DOCKER_REPOSITORY }}/cloudron:develop-latest
+          echo "Publishing $SOURCE → $TARGET"
+          docker buildx imagetools create -t $TARGET $SOURCE
+
+  trigger-saas-build:
+    name: Trigger SaaS GitLab Pipeline
+    runs-on: ubuntu-latest
+    needs:
+      - build-final-backend
+      - build-final-web-frontend
+      - build-final-all-in-one
+      - check-build-and-publish
+    if: needs.check-build-and-publish.outputs.should_build_and_publish == 'true' && needs.check-build-and-publish.outputs.should_trigger_saas == 'true' && github.ref_name == 'develop'
+    env:
+      GITLAB_SAAS_PAT: ${{ secrets.GITLAB_SAAS_PAT }}
+      GIT_USER_NAME: "Baserow CI"
+      GIT_USER_EMAIL: "ci@baserow.io"
+    steps:
+      - name: Checkout core repo
+        uses: actions/checkout@v4
+
+      - name: Clone SaaS repository from GitLab
+        run: |
+          echo "🔄 Cloning baserow-saas..."
+          git clone -b develop https://oauth2:${GITLAB_SAAS_PAT}@gitlab.com/baserow/baserow-saas.git saas
+          cd saas
+
+      - name: Update image version files
+        working-directory: saas
+        run: |
+          echo "🧩 Generating updated image references..."
+
+          BACKEND_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/backend:ci-tested-${{ env.REAL_GITHUB_SHA }}"
+          BACKEND_DEV_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/backend_dev:ci-${{ env.REAL_GITHUB_SHA }}"
+          WEB_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/web-frontend:ci-tested-${{ env.REAL_GITHUB_SHA }}"
+          WEB_DEV_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/web-frontend_dev:ci-${{ env.REAL_GITHUB_SHA }}"
+          ALL_IN_ONE_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/baserow:ci-tested-${{ env.REAL_GITHUB_SHA }}"
+
+          echo "$BACKEND_IMAGE" > plugins/saas/backend/build_from_image.version
+          echo "$BACKEND_DEV_IMAGE" > plugins/saas/backend/build_from_dev_image.version
+          echo "$WEB_IMAGE" > plugins/saas/web-frontend/build_from_image.version
+          echo "$WEB_DEV_IMAGE" > plugins/saas/web-frontend/build_from_dev_image.version
+          echo "$ALL_IN_ONE_IMAGE" > all_in_one_image.version
+
+          echo "✅ Updated image references:"
+          cat plugins/saas/backend/build_from_image.version
+          cat plugins/saas/web-frontend/build_from_image.version
+          cat all_in_one_image.version
+
+      - name: Commit and push changes to GitLab
+        working-directory: saas
+        run: |
+          echo "📝 Committing and pushing changes to GitLab..."
+
+          git config user.name "${GIT_USER_NAME}"
+          git config user.email "${GIT_USER_EMAIL}"
+
+          git add \
+            plugins/saas/backend/build_from_image.version \
+            plugins/saas/backend/build_from_dev_image.version \
+            plugins/saas/web-frontend/build_from_image.version \
+            plugins/saas/web-frontend/build_from_dev_image.version \
+            all_in_one_image.version
+
+          if git diff-index --quiet HEAD --; then
+            echo "No changes detected — skipping commit."
+            exit 0
+          fi
+
+          COMMIT_MSG="Automatic core image bump:
+          - backend: ${BACKEND_IMAGE}
+          - web-frontend: ${WEB_IMAGE}
+          - all-in-one: ${ALL_IN_ONE_IMAGE}"
+
+          git commit -m "$COMMIT_MSG"
+          git push origin develop
+
+          echo "✅ Successfully pushed updates to baserow-saas."

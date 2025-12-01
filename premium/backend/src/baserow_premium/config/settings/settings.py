@@ -1,5 +1,7 @@
 import os
 
+from django.core.exceptions import ImproperlyConfigured
+
 
 def setup(settings):
     """
@@ -19,6 +21,15 @@ def setup(settings):
         os.getenv("BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_SERIES", "") or 3
     )
 
-    settings.BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS = int(
+    BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS = int(
         os.getenv("BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS", "") or 10
+    )
+    if BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS < 1:
+        raise ImproperlyConfigured(
+            "BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS "
+            "has to be bigger than 0."
+        )
+
+    settings.BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS = (
+        BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS
     )

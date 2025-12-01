@@ -3,7 +3,7 @@ msgstr ""
 "Project-Id-Version: \n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2024-01-18 13:32+0000\n"
-"PO-Revision-Date: 2025-04-02 08:54+0000\n"
+"PO-Revision-Date: 2025-06-03 13:47+0000\n"
 "Last-Translator: Cezary Statkiewicz <cezary@baserow.io>\n"
 "Language-Team: Polish <https://hosted.weblate.org/projects/baserow/"
 "backend-core/pl/>\n"
@@ -13,7 +13,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=3; plural=(n==1 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 "
 "|| n%100>=20) ? 1 : 2);\n"
-"X-Generator: Weblate 5.11-dev\n"
+"X-Generator: Weblate 5.12-dev\n"
 
 #: src/baserow/core/action/scopes.py:9
 #, python-format
@@ -395,7 +395,7 @@ msgstr ""
 "prostu zignorować tę wiadomość."
 
 #: src/baserow/core/templates/baserow/core/user/reset_password.html:154
-#, fuzzy, python-format
+#, python-format
 msgid ""
 "To continue with your password reset, simply click the button below, and you "
 "will be able to change your password. This link will expire in %(hours)s "
@@ -411,7 +411,7 @@ msgid ""
 "%(workspace_name)s</strong>."
 msgstr ""
 "<strong>%(first_name)s</strong> zaprosił Cię do współpracy na "
-"<strong>%(workspace_name)s</strong>"
+"<strong>%(workspace_name)s</strong>."
 
 #: src/baserow/core/trash/actions.py:20
 msgid "Empty trash"
@@ -424,7 +424,7 @@ msgid ""
 "emptied"
 msgstr ""
 "Kosz aplikacji \"%(application_name)s\" (%(application_id)s) został "
-"opróżniony."
+"opróżniony"
 
 #: src/baserow/core/trash/actions.py:79
 #, python-format
@@ -505,8 +505,8 @@ msgid ""
 "User \"%(user_email)s\" (%(user_id)s) signed in via \"%(auth_provider_type)s"
 "\" (%(auth_provider_id)s) auth provider"
 msgstr ""
-"Użytkownik \"%(user_email)s\" (%(user_id)s) zalogował się za pośrednictwem \""
-"%(auth_provider_type)s\" (%(auth_provider_id)s) dostawcy uwierzytelniania."
+"Użytkownik \"%(user_email)s\" (%(user_id)s) zalogował się za pośrednictwem "
+"\"%(auth_provider_type)s\" (%(auth_provider_id)s) dostawcy uwierzytelniania"
 
 #: src/baserow/core/user/actions.py:283
 msgid "Send reset user password"

@@ -301,3 +301,11 @@ class FeatureDisabledException(Exception):
     """
     Raised when a feature is disabled.
     """
+
+
+class DeadlockException(OperationalError):
+    """
+    Raised when a database operation fails due to a deadlock.
+    """
+
+    message = "The database failed to commit the transaction due to a deadlock."

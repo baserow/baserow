@@ -6,6 +6,7 @@ from django.urls import is_valid_path
 
 from rest_framework import status
 
+from baserow.config.db_routers import clear_db_state
 from baserow.core.handler import CoreHandler
 from baserow.throttling import ConcurrentUserRequestsThrottle
 
@@ -98,4 +99,19 @@ class ClearContextMiddleware:
             # Make sure that the context is cleared after the response has been
             # returned regardless of any exceptions that might have been raised.
             CoreHandler().clear_context()
+        return response
+
+
+class ClearDBStateMiddleware:
+    """
+    Clearing the db state after every request, so that if a read-only replica is
+    configured, it will correctly use that one instead of the writer.
+    """
+
+    def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+        clear_db_state()
         return response

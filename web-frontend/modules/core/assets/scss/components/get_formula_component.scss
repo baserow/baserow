@@ -1,39 +1,41 @@
 .get-formula-component {
   cursor: pointer;
   display: inline-block;
-  padding: 2px 8px;
-  background-color: $color-neutral-100;
+  vertical-align: top;
+  background-color: $palette-neutral-100;
   font-size: 12px;
-  margin: 1px 0;
   border-radius: 3px;
   user-select: none;
+  min-height: 24px;
   line-height: 18px;
+  box-sizing: border-box;
+  padding: 2px 8px;
 
   @include rounded($rounded);
 }
 
 .get-formula-component--error {
-  background-color: $color-error-100;
+  background-color: $palette-red-100;
 }
 
 .get-formula-component--selected {
-  background-color: $color-primary-100;
+  background-color: $palette-blue-50;
 }
 
 .get-formula-component__caret {
-  color: $color-neutral-400;
+  color: $palette-neutral-700;
   padding-left: 3px;
   padding-right: 3px;
   font-size: 12px;
 }
 
 .get-formula-component__remove {
-  color: $color-neutral-500;
+  color: $palette-neutral-700;
   padding-left: 4px;
   font-size: 10px;
 
   &:hover {
     text-decoration: none;
-    color: $color-neutral-900;
+    color: $palette-neutral-1100;
   }
 }

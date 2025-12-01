@@ -1,8 +1,6 @@
 {
 	on_demand_tls {
         ask {$PRIVATE_BACKEND_URL:localhost:8000}/api/builder/domains/ask-public-domain-exists/
-        interval 2m
-        burst 5
     }
 
     {$BASEROW_CADDY_GLOBAL_CONF}
@@ -26,11 +24,27 @@
             reverse_proxy {$PRIVATE_BACKEND_URL:localhost:8000}
         }
 
+        handle /mcp/* {
+            reverse_proxy {$PRIVATE_BACKEND_URL:localhost:8000}
+        }
+
+        handle /assistant/* {
+            reverse_proxy {$PRIVATE_BACKEND_URL:localhost:8000}
+        }
+
         handle_path /media/* {
             @downloads {
                 query dl=*
             }
             header @downloads Content-disposition "attachment; filename={query.dl}"
+
+            # Allow to call head from public url to get size
+            header {
+                Access-Control-Allow-Origin {$BASEROW_PUBLIC_URL:http://localhost}
+                Access-Control-Allow-Methods "GET, HEAD, OPTIONS"
+                Access-Control-Allow-Headers "*"
+                Access-Control-Expose-Headers "Content-Length, Content-Type"
+            }
 
             file_server {
                 root {$MEDIA_ROOT:/baserow/media/}

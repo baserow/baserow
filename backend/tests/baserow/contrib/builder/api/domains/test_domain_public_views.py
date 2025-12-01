@@ -13,15 +13,22 @@ from rest_framework.status import (
 )
 
 from baserow.api.user_files.serializers import UserFileSerializer
-from baserow.contrib.builder.data_sources.exceptions import (
-    DataSourceDoesNotExist,
-    DataSourceImproperlyConfigured,
-)
+from baserow.contrib.builder.data_sources.exceptions import DataSourceDoesNotExist
 from baserow.contrib.builder.elements.models import Element
 from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.database.views.models import SORT_ORDER_ASC
 from baserow.core.exceptions import PermissionException
-from baserow.core.services.exceptions import DoesNotExist, ServiceImproperlyConfigured
+from baserow.core.formula import BaserowFormulaObject
+from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
+from baserow.core.formula.types import BASEROW_FORMULA_MODE_SIMPLE
+from baserow.core.models import Workspace
+from baserow.core.services.exceptions import (
+    DoesNotExist,
+    InvalidContextContentDispatchException,
+    InvalidContextDispatchException,
+    ServiceImproperlyConfiguredDispatchException,
+    UnexpectedDispatchException,
+)
 from baserow.core.user_sources.user_source_user import UserSourceUser
 
 
@@ -131,50 +138,54 @@ def test_get_public_builder_by_domain_name(api_client, data_fixture):
     assert builder_to.page_set.filter(shared=True).count() == 1
 
     shared_page = builder_to.shared_page
+    workspace = Workspace.objects.get()
 
-    assert response_json == {
-        "favicon_file": UserFileSerializer(builder_to.favicon_file).data,
-        "id": builder_to.id,
-        "name": builder_to.name,
-        "login_page_id": None,
-        "pages": [
-            {
-                "id": shared_page.id,
-                "name": "__shared__",
-                "path": "__shared__",
-                "path_params": [],
-                "query_params": [],
-                "shared": True,
-                "visibility": Page.VISIBILITY_TYPES.ALL.value,
-                "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
-                "roles": [],
-            },
-            {
-                "id": page.id,
-                "name": page.name,
-                "path": page.path,
-                "path_params": [],
-                "query_params": [],
-                "shared": False,
-                "visibility": Page.VISIBILITY_TYPES.ALL.value,
-                "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
-                "roles": [],
-            },
-            {
-                "id": page2.id,
-                "name": page2.name,
-                "path": page2.path,
-                "path_params": [],
-                "query_params": [],
-                "shared": False,
-                "visibility": Page.VISIBILITY_TYPES.ALL.value,
-                "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
-                "roles": [],
-            },
-        ],
-        "type": "builder",
-        "user_sources": [],
+    assert (
+        response_json["favicon_file"]
+        == UserFileSerializer(builder_to.favicon_file).data
+    )
+    assert response_json["login_page_id"] is None
+    assert response_json["workspace"] == {
+        "generative_ai_models_enabled": {},
+        "id": workspace.id,
+        "name": workspace.name,
+        "licenses": [],
     }
+    assert response_json["pages"] == [
+        {
+            "id": shared_page.id,
+            "name": "__shared__",
+            "path": "__shared__",
+            "path_params": [],
+            "query_params": [],
+            "shared": True,
+            "visibility": Page.VISIBILITY_TYPES.ALL.value,
+            "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
+            "roles": [],
+        },
+        {
+            "id": page.id,
+            "name": page.name,
+            "path": page.path,
+            "path_params": [],
+            "query_params": [],
+            "shared": False,
+            "visibility": Page.VISIBILITY_TYPES.ALL.value,
+            "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
+            "roles": [],
+        },
+        {
+            "id": page2.id,
+            "name": page2.name,
+            "path": page2.path,
+            "path_params": [],
+            "query_params": [],
+            "shared": False,
+            "visibility": Page.VISIBILITY_TYPES.ALL.value,
+            "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
+            "roles": [],
+        },
+    ]
 
     # Even if I'm authenticated I should be able to see it.
     response = api_client.get(
@@ -261,49 +272,52 @@ def test_get_public_builder_by_id(api_client, data_fixture):
 
     shared_page = page.builder.shared_page
 
-    assert response_json == {
-        "favicon_file": UserFileSerializer(page.builder.favicon_file).data,
-        "id": page.builder.id,
-        "name": page.builder.name,
-        "login_page_id": None,
-        "pages": [
-            {
-                "id": shared_page.id,
-                "name": "__shared__",
-                "path": "__shared__",
-                "path_params": [],
-                "query_params": [],
-                "shared": True,
-                "visibility": Page.VISIBILITY_TYPES.ALL.value,
-                "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
-                "roles": [],
-            },
-            {
-                "id": page.id,
-                "name": page.name,
-                "path": page.path,
-                "path_params": [],
-                "query_params": [],
-                "shared": False,
-                "visibility": Page.VISIBILITY_TYPES.ALL.value,
-                "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
-                "roles": [],
-            },
-            {
-                "id": page2.id,
-                "name": page2.name,
-                "path": page2.path,
-                "path_params": [],
-                "query_params": [],
-                "shared": False,
-                "visibility": Page.VISIBILITY_TYPES.ALL.value,
-                "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
-                "roles": [],
-            },
-        ],
-        "type": "builder",
-        "user_sources": [],
+    assert (
+        response_json["favicon_file"]
+        == UserFileSerializer(page.builder.favicon_file).data
+    )
+    assert response_json["login_page_id"] is None
+    assert response_json["workspace"] == {
+        "generative_ai_models_enabled": {},
+        "id": page.builder.workspace.id,
+        "name": page.builder.workspace.name,
+        "licenses": [],
     }
+    assert response_json["pages"] == [
+        {
+            "id": shared_page.id,
+            "name": "__shared__",
+            "path": "__shared__",
+            "path_params": [],
+            "query_params": [],
+            "shared": True,
+            "visibility": Page.VISIBILITY_TYPES.ALL.value,
+            "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
+            "roles": [],
+        },
+        {
+            "id": page.id,
+            "name": page.name,
+            "path": page.path,
+            "path_params": [],
+            "query_params": [],
+            "shared": False,
+            "visibility": Page.VISIBILITY_TYPES.ALL.value,
+            "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
+            "roles": [],
+        },
+        {
+            "id": page2.id,
+            "name": page2.name,
+            "path": page2.path,
+            "path_params": [],
+            "query_params": [],
+            "shared": False,
+            "visibility": Page.VISIBILITY_TYPES.ALL.value,
+            "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
+            "roles": [],
+        },
+    ]
 
 
 @pytest.mark.django_db
@@ -392,7 +406,9 @@ def test_get_elements_of_public_builder(api_client, data_fixture):
         "order": "1.00000000000000000000",
         "parent_element_id": None,
         "place_in_container": None,
+        "css_classes": "",
         "visibility": "all",
+        "visibility_condition": {"formula": "", "mode": "simple", "version": "0.1"},
         "styles": {},
         "style_border_top_color": "border",
         "style_border_top_size": 0,
@@ -420,7 +436,11 @@ def test_get_elements_of_public_builder(api_client, data_fixture):
         "style_width_child": "normal",
         "role_type": "allow_all",
         "roles": [],
-        "value": "",
+        "value": BaserowFormulaObject(
+            version=BASEROW_FORMULA_VERSION_INITIAL,
+            mode=BASEROW_FORMULA_MODE_SIMPLE,
+            formula="",
+        ),
         "level": 1,
     }
 
@@ -428,6 +448,43 @@ def test_get_elements_of_public_builder(api_client, data_fixture):
     assert len(response_json) == 3
     # Test the structure of the first item to ensure the expected keys exist
     assert response_json[0] == expected_item
+
+
+@pytest.mark.django_db
+def test_get_elements_of_public_builder_with_deactivated(api_client, data_fixture):
+    user = data_fixture.create_user()
+    builder_from = data_fixture.create_builder_application(user=user)
+    builder_to = data_fixture.create_builder_application(user=user, workspace=None)
+    page = data_fixture.create_builder_page(builder=builder_to, user=user)
+    element1 = data_fixture.create_builder_heading_element(page=page)
+    element2 = data_fixture.create_builder_heading_element(page=page)
+    element3 = data_fixture.create_builder_text_element(page=page)
+
+    element_type = element3.get_type()
+
+    prev_is_deactivated = element_type.is_deactivated
+    element_type.is_deactivated = lambda x: True
+
+    domain = data_fixture.create_builder_custom_domain(
+        domain_name="test.getbaserow.io",
+        published_to=page.builder,
+        builder=builder_from,
+    )
+
+    url = reverse(
+        "api:builder:domains:list_elements",
+        kwargs={"page_id": page.id},
+    )
+    response = api_client.get(
+        url,
+        format="json",
+    )
+    response_json = response.json()
+
+    element_type.is_deactivated = prev_is_deactivated
+
+    assert response.status_code == HTTP_200_OK
+    assert len(response_json) == 2
 
 
 @pytest.mark.django_db
@@ -613,7 +670,6 @@ def test_public_dispatch_data_source_view(
     mock_builder_dispatch_context.assert_called_once_with(
         ANY,
         mock_data_source.page,
-        element=None,
         only_expose_public_allowed_properties=True,
     )
     mock_dispatch_data_source.assert_called_once_with(
@@ -675,14 +731,24 @@ def test_public_dispatch_data_sources_view(
             "The requested data_source does not exist.",
         ),
         (
-            DataSourceImproperlyConfigured,
-            "ERROR_DATA_SOURCE_IMPROPERLY_CONFIGURED",
-            "The data_source configuration is incorrect: ",
+            ServiceImproperlyConfiguredDispatchException,
+            "ERROR_SERVICE_IMPROPERLY_CONFIGURED",
+            "Exception content",
         ),
         (
-            ServiceImproperlyConfigured,
-            "ERROR_DATA_SOURCE_IMPROPERLY_CONFIGURED",
-            "The data_source configuration is incorrect: ",
+            InvalidContextDispatchException,
+            "ERROR_SERVICE_INVALID_DISPATCH_CONTEXT",
+            "Exception content",
+        ),
+        (
+            InvalidContextContentDispatchException,
+            "ERROR_SERVICE_INVALID_DISPATCH_CONTEXT_CONTENT",
+            "Exception content",
+        ),
+        (
+            UnexpectedDispatchException,
+            "ERROR_SERVICE_UNEXPECTED_DISPATCH_ERROR",
+            "Exception content",
         ),
         (
             DoesNotExist,
@@ -722,7 +788,7 @@ def test_public_dispatch_data_sources_view_returns_error(
     mock_dispatch_context = MagicMock()
     mock_builder_dispatch_context.return_value = mock_dispatch_context
 
-    mock_service_contents = {"101": expected_exception()}
+    mock_service_contents = {"101": expected_exception("Exception content")}
     mock_dispatch_page_data_sources.return_value = mock_service_contents
 
     mock_page_id = 100
@@ -848,13 +914,13 @@ def test_public_dispatch_data_source_view_returns_all_fields(
         "results": [
             {
                 "id": rows[0].id,
-                f"field_{fields[0].id}": "Paneer Tikka",
-                f"field_{fields[1].id}": "5",
+                fields[0].name: "Paneer Tikka",
+                fields[1].name: 5,
             },
             {
                 "id": rows[1].id,
-                f"field_{fields[0].id}": "Gobi Manchurian",
-                f"field_{fields[1].id}": "8",
+                fields[0].name: "Gobi Manchurian",
+                fields[1].name: 8,
             },
         ],
     }
@@ -917,10 +983,10 @@ def test_public_dispatch_data_source_view_returns_some_fields(
         "has_next_page": False,
         "results": [
             {
-                f"field_{fields[0].id}": "Paneer Tikka",
+                fields[0].name: "Paneer Tikka",
             },
             {
-                f"field_{fields[0].id}": "Gobi Manchurian",
+                fields[0].name: "Gobi Manchurian",
             },
         ],
     }
@@ -1037,7 +1103,7 @@ def test_public_dispatch_data_sources_list_rows_no_elements(
 
     assert response.status_code == HTTP_200_OK
     assert response.json() == {
-        str(data_source.id): {"has_next_page": False, "results": [{}] * 3}
+        str(data_source.id): {"has_next_page": False, "results": []}
     }
 
 
@@ -1093,7 +1159,8 @@ def test_public_dispatch_data_sources_list_rows_with_elements_and_role(
         table=data_source_element_roles_fixture["table"],
     )
 
-    field_id = data_source_element_roles_fixture["fields"][0].id
+    field = data_source_element_roles_fixture["fields"][0]
+    field_id = field.id
 
     # Create an element that uses a formula referencing the data source
     data_fixture.create_builder_table_element(
@@ -1129,7 +1196,7 @@ def test_public_dispatch_data_sources_list_rows_with_elements_and_role(
         if expect_fields:
             # Field should only be visible if the user's role allows them
             # to see the data source fields.
-            result[f"field_{field_id}"] = getattr(row, f"field_{field_id}")
+            result[field.name] = getattr(row, f"field_{field_id}")
 
         expected_results.append(result)
 
@@ -1146,7 +1213,7 @@ def test_public_dispatch_data_sources_list_rows_with_elements_and_role(
         assert response.json() == {
             str(data_source.id): {
                 "has_next_page": False,
-                "results": [{}] * 3,
+                "results": [],
             },
         }
 
@@ -1311,7 +1378,7 @@ def test_public_dispatch_data_sources_list_rows_with_page_visibility_all(
     rows = data_source_element_roles_fixture["rows"]
 
     if expect_fields:
-        field_name = f"field_{field_id}"
+        field_name = data_source_element_roles_fixture["fields"][0].name
         assert response.json() == {
             str(data_source.id): {
                 "has_next_page": False,
@@ -1326,7 +1393,7 @@ def test_public_dispatch_data_sources_list_rows_with_page_visibility_all(
         assert response.json() == {
             str(data_source.id): {
                 "has_next_page": False,
-                "results": [{}] * 3,
+                "results": [],
             },
         }
 
@@ -1458,7 +1525,8 @@ def test_public_dispatch_data_sources_get_row_with_page_visibility_all(
     )
 
     # Create an element that uses a formula referencing the data source
-    field_id = data_source_element_roles_fixture["fields"][0].id
+    field = data_source_element_roles_fixture["fields"][0]
+    field_id = field.id
     data_fixture.create_builder_heading_element(
         page=page,
         value=f"get('data_source.{data_source.id}.field_{field_id}')",
@@ -1483,7 +1551,7 @@ def test_public_dispatch_data_sources_get_row_with_page_visibility_all(
 
     if expect_fields:
         assert response.json() == {
-            str(data_source.id): {f"field_{field_id}": "Apple"},
+            str(data_source.id): {field.name: "Apple"},
         }
     else:
         assert response.json() == {str(data_source.id): {}}
@@ -1625,7 +1693,7 @@ def test_public_dispatch_data_sources_list_rows_with_page_visibility_logged_in(
     rows = data_source_element_roles_fixture["rows"]
 
     if expect_fields:
-        field_name = f"field_{field_id}"
+        field_name = data_source_element_roles_fixture["fields"][0].name
         assert response.json() == {
             str(data_source.id): {
                 "has_next_page": False,
@@ -1640,7 +1708,7 @@ def test_public_dispatch_data_sources_list_rows_with_page_visibility_logged_in(
         assert response.json() == {
             str(data_source.id): {
                 "has_next_page": False,
-                "results": [{}] * 3,
+                "results": [],
             },
         }
 
@@ -1773,7 +1841,9 @@ def test_public_dispatch_data_sources_get_row_with_page_visibility_logged_in(
 
     if expect_fields:
         assert response.json() == {
-            str(data_source.id): {f"field_{field_id}": "Apple"},
+            str(data_source.id): {
+                data_source_element_roles_fixture["fields"][0].name: "Apple"
+            },
         }
     else:
         assert response.json() == {str(data_source.id): {}}
@@ -1867,46 +1937,7 @@ def test_list_elements_with_page_visibility_all(
     assert response.status_code == HTTP_200_OK
 
     if expect_fields:
-        assert response.json() == [
-            {
-                "id": element.id,
-                "level": 1,
-                "order": "1.00000000000000000000",
-                "page_id": page.id,
-                "parent_element_id": None,
-                "place_in_container": None,
-                "role_type": "disallow_all_except",
-                "roles": [element_role],
-                "style_background": "none",
-                "style_background_color": "#ffffffff",
-                "style_background_file": None,
-                "style_background_mode": "fill",
-                "style_border_bottom_color": "border",
-                "style_border_bottom_size": 0,
-                "style_border_left_color": "border",
-                "style_border_left_size": 0,
-                "style_border_right_color": "border",
-                "style_border_right_size": 0,
-                "style_border_top_color": "border",
-                "style_border_top_size": 0,
-                "style_margin_bottom": 0,
-                "style_margin_left": 0,
-                "style_margin_right": 0,
-                "style_margin_top": 0,
-                "style_padding_bottom": 10,
-                "style_padding_left": 20,
-                "style_padding_right": 20,
-                "style_padding_top": 10,
-                "style_background_radius": 0,
-                "style_border_radius": 0,
-                "style_width": "normal",
-                "style_width_child": "normal",
-                "styles": {},
-                "type": "heading",
-                "value": f"get('data_source.{data_source.id}.field_{field_id}')",
-                "visibility": "logged-in",
-            },
-        ]
+        assert [e["id"] for e in response.json()] == [element.id]
     else:
         assert response.json() == []
 
@@ -2040,46 +2071,8 @@ def test_list_elements_with_page_visibility_logged_in(
     assert response.status_code == HTTP_200_OK
 
     if expect_fields:
-        assert response.json() == [
-            {
-                "id": element.id,
-                "level": 1,
-                "order": "1.00000000000000000000",
-                "page_id": page.id,
-                "parent_element_id": None,
-                "place_in_container": None,
-                "role_type": "disallow_all_except",
-                "roles": [element_role],
-                "style_background": "none",
-                "style_background_color": "#ffffffff",
-                "style_background_file": None,
-                "style_background_mode": "fill",
-                "style_border_bottom_color": "border",
-                "style_border_bottom_size": 0,
-                "style_border_left_color": "border",
-                "style_border_left_size": 0,
-                "style_border_right_color": "border",
-                "style_border_right_size": 0,
-                "style_border_top_color": "border",
-                "style_border_top_size": 0,
-                "style_margin_bottom": 0,
-                "style_margin_left": 0,
-                "style_margin_right": 0,
-                "style_margin_top": 0,
-                "style_padding_bottom": 10,
-                "style_padding_left": 20,
-                "style_padding_right": 20,
-                "style_padding_top": 10,
-                "style_background_radius": 0,
-                "style_border_radius": 0,
-                "style_width": "normal",
-                "style_width_child": "normal",
-                "styles": {},
-                "type": "heading",
-                "value": f"get('data_source.{data_source.id}.field_{field_id}')",
-                "visibility": "logged-in",
-            },
-        ]
+        assert [e["id"] for e in response.json()] == [element.id]
+
     else:
         assert response.json() == []
 
@@ -2273,7 +2266,19 @@ def test_public_dispatch_data_source_with_refinements_referencing_trashed_field(
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
     database = data_fixture.create_database_application(workspace=workspace)
-    table = data_fixture.create_database_table(database=database)
+    table, fields, rows = data_fixture.build_table(
+        user=user,
+        database=database,
+        columns=[
+            ("Name", "text"),
+            ("Color", "text"),
+        ],
+        rows=[
+            ["Apple", "Red"],
+            ["Banana", "Yellow"],
+            ["Cherry", "Purple"],
+        ],
+    )
     trashed_field = data_fixture.create_text_field(table=table, trashed=True)
     builder = data_fixture.create_builder_application(workspace=workspace)
     integration = data_fixture.create_local_baserow_integration(
@@ -2288,6 +2293,11 @@ def test_public_dispatch_data_source_with_refinements_referencing_trashed_field(
     )
     service_filter = data_fixture.create_local_baserow_table_service_filter(
         service=data_source.service, field=trashed_field, value="abc", order=0
+    )
+
+    data_fixture.create_builder_heading_element(
+        page=page,
+        value=f"get('data_source.{data_source.id}.field_{fields[0].id}')",
     )
 
     url = reverse(

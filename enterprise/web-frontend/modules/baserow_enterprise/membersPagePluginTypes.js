@@ -4,7 +4,8 @@ import CrudTableColumn from '@baserow/modules/core/crudTable/crudTableColumn'
 import InvitesRoleField from '@baserow_enterprise/components/InvitesRoleField'
 import EnterpriseFeatures from '@baserow_enterprise/features'
 import UserTeamsField from '@baserow_enterprise/components/crudTable/fields/UserTeamsField'
-import HighestPaidRoleField from '@baserow_enterprise/components/crudTable/fields/HighestPaidRoleField.vue'
+import HighestPaidRoleField from '@baserow_enterprise/components/crudTable/fields/HighestPaidRoleField'
+import AdminHighestPaidRoleField from '@baserow/modules/core/components/admin/users/fields/HighestPaidRoleField'
 
 export class EnterpriseMembersPagePluginType extends MembersPagePluginType {
   static getType() {
@@ -19,8 +20,8 @@ export class EnterpriseMembersPagePluginType extends MembersPagePluginType {
       context
     )
 
-    const roleColumnIndex = columns.findIndex(
-      (column) => column.key === 'permissions'
+    const insertBeforeColumnIndex = columns.findIndex(
+      (column) => column.key === 'two_factor_auth'
     )
     const highestRoleColumn = new CrudTableColumn(
       'highest_role_uid',
@@ -45,8 +46,8 @@ export class EnterpriseMembersPagePluginType extends MembersPagePluginType {
       {},
       20
     )
-    columns.splice(roleColumnIndex, 0, highestRoleColumn)
-    columns.splice(roleColumnIndex, 0, teamsColumn)
+    columns.splice(insertBeforeColumnIndex, 0, highestRoleColumn)
+    columns.splice(insertBeforeColumnIndex, 0, teamsColumn)
 
     return columns
   }
@@ -58,6 +59,24 @@ export class EnterpriseMembersPagePluginType extends MembersPagePluginType {
       'permissions',
       context
     )
+  }
+
+  mutateAdminUsersTableColumns(columns, context) {
+    const highestRoleColumn = new CrudTableColumn(
+      'highest_role_uid',
+      this.app.i18n.t('membersSettings.membersTable.columns.highestRole'),
+      AdminHighestPaidRoleField,
+      false,
+      false,
+      false,
+      {},
+      20,
+      this.app.i18n.t(
+        'membersSettings.membersTable.columns.highestRoleInstanceHelpText'
+      )
+    )
+    columns.splice(columns.length - 1, 0, highestRoleColumn)
+    return columns
   }
 
   isDeactivated(workspaceId) {

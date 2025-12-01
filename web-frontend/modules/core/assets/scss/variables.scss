@@ -9,9 +9,9 @@ $grid-width: 20px;
 $z-index-layout-col-1: 3 !default;
 $z-index-layout-col-2: 2 !default;
 $z-index-layout-col-3: 1 !default;
-$z-index-layout-resize: 4 !default;
-$z-index-layout-col-3-1: 6 !default;
-$z-index-layout-col-3-2: 5 !default;
+$z-index-layout-col-3-1: 5 !default;
+$z-index-layout-col-3-2: 4 !default;
+$z-index-layout-resize: 6 !default;
 
 // The z-index of modal and context must always be the same because they can be nested
 // inside each other. The order in html decided which must be shown over the other.
@@ -21,10 +21,11 @@ $z-index-context: 7 !default;
 // The tooltip is only visible on hover and because of that it can be over the modals
 // and contexts.
 $z-index-tooltip: 8 !default;
+$z-index-dropdown-items: 9 !default;
 
 // The toasts will be on top of anything else, because the message is temporary
 // and must always be visible.
-$z-index-toasts: 9 !default;
+$z-index-toasts: 10 !default;
 
 // This is an overlay over all element, so it must be the highest.
 $z-index-guided-tour-container: 99 !default;
@@ -37,13 +38,14 @@ $base-font-family: $text-font-stack !default;
 $radius-none: 0 !default;
 $rounded: 4px !default;
 $rounded-md: 6px !default;
+$rounded-lg: 8px !default;
 $rounded-xl: 12px !default;
 $rounded-2xl: 16px !default;
 $rounded-3xl: 24px !default;
 
 $elevation-low: 0 1px 2px 0 rgba($palette-neutral-1300, 0.1) !default;
 $elevation-medium: 0 6px 12px 0 rgba($palette-neutral-1300, 0.08) !default;
-$elevation-high: 0 1px 2px 0 rgba($palette-neutral-1300, 0.1) !default;
+$elevation-high: 0 8px 24px 0 rgba($palette-neutral-1300, 0.12) !default;
 
 // API docs variables
 $api-docs-nav-width: 220px !default;
@@ -75,13 +77,15 @@ $baserow-icon-prefix: 'baserow-icon-';
 $baserow-icons: 'circle-empty', 'circle-checked', 'check-square', 'formula',
   'hashtag', 'more-horizontal', 'more-vertical', 'reddit', 'single-select',
   'twitter', 'lock-open', 'flag', 'heart', 'star', 'thumbs-up', 'history',
-  'facebook', 'linkedin', 'gitlab', 'file-csv', 'file-pdf', 'file-image',
+  'facebook', 'linkedin', 'gitlab', 'file', 'file-csv', 'file-pdf', 'file-image',
   'file-audio', 'file-video', 'file-code', 'tablet', 'form', 'file-excel',
   'kanban', 'file-word', 'file-archive', 'gallery', 'file-powerpoint',
   'calendar', 'smile', 'smartphone', 'plus', 'heading-1', 'heading-2',
   'heading-3', 'paragraph', 'ordered-list', 'enlarge', 'share', 'settings',
-  'up-down-arrows', 'application', 'groups', 'timeline', 'dashboard', 'jira',
-  'postgresql', 'hubspot', 'separator', 'spacer', 'automation';
+  'up-down-arrows', 'application', 'groups', 'text', 'timeline', 'dashboard',
+  'jira', 'postgresql', 'hubspot', 'separator', 'spacer', 'automation',
+  'sidebar', 'enlarge-row', 'bar-chart', 'line-chart', 'pie-chart',
+  'donut-chart', 'dependency', 'password-check';
 
 $grid-view-row-height-small: 33px;
 $grid-view-row-height-medium: 55px;

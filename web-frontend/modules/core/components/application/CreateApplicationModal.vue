@@ -21,6 +21,7 @@
 import modal from '@baserow/modules/core/mixins/modal'
 import error from '@baserow/modules/core/mixins/error'
 import { getNextAvailableNameInSequence } from '@baserow/modules/core/utils/string'
+import { DEVELOPMENT_STAGES } from '@baserow/modules/core/constants'
 
 export default {
   name: 'CreateApplicationModal',
@@ -39,6 +40,11 @@ export default {
     return {
       loading: false,
     }
+  },
+  computed: {
+    DEVELOPMENT_STAGES() {
+      return DEVELOPMENT_STAGES
+    },
   },
   methods: {
     getDefaultName() {

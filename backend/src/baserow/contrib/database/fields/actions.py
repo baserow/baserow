@@ -372,6 +372,7 @@ class CreateFieldActionType(UndoableActionType):
         field_id: int
         field_name: str
         field_type: str
+        field_db_index: bool
 
     @classmethod
     def do(
@@ -405,12 +406,14 @@ class CreateFieldActionType(UndoableActionType):
             as a second tuple value.
         """
 
-        result = FieldHandler().create_field(
+        handler = FieldHandler()
+        result = handler.create_field(
             user,
             table,
             type_name,
             primary=primary,
             return_updated_fields=return_updated_fields,
+            init_field_data=True,
             **kwargs,
         )
 
@@ -428,6 +431,7 @@ class CreateFieldActionType(UndoableActionType):
             field.id,
             field.name,
             type_name,
+            field.db_index,
         )
         workspace = table.database.workspace
         cls.register_action(user, params, cls.scope(table.id), workspace)
@@ -469,6 +473,7 @@ class DeleteFieldActionType(UndoableActionType):
         database_name: str
         field_id: int
         field_name: str
+        field_db_index: bool
 
     @classmethod
     def do(
@@ -499,6 +504,7 @@ class DeleteFieldActionType(UndoableActionType):
             table.database.name,
             field.id,
             field.name,
+            field.db_index,
         )
         cls.register_action(user, params, cls.scope(table.id), workspace)
 
@@ -563,6 +569,7 @@ class DuplicateFieldActionType(UndoableActionType):
         :param user: The user on whose behalf the duplicated field will be
             created.
         :param field: The field instance to duplicate.
+        :param duplicate_data: If true, then the cell data is duplicated as well.
         :param progress_builder: A progress builder instance that can be used to
             track the progress of the duplication.
         :return: A tuple with duplicated field instance and a list of the fields

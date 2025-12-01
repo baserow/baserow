@@ -12,6 +12,7 @@ import pytest
 from rest_framework.status import HTTP_200_OK, HTTP_204_NO_CONTENT
 
 from baserow.contrib.database.fields.dependencies.update_collector import (
+    DependencyContext,
     FieldUpdateCollector,
 )
 from baserow.contrib.database.fields.field_cache import FieldCache
@@ -38,6 +39,7 @@ from baserow.contrib.database.views.exceptions import (
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import SORT_ORDER_ASC, SORT_ORDER_DESC
 from baserow.contrib.database.views.registries import view_filter_type_registry
+from baserow.core.handler import CoreHandler
 from baserow.test_utils.helpers import AnyStr
 
 
@@ -73,24 +75,24 @@ def test_adding_a_formula_field_to_an_existing_table_populates_it_for_all_rows(
 
 
 @pytest.mark.django_db
-def test_cant_change_the_value_of_a_formula_field_directly(data_fixture):
-    table = data_fixture.create_database_table()
-    data_fixture.create_formula_field(
-        name="formula", table=table, formula="''", formula_type="text"
+def test_can_move_row_with_row_id_formula_without_loosing_value(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_formula_field(
+        name="formula", table=table, formula="row_id()"
     )
-    data_fixture.create_text_field(name="text", table=table)
-    model = table.get_model(attribute_names=True)
+    row_1, row_2 = RowHandler().force_create_rows(user, table, [{}, {}]).created_rows
 
-    row = model.objects.create(formula="not test")
-    assert row.formula is None
+    assert getattr(row_1, field.db_column) == row_1.id
+    assert getattr(row_2, field.db_column) == row_2.id
 
-    row.text = "update other field"
-    row.save()
+    RowHandler().move_row(user, table, row_1, row_2)
 
-    row.formula = "not test"
-    row.save()
-    row.refresh_from_db()
-    assert row.formula is None
+    row_1.refresh_from_db()
+    row_2.refresh_from_db()
+
+    assert getattr(row_1, field.db_column) == row_1.id
+    assert getattr(row_2, field.db_column) == row_2.id
 
 
 @pytest.mark.django_db
@@ -300,13 +302,38 @@ def test_can_rename_field_preserving_whitespace(
         user=user, table=table, type_name="formula", name="2", formula=" field('a') \n"
     )
 
-    assert formula_field.formula == f" field('a') \n"
+    assert formula_field.formula == " field('a') \n"
 
     handler.update_field(user=user, field=test_field, name="b")
 
     formula_field.refresh_from_db()
 
-    assert formula_field.formula == f" field('b') \n"
+    assert formula_field.formula == " field('b') \n"
+
+
+@pytest.mark.django_db
+def test_can_rename_field_preserving_brackets(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    handler = FieldHandler()
+    test_field = handler.create_field(
+        user=user, table=table, type_name="number", name="a"
+    )
+    formula_field = handler.create_field(
+        user=user,
+        table=table,
+        type_name="formula",
+        name="2",
+        formula="field('a') / (field('a') + field('a'))",
+    )
+
+    assert formula_field.formula == "field('a') / (field('a') + field('a'))"
+
+    handler.update_field(user=user, field=test_field, name="b")
+
+    formula_field.refresh_from_db()
+
+    assert formula_field.formula == "field('b') / (field('b') + field('b'))"
 
 
 @pytest.mark.django_db
@@ -336,8 +363,8 @@ def test_can_update_lookup_field_value(
     )
 
     table2_model = table2.get_model(attribute_names=True)
-    a = table2_model.objects.create(lookupfield=f"2021-02-01", primaryfield="primary a")
-    b = table2_model.objects.create(lookupfield=f"2022-02-03", primaryfield="primary b")
+    a = table2_model.objects.create(lookupfield="2021-02-01", primaryfield="primary a")
+    b = table2_model.objects.create(lookupfield="2022-02-03", primaryfield="primary b")
 
     table_model = table.get_model(attribute_names=True)
 
@@ -451,11 +478,11 @@ def test_nested_lookup_with_formula(
     table3_c = table3_model.objects.create(p="table3 c")
     table3_d = table3_model.objects.create(p="table3 d")
     table2_model = table2.get_model(attribute_names=True)
-    table2_1 = table2_model.objects.create(lookupfield=f"lookup 1", p=f"primary 1")
+    table2_1 = table2_model.objects.create(lookupfield="lookup 1", p="primary 1")
     table2_1.table2linkrowfield.add(table3_a.id)
     table2_1.save()
-    table2_2 = table2_model.objects.create(lookupfield=f"lookup 2", p=f"primary 2")
-    table2_3 = table2_model.objects.create(lookupfield=f"lookup 3", p=f"primary 3")
+    table2_2 = table2_model.objects.create(lookupfield="lookup 2", p="primary 2")
+    table2_3 = table2_model.objects.create(lookupfield="lookup 3", p="primary 3")
     table2_3.table2linkrowfield.add(table3_c.id)
     table2_3.table2linkrowfield.add(table3_d.id)
     table2_3.save()
@@ -558,8 +585,8 @@ def test_can_delete_lookup_field_value(
     )
 
     table2_model = table2.get_model(attribute_names=True)
-    a = table2_model.objects.create(lookupfield=f"2021-02-01", primaryfield="primary a")
-    b = table2_model.objects.create(lookupfield=f"2022-02-03", primaryfield="primary b")
+    a = table2_model.objects.create(lookupfield="2021-02-01", primaryfield="primary a")
+    b = table2_model.objects.create(lookupfield="2022-02-03", primaryfield="primary b")
 
     table_model = table.get_model(attribute_names=True)
 
@@ -838,23 +865,24 @@ def test_row_dependency_update_functions_do_one_row_updates_for_same_table(
     field_cache = FieldCache()
     field_cache.cache_model(table_model)
 
+    dependency_context = DependencyContext(depth=0)
     formula_field_type.row_of_dependency_updated(
-        formula_field, row, update_collector, field_cache, None
+        formula_field, row, update_collector, field_cache, None, dependency_context
     )
     formula_field_type.row_of_dependency_updated(
-        formula_field, row, update_collector, field_cache, []
+        formula_field, row, update_collector, field_cache, [], dependency_context
     )
     formula_field_type.row_of_dependency_created(
-        formula_field, row, update_collector, field_cache, None
+        formula_field, row, update_collector, field_cache, None, dependency_context
     )
     formula_field_type.row_of_dependency_created(
-        formula_field, row, update_collector, field_cache, []
+        formula_field, row, update_collector, field_cache, [], dependency_context
     )
     formula_field_type.row_of_dependency_deleted(
-        formula_field, row, update_collector, field_cache, None
+        formula_field, row, update_collector, field_cache, None, dependency_context
     )
     formula_field_type.row_of_dependency_deleted(
-        formula_field, row, update_collector, field_cache, []
+        formula_field, row, update_collector, field_cache, [], dependency_context
     )
     # Does one update to update the last_system_or_user_row_update_on column
     with django_assert_num_queries(1):
@@ -930,7 +958,7 @@ def test_saving_after_properties_have_been_cached_does_recalculation(data_fixtur
     formula_field.save()
 
     assert str(formula_field.cached_untyped_expression) == "1"
-    assert str(formula_field.cached_typed_internal_expression) == f"error_to_nan(1)"
+    assert str(formula_field.cached_typed_internal_expression) == "error_to_nan(1)"
     assert formula_field.cached_formula_type.type == BaserowFormulaNumberType.type
 
 
@@ -1140,7 +1168,7 @@ def test_multiple_formula_fields_with_different_django_lookups_being_used_to_fil
     option_field = data_fixture.create_single_select_field(user=user, table=table)
 
     formula_field_ref_link_field = FieldHandler().create_field(
-        user=user, table=table, name="a", type_name="formula", formula=f"1"
+        user=user, table=table, name="a", type_name="formula", formula="1"
     )
     formula_referencing_single_select = FieldHandler().create_field(
         user=user,
@@ -2190,3 +2218,124 @@ def test_formula_text_field_type_get_order_collate(data_fixture):
         result += getattr(char, f"field_{formula_field.id}")
 
     assert result == sorted_chars
+
+
+@pytest.mark.django_db
+def test_formula_number_type_without_decimal_places(data_fixture):
+    """
+    Tests if a number formula field will be processed properly, if there's no
+    number_decimal_places value defined for the field.
+
+    See: https://gitlab.com/baserow/baserow/-/issues/3616
+
+    A FormulaField instance may end up in a state, where the type is set to `number`,
+    but there's no value in .number_decimal_places. This value is used in several
+    field operations, and `None` was causing an error.
+
+    While the cause of this invalid state is not entirely known, the fix works around
+    the missing part by replacing `None` with a number.
+    """
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    handler = FieldHandler()
+    formula_field: FormulaField = handler.create_field(
+        user=user, table=table, name="1", type_name="formula", formula="1+1"
+    )
+
+    # Simulate error condition - formula field is of type `number`, but it has no
+    # number_decimal_places value.
+    formula_field.number_decimal_places = None
+    formula_field.save()
+
+    # the fix in NumerFieldType.from_baserow_formula_type replaces `None` with `0`,
+    # otherwise the operation below would fail.
+    FieldHandler().duplicate_field(user, formula_field, duplicate_data=True)
+
+
+@pytest.mark.django_db
+def test_can_export_import_database_with_broken_via_dependency(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table_1 = data_fixture.create_database_table(database=database)
+    table_1_field_1 = data_fixture.create_text_field(
+        table=table_1, name="Name", primary=True
+    )
+    table_2 = data_fixture.create_database_table(database=database)
+    table_2_field_1 = data_fixture.create_text_field(
+        table=table_2, name="Name", primary=True
+    )
+
+    field_handler = FieldHandler()
+    link_row_field = field_handler.create_field(
+        user=user,
+        table=table_2,
+        type_name="link_row",
+        name="Link",
+        link_row_table=table_1,
+    )
+    formula_field = field_handler.create_field(
+        user,
+        table_2,
+        name="Lookup",
+        type_name="formula",
+        formula=f"lookup('{link_row_field.name}', '{table_1_field_1.name}')",
+    )
+
+    field_handler.delete_field(user, link_row_field)
+    formula_field.refresh_from_db()
+    assert formula_field.formula_type == "invalid"
+
+    duplicated_database = CoreHandler().duplicate_application(user, database)
+    duplicated_tables = duplicated_database.table_set.all()
+    duplicated_formula = (
+        duplicated_tables[1].field_set.filter(name="Lookup")[0].specific
+    )
+    assert duplicated_formula.formula_type == "invalid"
+
+    # Fix the broken via dependency by creating the missing field.
+    field_handler.create_field(
+        user=user,
+        table=duplicated_tables[1],
+        type_name="link_row",
+        name="Link",
+        link_row_table=duplicated_tables[0],
+    )
+
+    duplicated_formula.refresh_from_db()
+    assert duplicated_formula.formula_type == "array"
+
+
+@pytest.mark.django_db
+def test_count_formula_for_link_row_field_with_null_values(data_fixture):
+    user = data_fixture.create_user()
+
+    table_a = data_fixture.create_database_table(user=user)
+    data_fixture.create_text_field(table=table_a, name="Field A", primary=True)
+
+    table_b = data_fixture.create_database_table(user=user)
+    data_fixture.create_date_field(table=table_b, name="Field B", primary=True)
+    link_field = data_fixture.create_link_row_field(
+        table=table_a,
+        link_row_table=table_b,
+        name="Link",
+    )
+    formula_field = data_fixture.create_formula_field(
+        table=table_a,
+        name="Count",
+        formula="count(field('Link'))",
+    )
+
+    row_handler = RowHandler()
+    rows = row_handler.create_rows(
+        user=user, table=table_b, rows_values=[{}, {}, {}], model=table_b.get_model()
+    ).created_rows
+
+    row_a = row_handler.create_row(
+        user=user,
+        table=table_a,
+        values={link_field.db_column: [row.id for row in rows]},
+    )
+
+    assert getattr(row_a, formula_field.db_column) == 3

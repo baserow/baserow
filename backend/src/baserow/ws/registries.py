@@ -1,7 +1,7 @@
 from typing import Optional
 
 from baserow.core.registry import Instance, Registry
-from baserow.ws.tasks import broadcast_to_channel_group
+from baserow.ws.tasks import broadcast_many_to_channel_group, broadcast_to_channel_group
 
 
 class PageType(Instance):
@@ -100,6 +100,40 @@ class PageType(Instance):
         broadcast_to_channel_group.delay(
             self.get_group_name(**kwargs),
             payload,
+            ignore_web_socket_id,
+            exclude_user_ids,
+        )
+
+    def broadcast_many(
+        self,
+        payloads_with_groups: list[tuple[dict, dict]],
+        ignore_web_socket_id: str | None = None,
+        exclude_user_ids: list[int] | None = None,
+        **kwargs,
+    ):
+        """
+        Broadcasts a list of payloads to everyone within a group for each payload.
+
+        :param payloads_with_groups: a list of pairs: group keyword args and payload
+            itself
+        :param ignore_web_socket_id: If provided then payloads will not be broad
+            casted to that web socket id. This is often the sender.
+        :type ignore_web_socket_id: Optional[str]
+        :param exclude_user_ids: A list of User ids which should be excluded from
+            receiving messages.
+        :type exclude_user_ids: Optional[list]
+        :param kwargs: dict
+        :return:
+        """
+
+        broadcast_many_to_channel_group.delay(
+            [
+                (
+                    self.get_group_name(**group_kw),
+                    payload,
+                )
+                for group_kw, payload in payloads_with_groups
+            ],
             ignore_web_socket_id,
             exclude_user_ids,
         )

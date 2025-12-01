@@ -137,7 +137,7 @@ class DashboardDataSourceService:
             context=dashboard,
         )
 
-        if service_type.dispatch_type != DispatchTypes.DISPATCH_DATA_SOURCE:
+        if not service_type.can_be_dispatched_as(DispatchTypes.DATA):
             raise InvalidServiceTypeDispatchSource()
 
         prepared_values = service_type.prepare_values(kwargs, user)
@@ -196,7 +196,7 @@ class DashboardDataSourceService:
             context=data_source,
         )
 
-        if service_type.dispatch_type != DispatchTypes.DISPATCH_DATA_SOURCE:
+        if not service_type.can_be_dispatched_as(DispatchTypes.DATA):
             raise InvalidServiceTypeDispatchSource()
 
         if "integration_id" in kwargs:
@@ -268,8 +268,8 @@ class DashboardDataSourceService:
             correct permissions.
         :raises DashboardDataSourceImproperlyConfigured: If the data source is
             not properly configured.
-        :raises ServiceImproperlyConfigured: If the underlying service is
-            not properly configured.
+        :raises ServiceImproperlyConfiguredDispatchException: If the underlying service
+            is not properly configured.
         :raises DoesNotExist: If the requested data from the service
             don't exist.
         :return: return the dispatch result.

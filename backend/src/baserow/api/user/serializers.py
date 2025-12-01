@@ -1,3 +1,4 @@
+from datetime import timedelta
 from typing import Dict, Optional
 
 from django.conf import settings
@@ -16,6 +17,7 @@ from rest_framework_simplejwt.serializers import (
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from baserow.api.sessions import set_user_session_data_from_request
+from baserow.api.two_factor_auth.tokens import TwoFactorAccessToken
 from baserow.api.user.jwt import get_user_from_token
 from baserow.api.user.registries import user_data_registry
 from baserow.api.user.validators import language_validation, password_validation
@@ -30,6 +32,7 @@ from baserow.core.auth_provider.exceptions import (
 from baserow.core.auth_provider.handler import PasswordProviderHandler
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Settings, Template, UserProfile
+from baserow.core.two_factor_auth.handler import TwoFactorAuthHandler
 from baserow.core.user.actions import SignInUserActionType
 from baserow.core.user.exceptions import DeactivatedUserException
 from baserow.core.user.handler import UserHandler
@@ -304,6 +307,11 @@ def log_in_user(request, user):
     return data
 
 
+class TwoFactorAuthRequiredSerializer(serializers.Serializer):
+    two_factor_auth = serializers.CharField()
+    token = serializers.CharField()
+
+
 @extend_schema_serializer(deprecate_fields=["username"])
 class TokenObtainPairWithUserSerializer(TokenObtainPairSerializer):
     email = NormalizedEmailField(required=False)
@@ -333,6 +341,20 @@ class TokenObtainPairWithUserSerializer(TokenObtainPairSerializer):
             attrs[self.username_field] = email
 
         super().validate(attrs)
+
+        twofa_provider = TwoFactorAuthHandler().get_provider(self.user)
+        if twofa_provider:
+            provider_type = twofa_provider.get_type()
+            if provider_type.is_enabled(twofa_provider):
+                token = TwoFactorAccessToken.for_user(self.user)
+                token.set_exp(lifetime=timedelta(minutes=2))
+                return TwoFactorAuthRequiredSerializer(
+                    {
+                        "two_factor_auth": provider_type.type,
+                        "token": str(token),
+                    }
+                ).data
+
         return log_in_user(self.context["request"], self.user)
 
 

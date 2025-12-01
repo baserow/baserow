@@ -52,7 +52,7 @@
         class="margin-bottom-2"
       >
         <ColorInput
-          v-model="values.colors"
+          v-model="rawFormula"
           :color-variables="colorVariables"
           small
         />
@@ -81,21 +81,44 @@ export default {
     return {
       allowedValues: ['values', 'colors', 'colors_is_formula', 'styles'],
       values: {
-        values: '',
-        colors: '#acc8f8',
+        values: {},
+        colors: {
+          formula: '#acc8f8',
+          mode: 'raw',
+        },
         colors_is_formula: false,
         styles: {},
       },
     }
   },
+  computed: {
+    rawFormula: {
+      get() {
+        return this.values.colors.formula
+      },
+      set(newValue) {
+        this.values.colors = {
+          ...this.values.colors,
+          formula: newValue,
+          mode: 'raw',
+        }
+      },
+    },
+  },
   methods: {
     setColorsToFormula() {
       this.values.colors_is_formula = true
-      this.values.colors = `'${this.values.colors}'`
+      this.values.colors = {
+        formula: `'${this.values.colors.formula}'`,
+        mode: 'simple',
+      }
     },
     setColorsToPicker() {
       this.values.colors_is_formula = false
-      this.values.colors = '#acc8f8'
+      this.values.colors = {
+        formula: '#acc8f8',
+        mode: 'raw',
+      }
     },
   },
 }

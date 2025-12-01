@@ -1,0 +1,138 @@
+.service-form__sort-form-tab {
+  padding-left: 0;
+}
+
+.service-form--small {
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .col {
+    // Force any reduced width columns to 100% in a small side panel
+    max-width: 100%;
+  }
+}
+
+.service-form__context {
+  &--filter,
+  &--sort {
+    width: 660px;
+
+    .sortings__field {
+      flex: none;
+      flex-grow: 1;
+
+      .dropdown,
+      .dropdown__selected {
+        width: 100%;
+      }
+    }
+  }
+
+  &--search {
+    width: 400px;
+  }
+
+  .filters__none {
+    padding: 0;
+  }
+
+  .sortings__none {
+    padding: 0 0 12px;
+  }
+
+  .sortings__items {
+    padding-top: 0;
+  }
+
+  .sortings__item {
+    padding: 0;
+  }
+}
+
+.service-form__context-content {
+  @extend %px-12;
+  @extend %py-12;
+}
+
+.service-form__context-title {
+  display: block;
+  color: $palette-neutral-900;
+  line-height: 13px;
+  font-weight: 500;
+
+  @extend %pb-12;
+}
+
+.service-form__condition-form-tab,
+.service-form__context {
+  padding-left: 0;
+  padding-right: 0;
+
+  .filters__items {
+    min-width: 534px;
+  }
+
+  .filters__add {
+    padding: 12px 0 6px 4px;
+  }
+
+  .filters__value--with-input-field {
+    display: flex;
+    align-items: center;
+
+    .filters__value--formula-input,
+    .form-input,
+    .filters__multi-value {
+      flex: 1;
+      height: 38px;
+
+      .dropdown {
+        flex: 1;
+        max-width: none;
+      }
+
+      .formula-input-field {
+        height: 38px;
+      }
+    }
+
+    .control__elements--small {
+      margin-bottom: 0;
+    }
+
+    .filters__value-dropdown {
+      width: 100%;
+    }
+
+    .filters__value--formula-toggle {
+      margin-left: auto;
+      padding-left: 6px;
+      margin-bottom: 2px;
+      margin-right: 2px;
+    }
+
+    .filters__value-formula-toggle--disabled {
+      color: $color-neutral-400;
+    }
+  }
+}
+
+.service-form__search-form-tab {
+  padding-left: 0;
+}
+
+.service-form__result-count-input {
+  width: 150px;
+}
+
+.service-form__filter-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.service-form__filter-title {
+  font-size: 13px;
+  font-weight: 500;
+}

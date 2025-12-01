@@ -1,0 +1,8 @@
+{
+    "type": "refactor",
+    "message": "Remove obsolete compose versions",
+    "domain": "core",
+    "issue_number": null,
+    "bullet_points": [],
+    "created_at": "2025-07-14"
+}

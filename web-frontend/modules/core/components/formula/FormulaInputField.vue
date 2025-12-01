@@ -1,64 +1,98 @@
 <template>
-  <Alert v-if="isFormulaInvalid" type="error">
-    <p>
-      {{ $t('formulaInputField.errorInvalidFormula') }}
-    </p>
-    <template #actions>
-      <Button type="danger" size="small" @click.prevent="reset">
-        {{ $t('action.reset') }}
-      </Button>
-    </template>
-  </Alert>
-  <div v-else>
-    <EditorContent
-      ref="editor"
-      class="form-input formula-input-field"
-      role="textbox"
-      :class="classes"
-      :editor="editor"
-      @data-component-clicked="dataComponentClicked"
-    />
-    <DataExplorer
-      v-if="isFocused"
-      ref="dataExplorer"
-      :nodes="nodes"
+  <div ref="formulaInputRoot">
+    <div class="formula-input-field__editor" @click="handleEditorClick">
+      <EditorContent
+        :id="forInput"
+        :key="key"
+        ref="editor"
+        class="form-input formula-input-field"
+        role="textbox"
+        :class="classes"
+        :editor="editor"
+        @data-node-clicked="dataNodeClicked"
+      />
+    </div>
+
+    <FormulaInputContext
+      v-if="isFocused && !readOnly"
+      ref="formulaInputContext"
       :node-selected="nodeSelected"
-      :loading="dataExplorerLoading"
-      :application-context="applicationContext"
-      @node-selected="dataExplorerItemSelected"
-      @node-unselected="unSelectNode()"
+      :loading="loading"
+      :mode="mode"
+      :allow-node-selection="allowNodeSelection"
+      :nodes-hierarchy="nodesHierarchy"
+      @node-selected="handleNodeSelected"
+      @node-unselected="unSelectNode"
+      @mode-changed="handleModeChange"
       @mousedown.native="onDataExplorerMouseDown"
+    />
+
+    <NodeHelpTooltip
+      ref="nodeHelpTooltip"
+      :node="hoveredFunctionNode"
+      :nodes-hierarchy="nodesHierarchy"
     />
   </div>
 </template>
 
 <script>
-import { Editor, EditorContent, generateHTML, Node } from '@tiptap/vue-2'
+import { Editor, EditorContent, Node } from '@tiptap/vue-2'
 import { Placeholder } from '@tiptap/extension-placeholder'
 import { Document } from '@tiptap/extension-document'
 import { Text } from '@tiptap/extension-text'
+import { History } from '@tiptap/extension-history'
+import { HardBreak } from '@tiptap/extension-hard-break'
+import { ArrowKeyNavigationExtension } from '@baserow/modules/core/components/formula/extensions/ArrowKeyNavigationExtension'
+import { SmartDeletionExtension } from '@baserow/modules/core/components/formula/extensions/SmartDeletionExtension'
+import { ZWSManagementExtension } from '@baserow/modules/core/components/formula/extensions/ZWSManagementExtension'
+import { FunctionHelpTooltipExtension } from '@baserow/modules/core/components/formula/extensions/FunctionHelpTooltipExtension'
+import {
+  FormulaInsertionExtension,
+  FunctionFormulaComponentNode,
+  FunctionArgumentCommaNode,
+  FunctionClosingParenNode,
+  GroupOpeningParenNode,
+  GroupClosingParenNode,
+  OperatorFormulaComponentNode,
+} from '@baserow/modules/core/components/formula/extensions/FormulaNodes'
+import { NodeSelectionExtension } from '@baserow/modules/core/components/formula/extensions/NodeSelectionExtension'
+import { ContextManagementExtension } from '@baserow/modules/core/components/formula/extensions/ContextManagementExtension'
+import { FunctionDetectionExtension } from '@baserow/modules/core/components/formula/extensions/FunctionDetectionExtension'
+import { GroupDetectionExtension } from '@baserow/modules/core/components/formula/extensions/GroupDetectionExtension'
+import { OperatorDetectionExtension } from '@baserow/modules/core/components/formula/extensions/OperatorDetectionExtension'
+import {
+  createClipboardTextSerializer,
+  createPasteHandler,
+} from '@baserow/modules/core/components/formula/extensions/FormulaClipboardHandler'
 import _ from 'lodash'
 import parseBaserowFormula from '@baserow/modules/core/formula/parser/parser'
 import { ToTipTapVisitor } from '@baserow/modules/core/formula/tiptap/toTipTapVisitor'
 import { RuntimeFunctionCollection } from '@baserow/modules/core/functionCollection'
 import { FromTipTapVisitor } from '@baserow/modules/core/formula/tiptap/fromTipTapVisitor'
 import { mergeAttributes } from '@tiptap/core'
-import DataExplorer from '@baserow/modules/core/components/dataExplorer/DataExplorer'
-import { RuntimeGet } from '@baserow/modules/core/runtimeFormulaTypes'
-import { isElement, onClickOutside } from '@baserow/modules/core/utils/dom'
+import FormulaInputContext from '@baserow/modules/core/components/formula/FormulaInputContext'
+import { isFormulaValid } from '@baserow/modules/core/formula'
+import NodeHelpTooltip from '@baserow/modules/core/components/nodeExplorer/NodeHelpTooltip'
+import { fixPropertyReactivityForProvide } from '@baserow/modules/core/utils/object'
 
 export default {
   name: 'FormulaInputField',
   components: {
-    DataExplorer,
+    FormulaInputContext,
     EditorContent,
+    NodeHelpTooltip,
   },
+
   provide() {
-    // Provide the application context to all formula components
-    return {
-      applicationContext: this.applicationContext,
-      dataProviders: this.dataProviders,
-    }
+    return fixPropertyReactivityForProvide(
+      {},
+      {
+        nodesHierarchy: () => this.nodesHierarchy,
+      }
+    )
+  },
+  inject: {
+    forInput: { from: 'forInput', default: null },
   },
   props: {
     value: {
@@ -70,28 +104,50 @@ export default {
       required: false,
       default: false,
     },
-    placeholder: {
-      type: String,
-      default: null,
-    },
-    dataProviders: {
-      type: Array,
-      required: false,
-      default: () => [],
-    },
-    dataExplorerLoading: {
+    readOnly: {
       type: Boolean,
       required: false,
       default: false,
     },
-    applicationContext: {
-      type: Object,
-      required: true,
+    placeholder: {
+      type: String,
+      default: null,
+    },
+    loading: {
+      type: Boolean,
+      required: false,
+      default: false,
     },
     small: {
       type: Boolean,
       required: false,
       default: false,
+    },
+    nodesHierarchy: {
+      type: Array,
+      required: false,
+      default: () => [],
+    },
+    allowNodeSelection: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
+    mode: {
+      type: String,
+      required: false,
+      default: 'simple',
+      validator: (value) => {
+        return ['advanced', 'simple', 'raw'].includes(value)
+      },
+    },
+    contextPosition: {
+      type: String,
+      required: false,
+      default: 'bottom',
+      validator: (value) => {
+        return ['bottom', 'left', 'right'].includes(value)
+      },
     },
   },
   data() {
@@ -99,9 +155,11 @@ export default {
       editor: null,
       content: null,
       isFormulaInvalid: false,
-      dataNodeSelected: null,
       isFocused: false,
-      ignoreNextBlur: false,
+      hoveredFunctionNode: null,
+      isHandlingModeChange: false,
+      intersectionObserver: null,
+      key: 0,
     }
   },
   computed: {
@@ -109,8 +167,10 @@ export default {
       return {
         'form-input--disabled': this.disabled,
         'formula-input-field--small': this.small,
-        'formula-input-field--focused': !this.disabled && this.isFocused,
+        'formula-input-field--focused':
+          !this.disabled && !this.readOnly && this.isFocused,
         'formula-input-field--disabled': this.disabled,
+        'formula-input-field--error': this.isFormulaInvalid,
       }
     },
     placeHolderExt() {
@@ -136,78 +196,165 @@ export default {
         },
       })
     },
+    functionNames() {
+      const extract = (nodes) => {
+        let names = []
+        if (!nodes) {
+          return names
+        }
+        for (const node of nodes) {
+          if (node.type === 'function' && node.signature) {
+            names.push(node.name)
+          }
+          const children = node.nodes
+          if (children) {
+            names = names.concat(extract(children))
+          }
+        }
+
+        return names
+      }
+
+      return extract(this.nodesHierarchy)
+    },
+    functionDefinitions() {
+      const definitions = {}
+      const extract = (nodes) => {
+        if (!nodes) {
+          return
+        }
+        for (const node of nodes) {
+          if (node.type === 'function' && node.signature) {
+            definitions[node.name.toLowerCase()] = node
+          }
+          const children = node.nodes
+          if (children) {
+            extract(children)
+          }
+        }
+      }
+
+      extract(this.nodesHierarchy)
+      return definitions
+    },
+    operators() {
+      const extract = (nodes) => {
+        let operators = []
+        if (!nodes) {
+          return operators
+        }
+        for (const node of nodes) {
+          if (
+            node.type === 'operator' &&
+            node.signature &&
+            node.signature.operator
+          ) {
+            operators.push(node.signature.operator)
+          }
+          const children = node.nodes
+          if (children) {
+            operators = operators.concat(extract(children))
+          }
+        }
+        return operators
+      }
+      return extract(this.nodesHierarchy)
+    },
     extensions() {
       const DocumentNode = Document.extend()
       const TextNode = Text.extend({ inline: true })
 
-      return [
+      const extensions = [
         DocumentNode,
         this.wrapperNode,
         TextNode,
+        ArrowKeyNavigationExtension,
+        SmartDeletionExtension,
+        ZWSManagementExtension,
         this.placeHolderExt,
+        History.configure({
+          depth: 100,
+        }),
+        FormulaInsertionExtension.configure({
+          vueComponent: this,
+        }),
+        NodeSelectionExtension.configure({
+          vueComponent: this,
+        }),
+        ContextManagementExtension.configure({
+          vueComponent: this,
+          contextPosition: this.contextPosition,
+          disabled: this.disabled,
+          readOnly: this.readOnly,
+        }),
+        FunctionHelpTooltipExtension.configure({
+          vueComponent: this,
+          functionDefinitions: this.functionDefinitions,
+        }),
         ...this.formulaComponents,
       ]
-    },
-    htmlContent() {
-      return generateHTML(this.content, this.extensions)
+
+      if (this.mode === 'advanced') {
+        extensions.push(FunctionFormulaComponentNode)
+        extensions.push(FunctionArgumentCommaNode)
+        extensions.push(FunctionClosingParenNode)
+        extensions.push(GroupOpeningParenNode)
+        extensions.push(GroupClosingParenNode)
+        extensions.push(OperatorFormulaComponentNode)
+        extensions.push(
+          HardBreak.extend({
+            addKeyboardShortcuts() {
+              return {
+                Enter: () => this.editor.commands.setHardBreak(),
+              }
+            },
+          })
+        )
+        extensions.push(
+          FunctionDetectionExtension.configure({
+            functionNames: this.functionNames,
+            functionDefinitions: this.functionDefinitions,
+          }),
+          GroupDetectionExtension.configure({
+            functionNames: this.functionNames,
+          }),
+          OperatorDetectionExtension.configure({
+            operators: this.operators,
+            vueComponent: this,
+          })
+        )
+      }
+
+      return extensions
     },
     wrapperContent() {
       return this.editor.getJSON()
     },
-    nodes() {
-      const nodes = this.dataProviders
-        .map((dataProvider) => dataProvider.getNodes(this.applicationContext))
-        .filter((dataProviderNodes) => dataProviderNodes.nodes?.length > 0)
-      return nodes
-    },
     nodeSelected() {
-      return this.dataNodeSelected?.attrs?.path || null
+      return this.editor?.commands.getSelectedNodePath() || null
     },
   },
   watch: {
+    nodesHierarchy() {
+      // fixes reactivity issue with components in tiptap by forcing the input to
+      // render.
+      this.key += 1
+    },
     disabled(newValue) {
-      this.editor.setOptions({ editable: !newValue })
+      this.editor.setOptions({ editable: !newValue && !this.readOnly })
     },
-    async isFocused(value) {
-      if (!value) {
-        this.$refs.dataExplorer.hide()
-        this.unSelectNode()
-      } else {
-        // Wait for the data explorer to appear in the DOM.
-        await this.$nextTick()
+    readOnly(newValue) {
+      this.editor.setOptions({ editable: !this.disabled && !newValue })
+    },
 
-        this.unSelectNode()
-
-        /**
-         * The Context.vue calculates where to display the Context menu
-         * relative to the input field that triggered it. When the Context
-         * decides that the Context menu should be top-adjusted, it will set
-         * its bottom coordinate to match the input field's top coordinate,
-         * plus a "margin". This "margin" is the verticalOffset and is a
-         * negative number; it is negative because the Context menu should not
-         * appear below the input field.
-         *
-         * When the Context menu's bottom coordinate is less than zero, it
-         * is hidden.
-         *
-         * By setting the verticalOffset to the negative value of the input
-         * field's height, we ensure that as long as the input field is within
-         * the viewport, the bottom coordinate of the Context menu is always
-         * >= the bottom coordinate of the input field that triggered it.
-         */
-        const verticalOffset = -Math.abs(
-          this.$el.getBoundingClientRect().height
-        )
-
-        this.$refs.dataExplorer.show(
-          this.$refs.editor.$el,
-          'bottom',
-          'left',
-          verticalOffset,
-          -330
-        )
+    mode(newMode, oldMode) {
+      // Skip automatic recreation if we're handling it manually in handleModeChange
+      if (this.isHandlingModeChange) {
+        return
       }
+      this.recreateEditor()
     },
+
     value(value) {
       if (!_.isEqual(value, this.toFormula(this.wrapperContent))) {
         const content = this.toContent(value)
@@ -219,9 +366,10 @@ export default {
     },
     content: {
       handler() {
-        if (!_.isEqual(this.content, this.editor.getJSON())) {
-          this.editor?.commands.setContent(this.htmlContent, false, {
+        if (this.editor && !_.isEqual(this.content, this.editor.getJSON())) {
+          this.editor.commands.setContent(this.content, false, {
             preserveWhitespace: 'full',
+            addToHistory: false,
           })
         }
       },
@@ -229,126 +377,218 @@ export default {
     },
   },
   mounted() {
-    this.content = this.toContent(this.value)
-    this.editor = new Editor({
-      content: this.htmlContent,
-      editable: !this.disabled,
-      onUpdate: this.onUpdate,
-      onFocus: this.onFocus,
-      onBlur: this.onBlur,
-      extensions: this.extensions,
-      parseOptions: {
-        preserveWhitespace: 'full',
-      },
-      editorProps: {
-        handleClick: this.unSelectNode,
-      },
-    })
+    this.createEditor()
+    this.setupIntersectionObserver()
   },
   beforeDestroy() {
     this.editor?.destroy()
+    this.cleanupIntersectionObserver()
   },
   methods: {
-    reset() {
-      this.isFormulaInvalid = false
-      this.$emit('input', '')
+    setupIntersectionObserver() {
+      this.intersectionObserver = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (!entry.isIntersecting && this.isFocused) {
+              this.isFocused = false
+              if (this.editor) {
+                this.editor.commands.blur()
+              }
+            }
+          })
+        },
+        {
+          root: null,
+          threshold: 0,
+        }
+      )
+
+      if (this.$refs.formulaInputRoot) {
+        this.intersectionObserver.observe(this.$refs.formulaInputRoot)
+      }
+    },
+    cleanupIntersectionObserver() {
+      if (this.intersectionObserver) {
+        this.intersectionObserver.disconnect()
+        this.intersectionObserver = null
+      }
+    },
+    createEditor(formula = null) {
+      // Use provided formula or fall back to the prop value
+      this.content = this.toContent(formula || this.value)
+      this.editor = new Editor({
+        content: this.content,
+        editable: !this.disabled && !this.readOnly,
+        onUpdate: this.onUpdate,
+        extensions: this.extensions,
+        parseOptions: {
+          preserveWhitespace: 'full',
+        },
+        editorProps: {
+          clipboardTextSerializer: createClipboardTextSerializer(
+            this.toFormula.bind(this)
+          ),
+          handlePaste: createPasteHandler({
+            toContent: this.toContent.bind(this),
+            getMode: () => this.mode,
+          }),
+        },
+      })
+    },
+    recreateEditor(formula = null) {
+      const currentFormula =
+        formula ||
+        (this.editor ? this.toFormula(this.wrapperContent) : this.value)
+
+      this.editor?.destroy()
+      this.createEditor(currentFormula)
     },
     emitChange() {
+      const functions = new RuntimeFunctionCollection(this.$registry)
+      const formula = this.toFormula(this.wrapperContent)
+      this.isFormulaInvalid = !isFormulaValid(formula, functions)
+
       if (!this.isFormulaInvalid) {
         this.$emit('input', this.toFormula(this.wrapperContent))
       }
     },
     onUpdate() {
-      this.unSelectNode()
       this.emitChange()
     },
-    onFocus(event) {
-      // If the input is disabled, we don't want users to be
-      // able to open the data explorer and select nodes.
-      if (this.disabled) {
-        return
+    handleNodeSelected({ path, node }) {
+      switch (node.type) {
+        case 'data':
+          this.editor.commands.insertDataComponent(path)
+          break
+        case 'array':
+          this.editor.commands.insertDataComponent(path)
+          break
+        case 'function':
+          this.editor.commands.insertFunction(node)
+          break
+        case 'operator':
+          this.editor.commands.insertOperator(node)
+          break
+        default:
+          break
       }
-      this.isFocused = true
-
-      this.$el.clickOutsideEventCancel = onClickOutside(
-        this.$el,
-        (target, event) => {
-          if (
-            this.$refs.dataExplorer &&
-            // We ignore clicks inside data explorer
-            !isElement(this.$refs.dataExplorer.$el, target)
-          ) {
-            this.isFocused = false
-            this.editor.commands.blur()
-            this.$el.clickOutsideEventCancel()
-          }
-        }
-      )
     },
     onDataExplorerMouseDown() {
-      // If we click in the data explorer we don't want to close it.
-      this.ignoreNextBlur = true
-    },
-    onBlur() {
-      if (this.ignoreNextBlur) {
-        // Last click was in the data explorer context, we keep the focus.
-        this.ignoreNextBlur = false
-      } else {
-        this.isFocused = false
-      }
+      this.editor?.commands.handleDataExplorerMouseDown()
     },
     toContent(formula) {
       if (!formula) {
         return {
           type: 'doc',
-          content: [{ type: 'wrapper' }],
+          content: [
+            {
+              type: 'wrapper',
+              content: [{ type: 'text', text: '\u200B' }],
+            },
+          ],
         }
       }
 
       try {
         const tree = parseBaserowFormula(formula)
         const functionCollection = new RuntimeFunctionCollection(this.$registry)
-        return new ToTipTapVisitor(functionCollection).visit(tree)
+        const result = new ToTipTapVisitor(functionCollection, this.mode).visit(
+          tree
+        )
+
+        // Ensure wrapper always starts with a ZWS
+        if (result && result.content && result.content[0]) {
+          const wrapper = result.content[0]
+          if (wrapper.type === 'wrapper') {
+            if (!wrapper.content || wrapper.content.length === 0) {
+              wrapper.content = [{ type: 'text', text: '\u200B' }]
+            } else {
+              const firstNode = wrapper.content[0]
+              // Add ZWS at the beginning if it's not already there
+              if (
+                !firstNode ||
+                firstNode.type !== 'text' ||
+                firstNode.text !== '\u200B'
+              ) {
+                wrapper.content.unshift({ type: 'text', text: '\u200B' })
+              }
+            }
+          }
+        }
+
+        return result
       } catch (error) {
-        this.isFormulaInvalid = true
         return null
       }
     },
-    toFormula(content) {
+    toFormula(content, mode = null) {
       const functionCollection = new RuntimeFunctionCollection(this.$registry)
       try {
-        return new FromTipTapVisitor(functionCollection).visit(content)
+        const formula = new FromTipTapVisitor(
+          functionCollection,
+          mode || this.mode
+        ).visit(content)
+
+        return formula
       } catch (error) {
-        this.isFormulaInvalid = true
         return null
       }
     },
-    dataComponentClicked(node) {
-      this.selectNode(node)
+    dataNodeClicked(node) {
+      this.editor.commands.selectNode(node)
     },
-    dataExplorerItemSelected({ path }) {
-      const isInEditingMode = this.dataNodeSelected !== null
-      if (isInEditingMode) {
-        this.dataNodeSelected.attrs.path = path
-        this.emitChange()
-      } else {
-        const getNode = new RuntimeGet().toNode([{ text: path }])
-        this.editor.commands.insertContent(getNode)
+    handleEditorClick() {
+      if (this.editor && !this.disabled && !this.readOnly) {
+        this.editor.commands.showContext()
       }
-      this.editor.commands.focus()
     },
-    selectNode(node) {
-      if (node) {
-        this.unSelectNode()
-        this.dataNodeSelected = node
-        this.dataNodeSelected.attrs.isSelected = true
+    handleModeChange(newMode) {
+      // If switching from advanced to simple, clear the content
+      if (this.mode === 'advanced' && newMode === 'simple') {
+        this.isHandlingModeChange = true
+        this.editor.commands.clearContent()
+        this.$emit('update:mode', newMode)
+        this.$emit('input', '')
+        this.isFormulaInvalid = false
+        this.isHandlingModeChange = false
+      } else {
+        // Otherwise (simple to advanced), keep the current formula
+        // Get the formula BEFORE changing the mode, using the CURRENT mode
+        const currentFormula = this.toFormula(this.wrapperContent, this.mode)
+
+        // Set flag to prevent automatic recreation from watcher
+        this.isHandlingModeChange = true
+
+        // Update the mode
+        this.$emit('update:mode', newMode)
+
+        // Wait for Vue to update the mode prop
+        this.$nextTick(() => {
+          // Recreate the editor with the new mode and preserved formula
+          this.recreateEditor(currentFormula)
+
+          // Emit the formula value
+          if (currentFormula) {
+            this.$emit('input', currentFormula)
+          }
+
+          // Reset the flag
+          this.isHandlingModeChange = false
+        })
+      }
+    },
+    undo() {
+      if (this.editor) {
+        this.editor.commands.undo()
+      }
+    },
+    redo() {
+      if (this.editor) {
+        this.editor.commands.redo()
       }
     },
     unSelectNode() {
-      if (this.dataNodeSelected) {
-        this.dataNodeSelected.attrs.isSelected = false
-        this.dataNodeSelected = null
-      }
+      this.editor?.commands.unselectNode()
     },
   },
 }

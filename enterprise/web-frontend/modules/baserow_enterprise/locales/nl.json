@@ -247,7 +247,17 @@
         "invalidBaseUrl": "De ingevoerde URL is geen geldige provider URL",
         "callbackUrl": "Callback URL",
         "baseUrl": "URL",
-        "duplicateBaseUrl": "De ingevoerde URL bestaat al bij een andere provider"
+        "duplicateBaseUrl": "De ingevoerde URL bestaat al bij een andere provider",
+        "defaultAttrs": "Standaard",
+        "emailAttrKeyHelper": "Het e-mailadres dat als gebruikersnaam voor de gebruiker wordt gebruikt. ",
+        "firstNameAttrKey": "Voornaam",
+        "lastNameAttrKey": "Achternaam",
+        "lastNameAttrKeyHelper": "Achternaam van de gebruiker (optioneel). Wis deze waarde om de volledige naam op te geven via 'Voornaam'.",
+        "responseSettings": "OIDC-responsattributen",
+        "firstNameAttrKeyHelper": "De voornaam van de gebruiker of de volledige naam als 'Achternaam' niet is opgegeven.",
+        "useIdToken": "Gebruik id-token om gebruikersinformatie te verkrijgen",
+        "customAttrs": "Maatwerk",
+        "emailAttrKey": "E-mail"
     },
     "enterpriseFeatures": {
         "sso": "Single Sign On",
@@ -257,7 +267,26 @@
         "support": "Directe ondersteuning",
         "dataSync": "Data sync",
         "chartWidget": "Grafiek widget",
-        "advancedWebhooks": "Geavanceerde webhooks"
+        "advancedWebhooks": "Geavanceerde webhooks",
+        "ssoContent": "Maak veilig en naadloos inloggen mogelijk met SAML, Google, Facebook, GitHub, GitLab of OpenID Connect. Ondersteunt meerdere providers tegelijk. Merk op dat zowel Baserow als tool en het authenticatiesysteem van de applicatiebouwer SSO ondersteunen.",
+        "rbacContent": "Beheer machtigingen met precisie. Wijs rollen toe zoals admin, builder, editor, commentator of viewer op werkruimte-, database- of tabelniveau. Je kunt de toegang ook per team beheren.",
+        "dataSyncContent": "Houd tabellen automatisch up-to-date door te synchroniseren met andere Baserow-tabellen of externe bronnen zoals Jira, GitHub, GitLab of HubSpot.",
+        "coBrandingContent": "Pas de Baserow-interface aan met je eigen logo. Let op dat \"powered by Baserow\" is toegevoegd.",
+        "supportContent": "Krijg hulp wanneer je die nodig hebt. Neem rechtstreeks vanuit het platform contact op met het Baserow-team.",
+        "advancedWebhooksContent": "Trigger webhooks wanneer een rij een specifieke weergave binnenkomt - geweldig voor het automatiseren van workflows op basis van filtervoorwaarden.",
+        "fieldLevelPermissions": "Machtigingen op veldniveau",
+        "auditLogsContent": "Volg alles wat er gebeurt. Bekijk een volledige geschiedenis van acties in je instantie of werkruimte, filterbaar op gebruiker, actie en meer.",
+        "fieldLevelPermissionsContent": "Bepaal wie specifieke velden in een tabel kan bewerken. Stel rechten in voor editors, builders, admins of schakel wijzigingen aan veldwaarden volledig uit.",
+        "builderBranding": "Applicatie branding",
+        "builderBrandingContent": "White label de branding van je applicatie door de 'Gemaakt met Baserow'-branding in de voettekst van je applicatie te verwijderen.",
+        "builderFileInputElement": "Bestandsinvoerelement",
+        "builderFileInputElementContent": "Met het bestandsinvoerelement kun je een veld toevoegen aan je applicatiepagina's om bestanden te uploaden. Geef je gebruikers de mogelijkheid om belangrijke documenten of afbeeldingen op te slaan.",
+        "builderCustomCode": "Aangepaste code voor applicaties",
+        "builderCustomCodeContent": "Je kunt aangepaste CSS/JavaScript-code toevoegen om het uiterlijk en het gedrag van je applicatie verder aan te passen. Je kunt bijvoorbeeld externe services zoals analytics of sociale media integreren.",
+        "assistant": "AI-assistent",
+        "assistantContent": "Verhoog je productiviteit met AI. Gebruik natuurlijke taal om je gegevens direct in Baserow te creëren, analyseren en visualiseren.",
+        "dateDependency": "Datum afhankelijkheid",
+        "dateDependencyContent": "Je kunt een afhankelijkheid definiëren tussen twee datums en een duur als begin/einddatum en duur. Met datumafhankelijkheid worden andere waarden aangepast als een waarde verandert."
     },
     "chatwootSupportSidebarWorkspace": {
         "directSupport": "Directe ondersteuning"
@@ -379,7 +408,11 @@
         "projectKeyHelper": "De projectsleutel van het Jira project (bijv. PROJ). Kan gevonden worden door te klikken op `Projectinstellingen` in Jira. Als deze niet wordt opgegeven, worden alle issues geretourneerd.",
         "jiraUrl": "Jira instantie URL",
         "jiraUsername": "Jira gebruikersnaam",
-        "apiTokenHelper": "Het API-token van het Jira-account dat wordt gebruikt voor verificatie. Kan worden aangemaakt op https://id.atlassian.com/manage-profile/security/api-tokens."
+        "apiTokenHelper": "Het API-token van het Jira-account dat wordt gebruikt voor verificatie. Kan worden aangemaakt op https://id.atlassian.com/manage-profile/security/api-tokens.",
+        "authenticationLabel": "Authenticatie",
+        "authenticationHelper": "Kies hoe je je wilt authenticeren met Jira.",
+        "personalAccessToken": "Jira Persoonlijk Toegangstoken",
+        "personalAccessTokenHelper": "Het API-token van het Jira-account dat wordt gebruikt voor verificatie. Kan worden aangemaakt op https://confluence.atlassian.com/enterprise/using-personal-access-tokens-1026032365.html."
     },
     "githubIssuesDataSync": {
         "apiToken": "API-token",
@@ -465,7 +498,13 @@
     "aggregationSeriesForm": {
         "aggregationTypeLabel": "Samenvatting",
         "deleteSeries": "Serie verwijderen",
-        "aggregationFieldLabel": "Veld"
+        "aggregationFieldLabel": "Veld",
+        "chartType": "Grafiektype",
+        "barChart": "Staaf",
+        "lineChart": "Lijn",
+        "pieChart": "Cirkel",
+        "doughnutChart": "Donut",
+        "polarAreaChart": "Poolgebied"
     },
     "aggregationGroupByForm": {
         "groupByFieldLabel": "Groep door",
@@ -479,7 +518,9 @@
         "descending": "Aflopend"
     },
     "periodicDataSyncDeactivatedNotification": {
-        "body": "{name} periodieke gegevenssynchronisatie is gedeactiveerd omdat het te vaak achter elkaar mislukte."
+        "body": "{name} periodieke gegevenssynchronisatie is gedeactiveerd omdat het te vaak achter elkaar mislukte.",
+        "failure": "{name} periodieke gegevenssynchronisatie is gedeactiveerd omdat het te vaak achter elkaar mislukte.",
+        "licenseUnavailable": "{name} periodieke gegevenssynchronisatie is uitgeschakeld omdat de werkruimte geen geldige licentie meer heeft. Werk je licentie bij om de automatische synchronisatie te herstellen."
     },
     "webhook": {
         "rowsEnterVieweventType": "Rij komt in weergave"
@@ -489,6 +530,191 @@
         "helpTriggerWhenRowsEnterView": "Triggert alleen wanneer `Rijen in de weergave komen` is geselecteerd en rijen die nu overeenkomen met de filters worden weergegeven."
     },
     "chartWidget": {
-        "name": "Grafiek"
+        "name": "Grafiek",
+        "bar": "Staafdiagram",
+        "line": "Lijndiagram"
+    },
+    "fileInputElementForm": {
+        "helpTextTitle": "Help-tekst",
+        "defaultNameTitle": "Oorspronkelijke bestandsnaam|Oorspronkelijke bestandsnamen",
+        "defaultNameHelp": "Het aantal namen moet overeenkomen met het aantal urls.",
+        "defaultUrlTitle": "Initieel bestands URL|Initieel bestand URLs",
+        "helpTextPlaceholder": "Leeg houden voor standaard...",
+        "multiple": "Meerdere bestanden?",
+        "fileTypes": "Bestandstypen",
+        "fileTypesHelper": "Kies welke bestandsextensies zijn toegestaan (één per regel) door de bestandsinvoer (bijv. jpg, png, svg, pdf). Je kunt afbeelding/*, video/* of audio/* opgeven om alle bestanden van deze typen toe te staan. Laat leeg om alle bestandstypen toe te staan.",
+        "preview": "Afbeeldingen bekijken?",
+        "maxFileSize": "Maximale bestandsgrootte",
+        "maxFileSizePlaceholder": "Voer een nummer in...",
+        "addFileType": "Bestandstype toevoegen",
+        "required": "Verplicht",
+        "defaultNamePlaceholder": "Voer een bestandsnaam in...|Voer bestandsnamen in...",
+        "defaultUrlPlaceholder": "Standaard URL invoeren...|Standaard URL's invoeren..."
+    },
+    "fileInputElement": {
+        "defaultHelpText": "Sleep bestanden hierheen of klik om te selecteren",
+        "fileSizeExceeded": "Bestand te groot. Max {max}MB."
+    },
+    "fieldPermissionModal": {
+        "title": "Veldmachtigingen bewerken",
+        "question": "Wie kan dit veld bewerken?",
+        "editorTitle": "Editors en hoger (standaard)",
+        "editorDescription": "Gebruikers met de rollen Editor, Builder en Admin",
+        "builderTitle": "Builders en hoger",
+        "builderDescription": "Gebruikers met de rollen Builder en Admin",
+        "adminTitle": "Alleen admins",
+        "adminDescription": "Gebruikers met admin rollen",
+        "allowInForms": "Sta toe dat dit veld wordt ingesteld in rijen die zijn gemaakt via formulieren",
+        "nobodyTitle": "Niemand",
+        "description": "Kies wie waarden in {fieldName} kan bewerken.",
+        "nobodyDescription": "Geen gebruikers",
+        "linkRowWarning": "Dit is een 'Link naar tabel' veld. Om ervoor te zorgen dat waarden niet kunnen worden gewijzigd vanuit de gekoppelde tabel, moet je ervoor zorgen dat je ook de juiste rechten instelt op de gekoppelde tabel."
+    },
+    "fieldPermissionsMenuItem": {
+        "label": "Veldmachtigingen bewerken"
+    },
+    "advanced": {
+        "license": "Advanced"
+    },
+    "builderSettingTypes": {
+        "customCode": "Aangepaste CSS/JS"
+    },
+    "customCodeSettingForm": {
+        "customCSS": "Aangepaste CSS",
+        "customJS": "Aangepaste JavaScript",
+        "customCSSPlaceholder": "Voer wat aangepaste CSS-code in...",
+        "customJSPlaceholder": "Voer wat aangepaste JS-code in...",
+        "externalScripts": "Externe scripts / stylesheets",
+        "noScript": "Je applicatie verbeteren met externe scripts of stylesheets",
+        "customCodeTitle": "Aangepaste code",
+        "customCodeHelp": "Aangepaste code is alleen zichtbaar in preview- of gepubliceerde applicaties, de resultaten zijn niet zichtbaar in de editor.",
+        "addExternalScript": "Een extern script toevoegen"
+    },
+    "customCodeSettingScriptForm": {
+        "type": "Type",
+        "loadType": "Laad type",
+        "url": "URL",
+        "urlPlaceholder": "Voer de URL van het script in...",
+        "crossorigin": "Kruis herkomst",
+        "includeCredentials": "Inclusief referenties",
+        "typeCSS": "CSS",
+        "typeJS": "Javascript",
+        "loadTypeNone": "Normaal",
+        "loadTypeDefer": "Uitstellen",
+        "loadTypeAsync": "Async",
+        "crossoriginTypeNone": "Normaal",
+        "crossoriginTypeAnonymous": "Anoniem",
+        "crossoriginTypeCredentials": "Gebruik referenties"
+    },
+    "elementType": {
+        "errorUserSourceHasNoLoginOption": "De geselecteerde gebruikersbron heeft geen aanmeldingsoptie",
+        "errorUserSourceMissing": "Geen gebruikersbron geselecteerd"
+    },
+    "pieChartWidget": {
+        "name": "Cirkeldiagram",
+        "pie": "Cirkeldiagram",
+        "doughnut": "Donut diagram",
+        "polarArea": "Poolgebiedgrafiek"
+    },
+    "twoWaySyncUpdateFailed": {
+        "title": "{name} bidirectionele synchronisatie update mislukt: {error}"
+    },
+    "twoWaySyncDeactivated": {
+        "title": "Tweewegsynchronisatie {name} gedeactiveerd omdat een update te vaak achter elkaar mislukte. Synchroniseer handmatig en activeer opnieuw wanneer het probleem is opgelost."
+    },
+    "enterpriseTwoWaySyncStrategyType": {
+        "realtimePushDescription": "Hiermee kunnen de celwaarden direct in Baserow worden bewerkt en in realtime naar de gegevenssynchronisatiebron worden gepusht. Merk op dat de wijzigingen niet in real-time worden opgehaald omdat ze afhankelijk zijn van de (periodieke) synchronisatie actie om te voltooien. Het wordt sterk aangeraden om back-ups te maken van de PostgreSQL database om onbedoelde wijzigingen te voorkomen."
+    },
+    "assistantSidebarItem": {
+        "title": "AI-assistent"
+    },
+    "assistantPanel": {
+        "title": "AI-assistent",
+        "close": "AI-assistent sluiten",
+        "history": "Chatgeschiedenis",
+        "back": "Terug"
+    },
+    "assistantWelcomeMessage": {
+        "greet": "Hé {name}",
+        "question": "hoe kan ik helpen?",
+        "subtitle": "Ik ben er om je te ondersteunen bij het omgaan met je gegevens.",
+        "subtitleWithoutSuggestions": "Ik help je de last te dragen zodat het nooit zwaar aanvoelt. Vertel me gewoon wat je nodig hebt!",
+        "promptCreateDatabaseTitle": "Een database maken",
+        "promptCreateDatabasePrompt": "Bouw een database voor projectbeheer.",
+        "promptCreateAutomationTitle": "Een automatisering maken",
+        "promptCreateAutomationPrompt": "Maak een automatisering die elke dinsdag in de ochtend in het Slack developers kanaal vraagt of er iets te demonstreren valt.",
+        "promptInviteUsersTitle": "Gebruikers uitnodigen",
+        "promptInviteUsersPrompt": "Hoe nodig ik gebruikers uit voor mijn werkruimte?",
+        "promptCreateTableTitle": "Een tabel maken",
+        "promptCreateTablePrompt": "Maak een nieuwe tabel met de naam taken.",
+        "promptWhichTablesTitle": "Welke tabellen",
+        "promptWhichTablesPrompt": "Welke tabellen heb ik in deze database?",
+        "promptCreateFormTitle": "Een formulier maken",
+        "promptCreateFormPrompt": "Maak een formulier voor deze tabel.",
+        "promptCreateFilterTitle": "Een filter maken",
+        "promptCreateFilterPrompt": "Toon alleen rijen waarvan het primaire veld leeg is."
+    },
+    "assistantInputMessage": {
+        "statusWaiting": "Assistent staat klaar om te helpen",
+        "statusRunning": "Uitvoeren...",
+        "placeholder": "Vraag me alles...",
+        "send": "Verstuur bericht",
+        "stop": "Genereren stoppen"
+    },
+    "assistantChatHistoryContext": {
+        "empty": "Geen chatgeschiedenis beschikbaar",
+        "loading": "Chatgeschiedenis wordt geladen..."
+    },
+    "dateDependencyModal": {
+        "errorTitle": "Datum afhankelijkheid",
+        "dependencyFieldTooltip": "Datumafhankelijkheden configureren",
+        "dependencyFieldTooltipError": "Een veldregel bevat een fout",
+        "contextMenuItemLabel": "Datumafhankelijkheden configureren",
+        "title": "Datumafhankelijkheid voor {tableName}",
+        "description": "Geef aan welke rijen afhankelijk zijn van andere. Wanneer een rij opnieuw wordt gepland, worden de rijen die ervan afhankelijk zijn automatisch aangepast.",
+        "enableDateDependency": "Datumafhankelijkheden inschakelen voor projecten",
+        "startDateFieldLabel": "Startdatum",
+        "endDateFieldLabel": "Einddatum",
+        "durationFieldLabel": "Duur",
+        "durationFieldHint": "Dit veld moet het formaat \"d h\" gebruiken.",
+        "dependencyLinkrowFieldLabel": "Voorgangers",
+        "dependencyLinkrowFieldHint": "Gebruik een Link naar tabelveld om een rij te verbinden met zijn voorgangers.",
+        "dependencyBufferTypeLabel": "Logica voor herschikking",
+        "durationBufferLabel": "Tijdbuffer",
+        "dependencyConnectionTypeLabel": "Type",
+        "advancedSettingsLabel": "Geavanceerde instellingen",
+        "includeWeekendsLabel": "Houd rekening met weekenden bij het berekenen van looptijden",
+        "dependencyFieldForReaderTooltip": "Dit veld is opgenomen in de regel voor datumafhankelijke velden",
+        "fieldInvalidTitle": "Fout in datumafhankelijkheidsveld"
+    },
+    "assistant": {
+        "statusThinking": "Denken...",
+        "statusAnswering": "Antwoorden...",
+        "statusCancelling": "Annuleren...",
+        "messageCancelled": "Bericht geannuleerd"
+    },
+    "assistantMessageSources": {
+        "sources": "{count} source | {count} sources"
+    },
+    "assistantMessageActions": {
+        "feedbackContextTitle": "Help ons te verbeteren",
+        "feedbackContextPlaceholder": "Wat kunnen we verbeteren? (optioneel)",
+        "copiedToClipboard": "Gekopieerd naar klembord",
+        "copiedContentToast": "De inhoud van het antwoord van de assistent is gekopieerd naar je klembord",
+        "copyFailed": "Kopiëren naar klembord mislukt"
+    },
+    "dateDependency": {
+        "invalidChildRow": "Opeenvolgende rij is ongeldig",
+        "invalidParentRow": "Voorganger rij is ongeldig",
+        "invalidParentEndDateAfterChildStartDate": "De einddatum van de rij van de voorganger ligt na de begindatum van de rij van de opvolger",
+        "invalidStartDateEmpty": "Startdatum is leeg",
+        "invalidEndDateEmpty": "Einddatum is leeg",
+        "invalidEndDateBeforeStartDate": "Einddatum is voor begindatum",
+        "invalidDurationEmpty": "Duur is leeg",
+        "invalidDurationValue": "Duur waarde is niet geldig",
+        "invalidDurationMismatch": "Duur waarde mismatch"
+    },
+    "assistantMessageList": {
+        "disclaimer": "Kuma kan fouten maken, controleer antwoorden dubbel"
     }
 }

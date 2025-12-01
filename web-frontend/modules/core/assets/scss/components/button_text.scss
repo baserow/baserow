@@ -79,6 +79,10 @@
   }
 }
 
+.button-text__image {
+  width: 18px;
+}
+
 .button-text--no-underline {
   &:hover {
     text-decoration: none;

@@ -1,3 +1,4 @@
+import json
 from unittest.mock import patch
 
 from django.db import transaction
@@ -26,7 +27,9 @@ from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowUpsertRowServiceType,
 )
+from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
 from baserow.core.formula.serializers import FormulaSerializerField
+from baserow.core.formula.types import BASEROW_FORMULA_MODE_SIMPLE, BaserowFormulaObject
 
 
 @pytest.mark.django_db
@@ -160,7 +163,7 @@ def test_patch_workflow_actions(api_client, data_fixture):
 
     response_json = response.json()
     assert response.status_code == HTTP_200_OK
-    assert response_json["description"] == "'hello'"
+    assert response_json["description"]["formula"] == "'hello'"
 
 
 class PublicTestWorkflowActionType(NotificationWorkflowActionType):
@@ -170,8 +173,6 @@ class PublicTestWorkflowActionType(NotificationWorkflowActionType):
     public_serializer_field_overrides = {
         "test": FormulaSerializerField(
             required=False,
-            allow_blank=True,
-            default="",
         ),
     }
 
@@ -358,13 +359,18 @@ def test_create_create_row_workflow_action(api_client, data_fixture):
     assert response_json["service"] == {
         "id": workflow_action.service_id,
         "integration_id": None,
-        "row_id": "",
+        "row_id": BaserowFormulaObject(
+            formula="",
+            version=BASEROW_FORMULA_VERSION_INITIAL,
+            mode=BASEROW_FORMULA_MODE_SIMPLE,
+        ),
         "type": LocalBaserowUpsertRowServiceType.type,
         "schema": None,
         "table_id": None,
         "field_mappings": [],
         "context_data": None,
         "context_data_schema": None,
+        "sample_data": None,
     }
 
 
@@ -417,7 +423,15 @@ def test_update_create_row_workflow_action(api_client, data_fixture):
     assert response_json["service"]["table_id"] == service.table_id
     assert response_json["service"]["integration_id"] == service.integration_id
     assert response_json["service"]["field_mappings"] == [
-        {"field_id": field.id, "value": "'Pony'", "enabled": True}
+        {
+            "field_id": field.id,
+            "value": BaserowFormulaObject(
+                formula="'Pony'",
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+            ),
+            "enabled": True,
+        }
     ]
 
 
@@ -453,11 +467,16 @@ def test_create_update_row_workflow_action(api_client, data_fixture):
         "integration_id": None,
         "type": LocalBaserowUpsertRowServiceType.type,
         "schema": None,
-        "row_id": "",
+        "row_id": BaserowFormulaObject(
+            formula="",
+            version=BASEROW_FORMULA_VERSION_INITIAL,
+            mode=BASEROW_FORMULA_MODE_SIMPLE,
+        ),
         "table_id": None,
         "field_mappings": [],
         "context_data": None,
         "context_data_schema": None,
+        "sample_data": None,
     }
 
 
@@ -515,13 +534,21 @@ def test_update_update_row_workflow_action(api_client, data_fixture):
     assert response_json["element_id"] == workflow_action.element_id
 
     assert response_json["service"]["table_id"] == table.id
-    assert response_json["service"]["row_id"] == str(first_row.id)
+    assert response_json["service"]["row_id"]["formula"] == str(first_row.id)
     assert (
         response_json["service"]["integration_id"]
         == workflow_action.service.integration_id
     )
     assert response_json["service"]["field_mappings"] == [
-        {"field_id": field.id, "value": "'Pony'", "enabled": True}
+        {
+            "field_id": field.id,
+            "value": BaserowFormulaObject(
+                formula="'Pony'",
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+            ),
+            "enabled": True,
+        }
     ]
 
 
@@ -573,8 +600,8 @@ def test_dispatch_local_baserow_create_row_workflow_action(api_client, data_fixt
     response_json = response.json()
 
     assert "id" in response_json
-    assert response_json[color_field.db_column] == "Brown"
-    assert animal_field.db_column not in response_json
+    assert response_json[color_field.name] == "Brown"
+    assert animal_field.name not in response_json
 
 
 @pytest.mark.django_db
@@ -631,8 +658,8 @@ def test_dispatch_local_baserow_update_row_workflow_action(api_client, data_fixt
     response_json = response.json()
     assert response_json["id"] == first_row.id
 
-    assert response_json[color_field.db_column] == "Blue"
-    assert animal_field.db_column not in response_json
+    assert response_json[color_field.name] == "Blue"
+    assert animal_field.name not in response_json
 
 
 @pytest.mark.django_db
@@ -679,9 +706,12 @@ def test_dispatch_local_baserow_upsert_row_workflow_action_with_current_record(
             "all": {workflow_action.service.id: [index.db_column]},
             "external": {workflow_action.service.id: [index.db_column]},
         }
+        payload = {
+            "metadata": json.dumps({"current_record": {"index": 123, "record_id": 123}})
+        }
         response = api_client.post(
             url,
-            {"current_record": {"index": 123, "record_id": 123}},
+            payload,
             format="json",
             HTTP_AUTHORIZATION=f"JWT {token}",
         )
@@ -689,7 +719,7 @@ def test_dispatch_local_baserow_upsert_row_workflow_action_with_current_record(
     assert response.status_code == HTTP_200_OK
     response_json = response.json()
     assert "id" not in response_json
-    assert response_json[index.db_column] == "Index 123"
+    assert response_json[index.name] == "Index 123"
 
 
 @pytest.mark.django_db(transaction=True)
@@ -783,34 +813,47 @@ def test_dispatch_local_baserow_upsert_row_workflow_action_with_unmatching_index
         }
         model = table.get_model()
 
+        payload = {
+            "metadata": json.dumps(
+                {
+                    "current_record": {"index": 0, "record_id": rows[2].id},
+                    "data_source": {"element": table_element.id},
+                }
+            )
+        }
+
         # Dispatch at index=0 but row 3 id, this will be "Complex Construction Design".
         response = api_client.post(
             url,
-            {
-                "current_record": {"index": 0, "record_id": rows[2].id},
-                "data_source": {"element": table_element.id},
-            },
+            payload,
             format="json",
             HTTP_AUTHORIZATION=f"JWT {token}",
         )
+
         assert response.status_code == HTTP_200_OK
         row3 = model.objects.get(pk=rows[2].id)
-        assert getattr(row3, f"field_{field.id}") == f"Updated row {rows[2].id}"
+        assert getattr(row3, field.db_column) == f"Updated row {rows[2].id}"
+
+        payload = {
+            "metadata": json.dumps(
+                {
+                    "current_record": {"index": 0, "record_id": rows[3].id},
+                    "data_source": {"element": table_element.id},
+                }
+            )
+        }
 
         # Dispatch at index=0 but row 4 id,
         # this will now be "Simple Construction Design".
         response = api_client.post(
             url,
-            {
-                "current_record": {"index": 0, "record_id": rows[3].id},
-                "data_source": {"element": table_element.id},
-            },
+            payload,
             format="json",
             HTTP_AUTHORIZATION=f"JWT {token}",
         )
         assert response.status_code == HTTP_200_OK
         row4 = model.objects.get(pk=rows[3].id)
-        assert getattr(row4, f"field_{field.id}") == f"Updated row {rows[3].id}"
+        assert getattr(row4, field.db_column) == f"Updated row {rows[3].id}"
 
 
 @pytest.mark.django_db
@@ -940,8 +983,8 @@ def test_dispatch_local_baserow_update_row_workflow_action_using_formula_with_da
 
     assert response.status_code == HTTP_200_OK
     response_json = response.json()
-    assert response_json[color_field.db_column] == "Orange"
-    assert response_json[animal_field.db_column] == f"{rows[1].id}"
+    assert response_json[color_field.name] == "Orange"
+    assert response_json[animal_field.name] == f"{rows[1].id}"
 
 
 @pytest.mark.django_db
@@ -970,20 +1013,18 @@ def test_dispatch_workflow_action_with_invalid_form_data(api_client, data_fixtur
         "api:builder:workflow_action:dispatch",
         kwargs={"workflow_action_id": workflow_action.id},
     )
-
+    payload = {"metadata": json.dumps({"form_data": {input_text_element.id: ""}})}
     response = api_client.post(
         url,
-        {"form_data": {input_text_element.id: ""}},
+        payload,
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
 
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json() == {
-        "error": "ERROR_WORKFLOW_ACTION_IMPROPERLY_CONFIGURED",
-        "detail": "The workflow_action configuration is incorrect: "
-        f"Provided value for form element with ID {input_text_element.id} of type "
-        "input_text is invalid. The value is required.",
+        "error": "ERROR_SERVICE_INVALID_DISPATCH_CONTEXT_CONTENT",
+        "detail": f'Value error for field "{field.name}": The value is required',
     }
 
 
@@ -1017,12 +1058,17 @@ def test_create_delete_row_workflow_action(api_client, data_fixture):
     assert response_json["service"] == {
         "id": workflow_action.service_id,
         "integration_id": None,
-        "row_id": "",
+        "row_id": BaserowFormulaObject(
+            formula="",
+            version=BASEROW_FORMULA_VERSION_INITIAL,
+            mode=BASEROW_FORMULA_MODE_SIMPLE,
+        ),
         "type": DeleteRowWorkflowActionType.service_type,
         "schema": None,
         "table_id": None,
         "context_data": None,
         "context_data_schema": None,
+        "sample_data": None,
     }
 
 
@@ -1219,7 +1265,7 @@ def test_notification_action_can_access_the_field_of_previous_action(
     #
     # Conversely, the other DB columns aren't returned, since they aren't used.
     assert response.json() == {
-        fields[0].db_column: "Palak Paneer",
+        fields[0].name: "Palak Paneer",
     }
 
 
@@ -1280,9 +1326,13 @@ def test_create_row_action_can_access_the_field_of_previous_action(
         kwargs={"workflow_action_id": action_1.id},
     )
     payload = {
-        "previous_action": {
-            "current_dispatch_id": mock_dispatch_id,
-        },
+        "metadata": json.dumps(
+            {
+                "previous_action": {
+                    "current_dispatch_id": mock_dispatch_id,
+                }
+            }
+        )
     }
     response = api_client.post(
         url,
@@ -1298,7 +1348,16 @@ def test_create_row_action_can_access_the_field_of_previous_action(
     assert action_2.service.table.get_model().objects.all().count() == 0
 
     # Now dispatch the 2nd Workflow Action
-    payload["previous_action"][action_1.id] = {}
+    payload = {
+        "metadata": json.dumps(
+            {
+                "previous_action": {
+                    "current_dispatch_id": mock_dispatch_id,
+                    action_1.id: {},
+                },
+            }
+        )
+    }
     url = reverse(
         "api:builder:workflow_action:dispatch",
         kwargs={"workflow_action_id": action_2.id},

@@ -81,7 +81,7 @@ first to understand what a trace and span is and why we want them.
 ### Tracing a function
 
 You can use the helper decorator `baserow_trace` to wrap a function
-in a span to track it's execution time and other attributes:
+in a span to track its execution time and other attributes:
 
 ```python
 from opentelemetry import trace

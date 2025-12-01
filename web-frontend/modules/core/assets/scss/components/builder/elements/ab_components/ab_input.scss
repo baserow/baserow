@@ -25,7 +25,8 @@
   }
 }
 
-input.ab-input::placeholder {
+input.ab-input::placeholder,
+textarea.ab-input::placeholder {
   color: color-mix(
     in srgb,
     var(--input-text-color, $color-neutral-900) 40%,

@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
-from typing import Any, List
+from typing import Any, Dict, List, Literal, TypedDict, Union
 
-from baserow.core.formula.exceptions import FormulaRecursion
+from baserow.core.formula.exceptions import RuntimeFormulaRecursion
 
 BaserowFormula = str
 FormulaArg = Any
@@ -26,11 +26,11 @@ class FormulaContext(ABC):
         Used to track calls using this context.
 
         :param call_id: the unique identifier of the call.
-        :raise FormulaRecursion: when a recursion is detected.
+        :raise RuntimeFormulaRecursion: when a recursion is detected.
         """
 
         if call_id in self.call_stack:
-            raise FormulaRecursion()
+            raise RuntimeFormulaRecursion()
         self.call_stack.add(call_id)
 
     def reset_call_stack(self):
@@ -57,15 +57,64 @@ class FunctionCollection(ABC):
 
 class FormulaFunction(ABC):
     @abstractmethod
-    def validate_args(args: FormulaArgs):
+    def validate_args(self, args: FormulaArgs):
         """Should validate the given arguments."""
 
     @abstractmethod
-    def parse_args(args: FormulaArgs) -> FormulaArgs:
+    def parse_args(self, args: FormulaArgs) -> FormulaArgs:
         """
         Should return the parsed arguments.
         """
 
     @abstractmethod
-    def execute(context: FormulaContext, args: FormulaArgs) -> Any:
+    def execute(self, context: FormulaContext, args: FormulaArgs) -> Any:
         """Executes the function"""
+
+
+BASEROW_FORMULA_MODE_SIMPLE: Literal["simple"] = "simple"
+BASEROW_FORMULA_MODE_ADVANCED: Literal["advanced"] = "advanced"
+BASEROW_FORMULA_MODE_RAW: Literal["raw"] = "raw"
+BaserowFormulaMode = Literal["simple", "advanced", "raw"]
+
+
+class BaserowFormulaObject(TypedDict):
+    formula: BaserowFormula
+    mode: BaserowFormulaMode
+    version: str
+
+    @classmethod
+    def create(
+        cls,
+        formula: str = "",
+        mode: BaserowFormulaMode = BASEROW_FORMULA_MODE_SIMPLE,
+        version: str = "0.1",
+    ) -> "BaserowFormulaObject":
+        return BaserowFormulaObject(formula=formula, mode=mode, version=version)
+
+    @classmethod
+    def to_formula(cls, value) -> "BaserowFormulaObject":
+        """
+        Return a formula object even if it was a string.
+        """
+
+        if isinstance(value, dict):
+            return value
+        else:
+            return cls.create(formula=value)
+
+
+class BaserowFormulaMinified(TypedDict):
+    v: str
+    m: BaserowFormulaMode
+    f: BaserowFormula
+
+
+FormulaFieldDatabaseValue = Union[str, BaserowFormulaMinified]
+
+JSONFormulaFieldDatabaseValue = Union[
+    BaserowFormulaMinified, List[Dict[str, BaserowFormulaMinified]]
+]
+
+JSONFormulaFieldResult = Union[
+    BaserowFormulaObject, List[Dict[str, BaserowFormulaObject]]
+]

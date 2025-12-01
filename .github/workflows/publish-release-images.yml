@@ -1,0 +1,318 @@
+name: Publish Release Images
+
+on:
+  push:
+    tags:
+      - "*"
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_REPO: ${{ github.repository }}
+  RELEASE_DOCKER_REGISTRY: ${{ secrets.RELEASE_DOCKER_REGISTRY }}
+  RELEASE_DOCKER_REPOSITORY: ${{ secrets.RELEASE_DOCKER_REPOSITORY }}
+  RELEASE_DOCKER_USERNAME: ${{ secrets.RELEASE_DOCKER_USERNAME }}
+  RELEASE_DOCKER_PASSWORD: ${{ secrets.RELEASE_DOCKER_PASSWORD }}
+  CI_TESTED_TAG_SUFFIX: ci-tested-${{ github.sha }}
+
+jobs:
+  build-backend-arm64-release-image:
+    name: Build backend arm64 image (GHCR)
+    runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout code at tag
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push backend arm64 image to GHCR
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: backend/Dockerfile
+          push: true
+          platforms: linux/arm64
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/backend:${{ env.CI_TESTED_TAG_SUFFIX }}-arm64
+          cache-from: |
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/backend:${{ env.CI_TESTED_TAG_SUFFIX }}
+          cache-to: type=inline
+
+  publish-backend-release-tagged-image:
+    name: Publish backend:${{ github.ref_name }} (multi-arch)
+    runs-on: ubuntu-latest
+    needs:
+      - build-backend-arm64-release-image
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Log in to Release Docker Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.RELEASE_DOCKER_REGISTRY }}
+          username: ${{ env.RELEASE_DOCKER_USERNAME }}
+          password: ${{ env.RELEASE_DOCKER_PASSWORD }}
+
+      - name: Create multi-arch backend:${{ github.ref_name }} in release registry
+        run: |
+          AMD64=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/backend:${{ env.CI_TESTED_TAG_SUFFIX }}
+          ARM64=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/backend:${{ env.CI_TESTED_TAG_SUFFIX }}-arm64
+          TARGET=${{ env.RELEASE_DOCKER_REPOSITORY }}/backend:${{ github.ref_name }}
+
+          echo "Creating multi-arch image:"
+          echo "  $TARGET"
+          echo "from:"
+          echo "  $AMD64"
+          echo "  $ARM64"
+
+          docker buildx imagetools create -t "$TARGET" "$AMD64" "$ARM64"
+
+  build-webfrontend-arm64-release-image:
+    name: Build web-frontend arm64 image (GHCR)
+    runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout code at tag
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push web-frontend arm64 image to GHCR
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: web-frontend/Dockerfile
+          push: true
+          platforms: linux/arm64
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/web-frontend:${{ env.CI_TESTED_TAG_SUFFIX }}-arm64
+          cache-from: |
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/web-frontend:${{ env.CI_TESTED_TAG_SUFFIX }}
+          cache-to: type=inline
+
+  publish-webfrontend-release-tagged-image:
+    name: Publish web-frontend:${{ github.ref_name }} (multi-arch)
+    runs-on: ubuntu-latest
+    needs:
+      - build-webfrontend-arm64-release-image
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Log in to Release Docker Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.RELEASE_DOCKER_REGISTRY }}
+          username: ${{ env.RELEASE_DOCKER_USERNAME }}
+          password: ${{ env.RELEASE_DOCKER_PASSWORD }}
+
+      - name: Create multi-arch web-frontend:${{ github.ref_name }} in release registry
+        run: |
+          AMD64=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/web-frontend:${{ env.CI_TESTED_TAG_SUFFIX }}
+          ARM64=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/web-frontend:${{ env.CI_TESTED_TAG_SUFFIX }}-arm64
+          TARGET=${{ env.RELEASE_DOCKER_REPOSITORY }}/web-frontend:${{ github.ref_name }}
+
+          echo "Creating multi-arch image:"
+          echo "  $TARGET"
+          echo "from:"
+          echo "  $AMD64"
+          echo "  $ARM64"
+
+          docker buildx imagetools create --debug -t "$TARGET" "$AMD64" "$ARM64"
+
+  build-all-in-one-arm64-release-image:
+    name: Build baserow (all-in-one) arm64 image (GHCR)
+    runs-on: ubuntu-24.04-arm
+    needs:
+      - build-backend-arm64-release-image
+      - build-webfrontend-arm64-release-image
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout code at tag
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push baserow arm64 image to GHCR
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: deploy/all-in-one/Dockerfile
+          push: true
+          platforms: linux/arm64
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/baserow:${{ env.CI_TESTED_TAG_SUFFIX }}-arm64
+          build-args: |
+            FROM_BACKEND_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/backend:${{ env.CI_TESTED_TAG_SUFFIX }}-arm64
+            FROM_WEBFRONTEND_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/web-frontend:${{ env.CI_TESTED_TAG_SUFFIX }}-arm64
+          cache-from: |
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/baserow:${{ env.CI_TESTED_TAG_SUFFIX }}
+          cache-to: type=inline
+
+  publish-all-in-one-release-tagged-image:
+    name: Publish baserow:${{ github.ref_name }} (multi-arch)
+    runs-on: ubuntu-latest
+    needs:
+      - build-all-in-one-arm64-release-image
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Log in to Release Docker Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.RELEASE_DOCKER_REGISTRY }}
+          username: ${{ env.RELEASE_DOCKER_USERNAME }}
+          password: ${{ env.RELEASE_DOCKER_PASSWORD }}
+
+      - name: Create multi-arch baserow:${{ github.ref_name }} in release registry
+        run: |
+          AMD64=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/baserow:${{ env.CI_TESTED_TAG_SUFFIX }}
+          ARM64=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/baserow:${{ env.CI_TESTED_TAG_SUFFIX }}-arm64
+          TARGET=${{ env.RELEASE_DOCKER_REPOSITORY }}/baserow:${{ github.ref_name }}
+
+          echo "Creating multi-arch image:"
+          echo "  $TARGET"
+          echo "from:"
+          echo "  $AMD64"
+          echo "  $ARM64"
+
+          docker buildx imagetools create -t "$TARGET" "$AMD64" "$ARM64"
+
+  build-cloudron-arm64-release-image:
+    name: Build cloudron arm64 image (GHCR)
+    runs-on: ubuntu-24.04-arm
+    needs:
+      - build-all-in-one-arm64-release-image
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout code at tag
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push cloudron arm64 image to GHCR
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: deploy/cloudron/Dockerfile
+          push: true
+          platforms: linux/arm64
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/cloudron:${{ env.CI_TESTED_TAG_SUFFIX }}-arm64
+          build-args: |
+            FROM_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/baserow:${{ env.CI_TESTED_TAG_SUFFIX }}-arm64
+          cache-from: |
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/cloudron:${{ env.CI_TESTED_TAG_SUFFIX }}
+          cache-to: type=inline
+
+  publish-cloudron-release-tagged-image:
+    name: Publish cloudron:${{ github.ref_name }} (multi-arch)
+    runs-on: ubuntu-latest
+    needs:
+      - build-cloudron-arm64-release-image
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Log in to Release Docker Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.RELEASE_DOCKER_REGISTRY }}
+          username: ${{ env.RELEASE_DOCKER_USERNAME }}
+          password: ${{ env.RELEASE_DOCKER_PASSWORD }}
+
+      - name: Create multi-arch cloudron:${{ github.ref_name }} in release registry
+        run: |
+          AMD64=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/cloudron:${{ env.CI_TESTED_TAG_SUFFIX }}
+          ARM64=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/cloudron:${{ env.CI_TESTED_TAG_SUFFIX }}-arm64
+          TARGET=${{ env.RELEASE_DOCKER_REPOSITORY }}/cloudron:${{ github.ref_name }}
+
+          echo "Creating multi-arch image:"
+          echo "  $TARGET"
+          echo "from:"
+          echo "  $AMD64"
+          echo "  $ARM64"
+
+          docker buildx imagetools create -t "$TARGET" "$AMD64" "$ARM64"

@@ -24,6 +24,7 @@ def test_view_created_event_type(data_fixture):
         "table_id": table.id,
         "database_id": table.database_id,
         "workspace_id": table.database.workspace_id,
+        "webhook_id": webhook.id,
         "event_id": "1",
         "event_type": "view.created",
         "view": {
@@ -72,6 +73,7 @@ def test_view_created_event_type_test_payload(data_fixture):
         "table_id": table.id,
         "database_id": table.database_id,
         "workspace_id": table.database.workspace_id,
+        "webhook_id": webhook.id,
         "event_id": "1",
         "event_type": "view.created",
         "view": {
@@ -119,6 +121,7 @@ def test_view_updated_event_type(data_fixture):
         "table_id": table.id,
         "database_id": table.database_id,
         "workspace_id": table.database.workspace_id,
+        "webhook_id": webhook.id,
         "event_id": "1",
         "event_type": "view.updated",
         "view": {
@@ -167,6 +170,7 @@ def test_view_updated_event_type_test_payload(data_fixture):
         "table_id": table.id,
         "database_id": table.database_id,
         "workspace_id": table.database.workspace_id,
+        "webhook_id": webhook.id,
         "event_id": "1",
         "event_type": "view.updated",
         "view": {
@@ -210,6 +214,7 @@ def test_view_deleted_event_type(data_fixture):
         "table_id": table.id,
         "database_id": table.database_id,
         "workspace_id": table.database.workspace_id,
+        "webhook_id": webhook.id,
         "event_id": "1",
         "event_type": "view.deleted",
         "view_id": view.id,
@@ -234,6 +239,7 @@ def test_view_deleted_event_type_test_payload(data_fixture):
         "table_id": table.id,
         "database_id": table.database_id,
         "workspace_id": table.database.workspace_id,
+        "webhook_id": webhook.id,
         "event_id": "1",
         "event_type": "view.deleted",
         "view_id": 1,

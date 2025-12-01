@@ -10,25 +10,14 @@ from freezegun import freeze_time
 from pyinstrument import Profiler
 
 from baserow.contrib.database.fields.dependencies.handler import FieldDependencyHandler
-from baserow.contrib.database.fields.exceptions import (
-    FieldNotInTable,
-    IncompatibleField,
-    InvalidBaserowFieldName,
-    MaxFieldLimitExceeded,
-    MaxFieldNameLengthExceeded,
-    ReservedBaserowFieldNameException,
-)
+from baserow.contrib.database.fields.exceptions import IncompatibleField
 from baserow.contrib.database.fields.field_cache import FieldCache
+from baserow.contrib.database.fields.field_constraints import (
+    TextTypeUniqueWithEmptyConstraint,
+)
+from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import SelectOption, TextField
-from baserow.contrib.database.rows.exceptions import (
-    InvalidRowLength,
-    ReportMaxErrorCountExceeded,
-)
-from baserow.contrib.database.table.exceptions import (
-    InitialTableDataDuplicateName,
-    InitialTableDataLimitExceeded,
-    InvalidInitialTableData,
-)
+from baserow.contrib.database.rows.exceptions import InvalidRowLength
 from baserow.contrib.database.table.models import GeneratedTableModel
 from baserow.core.exceptions import UserNotInWorkspace
 from baserow.core.jobs.constants import (
@@ -50,27 +39,31 @@ def test_run_file_import_task(data_fixture, patch_filefield_storage):
         job = data_fixture.create_file_import_job(user=user, database=database)
         run_async_job(job.id)
 
-    with patch_filefield_storage(), pytest.raises(InvalidInitialTableData):
+    with patch_filefield_storage():
         job = data_fixture.create_file_import_job(data={"data": []})
         run_async_job(job.id)
+        job.refresh_from_db()
+        assert job.state == JOB_FAILED
 
-    with patch_filefield_storage(), pytest.raises(InvalidInitialTableData):
+    with patch_filefield_storage():
         job = data_fixture.create_file_import_job(data={"data": [[]]})
         run_async_job(job.id)
+        job.refresh_from_db()
+        assert job.state == JOB_FAILED
 
-    with override_settings(
-        INITIAL_TABLE_DATA_LIMIT=2
-    ), patch_filefield_storage(), pytest.raises(InitialTableDataLimitExceeded):
+    with override_settings(INITIAL_TABLE_DATA_LIMIT=2), patch_filefield_storage():
         job = data_fixture.create_file_import_job(data={"data": [[], [], []]})
         run_async_job(job.id)
+        job.refresh_from_db()
+        assert job.state == JOB_FAILED
 
-    with override_settings(MAX_FIELD_LIMIT=2), patch_filefield_storage(), pytest.raises(
-        MaxFieldLimitExceeded
-    ):
+    with override_settings(MAX_FIELD_LIMIT=2), patch_filefield_storage():
         job = data_fixture.create_file_import_job(
             data={"data": [["fields"] * 3, ["rows"] * 3]}
         )
         run_async_job(job.id)
+        job.refresh_from_db()
+        assert job.state == JOB_FAILED
 
     too_long_field_name = "x" * 256
     field_name_with_ok_length = "x" * 255
@@ -82,26 +75,36 @@ def test_run_file_import_task(data_fixture, patch_filefield_storage):
         ["3-1", "3-2"],
     ]
 
-    with patch_filefield_storage(), pytest.raises(MaxFieldNameLengthExceeded):
+    with patch_filefield_storage():
         job = data_fixture.create_file_import_job(data={"data": data})
         run_async_job(job.id)
+        job.refresh_from_db()
+        assert job.state == JOB_FAILED
 
     data[0][0] = field_name_with_ok_length
     with patch_filefield_storage():
         job = data_fixture.create_file_import_job(data={"data": data})
         run_async_job(job.id)
+        job.refresh_from_db()
+        assert job.state == JOB_FINISHED
 
-    with patch_filefield_storage(), pytest.raises(ReservedBaserowFieldNameException):
+    with patch_filefield_storage():
         job = data_fixture.create_file_import_job(data={"data": [["id"]]})
         run_async_job(job.id)
+        job.refresh_from_db()
+        assert job.state == JOB_FAILED
 
-    with patch_filefield_storage(), pytest.raises(InitialTableDataDuplicateName):
+    with patch_filefield_storage():
         job = data_fixture.create_file_import_job(data={"data": [["test", "test"]]})
         run_async_job(job.id)
+        job.refresh_from_db()
+        assert job.state == JOB_FAILED
 
-    with patch_filefield_storage(), pytest.raises(InvalidBaserowFieldName):
+    with patch_filefield_storage():
         job = data_fixture.create_file_import_job(data={"data": [[" "]]})
         run_async_job(job.id)
+        job.refresh_from_db()
+        assert job.state == JOB_FAILED
 
     # Basic use
     with patch_filefield_storage():
@@ -558,8 +561,7 @@ def test_run_file_import_limit(data_fixture, patch_filefield_storage):
             table=table, data={"data": data}, user=user
         )
 
-        with pytest.raises(ReportMaxErrorCountExceeded):
-            run_async_job(job.id)
+        run_async_job(job.id)
 
     job.refresh_from_db()
 
@@ -580,9 +582,7 @@ def test_run_file_import_limit(data_fixture, patch_filefield_storage):
         job = data_fixture.create_file_import_job(
             table=table, data={"data": data}, user=user
         )
-
-        with pytest.raises(ReportMaxErrorCountExceeded):
-            run_async_job(job.id)
+        run_async_job(job.id)
 
     job.refresh_from_db()
 
@@ -687,17 +687,24 @@ def test_run_file_import_task_with_upsert_fields_not_in_table(
     data_fixture.create_text_field(table=table, order=1, name="text 1")
     init_data = [["foo"], ["bar"]]
 
-    with pytest.raises(FieldNotInTable):
-        with patch_filefield_storage():
-            job = data_fixture.create_file_import_job(
-                data={
-                    "data": init_data,
-                    "configuration": {"upsert_fields": [100, 120]},
-                },
-                table=table,
-                user=user,
-            )
-            run_async_job(job.id)
+    with patch_filefield_storage():
+        job = data_fixture.create_file_import_job(
+            data={
+                "data": init_data,
+                "configuration": {"upsert_fields": [100, 120]},
+            },
+            table=table,
+            user=user,
+        )
+        run_async_job(job.id)
+
+    job.refresh_from_db()
+    assert job.failed
+    assert job.error == "100"
+    assert (
+        job.human_readable_error
+        == f"The provided field does not belong in the related table."
+    )
 
     model = table.get_model()
     assert len(model.objects.all()) == 0
@@ -1306,6 +1313,7 @@ def test_run_file_import_task_with_date_validation(
     user = data_fixture.create_user()
     database = data_fixture.create_database_application(user=user)
     table = data_fixture.create_database_table(user=user, database=database)
+
     f1 = data_fixture.create_date_field(table=table, order=1, name="date 1")
     f2 = data_fixture.create_text_field(table=table, order=2, name="text 1")
 
@@ -1325,6 +1333,7 @@ def test_run_file_import_task_with_date_validation(
             first_row_header=False,
         )
         run_async_job(job.id)
+
     job.refresh_from_db()
     assert job.finished
     rows = model.objects.order_by("order").all()
@@ -1341,3 +1350,367 @@ def test_run_file_import_task_with_date_validation(
             "one",
         )
     ]
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.field_constraints
+def test_run_file_import_task_with_field_constraints(
+    data_fixture, patch_filefield_storage
+):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(user=user, database=database)
+    handler = FieldHandler()
+    text_field = handler.create_field(
+        user=user,
+        table=table,
+        type_name="text",
+        name="Unique Text Field",
+        field_constraints=[
+            {"type_name": TextTypeUniqueWithEmptyConstraint.constraint_name}
+        ],
+    )
+
+    model = table.get_model()
+
+    data = {
+        "data": [
+            ["unique_value_1"],
+            ["unique_value_2"],
+            ["unique_value_3"],
+        ]
+    }
+
+    with patch_filefield_storage():
+        job = data_fixture.create_file_import_job(
+            data=data,
+            table=table,
+            user=user,
+            first_row_header=False,
+        )
+        run_async_job(job.id)
+    job.refresh_from_db()
+    assert job.finished
+    assert not job.failed
+
+    rows = model.objects.all()
+    assert len(rows) == 3
+
+    data_with_duplicates = {
+        "data": [
+            ["unique_value_1"],
+            ["unique_value_4"],
+        ]
+    }
+
+    with patch_filefield_storage():
+        job = data_fixture.create_file_import_job(
+            data=data_with_duplicates,
+            table=table,
+            user=user,
+            first_row_header=False,
+        )
+        run_async_job(job.id)
+
+    job.refresh_from_db()
+    assert job.finished
+    assert not job.failed
+
+    rows = model.objects.all()
+    assert len(rows) == 3
+
+    assert "0" in job.report["failing_rows"]
+    assert "1" in job.report["failing_rows"]
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.field_constraints
+def test_run_file_import_task_with_upsert_and_field_constraints(
+    data_fixture, patch_filefield_storage
+):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(user=user, database=database)
+
+    handler = FieldHandler()
+    field_a = handler.create_field(
+        user=user,
+        table=table,
+        type_name="text",
+        name="Field A",
+        field_constraints=[
+            {"type_name": TextTypeUniqueWithEmptyConstraint.constraint_name}
+        ],
+    )
+    field_b = handler.create_field(
+        user=user,
+        table=table,
+        type_name="text",
+        name="Field B",
+        field_constraints=[
+            {"type_name": TextTypeUniqueWithEmptyConstraint.constraint_name}
+        ],
+    )
+
+    model = table.get_model()
+
+    initial_data = {
+        "data": [
+            ["1", "1"],
+            ["2", "2"],
+            ["3", "3"],
+        ]
+    }
+
+    with patch_filefield_storage():
+        job = data_fixture.create_file_import_job(
+            data=initial_data,
+            table=table,
+            user=user,
+            first_row_header=False,
+        )
+        run_async_job(job.id)
+
+    job.refresh_from_db()
+    assert job.finished
+    assert not job.failed
+    assert model.objects.count() == 3
+
+    # Data that violates field_b constraint for row "1"
+    upsert_data = {
+        "data": [
+            ["1", "2"],
+            ["3", "4"],
+        ],
+        "configuration": {
+            "upsert_fields": [field_a.id],
+            "upsert_values": [["1"], ["3"]],
+        },
+    }
+
+    with patch_filefield_storage():
+        job = data_fixture.create_file_import_job(
+            data=upsert_data,
+            table=table,
+            user=user,
+            first_row_header=False,
+        )
+        run_async_job(job.id)
+
+    job.refresh_from_db()
+    assert job.finished
+    assert not job.failed
+
+    assert "0" in job.report["failing_rows"]
+    assert "1" in job.report["failing_rows"]
+
+    values = set(
+        (getattr(row, f"field_{field_a.id}"), getattr(row, f"field_{field_b.id}"))
+        for row in model.objects.all()
+    )
+    assert values == {("1", "1"), ("2", "2"), ("3", "3")}
+
+
+@pytest.mark.django_db(transaction=True)
+def test_run_file_import_task_with_upsert_and_valid_skipped_fields(
+    data_fixture, patch_filefield_storage
+):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(user=user, database=database)
+
+    name_field = data_fixture.create_text_field(table=table, order=1, name="name")
+    age_field = data_fixture.create_number_field(table=table, order=2, name="age")
+    email_field = data_fixture.create_text_field(table=table, order=3, name="email")
+
+    model = table.get_model()
+
+    initial_data = {
+        "data": [
+            ["Alice", 25, "alice@example.com"],
+            ["Bob", 30, "bob@example.com"],
+        ]
+    }
+
+    with patch_filefield_storage():
+        job = data_fixture.create_file_import_job(
+            data=initial_data,
+            table=table,
+            user=user,
+            first_row_header=False,
+        )
+        run_async_job(job.id)
+
+    alice = model.objects.filter(**{name_field.db_column: "Alice"}).first()
+    bob = model.objects.filter(**{name_field.db_column: "Bob"}).first()
+
+    assert getattr(alice, email_field.db_column) == "alice@example.com"
+    assert getattr(bob, email_field.db_column) == "bob@example.com"
+
+    upsert_data = {
+        "data": [
+            ["Alice", 26],
+            ["Bob", 31],
+            ["Charlie", 28],
+        ],
+        "configuration": {
+            "upsert_fields": [name_field.id],
+            "upsert_values": [["Alice"], ["Bob"], ["Charlie"]],
+            "skipped_fields": [email_field.id],
+        },
+    }
+
+    with patch_filefield_storage():
+        job = data_fixture.create_file_import_job(
+            data=upsert_data,
+            table=table,
+            user=user,
+            first_row_header=False,
+        )
+        run_async_job(job.id)
+
+    job.refresh_from_db()
+    assert job.finished
+    assert not job.failed
+    assert model.objects.count() == 3
+
+    alice = model.objects.filter(**{name_field.db_column: "Alice"}).first()
+    bob = model.objects.filter(**{name_field.db_column: "Bob"}).first()
+    charlie = model.objects.filter(**{name_field.db_column: "Charlie"}).first()
+
+    assert getattr(alice, age_field.db_column) == 26
+    assert getattr(alice, email_field.db_column) == "alice@example.com"
+
+    assert getattr(bob, age_field.db_column) == 31
+    assert getattr(bob, email_field.db_column) == "bob@example.com"
+
+    assert getattr(charlie, age_field.db_column) == 28
+    assert getattr(charlie, email_field.db_column) is None
+
+
+@pytest.mark.django_db(transaction=True)
+def test_run_file_import_task_with_upsert_and_invalid_skipped_fields(
+    data_fixture, patch_filefield_storage
+):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(user=user, database=database)
+
+    name_field = data_fixture.create_text_field(table=table, order=1, name="name")
+
+    initial_data = {
+        "data": [
+            ["Alice", 25],
+        ]
+    }
+
+    with patch_filefield_storage():
+        job = data_fixture.create_file_import_job(
+            data=initial_data,
+            table=table,
+            user=user,
+            first_row_header=False,
+        )
+        run_async_job(job.id)
+
+    upsert_data = {
+        "data": [
+            ["Alice", 26],
+        ],
+        "configuration": {
+            "upsert_fields": [name_field.id],
+            "upsert_values": [["Alice"]],
+            "skipped_fields": [99999],
+        },
+    }
+
+    with patch_filefield_storage():
+        job = data_fixture.create_file_import_job(
+            data=upsert_data,
+            table=table,
+            user=user,
+            first_row_header=False,
+        )
+        run_async_job(job.id)
+
+    job.refresh_from_db()
+
+    assert job.failed
+    assert job.error == f"The field ID is not found in the table."
+
+
+@pytest.mark.django_db(transaction=True)
+def test_run_file_import_task_with_upsert_and_none_skipped_fields(
+    data_fixture, patch_filefield_storage
+):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(user=user, database=database)
+
+    name_field = data_fixture.create_text_field(table=table, order=1, name="name")
+    age_field = data_fixture.create_number_field(table=table, order=2, name="age")
+    email_field = data_fixture.create_text_field(table=table, order=3, name="email")
+
+    model = table.get_model()
+
+    initial_data = {
+        "data": [
+            ["Alice", 25, "alice@example.com"],
+            ["Bob", 30, "bob@example.com"],
+        ]
+    }
+
+    with patch_filefield_storage():
+        job = data_fixture.create_file_import_job(
+            data=initial_data,
+            table=table,
+            user=user,
+            first_row_header=False,
+        )
+        run_async_job(job.id)
+
+    alice = model.objects.filter(**{name_field.db_column: "Alice"}).first()
+    bob = model.objects.filter(**{name_field.db_column: "Bob"}).first()
+
+    assert getattr(alice, email_field.db_column) == "alice@example.com"
+    assert getattr(bob, email_field.db_column) == "bob@example.com"
+
+    upsert_data = {
+        "data": [
+            ["Alice", 26, "new_alice@example.com"],
+            ["Bob", 31, "new_bob@example.com"],
+            ["Charlie", 28, "charlie@example.com"],
+        ],
+        "configuration": {
+            "upsert_fields": [name_field.id],
+            "upsert_values": [["Alice"], ["Bob"], ["Charlie"]],
+            "skipped_fields": None,
+        },
+    }
+
+    with patch_filefield_storage():
+        job = data_fixture.create_file_import_job(
+            data=upsert_data,
+            table=table,
+            user=user,
+            first_row_header=False,
+        )
+        run_async_job(job.id)
+
+    job.refresh_from_db()
+    assert job.finished
+    assert not job.failed
+    assert model.objects.count() == 3
+
+    alice = model.objects.filter(**{name_field.db_column: "Alice"}).first()
+    bob = model.objects.filter(**{name_field.db_column: "Bob"}).first()
+    charlie = model.objects.filter(**{name_field.db_column: "Charlie"}).first()
+
+    assert getattr(alice, age_field.db_column) == 26
+    assert getattr(alice, email_field.db_column) == "new_alice@example.com"
+
+    assert getattr(bob, age_field.db_column) == 31
+    assert getattr(bob, email_field.db_column) == "new_bob@example.com"
+
+    assert getattr(charlie, age_field.db_column) == 28
+    assert getattr(charlie, email_field.db_column) == "charlie@example.com"

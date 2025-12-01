@@ -1,12 +1,13 @@
 import json
 import os
 import uuid
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from datetime import timedelta, timezone
 from decimal import Decimal
 from ipaddress import ip_network
 from socket import AF_INET, AF_INET6, IPPROTO_TCP, SOCK_STREAM
 from typing import Any, Dict, Generator, List, Optional, Type, Union
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
@@ -115,10 +116,11 @@ def setup_interesting_test_table(
             workspace=database.workspace, first_name="User3", email="user3@example.com"
         )
 
+    linked_tables = {}
     table = data_fixture.create_database_table(
         database=database, user=user, name=name or "interesting_test_table"
     )
-    link_table = data_fixture.create_database_table(
+    linked_tables["link_table"] = link_table = data_fixture.create_database_table(
         database=database, user=user, name="link_table"
     )
     link_table_primary_text_field = data_fixture.create_text_field(
@@ -127,13 +129,19 @@ def setup_interesting_test_table(
     link_table_duration_field = data_fixture.create_duration_field(
         table=link_table, name="duration_field"
     )
-    decimal_link_table = data_fixture.create_database_table(
+    linked_tables[
+        "decimal_link_table"
+    ] = decimal_link_table = data_fixture.create_database_table(
         database=database, user=user, name="decimal_link_table"
     )
-    file_link_table = data_fixture.create_database_table(
+    linked_tables[
+        "file_link_table"
+    ] = file_link_table = data_fixture.create_database_table(
         database=database, user=user, name="file_link_table"
     )
-    multiple_collaborators_link_table = data_fixture.create_database_table(
+    linked_tables[
+        "multiple_collaborators_link_table"
+    ] = multiple_collaborators_link_table = data_fixture.create_database_table(
         database=database, user=user, name="multiple_collaborators_link_table"
     )
     all_possible_kwargs_per_type = construct_all_possible_field_kwargs(
@@ -187,7 +195,6 @@ def setup_interesting_test_table(
         .order_by("id")
         .values_list("id", flat=True)
     )
-
     values = {
         "text": "text",
         "long_text": "long_text",
@@ -197,8 +204,10 @@ def setup_interesting_test_table(
         "positive_int": 1,
         "negative_decimal": Decimal("-1.2"),
         "positive_decimal": Decimal("1.2"),
+        "decimal_with_default": None,
         "rating": 3,
         "boolean": "True",
+        "boolean_with_default": None,
         "datetime_us": datetime,
         "date_us": date,
         "datetime_eu": datetime,
@@ -257,6 +266,7 @@ def setup_interesting_test_table(
         "single_select": SelectOption.objects.get(
             value="A", field_id=name_to_field_id["single_select"]
         ).id,
+        "single_select_with_default": None,
         "multiple_select": [option_d, option_c, option_e],
         "multiple_collaborators": [
             {"id": user2.id, "name": user2.first_name},
@@ -295,6 +305,7 @@ def setup_interesting_test_table(
             "duration_rollup_avg",
             "duration_rollup_sum",
             "multiple_collaborators_lookup",
+            "multiple_select_with_default",
         }
     )
     assert missing_fields == set(), (
@@ -427,7 +438,13 @@ def setup_interesting_test_table(
             },
         )
 
-    context = {"user2": user2, "user3": user3, "fields": fields}
+    context = {
+        "user2": user2,
+        "user3": user3,
+        "fields": fields,
+        "tables": linked_tables,
+        "name_to_field_id": name_to_field_id,
+    }
 
     return table, user, row, blank_row, context
 
@@ -461,6 +478,32 @@ def setup_interesting_test_database(
         )
 
     return database
+
+
+@contextmanager
+def defer_signals(dotted_names: List[str]):
+    """Temporarily no-op a list of callable paths during test setup.
+
+    Pass fully qualified dotted names of callables (e.g. Celery task .delay
+    methods or websocket broadcasters). While inside the context these
+    callables are patched to no-op to avoid a storm of side-effects while
+    bulk-creating data. After exiting, perform any needed one-shot processing
+    (e.g. initialize/process search data once per table).
+
+    Example:
+        with defer_signals([
+            "baserow.ws.tasks.broadcast_to_channel_group.delay",
+            "baserow.contrib.database.search.tasks.schedule_update_search_data.delay",
+            "baserow.contrib.database.search.tasks.update_search_data.delay",
+        ]):
+            # create lots of data without triggering tasks/broadcasts
+            ...
+    """
+
+    with ExitStack() as stack:
+        for name in dotted_names:
+            stack.enter_context(patch(name, lambda *args, **kwargs: None))
+        yield
 
 
 @contextmanager
@@ -581,6 +624,20 @@ class AnyInt(int):
         return isinstance(other, int)
 
 
+class AnyFloat(float):
+    """A class that can be used to check if a value is a float."""
+
+    def __eq__(self, other):
+        return isinstance(other, float)
+
+
+class AnyBool:
+    """A class that can be used to check if a value is a boolean."""
+
+    def __eq__(self, other):
+        return isinstance(other, bool)
+
+
 class AnyStr(str):
     """
     A class that can be used to check if a value is an str. Useful in tests when
@@ -599,6 +656,16 @@ class AnyDict(dict):
 
     def __eq__(self, other):
         return isinstance(other, dict)
+
+
+class AnyList(dict):
+    """
+    A class that can be used to check if a value is a list. Useful in tests when
+    you don't care about the contents.
+    """
+
+    def __eq__(self, other):
+        return isinstance(other, list)
 
 
 def load_test_cases(name: str) -> Union[List, Dict]:

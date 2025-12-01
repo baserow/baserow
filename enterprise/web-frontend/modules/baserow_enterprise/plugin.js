@@ -1,16 +1,21 @@
 import { registerRealtimeEvents } from '@baserow_enterprise/realtime'
-import { RolePermissionManagerType } from '@baserow_enterprise/permissionManagerTypes'
-import { AuthProvidersType, AuditLogType } from '@baserow_enterprise/adminTypes'
-import authProviderAdminStore from '@baserow_enterprise/store/authProviderAdmin'
-import { PasswordAuthProviderType as CorePasswordAuthProviderType } from '@baserow/modules/core/authProviderTypes'
 import {
+  RolePermissionManagerType,
+  WriteFieldValuesPermissionManagerType,
+} from '@baserow_enterprise/permissionManagerTypes'
+import { AuditLogType, AuthProvidersType } from '@baserow_enterprise/adminTypes'
+import authProviderAdminStore from '@baserow_enterprise/store/authProviderAdmin'
+import assistantStore from '@baserow_enterprise/store/assistant'
+import { PasswordAuthProviderType as CorePasswordAuthProviderType } from '@baserow/modules/core/authProviderTypes'
+import { MadeWithBaserowBuilderPageDecoratorType } from '@baserow_enterprise/builderPageDecoratorTypes'
+import {
+  FacebookAuthProviderType,
+  GitHubAuthProviderType,
+  GitLabAuthProviderType,
+  GoogleAuthProviderType,
+  OpenIdConnectAuthProviderType,
   PasswordAuthProviderType,
   SamlAuthProviderType,
-  GitHubAuthProviderType,
-  GoogleAuthProviderType,
-  FacebookAuthProviderType,
-  GitLabAuthProviderType,
-  OpenIdConnectAuthProviderType,
 } from '@baserow_enterprise/authProviderTypes'
 import { TeamsWorkspaceSettingsPageType } from '@baserow_enterprise/workspaceSettingsPageTypes'
 import { EnterpriseMembersPagePluginType } from '@baserow_enterprise/membersPagePluginTypes'
@@ -22,46 +27,67 @@ import es from '@baserow_enterprise/locales/es.json'
 import it from '@baserow_enterprise/locales/it.json'
 import ko from '@baserow_enterprise/locales/ko.json'
 import {
-  EnterpriseWithoutSupportLicenseType,
+  AdvancedLicenseType,
   EnterpriseLicenseType,
+  EnterpriseWithoutSupportLicenseType,
 } from '@baserow_enterprise/licenseTypes'
 import { EnterprisePlugin } from '@baserow_enterprise/plugins'
 import { LocalBaserowUserSourceType } from '@baserow_enterprise/integrations/userSourceTypes'
 import {
   LocalBaserowPasswordAppAuthProviderType,
-  SamlAppAuthProviderType,
   OpenIdConnectAppAuthProviderType,
+  SamlAppAuthProviderType,
 } from '@baserow_enterprise/integrations/appAuthProviderTypes'
-import { AuthFormElementType } from '@baserow_enterprise/builder/elementTypes'
+import {
+  AuthFormElementType,
+  FileInputElementType,
+} from '@baserow_enterprise/builder/elementTypes'
 import {
   EnterpriseAdminRoleType,
-  EnterpriseMemberRoleType,
   EnterpriseBuilderRoleType,
-  EnterpriseEditorRoleType,
   EnterpriseCommenterRoleType,
+  EnterpriseEditorRoleType,
+  EnterpriseMemberRoleType,
   EnterpriseViewerRoleType,
   NoAccessRoleType,
   NoRoleLowPriorityRoleType,
 } from '@baserow_enterprise/roleTypes'
 import {
-  LocalBaserowTableDataSyncType,
-  JiraIssuesDataSyncType,
   GitHubIssuesDataSyncType,
   GitLabIssuesDataSyncType,
   HubspotContactsDataSyncType,
+  PostgreSQLDataSyncType,
+  JiraIssuesDataSyncType,
+  LocalBaserowTableDataSyncType,
 } from '@baserow_enterprise/dataSyncTypes'
 import { PeriodicIntervalFieldsConfigureDataSyncType } from '@baserow_enterprise/configureDataSyncTypes'
-import { PeriodicDataSyncDeactivatedNotificationType } from '@baserow_enterprise/notificationTypes'
+import {
+  PeriodicDataSyncDeactivatedNotificationType,
+  TwoWayDataSyncUpdateFiledNotificationType,
+  TwoWaySyncDeactivatedNotificationType,
+} from '@baserow_enterprise/notificationTypes'
 import { RowsEnterViewWebhookEventType } from '@baserow_enterprise/webhookEventTypes'
 import {
   AdvancedWebhooksPaidFeature,
   AuditLogPaidFeature,
+  BuilderBrandingPaidFeature,
+  BuilderCustomCodePaidFeature,
+  BuilderFileInputElementPaidFeature,
   CoBrandingPaidFeature,
   DataSyncPaidFeature,
+  DateDependencyPaidFeature,
+  FieldLevelPermissionsPaidFeature,
   RBACPaidFeature,
   SSOPaidFeature,
-  SupportWebhooksPaidFeature,
+  SupportPaidFeature,
 } from '@baserow_enterprise/paidFeatures'
+import { FieldPermissionsContextItemType } from '@baserow_enterprise/fieldContextItemTypes'
+import {
+  DateDependencyContextItemType,
+  DateDependencyTimelineComponent,
+} from '@baserow_enterprise/dateDependencyTypes'
+import { CustomCodeBuilderSettingType } from '@baserow_enterprise/builderSettingTypes'
+import { RealtimePushTwoWaySyncStrategyType } from '@baserow_enterprise/twoWaySyncStrategyTypes'
 
 export default (context) => {
   const { app, isDev, store } = context
@@ -84,8 +110,13 @@ export default (context) => {
     'permissionManager',
     new RolePermissionManagerType(context)
   )
+  app.$registry.register(
+    'permissionManager',
+    new WriteFieldValuesPermissionManagerType(context)
+  )
 
   store.registerModule('authProviderAdmin', authProviderAdminStore)
+  store.registerModule('assistant', assistantStore)
 
   app.$registry.register('admin', new AuthProvidersType(context))
   app.$registry.unregister(
@@ -118,11 +149,11 @@ export default (context) => {
     new TeamsWorkspaceSettingsPageType(context)
   )
 
+  app.$registry.register('license', new AdvancedLicenseType(context))
   app.$registry.register(
     'license',
     new EnterpriseWithoutSupportLicenseType(context)
   )
-
   app.$registry.register('license', new EnterpriseLicenseType(context))
 
   app.$registry.register('userSource', new LocalBaserowUserSourceType(context))
@@ -151,7 +182,10 @@ export default (context) => {
   app.$registry.register('roles', new NoRoleLowPriorityRoleType(context))
 
   app.$registry.register('element', new AuthFormElementType(context))
+  app.$registry.register('element', new FileInputElementType(context))
 
+  app.$registry.unregister('dataSync', PostgreSQLDataSyncType.getType())
+  app.$registry.register('dataSync', new PostgreSQLDataSyncType(context))
   app.$registry.register('dataSync', new LocalBaserowTableDataSyncType(context))
   app.$registry.register('dataSync', new JiraIssuesDataSyncType(context))
   app.$registry.register('dataSync', new GitHubIssuesDataSyncType(context))
@@ -161,6 +195,14 @@ export default (context) => {
   app.$registry.register(
     'notification',
     new PeriodicDataSyncDeactivatedNotificationType(context)
+  )
+  app.$registry.register(
+    'notification',
+    new TwoWayDataSyncUpdateFiledNotificationType(context)
+  )
+  app.$registry.register(
+    'notification',
+    new TwoWaySyncDeactivatedNotificationType(context)
   )
 
   app.$registry.register(
@@ -182,5 +224,49 @@ export default (context) => {
     'paidFeature',
     new AdvancedWebhooksPaidFeature(context)
   )
-  app.$registry.register('paidFeature', new SupportWebhooksPaidFeature(context))
+  app.$registry.register(
+    'paidFeature',
+    new FieldLevelPermissionsPaidFeature(context)
+  )
+  app.$registry.register('paidFeature', new SupportPaidFeature(context))
+  app.$registry.register('paidFeature', new BuilderBrandingPaidFeature(context))
+  app.$registry.register(
+    'paidFeature',
+    new BuilderCustomCodePaidFeature(context)
+  )
+  app.$registry.register(
+    'paidFeature',
+    new BuilderFileInputElementPaidFeature(context)
+  )
+
+  app.$registry.register('paidFeature', new DateDependencyPaidFeature(context))
+  app.$registry.register(
+    'timelineFieldRules',
+    new DateDependencyTimelineComponent(context)
+  )
+  app.$registry.register(
+    'fieldContextItem',
+    new DateDependencyContextItemType(context)
+  )
+
+  // Register builder page decorator namespace and types
+  app.$registry.register(
+    'builderPageDecorator',
+    new MadeWithBaserowBuilderPageDecoratorType(context)
+  )
+
+  app.$registry.register(
+    'fieldContextItem',
+    new FieldPermissionsContextItemType(context)
+  )
+
+  app.$registry.register(
+    'builderSettings',
+    new CustomCodeBuilderSettingType(context)
+  )
+
+  app.$registry.register(
+    'twoWaySyncStrategy',
+    new RealtimePushTwoWaySyncStrategyType(context)
+  )
 }

@@ -137,6 +137,14 @@ export default {
   head() {
     return {
       title: this.$t('forgotPassword.title'),
+      link: [
+        {
+          rel: 'canonical',
+          href:
+            this.$config.PUBLIC_WEB_FRONTEND_URL +
+            this.$router.resolve({ name: 'forgot-password' }).href,
+        },
+      ],
     }
   },
   computed: {

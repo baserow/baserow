@@ -2,6 +2,7 @@ import json
 from typing import Optional
 
 from baserow_premium.prompts import get_generate_formula_prompt
+from langchain_core.exceptions import OutputParserException
 from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.prompts import PromptTemplate
 
@@ -68,6 +69,9 @@ class AIFieldHandler:
             workspace=table.database.workspace,
             temperature=ai_temperature,
         )
-        response_json = output_parser.parse(response)
-
-        return response_json["formula"]
+        try:
+            return output_parser.parse(response)["formula"]
+        except (OutputParserException, TypeError) as e:
+            raise OutputParserException(
+                "The model didn't respond with the correct output. " "Please try again."
+            ) from e

@@ -11,6 +11,13 @@
 		}
 		header @downloads Content-disposition "attachment; filename={query.dl}"
 
+	    header {
+    		Access-Control-Allow-Origin {$PUBLIC_WEB_FRONTEND_URL:http://localhost:3000}
+    		Access-Control-Allow-Methods "GET, HEAD, OPTIONS"
+    		Access-Control-Allow-Headers "*"
+    		Access-Control-Expose-Headers "Content-Length, Content-Type"
+    	}
+
 		file_server {
 			root {$MEDIA_ROOT:/baserow/media/}
 		}

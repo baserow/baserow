@@ -114,7 +114,28 @@
         "ratingDescription": "Een beoordelings element",
         "ratingInput": "Beoordeling invoer",
         "rating": "Beoordeling",
-        "ratingInputDescription": "Een beoordeling selement"
+        "ratingInputDescription": "Een beoordeling selement",
+        "fileInput": "Bestandsinvoer",
+        "fileInputDescription": "Een invoerveld om bestanden te uploaden",
+        "errorValueMissing": "Ontbrekende waarde eigenschap",
+        "errorEmptyContainer": "Deze container is leeg",
+        "errorParentWithDataSourceMissing": "Geen gegevensbron geselecteerd op het element of een bovenliggende container",
+        "errorDataSourceMissing": "Geen gegevensbron geselecteerd",
+        "errorSchemaPropertyMissing": "Geen schema-eigenschap geselecteerd",
+        "errorWorkflowActionInError": "Ten minste één actie is verkeerd geconfigureerd",
+        "errorCollectionFieldInError": "Ten minste één veld is verkeerd geconfigureerd",
+        "errorNavigateToPageMissing": "Ontbreekt Navigeer naar eigenschap",
+        "errorPageParameterInError": "Ten minste één paginaparameter is verkeerd geconfigureerd",
+        "errorNavigationUrlMissing": "Ontbrekende URL-eigenschap voor navigatie",
+        "errorImageFileMissing": "Ontbrekend afbeeldingsbestand",
+        "errorImageUrlMissing": "Ontbrekende URL-eigenschap voor afbeelding",
+        "errorNoWorkflowAction": "Geen workflowactie geconfigureerd",
+        "errorOptionsMissing": "Geen optie geconfigureerd",
+        "errorIframeUrlMissing": "Ontbrekende IFrame URL eigenschap",
+        "errorIframeContentMissing": "Ontbrekende IFrame-inhoud",
+        "errorNoMenuItem": "Geen menu-item geconfigureerd",
+        "errorMenuItemInError": "Ten minste één menu is verkeerd geconfigureerd",
+        "errorSubMenuItemInError": "Ten minste één submenu is verkeerd geconfigureerd"
     },
     "addElementButton": {
         "label": "Element"
@@ -127,7 +148,8 @@
     },
     "duplicatePageJobType": {
         "duplicating": "Dupliceren",
-        "duplicatedTitle": "Pagina gedupliceerd"
+        "duplicatedTitle": "Pagina gedupliceerd",
+        "name": "Dupliceer pagina"
     },
     "pageSidePanelType": {
         "general": "Algemeen",
@@ -360,7 +382,8 @@
         "orientationHorizontal": "Horizontaal",
         "orientationVertical": "Verticaal",
         "buttonLoadMoreLabel": "Toon meer label",
-        "propertySelectorMissingArrays": "Geen velden met meerdere waarden gevonden om als rijen te gebruiken."
+        "propertySelectorMissingArrays": "Geen velden met meerdere waarden gevonden om als rijen te gebruiken.",
+        "noName": "Geen naam"
     },
     "linkFieldForm": {
         "fieldLinkNamePlaceholder": "Waarde invoeren...",
@@ -390,7 +413,10 @@
         "boxRight": "Rechts",
         "boxLeft": "Links",
         "backgroundImage": "Afbeelding",
-        "backgroundImageMode": "Vulmodus"
+        "backgroundImageMode": "Vulmodus",
+        "cssClasses": "CSS-klassen",
+        "cssClassesHelp": "Stel een door spaties gescheiden lijst in van klassen voor dit element die zullen verschijnen in de gegenereerde HTML.",
+        "cssClassesPlaceholder": "CSS-klassen invoeren..."
     },
     "updateUserSourceForm": {
         "nameFieldLabel": "Naam",
@@ -446,7 +472,12 @@
         "openPageLabel": "Pagina openen",
         "logoutLabel": "Uitloggen",
         "refreshDataSourceLabel": "Gegevensbron verversen",
-        "deleteRowLabel": "Verwijder Rij"
+        "deleteRowLabel": "Verwijder Rij",
+        "httpRequest": "Stuur HTTP verzoek",
+        "errorNavigateToPageMissing": "Ontbreekt Navigeer naar eigenschap",
+        "errorPageParameterInError": "Ten minste één paginaparameter is verkeerd geconfigureerd",
+        "errorNavigationUrlMissing": "Ontbrekende URL-eigenschap voor navigatie",
+        "errorDataSourceMissing": "Geen gegevensbron geselecteerd"
     },
     "widthTypes": {
         "full": "Volledige breedte",
@@ -512,7 +543,8 @@
         "tags": "Tags",
         "button": "Knop",
         "image": "Afbeelding",
-        "rating": "Beoordeling"
+        "rating": "Beoordeling",
+        "errorValueMissing": "Ontbrekende waarde eigenschap"
     },
     "createUserSourceForm": {
         "userSourceName": "Naam",
@@ -674,7 +706,10 @@
         "rolesAllMembersOf": "Alle leden van {name}",
         "noRole": "Geen rol",
         "errorFetchingRolesTitle": "Kan gebruikersrollen niet ophalen",
-        "errorFetchingRolesMessage": "Er is een probleem opgetreden tijdens het ophalen van gebruikersrollen."
+        "errorFetchingRolesMessage": "Er is een probleem opgetreden tijdens het ophalen van gebruikersrollen.",
+        "visibilityCondition": "Zichtbaarheid voorwaarde",
+        "visibilityConditionHelper": "Als het resultaat van deze formule waar is en de bezoekerskeuze hierboven waar is, zal het element zichtbaar zijn. Deze voorwaarde beïnvloedt alleen de zichtbaarheid van het element. Als u in plaats daarvan gegevens wilt uitsluiten van het serverantwoord, gebruikt u de bovenstaande filteroptie voor gebruikersrollen.",
+        "visibilityConditionPlaceholder": "Voorwaarde..."
     },
     "imageInput": {
         "labelButton": "Uploaden",
@@ -1123,5 +1158,48 @@
         "label": "Gebruiker bron",
         "addUserSource": "Voeg nieuwe gebruikersbron toe",
         "noUserSources": "Geen gebruikersbronnen beschikbaar"
+    },
+    "abFileInput": {
+        "delete": "Verwijder"
+    },
+    "automationSettingsModal": {
+        "title": "Werkstroom"
+    },
+    "elementsGuidedTourStep": {
+        "title": "Elementen toevoegen aan je pagina",
+        "content": "Elke app heeft componenten nodig! Voeg elementen toe zoals tabellen, formulieren, knoppen en meer om je app tot leven te brengen."
+    },
+    "dataGuidedTourStep": {
+        "title": "Verbind uw gegevens",
+        "content": "Koppel hier je Baserow-tabellen om je gegevens dynamisch weer te geven, te filteren en bij te werken in verschillende elementen."
+    },
+    "previewGuidedTourStep": {
+        "title": "Je controlecentrum",
+        "content": "Hier configureer je de pagina's van je app. Voeg elementen toe, bekijk het resultaat en structureer je app precies zoals jij wilt."
+    },
+    "devicesGuidedTourStep": {
+        "title": "Voorbeeld op verschillende apparaten",
+        "content": "Schakel tussen previews voor desktop, tablet en mobiel om te zien hoe je app eruitziet op verschillende schermformaten. Zorg ervoor dat je ontwerp perfect werkt op alle apparaten!"
+    },
+    "sidePanelGuidedTourStep": {
+        "title": "Zijpaneel: Elementen aanpassen",
+        "content": "**Algemeen tabblad** - Configureer het geselecteerde element.\n\n**Tabblad Stijl** - Vulling, marge, randen en meer aanpassen.\n\n**Tabblad Zichtbaarheid** - Bepaal wie dit element kan zien: ingelogde gebruikers, uitgelogde gebruikers of specifieke rollen.\n\n**Tabblad Gebeurtenissen** - Als het element acties ondersteunt, configureer ze dan hier voor dynamische interactiviteit."
+    },
+    "previewPublishGuidedTourStep": {
+        "title": "Je app bekijken en publiceren",
+        "content": "Klik op **Preview** om je app privé te testen. Als je klaar bent, klik je op **Publiceer** om de app te delen met het publiek via een domein."
+    },
+    "builderToast": {
+        "details": "Details",
+        "defaultTitle": "Onverwachte fout",
+        "defaultMessage": "Er is een onverwachte fout opgetreden. Probeer het later nog eens.",
+        "invalidContextTitle": "Ongeldig verzoek",
+        "invalidContextMessage": "Het verzoek is ongeldig.",
+        "InvalidContentTitle": "Ongeldig formulier",
+        "invalidContentMessage": "Een of meer velden bevatten ongeldige waarden.",
+        "serviceMisconfiguredTitle": "Onvolledige configuratie",
+        "serviceMisconfiguredMessage": "Controleer de configuratie.",
+        "errorWorkflowActionDispatch": "De actie \"{naam}\" is mislukt: ",
+        "errorDataSourceDispatch": "Mislukt bij het laden van \"{name}\" gegevens: "
     }
 }

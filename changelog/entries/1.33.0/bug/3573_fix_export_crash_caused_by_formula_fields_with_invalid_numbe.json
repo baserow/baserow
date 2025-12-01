@@ -1,0 +1,8 @@
+{
+    "type": "bug",
+    "message": "Fix export crash caused by formula fields with Invalid number and 0 decimal precision",
+    "domain": "database",
+    "issue_number": 3573,
+    "bullet_points": [],
+    "created_at": "2025-04-17"
+}

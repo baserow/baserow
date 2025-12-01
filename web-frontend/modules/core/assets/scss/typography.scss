@@ -5,12 +5,6 @@ html {
   font-weight: 400;
 }
 
-@-moz-document url-prefix() {
-  body {
-    font-weight: lighter !important;
-  }
-}
-
 body {
   color: $palette-neutral-1300;
   font-family: $text-font-stack;

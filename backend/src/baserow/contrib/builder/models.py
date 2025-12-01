@@ -35,7 +35,8 @@ class Builder(Application):
     login_page = models.OneToOneField(
         Page,
         on_delete=models.SET_NULL,
-        help_text="The login page for this application. This is related to the visibility settings of builder pages.",
+        help_text="The login page for this application. This is related to the "
+        "visibility settings of builder pages.",
         related_name="login_page",
         null=True,
     )
@@ -66,3 +67,12 @@ class Builder(Application):
         from baserow.contrib.builder.pages.handler import PageHandler
 
         return PageHandler().get_shared_page(self)
+
+    def get_workspace(self):
+        from baserow.contrib.builder.domains.handler import DomainHandler
+
+        if not self.workspace_id:
+            domain = DomainHandler().get_domain_for_builder(self)
+            return domain.builder.workspace
+        else:
+            return self.workspace

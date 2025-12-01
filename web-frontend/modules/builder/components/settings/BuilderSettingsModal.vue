@@ -13,13 +13,26 @@
       <ul class="modal-sidebar__nav">
         <li v-for="setting in registeredSettings" :key="setting.getType()">
           <a
+            v-tooltip="setting.isDeactivatedReason({ workspace }) || null"
             class="modal-sidebar__nav-link"
             :class="{ active: setting === settingSelected }"
-            @click="settingSelected = setting"
+            @click="onClick(setting)"
           >
             <i class="modal-sidebar__nav-icon" :class="setting.icon"></i>
             {{ setting.name }}
+            <i
+              v-if="setting.isDeactivated({ workspace })"
+              class="iconoir-lock"
+            ></i>
           </a>
+          <component
+            :is="getDeactivatedModal(setting)[0]"
+            v-if="getDeactivatedModal(setting) !== null"
+            :ref="`deactivatedClickModal_${setting.getType()}`"
+            v-bind="getDeactivatedModal(setting)[1]"
+            :name="setting.name"
+            :workspace="workspace"
+          ></component>
         </li>
       </ul>
     </template>
@@ -45,6 +58,10 @@ export default {
   mixins: [modal],
   props: {
     builder: {
+      type: Object,
+      required: true,
+    },
+    workspace: {
       type: Object,
       required: true,
     },
@@ -125,6 +142,19 @@ export default {
     emitCreatedRecord(createdRecordId) {
       this.hide()
       this.$emit('created', createdRecordId)
+    },
+    onClick(setting) {
+      if (setting.isDeactivated({ workspace: this.workspace })) {
+        this.$refs[`deactivatedClickModal_${setting.getType()}`][0].show()
+      } else {
+        this.settingSelected = setting
+      }
+    },
+    isDeactivatedReason(settingType) {
+      return settingType.isDeactivatedReason({ workspace: this.workspace })
+    },
+    getDeactivatedModal(settingType) {
+      return settingType.getDeactivatedModal({ workspace: this.workspace })
     },
   },
 }

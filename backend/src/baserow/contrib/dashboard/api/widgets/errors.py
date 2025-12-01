@@ -11,3 +11,9 @@ ERROR_WIDGET_TYPE_DOES_NOT_EXIST = (
     HTTP_400_BAD_REQUEST,
     "The requested widget type does not exist.",
 )
+
+ERROR_WIDGET_IMPROPERLY_CONFIGURED = (
+    "ERROR_WIDGET_IMPROPERLY_CONFIGURED",
+    HTTP_400_BAD_REQUEST,
+    "The requested configuration is not allowed.",
+)

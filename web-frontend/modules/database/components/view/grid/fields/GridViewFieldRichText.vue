@@ -12,6 +12,7 @@
     <div
       v-if="!opened || isModalOpen()"
       class="grid-field-rich-text__cell-content"
+      :class="{ 'grid-field-rich-text__cell-content--preview': !opened }"
       v-html="formattedValue"
     ></div>
     <RichTextEditor

@@ -47,6 +47,12 @@ from baserow.contrib.database.fields.operations import (
     ReadFieldOperationType,
     UpdateFieldOperationType,
 )
+from baserow.contrib.database.fields.utils.field_constraint import (
+    _create_constraint_objects,
+    build_django_field_constraints,
+    validate_default_value_with_constraints,
+    validate_field_constraints,
+)
 from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.core.db import specific_iterator, sql
@@ -71,11 +77,14 @@ from .dependencies.update_collector import FieldUpdateCollector
 from .exceptions import (
     CannotChangeFieldType,
     CannotDeletePrimaryField,
+    DbIndexNotSupportedError,
     FailedToLockFieldDueToConflict,
+    FieldConstraintException,
     FieldDoesNotExist,
     FieldIsAlreadyPrimary,
     FieldNotInTable,
     FieldWithSameNameAlreadyExists,
+    ImmutableFieldProperties,
     IncompatibleFieldTypeForUniqueValues,
     IncompatiblePrimaryFieldTypeError,
     InvalidBaserowFieldName,
@@ -86,7 +95,7 @@ from .exceptions import (
     TableHasNoPrimaryField,
 )
 from .field_cache import FieldCache
-from .models import Field, SelectOption, SpecificFieldForUpdate
+from .models import Field, FieldConstraint, SelectOption, SpecificFieldForUpdate
 from .registries import field_converter_registry, field_type_registry
 from .signals import (
     before_field_deleted,
@@ -211,6 +220,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
                 to_attr="available_collaborators",
             ),
             "select_options",
+            "field_constraints",
         )
 
     def get_fields(
@@ -272,12 +282,13 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
         user: AbstractUser,
         table: Table,
         type_name: str,
-        primary=False,
-        skip_django_schema_editor_add_field=True,
-        return_updated_fields=False,
-        primary_key=None,
-        skip_search_updates=False,
+        primary: bool = False,
+        skip_django_schema_editor_add_field: bool = True,
+        return_updated_fields: bool = False,
+        primary_key: bool = None,
+        skip_search_updates: bool = False,
         description: Optional[str] = None,
+        init_field_data: bool = False,
         **kwargs,
     ) -> Union[Field, Tuple[Field, List[Field]]]:
         """
@@ -295,11 +306,13 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             the second field you create, you don't want to create the m2m table again.
         :param return_updated_fields: When True any other fields who changed as a
             result of this field creation are returned with their new field instances.
+        :param primary_key: The id of the field.
         :param skip_search_updates: Whether to trigger a search update for
             this field creation.
+        :param description: The description of the field.
+        :param init_field_data: Whether to initialize the field with data.
         :param kwargs: The field values that need to be set upon creation.
-        :type kwargs: object
-        :param primary_key: The id of the field.
+
         :raises PrimaryFieldAlreadyExists: When we try to create a primary field,
             but one already exists.
         :raises MaxFieldLimitExceeded: When we try to create a field,
@@ -320,6 +333,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             raise PrimaryFieldAlreadyExists(
                 f"A primary field already exists for the table {table}."
             )
+        field_constraints = kwargs.get("field_constraints", None) or []
 
         # Figure out which model to use and which field types are allowed for the given
         # field type.
@@ -330,6 +344,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             "read_only",
             "immutable_type",
             "immutable_properties",
+            "db_index",
         ] + field_type.allowed_fields
         field_values = extract_allowed(kwargs, allowed_fields)
         last_order = model_class.get_last_order(table)
@@ -360,16 +375,32 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             order=last_order,
             primary=primary,
             pk=primary_key,
-            tsvector_column_created=table.tsvectors_are_supported,
             description=description,
             **field_values,
         )
 
+        validate_field_constraints(field_type, field_constraints)
+
+        validate_default_value_with_constraints(
+            field_type, field_constraints, field_values, None
+        )
+
         field_cache = FieldCache()
         instance.save(field_cache=field_cache, raise_if_invalid=True)
+
+        if field_constraints:
+            FieldConstraint.objects.bulk_create(
+                [
+                    FieldConstraint(field=instance, type_name=constraint["type_name"])
+                    for constraint in field_constraints
+                ]
+            )
         FieldDependencyHandler.rebuild_or_raise_if_user_doesnt_have_permissions_after(
             workspace, user, instance, field_cache, ReadFieldOperationType.type
         )
+
+        if instance.db_index and not field_type.can_have_db_index(instance):
+            raise DbIndexNotSupportedError(field_type.type)
 
         # Add the field to the table schema.
         with safe_django_schema_editor(atomic=False) as schema_editor:
@@ -379,7 +410,20 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             if skip_django_schema_editor_add_field:
                 schema_editor.add_field(to_model, model_field)
 
-            SearchHandler.after_field_created(instance, skip_search_updates)
+            if field_constraints:
+                constraint_objects = _create_constraint_objects(
+                    instance, field_constraints
+                )
+                new_constraints = build_django_field_constraints(
+                    instance, constraint_objects
+                )
+                for constraint in new_constraints:
+                    try:
+                        schema_editor.add_constraint(to_model, constraint)
+                    except Exception:
+                        raise FieldConstraintException(
+                            f"Could not add constraint {constraint.name} on field {instance.name}."
+                        )
 
         field_type.after_create(
             instance,
@@ -390,6 +434,9 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             kwargs,
         )
 
+        if init_field_data:
+            field_type.init_field_data(instance, to_model)
+
         field_cache.cache_model_fields(to_model)
         update_collector = FieldUpdateCollector(table)
         updated_fields = self._update_dependencies_of_field_created(
@@ -398,6 +445,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             field_cache,
             skip_search_updates,
         )
+        SearchHandler.schedule_update_search_data(table, fields=[instance])
 
         field_created.send(
             self,
@@ -516,6 +564,10 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
         baserow_field_type_changed = from_field_type.type != to_field_type_name
         field_cache = FieldCache()
 
+        # Get field_constraints from kwargs, defaulting to None if not provided
+        # This preserves existing constraints when not included in PATCH requests
+        field_constraints = kwargs.get("field_constraints", None)
+
         if baserow_field_type_changed:
             to_field_type = field_type_registry.get(to_field_type_name)
         else:
@@ -527,11 +579,29 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             "read_only",
             "immutable_type",
             "immutable_properties",
+            "db_index",
         ] + to_field_type.allowed_fields
         field_values = extract_allowed(kwargs, allowed_fields)
 
         if field.primary and not to_field_type.can_be_primary_field(field_values):
             raise IncompatiblePrimaryFieldTypeError(to_field_type_name)
+
+        old_constraints = list(old_field.field_constraints.all())
+        old_constraint_names = set([c.type_name for c in old_constraints])
+
+        # Only process constraints if they were provided
+        if field_constraints is not None:
+            new_constraint_names = {c["type_name"] for c in field_constraints}
+            field_constraints_changed = old_constraint_names != new_constraint_names
+        else:
+            field_constraints_changed = False
+
+        if field_constraints_changed and (
+            field.read_only or field.immutable_properties
+        ):
+            raise ImmutableFieldProperties(
+                "Field constraints cannot be modified on readonly or immutable fields."
+            )
 
         if baserow_field_type_changed:
             ViewHandler().before_field_type_change(field)
@@ -542,13 +612,30 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             )
             new_model_class = to_field_type.model_class
             field.change_polymorphic_type_to(new_model_class)
-
+            needs_to_update_search_data = True
         else:
             dependants_broken_due_to_type_change = []
+            needs_to_update_search_data = from_field_type.should_update_search_data(
+                old_field, field_values
+            )
 
         self._validate_name_and_optionally_rename_if_collision(
             field, field_values, postfix_to_fix_name_collisions
         )
+
+        if field_constraints is not None:
+            validate_field_constraints(to_field_type, field_constraints)
+            validate_default_value_with_constraints(
+                to_field_type, field_constraints, field_values, field
+            )
+        elif baserow_field_type_changed and old_constraints:
+            existing_constraint_data = [
+                {"type_name": c.type_name} for c in old_constraints
+            ]
+            validate_field_constraints(to_field_type, existing_constraint_data)
+            validate_default_value_with_constraints(
+                to_field_type, existing_constraint_data, field_values, field
+            )
 
         field_values = to_field_type.prepare_values(field_values, user)
         before = to_field_type.before_update(old_field, field_values, user, kwargs)
@@ -556,9 +643,28 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
         field = set_allowed_attrs(field_values, allowed_fields, field)
 
         field.save(field_cache=field_cache, raise_if_invalid=True)
+
+        if field_constraints is not None and field_constraints_changed:
+            field.field_constraints.exclude(type_name__in=new_constraint_names).delete()
+
+            existing_names = set([c.type_name for c in field.field_constraints.all()])
+            constraints_to_create = new_constraint_names - existing_names
+            if constraints_to_create:
+                field.field_constraints.bulk_create(
+                    [
+                        FieldConstraint(field=field, type_name=type_name)
+                        for type_name in constraints_to_create
+                    ]
+                )
         FieldDependencyHandler.rebuild_or_raise_if_user_doesnt_have_permissions_after(
             workspace, user, field, field_cache, ReadFieldOperationType.type
         )
+
+        if field.db_index and not to_field_type.can_have_db_index(field):
+            # If the user explicitly set the `db_index` to true, but it's not
+            # compatible, then we want to fail hard so that the user is aware.
+            raise DbIndexNotSupportedError(to_field_type.type)
+
         # If no converter is found we are going to convert to field using the
         # lenient schema editor which will alter the field's type and set the data
         # value to null if it can't be converted.
@@ -577,9 +683,6 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             )
         ):
             update_collector.add_to_fields_type_changed(field)
-        SearchHandler.entire_field_values_changed_or_created(
-            field.table, updated_fields=[field]
-        )
 
         # Before a field is updated we are going to call the before_schema_change
         # method of the old field because some cleanup of related instances might
@@ -636,9 +739,38 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
                 force_alter_column,
             ) as schema_editor:
                 try:
+                    if baserow_field_type_changed or field_constraints_changed:
+                        existing_constraints = build_django_field_constraints(
+                            old_field, old_constraints
+                        )
+                        for constraint in existing_constraints:
+                            try:
+                                schema_editor.remove_constraint(from_model, constraint)
+                            except Exception:
+                                raise FieldConstraintException(
+                                    f"Could not remove constraint {constraint.name} on field {field.name}."
+                                )
+
                     schema_editor.alter_field(
                         from_model, from_model_field, to_model_field
                     )
+
+                    if (
+                        baserow_field_type_changed or field_constraints_changed
+                    ) and field_constraints:
+                        new_constraint_objects = _create_constraint_objects(
+                            field, field_constraints
+                        )
+                        new_constraints = build_django_field_constraints(
+                            field, new_constraint_objects
+                        )
+                        for constraint in new_constraints:
+                            try:
+                                schema_editor.add_constraint(to_model, constraint)
+                            except Exception:
+                                raise FieldConstraintException(
+                                    f"Could not add constraint {constraint.name} on field {field.name}."
+                                )
                 except (ProgrammingError, DataError) as e:
                     # If something is going wrong while changing the schema we will
                     # just raise a specific exception. In the future we want to have
@@ -661,7 +793,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             from_field_type.can_have_select_options
             and not to_field_type.can_have_select_options
         ):
-            old_field.select_options.all().delete()
+            SelectOption.objects.filter(field_id=field.id).delete()
 
         to_field_type.after_update(
             old_field,
@@ -703,6 +835,8 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
         )
 
         ViewHandler().field_updated(field)
+        if needs_to_update_search_data:
+            SearchHandler.schedule_update_search_data(field.table, fields=[field])
 
         field_updated.send(
             self,
@@ -809,6 +943,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             "read_only",
             "immutable_type",
             "immutable_properties",
+            "search_data_initialized_at",
         ]:
             serialized_field.pop(key, None)
 
@@ -1049,11 +1184,13 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
         instance_to_create = []
         for order, select_option in enumerate(select_options):
             upsert_id = select_option.pop(UPSERT_OPTION_DICT_KEY, None)
-            id = select_option.pop("id", upsert_id)
-            if id in existing_option_ids:
+            option_id = select_option.pop("id", upsert_id)
+            if option_id in existing_option_ids:
                 select_option.pop("order", None)
                 # Update existing options
-                field.select_options.filter(id=id).update(**select_option, order=order)
+                field.select_options.filter(id=option_id).update(
+                    **select_option, order=order
+                )
             else:
                 # Create new instance
                 instance_to_create.append(
@@ -1114,6 +1251,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             field_names_to_try,
             existing_field_name_collisions,
             max_length=max_field_name_length,
+            reserved_names=RESERVED_BASEROW_FIELD_NAMES,
         )
 
     def restore_field(
@@ -1169,9 +1307,6 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
             )
 
             ViewHandler().field_updated(updated_fields)
-            SearchHandler.entire_field_values_changed_or_created(
-                field.table, updated_fields=[field]
-            )
 
             if send_field_restored_signal:
                 field_restored.send(
@@ -1266,7 +1401,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
         # We are changing the related fields table so we need to invalidate
         # its old model cache as this will not happen automatically.
         invalidate_table_in_model_cache(original_table_id)
-        SearchHandler.after_field_moved_between_tables(field_to_move, original_table_id)
+        SearchHandler.schedule_update_search_data(target_table, fields=[field_to_move])
         ViewHandler().after_field_moved_between_tables(field_to_move, original_table_id)
 
     def get_unique_row_values(

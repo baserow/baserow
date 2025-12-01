@@ -1,4 +1,3 @@
-version: "3.4"
 services:
   # A dev / testing /example compose file for testing heroku image works without
   # heroku

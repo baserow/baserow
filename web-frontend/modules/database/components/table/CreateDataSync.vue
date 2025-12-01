@@ -29,14 +29,56 @@
         :key="property.key"
         class="margin-top-2"
         small
-        :value="syncedProperties.includes(property.key)"
-        :disabled="property.unique_primary || jobIsRunning || jobHasSucceeded"
+        :value="syncedProperties.includes(property.key) || autoAddNewProperties"
+        :disabled="
+          property.unique_primary ||
+          autoAddNewProperties ||
+          jobIsRunning ||
+          jobHasSucceeded
+        "
         @input="toggleVisibleField(property.key)"
       >
         <i :class="getFieldTypeIconClass(property.field_type)"></i>
         {{ property.name }}</SwitchInput
       >
     </FormGroup>
+    <FormGroup
+      small-label
+      class="margin-top-2"
+      :helper-text="$t('createDataSync.autoAddHelper')"
+    >
+      <SwitchInput
+        v-model="autoAddNewProperties"
+        class="margin-top-2"
+        small
+        :disabled="jobIsRunning || jobHasSucceeded"
+      >
+        {{ $t('createDataSync.autoAddLabel') }}</SwitchInput
+      >
+    </FormGroup>
+    <FormGroup
+      v-if="twoWaySyncStrategy"
+      small-label
+      class="margin-top-2"
+      :helper-text="twoWaySyncStrategy.getDescription()"
+    >
+      <SwitchInput
+        v-model="twoWaySync"
+        class="margin-top-2"
+        small
+        :disabled="jobIsRunning || jobHasSucceeded || isTwoWaySyncDeactivated"
+        @click="clickTwoWaySync"
+      >
+        {{ $t('createDataSync.twoWaySyncLabel') }}
+        <i v-if="isTwoWaySyncDeactivated" class="iconoir-lock"></i>
+      </SwitchInput>
+    </FormGroup>
+    <component
+      :is="twoWaySyncDeactivatedModal[0]"
+      v-if="twoWaySyncDeactivatedModal !== null"
+      ref="twoWaySyncDeactivatedModal"
+      v-bind="twoWaySyncDeactivatedModal[1]"
+    ></component>
     <Error :error="error"></Error>
     <div class="modal-progress__actions margin-top-2">
       <ProgressBar
@@ -86,13 +128,40 @@ export default {
       properties: null,
       creatingTable: false,
       createdTable: null,
+      autoAddNewProperties: false,
+      twoWaySync: false,
     }
   },
   computed: {
+    dataSyncType() {
+      return this.chosenType === ''
+        ? null
+        : this.$registry.get('dataSync', this.chosenType)
+    },
     dataSyncComponent() {
       return this.chosenType === ''
         ? null
         : this.$registry.get('dataSync', this.chosenType).getFormComponent()
+    },
+    twoWaySyncStrategy() {
+      const strategy = this.dataSyncType.getTwoWayDataSyncStrategy()
+      if (!strategy) {
+        return null
+      }
+
+      return this.$registry.get('twoWaySyncStrategy', strategy)
+    },
+    isTwoWaySyncDeactivated() {
+      if (!this.twoWaySyncStrategy) {
+        return true
+      }
+      return this.twoWaySyncStrategy.isDeactivated(this.database.workspace.id)
+    },
+    twoWaySyncDeactivatedModal() {
+      if (!this.twoWaySyncStrategy) {
+        return null
+      }
+      return this.twoWaySyncStrategy.getDeactivatedClickModal()
     },
   },
   watch: {
@@ -130,6 +199,8 @@ export default {
       const formValues = clone(this.formValues)
       formValues.table_name = formValues.name
       formValues.synced_properties = this.syncedProperties
+      formValues.auto_add_new_properties = this.autoAddNewProperties
+      formValues.two_way_sync = this.twoWaySync
 
       this.creatingTable = true
       this.hideError()
@@ -146,6 +217,14 @@ export default {
         })
         await this.syncTable(this.createdTable)
       } catch (error) {
+        if (error.handler && error.handler.code === 'ERROR_SYNC_ERROR') {
+          this.showError(
+            this.$t('dataSyncType.syncError'),
+            error.handler.detail
+          )
+          error.handler.handled()
+          return
+        }
         this.handleError(error)
       } finally {
         this.creatingTable = false
@@ -160,6 +239,11 @@ export default {
         },
       })
       this.$emit('hide')
+    },
+    clickTwoWaySync() {
+      if (this.isTwoWaySyncDeactivated) {
+        this.$refs.twoWaySyncDeactivatedModal.show()
+      }
     },
   },
 }

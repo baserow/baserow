@@ -12,6 +12,8 @@ from baserow.core.registry import (
 if TYPE_CHECKING:
     from django.contrib.auth.models import AbstractUser
 
+    from baserow.core.models import TrashEntry
+
 
 class TrashableItemType(ModelInstanceMixin, Instance, ABC):
     """
@@ -87,7 +89,7 @@ class TrashableItemType(ModelInstanceMixin, Instance, ABC):
         """
 
         trashed_item.trashed = False
-        trashed_item.save()
+        trashed_item.save(update_fields=["trashed"])
 
     @abstractmethod
     def get_name(self, trashed_item: Any) -> str:
@@ -113,7 +115,12 @@ class TrashableItemType(ModelInstanceMixin, Instance, ABC):
 
         pass
 
-    def trash(self, item_to_trash: Any, requesting_user, trash_entry):
+    def trash(
+        self,
+        item_to_trash: Any,
+        requesting_user: "AbstractUser",
+        trash_entry: "TrashEntry",
+    ):
         """
         Saves trashed=True on the provided item and should be overridden to
         perform any other cleanup and trashing other items related to
@@ -126,7 +133,7 @@ class TrashableItemType(ModelInstanceMixin, Instance, ABC):
         """
 
         item_to_trash.trashed = True
-        item_to_trash.save()
+        item_to_trash.save(update_fields=["trashed"])
 
     @abstractmethod
     def get_restore_operation_type(
@@ -150,6 +157,53 @@ class TrashableItemType(ModelInstanceMixin, Instance, ABC):
     def get_owner(self, trashed_item: Any) -> Optional["AbstractUser"]:
         return None
 
+    def get_additional_restoration_data(self, trashed_item: Any) -> Dict[str, Any]:
+        """
+        Returns additional data that should be stored in the trash entry when restoring
+        this item. This can be used to store additional information that is needed
+        during the restoration process.
+
+        :param trashed_item: The item that is being restored.
+        :return: A dict with additional data that should be stored in the trash entry.
+        """
+
+        return {}
+
+
+class TrashOperationType(Instance, ABC):
+    """
+    A TrashOperationType is an optional operation which can be applied to a
+    trash entry, giving it additional context when trashing and restoring items.
+    """
+
+    """
+    Whether this operation type is managed by the system, or the user.
+    A system-managed trash operation is one that the user cannot interact with.
+    A user will trash a record, and be unable to restore it from the workspace
+    trash.
+    """
+    managed: bool = False
+
+    """
+    Whether a "deleted" signal should be sent after the trash item is deleted.
+    """
+    send_post_trash_deleted_signal: bool = True
+
+    """
+    Whether a "created" signal should be sent after the trash item is restored.
+    """
+    send_post_restore_created_signal: bool = True
+
+
+class DefaultTrashOperationType(TrashOperationType):
+    """
+    The default trash operation type for the vast majority of trash entries.
+    This operation type is user-managed, meaning that the user can interact with
+    trash entries of this type, restoring and permanently deleting them.
+    """
+
+    type = "default"
+
 
 class TrashableItemTypeRegistry(ModelRegistryMixin, Registry):
     """
@@ -162,4 +216,16 @@ class TrashableItemTypeRegistry(ModelRegistryMixin, Registry):
     name = "trashable"
 
 
+class TrashOperationTypeRegistry(ModelRegistryMixin, Registry):
+    """
+    The TrashOperationTypeRegistry contains different types of trash operations
+    which can be applied to a trash entry. A trash operation type gives additional
+    context to a trash entry, for example if the trash entry was created by a user
+    or if it was created automatically by the system.
+    """
+
+    name = "trash_operation"
+
+
 trash_item_type_registry = TrashableItemTypeRegistry()
+trash_operation_type_registry = TrashOperationTypeRegistry()

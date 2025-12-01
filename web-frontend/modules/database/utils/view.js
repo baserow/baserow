@@ -2,7 +2,7 @@ import { firstBy } from 'thenby'
 import BigNumber from 'bignumber.js'
 import { maxPossibleOrderValue } from '@baserow/modules/database/viewTypes'
 import { escapeRegExp, isSecureURL } from '@baserow/modules/core/utils/string'
-import { SearchModes } from '@baserow/modules/database/utils/search'
+import { SearchMode } from '@baserow/modules/database/utils/search'
 import { convertStringToMatchBackendTsvectorData } from '@baserow/modules/database/search/regexes'
 import { DEFAULT_SORT_TYPE_KEY } from '@baserow/modules/database/constants'
 
@@ -32,7 +32,7 @@ export function getRowSortFunction($registry, sortings, fields, groupBys = []) {
   })
 
   sortFunction = sortFunction.thenBy((a, b) =>
-    new BigNumber(a.order).minus(new BigNumber(b.order))
+    new BigNumber(a.order).minus(new BigNumber(b.order)).toNumber()
   )
   sortFunction = sortFunction.thenBy((a, b) => a.id - b.id)
   return sortFunction
@@ -222,8 +222,15 @@ export const TreeGroupNode = class {
    * @returns {boolean} - True if the row matches, false otherwise.
    */
   matches($registry, fields, rowValues) {
+    this.hasValidFilter = false
+
     for (const child of this.children) {
       const matches = child.matches($registry, fields, rowValues)
+
+      if (child.hasValidFilter) {
+        this.hasValidFilter = true
+      }
+
       if (this.filterType === 'AND' && !matches) {
         return false
       } else if (this.filterType === 'OR' && matches) {
@@ -231,6 +238,7 @@ export const TreeGroupNode = class {
       }
     }
     const filterType = this.filterType
+
     for (const filter of this.filters) {
       const filterValue = String(filter.value ?? '')
       const field = fields.find((f) => f.id === filter.field)
@@ -243,6 +251,13 @@ export const TreeGroupNode = class {
         field,
         fieldType
       )
+
+      if (matches === null) {
+        continue
+      }
+
+      this.hasValidFilter = true
+
       if (filterType === 'AND' && !matches) {
         // With an `AND` filter type, the row must match all the filters, so if
         // one of the filters doesn't match we can mark it as invalid.
@@ -258,9 +273,9 @@ export const TreeGroupNode = class {
       // filters and therefore we can mark it as valid.
       return true
     } else if (filterType === 'OR') {
-      // At this point with an `OR` condition none of the filters matched and
-      // therefore we can mark it as invalid.
-      return false
+      // If no valid filters were found, return true (no filtering should be applied).
+      // If there were valid filters but none matched, return false.
+      return !this.hasValidFilter
     }
   }
 }
@@ -355,7 +370,7 @@ export function valueMatchesActiveSearchTerm(
   value,
   activeSearchTerm
 ) {
-  if (searchMode === SearchModes.MODE_FT_WITH_COUNT) {
+  if (searchMode === SearchMode.FT_WITH_COUNT) {
     return _fullTextSearch(registry, field, value, activeSearchTerm)
   } else {
     return _compatSearchMode(registry, field, value, activeSearchTerm)
@@ -445,13 +460,13 @@ export function newFieldMatchesActiveSearchTerm(
 ) {
   if (newField && activeSearchTerm !== '') {
     const fieldType = registry.get('field', newField.type)
-    const emptyValue = fieldType.getEmptyValue(newField)
+    const defaultValue = fieldType.getDefaultValue(newField)
 
     return valueMatchesActiveSearchTerm(
       searchMode,
       registry,
       newField,
-      emptyValue,
+      defaultValue,
       activeSearchTerm
     )
   }
@@ -501,17 +516,16 @@ export function canRowsBeOptimisticallyUpdatedInView(
   fields,
   activeSearchTerm
 ) {
-  const isFieldReadOnly = (field) => {
-    return field.read_only || $registry.get('field', field.type).isReadOnly
-  }
   const readOnlyFieldIds = new Set(
-    fields.filter(isFieldReadOnly).map((field) => String(field.id))
+    fields
+      .filter((f) => $registry.get('field', f.type).isReadOnlyField(f))
+      .map((field) => String(field.id))
   )
-  const isReadOnlyField = (sort) => readOnlyFieldIds.has(String(sort.field))
+  const hasReadOnlyField = (sort) => readOnlyFieldIds.has(String(sort.field))
   const readOnlyGroupBys = view.group_bys
-    ? view.group_bys.some(isReadOnlyField)
+    ? view.group_bys.some(hasReadOnlyField)
     : false
-  const readOnlySorts = view.sortings.some(isReadOnlyField)
+  const readOnlySorts = view.sortings.some(hasReadOnlyField)
   const readOnlyFilters = view.filters.some((filter) =>
     readOnlyFieldIds.has(String(filter.field))
   )

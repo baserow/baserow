@@ -73,11 +73,18 @@ export default {
   computed: {
     ...mapGetters({ domains: 'domain/getDomains' }),
     callbacks() {
-      const url = `${this.$config.PUBLIC_BACKEND_URL}/api/user-source/${this.userSource.uid}/sso/oauth2/openid_connect/callback/`
+      const userSourceType = this.$registry.get(
+        'userSource',
+        this.userSource.type
+      )
+
+      const userSourceUid = userSourceType.genUid(this.userSource)
+
+      const url = `${this.$config.PUBLIC_BACKEND_URL}/api/user-source/${userSourceUid}/sso/oauth2/openid_connect/callback/`
       const previewUrl = `${this.$config.PUBLIC_BACKEND_URL.substr(
         0,
         10
-      )}.../user-source/${this.userSource.uid}/sso/...`
+      )}.../user-source/${userSourceUid}/sso/...`
 
       const preview = [
         {
@@ -89,11 +96,11 @@ export default {
 
       const others = this.domains.map((domain) => ({
         name: domain.domain_name,
-        url: `${this.$config.PUBLIC_BACKEND_URL}/api/user-source/domain_${domain.id}__${this.userSource.uid}/sso/oauth2/openid_connect/callback/`,
+        url: `${this.$config.PUBLIC_BACKEND_URL}/api/user-source/domain_${domain.id}__${userSourceUid}/sso/oauth2/openid_connect/callback/`,
         previewUrl: `${this.$config.PUBLIC_BACKEND_URL.substr(
           0,
           10
-        )}.../user-source/domain_${domain.id}__${this.userSource.uid}/sso/...`,
+        )}.../user-source/domain_${domain.id}__${userSourceUid}/sso/...`,
       }))
 
       return [...preview, ...others]

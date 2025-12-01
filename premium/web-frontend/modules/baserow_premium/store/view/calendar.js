@@ -6,11 +6,11 @@ import { GroupTaskQueue } from '@baserow/modules/core/utils/queue'
 import ViewService from '@baserow/modules/database/services/view'
 import CalendarService from '@baserow_premium/services/views/calendar'
 import {
+  calculateSingleRowSearchMatches,
   extractRowMetadata,
+  getFilters,
   getRowSortFunction,
   matchSearchFilters,
-  calculateSingleRowSearchMatches,
-  getFilters,
 } from '@baserow/modules/database/utils/view'
 import RowService from '@baserow/modules/database/services/row'
 import {
@@ -18,16 +18,16 @@ import {
   getUserTimeZone,
 } from '@baserow/modules/core/utils/date'
 import {
-  extractRowReadOnlyValues,
+  extractChangedFields,
+  getRowMetadata,
   prepareNewOldAndUpdateRequestValues,
   prepareRowForRequest,
   updateRowMetadataType,
-  getRowMetadata,
 } from '@baserow/modules/database/utils/row'
 import { getDefaultSearchModeFromEnv } from '@baserow/modules/database/utils/search'
 import { DEFAULT_SORT_TYPE_KEY } from '@baserow/modules/database/constants'
 
-export function populateRow(row, metadata = {}) {
+export function populateRow(row, metadata = {}, fullyLoaded = true) {
   row._ = {
     metadata: getRowMetadata(row, metadata),
     // Whether the row should be displayed based on the current activeSearchTerm term.
@@ -36,6 +36,8 @@ export function populateRow(row, metadata = {}) {
     // Could be empty even when matchSearch is true when there is no
     // activeSearchTerm term applied.
     fieldSearchMatches: [],
+    fetching: false,
+    fullyLoaded,
   }
   return row
 }
@@ -46,7 +48,7 @@ export function populateDateStack(stack, data) {
   })
   stack.results.forEach((row) => {
     const metadata = extractRowMetadata(data, row.id)
-    populateRow(row, metadata)
+    populateRow(row, metadata, false)
   })
   return stack
 }
@@ -80,6 +82,8 @@ export const state = () => ({
   // have any matching cells will still be displayed.
   hideRowsNotMatchingSearch: true,
   adhocFiltering: false,
+  // Indicates whether row(s) are currently being created.
+  creating: false,
 })
 
 export const mutations = {
@@ -219,6 +223,20 @@ export const mutations = {
   },
   SET_ADHOC_FILTERING(state, adhocFiltering) {
     state.adhocFiltering = adhocFiltering
+  },
+  SET_ROW_FETCHING(state, { row, value }) {
+    Object.keys(state.dateStacks).forEach((stack) => {
+      const rows = state.dateStacks[stack].results
+      const index = rows.findIndex((item) => item?.id === row.id)
+      if (index !== -1) {
+        const existingRowState = rows[index]
+        existingRowState._.fetching = value
+        existingRowState._.fullyLoaded = !value
+      }
+    })
+  },
+  SET_CREATING(state, value) {
+    state.creating = value
   },
 }
 
@@ -407,7 +425,8 @@ export const actions = {
     const newRows = data.rows[date].results
     const newCount = data.rows[date].count
     newRows.forEach((row) => {
-      populateRow(row)
+      const metadata = extractRowMetadata(data, row.id)
+      populateRow(row, metadata, false)
     })
     commit('ADD_ROWS_TO_STACK', { date, count: newCount, rows: newRows })
     dispatch('updateSearch', { fields })
@@ -536,10 +555,12 @@ export const actions = {
   ) {
     const preparedRow = prepareRowForRequest(values, fields, this.$registry)
 
+    commit('SET_CREATING', true)
     const { data } = await RowService(this.$client).create(
       table.id,
       preparedRow
     )
+    commit('SET_CREATING', false)
     return await dispatch('createdNewRow', {
       view,
       values: data,
@@ -797,7 +818,7 @@ export const actions = {
    * Updates the value of a row and make the changes to the store accordingly.
    */
   async updateRowValue(
-    { commit, dispatch },
+    { commit, dispatch, getters, state },
     { view, table, row, field, fields, value, oldValue }
   ) {
     const { newRowValues, oldRowValues, updateRequestValues } =
@@ -832,17 +853,36 @@ export const actions = {
       // will never be updated concurrency, and so that the value won't be
       // updated if the row hasn't been created yet.
       await updateRowQueue.add(async () => {
-        const { data } = await RowService(this.$client).update(
+        const updateRowsData = [
+          Object.assign({ id: row.id }, updateRequestValues),
+        ]
+        const { data } = await RowService(this.$client).batchUpdate(
           table.id,
-          row.id,
-          updateRequestValues
+          updateRowsData
         )
-        const readOnlyData = extractRowReadOnlyValues(
-          data,
+        const updatedFieldIds = data.metadata?.updated_field_ids || []
+
+        const readOnlyData = extractChangedFields(
+          data.items[0],
           fields,
+          updatedFieldIds,
           this.$registry
         )
-        commit('UPDATE_ROW', { row, values: readOnlyData })
+
+        // One of fields updated is our date field, so the row should be checked if
+        // it should be moved to another date.
+        const dateFieldId = state.dateFieldId
+
+        if (updatedFieldIds.includes(dateFieldId)) {
+          await dispatch('updatedExistingRow', {
+            view,
+            row,
+            values: readOnlyData,
+            fields,
+          })
+        } else {
+          commit('UPDATE_ROW', { row, values: readOnlyData })
+        }
       }, row.id)
     } catch (error) {
       await dispatch('updatedExistingRow', {
@@ -856,6 +896,35 @@ export const actions = {
         values: { ...oldRowValues },
       })
       throw error
+    }
+  },
+  /**
+   * Used when row data needs to be directly re-fetched from the Backend and
+   * the other (background) row needs to be refreshed. For example, when editing
+   * row from a *different* table using ForeignRowEditModal or just RowEditModal
+   * component in general.
+   */
+  async refreshRowFromBackend(
+    { commit, getters, rootGetters },
+    { table, row }
+  ) {
+    const gridId = getters.getLastCalendarId
+    const publicUrl = rootGetters['page/view/public/getIsPublic']
+    const publicAuthToken = rootGetters['page/view/public/getAuthToken']
+    commit('SET_ROW_FETCHING', { row, value: true })
+    try {
+      const { data } = await ViewService(this.$client).fetchRow(
+        table.id,
+        row.id,
+        gridId,
+        publicUrl,
+        publicAuthToken
+      )
+      // Use the return value to update the desired row with latest values from the
+      // backend.
+      commit('UPDATE_ROW', { row, values: data })
+    } finally {
+      commit('SET_ROW_FETCHING', { row, value: false })
     }
   },
   /**
@@ -1031,6 +1100,9 @@ export const getters = {
   },
   getAdhocFiltering(state) {
     return state.adhocFiltering
+  },
+  getCreating(state) {
+    return state.creating
   },
 }
 

@@ -1,6 +1,6 @@
 import zoneinfo
 from abc import ABC, abstractmethod
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from django.db.models import Q
 
@@ -18,6 +18,7 @@ from baserow.contrib.database.fields.filter_support.base import (
 )
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.formula import (
+    BaserowFormulaMultipleCollaboratorsType,
     BaserowFormulaNumberType,
     BaserowFormulaTextType,
 )
@@ -28,6 +29,7 @@ from baserow.contrib.database.formula.types.formula_types import (
     BaserowFormulaBooleanType,
     BaserowFormulaCharType,
     BaserowFormulaDateType,
+    BaserowFormulaDurationType,
     BaserowFormulaMultipleSelectType,
     BaserowFormulaSingleSelectType,
     BaserowFormulaURLType,
@@ -53,6 +55,8 @@ class HasEmptyValueViewFilterType(ViewFilterType):
             FormulaFieldType.array_of(BaserowFormulaSingleSelectType.type),
             FormulaFieldType.array_of(BaserowFormulaNumberType.type),
             FormulaFieldType.array_of(BaserowFormulaMultipleSelectType.type),
+            FormulaFieldType.array_of(BaserowFormulaMultipleCollaboratorsType.type),
+            FormulaFieldType.array_of(BaserowFormulaDurationType.type),
         ),
     ]
 
@@ -121,6 +125,8 @@ class HasValueEqualViewFilterType(ComparisonHasValueFilter):
             FormulaFieldType.array_of(BaserowFormulaSingleSelectType.type),
             FormulaFieldType.array_of(BaserowFormulaNumberType.type),
             FormulaFieldType.array_of(BaserowFormulaMultipleSelectType.type),
+            FormulaFieldType.array_of(BaserowFormulaMultipleCollaboratorsType.type),
+            FormulaFieldType.array_of(BaserowFormulaDurationType.type),
         ),
     ]
 
@@ -153,6 +159,7 @@ class HasValueContainsViewFilterType(ViewFilterType):
             FormulaFieldType.array_of(BaserowFormulaSingleSelectType.type),
             FormulaFieldType.array_of(BaserowFormulaNumberType.type),
             FormulaFieldType.array_of(BaserowFormulaMultipleSelectType.type),
+            FormulaFieldType.array_of(BaserowFormulaMultipleCollaboratorsType.type),
         ),
     ]
 
@@ -185,6 +192,7 @@ class HasValueContainsWordViewFilterType(ViewFilterType):
             FormulaFieldType.array_of(BaserowFormulaURLType.type),
             FormulaFieldType.array_of(BaserowFormulaSingleSelectType.type),
             FormulaFieldType.array_of(BaserowFormulaMultipleSelectType.type),
+            FormulaFieldType.array_of(BaserowFormulaMultipleCollaboratorsType.type),
         ),
     ]
 
@@ -282,11 +290,12 @@ class HasNoneSelectOptionEqualViewFilterType(
     type = "has_none_select_option_equal"
 
 
-class hasValueComparableToFilter(ComparisonHasValueFilter):
+class HasValueComparableToFilter(ComparisonHasValueFilter):
     type = "has_value_higher"
     compatible_field_types = [
         FormulaFieldType.compatible_with_formula_types(
-            FormulaFieldType.array_of(BaserowFormulaNumberType.type)
+            FormulaFieldType.array_of(BaserowFormulaNumberType.type),
+            FormulaFieldType.array_of(BaserowFormulaDurationType.type),
         ),
     ]
 
@@ -300,7 +309,7 @@ class hasValueComparableToFilter(ComparisonHasValueFilter):
 
 
 class HasNotValueHigherThanFilterType(
-    NotViewFilterTypeMixin, hasValueComparableToFilter
+    NotViewFilterTypeMixin, HasValueComparableToFilter
 ):
     type = "has_not_value_higher"
 
@@ -309,7 +318,8 @@ class HasValueHigherOrEqualThanFilter(ComparisonHasValueFilter):
     type = "has_value_higher_or_equal"
     compatible_field_types = [
         FormulaFieldType.compatible_with_formula_types(
-            FormulaFieldType.array_of(BaserowFormulaNumberType.type)
+            FormulaFieldType.array_of(BaserowFormulaNumberType.type),
+            FormulaFieldType.array_of(BaserowFormulaDurationType.type),
         ),
     ]
 
@@ -336,7 +346,8 @@ class HasValueLowerThanFilter(ComparisonHasValueFilter):
     type = "has_value_lower"
     compatible_field_types = [
         FormulaFieldType.compatible_with_formula_types(
-            FormulaFieldType.array_of(BaserowFormulaNumberType.type)
+            FormulaFieldType.array_of(BaserowFormulaNumberType.type),
+            FormulaFieldType.array_of(BaserowFormulaDurationType.type),
         ),
     ]
 
@@ -357,7 +368,8 @@ class HasValueLowerOrEqualThanFilter(ComparisonHasValueFilter):
     type = "has_value_lower_or_equal"
     compatible_field_types = [
         FormulaFieldType.compatible_with_formula_types(
-            FormulaFieldType.array_of(BaserowFormulaNumberType.type)
+            FormulaFieldType.array_of(BaserowFormulaNumberType.type),
+            FormulaFieldType.array_of(BaserowFormulaDurationType.type),
         ),
     ]
 
@@ -505,10 +517,15 @@ class HasDateWithinViewFilterType(ArrayDateMultiStepViewFilterType):
         upper_bound: date | datetime,
         timezone: zoneinfo.ZoneInfo,
     ) -> OptionallyAnnotatedQ:
+        today = datetime.now(tz=timezone).date()
+        if today < upper_bound:
+            lower_bound = today
+        else:
+            upper_bound = today + timedelta(days=1)
         return get_jsonb_has_date_value_filter_expr(
             model_field,
             timezone,
-            gte_of=datetime.now(tz=timezone).date(),
+            gte_of=lower_bound,
             lt_of=upper_bound,
         )
 

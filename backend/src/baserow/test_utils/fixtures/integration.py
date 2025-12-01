@@ -1,3 +1,4 @@
+from baserow.contrib.integrations.core.models import SMTPIntegration
 from baserow.contrib.integrations.local_baserow.models import LocalBaserowIntegration
 from baserow.core.integrations.registries import integration_type_registry
 
@@ -11,6 +12,17 @@ class IntegrationFixtures:
             kwargs["authorized_user"] = kwargs["user"]
 
         integration = self.create_integration(LocalBaserowIntegration, **kwargs)
+        return integration
+
+    def create_smtp_integration(self, **kwargs):
+        if "host" not in kwargs:
+            kwargs["host"] = "smtp.example.com"
+        if "port" not in kwargs:
+            kwargs["port"] = 587
+        if "use_tls" not in kwargs:
+            kwargs["use_tls"] = True
+
+        integration = self.create_integration(SMTPIntegration, **kwargs)
         return integration
 
     def create_integration_with_first_type(self, **kwargs):

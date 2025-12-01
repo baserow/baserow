@@ -9,6 +9,29 @@ from baserow_premium.row_comments.operations import (
     UpdateRowCommentsOperationType,
 )
 
+from baserow.contrib.automation.nodes.operations import (
+    CreateAutomationNodeOperationType,
+    DeleteAutomationNodeOperationType,
+    DuplicateAutomationNodeOperationType,
+    ListAutomationNodeOperationType,
+    OrderAutomationNodeOperationType,
+    ReadAutomationNodeOperationType,
+    RestoreAutomationNodeOperationType,
+    UpdateAutomationNodeOperationType,
+)
+from baserow.contrib.automation.operations import (
+    ListAutomationWorkflowsOperationType,
+    OrderAutomationWorkflowsOperationType,
+)
+from baserow.contrib.automation.workflows.operations import (
+    CreateAutomationWorkflowOperationType,
+    DeleteAutomationWorkflowOperationType,
+    DuplicateAutomationWorkflowOperationType,
+    PublishAutomationWorkflowOperationType,
+    ReadAutomationWorkflowOperationType,
+    RestoreAutomationWorkflowOperationType,
+    UpdateAutomationWorkflowOperationType,
+)
 from baserow.contrib.builder.data_sources.operations import (
     CreateDataSourceOperationType,
     DeleteDataSourceOperationType,
@@ -82,6 +105,10 @@ from baserow.contrib.database.data_sync.operations import (
     SyncTableOperationType,
 )
 from baserow.contrib.database.export.operations import ExportTableOperationType
+from baserow.contrib.database.field_rules.operations import (
+    ReadFieldRuleOperationType,
+    SetFieldRuleOperationType,
+)
 from baserow.contrib.database.fields.operations import (
     CreateFieldOperationType,
     DeleteFieldOperationType,
@@ -185,6 +212,12 @@ from baserow.core.integrations.operations import (
     ReadIntegrationOperationType,
     UpdateIntegrationOperationType,
 )
+from baserow.core.mcp.operations import (
+    CreateMCPEndpointOperationType,
+    DeleteMCPEndpointOperationType,
+    ReadMCPEndpointOperationType,
+    UpdateMCPEndpointOperationType,
+)
 from baserow.core.operations import (
     CreateApplicationsWorkspaceOperationType,
     CreateInvitationsWorkspaceOperationType,
@@ -229,8 +262,13 @@ from baserow.core.user_sources.operations import (
     ReadUserSourceOperationType,
     UpdateUserSourceOperationType,
 )
+from baserow_enterprise.assistant.operations import ChatAssistantChatOperationType
 from baserow_enterprise.audit_log.operations import (
     ListWorkspaceAuditLogEntriesOperationType,
+)
+from baserow_enterprise.field_permissions.operations import (
+    ReadFieldPermissionsOperationType,
+    UpdateFieldPermissionsOperationType,
 )
 from baserow_enterprise.role.constants import (
     ADMIN_ROLE_UID,
@@ -322,6 +360,13 @@ default_roles[VIEWER_ROLE_UID].extend(
         ListDashboardDataSourcesOperationType,
         ReadDashboardDataSourceOperationType,
         DispatchDashboardDataSourceOperationType,
+        ReadMCPEndpointOperationType,
+        CreateMCPEndpointOperationType,
+        UpdateMCPEndpointOperationType,
+        DeleteMCPEndpointOperationType,
+        ChatAssistantChatOperationType,
+        ReadFieldRuleOperationType,
+        ExportTableOperationType,
     ]
 )
 default_roles[COMMENTER_ROLE_UID].extend(
@@ -341,7 +386,6 @@ default_roles[EDITOR_ROLE_UID].extend(
         CreateRowDatabaseTableOperationType,
         UpdateDatabaseRowOperationType,
         DeleteDatabaseRowOperationType,
-        ExportTableOperationType,
         MoveRowDatabaseRowOperationType,
         ImportRowsDatabaseTableOperationType,
         ListWorkspaceUsersWorkspaceOperationType,
@@ -469,6 +513,26 @@ default_roles[BUILDER_ROLE_UID].extend(
         CreateDashboardDataSourceOperationType,
         DeleteDashboardDataSourceOperationType,
         UpdateDashboardDataSourceOperationType,
+        ListAutomationWorkflowsOperationType,
+        OrderAutomationWorkflowsOperationType,
+        CreateAutomationWorkflowOperationType,
+        RestoreAutomationWorkflowOperationType,
+        DeleteAutomationWorkflowOperationType,
+        UpdateAutomationWorkflowOperationType,
+        ReadAutomationWorkflowOperationType,
+        PublishAutomationWorkflowOperationType,
+        DuplicateAutomationWorkflowOperationType,
+        UpdateFieldPermissionsOperationType,
+        ReadFieldPermissionsOperationType,
+        ListAutomationNodeOperationType,
+        CreateAutomationNodeOperationType,
+        UpdateAutomationNodeOperationType,
+        ReadAutomationNodeOperationType,
+        DeleteAutomationNodeOperationType,
+        OrderAutomationNodeOperationType,
+        RestoreAutomationNodeOperationType,
+        DuplicateAutomationNodeOperationType,
+        SetFieldRuleOperationType,
     ]
 )
 default_roles[ADMIN_ROLE_UID].extend(
