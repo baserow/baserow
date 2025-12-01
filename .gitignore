@@ -102,6 +102,7 @@ uv.lock
 # Local environment files (not for Docker)
 .env.local
 **/.env.local
+.env.docker-dev
 
 web-frontend/plugins/
 backend/plugins/
@@ -129,6 +130,9 @@ out/
 # cursor editor config files
 .cursor-config/
 !config/cursor/.cursor-config/
+
+# Claude Code local settings
+.claude/settings.local.md
 
 # Pyright config file
 pyrightconfig.json

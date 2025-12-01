@@ -29,10 +29,10 @@
     "test-storybook": "test-storybook"
   },
   "dependencies": {
+    "core-js": "^3.34.0",
     "@nuxtjs/composition-api": "^0.34.0",
     "@nuxtjs/i18n": "7.3.1",
     "@nuxtjs/sentry": "7.5.0",
-    "@storybook/core-client": "6.5.9",
     "@tiptap/core": "^2.14.0",
     "@tiptap/extension-blockquote": "^2.14.0",
     "@tiptap/extension-bold": "^2.14.0",
@@ -120,6 +120,7 @@
     "glob-parent": "^5.1.2"
   },
   "devDependencies": {
+    "@storybook/core-client": "6.5.9",
     "@babel/core": "7.23.6",
     "@babel/eslint-parser": "7.23.3",
     "@babel/preset-env": "7.23.6",

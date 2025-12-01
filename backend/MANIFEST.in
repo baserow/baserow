@@ -13,7 +13,7 @@ recursive-include src/ *.py
 recursive-include templates/ *
 recursive-include flake8_plugins/
 include tests/
-include requirements/*.in requirements/*.txt docker/ email_compiler/
+include docker/ email_compiler/
 include README.md
 include pyproject.toml
 include MANIFEST.in

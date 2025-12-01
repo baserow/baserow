@@ -2,6 +2,30 @@
 # Bash strict mode: http://redsymbol.net/articles/unofficial-bash-strict-mode/
 set -euo pipefail
 
+# =============================================================================
+# Runtime UID/GID switching for dev containers
+# =============================================================================
+# In dev mode, the container starts as root and we switch to the host user's
+# UID/GID to ensure proper file permissions on bind-mounted volumes.
+# This allows the same Docker image to work for any developer without rebuilding.
+if [[ -n "${BASEROW_DEV_UID:-}" ]] && [[ "$(id -u)" == "0" ]]; then
+    DEV_UID="$BASEROW_DEV_UID"
+    DEV_GID="${BASEROW_DEV_GID:-$DEV_UID}"
+
+    # Create group if it doesn't exist
+    if ! getent group "$DEV_GID" > /dev/null 2>&1; then
+        groupadd -g "$DEV_GID" hostgroup 2>/dev/null || true
+    fi
+
+    # Create user if it doesn't exist
+    if ! id -u "$DEV_UID" > /dev/null 2>&1; then
+        useradd -u "$DEV_UID" -g "$DEV_GID" -d /home/hostuser -m -s /bin/bash hostuser 2>/dev/null || true
+    fi
+
+    # Re-exec this script as the host user
+    exec su-exec "$DEV_UID:$DEV_GID" "$0" "$@"
+fi
+
 export BASEROW_VERSION="2.0.2"
 BASEROW_WEBFRONTEND_PORT="${BASEROW_WEBFRONTEND_PORT:-3000}"
 
