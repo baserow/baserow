@@ -53,40 +53,33 @@ export default {
       const pixelTolerance = 2
       const hasPreventScroll = el.classList.contains('prevent-scroll')
 
-      // We prevent the scroll:
-      // 1. If we already have the class, and the content fits with our tolerance.
-      // 2. If we don't have the class, and the content fits exactly.
+      // We prevent the scroll if the content fits within the element (within
+      // the pixel tolerance)
       const shouldPreventScroll = hasPreventScroll
         ? el.scrollHeight <= el.clientHeight + pixelTolerance
         : el.scrollHeight <= el.clientHeight
 
-      // Only toggle the class if it actually needs to change
-      if (shouldPreventScroll && !hasPreventScroll) {
-        // Flag that we're updating, so we don't react to our own change.
-        el.autoOverflowScrollIsUpdating = true
-        el.classList.add('prevent-scroll')
-        // Reset flag after browser has processed the change
-        // We do this twice because the first frame can change the layout,
-        // so by the second frame, we should be done, so we can flag that
-        // we're done updating with `autoOverflowScrollIsUpdating = false`.
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            el.autoOverflowScrollIsUpdating = false
-          })
-        })
-      } else if (!shouldPreventScroll && hasPreventScroll) {
-        el.autoOverflowScrollIsUpdating = true
-        el.classList.remove('prevent-scroll')
-        // Reset flag after browser has processed the change
-        // We do this twice because the first frame can change the layout,
-        // so by the second frame, we should be done, so we can flag that
-        // we're done updating with `autoOverflowScrollIsUpdating = false`.
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            el.autoOverflowScrollIsUpdating = false
-          })
-        })
+      // Only update if class needs to actually change
+      if (shouldPreventScroll === hasPreventScroll) {
+        return
       }
+
+      // A change is needed, set the flag to indicate we're updating.
+      el.autoOverflowScrollIsUpdating = true
+      if (shouldPreventScroll) {
+        el.classList.add('prevent-scroll')
+      } else {
+        el.classList.remove('prevent-scroll')
+      }
+      // Reset flag after browser has processed the change
+      // We do this twice because the first frame can change the layout,
+      // so by the second frame, we should be done, so we can flag that
+      // we're done updating with `autoOverflowScrollIsUpdating = false`.
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          el.autoOverflowScrollIsUpdating = false
+        })
+      })
     }
     el.autoOverflowScrollHeightObserver = new ResizeObserver(
       el.autoOverflowScrollHeightObserverFunction
