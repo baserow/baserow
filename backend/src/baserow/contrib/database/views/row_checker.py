@@ -246,7 +246,7 @@ class FilteredViewRowChecker:
                     FilteredViewRows(view_check.view, visible_ids_for_view)
                 )
 
-        # Views without filters allow all rows, so thet must be added.
+        # Views without filters allow all rows, so they must be added.
         for view_without_filters in self._views_without_filters:
             result_for_views.append(
                 FilteredViewRows(

@@ -45,7 +45,7 @@ def test_get_public_views_which_include_row(
     restricted_view = enterprise_data_fixture.create_grid_view(
         user, table=table, order=0, ownership_type=RestrictedViewOwnershipType.type
     )
-    normal_view = enterprise_data_fixture.create_grid_view(
+    enterprise_data_fixture.create_grid_view(
         user,
         table=table,
         order=0,
@@ -112,12 +112,12 @@ def test_when_row_created_restricted_views_receive_restricted_row_ws_event(
         table=table, ownership_type=RestrictedViewOwnershipType.type, public=True
     )
     # No event should be sent to this view.
-    form_view = enterprise_data_fixture.create_form_view(
+    enterprise_data_fixture.create_form_view(
         table=table,
         ownership_type=RestrictedViewOwnershipType.type,
         public=True,
     )
-    grid_view = enterprise_data_fixture.create_form_view(
+    enterprise_data_fixture.create_form_view(
         table=table,
         ownership_type=CollaborativeViewOwnershipType.type,
         public=False,
@@ -203,7 +203,7 @@ def test_filters_are_visible_for_builders_and_up(enterprise_data_fixture, api_cl
     restricted_view = enterprise_data_fixture.create_grid_view(
         table=table, ownership_type=RestrictedViewOwnershipType.type
     )
-    view_filter = enterprise_data_fixture.create_view_filter(
+    enterprise_data_fixture.create_view_filter(
         view=restricted_view, type="equal", field=text_field
     )
     enterprise_data_fixture.create_view_filter_group(view=restricted_view)
@@ -237,7 +237,7 @@ def test_filters_are_invisible_for_editors_and_down(
     restricted_view = enterprise_data_fixture.create_grid_view(
         table=table, ownership_type=RestrictedViewOwnershipType.type
     )
-    view_filter = enterprise_data_fixture.create_view_filter(
+    enterprise_data_fixture.create_view_filter(
         view=restricted_view, type="equal", field=text_field
     )
     enterprise_data_fixture.create_view_filter_group(view=restricted_view)
@@ -304,8 +304,8 @@ def test_filters_are_not_forcefully_applied_to_all_views_types_for_builders_and_
     table = enterprise_data_fixture.create_database_table(user=user)
     text_field = enterprise_data_fixture.create_text_field(table=table, primary=True)
 
-    row_1 = RowHandler().create_row(user, table, values={f"field_{text_field.id}": "a"})
-    row_2 = RowHandler().create_row(user, table, values={f"field_{text_field.id}": "b"})
+    RowHandler().create_row(user, table, values={f"field_{text_field.id}": "a"})
+    RowHandler().create_row(user, table, values={f"field_{text_field.id}": "b"})
 
     for view_type in view_type_registry.get_all():
         if not view_type.can_filter:
@@ -374,8 +374,8 @@ def test_filters_are_forcefully_applied_to_all_views_types_for_editors_and_down(
         user2, workspace, role=no_access_role, scope=workspace
     )
 
-    row_1 = RowHandler().create_row(user, table, values={f"field_{text_field.id}": "a"})
-    row_2 = RowHandler().create_row(user, table, values={f"field_{text_field.id}": "b"})
+    RowHandler().create_row(user, table, values={f"field_{text_field.id}": "a"})
+    RowHandler().create_row(user, table, values={f"field_{text_field.id}": "b"})
 
     for view_type in view_type_registry.get_all():
         if not view_type.can_filter:

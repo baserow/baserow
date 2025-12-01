@@ -7,7 +7,7 @@ class ViewRealtimeRowsType(Instance):
     """
     Registering a new `ViewRealtimeRowsType` can be used to efficiently broadcast a row
     related realtime event of the views matching the query. It will be query and
-    performance efficient because the process doesn't have to repeated N number of
+    performance efficient because the process doesn't have to be repeated N number of
     times.
     """
 
@@ -20,7 +20,7 @@ class ViewRealtimeRowsType(Instance):
         """
 
         raise NotImplementedError(
-            "Must implement the `get_views_queryset` for each `ViewRealtimeRowsType` "
+            "Must implement the `get_views_filter` for each `ViewRealtimeRowsType` "
             "instance."
         )
 

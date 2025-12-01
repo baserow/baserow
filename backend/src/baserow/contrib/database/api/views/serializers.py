@@ -432,16 +432,19 @@ class ViewSerializer(serializers.ModelSerializer):
         # If the provided view object(s) must be enhanced by the view type, then
         # correctly call those methods. The view ownership type can be responsible for
         # adding or omitting data about the view. Making this call in the serializer
-        # makes sure that the user
+        # makes sure that the user only receives data about the view that they are
+        # permitted to see, according to the ownership type.
         if enhance_objects_by_view_ownership and "user" in context:
             if isinstance(instance, list):
                 instance = view_ownership_type_registry.enhance_view_objects_of_different_types(
                     context["user"], instance
                 )
             else:
-                view_ownership_type_registry.enhance_view_objects_of_different_types(
+                instance = view_ownership_type_registry.enhance_view_objects_of_different_types(
                     context["user"], [instance]
-                )[0]
+                )[
+                    0
+                ]
         super().__init__(instance, *args, **kwargs)
 
     def to_representation(self, instance):
