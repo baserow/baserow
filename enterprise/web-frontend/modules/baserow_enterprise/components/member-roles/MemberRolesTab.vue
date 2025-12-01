@@ -109,6 +109,8 @@ export default {
           return 'database'
         case 'database_table':
           return 'table'
+        case 'database_view':
+          return 'view'
         default:
           return 'database'
       }

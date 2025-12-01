@@ -198,7 +198,6 @@ export default {
         await type.fetch(
           { store, app },
           data.database,
-          data.table,
           view,
           data.fields,
           'page/'

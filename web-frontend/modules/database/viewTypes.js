@@ -547,7 +547,7 @@ export class GridViewType extends ViewType {
     return 'database-public-grid-view'
   }
 
-  async fetch({ store }, database, table, view, fields, storePrefix = '') {
+  async fetch({ store }, database, view, fields, storePrefix = '') {
     const isPublic = store.getters[storePrefix + 'view/public/getIsPublic']
     const adhocFiltering = isAdhocFiltering(
       this.app,
@@ -864,7 +864,7 @@ export const BaseBufferedRowViewTypeMixin = (Base) =>
       return true
     }
 
-    async fetch(context, database, table, view, fields, storePrefix = '') {
+    async fetch(context, database, view, fields, storePrefix = '') {
       const { store } = context
       if (!this.canFetch(context, database, view, fields)) {
         // Set the viewId so the refresh will work when the view can fetch rows.
@@ -1288,7 +1288,7 @@ export class FormViewType extends ViewType {
     )
   }
 
-  async fetch({ store }, database, table, view, fields, storePrefix = '') {
+  async fetch({ store }, database, view, fields, storePrefix = '') {
     await store.dispatch(storePrefix + 'view/form/fetchInitial', {
       formId: view.id,
     })

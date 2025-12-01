@@ -219,6 +219,15 @@
       "warningTitle": "Other users might inherit access!",
       "warningMessage": "Other users might inherit access via their respective roles on the parent database or workspace.",
       "headerTooltip": "Table roles will override workspace and database roles."
+    },
+    "view": {
+      "title": "{name} view",
+      "selectMembers": "Select members",
+      "everyoneHasAccess": "Everyone at {name} workspace can access this view.",
+      "onlyYouHaveAccess": "Only you can access this view.",
+      "warningTitle": "Other users might inherit access!",
+      "warningMessage": "Other users might inherit access via their respective roles on the parent table, database or workspace.",
+      "headerTooltip": "View roles will override workspace, database, and table roles."
     }
   },
   "memberRolesShareToggle": {
@@ -298,7 +307,7 @@
     "sso": "Single Sign On",
     "ssoContent": "Enable secure and seamless logins with SAML, Google, Facebook, GitHub, GitLab, or OpenID Connect. Supports multiple providers at once. Note that both Baserow as a tool, and the application builder authentication system support SSO.",
     "rbac": "Role-based access control",
-    "rbacContent": "Manage permissions with precision. Assign roles like admin, builder,  editor, commenter, or viewer at the workspace, database, table and view level. You can also manage access by team.",
+    "rbacContent": "Manage permissions with precision. Assign roles like admin, builder,  editor, commenter, or viewer at the workspace, database, or table level. You can also manage access by team.",
     "auditLogs": "Audit logs",
     "auditLogsContent": "Track everything that happens. View a full history of actions across your instance or workspace, filterable by user, action, and more.",
     "dataSync": "Data sync",

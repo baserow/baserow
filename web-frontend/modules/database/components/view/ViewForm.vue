@@ -24,7 +24,7 @@
     </FormGroup>
 
     <FormGroup small-label :label="$t('viewForm.whoCanEdit')" required>
-      <Dropdown v-model="values.ownershipType" size="large">
+      <Dropdown v-model="values.ownershipType" size="large" :fixed-items="true">
         <DropdownItem
           v-for="type in availableViewOwnershipTypesForCreation"
           :key="type.getType()"
