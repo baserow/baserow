@@ -769,8 +769,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             return
 
         if (
-            check_results[table_check] is not True
-            and view is not None
+            view is not None
             # Because the user wants to change rows in a specific table, we must make
             # sure that the provided view belongs to that table. Otherwise, it would
             # result in a security bug.

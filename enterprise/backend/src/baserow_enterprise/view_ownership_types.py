@@ -84,9 +84,8 @@ class RestrictedViewOwnershipType(ViewOwnershipType):
         # that is not where the user has access to.
         model = view.table.get_model()
         filter_qs = ViewHandler().apply_filters(view, model.objects)
-        missing_exists = filter_qs.filter(id__in=row_ids).values("id")
-        return (
-            not model.objects.filter(id__in=row_ids)
-            .exclude(id__in=missing_exists)
-            .exists()
+        rows_in_view = filter_qs.filter(id__in=row_ids).values("id")
+        rows_outside_view = model.objects.filter(id__in=row_ids).exclude(
+            id__in=rows_in_view
         )
+        return not rows_outside_view.exists()
