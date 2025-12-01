@@ -259,7 +259,8 @@
         "baseUrl": "URL",
         "baseUrlPlaceholder": "URL base del proveedor",
         "invalidBaseUrl": "La URL introducida no es una URL de proveedor válida",
-        "callbackUrl": "URL de devolución de llamada"
+        "callbackUrl": "URL de devolución de llamada",
+        "firstNameAttrKey": "Nombre"
     },
     "manageTeamModals": {
         "subheading": "Los equipos permiten conceder o restringir permisos en bloque a varias personas."
