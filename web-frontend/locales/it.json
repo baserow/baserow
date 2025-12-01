@@ -651,6 +651,7 @@
         "getDescription": "Restituisce il valore ottenuto da una formula Baserow.",
         "addDescription": "Somma due argomenti.",
         "minusDescription": "Sottrae il secondo argomento dal primo.",
-        "multiplyDescription": "Moltiplica i due argomenti."
+        "multiplyDescription": "Moltiplica i due argomenti.",
+        "capitalizeDescription": "Rende maiuscola la prima lettera dell'argomento."
     }
 }
