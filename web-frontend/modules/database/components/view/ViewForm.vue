@@ -50,10 +50,6 @@
       v-for="type in availableViewOwnershipTypesForCreation"
       :key="type.getType()"
       :ref="'deactivatedClickModal-' + type.getType()"
-      :v-if="
-        type.isDeactivated(database.workspace.id) &&
-        type.getDeactivatedModal()[0] !== null
-      "
       v-bind="
         type.isDeactivated(database.workspace.id)
           ? type.getDeactivatedModal()[1]

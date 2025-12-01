@@ -314,8 +314,8 @@ default_roles = {
     NO_ROLE_LOW_PRIORITY_ROLE_UID: [],
 }
 # Virtual roles are only used in-code, and it's not possible for the user to use these.
-# The reader role is used give to the user when they don't have access to a lower level
-# object scope, but have access a higher one.
+# The READ_ONLY role is used give to the user when they don't have access to a lower
+# level object scope, but have access a higher one.
 hidden_roles = [READ_ONLY_ROLE_UID]
 
 if settings.BASEROW_PERSONAL_VIEW_LOWEST_ROLE_ALLOWED not in default_roles:

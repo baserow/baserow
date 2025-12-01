@@ -111,7 +111,6 @@ class RoleAssignmentSerializationProcessorType(SerializationProcessorType):
             scope = getattr(scope, "view_ptr", scope)
 
         serialized_role_assignments = []
-        print(workspace, scope)
         role_assignments = RoleAssignmentHandler().get_role_assignments(
             workspace, scope
         )

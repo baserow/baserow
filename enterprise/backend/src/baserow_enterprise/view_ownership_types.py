@@ -12,7 +12,7 @@ from baserow_enterprise.features import RBAC
 class RestrictedViewOwnershipType(ViewOwnershipType):
     """
     Represents view that are shared between all users, but users without the
-    permissions to create/update/delete filters not be able to see the rows not
+    permissions to create/update/delete filters will not be able to see the rows not
     matching the filters. This is used to give some users only access to part of the
     rows in a table.
     """

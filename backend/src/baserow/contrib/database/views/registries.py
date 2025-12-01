@@ -233,8 +233,9 @@ class ViewType(
         `import_serialized` method. This dict is also JSON serializable.
 
         :param view: The view instance that must be exported.
-        :param import_export_config: @TODO docs
-        :param cache: @TODO docs
+        :param import_export_config: provides configuration options for the
+            import/export process to customize how it works.
+        :param cache: A cache to use for storing temporary data.
         :param files_zip: A zip file buffer where the files related to the export
             must be copied into.
         :param storage: The storage where the files can be loaded from.
@@ -335,7 +336,8 @@ class ViewType(
         :param table: The table where the view should be added to.
         :param serialized_values: The exported serialized view values that need to
             be imported.
-        :param import_export_config: @TODO docs
+        :param import_export_config: provides configuration options for the
+            import/export process to customize how it works.
         :param id_mapping: The map of exported ids to newly created ids that must be
             updated when a new instance has been created.
         :param files_zip: A zip file buffer where files related to the export can be
