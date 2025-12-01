@@ -58,6 +58,10 @@ export default {
       // If opened once, should stay in DOM to keep nested content
       openedOnce: false,
       maxHeightOffset: 10,
+      // A tolerance value, in pixels, to be used when checking if the context
+      // menu fits inside the viewport. This is to account for floating-point
+      // precision errors that can occur when using getBoundingClientRect().
+      pixelPositionTolerance: 5,
     }
   },
   methods: {
@@ -137,11 +141,15 @@ export default {
             )
 
         // If the context menu doesn't fit inside the viewport from the opposite.
-        // direction, then it will break out of it. We will therefore close it. This can
-        // happen the height or width of the viewport decreases.
+        // direction, then it will break out of it. We will therefore close it.
+        // This can happen the height or width of the viewport decreases.
+        // We also apply a tolerance to account for floating-point precision
+        // errors from getBoundingClientRect().
         if (
-          (css.bottom && css.bottom < this.getWindowScrollHeight()) ||
-          (css.right && css.right < 0) ||
+          (css.bottom &&
+            css.bottom <
+              this.getWindowScrollHeight() - this.pixelPositionTolerance) ||
+          (css.right && css.right < -this.pixelPositionTolerance) ||
           (css.top &&
             css.top > window.innerHeight + this.getWindowScrollHeight())
         ) {
