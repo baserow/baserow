@@ -47,7 +47,7 @@ def test_ai_field_text_output_supports_empty_filter(premium_data_fixture):
     )
 
     # Apply the filter
-    queryset = view_handler.get_queryset(grid_view)
+    queryset = view_handler.get_queryset(None, grid_view)
 
     # Should return only rows with empty values
     assert queryset.count() == 2
@@ -98,7 +98,7 @@ def test_ai_field_text_output_supports_not_empty_filter(premium_data_fixture):
     )
 
     # Apply the filter
-    queryset = view_handler.get_queryset(grid_view)
+    queryset = view_handler.get_queryset(None, grid_view)
 
     # Should return only rows with non-empty values
     assert queryset.count() == 1
@@ -149,7 +149,7 @@ def test_ai_field_text_output_supports_contains_filter(premium_data_fixture):
     )
 
     # Apply the filter
-    queryset = view_handler.get_queryset(grid_view)
+    queryset = view_handler.get_queryset(None, grid_view)
 
     # Should return only rows containing "world"
     assert queryset.count() == 2
@@ -200,7 +200,7 @@ def test_ai_field_text_output_supports_contains_not_filter(premium_data_fixture)
     )
 
     # Apply the filter
-    queryset = view_handler.get_queryset(grid_view)
+    queryset = view_handler.get_queryset(None, grid_view)
 
     # Should return only rows not containing "world"
     assert queryset.count() == 1
@@ -251,7 +251,7 @@ def test_ai_field_text_output_supports_contains_word_filter(premium_data_fixture
     )
 
     # Apply the filter
-    queryset = view_handler.get_queryset(grid_view)
+    queryset = view_handler.get_queryset(None, grid_view)
 
     # Should return only rows containing "world" as a whole word
     assert queryset.count() == 2
@@ -302,7 +302,7 @@ def test_ai_field_text_output_supports_equal_filter(premium_data_fixture):
     )
 
     # Apply the filter
-    queryset = view_handler.get_queryset(grid_view)
+    queryset = view_handler.get_queryset(None, grid_view)
 
     # Should return only the exact match (case-sensitive)
     assert queryset.count() == 1
@@ -351,7 +351,7 @@ def test_ai_field_text_output_equal_filter_with_numeric_string(premium_data_fixt
         value="17",
     )
 
-    queryset = view_handler.get_queryset(grid_view)
+    queryset = view_handler.get_queryset(None, grid_view)
 
     assert queryset.count() == 1
     assert row_1 in queryset
@@ -399,7 +399,7 @@ def test_ai_field_text_output_supports_not_equal_filter(premium_data_fixture):
         value="exact match",
     )
 
-    queryset = view_handler.get_queryset(grid_view)
+    queryset = view_handler.get_queryset(None, grid_view)
 
     assert queryset.count() == 2
     assert row_1 not in queryset
@@ -449,7 +449,7 @@ def test_ai_field_text_output_supports_length_is_lower_than_filter(
         value="6",
     )
 
-    queryset = view_handler.get_queryset(grid_view)
+    queryset = view_handler.get_queryset(None, grid_view)
 
     assert queryset.count() == 2
     assert row_1 in queryset
@@ -597,7 +597,7 @@ def test_ai_field_choice_output_supports_empty_filter(premium_data_fixture):
         value="",
     )
 
-    queryset = view_handler.get_queryset(grid_view)
+    queryset = view_handler.get_queryset(None, grid_view)
 
     assert queryset.count() == 1
     assert row_2 in queryset
@@ -648,7 +648,7 @@ def test_ai_field_choice_output_supports_not_empty_filter(premium_data_fixture):
         value="",
     )
 
-    queryset = view_handler.get_queryset(grid_view)
+    queryset = view_handler.get_queryset(None, grid_view)
 
     assert queryset.count() == 2
     assert row_1 in queryset
@@ -702,7 +702,7 @@ def test_ai_field_choice_output_supports_single_select_equal_filter(
         value=str(option_a.id),
     )
 
-    queryset = view_handler.get_queryset(grid_view)
+    queryset = view_handler.get_queryset(None, grid_view)
 
     assert queryset.count() == 1
     assert row_1 in queryset
@@ -756,7 +756,7 @@ def test_ai_field_choice_output_supports_single_select_not_equal_filter(
         value=str(option_a.id),
     )
 
-    queryset = view_handler.get_queryset(grid_view)
+    queryset = view_handler.get_queryset(None, grid_view)
 
     assert queryset.count() == 2
     assert row_1 not in queryset
@@ -810,7 +810,7 @@ def test_ai_field_choice_output_supports_single_select_is_any_of_filter(
         value=f"{option_a.id},{option_c.id}",
     )
 
-    queryset = view_handler.get_queryset(grid_view)
+    queryset = view_handler.get_queryset(None, grid_view)
 
     assert queryset.count() == 2
     assert row_1 in queryset
@@ -864,7 +864,7 @@ def test_ai_field_choice_output_supports_single_select_is_none_of_filter(
         value=f"{option_a.id},{option_c.id}",
     )
 
-    queryset = view_handler.get_queryset(grid_view)
+    queryset = view_handler.get_queryset(None, grid_view)
 
     assert queryset.count() == 1
     assert row_1 not in queryset

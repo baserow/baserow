@@ -145,7 +145,7 @@ class GenerateAIValuesJobType(JobType):
 
         handler = ViewHandler()
         view = handler.get_view_as_user(user, view_id, table_id=table_id)
-        return handler.get_queryset(view)
+        return handler.get_queryset(user, view)
 
     def _filter_empty_values(
         self, queryset: QuerySet[GeneratedTableModel], ai_field: AIField
