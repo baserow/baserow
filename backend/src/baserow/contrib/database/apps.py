@@ -853,6 +853,7 @@ class DatabaseConfig(AppConfig):
             ReadViewFilterOperationType,
             ReadViewGroupByOperationType,
             ReadViewOperationType,
+            ReadViewRowOperationType,
             ReadViewsOrderOperationType,
             ReadViewSortOperationType,
             RestoreViewOperationType,
@@ -875,6 +876,7 @@ class DatabaseConfig(AppConfig):
             UpdateWebhookOperationType,
         )
 
+        operation_type_registry.register(ReadViewRowOperationType())
         operation_type_registry.register(CreateViewRowOperationType())
         operation_type_registry.register(UpdateViewRowOperationType())
         operation_type_registry.register(DeleteViewRowOperationType())

@@ -216,6 +216,7 @@ export default {
       await store.dispatch('rowModalNavigation/fetchRow', {
         tableId,
         rowId: params.rowId,
+        viewId: params.viewId,
       })
     }
     return data

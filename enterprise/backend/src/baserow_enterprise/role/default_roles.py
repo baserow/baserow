@@ -185,6 +185,7 @@ from baserow.contrib.database.views.operations import (
     ReadViewFilterOperationType,
     ReadViewGroupByOperationType,
     ReadViewOperationType,
+    ReadViewRowOperationType,
     ReadViewsOrderOperationType,
     ReadViewSortOperationType,
     RestoreViewOperationType,
@@ -351,7 +352,6 @@ default_roles[READ_ONLY_ROLE_UID].extend(
         ReadApplicationOperationType,
         ReadDatabaseTableOperationType,
         ListRowsDatabaseTableOperationType,
-        ReadDatabaseRowOperationType,
         ReadViewOperationType,
         ReadFieldOperationType,
         ListViewSortOperationType,
@@ -392,6 +392,8 @@ default_roles[VIEWER_ROLE_UID].extend(
         ReadFieldRuleOperationType,
         ExportTableOperationType,
         DispatchDashboardDataSourceOperationType,
+        ReadDatabaseRowOperationType,
+        ReadViewRowOperationType,
     ]
 )
 default_roles[COMMENTER_ROLE_UID].extend(

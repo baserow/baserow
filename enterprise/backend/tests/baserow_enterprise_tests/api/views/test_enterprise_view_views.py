@@ -144,6 +144,143 @@ def test_cannot_create_view_if_user_has_only_permissions_to_view(
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
+def test_get_row_with_only_view_permissions(api_client, enterprise_data_fixture):
+    enterprise_data_fixture.enable_enterprise()
+
+    user, token = enterprise_data_fixture.create_user_and_token()
+    user2, token2 = enterprise_data_fixture.create_user_and_token()
+    workspace = enterprise_data_fixture.create_workspace(user=user, members=[user2])
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
+    table = enterprise_data_fixture.create_database_table(database=database)
+    text_field = enterprise_data_fixture.create_text_field(table=table, primary=True)
+    normal_view = enterprise_data_fixture.create_grid_view(table=table)
+    restricted_view = enterprise_data_fixture.create_grid_view(
+        table=table, ownership_type=RestrictedViewOwnershipType.type
+    )
+
+    # Create a row to fetch
+    model = table.get_model()
+    row = model.objects.create(**{f"field_{text_field.id}": "Visible value"})
+
+    editor_role = Role.objects.get(uid="EDITOR")
+    no_access_role = Role.objects.get(uid="NO_ACCESS")
+    workspace = table.database.workspace
+    RoleAssignmentHandler().assign_role(
+        user2, workspace, role=no_access_role, scope=workspace
+    )
+    RoleAssignmentHandler().assign_role(
+        user2,
+        workspace,
+        role=editor_role,
+        scope=View.objects.get(id=restricted_view.id),
+    )
+    # This normally never happens, but for testing purposes, we want to make sure that
+    # if a user has access to a non-restricted view, they still cannot get a row
+    # via that view when they don't have table permissions.
+    RoleAssignmentHandler().assign_role(
+        user2,
+        workspace,
+        role=editor_role,
+        scope=View.objects.get(id=normal_view.id),
+    )
+
+    base_url = reverse(
+        "api:database:rows:item", kwargs={"table_id": table.id, "row_id": row.id}
+    )
+
+    # Expect permission denied when trying to get a row without view parameter
+    response = api_client.get(
+        base_url,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token2}",
+    )
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+    assert response.json()["error"] == "PERMISSION_DENIED"
+
+    # Expect permission denied when trying to get a row via a non-restricted view
+    response = api_client.get(
+        base_url + f"?view={normal_view.id}",
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token2}",
+    )
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+    assert response.json()["error"] == "PERMISSION_DENIED"
+
+    # Should succeed when using view parameter with restricted view
+    response = api_client.get(
+        base_url + f"?view={restricted_view.id}",
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token2}",
+    )
+    assert response.status_code == HTTP_200_OK
+    response_json = response.json()
+    assert response_json["id"] == row.id
+    assert response_json[f"field_{text_field.id}"] == "Visible value"
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_cannot_get_row_outside_of_restricted_view(api_client, enterprise_data_fixture):
+    enterprise_data_fixture.enable_enterprise()
+
+    user, token = enterprise_data_fixture.create_user_and_token()
+    user2, token2 = enterprise_data_fixture.create_user_and_token()
+    workspace = enterprise_data_fixture.create_workspace(user=user, members=[user2])
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
+    table = enterprise_data_fixture.create_database_table(database=database)
+    text_field = enterprise_data_fixture.create_text_field(table=table, primary=True)
+    enterprise_data_fixture.create_grid_view(table=table)
+    restricted_view = enterprise_data_fixture.create_grid_view(
+        table=table, ownership_type=RestrictedViewOwnershipType.type
+    )
+    enterprise_data_fixture.create_view_filter(
+        view=restricted_view, field=text_field, type="equal", value="ABC"
+    )
+
+    # Create rows: one visible in the restricted view, one not
+    model = table.get_model()
+    row_visible = model.objects.create(**{f"field_{text_field.id}": "ABC"})
+    row_hidden = model.objects.create(**{f"field_{text_field.id}": "DEF"})
+
+    editor_role = Role.objects.get(uid="EDITOR")
+    no_access_role = Role.objects.get(uid="NO_ACCESS")
+    RoleAssignmentHandler().assign_role(
+        user2, workspace, role=no_access_role, scope=workspace
+    )
+    RoleAssignmentHandler().assign_role(
+        user2,
+        workspace,
+        role=editor_role,
+        scope=View.objects.get(id=restricted_view.id),
+    )
+
+    # Should succeed when getting a row that is visible in the restricted view
+    url_visible = reverse(
+        "api:database:rows:item",
+        kwargs={"table_id": table.id, "row_id": row_visible.id},
+    )
+    response = api_client.get(
+        url_visible + f"?view={restricted_view.id}",
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token2}",
+    )
+    assert response.status_code == HTTP_200_OK
+
+    # Should fail when trying to get a row that is not visible in the restricted view
+    url_hidden = reverse(
+        "api:database:rows:item",
+        kwargs={"table_id": table.id, "row_id": row_hidden.id},
+    )
+    response = api_client.get(
+        url_hidden + f"?view={restricted_view.id}",
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token2}",
+    )
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
 def test_create_row_with_only_view_permissions(api_client, enterprise_data_fixture):
     enterprise_data_fixture.enable_enterprise()
 

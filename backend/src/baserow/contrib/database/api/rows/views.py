@@ -56,7 +56,10 @@ from baserow.contrib.database.api.rows.errors import (
     ERROR_ROW_IDS_NOT_UNIQUE,
 )
 from baserow.contrib.database.api.rows.exceptions import InvalidJoinParameterException
-from baserow.contrib.database.api.rows.serializers import GetRowAdjacentSerializer
+from baserow.contrib.database.api.rows.serializers import (
+    GetRowAdjacentSerializer,
+    GetRowQueryParamsSerializer,
+)
 from baserow.contrib.database.api.tables.errors import ERROR_TABLE_DOES_NOT_EXIST
 from baserow.contrib.database.api.tokens.authentications import TokenAuthentication
 from baserow.contrib.database.api.tokens.errors import (
@@ -749,6 +752,13 @@ class RowView(APIView):
                 description="Returns the row related the provided value.",
             ),
             OpenApiParameter(
+                name="view",
+                location=OpenApiParameter.QUERY,
+                type=OpenApiTypes.INT,
+                description="Provide if the row if fetched in a view. This can result "
+                "in different permission checking and default values.",
+            ),
+            OpenApiParameter(
                 name="user_field_names",
                 location=OpenApiParameter.QUERY,
                 type=OpenApiTypes.BOOL,
@@ -808,7 +818,8 @@ class RowView(APIView):
         }
     )
     @allowed_includes("metadata")
-    def get(self, request, table_id, row_id, metadata):
+    @validate_query_parameters(GetRowQueryParamsSerializer)
+    def get(self, request, table_id, row_id, metadata, query_params: dict):
         """
         Responds with a serializer version of the row related to the provided row_id
         and table_id.
@@ -823,9 +834,12 @@ class RowView(APIView):
                 raise TokenCannotIncludeRowMetadata()
             token_handler.check_table_permissions(db_token, "read", table)
 
+        view_id = query_params.get("view")
+        view = ViewHandler().get_view(view_id) if view_id else None
+
         user_field_names = extract_user_field_names_from_params(request.GET)
         model = table.get_model()
-        row = RowHandler().get_row(request.user, table, row_id, model)
+        row = RowHandler().get_row(request.user, table, row_id, model, view=view)
         serializer_class = get_row_serializer_class(
             model, RowSerializer, is_response=True, user_field_names=user_field_names
         )

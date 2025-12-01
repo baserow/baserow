@@ -8,10 +8,13 @@ const groupGetNameCalls = callGrouper(GRACE_DELAY)
 
 export default (client) => {
   return {
-    get(tableId, rowId, includeMetadata = true) {
+    get(tableId, rowId, includeMetadata = true, viewId = null) {
       const searchParams = {}
       if (includeMetadata) {
         searchParams.include = 'metadata'
+      }
+      if (viewId !== null) {
+        searchParams.view_id = viewId
       }
       const params = new URLSearchParams(searchParams).toString()
       return client.get(`/database/rows/table/${tableId}/${rowId}/?${params}`)

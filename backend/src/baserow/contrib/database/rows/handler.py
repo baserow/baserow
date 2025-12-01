@@ -65,6 +65,7 @@ from baserow.contrib.database.trash.models import TrashedRows
 from baserow.contrib.database.views.operations import (
     CreateViewRowOperationType,
     DeleteViewRowOperationType,
+    ReadViewRowOperationType,
     UpdateViewRowOperationType,
 )
 from baserow.contrib.database.views.registries import view_ownership_type_registry
@@ -480,6 +481,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         row_id: int,
         model: Optional[Type[GeneratedTableModel]] = None,
         base_queryset: Optional[QuerySet] = None,
+        view: Optional["View"] = None,
     ) -> GeneratedTableModel:
         """
         Fetches a single row from the provided table.
@@ -491,23 +493,26 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             provided so that it does not have to be generated for a second time.
         :param base_queryset: A queryset that can be used to already pre-filter
             the results.
+        :param view: Optionally provide view, if the row is fetched in the view.
+            This can result in different permissions checks.
         :raises RowDoesNotExist: When the row with the provided id does not exist.
         :return: The requested row instance.
         """
+
+        self._check_permissions_with_view_fallback(
+            ReadDatabaseRowOperationType.type,
+            ReadViewRowOperationType.type,
+            user,
+            table,
+            view,
+            [row_id],
+        )
 
         if model is None:
             model = table.get_model()
 
         if base_queryset is None:
             base_queryset = model.objects
-
-        workspace = table.database.workspace
-        CoreHandler().check_permissions(
-            user,
-            ReadDatabaseRowOperationType.type,
-            workspace=workspace,
-            context=table,
-        )
 
         try:
             row = base_queryset.get(id=row_id)
@@ -2778,7 +2783,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             model = table.get_model()
 
         with transaction.atomic():
-            row = self.get_row(user, table, row_id, model=model)
+            row = self.get_row(user, table, row_id, model=model, view=view)
             self.delete_row(
                 user,
                 table,

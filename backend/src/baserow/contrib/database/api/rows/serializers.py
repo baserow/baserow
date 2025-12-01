@@ -516,6 +516,10 @@ class BatchCreateRowsQueryParamsSerializer(serializers.Serializer):
     view = serializers.IntegerField(required=False)
 
 
+class GetRowQueryParamsSerializer(serializers.Serializer):
+    view = serializers.IntegerField(required=False)
+
+
 class UpdateRowQueryParamsSerializer(serializers.Serializer):
     view = serializers.IntegerField(required=False)
 

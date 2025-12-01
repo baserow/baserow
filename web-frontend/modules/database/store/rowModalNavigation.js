@@ -50,9 +50,14 @@ export const actions = {
     commit('SET_FAILED_TO_FETCH_TABLE_ROW_ID', null)
     commit('SET_ROW', row)
   },
-  async fetchRow({ commit }, { tableId, rowId }) {
+  async fetchRow({ commit }, { tableId, rowId, viewId = null }) {
     try {
-      const { data: row } = await RowService(this.$client).get(tableId, rowId)
+      const { data: row } = await RowService(this.$client).get(
+        tableId,
+        rowId,
+        true,
+        viewId
+      )
       commit('SET_ROW', row)
       return row
     } catch (error) {
