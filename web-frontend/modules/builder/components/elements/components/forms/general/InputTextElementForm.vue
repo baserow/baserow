@@ -1,6 +1,6 @@
 <template>
   <form @submit.prevent @keydown.enter.prevent>
-    <CustomStyle
+    <CustomStyleButton
       v-model="v$.values.styles.$model"
       style-key="input"
       :config-block-types="['input']"
@@ -122,7 +122,7 @@ import { useVuelidate } from '@vuelidate/core'
 import form from '@baserow/modules/core/mixins/form'
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput.vue'
 import formElementForm from '@baserow/modules/builder/mixins/formElementForm'
-import CustomStyle from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyle'
+import CustomStyleButton from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyleButton'
 import {
   required,
   integer,
@@ -133,7 +133,7 @@ import {
 
 export default {
   name: 'InputTextElementForm',
-  components: { InjectedFormulaInput, CustomStyle },
+  components: { InjectedFormulaInput, CustomStyleButton },
   mixins: [formElementForm],
   setup() {
     return { v$: useVuelidate() }

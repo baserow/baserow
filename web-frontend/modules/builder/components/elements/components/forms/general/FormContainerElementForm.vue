@@ -1,6 +1,6 @@
 <template>
   <form @submit.prevent @keydown.enter.prevent>
-    <CustomStyle
+    <CustomStyleButton
       v-model="values.styles"
       style-key="button"
       :config-block-types="['button']"
@@ -35,11 +35,11 @@
 <script>
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput.vue'
 import elementForm from '@baserow/modules/builder/mixins/elementForm'
-import CustomStyle from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyle'
+import CustomStyleButton from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyleButton'
 
 export default {
   name: 'FormContainerElementForm',
-  components: { InjectedFormulaInput, CustomStyle },
+  components: { InjectedFormulaInput, CustomStyleButton },
   mixins: [elementForm],
   data() {
     return {

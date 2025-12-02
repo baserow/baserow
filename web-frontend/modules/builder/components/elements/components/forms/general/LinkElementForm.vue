@@ -1,6 +1,6 @@
 <template>
   <form @submit.prevent @keydown.enter.prevent>
-    <CustomStyle
+    <CustomStyleButton
       :key="values.variant"
       v-model="values.styles"
       :style-key="values.variant"
@@ -48,14 +48,14 @@ import InjectedFormulaInput from '@baserow/modules/core/components/formula/Injec
 import elementForm from '@baserow/modules/builder/mixins/elementForm'
 import LinkNavigationSelectionForm from '@baserow/modules/builder/components/elements/components/forms/general/LinkNavigationSelectionForm'
 
-import CustomStyle from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyle'
+import CustomStyleButton from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyleButton'
 
 export default {
   name: 'LinkElementForm',
   components: {
     InjectedFormulaInput,
     LinkNavigationSelectionForm,
-    CustomStyle,
+    CustomStyleButton,
   },
   mixins: [elementForm],
   data() {

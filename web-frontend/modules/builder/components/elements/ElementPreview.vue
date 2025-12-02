@@ -275,15 +275,21 @@ export default {
         this.observer.disconnect()
       }
 
+      // Ensure pageTop is a valid number to prevent IntersectionObserver error
+      const topMargin =
+        typeof this.pageTop === 'number' && !isNaN(this.pageTop)
+          ? this.pageTop
+          : 0
+
       const options = {
         root: null,
-        rootMargin: `-${this.pageTop}px 0px 0px 0px`,
+        rootMargin: `-${topMargin}px 0px 0px 0px`,
         threshold: [0, 1],
       }
 
       this.observer = new IntersectionObserver((entries) => {
         const rect = entries[0].boundingClientRect
-        this.isAboveThreshold = rect.top < this.pageTop
+        this.isAboveThreshold = rect.top < topMargin
       }, options)
 
       this.$nextTick(() => {

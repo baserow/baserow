@@ -12,7 +12,7 @@
         :placeholder="$t('tagsFieldForm.fieldValuesPlaceholder')"
       />
       <template #after-input>
-        <CustomStyle
+        <CustomStyleButton
           v-model="values.styles"
           style-key="cell"
           :config-block-types="['table', 'typography']"
@@ -71,11 +71,11 @@
 <script>
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
 import collectionFieldForm from '@baserow/modules/builder/mixins/collectionFieldForm'
-import CustomStyle from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyle'
+import CustomStyleButton from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyleButton'
 
 export default {
   name: 'TagsField',
-  components: { InjectedFormulaInput, CustomStyle },
+  components: { InjectedFormulaInput, CustomStyleButton },
   mixins: [collectionFieldForm],
   data() {
     return {

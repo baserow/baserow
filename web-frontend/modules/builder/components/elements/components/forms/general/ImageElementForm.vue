@@ -1,6 +1,6 @@
 <template>
   <form @submit.prevent @keydown.enter.prevent>
-    <CustomStyle
+    <CustomStyleButton
       v-model="values.styles"
       style-key="image"
       :config-block-types="['image']"
@@ -77,13 +77,13 @@ import UserFilesModal from '@baserow/modules/core/components/files/UserFilesModa
 import { UploadFileUserFileUploadType } from '@baserow/modules/core/userFileUploadTypes'
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
 import elementForm from '@baserow/modules/builder/mixins/elementForm'
-import CustomStyle from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyle'
+import CustomStyleButton from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyleButton'
 
 export default {
   name: 'ImageElementForm',
   components: {
     InjectedFormulaInput,
-    CustomStyle,
+    CustomStyleButton,
     UserFilesModal,
   },
   mixins: [elementForm],

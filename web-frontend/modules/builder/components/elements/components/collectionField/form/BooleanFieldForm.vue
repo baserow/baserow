@@ -12,7 +12,7 @@
         :placeholder="$t('textFieldForm.fieldValuePlaceholder')"
       />
       <template #after-input>
-        <CustomStyle
+        <CustomStyleButton
           v-model="values.styles"
           style-key="cell"
           :config-block-types="['table']"
@@ -28,11 +28,11 @@
 <script>
 import collectionFieldForm from '@baserow/modules/builder/mixins/collectionFieldForm'
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
-import CustomStyle from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyle'
+import CustomStyleButton from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyleButton'
 
 export default {
   name: 'BooleanFieldForm',
-  components: { InjectedFormulaInput, CustomStyle },
+  components: { InjectedFormulaInput, CustomStyleButton },
   mixins: [collectionFieldForm],
   data() {
     return {

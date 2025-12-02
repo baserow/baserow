@@ -1,6 +1,6 @@
 <template>
   <form class="table-element-form" @submit.prevent @keydown.enter.prevent>
-    <CustomStyle
+    <CustomStyleButton
       v-model="values.styles"
       style-key="table"
       :config-block-types="['table', 'typography']"
@@ -62,7 +62,7 @@
       />
     </FormGroup>
 
-    <CustomStyle
+    <CustomStyleButton
       v-show="pagingOptionsAvailable"
       v-model="values.styles"
       style-key="button"
@@ -223,7 +223,7 @@
         </template>
       </DeviceSelector>
     </FormGroup>
-    <CustomStyle
+    <CustomStyleButton
       v-if="propertyOptionsAvailable"
       v-model="values.styles"
       style-key="header_button"
@@ -269,7 +269,7 @@ import collectionElementForm from '@baserow/modules/builder/mixins/collectionEle
 import { ORIENTATIONS } from '@baserow/modules/builder/enums'
 import DeviceSelector from '@baserow/modules/builder/components/page/header/DeviceSelector.vue'
 import { mapActions, mapGetters } from 'vuex'
-import CustomStyle from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyle'
+import CustomStyleButton from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyleButton'
 import ServiceSchemaPropertySelector from '@baserow/modules/core/components/services/ServiceSchemaPropertySelector'
 import DataSourceDropdown from '@baserow/modules/builder/components/dataSource/DataSourceDropdown'
 import PropertyOptionForm from '@baserow/modules/builder/components/elements/components/forms/general/settings/PropertyOptionForm'
@@ -283,7 +283,7 @@ export default {
     ServiceSchemaPropertySelector,
     InjectedFormulaInput,
     DeviceSelector,
-    CustomStyle,
+    CustomStyleButton,
     SidebarExpandable,
   },
   mixins: [collectionElementForm],

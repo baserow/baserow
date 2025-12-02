@@ -1,6 +1,6 @@
 <template>
   <form @submit.prevent @keydown.enter.prevent>
-    <CustomStyle
+    <CustomStyleButton
       v-model="values.styles"
       style-key="input"
       :config-block-types="['input']"
@@ -135,7 +135,7 @@ import { useVuelidate } from '@vuelidate/core'
 import collectionElementForm from '@baserow/modules/builder/mixins/collectionElementForm'
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput.vue'
 import formElementForm from '@baserow/modules/builder/mixins/formElementForm'
-import CustomStyle from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyle.vue'
+import CustomStyleButton from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyleButton'
 import {
   integer,
   maxValue,
@@ -151,7 +151,7 @@ export default {
   components: {
     PropertyOptionForm,
     DataSourceDropdown,
-    CustomStyle,
+    CustomStyleButton,
     InjectedFormulaInput,
   },
   mixins: [formElementForm, collectionElementForm],

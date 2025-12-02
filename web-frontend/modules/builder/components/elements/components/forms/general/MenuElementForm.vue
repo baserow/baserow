@@ -1,6 +1,6 @@
 <template>
   <form @submit.prevent @keydown.enter.prevent>
-    <CustomStyle
+    <CustomStyleButton
       v-model="values.styles"
       style-key="menu"
       :config-block-types="['button', 'link']"
@@ -107,14 +107,14 @@ import {
 } from '@baserow/modules/core/utils/string'
 import { mapGetters } from 'vuex'
 import MenuElementItemForm from '@baserow/modules/builder/components/elements/components/forms/general/MenuElementItemForm'
-import CustomStyle from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyle'
+import CustomStyleButton from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyleButton'
 import HorizontalAlignmentsSelector from '@baserow/modules/builder/components/HorizontalAlignmentsSelector'
 
 export default {
   name: 'MenuElementForm',
   components: {
     MenuElementItemForm,
-    CustomStyle,
+    CustomStyleButton,
     HorizontalAlignmentsSelector,
   },
   mixins: [elementForm],

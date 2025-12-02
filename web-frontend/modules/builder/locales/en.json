@@ -978,7 +978,7 @@
     "fit": "Fit"
   },
   "customStyle": {
-    "themeOverrides": "Theme overrides",
+    "backToElement": "Back to element configuration",
     "configureThemeOverrides": "Configure theme overrides for this element"
   },
   "serviceSchemaPropertySelector": {

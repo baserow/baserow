@@ -55,7 +55,7 @@
       />
     </FormGroup>
 
-    <CustomStyle
+    <CustomStyleButton
       v-show="values.data_source_id"
       v-model="values.styles"
       style-key="button"
@@ -132,7 +132,7 @@
       <Checkbox :checked="isCollapsed" @input="emitToggleRepetitions($event)">
       </Checkbox>
     </FormGroup>
-    <CustomStyle
+    <CustomStyleButton
       v-model="values.styles"
       style-key="header_button"
       :config-block-types="['button']"
@@ -172,7 +172,7 @@ import {
 import collectionElementForm from '@baserow/modules/builder/mixins/collectionElementForm'
 import DeviceSelector from '@baserow/modules/builder/components/page/header/DeviceSelector.vue'
 import { mapActions, mapGetters } from 'vuex'
-import CustomStyle from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyle'
+import CustomStyleButton from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyleButton'
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
 import ServiceSchemaPropertySelector from '@baserow/modules/core/components/services/ServiceSchemaPropertySelector.vue'
 import DataSourceDropdown from '@baserow/modules/builder/components/dataSource/DataSourceDropdown.vue'
@@ -188,7 +188,7 @@ export default {
     PropertyOptionForm,
     DataSourceDropdown,
     DeviceSelector,
-    CustomStyle,
+    CustomStyleButton,
     InjectedFormulaInput,
     ServiceSchemaPropertySelector,
     PaddingSelector,
