@@ -874,12 +874,18 @@
         "reset": "Iniciar nuevo",
         "download": "Descargar",
         "cancel": "Cancelar",
-        "noExports": "Aún no hay exportaciones para este espacio de trabajo."
+        "noExports": "Aún no hay exportaciones para este espacio de trabajo.",
+        "exportingState": "Exportando...",
+        "exportingTableState": "Exportando: {table}",
+        "exportingCreateArchiveState": "Creando archivo"
     },
     "exportWorkspaceForm": {
         "exportSettingsLabel": "Configuración de exportación",
         "onlyStructureLabel": "Exportar sólo la estructura",
-        "onlyStructureDescription": "Si se activa, sólo se exportará la estructura de las aplicaciones. No se incluirán los datos."
+        "onlyStructureDescription": "Si se activa, sólo se exportará la estructura de las aplicaciones. No se incluirán los datos.",
+        "selectDataToExport": "Seleccionar datos para exportar",
+        "selectAll": "Seleccionar todo",
+        "deselectAll": "Deseleccionar todo"
     },
     "importWorkspaceModal": {
         "title": "Importar datos de Baserow",
@@ -903,7 +909,8 @@
         "selectApplications": "Seleccionar datos para importar",
         "invalidResourceMessage": "El archivo proporcionado no es una exportación Baserow válida.",
         "untrustedPublicKeyTitle": "Firma no fiable",
-        "untrustedPublicKeyMessage": "El archivo proporcionado está firmado con una clave pública no fiable. Pida a su administrador que añada la clave pública a la lista de claves de confianza o desactive la verificación de firma para poder importar este archivo."
+        "untrustedPublicKeyMessage": "El archivo proporcionado está firmado con una clave pública no fiable. Pida a su administrador que añada la clave pública a la lista de claves de confianza o desactive la verificación de firma para poder importar este archivo.",
+        "uploadAndImport": "Subir e importar"
     },
     "user": {
         "isStaff": "Es staff",
