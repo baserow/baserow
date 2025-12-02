@@ -111,7 +111,8 @@
         "expired": "Expirado",
         "validity": "Válido desde {start} hasta {end}",
         "seats": "asientos",
-        "premiumFeatures": "Características premium"
+        "premiumFeatures": "Características premium",
+        "applicationUsers": "Usuarios de la aplicación"
     },
     "license": {
         "title": "{name} plan",
@@ -145,7 +146,9 @@
         "automaticSeatsProgressBarStatus": "{asientos_ocupados} / {asientos} asientos pagados y {recuento_de_usuarios_libres} asientos libres en uso",
         "premiumFeatureName": "De primera calidad",
         "enterpriseFeatureName": "Empresa",
-        "supportFeatureName": "Soporte"
+        "supportFeatureName": "Soporte",
+        "applicationUsers": "Usuarios de la aplicación",
+        "applicationUsersDescription": "El número total de usuarios de la aplicación en las fuentes de usuarios del constructor de aplicaciones publicadas."
     },
     "conditionalColorValueProviderForm": {
         "addCondition": "Añadir condición",
@@ -198,7 +201,7 @@
         "publicLogoRemoval": "Eliminación del logo público",
         "personalViews": "Vistas personales",
         "calendarView": "Vista del calendario",
-        "aiFeatures": "Campo de IA",
+        "aiFeatures": "Funciones de IA",
         "timelineView": "Vista cronológica",
         "rowCommentsContent": "Colabora directamente en tu tabla. Añade comentarios a filas individuales, menciona a los miembros del equipo y mantén la conversación en contexto.",
         "kanbanViewContent": "Organiza tus datos visualmente en un tablero Kanban. Las tarjetas se agrupan en columnas según un campo de selección única, y puedes arrastrarlas y soltarlas fácilmente entre las columnas.",
@@ -208,7 +211,12 @@
         "rowColoringContent": "Resalta filas con colores según un campo de selección única o condiciones personalizadas. Así podrás identificar patrones y prioridades más fácilmente.",
         "rowNotifications": "Notificaciones de fila",
         "rowNotificationsContent": "Mantente al tanto con notificaciones personalizables de comentarios en filas. Elige entre recibir alertas de todos los comentarios o sólo cuando se te mencione.",
-        "aiFeaturesContent": "Utiliza IA para automatizar y mejorar tus flujos de trabajo. Con el tipo de campo de aviso de IA puedes generar texto, resúmenes o ideas directamente en las celdas a partir de avisos dinámicos que pueden hacer referencia a otros campos. Por separado, también puedes pedir a la IA que cree fórmulas para ti."
+        "aiFeaturesContent": "Utiliza IA para automatizar y mejorar tus flujos de trabajo. Con el tipo de campo de aviso de IA puedes generar texto, resúmenes o ideas directamente en las celdas a partir de avisos dinámicos que pueden hacer referencia a otros campos. Por separado, también puedes pedir a la IA que cree fórmulas para ti.",
+        "surveyFormContent": "Recopila respuestas pregunta por pregunta mediante el modo encuesta. Una versión simplificada de la vista de formulario, optimizada para la concentración y la facilidad de uso.",
+        "publicLogoRemovalContent": "Quita el logotipo de Baserow de las vistas públicas para que tu contenido compartido tenga un aspecto más limpio y con una imagen de marca más clara.",
+        "personalViewsContent": "Crea vistas que solo el autor pueda ver. Esto te da espacio para experimentar, filtrar y ordenar datos sin afectar el espacio de trabajo de los demás.",
+        "chartWidget": "Widget de gráfico",
+        "chartWidgetContent": "Visualiza tus datos con gráficos en paneles. Usa cualquier tabla como fuente de datos, añade varias series y agrupa o ordena por campos con opciones avanzadas de resumen."
     },
     "formViewModeType": {
         "surveyDescription": "Un campo es visible al mismo tiempo.",
