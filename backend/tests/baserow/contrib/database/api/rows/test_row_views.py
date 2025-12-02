@@ -3678,6 +3678,10 @@ def test_get_row_adjacent_view_invalid_requests(api_client, data_fixture):
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.parametrize("search_mode", ALL_SEARCH_MODES)
+@pytest.mark.enable_signals(
+    "baserow.contrib.database.search.tasks.schedule_update_search_data.delay",
+    "baserow.contrib.database.search.tasks.update_search_data.delay",
+)
 def test_get_row_adjacent_search(api_client, data_fixture, search_mode):
     user, jwt_token = data_fixture.create_user_and_token(
         email="test@test.nl", password="password", first_name="Test1"

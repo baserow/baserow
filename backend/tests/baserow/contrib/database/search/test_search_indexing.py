@@ -14,6 +14,11 @@ from baserow.contrib.database.search.handler import SearchHandler
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.core.user_files.handler import UserFileHandler
 
+pytestmark = pytest.mark.enable_signals(
+    "baserow.contrib.database.search.tasks.schedule_update_search_data.delay",
+    "baserow.contrib.database.search.tasks.update_search_data.delay",
+)
+
 
 @pytest.mark.django_db(transaction=True)
 def test_textfield_get_search_expression(data_fixture):

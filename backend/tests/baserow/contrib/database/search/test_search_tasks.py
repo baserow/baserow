@@ -6,6 +6,11 @@ from baserow.contrib.database.search.handler import SearchHandler
 from baserow.contrib.database.search.models import PendingSearchValueUpdate
 from baserow.contrib.database.search.tasks import periodic_check_pending_search_data
 
+pytestmark = pytest.mark.enable_signals(
+    "baserow.contrib.database.search.tasks.schedule_update_search_data.delay",
+    "baserow.contrib.database.search.tasks.update_search_data.delay",
+)
+
 
 @pytest.mark.django_db(transaction=True)
 def test_periodic_check_pending_search_data(data_fixture):

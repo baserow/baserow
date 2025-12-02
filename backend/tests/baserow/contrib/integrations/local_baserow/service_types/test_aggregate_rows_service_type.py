@@ -420,6 +420,10 @@ def test_local_baserow_aggregate_rows_dispatch_data_with_service_filters(data_fi
 
 
 @pytest.mark.django_db(transaction=True)
+@pytest.mark.enable_signals(
+    "baserow.contrib.database.search.tasks.schedule_update_search_data.delay",
+    "baserow.contrib.database.search.tasks.update_search_data.delay",
+)
 def test_local_baserow_aggregate_rows_dispatch_data_with_search(data_fixture):
     with transaction.atomic():
         user = data_fixture.create_user()

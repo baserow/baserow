@@ -31,6 +31,11 @@ from baserow.test_utils.helpers import (
     assert_undo_redo_actions_are_valid,
 )
 
+pytestmark = pytest.mark.enable_signals(
+    "baserow.core.notifications.tasks.send_queued_notifications_to_users.delay",
+    "baserow.ws.tasks.broadcast_to_users.delay",
+)
+
 
 @pytest.mark.django_db(transaction=True)
 @patch("baserow.ws.tasks.broadcast_to_users.apply")
