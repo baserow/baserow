@@ -28,11 +28,12 @@
         "filterTypeNotFound": "El tipo de filtro no es compatible.",
         "noCompatibleFilterTypesErrorTitle": "No hay tipos de filtro compatibles",
         "noCompatibleFilterTypesErrorMessage": "Ninguno de tus campos tiene ningún tipo de filtro compatible",
-        "formulaFilterInputPlaceholder": "Introducir texto...",
+        "formulaFilterInputPlaceholder": "Elige una fórmula…",
         "useFormulaForValue": "Utiliza una fórmula para este filtro",
         "noFilterTitle": "Aún no has creado un filtro de fuente de datos",
         "noFilterText": "Los filtros de fuente de datos le permiten mostrar las filas de la tabla Baserow que se aplican a tus condiciones.",
-        "useDefaultForValue": "Utiliza el filtro por defecto para este campo"
+        "useDefaultForValue": "Utiliza el filtro por defecto para este campo",
+        "textFilterInputPlaceholder": "Escribe el texto…"
     },
     "localBaserowTableServiceSortForm": {
         "noTableChosenForSorting": "Elige una tabla para empezar a utilizar la ordenación de fuentes de datos.",
@@ -40,7 +41,8 @@
         "noSortTitle": "Aún no has creado un tipo de fuente de datos",
         "sortBy": "Ordenar por",
         "thenBy": "Luego por",
-        "addSort": "Añadir ordenación adicional"
+        "addSort": "Añadir ordenación adicional",
+        "sortMisconfigured": "El campo con el que está asociado este orden ha sido enviado a la papelera."
     },
     "dataProviderType": {
         "dataSource": "Fuente de datos",
@@ -185,9 +187,38 @@
         "searchTabTitle": "Buscar | 1 Búsqueda | {count} Búsquedas",
         "searchFieldPlaceHolder": "Introduce un término de búsqueda…",
         "noTableChosenForFiltering": "Elige una tabla para comenzar a usar filtros de origen de datos.",
-        "noTableChosenForSorting": "Elige una tabla para comenzar a usar ordenamientos de origen de datos."
+        "noTableChosenForSorting": "Elige una tabla para comenzar a usar ordenamientos de origen de datos.",
+        "refinements": "Refinamientos"
     },
     "slackBotForm": {
-        "supportSetupDescription": "Según la configuración de tu espacio de trabajo de Slack, es posible que puedas crear una nueva aplicación de Slack. De lo contrario, un administrador tendrá que hacerlo por ti. Si estás reutilizando una aplicación existente que pueda escribir mensajes, pasa a la sección titulada «Emparejamiento con tu aplicación de Slack»."
+        "supportSetupDescription": "Según la configuración de tu espacio de trabajo de Slack, es posible que puedas crear una nueva aplicación de Slack. De lo contrario, un administrador tendrá que hacerlo por ti. Si estás reutilizando una aplicación existente que pueda escribir mensajes, pasa a la sección titulada «Emparejamiento con tu aplicación de Slack».",
+        "tokenLabel": "Token de usuario bot",
+        "tokenPlaceholder": "xoxb‑1234‑…",
+        "tokenMustStartWith": "El token debe comenzar con «xoxb-»",
+        "supportHeading": "¿Necesitas ayuda?",
+        "supportDescription": "Si necesitas cualquier asistencia para conectar tu aplicación Slack, por favor consulta los pasos a continuación."
+    },
+    "coreHTTPRequestServiceForm": {
+        "httpMethod": "Método HTTP",
+        "url": "URL del destino (API endpoint)",
+        "queryParams": "Parámetros de consulta",
+        "name": "Nombre",
+        "value": "Valor",
+        "namePlaceholder": "Nombre...",
+        "valuePlaceholder": "Valor...",
+        "headers": "Encabezados",
+        "addQueryParam": "añadir parámetro de consulta",
+        "addHeader": "añadir encabezado",
+        "formData": "Datos del formulario",
+        "addFormData": "añadir datos del formulario",
+        "bodyType": "Tipo de cuerpo",
+        "bodyContent": "Contenido del cuerpo",
+        "urlPlaceholder": "Introducir la URL del destino (API endpoint)…",
+        "bodyPlaceholder": "Añadir cuerpo de la solicitud…",
+        "timeoutPlaceholder": "Introducir tiempo de espera (API timeout)…",
+        "nameFieldRequired": "La propiedad «nombre» es obligatoria.",
+        "seconds": "segundos",
+        "nameFieldInvalid": "El nombre debe contener sólo caracteres alfanuméricos, guiones o guiones bajos, y no debe comenzar con un guión ni con un guión bajo.",
+        "timeout": "Tiempo de espera"
     }
 }
