@@ -71,10 +71,11 @@ RUN --mount=type=cache,mode=777,target=$UV_CACHE_DIR,uid=9999,gid=9999 \
     && rm -rf /baserow/backend/tests /baserow/premium/backend/tests /baserow/enterprise/backend/tests \
     && rm -rf /baserow/backend/templates \
     # Strip test/doc directories from site-packages (keep django/drf tests - used at runtime)
+    # Keep botocore/docs - it's imported at runtime by botocore.waiter
     && (find /baserow/venv/lib -type d \( -name "test" -o -name "tests" \) \
         -not -path "*/django/*" -not -path "*/rest_framework/*" -prune -exec rm -rf {} \; || true) \
     && (find /baserow/venv/lib -type d \( -name "doc" -o -name "docs" -o -name "example" -o -name "examples" \) \
-        -prune -exec rm -rf {} \; || true)
+        -not -path "*/botocore/*" -prune -exec rm -rf {} \; || true)
 
 # Fix entrypoint script
 RUN dos2unix /baserow/backend/docker/docker-entrypoint.sh && \
@@ -156,6 +157,35 @@ FROM production AS prod
 
 ENV DJANGO_SETTINGS_MODULE='baserow.config.settings.base'
 CMD ["gunicorn"]
+
+# =============================================================================
+# CI Target - lightweight image for tests and linting (no dev tools)
+# =============================================================================
+FROM runtime-packages AS ci
+
+ENV DOCKER_USER=baserow
+ENV BASEROW_IMAGE_TYPE="backend"
+ENV PATH="/baserow/venv/bin:$PATH"
+ENV PYTHONUNBUFFERED=1
+ENV DJANGO_SETTINGS_MODULE='baserow.config.settings.test'
+
+USER 9999:9999
+
+# Copy venv from builder-dev (has test dependencies)
+COPY --link --chown=9999:9999 --from=builder-dev /baserow/venv /baserow/venv
+
+# Copy source and tests only (no docs, templates, plugins)
+COPY --link --chown=9999:9999 --from=builder /baserow/LICENSE /baserow/LICENSE
+COPY --link --chown=9999:9999 --from=builder /baserow/backend /baserow/backend
+COPY --link --chown=9999:9999 --from=builder /baserow/premium/backend /baserow/premium/backend
+COPY --link --chown=9999:9999 --from=builder /baserow/enterprise/backend /baserow/enterprise/backend
+COPY --link --chown=9999:9999 ./backend/tests /baserow/backend/tests
+COPY --link --chown=9999:9999 ./premium/backend/tests /baserow/premium/backend/tests
+COPY --link --chown=9999:9999 ./enterprise/backend/tests /baserow/enterprise/backend/tests
+
+WORKDIR /baserow/backend
+
+ENTRYPOINT ["/usr/bin/tini", "--", "/bin/bash", "/baserow/backend/docker/docker-entrypoint.sh"]
 
 # =============================================================================
 # Dev packages stage - fully cached (no UID/GID dependency)
