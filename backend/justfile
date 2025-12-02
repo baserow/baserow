@@ -212,6 +212,64 @@ test-regenerate-ci-durations: _check-dev
     {{ _load_env }}
     {{ _pytest }} {{ backend_tests_dirs }} --store-durations
 
+# =============================================================================
+# CI Commands (used by docker-entrypoint.sh in CI pipelines)
+# =============================================================================
+
+# Run tests for CI with coverage, splits, and reports
+# Usage: just ci-test --splits 8 --group 1 [extra pytest args]
+ci-test *ARGS: _check-dev
+    #!/usr/bin/env bash
+    set -euo pipefail
+    {{ _load_env }}
+
+    # Parse arguments
+    SPLITS=1
+    GROUP=1
+    EXTRA_ARGS=""
+    args=({{ ARGS }})
+    i=0
+    while [[ $i -lt ${#args[@]} ]]; do
+        case "${args[$i]}" in
+            --splits) SPLITS="${args[$((i+1))]}"; ((i+=2)) ;;
+            --group) GROUP="${args[$((i+1))]}"; ((i+=2)) ;;
+            *) EXTRA_ARGS="$EXTRA_ARGS ${args[$i]}"; ((i+=1)) ;;
+        esac
+    done
+
+    mkdir -p reports/
+    cd ..
+    COVERAGE_FILE=backend/reports/.coverage.$GROUP \
+        {{ uv_run }} coverage run \
+        --rcfile=backend/.coveragerc \
+        -m pytest -vv \
+        --durations-path=backend/.test_durations \
+        --splits $SPLITS \
+        --group $GROUP \
+        --junitxml=backend/reports/report.xml \
+        $EXTRA_ARGS {{ backend_tests_dirs_from_root }}
+
+# Check Django startup (used in CI)
+ci-check-startup: _check-dev
+    #!/usr/bin/env bash
+    set -euo pipefail
+    set -x
+    {{ _load_env }}
+    {{ uv_run }} python src/baserow/manage.py check
+    timeout --preserve-status 10s \
+        {{ uv_run }} gunicorn --workers=1 -b 0.0.0.0:8002 \
+        -k uvicorn.workers.UvicornWorker baserow.config.asgi:application
+
+# Check Django startup with OSS only (used in CI)
+ci-check-startup-oss-only: _check-dev
+    #!/usr/bin/env bash
+    set -euo pipefail
+    set -x
+    {{ _load_env }}
+    BASEROW_OSS_ONLY=true {{ uv_run }} python src/baserow/manage.py check
+    BASEROW_OSS_ONLY=true timeout --preserve-status 10s \
+        {{ uv_run }} gunicorn --workers=1 -b 0.0.0.0:8002 \
+        -k uvicorn.workers.UvicornWorker baserow.config.asgi:application
 
 # =============================================================================
 # Translations
@@ -252,7 +310,9 @@ ci-test-python: _check-dev
     COVERAGE_FILE=backend/reports/.coverage.{{ pytest_split_group }} \
         {{ uv_run }} coverage run \
         --rcfile=backend/.coveragerc \
+        --concurrency=multiprocessing \
         -m pytest -vv \
+        -n auto \
         --durations-path=backend/.test_durations \
         --splits {{ pytest_splits }} \
         --group {{ pytest_split_group }} \
