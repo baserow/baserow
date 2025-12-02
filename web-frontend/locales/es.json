@@ -165,7 +165,9 @@
         "multipleSelectCheckboxes": "Casillas",
         "duration": "Duración",
         "password": "Contraseña",
-        "ai": "Aviso de IA"
+        "ai": "Aviso de IA",
+        "multipleCollaboratorsDropdown": "Desplegable",
+        "multipleCollaboratorsCheckboxes": "Casillas de selección"
     },
     "fieldErrors": {
         "invalidNumber": "Número invalido",
