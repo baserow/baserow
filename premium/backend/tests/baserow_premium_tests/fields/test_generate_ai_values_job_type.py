@@ -801,8 +801,11 @@ def test_generate_ai_field_value_auto_update(
     # Verify job was created with correct parameters
     assert call_args.args[0] == user
     assert call_args.args[1] == "generate_ai_values"
+    assert call_args.kwargs["is_auto_update"] is True
     assert call_args.kwargs["field_id"] == ai_field.id
-    assert call_args.kwargs["row_ids"] == [r.id for r in rows]
+    # this will be an empty list, because the job will fetch the scheduled rows on
+    # its own.
+    assert call_args.kwargs["row_ids"] == []
 
 
 @pytest.mark.django_db(transaction=True)
@@ -895,6 +898,8 @@ def test_generate_ai_field_no_user_task_executed(premium_data_fixture):
         )
         .created_rows
     )
+    assert ai_field.ai_auto_update_user == user
+    assert ai_field.ai_auto_update
 
     row = rows[0]
     row.refresh_from_db()

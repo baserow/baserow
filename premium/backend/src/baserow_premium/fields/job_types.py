@@ -1,4 +1,4 @@
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from concurrent.futures import Executor, ThreadPoolExecutor
 from queue import Empty, Queue
 from typing import Any, Type
@@ -40,9 +40,9 @@ from baserow.core.handler import CoreHandler
 from baserow.core.job_types import _empty_transaction_context
 from baserow.core.jobs.exceptions import MaxJobCountExceeded
 from baserow.core.jobs.registries import JobType
-from baserow.core.utils import ChildProgressBuilder, Progress
+from baserow.core.utils import ChildProgressBuilder
 
-from .models import AIField, GenerateAIValuesJob
+from .models import AIField, AIFieldScheduledUpdate, GenerateAIValuesJob
 from .registries import ai_field_output_registry
 
 
@@ -257,13 +257,23 @@ class GenerateAIValuesJobType(JobType):
             context=ai_field.table,
         )
 
-        if job.mode == GenerateAIValuesJob.MODES.VIEW:
+        if job.mode == GenerateAIValuesJob.MODES.AUTO_UPDATE:
+            row_ids = (
+                AIFieldScheduledUpdate.objects.filter(
+                    field_id=job.field_id, updated_on__lte=job.created_on
+                )
+                .only("row_id")
+                .values_list("row_id", flat=True)
+            )
+            rows = RowHandler().get_rows(model, row_ids)
+        elif job.mode == GenerateAIValuesJob.MODES.VIEW:
             rows = self._get_view_queryset(user, job.view_id, table.id)
         elif job.mode == GenerateAIValuesJob.MODES.TABLE:
             rows = model.objects.all()
         elif job.mode == GenerateAIValuesJob.MODES.ROWS:
             req_row_ids = job.row_ids
             rows = RowHandler().get_rows(model, req_row_ids)
+
         else:
             raise ValueError(f"Unknown mode {job.mode} for GenerateAIValuesJob")
 
@@ -275,7 +285,16 @@ class GenerateAIValuesJobType(JobType):
         )
 
         rows_progress = ChildProgressBuilder.build(progress_builder, rows.count())
-        generator = AIValueGenerator(user, ai_field, self, rows_progress)
+
+        def on_progress(row: GeneratedTableModel, value: Any):
+            rows_progress.increment()
+
+            if job.is_auto_update and not isinstance(value, Exception):
+                AIFieldScheduledUpdate.objects.filter(
+                    field_id=ai_field.id, row_id=row.id
+                ).delete()
+
+        generator = AIValueGenerator(user, ai_field, self, on_progress)
         generator.process(rows.order_by("id"))
 
 
@@ -300,7 +319,7 @@ class AIValueGenerator:
         user: AbstractUser,
         ai_field: AIField,
         signal_sender: GenerateAIValuesJob | Any | None = None,
-        progress: Progress | None = None,
+        on_progress: Callable | None = None,
     ):
         self.user = user
 
@@ -329,7 +348,7 @@ class AIValueGenerator:
         self.has_errors = False
 
         self.row_handler = RowHandler()
-        self.progress = progress
+        self.on_progress = on_progress
 
         self.prepare()
 
@@ -386,7 +405,6 @@ class AIValueGenerator:
 
         try:
             result = self._generate_value_for(row)
-
             self.results_queue.put(
                 (
                     row,
@@ -612,17 +630,17 @@ class AIValueGenerator:
             else:
                 self.update_value(row, result)
         finally:
-            self.update_progress(row)
+            self.update_progress(row, result)
 
-    def update_progress(self, row: GeneratedTableModel):
+    def update_progress(self, row: GeneratedTableModel, result: Exception | Any):
         """
         Update internal progress state.
         """
 
         self.finished += 1
         self.in_process.remove(row.id)
-        if self.progress:
-            self.progress.increment()
+        if self.on_progress:
+            self.on_progress(row, result)
 
     def schedule_next_row(self, rows_iter: Iterator, executor: Executor):
         """

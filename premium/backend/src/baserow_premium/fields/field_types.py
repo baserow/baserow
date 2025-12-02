@@ -9,6 +9,7 @@ from baserow_premium.api.fields.exceptions import (
     ERROR_GENERATIVE_AI_DOES_NOT_SUPPORT_FILE_FIELD,
 )
 from baserow_premium.fields.exceptions import GenerativeAITypeDoesNotSupportFileField
+from baserow_premium.fields.tasks import schedule_ai_field_generation
 from baserow_premium.license.features import PREMIUM
 from baserow_premium.license.handler import LicenseHandler
 from rest_framework import serializers
@@ -41,7 +42,6 @@ from baserow.core.generative_ai.registries import (
     GenerativeAIWithFilesModelType,
     generative_ai_model_type_registry,
 )
-from baserow.core.jobs.handler import JobHandler
 
 from .models import AIField
 from .registries import ai_field_output_registry
@@ -392,8 +392,8 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
             row_ids = [starting_row.id]
 
         transaction.on_commit(
-            lambda: JobHandler().create_and_start_job(
-                user, "generate_ai_values", field_id=field.id, row_ids=row_ids
+            lambda: schedule_ai_field_generation.delay(
+                field_id=field.id, row_ids=row_ids
             )
         )
 
