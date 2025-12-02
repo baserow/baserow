@@ -13,7 +13,7 @@ deconstruct_user_file_regex = re.compile(r"^([a-zA-Z0-9]+)_([a-zA-Z0-9]+)\.(.*)$
 class UserFile(models.Model):
     original_name = models.CharField(max_length=255)
     original_extension = models.CharField(max_length=64)
-    unique = models.CharField(max_length=32)
+    unique = models.CharField(max_length=32, db_index=True)
     size = models.PositiveBigIntegerField()
     mime_type = models.CharField(max_length=127, blank=True)
     is_image = models.BooleanField(default=False)
