@@ -242,7 +242,9 @@ ci-test *ARGS: _check-dev
     COVERAGE_FILE=backend/reports/.coverage.$GROUP \
         {{ uv_run }} coverage run \
         --rcfile=backend/.coveragerc \
+        --concurrency=multiprocessing \
         -m pytest -vv \
+        -n auto \
         --durations-path=backend/.test_durations \
         --splits $SPLITS \
         --group $GROUP \

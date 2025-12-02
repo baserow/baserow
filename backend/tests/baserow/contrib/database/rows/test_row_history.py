@@ -1224,7 +1224,7 @@ def test_delete_rows_action_row_history_with_undo_redo(
         )
         assert undone
 
-    history_entries = RowHistory.objects.order_by("row_id").values(
+    history_entries = RowHistory.objects.order_by("row_id", "id").values(
         "user_id",
         "user_name",
         "table_id",
@@ -1272,7 +1272,7 @@ def test_delete_rows_action_row_history_with_undo_redo(
         )
         assert redone
 
-    history_entries = RowHistory.objects.order_by("row_id").values(
+    history_entries = RowHistory.objects.order_by("row_id", "id").values(
         "user_id",
         "user_name",
         "table_id",
