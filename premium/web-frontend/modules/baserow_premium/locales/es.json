@@ -148,7 +148,8 @@
         "enterpriseFeatureName": "Empresa",
         "supportFeatureName": "Soporte",
         "applicationUsers": "Usuarios de la aplicación",
-        "applicationUsersDescription": "El número total de usuarios de la aplicación en las fuentes de usuarios del constructor de aplicaciones publicadas."
+        "applicationUsersDescription": "El número total de usuarios de la aplicación en las fuentes de usuarios del constructor de aplicaciones publicadas.",
+        "advancedFeatureName": "Avanzado"
     },
     "conditionalColorValueProviderForm": {
         "addCondition": "Añadir condición",
