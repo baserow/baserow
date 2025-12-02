@@ -97,7 +97,6 @@ docker-compose.override.yml
 venv/
 .venv/
 .profiles/
-uv.lock
 
 # Local environment files (not for Docker)
 .env.local
