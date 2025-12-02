@@ -260,7 +260,10 @@
         "baseUrlPlaceholder": "URL base del proveedor",
         "invalidBaseUrl": "La URL introducida no es una URL de proveedor válida",
         "callbackUrl": "URL de devolución de llamada",
-        "firstNameAttrKey": "Nombre"
+        "firstNameAttrKey": "Nombre",
+        "duplicateBaseUrl": "La URL ingresada ya existe en otro proveedor",
+        "useIdToken": "Utiliza el «token id» para obtener información del usuario",
+        "responseSettings": "Atributos de respuesta OIDC"
     },
     "manageTeamModals": {
         "subheading": "Los equipos permiten conceder o restringir permisos en bloque a varias personas."
