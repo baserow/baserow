@@ -174,7 +174,7 @@ USER 9999:9999
 # Copy venv from builder-dev (has test dependencies)
 COPY --link --chown=9999:9999 --from=builder-dev /baserow/venv /baserow/venv
 
-# Copy source and tests only (no docs, templates, plugins)
+# Copy source, tests, and plugins (no docs, templates)
 COPY --link --chown=9999:9999 --from=builder /baserow/LICENSE /baserow/LICENSE
 COPY --link --chown=9999:9999 --from=builder /baserow/backend /baserow/backend
 COPY --link --chown=9999:9999 --from=builder /baserow/premium/backend /baserow/premium/backend
@@ -182,6 +182,7 @@ COPY --link --chown=9999:9999 --from=builder /baserow/enterprise/backend /basero
 COPY --link --chown=9999:9999 ./backend/tests /baserow/backend/tests
 COPY --link --chown=9999:9999 ./premium/backend/tests /baserow/premium/backend/tests
 COPY --link --chown=9999:9999 ./enterprise/backend/tests /baserow/enterprise/backend/tests
+COPY --link --chown=9999:9999 ./deploy/plugins/*.sh /baserow/plugins/
 
 WORKDIR /baserow/backend
 

@@ -335,18 +335,10 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - detect-changes
+    if: needs.detect-changes.outputs.helm == 'true' || github.ref_name == 'develop' || github.ref_name == 'master'
     permissions:
       contents: read
     steps:
-      - name: Exit early if helm not changed and not develop/master
-        run: |
-          if [[ "${{ needs.detect-changes.outputs.helm }}" != "true" && \
-                "${{ github.ref_name }}" != "develop" && \
-                "${{ github.ref_name }}" != "master" ]]; then
-            echo "No backend changes detected — skipping backend lint."
-            exit 0
-          fi
-
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -595,6 +587,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "18"
+          cache: "yarn"
+          cache-dependency-path: "integrations/zapier/yarn.lock"
 
       - name: Run Zapier tests
         run: |
@@ -628,6 +622,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "18"
+          cache: "yarn"
+          cache-dependency-path: "backend/email_compiler/yarn.lock"
 
       - name: Compile MJML templates
         run: |
@@ -778,10 +774,26 @@ jobs:
             -p 3000:3000 \
             ${{ needs.build-frontend.outputs.image }} nuxt-dev-no-attach
 
-      - name: Install Playwright
+      - name: Install dependencies
         run: |
           cd e2e-tests
           yarn install
+
+      - name: Get Playwright version
+        id: playwright-version
+        run: echo "version=$(cd e2e-tests && yarn list @playwright/test --depth=0 | grep @playwright/test | sed 's/.*@//')" >> $GITHUB_OUTPUT
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}
+
+      - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: |
+          cd e2e-tests
           npx playwright install --with-deps firefox
 
       - name: Wait for services
