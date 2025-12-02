@@ -4024,6 +4024,10 @@ def test_list_rows_public_filters_by_visible_and_hidden_columns(
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.parametrize("search_mode", ALL_SEARCH_MODES)
+@pytest.mark.enable_signals(
+    "baserow.contrib.database.search.tasks.schedule_update_search_data.delay",
+    "baserow.contrib.database.search.tasks.update_search_data.delay",
+)
 def test_list_rows_public_only_searches_by_visible_columns(
     api_client, data_fixture, search_mode
 ):

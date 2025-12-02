@@ -120,6 +120,7 @@ async def test_table_created_message_not_leaking(data_fixture):
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.asyncio
+@pytest.mark.enable_all_signals
 async def test_workspace_restored_tables_not_leaking(data_fixture):
     user = data_fixture.create_user()
     user_excluded, token = data_fixture.create_user_and_token()
@@ -153,6 +154,7 @@ async def test_workspace_restored_tables_not_leaking(data_fixture):
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.asyncio
+@pytest.mark.enable_all_signals
 async def test_database_restored_tables_not_leaking(data_fixture):
     user = data_fixture.create_user()
     user_excluded, token = data_fixture.create_user_and_token()

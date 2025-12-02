@@ -200,6 +200,7 @@ def test_row_comment_restored(premium_data_fixture):
 @pytest.mark.django_db(transaction=True)
 @patch("baserow.ws.tasks.broadcast_to_users.apply")
 @override_settings(DEBUG=True)
+@pytest.mark.enable_signals("baserow.ws.tasks.broadcast_to_users.delay")
 def test_row_comments_notification_mode_updated(
     mocked_broadcast_to_users,
     premium_data_fixture,

@@ -832,6 +832,10 @@ def test_multiple_collaborators_field_type_values_can_be_stringified(data_fixtur
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.field_multiple_collaborators
+@pytest.mark.enable_signals(
+    "baserow.contrib.database.search.tasks.schedule_update_search_data.delay",
+    "baserow.contrib.database.search.tasks.update_search_data.delay",
+)
 def test_multiple_collaborators_field_type_values_can_be_searched(data_fixture):
     mario = data_fixture.create_user(first_name="Mario")
     luigi = data_fixture.create_user(first_name="Luigi")

@@ -2275,6 +2275,10 @@ def test_get_public_rows_queryset_and_field_ids_view_filters_applied(data_fixtur
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.parametrize("search_mode", ALL_SEARCH_MODES)
+@pytest.mark.enable_signals(
+    "baserow.contrib.database.search.tasks.schedule_update_search_data.delay",
+    "baserow.contrib.database.search.tasks.update_search_data.delay",
+)
 def test_get_public_rows_queryset_and_field_ids_view_search(data_fixture, search_mode):
     grid_view = data_fixture.create_grid_view(public=True)
     table = grid_view.table
@@ -3022,6 +3026,9 @@ def test_order_views_ownership_type(data_fixture):
 
 @override_settings(AUTO_INDEX_VIEW_ENABLED=True)
 @pytest.mark.django_db(transaction=True)
+@pytest.mark.enable_signals(
+    "baserow.contrib.database.views.tasks.update_view_index.delay"
+)
 def test_creating_view_sort_creates_a_new_index(data_fixture):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
@@ -3052,6 +3059,9 @@ def test_creating_view_sort_creates_a_new_index(data_fixture):
     AUTO_INDEX_VIEW_ENABLED=True,
 )
 @pytest.mark.django_db(transaction=True)
+@pytest.mark.enable_signals(
+    "baserow.contrib.database.views.tasks.update_view_index.delay"
+)
 def test_updating_view_sorts_creates_a_new_index_and_delete_the_unused_one(
     data_fixture,
 ):
@@ -3110,6 +3120,9 @@ def test_updating_view_sorts_creates_a_new_index_and_delete_the_unused_one(
 
 @override_settings(AUTO_INDEX_VIEW_ENABLED=True)
 @pytest.mark.django_db(transaction=True)
+@pytest.mark.enable_signals(
+    "baserow.contrib.database.views.tasks.update_view_index.delay"
+)
 def test_perm_deleting_view_remove_index_if_unused(data_fixture):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
@@ -3150,6 +3163,9 @@ def test_perm_deleting_view_remove_index_if_unused(data_fixture):
 
 @override_settings(AUTO_INDEX_VIEW_ENABLED=True)
 @pytest.mark.django_db(transaction=True)
+@pytest.mark.enable_signals(
+    "baserow.contrib.database.views.tasks.update_view_index.delay"
+)
 def test_duplicating_table_do_not_duplicate_indexes(data_fixture):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
@@ -3179,6 +3195,9 @@ def test_duplicating_table_do_not_duplicate_indexes(data_fixture):
 
 @override_settings(AUTO_INDEX_VIEW_ENABLED=True)
 @pytest.mark.django_db(transaction=True)
+@pytest.mark.enable_signals(
+    "baserow.contrib.database.views.tasks.update_view_index.delay"
+)
 def test_deleting_a_field_of_a_view_sort_update_view_indexes(data_fixture):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
@@ -3207,6 +3226,9 @@ def test_deleting_a_field_of_a_view_sort_update_view_indexes(data_fixture):
 
 @override_settings(AUTO_INDEX_VIEW_ENABLED=True)
 @pytest.mark.django_db(transaction=True)
+@pytest.mark.enable_signals(
+    "baserow.contrib.database.views.tasks.update_view_index.delay"
+)
 def test_changing_a_field_type_of_a_view_sort_to_non_orderable_one_delete_view_index(
     data_fixture,
 ):
@@ -3231,6 +3253,9 @@ def test_changing_a_field_type_of_a_view_sort_to_non_orderable_one_delete_view_i
 
 @patch("baserow.contrib.database.views.tasks.update_view_index.delay")
 @pytest.mark.django_db(transaction=True)
+@pytest.mark.enable_signals(
+    "baserow.contrib.database.views.tasks.update_view_index.delay"
+)
 def test_loading_a_view_checks_for_db_index_without_additional_queries(
     mocked_view_index_update_task,
     data_fixture,
@@ -3291,6 +3316,9 @@ def test_loading_a_view_checks_for_db_index_without_additional_queries(
     AUTO_INDEX_VIEW_ENABLED=True,
 )
 @pytest.mark.django_db(transaction=True)
+@pytest.mark.enable_signals(
+    "baserow.contrib.database.views.tasks.update_view_index.delay"
+)
 def test_update_index_replaces_index_with_diff_collation(settings, data_fixture):
     with patch("baserow.core.db.get_collation_name", new=lambda: None):
         user = data_fixture.create_user()
@@ -3328,6 +3356,9 @@ def test_update_index_replaces_index_with_diff_collation(settings, data_fixture)
     AUTO_INDEX_VIEW_ENABLED=True,
 )
 @pytest.mark.django_db(transaction=True)
+@pytest.mark.enable_signals(
+    "baserow.contrib.database.views.tasks.update_view_index.delay"
+)
 def test_view_loaded_replaces_index_with_diff_collation(settings, data_fixture):
     with patch("baserow.core.db.get_collation_name", new=lambda: None):
         user = data_fixture.create_user()

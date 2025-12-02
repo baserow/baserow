@@ -9,6 +9,11 @@ from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.search.handler import SearchMode
 from baserow.test_utils.helpers import setup_interesting_test_table
 
+pytestmark = pytest.mark.enable_signals(
+    "baserow.contrib.database.search.tasks.schedule_update_search_data.delay",
+    "baserow.contrib.database.search.tasks.update_search_data.delay",
+)
+
 
 @pytest.mark.django_db
 def test_search_grid_with_invalid_mode(api_client, data_fixture):
