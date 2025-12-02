@@ -119,6 +119,27 @@ EXPOSE 3000
 CMD ["nuxt-local"]
 
 # =============================================================================
+# CI Target - lightweight image for tests and linting (no dev tools)
+# =============================================================================
+FROM runtime-packages AS ci
+
+ENV DOCKER_USER=node
+ENV BASEROW_IMAGE_TYPE="web-frontend"
+
+USER 9999:9999
+
+WORKDIR /baserow/web-frontend
+
+# Copy source and full node_modules from builder (with dev deps for testing)
+COPY --link --chown=9999:9999 --from=builder /baserow/web-frontend /baserow/web-frontend
+COPY --link --chown=9999:9999 --from=builder /baserow/premium/web-frontend /baserow/premium/web-frontend
+COPY --link --chown=9999:9999 --from=builder /baserow/enterprise/web-frontend /baserow/enterprise/web-frontend
+COPY --link --chown=9999:9999 --from=builder /baserow/plugins /baserow/plugins
+COPY --link --chown=9999:9999 ./tests /baserow/tests/
+
+ENTRYPOINT ["/usr/bin/tini", "--", "/bin/bash", "/baserow/web-frontend/docker/docker-entrypoint.sh"]
+
+# =============================================================================
 # Dev packages stage - fully cached (no UID/GID dependency)
 # =============================================================================
 FROM node:24-bookworm-slim AS dev-packages

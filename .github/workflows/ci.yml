@@ -53,7 +53,7 @@ jobs:
   # ==========================================================================
 
   build-backend:
-    name: Build Backend Dev Image
+    name: Build Backend CI Image
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -96,12 +96,12 @@ jobs:
           echo "branch=${BRANCH_CACHE}" >> $GITHUB_OUTPUT
           echo "develop=${DEVELOP_CACHE}" >> $GITHUB_OUTPUT
 
-      - name: Build and push backend dev image
+      - name: Build and push backend CI image
         uses: docker/build-push-action@v5
         with:
           context: .
           file: backend/Dockerfile
-          target: dev
+          target: ci
           push: true
           tags: ${{ steps.image.outputs.full }}
           cache-from: |
@@ -114,7 +114,7 @@ jobs:
             org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
 
   build-frontend:
-    name: Build Web-Frontend Dev Image
+    name: Build Web-Frontend CI Image
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -157,12 +157,12 @@ jobs:
           echo "branch=${BRANCH_CACHE}" >> $GITHUB_OUTPUT
           echo "develop=${DEVELOP_CACHE}" >> $GITHUB_OUTPUT
 
-      - name: Build and push web-frontend dev image
+      - name: Build and push web-frontend CI image
         uses: docker/build-push-action@v5
         with:
           context: .
           file: web-frontend/Dockerfile
-          target: dev
+          target: ci
           push: true
           tags: ${{ steps.image.outputs.full }}
           cache-from: |
@@ -953,6 +953,7 @@ jobs:
         with:
           context: .
           file: backend/Dockerfile
+          target: prod
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/backend:ci-tested-${{ env.REAL_GITHUB_SHA }}
@@ -992,6 +993,7 @@ jobs:
         with:
           context: .
           file: web-frontend/Dockerfile
+          target: prod
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/web-frontend:ci-tested-${{ env.REAL_GITHUB_SHA }}
