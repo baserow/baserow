@@ -107,7 +107,7 @@ jobs:
           cache-from: |
             type=registry,ref=${{ steps.cache.outputs.branch }}
             type=registry,ref=${{ steps.cache.outputs.develop }}
-          cache-to: type=inline
+          cache-to: type=registry,ref=${{ steps.cache.outputs.branch }},mode=max
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ env.REAL_GITHUB_SHA }}
@@ -168,7 +168,7 @@ jobs:
           cache-from: |
             type=registry,ref=${{ steps.cache.outputs.branch }}
             type=registry,ref=${{ steps.cache.outputs.develop }}
-          cache-to: type=inline
+          cache-to: type=registry,ref=${{ steps.cache.outputs.branch }},mode=max
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ env.REAL_GITHUB_SHA }}
@@ -443,7 +443,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+        group: [1, 2, 3, 4, 5, 6, 7, 8]
     services:
       db:
         image: pgvector/pgvector:pg13
@@ -479,7 +479,7 @@ jobs:
           docker run \
             --name=baserow_backend_test_container \
             --network="${{ job.services.db.network }}" \
-            -e PYTEST_SPLITS=10 \
+            -e PYTEST_SPLITS=8 \
             -e PYTEST_SPLIT_GROUP=${{ matrix.group }} \
             -e DATABASE_HOST=db \
             -e DATABASE_PORT=5432 \
@@ -957,7 +957,7 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/backend:ci-tested-${{ env.REAL_GITHUB_SHA }}
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/backend_dev:ci-${{ env.REAL_GITHUB_SHA }}
-          cache-to: type=inline
+          cache-to: type=registry,ref=${{ steps.cache.outputs.branch }},mode=max
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ env.REAL_GITHUB_SHA }}
@@ -996,7 +996,7 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/web-frontend:ci-tested-${{ env.REAL_GITHUB_SHA }}
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/web-frontend_dev:ci-${{ env.REAL_GITHUB_SHA }}
-          cache-to: type=inline
+          cache-to: type=registry,ref=${{ steps.cache.outputs.branch }},mode=max
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ env.REAL_GITHUB_SHA }}
@@ -1036,7 +1036,7 @@ jobs:
             FROM_WEBFRONTEND_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/web-frontend:ci-tested-${{ env.REAL_GITHUB_SHA }}
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/baserow:ci-tested-${{ env.REAL_GITHUB_SHA }}
-          cache-to: type=inline
+          cache-to: type=registry,ref=${{ steps.cache.outputs.branch }},mode=max
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ env.REAL_GITHUB_SHA }}
@@ -1074,7 +1074,7 @@ jobs:
             FROM_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/baserow:ci-tested-${{ env.REAL_GITHUB_SHA }}
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/cloudron:ci-tested-${{ env.REAL_GITHUB_SHA }}
-          cache-to: type=inline
+          cache-to: type=registry,ref=${{ steps.cache.outputs.branch }},mode=max
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ env.REAL_GITHUB_SHA }}
