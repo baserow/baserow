@@ -1014,5 +1014,8 @@
         "baseElement": "Elementos base",
         "layoutElement": "Elementos de diseño",
         "formElement": "Elementos de formulario"
+    },
+    "orientations": {
+        "label": "Orientación"
     }
 }
