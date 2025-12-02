@@ -79,14 +79,16 @@ jobs:
           AMD64=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/backend:${{ env.CI_TESTED_TAG_SUFFIX }}
           ARM64=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/backend:${{ env.CI_TESTED_TAG_SUFFIX }}-arm64
           TARGET=${{ env.RELEASE_DOCKER_REPOSITORY }}/backend:${{ github.ref_name }}
+          LATEST=${{ env.RELEASE_DOCKER_REPOSITORY }}/backend:latest
 
           echo "Creating multi-arch image:"
           echo "  $TARGET"
+          echo "  $LATEST"
           echo "from:"
           echo "  $AMD64"
           echo "  $ARM64"
 
-          docker buildx imagetools create -t "$TARGET" "$AMD64" "$ARM64"
+          docker buildx imagetools create -t "$TARGET" -t "$LATEST" "$AMD64" "$ARM64"
 
   build-webfrontend-arm64-release-image:
     name: Build web-frontend arm64 image (GHCR)
@@ -152,14 +154,16 @@ jobs:
           AMD64=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/web-frontend:${{ env.CI_TESTED_TAG_SUFFIX }}
           ARM64=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/web-frontend:${{ env.CI_TESTED_TAG_SUFFIX }}-arm64
           TARGET=${{ env.RELEASE_DOCKER_REPOSITORY }}/web-frontend:${{ github.ref_name }}
+          LATEST=${{ env.RELEASE_DOCKER_REPOSITORY }}/web-frontend:latest
 
           echo "Creating multi-arch image:"
           echo "  $TARGET"
+          echo "  $LATEST"
           echo "from:"
           echo "  $AMD64"
           echo "  $ARM64"
 
-          docker buildx imagetools create --debug -t "$TARGET" "$AMD64" "$ARM64"
+          docker buildx imagetools create --debug -t "$TARGET" -t "$LATEST" "$AMD64" "$ARM64"
 
   build-all-in-one-arm64-release-image:
     name: Build baserow (all-in-one) arm64 image (GHCR)
@@ -231,14 +235,16 @@ jobs:
           AMD64=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/baserow:${{ env.CI_TESTED_TAG_SUFFIX }}
           ARM64=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/baserow:${{ env.CI_TESTED_TAG_SUFFIX }}-arm64
           TARGET=${{ env.RELEASE_DOCKER_REPOSITORY }}/baserow:${{ github.ref_name }}
+          LATEST=${{ env.RELEASE_DOCKER_REPOSITORY }}/baserow:latest
 
           echo "Creating multi-arch image:"
           echo "  $TARGET"
+          echo "  $LATEST"
           echo "from:"
           echo "  $AMD64"
           echo "  $ARM64"
 
-          docker buildx imagetools create -t "$TARGET" "$AMD64" "$ARM64"
+          docker buildx imagetools create -t "$TARGET" -t "$LATEST" "$AMD64" "$ARM64"
 
   build-cloudron-arm64-release-image:
     name: Build cloudron arm64 image (GHCR)
