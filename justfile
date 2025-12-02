@@ -96,6 +96,60 @@ dc-prod *ARGS:
         BASEROW_VERSION=latest docker compose -f docker-compose.yml -f docker-compose.build.yml {{ ARGS }}
     fi
 
+# Run docker compose for specific deployment configurations
+[doc("Docker compose for deployments: just dc-deploy <name> <cmd>")]
+dc-deploy name="" *ARGS:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    case "{{ name }}" in
+        "all-in-one")
+            docker compose -f deploy/all-in-one/docker-compose.yml {{ ARGS }}
+            ;;
+        "all-in-one-dev")
+            docker compose -f deploy/all-in-one/docker-compose.yml -f deploy/all-in-one/docker-compose.dev.yml {{ ARGS }}
+            ;;
+        "cloudron")
+            docker compose -f deploy/cloudron/docker-compose.yml {{ ARGS }}
+            ;;
+        "heroku")
+            docker compose -f deploy/heroku/docker-compose.yml {{ ARGS }}
+            ;;
+        "traefik")
+            docker compose -f deploy/traefik/docker-compose.yml {{ ARGS }}
+            ;;
+        "nginx")
+            docker compose -f deploy/nginx/recommended/docker-compose.yml {{ ARGS }}
+            ;;
+        "apache")
+            docker compose -f deploy/apache/recommended/docker-compose.yml {{ ARGS }}
+            ;;
+        "local-testing")
+            docker compose -f deploy/local_testing/docker-compose.local.yml {{ ARGS }}
+            ;;
+        *)
+            echo "Run docker compose for deployment configurations"
+            echo ""
+            echo "Usage: just dc-deploy <name> <cmd> [args]"
+            echo ""
+            echo "Deployments:"
+            echo "  all-in-one      - All-in-one container (production)"
+            echo "  all-in-one-dev  - All-in-one container (development)"
+            echo "  cloudron        - Cloudron deployment"
+            echo "  heroku          - Heroku deployment"
+            echo "  traefik         - Traefik reverse proxy"
+            echo "  nginx           - Nginx reverse proxy"
+            echo "  apache          - Apache reverse proxy"
+            echo "  local-testing   - Local testing setup"
+            echo ""
+            echo "Examples:"
+            echo "  just dc-deploy cloudron up -d"
+            echo "  just dc-deploy all-in-one logs -f"
+            echo "  just dc-deploy heroku build"
+            [[ -n "{{ name }}" ]] && exit 1 || exit 0
+            ;;
+    esac
+
 # =============================================================================
 # Frontend (placeholder for future)
 # =============================================================================
@@ -279,3 +333,87 @@ logs *ARGS:
         echo "If running locally, start with: just b run-dev-server"
         echo "If running in Docker, start with: just dc-dev up backend"
     fi
+
+# =============================================================================
+# Build
+# =============================================================================
+
+# Build deployment images
+# Usage: just build <target> [tag]
+[doc("Build image: backend, web-frontend, all-in-one, all-in-one-lite, heroku, cloudron, render, apache")]
+build target="" tag="latest":
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    case "{{ target }}" in
+        "backend")
+            docker build -f backend/Dockerfile --target prod -t baserow/backend:{{ tag }} .
+            ;;
+        "web-frontend")
+            docker build -f web-frontend/Dockerfile --target prod -t baserow/web-frontend:{{ tag }} .
+            ;;
+        "all-in-one")
+            echo "Building backend (prod)..."
+            docker build -f backend/Dockerfile --target prod -t baserow_backend:latest .
+            echo "Building web-frontend (prod)..."
+            docker build -f web-frontend/Dockerfile --target prod -t baserow_web-frontend:latest .
+            echo "Building all-in-one..."
+            docker build -f deploy/all-in-one/Dockerfile --target prod -t baserow/baserow:{{ tag }} .
+            ;;
+        "all-in-one-lite")
+            echo "Building backend (prod)..."
+            docker build -f backend/Dockerfile --target prod -t baserow_backend:latest .
+            echo "Building web-frontend (prod)..."
+            docker build -f web-frontend/Dockerfile --target prod -t baserow_web-frontend:latest .
+            echo "Building all-in-one-lite (no postgres/redis)..."
+            docker build -f deploy/all-in-one/Dockerfile --target prod-lite -t baserow/baserow:lite-{{ tag }} .
+            ;;
+        "all-in-one-dev")
+            echo "Building backend (dev)..."
+            docker build -f backend/Dockerfile --target dev -t baserow_backend:dev .
+            echo "Building web-frontend (dev)..."
+            docker build -f web-frontend/Dockerfile --target dev -t baserow_web-frontend:dev .
+            echo "Building all-in-one-dev..."
+            docker build -f deploy/all-in-one/Dockerfile --target dev -t baserow/baserow:dev-{{ tag }} .
+            ;;
+        "heroku")
+            docker build -f heroku.Dockerfile -t baserow/heroku:{{ tag }} .
+            ;;
+        "cloudron")
+            docker build -f deploy/cloudron/Dockerfile -t baserow/cloudron:{{ tag }} .
+            ;;
+        "render")
+            docker build -f deploy/render/Dockerfile -t baserow/render:{{ tag }} .
+            ;;
+        "apache")
+            docker build -f deploy/apache/recommended/Dockerfile -t baserow/apache:{{ tag }} deploy/apache/recommended/
+            ;;
+        "apache-no-caddy")
+            docker build -f deploy/apache/no-caddy/Dockerfile -t baserow/apache-no-caddy:{{ tag }} deploy/apache/no-caddy/
+            ;;
+        *)
+            echo "Build deployment images"
+            echo ""
+            echo "Usage: just build <target> [tag]"
+            echo ""
+            echo "Targets:"
+            echo "  backend         - Backend API server"
+            echo "  web-frontend    - Nuxt web frontend"
+            echo "  all-in-one      - Single container (production)"
+            echo "  all-in-one-lite - Single container without postgres/redis"
+            echo "  all-in-one-dev  - Single container (development)"
+            echo "  heroku          - Heroku platform"
+            echo "  cloudron        - Cloudron marketplace"
+            echo "  render          - Render.com platform"
+            echo "  apache          - Apache reverse proxy"
+            echo "  apache-no-caddy - Apache reverse proxy (no Caddy)"
+            echo ""
+            echo "Examples:"
+            echo "  just build all-in-one           # Tags as :latest"
+            echo "  just build all-in-one 2.0.0     # Tags as :2.0.0"
+            echo "  just build backend"
+            [[ -n "{{ target }}" ]] && exit 1 || exit 0
+            ;;
+    esac
+    echo ""
+    echo "Built: $(docker images --format '{{ '{{.Repository}}:{{.Tag}}' }}' | grep -m1 'baserow')"
