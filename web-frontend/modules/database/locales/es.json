@@ -1117,7 +1117,8 @@
         "password": "La contraseña que debe verificarse para saber si es correcta."
     },
     "apiDocsListTables": {
-        "listTablesDescription": "Este endpoint solo funciona en combinación con la autenticación mediante token. Enumera todas las tablas a las que el token tiene acceso de crear, leer, actualizar o eliminar."
+        "listTablesDescription": "Este endpoint solo funciona en combinación con la autenticación mediante token. Enumera todas las tablas a las que el token tiene acceso de crear, leer, actualizar o eliminar.",
+        "listTables": "Listar todas las tablas"
     },
     "fieldMultipleSelectSubForm": {
         "optionsLabel": "Opciones",
