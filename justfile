@@ -264,6 +264,17 @@ test-db-stop:
     docker rm -f {{ test_db_name }} 2>/dev/null || true
 
 # =============================================================================
+# E2E Tests
+# =============================================================================
+
+# Run E2E commands (delegates to e2e-tests/justfile)
+# Usage: just e2e <command> [args]
+# Commands: build, up, down, test, logs, run, db-dump, db-restore
+[doc("E2E tests: just e2e <build|up|down|test|logs|run|db-dump>")]
+e2e *ARGS:
+    @just --justfile e2e-tests/justfile {{ ARGS }}
+
+# =============================================================================
 # Logs
 # =============================================================================
 

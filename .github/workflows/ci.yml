@@ -82,20 +82,6 @@ jobs:
           FULL_IMAGE="${IMAGE_NAME}:${IMAGE_TAG}"
           echo "full=${FULL_IMAGE}" >> $GITHUB_OUTPUT
 
-      - name: Determine cache sources
-        id: cache
-        run: |
-          BRANCH_NAME="${GITHUB_REF_NAME}"
-          TRUNCATED_BRANCH="${BRANCH_NAME:0:100}"
-          TRUNCATED_BRANCH="${TRUNCATED_BRANCH//\//-}"
-
-          IMAGE_NAME="${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/backend_dev"
-          BRANCH_CACHE="${IMAGE_NAME}:${{ env.CI_IMAGE_TAG_PREFIX }}${TRUNCATED_BRANCH}"
-          DEVELOP_CACHE="${IMAGE_NAME}:${{ env.CI_IMAGE_TAG_PREFIX }}${{ env.DEVELOP_BRANCH_NAME }}"
-
-          echo "branch=${BRANCH_CACHE}" >> $GITHUB_OUTPUT
-          echo "develop=${DEVELOP_CACHE}" >> $GITHUB_OUTPUT
-
       - name: Build and push backend CI image
         uses: docker/build-push-action@v5
         with:
@@ -104,10 +90,8 @@ jobs:
           target: ci
           push: true
           tags: ${{ steps.image.outputs.full }}
-          cache-from: |
-            type=registry,ref=${{ steps.cache.outputs.branch }}
-            type=registry,ref=${{ steps.cache.outputs.develop }}
-          cache-to: type=registry,ref=${{ steps.cache.outputs.branch }},mode=max
+          cache-from: type=gha,scope=backend-ci
+          cache-to: type=gha,scope=backend-ci,mode=max
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ env.REAL_GITHUB_SHA }}
@@ -143,20 +127,6 @@ jobs:
           FULL_IMAGE="${IMAGE_NAME}:${IMAGE_TAG}"
           echo "full=${FULL_IMAGE}" >> $GITHUB_OUTPUT
 
-      - name: Determine cache sources
-        id: cache
-        run: |
-          BRANCH_NAME="${GITHUB_REF_NAME}"
-          TRUNCATED_BRANCH="${BRANCH_NAME:0:100}"
-          TRUNCATED_BRANCH="${TRUNCATED_BRANCH//\//-}"
-
-          IMAGE_NAME="${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/web-frontend_dev"
-          BRANCH_CACHE="${IMAGE_NAME}:${{ env.CI_IMAGE_TAG_PREFIX }}${TRUNCATED_BRANCH}"
-          DEVELOP_CACHE="${IMAGE_NAME}:${{ env.CI_IMAGE_TAG_PREFIX }}${{ env.DEVELOP_BRANCH_NAME }}"
-
-          echo "branch=${BRANCH_CACHE}" >> $GITHUB_OUTPUT
-          echo "develop=${DEVELOP_CACHE}" >> $GITHUB_OUTPUT
-
       - name: Build and push web-frontend CI image
         uses: docker/build-push-action@v5
         with:
@@ -165,10 +135,54 @@ jobs:
           target: ci
           push: true
           tags: ${{ steps.image.outputs.full }}
-          cache-from: |
-            type=registry,ref=${{ steps.cache.outputs.branch }}
-            type=registry,ref=${{ steps.cache.outputs.develop }}
-          cache-to: type=registry,ref=${{ steps.cache.outputs.branch }},mode=max
+          cache-from: type=gha,scope=frontend-ci
+          cache-to: type=gha,scope=frontend-ci,mode=max
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ env.REAL_GITHUB_SHA }}
+            org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
+
+  # E2E tests need the built Nuxt app (nuxt-local), so we build prod target separately
+  build-frontend-e2e:
+    name: Build Web-Frontend E2E Image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.image.outputs.full }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate image tag
+        id: image
+        run: |
+          IMAGE_NAME="${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/web-frontend_e2e"
+          IMAGE_TAG="${{ env.CI_IMAGE_TAG_PREFIX }}${{ env.REAL_GITHUB_SHA }}"
+          FULL_IMAGE="${IMAGE_NAME}:${IMAGE_TAG}"
+          echo "full=${FULL_IMAGE}" >> $GITHUB_OUTPUT
+
+      - name: Build and push web-frontend E2E image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: web-frontend/Dockerfile
+          target: prod
+          push: true
+          tags: ${{ steps.image.outputs.full }}
+          cache-from: type=gha,scope=frontend-e2e
+          cache-to: type=gha,scope=frontend-e2e,mode=max
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ env.REAL_GITHUB_SHA }}
@@ -227,19 +241,11 @@ jobs:
     needs:
       - build-backend
       - detect-changes
+    if: needs.detect-changes.outputs.backend == 'true' || github.ref_name == 'develop' || github.ref_name == 'master'
     permissions:
       contents: read
       packages: read
     steps:
-      - name: Exit early if backend not changed and not develop/master
-        run: |
-          if [[ "${{ needs.detect-changes.outputs.backend }}" != "true" && \
-                "${{ github.ref_name }}" != "develop" && \
-                "${{ github.ref_name }}" != "master" ]]; then
-            echo "No backend changes detected — skipping backend lint."
-            exit 0
-          fi
-
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -256,19 +262,11 @@ jobs:
     needs:
       - build-frontend
       - detect-changes
+    if: needs.detect-changes.outputs.frontend == 'true' || github.ref_name == 'develop' || github.ref_name == 'master'
     permissions:
       contents: read
       packages: read
     steps:
-      - name: Exit early if frontend not changed and not develop/master
-        run: |
-          if [[ "${{ needs.detect-changes.outputs.frontend }}" != "true" && \
-                "${{ github.ref_name }}" != "develop" && \
-                "${{ github.ref_name }}" != "master" ]]; then
-            echo "No backend changes detected — skipping backend lint."
-            exit 0
-          fi
-
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -283,21 +281,11 @@ jobs:
     name: Dockerfile Lint (hadolint)
     runs-on: ubuntu-latest
     needs:
-      - backend-lint
-      - frontend-lint
       - detect-changes
+    if: needs.detect-changes.outputs.dockerfiles == 'true' || github.ref_name == 'develop' || github.ref_name == 'master'
     permissions:
       contents: read
     steps:
-      - name: Exit early if dockerfiles not changed and not develop/master
-        run: |
-          if [[ "${{ needs.detect-changes.outputs.dockerfiles }}" != "true" && \
-                "${{ github.ref_name }}" != "develop" && \
-                "${{ github.ref_name }}" != "master" ]]; then
-            echo "No backend changes detected — skipping backend lint."
-            exit 0
-          fi
-
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -369,8 +357,8 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - build-backend
-      - backend-lint
       - detect-changes
+    if: needs.detect-changes.outputs.backend == 'true' || github.ref_name == 'develop' || github.ref_name == 'master'
     permissions:
       contents: read
       packages: read
@@ -386,16 +374,9 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+          --tmpfs /var/lib/postgresql/data:rw,noexec,nosuid,size=4g
+          --shm-size=512m
     steps:
-      - name: Exit early if backend not changed and not develop/master
-        run: |
-          if [[ "${{ needs.detect-changes.outputs.backend }}" != "true" && \
-                "${{ github.ref_name }}" != "develop" && \
-                "${{ github.ref_name }}" != "master" ]]; then
-            echo "No backend changes detected — skipping backend lint."
-            exit 0
-          fi
-
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -425,8 +406,8 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - build-backend
-      - backend-lint
       - detect-changes
+    if: needs.detect-changes.outputs.backend == 'true' || github.ref_name == 'develop' || github.ref_name == 'master'
     permissions:
       contents: read
       packages: read
@@ -448,16 +429,9 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+          --tmpfs /var/lib/postgresql/data:rw,noexec,nosuid,size=4g
+          --shm-size=512m
     steps:
-      - name: Exit early if backend not changed and not develop/master
-        run: |
-          if [[ "${{ needs.detect-changes.outputs.backend }}" != "true" && \
-                "${{ github.ref_name }}" != "develop" && \
-                "${{ github.ref_name }}" != "master" ]]; then
-            echo "No backend changes detected — skipping backend lint."
-            exit 0
-          fi
-
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -505,8 +479,8 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - build-frontend
-      - frontend-lint
       - detect-changes
+    if: needs.detect-changes.outputs.frontend == 'true' || github.ref_name == 'develop' || github.ref_name == 'master'
     permissions:
       contents: read
       packages: read
@@ -517,15 +491,6 @@ jobs:
       matrix:
         shard: [1, 2, 3, 4]
     steps:
-      - name: Exit early if frontend not changed and not develop/master
-        run: |
-          if [[ "${{ needs.detect-changes.outputs.frontend }}" != "true" && \
-                "${{ github.ref_name }}" != "develop" && \
-                "${{ github.ref_name }}" != "master" ]]; then
-            echo "No backend changes detected — skipping backend lint."
-            exit 0
-          fi
-
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -565,21 +530,11 @@ jobs:
     name: Zapier Integration Tests
     runs-on: ubuntu-latest
     needs:
-      - backend-lint
-      - frontend-lint
       - detect-changes
+    if: needs.detect-changes.outputs.zapier == 'true' || github.ref_name == 'develop' || github.ref_name == 'master'
     permissions:
       contents: read
     steps:
-      - name: Exit early if zapier not changed and not develop/master
-        run: |
-          if [[ "${{ needs.detect-changes.outputs.zapier }}" != "true" && \
-                "${{ github.ref_name }}" != "develop" && \
-                "${{ github.ref_name }}" != "master" ]]; then
-            echo "No backend changes detected — skipping backend lint."
-            exit 0
-          fi
-
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -600,21 +555,11 @@ jobs:
     name: Check MJML Email Templates Compiled
     runs-on: ubuntu-latest
     needs:
-      - backend-lint
-      - frontend-lint
       - detect-changes
+    if: needs.detect-changes.outputs.mjml == 'true' || github.ref_name == 'develop' || github.ref_name == 'master'
     permissions:
       contents: read
     steps:
-      - name: Exit early if mjml not changed and not develop/master
-        run: |
-          if [[ "${{ needs.detect-changes.outputs.mjml }}" != "true" && \
-                "${{ github.ref_name }}" != "develop" && \
-                "${{ github.ref_name }}" != "master" ]]; then
-            echo "No backend changes detected — skipping backend lint."
-            exit 0
-          fi
-
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -650,9 +595,8 @@ jobs:
     needs:
       - detect-changes
       - build-backend
-      - build-frontend
-      - backend-lint
-      - frontend-lint
+      - build-frontend-e2e
+    if: needs.detect-changes.outputs.backend == 'true' || needs.detect-changes.outputs.frontend == 'true' || needs.detect-changes.outputs.dockerfiles == 'true' || github.ref_name == 'develop' || github.ref_name == 'master'
     permissions:
       contents: read
       packages: read
@@ -674,6 +618,8 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+          --tmpfs /var/lib/postgresql/data:rw,noexec,nosuid,size=4g
+          --shm-size=512m
       redis:
         image: redis:6-alpine
         options: >-
@@ -681,6 +627,7 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+          --tmpfs /data:rw,noexec,nosuid,size=256m
       s3mock:
         image: adobe/s3mock:3.12.0
         env:
@@ -688,17 +635,6 @@ jobs:
         ports:
           - 9090:9090
     steps:
-      - name: Exit early if no relevant changes
-        run: |
-          if [[ "${{ needs.detect-changes.outputs.backend }}" != "true" && \
-                "${{ needs.detect-changes.outputs.frontend }}" != "true" && \
-                "${{ needs.detect-changes.outputs.dockerfiles }}" != "true" && \
-                "${{ github.ref_name }}" != "develop" && \
-                "${{ github.ref_name }}" != "master" ]]; then
-            echo "No backend, frontend, or Dockerfile changes detected — skipping job."
-            exit 0
-          fi
-
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -715,6 +651,19 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Restore database from dump
+        run: |
+          echo "Restoring database from dump to container ${{ job.services.db.id }}..."
+
+          # Drop and recreate database
+          docker exec ${{ job.services.db.id }} psql -U baserow -d postgres -c "DROP DATABASE IF EXISTS baserow;"
+          docker exec ${{ job.services.db.id }} psql -U baserow -d postgres -c "CREATE DATABASE baserow;"
+
+          # Restore from dump (migrations and templates already applied)
+          docker exec -i ${{ job.services.db.id }} pg_restore -U baserow -d baserow --no-owner --no-acl < e2e-tests/fixtures/e2e-db.dump || true
+
+          echo "Database restored successfully!"
 
       - name: Start backend service
         run: |
@@ -735,7 +684,8 @@ jobs:
             -e AWS_S3_URL_PROTOCOL=http: \
             -e FEATURE_FLAGS="*" \
             -e DJANGO_SETTINGS_MODULE=baserow.config.settings.e2e \
-            -e BASEROW_TRIGGER_SYNC_TEMPLATES_AFTER_MIGRATION=false \
+            -e MIGRATE_ON_STARTUP=true \
+            -e PRIVATE_BACKEND_URL=http://backend:8000 \
             -p 8000:8000 \
             ${{ needs.build-backend.outputs.image }} gunicorn
 
@@ -770,9 +720,8 @@ jobs:
             -e PUBLIC_WEB_FRONTEND_URL=http://localhost:3000 \
             -e PRIVATE_BACKEND_URL=http://backend:8000 \
             -e FEATURE_FLAGS="*" \
-            -e NODE_OPTIONS=--max-old-space-size=8192 \
             -p 3000:3000 \
-            ${{ needs.build-frontend.outputs.image }} nuxt-dev-no-attach
+            ${{ needs.build-frontend-e2e.outputs.image }} nuxt-local
 
       - name: Install dependencies
         run: |
@@ -823,6 +772,18 @@ jobs:
           path: e2e-tests/blob-report/
           retention-days: 7
           include-hidden-files: true
+
+      - name: Dump container logs on failure
+        if: failure()
+        run: |
+          echo "=== Backend logs ==="
+          docker logs backend 2>&1 || true
+          echo ""
+          echo "=== Celery logs ==="
+          docker logs celery 2>&1 || true
+          echo ""
+          echo "=== Web-frontend logs ==="
+          docker logs web-frontend 2>&1 || true
 
       - name: Cleanup containers
         if: always()
