@@ -1271,7 +1271,6 @@ def test_send_change_email_confirmation(data_fixture, client, mailoutbox):
         email="test@test.nl", password=valid_password
     )
 
-    # Test with missing parameters
     response = client.post(
         reverse("api:user:send_change_email_confirmation"),
         {},
@@ -1282,7 +1281,6 @@ def test_send_change_email_confirmation(data_fixture, client, mailoutbox):
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response_json["error"] == "ERROR_REQUEST_BODY_VALIDATION"
 
-    # Test with incorrect password
     response = client.post(
         reverse("api:user:send_change_email_confirmation"),
         {
@@ -1297,7 +1295,6 @@ def test_send_change_email_confirmation(data_fixture, client, mailoutbox):
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response_json["error"] == "ERROR_INVALID_OLD_PASSWORD"
 
-    # Test with existing email
     data_fixture.create_user(email="existing@test.nl")
     response = client.post(
         reverse("api:user:send_change_email_confirmation"),
@@ -1313,7 +1310,6 @@ def test_send_change_email_confirmation(data_fixture, client, mailoutbox):
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response_json["error"] == "ERROR_EMAIL_ALREADY_EXISTS"
 
-    # Test successful request
     response = client.post(
         reverse("api:user:send_change_email_confirmation"),
         {
@@ -1364,7 +1360,6 @@ def test_send_change_email_confirmation_without_password(
     data_fixture, client, mailoutbox
 ):
     data_fixture.create_password_provider()
-    # Create user without password (simulating SSO account)
     user, token = data_fixture.create_user_and_token(email="test@test.nl")
     user.password = ""
     user.save()
@@ -1396,7 +1391,6 @@ def test_change_email(data_fixture, client, mailoutbox):
         email="test@test.nl", password=valid_password
     )
 
-    # Request email change
     response = client.post(
         reverse("api:user:send_change_email_confirmation"),
         {
@@ -1410,12 +1404,10 @@ def test_change_email(data_fixture, client, mailoutbox):
     assert response.status_code == HTTP_204_NO_CONTENT
     assert len(mailoutbox) == 1
 
-    # The token is in the URL in the email
     handler = UserHandler()
     signer = handler.get_change_email_signer()
     change_token = signer.dumps({"user_id": user.id, "new_email": "newemail@test.nl"})
 
-    # Test with invalid token
     response = client.post(
         reverse("api:user:change_email"),
         {"token": "invalid_token"},
@@ -1425,7 +1417,6 @@ def test_change_email(data_fixture, client, mailoutbox):
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response_json["error"] == "BAD_TOKEN_SIGNATURE"
 
-    # Test successful email change
     response = client.post(
         reverse("api:user:change_email"),
         {"token": change_token},
@@ -1433,12 +1424,10 @@ def test_change_email(data_fixture, client, mailoutbox):
     )
     assert response.status_code == HTTP_204_NO_CONTENT
 
-    # Verify email was changed
     user.refresh_from_db()
     assert user.email == "newemail@test.nl"
     assert user.username == "newemail@test.nl"
 
-    # Test that using the same token again fails because email is already changed
     response = client.post(
         reverse("api:user:change_email"),
         {"token": change_token},
@@ -1448,7 +1437,6 @@ def test_change_email(data_fixture, client, mailoutbox):
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response_json["error"] == "ERROR_EMAIL_ALREADY_CHANGED"
 
-    # Verify email is still the same
     user.refresh_from_db()
     assert user.email == "newemail@test.nl"
     assert user.username == "newemail@test.nl"
@@ -1463,7 +1451,6 @@ def test_change_email_with_expired_token(data_fixture, client):
     handler = UserHandler()
     signer = handler.get_change_email_signer()
 
-    # Test with expired token using freezegun
     with freeze_time("2023-01-01 12:00:00"):
         change_token = signer.dumps(
             {"user_id": user.id, "new_email": "newemail@test.nl"}
@@ -1489,7 +1476,6 @@ def test_change_email_same_as_current(data_fixture, client):
     handler = UserHandler()
     signer = handler.get_change_email_signer()
 
-    # Test changing email to the same email (same case)
     change_token = signer.dumps({"user_id": user.id, "new_email": "test@test.nl"})
     response = client.post(
         reverse("api:user:change_email"),
@@ -1500,7 +1486,6 @@ def test_change_email_same_as_current(data_fixture, client):
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response_json["error"] == "ERROR_EMAIL_ALREADY_CHANGED"
 
-    # Test changing email to the same email (different case)
     change_token = signer.dumps({"user_id": user.id, "new_email": "TeSt@TeSt.nl"})
     response = client.post(
         reverse("api:user:change_email"),
@@ -1511,6 +1496,5 @@ def test_change_email_same_as_current(data_fixture, client):
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response_json["error"] == "ERROR_EMAIL_ALREADY_CHANGED"
 
-    # Verify email was not changed
     user.refresh_from_db()
     assert user.email == "test@test.nl"

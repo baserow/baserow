@@ -512,6 +512,7 @@ class SendChangeEmailConfirmationView(APIView):
                     "ERROR_INVALID_OLD_PASSWORD",
                     "ERROR_ALREADY_EXISTS",
                     "ERROR_CHANGE_EMAIL_NOT_ALLOWED",
+                    "ERROR_AUTH_PROVIDER_DISABLED",
                 ]
             ),
         },
