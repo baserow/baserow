@@ -175,7 +175,29 @@
         "invalidElementValue": "Elemento con valor inválido: {value}",
         "menu": "Menú",
         "menuDescription": "Elemento de menú",
-        "simpleContainer": "Contenedor"
+        "simpleContainer": "Contenedor",
+        "simpleContainerDescription": "Un contenedor para otros elementos",
+        "fileInput": "Selección de archivo",
+        "fileInputDescription": "Una entrada para subir archivos",
+        "errorValueMissing": "Propiedad de valor faltante",
+        "errorEmptyContainer": "Este contenedor está vacío",
+        "errorParentWithDataSourceMissing": "No se ha seleccionado ninguna fuente de datos en el elemento ni en un contenedor padre",
+        "errorDataSourceMissing": "No se ha seleccionado ninguna fuente de datos",
+        "errorSchemaPropertyMissing": "No se ha seleccionado ninguna propiedad de esquema",
+        "errorWorkflowActionInError": "Al menos una acción está mal configurada",
+        "errorCollectionFieldInError": "Al menos un campo está mal configurado",
+        "errorNavigateToPageMissing": "Falta la propiedad «Navegar a»",
+        "errorPageParameterInError": "Al menos un parámetro de página está mal configurado",
+        "errorNavigationUrlMissing": "Falta la propiedad «URL de navegación»",
+        "errorImageFileMissing": "No se encontró el archivo de imagen",
+        "errorImageUrlMissing": "Falta la propiedad «URL de imagen»",
+        "errorNoWorkflowAction": "Falta configurar una acción del flujo de trabajo",
+        "errorOptionsMissing": "No se ha configurado ninguna opción",
+        "errorIframeUrlMissing": "Falta la propiedad «URL del iFrame»",
+        "errorIframeContentMissing": "Falta el contenido de «iFrame»",
+        "errorNoMenuItem": "No se ha configurado ningún elemento de menú",
+        "errorMenuItemInError": "Al menos un menú está mal configurado",
+        "errorSubMenuItemInError": "Al menos un submenú está mal configurado"
     },
     "verticalAlignmentSelector": {
         "alignmentTop": "Arriba",
@@ -197,7 +219,8 @@
     },
     "duplicatePageJobType": {
         "duplicating": "Duplicando",
-        "duplicatedTitle": "Página duplicada"
+        "duplicatedTitle": "Página duplicada",
+        "name": "Duplicar página"
     },
     "defaultStyleForm": {
         "widthLabel": "Anchura",
@@ -390,7 +413,8 @@
         "general": "General",
         "events": "Eventos",
         "style": "Estilo",
-        "eventsTabDeactivatedNoEvents": "Este elemento no admite eventos"
+        "eventsTabDeactivatedNoEvents": "Este elemento no admite eventos",
+        "eventsTabInError": "Una o más acciones están mal configuradas."
     },
     "addElementModal": {
         "title": "Añadir nuevo elemento",
@@ -984,5 +1008,11 @@
     },
     "sidePanelGuidedTourStep": {
         "content": "**Pestaña General** – Configura el elemento seleccionado.\n\n**Pestaña Estilo** – Personaliza el relleno, el margen, los bordes y más.\n\n**Pestaña Visibilidad** – Controla quién puede ver este elemento: usuarios conectados, usuarios desconectados o roles específicos.\n\n**Pestaña Eventos** – Si el elemento admite acciones, configúralas aquí para lograr interactividad dinámica."
+    },
+    "addElementCategory": {
+        "suggestedElement": "Elementos sugeridos",
+        "baseElement": "Elementos base",
+        "layoutElement": "Elementos de diseño",
+        "formElement": "Elementos de formulario"
     }
 }
