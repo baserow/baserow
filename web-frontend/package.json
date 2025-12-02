@@ -16,7 +16,7 @@
     "eslint": "eslint -c .eslintrc.js --cache --cache-location=.cache/eslint --ext .js,.vue . ../premium/web-frontend ../enterprise/web-frontend",
     "lint": "yarn eslint && yarn stylelint",
     "fix": "yarn prettier **/*.js **/*.vue **/*.scss --cache --cache-location=.cache/prettier -w && yarn eslint --fix && yarn stylelint --fix",
-    "stylelint": "stylelint **/*.scss ../premium/web-frontend/modules/**/*.scss ../enterprise/web-frontend/modules/**/*.scss",
+    "stylelint": "stylelint --cache --cache-location=.cache/stylelint **/*.scss ../premium/web-frontend/modules/**/*.scss ../enterprise/web-frontend/modules/**/*.scss",
     "test-core": "TZ=UTC jest --verbose false --config jest.config.js",
     "test-premium": "TZ=UTC jest --verbose false --config ../premium/web-frontend/jest.config.js",
     "test-enterprise": "TZ=UTC jest --verbose false --config ../enterprise/web-frontend/jest.config.js",

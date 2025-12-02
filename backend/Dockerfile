@@ -71,11 +71,11 @@ RUN --mount=type=cache,mode=777,target=$UV_CACHE_DIR,uid=9999,gid=9999 \
     && rm -rf /baserow/backend/tests /baserow/premium/backend/tests /baserow/enterprise/backend/tests \
     && rm -rf /baserow/backend/templates \
     # Strip test/doc directories from site-packages (keep django/drf tests - used at runtime)
-    # Keep botocore/docs - it's imported at runtime by botocore.waiter
+    # Keep botocore/docs and boto3/docs - they're imported at runtime
     && (find /baserow/venv/lib -type d \( -name "test" -o -name "tests" \) \
         -not -path "*/django/*" -not -path "*/rest_framework/*" -prune -exec rm -rf {} \; || true) \
     && (find /baserow/venv/lib -type d \( -name "doc" -o -name "docs" -o -name "example" -o -name "examples" \) \
-        -not -path "*/botocore/*" -prune -exec rm -rf {} \; || true)
+        -not -path "*/botocore/*" -not -path "*/boto3/*" -prune -exec rm -rf {} \; || true)
 
 # Fix entrypoint script
 RUN dos2unix /baserow/backend/docker/docker-entrypoint.sh && \
@@ -159,30 +159,46 @@ ENV DJANGO_SETTINGS_MODULE='baserow.config.settings.base'
 CMD ["gunicorn"]
 
 # =============================================================================
-# CI Target - lightweight image for tests and linting (no dev tools)
+# CI Target - lightweight image for tests and linting
 # =============================================================================
 FROM runtime-packages AS ci
+
+# Install uv (needed for justfile recipes) and just command runner
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends curl && \
+    curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin && \
+    apt-get purge -y curl && \
+    apt-get autoremove -y && \
+    rm -rf /var/lib/apt/lists/*
+
+# In slim docker images, mime.types is removed and we need it for mimetypes guessing
+COPY ./backend/docker/mime.types /etc/
 
 ENV DOCKER_USER=baserow
 ENV BASEROW_IMAGE_TYPE="backend"
 ENV PATH="/baserow/venv/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
 ENV DJANGO_SETTINGS_MODULE='baserow.config.settings.test'
+ENV UV_PROJECT_ENVIRONMENT=/baserow/venv
 
 USER 9999:9999
 
 # Copy venv from builder-dev (has test dependencies)
 COPY --link --chown=9999:9999 --from=builder-dev /baserow/venv /baserow/venv
 
-# Copy source, tests, and plugins (no docs, templates)
+# Copy source, tests, and plugins (no docs)
 COPY --link --chown=9999:9999 --from=builder /baserow/LICENSE /baserow/LICENSE
 COPY --link --chown=9999:9999 --from=builder /baserow/backend /baserow/backend
 COPY --link --chown=9999:9999 --from=builder /baserow/premium/backend /baserow/premium/backend
 COPY --link --chown=9999:9999 --from=builder /baserow/enterprise/backend /baserow/enterprise/backend
+COPY --link --chown=9999:9999 ./tests /baserow/tests
 COPY --link --chown=9999:9999 ./backend/tests /baserow/backend/tests
 COPY --link --chown=9999:9999 ./premium/backend/tests /baserow/premium/backend/tests
 COPY --link --chown=9999:9999 ./enterprise/backend/tests /baserow/enterprise/backend/tests
 COPY --link --chown=9999:9999 ./deploy/plugins/*.sh /baserow/plugins/
+# Templates needed for E2E tests (running gunicorn)
+COPY --link --chown=9999:9999 ./backend/templates /baserow/backend/templates
 
 WORKDIR /baserow/backend
 

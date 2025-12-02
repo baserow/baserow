@@ -37,7 +37,14 @@ USER 9999:9999
 
 WORKDIR /baserow/web-frontend
 
-# Copy source
+# Copy package files first (changes less often than source)
+COPY --chown=9999:9999 ./web-frontend/package.json ./web-frontend/yarn.lock /baserow/web-frontend/
+
+# Install dependencies (cached unless package.json/yarn.lock change)
+RUN --mount=type=cache,target=/home/node/.cache/yarn,uid=9999,gid=9999 \
+    yarn install
+
+# Copy source code (changes more often)
 COPY --chown=9999:9999 ./web-frontend /baserow/web-frontend/
 COPY --chown=9999:9999 ./premium/web-frontend /baserow/premium/web-frontend/
 COPY --chown=9999:9999 ./enterprise/web-frontend /baserow/enterprise/web-frontend/
@@ -47,9 +54,34 @@ COPY --chown=9999:9999 ./deploy/plugins/*.sh /baserow/plugins/
 RUN dos2unix /baserow/web-frontend/docker/docker-entrypoint.sh && \
     chmod a+x /baserow/web-frontend/docker/docker-entrypoint.sh
 
-# Install all dependencies and build (with cache mount for faster rebuilds)
+# Build (only this runs when source changes, yarn install is cached)
+RUN yarn run build-local
+
+# =============================================================================
+# Builder for CI (no build step - tests/lint don't need .nuxt output)
+# =============================================================================
+FROM builder-packages AS builder-ci
+
+USER 9999:9999
+
+WORKDIR /baserow/web-frontend
+
+# Copy package files first (changes less often than source)
+COPY --chown=9999:9999 ./web-frontend/package.json ./web-frontend/yarn.lock /baserow/web-frontend/
+
+# Install dependencies (cached unless package.json/yarn.lock change)
 RUN --mount=type=cache,target=/home/node/.cache/yarn,uid=9999,gid=9999 \
-    yarn install && yarn run build-local
+    yarn install
+
+# Copy source code (changes more often)
+COPY --chown=9999:9999 ./web-frontend /baserow/web-frontend/
+COPY --chown=9999:9999 ./premium/web-frontend /baserow/premium/web-frontend/
+COPY --chown=9999:9999 ./enterprise/web-frontend /baserow/enterprise/web-frontend/
+COPY --chown=9999:9999 ./deploy/plugins/*.sh /baserow/plugins/
+
+# Fix entrypoint
+RUN dos2unix /baserow/web-frontend/docker/docker-entrypoint.sh && \
+    chmod a+x /baserow/web-frontend/docker/docker-entrypoint.sh
 
 # =============================================================================
 # Builder for production (fresh stage with prod deps only)
@@ -130,11 +162,12 @@ USER 9999:9999
 
 WORKDIR /baserow/web-frontend
 
-# Copy source and full node_modules from builder (with dev deps for testing)
-COPY --link --chown=9999:9999 --from=builder /baserow/web-frontend /baserow/web-frontend
-COPY --link --chown=9999:9999 --from=builder /baserow/premium/web-frontend /baserow/premium/web-frontend
-COPY --link --chown=9999:9999 --from=builder /baserow/enterprise/web-frontend /baserow/enterprise/web-frontend
-COPY --link --chown=9999:9999 --from=builder /baserow/plugins /baserow/plugins
+# Copy source and full node_modules from builder-ci (with dev deps for testing)
+# Note: Uses builder-ci which skips the slow Nuxt build (not needed for tests/lint)
+COPY --link --chown=9999:9999 --from=builder-ci /baserow/web-frontend /baserow/web-frontend
+COPY --link --chown=9999:9999 --from=builder-ci /baserow/premium/web-frontend /baserow/premium/web-frontend
+COPY --link --chown=9999:9999 --from=builder-ci /baserow/enterprise/web-frontend /baserow/enterprise/web-frontend
+COPY --link --chown=9999:9999 --from=builder-ci /baserow/plugins /baserow/plugins
 COPY --link --chown=9999:9999 ./tests /baserow/tests/
 
 ENTRYPOINT ["/usr/bin/tini", "--", "/bin/bash", "/baserow/web-frontend/docker/docker-entrypoint.sh"]

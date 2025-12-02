@@ -101,22 +101,22 @@ case "$1" in
       exec yarn run storybook
     ;;
     lint)
-      exec make lint-javascript
+      exec yarn lint
     ;;
     lint-fix)
       attachable_exec yarn run eslint --fix
     ;;
     eslint)
-      exec make eslint
+      exec yarn eslint
     ;;
     stylelint)
-      exec make eslint
+      exec yarn stylelint
     ;;
     test)
-      exec make jest
+      exec yarn test
     ;;
     ci-test)
-      exec make ci-test-javascript
+      exec yarn test-coverage
     ;;
     bash)
       exec /bin/bash -c "${@:2}"
