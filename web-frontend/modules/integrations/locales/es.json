@@ -196,7 +196,16 @@
         "tokenPlaceholder": "xoxb‑1234‑…",
         "tokenMustStartWith": "El token debe comenzar con «xoxb-»",
         "supportHeading": "¿Necesitas ayuda?",
-        "supportDescription": "Si necesitas cualquier asistencia para conectar tu aplicación Slack, por favor consulta los pasos a continuación."
+        "supportDescription": "Si necesitas cualquier asistencia para conectar tu aplicación Slack, por favor consulta los pasos a continuación.",
+        "supportSetupHeading": "1. Configuración de la aplicación",
+        "supportSetupStep1": "Navega a la <a href=\"https://api.slack.com/apps\" target=\"_blank\">página de aplicaciones</a> de tu espacio de trabajo.",
+        "supportSetupStep2": "Crea una nueva aplicación, elige «Desde cero» e ingresa un nombre. Selecciona el espacio de trabajo en el que tu aplicación debe operar y haz clic en «Crear».",
+        "supportSetupStep3": "En la barra lateral izquierda, navega a «OAuth y Permisos», desplázate hacia abajo hasta «Permisos» y, bajo «Permisos del token de bot», selecciona «Añadir un permiso OAuth».",
+        "supportSetupStep4": "Para permitir que tu aplicación publique mensajes, añade el alcance <pre>chat:write</pre>.",
+        "supportPairingHeading": "2. Conexión de tu aplicación Slack",
+        "supportPairingStep1": "Si tu aplicación es nueva: navega a «Configuración» > «Instalar aplicación». Haz clic en el botón verde para instalar la aplicación en tu espacio de trabajo.",
+        "supportPairingStep2": "Copia tu «Token OAuth de usuario bot» y almacénalo en el campo «Token de usuario bot» de este formulario.",
+        "supportPairingStep3": "Finalmente, si tu aplicación es nueva: en Slack, invita tu aplicación al canal que hayas elegido con <pre>/invite @nombreDeTuApp nombreDeTuCanal</pre>"
     },
     "coreHTTPRequestServiceForm": {
         "httpMethod": "Método HTTP",
@@ -220,5 +229,12 @@
         "seconds": "segundos",
         "nameFieldInvalid": "El nombre debe contener sólo caracteres alfanuméricos, guiones o guiones bajos, y no debe comenzar con un guión ni con un guión bajo.",
         "timeout": "Tiempo de espera"
+    },
+    "slackWriteMessageServiceForm": {
+        "alertMessage": "Esta acción debe estar emparejada con una aplicación de Slack. Por favor, sigue la guía en la ventana emergente de integraciones para comenzar.",
+        "integrationLabel": "Integración",
+        "channelLabel": "Canal",
+        "channelPlaceholder": "Introducir un nombre de canal",
+        "messageLabel": "Mensaje"
     }
 }
