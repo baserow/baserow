@@ -22,43 +22,32 @@ RUN apt-get update && \
     chmod 0755 /usr/local/bin/su-exec
 
 # =============================================================================
-# Production - minimal runtime image
+# Base - common runtime without embedded database/cache
 # =============================================================================
-FROM debian:bookworm-slim AS prod
+FROM debian:bookworm-slim AS base
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-ARG UID
-ENV UID=${UID:-9999}
-ARG GID
-ENV GID=${GID:-9999}
-ARG DOCKER_USER
-ENV DOCKER_USER=${DOCKER_USER:-baserow_docker_user}
+# Use fixed UID/GID during build for layer caching
+# Runtime user switching is handled by entrypoint via su-exec
+ENV DOCKER_USER=baserow_docker_user
 
 ENV DATA_DIR=/baserow/data \
     BASEROW_PLUGIN_DIR=/baserow/data/plugins \
     POSTGRES_VERSION=15 \
-    POSTGRES_LOCATION=/etc/postgresql/15/main \
     NODE_MAJOR=24 \
     BASEROW_IMAGE_TYPE="all-in-one" \
     PATH="/baserow/venv/bin:$PATH"
 
-# Runtime dependencies only
+# Runtime dependencies (no postgres/redis - those are in prod stage)
 RUN apt-get update && \
     apt-get upgrade -y && \
     DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install --no-install-recommends -y \
     supervisor curl gnupg2 ca-certificates && \
-    # Add PostgreSQL repo (for pgvector)
-    curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor -o /usr/share/keyrings/postgresql-keyring.gpg && \
-    echo "deb [signed-by=/usr/share/keyrings/postgresql-keyring.gpg] http://apt.postgresql.org/pub/repos/apt bookworm-pgdg main" > /etc/apt/sources.list.d/postgresql.list && \
     # Add Node.js repo
     curl -fsSL https://deb.nodesource.com/setup_${NODE_MAJOR}.x | bash - && \
     apt-get update && \
     apt-get install --no-install-recommends -y \
-    postgresql-$POSTGRES_VERSION \
-    postgresql-${POSTGRES_VERSION}-pgvector \
-    postgresql-client-$POSTGRES_VERSION \
-    redis-server \
     python3.11 \
     tini \
     psmisc \
@@ -69,12 +58,51 @@ RUN apt-get update && \
     # Install Caddy
     curl -o caddy.tar.gz -sL "https://github.com/caddyserver/caddy/releases/download/v2.7.6/caddy_2.7.6_linux_$(dpkg --print-architecture).tar.gz" && \
     tar -xf caddy.tar.gz && mv caddy /usr/bin/ && rm caddy.tar.gz && \
-    # Setup users
-    ( groupadd -g "$GID" baserow_docker_group || true ) && \
-    ( useradd --shell /bin/bash -u $UID -g "$GID" -o -c "" -m "$DOCKER_USER" -l || true ) && \
+    # Setup users (fixed UID/GID 9999 for build caching)
+    ( groupadd -g 9999 baserow_docker_group || true ) && \
+    ( useradd --shell /bin/bash -u 9999 -g 9999 -o -c "" -m "$DOCKER_USER" -l || true ) && \
     usermod -a -G tty "$DOCKER_USER" && \
     # Setup supervisor
     ln -sf /dev/stdout /var/log/supervisor/supervisord.log && \
+    # Cleanup
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Copy su-exec from builder
+COPY --link --from=builder /usr/local/bin/su-exec /usr/local/bin/su-exec
+
+# Copy from pre-built images
+COPY --link --chown=9999:9999 --from=web_frontend_image /baserow/ /baserow/
+COPY --link --chown=9999:9999 --from=backend_image_prod /baserow/ /baserow/
+
+COPY --link --chown=9999:9999 ./backend/docker/mime.types /etc/
+COPY --link --chown=9999:9999 Caddyfile /baserow/caddy/Caddyfile
+COPY --link --chown=9999:9999 deploy/all-in-one/supervisor/ /baserow/supervisor
+COPY --link --chown=9999:9999 deploy/all-in-one/baserow.sh /baserow.sh
+COPY --link --chown=9999:9999 deploy/plugins/*.sh /baserow/plugins/
+
+HEALTHCHECK --interval=60s CMD ["/bin/bash", "/baserow/backend/docker/docker-entrypoint.sh", "backend-healthcheck"]
+ENTRYPOINT ["/baserow.sh"]
+CMD ["start"]
+EXPOSE 80
+
+# =============================================================================
+# Production - adds embedded PostgreSQL + Redis
+# =============================================================================
+FROM base AS prod
+
+ENV POSTGRES_LOCATION=/etc/postgresql/15/main
+
+# Add PostgreSQL repo (for pgvector) and install postgres + redis
+RUN apt-get update && \
+    curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor -o /usr/share/keyrings/postgresql-keyring.gpg && \
+    echo "deb [signed-by=/usr/share/keyrings/postgresql-keyring.gpg] http://apt.postgresql.org/pub/repos/apt bookworm-pgdg main" > /etc/apt/sources.list.d/postgresql.list && \
+    apt-get update && \
+    apt-get install --no-install-recommends -y \
+    postgresql-$POSTGRES_VERSION \
+    postgresql-${POSTGRES_VERSION}-pgvector \
+    postgresql-client-$POSTGRES_VERSION \
+    redis-server && \
     # Setup redis
     usermod -a -G tty redis && \
     sed -i 's/daemonize yes/daemonize no/g' /etc/redis/redis.conf && \
@@ -85,23 +113,12 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Copy su-exec from builder
-COPY --link --from=builder /usr/local/bin/su-exec /usr/local/bin/su-exec
+# =============================================================================
+# Production Lite - no embedded database/cache (use external services)
+# =============================================================================
+FROM base AS prod-lite
 
-# Copy from pre-built images
-COPY --link --chown=$UID:$GID --from=web_frontend_image /baserow/ /baserow/
-COPY --link --chown=$UID:$GID --from=backend_image_prod /baserow/ /baserow/
-
-COPY --link --chown=$UID:$GID ./backend/docker/mime.types /etc/
-COPY --link --chown=$UID:$GID Caddyfile /baserow/caddy/Caddyfile
-COPY --link --chown=$UID:$GID deploy/all-in-one/supervisor/ /baserow/supervisor
-COPY --link --chown=$UID:$GID deploy/all-in-one/baserow.sh /baserow.sh
-COPY --link --chown=$UID:$GID deploy/plugins/*.sh /baserow/plugins/
-
-HEALTHCHECK --interval=60s CMD ["/bin/bash", "/baserow/backend/docker/docker-entrypoint.sh", "backend-healthcheck"]
-ENTRYPOINT ["/baserow.sh"]
-CMD ["start"]
-EXPOSE 80
+ENV BASEROW_IMAGE_TYPE="all-in-one-lite"
 
 # =============================================================================
 # Development - adds dev tools, backend dev venv, and frontend dev deps
@@ -109,14 +126,14 @@ EXPOSE 80
 FROM prod AS dev
 
 # Override venv with dev backend image (includes dev dependencies)
-COPY --link --chown=$UID:$GID --from=backend_image_dev /baserow/venv /baserow/venv
-COPY --link --chown=$UID:$GID --from=backend_image_dev /baserow/backend/tests /baserow/backend/tests
-COPY --link --chown=$UID:$GID --from=backend_image_dev /baserow/premium/backend/tests /baserow/premium/backend/tests
-COPY --link --chown=$UID:$GID --from=backend_image_dev /baserow/enterprise/backend/tests /baserow/enterprise/backend/tests
+COPY --link --chown=9999:9999 --from=backend_image_dev /baserow/venv /baserow/venv
+COPY --link --chown=9999:9999 --from=backend_image_dev /baserow/backend/tests /baserow/backend/tests
+COPY --link --chown=9999:9999 --from=backend_image_dev /baserow/premium/backend/tests /baserow/premium/backend/tests
+COPY --link --chown=9999:9999 --from=backend_image_dev /baserow/enterprise/backend/tests /baserow/enterprise/backend/tests
 
 # Override web frontend with dev image (includes dev dependencies and tests)
-COPY --link --chown=$UID:$GID --from=web_frontend_image_dev /baserow/web-frontend /baserow/web-frontend
-COPY --link --chown=$UID:$GID --from=web_frontend_image_dev /baserow/tests /baserow/tests
+COPY --link --chown=9999:9999 --from=web_frontend_image_dev /baserow/web-frontend /baserow/web-frontend
+COPY --link --chown=9999:9999 --from=web_frontend_image_dev /baserow/tests /baserow/tests
 
 # Install uv and dev tools
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
@@ -126,6 +143,8 @@ RUN apt-get update && \
     git \
     procps \
     build-essential \
+    git \
+    vim \
     python3.11-dev && \
     rm -rf /var/lib/apt/lists/*
 
