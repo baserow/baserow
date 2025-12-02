@@ -7,7 +7,7 @@ services:
       dockerfile: $PWD/deploy/cloudron/Dockerfile
       context: $PWD
       args:
-        - FROM_IMAGE=baserow
+        - FROM_IMAGE=baserow/baserow:latest
     environment:
       - CLOUDRON_POSTGRESQL_PASSWORD=baserow
       - CLOUDRON_POSTGRESQL_DATABASE=baserow

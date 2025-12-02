@@ -69,7 +69,12 @@ RUN --mount=type=cache,mode=777,target=$UV_CACHE_DIR,uid=9999,gid=9999 \
     cd /baserow/backend && uv sync --frozen --no-dev \
     && find /baserow/venv -type f \( -name "*.c" -o -name "*.h" \) -not -path "*/autobahn/*" -delete \
     && rm -rf /baserow/backend/tests /baserow/premium/backend/tests /baserow/enterprise/backend/tests \
-    && rm -rf /baserow/backend/templates
+    && rm -rf /baserow/backend/templates \
+    # Strip test/doc directories from site-packages (keep django/drf tests - used at runtime)
+    && (find /baserow/venv/lib -type d \( -name "test" -o -name "tests" \) \
+        -not -path "*/django/*" -not -path "*/rest_framework/*" -prune -exec rm -rf {} \; || true) \
+    && (find /baserow/venv/lib -type d \( -name "doc" -o -name "docs" -o -name "example" -o -name "examples" \) \
+        -prune -exec rm -rf {} \; || true)
 
 # Fix entrypoint script
 RUN dos2unix /baserow/backend/docker/docker-entrypoint.sh && \
