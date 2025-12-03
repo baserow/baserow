@@ -1398,7 +1398,7 @@ class DateFieldType(FieldType):
                     END IF;
                 exception when others then
                     begin
-                        p_in =case when
+                        p_in = case when
                             p_in::{sql_type}
                             between '0001-01-01'::{sql_type}
                                 and '9999-12-31'::{sql_type}

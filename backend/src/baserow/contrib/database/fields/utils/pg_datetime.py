@@ -80,8 +80,8 @@ if is_psycopg3:
         ):
             timezone = connection.timezone
 
-        ctx.adapters.register_loader("timestamptz", SpecificTzLoader)
-        ctx.adapters.register_loader("timestamptz", SpecificTzBinaryLoader)
+        ctx.register_loader("timestamptz", SpecificTzLoader)
+        ctx.register_loader("timestamptz", SpecificTzBinaryLoader)
 
 else:
     from django.db.utils import DataError as DjangoDataError
