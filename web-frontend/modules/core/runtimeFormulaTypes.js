@@ -12,7 +12,7 @@ import {
   InvalidFormulaArgumentType,
   InvalidNumberOfArguments,
 } from '@baserow/modules/core/formula/parser/errors'
-import { Node, VueNodeViewRenderer } from '@tiptap/vue-2'
+import { Node, VueNodeViewRenderer } from '@tiptap/vue-3'
 import { ensureString } from '@baserow/modules/core/utils/validator'
 import GetFormulaComponent from '@baserow/modules/core/components/formula/GetFormulaComponent'
 import { mergeAttributes } from '@tiptap/core'
@@ -176,7 +176,7 @@ export class RuntimeFormulaFunction extends Registerable {
   }
 
   getCategory() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t(`runtimeFormulaTypes.${this.getCategoryType().category}`)
   }
 
@@ -233,7 +233,7 @@ export class RuntimeConcat extends RuntimeFormulaFunction {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('runtimeFormulaTypes.concatDescription')
   }
 
@@ -324,7 +324,7 @@ export class RuntimeGet extends RuntimeFormulaFunction {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('runtimeFormulaTypes.getDescription')
   }
 
@@ -367,7 +367,7 @@ export class RuntimeAdd extends RuntimeFormulaFunction {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('runtimeFormulaTypes.addDescription')
   }
 
@@ -414,7 +414,7 @@ export class RuntimeMinus extends RuntimeFormulaFunction {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('runtimeFormulaTypes.minusDescription')
   }
 
@@ -461,7 +461,7 @@ export class RuntimeMultiply extends RuntimeFormulaFunction {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('runtimeFormulaTypes.multiplyDescription')
   }
 
@@ -508,7 +508,7 @@ export class RuntimeDivide extends RuntimeFormulaFunction {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('runtimeFormulaTypes.divideDescription')
   }
 
@@ -555,7 +555,7 @@ export class RuntimeEqual extends RuntimeFormulaFunction {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('runtimeFormulaTypes.equalDescription')
   }
 
@@ -606,7 +606,7 @@ export class RuntimeNotEqual extends RuntimeFormulaFunction {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('runtimeFormulaTypes.notEqualDescription')
   }
 
@@ -657,7 +657,7 @@ export class RuntimeGreaterThan extends RuntimeFormulaFunction {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('runtimeFormulaTypes.greaterThanDescription')
   }
 
@@ -708,7 +708,7 @@ export class RuntimeLessThan extends RuntimeFormulaFunction {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('runtimeFormulaTypes.lessThanDescription')
   }
 
@@ -759,7 +759,7 @@ export class RuntimeGreaterThanOrEqual extends RuntimeFormulaFunction {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('runtimeFormulaTypes.greaterThanOrEqualDescription')
   }
 
@@ -810,7 +810,7 @@ export class RuntimeLessThanOrEqual extends RuntimeFormulaFunction {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('runtimeFormulaTypes.lessThanDescription')
   }
 
@@ -854,7 +854,7 @@ export class RuntimeUpper extends RuntimeFormulaFunction {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('runtimeFormulaTypes.upperDescription')
   }
 
@@ -890,7 +890,7 @@ export class RuntimeLower extends RuntimeFormulaFunction {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('runtimeFormulaTypes.lowerDescription')
   }
 
@@ -932,7 +932,7 @@ export class RuntimeCapitalize extends RuntimeFormulaFunction {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('runtimeFormulaTypes.capitalizeDescription')
   }
 
@@ -982,7 +982,7 @@ export class RuntimeRound extends RuntimeFormulaFunction {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('runtimeFormulaTypes.roundDescription')
   }
 
@@ -1018,7 +1018,7 @@ export class RuntimeIsEven extends RuntimeFormulaFunction {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('runtimeFormulaTypes.evenDescription')
   }
 
@@ -1058,7 +1058,7 @@ export class RuntimeIsOdd extends RuntimeFormulaFunction {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('runtimeFormulaTypes.oddDescription')
   }
 
@@ -1108,7 +1108,7 @@ export class RuntimeDateTimeFormat extends RuntimeFormulaFunction {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('runtimeFormulaTypes.dateTimeDescription')
   }
 
@@ -1152,7 +1152,7 @@ export class RuntimeDay extends RuntimeFormulaFunction {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('runtimeFormulaTypes.dayDescription')
   }
 
@@ -1188,7 +1188,7 @@ export class RuntimeMonth extends RuntimeFormulaFunction {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('runtimeFormulaTypes.monthDescription')
   }
 
@@ -1225,7 +1225,7 @@ export class RuntimeYear extends RuntimeFormulaFunction {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('runtimeFormulaTypes.yearDescription')
   }
 
@@ -1261,7 +1261,7 @@ export class RuntimeHour extends RuntimeFormulaFunction {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('runtimeFormulaTypes.hourDescription')
   }
 
@@ -1297,7 +1297,7 @@ export class RuntimeMinute extends RuntimeFormulaFunction {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('runtimeFormulaTypes.minuteDescription')
   }
 
@@ -1333,7 +1333,7 @@ export class RuntimeSecond extends RuntimeFormulaFunction {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('runtimeFormulaTypes.secondDescription')
   }
 
@@ -1400,7 +1400,7 @@ export class RuntimeToday extends RuntimeFormulaFunction {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('runtimeFormulaTypes.todayDescription')
   }
 
@@ -1439,7 +1439,7 @@ export class RuntimeGetProperty extends RuntimeFormulaFunction {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('runtimeFormulaTypes.getPropertyDescription')
   }
 
@@ -1480,7 +1480,7 @@ export class RuntimeRandomInt extends RuntimeFormulaFunction {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('runtimeFormulaTypes.randomIntDescription')
   }
 
@@ -1519,7 +1519,7 @@ export class RuntimeRandomFloat extends RuntimeFormulaFunction {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('runtimeFormulaTypes.randomFloatDescription')
   }
 
@@ -1555,7 +1555,7 @@ export class RuntimeRandomBool extends RuntimeFormulaFunction {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('runtimeFormulaTypes.randomBoolDescription')
   }
 
@@ -1591,7 +1591,7 @@ export class RuntimeGenerateUUID extends RuntimeFormulaFunction {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('runtimeFormulaTypes.generateUUIDDescription')
   }
 
@@ -1631,7 +1631,7 @@ export class RuntimeIf extends RuntimeFormulaFunction {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('runtimeFormulaTypes.ifDescription')
   }
 
@@ -1679,7 +1679,7 @@ export class RuntimeAnd extends RuntimeFormulaFunction {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('runtimeFormulaTypes.andDescription')
   }
 
@@ -1726,7 +1726,7 @@ export class RuntimeOr extends RuntimeFormulaFunction {
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('runtimeFormulaTypes.orDescription')
   }
 

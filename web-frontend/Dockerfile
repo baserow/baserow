@@ -40,13 +40,10 @@ ENV BASEROW_IMAGE_TYPE="web-frontend"
 USER $UID:$GID
 
 # Create and install the dependencies in separate COPY commands
-COPY --chown=$UID:$GID ./web-frontend/package.json ./web-frontend/yarn.lock /baserow/web-frontend/
-
-WORKDIR /baserow/web-frontend
-
 COPY --chown=$UID:$GID ./web-frontend /baserow/web-frontend/
-COPY --chown=$UID:$GID ./premium/web-frontend /baserow/premium/web-frontend/
-COPY --chown=$UID:$GID ./enterprise/web-frontend /baserow/enterprise/web-frontend/
+COPY --chown=$UID:$GID ./web-frontend-nuxt3/package.json ./web-frontend-nuxt3/yarn.lock /baserow/web-frontend/
+#COPY --chown=$UID:$GID ./premium/web-frontend /baserow/premium/web-frontend/
+#COPY --chown=$UID:$GID ./enterprise/web-frontend /baserow/enterprise/web-frontend/
 COPY --chown=$UID:$GID ./deploy/plugins/*.sh /baserow/plugins/
 
 RUN dos2unix /baserow/web-frontend/docker/docker-entrypoint.sh && \
@@ -87,4 +84,6 @@ RUN yarn install \
     && find node_modules -type d \( -name "test" -o -name "tests" -o -name "__tests__" -o -name "example" -o -name "examples" -o -name "doc" -o -name "docs" \) -prune -exec rm -rf '{}' + \
     && find .nuxt -type f -name "*.map" -delete
 CMD ["nuxt-local"]
+
+
 

@@ -1,18 +1,10 @@
-<template functional>
-  <div
-    class="grid-view__cell"
-    :class="{
-      ...(data.staticClass && {
-        [data.staticClass]: true,
-      }),
-      'cell-error': props.value === 'NaN',
-    }"
-  >
+<template>
+  <div class="grid-view__cell" :class="{ 'cell-error': value === 'NaN' }">
     <div class="grid-field-number">
       {{
-        props.value === 'NaN'
-          ? parent.$t('fieldErrors.invalidNumber')
-          : $options.methods.formatFrontendNumber(props.field, props.value)
+        value === 'NaN'
+          ? $t('fieldErrors.invalidNumber')
+          : formatFrontendNumber(field, value)
       }}
     </div>
   </div>
@@ -23,7 +15,16 @@ import { formatDecimalNumber } from '@baserow/modules/database/utils/number'
 
 export default {
   name: 'FunctionalGridViewFieldNumber',
-  functional: true,
+  props: {
+    field: {
+      type: Object,
+      required: true,
+    },
+    value: {
+      type: null,
+      default: null,
+    },
+  },
   methods: {
     formatFrontendNumber(field, value) {
       return formatDecimalNumber(field, value)

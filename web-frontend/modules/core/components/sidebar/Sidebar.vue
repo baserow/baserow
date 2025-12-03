@@ -32,7 +32,7 @@
         "
       >
         <Avatar
-          :initials="selectedWorkspace.name || name | nameAbbreviation"
+          :initials="$filters.nameAbbreviation(selectedWorkspace.name || name)"
         ></Avatar>
         <span
           v-show="!collapsed"

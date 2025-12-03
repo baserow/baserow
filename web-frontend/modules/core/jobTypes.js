@@ -136,7 +136,7 @@ export class DuplicateApplicationJobType extends JobType {
   }
 
   getSidebarText(job) {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('duplicateApplicationJobType.duplicating') + '... '
   }
 
@@ -197,7 +197,7 @@ export class InstallTemplateJobType extends JobType {
   }
 
   getSidebarText(job) {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('InstallTemplateJobType.installing') + '... '
   }
 

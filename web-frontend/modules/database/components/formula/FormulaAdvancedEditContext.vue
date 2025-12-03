@@ -19,10 +19,9 @@
         @keyup="recalcAutoComplete"
         @keydown.tab="doAutoCompleteAfterTab"
         @keydown.enter.exact.prevent="
-          $refs.editContext.hide()
-          $emit('hidden', $event)
+          $refs.editContext.hide(), $emit('hidden', $event)
         "
-      ></FormTextarea>
+      />
     </div>
     <div v-if="error" class="formula-field__input-error">{{ error }}</div>
     <div class="formula-field__body">
@@ -33,16 +32,14 @@
           :title="$t('formulaAdvancedEditContext.fields')"
           @hover-item="selectItem"
           @click-item="doAutoComplete(null, $event)"
-        >
-        </FormulaFieldItemGroup>
+        />
         <FormulaFieldItemGroup
           :filtered-items="filteredFunctions"
           :unfiltered-items="functions"
           :title="$t('formulaAdvancedEditContext.functions')"
           @hover-item="selectItem"
           @click-item="doAutoComplete($event, null)"
-        >
-        </FormulaFieldItemGroup>
+        />
         <FormulaFieldItemGroup
           :filtered-items="filteredOperators"
           :unfiltered-items="unfilteredOperators"
@@ -50,11 +47,9 @@
           :show-operator="true"
           @hover-item="selectItem"
           @click-item="doAutoComplete($event, null)"
-        >
-        </FormulaFieldItemGroup>
+        />
       </div>
-      <FormulaFieldItemDescription :selected-item="selectedItem">
-      </FormulaFieldItemDescription>
+      <FormulaFieldItemDescription :selected-item="selectedItem" />
     </div>
   </Context>
 </template>

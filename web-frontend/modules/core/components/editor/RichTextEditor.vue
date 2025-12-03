@@ -35,7 +35,7 @@
 <script>
 import _ from 'lodash'
 import { mapGetters } from 'vuex'
-import { Editor, EditorContent } from '@tiptap/vue-2'
+import { Editor, EditorContent } from '@tiptap/vue-3'
 import { Placeholder } from '@tiptap/extension-placeholder'
 import { Mention } from '@baserow/modules/core/editor/mention'
 import { Document } from '@tiptap/extension-document'

@@ -37,7 +37,7 @@ export class Registerable {
   }
 
   $t(key) {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t(key)
   }
 }

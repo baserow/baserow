@@ -1,13 +1,13 @@
-<template functional>
+<template>
   <div
     class="grid-view__cell grid-field-file__cell"
-    @drop.prevent="$options.methods.drop(parent, props, $event)"
+    @drop.prevent="onDrop"
     @dragover.prevent
-    @dragenter.prevent="$options.methods.dragEnter(parent, props, $event)"
-    @dragleave="$options.methods.dragLeave(parent, props, $event)"
+    @dragenter.prevent="onDragEnter"
+    @dragleave="onDragLeave"
   >
     <div
-      v-show="Object.prototype.hasOwnProperty.call(props.state, props.field.id)"
+      v-show="Object.prototype.hasOwnProperty.call(state, field.id)"
       class="grid-field-file__dragging"
     >
       <div>
@@ -15,9 +15,9 @@
         Drop here
       </div>
     </div>
-    <ul v-if="Array.isArray(props.value)" class="grid-field-file__list">
+    <ul v-if="Array.isArray(value)" class="grid-field-file__list">
       <li
-        v-for="(file, index) in props.value"
+        v-for="(file, index) in value"
         :key="file.name + index"
         class="grid-field-file__item"
       >
@@ -30,7 +30,7 @@
           <i
             v-else
             class="grid-field-file__icon"
-            :class="$options.methods.getIconClass(file.mime_type)"
+            :class="getIconClass(file.mime_type)"
           ></i>
         </a>
       </li>
@@ -43,42 +43,62 @@ import { mimetype2icon } from '@baserow/modules/core/utils/fileTypeToIcon'
 
 export default {
   name: 'FunctionalGridViewFieldFile',
+  props: {
+    field: {
+      type: Object,
+      required: true,
+    },
+    value: {
+      type: Array,
+      default: () => [],
+    },
+    state: {
+      type: Object,
+      required: true,
+    },
+    readOnly: {
+      type: Boolean,
+      default: false,
+    },
+  },
   methods: {
     getIconClass(mimeType) {
       return mimetype2icon(mimeType)
     },
-    drop(parent, props, event) {
-      if (props.readOnly) {
+    onDrop(event) {
+      if (this.readOnly) {
         return
       }
 
-      parent.selectCell(props.field.id)
-      parent.setState({})
-      parent.$nextTick(() => {
-        parent.$refs.selectedField.onDrop(event)
+      const parent = this.$parent
+      parent?.selectCell(this.field.id)
+      parent?.setState({})
+      parent?.$nextTick(() => {
+        parent?.$refs.selectedField.onDrop(event)
       })
     },
-    dragEnter(parent, props, event) {
-      if (props.readOnly) {
+    onDragEnter(event) {
+      if (this.readOnly) {
         return
       }
 
-      parent.setState({
-        [props.field.id]: event.target,
+      const parent = this.$parent
+      parent?.setState({
+        [this.field.id]: event.target,
       })
     },
-    dragLeave(parent, props, event) {
-      if (props.readOnly) {
+    onDragLeave(event) {
+      if (this.readOnly) {
         return
       }
 
       if (
-        Object.prototype.hasOwnProperty.call(props.state, props.field.id) &&
-        props.state[props.field.id] === event.target
+        Object.prototype.hasOwnProperty.call(this.state, this.field.id) &&
+        this.state[this.field.id] === event.target
       ) {
         event.stopPropagation()
         event.preventDefault()
-        parent.setState({})
+        this.$parent?.setState({})
       }
     },
   },

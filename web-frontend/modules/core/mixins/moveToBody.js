@@ -22,7 +22,7 @@ export default {
     // Loop over the parent components to register himself as child in order
     // to prevent closing when clicking in a child. We also check which parent
     // is first so can correctly move the element.
-    while (parent !== undefined) {
+    while (parent) {
       if (Object.prototype.hasOwnProperty.call(parent, 'moveToBody')) {
         parent.registerMoveToBodyChild(this)
         if (first === null) {

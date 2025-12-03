@@ -21,9 +21,9 @@
       :placeholder="
         $t('localBaserowTableServiceConditionalForm.textFilterInputPlaceholder')
       "
-      @deleteFilter="deleteFilter($event)"
-      @updateFilter="updateFilter($event)"
-      @updateFilterType="$emit('update:filterType', $event.value)"
+      @delete-filter="deleteFilter($event)"
+      @update-filter="updateFilter($event)"
+      @update-filter-type="$emit('update:filterType', $event.value)"
     >
       <template
         #filterInputComponent="{
@@ -67,7 +67,7 @@
           }"
           @click="handleFormulaToggleClick(filter, emitUpdate)"
         >
-          <i class="iconoir-sigma-function"></i>
+          <i class="iconoir-sigma-function" />
         </a>
       </template>
     </ViewFieldConditionsForm>
@@ -89,7 +89,7 @@
 import ViewFieldConditionsForm from '@baserow/modules/database/components/view/ViewFieldConditionsForm.vue'
 import { hasCompatibleFilterTypes } from '@baserow/modules/database/utils/field'
 import { notifyIf } from '@baserow/modules/core/utils/error'
-import { v1 as uuidv1 } from 'uuid'
+import { ulid } from 'ulid'
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
 
 export default {
@@ -171,11 +171,11 @@ export default {
           })
         } else {
           const newFilters = [...this.value]
-          // Setting an `id` of `uuidv1` is necessary for two reasons:
+          // Setting an `id` of `ulid` is necessary for two reasons:
           // 1) So that we can distinguish between filters locally
           // 2) It has to match what is sorted against `sortNumbersAndUuid1Asc`.
           newFilters.push({
-            id: uuidv1(),
+            id: ulid(),
             field: field.id,
             type: 'equal',
             value: { formula: '', mode: 'raw' },

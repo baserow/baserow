@@ -1,9 +1,9 @@
-<template functional>
-  <div :class="[data.staticClass, data.class]" v-on="listeners">
+<template>
+  <div>
     {{
-      $options.methods.localDate(
-        props.row[props.column.key],
-        props.column.additionalProps.dateTimeFormat || 'L LT'
+      localDate(
+        row[column.key],
+        column.additionalProps?.dateTimeFormat || 'L LT'
       )
     }}
   </div>
@@ -14,7 +14,6 @@ import moment from '@baserow/modules/core/moment'
 
 export default {
   name: 'LocalDateField',
-  functional: true,
   props: {
     row: {
       required: true,

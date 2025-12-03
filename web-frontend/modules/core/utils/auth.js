@@ -1,6 +1,7 @@
 import { isSecureURL } from '@baserow/modules/core/utils/string'
 import jwtDecode from 'jwt-decode'
 import { getDomain } from 'tldjs'
+import { useCookie, useRuntimeConfig } from '#imports'
 
 const cookieTokenName = 'jwt_token'
 export const userSourceCookieTokenName = 'user_source_token'
@@ -8,20 +9,21 @@ export const userSessionCookieName = 'user_session'
 const refreshTokenMaxAge = 60 * 60 * 24 * 7
 
 export const setToken = (
-  { $config, $cookies },
+  appOrContext, // Ignored in Nuxt 3, kept for compatibility
   token,
   key = cookieTokenName,
   configuration = { sameSite: null }
 ) => {
-  if (process.SERVER_BUILD) return
-  const secure = isSecureURL($config.PUBLIC_WEB_FRONTEND_URL)
-  $cookies.set(key, token, {
+  const config = useRuntimeConfig()
+  const secure = isSecureURL(config.public.publicWebFrontendUrl)
+  const cookie = useCookie(key, {
     path: '/',
     maxAge: refreshTokenMaxAge,
     sameSite:
-      configuration.sameSite || $config.BASEROW_FRONTEND_SAME_SITE_COOKIE,
+      configuration.sameSite || config.public.baserowFrontendSameSiteCookie,
     secure,
   })
+  cookie.value = token
 }
 
 /**
@@ -39,13 +41,13 @@ export const setToken = (
  * @returns
  */
 export const setUserSessionCookie = (
-  { $config, $cookies },
+  appOrContext, // Ignored
   signedUserSession,
   key = userSessionCookieName,
   configuration = { sameSite: null }
 ) => {
-  if (process.SERVER_BUILD) return
-  const secure = isSecureURL($config.PUBLIC_WEB_FRONTEND_URL)
+  const config = useRuntimeConfig()
+  const secure = isSecureURL(config.public.publicWebFrontendUrl)
 
   // To make the cookie available to all subdomains, set the domain to the top-level
   // domain. This is necessary for the secure_file_serve feature to work across
@@ -53,40 +55,42 @@ export const setUserSessionCookie = (
   // frontend. The top-level domain is extracted from the backend URL.
   // NOTE: For security reasons, it's not possible to set a cookie for a different
   // domain, so this won't work if the frontend and backend are on different domains.
-  const topLevelDomain = getDomain($config.PUBLIC_BACKEND_URL)
+  const topLevelDomain = getDomain(config.public.publicBackendUrl)
 
-  $cookies.set(key, signedUserSession, {
+  const cookie = useCookie(key, {
     path: '/',
     maxAge: refreshTokenMaxAge,
     sameSite:
-      configuration.sameSite || $config.BASEROW_FRONTEND_SAME_SITE_COOKIE,
+      configuration.sameSite || config.public.baserowFrontendSameSiteCookie,
     secure,
     domain: topLevelDomain,
   })
+  cookie.value = signedUserSession
 }
 
-export const unsetToken = ({ $cookies }, key = cookieTokenName) => {
-  if (process.SERVER_BUILD) return
-  $cookies.remove(key)
+export const unsetToken = (appOrContext, key = cookieTokenName) => {
+  const cookie = useCookie(key)
+  cookie.value = null
 }
 
 export const unsetUserSessionCookie = (
-  { $cookies },
+  appOrContext,
   key = userSessionCookieName
 ) => {
-  if (process.SERVER_BUILD) return
-  $cookies.remove(key)
+  const cookie = useCookie(key)
+  cookie.value = null
 }
 
-export const getToken = ({ $cookies }, key = cookieTokenName) => {
-  return $cookies.get(key)
+export const getToken = (appOrContext, key = cookieTokenName) => {
+  const cookie = useCookie(key)
+  return cookie.value
 }
 
 export const getTokenIfEnoughTimeLeft = (
-  { $cookies },
+  appOrContext,
   key = cookieTokenName
 ) => {
-  const token = getToken({ $cookies }, key)
+  const token = getToken(appOrContext, key)
   const now = Math.ceil(new Date().getTime() / 1000)
 
   let data
@@ -111,7 +115,7 @@ export const logoutAndRedirectToLogin = (
   } else {
     store.dispatch('auth/logoff', { invalidateToken })
   }
-  router.push({ name: 'login', query: { noredirect: null } }, () => {
+  router.push({ name: 'login', query: { noredirect: null } }).then(() => {
     if (showSessionExpiredToast) {
       store.dispatch('toast/setUserSessionExpired', true)
     } else if (showPasswordChangedToast) {

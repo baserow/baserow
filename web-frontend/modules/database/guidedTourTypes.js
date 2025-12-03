@@ -2,7 +2,8 @@ import {
   GuidedTourType,
   GuidedTourStep,
 } from '@baserow/modules/core/guidedTourTypes'
-import Vue from 'vue'
+
+import { nextTick } from 'vue'
 import { GridViewType } from '@baserow/modules/database/viewTypes'
 
 class FiltersSortGroupGuidedTourStep extends GuidedTourStep {
@@ -82,7 +83,7 @@ class CreateFormViewGuidedTourStep extends GuidedTourStep {
 
   async beforeShow() {
     this.app.$bus.$emit('open-table-views-context')
-    await Vue.nextTick()
+    await nextTick()
   }
 
   afterShow() {
@@ -109,7 +110,7 @@ class ViewOptionGuidedTourStep extends GuidedTourStep {
 
   async beforeShow() {
     this.app.$bus.$emit('open-table-view-context')
-    await Vue.nextTick()
+    await nextTick()
   }
 
   afterShow() {

@@ -78,12 +78,12 @@ case "$1" in
       startup_plugin_setup
       setup_additional_modules
       # Retry the command over and over to work around heap crash.
-      attachable_exec_retry yarn run dev
+      attachable_exec_retry yarn dev
     ;;
     nuxt-dev-no-attach)
       startup_plugin_setup
       setup_additional_modules
-      exec yarn run dev
+      exec yarn dev
     ;;
     nuxt)
       startup_plugin_setup
@@ -98,13 +98,13 @@ case "$1" in
     storybook-dev)
       startup_plugin_setup
       setup_additional_modules
-      exec yarn run storybook
+      exec yarn storybook
     ;;
     lint)
       exec make lint-javascript
     ;;
     lint-fix)
-      attachable_exec yarn run eslint --fix
+      attachable_exec yarn eslint --fix
     ;;
     eslint)
       exec make eslint
@@ -123,7 +123,7 @@ case "$1" in
     ;;
     build-local)
       setup_additional_modules
-      exec yarn run build-local
+      exec yarn build-local
     ;;
     install-plugin)
       exec /baserow/plugins/install_plugin.sh "${@:2}"

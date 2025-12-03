@@ -43,7 +43,7 @@
               class="datepicker"
               @input="chooseDate(field, $event)"
               @selected="preventNextUnselect = true"
-            ></date-picker>
+            />
           </client-only>
         </Context>
 
@@ -64,7 +64,7 @@
             :hide-on-click-outside="false"
             :notation="field.date_time_format"
             @input="chooseTime(field, $event)"
-          ></TimeSelectContext>
+          />
         </template>
       </template>
       <div v-if="field.date_show_tzinfo" class="grid-field-date__tzinfo">
@@ -80,7 +80,7 @@ import { isElement } from '@baserow/modules/core/utils/dom'
 import gridField from '@baserow/modules/database/mixins/gridField'
 import gridFieldInput from '@baserow/modules/database/mixins/gridFieldInput'
 import dateField from '@baserow/modules/database/mixins/dateField'
-import { en, fr } from 'vuejs-datepicker/dist/locale'
+// TODO MIG import { en, fr } from 'vuejs-datepicker/dist/locale'
 
 export default {
   components: { TimeSelectContext },
@@ -89,8 +89,8 @@ export default {
     return {
       preventNextUnselect: false,
       datePickerLang: {
-        en,
-        fr,
+        en: {},
+        fr: {},
       },
     }
   },

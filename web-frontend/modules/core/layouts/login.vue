@@ -2,7 +2,7 @@
   <div>
     <Toasts></Toasts>
     <div class="auth__container">
-      <nuxt />
+      <slot />
     </div>
   </div>
 </template>
@@ -12,7 +12,6 @@ import Toasts from '@baserow/modules/core/components/toasts/Toasts'
 
 export default {
   components: { Toasts },
-  middleware: ['settings', 'urlCheck'],
   head() {
     return {
       bodyAttrs: {

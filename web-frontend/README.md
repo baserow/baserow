@@ -1,10 +1,75 @@
-## Storybook ![image](https://avatars.githubusercontent.com/u/22632046?s=20&v=4)
+# Nuxt Minimal Starter
 
-Storybook is a tool that lets you browse and play with all the baserow reusable UI components.
+Look at the [Nuxt documentation](https://nuxt.com/docs/getting-started/introduction) to learn more.
 
-### Start storybook
+## Setup
 
-Run the following command in the web-frontend container
-`yarn run storybook`
+Make sure to install dependencies:
 
-Storybook is available at `http://localhost:6006`
+```bash
+# npm
+npm install
+
+# pnpm
+pnpm install
+
+# yarn
+yarn install
+
+# bun
+bun install
+```
+
+## Development Server
+
+Start the development server on `http://localhost:3000`:
+
+```bash
+# npm
+npm run dev
+
+# pnpm
+pnpm dev
+
+# yarn
+yarn dev
+
+# bun
+bun run dev
+```
+
+## Production
+
+Build the application for production:
+
+```bash
+# npm
+npm run build
+
+# pnpm
+pnpm build
+
+# yarn
+yarn build
+
+# bun
+bun run build
+```
+
+Locally preview production build:
+
+```bash
+# npm
+npm run preview
+
+# pnpm
+pnpm preview
+
+# yarn
+yarn preview
+
+# bun
+bun run preview
+```
+
+Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.

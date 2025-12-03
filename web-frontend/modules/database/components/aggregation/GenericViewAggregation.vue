@@ -1,14 +1,34 @@
-<template functional>
+<template>
   <div class="grid-view-aggregation__generic">
-    <span class="grid-view-aggregation__generic-name">{{
-      props.aggregationType.getShortName()
-    }}</span>
+    <span class="grid-view-aggregation__generic-name">
+      {{ aggregationType.getShortName() }}
+    </span>
     <span
       class="grid-view-aggregation__generic-value"
       :class="{
-        'grid-view-aggregation__generic-value--loading': props.loading,
+        'grid-view-aggregation__generic-value--loading': loading,
       }"
-      >{{ props.value }}</span
     >
+      {{ value }}
+    </span>
   </div>
 </template>
+
+<script>
+export default {
+  props: {
+    aggregationType: {
+      type: Object,
+      required: true,
+    },
+    value: {
+      type: null,
+      default: '',
+    },
+    loading: {
+      type: Boolean,
+      default: false,
+    },
+  },
+}
+</script>

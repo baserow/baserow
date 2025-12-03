@@ -1,8 +1,9 @@
 <script>
 export default {
-  fetch({ store, redirect }) {
+  async setup() {
+    const store = useNuxtApp().$store
     const name = store.getters['auth/isAuthenticated'] ? 'dashboard' : 'login'
-    redirect({ name })
+    await navigateTo({ name })
   },
 }
 </script>

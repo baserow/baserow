@@ -15,22 +15,22 @@ export class AutomationApplicationType extends ApplicationType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('applicationType.automation')
   }
 
   getNamePlural() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('applicationType.automations')
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('applicationType.automationDesc')
   }
 
   getDefaultName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('applicationType.automationDefaultName')
   }
 

@@ -28,7 +28,7 @@
         ref="input"
         class="form-input__input"
         :class="{ 'form-input__input--text-invisible': textInvisible }"
-        :value="fromValue(value)"
+        :value="fromValue(modelValue)"
         :disabled="disabled"
         :type="type"
         :min="type == 'number' && min > -1 ? parseInt(min) : false"
@@ -91,7 +91,11 @@ export default {
       default: null,
     },
     value: {
-      required: true,
+      required: false,
+      validator: (value) => true,
+    },
+    modelValue: {
+      required: false,
       validator: (value) => true,
     },
     toValue: {
@@ -185,10 +189,18 @@ export default {
       return !!this.$slots.suffix
     },
   },
+  watch: {
+    /*value: {
+      handler(newValue) {
+        this.modelValue = newValue
+      },
+      immediate: true,
+    },*/
+  },
   methods: {
     focus() {
       this.$refs.input.focus()
-      this.previousValue = this.value
+      this.previousValue = this.modelValue
     },
     blur() {
       this.$refs.input.blur()
@@ -198,13 +210,15 @@ export default {
       if (!value && this.defaultValueWhenEmpty !== null) {
         return
       }
-      this.$emit('input', this.toValue(event.target.value))
+      //this.$emit('input', this.toValue(event.target.value))
+      this.$emit('update:modelValue', this.toValue(event.target.value))
     },
     onBlur(event) {
       const value = this.$refs.input.value
       if (!value && this.defaultValueWhenEmpty !== null) {
         this.$refs.input.value = this.defaultValueWhenEmpty
-        this.$emit('input', this.defaultValueWhenEmpty)
+        //this.$emit('input', this.defaultValueWhenEmpty)
+        this.$emit('update:modelValue', this.toValue(event.target.value))
       }
       this.$emit('blur', event)
     },

@@ -1,4 +1,3 @@
-import Vue from 'vue'
 import axios from 'axios'
 import _ from 'lodash'
 import { RefreshCancelledError } from '@baserow/modules/core/errors'
@@ -193,7 +192,7 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
       state.viewId = viewId
     },
     SET_ROWS(state, rows) {
-      Vue.set(state, 'rows', rows)
+      state.rows = rows
     },
     SET_FETCHING(state, value) {
       state.fetching = value

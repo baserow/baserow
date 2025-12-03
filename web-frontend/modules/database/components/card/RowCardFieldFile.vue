@@ -1,8 +1,8 @@
-<template functional>
+<template>
   <div class="card-file__list-wrapper">
     <ul class="card-file__list">
       <li
-        v-for="(file, index) in props.value"
+        v-for="(file, index) in value"
         :key="file.name + index"
         class="card-file__item"
       >
@@ -14,7 +14,7 @@
         <i
           v-else
           class="card-file__icon"
-          :class="$options.methods.getIconClass(file.mime_type)"
+          :class="getIconClass(file.mime_type)"
         ></i>
       </li>
     </ul>
@@ -27,6 +27,12 @@ import { mimetype2icon } from '@baserow/modules/core/utils/fileTypeToIcon'
 export default {
   height: 22,
   name: 'RowCardFieldFile',
+  props: {
+    value: {
+      type: Array,
+      default: () => [],
+    },
+  },
   methods: {
     getIconClass(mimeType) {
       return mimetype2icon(mimeType)
