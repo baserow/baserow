@@ -65,11 +65,8 @@ export default defineNuxtPlugin(() => {
   const runtimeConfig = useRuntimeConfig()
   const nuxtApp = useNuxtApp()
 
-  const projectApiKey =
-    runtimeConfig.public?.POSTHOG_PROJECT_API_KEY ??
-    runtimeConfig.POSTHOG_PROJECT_API_KEY
-  const host =
-    runtimeConfig.public?.POSTHOG_HOST ?? runtimeConfig.POSTHOG_HOST
+  const projectApiKey = runtimeConfig.public.posthogProjectApiKey
+  const host = runtimeConfig.public.posthogHost
 
   if (!process.client || (!projectApiKey && !host)) {
     return

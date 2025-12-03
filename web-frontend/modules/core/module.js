@@ -16,6 +16,7 @@ import { setDefaultResultOrder } from 'node:dns'
 import _ from 'lodash'
 import defu from 'defu'
 import pathe from 'pathe'
+import type posthog from './plugins/posthog'
 
 //import head from './head'
 // import { routes as customRoutes } from './routes'
@@ -167,6 +168,8 @@ export default defineNuxtModule({
           process.env.BASEROW_FRONTEND_SAME_SITE_COOKIE ?? 'lax',
         baserowFrontendJobsPollingTimeoutMs:
           process.env.BASEROW_FRONTEND_JOBS_POLLING_TIMEOUT_MS ?? 2000,
+        posthogProjectApiKey: process.env.POSTHOG_PROJECT_API_KEY ?? '',
+        posthogHost: process.env.POSTHOG_HOST ?? '',
         /*sentry: {
           config: {
             dsn: process.env.SENTRY_DSN || '',
@@ -348,6 +351,21 @@ export default defineNuxtModule({
     addRouteMiddleware({
       name: 'pendingJobs',
       path: resolve('./middleware/pendingJobs'),
+    })
+
+    addRouteMiddleware({
+      name: 'staff',
+      path: resolve('./middleware/staff'),
+    })
+
+    addRouteMiddleware({
+      name: 'impersonate',
+      path: resolve('./middleware/impersonate'),
+    })
+
+    addRouteMiddleware({
+      name: 'urlCheck',
+      path: resolve('./middleware/urlCheck'),
     })
     //
     // Template iconoir

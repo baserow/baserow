@@ -28,7 +28,7 @@
         ref="input"
         class="form-input__input"
         :class="{ 'form-input__input--text-invisible': textInvisible }"
-        :value="fromValue(modelValue)"
+        :value="fromValue(value)"
         :disabled="disabled"
         :type="type"
         :min="type == 'number' && min > -1 ? parseInt(min) : false"
@@ -43,7 +43,7 @@
         @keyup="$emit('keyup', $event)"
         @keydown="$emit('keydown', $event)"
         @keypress="$emit('keypress', $event)"
-        @input="onInput($event)"
+        @input.stop="onInput($event)"
         @mouseup="$emit('mouseup', $event)"
         @mousedown="$emit('mousedown', $event)"
       />
@@ -65,6 +65,10 @@ export default {
   name: 'FormInput',
   inject: {
     forInput: { from: 'forInput', default: null },
+  },
+  model: {
+    prop: 'value',
+    event: 'input',
   },
   props: {
     error: {
@@ -91,10 +95,6 @@ export default {
       default: null,
     },
     value: {
-      required: false,
-      validator: (value) => true,
-    },
-    modelValue: {
       required: false,
       validator: (value) => true,
     },
@@ -189,18 +189,10 @@ export default {
       return !!this.$slots.suffix
     },
   },
-  watch: {
-    /*value: {
-      handler(newValue) {
-        this.modelValue = newValue
-      },
-      immediate: true,
-    },*/
-  },
   methods: {
     focus() {
       this.$refs.input.focus()
-      this.previousValue = this.modelValue
+      this.previousValue = this.value
     },
     blur() {
       this.$refs.input.blur()
@@ -210,15 +202,13 @@ export default {
       if (!value && this.defaultValueWhenEmpty !== null) {
         return
       }
-      //this.$emit('input', this.toValue(event.target.value))
-      this.$emit('update:modelValue', this.toValue(event.target.value))
+      this.$emit('input', this.toValue(event.target.value))
     },
     onBlur(event) {
       const value = this.$refs.input.value
       if (!value && this.defaultValueWhenEmpty !== null) {
         this.$refs.input.value = this.defaultValueWhenEmpty
-        //this.$emit('input', this.defaultValueWhenEmpty)
-        this.$emit('update:modelValue', this.toValue(event.target.value))
+        this.$emit('input', this.defaultValueWhenEmpty)
       }
       this.$emit('blur', event)
     },
