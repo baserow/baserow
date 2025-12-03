@@ -21,7 +21,7 @@
       :mode="mode"
       :allow-node-selection="allowNodeSelection"
       :nodes-hierarchy="nodesHierarchy"
-      :enable-advanced-mode="enableAdvancedMode"
+      :enabled-modes="enabledModes"
       @node-selected="handleNodeSelected"
       @node-unselected="unSelectNode"
       @mode-changed="handleModeChange"
@@ -75,6 +75,7 @@ import FormulaInputContext from '@baserow/modules/core/components/formula/Formul
 import { isFormulaValid } from '@baserow/modules/core/formula'
 import NodeHelpTooltip from '@baserow/modules/core/components/nodeExplorer/NodeHelpTooltip'
 import { fixPropertyReactivityForProvide } from '@baserow/modules/core/utils/object'
+import { BASEROW_FORMULA_MODES } from '@baserow/modules/core/formula/constants'
 
 export default {
   name: 'FormulaInputField',
@@ -139,7 +140,7 @@ export default {
       required: false,
       default: 'simple',
       validator: (value) => {
-        return ['advanced', 'simple', 'raw'].includes(value)
+        return BASEROW_FORMULA_MODES.includes(value)
       },
     },
     contextPosition: {
@@ -150,10 +151,14 @@ export default {
         return ['bottom', 'left', 'right'].includes(value)
       },
     },
-    enableAdvancedMode: {
-      type: Boolean,
+    /**
+     * An array of Baserow formula modes which the parent formula input
+     * component allows to be used. By default, we will allow all modes.
+     */
+    enabledModes: {
+      type: Array,
       required: false,
-      default: true,
+      default: () => BASEROW_FORMULA_MODES,
     },
   },
   data() {
@@ -452,7 +457,6 @@ export default {
     emitChange() {
       const functions = new RuntimeFunctionCollection(this.$registry)
       const formula = this.toFormula(this.wrapperContent)
-      console.log(formula)
       this.isFormulaInvalid = !isFormulaValid(formula, functions)
 
       if (!this.isFormulaInvalid) {
