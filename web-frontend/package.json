@@ -62,6 +62,7 @@
     "axios": "1.12.0",
     "bignumber.js": "9.1.1",
     "chart.js": "3.9.1",
+    "chartjs-adapter-moment": "1.0.1",
     "eslint": "^9.0.0",
     "flush-promises": "^1.0.2",
     "highlight.js": "^11.11.1",
@@ -86,6 +87,7 @@
     "ulid": "^3.0.1",
     "vite-plugin-node-polyfills": "^0.24.0",
     "vue": "^3.5.25",
+    "vue-chartjs": "^5.3.3",
     "vue-router": "^4.6.3",
     "vuex": "^4.1.0"
   }

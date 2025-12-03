@@ -7,6 +7,10 @@
 <script>
 export default {
   name: 'SwitchInput',
+  model: {
+    prop: 'value',
+    event: 'input',
+  },
   props: {
     /**
      * The value of the switch.

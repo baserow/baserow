@@ -64,8 +64,46 @@
     </div>
   </div>
 </template>
+<script setup>
+import { computed } from 'vue'
+import HealthService from '@baserow/modules/core/services/health'
+import EmailTester from '@baserow/modules/core/components/health/EmailTester.vue'
 
-<script>
+// Page meta
+definePageMeta({
+  layout: 'app',
+  middleware: 'staff',
+})
+
+// Access Baserow client from Nuxt app
+const { $client } = useNuxtApp()
+
+// Fetch data (equivalent to asyncData)
+const { data } = await useAsyncData('health', async () => {
+  const res = await HealthService($client).getAll()
+  return res.data
+})
+
+const healthChecks = computed(() => data.value?.checks ?? [])
+const celeryQueueSize = computed(() => data.value?.celery_queue_size ?? 0)
+const celeryExportQueueSize = computed(
+  () => data.value?.celery_export_queue_size ?? 0
+)
+
+// Methods
+function camelCaseToSpaceSeparated(str) {
+  if (!str) return 'unknown'
+  return str.toString().replace(/([A-Z])/g, ' $1')
+}
+
+function error() {
+  setTimeout(() => {
+    throw new Error('Health check error')
+  }, 1)
+}
+</script>
+
+<sscript>
 import HealthService from '@baserow/modules/core/services/health'
 import EmailTester from '@baserow/modules/core/components/health/EmailTester.vue'
 
@@ -97,4 +135,4 @@ export default {
     },
   },
 }
-</script>
+</sscript>

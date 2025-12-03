@@ -7,6 +7,7 @@
       />
       <nuxt-link
         v-slot="{ href, navigate, isExactActive }"
+        custom
         :to="{
           name: 'workspace',
           params: {
@@ -62,6 +63,7 @@
           )
         "
         v-slot="{ href, navigate, isExactActive }"
+        custom
         :to="{
           name: 'settings-members',
           params: {
