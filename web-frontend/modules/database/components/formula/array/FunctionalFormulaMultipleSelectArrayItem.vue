@@ -1,7 +1,7 @@
-<template functional>
+<template>
   <span class="array-field__multiple-select-container">
     <div
-      v-for="item in props.value"
+      v-for="item in value"
       :key="item.id"
       class="array-field__single-option"
       :class="'background-color--' + item.color"
@@ -14,5 +14,11 @@
 <script>
 export default {
   name: 'FunctionalFormulaMultipleSelectArrayItem',
+  props: {
+    value: {
+      type: Array,
+      default: () => [],
+    },
+  },
 }
 </script>

@@ -3,10 +3,7 @@
     ref="context"
     class="field-context"
     max-height-if-outside-viewport
-    @shown="
-      onShow()
-      $emit('shown', $event)
-    "
+    @shown="onClick"
   >
     <div class="field-context__content">
       <FieldForm
@@ -150,6 +147,10 @@ export default {
     },
     onShow() {
       this.showDescription = this.$refs.form.isDescriptionFieldNotEmpty()
+    },
+    onClick($event) {
+      this.onShow()
+      this.$emit('shown', $event)
     },
     handleFileTypeChanged(event) {},
   },

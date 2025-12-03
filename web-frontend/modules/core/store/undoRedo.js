@@ -3,7 +3,6 @@ import {
   UNDO_REDO_RESULT_CODES,
   UNDO_REDO_STATES,
 } from '@baserow/modules/core/utils/undoRedoConstants'
-import Vue from 'vue'
 
 export const state = () => ({
   undoing: false,
@@ -34,7 +33,7 @@ export const mutations = {
     // FIXME: different application types might have different sub-scopes, so we should
     // clear them when updating parent scopes instead of just merging.
     for (const [key, value] of Object.entries(newScope)) {
-      Vue.set(current, key, value)
+      current[key] = value
     }
   },
 }

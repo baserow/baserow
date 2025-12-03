@@ -16,22 +16,22 @@ export class DashboardApplicationType extends ApplicationType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('applicationType.dashboard')
   }
 
   getNamePlural() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('applicationType.dashboards')
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('applicationType.dashboardDesc')
   }
 
   getDefaultName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('applicationType.dashboardDefaultName')
   }
 

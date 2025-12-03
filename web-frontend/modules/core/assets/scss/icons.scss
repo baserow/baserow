@@ -4,15 +4,23 @@
   }
 }
 
-/* prettier-ignore */
+// Extracted from iconoir.css
 %icon {
-  /* stylelint-disable-next-line scss/at-extend-no-missing-placeholder, scss/operator-no-unspaced */
-  @extend *, [class^=iconoir-];
+  display: inline-block;
+  &::before {
+    content: ' ';
+    display: block;
+    background: currentColor;
+    mask-size: cover;
+    -webkit-mask-size: cover;
+    width: 1em;
+    height: 1em;
+  }
 }
 
 /* prettier-ignore */
-*[class^="baserow-icon-"],
-*[class*=" baserow-icon-"] {
+*[class^='baserow-icon-'],
+*[class*=' baserow-icon-'] {
   @extend %icon;
 }
 

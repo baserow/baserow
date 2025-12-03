@@ -27,9 +27,8 @@ export function createRouter(ssrContext, config) {
   ) {
     const req = ssrContext.req
     const runtimeConfig = ssrContext.runtimeConfig
-    const frontendHostname = new URL(
-      runtimeConfig.public.PUBLIC_WEB_FRONTEND_URL
-    ).hostname
+    const frontendHostname = new URL(runtimeConfig.public.publicWebFrontendUrl)
+      .hostname
     const requestHostname = new URL(`http://${req.headers.host}`).hostname
     const extraPublicHostnames =
       runtimeConfig.public.EXTRA_PUBLIC_WEB_FRONTEND_HOSTNAMES || []

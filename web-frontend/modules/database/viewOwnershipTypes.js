@@ -102,7 +102,7 @@ export class CollaborativeViewOwnershipType extends ViewOwnershipType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewOwnershipType.collaborative')
   }
 

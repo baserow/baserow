@@ -1,5 +1,6 @@
 import JobService from '@baserow/modules/core/services/job'
 import _ from 'lodash'
+import { useRuntimeConfig } from '#app'
 
 const FINISHED_STATES = ['finished', 'failed', 'cancelled']
 const STARTING_TIMEOUT_MS = 200
@@ -65,7 +66,9 @@ export const mutations = {
   },
   COMPUTE_NEXT_TIMEOUT_MS(state, unfinishedJobIds) {
     const newJobsToUpdate = !_.isEqual(unfinishedJobIds, state.lastUpdateJobIds)
-    const maxTimeout = this.$config.BASEROW_FRONTEND_JOBS_POLLING_TIMEOUT_MS
+    const config = useRuntimeConfig()
+    const maxTimeout = config.public.baserowFrontendJobsPollingTimeoutMs
+
     if (unfinishedJobIds.length === 0) {
       // no unfinished jobs to update, so we can relax the refresh until
       // a new job is added.

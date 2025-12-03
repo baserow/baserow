@@ -14,6 +14,10 @@
   height: 24px;
 
   @include rounded;
+
+  .function-formula-component:has(+ .function-formula-component) & {
+    padding-right: 0;
+  }
 }
 
 .function-formula-component__parenthesis {

@@ -38,7 +38,7 @@
 
   .prev {
     /* stylelint-disable-next-line scss/at-extend-no-missing-placeholder */
-    @extend .iconoir-nav-arrow-left;
+    // @extend .iconoir-nav-arrow-left;
     @extend %icon;
 
     &::before {
@@ -48,7 +48,7 @@
 
   .next {
     /* stylelint-disable-next-line scss/at-extend-no-missing-placeholder */
-    @extend .iconoir-nav-arrow-right;
+    //@extend .iconoir-nav-arrow-right;
     @extend %icon;
   }
 

@@ -83,7 +83,7 @@ export class AccountSettingsType extends SettingsType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('settingType.account')
   }
 
@@ -102,7 +102,7 @@ export class PasswordSettingsType extends SettingsType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('settingType.password')
   }
 
@@ -151,7 +151,7 @@ export class EmailNotificationsSettingsType extends SettingsType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('settingType.emailNotifications')
   }
 
@@ -170,7 +170,7 @@ export class TwoFactorAuthSettingsType extends SettingsType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('settingType.twoFactorAuth')
   }
 
@@ -189,7 +189,7 @@ export class MCPEndpointSettingsType extends SettingsType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('settingType.mcpEndpoint')
   }
 
@@ -208,7 +208,7 @@ export class DeleteAccountSettingsType extends SettingsType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('settingType.deleteAccount')
   }
 

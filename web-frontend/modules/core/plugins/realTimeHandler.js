@@ -1,5 +1,6 @@
 import { isSecureURL } from '@baserow/modules/core/utils/string'
 import { logoutAndRedirectToLogin } from '@baserow/modules/core/utils/auth'
+import { useRouter, useRuntimeConfig } from '#imports'
 
 export class RealTimeHandler {
   constructor(context) {
@@ -430,6 +431,27 @@ export class RealTimeHandler {
   }
 }
 
-export default function (context, inject) {
+/*export default function (context, inject) {
   inject('realtime', new RealTimeHandler(context))
 }
+*/
+
+export default defineNuxtPlugin({
+  name: 'realtime',
+  dependsOn: ['store'],
+  setup(nuxtApp) {
+    const runtimeConfig = useRuntimeConfig()
+    const router = useRouter()
+    const context = {
+      store: nuxtApp.$store,
+      app: {
+        $config: {
+          PUBLIC_BACKEND_URL: runtimeConfig.public.publicBackendUrl,
+        },
+        router,
+      },
+    }
+
+    nuxtApp.provide('realtime', new RealTimeHandler(context))
+  },
+})

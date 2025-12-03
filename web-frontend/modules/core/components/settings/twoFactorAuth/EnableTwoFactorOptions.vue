@@ -6,7 +6,7 @@
       :value="option.type"
       :model-value="values.twoFaChoice"
       :label="option.name"
-      :badge-label="option.sideLabel"
+      :side-label="option.sideLabel"
       @input="updateValue"
     >
       <div>

@@ -23,6 +23,40 @@ function invalidUrlEnvVariable(envVariableName) {
  * This middleware makes sure that the current user is admin else a 403 error
  * will be shown to the user.
  */
+export default defineNuxtRouteMiddleware(() => {
+  const event = process.server ? useRequestEvent() : null
+  const nuxtApp = useNuxtApp()
+  const i18n = nuxtApp.$i18n
+  const translate = (key, params) =>
+    i18n && typeof i18n.t === 'function' ? i18n.t(key, params) : key
+
+  // If nuxt generate, pass this middleware
+  if (process.server && !event) return
+
+  if (process.server && !process.env.BASEROW_DISABLE_PUBLIC_URL_CHECK) {
+    const urlEnvVarsToCheck = []
+    if (process.env.BASEROW_PUBLIC_URL) {
+      urlEnvVarsToCheck.push('BASEROW_PUBLIC_URL')
+    } else {
+      urlEnvVarsToCheck.push('PUBLIC_BACKEND_URL', 'PUBLIC_WEB_FRONTEND_URL')
+    }
+
+    for (const name of urlEnvVarsToCheck) {
+      if (invalidUrlEnvVariable(name)) {
+        // noinspection HttpUrlsUsage
+        throw createError({
+          statusCode: 500,
+          hideBackButton: true,
+          message: translate('urlCheck.invalidUrlEnvVarTitle', { name }),
+          content: translate('urlCheck.invalidUrlEnvVarDescription', { name }),
+        })
+      }
+    }
+  }
+})
+
+/*
+Previous Nuxt 2 middleware:
 export default function ({ store, req, error, i18n }) {
   // If nuxt generate, pass this middleware
   if (process.server && !req) return
@@ -48,3 +82,4 @@ export default function ({ store, req, error, i18n }) {
     }
   }
 }
+*/

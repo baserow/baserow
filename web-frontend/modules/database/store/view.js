@@ -1,6 +1,5 @@
-import { v1 as uuidv1 } from 'uuid'
 import { StoreItemLookupError } from '@baserow/modules/core/errors'
-import { uuid } from '@baserow/modules/core/utils/string'
+import { ulid } from 'ulid'
 import {
   createFiltersTree,
   readDefaultViewIdFromCookie,
@@ -700,7 +699,7 @@ export const actions = {
 
     const filter = Object.assign({}, values)
     populateFilter(filter)
-    filter.id = uuidv1()
+    filter.id = ulid()
     filter._.loading = !readOnly
     filter.group = filterGroupId
     values.group = filterGroupId
@@ -760,7 +759,7 @@ export const actions = {
   async createFilterGroup({ commit }, { view, readOnly = false }) {
     const filterGroup = {}
     populateFilterGroup(filterGroup)
-    filterGroup.id = uuidv1()
+    filterGroup.id = ulid()
     filterGroup._.loading = !readOnly
     filterGroup.filter_type = 'AND'
 
@@ -972,7 +971,7 @@ export const actions = {
   async createDecoration({ commit }, { view, values, readOnly = false }) {
     const decoration = { ...values }
     populateDecoration(decoration)
-    decoration.id = uuid()
+    decoration.id = ulid()
     decoration._.loading = !readOnly
 
     commit('ADD_DECORATION', { view, decoration })
@@ -1092,7 +1091,7 @@ export const actions = {
 
     const sort = Object.assign({}, values)
     populateSort(sort)
-    sort.id = uuid()
+    sort.id = ulid()
     sort._.loading = !readOnly
 
     commit('ADD_SORT', { view, sort })
@@ -1206,7 +1205,7 @@ export const actions = {
 
     const groupBy = Object.assign({}, values)
     populateGroupBy(groupBy)
-    groupBy.id = uuid()
+    groupBy.id = ulid()
     groupBy._.loading = !readOnly
 
     commit('ADD_GROUP_BY', { view, groupBy })

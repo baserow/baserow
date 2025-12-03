@@ -1,8 +1,8 @@
-<template functional>
+<template>
   <div ref="cell" class="grid-view__cell grid-field-many-to-many__cell">
     <div class="grid-field-many-to-many__list">
       <div
-        v-for="item in props.value"
+        v-for="item in value"
         :key="item.id"
         class="field-multiple-collaborators__item"
       >
@@ -11,13 +11,11 @@
             class="field-multiple-collaborators__name background-color--light-gray"
           >
             <span class="field-multiple-collaborators__name-text">{{
-              $options.methods.getCollaboratorName(item, parent.$store)
+              getCollaboratorName(item, $store)
             }}</span>
           </div>
           <div class="field-multiple-collaborators__initials">
-            {{
-              $options.methods.getCollaboratorNameInitials(item, parent.$store)
-            }}
+            {{ getCollaboratorNameInitials(item, $store) }}
           </div>
         </template>
       </div>
@@ -30,6 +28,12 @@ import collaboratorName from '@baserow/modules/database/mixins/collaboratorName'
 
 export default {
   name: 'FunctionalGridViewFieldMultipleCollaborators',
+  props: {
+    value: {
+      type: Array,
+      default: () => [],
+    },
+  },
   mixins: [collaboratorName],
 }
 </script>

@@ -118,22 +118,22 @@ export default {
   watch: {
     value: {
       handler(value) {
-        this.setColorFromValue(value)
+        //this.setColorFromValue(value)
       },
       immediate: true,
     },
   },
   mounted() {
-    document.addEventListener('mousemove', this.moveThumbWithMouse, {
+    /*document.addEventListener('mousemove', this.moveThumbWithMouse, {
       passive: false,
     })
     document.addEventListener('touchmove', this.moveThumbWithTouch, {
       passive: false,
     })
     document.addEventListener('mouseup', this.stopMovingThumb)
-    document.addEventListener('touchend', this.stopMovingThumb)
+    document.addEventListener('touchend', this.stopMovingThumb)*/
   },
-  beforeDestroy() {
+  beforeUnmount() {
     document.removeEventListener('mousemove', this.moveThumbWithMouse)
     document.removeEventListener('touchmove', this.moveThumbWithTouch)
     document.removeEventListener('mouseup', this.stopMovingThumb)

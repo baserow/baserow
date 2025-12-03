@@ -1,8 +1,8 @@
-<template functional>
-  <div ref="cell" class="grid-view__cell" :class="data.staticClass || ''">
+<template>
+  <div ref="cell" class="grid-view__cell">
     <div class="grid-field-text">
       <u>
-        {{ props.value }}
+        {{ value }}
       </u>
     </div>
   </div>
@@ -11,5 +11,11 @@
 <script>
 export default {
   name: 'FunctionalGridViewFieldURL',
+  props: {
+    value: {
+      type: String,
+      default: '',
+    },
+  },
 }
 </script>

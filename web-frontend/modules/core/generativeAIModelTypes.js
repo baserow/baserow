@@ -44,12 +44,12 @@ export class OpenAIModelType extends GenerativeAIModelType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('generativeAIModelType.openai')
   }
 
   getSettings() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return [
       {
         key: 'api_key',
@@ -91,12 +91,12 @@ export class AnthropicModelType extends GenerativeAIModelType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('generativeAIModelType.anthropic')
   }
 
   getSettings() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return [
       {
         key: 'api_key',
@@ -125,12 +125,12 @@ export class MistralModelType extends GenerativeAIModelType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('generativeAIModelType.mistral')
   }
 
   getSettings() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return [
       {
         key: 'api_key',
@@ -159,12 +159,12 @@ export class OllamaModelType extends GenerativeAIModelType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('generativeAIModelType.ollama')
   }
 
   getSettings() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return [
       {
         key: 'host',
@@ -193,12 +193,12 @@ export class OpenRouterModelType extends GenerativeAIModelType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('generativeAIModelType.openRouter')
   }
 
   getSettings() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return [
       {
         key: 'api_key',

@@ -264,7 +264,7 @@ export class FieldType extends Registerable {
    * field type as dropdown or radio inputs.
    */
   getFormViewFieldComponents(field) {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return {
       [DEFAULT_FORM_VIEW_FIELD_COMPONENT_KEY]: {
         name: i18n.t('fieldType.defaultFormViewComponent'),
@@ -1069,7 +1069,7 @@ export class TextFieldType extends FieldType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('fieldType.singleLineText')
   }
 
@@ -1177,7 +1177,7 @@ export class LongTextFieldType extends FieldType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('fieldType.longText')
   }
 
@@ -1297,7 +1297,7 @@ export class LinkRowFieldType extends FieldType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('fieldType.linkToTable')
   }
 
@@ -1322,7 +1322,7 @@ export class LinkRowFieldType extends FieldType {
   }
 
   getFormViewFieldComponents(field) {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     const components = super.getFormViewFieldComponents(field)
     components[DEFAULT_FORM_VIEW_FIELD_COMPONENT_KEY].name = i18n.t(
       'fieldType.linkRowSingle'
@@ -1692,7 +1692,7 @@ export class NumberFieldType extends FieldType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('fieldType.number')
   }
 
@@ -1928,7 +1928,7 @@ export class RatingFieldType extends FieldType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('fieldType.rating')
   }
 
@@ -2078,7 +2078,7 @@ export class BooleanFieldType extends FieldType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('fieldType.boolean')
   }
 
@@ -2472,7 +2472,7 @@ export class DateFieldType extends BaseDateFieldType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('fieldType.date')
   }
 
@@ -2572,7 +2572,7 @@ export class LastModifiedFieldType extends CreatedOnLastModifiedBaseFieldType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('fieldType.lastModified')
   }
 
@@ -2617,7 +2617,7 @@ export class CreatedOnFieldType extends CreatedOnLastModifiedBaseFieldType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('fieldType.createdOn')
   }
 }
@@ -2632,7 +2632,7 @@ export class LastModifiedByFieldType extends FieldType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('fieldType.lastModifiedBy')
   }
 
@@ -2778,7 +2778,7 @@ export class CreatedByFieldType extends FieldType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('fieldType.createdBy')
   }
 
@@ -2924,7 +2924,7 @@ export class DurationFieldType extends FieldType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('fieldType.duration')
   }
 
@@ -3084,7 +3084,7 @@ export class URLFieldType extends FieldType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('fieldType.url')
   }
 
@@ -3187,7 +3187,7 @@ export class EmailFieldType extends FieldType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('fieldType.email')
   }
 
@@ -3300,7 +3300,7 @@ export class FileFieldType extends FieldType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('fieldType.file')
   }
 
@@ -3495,7 +3495,7 @@ export class SingleSelectFieldType extends SelectOptionBaseFieldType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('fieldType.singleSelect')
   }
 
@@ -3520,7 +3520,7 @@ export class SingleSelectFieldType extends SelectOptionBaseFieldType {
   }
 
   getFormViewFieldComponents(field) {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     const components = super.getFormViewFieldComponents(field)
     components[DEFAULT_FORM_VIEW_FIELD_COMPONENT_KEY].name = i18n.t(
       'fieldType.singleSelectDropdown'
@@ -3773,7 +3773,7 @@ export class MultipleSelectFieldType extends SelectOptionBaseFieldType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('fieldType.multipleSelect')
   }
 
@@ -3799,7 +3799,7 @@ export class MultipleSelectFieldType extends SelectOptionBaseFieldType {
   }
 
   getFormViewFieldComponents(field) {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     const components = super.getFormViewFieldComponents(field)
     components[DEFAULT_FORM_VIEW_FIELD_COMPONENT_KEY].properties = {
       'allow-create-options': false,
@@ -4077,7 +4077,7 @@ export class PhoneNumberFieldType extends FieldType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('fieldType.phoneNumber')
   }
 
@@ -4213,7 +4213,7 @@ export class FormulaFieldType extends mix(
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('fieldType.formula')
   }
 
@@ -4404,7 +4404,7 @@ export class CountFieldType extends FormulaFieldType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('fieldType.count')
   }
 
@@ -4431,7 +4431,7 @@ export class RollupFieldType extends FormulaFieldType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('fieldType.rollup')
   }
 
@@ -4458,7 +4458,7 @@ export class LookupFieldType extends FormulaFieldType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('fieldType.lookup')
   }
 
@@ -4489,7 +4489,7 @@ export class MultipleCollaboratorsFieldType extends FieldType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('fieldType.multipleCollaborators')
   }
 
@@ -4529,7 +4529,7 @@ export class MultipleCollaboratorsFieldType extends FieldType {
   }
 
   getFormViewFieldComponents(field) {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     const components = super.getFormViewFieldComponents(field)
     components[DEFAULT_FORM_VIEW_FIELD_COMPONENT_KEY].name = i18n.t(
       'fieldType.multipleCollaboratorsDropdown'
@@ -4737,7 +4737,7 @@ export class UUIDFieldType extends FieldType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('fieldType.uuid')
   }
 
@@ -4820,7 +4820,7 @@ export class AutonumberFieldType extends FieldType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('fieldType.autonumber')
   }
 
@@ -4931,7 +4931,7 @@ export class PasswordFieldType extends FieldType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('fieldType.password')
   }
 

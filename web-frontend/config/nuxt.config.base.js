@@ -1,7 +1,7 @@
 export default function (
   base = '@',
   premiumBase = '@/../premium/web-frontend',
-  enterpriseBase = '@/../enterprise/web-frontend'
+  enterpriseBase = '@/../enterprise/web-frontend',
 ) {
   // Support adding in extra modules say from a plugin using the ADDITIONAL_MODULES
   // env variable which is a comma separated list of absolute module paths.
@@ -24,15 +24,16 @@ export default function (
     base + '/modules/dashboard/module.js',
     base + '/modules/automation/module.js',
   ]
-  if (!process.env.BASEROW_OSS_ONLY) {
+  /*if (!process.env.BASEROW_OSS_ONLY) {
     baseModules.push(
       premiumBase + '/modules/baserow_premium/module.js',
       enterpriseBase + '/modules/baserow_enterprise/module.js'
     )
   }
-  baseModules.push('@nuxtjs/sentry')
+  baseModules.push('@nuxtjs/sentry')*/
 
   const modules = baseModules.concat(additionalModules)
+
   return {
     modules,
     buildModules: [
@@ -77,7 +78,7 @@ export default function (
           type: 'javascript/auto',
         })
         const zipPkgDir = require('path').dirname(
-          require.resolve('@zip.js/zip.js/package.json')
+          require.resolve('@zip.js/zip.js/package.json'),
         )
         const zipUmdPath = require('path').join(zipPkgDir, 'dist/zip.min.js')
         config.resolve.alias = {
@@ -95,7 +96,6 @@ export default function (
         'vue-chartjs',
         'chart.js',
         '@vue2-flow/core',
-        'pathe',
       ],
     },
   }

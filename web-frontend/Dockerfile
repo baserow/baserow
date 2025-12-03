@@ -248,17 +248,17 @@ RUN --mount=type=cache,target=$YARN_CACHE_FOLDER,uid=$UID,gid=$GID,sharing=locke
     # Clean up unnecessary files to reduce image size
     && find node_modules -type f -name "*.map" -delete \
     && find node_modules -type f \( \
-        -name "*.md" -o -name "*.markdown" \
-        -o -name "*.ts" -o -name "*.d.ts" \
-        -o -name "LICENSE*" -o -name "license*" -o -name "License*" \
-        -o -name "CHANGELOG*" -o -name "HISTORY*" \
-        -o -name ".npmignore" -o -name ".gitignore" -o -name ".eslintrc*" \
+    -name "*.md" -o -name "*.markdown" \
+    -o -name "*.ts" -o -name "*.d.ts" \
+    -o -name "LICENSE*" -o -name "license*" -o -name "License*" \
+    -o -name "CHANGELOG*" -o -name "HISTORY*" \
+    -o -name ".npmignore" -o -name ".gitignore" -o -name ".eslintrc*" \
     \) -delete \
     && find node_modules -type d \( \
-        -name "test" -o -name "tests" -o -name "__tests__" \
-        -o -name "example" -o -name "examples" \
-        -o -name "doc" -o -name "docs" \
-        -o -name ".github" \
+    -name "test" -o -name "tests" -o -name "__tests__" \
+    -o -name "example" -o -name "examples" \
+    -o -name "doc" -o -name "docs" \
+    -o -name ".github" \
     \) -prune -exec rm -rf {} +
 
 COPY --chown=$UID:$GID web-frontend /baserow/web-frontend

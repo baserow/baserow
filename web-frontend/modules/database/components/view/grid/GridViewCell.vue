@@ -1,237 +1,251 @@
-<template functional>
+<template>
   <!--
     The :key property must be set here because it makes sure that the child components
     are not re-rendered when functional component changes position in the DOM.
   -->
   <div
-    :key="
-      'row-field-cell-' +
-      props.row._.persistentId +
-      '-' +
-      props.field.id.toString()
-    "
+    :key="cellKey"
     ref="wrapper"
     class="grid-view__column"
-    :class="{
-      'grid-view__column--matches-search':
-        props.row._.matchSearch &&
-        props.row._.fieldSearchMatches.includes(props.field.id.toString()),
-      'grid-view__column--multi-select': props.multiSelectPosition.selected,
-      'grid-view__column--multi-select-top': props.multiSelectPosition.top,
-      'grid-view__column--multi-select-right': props.multiSelectPosition.right,
-      'grid-view__column--multi-select-left': props.multiSelectPosition.left,
-      'grid-view__column--multi-select-bottom':
-        props.multiSelectPosition.bottom,
-      'grid-view__column--group-end': props.groupEnd,
-    }"
-    :style="data.style"
-    @click.exact="$options.methods.select($event, parent, props.field.id)"
-    @mousedown.left="$options.methods.cellMouseDownLeft($event, listeners)"
-    @mouseover="$options.methods.cellMouseover($event, listeners)"
-    @mouseup.left="$options.methods.cellMouseUpLeft($event, listeners)"
-    @click.shift.exact="$options.methods.cellShiftClick($event, listeners)"
+    :class="columnClass"
+    v-bind="$attrs"
+    @click.exact="select($event, field.id)"
+    @mousedown.left="cellMouseDownLeft($event)"
+    @mouseover="cellMouseover($event)"
+    @mouseup.left="cellMouseUpLeft($event)"
+    @click.shift.exact="cellShiftClick($event)"
   >
     <component
-      :is="$options.methods.getFunctionalComponent(parent, props)"
-      v-if="
-        !parent.isCellSelected(props.field.id) &&
-        // It could happen that the selected component needs to be alive in order to
-        // finish a task. This is for example the case when still uploading files. The
-        // alive list contains the field ids that must be kept alive. Once finished it
-        // is removed from that list.
-        !parent.alive.includes(props.field.id)
-      "
+      :is="getFunctionalComponent()"
+      v-if="!isSelected && !isAlive"
       ref="unselectedField"
-      :workspace-id="props.workspaceId"
-      :row="props.row"
-      :field="props.field"
-      :value="props.row['field_' + props.field.id]"
-      :state="props.state"
-      :read-only="props.readOnly"
-      :store-prefix="props.storePrefix"
+      :workspace-id="workspaceId"
+      :row="row"
+      :field="field"
+      :value="fieldValue"
+      :state="state"
+      :read-only="readOnly"
+      :store-prefix="storePrefix"
     />
     <component
-      :is="$options.methods.getComponent(parent, props)"
+      :is="getComponent()"
       v-else
       ref="selectedField"
-      :workspace-id="props.workspaceId"
-      :field="props.field"
-      :value="props.row['field_' + props.field.id]"
-      :selected="parent.isCellSelected(props.field.id)"
-      :store-prefix="props.storePrefix"
-      :read-only="props.readOnly"
-      :row="props.row"
-      :all-fields-in-table="props.allFieldsInTable"
-      @update="(...args) => $options.methods.update(listeners, props, ...args)"
-      @paste="(...args) => $options.methods.paste(listeners, props, ...args)"
-      @edit="(...args) => $options.methods.edit(listeners, props, ...args)"
-      @refresh-row="$options.methods.refreshRow(listeners, props)"
-      @unselect="$options.methods.unselect(parent, props)"
-      @selected="$options.methods.selected(listeners, props, $event)"
-      @unselected="$options.methods.unselected(listeners, props, $event)"
-      @selectPrevious="
-        $options.methods.selectNext(listeners, props, 'previous')
-      "
-      @selectNext="$options.methods.selectNext(listeners, props, 'next')"
-      @selectAbove="$options.methods.selectNext(listeners, props, 'above')"
-      @selectBelow="$options.methods.selectNext(listeners, props, 'below')"
-      @add-row-after="$options.methods.addRowAfter(listeners, props)"
-      @add-keep-alive="parent.addKeepAlive(props.field.id)"
-      @remove-keep-alive="parent.removeKeepAlive(props.field.id)"
-      @edit-modal="$options.methods.editModal(listeners)"
+      :workspace-id="workspaceId"
+      :field="field"
+      :value="fieldValue"
+      :selected="isSelected"
+      :store-prefix="storePrefix"
+      :read-only="readOnly"
+      :row="row"
+      :all-fields-in-table="allFieldsInTable"
+      @update="update"
+      @paste="paste"
+      @edit="edit"
+      @refresh-row="refreshRow"
+      @unselect="unselect"
+      @selected="selected"
+      @unselected="unselected"
+      @selectPrevious="() => selectNext('previous')"
+      @selectNext="() => selectNext('next')"
+      @selectAbove="() => selectNext('above')"
+      @selectBelow="() => selectNext('below')"
+      @add-row-after="addRowAfter"
+      @add-keep-alive="addKeepAlive"
+      @remove-keep-alive="removeKeepAlive"
+      @edit-modal="editModal"
     />
   </div>
 </template>
 
 <script>
 export default {
+  inheritAttrs: false,
+  props: {
+    workspaceId: {
+      type: null,
+      required: true,
+    },
+    row: {
+      type: Object,
+      required: true,
+    },
+    field: {
+      type: Object,
+      required: true,
+    },
+    state: {
+      type: Object,
+      required: true,
+    },
+    readOnly: {
+      type: Boolean,
+      default: false,
+    },
+    storePrefix: {
+      type: String,
+      default: '',
+    },
+    multiSelectPosition: {
+      type: Object,
+      required: true,
+    },
+    groupEnd: {
+      type: Boolean,
+      default: false,
+    },
+    allFieldsInTable: {
+      type: Array,
+      required: true,
+    },
+  },
+  emits: [
+    'update',
+    'paste',
+    'edit',
+    'cell-mousedown-left',
+    'cell-mouseover',
+    'cell-mouseup-left',
+    'cell-shift-click',
+    'selected',
+    'unselected',
+    'select-next',
+    'add-row-after',
+    'edit-modal',
+    'refresh-row',
+  ],
+  computed: {
+    parent() {
+      return this.$parent
+    },
+    cellKey() {
+      return `row-field-cell-${this.row._.persistentId}-${this.field.id}`
+    },
+    columnClass() {
+      return {
+        'grid-view__column--matches-search':
+          this.row._.matchSearch &&
+          this.row._.fieldSearchMatches.includes(this.field.id.toString()),
+        'grid-view__column--multi-select': this.multiSelectPosition.selected,
+        'grid-view__column--multi-select-top': this.multiSelectPosition.top,
+        'grid-view__column--multi-select-right': this.multiSelectPosition.right,
+        'grid-view__column--multi-select-left': this.multiSelectPosition.left,
+        'grid-view__column--multi-select-bottom':
+          this.multiSelectPosition.bottom,
+        'grid-view__column--group-end': this.groupEnd,
+      }
+    },
+    isSelected() {
+      return this.parent && this.parent.isCellSelected(this.field.id)
+    },
+    isAlive() {
+      return this.parent && this.parent.alive.includes(this.field.id)
+    },
+    fieldValue() {
+      return this.row[`field_${this.field.id}`]
+    },
+  },
   methods: {
-    /**
-     * Returns the functional component related to the field type. Functional
-     * components are much faster then regular components because they don't have a
-     * state. Unselected cells renders this functional component to improve speed
-     * because that will give the user a better experience. Once the user clicks on the
-     * cell, it is replaced with a the real field component which has the ability to
-     * change the data.
-     */
-    getFunctionalComponent(parent, props) {
-      return parent.$registry
-        .get('field', props.field.type)
-        .getFunctionalGridViewFieldComponent(props.field)
-    },
-    /**
-     * Returns the component related to the field type. This component will only be
-     * rendered when the user has selected the cell. It will be used to edit the value.
-     */
-    getComponent(parent, props) {
-      return parent.$registry
-        .get('field', props.field.type)
-        .getGridViewFieldComponent(props.field)
-    },
-    /**
-     * If the grid field component emits an update event then this method will be
-     * called which will add forward the event to the parent components which will
-     * eventually update the value.
-     */
-    update(listeners, props, value, oldValue) {
-      if (listeners.update) {
-        listeners.update({
-          row: props.row,
-          field: props.field,
-          value,
-          oldValue,
-        })
+    getFunctionalComponent() {
+      if (!this.parent) {
+        return null
       }
+      return this.parent
+        .$registry.get('field', this.field.type)
+        .getFunctionalGridViewFieldComponent(this.field)
     },
-    paste(listeners, props, event) {
-      if (listeners.paste) {
-        listeners.paste({
-          data: event,
-          row: props.row,
-          field: props.field,
-        })
+    getComponent() {
+      if (!this.parent) {
+        return null
       }
+      return this.parent
+        .$registry.get('field', this.field.type)
+        .getGridViewFieldComponent(this.field)
     },
-    /**
-     * If the grid field components emits an edit event then the user has changed the
-     * value without saving it yet. This is for example used to check in real time if
-     * the value still matches the filters.
-     */
-    edit(listeners, props, value, oldValue) {
-      if (listeners.edit) {
-        listeners.edit({
-          row: props.row,
-          field: props.field,
-          value,
-          oldValue,
-        })
-      }
+    update(value, oldValue) {
+      this.$emit('update', {
+        row: this.row,
+        field: this.field,
+        value,
+        oldValue,
+      })
     },
-    /**
-     * When the user clicks on the cell it must be selected. We can only change that
-     * state by calling the parent `selectCell` method.
-     */
-    select(event, parent, fieldId) {
+    paste(event) {
+      this.$emit('paste', {
+        data: event,
+        row: this.row,
+        field: this.field,
+      })
+    },
+    edit(value, oldValue) {
+      this.$emit('edit', {
+        row: this.row,
+        field: this.field,
+        value,
+        oldValue,
+      })
+    },
+    select(event, fieldId) {
       event.preventFieldCellUnselect = true
-      parent.selectCell(fieldId)
-    },
-    cellMouseDownLeft(event, listeners) {
-      if (listeners['cell-mousedown-left'] && !event.shiftKey) {
-        listeners['cell-mousedown-left']()
+      if (this.parent) {
+        this.parent.selectCell(fieldId)
       }
     },
-    cellMouseover(event, listeners) {
-      if (listeners['cell-mouseover']) {
-        listeners['cell-mouseover']()
+    cellMouseDownLeft(event) {
+      if (!event.shiftKey) {
+        this.$emit('cell-mousedown-left')
       }
     },
-    cellMouseUpLeft(event, listeners) {
-      if (listeners['cell-mouseup-left']) {
-        listeners['cell-mouseup-left']()
+    cellMouseover() {
+      this.$emit('cell-mouseover')
+    },
+    cellMouseUpLeft() {
+      this.$emit('cell-mouseup-left')
+    },
+    cellShiftClick() {
+      this.$emit('cell-shift-click')
+    },
+    unselect() {
+      if (this.parent && this.parent.isCellSelected(this.field.id)) {
+        this.parent.selectCell(-1, -1)
       }
     },
-    cellShiftClick(event, listeners) {
-      if (listeners['cell-shift-click']) {
-        listeners['cell-shift-click']()
+    selected(event) {
+      const payload = event ? { ...event } : {}
+      this.$emit('selected', { ...payload, row: this.row, field: this.field })
+    },
+    unselected(event) {
+      const payload = event ? { ...event } : {}
+      this.$emit('unselected', {
+        ...payload,
+        row: this.row,
+        field: this.field,
+      })
+    },
+    selectNext(direction) {
+      this.$emit('select-next', {
+        row: this.row,
+        field: this.field,
+        direction,
+      })
+    },
+    addRowAfter() {
+      this.$emit('add-row-after', this.row)
+    },
+    editModal() {
+      this.$emit('edit-modal')
+    },
+    refreshRow() {
+      this.$emit('refresh-row', this.row)
+    },
+    addKeepAlive() {
+      if (this.parent) {
+        this.parent.addKeepAlive(this.field.id)
       }
     },
-    /**
-     * Called when the cell field type component needs to cell to be unselected.
-     */
-    unselect(parent, props) {
-      if (parent.isCellSelected(props.field.id)) {
-        parent.selectCell(-1, -1)
-      }
-    },
-    /**
-     * Called after the field type component is selected.
-     */
-    selected(listeners, props, event) {
-      if (listeners.selected) {
-        event.row = props.row
-        event.field = props.field
-        listeners.selected(event)
-      }
-    },
-    /**
-     * Called after the field type component is unselected.
-     */
-    unselected(listeners, props, event) {
-      if (listeners.unselected) {
-        event.row = props.row
-        event.field = props.field
-        listeners.unselected(event)
-      }
-    },
-    /**
-     * Called when the field type component want to select to next cell. This for
-     * example happens when the user presses an arrow key.
-     */
-    selectNext(listeners, props, direction) {
-      if (listeners['select-next']) {
-        listeners['select-next']({
-          row: props.row,
-          field: props.field,
-          direction,
-        })
-      }
-    },
-    /**
-     * Emits an event that creates a row directly after this row.
-     */
-    addRowAfter(listeners, props) {
-      if (listeners['add-row-after']) {
-        listeners['add-row-after'](props.row)
-      }
-    },
-    editModal(listeners) {
-      if (listeners['edit-modal']) {
-        listeners['edit-modal']()
-      }
-    },
-    refreshRow(listeners, props) {
-      if (listeners['refresh-row']) {
-        listeners['refresh-row'](props.row)
+    removeKeepAlive() {
+      if (this.parent) {
+        this.parent.removeKeepAlive(this.field.id)
       }
     },
   },

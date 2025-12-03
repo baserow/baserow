@@ -166,7 +166,7 @@ export class FieldConstraintType extends Registerable {
 
 export class UniqueWithEmptyConstraintType extends FieldConstraintType {
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('fieldConstraint.uniqueWithEmpty')
   }
 

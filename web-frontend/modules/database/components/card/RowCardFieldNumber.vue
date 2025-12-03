@@ -1,6 +1,6 @@
-<template functional>
+<template>
   <div class="card-text">
-    {{ $options.methods.formatValue(props.field, props.value) }}
+    {{ formatValue(field, value) }}
   </div>
 </template>
 
@@ -9,7 +9,18 @@ import numberField from '@baserow/modules/database/mixins/numberField'
 import { formatDecimalNumber } from '@baserow/modules/database/utils/number'
 
 export default {
+  name: 'RowCardFieldNumber',
   height: 16,
+  props: {
+    field: {
+      type: Object,
+      required: true,
+    },
+    value: {
+      type: null,
+      default: null,
+    },
+  },
   mixins: [numberField],
   methods: {
     formatValue(field, value) {
