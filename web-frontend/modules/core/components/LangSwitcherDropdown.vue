@@ -7,31 +7,34 @@
     v-bind="$attrs"
   >
     <DropdownItem
-      v-for="locale in $i18n.locales"
+      v-for="locale in locales"
       :key="locale.code"
       :name="locale.name"
       :value="locale.code"
-    ></DropdownItem>
+    />
   </Dropdown>
 </template>
 
-<script>
-export default {
-  name: 'LanguageSwitcherDropdown',
-  computed: {
-    language: {
-      get() {
-        return this.$i18n.locale
-      },
-      set(value) {
-        this.$i18n.setLocale(value)
-      },
-    },
+<script setup>
+import { ref, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const dropdown = ref(null)
+
+const { locale, locales } = useI18n()
+
+const language = computed({
+  get: () => locale.value,
+  set: (value) => {
+    locale.value = value
   },
-  methods: {
-    toggle(...args) {
-      return this.$refs.dropdown.toggle(...args)
-    },
-  },
+})
+
+const toggle = (...args) => {
+  return dropdown.value?.toggle?.(...args)
 }
+
+defineExpose({
+  toggle,
+})
 </script>

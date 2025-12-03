@@ -15,29 +15,29 @@ import toastStoreModule from '../store/toast'
 import routeMountedStoreModule from '../store/routeMounted'
 import integrationStoreModule from '../store/integration'
 
-const store = createStore({
-  modules: {
-    undoRedo: undoRedoStoreModule,
-    workspace: workspaceStoreModule,
-    settings: settingsStoreModule,
-    notification: notificationStoreModule,
-    job: jobStoreModule,
-    authProvider: authProviderStoreModule,
-    auth: authStoreModule,
-    application: applicationStoreModule,
-    userSourceUser: userSourceUserStoreModule,
-    userSource: userSourceStoreModule,
-    workspaceSearch: workspaceSearchStoreModule,
-    routeMounted: routeMountedStoreModule,
-    toast: toastStoreModule,
-    integration: integrationStoreModule,
-  },
-})
-
 export default defineNuxtPlugin({
   name: 'store',
   // IMPORTANT: No dependsOn! Store must load BEFORE clientHandler
   async setup(nuxtApp) {
+    // TODO MIG check this is not executed twice
+    const store = createStore({
+      modules: {
+        undoRedo: undoRedoStoreModule,
+        workspace: workspaceStoreModule,
+        settings: settingsStoreModule,
+        notification: notificationStoreModule,
+        job: jobStoreModule,
+        authProvider: authProviderStoreModule,
+        auth: authStoreModule,
+        application: applicationStoreModule,
+        userSourceUser: userSourceUserStoreModule,
+        userSource: userSourceStoreModule,
+        workspaceSearch: workspaceSearchStoreModule,
+        routeMounted: routeMountedStoreModule,
+        toast: toastStoreModule,
+        integration: integrationStoreModule,
+      },
+    })
     nuxtApp.vueApp.use(store)
     nuxtApp.provide('store', store)
   },

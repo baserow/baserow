@@ -177,23 +177,22 @@ export default {
     fieldHasErrors(fieldName) {
       return this.v$.values[fieldName]?.$error || false
     },
+    focusOnFirstError() {
+      const firstError = this.$el.querySelector('[data-form-error]')
+      if (firstError) {
+        firstError.scrollIntoView({ behavior: 'smooth' })
+      }
+    },
     async login() {
-      console.log('go go go')
       this.v$.$touch()
-      console.log('after touche')
       const formValid = await this.v$.$validate()
-      console.log('is valide', formValid)
       if (!formValid) {
         this.focusOnFirstError()
         return
       }
 
-      console.log('after valid')
-
       this.loading = true
       this.hideError()
-
-      console.log('yeah ici')
 
       try {
         const data = await this.$store.dispatch('auth/login', {
@@ -218,7 +217,6 @@ export default {
             this.invitation.id
           )
         }
-        console.log('after ', this.$i18n)
         this.$i18n.setLocale(data.language)
         this.$emit('success')
       } catch (error) {

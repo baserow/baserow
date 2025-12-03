@@ -16,7 +16,6 @@ import { setDefaultResultOrder } from 'node:dns'
 import _ from 'lodash'
 import defu from 'defu'
 import pathe from 'pathe'
-import type posthog from './plugins/posthog'
 
 //import head from './head'
 // import { routes as customRoutes } from './routes'
