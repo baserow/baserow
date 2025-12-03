@@ -279,3 +279,26 @@ class DomainService:
         domain_updated.send(self, domain=domain, user=user)
 
         return domain
+
+    def unpublish(self, user: AbstractUser, domain: Domain) -> Domain:
+        """
+        Unpublish the given builder for the given domain if the
+        user has the right permission.
+
+        :param user: The user unpublishing the builder.
+        :param domain: The domain the user wants to unpublish.
+        :return: The updated domain instance.
+        """
+
+        CoreHandler().check_permissions(
+            user,
+            PublishDomainOperationType.type,
+            workspace=domain.builder.workspace,
+            context=domain,
+        )
+
+        domain = self.handler.unpublish(domain)
+
+        domain_updated.send(self, domain=domain, user=user)
+
+        return domain

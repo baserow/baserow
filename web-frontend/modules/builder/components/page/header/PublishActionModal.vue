@@ -64,6 +64,13 @@
       </template>
     </Alert>
 
+    <Alert v-if="unpublishSucceeded" type="success">
+      <template #title>{{
+        $t('publishActionModal.unpublishSucceedTitle')
+      }}</template>
+      <p>{{ $t('publishActionModal.unpublishSucceedDescription') }}</p>
+    </Alert>
+
     <div class="modal-progress__actions">
       <ProgressBar
         v-if="jobIsRunning"
@@ -71,15 +78,26 @@
         :status="jobHumanReadableState"
       />
       <div class="align-right">
-        <Button
-          v-if="domains.length"
-          size="large"
-          :loading="jobIsRunning || loading"
-          :disabled="loading || jobIsRunning || !selectedDomainId"
-          @click="publishSite()"
-        >
-          {{ $t('publishActionModal.publish') }}
-        </Button>
+        <template v-if="domains.length">
+          <Button
+            v-if="selectedDomain && selectedDomain.last_published"
+            size="large"
+            type="secondary"
+            :loading="unpublishing"
+            :disabled="loading || jobIsRunning || unpublishing"
+            @click="unpublishSite()"
+          >
+            {{ $t('publishActionModal.unpublish') }}
+          </Button>
+          <Button
+            size="large"
+            :loading="jobIsRunning || loading"
+            :disabled="loading || jobIsRunning || !selectedDomainId || unpublishing"
+            @click="publishSite()"
+          >
+            {{ $t('publishActionModal.publish') }}
+          </Button>
+        </template>
         <template v-else-if="!fetchingDomains">
           <Button tag="a" @click="openDomainSettings">
             {{ $t('publishActionModal.addDomain') }}
@@ -120,7 +138,13 @@ export default {
     },
   },
   data() {
-    return { selectedDomainId: null, loading: false, fetchingDomains: false }
+    return { 
+      selectedDomainId: null, 
+      loading: false, 
+      fetchingDomains: false,
+      unpublishing: false,
+      unpublishSucceeded: false,
+    }
   },
   computed: {
     ...mapGetters({ domains: 'domain/getDomains' }),
@@ -131,6 +155,7 @@ export default {
   watch: {
     selectedDomainId() {
       this.job = null
+      this.unpublishSucceeded = false
     },
     domains() {
       if (!this.selectedDomainId) {
@@ -152,6 +177,8 @@ export default {
       this.loading = false
       this.selectedDomainId = null
       this.fetchingDomains = true
+      this.unpublishing = false
+      this.unpublishSucceeded = false
       try {
         await this.actionFetchDomains({ builderId: this.builder.id })
         this.hideError()
@@ -164,6 +191,7 @@ export default {
     async publishSite() {
       this.loading = true
       this.hideError()
+      this.unpublishSucceeded = false
       try {
         const { data: job } = await PublishedDomainService(
           this.$client
@@ -174,27 +202,27 @@ export default {
       } catch (error) {
         notifyIf(error)
       } finally {
-        this.fetchingDomains = false
         this.loading = false
       }
     },
-    onJobFailed() {
-      this.showError(
-        this.$t('publishActionModal.publishFailedTitle'),
-        this.$t('publishActionModal.publishFailedDescription')
-      )
-      this.loading = false
-    },
-    onJobDone() {
-      this.actionForceUpdateDomain({
-        domainId: this.selectedDomainId,
-        values: { last_published: new Date() },
-      })
-      this.loading = false
-    },
-    onJobPollingError(error) {
-      notifyIf(error)
-      this.loading = false
+    async unpublishSite() {
+      if (!this.selectedDomainId) return
+      this.unpublishing = true
+      this.hideError()
+      this.unpublishSucceeded = false
+      try {
+        const { data: domain } = await PublishedDomainService(this.$client)
+          .unpublish({ id: this.selectedDomainId })
+        this.unpublishSucceeded = true
+        this.actionForceUpdateDomain({
+          domainId: this.selectedDomainId,
+          values: { last_published: null },
+        })
+      } catch (error) {
+        notifyIf(error)
+      } finally {
+        this.unpublishing = false
+      }
     },
     getDomainUrl(domain) {
       const url = new URL(this.$config.PUBLIC_WEB_FRONTEND_URL)

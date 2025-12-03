@@ -295,6 +295,33 @@ class DomainHandler:
 
         return domain
 
+    def unpublish(self, domain: Domain) -> Domain:
+        """
+        Unpublishes a builder for the given domain object by deleting the published
+        version and clearing the publish metadata.
+
+        :param domain: The domain to unpublish.
+        :return: The updated domain instance.
+        """
+
+        # Make sure we are the only process to update the domain to prevent race
+        # conditions
+        domain = DomainHandler().get_domain(domain.id, for_update=True)
+
+        # Delete the published builder if it exists
+        if domain.published_to:
+            domain.published_to.delete()
+
+        # Clear publish metadata
+        domain.published_to = None
+        domain.last_published = None
+        domain.save()
+
+        # Invalidate the public builder-by-domain cache
+        DomainHandler.invalidate_public_builder_by_domain_cache(domain.domain_name)
+
+        return domain
+
     @classmethod
     def get_public_builder_by_domain_cache_key(cls, domain_name: str) -> str:
         return f"ab_public_builder_by_domain_{domain_name}"

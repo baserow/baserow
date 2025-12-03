@@ -356,6 +356,57 @@ class AsyncPublishDomainView(APIView):
         return Response(serializer.data, status=HTTP_202_ACCEPTED)
 
 
+class UnpublishDomainView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="domain_id",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.INT,
+                description="The domain id the user wants to unpublish.",
+            ),
+            CLIENT_SESSION_ID_SCHEMA_PARAMETER,
+        ],
+        tags=["Builder domains"],
+        operation_id="unpublish_builder_domain",
+        description=(
+            "This endpoint unpublishes the builder for the given domain. "
+            "The published version is deleted and the domain is marked as unpublished."
+        ),
+        request=None,
+        responses={
+            200: DiscriminatorCustomFieldsMappingSerializer(
+                domain_type_registry, DomainSerializer
+            ),
+            400: get_error_schema(
+                [
+                    "ERROR_USER_NOT_IN_GROUP",
+                ]
+            ),
+            404: get_error_schema(["ERROR_DOMAIN_DOES_NOT_EXIST"]),
+        },
+    )
+    @transaction.atomic
+    @map_exceptions(
+        {
+            DomainDoesNotExist: ERROR_DOMAIN_DOES_NOT_EXIST,
+        }
+    )
+    def post(self, request, domain_id: int):
+        """
+        Unpublishes a builder for the given domain.
+        """
+
+        domain = DomainHandler().get_domain(domain_id)
+
+        domain = DomainService().unpublish(request.user, domain)
+
+        serializer = domain_type_registry.get_serializer(domain, DomainSerializer)
+        return Response(serializer.data)
+
+
 class AskPublicBuilderDomainExistsView(APIView):
     permission_classes = (AllowAny,)
 

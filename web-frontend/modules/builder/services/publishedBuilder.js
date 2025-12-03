@@ -7,6 +7,9 @@ export default (client) => {
         domain_id: domain.id,
       })
     },
+    unpublish(domainId) {
+      return client.post(`builder/domains/${domainId}/unpublish/`)
+    },
     fetchByDomain(domain) {
       return client.get(`builder/domains/published/by_name/${domain}/`)
     },
