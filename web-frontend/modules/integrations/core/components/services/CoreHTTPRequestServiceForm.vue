@@ -168,6 +168,7 @@
     >
       <InjectedFormulaInput
         v-model="values.body_content"
+        :enable-advanced-mode="values.body_type === 'html' ? false : true"
         :placeholder="$t('coreHTTPRequestServiceForm.bodyPlaceholder')"
       />
     </FormGroup>

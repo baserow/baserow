@@ -101,6 +101,7 @@
     >
       <InjectedFormulaInput
         v-model="values.body"
+        :enable-advanced-mode="values.body_type === 'html' ? false : true"
         :placeholder="$t('smtpEmailForm.bodyPlaceholder')"
         textarea
       />

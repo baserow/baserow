@@ -21,6 +21,7 @@
       :mode="mode"
       :allow-node-selection="allowNodeSelection"
       :nodes-hierarchy="nodesHierarchy"
+      :enable-advanced-mode="enableAdvancedMode"
       @node-selected="handleNodeSelected"
       @node-unselected="unSelectNode"
       @mode-changed="handleModeChange"
@@ -148,6 +149,11 @@ export default {
       validator: (value) => {
         return ['bottom', 'left', 'right'].includes(value)
       },
+    },
+    enableAdvancedMode: {
+      type: Boolean,
+      required: false,
+      default: true,
     },
   },
   data() {
@@ -446,6 +452,7 @@ export default {
     emitChange() {
       const functions = new RuntimeFunctionCollection(this.$registry)
       const formula = this.toFormula(this.wrapperContent)
+      console.log(formula)
       this.isFormulaInvalid = !isFormulaValid(formula, functions)
 
       if (!this.isFormulaInvalid) {

@@ -227,7 +227,12 @@ export class RuntimeConcat extends RuntimeFormulaFunction {
     if (args.every((arg, index) => index % 2 === 0 || arg.type === 'newLine')) {
       return args
         .filter((arg, index) => index % 2 === 0) // Remove the new lines elements
-        .map((arg) => ({ type: 'wrapper', content: [arg].flat() }))
+        .map((arg) => {
+          // If arg is already a wrapper, extract its content; otherwise wrap it
+          const content =
+            arg?.type === 'wrapper' && arg.content ? arg.content : [arg].flat()
+          return { type: 'wrapper', content }
+        })
     }
     return { type: 'wrapper', content: args }
   }

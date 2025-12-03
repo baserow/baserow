@@ -14,7 +14,7 @@
       @node-selected="$emit('node-selected', $event)"
       @node-unselected="$emit('node-unselected')"
     />
-    <div class="formula-input-context__footer">
+    <div v-if="enableAdvancedMode" class="formula-input-context__footer">
       <ButtonText
         type="primary"
         icon="iconoir-input-field"
@@ -94,6 +94,11 @@ export default {
       type: Boolean,
       required: false,
       default: false,
+    },
+    enableAdvancedMode: {
+      type: Boolean,
+      required: false,
+      default: true,
     },
   },
   data() {
