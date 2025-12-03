@@ -176,6 +176,7 @@ export default {
   },
   computed: {
     selectedName() {
+      console.log('selectedName in progress', this.value)
       return this.getSelectedProperty(this.value, 'name')
     },
     selectedIcon() {
@@ -533,8 +534,8 @@ export default {
      * when the component is mounted. At this moment the dropdownItemComponents have been added.
      */
     forceRefreshSelectedValue() {
-      this._computedWatchers.selectedName.run()
-      this._computedWatchers.selectedIcon.run()
+      // TODO MIG this._computedWatchers.selectedName.run()
+      // TODO MIG this._computedWatchers.selectedIcon.run()
       this.$forceUpdate()
     },
     /**

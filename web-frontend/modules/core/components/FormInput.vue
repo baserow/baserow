@@ -28,22 +28,22 @@
         ref="input"
         class="form-input__input"
         :class="{ 'form-input__input--text-invisible': textInvisible }"
-        :value="fromValue(value)"
+        :value="fromValue(innerValue)"
         :disabled="disabled"
         :type="type"
-        :min="type == 'number' && min > -1 ? parseInt(min) : false"
-        :max="type == 'number' && max > -1 ? parseInt(max) : false"
-        :step="type == 'number' && step > -1 ? parseFloat(step) : false"
+        :min="type === 'number' && min > -1 ? parseInt(min) : false"
+        :max="type === 'number' && max > -1 ? parseInt(max) : false"
+        :step="type === 'number' && step > -1 ? parseFloat(step) : false"
         :placeholder="placeholder"
         :required="required"
         :autocomplete="autocomplete"
-        @blur="onBlur($event)"
+        @blur="onBlur"
         @click="$emit('click', $event)"
         @focus="$emit('focus', $event)"
         @keyup="$emit('keyup', $event)"
         @keydown="$emit('keydown', $event)"
         @keypress="$emit('keypress', $event)"
-        @input.stop="onInput($event)"
+        @input.stop="onInput"
         @mouseup="$emit('mouseup', $event)"
         @mousedown="$emit('mousedown', $event)"
       />
@@ -60,15 +60,103 @@
   </div>
 </template>
 
-<script>
+<script setup>
+import { computed, ref, inject } from 'vue'
+
+const props = defineProps({
+  error: Boolean,
+  label: String,
+  size: {
+    type: String,
+    default: 'regular',
+    validator: (v) => ['regular', 'small', 'large', 'xlarge'].includes(v),
+  },
+  placeholder: String,
+
+  /* Legacy + new v-model */
+  value: { default: undefined },
+  modelValue: { default: undefined },
+
+  toValue: { type: Function, default: (v) => v },
+  fromValue: { type: Function, default: (v) => v },
+  defaultValueWhenEmpty: { type: [Number, String], default: null },
+
+  type: { type: String, default: 'text' },
+  disabled: Boolean,
+  monospace: Boolean,
+  loading: Boolean,
+  iconLeft: String,
+  iconRight: String,
+  required: Boolean,
+  removeNumberInputControls: Boolean,
+  autocomplete: { type: String, default: '' },
+  min: { type: Number, default: -1 },
+  max: { type: Number, default: -1 },
+  step: { type: Number, default: -1 },
+  focusOnClick: { type: Boolean, default: true },
+  textInvisible: Boolean,
+})
+
+const emit = defineEmits([
+  'input',
+  'update:modelValue',
+  'blur',
+  'click',
+  'focus',
+  'keyup',
+  'keydown',
+  'keypress',
+  'mouseup',
+  'mousedown',
+])
+const forInput = inject('forInput', null)
+
+const input = ref(null)
+
+/* Keep compat with nuxt2 version */
+const innerValue = computed(() =>
+  props.modelValue !== undefined ? props.modelValue : props.value
+)
+
+/* Unified emitter for compat with legacy usages */
+function updateValue(raw) {
+  const converted = props.toValue(raw)
+  emit('input', converted) // legacy
+  emit('update:modelValue', converted) // new v-model
+}
+
+function onInput(e) {
+  const raw = input.value.value
+
+  if (!raw && props.defaultValueWhenEmpty !== null) return
+
+  updateValue(e.target.value)
+}
+
+function onBlur(e) {
+  const raw = input.value.value
+
+  if (!raw && props.defaultValueWhenEmpty !== null) {
+    input.value.value = props.defaultValueWhenEmpty
+    updateValue(props.defaultValueWhenEmpty)
+  }
+
+  emit('blur', e)
+}
+
+function focus() {
+  input.value?.focus()
+}
+
+const slots = useSlots()
+const hasSuffixSlot = computed(() => !!slots.suffix)
+</script>
+
+<sscript>
 export default {
   name: 'FormInput',
   inject: {
     forInput: { from: 'forInput', default: null },
-  },
-  model: {
-    prop: 'value',
-    event: 'input',
   },
   props: {
     error: {
@@ -198,10 +286,13 @@ export default {
       this.$refs.input.blur()
     },
     onInput(event) {
+      console.log(' input', event)
       const value = this.$refs.input.value
       if (!value && this.defaultValueWhenEmpty !== null) {
+        console.log('quiiiit')
         return
       }
+      console.log('eemit', this.toValue(event.target.value))
       this.$emit('input', this.toValue(event.target.value))
     },
     onBlur(event) {
@@ -214,4 +305,4 @@ export default {
     },
   },
 }
-</script>
+</sscript>

@@ -64,6 +64,7 @@
     </div>
   </div>
 </template>
+
 <script setup>
 import { computed } from 'vue'
 import HealthService from '@baserow/modules/core/services/health'
