@@ -1,5 +1,4 @@
 import { isSecureURL } from '@baserow/modules/core/utils/string'
-import { getCookie, setCookie, deleteCookie } from 'h3'
 import { useCookie } from '#app'
 
 // NOTE: this has been deliberately left as `group`. A future task will rename it.
@@ -7,7 +6,7 @@ const cookieWorkspaceName = 'baserow_group_id'
 
 export const setWorkspaceCookie = (workspaceId, { $config }) => {
   if (process.SERVER_BUILD) return
-  const secure = isSecureURL($config.PUBLIC_WEB_FRONTEND_URL)
+  const secure = isSecureURL($config.public.publicWebFrontendUrl)
   /*$cookies.set(cookieWorkspaceName, workspaceId, {
     path: '/',
     maxAge: 60 * 60 * 24 * 7,
@@ -17,7 +16,7 @@ export const setWorkspaceCookie = (workspaceId, { $config }) => {
   const cookie = useCookie(cookieWorkspaceName, {
     path: '/',
     maxAge: 60 * 60 * 24 * 7,
-    sameSite: $config.config.baserowFrontendSameSiteCookie,
+    sameSite: $config.public.baserowFrontendSameSiteCookie,
     secure,
   })
   cookie.value = workspaceId

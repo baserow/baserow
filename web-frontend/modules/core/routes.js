@@ -26,22 +26,17 @@ export const routes = [
     path: '/forgot-password',
     file: path.resolve(__dirname, 'pages/forgotPassword.vue'),
   },
-  // {
-  //   name: 'reset-password',
-  //   path: '/reset-password/:token',
-  //   file: path.resolve(__dirname, 'pages/resetPassword.vue'),
-  //   meta: { preventPageViewTracking: true },
-  // },
-  // {
-  //   name: 'verify-email-address',
-  //   path: '/verify-email-address/:token',
-  //   file: path.resolve(__dirname, 'pages/verifyEmailAddress.vue'),
-  // },
-  /*{
-    name: 'dashboard',
-    path: '/dashboard',
-    file: path.resolve(__dirname, 'pages/dashboard.vue'),
-  },*/
+  {
+    name: 'reset-password',
+    path: '/reset-password/:token',
+    file: path.resolve(__dirname, 'pages/resetPassword.vue'),
+    meta: { preventPageViewTracking: true },
+  },
+  {
+    name: 'verify-email-address',
+    path: '/verify-email-address/:token',
+    file: path.resolve(__dirname, 'pages/verifyEmailAddress.vue'),
+  },
   {
     name: 'root',
     path: '/',
@@ -57,82 +52,84 @@ export const routes = [
         path: '/workspace/:workspaceId',
         file: path.resolve(__dirname, 'pages/workspace.vue'),
       },
+      {
+        name: 'admin-settings',
+        path: '/admin/settings',
+        file: path.resolve(__dirname, 'pages/admin/settings.vue'),
+      },
+      {
+        name: 'admin-health',
+        path: '/admin/health',
+        file: path.resolve(__dirname, 'pages/admin/health.vue'),
+      },
+      {
+        name: 'admin-dashboard',
+        path: '/admin/dashboard',
+        file: path.resolve(__dirname, 'pages/admin/dashboard.vue'),
+      },
+      {
+        name: 'admin-users',
+        path: '/admin/users',
+        file: path.resolve(__dirname, 'pages/admin/users.vue'),
+      },
+      {
+        name: 'admin-workspaces',
+        path: '/admin/workspaces',
+        file: path.resolve(__dirname, 'pages/admin/workspaces.vue'),
+      },
+      {
+        name: 'settings',
+        path: '/workspace/:workspaceId/settings',
+        file: path.resolve(__dirname, 'pages/settings.vue'),
+        children: [
+          {
+            name: 'settings-members',
+            path: 'members',
+            file: path.resolve(__dirname, 'pages/settings/members.vue'),
+          },
+          {
+            name: 'settings-invites',
+            path: 'invites',
+            file: path.resolve(__dirname, 'pages/settings/invites.vue'),
+          },
+        ],
+      },
     ],
   },
 
-  // {
-  //   name: 'workspace-invitation',
-  //   path: '/workspace-invitation/:token',
-  //   file: path.resolve(__dirname, 'pages/workspaceInvitation.vue'),
-  //   meta: { preventPageViewTracking: true },
-  // },
-  // {
-  //   name: 'admin-settings',
-  //   path: '/admin/settings',
-  //   file: path.resolve(__dirname, 'pages/admin/settings.vue'),
-  // },
-  // {
-  //   name: 'admin-health',
-  //   path: '/admin/health',
-  //   file: path.resolve(__dirname, 'pages/admin/health.vue'),
-  // },
-  // {
-  //   name: 'admin-dashboard',
-  //   path: '/admin/dashboard',
-  //   file: path.resolve(__dirname, 'pages/admin/dashboard.vue'),
-  // },
-  // {
-  //   name: 'admin-users',
-  //   path: '/admin/users',
-  //   file: path.resolve(__dirname, 'pages/admin/users.vue'),
-  // },
-  // {
-  //   name: 'admin-workspaces',
-  //   path: '/admin/workspaces',
-  //   file: path.resolve(__dirname, 'pages/admin/workspaces.vue'),
-  // },
-  // {
-  //   name: 'style-guide',
-  //   path: '/style-guide',
-  //   file: path.resolve(__dirname, 'pages/styleGuide.vue'),
-  // },
-  // {
-  //   name: 'template',
-  //   path: '/template/:slug',
-  //   file: path.resolve(__dirname, 'pages/template.vue'),
-  // },
+  {
+    name: 'workspace-invitation',
+    path: '/workspace-invitation/:token',
+    file: path.resolve(__dirname, 'pages/workspaceInvitation.vue'),
+    meta: { preventPageViewTracking: true },
+  },
+
+  {
+    name: 'style-guide',
+    path: '/style-guide',
+    file: path.resolve(__dirname, 'pages/styleGuide.vue'),
+  },
+  {
+    name: 'template',
+    path: '/template/:slug',
+    file: path.resolve(__dirname, 'pages/template.vue'),
+  },
   {
     name: 'health-check',
     path: '/_health',
     file: path.resolve(__dirname, 'pages/_health.vue'),
   },
-  // {
-  //   name: 'settings',
-  //   path: '/workspace/:workspaceId/settings',
-  //   file: path.resolve(__dirname, 'pages/settings.vue'),
-  //   children: [
-  //     {
-  //       name: 'settings-members',
-  //       path: 'members',
-  //       file: path.resolve(__dirname, 'pages/settings/members.vue'),
-  //     },
-  //     {
-  //       name: 'settings-invites',
-  //       path: 'invites',
-  //       file: path.resolve(__dirname, 'pages/settings/invites.vue'),
-  //     },
-  //   ],
-  // },
-  // {
-  //   name: 'notification-redirect',
-  //   path: '/notification/:workspaceId/:notificationId',
-  //   file: path.resolve(__dirname, 'pages/notificationRedirect.vue'),
-  // },
-  // {
-  //   name: 'onboarding',
-  //   path: '/onboarding',
-  //   file: path.resolve(__dirname, 'pages/onboarding.vue'),
-  // },
+
+  {
+    name: 'notification-redirect',
+    path: '/notification/:workspaceId/:notificationId',
+    file: path.resolve(__dirname, 'pages/notificationRedirect.vue'),
+  },
+  {
+    name: 'onboarding',
+    path: '/onboarding',
+    file: path.resolve(__dirname, 'pages/onboarding.vue'),
+  },
 ]
 
 // if (process.env.NODE_ENV !== 'production') {

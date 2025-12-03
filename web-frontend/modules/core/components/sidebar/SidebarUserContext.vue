@@ -1,10 +1,5 @@
 <template>
-  <Context
-    ref="context"
-    max-height-if-outside-viewport
-    class="select"
-    @shown="onShow"
-  >
+  <Context max-height-if-outside-viewport class="select" @shown="onShow">
     <div class="select__search">
       <i class="select__search-icon iconoir-search"></i>
       <input
@@ -39,7 +34,7 @@
           <div class="select__item-name">
             <Avatar
               class="dashboard__user-workspace-avatar"
-              :initials="$filters.nameAbbreviation(workspace.name)"
+              :initials="workspace.name | nameAbbreviation"
             ></Avatar>
             {{ workspace.name }}
             <span

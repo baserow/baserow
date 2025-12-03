@@ -6,11 +6,12 @@ export default {
   methods: {
     getRootContext() {
       // Search in the refs
+      console.log('refs', this, toRaw(this.$refs.context))
       if (this.$refs.context) {
         return this.$refs.context
       }
 
-      return null
+      throw new Error('Missing context ref in this component')
     },
     toggle(...args) {
       const context = this.getRootContext()
@@ -30,6 +31,7 @@ export default {
     },
     hide(...args) {
       const context = this.getRootContext()
+      console.log('hide', context?.hide)
       context && context.hide(...args)
     },
   },
