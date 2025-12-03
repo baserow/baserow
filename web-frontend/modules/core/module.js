@@ -281,6 +281,9 @@ export default defineNuxtModule({
     // Load vuex store FIRST - other plugins depend on it
     addPlugin(resolve('plugins/store.js'))
 
+    // vue2 compat
+    addPlugin(resolve('plugins/filters.js'))
+
     // Load Vuex state serialization plugin for SSR hydration
     addPlugin(resolve('plugins/vuexState.js'))
 

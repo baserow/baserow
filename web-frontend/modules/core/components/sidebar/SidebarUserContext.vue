@@ -39,7 +39,7 @@
           <div class="select__item-name">
             <Avatar
               class="dashboard__user-workspace-avatar"
-              :initials="workspace.name | nameAbbreviation"
+              :initials="$filters.nameAbbreviation(workspace.name)"
             ></Avatar>
             {{ workspace.name }}
             <span

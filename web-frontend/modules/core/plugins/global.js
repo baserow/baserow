@@ -198,9 +198,6 @@ import SwitchInput from '@baserow/modules/core/components/SwitchInput'
 import Tab from '@baserow/modules/core/components/Tab'
 import Tabs from '@baserow/modules/core/components/Tabs'
 import Thumbnail from '@baserow/modules/core/components/Thumbnail'
-import lowercase from '@baserow/modules/core/filters/lowercase'
-import nameAbbreviation from '@baserow/modules/core/filters/nameAbbreviation'
-import uppercase from '@baserow/modules/core/filters/uppercase'
 import autoOverflowScroll from '@baserow/modules/core/directives/autoOverflowScroll'
 import autoScroll from '@baserow/modules/core/directives/autoScroll'
 import clickOutside from '@baserow/modules/core/directives/clickOutside'
@@ -262,13 +259,6 @@ function setupVue(app) {
   app.component('SegmentControl', SegmentControl)
   app.component('SwitchButton', SwitchButton)
   app.component('Icon', Icon)
-
-  app.config.globalProperties.$filters = {
-    ...(app.config.globalProperties.$filters || {}),
-    lowercase,
-    uppercase,
-    nameAbbreviation,
-  }
 
   app.directive('scroll', scroll)
   app.directive('preventParentScroll', preventParentScroll)
