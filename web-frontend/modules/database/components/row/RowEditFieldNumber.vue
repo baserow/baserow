@@ -7,18 +7,9 @@
       :error="touched && !valid"
       :disabled="readOnly"
       @keypress="onKeyPress"
-      @keyup.enter="
-        onBlur()
-        $refs.input.blur()
-      "
-      @focus="
-        onFocus()
-        select()
-      "
-      @blur="
-        onBlur()
-        unselect()
-      "
+      @keyup.enter="onBlur(), $refs.input.blur()"
+      @focus="onFocus(), select()"
+      @blur="onBlur(), unselect()"
       @input="handleInput"
     />
 

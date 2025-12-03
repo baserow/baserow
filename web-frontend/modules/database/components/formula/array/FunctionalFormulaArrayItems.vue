@@ -2,18 +2,18 @@
 This component is used to render the formula array items, independently of the place.
 It's used in the grid view cell, row edit modal, gallery card, etc.
 -->
-<template functional>
-  <div :class="[data.staticClass, data.class]">
+<template>
+  <div v-bind="containerAttrs">
     <component
-      :is="$options.methods.getComponent(props.field, parent.$registry)"
-      v-for="(item, index) in props.value || []"
+      :is="getComponent(field, $registry)"
+      v-for="(item, index) in value || []"
       :key="index"
-      :row="props.row"
-      :field="props.field"
-      :value="$options.methods.getValue(props.field, parent.$registry, item)"
-      :selected="props.selected"
+      :row="row"
+      :field="field"
+      :value="getValue(field, $registry, item)"
+      :selected="selected"
       :index="index"
-      v-on="listeners"
+      v-bind="listenerAttrs"
     ></component>
     <slot></slot>
   </div>
@@ -22,6 +22,46 @@ It's used in the grid view cell, row edit modal, gallery card, etc.
 <script>
 export default {
   name: 'FunctionalFormulaArrayItems',
+  inheritAttrs: false,
+  props: {
+    field: {
+      type: Object,
+      required: true,
+    },
+    value: {
+      type: Array,
+      default: () => [],
+    },
+    row: {
+      type: Object,
+      default: null,
+    },
+    selected: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  inject: ['$registry'],
+  computed: {
+    containerAttrs() {
+      const attrs = {}
+      Object.keys(this.$attrs).forEach((key) => {
+        if (!key.startsWith('on')) {
+          attrs[key] = this.$attrs[key]
+        }
+      })
+      return attrs
+    },
+    listenerAttrs() {
+      const attrs = {}
+      Object.keys(this.$attrs).forEach((key) => {
+        if (key.startsWith('on')) {
+          attrs[key] = this.$attrs[key]
+        }
+      })
+      return attrs
+    },
+  },
   methods: {
     getComponent(field, $registry) {
       const formulaType = $registry.get(

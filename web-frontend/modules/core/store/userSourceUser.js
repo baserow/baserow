@@ -1,5 +1,4 @@
 import jwtDecode from 'jwt-decode'
-import Vue from 'vue'
 
 import UserSourceService from '@baserow/modules/core/services/userSource'
 
@@ -17,7 +16,7 @@ export const state = () => ({
 
 const checkApplication = (application) => {
   if (!application.userSourceUser) {
-    Vue.set(application, 'userSourceUser', {
+    application.userSourceUser = {
       refreshing: false,
       token: null,
       refreshToken: null,
@@ -25,7 +24,7 @@ const checkApplication = (application) => {
       tokenPayload: null,
       user: { email: '', id: 0, username: '', role: '', user_source_uid: '' },
       authenticated: false,
-    })
+    }
   }
 }
 

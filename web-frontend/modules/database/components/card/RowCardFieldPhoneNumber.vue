@@ -1,18 +1,25 @@
-<template functional>
+<template>
   <div class="card-text">
     <a
-      :href="'tel:' + props.value"
+      :href="'tel:' + value"
       target="_blank"
       rel="nofollow noopener noreferrer"
       class="forced-pointer-events-auto"
       @mousedown.stop
-      >{{ props.value }}</a
+      >{{ value }}</a
     >
   </div>
 </template>
 
 <script>
 export default {
+  name: 'RowCardFieldPhoneNumber',
   height: 16,
+  props: {
+    value: {
+      type: String,
+      default: '',
+    },
+  },
 }
 </script>

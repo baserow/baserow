@@ -13,15 +13,18 @@
           :value="workspace"
           :name="workspace.name"
           :icon="workspace.trashed ? 'iconoir-bin' : null"
-        ></DropdownItem>
+        />
       </Dropdown>
     </div>
 
-    <template v-for="group in groupedApplicationsForSelectedWorkspace">
-      <div :key="'title-' + group.type" class="modal-sidebar__title">
+    <template
+      v-for="group in groupedApplicationsForSelectedWorkspace"
+      :key="'title-' + group.type"
+    >
+      <div class="modal-sidebar__title">
         {{ group.name }}
       </div>
-      <ul :key="group.type" class="modal-sidebar__nav">
+      <ul class="modal-sidebar__nav">
         <li v-for="application in group.applications" :key="application.id">
           <a
             class="modal-sidebar__nav-link"
@@ -36,7 +39,7 @@
               )
             "
           >
-            <i class="modal-sidebar__nav-icon" :class="group.iconClass"></i>
+            <i class="modal-sidebar__nav-icon" :class="group.iconClass" />
             {{ application.name || 'Unnamed application ' + application.id }}
           </a>
         </li>

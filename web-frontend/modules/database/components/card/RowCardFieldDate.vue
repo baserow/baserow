@@ -1,11 +1,11 @@
-<template functional>
+<template>
   <div class="card-text">
-    {{ $options.methods.getDate(props.field, props.value) }}
-    <template v-if="props.field.date_include_time">{{
-      $options.methods.getTime(props.field, props.value)
-    }}</template>
-    <span v-if="props.field.date_show_tzinfo" class="color--tzinfo">
-      {{ $options.methods.getCellTimezoneAbbr(props.field, props.value) }}
+    {{ getDate(field, value) }}
+    <template v-if="field.date_include_time">
+      {{ getTime(field, value) }}
+    </template>
+    <span v-if="field.date_show_tzinfo" class="color--tzinfo">
+      {{ getCellTimezoneAbbr(field, value) }}
     </span>
   </div>
 </template>
@@ -16,6 +16,16 @@ import readOnlyDateField from '@baserow/modules/database/mixins/readOnlyDateFiel
 export default {
   height: 16,
   name: 'RowCardFieldDate',
+  props: {
+    field: {
+      type: Object,
+      required: true,
+    },
+    value: {
+      type: null,
+      default: null,
+    },
+  },
   mixins: [readOnlyDateField],
 }
 </script>

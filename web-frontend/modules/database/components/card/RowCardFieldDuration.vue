@@ -1,6 +1,6 @@
-<template functional>
+<template>
   <div class="card-text">
-    {{ $options.methods.formatValue(props.field, props.value) }}
+    {{ formatValue(field, value) }}
   </div>
 </template>
 
@@ -10,6 +10,16 @@ import durationField from '@baserow/modules/database/mixins/durationField'
 export default {
   height: 16,
   name: 'RowCardFieldDuration',
+  props: {
+    field: {
+      type: Object,
+      required: true,
+    },
+    value: {
+      type: null,
+      default: null,
+    },
+  },
   mixins: [durationField],
 }
 </script>

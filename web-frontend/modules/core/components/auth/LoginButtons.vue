@@ -8,10 +8,12 @@
         loginButtons.length === 0 && hideIfNoButtons === true,
     }"
   >
-    <template v-for="loginButton in loginButtons">
+    <template
+      v-for="loginButton in loginButtons"
+      :key="loginButton.redirect_url"
+    >
       <component
         :is="getLoginButtonComponent(loginButton)"
-        :key="loginButton.redirect_url"
         :redirect-url="addOriginalParamToUrl(loginButton.redirect_url)"
         :name="loginButton.name"
         :icon="getLoginButtonIcon(loginButton)"
@@ -44,6 +46,10 @@ export default {
       validator: (prop) => typeof prop === 'object' || prop === null,
       default: null,
     },
+  },
+  setup() {
+    const { $registry } = useNuxtApp()
+    return { $registry }
   },
   computed: {
     ...mapGetters({

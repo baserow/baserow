@@ -1,8 +1,8 @@
-<template functional>
+<template>
   <div class="card-many-to-many__list-wrapper">
     <div class="card-many-to-many__list">
       <div
-        v-for="item in props.value"
+        v-for="item in value"
         :key="item.id"
         class="card-many-to-many__item card-multiple-select-option"
         :class="'background-color--' + item.color"
@@ -15,6 +15,13 @@
 
 <script>
 export default {
+  name: 'RowCardFieldMultipleSelect',
   height: 22,
+  props: {
+    value: {
+      type: Array,
+      default: () => [],
+    },
+  },
 }
 </script>

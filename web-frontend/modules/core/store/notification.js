@@ -1,4 +1,3 @@
-import Vue from 'vue'
 import notificationService from '@baserow/modules/core/services/notification'
 
 export const state = () => ({
@@ -65,16 +64,12 @@ export const mutations = {
         continue
       }
 
-      Vue.set(item, 'read', value)
+      item.read = value
 
       const workspaceId = item.workspace?.id
       if (workspaceId) {
         const currCount = state.perWorkspaceUnreadCount[workspaceId] || 0
-        Vue.set(
-          state.perWorkspaceUnreadCount,
-          workspaceId,
-          updateCount(currCount)
-        )
+        state.perWorkspaceUnreadCount[workspaceId] = updateCount(currCount)
       } else {
         state.userUnreadCount = updateCount(state.userUnreadCount)
       }
@@ -85,11 +80,8 @@ export const mutations = {
     }
 
     if (setWorkspaceCount !== undefined) {
-      Vue.set(
-        state.perWorkspaceUnreadCount,
-        state.currentWorkspaceId,
+      state.perWorkspaceUnreadCount[state.currentWorkspaceId] =
         setWorkspaceCount
-      )
     }
   },
   SET_LOADING(state, loading) {
@@ -115,20 +107,17 @@ export const mutations = {
     }
 
     const currentCount = state.perWorkspaceUnreadCount[workspaceId] || 0
-    Vue.set(state.perWorkspaceUnreadCount, workspaceId, currentCount + count)
+    state.perWorkspaceUnreadCount[workspaceId] = currentCount + count
     state.anyOtherWorkspaceWithUnread = anyUnreadInOtherWorkspaces(state)
   },
   SET_WORKSPACE_UNREAD_COUNT(state, { workspaceId, count }) {
-    Vue.set(state.perWorkspaceUnreadCount, workspaceId, count)
+    state.perWorkspaceUnreadCount[workspaceId] = count
     state.anyOtherWorkspaceWithUnread = anyUnreadInOtherWorkspaces(state)
   },
   SET_UNREAD_COUNT(state, { userCount, currentWorkspaceUnreadCount }) {
     state.userUnreadCount = userCount
-    Vue.set(
-      state.perWorkspaceUnreadCount,
-      state.currentWorkspaceId,
+    state.perWorkspaceUnreadCount[state.currentWorkspaceId] =
       currentWorkspaceUnreadCount
-    )
   },
   UPDATE_UNREAD_COUNTS(state, { notificationsAdded }) {
     for (const addedCount of notificationsAdded) {
@@ -138,11 +127,7 @@ export const mutations = {
         state.userUnreadCount = (state.userUnreadCount || 0) + addedCount.count
       } else {
         const currentCount = state.perWorkspaceUnreadCount[workspaceId] || 0
-        Vue.set(
-          state.perWorkspaceUnreadCount,
-          workspaceId,
-          currentCount + count
-        )
+        state.perWorkspaceUnreadCount[workspaceId] = currentCount + count
       }
     }
     state.anyOtherWorkspaceWithUnread = anyUnreadInOtherWorkspaces(state)

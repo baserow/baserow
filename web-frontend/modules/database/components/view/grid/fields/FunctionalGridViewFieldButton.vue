@@ -1,19 +1,19 @@
-<template functional>
-  <div ref="cell" class="grid-view__cell" :class="data.staticClass || ''">
+<template>
+  <div ref="cell" class="grid-view__cell">
     <div class="grid-field-button">
       <Button
-        v-if="$options.methods.isValid(props.value)"
+        v-if="isValid(value)"
         tag="a"
         type="secondary"
         size="tiny"
-        :href="props.value && props.value.url"
+        :href="value && value.url"
         target="_blank"
         rel="nofollow noopener noreferrer"
       >
-        {{ $options.methods.getLabelOrURL(props.value) }}
+        {{ getLabelOrURL(value) }}
       </Button>
       <Button v-else tag="a" type="secondary" size="tiny" disabled>
-        {{ $options.methods.getLabelOrURL(props.value) }}
+        {{ getLabelOrURL(value) }}
       </Button>
     </div>
   </div>
@@ -24,6 +24,12 @@ import linkURLField from '@baserow/modules/database/mixins/linkURLField'
 
 export default {
   name: 'FunctionalGridViewFieldButton',
+  props: {
+    value: {
+      type: Object,
+      default: null,
+    },
+  },
   mixins: [linkURLField],
 }
 </script>

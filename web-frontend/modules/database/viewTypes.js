@@ -141,7 +141,7 @@ export class ViewType extends Registerable {
    * `Share {this.getSharingLinkName()}`
    */
   getSharingLinkName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewType.sharing.linkName')
   }
 
@@ -519,7 +519,7 @@ export class GridViewType extends ViewType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewType.grid')
   }
 
@@ -1109,7 +1109,7 @@ export class GalleryViewType extends BaseBufferedRowViewTypeMixin(ViewType) {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewType.gallery')
   }
 
@@ -1204,7 +1204,7 @@ export class FormViewType extends ViewType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewType.form')
   }
 
@@ -1225,7 +1225,7 @@ export class FormViewType extends ViewType {
   }
 
   getSharingLinkName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('viewType.sharing.formLinkName')
   }
 

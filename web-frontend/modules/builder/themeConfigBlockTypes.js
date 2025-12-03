@@ -204,7 +204,7 @@ export class ColorThemeConfigBlockType extends ThemeConfigBlockType {
   }
 
   getColorVariables(theme) {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     const customColors = theme.custom_colors ? [...theme.custom_colors] : []
     return [
       {

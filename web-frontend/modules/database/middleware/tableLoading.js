@@ -1,10 +1,12 @@
 import { getDefaultView } from '@baserow/modules/database/utils/view'
 
+import { useNuxtApp } from '#app'
+
 /**
  * Middleware that changes the table loading state to true before the route
  * changes. That way we can show a loading animation to the user when switching
  * between views.
- */
+
 export default async function ({ route, from, store, app }) {
   function parseIntOrNull(x) {
     return x != null ? parseInt(x) : null
@@ -45,4 +47,49 @@ export default async function ({ route, from, store, app }) {
   ) {
     await store.dispatch('table/setLoading', true)
   }
-}
+}*/
+
+export default defineNuxtRouteMiddleware(async (to, from) => {
+  const nuxtApp = useNuxtApp()
+  const store = nuxtApp.$store
+
+  function parseIntOrNull(x) {
+    return x != null ? parseInt(x) : null
+  }
+
+  const toDatabaseId = parseIntOrNull(to.params?.databaseId)
+  const toDatabase = store.getters['application/get'](toDatabaseId)
+
+  if (!toDatabase) {
+    return
+  }
+
+  const toWorkspaceId = toDatabase.workspace.id
+  const toTableId = parseIntOrNull(to.params.tableId)
+  const toViewId = parseIntOrNull(to.params.viewId)
+  const toRowId = parseIntOrNull(to.params.rowId)
+
+  const fromTableId = parseIntOrNull(from?.params?.tableId)
+  const fromViewId = parseIntOrNull(from?.params?.viewId)
+
+  const differentTableId = fromTableId !== toTableId
+  const differentViewId = fromViewId !== toViewId
+
+  const viewToUse = getDefaultView(
+    nuxtApp,
+    store,
+    toWorkspaceId,
+    toRowId !== null
+  )
+
+  const willRedirectToSameViewId =
+    fromViewId && toViewId === null && fromViewId === viewToUse?.id
+
+  if (
+    !from ||
+    differentTableId ||
+    (!differentTableId && differentViewId && !willRedirectToSameViewId)
+  ) {
+    await store.dispatch('table/setLoading', true)
+  }
+})

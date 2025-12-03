@@ -53,10 +53,7 @@
       >
         <a
           class="context__menu-item-link"
-          @click="
-            $refs.workspaceSettingsModal.show()
-            hide()
-          "
+          @click="$refs.workspaceSettingsModal.show(), hide()"
         >
           <i class="context__menu-item-icon iconoir-settings"></i>
           {{ $t('workspaceContext.settings') }}
@@ -74,8 +71,8 @@
               params: {
                 workspaceId: workspace.id,
               },
-            })
-            hide()
+            }),
+              hide()
           "
         >
           <i class="context__menu-item-icon iconoir-community"></i>

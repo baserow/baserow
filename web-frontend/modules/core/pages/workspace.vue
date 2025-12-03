@@ -214,7 +214,214 @@
   </div>
 </template>
 
-<script>
+<script setup>
+definePageMeta({ layout: 'app' })
+
+import { ref, computed, onMounted } from 'vue'
+import { useRoute, useRouter, useNuxtApp } from '#app'
+import { useHead, useAsyncData } from '#imports'
+
+import WorkspaceContext from '@baserow/modules/core/components/workspace/WorkspaceContext'
+import CreateApplicationContext from '@baserow/modules/core/components/application/CreateApplicationContext'
+import DashboardApplication from '@baserow/modules/core/components/dashboard/DashboardApplication'
+import WorkspaceInvitation from '@baserow/modules/core/components/workspace/WorkspaceInvitation'
+import TemplateCard from '@baserow/modules/core/components/template/TemplateCard'
+import editWorkspace from '@baserow/modules/core/mixins/editWorkspace'
+import DashboardVerifyEmail from '@baserow/modules/core/components/dashboard/DashboardVerifyEmail'
+import TemplateModal from '@baserow/modules/core/components/template/TemplateModal'
+import DashboardHelp from '@baserow/modules/core/components/dashboard/DashboardHelp'
+
+const route = useRoute()
+const router = useRouter()
+const nuxtApp = useNuxtApp()
+const { $store, $registry, $i18n, $hasPermission } = nuxtApp
+
+// ----------------------------------------------------------------------------
+// STATE
+// ----------------------------------------------------------------------------
+const selectedWorkspace = ref(null)
+const workspaceComponentArguments = ref({})
+const templates = ref([
+  {
+    name: 'Project Management',
+    slug: 'project-management',
+    type: 'calendar',
+    color: 'yellow',
+  },
+  {
+    name: 'Performance Reviews',
+    slug: 'performance-reviews',
+    type: 'table',
+    color: 'purple',
+  },
+])
+
+// refs used in template
+const context = ref(null)
+const contextLink = ref(null)
+const createApplicationContext = ref(null)
+const createApplicationContextLink = ref(null)
+const createApplicationContextLink2 = ref(null)
+const rename = ref(null)
+const templateModal = ref(null)
+
+// ----------------------------------------------------------------------------
+// ASYNC DATA (replacement for asyncData)
+// ----------------------------------------------------------------------------
+await useAsyncData('currentWorkspace', async () => {
+  console.log('async data workspace')
+  const workspaceId = parseInt(route.params.workspaceId, 10)
+  console.log('current is ', workspaceId)
+  let workspace
+  try {
+    workspace = await $store.dispatch('workspace/selectById', workspaceId)
+    console.log('workspace', workspace)
+  } catch (e) {
+    console.log('e', e)
+    throw createError({ statusCode: 404, message: 'Workspace not found.' })
+  }
+
+  try {
+    await $store.dispatch('auth/fetchWorkspaceInvitations')
+    selectedWorkspace.value = workspace
+
+    let asyncData = {
+      workspaceComponentArguments: {},
+      selectedWorkspace: workspace,
+    }
+    // Loop over all the plugin and call the `fetchAsyncDashboardData` because there
+    // might be plugins that extend the dashboard and we want to fetch that async data
+    // here.
+    const plugins = Object.values($registry.getAll('plugin'))
+    for (const p of plugins) {
+      asyncData = await p.fetchAsyncDashboardData(
+        nuxtApp,
+        asyncData,
+        workspace.id
+      )
+    }
+
+    workspaceComponentArguments.value = asyncData.workspaceComponentArguments
+  } catch {
+    throw createError({ statusCode: 400, message: 'Error loading dashboard.' })
+  }
+})
+
+// ----------------------------------------------------------------------------
+// HEAD
+// ----------------------------------------------------------------------------
+useHead(() => ({
+  title: $i18n.t('dashboard.title'),
+}))
+
+// ----------------------------------------------------------------------------
+// COMPUTED
+// ----------------------------------------------------------------------------
+const workspaceInvitations = computed(
+  () => $store.getters['auth/getWorkspaceInvitations']
+)
+
+const getAllOfWorkspace = (ws) =>
+  $store.getters['application/getAllOfWorkspace'](ws)
+
+const dashboardHelpComponents = computed(() =>
+  Object.values($registry.getAll('plugin'))
+    .reduce(
+      (components, plugin) =>
+        components.concat(plugin.getDashboardHelpComponents()),
+      []
+    )
+    .filter((c) => c !== null)
+)
+
+const dashboardWorkspaceRowUsageComponent = computed(() =>
+  Object.values($registry.getAll('plugin'))
+    .map((p) => p.getDashboardWorkspaceRowUsageComponent())
+    .filter((c) => c !== null)
+)
+
+const dashboardWorkspacePlanBadge = computed(() =>
+  Object.values($registry.getAll('plugin'))
+    .map((p) => p.getDashboardWorkspacePlanBadge())
+    .filter((c) => c !== null)
+)
+
+const resourceLinksComponents = computed(() =>
+  Object.values($registry.getAll('plugin'))
+    .map((p) => p.getDashboardResourceLinksComponent())
+    .filter((c) => c !== null)
+)
+
+const orderedApplicationsInSelectedWorkspace = computed(() =>
+  !selectedWorkspace.value
+    ? []
+    : getAllOfWorkspace(selectedWorkspace.value).sort(
+        (a, b) => a.order - b.order
+      )
+)
+
+const canCreateCreateApplication = computed(() => {
+  if (!selectedWorkspace.value) return false
+  return $hasPermission(
+    'workspace.create_application',
+    selectedWorkspace.value,
+    selectedWorkspace.value.id
+  )
+})
+/**
+ * Check if the workspace exists, because if not, it doesn't make any sense to
+ * render anything. This can happen when the workspace is a state where it's
+ * deleted, for example.
+ */
+const workspaceExists = computed(() => {
+  if (!selectedWorkspace.value) return false
+  return $store.getters['workspace/getAll'].some(
+    (w) => w.id === selectedWorkspace.value.id
+  )
+})
+
+// ----------------------------------------------------------------------------
+// METHODS
+// ----------------------------------------------------------------------------
+function getApplicationType(application) {
+  return $registry.get('application', application.type)
+}
+
+function selectApplication(application) {
+  const type = getApplicationType(application)
+  type.select(application, { router })
+}
+
+async function workspaceUpdated(workspace) {
+  await fetchWorkspaceExtraData(workspace)
+}
+
+async function fetchWorkspaceExtraData(workspace) {
+  const plugins = Object.values($registry.getAll('plugin'))
+  const asyncData = {}
+
+  for (const p of plugins) {
+    const workspaceData = await p.fetchAsyncDashboardData(
+      nuxtApp,
+      asyncData,
+      workspace.id
+    )
+
+    const base = {
+      workspaceComponentArguments: workspaceComponentArguments.value,
+    }
+
+    const merged = p.mergeDashboardData(
+      JSON.parse(JSON.stringify(base)),
+      workspaceData
+    )
+
+    workspaceComponentArguments.value = merged.workspaceComponentArguments
+  }
+}
+</script>
+
+<sscript>
 import { mapGetters } from 'vuex'
 
 import WorkspaceContext from '@baserow/modules/core/components/workspace/WorkspaceContext'
@@ -390,4 +597,4 @@ export default {
     },
   },
 }
-</script>
+</sscript>

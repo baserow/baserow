@@ -11,24 +11,23 @@
     <EmailNotVerified
       v-else-if="displayEmailNotVerified"
       :email="emailToVerify"
-    >
-    </EmailNotVerified>
+    />
     <template v-else>
       <div v-if="displayHeader">
         <div class="auth__logo">
-          <nuxt-link :to="{ name: 'index' }">
+          <NuxtLink :to="{ name: 'index' }">
             <Logo />
-          </nuxt-link>
+          </NuxtLink>
         </div>
         <h1 class="auth__head-title">{{ $t('login.title') }}</h1>
         <div class="auth__head">
           <span v-if="settings.allow_new_signups" class="auth__head-text">
             {{ $t('login.signUpText') }}
-            <nuxt-link :to="{ name: 'signup' }">
+            <NuxtLink :to="{ name: 'signup' }">
               {{ $t('login.signUp') }}
-            </nuxt-link></span
-          >
-          <LangPicker class="margin-left-auto" />
+            </NuxtLink>
+          </span>
+          <!-- <LangPicker class="margin-left-auto" /> -->
         </div>
       </div>
       <div v-if="redirectByDefault && defaultRedirectUrl">
@@ -56,8 +55,7 @@
           @success="success"
           @two-factor-auth="setTwoFactorRequired"
           @email-not-verified="emailNotVerified"
-        >
-        </PasswordLogin>
+        />
 
         <LoginActions :invitation="invitation" :original="original">
           <li v-if="passwordLoginHidden" class="auth__action-link">
@@ -171,14 +169,16 @@ export default {
   },
   methods: {
     async success() {
+      console.log('success')
       if (this.redirectOnSuccess) {
         const original = this.computedOriginal
         if (original && isRelativeUrl(original)) {
-          await this.$nuxt.$router.push(original)
+          await this.$router.push(original)
         } else {
-          await this.$nuxt.$router.push({ name: 'dashboard' })
+          await this.$router.push({ name: 'dashboard' })
         }
       }
+      console.log('remit')
       this.$emit('success')
     },
     emailNotVerified(email) {

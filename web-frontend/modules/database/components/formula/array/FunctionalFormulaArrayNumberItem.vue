@@ -1,16 +1,14 @@
-<template functional>
+<template>
   <div
-    v-if="props.value !== null"
+    v-if="value !== null"
     class="array-field__item"
-    :class="{
-      'cell-error': props.value === 'NaN',
-    }"
+    :class="{ 'cell-error': value === 'NaN' }"
   >
     <div class="array-field__ellipsis">
       {{
-        props.value === 'NaN'
-          ? parent.$t('fieldErrors.invalidNumber')
-          : $options.methods.formatFrontendNumber(props.field, props.value)
+        value === 'NaN'
+          ? $t('fieldErrors.invalidNumber')
+          : formatFrontendNumber(field, value)
       }}
     </div>
   </div>
@@ -21,6 +19,16 @@ import { formatDecimalNumber } from '@baserow/modules/database/utils/number'
 
 export default {
   name: 'FunctionalFormulaArrayNumberItem',
+  props: {
+    value: {
+      type: null,
+      default: null,
+    },
+    field: {
+      type: Object,
+      required: true,
+    },
+  },
   methods: {
     formatFrontendNumber(field, value) {
       return formatDecimalNumber(field, value)

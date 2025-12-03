@@ -26,22 +26,22 @@ export class DatabaseApplicationType extends ApplicationType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('applicationType.database')
   }
 
   getNamePlural() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('applicationType.databases')
   }
 
   getDescription() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('applicationType.databaseDesc')
   }
 
   getDefaultName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('applicationType.databaseDefaultName')
   }
 

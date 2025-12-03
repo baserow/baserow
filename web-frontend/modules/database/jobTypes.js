@@ -8,12 +8,12 @@ export class DuplicateTableJobType extends JobType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('duplicateTableJobType.name')
   }
 
   getSidebarText(job) {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('duplicateTableJobType.duplicating') + '...'
   }
 

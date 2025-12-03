@@ -2,14 +2,17 @@
   <div>
     <Alert v-if="invitation !== null" type="info-primary">
       <template #title>{{ $t('invitationTitle') }}</template>
-      <i18n path="invitationMessage" tag="p">
+      {{ $t('invitationMessage').replace('{invitedBy}',
+      `<strong>${invitation.invited_by}</strong>`).replace('{workspace}',
+      `<strong>${invitation.workspace}</strong>`) }}
+      <!--i18n path="invitationMessage" tag="p">
         <template #invitedBy>
           <strong>{{ invitation.invited_by }}</strong>
         </template>
         <template #workspace>
           <strong>{{ invitation.workspace }}</strong>
         </template>
-      </i18n>
+      </!--i18n-->
     </Alert>
     <Error :error="error"></Error>
     <form @submit.prevent="login">
@@ -23,7 +26,7 @@
         <FormInput
           v-if="invitation !== null"
           ref="email"
-          v-model="values.email"
+          v-model="v$.values.email.$model"
           type="email"
           size="large"
           disabled
@@ -32,7 +35,7 @@
         <FormInput
           v-else
           ref="email"
-          v-model="values.email"
+          v-model="v$.values.email.$model"
           type="email"
           size="large"
           :error="fieldHasErrors('email')"
@@ -43,8 +46,8 @@
 
         <template #error>
           <i class="iconoir-warning-triangle"></i>
-          {{ $t('error.invalidEmail') }}</template
-        >
+          {{ $t('error.invalidEmail') }}
+        </template>
       </FormGroup>
 
       <FormGroup
@@ -57,11 +60,11 @@
         <template v-if="displayForgotPassword" #after-label>
           <nuxt-link tabindex="3" :to="{ name: 'forgot-password' }">
             {{ $t('login.forgotPassword') }}
-          </nuxt-link></template
-        >
+          </nuxt-link>
+        </template>
         <FormInput
           ref="password"
-          v-model="values.password"
+          v-model="v$.values.password.$model"
           type="password"
           size="large"
           :error="fieldHasErrors('password')"
@@ -100,7 +103,7 @@ import WorkspaceService from '@baserow/modules/core/services/workspace'
 
 export default {
   name: 'PasswordLogin',
-  mixins: [form, error],
+  mixins: [error],
   props: {
     invitation: {
       required: false,
@@ -144,9 +147,9 @@ export default {
     }
   },
   async mounted() {
-    if (!this.$config.BASEROW_DISABLE_PUBLIC_URL_CHECK) {
-      const publicBackendUrl = new URL(this.$config.PUBLIC_BACKEND_URL)
-      if (publicBackendUrl.host !== window.location.host) {
+    if (!this.$config.public.baserowDisablePublicUrlCheck) {
+      const publicBackendUrl = new URL(this.$config.public.publicBackendUrl)
+      if (publicBackendUrl.hostname !== window.location.hostname) {
         // If the host of the browser location does not match the PUBLIC_BACKEND_URL
         // then we are probably mis-configured.
         try {
@@ -171,22 +174,33 @@ export default {
     }
   },
   methods: {
+    fieldHasErrors(fieldName) {
+      return this.v$.values[fieldName]?.$error || false
+    },
     async login() {
+      console.log('go go go')
       this.v$.$touch()
+      console.log('after touche')
       const formValid = await this.v$.$validate()
+      console.log('is valide', formValid)
       if (!formValid) {
         this.focusOnFirstError()
         return
       }
 
+      console.log('after valid')
+
       this.loading = true
       this.hideError()
+
+      console.log('yeah ici')
 
       try {
         const data = await this.$store.dispatch('auth/login', {
           email: this.values.email,
           password: this.values.password,
         })
+        console.log('data', data)
         if (data.two_factor_auth) {
           this.$emit(
             'two-factor-auth',
@@ -204,10 +218,11 @@ export default {
             this.invitation.id
           )
         }
-
+        console.log('after ', this.$i18n)
         this.$i18n.setLocale(data.language)
         this.$emit('success')
       } catch (error) {
+        console.log('error', error)
         if (error.handler) {
           const response = error.handler.response
           if (response && response.status === 401) {

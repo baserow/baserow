@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { showError, useRuntimeConfig } from '#imports'
 
 import { upperCaseFirst } from '@baserow/modules/core/utils/string'
 import { makeRefreshAuthInterceptor } from '@baserow/modules/core/plugins/clientAuthRefresh'
@@ -556,11 +557,15 @@ const prepareRequestHeaders = (store) => (config) => {
   return config
 }
 
-const createAxiosInstance = (app) => {
-  const url =
-    (process.client
-      ? app.$config.PUBLIC_BACKEND_URL
-      : app.$config.PRIVATE_BACKEND_URL) + '/api'
+const createAxiosInstance = (runtimeConfig) => {
+  const publicBackendUrl = runtimeConfig.public.publicBackendUrl
+
+  const privateBackendUrl =
+    runtimeConfig.public.privateBackendUrl ?? publicBackendUrl
+  const baseBackendUrl =
+    (import.meta.client ? publicBackendUrl : privateBackendUrl) || ''
+  const url = `${baseBackendUrl}/api`
+
   return axios.create({
     baseURL: url,
     withCredentials: false,
@@ -571,7 +576,7 @@ const createAxiosInstance = (app) => {
   })
 }
 
-export default function ({ app, store, error }, inject) {
+/*export default function ({ app, store, error }, inject) {
   const client = createAxiosInstance(app)
   // Create and inject the client error map, so that other modules can also register
   // default error messages.
@@ -589,10 +594,10 @@ export default function ({ app, store, error }, inject) {
 
   // Main auth refresh token
   const shouldInterceptRequest = () =>
-    store.getters['auth/shouldRefreshToken']()
+    store?.getters?.['auth/shouldRefreshToken']?.()
 
   const shouldInterceptResponse = (error) =>
-    store.getters['auth/isAuthenticated'] &&
+    store?.getters?.['auth/isAuthenticated'] &&
     error.response?.data?.error === 'ERROR_INVALID_ACCESS_TOKEN'
 
   const refreshToken = async () => await store.dispatch('auth/refresh')
@@ -615,6 +620,7 @@ export default function ({ app, store, error }, inject) {
   }
 
   const shouldInterceptUserSourceResponse = (error) => {
+    if (!store || !store.getters) return false
     const application = store.getters['userSourceUser/getCurrentApplication']
     return (
       !store.getters['auth/isAuthenticated'] &&
@@ -637,3 +643,79 @@ export default function ({ app, store, error }, inject) {
 
   inject('client', client)
 }
+*/
+
+export default defineNuxtPlugin({
+  name: 'client-handler',
+  dependsOn: ['i18n', 'store'],
+  async setup(nuxtApp) {
+    const runtimeConfig = useRuntimeConfig()
+    const nuxtAppWithI18n = { ...nuxtApp, i18n: nuxtApp.$i18n }
+    const store = nuxtApp.$store
+
+    const client = createAxiosInstance(runtimeConfig)
+
+    const clientErrorMap = new ClientErrorMap(nuxtAppWithI18n)
+    nuxtApp.provide('clientErrorMap', clientErrorMap)
+
+    client.interceptors.request.use(prepareRequestHeaders(store))
+
+    client.interceptors.response.use(
+      null,
+      makeErrorResponseInterceptor(
+        store,
+        nuxtAppWithI18n,
+        clientErrorMap,
+        showError
+      )
+    )
+
+    const shouldInterceptRequest = () =>
+      store.getters['auth/shouldRefreshToken']()
+
+    const shouldInterceptResponse = (error) =>
+      store.getters['auth/isAuthenticated'] &&
+      error.response?.data?.error === 'ERROR_INVALID_ACCESS_TOKEN'
+
+    const refreshToken = async () => await store.dispatch('auth/refresh')
+
+    const refreshAuthInterceptor = makeRefreshAuthInterceptor(
+      client,
+      refreshToken,
+      shouldInterceptRequest,
+      shouldInterceptResponse
+    )
+    client.interceptors.response.use(null, refreshAuthInterceptor)
+
+    const shouldInterceptUserSourceRequest = (req) => {
+      const application = store.getters['userSourceUser/getCurrentApplication']
+      return (
+        !store.getters['auth/isAuthenticated'] &&
+        store.getters['userSourceUser/shouldRefreshToken'](application)
+      )
+    }
+
+    const shouldInterceptUserSourceResponse = (error) => {
+      const application = store.getters['userSourceUser/getCurrentApplication']
+      return (
+        !store.getters['auth/isAuthenticated'] &&
+        store.getters['userSourceUser/isAuthenticated'](application) &&
+        error.response?.data?.error === 'ERROR_INVALID_ACCESS_TOKEN'
+      )
+    }
+    const refreshUserSourceToken = async () =>
+      await store.dispatch('userSourceUser/refreshAuth', {
+        application: store.getters['userSourceUser/getCurrentApplication'],
+      })
+
+    const refreshUserSourceUserInterceptor = makeRefreshAuthInterceptor(
+      client,
+      refreshUserSourceToken,
+      shouldInterceptUserSourceRequest,
+      shouldInterceptUserSourceResponse
+    )
+    client.interceptors.response.use(null, refreshUserSourceUserInterceptor)
+
+    nuxtApp.provide('client', client)
+  },
+})

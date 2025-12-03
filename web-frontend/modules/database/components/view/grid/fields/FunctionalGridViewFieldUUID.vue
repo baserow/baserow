@@ -1,5 +1,17 @@
-<template functional>
-  <div ref="cell" class="grid-view__cell" :class="data.staticClass || ''">
-    <div class="grid-field-text">{{ props.value }}</div>
+<template>
+  <div ref="cell" class="grid-view__cell">
+    <div class="grid-field-text">{{ value }}</div>
   </div>
 </template>
+
+<script>
+export default {
+  name: 'FunctionalGridViewFieldUUID',
+  props: {
+    value: {
+      type: String,
+      default: '',
+    },
+  },
+}
+</script>

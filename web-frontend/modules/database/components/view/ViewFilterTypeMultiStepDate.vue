@@ -80,7 +80,7 @@ import {
   getDateMomentFormat,
   getDateHumanReadableFormat,
 } from '@baserow/modules/database/utils/date'
-import { en, fr } from 'vuejs-datepicker/dist/locale'
+// TODO MIG import { en, fr } from 'vuejs-datepicker/dist/locale'
 import filterTypeMultiStepDateInput from '@baserow/modules/database/mixins/filterTypeMultiStepDateInput'
 
 export default {
@@ -93,8 +93,8 @@ export default {
       dateString: '',
       dateObject: '',
       datePickerLang: {
-        en,
-        fr,
+        en: {},
+        fr: {},
       },
     }
   },

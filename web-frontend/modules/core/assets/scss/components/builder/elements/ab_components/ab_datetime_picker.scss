@@ -4,8 +4,7 @@
   border: var(--input-border-size, 1px) solid var(--input-border-color, black);
   border-radius: var(--input-border-radius, 0);
   background-color: var(--input-background-color, $white);
-  padding: var(--input-vertical-padding, 8px)
-    var(--input-horizontal-padding, 12px);
+  padding: var(--input-vertical-padding, 8px) var(--input-horizontal-padding, 12px);
 }
 
 .ab-datetime-picker__input {
@@ -55,7 +54,7 @@
 
   .prev {
     /* stylelint-disable-next-line scss/at-extend-no-missing-placeholder */
-    @extend .iconoir-nav-arrow-left;
+    //@extend .iconoir-nav-arrow-left;
     @extend %icon;
 
     &::before {
@@ -65,7 +64,7 @@
 
   .next {
     /* stylelint-disable-next-line scss/at-extend-no-missing-placeholder */
-    @extend .iconoir-nav-arrow-right;
+    //@extend .iconoir-nav-arrow-right;
     @extend %icon;
   }
 

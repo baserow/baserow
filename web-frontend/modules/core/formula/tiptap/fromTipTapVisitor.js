@@ -1,5 +1,3 @@
-const ZWS_MARKER = Symbol('zws_marker')
-
 export class FromTipTapVisitor {
   constructor(functions, mode = 'simple') {
     this.functions = functions
@@ -20,10 +18,6 @@ export class FromTipTapVisitor {
         return ','
       case 'function-closing-paren':
         return ')'
-      case 'group-opening-paren':
-        return '('
-      case 'group-closing-paren':
-        return ')'
       case 'operator-formula-component':
         return this.visitOperatorFormulaComponent(node)
       case 'hardBreak':
@@ -38,13 +32,7 @@ export class FromTipTapVisitor {
       return ''
     }
 
-    const nodeContents = node.content
-      .map(this.visit.bind(this))
-      .filter((c) => c !== ZWS_MARKER)
-
-    if (nodeContents.length === 0) {
-      return ''
-    }
+    const nodeContents = node.content.map(this.visit.bind(this))
 
     if (nodeContents.length === 1) {
       if (nodeContents[0] === "''") {
@@ -78,8 +66,7 @@ export class FromTipTapVisitor {
     }
 
     if (node.content.length === 1) {
-      const result = this.visit(node.content[0])
-      return result === ZWS_MARKER ? "''" : result
+      return this.visit(node.content[0])
     }
 
     if (this.isFunctionCallPattern(node.content)) {
@@ -106,22 +93,9 @@ export class FromTipTapVisitor {
     }
 
     if (this.mode === 'simple') {
-      const parts = node.content
-        .map(this.visit.bind(this))
-        .filter((p) => p !== ZWS_MARKER)
-
-      if (parts.length === 0) {
-        return "''"
-      } else if (parts.length === 1) {
-        return parts[0]
-      } else {
-        return `concat(${parts.join(', ')})`
-      }
+      return `concat(${node.content.map(this.visit.bind(this)).join(', ')})`
     } else {
-      const parts = node.content
-        .map(this.visit.bind(this))
-        .filter((p) => p !== ZWS_MARKER)
-      return parts.join('')
+      return node.content.map(this.visit.bind(this)).join('')
     }
   }
 
@@ -171,11 +145,8 @@ export class FromTipTapVisitor {
   }
 
   visitText(node) {
-    if (node.text === '\u200B') {
-      return ZWS_MARKER
-    }
     // Remove zero-width spaces used for cursor positioning
-    const cleanText = node.text.replace(/\u200B/g, '')
+    let cleanText = node.text.replace(/\u200B/g, '')
 
     if (this.mode === 'simple') {
       return `'${cleanText.replace(/'/g, "\\'")}'`
@@ -183,8 +154,8 @@ export class FromTipTapVisitor {
 
     // In advanced mode, we need to escape actual newlines in the text
     // to make them valid in string literals
-    const cleanTextAdvanced = cleanText.replace(/\n/g, '\n')
-    return cleanTextAdvanced
+    cleanText = cleanText.replace(/\n/g, '\n')
+    return cleanText
   }
 
   visitFunction(node) {
@@ -205,10 +176,6 @@ export class FromTipTapVisitor {
 
   visitOperatorFormulaComponent(node) {
     const operatorSymbol = node.attrs?.operatorSymbol || ''
-    // Add space after minus operator to distinguish from negative numbers
-    if (operatorSymbol === '-') {
-      return '- '
-    }
     return operatorSymbol
   }
 

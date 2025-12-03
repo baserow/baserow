@@ -1,4 +1,4 @@
-import path from 'path'
+/*import path from 'path'
 
 import { routes } from './routes'
 import en from './locales/en.json'
@@ -29,4 +29,71 @@ export default function DatabaseModule(options) {
     additionalMessages.push({ en, fr, nl, de, es, it, pl, ko })
     alreadyExtended = true
   })
-}
+}*/
+
+import {
+  defineNuxtModule,
+  addPlugin,
+  createResolver,
+  addRouteMiddleware,
+  extendPages,
+} from 'nuxt/kit'
+import { routes } from './routes'
+
+import en from './locales/en.json'
+import fr from './locales/fr.json'
+import nl from './locales/nl.json'
+import de from './locales/de.json'
+import it from './locales/it.json'
+import es from './locales/es.json'
+import pl from './locales/pl.json'
+import ko from './locales/ko.json'
+
+const locales = [
+  { code: 'en', name: 'English', file: 'en.json' },
+  { code: 'fr', name: 'Français', file: 'fr.json' },
+  { code: 'nl', name: 'Nederlands', file: 'nl.json' },
+  { code: 'de', name: 'Deutsch', file: 'de.json' },
+  { code: 'es', name: 'Español', file: 'es.json' },
+  { code: 'it', name: 'Italiano', file: 'it.json' },
+  { code: 'pl', name: 'Polski (Beta)', file: 'pl.json' },
+]
+
+export default defineNuxtModule({
+  meta: {
+    name: 'database-module',
+  },
+
+  setup(options, nuxt) {
+    const { resolve } = createResolver(import.meta.url)
+
+    // Register middleware plugin
+    /*addPlugin({
+      src: resolve('./middleware.js'),
+    })*/
+
+    // Register main plugin
+    addPlugin({
+      src: resolve('./plugin.js'),
+    })
+    addPlugin({
+      src: resolve('./plugin/store.js'),
+    })
+
+    addRouteMiddleware({
+      name: 'tableLoading',
+      path: resolve('./middleware/tableLoading'),
+    })
+
+    extendPages((pages) => {
+      pages.push(...routes)
+    })
+
+    nuxt.hook('i18n:registerModule', (register) => {
+      register({
+        langDir: resolve('./locales'),
+        locales,
+      })
+    })
+  },
+})

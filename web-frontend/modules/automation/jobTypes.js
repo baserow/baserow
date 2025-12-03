@@ -7,12 +7,12 @@ export class DuplicateAutomationWorkflowJobType extends JobType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('duplicateAutomationWorkflowJobType.name')
   }
 
   getSidebarText(job) {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('duplicateAutomationWorkflowJobType.duplicating') + '...'
   }
 

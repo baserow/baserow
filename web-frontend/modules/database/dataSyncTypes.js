@@ -78,7 +78,7 @@ export class ICalCalendarDataSyncType extends DataSyncType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('dataSyncType.icalCalendar')
   }
 
@@ -97,7 +97,7 @@ export class PostgreSQLDataSyncType extends DataSyncType {
   }
 
   getName() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
     return i18n.t('dataSyncType.postgresql')
   }
 

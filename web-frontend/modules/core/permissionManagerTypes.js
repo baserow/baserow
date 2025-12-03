@@ -74,7 +74,7 @@ export class BasicPermissionManagerType extends PermissionManagerType {
   }
 
   getRolesTranslations() {
-    const { i18n } = this.app
+    const { $i18n: i18n } = this.app
 
     return {
       ADMIN: {
