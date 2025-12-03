@@ -4,7 +4,7 @@
       <div class="modal-sidebar__head">
         <Avatar
           rounded
-          :initials="name | nameAbbreviation"
+          :initials="$filters.nameAbbreviation(name)"
           size="medium"
         ></Avatar>
         <div class="modal-sidebar__head-name">
