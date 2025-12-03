@@ -1,0 +1,9 @@
+{
+  "type": "refactor",
+  "message": "Update email compiler dependencies",
+  "issue_origin": "github",
+  "issue_number": null,
+  "domain": "core",
+  "bullet_points": [],
+  "created_at": "2025-12-03"
+}

@@ -1,10 +1,9 @@
 {% load i18n %}
 <!doctype html>
-<html xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<html lang="und" dir="auto" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
 
 <head>
-  <title>
-  </title>
+  <title></title>
   <!--[if !mso]><!-->
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <!--<![endif]-->
@@ -99,7 +98,7 @@
     }
   </style>
   <style type="text/css">
-    @media only screen and (max-width:480px) {
+    @media only screen and (max-width:479px) {
       table.mj-full-width-mobile {
         width: 100% !important;
       }
@@ -109,12 +108,10 @@
       }
     }
   </style>
-  <style type="text/css">
-  </style>
 </head>
 
 <body style="word-spacing:normal;">
-  <div style="">
+  <div aria-roledescription="email" style="" role="article" lang="und" dir="auto">
     <!--[if mso | IE]><table align="center" border="0" cellpadding="0" cellspacing="0" class="" role="presentation" style="width:600px;" width="600" ><tr><td style="line-height:0px;font-size:0px;mso-line-height-rule:exactly;"><![endif]-->
     <div style="margin:0px auto;max-width:600px;">
       <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" style="width:100%;">
@@ -132,7 +129,7 @@
                             <tr>
                               <td style="width:140px;">
                                 <a href="{{ baserow_embedded_share_url }}" target="_blank">
-                                  <img height="auto" src="{{ logo_url }}" style="border:0;display:block;outline:none;text-decoration:none;height:auto;width:100%;font-size:13px;" width="140" />
+                                  <img alt="" src="{{ logo_url }}" style="border:0;display:block;outline:none;text-decoration:none;height:auto;width:100%;font-size:13px;" width="140" height="auto" />
                                 </a>
                               </td>
                             </tr>
@@ -181,17 +178,15 @@
                         <div style="font-family:Inter,sans-serif;font-size:13px;line-height:170%;text-align:left;color:#070810;">{% blocktrans trimmed with invitation.invited_by.first_name as first_name and invitation.workspace.name as workspace_name %} <strong>{{ first_name }}</strong> has invited you to collaborate on <strong>{{ workspace_name }}</strong>. {% endblocktrans %}</div>
                       </td>
                     </tr>
-                    <!-- htmlmin:ignore -->{% if invitation.message %}
-                    <!-- htmlmin:ignore -->
+                    <!-- htmlmin:ignore -->{% if invitation.message %}<!-- htmlmin:ignore -->
                     <tr>
                       <td align="left" style="font-size:0px;padding:10px 25px;word-break:break-word;">
                         <div style="font-family:Inter,sans-serif;font-size:13px;line-height:170%;text-align:left;color:#070810;">"{{ invitation.message }}"</div>
                       </td>
                     </tr>
-                    <!-- htmlmin:ignore -->{% endif %}
-                    <!-- htmlmin:ignore -->
+                    <!-- htmlmin:ignore -->{% endif %}<!-- htmlmin:ignore -->
                     <tr>
-                      <td align="left" vertical-align="middle" style="font-size:0px;padding:10px 25px;word-break:break-word;">
+                      <td align="left" style="font-size:0px;padding:10px 25px;word-break:break-word;">
                         <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="border-collapse:separate;line-height:100%;">
                           <tbody>
                             <tr>
@@ -208,15 +203,13 @@
                         <div style="font-family:Inter,sans-serif;font-size:12px;line-height:1;text-align:left;color:#9c9c9f;">{{ public_accept_url }}</div>
                       </td>
                     </tr>
-                    <!-- htmlmin:ignore -->{% if show_baserow_description %}
-                    <!-- htmlmin:ignore -->
+                    <!-- htmlmin:ignore -->{% if show_baserow_description %}<!-- htmlmin:ignore -->
                     <tr>
                       <td align="left" style="font-size:0px;padding:10px 25px;word-break:break-word;">
                         <div style="font-family:Inter,sans-serif;font-size:13px;line-height:170%;text-align:left;color:#070810;">{% blocktrans trimmed %} Baserow is an open source no-code database tool which allows you to collaborate on projects, customers and more. It gives you the powers of a developer without leaving your browser. {% endblocktrans %}</div>
                       </td>
                     </tr>
-                    <!-- htmlmin:ignore -->{% endif %}
-                    <!-- htmlmin:ignore -->
+                    <!-- htmlmin:ignore -->{% endif %}<!-- htmlmin:ignore -->
                   </tbody>
                 </table>
               </div>

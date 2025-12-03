@@ -4,7 +4,7 @@ const mjml2html = require('mjml')
 const fs = require('fs')
 const Eta = require('eta')
 const path = require('path')
-const glob = require('glob')
+const { globSync } = require('glob')
 const chokidar = require('chokidar')
 
 const BASEROW_BACKEND_SRC_DIR = path.join(__dirname, '..', 'src')
@@ -52,10 +52,9 @@ function compileEtaAndMjml(mjmlEtaFile) {
 
 function recompileAllEtaAndMjmlFilesAfterLayoutFileChanges(layoutFile) {
   console.log(`Layout file changed (${layoutFile})`)
-  glob(MJML_ETA_FILE_GLOB, {}, function (er, files) {
-    files.forEach((file) => {
-      compileEtaAndMjml(file)
-    })
+  const files = globSync(MJML_ETA_FILE_GLOB)
+  files.forEach((file) => {
+    compileEtaAndMjml(file)
   })
 }
 
