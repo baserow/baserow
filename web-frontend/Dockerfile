@@ -2,12 +2,17 @@
 
 # =============================================================================
 # Builder for su-exec (replaces gosu, smaller footprint)
+# Pinned to v0.2 (commit 212b75144bbc) with SHA256 verification
 # =============================================================================
 FROM debian:bookworm-slim AS su-exec-builder
 
+ENV SU_EXEC_VERSION=212b75144bbc06722fbd7661f651390dc47a43d1 \
+    SU_EXEC_SHA256=d6c40440609a23483f12eb6295b5191e94baf08298a856bab6e15b10c3b82891
+
 RUN apt-get update && \
     apt-get install -y --no-install-recommends ca-certificates curl build-essential && \
-    curl -L -o /usr/local/bin/su-exec.c https://github.com/ncopa/su-exec/raw/master/su-exec.c && \
+    curl -L -o /usr/local/bin/su-exec.c "https://github.com/ncopa/su-exec/raw/${SU_EXEC_VERSION}/su-exec.c" && \
+    echo "${SU_EXEC_SHA256}  /usr/local/bin/su-exec.c" | sha256sum -c - && \
     gcc -Wall -Werror -static -o /usr/local/bin/su-exec /usr/local/bin/su-exec.c && \
     chmod 0755 /usr/local/bin/su-exec
 
@@ -22,7 +27,7 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     build-essential \
     dos2unix \
-    python3 \
+    python3.11 \
     && rm -rf /var/lib/apt/lists/*
 
 # Update node user to fixed UID 9999 (always cached)
@@ -155,6 +160,10 @@ CMD ["nuxt-local"]
 # =============================================================================
 FROM runtime-packages AS ci
 
+# Install just command runner and ensure it's in system path
+RUN npm install -g rust-just && \
+    ln -sf $(which just) /usr/local/bin/just
+
 ENV DOCKER_USER=node
 ENV BASEROW_IMAGE_TYPE="web-frontend"
 
@@ -189,6 +198,10 @@ RUN apt-get update && \
 
 # Copy su-exec from builder
 COPY --link --from=su-exec-builder /usr/local/bin/su-exec /usr/local/bin/su-exec
+
+# Install just command runner and ensure it's in system path
+RUN npm install -g rust-just && \
+    ln -sf $(which just) /usr/local/bin/just
 
 # Update node user to fixed UID 9999 (always cached)
 RUN groupmod -g 9999 node && usermod -u 9999 -g 9999 node

@@ -107,6 +107,19 @@ dc-deploy name="" *ARGS:
             docker compose -f deploy/all-in-one/docker-compose.yml {{ ARGS }}
             ;;
         "all-in-one-dev")
+            if [[ -z "${UID:-}" ]]; then
+                UID=$(id -u)
+            fi
+            export UID
+            if [[ -z "${GID:-}" ]]; then
+                GID=$(id -g)
+            fi
+            export GID
+            # Handle special "shell" command: translate to exec -u $UID:$GID
+            ARGS="{{ ARGS }}"
+            if [[ "$ARGS" == shell* ]]; then
+                ARGS="exec -u $UID:$GID ${ARGS#shell}"
+            fi
             docker compose -f deploy/all-in-one/docker-compose.yml -f deploy/all-in-one/docker-compose.dev.yml {{ ARGS }}
             ;;
         "cloudron")

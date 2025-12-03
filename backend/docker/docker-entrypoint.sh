@@ -22,8 +22,36 @@ if [[ -n "${BASEROW_DEV_UID:-}" ]] && [[ "$(id -u)" == "0" ]]; then
         useradd -u "$DEV_UID" -g "$DEV_GID" -d /home/hostuser -m -s /bin/bash hostuser 2>/dev/null || true
     fi
 
-    # Fix ownership of venv so the host user can modify it (e.g., uv sync)
-    chown -R "$DEV_UID:$DEV_GID" /baserow/venv
+    # Fix ownership of writable directories (only once, using marker file)
+    # NOTE: We exclude postgres and redis data dirs - they must be owned by their respective users
+    # Use /baserow/data for marker file if it exists (mounted volume), otherwise /baserow
+    if [[ -d "/baserow/data" ]]; then
+        MARKER_DIR="/baserow/data"
+    else
+        MARKER_DIR="/baserow"
+    fi
+    MARKER_FILE="$MARKER_DIR/.ownership-fixed-$DEV_UID-$DEV_GID"
+    if [[ ! -f "$MARKER_FILE" ]]; then
+        echo "Fixing ownership for UID:GID $DEV_UID:$DEV_GID (first run only)..."
+        # Change ownership of code directories that dev user needs write access to
+        for dir in /baserow/backend /baserow/web-frontend /baserow/premium /baserow/enterprise /baserow/venv /baserow/plugins; do
+            if [[ -d "$dir" ]]; then
+                chown -R "$DEV_UID:$DEV_GID" "$dir" 2>/dev/null || true
+            fi
+        done
+        # Change ownership of data subdirs EXCEPT postgres and redis
+        if [[ -d "/baserow/data" ]]; then
+            # Ensure data dir itself is owned by dev user (for marker file and new subdirs)
+            chown "$DEV_UID:$DEV_GID" /baserow/data 2>/dev/null || true
+            for subdir in /baserow/data/*/; do
+                subdir_name=$(basename "$subdir")
+                if [[ "$subdir_name" != "postgres" && "$subdir_name" != "redis" ]]; then
+                    chown -R "$DEV_UID:$DEV_GID" "$subdir" 2>/dev/null || true
+                fi
+            done
+        fi
+        touch "$MARKER_FILE" 2>/dev/null || true
+    fi
 
     # Re-exec this script as the host user
     exec su-exec "$DEV_UID:$DEV_GID" "$0" "$@"

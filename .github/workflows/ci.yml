@@ -181,7 +181,9 @@ jobs:
           target: prod
           push: true
           tags: ${{ steps.image.outputs.full }}
-          cache-from: type=gha,scope=frontend-e2e
+          cache-from: |
+            type=gha,scope=frontend-e2e
+            type=gha,scope=frontend-ci
           cache-to: type=gha,scope=frontend-e2e,mode=max
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
@@ -665,8 +667,9 @@ jobs:
 
           echo "Database restored successfully!"
 
-      - name: Start backend service
+      - name: Start all services in parallel
         run: |
+          # Start backend
           docker run -d --network="${{ job.services.db.network }}" \
             --name backend \
             -e DATABASE_HOST=db \
@@ -687,10 +690,9 @@ jobs:
             -e MIGRATE_ON_STARTUP=true \
             -e PRIVATE_BACKEND_URL=http://backend:8000 \
             -p 8000:8000 \
-            ${{ needs.build-backend.outputs.image }} gunicorn
+            ${{ needs.build-backend.outputs.image }} gunicorn &
 
-      - name: Start celery worker
-        run: |
+          # Start celery worker
           docker run -d --network="${{ job.services.db.network }}" \
             --name celery \
             -e DATABASE_HOST=db \
@@ -710,10 +712,9 @@ jobs:
             -e DJANGO_SETTINGS_MODULE=baserow.config.settings.e2e \
             -e BASEROW_RUN_MINIMAL=yes \
             -e BASEROW_AMOUNT_OF_WORKERS=1 \
-            ${{ needs.build-backend.outputs.image }} celery-worker
+            ${{ needs.build-backend.outputs.image }} celery-worker &
 
-      - name: Start web-frontend service
-        run: |
+          # Start web-frontend
           docker run -d --network="${{ job.services.db.network }}" \
             --name web-frontend \
             -e PUBLIC_BACKEND_URL=http://localhost:8000 \
@@ -721,7 +722,11 @@ jobs:
             -e PRIVATE_BACKEND_URL=http://backend:8000 \
             -e FEATURE_FLAGS="*" \
             -p 3000:3000 \
-            ${{ needs.build-frontend-e2e.outputs.image }} nuxt-local
+            ${{ needs.build-frontend-e2e.outputs.image }} nuxt-local &
+
+          # Wait for all docker run commands to complete
+          wait
+          echo "All services started"
 
       - name: Install dependencies
         run: |
