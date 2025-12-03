@@ -165,7 +165,7 @@ export default (context) => {
   )
 
   // Automation search type
-  searchTypeRegistry.register(new AutomationSearchType())
+  searchTypeRegistry.register(new AutomationSearchType(context))
 
   // Automation guided tour.
   app.$registry.register('guidedTour', new AutomationGuidedTourType(context))

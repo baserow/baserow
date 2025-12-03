@@ -41,5 +41,5 @@ export default (context) => {
   app.$registry.register('application', new DashboardApplicationType(context))
   app.$registry.register('dashboardWidget', new SummaryWidgetType(context))
 
-  searchTypeRegistry.register(new DashboardSearchType())
+  searchTypeRegistry.register(new DashboardSearchType(context))
 }

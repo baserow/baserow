@@ -1124,8 +1124,8 @@ export default (context) => {
 
   app.$registry.registerNamespace('fieldContextItem')
 
-  searchTypeRegistry.register(new DatabaseSearchType())
-  searchTypeRegistry.register(new DatabaseTableSearchType())
-  searchTypeRegistry.register(new DatabaseFieldSearchType())
-  searchTypeRegistry.register(new DatabaseRowSearchType())
+  searchTypeRegistry.register(new DatabaseSearchType(context))
+  searchTypeRegistry.register(new DatabaseTableSearchType(context))
+  searchTypeRegistry.register(new DatabaseFieldSearchType(context))
+  searchTypeRegistry.register(new DatabaseRowSearchType(context))
 }

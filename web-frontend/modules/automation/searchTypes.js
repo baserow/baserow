@@ -1,53 +1,27 @@
-import { BaseSearchType } from '@baserow/modules/core/search/types/base'
+import { ApplicationSearchType } from '@baserow/modules/core/search/types/base'
 
-export class AutomationSearchType extends BaseSearchType {
-  constructor() {
-    super()
+export class AutomationSearchType extends ApplicationSearchType {
+  constructor({ app } = {}) {
+    super({ app })
     this.type = 'automation'
     this.name = 'Automation'
     this.icon = 'baserow-icon-automation'
     this.priority = 4
   }
 
-  _getApplicationWithWorkflows(result, context) {
-    const appId = result?.metadata?.application_id || result?.id
-    if (!appId || !context?.store) {
-      return null
-    }
-    const automation = context.store.getters['application/get'](appId)
-    if (automation && automation.workflows && automation.workflows.length > 0) {
-      return automation
-    }
-    return null
+  _getApplicationId(result) {
+    const id = parseInt(result?.metadata?.application_id || result?.id)
+    return isNaN(id) ? null : id
   }
 
-  buildUrl(result, context = null) {
-    const automation = this._getApplicationWithWorkflows(result, context)
-    if (!automation) {
-      return null
-    }
-
-    const appId = result?.metadata?.application_id || result?.id
-    const workflows = [...automation.workflows].sort(
-      (a, b) => a.order - b.order
-    )
-    return `/automation/${appId}/workflow/${workflows[0].id}`
+  _getApplicationChildren(application) {
+    return application.workflows
   }
 
-  isNavigable(result, context = null) {
-    return this._getApplicationWithWorkflows(result, context) !== null
-  }
-
-  focusInSidebar(result, context = null) {
-    const appId = result?.metadata?.application_id || result?.id
-    if (!appId || !context?.store) {
-      return false
+  _getApplicationPath(application, children) {
+    return {
+      name: 'automation-workflow',
+      params: { automationId: application.id, workflowId: children[0].id },
     }
-    const application = context.store.getters['application/get'](appId)
-    if (application) {
-      context.store.dispatch('application/select', application)
-      return true
-    }
-    return false
   }
 }

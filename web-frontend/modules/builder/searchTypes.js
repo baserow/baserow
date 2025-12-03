@@ -1,8 +1,8 @@
 import { BaseSearchType } from '@baserow/modules/core/search/types/base'
 
 export class BuilderSearchType extends BaseSearchType {
-  constructor() {
-    super()
+  constructor({ app } = {}) {
+    super({ app })
     this.type = 'builder'
     this.name = 'Builder'
     this.icon = 'baserow-icon-application'
@@ -10,12 +10,11 @@ export class BuilderSearchType extends BaseSearchType {
   }
 
   _getApplicationWithPages(result, context) {
-    if (!context?.store) {
+    const appId = this._getApplicationId(result)
+    if (!appId || !context?.store) {
       return null
     }
-    const application = context.store.getters['application/get'](
-      parseInt(result.id)
-    )
+    const application = context.store.getters['application/get'](appId)
     if (!application) {
       return null
     }
@@ -31,24 +30,13 @@ export class BuilderSearchType extends BaseSearchType {
     if (!data) {
       return null
     }
-    return `/builder/${data.application.id}/page/${data.pages[0].id}`
+    return {
+      name: 'builder-page',
+      params: { builderId: data.application.id, pageId: data.pages[0].id },
+    }
   }
 
   isNavigable(result, context = null) {
     return this._getApplicationWithPages(result, context) !== null
-  }
-
-  focusInSidebar(result, context = null) {
-    if (!context?.store) {
-      return false
-    }
-    const application = context.store.getters['application/get'](
-      parseInt(result.id)
-    )
-    if (application) {
-      context.store.dispatch('application/select', application)
-      return true
-    }
-    return false
   }
 }

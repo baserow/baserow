@@ -443,5 +443,5 @@ export default (context) => {
 
   app.$registry.register('guidedTour', new BuilderGuidedTourType(context))
 
-  searchTypeRegistry.register(new BuilderSearchType())
+  searchTypeRegistry.register(new BuilderSearchType(context))
 }
