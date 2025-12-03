@@ -254,7 +254,10 @@ export default {
         dependency_linkrow_field_id: {
           type: 'link_row',
           table: this.table,
-          values: { link_row_table_id: this.table.id, name: 'Parents' },
+          values: {
+            link_row_table_id: this.table.id,
+            name: this.$t('dateDependencyModal.linkRowFieldTitle'),
+          },
         },
         duration_field_id: {
           type: 'duration',
@@ -262,7 +265,7 @@ export default {
           values: {
             duration_format: 'd h',
             table: this.table.id,
-            name: 'Duration',
+            name: this.$t('dateDependencyModal.durationFieldLabel'),
           },
         },
         start_date_field_id: {
@@ -271,7 +274,7 @@ export default {
           values: {
             date_include_time: false,
             table: this.table.id,
-            name: 'Start date',
+            name: this.$t('dateDependencyModal.startDateFieldLabel'),
           },
         },
         end_date_field_id: {
@@ -280,7 +283,7 @@ export default {
           values: {
             date_include_time: false,
             table: this.table.id,
-            name: 'End date',
+            name: this.$t('dateDependencyModal.endDateFieldLabel'),
           },
         },
       }
