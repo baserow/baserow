@@ -98,6 +98,9 @@ venv/
 .venv/
 .profiles/
 
+# Media files
+backend/media/
+
 # Local environment files (not for Docker)
 .env.local
 **/.env.local
