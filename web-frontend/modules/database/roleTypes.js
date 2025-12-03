@@ -37,6 +37,16 @@ class RoleType extends Registerable {
   getDeactivatedClickModal(workspaceId) {
     return null
   }
+
+  // `null` equals all scope types.
+  get allowedScopeTypes() {
+    return null
+  }
+
+  // `null` equals all scope types.
+  get allowedSubjectTypes() {
+    return null
+  }
 }
 
 export class AdminRoleType extends RoleType {

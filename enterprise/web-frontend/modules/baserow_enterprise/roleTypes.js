@@ -14,6 +14,10 @@ export class EnterpriseAdminRoleType extends AdminRoleType {
   getIsBillable() {
     return true
   }
+
+  get allowedScopeTypes() {
+    return ['workspace', 'application', 'database_table']
+  }
 }
 
 export class EnterpriseMemberRoleType extends MemberRoleType {
@@ -63,6 +67,10 @@ export class EnterpriseBuilderRoleType extends MemberRoleType {
       PaidFeaturesModal,
       { 'initial-selected-type': RBACPaidFeature.getType() },
     ]
+  }
+
+  get allowedScopeTypes() {
+    return ['workspace', 'application', 'database_table']
   }
 }
 
@@ -258,5 +266,13 @@ export class NoRoleLowPriorityRoleType extends MemberRoleType {
       PaidFeaturesModal,
       { 'initial-selected-type': RBACPaidFeature.getType() },
     ]
+  }
+
+  get allowedScopeTypes() {
+    return ['workspace']
+  }
+
+  get allowedSubjectTypes() {
+    return ['auth.User']
   }
 }
