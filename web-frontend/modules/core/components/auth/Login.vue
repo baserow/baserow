@@ -27,7 +27,7 @@
               {{ $t('login.signUp') }}
             </NuxtLink>
           </span>
-          <!-- <LangPicker class="margin-left-auto" /> -->
+          <LangPicker class="margin-left-auto" />
         </div>
       </div>
       <div v-if="redirectByDefault && defaultRedirectUrl">
