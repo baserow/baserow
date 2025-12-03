@@ -1,19 +1,17 @@
 services:
   # A dev compose file for quickly setting up an all in one with hot code reloading
-  baserow_all_in_one_dev:
-    image: baserow_dev
+  baserow_all_in_one:
+    image: baserow:${BASEROW_VERSION:-dev-latest}
     build:
-      dockerfile: $PWD/deploy/all-in-one/dev.Dockerfile
+      dockerfile: $PWD/deploy/all-in-one/Dockerfile
       context: $PWD
-      args:
-        # We allow configuring the UID/GID here so you can run as the dev's actual user
-        # reducing the chance the containers screw up the bind mounted folders.
-        UID: $UID
-        GID: $GID
+      target: dev
     environment:
       EMAIL_SMTP: 'yes'
       EMAIL_SMTP_HOST: 'mailhog'
       EMAIL_SMTP_PORT: '1025'
+      BASEROW_DEV_UID: ${UID:-9999}
+      BASEROW_DEV_GID: ${GID:-9999}
     ports:
       - "80:80"
       - "443:443"
@@ -29,7 +27,6 @@ services:
       - /baserow/web-frontend/node_modules
       - $PWD/premium/web-frontend/:/baserow/premium/web-frontend
       - $PWD/enterprise/web-frontend/:/baserow/enterprise/web-frontend
-
     stdin_open: true
     tty: true
   mailhog:

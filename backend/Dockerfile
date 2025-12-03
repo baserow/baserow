@@ -2,12 +2,17 @@
 
 # =============================================================================
 # Builder for su-exec (replaces gosu, smaller footprint)
+# Pinned to v0.2 (commit 212b75144bbc) with SHA256 verification
 # =============================================================================
 FROM debian:bookworm-slim AS su-exec-builder
 
+ENV SU_EXEC_VERSION=212b75144bbc06722fbd7661f651390dc47a43d1 \
+    SU_EXEC_SHA256=d6c40440609a23483f12eb6295b5191e94baf08298a856bab6e15b10c3b82891
+
 RUN apt-get update && \
     apt-get install -y --no-install-recommends ca-certificates curl build-essential && \
-    curl -L -o /usr/local/bin/su-exec.c https://github.com/ncopa/su-exec/raw/master/su-exec.c && \
+    curl -L -o /usr/local/bin/su-exec.c "https://github.com/ncopa/su-exec/raw/${SU_EXEC_VERSION}/su-exec.c" && \
+    echo "${SU_EXEC_SHA256}  /usr/local/bin/su-exec.c" | sha256sum -c - && \
     gcc -Wall -Werror -static -o /usr/local/bin/su-exec /usr/local/bin/su-exec.c && \
     chmod 0755 /usr/local/bin/su-exec
 
@@ -163,14 +168,8 @@ CMD ["gunicorn"]
 # =============================================================================
 FROM runtime-packages AS ci
 
-# Install uv (needed for justfile recipes) and just command runner
+# Install uv (needed for justfile recipes)
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends curl && \
-    curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin && \
-    apt-get purge -y curl && \
-    apt-get autoremove -y && \
-    rm -rf /var/lib/apt/lists/*
 
 # In slim docker images, mime.types is removed and we need it for mimetypes guessing
 COPY ./backend/docker/mime.types /etc/
@@ -182,10 +181,14 @@ ENV PYTHONUNBUFFERED=1
 ENV DJANGO_SETTINGS_MODULE='baserow.config.settings.test'
 ENV UV_PROJECT_ENVIRONMENT=/baserow/venv
 
-USER 9999:9999
-
 # Copy venv from builder-dev (has test dependencies)
 COPY --link --chown=9999:9999 --from=builder-dev /baserow/venv /baserow/venv
+
+# Install just command runner (after venv is copied)
+RUN uv pip install rust-just --python /baserow/venv/bin/python && \
+    ln -s /baserow/venv/bin/just /usr/local/bin/just
+
+USER 9999:9999
 
 # Copy source, tests, and plugins (no docs)
 COPY --link --chown=9999:9999 --from=builder /baserow/LICENSE /baserow/LICENSE
@@ -224,9 +227,6 @@ RUN apt-get update && \
 # Install uv for dev (useful for adding packages on the fly)
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
-# Install just command runner
-RUN curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin
-
 # =============================================================================
 # Development (build with --target dev, tag as :dev)
 # Starts as root, entrypoint switches to host user via su-exec
@@ -247,6 +247,10 @@ COPY ./backend/docker/mime.types /etc/
 # Copy venv and source from builder-dev (owned by 9999, will be accessible after su-exec)
 COPY --link --from=builder /baserow/LICENSE /baserow/LICENSE
 COPY --link --from=builder-dev /baserow/venv /baserow/venv
+
+# Install just command runner (after venv is copied)
+RUN uv pip install rust-just --python /baserow/venv/bin/python && \
+    ln -s /baserow/venv/bin/just /usr/local/bin/just
 COPY --link --from=builder /baserow/backend /baserow/backend
 COPY --link --from=builder /baserow/premium/backend /baserow/premium/backend
 COPY --link --from=builder /baserow/enterprise/backend /baserow/enterprise/backend
