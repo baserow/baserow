@@ -5,7 +5,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("baserow_enterprise", "0055_assistantchatmessage_action_group_id_and_more"),
+        ("baserow_enterprise", "0056_alter_knowledgebasedocument_type"),
     ]
 
     operations = [
