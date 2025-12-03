@@ -110,17 +110,16 @@
 import moment from '@baserow/modules/core/moment'
 import { required } from '@vuelidate/validators'
 import { useVuelidate } from '@vuelidate/core'
-
 import form from '@baserow/modules/core/mixins/form'
+import childForm from '@baserow/modules/core/mixins/childForm'
 import fieldSubForm from '@baserow/modules/database/mixins/fieldSubForm'
 import PaginatedDropdown from '@baserow/modules/core/components/PaginatedDropdown'
-
 export default {
   name: 'FieldDateSubForm',
   components: {
     PaginatedDropdown,
   },
-  mixins: [form, fieldSubForm],
+  mixins: [form, fieldSubForm, childForm],
   setup() {
     return { v$: useVuelidate({ $lazy: true }) }
   },

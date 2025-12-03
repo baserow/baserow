@@ -1,9 +1,5 @@
 <template>
-  <Context
-    ref="editContext"
-    max-height-if-outside-viewport
-    class="formula-field"
-  >
+  <Context ref="context" max-height-if-outside-viewport class="formula-field">
     <div class="formula-field__input">
       <FormTextarea
         ref="textAreaFormulaInput"
@@ -19,7 +15,7 @@
         @keyup="recalcAutoComplete"
         @keydown.tab="doAutoCompleteAfterTab"
         @keydown.enter.exact.prevent="
-          $refs.editContext.hide(), $emit('hidden', $event)
+          $refs.context.hide(), $emit('hidden', $event)
         "
       />
     </div>
@@ -231,7 +227,7 @@ export default {
       })
     },
     async openContext(triggeringEl) {
-      await this.$refs.editContext.show(
+      await this.$refs.context.show(
         triggeringEl,
         'top',
         'left',

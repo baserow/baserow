@@ -24,13 +24,13 @@
 import { useVuelidate } from '@vuelidate/core'
 import { required } from '@vuelidate/validators'
 import { DURATION_FORMATS } from '@baserow/modules/database/utils/duration'
-
 import form from '@baserow/modules/core/mixins/form'
+import childForm from '@baserow/modules/core/mixins/childForm'
 import fieldSubForm from '@baserow/modules/database/mixins/fieldSubForm'
 
 export default {
   name: 'FieldDurationSubForm',
-  mixins: [form, fieldSubForm],
+  mixins: [form, fieldSubForm, childForm],
   setup() {
     return { v$: useVuelidate({ $lazy: true }) }
   },

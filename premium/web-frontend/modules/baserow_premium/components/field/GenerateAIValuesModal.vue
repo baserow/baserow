@@ -1,5 +1,5 @@
 <template>
-  <Modal @hidden="hideError">
+  <Modal ref="modal" @hidden="hideError">
     <div v-if="loadingViews" class="loading-overlay"></div>
     <h2 class="box__title">
       {{ $t('generateAIValuesModal.title', { name: field.name }) }}

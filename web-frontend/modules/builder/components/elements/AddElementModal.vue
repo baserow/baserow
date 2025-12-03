@@ -1,5 +1,5 @@
 <template>
-  <Modal class="add-element-modal">
+  <Modal ref="modal" class="add-element-modal">
     <h2 class="box__title">{{ $t('addElementModal.title') }}</h2>
     <div class="add-element-modal__content">
       <FormInput

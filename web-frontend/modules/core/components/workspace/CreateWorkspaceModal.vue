@@ -1,5 +1,5 @@
 <template>
-  <Modal>
+  <Modal ref="modal">
     <h2 class="box__title">{{ $t('createWorkspaceModal.createNew') }}</h2>
     <Error :error="error"></Error>
     <WorkspaceForm

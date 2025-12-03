@@ -1,5 +1,5 @@
 <template>
-  <Modal :left-sidebar="true">
+  <Modal ref="modal" :left-sidebar="true">
     <template #sidebar>
       <template v-for="(features, planName) in paidFeaturePlans">
         <div :key="planName + 'title'" class="modal-sidebar__title">

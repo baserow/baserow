@@ -34,10 +34,11 @@
 <script>
 import form from '@baserow/modules/core/mixins/form'
 import fieldSubForm from '@baserow/modules/database/mixins/fieldSubForm'
+import childForm from '@baserow/modules/core/mixins/childForm'
 
 export default {
   name: 'FieldPasswordSubForm',
-  mixins: [form, fieldSubForm],
+  mixins: [form, fieldSubForm, childForm],
   data() {
     return {
       allowedValues: ['allow_endpoint_authentication'],
