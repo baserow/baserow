@@ -48,6 +48,7 @@ def test_ai_parallel_execution(premium_data_fixture):
     )
 
     rows = table_model.objects.all()
+
     on_progress_mock = mock.Mock()
 
     gen = AIValueGenerator(user=user, ai_field=ai_field, on_progress=on_progress_mock)
