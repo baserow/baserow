@@ -1,5 +1,5 @@
 <template>
-  <Modal @hidden="hidden">
+  <Modal ref="modal" @hidden="hidden">
     <h2 class="box__title">{{ $t('auditLogExportModal.title') }}</h2>
     <Error :error="error"></Error>
     <AuditLogExportForm ref="form" :loading="loading" @submitted="submitted">

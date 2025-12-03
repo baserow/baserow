@@ -1,5 +1,5 @@
 <template>
-  <Modal :full-screen="false" :close-button="true">
+  <Modal ref="modal" :full-screen="false" :close-button="true">
     <h2 class="box__title">
       {{ $t('importWorkspaceModal.title') }}
     </h2>

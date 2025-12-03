@@ -1,5 +1,5 @@
 <template>
-  <Modal @show="loading = false">
+  <Modal ref="modal" @show="loading = false">
     <h2 class="box__title">
       {{ $t('action.createNew') }} {{ applicationType.getName() | lowercase }}
     </h2>

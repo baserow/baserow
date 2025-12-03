@@ -1,5 +1,9 @@
 <template>
-  <Modal @show="setChosenType('')" @hidden="callCreateComponentHide()">
+  <Modal
+    ref="modal"
+    @show="setChosenType('')"
+    @hidden="callCreateComponentHide()"
+  >
     <template #content>
       <div class="import-modal__header">
         <h2 class="import-modal__title">

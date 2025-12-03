@@ -1,5 +1,6 @@
 <template>
   <Modal
+    ref="modal"
     left-sidebar
     left-sidebar-scrollable
     :content-padding="
