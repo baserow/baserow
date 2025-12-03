@@ -88,7 +88,7 @@
     "jwt-decode": "^3.1.2",
     "lodash": "^4.17.21",
     "lowlight": "^2.9.0",
-    "markdown-it": "13.0.1",
+    "markdown-it": "13.0.2",
     "markdown-it-regexp": "^0.4.0",
     "markdown-it-task-lists": "^2.1.1",
     "moment": "^2.30.1",
@@ -117,7 +117,14 @@
     "ws": "^8.18.3",
     "cross-spawn": "^7.0.5",
     "braces": "^3.0.3",
-    "glob-parent": "^5.1.2"
+    "glob-parent": "^5.1.2",
+    "cipher-base": "^1.0.5",
+    "pbkdf2": "^3.1.3",
+    "sha.js": "^2.4.12",
+    "browserify-sign": "^4.2.2",
+    "unset-value": "^2.0.1",
+    "follow-redirects": "^1.15.6",
+    "linkifyjs": "^4.3.2"
   },
   "devDependencies": {
     "@babel/core": "7.23.6",
