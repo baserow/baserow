@@ -1,5 +1,5 @@
 {
-  "type": "feature",
+  "type": "refactor",
   "message": "Improved storage usage performance.",
   "domain": "database",
   "issue_number": null,
