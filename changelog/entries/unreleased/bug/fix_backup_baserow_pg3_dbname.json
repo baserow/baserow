@@ -1,6 +1,6 @@
 {
   "type": "bug",
-  "message": "Fix baserow_backend management command by using correct pg3 dbname.",
+  "message": "Fix backup_baserow management command by using correct pg3 dbname.",
   "issue_origin": "github",
   "issue_number": 4308,
   "domain": "core",
