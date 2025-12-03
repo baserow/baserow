@@ -45,7 +45,7 @@ class RestrictedViewOwnershipType(ViewOwnershipType):
             raise_permission_exceptions=False,
         )
 
-    def enhance_view_objects(self, user, views):
+    def prepare_views_for_user(self, user, views):
         if len(views) == 0 or user is None:
             return views
 

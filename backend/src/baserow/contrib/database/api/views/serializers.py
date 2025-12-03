@@ -436,15 +436,15 @@ class ViewSerializer(serializers.ModelSerializer):
         # permitted to see, according to the ownership type.
         if enhance_objects_by_view_ownership and "user" in context:
             if isinstance(instance, list):
-                instance = view_ownership_type_registry.enhance_view_objects_of_different_types(
+                instance = view_ownership_type_registry.prepare_views_of_different_types_for_user(
                     context["user"], instance
                 )
             else:
-                instance = view_ownership_type_registry.enhance_view_objects_of_different_types(
-                    context["user"], [instance]
-                )[
-                    0
-                ]
+                instance = (
+                    view_ownership_type_registry.prepare_views_of_different_types_for_user(
+                        context["user"], [instance]
+                    )
+                )[0]
         super().__init__(instance, *args, **kwargs)
 
     def to_representation(self, instance):

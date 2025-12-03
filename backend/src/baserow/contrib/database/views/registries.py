@@ -1467,7 +1467,7 @@ class ViewOwnershipType(Instance):
 
         return False
 
-    def enhance_view_objects(
+    def prepare_views_for_user(
         self, user: Optional[AbstractUser], views: List["View"]
     ) -> List["View"]:
         """
@@ -1492,7 +1492,7 @@ class ViewOwnershipTypeRegistry(Registry):
     name = "view_ownership_type"
     does_not_exist_exception_class = ViewOwnershipTypeDoesNotExist
 
-    def enhance_view_objects_of_different_types(
+    def prepare_views_of_different_types_for_user(
         self, user: AbstractUser, views: List["View"]
     ) -> List["View"]:
         """
@@ -1511,7 +1511,7 @@ class ViewOwnershipTypeRegistry(Registry):
                 for view in views
                 if view.ownership_type == view_ownership_type.type
             ]
-            views_of_type = view_ownership_type.enhance_view_objects(
+            views_of_type = view_ownership_type.prepare_views_for_user(
                 user, views_of_type
             )
             # Put the enhanced view back into the original list at the right index so
