@@ -1,5 +1,5 @@
 <template>
-  <Modal :small="true">
+  <Modal ref="modal" :small="true">
     <h2 class="box__title">{{ $t(titleText) }}</h2>
     <Error :error="error"></Error>
     <form @submit.prevent="setPassword">

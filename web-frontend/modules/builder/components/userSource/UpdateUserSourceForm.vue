@@ -35,6 +35,7 @@
       v-if="integration"
       :default-values="defaultValues"
       :application="builder"
+      :parent-form="formProvider"
       :integration="integration"
       @values-changed="emitChange"
     />
@@ -131,7 +132,7 @@ export default {
         name: '',
         auth_providers: [],
       },
-      fullValues: this.getFormValues(),
+      fullValues: {},
     }
   },
   computed: {
@@ -164,23 +165,25 @@ export default {
       )
     },
   },
+  mounted() {
+    // Initialize fullValues after component is mounted and registeredChildForms is ready
+    this.fullValues = this.getFormValues()
+  },
   methods: {
     // Override the default getChildFormValues to exclude the provider forms from
     // final values as they are handled directly by this component
     // The problem is that the child provider forms are not handled as a sub array
     // so they override the userSource configuration
+    // Note: excluded forms don't receive the :parent-form prop, so they won't be
+    // in registeredChildForms
     getChildFormsValues() {
       return Object.assign(
         {},
-        ...this.$children
-          .filter(
-            (child) =>
-              'getChildFormsValues' in child &&
-              child.$attrs['excluded-form'] === undefined
-          )
-          .map((child) => {
+        ...this.getChildForms((child) => 'getChildFormsValues' in child).map(
+          (child) => {
             return child.getFormValues()
-          })
+          }
+        )
       )
     },
     hasAtLeastOneOfThisType(appAuthProviderType) {

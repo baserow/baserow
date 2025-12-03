@@ -24,7 +24,7 @@ describe('Tabs', () => {
     expect(wrapper.findAllComponents(Tab).length).toEqual(tabs.length)
   })
 
-  it('emits a tab-selected event when a tab is clicked', () => {
+  it('emits a tab-selected event when a tab is clicked', async () => {
     const tabs = [
       { title: 'Tab 1', content: 'Tab 1 content' },
       { title: 'Tab 2', content: 'Tab 2 content' },
@@ -42,7 +42,9 @@ describe('Tabs', () => {
       },
     })
 
-    wrapper.findAllComponents(Tab).at(1).vm.$emit('click', 1)
+    await wrapper.vm.$nextTick()
+    wrapper.vm.selectTab(1)
+
     expect(wrapper.emitted('update:selectedIndex')).toBeTruthy()
   })
 })

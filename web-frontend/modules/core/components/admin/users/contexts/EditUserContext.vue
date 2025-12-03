@@ -1,5 +1,5 @@
 <template>
-  <Context overflow-scroll max-height-if-outside-viewport>
+  <Context ref="context" overflow-scroll max-height-if-outside-viewport>
     <template v-if="Object.keys(user).length > 0">
       <div class="context__menu-title">{{ user.username }} ({{ user.id }})</div>
       <ul class="context__menu">

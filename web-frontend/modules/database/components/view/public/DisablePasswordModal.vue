@@ -1,5 +1,5 @@
 <template>
-  <Modal :small="true">
+  <Modal ref="modal" :small="true">
     <h2 class="box__title">{{ $t('shareViewDisablePasswordModal.title') }}</h2>
     <Error :error="error"></Error>
     <div>

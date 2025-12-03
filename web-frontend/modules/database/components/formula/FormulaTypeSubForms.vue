@@ -9,6 +9,7 @@
     :allow-set-number-negative="false"
     :all-fields-in-table="allFieldsInTable"
     :database="database"
+    :parent-form="formProvider"
   >
   </FieldNumberSubForm>
   <FieldDateSubForm
@@ -20,6 +21,7 @@
     :all-fields-in-table="allFieldsInTable"
     :database="database"
     :primary="primary"
+    :parent-form="formProvider"
   >
   </FieldDateSubForm>
   <FieldDurationSubForm
@@ -31,6 +33,7 @@
     :all-fields-in-table="allFieldsInTable"
     :database="database"
     :primary="primary"
+    :parent-form="formProvider"
   >
   </FieldDurationSubForm>
 </template>
@@ -39,6 +42,7 @@ import FieldNumberSubForm from '@baserow/modules/database/components/field/Field
 import FieldDateSubForm from '@baserow/modules/database/components/field/FieldDateSubForm'
 import FieldDurationSubForm from '@baserow/modules/database/components/field/FieldDurationSubForm'
 import form from '@baserow/modules/core/mixins/form'
+import childForm from '@baserow/modules/core/mixins/childForm'
 import fieldSubForm from '@baserow/modules/database/mixins/fieldSubForm'
 
 export default {
@@ -48,7 +52,7 @@ export default {
     FieldDateSubForm,
     FieldDurationSubForm,
   },
-  mixins: [form, fieldSubForm],
+  mixins: [form, fieldSubForm, childForm],
   props: {
     table: {
       required: true,

@@ -118,14 +118,14 @@
           size="small"
           icon="iconoir-plus"
           @click="
-            $refs.addContext.toggle($refs.addContextToggle, 'bottom', 'left', 2)
+            $refs.context.toggle($refs.addContextToggle, 'bottom', 'left', 2)
           "
         >
           {{ $t('localBaserowTableServiceSortForm.addSort') }}
         </ButtonText>
       </div>
       <Context
-        ref="addContext"
+        ref="context"
         class="sortings__add-context"
         overflow-scroll
         max-height-if-outside-viewport
@@ -213,7 +213,7 @@ export default {
       return this.getCanSortInView(field) && !allFieldIds.includes(field.id)
     },
     addSort(field) {
-      this.$refs.addContext.hide()
+      this.$refs.context.hide()
       const newSortings = [...this.value]
       newSortings.push({
         field: field.id,
