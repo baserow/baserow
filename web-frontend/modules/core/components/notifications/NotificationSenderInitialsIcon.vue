@@ -1,6 +1,6 @@
 <template>
   <div class="notification-panel__notification-user-initials">
-    {{ notification.sender?.first_name | nameAbbreviation }}
+    {{ $filters.nameAbbreviation(notification.sender?.first_name) }}
   </div>
 </template>
 
