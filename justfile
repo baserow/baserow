@@ -18,6 +18,18 @@ backend *args:
 alias b := backend
 
 # =============================================================================
+# Web-Frontend
+# =============================================================================
+
+# Run any web-frontend command (e.g., just f lint, just f test)
+[doc("Run frontend command: just f <cmd>")]
+frontend *args:
+    @just --justfile web-frontend/justfile --working-directory web-frontend {{ args }}
+
+# Shortcut alias for frontend
+alias f := frontend
+
+# =============================================================================
 # Docker Compose
 # =============================================================================
 
@@ -199,18 +211,164 @@ env-clear:
 # Initialize everything
 init:
     @just b init
+    @just f install
 
-# Run all linters
+# Run all linters (backend + frontend)
 lint:
     @just b lint
+    @just f lint
 
-# Run all tests
+# Run all tests (backend + frontend)
 test:
     @just b test
+    @just f test
 
-# Fix all code style
+# Fix all code style (backend + frontend)
 fix:
     @just b fix
+    @just f fix
+
+# =============================================================================
+# Full Development Environment
+# =============================================================================
+
+# Log files for dev servers (shared with logs recipe below)
+backend_log_file := "/tmp/baserow-backend.log"
+celery_log_file := "/tmp/baserow-celery.log"
+frontend_log_file := "/tmp/baserow-web-frontend.log"
+
+# Start full local development environment (docker services + backend + celery + frontend)
+[doc("Start local dev env: docker services + backend + celery + frontend")]
+start-dev-local:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    echo "Starting Baserow local development environment..."
+    echo ""
+
+    # Start docker services (redis, db, mailhog, otel-collector)
+    echo "==> Starting Docker services (redis, db, mailhog, otel-collector)..."
+    just dc-dev up -d redis db mailhog otel-collector
+
+    # Wait for services to be ready
+    echo "==> Waiting for PostgreSQL to be ready..."
+    for i in {1..30}; do
+        if just dc-dev exec -T db pg_isready -U baserow >/dev/null 2>&1; then
+            echo "    PostgreSQL is ready!"
+            break
+        fi
+        if [ $i -eq 30 ]; then
+            echo "    ERROR: PostgreSQL did not become ready in time"
+            exit 1
+        fi
+        sleep 1
+    done
+
+    echo "==> Waiting for Redis to be ready..."
+    for i in {1..30}; do
+        if just dc-dev exec -T redis redis-cli ping >/dev/null 2>&1; then
+            echo "    Redis is ready!"
+            break
+        fi
+        if [ $i -eq 30 ]; then
+            echo "    ERROR: Redis did not become ready in time"
+            exit 1
+        fi
+        sleep 1
+    done
+
+    # Run database migrations
+    echo ""
+    echo "==> Running database migrations..."
+    (cd backend && just migrate)
+
+    # Clear log files
+    > "{{ backend_log_file }}"
+    > "{{ celery_log_file }}"
+    > "{{ frontend_log_file }}"
+
+    echo ""
+    echo "==> Starting backend dev server..."
+    (cd backend && just run-dev-server) > "{{ backend_log_file }}" 2>&1 &
+    BACKEND_PID=$!
+    echo "    PID: $BACKEND_PID (log: {{ backend_log_file }})"
+
+    echo "==> Starting Celery workers..."
+    (cd backend && just run-dev-celery) > "{{ celery_log_file }}" 2>&1 &
+    CELERY_PID=$!
+    echo "    PID: $CELERY_PID (log: {{ celery_log_file }})"
+
+    echo "==> Starting frontend dev server..."
+    (cd web-frontend && just run-dev-server) > "{{ frontend_log_file }}" 2>&1 &
+    FRONTEND_PID=$!
+    echo "    PID: $FRONTEND_PID (log: {{ frontend_log_file }})"
+
+    # Save PIDs for stop-dev-local
+    echo "$BACKEND_PID" > /tmp/baserow-backend.pid
+    echo "$CELERY_PID" > /tmp/baserow-celery.pid
+    echo "$FRONTEND_PID" > /tmp/baserow-frontend.pid
+
+    echo ""
+    echo "=============================================="
+    echo "Baserow local development environment started!"
+    echo "=============================================="
+    echo ""
+    echo "Services:"
+    echo "  Backend:   http://localhost:8000"
+    echo "  Frontend:  http://localhost:3000"
+    echo "  Mailhog:   http://localhost:8025"
+    echo ""
+    echo "Commands:"
+    echo "  just logs                  # View all logs"
+    echo "  just logs -f backend       # Follow backend logs"
+    echo "  just logs -f frontend      # Follow frontend logs"
+    echo "  just stop-dev-local        # Stop all services"
+    echo ""
+
+# Stop full local development environment
+[doc("Stop local dev env started with start-dev-local")]
+stop-dev-local:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    echo "Stopping Baserow development environment..."
+
+    # Stop backend processes
+    if [ -f /tmp/baserow-backend.pid ]; then
+        PID=$(cat /tmp/baserow-backend.pid)
+        if kill -0 "$PID" 2>/dev/null; then
+            echo "Stopping backend (PID: $PID)..."
+            kill "$PID" 2>/dev/null || true
+        fi
+        rm -f /tmp/baserow-backend.pid
+    fi
+
+    if [ -f /tmp/baserow-celery.pid ]; then
+        PID=$(cat /tmp/baserow-celery.pid)
+        if kill -0 "$PID" 2>/dev/null; then
+            echo "Stopping celery (PID: $PID)..."
+            kill "$PID" 2>/dev/null || true
+            # Also kill child processes (celery workers)
+            pkill -P "$PID" 2>/dev/null || true
+        fi
+        rm -f /tmp/baserow-celery.pid
+    fi
+
+    if [ -f /tmp/baserow-frontend.pid ]; then
+        PID=$(cat /tmp/baserow-frontend.pid)
+        if kill -0 "$PID" 2>/dev/null; then
+            echo "Stopping frontend (PID: $PID)..."
+            kill "$PID" 2>/dev/null || true
+        fi
+        rm -f /tmp/baserow-frontend.pid
+    fi
+
+    # Stop docker services
+    echo "Stopping Docker services..."
+    just dc-dev stop redis db mailhog otel-collector
+
+    echo ""
+    echo "Development environment stopped."
 
 # =============================================================================
 # Test Database (ramdisk for fast tests)
@@ -291,11 +449,6 @@ e2e *ARGS:
 # Logs
 # =============================================================================
 
-# Log files for local dev servers
-backend_log_file := "/tmp/baserow-backend.log"
-celery_log_file := "/tmp/baserow-celery.log"
-frontend_log_file := "/tmp/baserow-web-frontend.log"
-
 # View logs (works with Docker or local processes)
 # Usage: just logs [options] [services...]
 # Options: -f (follow), -n 100 (last 100 lines), etc.
@@ -351,7 +504,12 @@ logs *ARGS:
 
     if [ ${#FILES[@]} -gt 0 ]; then
         echo "==> Logs from local files"
-        tail "${OPTS[@]}" "${FILES[@]}"
+        RED=$'\033[38;5;196m'; YLW=$'\033[38;5;214m'; GRN=$'\033[38;5;40m'; CYN=$'\033[38;5;51m'; RST=$'\033[0m'
+        tail "${OPTS[@]}" "${FILES[@]}" | sed \
+            -e "s/\(ERROR\)/${RED}\1${RST}/g" \
+            -e "s/\(WARNING\)/${YLW}\1${RST}/g" \
+            -e "s/\(INFO\)/${GRN}\1${RST}/g" \
+            -e "s/\(DEBUG\)/${CYN}\1${RST}/g"
     else
         echo "No logs found."
         echo "If running locally, start with: just b run-dev-server"

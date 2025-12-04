@@ -1,0 +1,100 @@
+# Baserow Web-Frontend Justfile
+# Uses yarn for Node.js package management
+
+# Note: just doesn't support dynamic dotenv-filename, so we handle env loading in recipes
+_load_env := 'if [ -f "../.env.local" ]; then set -a; source "../.env.local"; set +a; fi'
+
+# Default recipe - show help
+default:
+    @just --list
+
+# Allow `just frontend <cmd>` or `just f <cmd>` to work (for consistency with root justfile)
+frontend *ARGS:
+    @just {{ ARGS }}
+
+alias f := frontend
+
+# Pass-through to yarn
+yarn *ARGS:
+    yarn {{ ARGS }}
+
+# Pass-through to npm
+npm *ARGS:
+    npm {{ ARGS }}
+
+# =============================================================================
+# Setup & Installation
+# =============================================================================
+
+# Install dependencies
+install:
+    yarn install
+
+# =============================================================================
+# Code Quality & Linting
+# =============================================================================
+
+# Run all linters (eslint + stylelint)
+lint:
+    yarn run eslint
+    yarn run stylelint
+    yarn run prettier --check 'modules/**/*.scss'
+
+# Fix code style issues
+fix:
+    yarn run fix
+
+# Format SCSS files with Prettier
+format-scss:
+    yarn run prettier --write 'modules/**/*.scss'
+
+# =============================================================================
+# Testing
+# =============================================================================
+
+# Run tests
+test *ARGS:
+    yarn test {{ ARGS }}
+
+# Run tests with coverage (for CI)
+ci-test:
+    yarn test-coverage
+
+# Update Jest snapshots
+update-snapshots:
+    yarn run jest --updateSnapshot
+
+# =============================================================================
+# Development
+# =============================================================================
+
+# Run development server
+run-dev-server:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    {{ _load_env }}
+    yarn run dev
+
+# Run Storybook
+storybook:
+    yarn run storybook
+
+# Build for local development
+build-local:
+    yarn run build-local
+
+# Build for production
+build-prod:
+    yarn run build
+
+# =============================================================================
+# Cleanup
+# =============================================================================
+
+# Clean build artifacts
+clean:
+    rm -rf .nuxt/ dist/
+
+# Clean all (build artifacts + node_modules)
+clean-all: clean
+    rm -rf node_modules/

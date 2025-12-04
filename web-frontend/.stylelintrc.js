@@ -41,6 +41,8 @@ module.exports = {
           'return',
           'extend',
           'for',
+          'use',
+          'forward',
         ],
       },
     ],
