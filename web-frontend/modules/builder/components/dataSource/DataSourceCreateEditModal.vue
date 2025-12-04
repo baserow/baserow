@@ -1,5 +1,5 @@
 <template>
-  <Modal ref="modal" wide v-on="$listeners">
+  <Modal ref="modal" wide v-on="$attrs">
     <h2 class="box__title">
       {{
         create

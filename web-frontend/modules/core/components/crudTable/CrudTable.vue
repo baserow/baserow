@@ -79,7 +79,7 @@
                   :is="col.cellComponent"
                   :row="row"
                   :column="col"
-                  v-on="$listeners"
+                  v-on="$attrs"
                   @row-update="updateRow"
                   @row-delete="deleteRow"
                   @refresh="refresh"

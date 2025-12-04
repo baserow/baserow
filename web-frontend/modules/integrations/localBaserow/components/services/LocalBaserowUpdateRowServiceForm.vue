@@ -3,7 +3,7 @@
     enable-row-id
     :disallow-data-synced-tables="false"
     v-bind="$attrs"
-    v-on="$listeners"
+    v-on="$attrs"
   />
 </template>
 

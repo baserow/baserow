@@ -94,7 +94,7 @@
             :rows-at-end-of-groups="rowsAtEndOfGroups"
             :read-only="readOnly"
             :store-prefix="storePrefix"
-            v-on="$listeners"
+            v-on="$attrs"
           ></GridViewRows>
           <GridViewRowAdd
             v-if="
@@ -110,7 +110,7 @@
             :visible-fields="visibleFields"
             :include-row-details="includeRowDetails"
             :store-prefix="storePrefix"
-            v-on="$listeners"
+            v-on="$attrs"
           ></GridViewRowAdd>
           <div v-else class="grid-view__row-placeholder"></div>
         </div>
