@@ -168,6 +168,7 @@ export default defineNuxtModule({
           process.env.BASEROW_FRONTEND_JOBS_POLLING_TIMEOUT_MS ?? 2000,
         posthogProjectApiKey: process.env.POSTHOG_PROJECT_API_KEY ?? '',
         posthogHost: process.env.POSTHOG_HOST ?? '',
+        baserowEmbeddedShareUrl: process.env.BASEROW_EMBEDDED_SHARE_URL ?? '',
         /*sentry: {
           config: {
             dsn: process.env.SENTRY_DSN || '',
