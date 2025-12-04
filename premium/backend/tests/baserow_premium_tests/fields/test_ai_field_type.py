@@ -700,7 +700,7 @@ def test_update_ai_field_type_via_api_file_field_doesnt_exist(
         {
             "ai_generative_ai_type": "test_generative_ai_with_files",
             "ai_generative_ai_model": "test_1",
-            "ai_file_field_id": 999,
+            "ai_file_field_id": 999999999,
         },
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
