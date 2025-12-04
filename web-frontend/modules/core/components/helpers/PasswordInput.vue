@@ -38,10 +38,10 @@ modules/core/validators.js
       type="password"
       size="large"
       :autocomplete="autocomplete"
-      :value="value"
+      :value="modelValue"
       :placeholder="placeholder"
       @blur="validationState.$touch"
-      @input="$emit('input', $event)"
+      @input="$emit('update:modelValue', $event)"
     >
     </FormInput>
 
@@ -78,9 +78,10 @@ export default {
       type: Object,
       required: true,
     },
-    value: {
+    modelValue: {
       type: String,
-      required: true,
+      required: false,
+      default: '',
     },
     label: {
       type: String,
@@ -108,5 +109,6 @@ export default {
       default: false,
     },
   },
+  emits: ['update:modelValue'],
 }
 </script>
