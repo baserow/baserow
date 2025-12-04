@@ -3,7 +3,7 @@
     class="icon"
     :class="[icon, `icon--${type}`, `icon--${size}`]"
     v-bind="$attrs"
-    v-on="$listeners"
+    v-on="$attrs"
   />
 </template>
 

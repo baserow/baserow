@@ -2,7 +2,7 @@
   <button
     class="chips"
     :class="{ 'chips--active': active, 'chips--disabled': disabled }"
-    v-on="$listeners"
+    v-on="$attrs"
   >
     <i v-if="icon" class="chips__icon" :class="icon" />
     <slot />

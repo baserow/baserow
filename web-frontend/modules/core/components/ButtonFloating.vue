@@ -3,7 +3,7 @@
     class="button-floating"
     :class="classes"
     :disabled="disabled || loading"
-    v-on="$listeners"
+    v-on="$attrs"
   >
     <i v-if="!loading" class="button-floating__icon" :class="icon" />
   </button>

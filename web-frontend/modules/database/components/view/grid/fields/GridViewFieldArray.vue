@@ -4,7 +4,7 @@
     :value="value"
     :row="row"
     :selected="selected"
-    v-on="$listeners"
+    v-on="$attrs"
     @show="showModal"
   >
     <!--

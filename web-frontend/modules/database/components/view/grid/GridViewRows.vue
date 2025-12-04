@@ -28,7 +28,7 @@
       :store-prefix="storePrefix"
       :row-identifier-type="view.row_identifier_type"
       :count="index + rowsStartIndex + bufferStartIndex + 1"
-      v-on="$listeners"
+      v-on="$attrs"
     />
   </div>
 </template>
