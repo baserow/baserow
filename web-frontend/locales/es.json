@@ -104,7 +104,7 @@
         "url": "una URL"
     },
     "field": {
-        "emailAddress": "Correo electrónico"
+        "emailAddress": "Dirección de correo electrónico"
     },
     "error": {
         "invalidEmail": "Por favor, introduce un correo electrónico válido.",
@@ -600,5 +600,23 @@
         "submit": "Enviar correo electrónico de prueba",
         "success": "Correo electrónico de prueba enviado correctamente",
         "configLink": "Ayuda para la configuración del correo electrónico"
+    },
+    "fieldConstraint": {
+        "uniqueWithEmpty": "Único con campos vacíos"
+    },
+    "fieldConstraintsSubform": {
+        "title": "Restricciones",
+        "description": "Define reglas que los valores del campo deben seguir.",
+        "addConstraint": "Añade restricción",
+        "noConstraintsAvailable": "No hay restricciones disponibles para este tipo de campo.",
+        "readonlyFieldMessage": "No se pueden aplicar restricciones a campos de solo lectura.",
+        "errorGenericData": "No se puede aplicar la restricción de campo debido a conflictos de datos existentes.",
+        "errorUniqueOrEmpty": "Algunos valores en este campo están duplicados. Elimina o edita los duplicados antes de aplicar esta restricción.",
+        "errorInvalidConstraint": "Esta restricción de campo no es compatible con este tipo de campo.",
+        "errorDoesNotSupportDefaultValue": "No se puede establecer esta restricción cuando el valor predeterminado está configurado.",
+        "noConstraintsCompatibleWithDefaultValue": "No se pueden aplicar restricciones cuando el valor predeterminado está habilitado."
+    },
+    "fieldConstraintParametersText": {
+        "placeholder": "Introduce valor de restricción"
     }
 }
