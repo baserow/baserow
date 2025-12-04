@@ -373,8 +373,9 @@ class BaserowEnterpriseConfig(AppConfig):
 
         if feature_flag_is_enabled("view_permissions"):
             view_ownership_type_registry.register(RestrictedViewOwnershipType())
-            page_registry.register(RestrictedViewPageType())
-            view_realtime_rows_registry.register(RestrictedViewRealtimeRowsType())
+
+        page_registry.register(RestrictedViewPageType())
+        view_realtime_rows_registry.register(RestrictedViewRealtimeRowsType())
 
         # The signals must always be imported last because they use the registries
         # which need to be filled first.
