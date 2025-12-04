@@ -11691,13 +11691,13 @@
                             "style_background_mode": "fill",
                             "style_width": "normal",
                             "style_width_child": "normal",
-                            "value": "concat('A ```Repeat``` element with many items stacked on top of each other can take up a lot of space. This doesn\\'t offers the best user experience in a **master-detail view** where you want to show the overview in a ```Repeat ``` element on the left side and the details on the right side because scrolling through the page makes it hard to see the detail information. ','\n','','\n','','\n','','\n','','\n','This can be solved by adding a class name to the ```Repeat``` element and assign the following css','\n','```css','\n','.employees__container {','\n','    height: 100vh;','\n','    overflow: scroll;','\n','}','\n','```','\n','This code sets the height of the ```Repeat``` element to 100 view-height (vh) which is the height of the entire screen. The ```overflow``` property is set to show a scrollbar when the list is higher than the screen ')",
+                            "value": "concat('An ```Iterate``` element with many items stacked on top of each other can take up a lot of space. This doesn\\'t offers the best user experience in a **master-detail view** where you want to show the overview in an ```Iterate ``` element on the left side and the details on the right side because scrolling through the page makes it hard to see the detail information. ','\n','','\n','','\n','','\n','','\n','This can be solved by adding a class name to the ```Iterate``` element and assign the following css','\n','```css','\n','.employees__container {','\n','    height: 100vh;','\n','    overflow: scroll;','\n','}','\n','```','\n','This code sets the height of the ```Iterate``` element to 100 view-height (vh) which is the height of the entire screen. The ```overflow``` property is set to show a scrollbar when the list is higher than the screen ')",
                             "format": "markdown"
                         },
                         {
                             "id": 106600,
                             "order": "1.00000000000000000000",
-                            "type": "repeat",
+                            "type": "iterate",
                             "parent_element_id": 106598,
                             "place_in_container": "0",
                             "css_classes": "employees__container",
@@ -12466,13 +12466,13 @@
                             "style_background_mode": "fill",
                             "style_width": "normal",
                             "style_width_child": "normal",
-                            "value": "concat('Sometimes, you want a bigger area to be clickable than just the ```Link``` element. For example, an entire ```Container``` element.','\n','The Repeat element has 2 parts:','\n','* A ```Link``` element that contains the actual link','\n','* A ```Container``` element that contains everything we want to show in the Repeat element and that must be clickable.','\n','','\n','The trick here is to move the HTML from the ```Container``` element inside the ```Link``` element. This can be done with the following code. Be sure to check the class names for each element to ensure it references the correct element','\n','* **employees__container**: the ```Repeat``` element','\n','* **employee__link**: the ```Link``` element that will have it\\'s content replaced.','\n','* **employee__container**: the ```Container``` element with the ```Text``` and ```Image``` elements.','\n','```js','\n','','\n','// get the repeat element with all employees','\n','const employees = document.querySelector(\\'.employees__container\\')','\n','// get the Link and Container elements','\n','const links = employees.querySelectorAll(\\'.employee__link\\')','\n','const employee_container = employees.querySelectorAll(\\'.employee__container\\')','\n','// for each link: replace the text with the content from the container','\n','links.forEach((link, index) => {','\n','    const a = link.querySelector(\\'a\\')','\n','    const employee_content = employee_container[index].parentElement.innerHTML','\n','    a.innerHTML = employee_content','\n','    // remove the original container','\n','    employee_container[index].parentElement.parentElement.removeChild(employee_container[index].parentElement)','\n','})','\n','``` ','\n','The final step is to set the cursor to a pointer to indicate to the user that the entire container is clickable. This is done in CSS.','\n','```css','\n','.employee__container{ cursor: pointer; }','\n','```')",
+                            "value": "concat('Sometimes, you want a bigger area to be clickable than just the ```Link``` element. For example, an entire ```Container``` element.','\n','The Iterate element has 2 parts:','\n','* A ```Link``` element that contains the actual link','\n','* A ```Container``` element that contains everything we want to show in the Iterate element and that must be clickable.','\n','','\n','The trick here is to move the HTML from the ```Container``` element inside the ```Link``` element. This can be done with the following code. Be sure to check the class names for each element to ensure it references the correct element','\n','* **employees__container**: the ```Iterate``` element','\n','* **employee__link**: the ```Link``` element that will have it\\'s content replaced.','\n','* **employee__container**: the ```Container``` element with the ```Text``` and ```Image``` elements.','\n','```js','\n','','\n','// get the repeat element with all employees','\n','const employees = document.querySelector(\\'.employees__container\\')','\n','// get the Link and Container elements','\n','const links = employees.querySelectorAll(\\'.employee__link\\')','\n','const employee_container = employees.querySelectorAll(\\'.employee__container\\')','\n','// for each link: replace the text with the content from the container','\n','links.forEach((link, index) => {','\n','    const a = link.querySelector(\\'a\\')','\n','    const employee_content = employee_container[index].parentElement.innerHTML','\n','    a.innerHTML = employee_content','\n','    // remove the original container','\n','    employee_container[index].parentElement.parentElement.removeChild(employee_container[index].parentElement)','\n','})','\n','``` ','\n','The final step is to set the cursor to a pointer to indicate to the user that the entire container is clickable. This is done in CSS.','\n','```css','\n','.employee__container{ cursor: pointer; }','\n','```')",
                             "format": "markdown"
                         },
                         {
                             "id": 106611,
                             "order": "1.00000000000000000000",
-                            "type": "repeat",
+                            "type": "iterate",
                             "parent_element_id": 106609,
                             "place_in_container": "0",
                             "css_classes": "employees__container",
@@ -13556,7 +13556,7 @@
                         {
                             "id": 106631,
                             "order": "1.00000000000000000000",
-                            "type": "repeat",
+                            "type": "iterate",
                             "parent_element_id": 106629,
                             "place_in_container": "0",
                             "css_classes": "employees__container",
