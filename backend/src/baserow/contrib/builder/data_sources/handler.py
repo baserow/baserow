@@ -137,11 +137,7 @@ class DataSourceHandler:
             base_queryset=queryset,
         )
 
-    def _get_specific_services(
-        self,
-        service_ids: List[int],
-        base_queryset: QuerySet[Service],
-    ) -> Dict[int, Service]:
+    def _get_specific_services(self, service_ids: List[int]) -> Dict[int, Service]:
         try:
             return {
                 s.id: s
@@ -157,7 +153,7 @@ class DataSourceHandler:
         for service_id in service_ids:
             try:
                 service = ServiceHandler().get_service(
-                    service_id, base_queryset=base_queryset
+                    service_id, base_queryset=Service.objects.filter(id=service_id)
                 )
                 specific_services_map[service_id] = service
             except Exception as e:
@@ -195,9 +191,7 @@ class DataSourceHandler:
                 if data_source.service_id is not None
             ]
 
-            specific_services_map = self._get_specific_services(
-                service_ids, base_queryset
-            )
+            specific_services_map = self._get_specific_services(service_ids)
 
             # Distribute specific services to their data_source
             for data_source in data_sources:

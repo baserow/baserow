@@ -19,7 +19,6 @@ from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowListRows,
 )
 from baserow.core.exceptions import CannotCalculateIntermediateOrder
-from baserow.core.services.models import Service
 from baserow.core.services.registries import service_type_registry
 from baserow.core.user_sources.user_source_user import UserSourceUser
 from baserow.test_utils.helpers import AnyStr
@@ -686,7 +685,6 @@ def test_get_specific_services(data_fixture):
 
     missing_service_id = service_2.id
     service_ids = [service_1.id, missing_service_id]
-    base_queryset = Service.objects.filter(id__in=service_ids)
 
     # Simulate a data integrity issue
     specific_table_name = LocalBaserowGetRow._meta.db_table
@@ -701,9 +699,7 @@ def test_get_specific_services(data_fixture):
     with mock.patch(
         "baserow.contrib.builder.data_sources.handler.logger"
     ) as mock_logger:
-        specific_services_map = DataSourceHandler()._get_specific_services(
-            service_ids, base_queryset
-        )
+        specific_services_map = DataSourceHandler()._get_specific_services(service_ids)
 
     mock_logger.error.assert_called_once_with(
         f"Specific service {missing_service_id} doesn't exist."
