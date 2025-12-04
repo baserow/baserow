@@ -1,5 +1,28 @@
 # Changelog
 
+## Released 2.0.3
+
+### New features
+* [Core] Allow changing account email address. [#1420](https://github.com/baserow/baserow/-/issues/1420)
+* [Database] Paste values from a single row into many rows [#3194](https://gitlab.com/baserow/baserow/-/issues/3194)
+* [Database] Run AI field generation in parallel [#4227](https://github.com/baserow/baserow/-/issues/4227)
+* [Database] Show jobs for AI Field in modal [#4264](https://github.com/baserow/baserow/-/issues/4264)
+* [Core] Synchronizes the dev docs with the assistant knowledge base documents.
+
+### Bug fixes
+* [Database] Fix OpenAPI spec for generate_table_ai_field_value [#4339](https://github.com/baserow/baserow/-/issues/4339)
+* [Core] Change WebSocket connection closed error message.
+* [Core] Fix backup_baserow management command by using correct pg3 dbname. [#4308](https://github.com/baserow/baserow/-/issues/4308)
+* [Builder] Fix bug in the Helm chart where the AI-assistant LLM model was always set.
+* [Database] Improve performance in the `database_pendingsearchvalueupdate` table with many entries.
+
+### Refactors
+* [Database] Improved storage usage performance.
+* [Builder] Refactored the element theme override form so that it works better on smaller screens.
+* [Core] Update email compiler dependencies
+* [Core] Update frontend dependencies 2025-12-03
+
+
 ## Released 2.0.2
 
 ### New features
