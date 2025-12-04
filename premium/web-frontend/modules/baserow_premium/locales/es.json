@@ -233,7 +233,8 @@
         "baserowLogo": {
             "label": "Esconder el logo de Baserow en la vista compartida",
             "premiumModalName": "eliminación del logo público"
-        }
+        },
+        "allowPublicExportLabel": "Permitir exportación en vista compartida"
     },
     "viewsContext": {
         "personal": "Personal"
