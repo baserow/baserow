@@ -294,7 +294,7 @@
         "title": "Főoldal",
         "alertTitle": "Szükségünk van rád!",
         "alertText": "Ha hasznosnak találod a Baserow szoftvert, megköszönjük ha jelzed GitHub-on vagy megosztod valamely közösségi platformon. A megosztással hozzájárulsz a termékünk fejlesztéséhez, hogy számodra is még hasznosabb legyen a jövőben.",
-        "tweetContent": "Nézd meg a @baserow-ot, egy nyílt forráskódú no-code adatbázist és Airtable alternatívát!",
+        "tweetContent": "Nézd meg a {'@'}baserow-ot, egy nyílt forráskódú no-code adatbázist és Airtable alternatívát!",
         "redditTitle": "'Baserow - Egy nyílt forráskódú no-code adatbázis",
         "noWorkspaceTitle": "Nem található munkaterület",
         "noWorkspaceText": "Nem vagy tagja egy munkaterületnek sem. Az alkalmazások munkaterületekhez tartoznak, így előbb egy munkaterületet kell létrehoznod.",
