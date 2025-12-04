@@ -239,7 +239,7 @@ export default defineNuxtModule({
     nuxt.hook('nitro:config', async (nitroConfig) => {
       nitroConfig.publicAssets ||= []
       nitroConfig.publicAssets.push({
-        baseURL: '@baserow/modules/core/static',
+        baseURL: '/',
         dir: resolve('static'),
       })
     })
