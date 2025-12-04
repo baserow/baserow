@@ -372,7 +372,7 @@
             "format": {
                 "title": "Formato",
                 "description": "Il formato da usare è il seguente:",
-                "codeSnippet": "?prefill_<nome_campo>=<valore>"
+                "codeSnippet": "?prefill_&lt;nome_campo&gt;=&lt;valore&gt;"
             },
             "example": {
                 "title": "Esempio",

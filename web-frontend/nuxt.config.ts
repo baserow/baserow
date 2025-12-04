@@ -80,6 +80,7 @@ export default defineNuxtConfig({
     langDir: './locales',
     locales,
     trailingSlash: true,
+    vueI18n: './i18n.config.ts',
   },
   vite: {
     plugins: [

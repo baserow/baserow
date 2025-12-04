@@ -390,7 +390,7 @@
             "format": {
                 "title": "書式",
                 "description": "クエリ・パラメタの書式は以下のようになります：",
-                "codeSnippet": "?prefill_<field_name>=<value>"
+                "codeSnippet": "?prefill_&lt;field_name&gt;=&lt;value&gt;"
             },
             "example": {
                 "title": "例",
