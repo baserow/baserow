@@ -1016,6 +1016,37 @@
         "formElement": "Elementos de formulario"
     },
     "orientations": {
-        "label": "Orientación"
+        "label": "Orientación",
+        "horizontal": "Horizontal",
+        "vertical": "Vertical"
+    },
+    "menuElement": {
+        "missingValue": "Falta el elemento del menú",
+        "separator": "Separador",
+        "spacer": "Espaciador",
+        "missingLinkValue": "Falta el nombre del enlace…",
+        "emptyLinkValue": "Nombre de enlace vacío…",
+        "missingButtonValue": "Falta el nombre del botón…",
+        "emptyButtonValue": "Nombre de botón vacío…"
+    },
+    "menuElementForm": {
+        "menuItemsLabel": "Elementos del menú",
+        "addMenuItemLink": "Añadir...",
+        "alignment": "Alineación",
+        "menuItemDefaultName": "Página",
+        "menuItemLabelLabel": "Etiqueta",
+        "menuItemTypeSeparator": "Separador",
+        "menuItemTypeLabel": "Tipo",
+        "menuItemVariantLabel": "Variante",
+        "menuItemVariantLink": "Enlace",
+        "menuItemVariantButton": "Botón",
+        "namePlaceholder": "Página",
+        "addSubLink": "Añadir subenlace",
+        "menuItemSubLinkDefaultName": "Subenlace",
+        "menuItemAddLink": "Enlace",
+        "menuItemAddButton": "Botón",
+        "menuItemAddSeparator": "Separador",
+        "menuItemAddSpacer": "Espaciador",
+        "eventDescription": "Para configurar acciones para este botón, abre la pestaña «Eventos» de este elemento."
     }
 }
