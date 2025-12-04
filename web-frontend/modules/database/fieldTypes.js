@@ -1995,6 +1995,10 @@ export class RatingFieldType extends FieldType {
     }
   }
 
+  toHumanReadableString(field, value) {
+    return formatDecimalNumber(field, value)
+  }
+
   /**
    * First checks if the value is numeric, if that is the case, the number is going
    * to be formatted.

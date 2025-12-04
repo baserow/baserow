@@ -1,0 +1,8 @@
+{
+    "type": "feature",
+    "message": "Add some default number formatting options for rating fields #4394",
+    "domain": "database",
+    "issue_number": 4394  ,
+    "bullet_points": [],
+    "created_at": "2025-12-04"
+}
