@@ -74,7 +74,6 @@ import WorkspaceService from '@baserow/modules/core/services/workspace'
 
 definePageMeta({
   layout: 'login',
-  middleware: 'settings',
 })
 
 const store = useStore()
