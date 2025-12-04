@@ -138,6 +138,15 @@ class DataSourceHandler:
         )
 
     def _get_specific_services(self, service_ids: List[int]) -> Dict[int, Service]:
+        """
+        This method attempts to return all specific services for the
+        provided service IDs with an efficient query.
+
+        If a specific service doesn't exist for some reason (race condition, etc),
+        we individually fetch each specific service, and log the ones that don't
+        exist.
+        """
+
         try:
             return {
                 s.id: s
