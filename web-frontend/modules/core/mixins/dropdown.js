@@ -48,6 +48,14 @@ export default {
       default: null,
     },
     /**
+     * Vue 3 v-model compatibility (modelValue)
+     */
+    modelValue: {
+      type: [String, Number, Boolean, Object, Array],
+      required: false,
+      default: null,
+    },
+    /**
      * A string that is used to filter the dropdown items.
      */
     searchText: {
@@ -172,18 +180,23 @@ export default {
       reactiveMultiple: { value: this.multiple }, // Used for provide
       isDropdown: true, // Used for dropdown items to retrieve the parent dropdown component
       registeredDropdownItems: [], // For storing registered dropdown items
+      hideCleanupFunctions: [], // Store cleanup functions to call on hide
     }
   },
   computed: {
+    // Support both Vue 2 (value) and Vue 3 (modelValue)
+    currentValue() {
+      return this.modelValue !== null ? this.modelValue : this.value
+    },
     selectedName() {
-      console.log('selectedName in progress', this.value)
-      return this.getSelectedProperty(this.value, 'name')
+      console.log('selectedName in progress', this.currentValue)
+      return this.getSelectedProperty(this.currentValue, 'name')
     },
     selectedIcon() {
-      return this.getSelectedProperty(this.value, 'icon')
+      return this.getSelectedProperty(this.currentValue, 'icon')
     },
     selectedImage() {
-      return this.getSelectedProperty(this.value, 'image')
+      return this.getSelectedProperty(this.currentValue, 'image')
     },
     realTabindex() {
       // We don't want to be able focus if the dropdown is disabled or if we have
@@ -234,6 +247,14 @@ export default {
   },
   beforeDestroy() {
     this.observer.disconnect()
+  },
+  beforeUnmount() {
+    // Clean up any remaining event listeners
+    this.hideCleanupFunctions.forEach((cleanup) => cleanup())
+    this.hideCleanupFunctions = []
+    if (this.observer) {
+      this.observer.disconnect()
+    }
   },
   methods: {
     // Method to register a dropdown item
@@ -298,7 +319,7 @@ export default {
       const isElementOrigin = isDomElement(target)
 
       this.open = true
-      this.focusedDropdownItem = this.value
+      this.focusedDropdownItem = this.currentValue
       this.opener = isElementOrigin ? target : null
       this.$emit('show')
 
@@ -308,7 +329,7 @@ export default {
 
         // Scroll to the selected child.
         this.getDropdownItemComponents().forEach((child) => {
-          if (child.value === this.value) {
+          if (child.value === this.currentValue) {
             // This is a bit of weird scenario. This $refs.items uses the
             // `v-auto-overflow-scroll` directive. That one uses the resize observer
             // to detect if the element needs a scrollbar. This one has not fired before
@@ -355,7 +376,7 @@ export default {
           this.hide()
         }
       })
-      this.$once('hide', clickOutsideEventCancel)
+      this.hideCleanupFunctions.push(clickOutsideEventCancel)
 
       const keydownEvent = (event) => {
         if (
@@ -387,7 +408,7 @@ export default {
         }
       }
       document.body.addEventListener('keydown', keydownEvent)
-      this.$once('hide', () => {
+      this.hideCleanupFunctions.push(() => {
         document.body.removeEventListener('keydown', keydownEvent)
       })
 
@@ -428,11 +449,7 @@ export default {
 
           window.addEventListener('scroll', updatePosition, true)
           window.addEventListener('resize', updatePosition)
-          this.$once('hide', () => {
-            window.removeEventListener('scroll', updatePosition, true)
-            window.removeEventListener('resize', updatePosition)
-          })
-          this.$once('hook:beforeDestroy', () => {
+          this.hideCleanupFunctions.push(() => {
             window.removeEventListener('scroll', updatePosition, true)
             window.removeEventListener('resize', updatePosition)
           })
@@ -452,6 +469,10 @@ export default {
       this.open = false
       this.$emit('hide')
 
+      // Call all cleanup functions
+      this.hideCleanupFunctions.forEach((cleanup) => cleanup())
+      this.hideCleanupFunctions = []
+
       // Make sure that all the items are visible the next time we open the dropdown.
       this.query = ''
       this.search(this.query)
@@ -461,7 +482,7 @@ export default {
      */
     select(value) {
       if (this.multiple) {
-        const newValue = clone(this.value)
+        const newValue = clone(this.currentValue)
         const index = newValue.indexOf(value)
         if (index === -1) {
           newValue.push(value)
@@ -469,9 +490,11 @@ export default {
           newValue.splice(index, 1)
         }
         this.$emit('input', newValue)
+        this.$emit('update:modelValue', newValue) // Vue 3 compatibility
         this.$emit('change', newValue)
       } else {
         this.$emit('input', value)
+        this.$emit('update:modelValue', value) // Vue 3 compatibility
         this.$emit('change', value)
         this.hide()
       }
@@ -515,12 +538,12 @@ export default {
     hasValue() {
       for (const item of this.getDropdownItemComponents()) {
         if (this.multiple) {
-          for (const value of this.value) {
+          for (const value of this.currentValue) {
             if (_.isEqual(item.value, value)) {
               return true
             }
           }
-        } else if (_.isEqual(item.value, this.value)) {
+        } else if (_.isEqual(item.value, this.currentValue)) {
           return true
         }
       }
