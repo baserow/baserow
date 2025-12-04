@@ -660,7 +660,7 @@ def test_query_data_sources_excludes_trashed_service(data_fixture):
 
 
 @pytest.mark.django_db
-def test_get_specific_services(data_fixture, caplog):
+def test_get_specific_services(data_fixture):
     """
     Test that _get_specific_services handles Services with missing specific records.
     """
@@ -691,7 +691,8 @@ def test_get_specific_services(data_fixture, caplog):
     # Simulate a data integrity issue
     specific_table_name = LocalBaserowGetRow._meta.db_table
     with connection.cursor() as cursor:
-        # Delete from the specific table (LocalBaserowGetRow)
+        # Delete from the specific table (LocalBaserowGetRow) instead of using ORM
+        # to better simulate the data integrity issue.
         cursor.execute(
             f"DELETE FROM {specific_table_name} WHERE service_ptr_id = %s",
             [missing_service_id],
