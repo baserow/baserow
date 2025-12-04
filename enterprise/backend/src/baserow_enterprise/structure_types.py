@@ -2,8 +2,6 @@ from typing import TYPE_CHECKING, Any
 
 from django.contrib.contenttypes.models import ContentType
 
-from baserow_premium.license.handler import LicenseHandler
-
 from baserow.contrib.database.views.models import View
 from baserow.core.models import Application
 from baserow.core.registries import ImportExportConfig, SerializationProcessorType
@@ -13,6 +11,7 @@ from baserow_enterprise.features import RBAC
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
 from baserow_enterprise.role.types import NewRoleAssignment
+from baserow_premium.license.handler import LicenseHandler
 
 if TYPE_CHECKING:
     from baserow.core.models import Workspace

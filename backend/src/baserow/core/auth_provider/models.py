@@ -79,5 +79,4 @@ class AuthProviderModel(BaseAuthProviderModel):
         ordering = ["domain"]
 
 
-class PasswordAuthProviderModel(AuthProviderModel):
-    ...
+class PasswordAuthProviderModel(AuthProviderModel): ...

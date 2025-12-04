@@ -12,8 +12,7 @@ class BaserowFormulaImporter(BaserowFormulaVisitor, ABC):
     """
 
     @abstractmethod
-    def get_data_provider_type_registry(self):
-        ...
+    def get_data_provider_type_registry(self): ...
 
     def __init__(self, id_mapping, **kwargs):
         self.id_mapping = id_mapping

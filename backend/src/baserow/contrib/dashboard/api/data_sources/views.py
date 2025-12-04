@@ -213,8 +213,7 @@ class DispatchDashboardDataSourceView(APIView):
         tags=["Dashboard data sources"],
         operation_id="dispatch_dashboard_data_source",
         description=(
-            "Dispatches the service of the related data source and returns "
-            "the result."
+            "Dispatches the service of the related data source and returns the result."
         ),
         request=None,
         responses={

@@ -7,7 +7,6 @@ from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 
-from baserow_premium.license.handler import LicenseHandler
 from loguru import logger
 
 from baserow.contrib.database.data_sync.exceptions import (
@@ -26,6 +25,7 @@ from baserow_enterprise.data_sync.models import (
     PeriodicDataSyncInterval,
 )
 from baserow_enterprise.features import DATA_SYNC
+from baserow_premium.license.handler import LicenseHandler
 
 from .notification_types import PeriodicDataSyncDeactivatedNotificationType
 from .tasks import sync_periodic_data_sync
@@ -118,7 +118,8 @@ class EnterpriseDataSyncHandler:
                 # The now time must be higher than the now time because the data sync
                 # must be triggered at the desired the of the user.
                 when__lte=now_time,
-            ).select_related("data_sync__table__database__workspace")
+            )
+            .select_related("data_sync__table__database__workspace")
             # Take a lock on the periodic data sync because the `last_periodic_sync`
             # must be updated immediately. This will make sure that if this method is
             # called frequently, it doesn't trigger the same. If self or `data_sync` is

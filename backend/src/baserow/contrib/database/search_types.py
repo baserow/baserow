@@ -519,9 +519,9 @@ class RowSearchType(SearchableItemType):
             table_id_to_name[f.table_id] = f.table.name
             table_id_to_database_id[f.table_id] = f.table.database_id
             database_id_to_name[f.table.database_id] = f.table.database.name
-            database_id_to_workspace_id[
-                f.table.database_id
-            ] = f.table.database.workspace_id
+            database_id_to_workspace_id[f.table.database_id] = (
+                f.table.database.workspace_id
+            )
             table_id_to_primary_field[f.table_id] = (
                 f.table,
                 primary_fields[f.primary_field_id],

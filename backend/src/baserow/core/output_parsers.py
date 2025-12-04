@@ -15,10 +15,9 @@ def get_strict_enum_output_parser(enum: type) -> Any:
     - Don't use quotes or commas or partial values, just the option name.
     - Choose the option that most closely matches the row values.
 
-    ```json
-    {json_array}
-    ```"""  # nosec this falsely marks as hardcoded sql expression, but it's not related
-            # to SQL at all.
+```json
+{json_array}
+```"""  # noqa: S608 - not SQL, just a JSON template
 
         def parse(self, response: str) -> Any:
             response = response.strip()

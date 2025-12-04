@@ -80,7 +80,7 @@ def get_filters_object_description(combine_filters=True, view_is_aggregating=Fal
         "field to filter on, or the name of the field if "
         "`user_field_names` is true.\n\n"
         f"The following filters are available: "
-        f'{", ".join(view_filter_type_registry.get_types())}.'
+        f"{', '.join(view_filter_type_registry.get_types())}."
         "\n\n**Please note that if this parameter is provided, all other "
         "`filter__{field}__{filter}` will be ignored, "
         "as well as the `filter_type` parameter.**"
@@ -149,7 +149,7 @@ def make_adhoc_filter_api_params(combine_filters=True, view_is_aggregating=False
                     f"`filter__field_1__equal=test` then only rows where the value of "
                     f"field_1 is equal to test are going to be returned.\n\n"
                     f"The following filters are available: "
-                    f'{", ".join(view_filter_type_registry.get_types())}.'
+                    f"{', '.join(view_filter_type_registry.get_types())}."
                     "\n\n**Please note that if the `filters` parameter is provided, "
                     "this parameter will be ignored.** \n\n"
                     + (
@@ -167,19 +167,17 @@ def make_adhoc_filter_api_params(combine_filters=True, view_is_aggregating=False
             location=OpenApiParameter.QUERY,
             type=OpenApiTypes.STR,
             description=(
-                (
-                    "`AND`: Indicates that the aggregated rows must match all the "
-                    "provided filters.\n\n"
-                    "`OR`: Indicates that the aggregated rows only have to match one "
-                    "of the filters.\n\n"
-                    if view_is_aggregating
-                    else "`AND`: Indicates that the rows must match all the provided "
-                    "filters.\n\n"
-                    "`OR`: Indicates that the rows only have to match one of the "
-                    "filters.\n\nThis works only if two or more filters are provided."
-                    "\n\n**Please note that if the `filters` parameter is provided, "
-                    "this parameter will be ignored.**"
-                )
+                "`AND`: Indicates that the aggregated rows must match all the "
+                "provided filters.\n\n"
+                "`OR`: Indicates that the aggregated rows only have to match one "
+                "of the filters.\n\n"
+                if view_is_aggregating
+                else "`AND`: Indicates that the rows must match all the provided "
+                "filters.\n\n"
+                "`OR`: Indicates that the rows only have to match one of the "
+                "filters.\n\nThis works only if two or more filters are provided."
+                "\n\n**Please note that if the `filters` parameter is provided, "
+                "this parameter will be ignored.**"
             ),
         ),
     )

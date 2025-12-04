@@ -1,9 +1,10 @@
+from rest_framework import serializers
+
 from baserow_premium.integrations.local_baserow.models import (
     LocalBaserowTableServiceAggregationGroupBy,
     LocalBaserowTableServiceAggregationSeries,
     LocalBaserowTableServiceAggregationSortBy,
 )
-from rest_framework import serializers
 
 
 class LocalBaserowTableServiceAggregationSeriesSerializer(serializers.ModelSerializer):

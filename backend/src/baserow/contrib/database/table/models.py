@@ -10,9 +10,8 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.exceptions import FieldDoesNotExist as DjangoFieldDoesNotExist
 from django.db import models
-from django.db.models import BooleanField
+from django.db.models import BooleanField, JSONField, Q, QuerySet
 from django.db.models import Field as DjangoModelFieldClass
-from django.db.models import JSONField, Q, QuerySet
 
 from django_cte.cte import CTEManager, CTEQuerySet
 from opentelemetry import trace
@@ -531,7 +530,8 @@ class GeneratedTableModel(HierarchicalModelMixin, models.Model):
             # from_db_value function applied after performing and INSERT .. RETURNING
             # Instead for now we force a refresh to ensure these fields are converted
             # from their db representations correctly.
-            or isinstance(f, JSONField) and f.db_returning
+            or isinstance(f, JSONField)
+            and f.db_returning
         ]
 
     @classmethod

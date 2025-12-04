@@ -459,11 +459,14 @@ def test_webhook_with_paginated_payload(
     )
 
     # The first page of the payload is sent and contains the batch_id 1.
-    with patch(
-        "baserow.contrib.database.webhooks.tasks.enqueue_webhook_task"
-    ) as mock_enqueue, patch(
-        "baserow.contrib.database.webhooks.tasks.schedule_next_task_in_queue"
-    ) as mock_schedule:
+    with (
+        patch(
+            "baserow.contrib.database.webhooks.tasks.enqueue_webhook_task"
+        ) as mock_enqueue,
+        patch(
+            "baserow.contrib.database.webhooks.tasks.schedule_next_task_in_queue"
+        ) as mock_schedule,
+    ):
         call_webhook(
             webhook_id=webhook.id,
             event_id=event_id,
@@ -548,11 +551,14 @@ def test_call_webhook_payload_too_large_send_notification(
     )
 
     # The first page of the payload is sent and contains the batch_id 1.
-    with patch(
-        "baserow.contrib.database.webhooks.tasks.enqueue_webhook_task"
-    ) as mock_enqueue, patch(
-        "baserow.contrib.database.webhooks.tasks.schedule_next_task_in_queue"
-    ) as mock_schedule:
+    with (
+        patch(
+            "baserow.contrib.database.webhooks.tasks.enqueue_webhook_task"
+        ) as mock_enqueue,
+        patch(
+            "baserow.contrib.database.webhooks.tasks.schedule_next_task_in_queue"
+        ) as mock_schedule,
+    ):
         call_webhook(
             webhook_id=webhook.id,
             event_id=event_id,

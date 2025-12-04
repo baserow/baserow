@@ -580,9 +580,9 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
             graph=serialized_workflow.get("graph", {}),
         )
 
-        id_mapping["automation_workflows"][
-            serialized_workflow["id"]
-        ] = workflow_instance.id
+        id_mapping["automation_workflows"][serialized_workflow["id"]] = (
+            workflow_instance.id
+        )
 
         if progress is not None:
             progress.increment(state=IMPORT_SERIALIZED_IMPORTING)
@@ -740,9 +740,8 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         max_errors = settings.AUTOMATION_WORKFLOW_MAX_CONSECUTIVE_ERRORS
 
         statuses = (
-            AutomationWorkflowHistory.objects.filter(workflow=workflow).order_by(
-                "-started_on"
-            )
+            AutomationWorkflowHistory.objects.filter(workflow=workflow)
+            .order_by("-started_on")
             # +1 because we will ignore the latest entry, since the workflow may
             # have just started.
             .values_list("status", flat=True)[: max_errors + 1]

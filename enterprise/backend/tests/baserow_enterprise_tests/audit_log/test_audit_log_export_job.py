@@ -5,7 +5,6 @@ from unittest.mock import MagicMock, patch
 from django.test.utils import override_settings
 
 import pytest
-from baserow_premium.license.exceptions import FeaturesNotAvailableError
 from freezegun import freeze_time
 
 from baserow.contrib.database.export.handler import ExportHandler
@@ -13,6 +12,7 @@ from baserow.core.actions import CreateApplicationActionType, CreateWorkspaceAct
 from baserow.core.jobs.constants import JOB_FINISHED
 from baserow.core.jobs.handler import JobHandler
 from baserow_enterprise.audit_log.job_types import AuditLogExportJobType
+from baserow_premium.license.exceptions import FeaturesNotAvailableError
 
 
 @pytest.mark.django_db

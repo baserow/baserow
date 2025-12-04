@@ -126,15 +126,14 @@ def test_get_login_options(
         "items": [
             {
                 "redirect_url": (
-                    f"{settings.PUBLIC_BACKEND_URL}"
-                    f"/api/sso/oauth2/login/{provider.id}/"
+                    f"{settings.PUBLIC_BACKEND_URL}/api/sso/oauth2/login/{provider.id}/"
                 ),
                 "name": provider.name,
                 "type": provider_type,
             }
         ],
         "default_redirect_url": (
-            f"{settings.PUBLIC_BACKEND_URL}" f"/api/sso/oauth2/login/{provider.id}/"
+            f"{settings.PUBLIC_BACKEND_URL}/api/sso/oauth2/login/{provider.id}/"
         ),
     }
 

@@ -18,9 +18,10 @@ def assistant_chat_fixture(enterprise_data_fixture):
 
 @pytest.fixture(autouse=True)
 def mock_posthog_openai():
-    with udspy.settings.context(lm=udspy.LM(model="fake-model")), patch(
-        "posthog.ai.openai.AsyncOpenAI"
-    ) as mock:
+    with (
+        udspy.settings.context(lm=udspy.LM(model="fake-model")),
+        patch("posthog.ai.openai.AsyncOpenAI") as mock,
+    ):
         # Configure the mock if needed
         mock.return_value = MagicMock()
         mock.return_value.model = "test-model"

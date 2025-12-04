@@ -78,7 +78,7 @@ def get_search_user_docs_tool(
     async def search_user_docs(
         question: Annotated[
             str, "The English version of the user question, using Baserow vocabulary."
-        ]
+        ],
     ) -> dict[str, Any]:
         """
         Search Baserow documentation to provide instructions and information for USERS.

@@ -363,8 +363,9 @@ def test_local_baserow_get_row_service_dispatch_data_permission_denied(
     )
 
     dispatch_context = FakeDispatchContext()
-    with stub_check_permissions(raise_permission_denied=True), pytest.raises(
-        PermissionException
+    with (
+        stub_check_permissions(raise_permission_denied=True),
+        pytest.raises(PermissionException),
     ):
         LocalBaserowGetRowUserServiceType().dispatch_data(
             service, {"table": table}, dispatch_context

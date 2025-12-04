@@ -22,7 +22,7 @@ class LogGuruCompatibleLoggerHandler(LoggingHandler):
         del record.extra
 
         # by default otel doesn't send funcName, rename it so it does.
-        setattr(record, "python_function", record.funcName)
+        record.python_function = record.funcName
         super().emit(record)
 
 

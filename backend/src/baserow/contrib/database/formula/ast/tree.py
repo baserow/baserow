@@ -624,7 +624,7 @@ class BaserowFunctionDefinition(Instance, abc.ABC):
             )
 
         return typed_arg.with_invalid_type(
-            f"argument number {arg_index+1} given to {self} was of type "
+            f"argument number {arg_index + 1} given to {self} was of type "
             f"{expression_type_name} but {postfix}"
         )
 

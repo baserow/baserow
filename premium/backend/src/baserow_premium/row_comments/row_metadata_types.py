@@ -2,16 +2,16 @@ from typing import Any, Dict, List
 
 from django.db.models import Count
 
+from rest_framework import serializers
+from rest_framework.fields import Field
+
+from baserow.contrib.database.rows.registries import RowMetadataType
 from baserow_premium.row_comments.models import (
     ALL_ROW_COMMENT_NOTIFICATION_MODES,
     ROW_COMMENT_NOTIFICATION_DEFAULT_MODE,
     RowComment,
     RowCommentsNotificationMode,
 )
-from rest_framework import serializers
-from rest_framework.fields import Field
-
-from baserow.contrib.database.rows.registries import RowMetadataType
 
 
 class RowCommentCountMetadataType(RowMetadataType):

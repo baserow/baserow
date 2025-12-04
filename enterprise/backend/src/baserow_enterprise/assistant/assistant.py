@@ -608,10 +608,13 @@ class Assistant:
         )
         default_callbacks = udspy.settings.callbacks
 
-        with udspy.settings.context(
-            lm=self._lm_client,
-            callbacks=[*default_callbacks, *self._callbacks],
-        ), self._telemetry_callbacks.trace(self._chat, human_msg.content):
+        with (
+            udspy.settings.context(
+                lm=self._lm_client,
+                callbacks=[*default_callbacks, *self._callbacks],
+            ),
+            self._telemetry_callbacks.trace(self._chat, human_msg.content),
+        ):
             message_id = str(human_msg.id)
             yield AiStartedMessage(message_id=message_id)
 

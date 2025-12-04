@@ -1,6 +1,5 @@
 from django.conf import settings
 
-from baserow_premium.views.models import CalendarViewFieldOptions
 from rest_framework import serializers
 
 from baserow.contrib.database.api.rows.serializers import (
@@ -9,6 +8,7 @@ from baserow.contrib.database.api.rows.serializers import (
 )
 from baserow.contrib.database.search.handler import ALL_SEARCH_MODES
 from baserow.core.datetime import get_timezones
+from baserow_premium.views.models import CalendarViewFieldOptions
 
 
 class CalendarViewFieldOptionsSerializer(serializers.ModelSerializer):

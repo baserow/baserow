@@ -6,7 +6,6 @@ from unittest import mock
 from django.contrib.auth.models import AbstractUser
 
 import pytest
-from baserow_premium.license.exceptions import FeaturesNotAvailableError
 
 from baserow.contrib.database.field_rules.exceptions import FieldRuleAlreadyExistsError
 from baserow.contrib.database.field_rules.handlers import FieldRuleHandler
@@ -19,6 +18,7 @@ from baserow_enterprise.date_dependency.field_rule_types import (
     DateDependencyFieldRuleType,
 )
 from baserow_enterprise.date_dependency.models import DateDependency
+from baserow_premium.license.exceptions import FeaturesNotAvailableError
 
 
 class DateDepsTestData(NamedTuple):
@@ -419,7 +419,7 @@ def test_date_dependency_handler_create_rule_and_populate_rows(
         start_date = getattr(row, start_date_field.db_column)
         end_date = getattr(row, end_date_field.db_column)
         duration = getattr(row, duration_field.db_column)
-        is_valid = getattr(row, "field_rules_are_valid")
+        is_valid = row.field_rules_are_valid
 
         expected_row = expected.get(row_id)
         assert (

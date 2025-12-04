@@ -1,8 +1,6 @@
 from django.conf import settings
 from django.db.models import Q
 
-from baserow_premium.license.handler import LicenseHandler
-
 from baserow.contrib.database.api.rows.serializers import (
     RowSerializer,
     get_row_serializer_class,
@@ -13,6 +11,7 @@ from baserow.contrib.database.views.models import GridView
 from baserow.contrib.database.views.signals import rows_entered_view
 from baserow.contrib.database.webhooks.registries import WebhookEventType
 from baserow_enterprise.features import ADVANCED_WEBHOOKS
+from baserow_premium.license.handler import LicenseHandler
 
 
 class EnterpriseWebhookEventType(WebhookEventType):

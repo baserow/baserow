@@ -1,8 +1,7 @@
-from baserow_premium.license.handler import LicenseHandler
-
 from baserow.core.handler import CoreHandler
 from baserow.core.registries import EmailContextType
 from baserow_enterprise.features import ENTERPRISE_SETTINGS
+from baserow_premium.license.handler import LicenseHandler
 
 
 class EnterpriseEmailContextType(EmailContextType):

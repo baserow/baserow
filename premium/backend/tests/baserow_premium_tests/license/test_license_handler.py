@@ -7,6 +7,14 @@ from django.test.utils import override_settings
 
 import pytest
 import responses
+from cryptography.exceptions import InvalidSignature
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import padding
+from freezegun import freeze_time
+from rest_framework.status import HTTP_200_OK
+
+from baserow.core.cache import local_cache
+from baserow.core.exceptions import IsNotAdminError
 from baserow_premium.license.exceptions import (
     FeaturesNotAvailableError,
     InvalidLicenseError,
@@ -21,14 +29,6 @@ from baserow_premium.license.exceptions import (
 from baserow_premium.license.features import PREMIUM
 from baserow_premium.license.handler import LicenseHandler
 from baserow_premium.license.models import License, LicenseUser
-from cryptography.exceptions import InvalidSignature
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.asymmetric import padding
-from freezegun import freeze_time
-from rest_framework.status import HTTP_200_OK
-
-from baserow.core.cache import local_cache
-from baserow.core.exceptions import IsNotAdminError
 
 VALID_ONE_SEAT_LICENSE = (
     # id: "1", instance_id: "1"

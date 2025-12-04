@@ -1,6 +1,7 @@
 from unittest.mock import patch
 
 import pytest
+
 from baserow_premium.license.handler import LicenseHandler
 
 

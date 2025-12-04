@@ -4,12 +4,11 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.db.models import Q, QuerySet
 
+from baserow.core.cache import local_cache
+from baserow.core.models import Workspace
 from baserow_premium.license.exceptions import InvalidLicenseError
 from baserow_premium.license.models import License
 from baserow_premium.license.registries import LicenseType, SeatUsageSummary
-
-from baserow.core.cache import local_cache
-from baserow.core.models import Workspace
 
 User = get_user_model()
 LICENSE_CACHE_KEY_PREFIX = "license"

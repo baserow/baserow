@@ -471,11 +471,7 @@ class AvailableCollaboratorsSerializer(serializers.ListField):
 
         workspace = instance.table.database.workspace
         if not hasattr(workspace, "available_collaborators"):
-            setattr(
-                workspace,
-                "available_collaborators",
-                workspace.users.order_by("first_name"),
-            )
+            workspace.available_collaborators = workspace.users.order_by("first_name")
 
         return [
             CollaboratorSerializer(user).data

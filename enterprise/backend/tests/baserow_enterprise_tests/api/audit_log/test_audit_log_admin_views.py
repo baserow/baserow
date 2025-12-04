@@ -553,8 +553,9 @@ def test_audit_log_can_export_to_csv_all_entries(
         "export_charset": "utf-8",
     }
 
-    with freeze_time("2023-01-01 12:00"), django_capture_on_commit_callbacks(
-        execute=True
+    with (
+        freeze_time("2023-01-01 12:00"),
+        django_capture_on_commit_callbacks(execute=True),
     ):
         admin_token = enterprise_data_fixture.generate_token(admin_user)
         response = api_client.post(
@@ -633,8 +634,9 @@ def test_audit_log_can_export_to_csv_filtered_entries(
     )
     assert response.status_code == HTTP_400_BAD_REQUEST
 
-    with freeze_time("2023-01-02 12:00"), django_capture_on_commit_callbacks(
-        execute=True
+    with (
+        freeze_time("2023-01-02 12:00"),
+        django_capture_on_commit_callbacks(execute=True),
     ):
         admin_token = enterprise_data_fixture.generate_token(admin_user)
         response = api_client.post(

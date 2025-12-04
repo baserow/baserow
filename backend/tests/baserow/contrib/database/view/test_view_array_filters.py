@@ -3552,9 +3552,9 @@ def test_date_array_filter_types(
         mnem_keys = list(MNEMONIC_VALUES.keys())
         mnem_res_pos = [mnem_keys[v] for v in res_pos]
         mnem_exp_res = [mnem_keys[v] for v in expected]
-        assert res_pos == unordered(
-            expected
-        ), f"{filter_type} - {operator}: {mnem_res_pos} != {mnem_exp_res}"
+        assert res_pos == unordered(expected), (
+            f"{filter_type} - {operator}: {mnem_res_pos} != {mnem_exp_res}"
+        )
 
     # with date
     array_filter_type_has = SINGLE_TO_ARRAY_FILTER_TYPE_MAP[filter_type]["has"]

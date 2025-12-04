@@ -175,9 +175,9 @@ class DynamicMetadataSerializer(serializers.Serializer):
         super().__init__(*args, **kwargs)
 
         for data_provider_type in builder_data_provider_type_registry.get_all():
-            self.fields[
-                data_provider_type.type
-            ] = data_provider_type.get_request_serializer()
+            self.fields[data_provider_type.type] = (
+                data_provider_type.get_request_serializer()
+            )
 
     def to_internal_value(self, data):
         # Accept either a string or a dict

@@ -1,3 +1,4 @@
+import os
 import ssl
 from typing import Optional
 from urllib.parse import urlparse
@@ -63,10 +64,12 @@ if REDIS_PROTOCOL == "rediss" or "rediss" in REDIS_TLS_URL:  # noqa: F405
 # started with a limit of 10, which is the default value. This is needed because the
 # `heroku-redis:mini` doesn't accept more than 20 connections.
 CELERY_BROKER_POOL_LIMIT = min(
-    4 * int(os.getenv("BASEROW_AMOUNT_OF_WORKERS", "1")), 10  # noqa: F405
+    4 * int(os.getenv("BASEROW_AMOUNT_OF_WORKERS", "1")),  # noqa: F405
+    10,
 )
 CELERY_REDIS_MAX_CONNECTIONS = min(
-    4 * int(os.getenv("BASEROW_AMOUNT_OF_WORKERS", "1")), 10  # noqa: F405
+    4 * int(os.getenv("BASEROW_AMOUNT_OF_WORKERS", "1")),  # noqa: F405
+    10,
 )
 
 HEROKU_ENABLED = True

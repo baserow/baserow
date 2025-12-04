@@ -279,11 +279,14 @@ class TrashHandler(metaclass=baserow_trace_methods(tracer)):
         trash_entry: TrashEntry,
         trash_item_lookup_cache: Optional[Dict[str, Any]] = None,
     ):
-        """
+        (
+            """
         Responsible for finding the trash item type for this `TrashEntry`, then finding
         the model to destroy and passing it into `_permanently_delete_and_signal`
         for it to be permanently deleted.
-        """ ""
+        """
+            ""
+        )
 
         trash_item_type = trash_item_type_registry.get(trash_entry.trash_item_type)
 

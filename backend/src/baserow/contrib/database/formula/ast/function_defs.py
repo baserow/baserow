@@ -1263,7 +1263,7 @@ class BaserowEqual(TwoArgumentBaserowFunction):
     ) -> BaserowExpression[BaserowFormulaType]:
         arg1_type = arg1.expression_type
         arg2_type = arg2.expression_type
-        if not (type(arg1_type) is type(arg2_type)):
+        if type(arg1_type) is not type(arg2_type):
             # If trying to compare two types which can be compared, but are of different
             # types, then first cast them to text and then compare.
             # We to ourselves via the __class__ property here so subtypes of this type
@@ -1305,7 +1305,7 @@ class BaserowIf(ThreeArgumentBaserowFunction):
     ) -> BaserowExpression[BaserowFormulaType]:
         arg2_type = arg2.expression_type
         arg3_type = arg3.expression_type
-        if not (type(arg2_type) is type(arg3_type)):
+        if type(arg2_type) is not type(arg3_type):
             # Replace the current if func_call with one which casts both args to text
             # if they are of different types as PostgreSQL requires all cases of a case
             # statement to be of the same type.

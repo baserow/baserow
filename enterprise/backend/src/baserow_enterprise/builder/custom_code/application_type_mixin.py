@@ -1,9 +1,8 @@
-from baserow_premium.license.handler import LicenseHandler
-
 from baserow.contrib.builder.models import Builder
 from baserow_enterprise.builder.custom_code.models import BuilderCustomScript
 from baserow_enterprise.builder.custom_code.types import BuilderCustomCodeDict
 from baserow_enterprise.features import BUILDER_CUSTOM_CODE
+from baserow_premium.license.handler import LicenseHandler
 
 
 class CustomCodeBuilderApplicationTypeMixin:

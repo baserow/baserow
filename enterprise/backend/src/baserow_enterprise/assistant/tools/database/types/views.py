@@ -1,7 +1,5 @@
 from typing import Annotated, Literal, Type
 
-from baserow_premium.permission_manager import Table
-from baserow_premium.views.models import CalendarView, KanbanView, TimelineView
 from pydantic import Field
 
 from baserow.contrib.database.fields.models import (
@@ -13,6 +11,8 @@ from baserow.contrib.database.views.models import FormView, GalleryView, GridVie
 from baserow.contrib.database.views.models import View as BaserowView
 from baserow.contrib.database.views.registries import view_type_registry
 from baserow_enterprise.assistant.types import BaseModel
+from baserow_premium.permission_manager import Table
+from baserow_premium.views.models import CalendarView, KanbanView, TimelineView
 
 
 class ViewItemCreate(BaseModel):

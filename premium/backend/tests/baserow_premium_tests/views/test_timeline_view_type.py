@@ -4,9 +4,6 @@ from zipfile import ZIP_DEFLATED, ZipFile
 from django.core.files.storage import FileSystemStorage
 
 import pytest
-from baserow_premium.views.exceptions import TimelineViewHasInvalidDateSettings
-from baserow_premium.views.handler import get_timeline_view_filtered_queryset
-from baserow_premium.views.models import TimelineViewFieldOptions
 
 from baserow.contrib.database.action.scopes import ViewActionScopeType
 from baserow.contrib.database.fields.exceptions import (
@@ -24,6 +21,9 @@ from baserow.test_utils.helpers import (
     assert_undo_redo_actions_are_valid,
     setup_interesting_test_table,
 )
+from baserow_premium.views.exceptions import TimelineViewHasInvalidDateSettings
+from baserow_premium.views.handler import get_timeline_view_filtered_queryset
+from baserow_premium.views.models import TimelineViewFieldOptions
 
 
 @pytest.mark.django_db

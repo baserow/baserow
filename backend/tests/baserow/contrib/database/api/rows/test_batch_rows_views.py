@@ -797,11 +797,11 @@ def test_batch_create_rows_dependent_fields(api_client, data_fixture):
         "items": [
             {
                 f"id": 1,
-                f"field_{formula_field.id}": f"{str(120*2)}",
+                f"field_{formula_field.id}": f"{str(120 * 2)}",
             },
             {
                 f"id": 2,
-                f"field_{formula_field.id}": f"{str(240*2)}",
+                f"field_{formula_field.id}": f"{str(240 * 2)}",
             },
         ]
     }
@@ -1978,11 +1978,11 @@ def test_batch_update_rows_dependent_fields(api_client, data_fixture):
         "items": [
             {
                 f"id": row_1.id,
-                f"field_{formula_field.id}": f"{str(120*2)}",
+                f"field_{formula_field.id}": f"{str(120 * 2)}",
             },
             {
                 f"id": row_2.id,
-                f"field_{formula_field.id}": f"{str(240*2)}",
+                f"field_{formula_field.id}": f"{str(240 * 2)}",
             },
         ]
     }
@@ -2420,9 +2420,9 @@ def test_batch_delete_rows_trash_them(api_client, data_fixture):
     row_1.refresh_from_db()
     row_2.refresh_from_db()
     row_3.refresh_from_db()
-    assert getattr(row_1, "trashed") is True
-    assert getattr(row_2, "trashed") is True
-    assert getattr(row_3, "trashed") is False
+    assert row_1.trashed is True
+    assert row_2.trashed is True
+    assert row_3.trashed is False
 
 
 @pytest.mark.django_db

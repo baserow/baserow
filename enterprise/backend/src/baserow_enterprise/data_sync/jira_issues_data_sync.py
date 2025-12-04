@@ -4,7 +4,6 @@ from typing import Any, Dict, List, Optional
 
 import advocate
 from advocate import UnacceptableAddressException
-from baserow_premium.license.handler import LicenseHandler
 from requests.auth import HTTPBasicAuth
 from requests.exceptions import JSONDecodeError, RequestException
 
@@ -19,6 +18,7 @@ from baserow.contrib.database.fields.models import (
 )
 from baserow.core.utils import ChildProgressBuilder, get_value_at_path
 from baserow_enterprise.features import DATA_SYNC
+from baserow_premium.license.handler import LicenseHandler
 
 from .models import (
     JIRA_ISSUES_DATA_SYNC_API_TOKEN,

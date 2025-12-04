@@ -153,7 +153,7 @@ class GitLabIssuesDataSync(DataSync):
     )
     gitlab_project_id = models.CharField(
         max_length=255,
-        help_text="The ID of the GitLab project where to sync the " "issues with.",
+        help_text="The ID of the GitLab project where to sync the issues with.",
     )
     gitlab_access_token = models.CharField(
         max_length=255,

@@ -1,4 +1,5 @@
 """Miscellaneous constant values used across the codebase."""
+
 from django.db import models
 
 # Date formats supported in Baserow

@@ -396,8 +396,7 @@ class DataSyncHandler:
         existing_rows_queryset = model.objects.all().values(
             # There is no need to fetch the rows cell values from the row because we
             # don't need them.
-            *["id"]
-            + list(key_to_field_id.values())
+            *["id"] + list(key_to_field_id.values())
         )
         progress.increment(by=6)  # makes the total `9`
 
@@ -643,9 +642,9 @@ class DataSyncHandler:
                 data_sync_property.unique_primary or not data_sync.two_way_sync
             )
             field_kwargs["immutable_type"] = True
-            field_kwargs[
-                "immutable_properties"
-            ] = data_sync_property.immutable_properties
+            field_kwargs["immutable_properties"] = (
+                data_sync_property.immutable_properties
+            )
             if data_sync_property.unique_primary and not has_primary:
                 has_primary = True
                 field_kwargs["primary"] = True
@@ -682,9 +681,9 @@ class DataSyncHandler:
                 data_sync_property.unique_primary or not data_sync.two_way_sync
             )
             field_kwargs["immutable_type"] = True
-            field_kwargs[
-                "immutable_properties"
-            ] = data_sync_property.immutable_properties
+            field_kwargs["immutable_properties"] = (
+                data_sync_property.immutable_properties
+            )
             enabled_property.field = handler.update_field(
                 user=user,
                 field=enabled_property.field.specific,

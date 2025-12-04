@@ -335,7 +335,7 @@ def test_runtime_formula_if(data_fixture):
             formula, formula_runtime_function_registry, dispatch_context
         )
         assert result == expected, (
-            f"{value} expected to resolve to {expected} " f"but got {result}"
+            f"{value} expected to resolve to {expected} but got {result}"
         )
 
 
@@ -362,7 +362,7 @@ def test_runtime_formula_get_property(data_fixture):
     )
     expected = "Dark Red"
     assert result == expected, (
-        f"{value} expected to resolve to {expected} " f"but got {result}"
+        f"{value} expected to resolve to {expected} but got {result}"
     )
 
 
@@ -388,7 +388,7 @@ def test_runtime_formula_datetime_format(data_fixture):
     )
     expected = "12-Nov-2025 21:22:23"
     assert result == expected, (
-        f"{value} expected to resolve to {expected} " f"but got {result}"
+        f"{value} expected to resolve to {expected} but got {result}"
     )
 
 
@@ -421,7 +421,7 @@ def test_runtime_formula_comparison_operator(data_fixture):
             formula, formula_runtime_function_registry, dispatch_context
         )
         assert result == expected, (
-            f"{value} expected to resolve to {expected} " f"but got {result}"
+            f"{value} expected to resolve to {expected} but got {result}"
         )
 
 
@@ -454,7 +454,7 @@ def test_runtime_formula_comparison(data_fixture):
             formula, formula_runtime_function_registry, dispatch_context
         )
         assert result == expected, (
-            f"{value} expected to resolve to {expected} " f"but got {result}"
+            f"{value} expected to resolve to {expected} but got {result}"
         )
 
 
@@ -484,7 +484,7 @@ def test_runtime_formula_boolean(data_fixture):
             formula, formula_runtime_function_registry, dispatch_context
         )
         assert result == expected, (
-            f"{value} expected to resolve to {expected} " f"but got {result}"
+            f"{value} expected to resolve to {expected} but got {result}"
         )
 
 
@@ -512,7 +512,7 @@ def test_runtime_formula_date(data_fixture):
             formula, formula_runtime_function_registry, dispatch_context
         )
         assert result == expected, (
-            f"{value} expected to resolve to {expected} " f"but got {result}"
+            f"{value} expected to resolve to {expected} but got {result}"
         )
 
 
@@ -541,7 +541,7 @@ def test_runtime_formula_arithmetic(data_fixture):
             formula, formula_runtime_function_registry, dispatch_context
         )
         assert result == expected, (
-            f"{value} expected to resolve to {expected} " f"but got {result}"
+            f"{value} expected to resolve to {expected} but got {result}"
         )
 
 

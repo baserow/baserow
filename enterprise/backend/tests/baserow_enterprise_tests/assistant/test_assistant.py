@@ -8,6 +8,7 @@ These tests verify that the Assistant:
 - Generates and persists chat titles appropriately
 - Adapts its signature based on chat state
 """
+
 from unittest.mock import MagicMock, Mock, patch
 
 from django.core.cache import cache
@@ -535,7 +536,9 @@ class TestAssistantMessagePersistence:
         user = enterprise_data_fixture.create_user()
         workspace = enterprise_data_fixture.create_workspace(user=user)
         chat = AssistantChat.objects.create(
-            user=user, workspace=workspace, title=""  # New chat
+            user=user,
+            workspace=workspace,
+            title="",  # New chat
         )
 
         # Mock title generator
@@ -671,7 +674,9 @@ class TestAssistantStreaming:
         user = enterprise_data_fixture.create_user()
         workspace = enterprise_data_fixture.create_workspace(user=user)
         chat = AssistantChat.objects.create(
-            user=user, workspace=workspace, title=""  # New chat
+            user=user,
+            workspace=workspace,
+            title="",  # New chat
         )
 
         # Mock title generator

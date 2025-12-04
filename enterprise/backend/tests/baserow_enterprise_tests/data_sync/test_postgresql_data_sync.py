@@ -497,7 +497,7 @@ def test_delete_row_in_postgresql_table(
     with connection.cursor() as cursor:
         row_id = serialized_rows[0][f"field_{id_field.id}"]
         cursor.execute(
-            f"SELECT count(*) " f"FROM {create_postgresql_test_table} WHERE id = %s",
+            f"SELECT count(*) FROM {create_postgresql_test_table} WHERE id = %s",
             [row_id],
         )
         result = cursor.fetchone()
@@ -569,7 +569,7 @@ def test_skip_delete_row_in_postgresql_table_if_unique_primary_is_empty(
 
     with connection.cursor() as cursor:
         cursor.execute(
-            f"SELECT count(*) " f"FROM {create_postgresql_test_table} WHERE id = %s",
+            f"SELECT count(*) FROM {create_postgresql_test_table} WHERE id = %s",
             [old_id],
         )
         result = cursor.fetchone()

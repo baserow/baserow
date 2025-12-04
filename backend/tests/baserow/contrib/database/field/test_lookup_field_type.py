@@ -702,10 +702,10 @@ def test_moving_a_looked_up_row_updates_the_order(
 
     table2_model = table2.get_model(attribute_names=True)
     a = table2_model.objects.create(
-        lookupfield=f"2021-02-01", primaryfield="primary " "a", order=0
+        lookupfield=f"2021-02-01", primaryfield="primary a", order=0
     )
     b = table2_model.objects.create(
-        lookupfield=f"2022-02-03", primaryfield="primary " "b", order=1
+        lookupfield=f"2022-02-03", primaryfield="primary b", order=1
     )
 
     table_model = table.get_model(attribute_names=True)
@@ -973,10 +973,10 @@ def test_deleting_restoring_lookup_target_works(
 
     table2_model = table2.get_model(attribute_names=True)
     a = table2_model.objects.create(
-        lookupfield=f"2021-02-01", primaryfield="primary " "a", order=0
+        lookupfield=f"2021-02-01", primaryfield="primary a", order=0
     )
     b = table2_model.objects.create(
-        lookupfield=f"2022-02-03", primaryfield="primary " "b", order=1
+        lookupfield=f"2022-02-03", primaryfield="primary b", order=1
     )
 
     table_model = table.get_model(attribute_names=True)
@@ -1166,10 +1166,10 @@ def test_deleting_related_link_row_field_dep_breaks_deps(
 
     table2_model = table2.get_model(attribute_names=True)
     a = table2_model.objects.create(
-        lookupfield=f"2021-02-01", primaryfield="primary " "a", order=0
+        lookupfield=f"2021-02-01", primaryfield="primary a", order=0
     )
     b = table2_model.objects.create(
-        lookupfield=f"2022-02-03", primaryfield="primary " "b", order=1
+        lookupfield=f"2022-02-03", primaryfield="primary b", order=1
     )
 
     table_model = table.get_model(attribute_names=True)
@@ -1577,10 +1577,10 @@ def test_deleting_related_link_row_field_still_lets_you_create_edit_rows(
 
     table2_model = table2.get_model(attribute_names=True)
     a = table2_model.objects.create(
-        lookupfield=f"2021-02-01", primaryfield="primary " "a", order=0
+        lookupfield=f"2021-02-01", primaryfield="primary a", order=0
     )
     b = table2_model.objects.create(
-        lookupfield=f"2022-02-03", primaryfield="primary " "b", order=1
+        lookupfield=f"2022-02-03", primaryfield="primary b", order=1
     )
 
     table_model = table.get_model(attribute_names=True)
@@ -1661,10 +1661,10 @@ def test_deleting_related_table_still_lets_you_create_edit_rows(
 
     table2_model = table2.get_model(attribute_names=True)
     a = table2_model.objects.create(
-        lookupfield=f"2021-02-01", primaryfield="primary " "a", order=0
+        lookupfield=f"2021-02-01", primaryfield="primary a", order=0
     )
     b = table2_model.objects.create(
-        lookupfield=f"2022-02-03", primaryfield="primary " "b", order=1
+        lookupfield=f"2022-02-03", primaryfield="primary b", order=1
     )
 
     table_model = table.get_model(attribute_names=True)
@@ -1734,10 +1734,10 @@ def test_converting_away_from_lookup_field_deletes_parent_formula_field(
     )
     table2_model = table2.get_model(attribute_names=True)
     a = table2_model.objects.create(
-        lookupfield=f"2021-02-01", primaryfield="primary " "a", order=0
+        lookupfield=f"2021-02-01", primaryfield="primary a", order=0
     )
     b = table2_model.objects.create(
-        lookupfield=f"2022-02-03", primaryfield="primary " "b", order=1
+        lookupfield=f"2022-02-03", primaryfield="primary b", order=1
     )
 
     table_model = table.get_model(attribute_names=True)

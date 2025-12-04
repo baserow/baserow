@@ -58,8 +58,7 @@ def test_oauth2_login_feature_not_active(api_client, enterprise_data_fixture):
 
     assert response.status_code == HTTP_302_FOUND
     assert response.headers["Location"] == (
-        f"{settings.PUBLIC_WEB_FRONTEND_URL}/login/"
-        "error?error=errorSsoFeatureNotActive"
+        f"{settings.PUBLIC_WEB_FRONTEND_URL}/login/error?error=errorSsoFeatureNotActive"
     )
 
 
@@ -125,8 +124,7 @@ def test_oauth2_callback_feature_not_active(api_client, enterprise_data_fixture)
 
     assert response.status_code == HTTP_302_FOUND
     assert response.headers["Location"] == (
-        f"{settings.PUBLIC_WEB_FRONTEND_URL}/login/"
-        "error?error=errorSsoFeatureNotActive"
+        f"{settings.PUBLIC_WEB_FRONTEND_URL}/login/error?error=errorSsoFeatureNotActive"
     )
 
 
@@ -369,8 +367,7 @@ def test_oauth2_callback_signup_disabled(api_client, enterprise_data_fixture):
 
         assert response.status_code == HTTP_302_FOUND
         assert response.headers["Location"] == (
-            f"{settings.PUBLIC_WEB_FRONTEND_URL}/login/"
-            "error?error=errorSignupDisabled"
+            f"{settings.PUBLIC_WEB_FRONTEND_URL}/login/error?error=errorSignupDisabled"
         )
 
 
@@ -469,8 +466,7 @@ def test_oauth2_callback_login_deactivated_user(
 
         assert response.status_code == HTTP_302_FOUND
         assert response.headers["Location"] == (
-            f"{settings.PUBLIC_WEB_FRONTEND_URL}/login/"
-            "error?error=errorUserDeactivated"
+            f"{settings.PUBLIC_WEB_FRONTEND_URL}/login/error?error=errorUserDeactivated"
         )
 
 
@@ -558,6 +554,5 @@ def test_oauth2_callback_login_auth_flow_error(
 
         assert response.status_code == HTTP_302_FOUND
         assert response.headers["Location"] == (
-            f"{settings.PUBLIC_WEB_FRONTEND_URL}/login/"
-            "error?error=errorAuthFlowError"
+            f"{settings.PUBLIC_WEB_FRONTEND_URL}/login/error?error=errorAuthFlowError"
         )

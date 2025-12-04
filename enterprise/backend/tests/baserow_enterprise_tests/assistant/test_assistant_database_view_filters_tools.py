@@ -487,9 +487,9 @@ def test_filter_class_discovery():
     }
 
     found_excluded = excluded_classes & class_names
-    assert (
-        not found_excluded
-    ), f"Base/intermediate classes should not be included: {found_excluded}"
+    assert not found_excluded, (
+        f"Base/intermediate classes should not be included: {found_excluded}"
+    )
 
 
 @pytest.mark.django_db

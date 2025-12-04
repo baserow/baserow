@@ -3,8 +3,6 @@ from unittest.mock import patch
 from django.test.utils import override_settings
 
 import pytest
-from baserow_premium.row_comments.handler import RowCommentsNotificationModes
-from baserow_premium.row_comments.models import RowComment
 from freezegun import freeze_time
 from rest_framework.reverse import reverse
 from rest_framework.status import (
@@ -19,6 +17,8 @@ from baserow.core.handler import CoreHandler
 from baserow.core.models import TrashEntry
 from baserow.core.trash.handler import TrashHandler
 from baserow.test_utils.helpers import AnyInt
+from baserow_premium.row_comments.handler import RowCommentsNotificationModes
+from baserow_premium.row_comments.models import RowComment
 
 
 @pytest.mark.django_db

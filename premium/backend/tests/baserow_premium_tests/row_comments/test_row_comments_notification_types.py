@@ -5,14 +5,6 @@ from django.shortcuts import reverse
 from django.test import override_settings
 
 import pytest
-from baserow_premium.row_comments.handler import (
-    RowCommentHandler,
-    RowCommentsNotificationModes,
-)
-from baserow_premium.row_comments.notification_types import (
-    RowCommentMentionNotificationType,
-    RowCommentNotificationType,
-)
 from freezegun import freeze_time
 from pytest_unordered import unordered
 from rest_framework.status import HTTP_200_OK, HTTP_204_NO_CONTENT
@@ -21,6 +13,14 @@ from baserow.core.models import WorkspaceUser
 from baserow.core.notifications.handler import NotificationHandler
 from baserow.core.notifications.models import NotificationRecipient
 from baserow.test_utils.helpers import AnyInt
+from baserow_premium.row_comments.handler import (
+    RowCommentHandler,
+    RowCommentsNotificationModes,
+)
+from baserow_premium.row_comments.notification_types import (
+    RowCommentMentionNotificationType,
+    RowCommentNotificationType,
+)
 
 
 @pytest.mark.django_db

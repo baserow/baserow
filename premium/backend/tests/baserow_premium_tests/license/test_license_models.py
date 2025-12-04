@@ -3,8 +3,9 @@ from datetime import datetime, timezone
 from django.test.utils import override_settings
 
 import pytest
-from baserow_premium.license.models import License
 from freezegun import freeze_time
+
+from baserow_premium.license.models import License
 
 VALID_ONE_SEAT_LICENSE = (
     # id: "1", instance_id: "1"

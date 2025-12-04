@@ -135,7 +135,7 @@ class ConcurrentUserRequestsThrottle(
         )
 
         if allowed:
-            django_request = getattr(request, "_request")
+            django_request = request._request
             setattr(django_request, BASEROW_CONCURRENCY_THROTTLE_REQUEST_ID, request_id)
             log_msg = "ALLOWING: as count={count} < limit={limit}"
         else:

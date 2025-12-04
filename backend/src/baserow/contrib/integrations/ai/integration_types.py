@@ -132,9 +132,9 @@ class AIIntegrationType(IntegrationType):
                     workspace_provider_settings,
                 ) in workspace.generative_ai_models_settings.items():
                     if provider_type not in materialized_settings:
-                        materialized_settings[
-                            provider_type
-                        ] = workspace_provider_settings
+                        materialized_settings[provider_type] = (
+                            workspace_provider_settings
+                        )
 
                 serialized["ai_settings"] = materialized_settings
 

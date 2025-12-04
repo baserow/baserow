@@ -13,7 +13,10 @@ class Migration(migrations.Migration):
             model_name="periodicdatasyncinterval",
             name="deactivation_reason",
             field=models.CharField(
-                choices=[("FAILURE", "FAILURE"), ("LICENSE_UNAVAILABLE", "LICENSE_UNAVAILABLE")],
+                choices=[
+                    ("FAILURE", "FAILURE"),
+                    ("LICENSE_UNAVAILABLE", "LICENSE_UNAVAILABLE"),
+                ],
                 help_text="The reason why the periodic data sync was deactivated.",
                 max_length=20,
                 null=True,

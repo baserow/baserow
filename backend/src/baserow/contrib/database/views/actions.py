@@ -1746,7 +1746,7 @@ class UpdateDecorationActionType(UndoableActionType):
         "original_value_provider_type_name",
         "original_value_provider_conf",
         "original_order",
-        "new_decorator_type_name" "new_value_provider_type_name",
+        "new_decorator_type_namenew_value_provider_type_name",
         "new_value_provider_conf",
         "new_order",
     ]
@@ -2444,7 +2444,7 @@ class SubmitFormActionType(ActionType):
         else:
             before = {
                 **before,
-                **{field_name: "" for field_name in fields_metadata.keys()},
+                **dict.fromkeys(fields_metadata.keys(), ""),
             }
 
         row_diff = extract_row_diff(

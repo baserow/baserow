@@ -156,7 +156,7 @@ def test_unused_names():
     # Try another suffix
     assert (
         find_unused_name(
-            ["field"], ["field", "field 4" "field (1)", "field (2)"], suffix=" ({0})"
+            ["field"], ["field", "field 4field (1)", "field (2)"], suffix=" ({0})"
         )
         == "field (3)"
     )

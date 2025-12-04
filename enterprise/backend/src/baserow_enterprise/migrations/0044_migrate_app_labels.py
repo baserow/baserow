@@ -24,8 +24,8 @@ class Migration(migrations.Migration):
         ),
         (
             "baserow_premium",
-            "0025_chartwidget_localbaserowgroupedaggregaterows_and_more"
-        )
+            "0025_chartwidget_localbaserowgroupedaggregaterows_and_more",
+        ),
     ]
 
     operations = [

@@ -214,8 +214,7 @@ class WorkspaceUserView(APIView):
                 name="workspace_user_id",
                 location=OpenApiParameter.PATH,
                 type=OpenApiTypes.INT,
-                description="Deletes the workspace user related to the provided "
-                "value.",
+                description="Deletes the workspace user related to the provided value.",
             )
         ],
         tags=["Workspaces"],

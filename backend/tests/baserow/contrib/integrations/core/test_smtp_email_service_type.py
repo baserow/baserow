@@ -42,12 +42,15 @@ def mock_django_email(
         else:
             server_mock.send.side_effect = exception_class("Generic error")
 
-    with patch(
-        "baserow.contrib.integrations.core.service_types.EmailMultiAlternatives",
-        return_value=server_mock,
-    ) as mock_email, patch(
-        "baserow.contrib.integrations.core.service_types.get_connection",
-    ) as mock_connection:
+    with (
+        patch(
+            "baserow.contrib.integrations.core.service_types.EmailMultiAlternatives",
+            return_value=server_mock,
+        ) as mock_email,
+        patch(
+            "baserow.contrib.integrations.core.service_types.get_connection",
+        ) as mock_connection,
+    ):
         yield (mock_email, mock_connection)
 
 

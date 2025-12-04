@@ -1,13 +1,13 @@
 """
 Tests for GenerateAIValuesJob creation, validation, and job limiting.
 """
+
 from io import BytesIO
 from unittest.mock import patch
 
 from django.test.utils import override_settings
 
 import pytest
-from baserow_premium.fields.models import GenerateAIValuesJob
 
 from baserow.contrib.database.fields.exceptions import FieldDoesNotExist
 from baserow.contrib.database.fields.handler import FieldHandler
@@ -19,6 +19,7 @@ from baserow.core.jobs.exceptions import MaxJobCountExceeded
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.storage import get_default_storage
 from baserow.core.user_files.handler import UserFileHandler
+from baserow_premium.fields.models import GenerateAIValuesJob
 
 
 @pytest.mark.django_db

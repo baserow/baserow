@@ -58,7 +58,7 @@ class UserFileHandler:
         """Returns user file url"""
 
         storage = get_default_storage()
-        name = getattr(user_file, "name")
+        name = user_file.name
         path = UserFileHandler().user_file_path(name)
         url = storage.url(path)
         return url

@@ -5,8 +5,9 @@ from django.contrib.auth import get_user_model
 from django.db import models
 from django.utils.functional import cached_property
 
-from baserow_premium.license.exceptions import InvalidLicenseError
 from dateutil import parser
+
+from baserow_premium.license.exceptions import InvalidLicenseError
 
 User = get_user_model()
 

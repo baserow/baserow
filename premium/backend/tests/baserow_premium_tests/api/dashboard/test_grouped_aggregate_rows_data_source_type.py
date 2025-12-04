@@ -1,10 +1,4 @@
 import pytest
-from baserow_premium.integrations.local_baserow.models import (
-    LocalBaserowGroupedAggregateRows,
-    LocalBaserowTableServiceAggregationGroupBy,
-    LocalBaserowTableServiceAggregationSeries,
-    LocalBaserowTableServiceAggregationSortBy,
-)
 from rest_framework.reverse import reverse
 from rest_framework.status import HTTP_200_OK
 
@@ -14,6 +8,12 @@ from baserow.core.formula import BaserowFormulaObject
 from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_SIMPLE
 from baserow.test_utils.helpers import AnyDict, AnyInt
+from baserow_premium.integrations.local_baserow.models import (
+    LocalBaserowGroupedAggregateRows,
+    LocalBaserowTableServiceAggregationGroupBy,
+    LocalBaserowTableServiceAggregationSeries,
+    LocalBaserowTableServiceAggregationSortBy,
+)
 
 
 @pytest.mark.django_db

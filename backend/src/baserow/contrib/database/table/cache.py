@@ -13,6 +13,7 @@ When we construct a model we:
 4. If they differ, re-query for all the fields and save them in the cache.
 5. If they are the same use the cached field attrs.
 """
+
 import typing
 import uuid
 from typing import Any, Dict, Optional
@@ -62,7 +63,7 @@ def clear_generated_model_cache():
         generated_models_cache.clear()
     else:
         raise ImproperlyConfigured(
-            "Baserow must be run with a redis cache outside of " "tests."
+            "Baserow must be run with a redis cache outside of tests."
         )
     print("Done clearing cache.")
 

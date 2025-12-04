@@ -5,7 +5,6 @@ from django.db import transaction
 from django.utils.translation import gettext as _
 
 import udspy
-from baserow_premium.prompts import get_formula_docs
 from loguru import logger
 from pydantic import create_model
 
@@ -28,6 +27,7 @@ from baserow.core.models import Workspace
 from baserow.core.service import CoreService
 from baserow_enterprise.assistant.tools.registries import AssistantToolType
 from baserow_enterprise.assistant.types import TableNavigationType, ViewNavigationType
+from baserow_premium.prompts import get_formula_docs
 
 from . import utils
 from .types import (
