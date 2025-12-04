@@ -19,15 +19,13 @@ services:
 
   backend:
     image: baserow_backend:dev
+    user: "${UID}:${GID}"
     environment:
       - BASEROW_BACKEND_DEBUGGER_ENABLED=${BASEROW_BACKEND_DEBUGGER_ENABLED:-True}
       - BASEROW_BACKEND_DEBUGGER_PORT=${BASEROW_BACKEND_DEBUGGER_PORT:-5678}
       - BASEROW_DANGEROUS_SILKY_ANALYZE_QUERIES
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
       - BASEROW_EMBEDDINGS_API_URL=${BASEROW_EMBEDDINGS_API_URL:-http://embeddings:80}
-      # Runtime user switching: entrypoint uses su-exec to switch to host user
-      - BASEROW_DEV_UID=${UID}
-      - BASEROW_DEV_GID=${GID}
     build:
       dockerfile: ./backend/Dockerfile
       context: .
@@ -49,10 +47,7 @@ services:
 
   web-frontend:
     image: baserow_web-frontend:dev
-    environment:
-      # Runtime user switching: entrypoint uses su-exec to switch to host user
-      - BASEROW_DEV_UID=${UID}
-      - BASEROW_DEV_GID=${GID}
+    user: "${UID}:${GID}"
     build:
       dockerfile: ./web-frontend/Dockerfile
       context: .
@@ -73,13 +68,13 @@ services:
 
   web-frontend-storybook:
     image: baserow_web-frontend:dev
+    user: "${UID}:${GID}"
+    profiles: ["optional"]
     restart: unless-stopped
     depends_on:
       - web-frontend
     environment:
       FEATURE_FLAGS:
-      BASEROW_DEV_UID: ${UID}
-      BASEROW_DEV_GID: ${GID}
     networks:
       local:
     command: "storybook-dev"
@@ -99,12 +94,11 @@ services:
 
   celery:
     image: baserow_backend:dev
+    user: "${UID}:${GID}"
     command: "watch-py celery-worker"
     environment:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
       - BASEROW_DANGEROUS_SILKY_ANALYZE_QUERIES
-      - BASEROW_DEV_UID=${UID}
-      - BASEROW_DEV_GID=${GID}
     volumes:
       - ./backend:/baserow/backend
       - ./premium/backend/:/baserow/premium/backend
@@ -118,12 +112,11 @@ services:
 
   celery-export-worker:
     image: baserow_backend:dev
+    user: "${UID}:${GID}"
     command: "watch-py celery-exportworker"
     environment:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
       - BASEROW_DANGEROUS_SILKY_ANALYZE_QUERIES
-      - BASEROW_DEV_UID=${UID}
-      - BASEROW_DEV_GID=${GID}
     volumes:
       - ./backend:/baserow/backend
       - ./premium/backend/:/baserow/premium/backend
@@ -137,11 +130,10 @@ services:
 
   celery-beat-worker:
     image: baserow_backend:dev
+    user: "${UID}:${GID}"
     command: "watch-py celery-beat"
     environment:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
-      - BASEROW_DEV_UID=${UID}
-      - BASEROW_DEV_GID=${GID}
     volumes:
       - ./backend:/baserow/backend
       - ./premium/backend/:/baserow/premium/backend
@@ -154,6 +146,8 @@ services:
 
   celery-flower:
     image: baserow_backend:dev
+    user: "${UID}:${GID}"
+    profiles: ["optional"]
     restart: unless-stopped
     stop_signal: SIGQUIT
     command: "celery-flower"
@@ -164,8 +158,6 @@ services:
       REDIS_URL:
       REDIS_USER:
       REDIS_PASSWORD: ${REDIS_PASSWORD:?}
-      BASEROW_DEV_UID: ${UID}
-      BASEROW_DEV_GID: ${GID}
     depends_on:
       - backend
     volumes:
@@ -184,9 +176,7 @@ services:
       context: .
       dockerfile: ./web-frontend/Dockerfile
     image: baserow_web-frontend:dev
-    environment:
-      BASEROW_DEV_UID: ${UID}
-      BASEROW_DEV_GID: ${GID}
+    user: "${UID}:${GID}"
     command: "bash -c 'cd /baserow/backend/email_compiler/ && yarn install && yarn run watch'"
     volumes:
       - ./backend:/baserow/backend
@@ -203,18 +193,6 @@ services:
     networks:
       local:
 
-  # When switching between dev and prod the media files in the media volume will be
-  # owned by different users. Ensure that we chown them to the user appropriate for the
-  # environment here.
-  volume-permissions-fixer:
-    image: bash:4.4
-    command: chown ${UID:-1000}:${GID:-1000} -R /baserow/media
-    volumes:
-      - media:/baserow/media
-      - caddy_config:/config
-      - caddy_data:/data
-    networks:
-      local:
 
   otel-collector:
     image: otel/opentelemetry-collector:0.106.1

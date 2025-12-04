@@ -2,6 +2,7 @@ services:
   # A dev compose file for quickly setting up an all in one with hot code reloading
   baserow_all_in_one:
     image: baserow:${BASEROW_VERSION:-dev-latest}
+    user: "${UID}:${GID}"
     build:
       dockerfile: $PWD/deploy/all-in-one/Dockerfile
       context: $PWD
@@ -10,8 +11,6 @@ services:
       EMAIL_SMTP: 'yes'
       EMAIL_SMTP_HOST: 'mailhog'
       EMAIL_SMTP_PORT: '1025'
-      BASEROW_DEV_UID: ${UID:-9999}
-      BASEROW_DEV_GID: ${GID:-9999}
     ports:
       - "80:80"
       - "443:443"
