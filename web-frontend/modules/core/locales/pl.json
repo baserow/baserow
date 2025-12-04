@@ -419,7 +419,7 @@
             "format": {
                 "title": "Format",
                 "description": "Format parametrów zapytania jest następujący:",
-                "codeSnippet": "?prefill_<field_name>=<value>"
+                "codeSnippet": "?prefill_&lt;field_name&gt;=&lt;value&gt;"
             },
             "example": {
                 "title": "Przykład",

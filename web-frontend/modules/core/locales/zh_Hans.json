@@ -373,7 +373,7 @@
             "format": {
                 "title": "格式",
                 "description": "查询参数格式如下：",
-                "codeSnippet": "?prefill_<field_name>=<value>"
+                "codeSnippet": "?prefill_&lt;field_name&gt;=&lt;value&gt;"
             },
             "example": {
                 "title": "示例",

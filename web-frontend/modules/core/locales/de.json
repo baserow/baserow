@@ -386,7 +386,7 @@
             "format": {
                 "title": "Format",
                 "description": "Das Format der Query Parameter is das Folgende:",
-                "codeSnippet": "?prefill_<feld_name>=<wert>"
+                "codeSnippet": "?prefill_&lt;feld_name&gt;=&lt;wert&gt;"
             },
             "example": {
                 "title": "Beispiel",

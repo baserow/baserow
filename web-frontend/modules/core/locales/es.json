@@ -384,7 +384,7 @@
             "format": {
                 "title": "Formato",
                 "description": "El formato de los parámetros de consulta es:",
-                "codeSnippet": "?pre-llenar_<nombre_del_campo>=<valor>"
+                "codeSnippet": "?pre-llenar_&lt;nombre_del_campo&gt;=&lt;valor&gt;"
             },
             "example": {
                 "title": "Ejemplo",

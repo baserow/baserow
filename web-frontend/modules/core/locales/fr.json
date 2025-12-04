@@ -230,7 +230,7 @@
     "title": "Statistiques",
     "alertTitle": "Soutenez-nous !",
     "alertText": "En partageant Baserow, vous nous aidez à améliorer le produit et à le rendre plus utile pour vous.",
-    "tweetContent": "{Découvrez {'@'}baserow, une base de données no-code libre, une alternative à Airtable !}",
+    "tweetContent": "Découvrez {'@'}baserow, une base de données no-code libre, une alternative à Airtable !",
     "redditTitle": "Baserow - Une base de données no-code libre",
     "noWorkspaceTitle": "Aucun projet",
     "noWorkspaceText": "Vous n'êtes membre d'aucun projet. Les applications telles que les bases de données doivent appartenir à un projet, donc pour pouvoir en créer, vous devez créer au moins un projet.",
@@ -386,7 +386,7 @@
       "format": {
         "title": "Format",
         "description": "Le format des paramètres de la requête est le suivant :",
-        "codeSnippet": "?prefill_<field_name>=<value>"
+        "codeSnippet": "?prefill_&lt;field_name&gt;=&lt;value&gt;"
       },
       "example": {
         "title": "Exemple",
@@ -775,7 +775,7 @@
     "openRouterApiKeyLabel": "Clé API",
     "openRouterOrganization": "Organisation (facultatif)",
     "openaiBaseUrl": "URL de base",
-    "openaiBaseUrlDescription": "Utilise l'URL de base OpenAI par défaut si elle est vide. Elle peut être remplacée par https://eu.api.openai.com/v1, https://<votre-nom-de-ressource>.openai.azure.com, ou toute autre API compatible avec OpenAI."
+    "openaiBaseUrlDescription": "Utilise l'URL de base OpenAI par défaut si elle est vide. Elle peut être remplacée par https://eu.api.openai.com/v1, https://&lt;votre-nom-de-ressource&gt;.openai.azure.com, ou toute autre API compatible avec OpenAI."
   },
   "generativeAIWorkspaceSettings": {
     "title": "Paramètres de l'IA générative",
