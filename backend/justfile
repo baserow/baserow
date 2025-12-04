@@ -16,6 +16,12 @@
 default:
     @just --list
 
+# Allow `just backend <cmd>` or `just b <cmd>` to work (for consistency with root justfile)
+backend *ARGS:
+    @just {{ ARGS }}
+
+alias b := backend
+
 # Variables
 python_version := "3.11"
 
@@ -152,8 +158,6 @@ lint: _check-dev
     DJANGO_SETTINGS_MODULE={{ django_settings }} {{ uv_run }} baserow makemigrations --dry-run --check
     {{ uv_run }} bandit -r --exclude src/baserow/test_utils,src/baserow/config/settings/local.py {{ backend_source_dirs }}
 
-# Alias for lint
-lint-python: lint
 
 # Format code with black
 format: _check-dev
@@ -164,10 +168,7 @@ sort: _check-dev
     {{ uv_run }} isort --skip generated --overwrite-in-place {{ backend_source_dirs }} {{ backend_tests_dirs }}
 
 # Fix code style (sort imports + format)
-lint-fix: sort format
-
-# Alias for lint-fix
-fix: lint-fix
+fix: sort format
 
 # =============================================================================
 # Testing

@@ -49,6 +49,35 @@ For more details on available commands, run `just --list` or see [justfile.md](j
 3. **Git** - Install from https://git-scm.com/downloads
    - Verify with: `git --version`
 
+4. **Node.js 24** - Required for frontend development (local only, not needed for Docker)
+   ```bash
+   # macOS (using nvm)
+   nvm install 24
+   nvm use 24
+
+   # Or with Homebrew
+   brew install node@24
+
+   # Linux (using nvm)
+   curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+   nvm install 24
+   nvm use 24
+   ```
+
+5. **Yarn** - Package manager for frontend
+   ```bash
+   npm install -g yarn
+   ```
+
+6. **uv** - Fast Python package manager (for backend development)
+   ```bash
+   # macOS
+   brew install uv
+
+   # Linux
+   curl -LsSf https://astral.sh/uv/install.sh | sh
+   ```
+
 Verify your installation:
 
 ```bash
@@ -58,6 +87,12 @@ $ just --version
 just 1.25.0
 $ git --version
 git version 2.40.0
+$ node -v
+v24.0.0
+$ yarn -v
+1.22.22
+$ uv --version
+uv 0.5.0
 ```
 
 ## Starting the dev environment
@@ -155,7 +190,95 @@ You don't need to restart containers when making code changes - the result shoul
 
 ## Alternative: Local development (without Docker)
 
-For faster iteration, you can run the backend natively while using Docker only for services (PostgreSQL, Redis):
+For faster iteration, you can run the backend and frontend natively while using Docker only for services (PostgreSQL, Redis, etc.).
+
+### Quick Start with `start-dev-local`
+
+The easiest way to start local development is with the `start-dev-local` command:
+
+```bash
+# Initialize backend and frontend (first time only)
+just init
+
+# Start the full local development environment
+just start-dev-local
+```
+
+This single command:
+1. Starts Docker services: `db`, `redis`, `mailhog`, `otel-collector`
+2. Waits for PostgreSQL and Redis to be ready
+3. Runs database migrations
+4. Starts the backend Django dev server (http://localhost:8000)
+5. Starts all Celery workers (main, export, beat scheduler)
+6. Starts the frontend Nuxt dev server (http://localhost:3000)
+
+To stop everything:
+
+```bash
+just stop-dev-local
+```
+
+### Environment Configuration
+
+The `start-dev-local` command requires environment variables from `.env.local` (created during `just init`).
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `DATABASE_HOST` | PostgreSQL host | `localhost` |
+| `DATABASE_PORT` | PostgreSQL port | `5432` |
+| `REDIS_HOST` | Redis host | `localhost` |
+| `REDIS_PORT` | Redis port | `6379` |
+| `SECRET_KEY` | Django secret key | (auto-generated) |
+
+The `.env.local` file is automatically loaded by backend commands via the `_load_env` helper in the justfile.
+
+### How `start-dev-local` Works
+
+The `start-dev-local` command orchestrates multiple justfile recipes:
+
+```
+just start-dev-local
+├── just dc-dev up -d redis db mailhog otel-collector   # Start Docker services
+├── just b migrate                                       # Run database migrations
+├── just b run-dev-server                                # Backend (backend/justfile)
+├── just b run-dev-celery                                # Celery workers (backend/justfile)
+└── just f run-dev-server                                # Frontend (web-frontend/justfile)
+```
+
+All processes log to `/tmp/baserow-*.log`:
+- `/tmp/baserow-backend.log` - Django dev server
+- `/tmp/baserow-celery.log` - Celery workers
+- `/tmp/baserow-web-frontend.log` - Nuxt dev server
+
+### Viewing Logs
+
+```bash
+# View all logs (backend + celery)
+just logs
+
+# Follow logs in real-time
+just logs -f
+
+# Specific services
+just logs backend          # Backend only
+just logs celery           # All celery workers
+just logs frontend         # Nuxt frontend
+just logs -f backend       # Follow backend logs
+```
+
+### Syncing Templates
+
+To sync Baserow templates locally (creates example databases, forms, etc.):
+
+```bash
+just b manage sync_templates
+```
+
+This is disabled by default during local development for faster startup (controlled by `SYNC_TEMPLATES_ON_STARTUP=false` in `.env.local`). Run it manually when you need the templates.
+
+### Manual Setup (Alternative)
+
+If you prefer more control, you can start services manually:
 
 ```bash
 # Start only database and redis
@@ -169,6 +292,9 @@ just b run-dev-server
 
 # In another terminal, run Celery workers
 just b run-dev-celery
+
+# In another terminal, run the frontend
+just f run-dev-server
 ```
 
 See [justfile.md](justfile.md) for more details on local development.

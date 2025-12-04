@@ -1,3 +1,5 @@
+@use 'sass:string';
+
 $white: #fff;
 $black: #000;
 
@@ -247,6 +249,6 @@ $colors: (
 //    const color = styles["darker-gray"]
 :export {
   @each $color, $value in $colors {
-    #{unquote($color)}: $value;
+    #{string.unquote($color)}: $value;
   }
 }

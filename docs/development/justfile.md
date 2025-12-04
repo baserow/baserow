@@ -108,6 +108,52 @@ The command automatically detects whether you're running Docker or local process
 - **Docker**: Uses `docker compose logs` (celery expands to celery + celery-export-worker + celery-beat-worker)
 - **Local**: Tails log files from `/tmp/baserow-*.log`
 
+### Full Local Development Environment
+
+Start the entire local dev stack with a single command:
+
+| Command | Description |
+|---------|-------------|
+| `just start-dev-local` | Start local dev env (Docker services + migrations + backend + celery + frontend) |
+| `just stop-dev-local` | Stop all services started by start-dev-local |
+
+```bash
+# Start everything
+just start-dev-local
+
+# Stop everything
+just stop-dev-local
+```
+
+The `start-dev-local` command:
+1. Starts Docker services: `db`, `redis`, `mailhog`, `otel-collector`
+2. Waits for PostgreSQL and Redis to be ready
+3. Runs database migrations (`just b migrate`)
+4. Starts backend dev server → http://localhost:8000
+5. Starts Celery workers (main + export + beat)
+6. Starts frontend dev server → http://localhost:3000
+
+**Prerequisites:**
+- Run `just init` first (creates `.env.local` and installs dependencies)
+- Docker must be running (for db, redis, etc.)
+
+**Environment variables** are loaded from `.env.local` in the project root. Key variables:
+
+| Variable | Purpose | Default |
+|----------|---------|---------|
+| `DATABASE_HOST` | PostgreSQL host | `localhost` |
+| `DATABASE_PORT` | PostgreSQL port | `5432` |
+| `REDIS_HOST` | Redis host | `localhost` |
+| `REDIS_PORT` | Redis port | `6379` |
+| `SECRET_KEY` | Django secret | (from `.env.local.example`) |
+
+**Log files** are written to `/tmp/`:
+- `/tmp/baserow-backend.log`
+- `/tmp/baserow-celery.log`
+- `/tmp/baserow-web-frontend.log`
+
+Use `just logs` to view them (see [Viewing Logs](#viewing-logs)).
+
 ### Calling Backend Commands from Root
 
 You can call any backend command from the project root using `just b`:
@@ -117,7 +163,7 @@ You can call any backend command from the project root using `just b`:
 just b init        # Initialize backend
 just b test        # Run tests
 just b lint        # Run linter
-just b run-dev     # Start dev server
+just b run-dev-server  # Start dev server
 
 # These are equivalent
 just b init

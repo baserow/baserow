@@ -27,7 +27,7 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     build-essential \
     dos2unix \
-    python3.11 \
+    python3 \
     && rm -rf /var/lib/apt/lists/*
 
 # Update node user to fixed UID 9999 (always cached)
