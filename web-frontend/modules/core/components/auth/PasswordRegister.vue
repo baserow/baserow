@@ -2,14 +2,14 @@
   <div>
     <Alert v-if="invitation !== null" type="info-primary">
       <template #title>{{ $t('invitationTitle') }}</template>
-      <i18n path="invitationMessage" tag="p">
+      <i18n-t keypath="invitationMessage" tag="p">
         <template #invitedBy>
           <strong>{{ invitation.invited_by }}</strong>
         </template>
         <template #workspace>
           <strong>{{ invitation.workspace }}</strong>
         </template>
-      </i18n>
+      </i18n-t>
     </Alert>
     <Error :error="error"></Error>
     <form @submit.prevent="register">
