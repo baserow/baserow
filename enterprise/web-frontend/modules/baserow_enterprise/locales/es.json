@@ -263,7 +263,14 @@
         "firstNameAttrKey": "Nombre",
         "duplicateBaseUrl": "La URL ingresada ya existe en otro proveedor",
         "useIdToken": "Utiliza el «token id» para obtener información del usuario",
-        "responseSettings": "Atributos de respuesta OIDC"
+        "responseSettings": "Atributos de respuesta OIDC",
+        "defaultAttrs": "Predeterminado",
+        "customAttrs": "Personalizado",
+        "emailAttrKey": "Correo electrónico",
+        "emailAttrKeyHelper": "La dirección de correo electrónico que se usará como nombre de usuario para el usuario. ",
+        "lastNameAttrKey": "Apellidos",
+        "firstNameAttrKeyHelper": "El primer nombre del usuario, o el nombre completo si no se indica los 'Apellidos'.",
+        "lastNameAttrKeyHelper": "Apellido del usuario (opcional). Borra este valor para proporcionar el nombre completo mediante ‘Nombre’."
     },
     "manageTeamModals": {
         "subheading": "Los equipos permiten conceder o restringir permisos en bloque a varias personas."
@@ -288,7 +295,18 @@
         "auditLogs": "Registros de auditoría",
         "coBranding": "Sustitución del logotipo de marca compartida",
         "support": "Apoyo directo",
-        "dataSync": "Sincronizar datos"
+        "dataSync": "Sincronizar datos",
+        "ssoContent": "Habilita inicios de sesión seguros y sin interrupciones con SAML, Google, Facebook, GitHub, GitLab o OpenID Connect. Admite varios proveedores a la vez. Ten en cuenta que tanto Baserow como herramienta, como el sistema de autenticación del creador de aplicaciones, soportan SSO.",
+        "rbacContent": "Gestiona permisos con precisión. Asigna roles como administrador, creador, editor, comentarista o espectador a nivel de espacio de trabajo, base de datos o tabla. También puedes gestionar el acceso por equipo.",
+        "auditLogsContent": "Rastrea todo lo que ocurre. Visualiza un historial completo de acciones en tu instancia o espacio de trabajo, filtrable por usuario, acción y más.",
+        "dataSyncContent": "Mantén automáticamente las tablas actualizadas sincronizándolas con otras tablas de Baserow o con fuentes externas como Jira, GitHub, GitLab o HubSpot. También permite sincronizar de forma periódica y habilita la sincronización bidireccional de datos para los tipos de sincronización compatibles.",
+        "coBrandingContent": "Personaliza la interfaz de Baserow con tu propio logo. Ten en cuenta que se añade “powered by Baserow”.",
+        "supportContent": "Obtén ayuda cuando la necesites. Contacta al equipo de Baserow directamente desde la plataforma.",
+        "advancedWebhooks": "Webhooks avanzados",
+        "advancedWebhooksContent": "Activar webhooks cuando una fila entra en una vista específica — ideal para automatizar flujos de trabajo basados en condiciones de filtro.",
+        "fieldLevelPermissions": "Permisos a nivel de campo",
+        "fieldLevelPermissionsContent": "Controla quién puede editar campos específicos en una tabla. Establece permisos para editores, creadores, administradores o desactiva por completo las modificaciones de los valores de los campos.",
+        "builderBranding": "Marca de la aplicación"
     },
     "chatwootSupportSidebarWorkspace": {
         "directSupport": "Apoyo directo"
@@ -425,5 +443,8 @@
     },
     "enterpriseTwoWaySyncStrategyType": {
         "realtimePushDescription": "Permite editar los valores de las celdas directamente en Baserow y los envía en tiempo real a la fuente de sincronización de datos. Ten en cuenta que los cambios no se extraen en tiempo real porque dependen de la acción de sincronización (periódica) para completarse. Se recomienda encarecidamente crear copias de seguridad de la base de datos PostgreSQL para evitar modificaciones accidentales."
+    },
+    "assistantPanel": {
+        "close": "Cerrar asistente de IA"
     }
 }
