@@ -270,7 +270,6 @@ const templateModal = ref(null)
 // ----------------------------------------------------------------------------
 await useAsyncData('currentWorkspace', async () => {
   const workspaceId = parseInt(route.params.workspaceId, 10)
-  console.log('current is ', workspaceId)
   let workspace
   try {
     workspace = await $store.dispatch('workspace/selectById', workspaceId)

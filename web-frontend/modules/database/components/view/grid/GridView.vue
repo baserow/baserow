@@ -562,6 +562,14 @@ export default {
         `${this.storePrefix}view/grid/getActiveSearchTerm`
       ]
     },
+    allRows() {
+      return this.$store.getters[this.storePrefix + 'view/grid/getAllRows']
+    },
+    isMultiSelectActive() {
+      return this.$store.getters[
+        this.storePrefix + 'view/grid/isMultiSelectActive'
+      ]
+    },
   },
   watch: {
     fieldOptions: {
@@ -620,7 +628,7 @@ export default {
       this.$emit('refresh')
     },
   },
-  beforeCreate() {
+  /*beforeCreate() {
     this.$options.computed = {
       ...(this.$options.computed || {}),
       ...mapGetters({
@@ -629,7 +637,7 @@ export default {
           this.$options.propsData.storePrefix + 'view/grid/isMultiSelectActive',
       }),
     }
-  },
+  },*/
   created() {
     // When the grid view is created we want to update the scrollbars.
     this.fieldsUpdated()

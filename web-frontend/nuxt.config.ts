@@ -61,10 +61,6 @@ export default defineNuxtConfig({
   alias: {
     '@baserow': '',
   },
-  sourcemap: {
-    server: false,
-    client: false,
-  },
   css: [],
   modules: [
     '@/modules/core/module.js',

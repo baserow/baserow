@@ -118,6 +118,10 @@
           width: fieldWidths[field.id] + 'px',
           ...getSelectedCellStyle(field),
         }"
+        :is-selected="isCellSelected(field.id)"
+        :is-alive="isAlive(field.id)"
+        :add-keep-alive="addKeepAlive"
+        :remove-keep-alive="removeKeepAlive"
         @update="$emit('update', $event)"
         @paste="$emit('paste', $event)"
         @edit="$emit('edit', $event)"
@@ -133,6 +137,7 @@
         @cell-shift-click="$emit('cell-shift-click', { row, field })"
         @add-row-after="$emit('add-row-after', $event)"
         @edit-modal="$emit('edit-modal', row)"
+        @select-cell="selectCell"
       ></GridViewCell>
     </div>
   </RecursiveWrapper>
@@ -326,6 +331,9 @@ export default {
     },
     isCellSelected(fieldId) {
       return this.row._.selected && this.row._.selectedFieldId === fieldId
+    },
+    isAlive(fieldId) {
+      return this.alive.includes(fieldId)
     },
     selectCell(fieldId, rowId = this.row.id) {
       this.$emit('cell-selected', { fieldId, rowId })

@@ -16,6 +16,7 @@ import { setDefaultResultOrder } from 'node:dns'
 import _ from 'lodash'
 import defu from 'defu'
 import pathe from 'pathe'
+import page from '../builder/services/page'
 
 //import head from './head'
 // import { routes as customRoutes } from './routes'
@@ -79,7 +80,6 @@ export default defineNuxtModule({
   hooks: {},
   // The function holding your module logic, it can be asynchronous
   setup(moduleOptions, nuxt) {
-    console.log('setup called')
     const { resolve } = createResolver(import.meta.url)
 
     /*nuxt.hook('vue:error', (err, instance, info) => {
@@ -94,13 +94,13 @@ export default defineNuxtModule({
     })*/
 
     // Universal mode
-    // nuxt.options.ssr = true
+    //nuxt.options.ssr = true
 
     // Equivalent DNS
     // setDefaultResultOrder('ipv4first')
 
     // Supprimer les routes auto-générées (Nuxt 3 n'en génère plus si `pages: false`)
-    // nuxt.options.pages = false
+    //nuxt.options.pages = false
 
     // Merge du head
     // nuxt.options.app.head = _.merge({}, head, nuxt.options.app.head)
@@ -172,6 +172,8 @@ export default defineNuxtModule({
         baserowEmbeddedShareUrl:
           process.env.BASEROW_EMBEDDED_SHARE_URL ??
           nuxt.options.runtimeConfig.public.publicWebFrontendUrl,
+        baserowUsePgFulltextSearch:
+          process.env.BASEROW_USE_PG_FULLTEXT_SEARCH ?? 'true',
         /*sentry: {
           config: {
             dsn: process.env.SENTRY_DSN || '',

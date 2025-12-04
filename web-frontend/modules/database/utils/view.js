@@ -626,6 +626,8 @@ export function getDefaultView(app, store, workspaceId, showRowModal) {
   const allViews = store.getters['view/getAllOrdered']
   const views = defaultView ? [defaultView, ...allViews] : allViews
 
+  console.log('viuew', views)
+
   return views.find((view) => {
     const viewType = app.$registry.get('view', view.type)
     if (viewType.isDeactivated(workspaceId)) {
@@ -707,13 +709,21 @@ export function encodeDefaultViewIdPerTable(data) {
  * is no default view for the table.
  */
 export function readDefaultViewIdFromCookie(
-  cookies,
   tableId,
   cookieName = DEFAULT_VIEW_ID_COOKIE_NAME
 ) {
   try {
-    const cookieValue = cookies.get(cookieName) || ''
-    const defaultViews = decodeDefaultViewIdPerTable(cookieValue)
+    const cookieValue = useCookie(cookieName, {
+      path: '/',
+      maxAge: 60 * 60 * 24 * 365, // 1 year
+      sameSite: config.BASEROW_FRONTEND_SAME_SITE_COOKIE,
+      secure,
+      default() {
+        return ''
+      },
+    })
+    //const cookieValue = cookies.get(cookieName) || ''
+    const defaultViews = decodeDefaultViewIdPerTable(cookieValue.value)
     const defaultView = defaultViews.find((view) => view.tableId === tableId)
     return defaultView ? defaultView.viewId : null
   } catch (error) {
@@ -733,13 +743,26 @@ export function readDefaultViewIdFromCookie(
  * @param {String} cookieName - The name of the cookie.
  */
 export function saveDefaultViewIdInCookie(
-  cookies,
   view,
   config,
   cookieName = DEFAULT_VIEW_ID_COOKIE_NAME
 ) {
-  const cookieValue = cookies.get(cookieName) || ''
-  let defaultViews = decodeDefaultViewIdPerTable(cookieValue)
+  console.log('before usecookie', config.public.baserowFrontendSameSiteCookie)
+
+  const secure = isSecureURL(config.public.publicWebFrontendUrl)
+  const cookieValue = useCookie(cookieName, {
+    path: '/',
+    maxAge: 60 * 60 * 24 * 365, // 1 year
+    sameSite: config.public.baserowFrontendSameSiteCookie,
+    secure,
+    default: () => {
+      return ''
+    },
+  })
+  console.log('ça masse')
+
+  //const cookieValue = cookies.get(cookieName) || ''
+  let defaultViews = decodeDefaultViewIdPerTable(cookieValue.value)
 
   function createEntry(view) {
     return { tableId: view.table_id, viewId: view.id }
@@ -762,12 +785,12 @@ export function saveDefaultViewIdInCookie(
       defaultViews,
       encodeDefaultViewIdPerTable
     )
-    const secure = isSecureURL(config.PUBLIC_WEB_FRONTEND_URL)
-    cookies.set(cookieName, fittedListEncoded, {
+    cookieValue.value = fittedListEncoded
+    /*cookies.set(cookieName, fittedListEncoded, {
       path: '/',
       maxAge: 60 * 60 * 24 * 365, // 1 year
       sameSite: config.BASEROW_FRONTEND_SAME_SITE_COOKIE,
       secure,
-    })
+    })*/
   }
 }
