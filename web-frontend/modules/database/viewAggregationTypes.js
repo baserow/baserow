@@ -891,6 +891,7 @@ export class DistributionViewAggregationType extends ViewAggregationType {
       'email',
       'phone_number',
       'single_select',
+      'multiple_select',
       'duration',
       'boolean',
       FormulaFieldType.compatibleWithFormulaTypes(

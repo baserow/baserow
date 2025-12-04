@@ -5,8 +5,12 @@ import pytest
 from faker import Faker
 
 from baserow.contrib.database.fields.exceptions import FieldNotInTable
-from baserow.contrib.database.fields.field_types import SingleSelectFieldType
+from baserow.contrib.database.fields.field_types import (
+    MultipleSelectFieldType,
+    SingleSelectFieldType,
+)
 from baserow.contrib.database.fields.handler import FieldHandler
+from baserow.contrib.database.fields.models import SelectOption
 from baserow.contrib.database.views.exceptions import FieldAggregationNotSupported
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.registries import view_aggregation_type_registry
@@ -498,14 +502,25 @@ class TestViewDistributionAggregation:
                 next_value = random.choice(random_values)
             random_values.append(next_value)
 
-        # Map each value to its expected count of occurrences in the distribution
+        if isinstance(field_type, MultipleSelectFieldType):
+            random_values_flat = []
+            for sublist in random_values:
+                if isinstance(sublist, list):
+                    random_values_flat += sublist
+                else:
+                    random_values_flat.append(sublist)
+        else:
+            random_values_flat = random_values
+
         expected_distribution = {}
-        for value in random_values:
-            count = random_values.count(value)
+        for value in random_values_flat:
+            count = random_values_flat.count(value)
             if isinstance(field_type, SingleSelectFieldType):
                 # For SingleSelect fields, the value should be the label of the
                 # select option, not the entire select option object itself.
                 key = value.value
+            elif isinstance(field_type, MultipleSelectFieldType):
+                key = SelectOption.objects.get(id=value).value
             else:
                 key = value
             expected_distribution[key] = count
@@ -557,6 +572,14 @@ class TestViewDistributionAggregation:
         data_fixture.create_select_option(field=single_select_field)
         self.create_random_values_and_expected_distributions(single_select_field)
 
+        multiple_select_field = data_fixture.create_multiple_select_field(table=table)
+        data_fixture.create_select_option(field=multiple_select_field)
+        data_fixture.create_select_option(field=multiple_select_field)
+        data_fixture.create_select_option(field=multiple_select_field)
+        self.create_random_values_and_expected_distributions(multiple_select_field)
+
+        multiple_select_field_name = f"field_{multiple_select_field.id}"
+
         # Create an iterable where every item represents the values of a row
         rows_values = zip(*[self.random_values[field] for field in self.test_fields])
         # Create a list of field names to reference them by
@@ -564,12 +587,14 @@ class TestViewDistributionAggregation:
         # Insert all row values into the table
         model = table.get_model()
         for row_values in rows_values:
-            model.objects.create(
+            row = model.objects.create(
                 **{
                     field_name: value
                     for field_name, value in zip(field_names, row_values)
+                    if field_name != multiple_select_field_name
                 }
             )
+            getattr(row, multiple_select_field_name).set(row_values[-1])
 
         # After creating all the regular fields and inserting values for them, we
         # create these Formula fields that simply mirror the values of some of the

@@ -459,6 +459,7 @@ class DistributionViewAggregationType(ViewAggregationType):
         EmailFieldType.type,
         PhoneNumberFieldType.type,
         SingleSelectFieldType.type,
+        MultipleSelectFieldType.type,
         DurationFieldType.type,
         BooleanFieldType.type,
         FormulaFieldType.compatible_with_formula_types(

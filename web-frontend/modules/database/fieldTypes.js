@@ -3933,6 +3933,10 @@ export class MultipleSelectFieldType extends SelectOptionBaseFieldType {
     return value.map((item) => item.value).join(delimiter)
   }
 
+  toAggregationString(field, value) {
+    return value
+  }
+
   getDocsDataType() {
     return 'array'
   }

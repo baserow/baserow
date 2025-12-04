@@ -5286,6 +5286,9 @@ class MultipleSelectFieldType(
                 Value([], output_field=JSONField()),
             )
 
+    def get_distribution_group_by_value(self, field_name: str):
+        return f"{field_name}__value"
+
 
 class PhoneNumberFieldType(CollationSortMixin, CharFieldMatchingRegexFieldType):
     """
