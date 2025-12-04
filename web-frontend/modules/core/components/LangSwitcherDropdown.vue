@@ -21,12 +21,12 @@ import { useI18n } from 'vue-i18n'
 
 const dropdown = ref(null)
 
-const { locale, locales } = useI18n()
+const { locale, locales, setLocale } = useI18n()
 
 const language = computed({
   get: () => locale.value,
-  set: (value) => {
-    locale.value = value
+  set: async (value) => {
+    await setLocale(value)
   },
 })
 
