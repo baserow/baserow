@@ -149,7 +149,7 @@ export default {
     },
     humanExportedAt(timestamp) {
       const { period, count } = getHumanPeriodAgoCount(timestamp)
-      return this.$tc(`datetime.${period}Ago`, count)
+      return this.$c(`datetime.${period}Ago`, { count })
     },
     hidden() {
       this.stopPollIfRunning()

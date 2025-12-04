@@ -83,15 +83,6 @@ import {
   keyboardShortcutsToPriorityEventBus,
 } from '@baserow/modules/core/utils/events'
 
-/*definePageMeta({
-  middleware: [
-    'settings',
-    'authenticated',
-    'workspacesAndApplications',
-    'pendingJobs',
-  ],
-})*/
-
 const store = useStore()
 
 const col1Width = ref(240)

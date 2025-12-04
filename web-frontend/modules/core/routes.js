@@ -11,35 +11,49 @@ export const routes = [
     path: '',
     file: path.resolve(__dirname, 'pages/index.vue'),
   },
+
   {
-    name: 'login',
-    path: '/login',
-    file: path.resolve(__dirname, 'pages/login.vue'),
-  },
-  {
-    name: 'signup',
-    path: '/signup',
-    file: path.resolve(__dirname, 'pages/signup.vue'),
-  },
-  {
-    name: 'forgot-password',
-    path: '/forgot-password',
-    file: path.resolve(__dirname, 'pages/forgotPassword.vue'),
-  },
-  {
-    name: 'reset-password',
-    path: '/reset-password/:token',
-    file: path.resolve(__dirname, 'pages/resetPassword.vue'),
-    meta: { preventPageViewTracking: true },
-  },
-  {
-    name: 'verify-email-address',
-    path: '/verify-email-address/:token',
-    file: path.resolve(__dirname, 'pages/verifyEmailAddress.vue'),
+    name: 'login-pages',
+    path: '',
+    file: path.resolve(__dirname, 'pages/loginPages.vue'),
+    children: [
+      {
+        name: 'login',
+        path: '/login',
+        file: path.resolve(__dirname, 'pages/login.vue'),
+      },
+      {
+        name: 'signup',
+        path: '/signup',
+        file: path.resolve(__dirname, 'pages/signup.vue'),
+      },
+      {
+        name: 'forgot-password',
+        path: '/forgot-password',
+        file: path.resolve(__dirname, 'pages/forgotPassword.vue'),
+      },
+      {
+        name: 'reset-password',
+        path: '/reset-password/:token',
+        file: path.resolve(__dirname, 'pages/resetPassword.vue'),
+        meta: { preventPageViewTracking: true },
+      },
+      {
+        name: 'verify-email-address',
+        path: '/verify-email-address/:token',
+        file: path.resolve(__dirname, 'pages/verifyEmailAddress.vue'),
+      },
+      {
+        // It's not exactly a login page but it was inheriting from login layout
+        name: 'style-guide',
+        path: '/style-guide',
+        file: path.resolve(__dirname, 'pages/styleGuide.vue'),
+      },
+    ],
   },
   {
     name: 'root',
-    path: '/',
+    path: '',
     file: path.resolve(__dirname, 'pages/root.vue'),
     children: [
       {
@@ -104,11 +118,6 @@ export const routes = [
     meta: { preventPageViewTracking: true },
   },
 
-  {
-    name: 'style-guide',
-    path: '/style-guide',
-    file: path.resolve(__dirname, 'pages/styleGuide.vue'),
-  },
   {
     name: 'template',
     path: '/template/:slug',

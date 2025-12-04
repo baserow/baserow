@@ -3,7 +3,7 @@
   <!-- must be in sync with modules/baserow_enterprise/components/EnterpriseLogo.vue -->
   <div class="logo">
     <img
-      src="@baserow/modules/core/static/img/logo.svg"
+      src="@baserow/modules/core/static/img/logo.svg?url"
       v-bind="$attrs"
       :class="[$attrs.class]"
     />

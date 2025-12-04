@@ -169,7 +169,6 @@ export default {
   },
   methods: {
     async success() {
-      console.log('success')
       if (this.redirectOnSuccess) {
         const original = this.computedOriginal
         if (original && isRelativeUrl(original)) {
@@ -178,7 +177,6 @@ export default {
           await this.$router.push({ name: 'dashboard' })
         }
       }
-      console.log('remit')
       this.$emit('success')
     },
     emailNotVerified(email) {

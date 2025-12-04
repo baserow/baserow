@@ -76,7 +76,7 @@ import SidebarApplication from '@baserow/modules/core/components/sidebar/Sidebar
 import CreateTableModal from '@baserow/modules/database/components/table/CreateTableModal'
 
 export default {
-  name: 'Sidebar',
+  name: 'DBSidebar',
   components: {
     CreateTableModal,
     SidebarApplication,

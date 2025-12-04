@@ -195,7 +195,7 @@ export default {
       if (this.dateOnlyFields) {
         count += 1
       }
-      const duration = this.$tc('timelineGridRow.days', count, { count })
+      const duration = this.$t('timelineGridRow.days', { count })
       const label = this.tooTiny ? `${this.label} | ` : ''
       return `${label}${start} - ${end} (${duration})`
     },
