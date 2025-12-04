@@ -1,4 +1,5 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
+import svgLoader from 'vite-svg-loader'
 
 import path from 'node:path'
 import { nodePolyfills } from 'vite-plugin-node-polyfills'
@@ -87,6 +88,7 @@ export default defineNuxtConfig({
       nodePolyfills({
         include: ['util'],
       }),
+      svgLoader(),
     ],
   },
 })

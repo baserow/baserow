@@ -68,7 +68,6 @@ const workspaceInvitations = computed(
   () => store.getters['auth/getWorkspaceInvitations']
 )
 
-// useAsyncData remplace directement asyncData
 await useAsyncData('dashboard-init', async () => {
   const selectedWorkspace = store.getters['workspace/getSelected']
   const allWorkspaces = store.getters['workspace/getAll']
@@ -79,7 +78,7 @@ await useAsyncData('dashboard-init', async () => {
       params: { workspaceId: selectedWorkspace.id },
       query: route.query,
     })
-    return
+    return {}
   }
 
   if (allWorkspaces.length > 0) {
@@ -88,7 +87,7 @@ await useAsyncData('dashboard-init', async () => {
       params: { workspaceId: allWorkspaces[0].id },
       query: route.query,
     })
-    return
+    return {}
   }
 
   await store.dispatch('auth/fetchWorkspaceInvitations')

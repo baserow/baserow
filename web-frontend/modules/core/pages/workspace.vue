@@ -269,15 +269,12 @@ const templateModal = ref(null)
 // ASYNC DATA (replacement for asyncData)
 // ----------------------------------------------------------------------------
 await useAsyncData('currentWorkspace', async () => {
-  console.log('async data workspace')
   const workspaceId = parseInt(route.params.workspaceId, 10)
   console.log('current is ', workspaceId)
   let workspace
   try {
     workspace = await $store.dispatch('workspace/selectById', workspaceId)
-    console.log('workspace', workspace)
   } catch (e) {
-    console.log('e', e)
     throw createError({ statusCode: 404, message: 'Workspace not found.' })
   }
 

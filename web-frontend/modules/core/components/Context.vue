@@ -178,7 +178,6 @@ export default {
       this.opener = isElementOrigin ? target : null
 
       this.open = true
-      console.log('Open', this.open)
       this.openedOnce = true
 
       // Delay the position update to the next tick to let the Context content
@@ -293,11 +292,9 @@ export default {
      * Hide the context menu and make sure the body event is removed.
      */
     hide(emit = true) {
-      console.log('should hide really')
       this.opener = null
       this.open = false
 
-      console.log('itshidden', this.open)
       if (emit) {
         this.$emit('hidden')
       }
