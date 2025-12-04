@@ -81,8 +81,9 @@ export default {
     columnAmounts() {
       const maximumColumnAmount = 6
       return [...Array(maximumColumnAmount).keys()].map((columnAmount) => ({
-        name: this.$tc('columnElementForm.columnAmountName', columnAmount + 1, {
+        name: this.$t('columnElementForm.columnAmountName', {
           columnAmount: columnAmount + 1,
+          count: columnAmount + 1,
         }),
         value: columnAmount + 1,
       }))

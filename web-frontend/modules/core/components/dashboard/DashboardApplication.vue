@@ -62,7 +62,7 @@ export default {
       const { period, count } = getHumanPeriodAgoCount(
         this.application.created_on
       )
-      return this.$tc(`datetime.${period}Ago`, count)
+      return this.$t(`datetime.${period}Ago`, { count })
     },
   },
 }
