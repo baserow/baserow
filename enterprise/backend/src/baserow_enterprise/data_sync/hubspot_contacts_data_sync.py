@@ -3,7 +3,6 @@ from datetime import date, datetime
 from decimal import Decimal
 
 import requests
-from baserow_premium.license.handler import LicenseHandler
 
 from baserow.contrib.database.data_sync.exceptions import SyncError
 from baserow.contrib.database.data_sync.models import DataSyncSyncedProperty
@@ -25,6 +24,7 @@ from baserow.contrib.database.fields.models import (
 from baserow.core.utils import ChildProgressBuilder, get_value_at_path
 from baserow_enterprise.data_sync.models import HubSpotContactsDataSync
 from baserow_enterprise.features import DATA_SYNC
+from baserow_premium.license.handler import LicenseHandler
 
 
 class HubspotIDProperty(DataSyncProperty):

@@ -1,8 +1,9 @@
+from rest_framework import serializers
+
 from baserow_premium.dashboard.widgets.models import (
     ChartSeriesChartType,
     PieChartSeriesChartType,
 )
-from rest_framework import serializers
 
 
 class ChartSeriesConfigSerializer(serializers.Serializer):

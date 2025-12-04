@@ -533,9 +533,10 @@ def test_refresh_json_web_token(api_client, data_fixture, stub_user_source_regis
     assert "access_token" in response_json
     assert "refresh_token" not in response_json
 
-    with patch(
-        "baserow.api.user_sources.serializers.jwt_settings"
-    ) as mocked_settings, stub_user_source_registry(get_user_return=us_user):
+    with (
+        patch("baserow.api.user_sources.serializers.jwt_settings") as mocked_settings,
+        stub_user_source_registry(get_user_return=us_user),
+    ):
         mocked_settings.ROTATE_REFRESH_TOKENS = True
         mocked_settings.BLACKLIST_AFTER_ROTATION = False
         mocked_settings.USER_ID_CLAIM = "user_id"
@@ -554,9 +555,10 @@ def test_refresh_json_web_token(api_client, data_fixture, stub_user_source_regis
     assert BlacklistedToken.objects.count() == 0
 
     token = us_user.get_refresh_token()
-    with patch(
-        "baserow.api.user_sources.serializers.jwt_settings"
-    ) as mocked_settings, stub_user_source_registry(get_user_return=us_user):
+    with (
+        patch("baserow.api.user_sources.serializers.jwt_settings") as mocked_settings,
+        stub_user_source_registry(get_user_return=us_user),
+    ):
         mocked_settings.ROTATE_REFRESH_TOKENS = True
         mocked_settings.BLACKLIST_AFTER_ROTATION = True
         mocked_settings.USER_ID_CLAIM = "user_id"

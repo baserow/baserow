@@ -203,9 +203,9 @@ def test_openai_type_prompt_with_files():
 
     response = ai_model_type.prompt_with_files("gpt-3.5", "test prompt", file_ids=[])
     assert response == "test response"  # reference was removed from the ouput
-    assert (
-        len(openai_client.beta.assistants._assistants) == 0
-    ), "Assistant has been deleted"
+    assert len(openai_client.beta.assistants._assistants) == 0, (
+        "Assistant has been deleted"
+    )
     openai_client.beta.threads.delete.assert_called_once()
     assert len(openai_client.beta.assistants._assistants) == 0
 

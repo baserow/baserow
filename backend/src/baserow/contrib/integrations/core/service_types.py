@@ -583,7 +583,7 @@ class CoreHTTPRequestServiceType(CoreServiceType):
 
         except (UnacceptableAddressException, ConnectionError) as e:
             raise UnexpectedDispatchException(
-                f'Invalid URL: {resolved_values["url"]}'
+                f"Invalid URL: {resolved_values['url']}"
             ) from e
         except request_exceptions.RequestException as e:
             raise UnexpectedDispatchException(str(e)) from e

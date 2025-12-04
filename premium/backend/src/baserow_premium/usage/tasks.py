@@ -1,9 +1,8 @@
 from django.conf import settings
 
-from baserow_premium.usage.handler import PremiumUsageHandler
-
 from baserow.config.celery import app
 from baserow.core.handler import CoreHandler
+from baserow_premium.usage.handler import PremiumUsageHandler
 
 
 @app.task(queue=settings.BASEROW_ROLE_USAGE_QUEUE)

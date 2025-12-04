@@ -1,12 +1,11 @@
 from datetime import datetime, timezone
 from typing import Optional
 
-from baserow_premium.license.plugin import LicensePlugin
-from baserow_premium.plugins import PremiumPlugin
-
 from baserow.core.models import Workspace
 from baserow.core.registries import plugin_registry
 from baserow.core.utils import grouper
+from baserow_premium.license.plugin import LicensePlugin
+from baserow_premium.plugins import PremiumPlugin
 
 
 class PremiumUsageHandler:

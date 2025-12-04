@@ -204,9 +204,9 @@ class ListJobQuerySerializerExtension(OpenApiSerializerExtension):
                 field_schema = auto_schema._map_serializer_field(field, direction)
 
                 help_text = field_schema.get("description", "")
-                field_schema[
-                    "description"
-                ] = f"**[Only for type='{job_type.type}']** {help_text}"
+                field_schema["description"] = (
+                    f"**[Only for type='{job_type.type}']** {help_text}"
+                )
 
                 if field_name not in properties:
                     properties[field_name] = field_schema

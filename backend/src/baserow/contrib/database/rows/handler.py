@@ -325,10 +325,10 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             field_obj = field_objects[field_ids[field_name]]
             field_type = field_obj["type"]
             field = field_obj["field"]
-            prepared_values_by_field[
-                field_name
-            ] = field_type.prepare_value_for_db_in_bulk(
-                field, batch_values, continue_on_error=generate_error_report
+            prepared_values_by_field[field_name] = (
+                field_type.prepare_value_for_db_in_bulk(
+                    field, batch_values, continue_on_error=generate_error_report
+                )
             )
 
         # replace original values to keep ordering
@@ -596,8 +596,8 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             WITH ordered AS ({sql})
             SELECT id FROM ordered
             WHERE row_nr = (SELECT row_nr FROM ordered WHERE id = %s)
-            {'-' if previous else '+'} 1
-        """  # nosec B608
+            {"-" if previous else "+"} 1
+        """  # noqa: S608
 
         return table_model.objects.filter(
             id=RawSQL(adjacent_id_subquery, (*params, row.id))  # nosec B611
@@ -2351,9 +2351,12 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                 to_add = new_set_of_values - original_set_of_values
                 to_delete = original_set_of_values - new_set_of_values
 
-                m2m_to_add, (
-                    row_column_name,
-                    value_column,
+                (
+                    m2m_to_add,
+                    (
+                        row_column_name,
+                        value_column,
+                    ),
                 ) = self._prepare_m2m_field_related_objects(
                     row, field_name, list(filter(lambda v: v in to_add, value_ids))
                 )
@@ -3298,9 +3301,7 @@ class UpsertRowsMappingHandler:
                         OVER (PARTITION BY upsert_value ORDER BY id, upsert_value )
                         AS group_index
                 FROM subq ORDER BY id """
-        ).format(
-            columns, sql.Identifier(self.table_name)
-        )  # nosec B608
+        ).format(columns, sql.Identifier(self.table_name))  # noqa: S608
 
         self.execute(query)
 
@@ -3326,9 +3327,7 @@ class UpsertRowsMappingHandler:
             rows_placeholder = sql.SQL(",\n").join(rows_query)
             script_template = sql.SQL(
                 "INSERT INTO table_import (id, upsert_value) VALUES {};"
-            ).format(
-                rows_placeholder
-            )  # nosec B608
+            ).format(rows_placeholder)  # noqa: S608
             self.execute(script_template, query_params)
 
     def calculate_map(self) -> list[tuple[int, int]]:

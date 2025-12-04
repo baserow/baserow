@@ -3,6 +3,16 @@ from typing import cast
 from django.db import IntegrityError
 from django.db.models import QuerySet
 
+from rest_framework import serializers
+
+from baserow.contrib.dashboard.data_sources.handler import DashboardDataSourceHandler
+from baserow.contrib.dashboard.data_sources.models import DashboardDataSource
+from baserow.contrib.dashboard.types import WidgetDict
+from baserow.contrib.dashboard.widgets.exceptions import WidgetImproperlyConfigured
+from baserow.contrib.dashboard.widgets.models import Widget
+from baserow.contrib.dashboard.widgets.registries import WidgetType
+from baserow.contrib.dashboard.widgets.types import UpdatedWidget
+from baserow.core.services.registries import service_type_registry
 from baserow_premium.api.dashboard.widgets.serializers import (
     ChartSeriesConfigSerializer,
     PieChartSeriesConfigSerializer,
@@ -19,16 +29,6 @@ from baserow_premium.integrations.local_baserow.service_types import (
 )
 from baserow_premium.license.features import PREMIUM
 from baserow_premium.license.handler import LicenseHandler
-from rest_framework import serializers
-
-from baserow.contrib.dashboard.data_sources.handler import DashboardDataSourceHandler
-from baserow.contrib.dashboard.data_sources.models import DashboardDataSource
-from baserow.contrib.dashboard.types import WidgetDict
-from baserow.contrib.dashboard.widgets.exceptions import WidgetImproperlyConfigured
-from baserow.contrib.dashboard.widgets.models import Widget
-from baserow.contrib.dashboard.widgets.registries import WidgetType
-from baserow.contrib.dashboard.widgets.types import UpdatedWidget
-from baserow.core.services.registries import service_type_registry
 
 
 class ChartWidgetType(WidgetType):

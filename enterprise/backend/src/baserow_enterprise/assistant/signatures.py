@@ -31,10 +31,10 @@ class RequestRouter(udspy.Signature):
         desc="Previous messages formatted as '[index] (role): content', ordered chronologically"
     )
 
-    routing_decision: Literal[
-        "delegate_to_agent", "search_user_docs"
-    ] = udspy.OutputField(
-        desc="Must be one of: 'delegate_to_agent' or 'search_user_docs'"
+    routing_decision: Literal["delegate_to_agent", "search_user_docs"] = (
+        udspy.OutputField(
+            desc="Must be one of: 'delegate_to_agent' or 'search_user_docs'"
+        )
     )
     extracted_context: str = udspy.OutputField(
         desc=(

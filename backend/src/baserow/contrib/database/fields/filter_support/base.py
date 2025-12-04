@@ -4,9 +4,8 @@ from datetime import date, datetime
 from typing import TYPE_CHECKING, Any, Dict, List, Type
 
 from django.contrib.postgres.fields import JSONField
-from django.db.models import BooleanField, F
+from django.db.models import BooleanField, F, Q, Value
 from django.db.models import Field as DjangoField
-from django.db.models import Q, Value
 from django.db.models.expressions import RawSQL
 
 from loguru import logger
@@ -278,7 +277,7 @@ def get_jsonb_contains_filter_expr(
             FROM jsonb_path_query("{field_name}", %s) elem
             WHERE UPPER(elem::text) LIKE UPPER(%s)
         )
-    """  # nosec B608 {field_name}
+    """  # noqa: S608
     expr = RawSQL(raw_sql, (query_path, f"%{value}%"))  # nosec B611
     annotation_name = f"{field_name}_contains_{hash(value)}"
     return AnnotatedQ(
@@ -317,7 +316,7 @@ def get_jsonb_contains_word_filter_expr(
             FROM jsonb_path_query("{field_name}", %s) elem
             WHERE UPPER(elem::text) ~ %s
         )
-    """  # nosec B608 {field_name}
+    """  # noqa: S608
     expr = RawSQL(raw_sql, (query_path, rf"\m{re_value}\M"))  # nosec B611
 
     annotation_name = f"{field_name}_contains_word_{hash(value)}"
@@ -370,7 +369,7 @@ def get_jsonb_has_any_in_value_filter_expr(
             FROM jsonb_path_exists("{field_name}", %s) elem
             WHERE elem = true
         )
-    """  # nosec B608 {field_name}
+    """  # noqa: S608
     expr = RawSQL(raw_sql, (f"{query_path} ? ({sql_ids})",))  # nosec B611
 
     annotation_name = f"{field_name}_has_any_of_{hash(sql_ids)}"
@@ -406,7 +405,7 @@ def get_jsonb_has_exact_value_filter_expr(
                 FROM jsonb_array_elements(top_obj->'value') inner_el
             ) = %s::int[]
         )
-    """  # nosec B608 {field_name}
+    """  # noqa: S608
     expr = RawSQL(raw_sql, (sql_ids,))  # nosec B611
 
     annotation_name = f"{field_name}_has_any_of_{hash(tuple(sql_ids))}"
@@ -463,9 +462,9 @@ def get_jsonb_has_date_value_filter_expr(
         EXISTS(
             SELECT 1
             FROM jsonb_array_elements("{field_name}") elem
-            WHERE ({' AND '.join(where_clauses)})
+            WHERE ({" AND ".join(where_clauses)})
         )
-    """  # nosec B608 {field_name}
+    """  # noqa: S608
     expr = RawSQL(raw_sql, where_params)  # nosec B611
 
     annotation_name = f"{field_name}_has_date_gte_{hash(gte_of)}_lt_{hash(lt_of)}"

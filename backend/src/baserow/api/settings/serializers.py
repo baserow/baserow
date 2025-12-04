@@ -41,9 +41,9 @@ class SettingsSerializer(serializers.ModelSerializer):
         representation = super().to_representation(instance)
         # TODO Remove in a future release once email_verification is null=False
         if representation["email_verification"] is None:
-            representation[
-                "email_verification"
-            ] = Settings.EmailVerificationOptions.NO_VERIFICATION
+            representation["email_verification"] = (
+                Settings.EmailVerificationOptions.NO_VERIFICATION
+            )
 
         return representation
 

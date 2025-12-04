@@ -394,8 +394,8 @@ class DashboardDataSourceHandler:
             name=serialized_data_source["name"],
         )
 
-        id_mapping["dashboard_data_sources"][
-            serialized_data_source["id"]
-        ] = data_source.id
+        id_mapping["dashboard_data_sources"][serialized_data_source["id"]] = (
+            data_source.id
+        )
 
         return data_source

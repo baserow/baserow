@@ -11,7 +11,6 @@ from django.shortcuts import reverse
 from django.test.utils import override_settings
 
 import pytest
-from baserow_premium.views.models import CalendarView, CalendarViewFieldOptions
 from freezegun import freeze_time
 from icalendar import Calendar
 from rest_framework.response import Response
@@ -35,6 +34,7 @@ from baserow.test_utils.helpers import (
     is_dict_subset,
     setup_interesting_test_table,
 )
+from baserow_premium.views.models import CalendarView, CalendarViewFieldOptions
 
 
 def get_list_url(calendar_view_id: int) -> str:
@@ -268,7 +268,7 @@ def test_list_all_rows(api_client, premium_data_fixture):
     datetime_from = datetime(2023, 1, 1)
     datetime_to = datetime(2023, 2, 1)
     queryparams_timestamps = (
-        f"?from_timestamp={str(datetime_from)}" f"&to_timestamp={str(datetime_to)}"
+        f"?from_timestamp={str(datetime_from)}&to_timestamp={str(datetime_to)}"
     )
     datetimes = [
         datetime(2022, 12, 31),  # not in range
@@ -354,7 +354,7 @@ def test_list_all_rows_limit_offset(api_client, premium_data_fixture):
     datetime_from = datetime(2023, 1, 1)
     datetime_to = datetime(2023, 2, 1)
     queryparams_timestamps = (
-        f"?from_timestamp={str(datetime_from)}" f"&to_timestamp={str(datetime_to)}"
+        f"?from_timestamp={str(datetime_from)}&to_timestamp={str(datetime_to)}"
     )
     queryparams_limit_offset = f"&limit=3&offset=2"
     datetimes = [
@@ -442,7 +442,7 @@ def test_list_all_rows_invalid_from_to_timestamp(
         table=table, date_field=date_field
     )
     queryparams_timestamps = (
-        f"?from_timestamp={from_timestamp}" f"&to_timestamp={to_timestamp}"
+        f"?from_timestamp={from_timestamp}&to_timestamp={to_timestamp}"
     )
 
     url = (
@@ -481,7 +481,7 @@ def test_list_all_rows_invalid_limit_offset(
         table=table, date_field=date_field
     )
 
-    queryparams = f"?limit={limit}" f"&offset={offset}"
+    queryparams = f"?limit={limit}&offset={offset}"
 
     url = (
         reverse("api:database:views:calendar:list", kwargs={"view_id": calendar.id})
@@ -825,7 +825,7 @@ def test_invalid_user_timezone_returns_error(api_client, premium_data_fixture):
 
     response = api_client.get(
         get_list_url(calendar.id) + "&user_timezone=NONSENSE",
-        **{"HTTP_AUTHORIZATION": f"JWT" f" {token}"},
+        **{"HTTP_AUTHORIZATION": f"JWT {token}"},
     )
     response_json = response.json()
     assert response.status_code == HTTP_400_BAD_REQUEST
@@ -868,7 +868,7 @@ def test_too_wide_timerange_returns_error(api_client, premium_data_fixture):
         reverse("api:database:views:calendar:list", kwargs={"view_id": calendar.id})
         + "?"
         + urlencode(queryparams_timestamps),
-        **{"HTTP_AUTHORIZATION": f"JWT" f" {token}"},
+        **{"HTTP_AUTHORIZATION": f"JWT {token}"},
     )
     response_json = response.json()
     assert response.status_code == HTTP_400_BAD_REQUEST
@@ -1180,7 +1180,9 @@ def test_list_public_rows_limit_offset(api_client, premium_data_fixture):
                 row = RowHandler().create_row(
                     user,
                     table,
-                    values={f"field_{date_field.id}": f"2023-01-{day+10} {hour+10}:00"},
+                    values={
+                        f"field_{date_field.id}": f"2023-01-{day + 10} {hour + 10}:00"
+                    },
                 )
 
         response = api_client.get(
@@ -1868,7 +1870,7 @@ def test_calendar_view_persistent_filters(
     req_get = partial(api_client.get, format="json", HTTP_AUTHORIZATION=f"JWT {token}")
     params = {
         "from_timestamp": f"{start.isoformat()}",
-        "to_timestamp": f"{(start + timedelta(days=2+NUM_EVENTS)).isoformat()}",
+        "to_timestamp": f"{(start + timedelta(days=2 + NUM_EVENTS)).isoformat()}",
     }
     field_title_name = f"field_{field_title.id}"
 
@@ -2038,7 +2040,7 @@ def test_calendar_view_adhoc_filters_invalid(
     req_get = partial(api_client.get, format="json", HTTP_AUTHORIZATION=f"JWT {token}")
     params = {
         "from_timestamp": f"{start.isoformat()}",
-        "to_timestamp": f"{(start + timedelta(days=2+NUM_EVENTS)).isoformat()}",
+        "to_timestamp": f"{(start + timedelta(days=2 + NUM_EVENTS)).isoformat()}",
     }
 
     params_filter_invalid = {
@@ -2178,7 +2180,7 @@ def test_calendar_view_adhoc_filters(
     req_get = partial(api_client.get, format="json", HTTP_AUTHORIZATION=f"JWT {token}")
     params = {
         "from_timestamp": f"{start.isoformat()}",
-        "to_timestamp": f"{(start + timedelta(days=2+NUM_EVENTS)).isoformat()}",
+        "to_timestamp": f"{(start + timedelta(days=2 + NUM_EVENTS)).isoformat()}",
     }
     field_title_name = f"field_{field_title.id}"
     field_description_name = f"field_{field_description.id}"

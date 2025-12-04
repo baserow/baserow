@@ -43,7 +43,6 @@ class OneActionHasErrorAndCannotBeRedone(Exception):
 
 
 class ActionHandler(metaclass=baserow_trace_methods(tracer)):
-
     """
     Contains methods to do high level operations on ActionType's like undoing or
     redoing them.

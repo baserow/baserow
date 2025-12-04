@@ -2,7 +2,6 @@ from typing import Optional
 
 from django.contrib.auth.models import AbstractUser
 
-from baserow_premium.license.handler import LicenseHandler
 from rest_framework.exceptions import PermissionDenied
 
 from baserow.core.handler import CoreHandler
@@ -10,6 +9,7 @@ from baserow_enterprise.audit_log.operations import (
     ListWorkspaceAuditLogEntriesOperationType,
 )
 from baserow_enterprise.features import AUDIT_LOG
+from baserow_premium.license.handler import LicenseHandler
 
 
 def check_for_license_and_permissions_or_raise(

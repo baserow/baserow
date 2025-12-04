@@ -16,8 +16,7 @@ class StrictEnumOutputParser(EnumOutputParser):
 
 ```json
 {json_array}
-```"""  # nosec this falsely marks as hardcoded sql expression, but it's not related
-        # to SQL at all.
+```"""  # noqa: S608 - not SQL, just a JSON template
 
     def parse(self, response: str) -> Any:
         response = response.strip()

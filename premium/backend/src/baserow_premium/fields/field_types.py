@@ -5,12 +5,6 @@ from django.db import IntegrityError, transaction
 from django.db.models import Expression, F
 from django.utils.functional import lazy
 
-from baserow_premium.api.fields.exceptions import (
-    ERROR_GENERATIVE_AI_DOES_NOT_SUPPORT_FILE_FIELD,
-)
-from baserow_premium.fields.exceptions import GenerativeAITypeDoesNotSupportFileField
-from baserow_premium.license.features import PREMIUM
-from baserow_premium.license.handler import LicenseHandler
 from rest_framework import serializers
 
 from baserow.api.generative_ai.errors import (
@@ -42,6 +36,12 @@ from baserow.core.generative_ai.registries import (
     generative_ai_model_type_registry,
 )
 from baserow.core.jobs.handler import JobHandler
+from baserow_premium.api.fields.exceptions import (
+    ERROR_GENERATIVE_AI_DOES_NOT_SUPPORT_FILE_FIELD,
+)
+from baserow_premium.fields.exceptions import GenerativeAITypeDoesNotSupportFileField
+from baserow_premium.license.features import PREMIUM
+from baserow_premium.license.handler import LicenseHandler
 
 from .models import AIField
 from .registries import ai_field_output_registry

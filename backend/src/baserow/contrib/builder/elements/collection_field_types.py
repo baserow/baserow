@@ -200,9 +200,9 @@ class LinkCollectionFieldType(CollectionFieldType):
                 query_parameter.get("value")
             )
             if new_formula is not None:
-                collection_field.config["query_parameters"][index][
-                    "value"
-                ] = new_formula
+                collection_field.config["query_parameters"][index]["value"] = (
+                    new_formula
+                )
                 yield collection_field
 
     def deserialize_property(

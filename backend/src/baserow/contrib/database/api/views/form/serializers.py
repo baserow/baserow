@@ -133,9 +133,9 @@ class PublicFormViewFieldOptionsSerializer(FieldSerializer):
         # original select options are not exposed publicly to visitors of the form that
         # don't have full access to the Baserow table.
         if not instance.include_all_select_options:
-            instance.field._prefetched_objects_cache[
-                "select_options"
-            ] = instance._prefetched_objects_cache["allowed_select_options"]
+            instance.field._prefetched_objects_cache["select_options"] = (
+                instance._prefetched_objects_cache["allowed_select_options"]
+            )
         data = field_type_registry.get_serializer(
             instance.field, PublicFormViewFieldSerializer
         ).data

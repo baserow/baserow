@@ -116,8 +116,7 @@ class OpenIdConnectAppAuthProviderType(
     class SerializedDict(
         OpenIdConnectAuthProviderTypeMixin.OpenIdConnectSerializedDict,
         AppAuthProviderTypeDict,
-    ):
-        ...
+    ): ...
 
     serializer_field_overrides = {
         "base_url": serializers.CharField(

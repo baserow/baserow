@@ -76,7 +76,7 @@ def test_hidden_fields_are_excluded(get_storage_mock, data_fixture):
     )
     _, contents = run_export_job_with_mock_storage(table, grid_view, storage_mock, user)
     bom = "\ufeff"
-    expected = bom + "id,text_field\r\n" f"1,Something\r\n"
+    expected = bom + f"id,text_field\r\n1,Something\r\n"
     assert contents == expected
 
 
@@ -235,7 +235,7 @@ def test_exporting_public_view_without_user(get_storage_mock, data_fixture):
     )
     _, contents = run_export_job_with_mock_storage(table, grid_view, storage_mock, None)
     bom = "\ufeff"
-    expected = bom + "id,text_field\r\n" "1,hello\r\n"
+    expected = bom + "id,text_field\r\n1,hello\r\n"
     assert contents == expected
 
 
@@ -279,7 +279,7 @@ def test_columns_are_exported_by_order_then_field_id(get_storage_mock, data_fixt
     assert field_a.id < field_b.id
     _, contents = run_export_job_with_mock_storage(table, grid_view, storage_mock, user)
     bom = "\ufeff"
-    expected = bom + "id,field_c,field_a,field_b\r\n" "1,c,a,b\r\n"
+    expected = bom + "id,field_c,field_a,field_b\r\n1,c,a,b\r\n"
     assert contents == expected
 
 
@@ -419,7 +419,7 @@ def test_can_export_every_interesting_different_field_to_csv(
                     diff.append(
                         (
                             actual_values[0][j],
-                            f"Row {i+1}",
+                            f"Row {i + 1}",
                             actual_value,
                             expected_value,
                         )
@@ -1064,7 +1064,7 @@ def test_a_column_without_a_grid_view_option_has_an_option_made_and_is_exported(
 
     _, contents = run_export_job_with_mock_storage(table, grid_view, storage_mock, user)
     bom = "\ufeff"
-    expected = bom + "id,field_a,field_b\r\n" "1,a,b\r\n"
+    expected = bom + "id,field_a,field_b\r\n1,a,b\r\n"
     assert contents == expected
 
     assert GridViewFieldOptions.objects.count() == 2

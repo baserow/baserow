@@ -5,13 +5,13 @@ from unittest.mock import Mock
 from django.conf import settings
 
 import pytest
-from baserow_premium.generative_ai.managers import AIFileManager
 
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.core.storage import get_default_storage
 from baserow.core.user_files.handler import UserFileHandler
 from baserow.test_utils.fixtures.generative_ai import TestGenerativeAIWithFilesModelType
 from baserow.test_utils.helpers import AnyStr
+from baserow_premium.generative_ai.managers import AIFileManager
 
 
 @pytest.mark.django_db

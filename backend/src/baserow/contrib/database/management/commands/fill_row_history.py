@@ -135,9 +135,9 @@ def record_row_history(table, model, row, user, use_cache=False, skip_action=Fal
                 serialized_random_value = field_object["type"].random_to_input_value(
                     field_object["field"], random_value
                 )
-                row_random_values[
-                    f"field_{field_object['field'].id}"
-                ] = serialized_random_value
+                row_random_values[f"field_{field_object['field'].id}"] = (
+                    serialized_random_value
+                )
 
         rows_values = [row_random_values]
 

@@ -150,7 +150,7 @@ def test_get_set_export_serialized_value_multiple_collaborators_field(data_fixtu
     assert len(all) == 3
     imported_row_1 = all[0]
     imported_row_1_field = (
-        getattr(imported_row_1, f"field_" f"{imported_field.id}").order_by("id").all()
+        getattr(imported_row_1, f"field_{imported_field.id}").order_by("id").all()
     )
     imported_row_2 = all[1]
     imported_row_2_field = (

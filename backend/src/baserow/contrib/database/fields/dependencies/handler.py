@@ -150,7 +150,7 @@ class FieldDependencyHandler:
                     {relationship_table}.dependency_id,
                     {relationship_table}.via_id
             FROM {relationship_table} {database_prefilter_query}
-        """  # nosec b608
+        """  # noqa: S608
 
         # Raw query that traverses through the dependencies, and will find the
         # dependants of the provided fields ids recursively.
@@ -220,7 +220,7 @@ class FieldDependencyHandler:
             WHERE depth <= %(max_depth)s
             GROUP BY traverse.id, traverse.via_ids, field.content_type_id, field.name, field.table_id
             ORDER BY MAX(depth) ASC, id ASC
-        """  # nosec b608
+        """  # noqa: S608
 
         queryset = FieldDependency.objects.raw(raw_query, query_parameters)
         link_row_field_content_type = ContentType.objects.get_for_model(LinkRowField)
@@ -776,9 +776,7 @@ class FieldDependencyHandler:
         for (
             check,
             result,
-        ) in (
-            CoreHandler().check_multiple_permissions(perm_checks, workspace).items()
-        ):
+        ) in CoreHandler().check_multiple_permissions(perm_checks, workspace).items():
             if not result:
                 raise changed_field_type.get_permission_error_when_user_changes_field_to_depend_on_forbidden_field(
                     check.actor, field, check.context

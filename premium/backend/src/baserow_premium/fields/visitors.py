@@ -184,7 +184,7 @@ class AIFieldIDExtractingVisitor(BaserowFormulaVisitor):
 
 
 def extract_field_id_dependencies(
-    formula: Union[str, BaserowFormulaObject]
+    formula: Union[str, BaserowFormulaObject],
 ) -> set[int]:
     """
     Extracts all field IDs referenced by get("fields.field_X") calls in the formula.

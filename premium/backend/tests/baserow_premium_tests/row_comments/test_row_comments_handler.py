@@ -3,6 +3,10 @@ from unittest.mock import call, patch
 from django.test.utils import override_settings
 
 import pytest
+from freezegun import freeze_time
+
+from baserow.core.exceptions import UserNotInWorkspace
+from baserow.core.handler import CoreHandler
 from baserow_premium.license.exceptions import FeaturesNotAvailableError
 from baserow_premium.row_comments.exceptions import (
     InvalidRowCommentException,
@@ -14,10 +18,6 @@ from baserow_premium.row_comments.handler import (
     RowCommentsNotificationModes,
 )
 from baserow_premium.row_comments.models import RowComment, RowCommentsNotificationMode
-from freezegun import freeze_time
-
-from baserow.core.exceptions import UserNotInWorkspace
-from baserow.core.handler import CoreHandler
 
 
 @pytest.mark.django_db

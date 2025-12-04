@@ -9,7 +9,6 @@ from django.utils import timezone as django_timezone
 
 import pytest
 import responses
-from baserow_premium.license.exceptions import FeaturesNotAvailableError
 from freezegun.api import freeze_time
 
 from baserow.contrib.database.data_sync.handler import DataSyncHandler
@@ -28,6 +27,7 @@ from baserow_enterprise.data_sync.models import (
 from baserow_enterprise.data_sync.notification_types import (
     PeriodicDataSyncDeactivatedNotificationType,
 )
+from baserow_premium.license.exceptions import FeaturesNotAvailableError
 
 
 @pytest.mark.django_db

@@ -2154,8 +2154,7 @@ class MultiPageContainerElementType(
     class SerializedDict(
         MultiPageElementTypeMixin.SerializedDict,
         ContainerElementTypeMixin.SerializedDict,
-    ):
-        ...
+    ): ...
 
 
 class HeaderElementType(MultiPageContainerElementType):

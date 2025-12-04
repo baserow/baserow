@@ -71,7 +71,7 @@ def test_list_search_teams(api_client, data_fixture, enterprise_data_fixture):
     enterprise_data_fixture.create_team(name="Engineering", workspace=workspace)
 
     response = api_client.get(
-        f'{reverse("api:enterprise:teams:list", kwargs={"workspace_id": workspace.id})}?search=Sal',
+        f"{reverse('api:enterprise:teams:list', kwargs={'workspace_id': workspace.id})}?search=Sal",
         **{"HTTP_AUTHORIZATION": f"JWT {token}"},
     )
     assert response.status_code == HTTP_200_OK

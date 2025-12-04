@@ -1,6 +1,5 @@
 from django.db import transaction
 
-from baserow_premium.license.handler import LicenseHandler
 from drf_spectacular.openapi import OpenApiParameter, OpenApiTypes
 from drf_spectacular.utils import extend_schema
 from rest_framework.permissions import IsAuthenticated
@@ -24,6 +23,7 @@ from baserow_enterprise.data_sync.actions import (
     UpdatePeriodicDataSyncIntervalActionType,
 )
 from baserow_enterprise.data_sync.models import DATA_SYNC_INTERVAL_MANUAL
+from baserow_premium.license.handler import LicenseHandler
 
 from ...features import DATA_SYNC
 from .serializers import PeriodicDataSyncIntervalSerializer

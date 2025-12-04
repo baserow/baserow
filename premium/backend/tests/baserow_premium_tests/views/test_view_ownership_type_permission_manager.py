@@ -1,5 +1,4 @@
 import pytest
-from baserow_premium.permission_manager import ViewOwnershipPermissionManagerType
 
 from baserow.core.registries import object_scope_type_registry, operation_type_registry
 from baserow_enterprise.role.operations import (
@@ -9,6 +8,7 @@ from baserow_enterprise.role.operations import (
 from baserow_enterprise.views.operations import (
     ListenToAllRestrictedViewEventsOperationType,
 )
+from baserow_premium.permission_manager import ViewOwnershipPermissionManagerType
 
 
 @pytest.mark.view_ownership

@@ -184,8 +184,9 @@ def test_create_user_source_permission_denied(data_fixture, stub_check_permissio
 
     user_source_type = user_source_type_registry.get("local_baserow")
 
-    with stub_check_permissions(raise_permission_denied=True), pytest.raises(
-        PermissionException
+    with (
+        stub_check_permissions(raise_permission_denied=True),
+        pytest.raises(PermissionException),
     ):
         UserSourceService().create_user_source(
             user, user_source_type, application=application
@@ -215,8 +216,9 @@ def test_get_user_source_permission_denied(data_fixture, stub_check_permissions)
     user = data_fixture.create_user()
     user_source = data_fixture.create_user_source_with_first_type(user=user)
 
-    with stub_check_permissions(raise_permission_denied=True), pytest.raises(
-        PermissionException
+    with (
+        stub_check_permissions(raise_permission_denied=True),
+        pytest.raises(PermissionException),
     ):
         UserSourceService().get_user_source(user, user_source.id)
 
@@ -283,8 +285,9 @@ def test_delete_user_source_permission_denied(data_fixture, stub_check_permissio
     user = data_fixture.create_user()
     user_source = data_fixture.create_user_source_with_first_type(user=user)
 
-    with stub_check_permissions(raise_permission_denied=True), pytest.raises(
-        PermissionException
+    with (
+        stub_check_permissions(raise_permission_denied=True),
+        pytest.raises(PermissionException),
     ):
         UserSourceService().delete_user_source(user, user_source)
 
@@ -310,8 +313,9 @@ def test_update_user_source_permission_denied(data_fixture, stub_check_permissio
     user = data_fixture.create_user()
     user_source = data_fixture.create_user_source_with_first_type(user=user)
 
-    with stub_check_permissions(raise_permission_denied=True), pytest.raises(
-        PermissionException
+    with (
+        stub_check_permissions(raise_permission_denied=True),
+        pytest.raises(PermissionException),
     ):
         UserSourceService().update_user_source(user, user_source, value="newValue")
 
@@ -374,8 +378,9 @@ def test_move_user_source_permission_denied(data_fixture, stub_check_permissions
         application=application
     )
 
-    with stub_check_permissions(raise_permission_denied=True), pytest.raises(
-        PermissionException
+    with (
+        stub_check_permissions(raise_permission_denied=True),
+        pytest.raises(PermissionException),
     ):
         UserSourceService().move_user_source(user, user_source3, before=user_source2)
 

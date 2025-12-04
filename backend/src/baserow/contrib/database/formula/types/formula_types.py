@@ -6,9 +6,8 @@ from typing import Any, List, Optional, Set, Type, Union
 
 from django.contrib.postgres.fields import ArrayField, JSONField
 from django.db import models
-from django.db.models import Expression, F
+from django.db.models import Expression, F, Func, Q, QuerySet, TextField, Value
 from django.db.models import Field as DjangoField
-from django.db.models import Func, Q, QuerySet, TextField, Value
 from django.db.models.functions import Cast, Concat
 
 from dateutil import parser
@@ -1106,7 +1105,7 @@ class BaserowFormulaSingleFileType(
                 "url": export_file["url"],
             }
         else:
-            return f'{export_file["visible_name"]}({export_file["url"]})'
+            return f"{export_file['visible_name']}({export_file['url']})"
 
     def contains_query(self, field_name, value, model_field, field):
         value = value.strip()
@@ -2027,7 +2026,7 @@ def _lookup_formula_type_from_string(formula_type_string):
 
 
 def literal(
-    arg: Union[str, int, bool, Decimal]
+    arg: Union[str, int, bool, Decimal],
 ) -> BaserowExpression[BaserowFormulaValidType]:
     """
     A helper function for building BaserowExpressions with literals
@@ -2060,7 +2059,7 @@ class JSONBSingleKeyArrayExpression(Expression):
             FROM jsonb_to_recordset({field_name}) as items(
             {key_name} {data_type})
         )
-        """  # nosec B608
+        """  # noqa: S608
     # fmt: on
 
     def __init__(self, field_name: str, key_name: str, data_type: str, **kwargs):
@@ -2087,7 +2086,7 @@ class JSONBSingleInnerKeyArrayExpression(Expression):
             FROM jsonb_to_recordset({field_name}) as items(
             {key_name} {data_type})
         )
-        """  # nosec B608
+        """  # noqa: S608
     # fmt: on
 
     def __init__(

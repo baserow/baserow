@@ -4,10 +4,6 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 from django.contrib.auth import get_user_model
 from django.db.models import Q, QuerySet
 
-from baserow_premium.license.features import PREMIUM
-from baserow_premium.license.handler import LicenseHandler
-from baserow_premium.views.models import OWNERSHIP_TYPE_PERSONAL
-
 from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.views.operations import (
     CanReceiveNotificationOnSubmitFormViewOperationType,
@@ -59,6 +55,9 @@ from baserow.core.handler import CoreHandler
 from baserow.core.registries import PermissionManagerType, object_scope_type_registry
 from baserow.core.subjects import UserSubjectType
 from baserow.core.types import Actor, PermissionCheck
+from baserow_premium.license.features import PREMIUM
+from baserow_premium.license.handler import LicenseHandler
+from baserow_premium.views.models import OWNERSHIP_TYPE_PERSONAL
 
 User = get_user_model()
 

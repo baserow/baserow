@@ -1,6 +1,7 @@
 """
 This file tests the link row field in combination with RBAC enabled
 """
+
 import pytest
 
 from baserow.contrib.database.fields.handler import FieldHandler

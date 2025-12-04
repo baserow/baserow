@@ -3,7 +3,6 @@ from collections import OrderedDict
 from typing import List, Optional, Type
 
 import zipstream
-from baserow_premium.license.handler import LicenseHandler
 from openpyxl import Workbook
 
 from baserow.config.settings.base import BASEROW_DEFAULT_ZIP_COMPRESS_LEVEL
@@ -17,6 +16,7 @@ from baserow.contrib.database.fields.field_helpers import prepare_files_for_expo
 from baserow.contrib.database.fields.field_types import FileFieldType
 from baserow.contrib.database.views.view_types import GridViewType
 from baserow.core.storage import ExportZipFile, get_default_storage
+from baserow_premium.license.handler import LicenseHandler
 
 from ..license.features import PREMIUM
 from .serializers import ExcelExporterOptionsSerializer, FileExporterOptionsSerializer

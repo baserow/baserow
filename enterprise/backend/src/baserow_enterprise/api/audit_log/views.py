@@ -1,7 +1,6 @@
 from django.db import transaction
 from django.utils import translation
 
-from baserow_premium.license.handler import LicenseHandler
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
@@ -31,6 +30,7 @@ from baserow_enterprise.audit_log.utils import (
     check_for_license_and_permissions_or_raise,
 )
 from baserow_enterprise.features import AUDIT_LOG
+from baserow_premium.license.handler import LicenseHandler
 
 from .serializers import (
     AuditLogActionTypeSerializer,

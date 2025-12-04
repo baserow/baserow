@@ -1512,7 +1512,7 @@ def test_builder_application_imports_correct_default_roles(data_fixture):
     serialized_element = serialized_values["pages"][0]["elements"][0]
     serialized_element["role_type"] = "allow_all_except"
     serialized_element["roles"] = [
-        f'__user_source_{serialized_user_source["id"]}',
+        f"__user_source_{serialized_user_source['id']}",
     ]
 
     # Save the single element back to the list. We only need one element

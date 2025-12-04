@@ -659,9 +659,12 @@ def test_update_rows_insert_entries_in_linked_rows_history_in_multiple_tables(
         user, table_a, [{primary_a.db_column: "a1"}, {primary_a.db_column: "a2"}]
     ).created_rows
 
-    with freeze_time("2021-01-01 12:00"), patch(
-        "baserow.contrib.database.rows.signals.rows_history_updated.send"
-    ) as mock_signal:
+    with (
+        freeze_time("2021-01-01 12:00"),
+        patch(
+            "baserow.contrib.database.rows.signals.rows_history_updated.send"
+        ) as mock_signal,
+    ):
         action_type_registry.get_by_type(UpdateRowsActionType).do(
             user,
             table_a,

@@ -1,9 +1,9 @@
 import faker
-from baserow_premium.license.models import License
 
 from baserow.core.cache import local_cache
 from baserow.core.models import Settings
 from baserow_enterprise.models import Role, RoleAssignment, Team, TeamSubject
+from baserow_premium.license.models import License
 
 VALID_ONE_SEAT_ENTERPRISE_LICENSE = (
     # id: "1", instance_id: "1"

@@ -749,8 +749,8 @@ class FormulaField(Field):
         )
         expression_type = expression.expression_type
         # Update the cached properties
-        setattr(self, "cached_typed_internal_expression", expression)
-        setattr(self, "cached_formula_type", expression_type)
+        self.cached_typed_internal_expression = expression
+        self.cached_formula_type = expression_type
 
         if raise_if_invalid:
             expression_type.raise_if_invalid()
@@ -767,7 +767,7 @@ class FormulaField(Field):
 
         invalid_type = BaserowFormulaInvalidType(error)
         invalid_type.persist_onto_formula_field(self)
-        setattr(self, "cached_formula_type", invalid_type)
+        self.cached_formula_type = invalid_type
         self.save(recalculate=False, raise_if_invalid=False)
 
     def save(self, *args, **kwargs):

@@ -116,9 +116,9 @@ def test_list_applications(api_client, data_fixture, django_assert_num_queries):
             reverse("api:applications:list"), **{"HTTP_AUTHORIZATION": f"JWT {token}"}
         )
 
-        assert (
-            len(mock_filter_queryset.mock_calls) <= 2 + 4
-        ), "Should trigger max 1 call by workspace + 1 by applications"
+        assert len(mock_filter_queryset.mock_calls) <= 2 + 4, (
+            "Should trigger max 1 call by workspace + 1 by applications"
+        )
 
     assert response.status_code == HTTP_200_OK
     response_json = response.json()

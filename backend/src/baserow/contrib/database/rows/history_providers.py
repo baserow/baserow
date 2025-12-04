@@ -226,7 +226,7 @@ class RestoreFromTrashHistoryProvider(BaseActionTypeRowHistoryProvider):
             table_id=table_id,
             row_id=row_id,
             changed_field_names=field_names,
-            before_values={k: None for k in changed.keys()},
+            before_values=dict.fromkeys(changed.keys()),
             after_values=changed,
         )
 
@@ -350,7 +350,7 @@ class CreateRowHistoryProvider(CreateRowHistoryMixin, BaseActionTypeRowHistoryPr
         after = params.row_values
         metadata = params.fields_metadata
 
-        before = {"id": params.row_id, **{k: None for k in metadata.keys()}}
+        before = {"id": params.row_id, **dict.fromkeys(metadata.keys())}
         if command_type == ActionCommandType.UNDO:
             before, after = after, before
 
@@ -374,7 +374,7 @@ class CreateRowsHistoryProvider(
         for idx, row_id in enumerate(row_ids):
             after = after_values[idx]
             metadata = params.fields_metadata[str(row_id)]
-            before = {"id": row_id, **{k: None for k in metadata.keys()}}
+            before = {"id": row_id, **dict.fromkeys(metadata.keys())}
             yield RowChangeData(
                 row_id=row_id,
                 before=before if not swap_before_after else after,
@@ -456,7 +456,7 @@ class DeleteRowHistoryProvider(DeleteRowHistoryMixin, BaseActionTypeRowHistoryPr
         row_id = params.row_id
         metadata = {k: v for k, v in params.fields_metadata.items() if k != "id"}
         before = params.values
-        after = {"id": row_id, **{k: None for k in metadata.keys()}}
+        after = {"id": row_id, **dict.fromkeys(metadata.keys())}
         swap_before_after = command_type == ActionCommandType.UNDO
 
         yield RowChangeData(
@@ -479,7 +479,7 @@ class DeleteRowsHistoryProvider(
         for ridx, row_id in enumerate(params.row_ids):
             before = params.rows_values[ridx]
             metadata = params.fields_metadata[str(row_id)]
-            after = {"id": row_id, **{k: None for k in metadata.keys()}}
+            after = {"id": row_id, **dict.fromkeys(metadata.keys())}
             yield RowChangeData(
                 row_id=row_id,
                 before=before if not swap_before_after else after,

@@ -11,7 +11,7 @@ from django.db import connections
 def run(command, env):
     # Ignoring as this is a CLI admin tool calling Popen, we don't need to worry about
     # shell injection as to call this tool you must already have shell access...
-    proc = Popen(command, shell=True, env=env)  # nosec
+    proc = Popen(command, shell=True, env=env)  # noqa: S602
     proc.wait()
 
 
@@ -76,8 +76,7 @@ def copy_tables(
         )
     else:
         logger(
-            f"REAL RUN, ABOUT TO COPY TABLES FROM {source_db_name} to "
-            f"{target_db_name}"
+            f"REAL RUN, ABOUT TO COPY TABLES FROM {source_db_name} to {target_db_name}"
         )
     if ssl:
         logger("Running with sslmode=require")
@@ -97,7 +96,7 @@ def copy_tables(
 
         if num_to_copy > 0:
             count += num_to_copy
-            logger(f"Importing {num_to_copy} tables in " f"one go")
+            logger(f"Importing {num_to_copy} tables in one go")
             command = (
                 f"pg_dump {source_connection_params}{table_str} | "
                 f"psql {target_connection_params}"

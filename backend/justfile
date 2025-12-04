@@ -200,32 +200,23 @@ lint: _check-dev
     #!/usr/bin/env bash
     set -euo pipefail
     {{ _load_env }}
-    {{ uv_run }} flake8 {{ backend_source_dirs }} {{ backend_tests_dirs }}
-    {{ uv_run }} black {{ backend_source_dirs }} {{ backend_tests_dirs }} --check --config=pyproject.toml
-    {{ uv_run }} isort --check --skip generated {{ backend_source_dirs }} {{ backend_tests_dirs }}
-    DJANGO_SETTINGS_MODULE={{ django_settings }} {{ uv_run }} baserow makemigrations --dry-run --check
-    {{ uv_run }} bandit -r --exclude src/baserow/test_utils,src/baserow/config/settings/local.py {{ backend_source_dirs }}
+    {{ uv_run }} ruff check {{ backend_source_dirs }} {{ backend_tests_dirs }}
+    {{ uv_run }} ruff format --check {{ backend_source_dirs }} {{ backend_tests_dirs }}
 
+# Check for missing migrations
+lint-migrations: _check-dev
+    DJANGO_SETTINGS_MODULE={{ django_settings }} {{ uv_run }} baserow makemigrations --dry-run --check
+
+# Run all lint checks including migrations (for CI)
+ci-lint: lint lint-migrations
 
 # Format code with black
 [group('4 - code-quality')]
-format: _check-dev
     #!/usr/bin/env bash
     set -euo pipefail
     {{ _load_env }}
-    {{ uv_run }} black --config=pyproject.toml {{ backend_source_dirs }} {{ backend_tests_dirs }}
-
-# Sort imports with isort
-[group('4 - code-quality')]
-sort: _check-dev
-    #!/usr/bin/env bash
-    set -euo pipefail
-    {{ _load_env }}
-    {{ uv_run }} isort --skip generated --overwrite-in-place {{ backend_source_dirs }} {{ backend_tests_dirs }}
-
-# Fix code style (sort imports + format)
-[group('4 - code-quality')]
-fix: sort format
+    {{ uv_run }} ruff check --fix {{ backend_source_dirs }} {{ backend_tests_dirs }}
+    {{ uv_run }} ruff format {{ backend_source_dirs }} {{ backend_tests_dirs }}
 
 # =============================================================================
 # Testing

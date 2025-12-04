@@ -1,7 +1,6 @@
 from unittest.mock import patch
 
 import pytest
-from baserow_premium.fields.handler import AIFieldHandler
 from langchain_core.exceptions import OutputParserException
 
 from baserow.core.generative_ai.exceptions import (
@@ -9,6 +8,7 @@ from baserow.core.generative_ai.exceptions import (
     ModelDoesNotBelongToType,
 )
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
+from baserow_premium.fields.handler import AIFieldHandler
 
 
 @pytest.mark.django_db

@@ -7,7 +7,7 @@ from baserow.core.formula.parser.exceptions import BaserowFormulaSyntaxError
 def test_replace_single_quoted_field_ref():
     new_formula = FormulaHandler.rename_field_references_in_formula_string(
         "field('test')",
-        {"test": "new " "test"},
+        {"test": "new test"},
     )
 
     assert new_formula == "field('new test')"
@@ -32,7 +32,7 @@ def test_replace_field_reference_keeping_whitespace():
 def test_replace_field_reference_keeping_whitespace_and_comments():
     new_formula = FormulaHandler.rename_field_references_in_formula_string(
         "//my line comment \n\tfield('test')  /*my block comment*/\n\t",
-        {"test": "new " "test"},
+        {"test": "new test"},
     )
 
     assert (
@@ -44,7 +44,7 @@ def test_replace_field_reference_keeping_whitespace_and_comments():
 def test_replace_field_reference_preserving_case():
     new_formula = FormulaHandler.rename_field_references_in_formula_string(
         "//my line comment \n\tADD(fIeLd('test'),1)  /*my block comment*/\n\t",
-        {"test": "new " "test"},
+        {"test": "new test"},
     )
 
     assert (
@@ -56,10 +56,10 @@ def test_replace_field_reference_preserving_case():
 def test_replace_binary_op_keeping_whitespace_and_comments():
     new_formula = FormulaHandler.rename_field_references_in_formula_string(
         "//my line comment \n\t1+1  /*my block comment*/\n\t",
-        {"test": "new " "test"},
+        {"test": "new test"},
     )
 
-    assert new_formula == "//my line comment \n\t1+1  /*my block " "comment*/\n\t"
+    assert new_formula == "//my line comment \n\t1+1  /*my block comment*/\n\t"
 
 
 def test_replace_function_call_keeping_whitespace_and_comments():

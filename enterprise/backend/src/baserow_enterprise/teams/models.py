@@ -66,7 +66,7 @@ class Team(
         """
 
         if hasattr(self, "_annotated_default_role_uid"):
-            return getattr(self, "_annotated_default_role_uid")
+            return self._annotated_default_role_uid
 
         from baserow_enterprise.role.handler import RoleAssignmentHandler
 

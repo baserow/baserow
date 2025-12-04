@@ -1,13 +1,13 @@
 from django.test.utils import override_settings
 
 import pytest
-from baserow_premium.row_comments.handler import RowCommentHandler
-from baserow_premium.row_comments.models import RowComment
-from baserow_premium.row_comments.trash_types import RowCommentTrashableItemType
 
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.core.trash.exceptions import CannotRestoreChildBeforeParent
 from baserow.core.trash.handler import TrashHandler
+from baserow_premium.row_comments.handler import RowCommentHandler
+from baserow_premium.row_comments.models import RowComment
+from baserow_premium.row_comments.trash_types import RowCommentTrashableItemType
 
 
 @pytest.mark.django_db

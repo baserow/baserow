@@ -75,7 +75,7 @@ def test_very_nested_formula_field_change(data_fixture, django_assert_num_querie
             table=table,
             name=f"perf_formula{i}",
             type_name="formula",
-            formula=f"field('perf_formula{i-1}')+1",
+            formula=f"field('perf_formula{i - 1}')+1",
         )
     profiler = Profiler()
     profiler.start()
@@ -108,7 +108,7 @@ def test_creating_very_nested_formula_field(data_fixture):
             table=table,
             name=f"perf_formula{i}",
             type_name="formula",
-            formula=f"field('perf_formula{i-1}')+1",
+            formula=f"field('perf_formula{i - 1}')+1",
         )
     profiler.stop()
     print(profiler.output_text(unicode=True, color=True))
@@ -134,7 +134,7 @@ def test_altering_very_nested_formula_field(data_fixture, django_assert_num_quer
             table=table,
             name=f"perf_formula{i}",
             type_name="formula",
-            formula=f"field('perf_formula{i-1}')+1",
+            formula=f"field('perf_formula{i - 1}')+1",
         )
         if i == 1:
             first_field = field
@@ -170,7 +170,7 @@ def test_getting_data_from_a_very_nested_formula_field(data_fixture, api_client)
             table=table,
             name=f"perf_formula{i}",
             type_name="formula",
-            formula=f"field('perf_formula{i-1}')+1",
+            formula=f"field('perf_formula{i - 1}')+1",
         )
     url = reverse("api:database:views:grid:list", kwargs={"view_id": grid.id})
     profiler = Profiler()

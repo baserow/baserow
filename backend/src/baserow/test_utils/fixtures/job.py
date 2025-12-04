@@ -14,8 +14,7 @@ TEST_EXCEPTION = (
 )
 
 
-class TestException(Exception):
-    ...
+class TestException(Exception): ...
 
 
 class TmpJobType1FiltersSerializer(serializers.Serializer):

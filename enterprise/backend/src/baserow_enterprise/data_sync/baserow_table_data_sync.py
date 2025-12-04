@@ -4,9 +4,6 @@ from uuid import UUID
 
 from django.db.models import Prefetch
 
-from baserow_premium.fields.field_types import AIFieldType
-from baserow_premium.fields.registries import ai_field_output_registry
-from baserow_premium.license.handler import LicenseHandler
 from rest_framework import serializers
 
 from baserow.contrib.database.data_sync.exceptions import SyncError
@@ -52,6 +49,9 @@ from baserow.core.db import specific_iterator, specific_queryset
 from baserow.core.handler import CoreHandler
 from baserow.core.utils import ChildProgressBuilder
 from baserow_enterprise.features import DATA_SYNC
+from baserow_premium.fields.field_types import AIFieldType
+from baserow_premium.fields.registries import ai_field_output_registry
+from baserow_premium.license.handler import LicenseHandler
 
 from .models import LocalBaserowTableDataSync
 

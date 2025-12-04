@@ -1290,7 +1290,7 @@ def test_view_aggregations_adhoc_filtering_overrides_existing_filters(
     }
     get_params = [f"filters={json.dumps(advanced_filters)}"]
     response = api_client.get(
-        f'{url}?{"&".join(get_params)}', HTTP_AUTHORIZATION=f"JWT {token}"
+        f"{url}?{'&'.join(get_params)}", HTTP_AUTHORIZATION=f"JWT {token}"
     )
     assert response.status_code == HTTP_200_OK
     response_json = response.json()
@@ -1350,7 +1350,7 @@ def test_view_aggregations_adhoc_filtering_advanced_filters_are_preferred_to_oth
         f"filter_type=AND",
     ]
     response = api_client.get(
-        f'{url}?{"&".join(get_params)}', HTTP_AUTHORIZATION=f"JWT {token}"
+        f"{url}?{'&'.join(get_params)}", HTTP_AUTHORIZATION=f"JWT {token}"
     )
     assert response.status_code == HTTP_200_OK
     response_json = response.json()
@@ -1433,7 +1433,7 @@ def test_view_aggregations_adhoc_filtering_invalid_advanced_filters(
     for filters, error_detail in expected_errors:
         get_params = [f"filters={filters}"]
         response = api_client.get(
-            f'{url}?{"&".join(get_params)}', HTTP_AUTHORIZATION=f"JWT {token}"
+            f"{url}?{'&'.join(get_params)}", HTTP_AUTHORIZATION=f"JWT {token}"
         )
         response_json = response.json()
         assert response.status_code == HTTP_400_BAD_REQUEST
@@ -2649,7 +2649,7 @@ def test_public_view_aggregations_adhoc_filtering_combineswith_existing_filters(
     }
 
     get_params = [f"filters={json.dumps(advanced_filters)}"]
-    response = api_client.get(f'{url}?{"&".join(get_params)}')
+    response = api_client.get(f"{url}?{'&'.join(get_params)}")
     assert response.status_code == HTTP_200_OK, response.json()
     response_json = response.json()
     assert response_json == {text_field_for_view_filter.db_column: 1}
@@ -2707,7 +2707,7 @@ def test_public_view_aggregations_adhoc_filtering_advanced_filters_are_preferred
         f"filter__field_{text_field.id}__equal=z",
         f"filter_type=AND",
     ]
-    response = api_client.get(f'{url}?{"&".join(get_params)}')
+    response = api_client.get(f"{url}?{'&'.join(get_params)}")
     assert response.status_code == HTTP_200_OK
     response_json = response.json()
     assert response_json == {text_field.db_column: 2}
@@ -2787,7 +2787,7 @@ def test_public_view_aggregations_adhoc_filtering_invalid_advanced_filters(
 
     for filters, error_detail in expected_errors:
         get_params = [f"filters={filters}"]
-        response = api_client.get(f'{url}?{"&".join(get_params)}')
+        response = api_client.get(f"{url}?{'&'.join(get_params)}")
         response_json = response.json()
         assert response.status_code == HTTP_400_BAD_REQUEST
         assert response_json["error"] == "ERROR_FILTERS_PARAM_VALIDATION_ERROR"
@@ -3396,7 +3396,7 @@ def test_list_rows_public_with_query_param_filter(api_client, data_fixture):
         "api:database:views:grid:public_rows", kwargs={"slug": grid_view.slug}
     )
     get_params = [f"filter__field_{public_field.id}__contains=a"]
-    response = api_client.get(f'{url}?{"&".join(get_params)}')
+    response = api_client.get(f"{url}?{'&'.join(get_params)}")
     response_json = response.json()
     assert response.status_code == HTTP_200_OK
     assert len(response_json["results"]) == 1
@@ -3410,7 +3410,7 @@ def test_list_rows_public_with_query_param_filter(api_client, data_fixture):
         f"filter__field_{public_field.id}__contains=b",
         f"filter_type=OR",
     ]
-    response = api_client.get(f'{url}?{"&".join(get_params)}')
+    response = api_client.get(f"{url}?{'&'.join(get_params)}")
     response_json = response.json()
     assert response.status_code == HTTP_200_OK
     assert len(response_json["results"]) == 2
@@ -3419,7 +3419,7 @@ def test_list_rows_public_with_query_param_filter(api_client, data_fixture):
         "api:database:views:grid:public_rows", kwargs={"slug": grid_view.slug}
     )
     get_params = [f"filter__field_{hidden_field.id}__contains=y"]
-    response = api_client.get(f'{url}?{"&".join(get_params)}')
+    response = api_client.get(f"{url}?{'&'.join(get_params)}")
     response_json = response.json()
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response_json["error"] == "ERROR_FILTER_FIELD_NOT_FOUND"
@@ -3428,7 +3428,7 @@ def test_list_rows_public_with_query_param_filter(api_client, data_fixture):
         "api:database:views:grid:public_rows", kwargs={"slug": grid_view.slug}
     )
     get_params = [f"filter__field_{public_field.id}__random=y"]
-    response = api_client.get(f'{url}?{"&".join(get_params)}')
+    response = api_client.get(f"{url}?{'&'.join(get_params)}")
     response_json = response.json()
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response_json["error"] == "ERROR_VIEW_FILTER_TYPE_DOES_NOT_EXIST"
@@ -3437,7 +3437,7 @@ def test_list_rows_public_with_query_param_filter(api_client, data_fixture):
         "api:database:views:grid:public_rows", kwargs={"slug": grid_view.slug}
     )
     get_params = [f"filter__field_{public_field.id}__higher_than=1"]
-    response = api_client.get(f'{url}?{"&".join(get_params)}')
+    response = api_client.get(f"{url}?{'&'.join(get_params)}")
     response_json = response.json()
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response_json["error"] == "ERROR_VIEW_FILTER_TYPE_UNSUPPORTED_FIELD"
@@ -3507,7 +3507,7 @@ def test_list_rows_public_with_invalid_advanced_filters(api_client, data_fixture
 
     for filters, error_detail in expected_errors:
         get_params = [f"filters={filters}"]
-        response = api_client.get(f'{url}?{"&".join(get_params)}')
+        response = api_client.get(f"{url}?{'&'.join(get_params)}")
         response_json = response.json()
         assert response.status_code == HTTP_400_BAD_REQUEST
         assert response_json["error"] == "ERROR_FILTERS_PARAM_VALIDATION_ERROR"
@@ -3547,7 +3547,7 @@ def test_list_rows_public_with_query_param_advanced_filters(api_client, data_fix
         ],
     }
     get_params = ["filters=" + json.dumps(advanced_filters)]
-    response = api_client.get(f'{url}?{"&".join(get_params)}')
+    response = api_client.get(f"{url}?{'&'.join(get_params)}")
     response_json = response.json()
     assert response.status_code == HTTP_200_OK
     assert len(response_json["results"]) == 1
@@ -3574,7 +3574,7 @@ def test_list_rows_public_with_query_param_advanced_filters(api_client, data_fix
         ],
     }
     get_params = ["filters=" + json.dumps(advanced_filters)]
-    response = api_client.get(f'{url}?{"&".join(get_params)}')
+    response = api_client.get(f"{url}?{'&'.join(get_params)}")
     response_json = response.json()
     assert response.status_code == HTTP_200_OK
     assert len(response_json["results"]) == 2
@@ -3613,7 +3613,7 @@ def test_list_rows_public_with_query_param_advanced_filters(api_client, data_fix
         ],
     }
     get_params = ["filters=" + json.dumps(advanced_filters)]
-    response = api_client.get(f'{url}?{"&".join(get_params)}')
+    response = api_client.get(f"{url}?{'&'.join(get_params)}")
     response_json = response.json()
     assert response.status_code == HTTP_200_OK
     assert len(response_json["results"]) == 2
@@ -3629,7 +3629,7 @@ def test_list_rows_public_with_query_param_advanced_filters(api_client, data_fix
         ],
     }
     get_params = ["filters=" + json.dumps(advanced_filters)]
-    response = api_client.get(f'{url}?{"&".join(get_params)}')
+    response = api_client.get(f"{url}?{'&'.join(get_params)}")
     response_json = response.json()
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response_json["error"] == "ERROR_FILTER_FIELD_NOT_FOUND"
@@ -3645,7 +3645,7 @@ def test_list_rows_public_with_query_param_advanced_filters(api_client, data_fix
         ],
     }
     get_params = ["filters=" + json.dumps(advanced_filters)]
-    response = api_client.get(f'{url}?{"&".join(get_params)}')
+    response = api_client.get(f"{url}?{'&'.join(get_params)}")
     response_json = response.json()
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response_json["error"] == "ERROR_VIEW_FILTER_TYPE_DOES_NOT_EXIST"
@@ -3661,7 +3661,7 @@ def test_list_rows_public_with_query_param_advanced_filters(api_client, data_fix
         ],
     }
     get_params = ["filters=" + json.dumps(advanced_filters)]
-    response = api_client.get(f'{url}?{"&".join(get_params)}')
+    response = api_client.get(f"{url}?{'&'.join(get_params)}")
     response_json = response.json()
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response_json["error"] == "ERROR_VIEW_FILTER_TYPE_UNSUPPORTED_FIELD"
@@ -3672,7 +3672,7 @@ def test_list_rows_public_with_query_param_advanced_filters(api_client, data_fix
         json.dumps({"filter_type": "OR", "filters": "invalid"}),
     ]:
         get_params = [f"filters={filters}"]
-        response = api_client.get(f'{url}?{"&".join(get_params)}')
+        response = api_client.get(f"{url}?{'&'.join(get_params)}")
         response_json = response.json()
         assert response.status_code == HTTP_400_BAD_REQUEST
         assert response_json["error"] == "ERROR_FILTERS_PARAM_VALIDATION_ERROR"
@@ -4171,7 +4171,7 @@ def test_grid_view_link_row_lookup_view(api_client, data_fixture):
     response = api_client.get(
         url,
         format="json",
-        HTTP_AUTHORIZATION=f"JWT" f" {token_2}",
+        HTTP_AUTHORIZATION=f"JWT {token_2}",
     )
     assert response.status_code == HTTP_404_NOT_FOUND
     assert response.json()["error"] == "ERROR_VIEW_DOES_NOT_EXIST"
@@ -4184,7 +4184,7 @@ def test_grid_view_link_row_lookup_view(api_client, data_fixture):
     response = api_client.get(
         url,
         format="json",
-        HTTP_AUTHORIZATION=f"JWT" f" {token}",
+        HTTP_AUTHORIZATION=f"JWT {token}",
     )
     assert response.status_code == HTTP_404_NOT_FOUND
     assert response.json()["error"] == "ERROR_FIELD_DOES_NOT_EXIST"
@@ -4197,7 +4197,7 @@ def test_grid_view_link_row_lookup_view(api_client, data_fixture):
     response = api_client.get(
         url,
         format="json",
-        HTTP_AUTHORIZATION=f"JWT" f" {token}",
+        HTTP_AUTHORIZATION=f"JWT {token}",
     )
     assert response.status_code == HTTP_404_NOT_FOUND
     assert response.json()["error"] == "ERROR_FIELD_DOES_NOT_EXIST"
@@ -4210,7 +4210,7 @@ def test_grid_view_link_row_lookup_view(api_client, data_fixture):
     response = api_client.get(
         url,
         format="json",
-        HTTP_AUTHORIZATION=f"JWT" f" {token}",
+        HTTP_AUTHORIZATION=f"JWT {token}",
     )
     assert response.status_code == HTTP_404_NOT_FOUND
     assert response.json()["error"] == "ERROR_FIELD_DOES_NOT_EXIST"
@@ -4223,7 +4223,7 @@ def test_grid_view_link_row_lookup_view(api_client, data_fixture):
     response = api_client.get(
         url,
         format="json",
-        HTTP_AUTHORIZATION=f"JWT" f" {token}",
+        HTTP_AUTHORIZATION=f"JWT {token}",
     )
     assert response.status_code == HTTP_404_NOT_FOUND
     assert response.json()["error"] == "ERROR_FIELD_DOES_NOT_EXIST"
@@ -4531,7 +4531,7 @@ def test_list_rows_public_advanced_filters_are_preferred_to_other_filter_query_p
         f"filter__field_{public_field.id}__equal=z",
         f"filter_type=AND",
     ]
-    response = api_client.get(f'{url}?{"&".join(get_params)}')
+    response = api_client.get(f"{url}?{'&'.join(get_params)}")
     response_json = response.json()
     assert response.status_code == HTTP_200_OK
     assert len(response_json["results"]) == 2
@@ -4562,7 +4562,7 @@ def test_list_grid_rows_adhoc_filtering_query_param_filter(api_client, data_fixt
     url = reverse("api:database:views:grid:list", kwargs={"view_id": grid_view.id})
     get_params = [f"filter__field_{text_field.id}__contains=a"]
     response = api_client.get(
-        f'{url}?{"&".join(get_params)}', HTTP_AUTHORIZATION=f"JWT {token}"
+        f"{url}?{'&'.join(get_params)}", HTTP_AUTHORIZATION=f"JWT {token}"
     )
     response_json = response.json()
     assert response.status_code == HTTP_200_OK
@@ -4576,7 +4576,7 @@ def test_list_grid_rows_adhoc_filtering_query_param_filter(api_client, data_fixt
         f"filter_type=OR",
     ]
     response = api_client.get(
-        f'{url}?{"&".join(get_params)}', HTTP_AUTHORIZATION=f"JWT {token}"
+        f"{url}?{'&'.join(get_params)}", HTTP_AUTHORIZATION=f"JWT {token}"
     )
     response_json = response.json()
     assert response.status_code == HTTP_200_OK
@@ -4585,7 +4585,7 @@ def test_list_grid_rows_adhoc_filtering_query_param_filter(api_client, data_fixt
     url = reverse("api:database:views:grid:list", kwargs={"view_id": grid_view.id})
     get_params = [f"filter__field_{text_field_hidden.id}__contains=y"]
     response = api_client.get(
-        f'{url}?{"&".join(get_params)}', HTTP_AUTHORIZATION=f"JWT {token}"
+        f"{url}?{'&'.join(get_params)}", HTTP_AUTHORIZATION=f"JWT {token}"
     )
     response_json = response.json()
     assert response.status_code == HTTP_200_OK
@@ -4594,7 +4594,7 @@ def test_list_grid_rows_adhoc_filtering_query_param_filter(api_client, data_fixt
     url = reverse("api:database:views:grid:list", kwargs={"view_id": grid_view.id})
     get_params = [f"filter__field_{text_field.id}__random=y"]
     response = api_client.get(
-        f'{url}?{"&".join(get_params)}', HTTP_AUTHORIZATION=f"JWT {token}"
+        f"{url}?{'&'.join(get_params)}", HTTP_AUTHORIZATION=f"JWT {token}"
     )
     response_json = response.json()
     assert response.status_code == HTTP_400_BAD_REQUEST
@@ -4603,7 +4603,7 @@ def test_list_grid_rows_adhoc_filtering_query_param_filter(api_client, data_fixt
     url = reverse("api:database:views:grid:list", kwargs={"view_id": grid_view.id})
     get_params = [f"filter__field_{text_field.id}__higher_than=1"]
     response = api_client.get(
-        f'{url}?{"&".join(get_params)}', HTTP_AUTHORIZATION=f"JWT {token}"
+        f"{url}?{'&'.join(get_params)}", HTTP_AUTHORIZATION=f"JWT {token}"
     )
     response_json = response.json()
     assert response.status_code == HTTP_400_BAD_REQUEST
@@ -4629,7 +4629,7 @@ def test_list_grid_rows_adhoc_filtering_query_param_null_character(
     url = reverse("api:database:views:grid:list", kwargs={"view_id": grid_view.id})
     get_params = [f"filter__field_{text_field.id}__contains={str_with_null_character}"]
     response = api_client.get(
-        f'{url}?{"&".join(get_params)}', HTTP_AUTHORIZATION=f"JWT {token}"
+        f"{url}?{'&'.join(get_params)}", HTTP_AUTHORIZATION=f"JWT {token}"
     )
     response_json = response.json()
     assert response.status_code == HTTP_200_OK
@@ -4700,7 +4700,7 @@ def test_list_grid_rows_adhoc_filtering_invalid_advanced_filters(
     for filters, error_detail in expected_errors:
         get_params = [f"filters={filters}"]
         response = api_client.get(
-            f'{url}?{"&".join(get_params)}', HTTP_AUTHORIZATION=f"JWT {token}"
+            f"{url}?{'&'.join(get_params)}", HTTP_AUTHORIZATION=f"JWT {token}"
         )
         response_json = response.json()
         assert response.status_code == HTTP_400_BAD_REQUEST
@@ -4749,7 +4749,7 @@ def test_list_grid_rows_adhoc_filtering_advanced_filters_are_preferred_to_other_
         f"filter_type=AND",
     ]
     response = api_client.get(
-        f'{url}?{"&".join(get_params)}', HTTP_AUTHORIZATION=f"JWT {token}"
+        f"{url}?{'&'.join(get_params)}", HTTP_AUTHORIZATION=f"JWT {token}"
     )
     response_json = response.json()
     assert response.status_code == HTTP_200_OK
@@ -4798,7 +4798,7 @@ def test_list_grid_rows_adhoc_filtering_overrides_existing_filters(
         "filters=" + json.dumps(advanced_filters),
     ]
     response = api_client.get(
-        f'{url}?{"&".join(get_params)}', HTTP_AUTHORIZATION=f"JWT {token}"
+        f"{url}?{'&'.join(get_params)}", HTTP_AUTHORIZATION=f"JWT {token}"
     )
     response_json = response.json()
     assert response.status_code == HTTP_200_OK
@@ -4838,7 +4838,7 @@ def test_list_grid_rows_adhoc_filtering_advanced_filters(api_client, data_fixtur
     }
     get_params = ["filters=" + json.dumps(advanced_filters)]
     response = api_client.get(
-        f'{url}?{"&".join(get_params)}', HTTP_AUTHORIZATION=f"JWT {token}"
+        f"{url}?{'&'.join(get_params)}", HTTP_AUTHORIZATION=f"JWT {token}"
     )
     response_json = response.json()
     assert response.status_code == HTTP_200_OK
@@ -4867,7 +4867,7 @@ def test_list_grid_rows_adhoc_filtering_advanced_filters(api_client, data_fixtur
     }
     get_params = ["filters=" + json.dumps(advanced_filters)]
     response = api_client.get(
-        f'{url}?{"&".join(get_params)}', HTTP_AUTHORIZATION=f"JWT {token}"
+        f"{url}?{'&'.join(get_params)}", HTTP_AUTHORIZATION=f"JWT {token}"
     )
     response_json = response.json()
     assert response.status_code == HTTP_200_OK
@@ -4908,7 +4908,7 @@ def test_list_grid_rows_adhoc_filtering_advanced_filters(api_client, data_fixtur
     }
     get_params = ["filters=" + json.dumps(advanced_filters)]
     response = api_client.get(
-        f'{url}?{"&".join(get_params)}', HTTP_AUTHORIZATION=f"JWT {token}"
+        f"{url}?{'&'.join(get_params)}", HTTP_AUTHORIZATION=f"JWT {token}"
     )
     response_json = response.json()
     assert response.status_code == HTTP_200_OK
@@ -4926,7 +4926,7 @@ def test_list_grid_rows_adhoc_filtering_advanced_filters(api_client, data_fixtur
     }
     get_params = ["filters=" + json.dumps(advanced_filters)]
     response = api_client.get(
-        f'{url}?{"&".join(get_params)}', HTTP_AUTHORIZATION=f"JWT {token}"
+        f"{url}?{'&'.join(get_params)}", HTTP_AUTHORIZATION=f"JWT {token}"
     )
     response_json = response.json()
     assert response.status_code == HTTP_200_OK
@@ -4944,7 +4944,7 @@ def test_list_grid_rows_adhoc_filtering_advanced_filters(api_client, data_fixtur
     }
     get_params = ["filters=" + json.dumps(advanced_filters)]
     response = api_client.get(
-        f'{url}?{"&".join(get_params)}', HTTP_AUTHORIZATION=f"JWT {token}"
+        f"{url}?{'&'.join(get_params)}", HTTP_AUTHORIZATION=f"JWT {token}"
     )
     response_json = response.json()
     assert response.status_code == HTTP_400_BAD_REQUEST
@@ -4962,7 +4962,7 @@ def test_list_grid_rows_adhoc_filtering_advanced_filters(api_client, data_fixtur
     }
     get_params = ["filters=" + json.dumps(advanced_filters)]
     response = api_client.get(
-        f'{url}?{"&".join(get_params)}', HTTP_AUTHORIZATION=f"JWT {token}"
+        f"{url}?{'&'.join(get_params)}", HTTP_AUTHORIZATION=f"JWT {token}"
     )
     response_json = response.json()
     assert response.status_code == HTTP_400_BAD_REQUEST
@@ -4975,7 +4975,7 @@ def test_list_grid_rows_adhoc_filtering_advanced_filters(api_client, data_fixtur
     ]:
         get_params = [f"filters={filters}"]
         response = api_client.get(
-            f'{url}?{"&".join(get_params)}', HTTP_AUTHORIZATION=f"JWT {token}"
+            f"{url}?{'&'.join(get_params)}", HTTP_AUTHORIZATION=f"JWT {token}"
         )
         response_json = response.json()
         assert response.status_code == HTTP_400_BAD_REQUEST

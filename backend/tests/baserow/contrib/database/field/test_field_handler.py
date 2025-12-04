@@ -9,7 +9,6 @@ from django.db.utils import IntegrityError
 from django.test.utils import CaptureQueriesContext
 
 import pytest
-from baserow_premium.fields.field_types import AIFieldType
 from faker import Faker
 
 from baserow.contrib.database.fields.constants import (
@@ -91,6 +90,7 @@ from baserow.core.psycopg import is_unique_violation_error
 from baserow.core.registries import ImportExportConfig
 from baserow.core.trash.handler import TrashHandler
 from baserow.test_utils.helpers import setup_interesting_test_table
+from baserow_premium.fields.field_types import AIFieldType
 
 
 @pytest.fixture(autouse=True)
@@ -142,8 +142,7 @@ def _test_can_convert_between_fields(data_fixture, field_type_to_test):
         nonlocal i
 
         print(
-            f"Converting num {i} from {from_field_type_name} to"
-            f" {to_field_type_name}",
+            f"Converting num {i} from {from_field_type_name} to {to_field_type_name}",
             flush=True,
         )
 
@@ -572,7 +571,7 @@ def test_create_field(send_mock, data_fixture):
         name=field_name_with_ok_length,
         text_default="Some default",
     )
-    assert getattr(field_with_max_length_name, "name") == field_name_with_ok_length
+    assert field_with_max_length_name.name == field_name_with_ok_length
 
 
 @pytest.mark.django_db
@@ -738,7 +737,7 @@ def test_update_field(send_mock, data_fixture):
         field=field_3,
         name=field_name_with_ok_length,
     )
-    assert getattr(field_with_max_length_name, "name") == field_name_with_ok_length
+    assert field_with_max_length_name.name == field_name_with_ok_length
 
 
 @pytest.mark.django_db
@@ -2022,9 +2021,9 @@ def test_field_constraints_unique_with_empty(data_fixture):
         fields_to_test.extend(constraint.get_compatible_field_types())
 
     missing_fields = set(fields_to_test) - set(fields.keys())
-    assert set(fields_to_test) == set(
-        fields.keys()
-    ), f"Fields that should be tested are missing: {missing_fields}"
+    assert set(fields_to_test) == set(fields.keys()), (
+        f"Fields that should be tested are missing: {missing_fields}"
+    )
 
     for field_type, field_data in fields.items():
         with pytest.raises(Exception) as exc_info:
