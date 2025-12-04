@@ -76,7 +76,7 @@
     },
     "field": {
         "language": "Idioma",
-        "emailAddress": "Correo electrónico",
+        "emailAddress": "Dirección de correo electrónico",
         "name": "Tu nombre",
         "password": "Contraseña",
         "passwordRepeat": "Repite la contraseña"
@@ -910,7 +910,10 @@
         "invalidResourceMessage": "El archivo proporcionado no es una exportación Baserow válida.",
         "untrustedPublicKeyTitle": "Firma no fiable",
         "untrustedPublicKeyMessage": "El archivo proporcionado está firmado con una clave pública no fiable. Pida a su administrador que añada la clave pública a la lista de claves de confianza o desactive la verificación de firma para poder importar este archivo.",
-        "uploadAndImport": "Subir e importar"
+        "uploadAndImport": "Subir e importar",
+        "importingState": "Importando...",
+        "importingTableStructure": "Creando: {table}",
+        "importingTableData": "Importando datos: {table}"
     },
     "user": {
         "isStaff": "Es staff",
@@ -1104,5 +1107,8 @@
     },
     "controlCenterGuidedTourStep": {
         "content": "La barra lateral izquierda te ayuda a gestionar tu espacio de trabajo:\n\n- Inicio – Accede a tu panel principal.\n- Notificaciones – Mantente al día con los cambios y menciones.\n- Invitar a miembros – Colabora añadiendo integrantes al equipo.\n- Papelera – Lista y recupera todos tus elementos eliminados."
+    },
+    "importWorkspaceForm": {
+        "selectApplicationsToImport": "Selecciona las aplicaciones para importar"
     }
 }
