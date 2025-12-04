@@ -209,7 +209,7 @@ import SyncTableModal from '@baserow/modules/database/components/dataSync/SyncTa
 import ConfigureDataSyncModal from '@baserow/modules/database/components/dataSync/ConfigureDataSyncModal.vue'
 
 export default {
-  name: 'SidebarItem',
+  name: 'DBSidebarItem',
   components: {
     ConfigureDataSyncModal,
     ExportTableModal,
@@ -283,7 +283,7 @@ export default {
       const { period, count } = getHumanPeriodAgoCount(
         this.table.data_sync.last_sync
       )
-      return this.$tc(`datetime.${period}Ago`, count)
+      return this.$t(`datetime.${period}Ago`, { count })
     },
     dataSyncType() {
       return this.$registry.get('dataSync', this.table.data_sync.type)

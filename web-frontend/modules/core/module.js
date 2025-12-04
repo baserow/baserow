@@ -338,7 +338,6 @@ export default defineNuxtModule({
     addRouteMiddleware({
       name: 'settings',
       path: resolve('./middleware/settings'),
-      global: true, // make sure settings are loaded on every route
     })
 
     addRouteMiddleware({

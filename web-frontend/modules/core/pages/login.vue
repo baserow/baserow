@@ -16,6 +16,7 @@ import WorkspaceService from '@baserow/modules/core/services/workspace'
 definePageMeta({
   name: 'login',
   layout: 'login',
+  middleware: ['settings'],
 })
 
 const { $store: store, $client } = useNuxtApp()
