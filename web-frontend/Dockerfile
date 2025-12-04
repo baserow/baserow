@@ -25,9 +25,7 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    build-essential \
     dos2unix \
-    python3 \
     && rm -rf /var/lib/apt/lists/*
 
 # Update node user to fixed UID 9999 (always cached)
@@ -160,10 +158,6 @@ CMD ["nuxt-local"]
 # =============================================================================
 FROM runtime-packages AS ci
 
-# Install just command runner and ensure it's in system path
-RUN npm install -g rust-just && \
-    ln -sf $(which just) /usr/local/bin/just
-
 ENV DOCKER_USER=node
 ENV BASEROW_IMAGE_TYPE="web-frontend"
 
@@ -191,24 +185,27 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     build-essential \
-    tini \
     curl \
     git \
+    python3 \
+    python3-pip \
+    tini \
+    tmux \
+    vim \
     && rm -rf /var/lib/apt/lists/*
+
+# Install just command runner
+RUN pip3 install --break-system-packages rust-just
 
 # Copy su-exec from builder
 COPY --link --from=su-exec-builder /usr/local/bin/su-exec /usr/local/bin/su-exec
-
-# Install just command runner and ensure it's in system path
-RUN npm install -g rust-just && \
-    ln -sf $(which just) /usr/local/bin/just
 
 # Update node user to fixed UID 9999 (always cached)
 RUN groupmod -g 9999 node && usermod -u 9999 -g 9999 node
 
 # =============================================================================
 # Development (build with --target dev, tag as :dev)
-# Starts as root, entrypoint switches to host user via su-exec
+# Runs as host user via docker-compose user: directive
 # =============================================================================
 FROM dev-packages AS dev
 
@@ -224,8 +221,15 @@ COPY --link --from=builder /baserow/enterprise/web-frontend /baserow/enterprise/
 COPY --link --from=builder /baserow/plugins /baserow/plugins
 COPY --link ./tests /baserow/tests/
 
-# Make everything owned by node user (9999) - entrypoint will switch at runtime
-RUN chown -R 9999:9999 /baserow && \
+# Make directories writable by any UID (dev only - allows running as host user)
+# This avoids slow chown at startup and permission issues with bind mounts
+# Also make /etc/passwd writable so entrypoint can add user entry (fixes "I have no name!")
+RUN chmod -R a+rwX /baserow/web-frontend && \
+    chmod -R a+rwX /baserow/premium/web-frontend && \
+    chmod -R a+rwX /baserow/enterprise/web-frontend && \
+    chmod -R a+rwX /baserow/plugins && \
+    mkdir -p /baserow/.cache && chmod a+rwX /baserow/.cache && \
+    chmod a+rw /etc/passwd && \
     ln -s /baserow/web-frontend/node_modules/ /baserow/premium/web-frontend/node_modules && \
     ln -s /baserow/web-frontend/node_modules/ /baserow/enterprise/web-frontend/node_modules
 

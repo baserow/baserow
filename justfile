@@ -46,12 +46,12 @@ _dc_help:
     @echo "  just dc-dev stop                 # Stop containers (keep volumes)"
     @echo "  just dc-dev down                 # Stop and remove containers"
     @echo "  just dc-dev logs -f backend      # Follow logs for a service"
-    @echo "  just dc-dev shell backend bash   # Open shell with correct UID/GID"
-    @echo "  just dc-dev exec backend bash    # Open shell (as container user)"
+    @echo "  just dc-dev exec backend bash    # Open shell in container"
     @echo "  just dc-dev ps                   # Show running containers"
     @echo ""
-    @echo "Special commands (dc-dev only):"
-    @echo "  shell  - Like 'exec' but with -u \$UID:\$GID for correct file permissions"
+    @echo "Optional services (storybook, flower) - not started by default:"
+    @echo "  just dc-dev --profile optional up -d    # Include optional services"
+    @echo "  just dc-dev-full up -d                  # Shorthand for above"
     @echo ""
     @echo "Production (uses published images from registry):"
     @echo "  just dc up -d"
@@ -71,7 +71,6 @@ dc *ARGS:
     fi
 
 # Dev compose (includes docker-compose.dev.yml overlay)
-# Special command: "shell" is translated to "exec -u $UID:$GID" for opening shells with correct permissions
 [doc("Docker compose (dev): just dc-dev <cmd> [args]")]
 dc-dev *ARGS:
     #!/usr/bin/env bash
@@ -82,6 +81,7 @@ dc-dev *ARGS:
             echo "Creating .env.docker-dev from .env.docker-dev.example..."
             cp .env.docker-dev.example .env.docker-dev
         fi
+        # Export UID/GID for docker-compose user: directive
         if [[ -z "$UID" ]]; then
             UID=$(id -u)
         fi
@@ -90,13 +90,13 @@ dc-dev *ARGS:
             GID=$(id -g)
         fi
         export GID
-        # Handle special "shell" command: translate to exec -u $UID:$GID
-        ARGS="{{ ARGS }}"
-        if [[ "$ARGS" == shell* ]]; then
-            ARGS="exec -u $UID:$GID ${ARGS#shell}"
-        fi
-        docker compose --env-file .env.docker-dev -f docker-compose.yml -f docker-compose.dev.yml $ARGS
+        docker compose --env-file .env.docker-dev -f docker-compose.yml -f docker-compose.dev.yml {{ ARGS }}
     fi
+
+# Dev compose with optional services (storybook, flower)
+[doc("Docker compose (dev) with optional services: just dc-dev-full <cmd> [args]")]
+dc-dev-full *ARGS:
+    just dc-dev --profile optional {{ ARGS }}
 
 # Build production images locally (includes docker-compose.build.yml overlay)
 [doc("Docker compose (prod local): just dc-prod <cmd> [args]")]
@@ -119,6 +119,7 @@ dc-deploy name="" *ARGS:
             docker compose -f deploy/all-in-one/docker-compose.yml {{ ARGS }}
             ;;
         "all-in-one-dev")
+            # Export UID/GID for docker-compose user: directive
             if [[ -z "${UID:-}" ]]; then
                 UID=$(id -u)
             fi
@@ -127,11 +128,6 @@ dc-deploy name="" *ARGS:
                 GID=$(id -g)
             fi
             export GID
-            # Handle special "shell" command: translate to exec -u $UID:$GID
-            ARGS="{{ ARGS }}"
-            if [[ "$ARGS" == shell* ]]; then
-                ARGS="exec -u $UID:$GID ${ARGS#shell}"
-            fi
             docker compose -f deploy/all-in-one/docker-compose.yml -f deploy/all-in-one/docker-compose.dev.yml {{ ARGS }}
             ;;
         "cloudron")
@@ -521,57 +517,57 @@ logs *ARGS:
 # =============================================================================
 
 # Build deployment images
-# Usage: just build <target> [tag]
+# Usage: just build <target> [tag] [docker-args...]
 [doc("Build image: backend, web-frontend, all-in-one, all-in-one-lite, heroku, cloudron, render, apache")]
-build target="" tag="latest":
+build target="" tag="latest" *ARGS:
     #!/usr/bin/env bash
     set -euo pipefail
 
     case "{{ target }}" in
         "backend")
-            docker build -f backend/Dockerfile --target prod -t baserow/backend:{{ tag }} .
+            docker build {{ ARGS }} -f backend/Dockerfile --target prod -t baserow/backend:{{ tag }} .
             ;;
         "web-frontend")
-            docker build -f web-frontend/Dockerfile --target prod -t baserow/web-frontend:{{ tag }} .
+            docker build {{ ARGS }} -f web-frontend/Dockerfile --target prod -t baserow/web-frontend:{{ tag }} .
             ;;
         "all-in-one")
             echo "Building backend (prod)..."
-            docker build -f backend/Dockerfile --target prod -t baserow_backend:latest .
+            docker build {{ ARGS }} -f backend/Dockerfile --target prod -t baserow_backend:latest .
             echo "Building web-frontend (prod)..."
-            docker build -f web-frontend/Dockerfile --target prod -t baserow_web-frontend:latest .
+            docker build {{ ARGS }} -f web-frontend/Dockerfile --target prod -t baserow_web-frontend:latest .
             echo "Building all-in-one..."
-            docker build -f deploy/all-in-one/Dockerfile --target prod -t baserow/baserow:{{ tag }} .
+            docker build {{ ARGS }} -f deploy/all-in-one/Dockerfile --target prod -t baserow/baserow:{{ tag }} .
             ;;
         "all-in-one-lite")
             echo "Building backend (prod)..."
-            docker build -f backend/Dockerfile --target prod -t baserow_backend:latest .
+            docker build {{ ARGS }} -f backend/Dockerfile --target prod -t baserow_backend:latest .
             echo "Building web-frontend (prod)..."
-            docker build -f web-frontend/Dockerfile --target prod -t baserow_web-frontend:latest .
+            docker build {{ ARGS }} -f web-frontend/Dockerfile --target prod -t baserow_web-frontend:latest .
             echo "Building all-in-one-lite (no postgres/redis)..."
-            docker build -f deploy/all-in-one/Dockerfile --target prod-lite -t baserow/baserow:lite-{{ tag }} .
+            docker build {{ ARGS }} -f deploy/all-in-one/Dockerfile --target prod-lite -t baserow/baserow:lite-{{ tag }} .
             ;;
         "all-in-one-dev")
             echo "Building backend (dev)..."
-            docker build -f backend/Dockerfile --target dev -t baserow_backend:dev .
+            docker build {{ ARGS }} -f backend/Dockerfile --target dev -t baserow_backend:dev .
             echo "Building web-frontend (dev)..."
-            docker build -f web-frontend/Dockerfile --target dev -t baserow_web-frontend:dev .
+            docker build {{ ARGS }} -f web-frontend/Dockerfile --target dev -t baserow_web-frontend:dev .
             echo "Building all-in-one-dev..."
-            docker build -f deploy/all-in-one/Dockerfile --target dev -t baserow/baserow:dev-{{ tag }} .
+            docker build {{ ARGS }} -f deploy/all-in-one/Dockerfile --target dev -t baserow/baserow:dev-{{ tag }} .
             ;;
         "heroku")
-            docker build -f heroku.Dockerfile -t baserow/heroku:{{ tag }} .
+            docker build {{ ARGS }} -f heroku.Dockerfile -t baserow/heroku:{{ tag }} .
             ;;
         "cloudron")
-            docker build -f deploy/cloudron/Dockerfile -t baserow/cloudron:{{ tag }} .
+            docker build {{ ARGS }} -f deploy/cloudron/Dockerfile -t baserow/cloudron:{{ tag }} .
             ;;
         "render")
-            docker build -f deploy/render/Dockerfile -t baserow/render:{{ tag }} .
+            docker build {{ ARGS }} -f deploy/render/Dockerfile -t baserow/render:{{ tag }} .
             ;;
         "apache")
-            docker build -f deploy/apache/recommended/Dockerfile -t baserow/apache:{{ tag }} deploy/apache/recommended/
+            docker build {{ ARGS }} -f deploy/apache/recommended/Dockerfile -t baserow/apache:{{ tag }} deploy/apache/recommended/
             ;;
         "apache-no-caddy")
-            docker build -f deploy/apache/no-caddy/Dockerfile -t baserow/apache-no-caddy:{{ tag }} deploy/apache/no-caddy/
+            docker build {{ ARGS }} -f deploy/apache/no-caddy/Dockerfile -t baserow/apache-no-caddy:{{ tag }} deploy/apache/no-caddy/
             ;;
         *)
             echo "Build deployment images"

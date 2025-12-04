@@ -216,11 +216,12 @@ FROM runtime-packages AS dev-packages
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     build-essential \
-    python3.11-dev \
-    procps \
+    curl \
     git \
     graphviz \
-    curl \
+    procps \
+    python3.11-dev \
+    tmux \
     vim \
     && rm -rf /var/lib/apt/lists/*
 
@@ -264,8 +265,16 @@ COPY --link ./backend/tests /baserow/backend/tests/
 COPY --link ./premium/backend/tests /baserow/premium/backend/tests/
 COPY --link ./enterprise/backend/tests /baserow/enterprise/backend/tests/
 
-# Make everything owned by baserow user (9999) - entrypoint will switch at runtime
-RUN chown -R 9999:9999 /baserow
+# Make venv and writable dirs accessible by any UID (dev only - allows running as host user)
+# This avoids slow chown at startup and permission issues with bind mounts
+# Also make /etc/passwd writable so entrypoint can add user entry (fixes "I have no name!")
+RUN chmod -R a+rwX /baserow/venv && \
+    chmod -R a+rwX /baserow/backend && \
+    chmod -R a+rwX /baserow/premium && \
+    chmod -R a+rwX /baserow/enterprise && \
+    mkdir -p /baserow/media /baserow/plugins /baserow/.cache && \
+    chmod -R a+rwX /baserow/media /baserow/plugins /baserow/.cache && \
+    chmod a+rw /etc/passwd
 
 ENV PATH="/baserow/venv/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
