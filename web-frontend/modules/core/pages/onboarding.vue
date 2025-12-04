@@ -268,7 +268,7 @@ export default {
       this.$router.push({ name: 'dashboard' })
     },
     updateData(data) {
-      this.$set(this.data, this.step.getType(), data)
+      this.data = { ...this.data, [this.step.getType()]: data }
     },
     isValid() {
       const form = this.$refs?.form
