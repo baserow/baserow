@@ -4,7 +4,7 @@
     v-bind="$attrs"
     :read-only="true"
     class="active"
-    v-on="$listeners"
+    v-on="$attrs"
   />
 </template>
 

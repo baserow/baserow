@@ -1,5 +1,5 @@
 <template>
-  <div class="expand-overflow-list" v-on="$listeners">
+  <div class="expand-overflow-list" v-on="$attrs">
     <div class="expand-overflow-list__container">
       <span v-if="noRecords"><slot name="no-records"></slot></span>
       <span ref="empty" class="expand-overflow-list__empty-item"></span>

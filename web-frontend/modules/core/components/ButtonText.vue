@@ -5,7 +5,7 @@
     :class="classes"
     :disabled="disabled || loading"
     v-bind.prop="customBind"
-    v-on="$listeners"
+    v-on="$attrs"
   >
     <i v-if="icon !== '' && !loading" class="button-text__icon" :class="icon" />
     <img v-else-if="image" alt="" :src="image" class="button-text__image" />

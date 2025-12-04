@@ -2,7 +2,7 @@
   <UpsertRowWorkflowActionForm
     enable-row-id
     v-bind="$attrs"
-    v-on="$listeners"
+    v-on="$attrs"
   />
 </template>
 
