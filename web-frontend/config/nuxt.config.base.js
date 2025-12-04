@@ -53,6 +53,19 @@ export default function (
       },
     },
     build: {
+      loaders: {
+        scss: {
+          sassOptions: {
+            silenceDeprecations: [
+              'legacy-js-api',
+              'import',
+              'global-builtin',
+              'slash-div',
+            ],
+            quietDeps: true,
+          },
+        },
+      },
       extend(config, ctx) {
         config.node = { fs: 'empty' }
         config.module.rules.push({
