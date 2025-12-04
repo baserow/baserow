@@ -52,7 +52,8 @@
         "chooseNoView": "No seleccionado",
         "viewFieldLabel": "Vista",
         "tableFieldLabel": "Tabla",
-        "databaseFieldLabel": "Base de datos"
+        "databaseFieldLabel": "Base de datos",
+        "dataSyncedTableDescription": "Tabla sincronizada de dato"
     },
     "integrationType": {
         "localBaserow": "Baserow local",
@@ -235,6 +236,37 @@
         "integrationLabel": "Integración",
         "channelLabel": "Canal",
         "channelPlaceholder": "Introducir un nombre de canal",
-        "messageLabel": "Mensaje"
+        "messageLabel": "Mensaje",
+        "messagePlaceholder": "Escribe un mensaje…",
+        "channelNoPrefix": "Elimina el ‘#’ antes del nombre del canal."
+    },
+    "smtpIntegrationType": {
+        "smtpSummary": "SMTP - {host}:{port}"
+    },
+    "smtpForm": {
+        "host": "Servidor SMTP",
+        "hostPlaceholder": "smtp.gmail.com",
+        "port": "Puerto SMTP",
+        "portPlaceholder": "587",
+        "useTls": "Usar TLS",
+        "username": "Nombre de usuario",
+        "usernamePlaceholder": "tu-correo@ejemplo.com",
+        "password": "Contraseña",
+        "passwordPlaceholder": "tu-contraseña"
+    },
+    "smtpEmailForm": {
+        "integrationDropdownLabel": "Integración",
+        "fromEmail": "Dirección del remitente (From)",
+        "fromEmailPlaceholder": "remitente@ejemplo.com",
+        "fromName": "Nombre del remitente",
+        "fromNamePlaceholder": "Tu nombre",
+        "toEmails": "Dirección de los destinatarios (To)",
+        "toEmailsPlaceholder": "destinatario1@ejemplo.com, destinatario2@ejemplo.com",
+        "ccEmails": "Correos en copia (CC)",
+        "bccEmails": "Correos en copia oculta (BCC)",
+        "ccEmailsPlaceholder": "destinatarioencopia1@ejemplo.com, destinatarioencopia2@ejemplo.com"
+    },
+    "routerForm": {
+        "defaultEdgeLabelLabel": "Etiqueta de rama predeterminada"
     }
 }
