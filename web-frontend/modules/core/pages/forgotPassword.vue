@@ -108,7 +108,6 @@ import LangPicker from '@baserow/modules/core/components/LangPicker'
 
 definePageMeta({
   layout: 'login',
-  middleware: 'settings',
 })
 
 const { t } = useI18n()
