@@ -22,8 +22,8 @@ export class ViewOwnershipPermissionManagerType extends PermissionManagerType {
       'database.table.view.decoration.update',
       'database.table.view.decoration.delete',
     ]
-    const { store } = this.app
-    const userId = store.getters['auth/getUserId']
+    const { $store } = this.app
+    const userId = $store.getters['auth/getUserId']
     if (
       operationsOnAnExistingViewAllowedIfPersonalViewAndCreatedBy.includes(
         operation

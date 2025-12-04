@@ -76,8 +76,20 @@ export default defineNuxtPlugin({
 
       for (const perm of perms) {
         const { name, permissions } = perm
+        let manager
+
         try {
-          const manager = $registry.get('permissionManager', name)
+          manager = $registry.get('permissionManager', name)
+        } catch (e) {
+          // If a permission manager is missing we show a warning once.
+          if (!alreadyWarned.has(name)) {
+            alreadyWarned.add(name)
+            console.warn(`Permission manager '${name}' missing in registry`)
+          }
+          continue
+        }
+
+        try {
           const result = manager.hasPermission(
             permissions,
             operation,
@@ -89,11 +101,7 @@ export default defineNuxtPlugin({
             return result
           }
         } catch (e) {
-          // If a permission manager is missing we show a warning once.
-          if (!alreadyWarned.has(name)) {
-            alreadyWarned.add(name)
-            console.warn('Error during permission check', e)
-          }
+          console.warn('Error during permission check', e)
           return false
         }
       }

@@ -112,8 +112,8 @@ export class StaffOnlySettingOperationPermissionManagerType extends PermissionMa
 
   hasPermission(permissions, operation, context, workspaceId) {
     // Fetch isStaff from the auth store, so we can reactively update the permission.
-    const { store } = this.app
-    const isStaff = store.getters['auth/isStaff']
+    const { $store } = this.app
+    const isStaff = $store.getters['auth/isStaff']
 
     // Check if the operation is in either array of operations.
     if (
