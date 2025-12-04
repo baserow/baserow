@@ -561,6 +561,7 @@ export class GridViewType extends ViewType {
       view,
       isPublic
     )
+
     await store.dispatch(
       storePrefix + 'view/grid/setRowHeight',
       GRID_VIEW_SIZE_TO_ROW_HEIGHT_MAPPING[view.row_height_size]

@@ -341,11 +341,12 @@ export const actions = {
    * selects a different table.
    */
   async fetchAll({ commit, getters, dispatch, state }, table) {
+    const { $registry, $client } = useNuxtApp()
     commit('SET_LOADING', true)
     commit('UNSELECT', {})
 
     try {
-      const { data } = await ViewService(this.$client).fetchAll(
+      const { data } = await ViewService($client).fetchAll(
         table.id,
         true,
         true,
@@ -353,13 +354,13 @@ export const actions = {
         true
       )
       data.forEach((part, index, d) => {
-        populateView(data[index], this.$registry)
+        populateView(data[index], $registry)
       })
       commit('SET_ITEMS', data)
       commit('SET_LOADING', false)
 
       // Get the default view for the table.
-      const defaultViewId = readDefaultViewIdFromCookie(this.$cookies, table.id)
+      const defaultViewId = readDefaultViewIdFromCookie(table.id)
       if (defaultViewId !== null) {
         commit('SET_DEFAULT_VIEW_ID', defaultViewId)
       }
@@ -377,6 +378,8 @@ export const actions = {
     { commit, getters, rootGetters, dispatch },
     { type, table, values }
   ) {
+    const { $registry, $client } = useNuxtApp()
+
     if (Object.prototype.hasOwnProperty.call(values, 'type')) {
       throw new Error(
         'The key "type" is a reserved, but is already set on the ' +
@@ -384,21 +387,22 @@ export const actions = {
       )
     }
 
-    if (!this.$registry.exists('view', type)) {
+    if (!$registry.exists('view', type)) {
       throw new Error(`A view with type "${type}" doesn't exist.`)
     }
 
     const postData = clone(values)
     postData.type = type
 
-    const { data } = await ViewService(this.$client).create(table.id, postData)
+    const { data } = await ViewService($client).create(table.id, postData)
     return await dispatch('forceCreate', { data })
   },
   /**
    * Forcefully create a new view without making a request to the server.
    */
   forceCreate({ commit }, { data }) {
-    populateView(data, this.$registry)
+    const { $registry, $client } = useNuxtApp()
+    populateView(data, $registry)
     commit('ADD_ITEM', data)
     return { view: data }
   },
@@ -415,6 +419,7 @@ export const actions = {
       optimisticUpdate = true,
     }
   ) {
+    const { $registry, $client } = useNuxtApp()
     commit('SET_ITEM_LOADING', { view, value: true })
     const oldValues = {}
     const newValues = {}
@@ -460,9 +465,8 @@ export const actions = {
           }
         )
         // in some cases view may return extra data that were not present in values
-        const newValues = (
-          await ViewService(this.$client).update(view.id, values)
-        ).data
+        const newValues = (await ViewService($client).update(view.id, values))
+          .data
         if (refreshFromFetch || !optimisticUpdate) {
           dispatch('forceUpdate', { view, values: newValues, repopulate: true })
         }
@@ -480,10 +484,11 @@ export const actions = {
    * Updates the order of all the views in a table.
    */
   async order({ commit, getters }, { table, ownershipType, order, oldOrder }) {
+    const { $registry, $client } = useNuxtApp()
     commit('ORDER_ITEMS', { ownershipType, order })
 
     try {
-      await ViewService(this.$client).order(table.id, ownershipType, order)
+      await ViewService($client).order(table.id, ownershipType, order)
     } catch (error) {
       commit('ORDER_ITEMS', { ownershipType, order: oldOrder })
       throw error
@@ -508,7 +513,8 @@ export const actions = {
    * Duplicates an existing view.
    */
   async duplicate({ commit, dispatch }, view) {
-    const { data } = await ViewService(this.$client).duplicate(view.id)
+    const { $registry, $client } = useNuxtApp()
+    const { data } = await ViewService($client).duplicate(view.id)
     await dispatch('forceCreate', { data })
     return data
   },
@@ -517,8 +523,9 @@ export const actions = {
    * made and after that it will be deleted from the store.
    */
   async delete({ commit, dispatch }, view) {
+    const { $registry, $client } = useNuxtApp()
     try {
-      await ViewService(this.$client).delete(view.id)
+      await ViewService($client).delete(view.id)
       dispatch('forceDelete', view)
     } catch (error) {
       // If the view to delete wasn't found we can just delete it from the
@@ -534,11 +541,13 @@ export const actions = {
    * Removes the view from the this store without making a delete request to the server.
    */
   forceDelete({ commit, dispatch, getters, rootGetters }, view) {
+    const { $registry, $client } = useNuxtApp()
+    const router = useRouter()
+    const route = useRoute()
     // If the currently selected view is selected.
     if (view._.selected && view.id === getters.getSelectedId) {
       commit('UNSELECT')
 
-      const route = this.$router.history.current
       const tableId = view.table.id
 
       // If the current route is the same table as the deleting view.
@@ -555,17 +564,17 @@ export const actions = {
 
         if (nextView !== null) {
           // If there is a next view, we can redirect to that page.
-          this.$router.replace({ params: { viewId: nextView.id } })
+          router.replace({ params: { viewId: nextView.id } })
         } else if (route.params.viewId) {
           // If there isn't a next view and the user was already viewing a view, we
           // need to redirect to the empty table page.
-          this.$router.replace({ params: { viewId: null } })
+          router.replace({ params: { viewId: null } })
         } else {
           // If there isn't a next view and the user wasn't looking at a view, we need
           // to refresh to show an empty table page. Changing the view id to 0,
           // which never exists forces the table page to show empty. We have
           // to do it this way because we can't navigate to the page without view.
-          this.$router.replace({ params: { viewId: '0' } })
+          router.replace({ params: { viewId: '0' } })
         }
       }
     }
@@ -578,11 +587,16 @@ export const actions = {
    * possible you need to select the table first.
    */
   select({ commit, dispatch }, view) {
+    const { $config } = useNuxtApp()
+    console.log('select?')
     commit('SET_SELECTED', view)
     commit('SET_DEFAULT_VIEW_ID', view.id)
+    console.log('juste before')
 
     // Set the default view for the table.
-    saveDefaultViewIdInCookie(this.$cookies, view, this.$config)
+    saveDefaultViewIdInCookie(view, $config)
+
+    console.log('after')
 
     dispatch(
       'undoRedo/updateCurrentScopeSet',

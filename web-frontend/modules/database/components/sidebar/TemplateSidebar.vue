@@ -36,7 +36,7 @@
 import { DatabaseApplicationType } from '@baserow/modules/database/applicationTypes'
 
 export default {
-  name: 'TemplateSidebar',
+  name: 'DBTemplateSidebar',
   props: {
     application: {
       type: Object,

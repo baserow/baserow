@@ -120,8 +120,32 @@ export default {
       })
       return fieldWidths
     },
+    rows() {
+      return this.$store.getters[this.storePrefix + 'view/grid/getRows']
+    },
+    rowTop() {
+      return this.$store.getters[this.storePrefix + 'view/grid/getRowsTop']
+    },
+    rowsStartIndex() {
+      return this.$store.getters[
+        this.storePrefix + 'view/grid/getRowsStartIndex'
+      ]
+    },
+    rowsEndIndex() {
+      return this.$store.getters[this.storePrefix + 'view/grid/getRowsEndIndex']
+    },
+    bufferStartIndex() {
+      return this.$store.getters[
+        this.storePrefix + 'view/grid/getBufferStartIndex'
+      ]
+    },
+    activeGroupBys() {
+      return this.$store.getters[
+        this.storePrefix + 'view/grid/getActiveGroupBys'
+      ]
+    },
   },
-  beforeCreate() {
+  /*beforeCreate() {
     this.$options.computed = {
       ...(this.$options.computed || {}),
       ...mapGetters({
@@ -137,6 +161,6 @@ export default {
           this.$options.propsData.storePrefix + 'view/grid/getActiveGroupBys',
       }),
     }
-  },
+  },*/
 }
 </script>

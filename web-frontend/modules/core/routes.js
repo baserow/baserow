@@ -11,7 +11,6 @@ export const routes = [
     path: '',
     file: path.resolve(__dirname, 'pages/index.vue'),
   },
-
   {
     name: 'login-pages',
     path: '',
@@ -134,7 +133,6 @@ export const routes = [
     path: '/_health',
     file: path.resolve(__dirname, 'pages/_health.vue'),
   },
-
   {
     name: 'notification-redirect',
     path: '/notification/:workspaceId/:notificationId',

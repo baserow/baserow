@@ -129,7 +129,7 @@
       </div>
       <div class="grid-view__foot">
         <div v-if="includeRowDetails" class="grid-view__foot-info">
-          {{ $tc('gridView.rowCount', count, { count }) }}
+          {{ $t('gridView.rowCount', { count }) }}
         </div>
         <div
           v-for="field in visibleFields"
@@ -451,6 +451,22 @@ export default {
     rowsAtEndOfGroups() {
       return this.groupBySetsAndRowsAtEndOfGroups.rowsAtEndOfGroups
     },
+    isMultiSelectHolding() {
+      return this.$store.getters[
+        this.storePrefix + 'view/grid/isMultiSelectHolding'
+      ]
+    },
+    count() {
+      return this.$store.getters[this.storePrefix + 'view/grid/getCount']
+    },
+    allRows() {
+      return this.$store.getters[this.storePrefix + 'view/grid/getAllRows']
+    },
+    groupByMetadata() {
+      return this.$store.getters[
+        this.storePrefix + 'view/grid/getGroupByMetadata'
+      ]
+    },
   },
   watch: {
     fieldOptions: {
@@ -466,7 +482,7 @@ export default {
       },
     },
   },
-  beforeCreate() {
+  /*beforeCreate() {
     this.$options.computed = {
       ...(this.$options.computed || {}),
       ...mapGetters({
@@ -479,7 +495,7 @@ export default {
           this.$options.propsData.storePrefix + 'view/grid/getGroupByMetadata',
       }),
     }
-  },
+  },*/
   mounted() {
     // When the component first loads, we need to check
     this.updateVisibleFieldsInRow()

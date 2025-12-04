@@ -10,7 +10,7 @@
     >
       <i class="header__filter-icon iconoir-filter"></i>
       <span class="header__filter-name">{{
-        $tc('viewFilter.filter', view.filters.length, {
+        $t('viewFilter.filter', {
           count: view.filters.length,
         })
       }}</span>

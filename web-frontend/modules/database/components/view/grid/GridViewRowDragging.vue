@@ -82,8 +82,22 @@ export default {
         ) + this.gridViewRowDetailsWidth
       )
     },
+    rowHeight() {
+      return this.$store.getter[this.storePrefix + 'view/grid/getRowHeight']
+    },
+    bufferStartIndex() {
+      return this.$store.getter[
+        this.storePrefix + 'view/grid/getBufferStartIndex'
+      ]
+    },
+    rowsCount() {
+      return this.$store.getter[this.storePrefix + 'view/grid/getCount']
+    },
+    allRows() {
+      return this.$store.getter[this.storePrefix + 'view/grid/getAllRows']
+    },
   },
-  beforeCreate() {
+  /*beforeCreate() {
     this.$options.computed = {
       ...(this.$options.computed || {}),
       ...mapGetters({
@@ -95,7 +109,7 @@ export default {
         allRows: this.$options.propsData.storePrefix + 'view/grid/getAllRows',
       }),
     }
-  },
+  },*/
   beforeDestroy() {
     this.cancel()
   },

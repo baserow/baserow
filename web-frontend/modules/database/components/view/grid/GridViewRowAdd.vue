@@ -50,8 +50,11 @@ export default {
       }
       return width
     },
+    addHover() {
+      return this.$store.getters[this.storePrefix + 'view/grid/getAddRowHover']
+    },
   },
-  beforeCreate() {
+  /*beforeCreate() {
     this.$options.computed = {
       ...(this.$options.computed || {}),
       ...mapGetters({
@@ -59,7 +62,7 @@ export default {
           this.$options.propsData.storePrefix + 'view/grid/getAddRowHover',
       }),
     }
-  },
+  },*/
   methods: {
     setHover(value) {
       this.$store.dispatch(this.storePrefix + 'view/grid/setAddRowHover', value)

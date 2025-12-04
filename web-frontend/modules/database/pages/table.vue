@@ -1,6 +1,7 @@
 <template>
   <div>
     <DefaultErrorPage v-if="error && !view" :error="error" />
+
     <Table
       v-else
       :database="database"
@@ -13,18 +14,338 @@
       store-prefix="page/"
       @selected-view="selectedView"
       @selected-row="navigateToRowModal"
-      @navigate-previous="
-        (row, activeSearchTerm) => setAdjacentRow(true, row, activeSearchTerm)
-      "
-      @navigate-next="
-        (row, activeSearchTerm) => setAdjacentRow(false, row, activeSearchTerm)
-      "
-    ></Table>
-    <NuxtChild :database="database" :table="table" :fields="fields" />
+      @navigate-previous="(row, term) => setAdjacentRow(true, row, term)"
+      @navigate-next="(row, term) => setAdjacentRow(false, row, term)"
+    />
+
+    <NuxtPage :database="database" :table="table" :fields="fields" />
   </div>
 </template>
 
-<script>
+<script setup>
+import { computed, onMounted, onBeforeUnmount } from 'vue'
+import {
+  onBeforeRouteLeave,
+  onBeforeRouteUpdate,
+  useRoute,
+  useRouter,
+} from 'vue-router'
+import { useHead } from '#imports'
+import { useAsyncData } from '#app'
+
+import Table from '@baserow/modules/database/components/table/Table'
+import DefaultErrorPage from '@baserow/modules/core/components/DefaultErrorPage'
+import { StoreItemLookupError } from '@baserow/modules/core/errors'
+import { getDefaultView } from '@baserow/modules/database/utils/view'
+import { normalizeError } from '@baserow/modules/database/utils/errors'
+
+console.log('setup')
+
+definePageMeta({
+  name: 'database-table',
+  layout: 'app',
+  middleware: [
+    'settings',
+    'authenticated',
+    'workspacesAndApplications',
+    'pendingJobs',
+  ],
+})
+
+const route = useRoute()
+const router = useRouter()
+const nuxtApp = useNuxtApp()
+const {
+  $store,
+  $realtime,
+  $registry,
+  $i18n: { t: $t },
+} = nuxtApp
+
+const tableLoading = computed(() => $store.state.table.loading)
+const views = computed(() => $store.state.view.items)
+
+function parseIntOrNull(x) {
+  return x != null ? parseInt(x) : null
+}
+
+const { data } = await useAsyncData('database-table-page', async () => {
+  const { params, query } = route
+
+  const databaseId = parseInt(params.databaseId)
+  const tableId = parseInt(params.tableId)
+  const viewId = params.viewId ? parseInt(params.viewId) : null
+
+  const result = {
+    database: null,
+    table: null,
+    view: undefined,
+    fields: null,
+    error: null,
+  }
+
+  // Select table
+  try {
+    const { database, table, error } = await $store.dispatch(
+      'table/selectById',
+      { databaseId, tableId }
+    )
+    await $store.dispatch('workspace/selectById', database.workspace.id)
+
+    result.database = database
+    result.table = table
+
+    console.log({ database, table })
+
+    if (error) {
+      console.log('error', error)
+      result.error = normalizeError(error)
+      return result
+    }
+  } catch (e) {
+    console.log('error catched', e)
+    if (e.response === undefined && !(e instanceof StoreItemLookupError))
+      throw e
+    result.error = normalizeError(e)
+    return result
+  }
+
+  console.log('ok')
+
+  // Fields
+  result.fields = $store.getters['field/getAll']
+
+  // No viewId → redirect to default view
+  if (viewId === null) {
+    const rowId = params.rowId ? parseInt(params.rowId) : null
+    const workspaceId = result.database.workspace.id
+    console.log('ça marche', workspaceId)
+    const viewToUse = getDefaultView(
+      nuxtApp,
+      $store,
+      workspaceId,
+      rowId !== null
+    )
+
+    console.log('view', viewToUse)
+
+    if (viewToUse) {
+      params.viewId = viewToUse.id
+      router.replace({ name: route.name, params, query })
+      return result
+    }
+  }
+
+  console.log('normal', viewId)
+
+  // Select view
+  if (viewId !== null && viewId !== 0) {
+    try {
+      console.log('search')
+      const { view } = await $store.dispatch('view/selectById', viewId)
+
+      result.view = view
+      const type = $registry.get('view', view.type)
+      console.log('ça walid')
+
+      if (type.isDeactivated(result.database.workspace.id)) {
+        result.error = { statusCode: 400, message: type.getDeactivatedText() }
+        return result
+      }
+
+      console.log('not is deactivated')
+
+      await type.fetch(
+        { store: $store, app: nuxtApp },
+        result.database,
+        view,
+        result.fields,
+        'page/'
+      )
+      console.log('after fetch')
+    } catch (e) {
+      console.log('iiii', e)
+      if (e.response === undefined && !(e instanceof StoreItemLookupError))
+        throw e
+      result.error = normalizeError(e)
+      return result
+    }
+  }
+
+  console.log('cool')
+
+  // Possibly fetch selected row
+  if (params.rowId) {
+    await $store.dispatch('rowModalNavigation/fetchRow', {
+      tableId,
+      rowId: params.rowId,
+    })
+  }
+
+  console.log('return result', result)
+
+  return result
+})
+
+/**
+ * Expose the actual values via computed shortcuts
+ */
+const database = computed(() => data.value?.database)
+const table = computed(() => data.value?.table)
+const view = computed(() => data.value?.view)
+const fields = computed(() => data.value?.fields)
+const error = computed(() => data.value?.error)
+
+/**
+ * Set page <head> title
+ */
+useHead(() => ({
+  title:
+    (view.value ? view.value.name + ' - ' : '') + (table.value?.name ?? ''),
+}))
+
+/**
+ * beforeCreate() → executed after asyncData and before rendering
+ *
+ * Stop loading animation.
+ */
+$store.dispatch('table/setLoading', false)
+
+/**
+ * Lifecycle
+ */
+onMounted(() => {
+  if (table.value) {
+    $realtime.subscribe('table', { table_id: table.value.id })
+  }
+})
+
+onBeforeUnmount(() => {
+  if (table.value) {
+    $realtime.unsubscribe('table', { table_id: table.value.id })
+  }
+})
+
+/**
+ * beforeRouteLeave()
+ *
+ * Unselect when leaving page.
+ */
+onBeforeRouteLeave((_to, _from) => {
+  $store.dispatch('view/unselect')
+  $store.dispatch('table/unselect')
+  $store.dispatch('application/unselect')
+})
+
+onBeforeRouteUpdate(async (to, from, next) => {
+  const currentRowId = parseIntOrNull(to.params?.rowId)
+  const currentTableId = parseIntOrNull(to.params.tableId)
+
+  const storeRow = $store.getters['rowModalNavigation/getRow']
+  const prevTableId = parseIntOrNull(from.params.tableId)
+  const failed = $store.getters['rowModalNavigation/getFailedToFetchTableRowId']
+
+  if (currentRowId == null) {
+    await $store.dispatch('rowModalNavigation/clearRow')
+  } else if (
+    failed &&
+    parseIntOrNull(failed?.rowId) === currentRowId &&
+    parseIntOrNull(failed?.tableId) === currentTableId
+  ) {
+    return next({
+      name: 'database-table',
+      params: { ...to.params, rowId: null },
+    })
+  } else if (storeRow?.id !== currentRowId || prevTableId !== currentTableId) {
+    const row = await $store.dispatch('rowModalNavigation/fetchRow', {
+      tableId: currentTableId,
+      rowId: currentRowId,
+    })
+    if (row == null) {
+      return next({
+        name: 'database-table',
+        params: { ...to.params, rowId: null },
+      })
+    }
+  }
+  next()
+})
+
+/**
+ * Methods
+ */
+function selectedView(v) {
+  if (view.value && view.value.id === v.id) return
+
+  router.push({
+    name: 'database-table',
+    params: { viewId: v.id },
+  })
+}
+
+async function navigateToRowModal(row) {
+  const rowId = row?.id
+
+  if (route.params.rowId !== undefined && route.params.rowId === rowId) {
+    return
+  }
+
+  if (row) {
+    await $store.dispatch('rowModalNavigation/setRow', row)
+  }
+
+  router.push({
+    name: rowId ? 'database-table-row' : 'database-table',
+    params: {
+      databaseId: database.value.id,
+      tableId: table.value.id,
+      viewId: route.params.viewId,
+      rowId,
+    },
+  })
+}
+
+async function setAdjacentRow(previous, row = null, term = null) {
+  if (row) {
+    await navigateToRowModal(row)
+  } else {
+    await fetchAdjacentRow(previous, term)
+  }
+}
+
+async function fetchAdjacentRow(previous, activeSearchTerm = null) {
+  const { row, status } = await $store.dispatch(
+    'rowModalNavigation/fetchAdjacentRow',
+    {
+      tableId: table.value.id,
+      viewId: view.value?.id,
+      activeSearchTerm,
+      previous,
+    }
+  )
+
+  if (status === 204 || status === 404) {
+    const path = `table.adjacentRow.toast.notFound.${
+      previous ? 'previous' : 'next'
+    }`
+    await $store.dispatch('toast/info', {
+      title: $t(`${path}.title`),
+      message: $t(`${path}.message`),
+    })
+  } else if (status !== 200) {
+    await $store.dispatch('toast/error', {
+      title: $t('table.adjacentRow.toast.error.title'),
+      message: $t('table.adjacentRow.toast.error.message'),
+    })
+  }
+
+  if (row) {
+    await navigateToRowModal(row)
+  }
+}
+</script>
+
+<sscript>
 import { mapState } from 'vuex'
 
 import Table from '@baserow/modules/database/components/table/Table'
@@ -110,7 +431,6 @@ export default {
     }
     next()
   },
-  layout: 'app',
   /**
    * Because there is no hook that is called before the route changes, we need the
    * tableLoading middleware to change the table loading state. This change will get
@@ -249,6 +569,7 @@ export default {
    * loading animation.
    */
   beforeCreate() {
+    console.log('test')
     this.$store.dispatch('table/setLoading', false)
   },
   mounted() {
@@ -365,4 +686,4 @@ export default {
     },
   },
 }
-</script>
+</sscript>

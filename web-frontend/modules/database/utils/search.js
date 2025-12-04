@@ -10,7 +10,7 @@ export const SearchMode = {
 }
 
 export function getDefaultSearchModeFromEnv($config) {
-  return $config.BASEROW_USE_PG_FULLTEXT_SEARCH === 'true'
+  return $config.public.baserowUsePgFulltextSearch === 'true'
     ? SearchMode.FT_WITH_COUNT
     : SearchMode.COMPAT
 }
