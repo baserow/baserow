@@ -1,8 +1,8 @@
 <template>
-  <div class="checkbox" :class="classNames" @click="toggle(checked)">
+  <div class="checkbox" :class="classNames" @click="toggle(modelValue)">
     <div class="checkbox__button">
       <svg
-        v-show="checked && !indeterminate"
+        v-show="modelValue && !indeterminate"
         class="checkbox__tick"
         xmlns="http://www.w3.org/2000/svg"
         width="9"
@@ -59,15 +59,11 @@ import { uuid } from '@baserow/modules/core/utils/string'
 
 export default {
   name: 'Checkbox',
-  model: {
-    prop: 'checked',
-    event: 'input',
-  },
   props: {
     /**
      * The state of the checkbox.
      */
-    checked: {
+    modelValue: {
       type: Boolean,
       required: false,
       default: false,
@@ -125,7 +121,7 @@ export default {
     classNames() {
       return {
         'checkbox--disabled': this.disabled,
-        'checkbox--checked': this.checked,
+        'checkbox--checked': this.modelValue,
         'checkbox--indeterminate': this.indeterminate,
         'checkbox--error': this.error,
         'checkbox--small': this.size === 'small',
@@ -139,7 +135,7 @@ export default {
     toggle(checked) {
       if (this.disabled) return
 
-      this.$emit('input', !checked)
+      this.$emit('update:modelValue', !checked)
     },
   },
 }
