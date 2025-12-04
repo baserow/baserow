@@ -1,6 +1,8 @@
 from decimal import Decimal
+from unittest import mock
 from unittest.mock import patch
 
+from django.db import connection
 from django.http import HttpRequest
 from django.shortcuts import reverse
 
@@ -17,6 +19,7 @@ from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowListRows,
 )
 from baserow.core.exceptions import CannotCalculateIntermediateOrder
+from baserow.core.services.models import Service
 from baserow.core.services.registries import service_type_registry
 from baserow.core.user_sources.user_source_user import UserSourceUser
 from baserow.test_utils.helpers import AnyStr
@@ -654,3 +657,55 @@ def test_query_data_sources_excludes_trashed_service(data_fixture):
         DataSource.objects.filter(page=page), specific=True
     )
     assert len(data_sources) == 1
+
+
+@pytest.mark.django_db
+def test_get_specific_services(data_fixture, caplog):
+    """
+    Test that _get_specific_services handles Services with missing specific records.
+    """
+
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page()
+    integration = data_fixture.create_local_baserow_integration(
+        user=user, application=page.builder
+    )
+
+    service_1 = data_fixture.create_local_baserow_get_row_service(
+        integration=integration
+    )
+    data_source_1 = data_fixture.create_builder_local_baserow_get_row_data_source(
+        page=page, service=service_1
+    )
+    service_2 = data_fixture.create_local_baserow_get_row_service(
+        integration=integration
+    )
+    data_source_2 = data_fixture.create_builder_local_baserow_get_row_data_source(
+        page=page, service=service_2
+    )
+
+    missing_service_id = service_2.id
+    service_ids = [service_1.id, missing_service_id]
+    base_queryset = Service.objects.filter(id__in=service_ids)
+
+    # Simulate a data integrity issue
+    specific_table_name = LocalBaserowGetRow._meta.db_table
+    with connection.cursor() as cursor:
+        # Delete from the specific table (LocalBaserowGetRow)
+        cursor.execute(
+            f"DELETE FROM {specific_table_name} WHERE service_ptr_id = %s",
+            [missing_service_id],
+        )
+
+    with mock.patch(
+        "baserow.contrib.builder.data_sources.handler.logger"
+    ) as mock_logger:
+        specific_services_map = DataSourceHandler()._get_specific_services(
+            service_ids, base_queryset
+        )
+
+    mock_logger.error.assert_called_once_with(
+        f"Specific service {missing_service_id} doesn't exist."
+    )
+    assert len(specific_services_map) == 1
+    assert service_1.id in specific_services_map

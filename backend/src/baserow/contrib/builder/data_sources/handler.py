@@ -1,9 +1,11 @@
-from typing import TYPE_CHECKING, Any, Dict, Iterable, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 from zipfile import ZipFile
 
 from django.core.files.storage import Storage
 from django.db.models import QuerySet
 from django.db.utils import DatabaseError, IntegrityError
+
+from loguru import logger
 
 from baserow.contrib.builder.data_sources.builder_dispatch_context import (
     BuilderDispatchContext,
@@ -135,6 +137,38 @@ class DataSourceHandler:
             base_queryset=queryset,
         )
 
+    def _get_specific_services(
+        self,
+        service_ids: List[int],
+        base_queryset: QuerySet[Service],
+    ) -> Dict[int, Service]:
+        try:
+            return {
+                s.id: s
+                for s in ServiceHandler().get_services(
+                    base_queryset=Service.objects.filter(id__in=service_ids)
+                )
+            }
+        except Service.DoesNotExist:
+            pass
+
+        # There is a data integrity error, so fall back to individual fetches
+        specific_services_map = {}
+        for service_id in service_ids:
+            try:
+                service = ServiceHandler().get_service(
+                    service_id, base_queryset=base_queryset
+                )
+                specific_services_map[service_id] = service
+            except Exception as e:
+                # Handle any DoesNotExist, e.g. LocalBaserowGetRow.DoesNotExist, etc.
+                if "DoesNotExist" in str(type(e)):
+                    logger.error(f"Specific service {service_id} doesn't exist.")
+                    continue
+                raise
+
+        return specific_services_map
+
     def _query_data_sources(
         self, base_queryset: QuerySet, specific=True, with_cache=False
     ):
@@ -161,12 +195,9 @@ class DataSourceHandler:
                 if data_source.service_id is not None
             ]
 
-            specific_services_map = {
-                s.id: s
-                for s in ServiceHandler().get_services(
-                    base_queryset=Service.objects.filter(id__in=service_ids)
-                )
-            }
+            specific_services_map = self._get_specific_services(
+                service_ids, base_queryset
+            )
 
             # Distribute specific services to their data_source
             for data_source in data_sources:
