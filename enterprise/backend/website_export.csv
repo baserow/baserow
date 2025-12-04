@@ -7101,6 +7101,44 @@ link('mailto:' + field('Email'))
 
 ![Formula buttons in Baserow](https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/81b52ee9-8b60-4bab-a546-f9241f641d60/Untitled.png)
 
+
+## Advanced formulas in workflows
+
+Beyond table fields, Baserow formulas power advanced logic in the **[Workflow Builder][1]** and **[Application Builder][2]**. While standard fields use the basic formula editor, automation nodes offer an **Advanced formula builder** to handle complex conditions and dynamic content.
+
+### Router conditions
+
+When configuring an [action node](https://baserow.io/user-docs/workflow-automation), you can switch from the standard visual builder to **Advanced input**. This allows you to write raw formula expressions for your conditions using operators and functions.
+
+- **Standard mode:** Restricts you to simple `Field = Value` logic.
+- **Advanced mode:** Unlocks the full formula engine. You can use operators to compare values directly within the router configuration.
+
+Example: Complex price calculation
+
+Instead of just checking if a price equals 100, you can check if the calculated total (quantity × price) exceeds a threshold.
+
+`(field('Quantity') * field('Price')) > 1000`
+
+Example: Text normalization
+
+Ensure a status match regardless of case (uppercase/lowercase) using the upper() function.
+
+`upper(field('Status')) = 'URGENT'`
+
+### Dynamic content
+
+In [actions][3] like the **AI Prompt** or **Iterators**, you can check the **Advanced formula mode** box. This changes the input from a static text box to a dynamic expression editor.
+
+- **Standard mode:** You type static text and insert variables (e.g., `Summarize [Notes]`).
+- **Advanced mode:** You write a formula that generates the entire text string dynamically. This is useful when the structure of your prompt or source list needs to change based on other data.
+
+Example: Dynamic AI Prompt
+
+Dynamically generate a prompt that asks for different tasks based on the record type.
+
+`concat('Please write a ', if(field('Type')='Blog', 'creative', 'formal'), ' summary for: ', field('Notes'))`
+
+
 ## Frequently asked questions
 
 ### How do I reference other fields in formulas?
@@ -7180,7 +7218,12 @@ regex_replace(field('Phone'), '[^0-9]', '')  // Removes non-numeric characters
 Still need help? If you're looking for something else, please feel free to make recommendations or ask us questions; we're ready to assist you.
 
 - [Ask the Baserow community](https://community.baserow.io)
-- [Contact support](/contact) for questions about Baserow or help with your account",,baserow_user_docs,https://baserow.io/user-docs/understanding-formulas
+- [Contact support](/contact) for questions about Baserow or help with your account
+
+
+  [1]: https://baserow.io/user-docs/workflow-automation
+  [2]: https://baserow.io/user-docs/application-builder-overview
+  [3]: https://baserow.io/user-docs/automation-actions",database formula,baserow_user_docs,https://baserow.io/user-docs/understanding-formulas
 46,API documentation,database-api,Baserow Database API documentation,"# Database API documentation
 
 Baserow's API-first approach makes it easy to integrate databases with any application, automate workflows, and build custom solutions without vendor lock-in.
@@ -20370,1298 +20413,1592 @@ Still need help? If you're looking for something else, please feel free to make 
   [6]: /user-docs/single-line-text-field
   [7]: /user-docs/user-sources
   [8]: /user-docs/baserow-field-overview",,baserow_user_docs,https://baserow.io/user-docs/password-field
-162,Application Builder overview,application-builder-overview,Baserow Application Builder features,"# Baserow Application Builder overview
+162,App Builder overview,application-builder-overview,Baserow Application Builder overview,"# Baserow Application Builder
 
-Baserow’s Application Builder module is a powerful way to build applications, offering flexible ways to create workflows, visualize data, and tailor information to different audiences across organizations.
+The Baserow Application Builder is a no-code interface that allows you to turn your database records into fully functional applications. It offers flexible tools to create workflows, visualize data, and share information with specific audiences inside or outside your organization.
 
-In this section, we'll cover the basics of the Application Builder in Baserow. You’ll learn foundational knowledge about creating customized applications that fit your needs.
+This guide covers building custom web applications, client portals, and internal tools powered by your Baserow database.
 
 <iframe width=""560"" height=""315"" src=""https://www.youtube-nocookie.com/embed/9EXyEf1Yp1g?si=daAFAH4u7efrAP9D&amp;controls=0"" title=""YouTube video player"" frameborder=""0"" allow=""accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"" referrerpolicy=""strict-origin-when-cross-origin"" allowfullscreen></iframe>
 
+## Overview
+
+While the [Baserow Database][1] handles your ""backend"" (storing and organizing data), the Application Builder handles the ""frontend"" (how users interact with that data). 
+
+You can use the Application Builder to design public-facing websites without writing code. Applications consist of pages, visual elements, and logic that connect directly to your tables. When a user interacts with an application (e.g., clicking a button), it can [trigger actions][2] like updating a row or sending a notification.
+
+
 ## Core concepts
 
-The Application Builder allows you to create custom software applications for various purposes, such as building websites, client portals, internal tools, dashboards, and more.
+To build an application effectively, it is helpful to understand the five main components that make up the system:
 
-Baserow Application Builder is based on these core concepts:
+| Concept | Description |
+| :--- | :--- |
+| **[Pages][3]** | Pages act like the screens of your application. An application can have multiple pages, each with its own URL path and settings. You manage these in the left sidebar. |
+| **[Elements][4]** | These are the visual building blocks (e.g., headings, input fields, tables, buttons). You stack elements on a page to design the layout. |
+| **[Data Sources][5]** | Data sources act as the bridge between your application and your database. They allow you to fetch, filter, and display records from specific Baserow tables. |
+| **[Events][2]** | Events define the logic of your app. For example, you can configure a ""Submit"" button to create a new row in your database or redirect a user to a different page. |
+| **[Domains][8]** | To make your application accessible, you publish it to a domain. You can use a generic subdomain or connect your own custom domain name. |
 
-### [Pages][2]
+## Navigate the Application Builder
 
-Think of pages like tables in a database. An application can have one or many pages. Every page has its own name, path, and specific path parameters. You can make new pages and view all your app's pages on Baserow's left sidebar.
+The Application Builder interface is designed to be intuitive. Here is how to find your way around the editor.
 
-### [Elements][3]
+### 1. Accessing the builder
+From your workspace homepage, select an existing application or click **+ Add new** -> **Application**.
 
-Elements are the core components of pages that shape how your applications look and how users can interact with them. These include elements like titles, text, or images. You stack them on a page to build it. When you click an element in the page editor, the right sidebar shows options for that element so you can change how it looks and works.
+### 2. The sidebar (Pages)
+The left sidebar lists all [pages][3] within your application. Clicking a page name will load it into the center canvas for editing.
 
-### [Data sources][4]
+### 3. Top bar controls
+The top navigation bar contains your primary design tools:
+* **[Elements][4]:** Add visual components to your page.
+* **[Data][5]:** Configure which table data is available to the page.
+* **[Page settings][3]:** Manage page paths and parameters.
+* **Device view:** In the center, toggle between **Desktop**, **Tablet**, and **Mobile** icons to preview how your application responds to different screen sizes.
 
-The data sources allow your pages to connect to data in a Baserow table. You can pick a table and view to connect. You can also set filters for those views. 
+### 4. Preview and Publish
+Located at the top right:
+ * **[Preview][6]:** See your application exactly as a user would, allowing you to test functionality without going live.
+ * **[Publish][6]:** Push your latest changes to the live production environment.
 
-### [Events and actions][5]
+![Application Builder interface](https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/dc58410f-3ff7-41ac-89f7-1551d27c7943/Untitled%201.png)
 
-Elements like buttons or forms can cause things to happen in apps when people use them. Say someone fills out a form or clicks a button. You can decide what should happen next. Maybe you want to add a new row to a Baserow table, open up a different page, or take the user to a website.
+## Frequently asked questions (FAQ)
 
-### [Domains][6]
+### Is the Application Builder separate from the Database?
+Yes and no. They are separate modules, but they are deeply integrated. The Application Builder sits on top of your [database][1], using your existing [tables][7] as the source of truth for data.
 
-Before publishing your app, add a domain. Use a subdomain or a custom domain name. Once added, hit **Publish** to go live.
+### Can I use my own domain name?
+Yes. You can publish your application to a custom [domain][8] (e.g., `portal.yourcompany.com`) or use a default Baserow subdomain.
 
-![Baserow Application Builder ][1]
+### Do I need to know how to code?
+No. The Application Builder is a visual, drag-and-drop tool. However, it offers advanced configuration options for formulas and filters if you need complex logic.
 
+## Related content
 
-## Navigating the Application Builder
-
-Understanding the basics of the Application Builder helps you sort, see, and use your data better. This makes your work easier and more intuitive.
-
-To start, head to the dashboard and pick the application you want to work on or hit the **+Create new** button. Then choose the **Application** option. You can tweak its settings with no trouble. For more help on making a new application, [check out this support section][7].
-
-On the sidebar, there's a list of your application's pages. Click one to open it.
-
-At the top left of the page, you'll find three options: [Elements][3], [Data][4], and [Page settings][2]. These let you control what's on the page.
-
-In the middle of the top bar, switch between web, tablet, and mobile views. This shows how your page will look on different screens.
-
-Finally, at the top right, the **Preview** and **Publish** buttons are there for you. The **Preview** button lets you see how your application looks at any time, and the **Publish** button helps you make your changes live in production.
-
-![Navigating the Application Builder][8]
+ * [Create your first application][9]
+ * [Overview of available Elements][10]
+ * [Connecting Data Sources][11]
+ * [Publishing an application][12]
 
 
-  [1]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/9603b529-afd3-4232-ba94-21e4bd969879/Untitled.png
-  [2]: /user-docs/pages-in-the-application-builder
-  [3]: /user-docs/elements-overview
-  [4]: /user-docs/data-sources
-  [5]: /user-docs/element-events
-  [6]: /user-docs/add-a-domain-to-an-application
-  [7]: /user-docs/create-an-application
-  [8]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/dc58410f-3ff7-41ac-89f7-1551d27c7943/Untitled%201.png",,baserow_user_docs,https://baserow.io/user-docs/application-builder-overview
-163,Create an application,create-an-application,Create a new application in Baserow,"# Create a new Baserow application
+----------
 
-Baserow makes it easy to build applications that fit your needs. If you need to handle a project, keep track of items, or sort customer info, Baserow has a simple platform for you to store, sort, and manage your data.
+Still need help? If you’re looking for something else, please feel free to make recommendations or ask us questions; we’re ready to assist you.
 
-We'll show you how to make a Baserow application step by step in this guide.
+ - [Ask the Baserow community][13]
+ - [Contact support][14] for questions about Baserow or help with your account
+
+
+  [1]: /user-docs/intro-to-databases
+  [2]: /user-docs/element-events
+  [3]: /user-docs/pages-in-the-application-builder
+  [4]: /user-docs/elements-overview
+  [5]: /user-docs/data-sources
+  [6]: /user-docs/preview-and-publish-application
+  [7]: /user-docs/intro-to-tables
+  [8]: /user-docs/add-a-domain-to-an-application
+  [9]: /user-docs/create-an-application
+  [10]: /user-docs/elements-overview
+  [11]: /user-docs/data-sources
+  [12]: /user-docs/preview-and-publish-application
+  [13]: https://community.baserow.io/
+  [14]: https://baserow.io/contact",application builder,baserow_user_docs,https://baserow.io/user-docs/application-builder-overview
+163,Create an application,create-an-application,Create a new application in Baserow,"# Create an application in Baserow
+
+Creating a new application in Baserow allows you to build a visual frontend for your databases. You can start from a blank canvas, duplicate an existing workflow, or install a pre-configured template to get started immediately.
+
+This guide covers how to launch custom interfaces and portals powered by your Baserow data.
 
 ## Overview
 
-Once you log in to your Baserow account, you'll land on your dashboard. This is where you manage all your applications and databases in workspaces. Workspaces provide a structured way to organize your work, and you can [invite collaborators to join you](/user-docs/managing-workspace-collaborators).
+Applications live inside **[Workspaces][1]** alongside your databases. While a [database][2] stores your information (rows and columns), an application determines how users view and interact with that information (pages, buttons, and forms).
 
-In these workspaces, you can invite others to collaborate with you. To create an application, simply choose an existing workspace or [create a new workspace](/user-docs/setting-up-a-workspace).
+When you create an application, you are setting up a container for your [pages][3]. You can have multiple applications in a single workspace, all connecting to the same or different databases.
 
 ## Create a blank application
 
-To create a new application, navigate to the workspace where you want to create the application. 
+If you want to build a custom tool from scratch, start with a blank application.
 
-1. On your dashboard, click the **Create new** button.
-2. After clicking the **Create new** button, a popup will appear, where you can either select the [Database](/user-docs/intro-to-databases), [Application](/user-docs/application-builder-overview), or [From template](/user-docs/add-database-from-template) option. Select the **Application** option.
-    
-    ![Adding a new application][1]
-    
-3. In the pop-up that opens next, give the application a descriptive name. You can subsequently change the application name as needed.
-    
-    The application name is for your reference and will not appear anywhere after publishing the application.
-    
-    ![Assign a name for your new application][2]
-    
-4. Click **Add application** to finalize the setup. Then, you'll be immediately taken to your new Baserow application and can start working on it.
+1.  Navigate to the specific Workspace where you want the application to live.
+2.  Click the **+ Add new** button in the home page.
+3.  Select **Application** from the options (Database, Application, From template).
+    ![Adding a new application][4]
+4.  **Name your application.** Choose a descriptive name for your internal reference (e.g., ""Client Portal"").
+    * *Note: This name is for your internal use only and will not be visible to users on the published app.*
+5.  Click **Add application**.
 
-You can see default [pages][3] and [elements][4] when you navigate to your newly created application.
+You will be redirected immediately to the Application Builder canvas, where you will see default [pages][3] and [elements][5] ready for customization.
 
-![Baserow Blank application][5]
+![Baserow Blank application][6]
 
 ## Duplicate an application
 
-To duplicate an existing application, hover over the application and click the three dots `⋮` icon next to it. Then, choose the **Duplicate** option from the dropdown menu. 
+Duplicating an application is useful for creating backups or testing changes without affecting your live production app.
 
-You can monitor the progress of the duplication in the left sidebar.
+1.  Hover your mouse over the existing application in your workspace sidebar or home page.
+2.  Click the **three dots** `⋮` icon next to the application name.
+3.  Select **Duplicate**.
 
-Explore further [details about application configurations][6] to maximize your usage.
+You can monitor the progress of the duplication in the left sidebar. The new copy will include all pages, elements, and configuration settings from the original.
 
-## Add an application from template
+## Add an application from a template
 
-The easiest way to get started if you are new to Baserow Application Builder is to copy a [template](/templates/). To start with a template, you need to choose a workspace into which the template will be installed. 
+The fastest way to learn Baserow is to start with a template. You can add templates directly from your dashboard or the [template library](/templates/).
 
-You can add a template in two ways:
+### Template pairings
+Baserow Application templates are often designed to work with specific Database templates. When you install an application template, ensure you have the corresponding data structure or install the pair together.
 
- 1. From the template page, or
- 2. From your dashboard.
- 
-> Learn more about [how to add a template to a workspace][7].
+| Application Template | Paired Database Template |
+| :--- | :--- |
+| **Employee Dashboard** | [Business Goal Tracker](/templates/business-goal-tracker-okrs) |
+| **Service Requests Manager** | [Commercial Property Management](/templates/commercial-property-management) |
+| **CRM Application** | [Lightweight CRM](/templates/lightweight-crm) |
+| **Task Management App** | [Task Management](/templates/personal-task-manager) |
 
-Application Builder templates are paired with Database templates:
-
-- The **Employee Dashboard Application** is paired with the [Business Goal Tracker](/templates/business-goal-tracker-okrs) template.
-- The **Service Requests Manager Application** is paired with the [Commercial Property Management](/templates/commercial-property-management) template.
-- The **CRM Application** is paired with the [Lightweight CRM](/templates/lightweight-crm) template.
-- **The Task Management Application** is paired with the [Task Management](/templates/personal-task-manager) template.
+Learn more about [installing templates to a workspace here][7].
 
 ![Add an application from template][8]
 
----
+## Frequently asked questions (FAQ)
 
-Still need help? If you're looking for something else, please feel free to make recommendations or ask us questions—we’re ready to assist you.
+### Is the application name public?
+No. The name you give your application during creation is for your reference within the Baserow dashboard only. It does not appear on the published website.
 
- - [Ask the Baserow community](https://community.baserow.io)
- - [Contact support](/contact) for questions about Baserow or help with your account
+### Can I rename my application later?
+Yes. You can [rename your application][9] at any time by clicking the three dots `⋮` icon next to the application name and selecting **Rename**.
+
+### Do I need a database before creating an application?
+Technically, no. You can create a blank application without a database. However, to make the application useful (displaying dynamic content), you will need to connect it to a Baserow database eventually.
+
+## Related content
+
+* [Application Builder configuration][10]
+* [Overview of Elements][5]
+* [Managing Pages][3]
+* [Connecting Data Sources][11]
 
 
-  [1]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/81237e2d-80c9-4fa1-9cb6-2dd8cb2a67f1/Untitled.png
-  [2]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/49213d31-ed05-4127-89b4-5eff8f422b0a/Untitled%201.png
+----------
+
+Still need help? If you’re looking for something else, please feel free to make recommendations or ask us questions; we’re ready to assist you.
+
+ - [Ask the Baserow community](https://community.baserow.io/)
+ - [Contact support](https://baserow.io/contact) for questions about Baserow or help with your account
+
+
+  [1]: /user-docs/intro-to-workspaces
+  [2]: /user-docs/intro-to-databases
   [3]: /user-docs/pages-in-the-application-builder
-  [4]: /user-docs/elements-overview
-  [5]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/4b24657e-adc8-40df-a941-7d690e55b143/Untitled%202.png
-  [6]: /user-docs/application-builder-configuration
+  [4]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/af81cb74-e927-41fb-94a0-34f1ee71829e/create%20app.jpg
+  [5]: /user-docs/elements-overview
+  [6]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/4b24657e-adc8-40df-a941-7d690e55b143/Untitled%202.png
   [7]: /user-docs/add-database-from-template
-  [8]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/6e6c34a6-542e-4117-9033-5328f0420e9c/App%20builder%20template.png",,baserow_user_docs,https://baserow.io/user-docs/create-an-application
-164,Application Builder configuration,application-builder-configuration,Baserow app builder setup guide,"# How to configure a Baserow application
+  [8]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/6e6c34a6-542e-4117-9033-5328f0420e9c/App%20builder%20template.png
+  [9]: https://baserow.io/user-docs/application-builder-configuration
+  [10]: /user-docs/application-builder-configuration
+  [11]: /user-docs/data-sources",application builder,baserow_user_docs,https://baserow.io/user-docs/create-an-application
+164,Configure an application,application-builder-configuration,Baserow application builder setup guide,"# Manage and configure applications
 
-The Application Builder in Baserow makes it easy to create custom applications that fit your unique requirements. With its intuitive interface design and streamlined data entry capabilities, you can enhance collaboration and efficiency in your projects.
+Managing your applications effectively is key to maintaining an organized workspace. Baserow provides high-level configuration options directly from your dashboard, allowing you to create safe testing environments, maintain backups, and organize your projects without affecting your live data.
 
-Understanding configurations in Baserow empowers you to effectively organize, manage, and maintain your applications according to your preferences.
+This guide covers how to control the lifecycle of your Baserow applications: rename, duplicate, back up, and delete.
 
-In this section, we'll delve into key features including:
+![Manage and configure applications in Baserow][5]
 
-- [Renaming applications][1]
-- [Duplicating applications][2]
-- [Creating snapshots][3]
-- [Deleting applications][4]
+## Overview
+
+These configuration options are performed at the **[Workspace][1]** level, rather than inside the Application Builder.
+
+ * **Renaming** is purely cosmetic for your internal dashboard; it does not change the [public URL][2] of your app.
+ * **[Duplicating][3]** creates an immediate, active copy of your app, ideal for A/B testing or creating a ""Sandbox"" version.
+ * **[Snapshots][4]** are passive backups. You cannot edit a snapshot directly; you must restore it to a new application to view its contents.
+ * **Deleting** moves the application to the trash, where it can be recovered for a limited time.
 
 ## Rename an application
 
-When you create your application, you can assign a name, which can be customized in this section.
+You can update your application's name at any time. This name is used for internal reference within your Baserow dashboard and workspace sidebar.
 
-The application name is for your reference and will not appear anywhere after publishing the application.
+> Changing the name **does not** affect the [published URL][2] or the title displayed to public users.
 
-To rename an application:
+ 1.  Hover over the application name in your workspace sidebar or home page.
+ 2.  Click the **three dots** `⋮` icon next to the application.
+ 3.  Select **Rename**.
+ 4.  Input the new name and press Enter.
 
-- In the right sidebar, click the `⋮` icon next to an application.
-- Select **Rename** and input a new name for the application.
-
-![Rename an application][5]
+![Rename an application](https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/c8247625-6f1c-49ab-bd62-e673ca35f88e/Untitled%201.png)
 
 ## Duplicate an application
 
-Duplicating enables you to create copies of applications within your workspace. It's useful for creating backups, testing new configurations, or maintaining multiple versions of your data.
+Duplicating an application creates an exact, independent copy of the application in its current state. This is useful for testing new features without breaking your live production app.
 
-If you need to make a copy of an existing application in its current state, hover over the application and click on the three-dot `⋮` icon next to the application. 
+1.  Hover over the application you wish to copy.
+2.  Click the **three dots** `⋮` icon.
+3.  Select **Duplicate**.
 
-Select the **Duplicate** option from the popup. You can view the application and application duplication progress in the left sidebar.
+You can monitor the progress in the sidebar. The copy will appear in the same workspace.
 
-![Duplicate an application][6]
+## Snapshots (Backups)
 
-After duplicating the application, a copy will be created, and you can start editing. The copy will appear in the same workspace as the original one.
+Snapshots allow you to save the state of your application at a specific point in time. Unlike a duplicate, a snapshot is not an active application but a restore point.
 
-## Snapshots
+**To create a snapshot:**
+1.  Click the **three dots** `⋮` icon next to the application.
+2.  Select **Snapshots**.
+3.  Click **Create snapshot**.
 
-Snapshots are a full copy of your application at the moment when they were created. It allows you to save your current state whenever needed to be able to go back and resume from that state at any time in the future. 
+**To restore a snapshot:**
+1.  Open the Snapshots menu for the application.
+2.  Select the specific date/time you wish to restore.
+3.  This will create a *new* application based on that data; it does not overwrite the existing application.
 
-To create a snapshot, select the Snapshot option from the popup, and choose **Snapshots**. [Learn more about snapshots](/user-docs/snapshots).
+> [Learn more about snapshots here](/user-docs/snapshots).
 
-After you take a snapshot, you can click on one of the previous snapshot versions and restore it. A duplication of that data will be created when restoring. 
+### Comparison: Snapshots vs. Duplicates
 
-Snapshots are automatically deleted after one year.
+| Feature | Duplicate | Snapshot |
+| :--- | :--- | :--- |
+| **Primary use** | Testing, Development, Branching | Backup, Version History |
+| **Editable?** | Yes, immediately editable. | No, must be restored first. |
+| **Storage** | Counts as an active application. | stored as a backup file. |
+| **Retention** | Indefinite (until deleted). | 1 Year. |
 
 ## Delete an application
 
-You have the option of deleting any of the applications with the workspace. Deleting allows you to remove an application from your workspace. It helps in managing clutter and maintaining a clean and organized workspace.
+Deleting an application removes it from your workspace view. However, Baserow includes a safety net for accidental deletions.
 
-To delete an application within your workspace, follow these steps:
+1.  Click the **three dots** `⋮` icon next to the application.
+2.  Select **Delete**.
+3.  Confirm the action in the dialog box.
 
-1. Navigate to the application you wish to delete.
-2. Click on the **Delete** option in the application menu.
-3. Confirm the deletion action in the dialog box that appears afterward.
+> **Recovery:** Deleted applications are moved to the Trash. You can typically restore them within a specific grace period before they are permanently purged. [Read more about data recovery](/user-docs/data-recovery-and-deletion).
 
-Learn more about [recovering data in Baserow](/user-docs/data-recovery-and-deletion).
+## Frequently asked questions (FAQ)
+
+### Will renaming my application break the public link?
+No. The application name is for your internal dashboard organization only. The public URL is determined by the domain settings, not the application name.
+
+### Can I move a snapshot to a different workspace?
+Snapshots are tied to the application. If you need to move data, it is best to **restore** the snapshot as a new application, and then [export/import the workspace][6].
+
+### What happens to my data if I delete an application?
+The application and its pages are moved to the trash. The underlying **Database** is separate; if your application was connected to a database, deleting the application *does not* delete the database tables.
+
+## Related content
+
+ * [Add a custom domain][2]
+ * [Manage workspace collaborators][7]
+ * [Data recovery and deletion][8]
 
 ---
 
-Still need help? If you're looking for something else, please feel free to make recommendations or ask us questions—we’re ready to assist you.
+Still need help? If you're looking for something else, please feel free to make recommendations or ask us questions; we’re ready to assist you.
 
  - [Ask the Baserow community](https://community.baserow.io)
  - [Contact support](/contact) for questions about Baserow or help with your account
 
 
-  [1]: #rename-an-application
-  [2]: #duplicate-an-application
-  [3]: #snapshots
-  [4]: #delete-an-application
-  [5]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/6bb97779-c977-4af4-89ef-17630712a3bd/Untitled.png
-  [6]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/c8247625-6f1c-49ab-bd62-e673ca35f88e/Untitled%201.png",,baserow_user_docs,https://baserow.io/user-docs/application-builder-configuration
-165,Preview and publish an application,preview-and-publish-application,Preview and publish an application in Baserow,"# Preview and publish a Baserow application
+  [1]: /user-docs/intro-to-workspaces
+  [2]: /user-docs/add-a-domain-to-an-application
+  [3]: /user-docs/create-an-application
+  [4]: /user-docs/snapshots
+  [5]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/1711cc79-60a4-40d9-80a3-3f8e45e73aa4/Manage%20and%20configure%20applications.png
+  [6]: /user-docs/export-workspaces
+  [7]: /user-docs/managing-workspace-collaborators
+  [8]: /user-docs/data-recovery-and-deletion",application builder,baserow_user_docs,https://baserow.io/user-docs/application-builder-configuration
+165,Preview and publish,preview-and-publish-application,Preview and publish an application in Baserow,"# Preview and publish a Baserow application
 
-Previewing and publishing your Baserow application is necessary to make it public and accessible to others.
+Once you have built your application's layout and logic, the final steps are to preview it for errors and publish it to a live URL. Baserow separates your ""Draft"" environment from your ""Live"" environment, allowing you to work on changes without affecting current users.
 
-In this section, we'll go over the steps to preview and publish your Baserow application.
+This guide covers how to test your application in a safe staging environment before deploying it to the live web.
+
+## Deployment lifecycle overview
+
+Understanding the three states of a Baserow application ensures you don't accidentally expose unfinished work.
+
+1.  **Editor (Draft):** This is where you build. Changes made here are auto-saved to your draft but are **not** visible to the public.
+2.  **Preview (Staging):** A private test mode that simulates the live experience. You use this to verify buttons, workflows, and mobile responsiveness.
+3.  **Published (Production):** The live version accessible via your domain. This version **only updates** when you explicitly click the ""Publish"" button again.
 
 ![Preview and publish an application][1]
 
-Make sure you've set up everything right by checking the [necessary configurations](/user-docs/application-builder-configuration). This helps your app work well when it goes live.
+## Preview your application
 
-## Preview an application
+Preview mode allows you to interact with your application exactly as a user would, but within a safe, private wrapper. It is essential for catching logic errors or layout issues.
 
-Preview mode enables you to test your application's functionality and appearance before making it public. 
+**To enter preview mode:**
+1.  Click the **Preview** button in the top-right corner of the Application Builder.
+2.  Your canvas will switch to an interactive mode.
+3.  Test your specific workflows (e.g., submitting a form, clicking a button).
 
-Use the preview to make sure your app looks and works like you want it to.
+**Device testing:**
+Use the device toggles (Desktop, Tablet, Mobile) in the top bar to ensure your layout responds correctly to different screen sizes.
 
-Just hit the **Preview** button in the top-right of your screen. You can then see how your application is doing.
+Learn more: [Preview as an authenticated user][2]
 
-## Publish an application
+## Publish to the web
 
-Publishing your application puts all your updates on the internet right away. Until you publish, no one else can see your application or its pages.
+Publishing takes the current snapshot of your Editor and pushes it to your configured domain(s).
 
-Before you share your application with the world, double-check its settings, permissions, integrations, and make sure all your [data sources][2] are safe and working right. This keeps your application secure.
+### Prerequisites
+* **Data Sources:** Ensure your [Database][3] has the correct permissions (e.g., if you have a form, the permission must allow ""Create"" actions).
+* **Domain:** You must have at least one domain configured. This can be a default Baserow subdomain or your own [custom domain][4].
 
-![Publish application][3]
+### How to publish
 
-When you're ready to make your application available to users, configure the publish settings.
+1.  Click the **Publish** button in the top navigation bar.
+2.  A dropdown menu will appear showing your connected domains and their current status.
+3.  Click the **Publish** button next to the specific domain you wish to update.
+4.  Wait for the status indicator to turn green.
+5.  Click the link icon or the URL text to open your live application in a new tab.
 
-To make your application visible to anyone on the web, follow these steps:
+![Publish application][5]
 
-1. Click on the **Publish** button located within your top navigation bar.
-2. You should see your domain and publication status info in the menu that opens.
-    
-    > You need to have at least one domain to publish your application. Your application can have multiple domains, each running a different version of the application. Learn more about how to configure your domain link.
-    > 
-3. Click on the **Publish** button located within the pop-up window.
-4. This action will deploy your changes to the live environment.
-5. Once the changes are published, copy the link that you can share with anyone to access your application online.
+## Updating a live application
 
-Remember: publishing makes your application live and accessible to the public. Make sure your changes are final and ready for public viewing before clicking the **Publish** button.
+Baserow applications do **not** update automatically when you change elements in the editor. This protects your users from seeing half-finished work.
+
+**To update your live app:**
+1.  Make your changes in the Editor.
+2.  Preview the changes to verify they work.
+3.  Click **Publish** again to overwrite the previous version with your new changes.
+
+## Frequently asked questions (FAQ)
+
+### Do I need to pay for hosting?
+No. Baserow hosts the application for you. You just need to choose a domain name (or use a free subdomain).
+
+### If I change data in my database, do I need to republish?
+No. **Data** is live; **Design** is versioned.
+* If you add a new row to your database table, it appears in the application immediately.
+* If you change the color of a button or add a new page, you **must republish** for users to see it.
+
+### Can I unpublish my application?
+Yes, you can delete the domain to remove the link, effectively taking the application offline for that specific URL.
+
+## Related content
+
+* [Configure a custom domain][4]
+* [Managing Data Sources][3]
+* [Application Builder settings][6]
 
 ---
 
-Still need help? If you're looking for something else, please feel free to make recommendations or ask us questions—we’re ready to assist you.
+Still need help? If you're looking for something else, please feel free to make recommendations or ask us questions; we’re ready to assist you.
 
  - [Ask the Baserow community](https://community.baserow.io)
  - [Contact support](/contact) for questions about Baserow or help with your account
 
+
   [1]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/52591df8-4920-402f-8693-310ef2bf1555/Untitled.png
-  [2]: /user-docs/data-sources
-  [3]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/0a3bea54-7fd6-428d-a906-d5a94911c058/Untitled%201.png",,baserow_user_docs,https://baserow.io/user-docs/preview-and-publish-application
-166,Application settings,application-settings,Application settings in Baserow Application Builder,"# Application settings in Baserow
+  [2]: https://baserow.io/user-docs/pages-in-the-application-builder
+  [3]: /user-docs/data-sources
+  [4]: /user-docs/add-a-domain-to-an-application
+  [5]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/0a3bea54-7fd6-428d-a906-d5a94911c058/Untitled%201.png
+  [6]: /user-docs/application-builder-configuration",application builder,baserow_user_docs,https://baserow.io/user-docs/preview-and-publish-application
+166,Application settings,application-settings,Application settings in Baserow Application Builder,"# Configure Application Builder settings
 
-Baserow makes managing app settings easy with its user-friendly Application Builder. You can tailor your apps to fit just what you need.
+The **Settings** menu in the Application Builder is the control center for your app's global behavior. Unlike the canvas (where you build individual pages), the settings menu handles the environment your application runs in, including how it looks (Theme), where it lives (Domains), and how it accesses data (Integrations).
 
-Let's dive into how to set up your Baserow app. This way, you can make it work just right for you.
+This guide covers how to manage global configurations, visual theming, domains, and data connections for your application.
 
 ## Overview
 
-Before you start [creating your application](/user-docs/create-an-application), take a moment to set up some basic settings. 
+ * **General**: Upload favicon and select the [login page][1] that non-logged-in users should be redirected to when they attempt to access a restricted page
+ * **[Domains][2]:** Control the URL where your application is published.
+ * **[Integrations][3]:** Manage the secure connections between your application frontend and your Baserow database backend.
+ * **[User sources][4]:** Specify how users log in and authenticate (e.g., allow users to sign up via a form).
+ * **[Custom code][5]**: Take your applications to the next level by adding custom CSS and JavaScript in the Baserow Application Builder. 
+ * **[Theme][6]:** Define the global color palette, typography, and component styles to ensure brand consistency across all pages.
 
-Here's how to access the application settings:
+![Application settings][7]
 
-1. Look on the left side for the toolbar.
-2. Find the application you want to work on.
-3. On the right side, click the three dots **`⋮`** next to the application.
-4. Choose **Settings** from the options that appear.
+## Accessing the settings
 
-Now, you can easily change the general settings of your application.
+To open the configuration menu:
 
-![Application settings][1]
+1.  Open your application in the Application Builder.
+2.  In the left sidebar, locate the **Settings** button (often represented by a gear icon or a menu option).
+3.  *Alternatively*: From the workspace homw page, click the **three dots** `⋮` next to your application and select **Settings**.
 
-Next, we'll walk through the different parts of the settings to make sure your application is all set up properly.
+## Integrations and data access
+
+This section manages how your application connects to the underlying data.
+
+### Integrations
+
+An ""Integration"" acts as a bridge between your application (frontend) and a workspace. When you set up an integration, you authorize the application to read or write data on your behalf.
+
+Any integration can be created by adding a [data source][8], [an action][9] or [user authentication][10].
+
+> When you create an integration using your account, anyone with *edit* permissions in the Application Builder can access the data you have access to. For strict data separation, consider using a dedicated service account.
+
+![Create new integrations in Baserow][11]
+
+### User Sources (Authentication)
+User Sources determine how end-users access your app. Adding a User Source enables:
+* **User Accounts:** Allow visitors to sign up and log in.
+* **Data Security:** Restrict access to specific pages or data rows based on the logged-in user.
+* **Personalization:** Display content tailored to the specific user.
+
+[Learn more about User Sources][4].
+
+## Global Theme
+
+The **Theme** settings allow you to define a consistent visual style for your entire application. Instead of styling every button individually, you set global defaults here.
+
+### Styling options
+
+You can customize the following global elements:
+
+| Element | Customizable properties |
+| :--- | :--- |
+| **Colors** | Define your primary, secondary, border, success, warning, error and custom color palette. |
+| **Page** | Set the default background color and image for all pages. |
+| **Typography** | Set font families, base sizes, weight, alignment and colors. |
+| **Buttons** | Configure width, alignment, font styles, border styles, and padding, for default, active and hover states. |
+| **Link** | Set the font styles, alignment and color for the default, hover and active states. |
+| **Inputs** | Set the style for label and input fields, font, color, padding, labels, and borders. |
+| **Tables** | Control header backgrounds, cell padding, separators, colors, and border styles. |
+| **Image** | Set the default image alignment, width, height, constraints and border. |
+
+### Defining colors
+When setting colors, you can use:
+* **Hex Codes:** Standard web color codes (e.g., `#FF0000`).
+* **RGB Values:** (e.g., `RGB(255, 0, 0)`).
+* **Opacity:** Adjust the transparency slider for overlay effects.
+
+![Global Theme][12]
+
+### Overriding the theme
+While the Global Theme sets the defaults, you can still customize individual elements on specific pages.
+1.  Select the specific element on your canvas.
+2.  Go to the **Styles** tab in the right sidebar.
+3.  Any change made here will override the global theme for *that specific element only*.
+
+[Learn more about element styling][13].
 
 ## Domains
 
-To [publish your application](/user-docs/preview-and-publish-application), you have to link it to a domain. This is necessary before you can make your application accessible publicly.
+Before you can [publish your application][14], you must define a domain. This is the web address where users will access your live app.
 
-Your application can be published in two ways:
+You have two options:
+1.  **Baserow Subdomain:** A free, default address (e.g., `yourproject.baserow.site`).
+2.  **Custom Domain:** Your own branded URL (e.g., `portal.yourcompany.com`).
 
-1. You can use a subdomain provided by Baserow, e.g. `yourdomain.baserow.site`.
-2. You can use your custom domain, like `yourdomain.com`.
+**Note:** You can configure multiple domains for a single application, allowing you to publish different versions (e.g., a ""Staging"" domain and a ""Production"" domain). [Learn more about configuring domains][2].
 
-For each domain you list, you can publish different versions of your application. This flexibility allows you to tailor your application for different audiences or purposes.
+![Associate a domain with your Baserow application][15]
 
-Learn more about [setting up and configuring your domain][2] to make your application publicly available.
+## Frequently asked questions (FAQ)
 
-![Associate a domain with your Baserow application][3]
+### Can I change the domain after publishing?
+Yes. You can [add or remove domains][16] in the settings at any time. However, if you remove a domain, any users visiting the old link will no longer be able to access the app.
 
-## Integrations
+### What happens if I change the global theme?
+Changing the global theme will immediately update all elements in your application that are using the default styles. Elements where you have [manually overridden the style][17] (e.g., manually changed a button to red) will **not** be affected by global theme changes.
 
-When you authorize your account for integrations, everyone with edit permissions to the application gains access to the data you can see. By creating a connection, you let the application use your account to make changes in your Baserow workspace.
+### Do I need a User Source for a public website?
+No. If your application is a public directory or website that does not require login, you do not need to configure a [User Source][10].
 
-If you want to keep things separate, you can create another user with the right permissions and use that one instead.
+## Related content
 
-![Create new integrations in Baserow][4]
-
-You can create new integrations by adding a [data source][5], [event][6], or [user authentication][7].
-
-- **[Data source][5]**: Adding a data source means you can work with structured data more flexibly. It lets you use and change data stored in Baserow right in your application. This makes your application more flexible and useful because you can tap into Baserow's strong database features.
-    
-    Learn more about [configuring a data source][5].
-    
-- **Events**: Events allow users to perform specific actions within your application with just a click. These events can range from simple tasks like submitting forms or triggering notifications to complex operations such as initiating workflows or executing API calls. 
-    
-    Learn more about [events in an application][6].
-    
-- **[User sources][7]**: User authentication boosts security and personalization in your application. When you set up user sources, you're ensuring that users can safely log in and access their accounts. It also means they get content tailored just for them, adding a personalized touch to their experience.
-    
-    Learn more about [configuring a user source][7].
-    
-## User sources
-
-To enable users to log in securely, you need to add a user source for authentication. This allows users to access the data stored in the database through your application.
-
-User sources handle user authentication, registration, and management securely. Once set up, your users can easily sign up, log in, and take control of their accounts within the application.
-
-Learn more about [configuring a user source][7].
-
-## Theme
-
-In the **Theme** section, you can customize the appearance of [elements][8] by adjusting various parameters. This level of customization allows for consistent styling throughout your application, for a cohesive and aesthetically pleasing user experience.
-
-![Set theme at the application level][10]
-
-### Set theme at the application level 
-
-Baserow allows you to configure the overall styling of your application through theme settings. These settings control various visual aspects, including:
-
- - **Colors:** You can fine-tune the default colors to achieve the desired visual presentation. Define the color scheme for your application elements (backgrounds, text, etc.).
- - **Typography**: You can also specify the default font size and color for the headings. Choose the fonts used throughout your application.
- - **Page**: Set styling options for different page elements.
- - **Button**: Customize the appearance of buttons.
- - **Link**: Style the way links are displayed.
- - **Image**: Configure how images are presented within the application.
- - **Table**: Configure the table border, header, and more within the application.
- - **Input**: Set the default input label and header styling.
-
-![Baserow Application Builder theme styling][11]
-
-To access and apply theme settings:
-
- - Navigate to the application you want to customize.
- - Click on the three dots (...) located next to the application name.
- - Select **Settings** from the menu.
- - In the settings modal, click on the **Theme** section.
-
-This section will display all the available theme settings. You can modify options like color palettes, fonts, and button styles according to your preference.
-
-### Customize individual elements
-
-Baserow also allows for [styling specific elements][12] within your page. 
-
- - Select the [element][13] you want to customize.
- - Select the **General** tab in the right-hand panel. 
- - Click the settings icon to open a modal window with element-specific styling options. The available options will depend on the element you selected. 
- - Make your desired adjustments within the modal window.
-
-[Learn more about the element styling options][12].
-
-### Select font color
-
-You have two options for selecting a font color:
-
-- **Hexadecimal color code:** This is a six-digit code preceded by a hashtag (#). Enter a valid hex code (e.g., #FF0000 for red) in the designated field.
-- **RGB value:** Specify the color using RGB values. This format specifies the intensity of each color channel on a scale of 0 to 255. (e.g., RGB (255, 0, 0) for red).
-
-Adjust the opacity for a subtle effect
-
-![Baserow application hex code][14]
-
-
+ * [Publish your application][14]
+ * [Connect Data Sources][18]
+ * [Configure User Authentication][4]
 
 ---
 
-Still need help? If you're looking for something else, please feel free to make recommendations or ask us questions—we’re ready to assist you.
+Still need help? If you're looking for something else, please feel free to make recommendations or ask us questions; we’re ready to assist you.
 
  - [Ask the Baserow community](https://community.baserow.io)
  - [Contact support](/contact) for questions about Baserow or help with your account
-
-
-  [1]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/5c0def74-f8ae-4b95-b1f3-3f7f140aab47/Untitled.png
-  [2]: /user-docs/add-a-domain-to-an-application
-  [3]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/284e318b-46c1-440f-98e0-bb0f7897cd89/Untitled%201.png
-  [4]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/9ea03c51-2868-4243-9190-a13a4cca960e/Untitled%202.png
-  [5]: /user-docs/data-sources
-  [6]: /user-docs/element-events
-  [7]: /user-docs/user-sources
-  [8]: /user-docs/elements-overview
-  [9]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/64b7f1dd-caf6-4045-8f97-dbf60a53aa3f/New%20styling%20options%20for%20Application%20Builder.png
-  [10]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/7a49ef73-4a11-4590-9620-97ff8a295e39/ab_more_styling.webp
-  [11]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/0c90ab38-2db6-41e6-b34d-eb5609300f9a/ab_styling.webp
-  [12]: /user-docs/element-style
-  [13]: /user-docs/add-and-remove-elements
-  [14]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/752f37fa-c658-4f04-933b-0a879c4bfe09/application%20hex%20code.png",,baserow_user_docs,https://baserow.io/user-docs/application-settings
-167,Add a domain,add-a-domain-to-an-application,Add a domain to an application in Baserow,"# Add a domain to an application
-
-To make an application accessible online, you have to link it to a domain. 
-
-In this section, we'll cover how to publish an application to a custom domain or Baserow subdomain. 
-
-## Overview
-
-With custom domains, you can publish different versions of your application for each domain you have listed. So if you have multiple domains, you can have a unique version of your app for each one.
-
-This gives you flexibility and control over how your application is accessed and presented online, making it easier for your users to find and use your app.
-
-An application can be made publicly available in two ways:
-
-- **Subdomain by Baserow**: Baserow offers a subdomain where the application can be accessed (*yourdomain.baserow.site*).
-- **Custom domain**: You can use a domain name to access the application (*yourdomain.com*).
-
-You can also have multiple domains, each running a different version of an application.
-
-![Associate a domain with an application][1]
-
-## Add a Baserow subdomain
-
-To publish an application on the Baserow subdomain, 
-
-1. In the Baserow application, go to [Settings](/user-docs/application-settings) → Domains page.
-2. Click on the **Add domain** button.
-3. Select the Baserow subdomain from the dropdown options.
-4. Add a valid domain in the *Domain name* field in the format: `yourdomain`. 
-5. Click on the **Create** button.
-
-The DNS settings of the domain will be configured and checked automatically. You don’t need to make any additional changes.
-
-![Configure Baserow subdomain][2]
-
-In Baserow, you can use your custom domain to run your applications. This means you can have a web address that's unique to you, instead of using the default Baserow subdomain.
-
-## Add a custom domain
-
-Adding a custom domain is a simple yet effective way to establish your brand and make your application more professional. 
-
-In the Baserow application,
-
-1. Go to [Settings](/user-docs/application-settings) → Domains page.
-    
-    ![Associate a domain with a Baserow application][3]
-    
-2. Click on the **Add domain** button.
-3. Select a custom domain from the dropdown options.
-4. Add a custom domain in the *Domain name* field in the format: `yourdomain.com`. It will also add the full domain `www.yourdomain.com` by default.
-5. Click on the **Create** button.
-
-### Update the DNS for a custom domain
-
-Every DNS host has its way of updating DNS settings. 
-
-To update your custom domain's DNS, go to your domain registrar's or DNS host's dashboard where you manage your domain. Locate the DNS settings section for your domain and make the changes.
-
-Create a **CNAME** or **ALIAS** record from your domain:
-
-- Set the **host** field as your custom domain name.
-- Set the **value** field as the base URL you want to point to.
-
-This process varies slightly depending on your DNS host, but these general steps should help you get started. If you still run into any issues with your domain verification, reach out to your DNS provider to make sure the records are set correctly. 
-
-![Update the DNS for a custom domain][4]
-
-To verify that the DNS settings are correct and that your domain is correctly pointing to Baserow, publish your application to the custom domain. 
-
-![Create a new ALIAS from your domain to baserow][5]
-
-Once verified, confirm the changes and wait for them to take effect. This process might take a little time.
-
-DNS changes may take some time to propagate everywhere, so be patient. It may take up to 48 hours before changes are successfully made from your DNS host so that you can open your application with your domain.
-
----
-
-Still need help? If you're looking for something else, please feel free to make recommendations or ask us questions—we’re ready to assist you.
-
- - [Ask the Baserow community](https://community.baserow.io)
- - [Contact support](/contact) for questions about Baserow or help with your account
-
-
-  [1]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/38a91bfb-090e-411e-9abc-6367fd8a7683/Untitled.png
-  [2]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/f40046ce-5415-4fe8-b652-6c845314cf6c/Untitled%201.png
-  [3]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/67d6b053-8093-4155-96b7-48501b460d8f/Untitled%202.png
-  [4]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/d7d1a5f6-6c57-4c9f-91d0-05f4ad255145/Untitled%203.png
-  [5]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/4acc8bb1-8bbc-40b7-b0e0-fc62903907bb/domain%20name.png",,baserow_user_docs,https://baserow.io/user-docs/add-a-domain-to-an-application
-168,User sources,user-sources,User sources in Baserow Application Builder,"# User sources in the Application Builder
-
-User sources are necessary for user authentication in apps. They set up secure access and sign-in steps. To let users sign into an application, you need to add a user source.
-
-We'll show you how to handle user sources in a Baserow application here.
-
-## Overview
-
-When you add a user source, you're deciding how users will log into the application. You'll adjust the settings for signing in. With these, users can enter their usernames and passwords to get into the application and use the data.
-
-You'll find a list of all the user sources you've connected, along with a button to add a new one. This makes it easy to manage who can access the application and how they do it.
-
-The login element allows users to access an application with secure credentials. [Learn more about the login element][1].
-
-## Add a user source
-
-Adding a user source allows the application to recognize and authenticate users effectively.  
-
-1. Go to the Settings → Users page.
-2. Click on **Add user source**.
-3. Choose the type of user source you want to add.
-4. Select an integration from the dropdown menu or click **Add new integration** directly. 
-Learn more about [integrations and how to configure them](/user-docs/application-settings#integrations).
-5. Click **Create**.
-    
-    ![Add new user source in Baserow][2]
-    
-After you create a user source, the user settings will become available. 
-
-## Configure user source
-
-To edit the user source for authentication, follow these steps:
-
- 1. Navigate to Application settings → Users.
- 2. Locate the user source that you want to edit.
- 3. Click the option to edit or modify the existing user source.
-    
-    ![Edit or modify the existing user source][3]
-    
- 4. Review the integration details, including the integration with your database.
- 5. Specify the [database][4] and [table][5] from your [workspace][6] that you want to use for user authentication. The items in the list can be sorted and filtered according to the sorting and filtering configuration of the default view.
- 6. Select the appropriate fields in the table that match the user information. Typically, the email field is used for identification purposes.
-    
-    ![Baserow authentication method is set to ""Email/Password""][7]
-    
- 7. You can enable multiple authentication methods simultaneously: 
- 8. Email/Password: Will allow users to authenticate using their email
-    and password and select the password field from your users table as
-    the source in the dropdown. 
-        > The [password field type](/user-docs/password-field) is a write-only field. It lets you set a password for each row. This password is stored as a hash and is *never* shown.
-    >
-    
-
- 9. SAML SSO
-    - In the ""Edit provider: SAML SSO"" dialog: Enter your SAML Domain
-     (for example okta.com). 
-    - Paste your Identity Provider metadata in
-     the Metadata field. 
-    - The Default Relay State URL will become
-     available after adding domains under the domains tab in your app
-     settings.
-    - Note the Single Sign-On URL (to be shared with
-     your identity provider). 
-    - Click on ""SAML Response Attributes"" to expand attribute mapping options
-- Configure the following fields to match your identity provider's attribute names:
-
-Email: The attribute containing the user's email (default: user.email)
-First name: The attribute for the user's first name (default: user.first_name)
-Last name: The attribute for the user's last name (default: user.last_name)
-
->Email will be used as the username for the user
-First name can contain the full name if Last name is not provided
-Last name is optional and can be cleared to provide the full name via First name
-
- 10. OpenID Connect
-
- -  Click ""Add provider"" near the OpenID Connect checkbox
-
-In the ""Edit provider: OpenID Connect"" dialog:
-
-- Enter a custom provider name
-- Enter the provider's base URL
-- Enter the provider's client ID
- -Enter the provider's secret
-
-> Note the Callback URLs to add to your OpenID provider's redirect URI settings >
-
- 11.  Once all authentication methods are configured, click ""Save""
-
-Save the changes to update the user source configuration.
-
-Once the user source is added and configured, users can [authenticate using any of the enabled methods][8].
 
 
   [1]: /user-docs/application-builder-login-element
-  [2]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/6d45e4f5-599b-4e31-a657-2aacb34bd692/Untitled.png
-  [3]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/be3c6300-82b8-4a4b-8d79-f0a5d8106456/Untitled%201.png
-  [4]: /user-docs/intro-to-databases
-  [5]: /user-docs/intro-to-tables
-  [6]: /user-docs/intro-to-workspaces
-  [7]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/user_files/LB83JhEcG8GJEO4h7w4Qz7NGcXbYZO4r_371c320df226e3b3544246e1d837af782cc39c66c0bb54389943752a5e904b47.png
-  [8]: /user-docs/application-builder-login-element",,baserow_user_docs,https://baserow.io/user-docs/user-sources
-169,Pages overview,pages-in-the-application-builder,Pages overview in Baserow Application Builder,"# Pages in the Application Builder
+  [2]: /user-docs/add-a-domain-to-an-application
+  [3]: #integrations-and-data-access
+  [4]: /user-docs/user-sources
+  [5]: /user-docs/custom-css-and-javascript
+  [6]: #global-theme
+  [7]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/5c0def74-f8ae-4b95-b1f3-3f7f140aab47/Untitled.png
+  [8]: /user-docs/data-sources
+  [9]: /user-docs/element-events
+  [10]: /user-docs/user-sources
+  [11]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/9ea03c51-2868-4243-9190-a13a4cca960e/Untitled%202.png
+  [12]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/f575475d-7ace-4fcd-acbc-418c01774c73/Global%20Theme.png
+  [13]: /user-docs/element-style
+  [14]: /user-docs/preview-and-publish-application
+  [15]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/8694e405-b111-4eac-9359-e2f2d0b9da93/Subdomain%20Domains.png
+  [16]: /user-docs/add-a-domain-to-an-application
+  [17]: /user-docs/element-style
+  [18]: /user-docs/data-sources",application builder,baserow_user_docs,https://baserow.io/user-docs/application-settings
+167,Configure domain,add-a-domain-to-an-application,Add a domain to an application in Baserow,"# Configure custom domains and subdomains
 
-An application can have lots of pages, and each one has its own job. Imagine pages like tables in a database. They help you sort and keep different types of info. To put data into an application, you must make at least one page.
+By default, Baserow applications exist in the editor. To make them accessible to your users, you must attach them to a domain. You can choose between a quick, free subdomain provided by Baserow or a fully branded custom domain.
 
-Let's look at the basics of handling pages in the Baserow application builder.
+Learn how to [publish your application][1] to a branded URL or a free Baserow subdomain.
 
 ## Overview
 
-After you've created an application, you can find its pages listed on the left sidebar. You can create new pages and manage all existing ones right from the sidebar in Baserow.
+Configuring a domain allows you to ""publish"" your application to the public web. Baserow offers two types of domains:
 
-A page in an application has its unique set of settings that can be configured for each page separately, including [Name, Path, and Path parameters][1]. 
+| Domain type | Example URL | Best for |
+| :--- | :--- | :--- |
+| **Baserow Subdomain** | `my-app.baserow.site` | Internal tools, prototypes, and quick testing. No configuration required. |
+| **Custom Domain** | `portal.yourcompany.com` | Client-facing apps, brand consistency, and professional use. Requires DNS access. |
 
-Each page has a three-dot icon `⋮` on it, which opens a menu with the options to [rename][2], [duplicate][3], and [delete][4] the page.
+**Multiple Environments:** You can add multiple domains to a single application. This allows you to publish a ""Test"" version to one domain (e.g., `test.yoursite.com`) and a ""Live"" version to another (e.g., `www.yoursite.com`), giving you a safe staging environment.
 
-<iframe width=""560"" height=""315"" src=""https://www.youtube-nocookie.com/embed/LyWLJ5E15Qo?si=3cjnR-PtkoFm1O11&amp;controls=0"" title=""YouTube video player"" frameborder=""0"" allow=""accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"" referrerpolicy=""strict-origin-when-cross-origin"" allowfullscreen></iframe>
+## Option 1: Use a Baserow subdomain (Free)
 
-## Create a page
+This is the fastest way to get your application online. It requires no technical setup.
 
-In Baserow, you have the flexibility to create a new, blank page and add [elements][5] to suit your needs.
+1.  Open your application and go to **Settings** → **Domains**.
+2.  Click **+ Add domain**.
+3.  Select **Baserow subdomain** from the dropdown menu.
+4.  Enter your desired prefix (e.g., `project-tracker`).
+    * *Resulting URL:* `project-tracker.baserow.site`
+5.  Click **Create**.
 
-When you create a new application, the application will have a Homepage by default. To expand an application's functionality, add additional pages.
+Your domain is now active. You can immediately [publish your application][2] to this URL.
 
-There are ways to add a new page to an application:
+![Configure Baserow subdomain][3]
 
-- [Start with a new page][6]
-- [Duplicate an existing page][3]
+## Option 2: Add a custom domain
 
-### Start with a new page
+Using a custom domain (white-labeling) establishes trust and professionalism. This process involves two parts: configuring Baserow and configuring your DNS provider.
 
-In this section, we will walk you through the process of adding a page to an application.
+### Part 1: Configure Baserow
+1.  Open your application and go to **Settings** → **Domains**.
+2.  Click **+ Add domain**.
+3.  Select **Custom domain**.
+4.  Enter your full domain name (e.g., `portal.example.com`).
+    * *Note:* Baserow may automatically suggest adding the `www` version as well.
+5.  Click **Create**.
+6.  **Important:** A modal or setting panel will appear displaying the **Target Value** (often a URL like `custom-domain.baserow.site`). Copy this value; you will need it for the next step.
 
-1. Within the application in the sidebar, click **+ Create page**.
-2. Input a name for the new page. When you create a new page, you should give it a distinctive name that’s not the same as any other page name in the current application.
-3. Select **Start with a new page**.
-4. Click **Add page**.
+### Part 2: Update DNS records
+To verify ownership and route traffic, you must create a record with your domain registrar (e.g., GoDaddy, Namecheap, Cloudflare).
 
-When you create a new page, it's like starting with a blank canvas. You have access to various elements you can add to this blank page. These elements help you organize and present information effectively. 
+1.  Log in to your domain registrar's dashboard.
+2.  Locate the **DNS Settings** or **DNS Management** page.
+3.  Create a new record with the following settings:
+    * **Type:** `CNAME` (or `ALIAS` / `ANAME` if supported by your provider).
+    * **Host/Name:** The subdomain part of your URL (e.g., `portal` for `portal.example.com`). If using the root domain, use `@`.
+    * **Value/Target:** Paste the **Target Value** copied from Baserow in Part 1.
+    * **TTL:** Default (usually 1 hour or Automatic).
+4.  Save the record.
 
-![Start with a new page][7]
+![Update the DNS for a custom domain][4]
 
-### Duplicate a page
+### Part 3: Verify and Publish
+1.  Return to Baserow.
+2.  Baserow will attempt to verify the DNS connection.
+3.  Once the status indicator turns green, go to the **Publish** button in the top navigation.
+4.  Select your new custom domain and click **Publish**.
 
-Duplicating a page is a quick and easy way to make a copy of an existing page. This can be helpful if you need to make changes to the data without affecting the original page. 
+## Frequently asked questions (FAQ)
 
-To duplicate a page in Baserow, follow these steps:
+### How long does DNS verification take?
+DNS changes can take anywhere from a few minutes to **48 hours** to propagate across the internet. If your domain does not verify immediately, please wait and try again later.
 
-1. In the sidebar, hover over the page you want to duplicate. You will see a small vertical ellipsis `⋮` (three dots) appear on the page.
-2. Click the three-dot icon `⋮` to open the page options menu.
-3. From the menu, select **Duplicate**.
+### Do I need to buy an SSL certificate?
+No. Baserow automatically provisions and renews SSL certificates (HTTPS) for your custom domains, ensuring your application is secure.
 
-Baserow will create a copy of the page and place it immediately below the original page. You can view the application and page duplication progress in the left sidebar.
+### Can I use a ""naked"" domain (e.g., example.com)?
+Yes, but you must ensure your DNS provider supports `ALIAS` or `ANAME` records at the root level (or CNAME flattening). Standard `CNAME` records technically cannot be placed at the root (example.com), only on subdomains (www.example.com).
 
-### Customize a duplicated page
+## Related content
 
-After duplicating a page in Baserow, you’ll likely want to customize the duplicated page to fit your needs. 
-
-Here are some ways you can customize duplicated pages:
-
-- [Modify the values of specific elements][8]: Click on an element within the duplicated page and change its value to the desired value.
-- [Delete unnecessary elements][9]: If the duplicated page contains elements that are not relevant, you can remove the element.
-- [Reorder elements][8]: Click and drag an element to a different position within the page to rearrange the element order.
-
-## Rename a page
-
-Each page is assigned a unique name when created, but you can edit that.
-
-1. Locate the page you want to rename.
-2. Click the **Rename** option next to the page name.
-3. Once you've entered the new name, save the changes or confirm the edit according to the instructions provided.
-4. Verify that the page now displays the updated name in the dashboard.
-
-Within the page settings, you can also find the option to change the page name. Click on the field containing the current page name and add a desired new name.
-
-![Rename page in page settings][10]
-
-## See what a page looks like to users
-
-You can view a page as an authenticated user and evaluate the user experience from the perspective of an end-users.
-
-By default, when you visit the editor, you're viewing as an anonymous user.
-
-![See what a page looks like to users][11]
-
-To view a page as an authenticated user, follow these steps:
-
-1. **[Create user sources][12]**: Ensure you have configured user sources and defined authentication methods like email/password.
-2. **[Create data sources][13]**: Data sources allow you to display data to users or collect some data from them instead.
-3. **Access the page**: Once logged in, navigate to the page you want to view as an authenticated user. You should be able to access any page that requires authentication based on user role and permissions.
-4. **Simulate user experience**: Explore the page and interact with its features as an authenticated user would. Test functionalities such as accessing restricted content, submitting forms, or viewing personalized data based on the user's profile.
-5. **Verify user experience**: Ensure that the page behaves as expected for authenticated users. Check for any errors, discrepancies, or unauthorized access to content that may indicate issues with the authentication setup or page configuration.
-
-## Delete a page
-
-To delete a page from an application, use the **Delete** option within the application's management interface. 
-
-This action removes the selected page from the application without any additional steps or warning prompts.
-
-## Page settings
-
-You can access the page settings by opening the page. On the left-hand side of the top navigation bar, you can access [Elements][5], [Data][13], and [Page settings][1].
-
-Learn more about the [page settings][1].
+ * [Preview and publish your application][2]
+ * [Application settings overview][6]
+ * [Styling your application (Theme)][7]
 
 ---
 
-Still need help? If you're looking for something else, please feel free to make recommendations or ask us questions—we’re ready to assist you.
+Still need help? If you're looking for something else, please feel free to make recommendations or ask us questions; we’re ready to assist you.
 
  - [Ask the Baserow community](https://community.baserow.io)
  - [Contact support](/contact) for questions about Baserow or help with your account
 
 
-  [1]: /user-docs/application-builder-page-settings
-  [2]: #rename-a-page
-  [3]: #duplicate-a-page
-  [4]: #delete-a-page
-  [5]: /user-docs/elements-overview
-  [6]: #start-with-a-new-page
-  [7]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/7b32e88c-6131-4bb6-b03e-c626b772c0ba/Untitled.png
-  [8]: /user-docs/elements-overview
-  [9]: /user-docs/add-and-remove-elements
-  [10]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/f494fc54-f994-466f-b486-29aeedbd7e50/Untitled%201.png
-  [11]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/4726ef47-d1b8-442d-9623-17a1c46f3e35/Untitled%202.png
-  [12]: /user-docs/user-sources
-  [13]: /user-docs/data-sources",,baserow_user_docs,https://baserow.io/user-docs/pages-in-the-application-builder
-170,Data sources,data-sources,Data sources in Baserow Application Builder,"# Data sources in an application 
+  [1]: https://baserow.io/user-docs/preview-and-publish-application
+  [2]: /user-docs/preview-and-publish-application
+  [3]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/8694e405-b111-4eac-9359-e2f2d0b9da93/Subdomain%20Domains.png
+  [4]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/9926495a-b0c6-4e3e-8a46-d2e231a3c51c/configure%20domains.png
+  [5]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/4acc8bb1-8bbc-40b7-b0e0-fc62903907bb/domain%20name.png
+  [6]: /user-docs/application-settings
+  [7]: /user-docs/element-style",application builder,baserow_user_docs,https://baserow.io/user-docs/add-a-domain-to-an-application
+168,Configure User Sources,user-sources,User sources in Baserow Application Builder,"# Configure User Sources (Authentication)
 
-In Application Builder, data sources are key for showing data to users or getting info from them. They help get data and show it on the page.
+A **User Source** is the security bridge between your application and your database. It defines how users prove who they are (Authentication) and connects their login identity to a specific row in your Baserow table.
 
-Let's talk about how to connect data to a Baserow application so you can use all its features.
+This guide covers how to secure your application by allowing users to sign up, log in, and access personalized data.
+
+![Add new user source in Baserow][1]
+
+## Overview
+
+To enable logging in, you must configure a User Source. This involves three parts:
+
+1.  **The Table:** You need a table in your Baserow database to store user information (e.g., Name, Email, Password).
+2.  **The User Source:** Configured in the Application settings, this tells Baserow *which* table to check when someone tries to log in.
+3.  **The Login Element:** Placed on a page, this is the actual form the user sees (username/password inputs).
+
+You can allow users to authenticate via **Email/Password**, **SAML SSO**, or **OpenID Connect**.
+
+## Add a user source
+
+Before configuring specific login methods, you must initialize the user source.
+
+1.  Open your application in the builder.
+2.  Go to **Settings** → **Users**.
+3.  Click **+ Add user source**.
+4.  Select the **[Integration][2]** that connects to the database where your users are stored.
+    * *If you haven't created an integration yet, click **Add new integration**.*
+5.  Click **Create**.
+
+## Configure the user source
+
+Once created, you must map the User Source to your data.
+
+1.  Click the **Edit** (pencil) icon next to your existing User Source.
+2.  **User table:** Select the Database and Table where your user records are stored.
+3.  **Map fields:** You must identify which column represents the unique user.
+    * **Email field:** Select the [email field type][3] containing user emails.
+    * Name field
+    * Role field
+
+![Baserow authentication method is set to ""Email/Password""][4]
+
+### Authentication Methods
+
+You can enable one or multiple methods for a single user source.
+
+#### Method 1: Email/Password
+This is the standard method where users log in with credentials stored in your table.
+
+1.  Check the box for **Email/Password**.
+2.  **Password field:** Select the specific column in your table that uses the [Password field type](/user-docs/password-field).
+    > This is a ""write-only"" field. Baserow stores these passwords as secure hashes. You cannot see the actual passwords in the table.
+
+#### Method 2: SAML SSO
+Use this to connect enterprise identity providers (like Okta or Azure AD).
+
+1.  Check the box for **SAML SSO**.
+2.  Click **Add** or **Edit provider**.
+3.  **Domain:** Enter your SAML domain (e.g., `okta.com`).
+4.  **Metadata:** Paste the XML Identity Provider metadata from your provider.
+5.  **Attribute Mapping:** Map the fields from your provider to your Baserow table columns:
+
+| Baserow field | Default attribute | Description |
+| :--- | :--- | :--- |
+| **Email** | `user.email` | Used as the username. |
+| **First Name** | `user.first_name` | (Optional) |
+| **Last Name** | `user.last_name` | (Optional) |
+
+> **Note:** The **Single Sign-On URL** and **Relay State URL** will be generated here. Copy these to share with your Identity Provider.
+
+Learn more about [configuring SAML SSO][5]
+
+#### Method 3: OpenID Connect (OIDC)
+Use this for providers like Google, Auth0, or Keycloak.
+
+ 1.  Check the box for **OpenID Connect**.
+ 2.  Click **+ Add provider**.
+ 3.  Enter the details provided by your OIDC service:
+    * **Provider Name** (Custom name)
+    * **Base URL**
+    * **Client ID**
+    * **Client Secret**
+ 4.  **Callback URL:** Copy the generated Callback URL and add it to your OIDC provider's ""Allowed Redirect URIs"" settings.
+
+Learn more about [configuring OpenID Connect][6]
+
+## Save and implement
+
+Once you have configured your methods:
+1.  Click **Save** at the bottom of the Settings panel.
+2.  Go to your application canvas and add a [Login Element][7] or a [Form Element][8] to allow users to interact with this User Source.
+
+## Frequently asked questions (FAQ)
+
+### Can I have multiple User Sources?
+Yes. You can configure multiple user sources if you have different types of users stored in different tables (e.g., ""Customers"" vs. ""Employees"").
+
+### Is the password field secure?
+Yes. If you use the specific **Password field type** in your table, Baserow hashes the data. Even as an admin, you cannot read the user's password; you can only overwrite it if a reset is needed.
+
+### What happens if I delete a user row?
+Since the authentication is directly linked to the table row, deleting a row in the database immediately revokes that user's access to the application.
+
+## Related content
+
+ * [Add a Login Element to your page][7]
+ * [Understanding the Password Field](/user-docs/password-field)
+ * [Application Integrations](/user-docs/application-settings#integrations)
+
+---
+
+Still need help? If you're looking for something else, please feel free to make recommendations or ask us questions; we’re ready to assist you.
+
+ - [Ask the Baserow community](https://community.baserow.io)
+ - [Contact support](/contact) for questions about Baserow or help with your account
+
+
+  [1]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/e5284c45-1865-484b-aac2-e36e60168645/email%20authentication.png
+  [2]: /user-docs/application-settings
+  [3]: /user-docs/email-field
+  [4]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/user_files/LB83JhEcG8GJEO4h7w4Qz7NGcXbYZO4r_371c320df226e3b3544246e1d837af782cc39c66c0bb54389943752a5e904b47.png
+  [5]: /user-docs/enable-single-sign-on-sso
+  [6]: /user-docs/configure-openid-connect-for-oauth-2-sso
+  [7]: /user-docs/application-builder-login-element
+  [8]: /user-docs/application-builder-form-element",application builder,baserow_user_docs,https://baserow.io/user-docs/user-sources
+169,Pages overview,pages-in-the-application-builder,Pages in Baserow Application Builder,"# Manage pages in Application Builder
+
+Pages are the core building blocks of your application's frontend. Each page acts like a screen or a view, similar to how tables organize data in a database. You can create multiple pages to handle different jobs, sort information, or serve different user roles.
+
+This guide covers how to create, organize, and test the individual screens that make up your Baserow application.
+
+<iframe width=""560"" height=""315"" src=""https://www.youtube-nocookie.com/embed/LyWLJ5E15Qo?si=3cjnR-PtkoFm1O11&amp;controls=0"" title=""YouTube video player"" frameborder=""0"" allow=""accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"" referrerpolicy=""strict-origin-when-cross-origin"" allowfullscreen></iframe>
+
+## Overview
+
+ * **Navigation:** All pages are listed and managed in the left sidebar of the Application Builder.
+ * **Configuration:** Each page has its own [settings][1], including name, URL path, visibility, query string parameters, and path parameters.
+ * **Context:** You can preview pages as specific users to test security and data visibility.
+
+## Create a new page
+
+To add content to an application, you must make at least one page. You can start from scratch or copy an existing layout.
+
+### Option 1: Start with a blank page
+
+1.  In the application sidebar, click **+ Create page**.
+2.  Enter a unique name for the page.
+3.  Select **Start with a new page**.
+4.  Click **Add page**.
+
+You now have a blank canvas where you can begin adding elements.
+
+### Option 2: Duplicate an existing page
+
+Duplicating is useful if you want to modify data or layout without affecting the original page.
+
+1.  Hover over the page you want to copy in the sidebar.
+2.  Click the **three-dot icon** `⋮` to open the menu.
+3.  Select **Duplicate**.
+
+A copy will appear immediately below the original in the sidebar. You can then modify, reorder, or delete elements on this new page to fit your needs.
+
+![Start with a new page in Baserow][2]
+
+## Manage pages
+
+You can organize your application structure using the page menu.
+
+### Rename a page
+1.  Locate the page in the sidebar.
+2.  Click the **three-dot icon** `⋮` and select **Rename**.
+3.  Enter the new name and save.
+    * *Alternatively:* You can rename a page inside the **[Page Settings][1]** panel.
+
+### Delete a page
+1.  Click the **three-dot icon** `⋮` next to the page.
+2.  Select **Delete**.
+    * **Warning:** This removes the page immediately without a confirmation prompt.
+
+## Preview as an authenticated user
+
+By default, the editor shows your page as an **anonymous user**. To test features like personalized data or restricted content, you can simulate the experience of a logged-in user.
+
+![See what a page looks like to users][3]
+
+**Prerequisites:**
+Before testing, ensure you have:
+* **Configured [User Sources][4]:** You need authentication methods (like email/password) set up so there are users to simulate.
+* **Connected [Data Sources][5]:** Ensure your data is set up to display or collect information.
+
+**How to test:**
+1.  Navigate to the page you want to test.
+2.  Use the user dropdown in the top bar (shown in the screenshot above) to select a specific user context.
+3.  **Simulate experience:** Interact with the page to verify that the correct data is visible and permissions are working as expected.
+4.  **Verify:** Check for unauthorized access or missing data to ensure your roles are configured correctly.
+
+## Frequently asked questions (FAQ)
+
+### What is the Homepage?
+When you create a new application, it comes with a **Homepage** by default. This is typically the first page users see. To expand your app, you simply add more pages.
+
+### Can I change the URL of a page?
+Yes. Page URLs (Paths) are managed in the **Page settings**. You can define static paths (e.g., `/about`) or dynamic paths with parameters (e.g., `/project/:id`).
+
+## Related content
+
+ * [Configure Page Settings (Path & Visibility)][6]
+ * [Overview of Elements][7]
+ * [Connecting Data Sources][8]
+
+---
+
+
+Still need help? If you're looking for something else, please feel free to make recommendations or ask us questions; we’re ready to assist you.
+
+ - [Ask the Baserow community](https://community.baserow.io)
+ - [Contact support](/contact) for questions about Baserow or help with your account.
+
+
+  [1]: https://baserow.io/user-docs/application-builder-page-settings
+  [2]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/f24f9fa0-ee80-47ed-b13e-aac3c1f72a16/Page%20settings.jpg
+  [3]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/4726ef47-d1b8-442d-9623-17a1c46f3e35/Untitled%202.png
+  [4]: https://baserow.io/user-docs/user-sources
+  [5]: https://baserow.io/user-docs/data-sources
+  [6]: /user-docs/application-builder-page-settings
+  [7]: /user-docs/elements-overview
+  [8]: /user-docs/data-sources",application builder,baserow_user_docs,https://baserow.io/user-docs/pages-in-the-application-builder
+170,Data sources,data-sources,Data sources in Baserow Application Builder,"# Connect and configure Data Sources
+
+Data Sources are the engine of the Baserow Application Builder. They act as the connection pipeline that fetches specific data from your backend database tables and delivers it to your frontend application pages. 
+
+This guide covers how to connect your application to your database to display, filter, and interact with real-time data.
+
 
 <iframe width=""560"" height=""315"" src=""https://www.youtube-nocookie.com/embed/JDdOQCzFOvs?si=C3quCQVWQugsw57i&amp;controls=0"" title=""YouTube video player"" frameborder=""0"" allow=""accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"" referrerpolicy=""strict-origin-when-cross-origin"" allowfullscreen></iframe>
 
 ## Overview
 
-With Baserow, you can add multiple data sources to your application, even on the same page.
+In the Baserow Application Builder, **Data Sources** act as the bridge that fetches information from your database so it can be displayed by [elements][1] (like tables, forms, or text fields). 
 
-You don't have to connect a data source to your Baserow application, but it's essential if you want more than a simple site with static content. This link lets you get and change data in real-time, making for interactive and fun user experiences.
+Without a data source, your application is a static page; with one, it becomes a dynamic tool that can display, filter, and manipulate live records. They allow you to fetch specific data, filter it, summarize it, and display it to your users in real-time.
 
-When you tie a data source to your Baserow application, the data shows up on the page right away. Changes to the data show up instantly in your application, and you don't have to republish anything.
+ * **Real-time Connection:** When you connect a data source, changes in your [database][2] are reflected in the application immediately without republishing.
+ * **Actions:** You can fetch a list of items, a single specific item, or a mathematical summary (count/sum). The **Summarize field** action allows you to perform calculations on your data without loading every individual row. This is highly efficient for dashboards.
+ * **Filtering logic:** You can apply filters at the Data Source level. These can work on top of (or independently from) your [Database Views][3].
+ * **Scope:** Data sources can be local (specific to one page) or shared (accessible across the whole app).
 
-## Add new data source
 
-Let's explore how to connect a data source.
+## Actions
 
-Navigate to the top navigation bar on the left-hand side of the page, where you'll find options for [Elements][1], Data, and [Page settings][2].
+When adding a data source, you must choose an **Action**. This determines what kind of data is returned to your application.
 
-To add a new data source, click on Data Source in the top navigation bar. A popup will appear, displaying a list of all currently connected data sources, along with an option to add a new one.
+| Action | Description | Best for |
+| :--- | :--- | :--- |
+| **List multiple rows** | Retrieves a page of rows from a specific table. | Displaying grids, galleries, or lists of items (e.g., ""All Products""). |
+| **Get single row** | Retrieves one specific row based on a [Row ID][4]. | Detail pages (e.g., ""Product Details"" or ""User Profile""). |
+| **Summarize field** | Calculates [aggregate][5] statistics (Sum, Avg, Count) across rows. | Dashboards and KPI cards (e.g., ""Total Revenue"" or ""Open Tickets""). |
 
-1. Click **Add new data source**.
-2. Select a service type. 
-    - Get single row - Finds a single row in a given table.
-    - List multiple rows - Finds a page of rows in a given table.
-    
-    ![Add new data source in Baserow ][3]
-    
-3. Select an integration from the dropdown menu or click **Add new integration** directly. Learn more about integrations and how to configure them.
-4. As soon as you select a service type and integration, the element settings will become available.
-5. Select a [Database](/user-docs/intro-to-databases), [Table](/user-docs/intro-to-tables), and [View](/user-docs/overview-of-baserow-views) from the [workspace](/user-docs/intro-to-workspaces). The items in the list can be sorted and filtered according to the sorting and filtering configuration of that particular view.
-6. When you select the *Get single row* service type, you need to enter or map a [row ID](/user-docs/overview-of-rows#what-is-a-row-identifier) to retrieve a single row in a given table by its ID. Leave this value empty to return the first row in the table.
-    
-    > To dynamically input a [row ID](/user-docs/overview-of-rows#what-is-a-row-identifier) and retrieve a single row in a given table by its ID, add a [page parameter][2] to the page or add a [user source][4].
-    > 
-    
-    ![Retrieve a single row in a given table by its ID][5]
-    
+![Add new data source in Baserow][6]
 
-## Filter data source
+## Add a new data source
 
-Data source filters allow you to display Baserow table rows based on specific conditions you define. Before diving in, you must select a table to start using data source filters.
+You can add multiple data sources to a single page.
 
-Learn more about [filters in Baserow](/user-docs/filters-in-baserow).
+ 1.  Open your application -> [page][7] in the Builder.
+ 2.  Click the **Data** tab in the top navigation bar (between Elements and Settings).
+ 3.  Click **+ Add data source**.
+ 4.  **Select Action:** Choose one of the actions listed (e.g., *List multiple rows*, *Summarize field*).
+ 5.  **Choose Integration:** Select an existing [integration][8] or add a new integration to connect to the workspace.
+ 6. Click the **Create** button
+ 7.  **Configure Source:** Select the **Database**, **Table**, and optionally a **View**.
+ 8. If you select  *Summarize field* as your Action:
+      -  **Field:** Choose the numerical or select field you want to calculate.
+      -  **Aggregation type:** Select the math operation (e.g., `Sum`, `Average`, `Min`, `Max`, `Count`, `Empty`).
+ 9.  If you select *Get single row* as your action, you must provide a [Row ID](/user-docs/overview-of-rows#what-is-a-row-identifier). This is often done dynamically using a [Page Parameter][9] (e.g., `/product/:id`).
+      > Leave this value empty to return the first row.
+ 11. **Refinements:** Add filters to the data source to only view or calculate specific rows (e.g., ""Sum of Revenue"" where ""Status"" is ""Paid"").
 
-To show rows that apply to the conditions set:
+![Retrieve a single row in a given table by its ID][10]
 
-1. Click **+ Add additional filter**.
-2. Select any field from the dropdown menu to apply the filter.
-3. Specify the condition you wish to use for filtering.
-4. Define the value of the field to display, such as a specific word, status, or numerical value.
+## Filter data
 
-The items in the list will be filtered according to the filtering configuration of that particular view.
+Filters allow you to control exactly which rows are passed to your application. You can define static conditions (e.g., `Status` is `Active`) using specific fields or dynamic filters using formulas.
 
-![Filter data source][6]
+ 1.  In the Data Source settings, locate the **Filter** section.
+ 2.  Click **+ Add additional filter**.
+ 3.  Select the field, condition, and value.
 
-You have the flexibility to filter rows by selecting multiple fields and applying various filters simultaneously using either `And` or `Or` conditions.
+Learn more: [Filter rows by field][11]
 
-### Apply filters in the Application Builder
+### Hierachy: Database Views vs. Application Filters
 
-Understanding how filters interact between the Database and the Application Builder is important. It allows you to effectively manage filters between your database and the Application Builder, ensuring that your data is filtered precisely as needed.
+Filters in the Application Builder work in conjunction with filters in your Database Views. It is important to understand how Data Source filters interact with your underlying Database Views.
 
-**Selecting a table without a specific view:**
+| Configuration | Result |
+| :--- | :--- |
+| **Table only** (No View selected) | The application receives all raw data from the table. Any filters you add in the Application Builder are the *only* filters applied. |
+| **Table + View** | ***AND Logic applies.** Rows must match the Database View filters **AND** the Application Builder filters to be visible. If a row is hidden in the Database View, the Application Builder cannot see it. |
 
-When selecting a table from the database without specifying a particular view in the data source filter configuration, any filters associated with views in the table won’t affect the results in the Application Builder. This means you can independently filter the rows displayed in the Application Builder, regardless of any view filters from the database. 
+* **Scenario A: Table selected, No View selected**
+    * The Application Builder receives all raw data from the table.
+    * Any filters you add here apply only to the app. This is useful if you want to filter data independently from how it is viewed in the database.
+* **Scenario B: Table AND View selected**
+    * Baserow respects the View's filters *first*.
+    * Application Builder filters are applied *on top* of the View's results (AND logic).
+    * *Use Case:* Select a ""Public Products"" view to ensure draft items are never loaded, then add an Application filter to search for specific names.
 
-This is useful when the views in the database table already have specific filters that you prefer not to use in the Application Builder.
+> **Best Practice:** If your Database View already filters for ""Active Projects,"" you do not need to repeat that filter in the App Builder. Only add *new* filters if you need to narrow the list further.
 
-**Selecting a table and view to apply an additional filter:**
+Learn more: [Database Views][3]
 
-When you select both a table and a view in the data source filter configuration, the filters you set are applied. Additionally, any filters present in the selected view within the database table will also be applied in the Application Builder. In this case, the filters at the table-level take priority, and then the filters at the Application Builder level only filter down the visible rows.
+### Formula filtering
 
-This is useful when you have specific filters in the view within the database table that are essential, but for further filtering in the Application Builder, additional filters are required.
+For advanced use cases, you can switch a filter value to ""Formula"" mode by clicking the **∑ (Sum)** icon. This allows you to filter based on dynamic user inputs or page parameters, such as Page Parameters or logged-in user attributes.
 
-### Use formula to filter data source
+Click the **Sum (∑)** symbol next to the value input to switch to formula mode.
 
-You can enter plain text or use formulas for certain filters of your data sources. It can be used in conjunction with [page parameters][2] to define what to fetch from a data source and works with a *Get row* service type if you don't specify the [row ID](/user-docs/overview-of-rows#what-is-a-row-identifier).
+![Formula to Filter data source in Baserow][12]
 
-To add a formula to filter data, use the ""Sum"" symbol next to the field value:
+## Sort data
 
-![Formula to Filter data source in Baserow][7]
+> Sorting is available for the *List multiple rows* action.
 
-## Sort data source
+You can order your data (e.g., Alphabetical, Newest First) directly in the source configuration. 
 
-> This option is available for the *List multiple rows* service type.
-> 
+Sorting determines the order in which items appear. You can add multiple sort layers (e.g., sort by ""Status,"" then by ""Date Created""). 
 
-Sorting data sources in Baserow puts data in order based on specific criteria, like their names or numbers.
+### Sorting precedence
 
-When you select a field to sort by, Baserow arranges the rows based on that field's values. You can even choose multiple fields if you want to sort by more than one criteria, like first sorting by name and then by age.
+Similar to filtering, the Application Builder respects the database structure but gives priority to local settings:
 
-Learn more about [sorting data in Baserow](/user-docs/guide-to-grid-view#sort-grid-view).
+ 1.  **Data Source Sort (Highest Priority):** If you define a sort in the Application Builder Data Source, it **overrides** the Database View's sort.
+ 2.  **Database View Sort:** If no Application sort is defined, the rows appear in the order defined by the selected Database View.
+ 3.  **Creation Date:** If no View or Application sort is defined, rows appear by creation date (ID).
+ 4. **User Actions:** If a user manually sorts a table on the [published page][13], this happens temporarily on the fly and does not persist.
 
-Click **Sorts** → **Add additional sort** to select a field to sort rows by. This will reveal any sort applied.
+To add a sort, click **Sorts** → **Add additional sort** in the Data Source panel.
 
-Each field will have ascending and descending order options.
+## Search data
 
-![Sort data source][8]
+You can enable search functionality within your data source to let users find specific items. The Search configuration allows you to define which fields should be queried when a user searches a list.
 
-You can add more sorts by picking more fields to sort by. To apply a new sort, click the **Add additional sort** and then select another field from the dropdown menu.
+ * **Specific fields:** You can restrict the search to specific fields to optimize performance and relevance. 
+ * **All fields:** If left empty, the search query will check all compatible text fields and return all items.
+ * **Dynamic Search:** You typically bind the search query to an **Input Element** or a Page Parameter, allowing users to type a query and update the list in real-time.
 
-### Apply sorts in an application
+![filter/sort/search data source][14]
 
-If you apply sorts, regardless of whether you select a view, only the sorts defined within the data source configuration will be applied to your data. This ensures that the sorting criteria you specify within the Application Builder take precedence over any predefined sorts associated with the selected view.
+## Default result count
 
-There are four ways of sorting records in your list rows data source:
+> *Available for the ""List multiple rows"" action.*
 
- - A data source with no view selected and data source sorting: you can apply a sorting to this specific data source set.
- - A data source with a view selected and no data source sorting: the rows will be sorted by what has been set up in the database module’s sorting.
- - A data source with a view selected and with data source sorting: the rows are sorted by the database module’s sorting, then the data source’s sorting replaces it.
- - The external user sorting is available for the fields you selected in “User actions”. These sorts aren’t persisted and just applied on the fly.
+If you select *List multiple rows* as your action, you can define the default result count. This is the default number of records this data source will fetch on your page. 
 
-**When no sorts are applied:**
+Setting the value to 0 and using it on a collection element will improve performance on page load by only fetching the records when the element is paginated.
 
-If you do not apply any sorting configurations within the data source configuration, and you have selected a view for your data source. In that case, the sorting criteria defined within the selected view will be used. In this scenario, the sorting rules set within the view settings will control the table rows displayed.
+## Shared vs. Local data sources
 
-This allows you to tailor your sorting preferences according to your specific requirements, whether using the sorting options within the data source configuration or relying on the predefined sorts associated with the selected view in the database.
+By default, a data source belongs to the specific page where you create it. However, you can create **Shared Data Sources** to use the same data connection across multiple pages.
 
-## Refresh data source
+* **Local Data Source:** Exists only on one page. Good for specific page data.
+* **Shared Data Source:** Accessible by every page in the application. Good for global data like ""Current User Profile"" or ""Navigation Menu Items.""
 
-Refreshing a data source triggers an update of the data for the [selected element][1]. It verifies if there have been any changes to the data in the source since it was last retrieved. This action is particularly useful after you've created or updated a row of data, ensuring you're working with the most recent information.
+**To share a source:**
+Go to the Data Sources tab and toggle the **Share between pages** option for the specific source.
 
-Click **Refresh fields from data source** located within the General panel on the right side of the application interface to verify if any changes have been made to the underlying data source and incorporate those changes into your element.
+You set up the connection once (including filters and sorts) and reuse it everywhere. This saves time and ensures consistency.
 
-![Data source refresh action for the Application Builder][9]
+![Image: Shared data sources in Baserow][15]
 
-## Search data source
+## Manage data sources
 
-To search the data source, specify a search term. You have the flexibility to choose the term for the search, giving you control over the query's focus. 
+### Refresh schema
 
-If no specific term is provided, the search will encompass all list items, offering a comprehensive view of the available data.
+If you change your database structure (e.g., adding a new column to a table), your Data Source might not see it immediately. 
 
-![Search data source][10]
+Click **Refresh fields from data source** in the General panel to update the schema connection. It verifies if there have been any changes to the data in the source since it was last retrieved. This updates the schema in the editor so you can map elements to the new fields.
 
-## Share data source
+![Data source refresh action for the Application Builder][16]
 
-Shared data sources in Baserow’s Application Builder allow you to add a data source that’s usable across multiple pages within your application. This boosts efficiency and saves time so you don’t need to add the same data source on multiple pages.
+### Delete data source
 
-To create a shared data source, go to the ‘Data Sources’ tab. There, you can set up ‘Share between pages’ for a new data source or an existing one, marking it as available throughout different pages.
+If a data source is no longer needed:
+1.  Open the Data panel.
+2.  Find the source in the list.
+3.  Click the **Trash icon** next to the data source name.
 
-![Image: Shared data sources in Baserow][11]
+This permanently removes the connection from the application. Any elements connected to this source will stop displaying data.
 
-## Delete data source
+## Frequently asked questions (FAQ)
 
-Deleting a data source permanently removes its associated information from the application. 
+### Why is my data source empty?
+Check your filters. If you selected a Database View that is empty, or applied conflicting filters (e.g., ""Status is Active"" AND ""Status is Archived""), no data will return.
 
-To remove a data source from an application:
+### Does ""Summarize field"" count against row limits?
+No. Summarizing performs the calculation on the backend and sends only the final number to the frontend, which is efficient for performance. Learn more about [field summaries][17].
 
- 1. Identify the data source you wish to delete.
- 2. Locate the trash icon positioned on the right-hand side of the data source.
- 3. Click on the trash icon to initiate the deletion process.
+### Why can't I see a specific row in my app?
+Check if you have selected a **View** in your Data Source configuration. If the row is filtered out of that View in the database, the Application Builder cannot access it. If you selected a Database View that already has strict filters, and then added *more* filters in the Application Builder, you may have filtered out all records. Try removing the Application Builder filters or selecting ""None"" for the View
 
----
+### Can I use the same data source on two different pages?
+Yes, but only if you mark it as a **Shared Data Source**. Otherwise, data sources are scoped to the page where they were created.
 
-Still need help? If you're looking for something else, please feel free to make recommendations or ask us questions—we’re ready to assist you.
+### Does ""Get single row"" require a parameter?
+Yes. If you do not provide a Row ID (either a static number or a dynamic parameter), the data source will simply return the first row found in the table.
 
- - [Ask the Baserow community](https://community.baserow.io)
- - [Contact support](/contact) for questions about Baserow or help with your account
+### What is the difference between an Integration and a Data Source?
+* **Integration:** This is the authentication/connection to the database (The ""Key"").
+* **Data Source:** This is the specific query requesting data (The ""Request""). You can have many Data Sources using a single Integration.
 
+### Does changing data in the Application update the Database?
+Yes. The Application Builder reflects live data. If you use a Form or Input element to modify a record, that change is immediately saved to your Baserow database.
 
-  [1]: /user-docs/elements-overview
-  [2]: /user-docs/application-builder-page-settings
-  [3]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/913b0e52-5768-4f8b-99b7-f5c4499d26ae/Untitled.png
-  [4]: /user-docs/user-sources
-  [5]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/00527587-cb5b-478f-8bd1-77b83e6822ad/Untitled%201.png
-  [6]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/a68f5dac-22f7-47b2-8740-f28b27e4c23d/Untitled%202.png
-  [7]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/81208b12-5689-4ef5-99c3-d4f0f51cfcdb/Untitled%203.png
-  [8]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/87132eda-aaa2-497d-aa17-4bc5c663ac9c/Untitled%204.png
-  [9]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/fbb91832-6fbf-4842-a0ed-fce23566cfb5/Data%20source%20refresh%20action%20for%20the%20Application%20Builder.png
-  [10]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/dd7aeeee-edad-47bd-9640-5d3f28f0d51f/Untitled%205.png
-  [11]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/b71bc3ae-9917-41cd-a75d-8e434974d5d6/shared_data_sources.webp",,baserow_user_docs,https://baserow.io/user-docs/data-sources
-171,Page settings,application-builder-page-settings,Page settings in Baserow Application Builder,"# Page settings in an application
+### Do I need to republish my application when data changes?
+No. The connection is live. If you update a record in your database, the change is reflected in the application immediately upon the next refresh or page load. Learn more about [when you need to publish][13].
 
-In this section, we will cover page settings.
+### Can I filter data based on the logged-in user?
+Yes. You can use a **Filter** where a field (like ""Owner"") equals the [User Source][19] ID. This ensures users only see their own data.
 
-You can access the page settings by opening the page. On the left-hand side of the top navigation bar, you can access [Elements][1], [Data](/user-docs/data-sources), and [Page settings](/user-docs/pages-in-the-application-builder).
+### What happens if I don't map a Row ID in ""Get single row""?
+If the Row ID field is left empty, the data source will simply return the **first row** found in the table.
 
-Learn more about how to [create a new page and manage existing pages](/user-docs/pages-in-the-application-builder).
 
-## Overview
-
-In the Page section, you have the Page name, Path, and Path parameters fields, where you can edit the name and path you had assigned to the page on creation. 
-
-![Baserow Page settings][2]
-
-## Page name
-
-Edit the name and path assigned to your page for clarity and organization. 
-
-Learn more about [renaming pages in this support article](/user-docs/pages-in-the-application-builder#rename-a-page).
-
-## Page path
-
-The path of the page can be found in Page Settings → Page.
-
-To define the path of a page, use the `/path` format. This represents the location of the page within the application's structure. 
-
-For instance, if you have a page named ""About"" that is located directly under the root directory of your application, its path would be `/about`.
-
-To link to your homepage, simply use `/` as a reference.
-
-The page `/path` is useful for organizing content hierarchically, such as categorizing products in an e-commerce site `/electronics/phones/smartphones`. It helps users and search engines navigate the website efficiently. 
-
-![Page path][3]
-
-## Path parameters
-
-Path parameters act as placeholders in URLs to load data dynamically to specific parameters. With path parameters, you can retrieve data to make content more personalized.
-
-You can include a parameter by using the syntax `:parameter` within the path. This allows for flexibility in specifying endpoints and fetching relevant data based on the parameters provided in the URL.
-
-For example, if you have an endpoint like `/users/:userId`. Here, `:userId` acts as the path parameter, allowing you to fetch data specific to the user whose ID is supplied in the request.
-
-![Path parameters][4]
-
-## Page visibility
-
-The page visibility feature lets you control which user groups can see specific pages in your applications. This provides more detailed control over page-level permissions, complementing the existing [element-level visibility settings][8]. 
-
-To set page visibility, navigate to **Page settings** in the top menu and select the **Visibility** tab. Here you can specify who can view this page:
-
- - All visitors
- - Logged-in users (define roles if needed)
-
-You can [create a login page][5] for your application. When a visitor tries to access a page that requires authentication, they will be redirected to the configured login page.
-
-> Learn more about the [login element][6] to allow users to access the application with secure credentials.
-
-![Image: Baserow app builder page_visibility][7]
 
 ## Related content
 
- - [Element visibility][8]
+ * [Page Parameters and Routing][9]
+ * [Overview of Database Views](/user-docs/overview-of-baserow-views)
+ * [Display data with Application Builder Elements][18]
+ * [Database Views Overview](/user-docs/overview-of-baserow-views)
+ * [User Sources (Authentication)][19]
 
 ---
 
-Still need help? If you're looking for something else, please feel free to make recommendations or ask us questions—we’re ready to assist you.
+
+Still need help? If you're looking for something else, please feel free to make recommendations or ask us questions; we’re ready to assist you.
 
  - [Ask the Baserow community](https://community.baserow.io)
- - [Contact support](/contact) for questions about Baserow or help with your account
+ - [Contact support](/contact) for questions about Baserow or help with your account.
 
 
   [1]: /user-docs/elements-overview
-  [2]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/4ec4269f-f62e-4a1a-a160-59bbbff536a4/Untitled.png
-  [3]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/fa42e805-3d7d-41cd-ad65-2d8b9304701e/Untitled%201.png
-  [4]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/3de676ea-ff35-4bd4-b029-40cf4368c1ec/Untitled%202.png
-  [5]: https://baserow.io/user-docs/pages-in-the-application-builder
-  [6]: https://baserow.io/user-docs/application-builder-login-element
-  [7]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/834344cd-7c1d-4cf6-b61b-5314538c1815/page_visibility.webp
-  [8]: /user-docs/application-builder-element-visibility",,baserow_user_docs,https://baserow.io/user-docs/application-builder-page-settings
-172,Elements overview,elements-overview,Application Builder elements in Baserow,"# Application Builder elements overview
+  [2]: /user-docs/intro-to-databases
+  [3]: /user-docs/overview-of-baserow-views
+  [4]: /user-docs/overview-of-rows
+  [5]: /user-docs/footer-aggregation
+  [6]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/539109c1-6bb3-4d13-a017-f546d1103aab/Add%20new%20data%20source%20in%20Baserow.jpg
+  [7]: /user-docs/pages-in-the-application-builder
+  [8]: /user-docs/application-settings
+  [9]: /user-docs/application-builder-page-settings
+  [10]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/00527587-cb5b-478f-8bd1-77b83e6822ad/Untitled%201.png
+  [11]: /user-docs/filters-in-baserow
+  [12]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/81208b12-5689-4ef5-99c3-d4f0f51cfcdb/Untitled%203.png
+  [13]: https://baserow.io/user-docs/preview-and-publish-application
+  [14]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/ff5cae10-109b-40b7-95cf-b1128003875b/search%20data%20source.png
+  [15]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/b71bc3ae-9917-41cd-a75d-8e434974d5d6/shared_data_sources.webp
+  [16]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/fbb91832-6fbf-4842-a0ed-fce23566cfb5/Data%20source%20refresh%20action%20for%20the%20Application%20Builder.png
+  [17]: https://baserow.io/user-docs/footer-aggregation
+  [18]: /user-docs/elements-overview
+  [19]: /user-docs/user-sources",application builder,baserow_user_docs,https://baserow.io/user-docs/data-sources
+171,Page settings,application-builder-page-settings,Page settings in Baserow Application Builder,"# Configure page settings
 
-Applications are built with essential components known as elements. Elements act as the building blocks for applications. They are what bring functionality and life to the application.
+Page settings allow you to define the URL structure of your application (routing), create dynamic pages that load specific data (parameters), and secure your content by restricting access to logged-in users (visibility).
 
-In this section, we’ll cover how to work with elements within an application.
-
-In the following articles, we’ll talk more about the different available elements.
+This guide covers how to control how users navigate your application, pass dynamic data via URLs, and manage access permissions.
 
 ## Overview
 
-You can move elements around, link pages, and set up how they connect within your application.
+ * **Routing (Paths):** You define the URL for every page. The homepage is always `/`.
+ * **Path Parameters:** You can create specific placeholders in the URL (e.g., `/product/:id`) to identify unique records.
+ * **Query Parameters:** You can define optional variables (e.g., `?search=shoes`) to filter lists or pass extra data without changing the page structure.
+ * **Visibility:** You can lock pages so only logged-in users or specific roles can view them.
 
-> You can navigate and build with Baserow's Application Builder using only your keyboard. [Use keyboard shortcuts for quick actions][1].
+Learn more: [How to create a page in an application][1]
 
-Like [pages in the Application Builder](/user-docs/pages-in-the-application-builder), each element has its own settings for things like element [details][2], [styles][3], and [events][4]. These settings change based on what kind of element it is.
+## Accessing page settings
 
-When you work with elements, you have lots of choices. If you hover over one, you'll see a toolbar with different tools. After adding an element, there's a menu at the top with more options. You can shift, copy, or remove elements using the icons given.
+1.  Open your application in the Builder.
+2.  Navigate to the specific page you want to configure using the sidebar.
+3.  Click the **Page settings** button in the top navigation bar (next to the *Data* tab).
 
-## Element types
+![Baserow Page settings modal showing Name, Path, and Parameter options][2]
 
-There are static elements such as the [Heading][5], [Columns][6], [Form][7] elements, etc. They help tell people about stuff like products or portfolios.
+## General configuration
 
-Then, there are dynamic elements, which work in combination with a [data source](/user-docs/data-sources) to represent data in all sorts of different ways, such as the [Table][8] element.
+This section controls how the page is identified and accessed.
 
-Here's a list of the elements available:
+### Page Name
+This is the internal label for the page used in your sidebar and select menus. Changing the name **does not** affect the live URL.
 
-| Base element | Description |
-| --- | --- |
-| [Heading][5] | A title displayed at the top of a page or section. |
-| [Text][9] | A single line of text. |
-| [Image][10] | An element to display an image. |
-| [IFrame][11] | An inline frame to embed another document within the current page. |
-| [Link][12] | A hyperlink to another page or URL. |
-| [Button][13] | A clickable button that performs an action when clicked. |
-| [Rating][14] |   |
-| [Menu][15] |   |
-| [Login][16] | A user login form |
+### Page Path (URL)
+The path defines the public web address of the page. All paths must start with a forward slash `/`.
 
-| Layout element | Description |
-| --- | --- |
-| [Table][8] | An element to display data in rows and columns. |
-| Container |   |
-| [Columns][6] | A container to organize content into multiple columns. |
-| [Multi-page header and footer][17] | Create a reusable container that can be used across multiple pages. |
-| [Repeat][18] | Display lists or collections of data |
+| Path Example | Description |
+| :--- | :--- |
+| `/` | **Homepage.** This is the first page users see when visiting your [root domain][3]. |
+| `/about` | **Static Page.** A standard page with fixed content. |
+| `/team/contact` | **Nested Path.** Useful for organizing sections. |
 
-| Form element | Description |
-| --- | --- |
-| [Data input][19] | A field where users can input text. |
-| [Form][7] | A container for gathering and submitting user input. |
-| [Choice][20] | A menu for users to select one option from a list of options. |
-| [Checkbox][21] | A small box for users to select an option. |
-| [Record selector][22] | Allows users to link and select related rows from other tables |
-| [Date time picker][23] | Input dates and times in your application |
-| [Rating input][14] |   |
-| [File input][24] |   |
+## Path parameters (Dynamic routing)
 
-## Element properties
+Path parameters act as placeholders in the URL structure itself. They are typically used when a page *requires* a specific ID to function (e.g., a ""Product Details"" page needs to know *which* product to show).
 
-Page formatting is designed to be flexible, so you can move elements around on the [page](/user-docs/pages-in-the-application-builder) easily. 
+**How to use parameters:**
+To create a parameter, add a colon `:` before the variable name in the **Path** field.
 
-Every element has unique properties and ways to format it based on what it's for.
+* **Syntax:** `/users/:userId`
+* **How it works:** When a visitor goes to `/users/123`, the page loads. The value `123` is assigned to the `userId` parameter, which you can then use in your Data Source filters to fetch that specific user.
 
-To set up an element just right, click on it. You'll see a list of its properties on the right side of your screen.
+## Query string parameters
 
-![Element properties][25]
+Query parameters are key-value pairs added to the end of a URL after a `?` symbol. Unlike path parameters, they are often used for optional data, such as search terms, sort orders, or active filters.
 
-Each element provides adaptable and user-friendly customization to tailor your page layout precisely to your needs.
+**Example:**
+If your URL is `/products?category=shoes`, then `category` is the query parameter and `shoes` is the value.
 
-Hover over any element to reveal a range of options:
+**How to configure:**
+1.  In the **Page settings** modal, locate the **Query string parameters** section.
+2.  Click **+ Add query string parameter**.
+3.  **Name:** Enter the key you want to use (e.g., `search`, `sort`, `filter`).
+4.  **Type:** Define the data type (e.g., Text, Number).
 
-- [Duplicate an element][26]
-- [Select the parent element][27]
-- [Move an element][28]
-- [Delete an element][29]
+**Use Cases:**
+* **Filtering:** Connect a list element's filter to a query parameter so users can bookmark a filtered view (e.g., `/jobs?location=remote`).
+* **Pre-filling Forms:** Pass data from one page to another to auto-fill input fields.
 
-![Element properties][30]
+### Path vs. Query Parameters: Which should I use?
 
-## Set the element data source
+| Feature | Path Parameter (`/:id`) | Query Parameter (`?id=`) |
+| :--- | :--- | :--- |
+| **Structure** | Part of the main URL hierarchy. | Appended to the end of the URL. |
+| **Requirement** | Usually required for the page to work. | Usually optional. |
+| **Best for...** | Identifying a specific record (User Profile, Product Detail). | Sorting, Searching, Filtering, Pagination. |
 
-Setting a [data source](/user-docs/data-sources) tells an element where to get the data it needs to show. This data can be typed in by you (static data) or pulled from a database (dynamic data).
+## Page visibility (Permissions)
 
-When you pick a data source for an element, you're showing it where to look for its information.
+Page visibility acts as a security gate. It determines who is allowed to view the page content.
 
-To choose a data source for an element, click on it and check the sidebar on the right. Click on the field and select data from a list of already set up sources. 
+To configure this, click the **Visibility** tab inside the Page Settings modal (on the left sidebar of the modal).
 
-[Learn more about adding a data source](/user-docs/data-sources).
+### Visibility options
 
-![Set the element data source][31]
+1.  **All visitors (Public):**
+    * Anyone with the link can view the page.
+    * Best for: Landing pages, public directories, login forms.
 
-If you need to change the data source for an element later on, simply click on the field again and select a different source from the list provided.
+2.  **Logged-in users (Private):**
+    * Only users who have authenticated via a [User Source](/user-docs/user-sources) can view the page.
+    * **Redirect Behavior:** If a logged-out visitor tries to access a private page, they will be automatically redirected to your configured **Login Page**.
 
-## Select parent element
+Learn more: Set the Login Page in the [Application's General settings][4].
 
-Selecting the parent element refers to identifying and targeting the container or wrapper of a specific element.
+![Baserow page visibility settings][5]
 
-> You can navigate and build with Baserow's Application Builder using only your keyboard. [Use keyboard shortcuts for quick actions][1].
+> To secure your app effectively, ensure you have a page containing a [Login Element][6] and set it as your redirect target.
 
-![Select parent element][32]
+## Frequently asked questions (FAQ)
 
-You can also click on **Elements** in the top bar to target elements based on their relationship to another element.
+### How do I set my homepage?
+Set the **Page Path** to a single forward slash: `/`. This tells Baserow that this page should load when users visit your main domain (e.g., `myapp.com/`).
 
-## Move element
+### Can I have two pages with the same path?
+No. Each page must have a unique path. If you try to create a duplicate path, Baserow will alert you to change it.
 
-To move the element up or down on the [page](/user-docs/pages-in-the-application-builder), you can use the arrows to change the element's position.
+### What is the difference between Page Visibility and Element Visibility?
+* **Page Visibility** blocks the entire URL. If a user doesn't have permission, they are redirected away immediately.
+* **[Element Visibility][7]** loads the page but hides specific parts (e.g., hiding a ""Delete"" button for non-admins). Use Page Visibility for security, and Element Visibility for user experience.
 
-> You can navigate and build with Baserow's Application Builder using only your keyboard. [Use keyboard shortcuts for quick actions][1].
+## Related content
 
-Clicking the up arrow moves the element higher, while the down arrow shifts it lower on the page.
-
-![Move element][33]
-
-## User actions
-
-External users can filter, sort, and search within [published applications][34], creating a more interactive and user-friendly experience.
-
-For applicable elements, you can specify which fields to make filterable, sortable, and searchable for your external users.
-
-To add filtering, ordering, and searching capabilities, click on the element and navigate to the right sidebar. There, you’ll see checkboxes to enable Filter, Sort, and Search for specific fields.
-
-![image: filter_order_and_search_for_published_applications][35]
+ * [Manage pages (Create/Duplicate/Delete)][1]
+ * [Configure Element Visibility][8]
+ * [Add a Login Element][6]
 
 ---
 
-Still need help? If you're looking for something else, please feel free to make recommendations or ask us questions—we’re ready to assist you.
+
+Still need help? If you're looking for something else, please feel free to make recommendations or ask us questions; we’re ready to assist you.
 
  - [Ask the Baserow community](https://community.baserow.io)
- - [Contact support](/contact) for questions about Baserow or help with your account
+ - [Contact support](/contact) for questions about Baserow or help with your account.
 
 
-  [1]: /user-docs/baserow-keyboard-shortcuts
-  [2]: /user-docs/add-and-remove-elements
-  [3]: /user-docs/element-style
-  [4]: /user-docs/element-events
-  [5]: /user-docs/application-builder-heading-element
-  [6]: /user-docs/application-builder-columns-element
-  [7]: /user-docs/application-builder-form-element
-  [8]: /user-docs/application-builder-table-element
-  [9]: /user-docs/application-builder-text-element
-  [10]: /user-docs/application-builder-image-element
-  [11]: /user-docs/application-builder-iframe-element
-  [12]: /user-docs/application-builder-link-element
-  [13]: /user-docs/application-builder-button-element
-  [14]: https://baserow.io/user-docs/application-builder-rating-element
-  [15]: https://baserow.io/user-docs/menu-element
-  [16]: /user-docs/application-builder-login-element
-  [17]: /user-docs/application-builder-multi-page-container
-  [18]: /user-docs/application-builder-repeat-element
-  [19]: /user-docs/application-builder-text-input-element
-  [20]: /user-docs/application-builder-dropdown-element
-  [21]: /user-docs/application-builder-checkbox-element
-  [22]: /user-docs/application-builder-record-selector-element
-  [23]: /user-docs/application-builder-date-time-picker-element
-  [24]: https://baserow.io/user-docs/application-builder-file-input-element
-  [25]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/98835a08-3c77-4d3e-b9a0-d2d431602c4b/Untitled.png
-  [26]: /user-docs/add-and-remove-elements#duplicate-element
-  [27]: #select-parent-element
-  [28]: #move-element
-  [29]: /user-docs/add-and-remove-elements#remove-element-from-a-page
-  [30]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/da63d98d-c8ef-4999-b8b3-21549dfa4dd1/Untitled%201.png
-  [31]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/57bb6236-faed-4158-828c-0ad4461fee9b/Untitled%202.png
-  [32]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/53a3c91d-bd66-4b8a-8205-bd22a7378d74/Untitled%203.png
-  [33]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/1aea659a-bd32-43b7-91db-b2da5f4f9e2b/Untitled%204.png
-  [34]: /user-docs/preview-and-publish-application
-  [35]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/3344732f-7eca-4ec1-b38e-e0d00a89952a/filter_order_and_search_for_published_applications.webp",application builder,baserow_user_docs,https://baserow.io/user-docs/elements-overview
-173,Add and remove elements,add-and-remove-elements,Add and remove elements in Baserow application builder,"# Add and remove elements in Application Builder
+  [1]: /user-docs/pages-in-the-application-builder
+  [2]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/f24f9fa0-ee80-47ed-b13e-aac3c1f72a16/Page%20settings.jpg
+  [3]: /user-docs/add-a-domain-to-an-application
+  [4]: /user-docs/application-settings
+  [5]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/834344cd-7c1d-4cf6-b61b-5314538c1815/page_visibility.webp
+  [6]: /user-docs/application-builder-login-element
+  [7]: /user-docs/application-builder-element-visibility
+  [8]: /user-docs/application-builder-element-visibility",application builder,baserow_user_docs,https://baserow.io/user-docs/application-builder-page-settings
+172,Elements overview,elements-overview,Application Builder elements in Baserow,"# Overview of Application Builder elements
 
-Adding elements involves introducing new components such as text, images, buttons, or forms onto a page. Removing elements covers deleting existing content from the page.
+Elements are the visual building blocks of your Baserow application. They determine how your application looks and how users interact with your [data][1]. Whether you are displaying a static heading, a dynamic table of records, or a form for user submission, you will use elements to construct the interface.
 
-In this section, we'll explore adding and removing elements on a page, best practices, and the impact they have on the overall user experience.
-
-Learn more about the [elements available in the application builder][1].
+This guide covers how to design your application interface using drag-and-drop components for layout, data display, and user input.
 
 ## Overview
 
-In application design, integrating various elements onto a single page enhances user experience and navigation efficiency. By combining forms, buttons, text fields, images, and interactive features, you create cohesive interfaces.
+Every page in your application is built by stacking elements. Elements generally fall into two behaviors:
 
-It's important to maintain clarity and organization to prevent clutter and confusion for users. 
+1.  **Static elements:** Display fixed content that doesn't change.
+2.  **Dynamic elements:** Connect to a [Data Source](/user-docs/data-sources) to display information from your database.
+
+Each element has its own configuration panel where you can adjust **Properties** (what it does), **Styles** (how it looks), and **Events** (what happens when clicked).
+
+You can navigate and build with Baserow’s Application Builder using only your keyboard. Use [keyboard shortcuts][2] for quick actions.
+
+Learn how to [add, remove and duplicate][3] elements.
+
+![Element view panel][4]
+
+## Available element types
+
+Baserow organizes elements into three categories to help you structure your page.
+
+### Base elements (Visuals & navigation)
+These are the foundational components for adding content and navigation to your page.
+
+| Element | Description |
+| :--- | :--- |
+| **[Heading][5]** | A title displayed at the top of a page or section. |
+| **[Text][6]** | A block of text for descriptions or instructions. |
+| **[Image][7]** | Displays a static image or dynamic image from a URL. |
+| **[Link][8]** | A hyperlink to another page or external URL. |
+| **[Button][9]** | Triggers an action (like submitting a form or navigating) when clicked. |
+| **[IFrame][10]** | Embeds external documents or websites within your page. |
+| **[Login][11]** | A pre-built form allowing users to authenticate. |
+| **[Menu][12]** | Navigation menu for moving between pages. |
+
+### Layout elements (Structure & data)
+These elements organize content or display collections of data rows.
+
+| Element | Description |
+| :--- | :--- |
+| **[Table][13]** | Displays multiple records in a structured row/column format. |
+| **[Columns][14]** | A container that splits content into side-by-side columns. |
+| **[Repeat][15]** | Iterates through a list of data, displaying the same layout for each item. |
+| **[Header/Footer][16]** | Reusable containers that appear across multiple pages. |
+
+### Form elements (Input)
+These elements allow users to enter data, which can then be saved to your database.
+
+| Element | Description |
+| :--- | :--- |
+| **[Form][17]** | The main container required to gather and submit user input. |
+| **[Data input][18]** | A standard text field for user entry. |
+| **[Choice][19]** | A dropdown menu for selecting options from a list. |
+| **[Checkbox][20]** | A toggle box for true/false selection. |
+| **[Date time picker][21]** | A calendar interface for selecting dates and times. |
+| **[Record selector][22]** | Allows users to search and select rows from a related table. |
+
+## Configure element properties
+
+To customize an element, click on it in the canvas. The **Properties** panel will open on the right side of the screen.
+
+ * **General:** Change the content (e.g., text value) or configuration.
+ * **[Style][23]:** Adjust colors, typography, and spacing.
+ * **[Visibility][24]**: Manage element visibility
+ * **[Events][25]:** Define logic, such as ""On Click -> Open Page"".
+
+### Connect to a Data Source
+Dynamic elements (like Tables or Text fields displaying row data) must be connected to a [source][1].
+
+1.  Select the element.
+2.  In the properties panel, locate the **Data Source** field.
+3.  Select a Data Source from the list.
+
+This tells the element exactly where to pull its information from, allowing it to display dynamic content from your database.
+
+Learn more about [adding a data source][1].
+
+## Manage page layout
+
+Baserow provides flexible tools to organize your page structure. You can perform these actions using the mouse or [keyboard shortcuts][26].
+
+### Move and arrange elements
+To change the position of an element:
+1.  Select the element.
+2.  Use the **Up/Down arrows** in the toolbar to shift its order.
+3.  Alternatively, drag and drop the element to a new location.
+
+![Move element up and down][27]
+
+### Select parent elements
+Elements are often nested inside containers (e.g., a Text element inside a Column). To select the container:
+1.  Click the child element.
+2.  Click the **Select Parent** icon in the hovering toolbar.
+3.  Alternatively, use the **Elements** breadcrumb in the top bar to navigate the hierarchy.
+
+![Select parent element][28]
+
+## User interactions (Filtering and Sorting)
+
+External users can filter, sort, and search within [published applications][29], creating a more interactive and user-friendly experience.
+
+For elements that display collections of data (like Tables), you can empower your users to interact with the content.
+
+In the element properties panel, you can enable:
+* **Filter:** Allow users to narrow down results.
+* **Sort:** Allow users to reorder the list.
+* **Search:** Allow users to find specific text.
+
+![Configure filter sort and search][30]
+
+## Frequently asked questions (FAQ)
+
+### What is the difference between static and dynamic elements?
+Static elements display content you type directly into the builder (like a fixed heading). Dynamic elements display content pulled from your database (like a customer's name from a ""Customers"" table).
+
+### Can I copy elements?
+Yes. Hover over any element and click the **[Duplicate][3]** icon in the toolbar to create an exact copy of the element and its settings.
+
+### Do I need a Data Source for every element?
+No. Visual elements like headings or images can exist without data sources. However, elements that display database records (Tables, Repeaters) or receive input (Forms) usually require a data source connection.
+
+## Related content
+
+ * [Add and remove elements][31]
+ * [Connecting Data Sources](/user-docs/data-sources)
+ * [Styling elements][32]
+
+---
+
+
+Still need help? If you're looking for something else, please feel free to make recommendations or ask us questions; we’re ready to assist you.
+
+ - [Ask the Baserow community](https://community.baserow.io)
+ - [Contact support](/contact) for questions about Baserow or help with your account.
+
+
+  [1]: /user-docs/data-sources
+  [2]: /user-docs/baserow-keyboard-shortcuts
+  [3]: /user-docs/add-and-remove-elements
+  [4]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/7b692c79-f65b-46f4-ab19-51559e43f254/Element%20view%20panel.png
+  [5]: /user-docs/application-builder-heading-element
+  [6]: /user-docs/application-builder-text-element
+  [7]: /user-docs/application-builder-image-element
+  [8]: /user-docs/application-builder-link-element
+  [9]: /user-docs/application-builder-button-element
+  [10]: /user-docs/application-builder-iframe-element
+  [11]: /user-docs/application-builder-login-element
+  [12]: https://baserow.io/user-docs/menu-element
+  [13]: /user-docs/application-builder-table-element
+  [14]: /user-docs/application-builder-columns-element
+  [15]: /user-docs/application-builder-repeat-element
+  [16]: /user-docs/application-builder-multi-page-container
+  [17]: /user-docs/application-builder-form-element
+  [18]: /user-docs/application-builder-text-input-element
+  [19]: /user-docs/application-builder-dropdown-element
+  [20]: /user-docs/application-builder-checkbox-element
+  [21]: /user-docs/application-builder-date-time-picker-element
+  [22]: /user-docs/application-builder-record-selector-element
+  [23]: /user-docs/element-style
+  [24]: /user-docs/application-builder-element-visibility
+  [25]: /user-docs/element-events
+  [26]: /user-docs/baserow-keyboard-shortcuts
+  [27]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/1aea659a-bd32-43b7-91db-b2da5f4f9e2b/Untitled%204.png
+  [28]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/53a3c91d-bd66-4b8a-8205-bd22a7378d74/Untitled%203.png
+  [29]: /user-docs/preview-and-publish-application
+  [30]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/3344732f-7eca-4ec1-b38e-e0d00a89952a/filter_order_and_search_for_published_applications.webp
+  [31]: /user-docs/add-and-remove-elements
+  [32]: /user-docs/element-style",application builder,baserow_user_docs,https://baserow.io/user-docs/elements-overview
+173,Add and remove elements,add-and-remove-elements,Add and remove elements in Baserow application builder,"# Add and remove elements
+
+Elements are the functional widgets of your application. Whether you need a simple text block, an interactive form, or a dynamic table linked to your database, you manage them all through the Element Library.
+
+This guide will cover how to build your application interface by adding, duplicating, and managing UI components.
+
+## Manage element: Overview
+
+In application design, integrating various elements onto a single page enhances user experience and navigation efficiency. By combining elements, you create cohesive interfaces.
+
+ * **The [element library][1]:** You can access the full list of available components by clicking the **Elements** tab in the top bar or the **+** button on the canvas.
+ * **Drag and Drop:** Elements stack vertically by default. You can use **[Column elements][2]** to create side-by-side layouts.
+ * **Safety:** Deleting an element removes it from the page layout, but it **does not** delete the underlying data in your database.
+
+![Add elements to a page][3]
 
 ## Add an element to a page
 
-Adding elements enhances the structure and content of a page, offering flexibility and customization options.
+There are two ways to introduce new content to your page layout.
 
-To add an element to a page, follow these steps:
+### Option 1: Using the view bar
+ 1.  Click the **Elements** tab in the top navigation bar.
+ 2.  Click the **+ Add element** button.
+ 3.  A searchable menu will appear. Select the desired element (e.g., ""Heading,"" ""Table,"" ""Form"").
+ 4.  The element will be appended to the bottom of your page.
 
-1. Open the page and click **Elements**.
-2. Click **Element +** located in the lower left portion of the popup. Alternatively, click on the plus icon `+`  on the page to add an element.
-    
-    ![Add elements to a page][2]
-    
-3. A menu of available element options will appear. Select from the available options or use the search box to find a specific element by name.
-    
-    ![List of application builder elements][3]
-    
-4. Once you've chosen the element you want to add, click on it.
+### Option 2: Using the Canvas (Quick Add)
+1.  Hover your mouse over the canvas where you want to place content.
+2.  Click the **+ (Plus)** icon that appears between existing elements.
+3.  Select an element from the popup menu.
+    * *Tip:* Use the search bar in the popup to find specific elements quickly.
 
-After selecting the element, you can place it anywhere on the layout of the page. Don't worry too much about perfect positioning at this stage; you can always adjust it later as needed.
+![List of application builder elements][4]
 
-## Duplicate element
+## Duplicate an element
 
-Duplicating an element creates an identical copy of it, usually positioned right below the original. 
+Duplicating is the fastest way to build repetitive layouts. It creates an exact copy of an element, preserving all configuration settings, styles, and data source connections.
 
-This provides multiple instances of the same element without the need to recreate it from scratch.
+1.  Hover your mouse over the element you wish to copy.
+2.  Click the **Duplicate** icon (two overlapping squares) in the floating toolbar.
+3.  The copy will appear immediately below the original.
 
-> You can navigate and build with Baserow's Application Builder using only your keyboard. [Use keyboard shortcuts for quick actions][4].
+> **Pro Tip:** You can also use [Keyboard Shortcuts][5] to speed up this process.
 
-To duplicate an element:
+![Duplicate element][6]
 
-1. Hover over the element you want to duplicate.
-2. Locate and click the double square icon.
+## Remove an element
 
-This action creates a duplicate of the selected element within the application, giving you the freedom to tweak and adjust the duplicated version without altering the original.
+Removing an element deletes it from the user interface.
 
-![Duplicate element][5]
+1.  Hover over the element you want to remove.
+2.  Click the **Trash Can** icon in the floating toolbar.
+3.  The element is immediately removed from the canvas.
 
-## Remove element from a page
+![Remove elements from a page][7]
 
-To remove the element from the page, follow these steps:
+### Important Note on Data
+If you delete a **data-connected element** (like a Table or a Form):
+* **The View is deleted:** The table/form disappears from the app.
+* **The Data is safe:** The actual rows and columns in your Baserow database remain untouched. You can re-add the element later and reconnect it to the same data source.
 
-1. Locate the trash icon associated with the element you wish to delete.
-2. Click on the trash icon to initiate the deletion process.
-3. Confirm the deletion if prompted. 
+## Frequently asked questions (FAQ)
 
-We advise that you proceed with this action only if you are certain you no longer need the element.
+### Can I undo a deletion?
+Yes. If you accidentally delete an element, you can usually use the standard keyboard shortcut `Ctrl + Z` (Windows) or `Cmd + Z` (Mac) immediately to undo the action.
 
-![Remove elements from a page][6]
+### Can I move an element to a different page?
+Currently, elements cannot be dragged directly between pages. To move content, you should **Duplicate** the element or recreate the configuration on the new page.
+
+### Why can't I place an element next to another?
+By default, elements stack vertically. To place elements side-by-side, you must first add a **Columns** element, and then place your content inside the columns.
+
+## Related content
+
+ * [Overview of available elements][8]
+ * [Connecting elements to Data Sources](/user-docs/data-sources)
+ * [Styling your elements](/user-docs/element-style)
 
 ---
 
-Still need help? If you're looking for something else, please feel free to make recommendations or ask us questions—we’re ready to assist you.
+
+Still need help? If you're looking for something else, please feel free to make recommendations or ask us questions; we’re ready to assist you.
 
  - [Ask the Baserow community](https://community.baserow.io)
- - [Contact support](/contact) for questions about Baserow or help with your account
+ - [Contact support](/contact) for questions about Baserow or help with your account.
+
 
   [1]: /user-docs/elements-overview
-  [2]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/f42c73c7-0468-46e7-9dce-849eb75262a6/Untitled.png
-  [3]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/fffbb555-89f0-4efd-bacb-c82e96b12291/Untitled%201.png
-  [4]: /user-docs/baserow-keyboard-shortcuts
-  [5]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/23e29afd-c54f-4966-9191-af2c67f8389a/Untitled%202.png
-  [6]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/7779142b-0a3c-426e-ab39-c271f42e113a/Untitled%203.png",,baserow_user_docs,https://baserow.io/user-docs/add-and-remove-elements
-174,Element style,element-style,Baserow application builder element style,"# Application builder element style
+  [2]: /user-docs/application-builder-columns-element
+  [3]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/f42c73c7-0468-46e7-9dce-849eb75262a6/Untitled.png
+  [4]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/801bb085-9776-4020-9051-e2ecb6c001e0/Add%20new%20element.png
+  [5]: /user-docs/baserow-keyboard-shortcuts
+  [6]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/23e29afd-c54f-4966-9191-af2c67f8389a/Untitled%202.png
+  [7]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/7779142b-0a3c-426e-ab39-c271f42e113a/Untitled%203.png
+  [8]: /user-docs/elements-overview",application builder,baserow_user_docs,https://baserow.io/user-docs/add-and-remove-elements
+174,Layout styling,element-style,Baserow application builder element style,"# Configure element styles
 
-Element style is key to the look and feel of a webpage. It's about the design features you add to parts like buttons, forms, and text fields.
+In the Application Builder, styling is handled in two distinct areas depending on what you want to change. You can control the container (width, borders, padding) via the **Style tab**, or override specific theme settings (colors, fonts) via the **General tab**.
 
-In this section, we'll look at style options that help you show your data in a clear and engaging way.
+This guide covers how to customize the layout, spacing, and visual appearance of individual elements.
 
 ## Overview
 
-The Application Builder offers a wide range of customization options to personalize the look and feel of a  [page](/user-docs/pages-in-the-application-builder). You can control everything, from color schemes, to typography, and spacing.
+The Application Builder offers a wide range of customization options to personalize the look and feel of a page. You can control everything, from color schemes, to typography, and spacing.
 
-Each [element](/user-docs/elements-overview) on a [page](/user-docs/pages-in-the-application-builder) has its own style editor on the right sidebar. This area has everything you need to change how an element looks, like colors and fonts.
-
-You can set the font style and size, as well as the color, for each element on its own. This lets you make an app that's both good-looking and easy to understand.
-
-Alternatively, you can choose to inherit the default styles defined in your [theme settings](/user-docs/application-settings#theme) for a cohesive look.
+* **Global Theme:** Set the default look for *all* elements in [Application Settings][3].
+* **Style Tab:** Controls the ""box"" around your element. Use this to change width, background color, borders, and padding.
+* **Theme Overrides (General Tab):** Controls the specific features inside the element. Use this to make a specific button red instead of the default blue.
 
 ![Style element][1]
 
-## Set theme 
+## The Style Tab (Layout & Container)
 
-Baserow allows for the customization of specific elements on your page. To do this, select the element you want to customize, go to the **General** tab in the right-hand panel, and click the settings icon to open a modal window with styling options. The available options will vary depending on the element selected. Make the desired adjustments within the modal window.
+To access layout controls, select an element and click the **Style** tab in the properties panel. These settings affect the ""container"" or the box that holds your element.
 
-[Learn more about how to customize your applications at the application level][2].
+### Width
+Control how much horizontal space the element occupies on the page.
 
-## Element border
+| Option | Description |
+| :--- | :--- |
+| **Full Width** | Stretches the element to fill 100% of the available container space. |
+| **Normal** | The standard width, optimized for readability. |
+| **Medium** | A contained width, slightly narrower than normal. |
+| **Small** | The narrowest option, useful for centering small interactions. |
 
-To add a top and bottom border to an element and customize the border width and color, follow these steps:
+![Width][5]
 
-1. **Select the element**: Identify the element to which you want to add the borders.
-2. **Access the style editor**: Navigate to the style editor of the selected element.
-3. **Specify border width and color**: There are options to set borders for different sides (top, bottom, left, right) separately. Set the width and color of the borders. 
-4. **Preview and adjust**: After setting the border properties, preview your changes to ensure they look as expected. 
+### Padding (Spacing)
+Padding creates a buffer zone between the element's content and its border. Increasing padding adds ""breathing room"" inside the element.
 
-By following these steps, you can easily add custom borders with the desired width and color to elements within a page.
+* **Vertical (Top/Bottom):** Controls the height of the whitespace above and below the content.
+* **Horizontal (Left/Right):** Controls the width of the whitespace on the sides.
 
-## Element padding
+### Borders
+You can add borders to create visual separation between elements.
 
-Padding offers control over the spacing between the content and the border of an element. 
+1.  **Sides:** Choose which sides to frame (Top, Bottom, Left, Right, or All).
+2.  **Width:** Set the thickness of the line.
+3.  **Color:** Select a color from your palette or enter a custom hex code.
 
-Padding creates a buffer zone around the content, giving you control over the layout and visual hierarchy of the page.
+### Background Color
+Setting a background color fills the entire container of the element. This is often used combined with **Padding** to create ""Cards"" or highlighted sections.
 
-- **Left and Right Padding:** This adjusts the horizontal space between the content and the left and right borders of the element.
-- **Top Padding:** This controls the vertical space between the content and the top border, impacting how close the content sits to the top of the element.
-- **Bottom Padding:** This adjusts the vertical space between the content and the bottom border, affecting how close the content sits to the bottom of the element.
+![Background color][4]
 
-## Element background color
+## Theme Overrides (General Tab)
 
-Background colors enhance the visual design and user experience of a page. Setting a background color for an element fills the entire area of that element.
+While the **Style** tab controls the box, the **General** tab allows you to override specific design tokens (like font size or button color) that are usually inherited from your Global Theme.
 
-Adding a background color gives a spotlight to certain elements on a page. 
+**How to override a theme:**
+1.  Select the element.
+2.  Ensure you are on the **General** tab.
+3.  Look for the **Settings/Style icon** (often a small gear or slider icon) next to specific fields.
+4.  Clicking this opens a modal where you can select a specific color or typography style that differs from your default theme.
 
-![Background color][3]
+![Theme override](https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/0c90ab38-2db6-41e6-b34d-eb5609300f9a/ab_styling.webp)
 
-To change the default background color, adjust the color in the [theme settings](/user-docs/application-settings). This will cause any element using the colored background to update.
+## Advanced: Custom CSS Classes
 
-You can remove an existing background color at any time by selecting **None**.
+If the built-in style options are not enough, you can apply custom CSS.
 
-## Element width
+1.  In the **Style** tab, scroll to the **CSS Class** field.
+2.  Enter a class name (e.g., `my-custom-button`).
+3.  Go to [Application Settings > Custom Code](/user-docs/custom-css-and-javascript-in-application-builder) to define the rules for that class.
 
-Element width determines how much horizontal space an element takes up on the screen. Essentially, it controls how wide your element will be.
+## Frequently asked questions (FAQ)
 
-Baserow Application Builder offers several options for customizing element width:
+### Why are there two places to edit styles?
+* The **Style Tab** handles the *layout* (the box model: margins, padding, width).
+* The **General Tab** handles the *component details* (specific theme overrides like font family or primary color).
 
-- **Full Width:** Stretches the element to fill the entire available space.
-- **Normal:** Sets the element to a standard width, creating a balanced layout.
-- **Medium:** Makes the element slightly narrower than the normal width.
-- **Small:** Creates the narrowest size option for the element.
+### How do I revert a change?
+If you have applied a Theme Override (in the General tab), simply deselect the custom option to revert to the Global Theme default.
 
-Each choice corresponds to a specific width setting, allowing you to tailor the layout according to your design needs.
+### Does padding affect the background color?
+Yes. If you set a background color, it will fill the area included in the padding. If you want space *outside* the background color, you would typically need a margin (which is handled by the element's placement in the layout).
 
-![Width][4]
+### If I change the Global Theme, will my customized elements change?
+It depends. If you have kept an element set to ""Default,"" it will update to match the new Global Theme. If you have manually customized an element (e.g., manually set a button to Red), it will *ignore* the Global Theme update and stay Red.
 
+### Can I revert an element to the default style?
+Yes. In the style editor for the element, clear your specific selections (or select ""Default"" where applicable). The element will revert to using the Global Theme settings.
+
+### Do all elements have the same style options?
+No. Complex elements like [Tables](/user-docs/intro-to-tables) or [Forms](/user-docs/application-builder-form-element) may have different styling options compared to simple elements like Text or Buttons.
+
+## Related content
+
+* [Global Theme Settings][2]
+* [Custom CSS and JavaScript](/user-docs/custom-css-and-javascript-in-application-builder)
+* [Overview of Elements](/user-docs/elements-overview)
+
+---
+
+
+Still need help? If you're looking for something else, please feel free to make recommendations or ask us questions; we’re ready to assist you.
+
+ - [Ask the Baserow community](https://community.baserow.io)
+ - [Contact support](/contact) for questions about Baserow or help with your account.
 
   [1]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/26d9b670-4d8a-49a7-bfa1-cf1197d9fa3b/Untitled.png
   [2]: /user-docs/application-settings#theme
-  [3]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/9cd19c33-5ae9-4115-9f68-c189609f6088/Untitled%201.png
-  [4]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/9c2c8f51-2c0a-4b37-ba11-dcc2344c0736/Untitled%202.png",,baserow_user_docs,https://baserow.io/user-docs/element-style
+  [3]: https://baserow.io/user-docs/application-settings
+  [4]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/9cd19c33-5ae9-4115-9f68-c189609f6088/Untitled%201.png
+  [5]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/9c2c8f51-2c0a-4b37-ba11-dcc2344c0736/Untitled%202.png",application builder,baserow_user_docs,https://baserow.io/user-docs/element-style
 175,Element events,element-events,Baserow Application Builder element events,"# Application Builder element events
 
 Element events let you decide what happens when someone clicks on things like buttons. This makes the user experience lively and responsive.
@@ -26086,39 +26423,80 @@ Still need help? If you're looking for something else, please feel free to make 
 [forms]: /user-docs/guide-to-creating-forms-in-baserow
 [import]: /user-docs/create-a-table-via-import
 [validation]: /user-docs/data-validation-strategies",,baserow_user_docs,https://baserow.io/user-docs/field-value-constraints
-394,Custom CSS and JavaScript,custom-css-and-javascript,Custom CSS and JavaScript in Baserow Application Builder,"# Custom CSS and JavaScript in Application Builder
+394,Custom code,custom-css-and-javascript,Custom CSS and JavaScript in Baserow Application Builder,"# Configure custom code (CSS and JavaScript)
 
-![enter image description here][1]
+While Baserow offers a wide range of built-in no-code tools, you can use the **Custom CSS/JS** settings to inject standard web code into your application. This feature allows developers and designers to override default styles, add advanced interactivity, or connect external services like analytics and chat widgets.
 
-Take your applications to the next level by adding custom **CSS** and **JavaScript** in the Baserow Application Builder. This feature gives you the freedom to go beyond Baserow’s built-in tools—tailor the look and feel of your app, add advanced interactivity, or connect to external services.
+This guide covers how to extend your application's functionality with custom styling, logic, and third-party integrations.
 
-## What you can do
+![Custom CSS and JavaScript in Baserow Application Builder][1]
 
-With custom code, you can:
-- Style your application with custom CSS
-- Add interactive behavior using JavaScript
-- Embed external scripts and stylesheets (e.g. Google Analytics, payment widgets, chat plugins, etc.)
+## Overview
 
-## How to use it
+This feature is designed for users who need to go beyond the standard interface. It allows you to inject code into the frontend of your application.
 
-1. Open your application project in the Application Builder.
-2. Go to **Application settings**.
-3. Click on the **Custom CSS/JS** tab.
-4. Add your code to the appropriate section:
-   - **CSS** for custom styling
-   - **JavaScript** for functionality and interactivity
-   - **External resources** to load third-party libraries or tools
+* **CSS:** Used for visual customization (fonts, colors, hiding elements).
+* **JavaScript:** Used for logic, DOM manipulation, and interactivity.
+* **External resources:** Used to load libraries from a CDN (e.g., Google Fonts, jQuery, Analytics scripts).
 
-> ⚠️ Custom code is only applied in the **preview** or **published** version of your application. It won’t be executed inside the editor.
+> For security and stability, custom code is **not executed** inside the Application Builder editor. You must view your app in **Preview** mode or the **Published** live version to see your code take effect.
 
-## Use cases
+## How to add custom code
 
-- Add custom branding with fonts, colors, and layout tweaks
-- Integrate external services like analytics, support widgets, or payment tools
-- Build dynamic UI elements with JavaScript (e.g. sliders, tabs, modal windows)
+To inject custom scripts or styles into your application:
+
+1.  Open your project in the **Application Builder**.
+2.  Click on **[Application settings][2]** in the sidebar/menu.
+3.  Select the **Custom CSS/JS** tab.
+4.  Paste your code into the appropriate section (see table below).
+5.  **Publish** or **Preview** your application to test the changes.
+
+## Configuration options
+
+There are three distinct areas where you can add code, depending on your goal:
+
+| Section | Language | Purpose | Example Use Case |
+| :--- | :--- | :--- | :--- |
+| **CSS** | CSS | **Custom Styling** | Changing font families, adjusting padding, or hiding specific UI elements. |
+| **JavaScript** | JS | **Interactivity** | Creating custom pop-ups, complex form validation, or manipulating the DOM. |
+| **External resources** | URLs | **Third-Party Tools** | Loading Google Analytics, Intercom chat widgets, or payment processors. |
+
+## Common use cases
+
+Adding custom code allows for deep integrations that are not possible with native elements alone.
+
+* **Analytics and tracking:** Embed scripts for Google Analytics, plausible.io, or Meta Pixel to track user behavior.
+* **Customer support:** Inject chat bubbles from providers like Intercom, Zendesk, or HubSpot.
+* **Branding:** Import custom web fonts or enforce strict brand color guidelines that override the default theme.
+* **UI components:** Build sliders, modals, or tabs that require custom logic.
+
+## Frequently asked questions (FAQ)
+
+### Why isn't my code working in the editor?
+Custom code is disabled in the editor to prevent broken scripts from locking you out of the configuration interface. You must click **Preview** or access the **Published** URL to execute the code.
+
+### Can I break my application with custom code?
+Yes. Since you are injecting raw code, incorrect CSS can hide navigation elements, and buggy JavaScript can stop the app from loading. Always test in **Preview** mode before publishing to your live users.
+
+### Can I load external libraries?
+Yes. Use the **External resources** section to load stylesheets or JavaScript libraries (like jQuery or Bootstrap) from a CDN URL.
+
+## Related content
+
+ * [Application Builder Settings](/user-docs/application-settings)
+ * [Preview and Publish your App](/user-docs/preview-and-publish-application)
+ * [Theme Configuration](/user-docs/application-settings#theme)
+
+---
+
+Still need help? If you're looking for something else, please feel free to make recommendations or ask us questions; we’re ready to assist you.
+
+ - [Ask the Baserow community](https://community.baserow.io)
+ - [Contact support](/contact) for questions about Baserow or help with your account
 
 
-  [1]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/ed41667c-7c9e-4cdb-94a5-31b83227f472/Custom%20code.png",,baserow_user_docs,https://baserow.io/user-docs/custom-css-and-javascript
+  [1]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/ed41667c-7c9e-4cdb-94a5-31b83227f472/Custom%20code.png
+  [2]: https://baserow.io/user-docs/application-settings",application builder,baserow_user_docs,https://baserow.io/user-docs/custom-css-and-javascript
 425,Self-hosted license,self-hosted-licenses,Self-hosted license types in Baserow,"# Baserow self-hosted license types
 
 Self-hosted licensing makes it easy to control user access and costs while maintaining deployment flexibility across your infrastructure.
@@ -28026,7 +28404,7 @@ If you self-host, Kuma gives you full control over your data privacy by allowing
 
 Baserow integrates with multiple AI providers (OpenAI, Anthropic, Ollama, OpenRouter, Mistral) to power the AI field and generative features.
 
-Learn more about [configuring generative AI in Baserow][1]
+> Learn more about [Baserow AI-Assistant: Quick DevOps Setup][9]. This guide shows how to enable the AI-assistant in Baserow, configure the required environment variables, and turn on knowledge-base lookups via an embeddings server.
 
 ## Frequently Asked Questions (FAQs)
 
@@ -28038,7 +28416,7 @@ The **[AI field](/user-docs/ai-field)** operates *inside* a table to perform a s
 
 ### Can Kuma see my data?
 
-To perform actions, Kuma needs to understand your workspace structure (like table and field names). By allowing you to choose your own AI provider in the settings, you remain in control of which service handles your data and your privacy.
+To perform actions, Kuma needs to understand your workspace structure (like table and field names). As a self-hosted user, if you provide Baserow with an external LLM, our generative AI features will communicate with it and send it contextual data to help with the query. Alternatively, you can self-host your own model and provide the configurations to Baserow, so the data doesn’t leave your environment. By allowing you to [choose your own AI provider in the settings][1], you remain in control of which service handles your data and your privacy. 
 
 ### What if Kuma makes a mistake?
 
@@ -28051,15 +28429,23 @@ Like any AI, Kuma can sometimes misinterpret a request or make a mistake. We rec
   * [Formula field reference](/user-docs/understanding-formulas)
   * [Introduction to databases in Baserow](/user-docs/intro-to-databases)
 
+---
 
-  [1]: https://baserow.io/user-docs/configure-generative-ai
-  [2]: https://baserow.io/docs/installation%2Fconfiguration#ai-assistant-configuration
+Still need help? If you're looking for something else, please feel free to make recommendations or ask us questions; we’re ready to assist you.
+
+ - [Ask the Baserow community](https://community.baserow.io)
+ - [Contact support](/contact) for questions about Baserow or help with your account
+
+
+  [1]: /user-docs/configure-generative-ai
+  [2]: /docs/installation%2Fconfiguration#ai-assistant-configuration
   [3]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/c0754a24-8b55-4d73-9526-9662d3ef6fb3/Meet%20Kuma%2C%20your%20Baserow%20AI%20assistant.jpg
-  [4]: https://baserow.io/user-docs/create-a-table
-  [5]: https://baserow.io/user-docs/adding-a-field
-  [6]: https://baserow.io/user-docs/formula-field-overview
-  [7]: https://baserow.io/user-docs/view-customization
-  [8]: https://baserow.io/user-docs/create-custom-views-of-your-data",workspace,baserow_user_docs,https://baserow.io/user-docs/ai-assistant
+  [4]: /user-docs/create-a-table
+  [5]: /user-docs/adding-a-field
+  [6]: /user-docs/formula-field-overview
+  [7]: /user-docs/view-customization
+  [8]: /user-docs/create-custom-views-of-your-data
+  [9]: /docs/installation/ai-assistant",workspace,baserow_user_docs,https://baserow.io/user-docs/ai-assistant
 1,What is Baserow?,faq,What is Baserow?,"What is Baserow?
 
 Baserow is an open-source no-code database. Our database platform enables both non-technical and technical teams to capture, organize and build logical relationships between data to trigger decisions and automate processes. We focus on openness, scalability, performance, and data security.",faq,faq,https://baserow.io/faq
