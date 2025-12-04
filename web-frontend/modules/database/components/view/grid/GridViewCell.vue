@@ -98,6 +98,16 @@ export default {
       type: Array,
       required: true,
     },
+    isSelected: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
+    isAlive: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
   },
   emits: [
     'update',
@@ -115,9 +125,6 @@ export default {
     'refresh-row',
   ],
   computed: {
-    parent() {
-      return this.$parent
-    },
     cellKey() {
       return `row-field-cell-${this.row._.persistentId}-${this.field.id}`
     },
@@ -135,31 +142,26 @@ export default {
         'grid-view__column--group-end': this.groupEnd,
       }
     },
-    isSelected() {
+    /*isSelected() {
+      console.log('here', this.parent, this.parent.isCellSelected)
       return this.parent && this.parent.isCellSelected(this.field.id)
-    },
-    isAlive() {
+    },*/
+    /*isAlive() {
       return this.parent && this.parent.alive.includes(this.field.id)
-    },
+    },*/
     fieldValue() {
       return this.row[`field_${this.field.id}`]
     },
   },
   methods: {
     getFunctionalComponent() {
-      if (!this.parent) {
-        return null
-      }
-      return this.parent
-        .$registry.get('field', this.field.type)
+      return this.$registry
+        .get('field', this.field.type)
         .getFunctionalGridViewFieldComponent(this.field)
     },
     getComponent() {
-      if (!this.parent) {
-        return null
-      }
-      return this.parent
-        .$registry.get('field', this.field.type)
+      return this.$registry
+        .get('field', this.field.type)
         .getGridViewFieldComponent(this.field)
     },
     update(value, oldValue) {
@@ -187,9 +189,10 @@ export default {
     },
     select(event, fieldId) {
       event.preventFieldCellUnselect = true
-      if (this.parent) {
+      this.$emit('select-cell', fieldId)
+      /*if (this.parent) {
         this.parent.selectCell(fieldId)
-      }
+      }*/
     },
     cellMouseDownLeft(event) {
       if (!event.shiftKey) {
@@ -206,8 +209,9 @@ export default {
       this.$emit('cell-shift-click')
     },
     unselect() {
-      if (this.parent && this.parent.isCellSelected(this.field.id)) {
-        this.parent.selectCell(-1, -1)
+      if (this.isSelected) {
+        this.$emit('select-cell', -1, -1)
+        //this.parent.selectCell(-1, -1)
       }
     },
     selected(event) {
@@ -239,14 +243,16 @@ export default {
       this.$emit('refresh-row', this.row)
     },
     addKeepAlive() {
-      if (this.parent) {
+      this.addKeepAlive(this.field.id)
+      /*if (this.parent) {
         this.parent.addKeepAlive(this.field.id)
-      }
+      }*/
     },
     removeKeepAlive() {
-      if (this.parent) {
+      this.removeKeepAlive(this.field.id)
+      /*if (this.parent) {
         this.parent.removeKeepAlive(this.field.id)
-      }
+      }*/
     },
   },
 }

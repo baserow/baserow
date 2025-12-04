@@ -40,15 +40,6 @@ import {
 } from 'nuxt/kit'
 import { routes } from './routes'
 
-import en from './locales/en.json'
-import fr from './locales/fr.json'
-import nl from './locales/nl.json'
-import de from './locales/de.json'
-import it from './locales/it.json'
-import es from './locales/es.json'
-import pl from './locales/pl.json'
-import ko from './locales/ko.json'
-
 const locales = [
   { code: 'en', name: 'English', file: 'en.json' },
   { code: 'fr', name: 'Français', file: 'fr.json' },
@@ -66,11 +57,6 @@ export default defineNuxtModule({
 
   setup(options, nuxt) {
     const { resolve } = createResolver(import.meta.url)
-
-    // Register middleware plugin
-    /*addPlugin({
-      src: resolve('./middleware.js'),
-    })*/
 
     // Register main plugin
     addPlugin({

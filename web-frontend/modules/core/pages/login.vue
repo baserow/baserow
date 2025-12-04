@@ -37,9 +37,7 @@ if (store.getters['settings/get'].show_admin_signup_page === true) {
 // Data fetching
 const { data } = await useAsyncData('loginData', async () => {
   // Fetch login options (will populate Vuex store)
-  console.log('fetch login options')
   await store.dispatch('authProvider/fetchLoginOptions')
-  console.log('after fetch')
   // Logic from workspaceInvitationToken mixin
   const token = route.query.workspaceInvitationToken
   let invitation = null
