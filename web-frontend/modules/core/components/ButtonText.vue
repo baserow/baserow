@@ -3,8 +3,7 @@
     :is="tag === 'a' || href ? 'a' : 'button'"
     class="button-text"
     :class="classes"
-    :disabled="disabled || loading"
-    v-bind.prop="customBind"
+    v-bind="customBind"
     v-on="$attrs"
   >
     <i v-if="icon !== '' && !loading" class="button-text__icon" :class="icon" />
@@ -123,11 +122,22 @@ export default {
         [`button-text--${this.size}`]: this.size !== 'regular',
         [`button-text--${this.type}`]: this.type !== 'primary',
         'button-text--loading': this.loading,
+        'button-text--disabled': this.disabled && !this.loading,
       }
       return classObj
     },
     customBind() {
       const attr = {}
+
+      // Only add disabled attribute for button elements, not for links
+      // And only add it if it's actually true (not false)
+      if (
+        (this.tag === 'button' || !this.href) &&
+        (this.disabled || this.loading)
+      ) {
+        attr.disabled = true
+      }
+
       if (this.tag === 'a') {
         attr.href = this.href
         attr.target = this.target
