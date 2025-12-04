@@ -3,58 +3,13 @@
 set -euo pipefail
 
 # ======================================================
-# RUNTIME USER SWITCHING (for dev containers)
+# FIX "I have no name!" FOR ARBITRARY UIDs
 # ======================================================
-# If BASEROW_DEV_UID is set and we're running as root, switch to the host user.
-# This allows the dev container to be built with a fixed UID (9999) for caching,
-# while running as the host user's UID to avoid permission issues with bind mounts.
-if [[ -n "${BASEROW_DEV_UID:-}" ]] && [[ "$(id -u)" == "0" ]]; then
-    DEV_UID="$BASEROW_DEV_UID"
-    DEV_GID="${BASEROW_DEV_GID:-$DEV_UID}"
-
-    # Create group if it doesn't exist
-    if ! getent group "$DEV_GID" > /dev/null 2>&1; then
-        groupadd -g "$DEV_GID" hostgroup 2>/dev/null || true
-    fi
-
-    # Create user if it doesn't exist
-    if ! id -u "$DEV_UID" > /dev/null 2>&1; then
-        useradd -u "$DEV_UID" -g "$DEV_GID" -d /home/hostuser -m -s /bin/bash hostuser 2>/dev/null || true
-    fi
-
-    # Fix ownership of writable directories (only once, using marker file)
-    # NOTE: We exclude postgres and redis data dirs - they must be owned by their respective users
-    # Use /baserow/data for marker file if it exists (mounted volume), otherwise /baserow
-    if [[ -d "/baserow/data" ]]; then
-        MARKER_DIR="/baserow/data"
-    else
-        MARKER_DIR="/baserow"
-    fi
-    MARKER_FILE="$MARKER_DIR/.ownership-fixed-$DEV_UID-$DEV_GID"
-    if [[ ! -f "$MARKER_FILE" ]]; then
-        echo "Fixing ownership for UID:GID $DEV_UID:$DEV_GID (first run only)..."
-        # Change ownership of code directories that dev user needs write access to
-        for dir in /baserow/backend /baserow/web-frontend /baserow/premium /baserow/enterprise /baserow/venv /baserow/plugins; do
-            if [[ -d "$dir" ]]; then
-                chown -R "$DEV_UID:$DEV_GID" "$dir" 2>/dev/null || true
-            fi
-        done
-        # Change ownership of data subdirs EXCEPT postgres and redis
-        if [[ -d "/baserow/data" ]]; then
-            # Ensure data dir itself is owned by dev user (for marker file and new subdirs)
-            chown "$DEV_UID:$DEV_GID" /baserow/data 2>/dev/null || true
-            for subdir in /baserow/data/*/; do
-                subdir_name=$(basename "$subdir")
-                if [[ "$subdir_name" != "postgres" && "$subdir_name" != "redis" ]]; then
-                    chown -R "$DEV_UID:$DEV_GID" "$subdir" 2>/dev/null || true
-                fi
-            done
-        fi
-        touch "$MARKER_FILE" 2>/dev/null || true
-    fi
-
-    # Re-exec this script as the host user
-    exec su-exec "$DEV_UID:$DEV_GID" "$0" "$@"
+# When running with user: "${UID}:${GID}" in docker-compose, the container
+# may run as a UID that doesn't exist in /etc/passwd. This causes "I have no name!"
+# in shell prompts. We fix this by adding an entry for the current UID if missing.
+if ! getent passwd "$(id -u)" > /dev/null 2>&1; then
+    echo "baserow:x:$(id -u):$(id -g):Baserow Dev:/baserow:/bin/bash" >> /etc/passwd 2>/dev/null || true
 fi
 
 # ======================================================

@@ -161,7 +161,7 @@ just logs -f backend       # Follow backend logs
 
 ```bash
 # Open a shell in the backend container
-just dc-dev shell backend bash
+just dc-dev exec backend bash
 
 # Run Django management commands
 just dc-dev exec backend python manage.py migrate
@@ -180,8 +180,25 @@ just dc-dev exec backend python manage.py shell_plus
 | Rebuild images | `just dc-dev build --parallel` |
 | View logs | `just logs -f` |
 | Run migrations | `just dc-dev exec backend python manage.py migrate` |
-| Open backend shell | `just dc-dev shell backend bash` |
+| Open backend shell | `just dc-dev exec backend bash` |
 | Restart a service | `just dc-dev restart backend` |
+
+### Optional services
+
+Some services are not started by default to reduce resource usage:
+
+- **Storybook** - Component development UI (port 6006)
+- **Celery Flower** - Celery task monitoring UI (port 5555)
+
+To include these optional services:
+
+```bash
+# Start with optional services
+just dc-dev --profile optional up -d
+
+# Or use the shorthand
+just dc-dev-full up -d
+```
 
 ### Hot reloading
 
