@@ -158,7 +158,7 @@ class BaserowBackupRunner:
         return psycopg.connect(
             host=self.host,
             port=self.port,
-            database=self.database,
+            dbname=self.database,
             user=self.username,
         )
 

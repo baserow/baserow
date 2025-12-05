@@ -19,6 +19,7 @@
       :node-selected="nodeSelected"
       :loading="loading"
       :mode="mode"
+      :has-value="value.length > 0"
       :allow-node-selection="allowNodeSelection"
       :nodes-hierarchy="nodesHierarchy"
       @node-selected="handleNodeSelected"

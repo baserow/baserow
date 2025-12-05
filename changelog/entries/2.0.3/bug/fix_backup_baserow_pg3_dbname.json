@@ -1,0 +1,9 @@
+{
+  "type": "bug",
+  "message": "Fix backup_baserow management command by using correct pg3 dbname.",
+  "issue_origin": "github",
+  "issue_number": 4308,
+  "domain": "core",
+  "bullet_points": [],
+  "created_at": "2025-11-28"
+}

@@ -692,7 +692,9 @@
     "advancedSettingsLabel": "Advanced settings",
     "includeWeekendsLabel": "Include weekends when calculating durations",
     "dependencyFieldForReaderTooltip": "This field is included in date dependency field rule",
-    "fieldInvalidTitle": "Date dependency field error"
+    "fieldInvalidTitle": "Date dependency field error",
+    "addNewField": "Add new field",
+    "linkRowFieldTitle": "Parents"
   },
   "dateDependency": {
     "invalidChildRow": "Successor row is invalid",

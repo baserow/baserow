@@ -686,13 +686,6 @@
     "categoryDate": "Date",
     "categoryCondition": "Condition"
   },
-  "formulaInputContext": {
-    "useRegularInput": "Use regular input",
-    "useRegularInputModalTitle": "Switch to regular input?",
-    "useAdvancedInputModalTitle": "Switch to advanced input?",
-    "useAdvancedInput": "Use advanced input",
-    "modalMessage": "Switching to a different input mode will clear the current formula. Are you sure you want to continue?"
-  },
   "nodeExplorer": {
     "noResults": "No results found",
     "resetSearch": "Reset search"

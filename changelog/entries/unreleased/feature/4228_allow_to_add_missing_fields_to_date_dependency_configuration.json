@@ -1,0 +1,8 @@
+{
+    "type": "feature",
+    "message": "Allow to add missing fields to date dependency configuration",
+    "domain": "database",
+    "issue_number": 4228,
+    "bullet_points": [],
+    "created_at": "2025-11-14"
+}
