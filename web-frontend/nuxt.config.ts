@@ -24,9 +24,10 @@ function baserowModuleConfig(
   const baseModules = [
     `./modules/core/module.js`,
     `./modules/database/module.js`,
+    `./modules/dashboard/module.js`,
     //`${base}/modules/integrations/module.js`,
     //`${base}/modules/builder/module.js`,
-    `./modules/dashboard/module.js`,
+
     //`${base}/modules/automation/module.js`,
   ]
 
@@ -60,11 +61,7 @@ export default defineNuxtConfig({
     '@baserow': '',
   },
   css: [],
-  modules: [
-    '@/modules/core/module.js',
-    '@/modules/database/module.js',
-    '@nuxtjs/i18n',
-  ],
+  modules: [...baserow.modules, '@nuxtjs/i18n'],
   i18n: {
     strategy: 'no_prefix',
     defaultLocale: 'en',
