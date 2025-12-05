@@ -1,6 +1,7 @@
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 from django.conf import settings
+from django.utils import timezone
 
 from baserow_premium.fields.models import AIField, AIFieldScheduledUpdate
 from celery_singleton import DuplicateTaskError, Singleton
@@ -10,7 +11,7 @@ from baserow.config.celery import app
 from baserow.core.jobs.handler import JobHandler
 
 PERIODIC_CHECK_MINUTES = 5
-PERIODIC_CHECK_TIME_LIMIT = 60 * PERIODIC_CHECK_MINUTES  # 15 minutes.
+PERIODIC_CHECK_TIME_LIMIT = 60 * PERIODIC_CHECK_MINUTES  # 5 minutes.
 
 
 def has_scheduled_ai_field_updates(field_id: int, until: datetime) -> bool:
@@ -25,6 +26,22 @@ def has_scheduled_ai_field_updates(field_id: int, until: datetime) -> bool:
     return AIFieldScheduledUpdate.objects.filter(
         field_id=field_id, updated_on__lte=until
     ).exists()
+
+
+def get_scheduled_ai_field_updates(field_id: int, until: datetime) -> list[int]:
+    """
+    Checks if there are any scheduled AI fields updates.
+
+    :param field_id: ID of the field to check.
+    :param until: A max updated_on value
+    :return: True, if there are pending updates.
+    """
+
+    return list(
+        AIFieldScheduledUpdate.objects.filter(
+            field_id=field_id, updated_on__lte=until
+        ).values_list("row_id", flat=True)
+    )
 
 
 def _schedule_generate_ai_value_generation(field_id: int, retry: int):
@@ -73,7 +90,7 @@ def generate_scheduled_ai_field_generation(field_id: int, retry: int = 3):
     :param retry: The number of retries left for the task.
     """
 
-    now = datetime.now(timezone.utc)
+    now = timezone.now()
 
     # this is a task that has been repeated too many times.
     if retry < 1:
@@ -85,7 +102,7 @@ def generate_scheduled_ai_field_generation(field_id: int, retry: int = 3):
 
     user = ai_field.ai_auto_update_user
 
-    if has_scheduled_ai_field_updates(field_id, now):
+    if row_ids := get_scheduled_ai_field_updates(field_id, now):
         try:
             jh.create_and_start_job(
                 user,
@@ -94,7 +111,7 @@ def generate_scheduled_ai_field_generation(field_id: int, retry: int = 3):
                 # We don't pass specific row ids here, because the job will fetch
                 # row ids and process them, removing scheduled rows that have been
                 # successfully processed.
-                row_ids=[],
+                row_ids=row_ids,
                 is_auto_update=True,
                 sync=True,
             )
@@ -143,8 +160,8 @@ def periodic_reschedule_old_ai_field_generation():
     task, if there are rows remaining to process.
     """
 
-    cutoff = datetime.now(tz=timezone.utc) - timedelta(
-        seconds=settings.HOURS_UNTIL_TRASH_PERMANENTLY_DELETED
+    cutoff = timezone.now() - timedelta(
+        hours=settings.HOURS_UNTIL_TRASH_PERMANENTLY_DELETED
     )
 
     AIFieldScheduledUpdate.objects.filter(updated_on__lte=cutoff).delete()

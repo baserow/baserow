@@ -144,9 +144,10 @@ class AIFieldScheduledUpdate(models.Model):
                 fields=["field_id", "row_id"], name="ai_field_id_row_id_uniq"
             )
         ]
-
-        # speeds up filtering of old values
-        models.Index(
-            name="ai_field_updated_on_idx",
-            fields=["-updated_on"],
-        ),
+        indexes = [
+            # speeds up filtering of old values
+            models.Index(
+                name="ai_field_updated_on_idx",
+                fields=["field_id", "-updated_on"],
+            )
+        ]

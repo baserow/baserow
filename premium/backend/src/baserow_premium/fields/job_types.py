@@ -257,23 +257,16 @@ class GenerateAIValuesJobType(JobType):
             context=ai_field.table,
         )
 
-        if job.mode == GenerateAIValuesJob.MODES.AUTO_UPDATE:
-            row_ids = (
-                AIFieldScheduledUpdate.objects.filter(
-                    field_id=job.field_id, updated_on__lte=job.created_on
-                )
-                .only("row_id")
-                .values_list("row_id", flat=True)
-            )
-            rows = RowHandler().get_rows(model, row_ids)
-        elif job.mode == GenerateAIValuesJob.MODES.VIEW:
+        if job.mode == GenerateAIValuesJob.MODES.VIEW:
             rows = self._get_view_queryset(user, job.view_id, table.id)
         elif job.mode == GenerateAIValuesJob.MODES.TABLE:
             rows = model.objects.all()
-        elif job.mode == GenerateAIValuesJob.MODES.ROWS:
+        elif job.mode in {
+            GenerateAIValuesJob.MODES.ROWS,
+            GenerateAIValuesJob.MODES.AUTO_UPDATE,
+        }:
             req_row_ids = job.row_ids
             rows = RowHandler().get_rows(model, req_row_ids)
-
         else:
             raise ValueError(f"Unknown mode {job.mode} for GenerateAIValuesJob")
 
@@ -287,6 +280,20 @@ class GenerateAIValuesJobType(JobType):
         rows_progress = ChildProgressBuilder.build(progress_builder, rows.count())
 
         def on_progress(row: GeneratedTableModel, value: Any):
+            """
+            Called when a row has been processed, to do any non-direct handling of a
+            result.
+
+            This is called from AIValueGenerator, to inform that a row has been
+            processed, and there's a specific result of that processing. If the value
+            is an exception, that means the processing ended with an error.
+
+            :param row: The row being processed.
+            :param value: A result of a correct processing or an exception with an
+                error that happened during processing.
+            :return:
+            """
+
             rows_progress.increment()
 
             if job.is_auto_update and not isinstance(value, Exception):

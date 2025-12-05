@@ -805,7 +805,7 @@ def test_generate_ai_field_value_auto_update(
     assert call_args.kwargs["field_id"] == ai_field.id
     # this will be an empty list, because the job will fetch the scheduled rows on
     # its own.
-    assert call_args.kwargs["row_ids"] == []
+    assert call_args.kwargs["row_ids"] == [rows[0].id]
 
 
 @pytest.mark.django_db(transaction=True)
