@@ -3,6 +3,7 @@ import pytest
 from baserow.contrib.builder.domains.domain_types import CustomDomainType
 from baserow.contrib.builder.domains.exceptions import (
     DomainDoesNotExist,
+    DomainNameNotUniqueError,
     DomainNotInBuilder,
 )
 from baserow.contrib.builder.domains.handler import DomainHandler
@@ -66,6 +67,21 @@ def test_create_domain(data_fixture):
 
     assert domain.order == expected_order
     assert domain.domain_name == "test.com"
+
+
+@pytest.mark.django_db
+def test_create_domain_with_duplicate_name(data_fixture):
+    builder = data_fixture.create_builder_application()
+    domain_name = "test.com"
+
+    DomainHandler().create_domain(CustomDomainType(), builder, domain_name=domain_name)
+
+    with pytest.raises(DomainNameNotUniqueError) as exc_info:
+        DomainHandler().create_domain(
+            CustomDomainType(), builder, domain_name=domain_name
+        )
+
+    assert exc_info.value.domain_name == domain_name
 
 
 @pytest.mark.django_db

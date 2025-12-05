@@ -131,7 +131,13 @@ class DomainHandler:
             prepared_values["domain_name"] = prepared_values["domain_name"].lower()
 
         domain = model_class(builder=builder, order=last_order, **prepared_values)
-        domain.save()
+
+        try:
+            domain.save()
+        except IntegrityError as error:
+            if "unique" in str(error) and "domain_name" in prepared_values:
+                raise DomainNameNotUniqueError(prepared_values["domain_name"])
+            raise error
 
         return domain
 
