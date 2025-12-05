@@ -73,8 +73,8 @@ spec:
                 name: {{ include "baserow.global.fullname" . }}-baserow-frontend
                 port:
                   number: 80
-  {{- if .Values.ingress.tls }}
+  {{- with .Values.ingress.tls }}
   tls:
-    {{ tpl (toYaml .Values.ingress.tls | indent 4) . }}
+    {{- toYaml . | nindent 4 }}
   {{- end -}}
 {{ end }}
