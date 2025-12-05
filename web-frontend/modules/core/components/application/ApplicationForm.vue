@@ -59,7 +59,7 @@ export default {
     }
   },
   mounted() {
-    this.$refs.name.focus()
+    this.$refs.name?.$el?.focus()
   },
   validations() {
     return {
