@@ -57,11 +57,6 @@ const workspace = computed(() => data.value?.workspace)
 
 // Mounted logic
 onMounted(() => {
-  if (!dashboard.value) {
-    console.error('[Dashboard] Dashboard not loaded in mounted')
-    return
-  }
-
   const forEditing = $hasPermission(
     'application.update',
     dashboard.value,
