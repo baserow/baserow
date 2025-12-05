@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Dict, List, Union
+from typing import Any, Dict, List, Optional, Union
 
 from django.db import connection, models
 
@@ -41,8 +41,19 @@ class FormulaField(models.TextField):
         self.null = True
         self.blank = True
 
-    def _value_is_serialized_object(self, value: FormulaFieldDatabaseValue) -> bool:
-        return isinstance(value, str) and value[:1] == "{" and value[-1:] == "}"
+    def _value_is_serialized_object(
+        self, value: FormulaFieldDatabaseValue
+    ) -> Optional[Dict[str, Any]]:
+        if not isinstance(value, str):
+            return None
+
+        if not (value.startswith("{") and value.endswith("}")):
+            return None
+
+        try:
+            return json.loads(value)
+        except (TypeError, json.JSONDecodeError):
+            return None
 
     def _transform_db_value_to_dict(
         self, value: FormulaFieldDatabaseValue
@@ -65,9 +76,8 @@ class FormulaField(models.TextField):
                 # receive an integer, we convert it to a string.
                 value = str(value)
             # We could encounter a serialized object...
-            if self._value_is_serialized_object(value):
+            if context := self._value_is_serialized_object(value):
                 # If we have, then we can parse it and return the `BaserowFormulaObject`
-                context = json.loads(value)
                 return BaserowFormulaObject(
                     mode=context["m"], version=context["v"], formula=context["f"]
                 )
