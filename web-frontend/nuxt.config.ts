@@ -22,13 +22,11 @@ function baserowModuleConfig(
   }
 
   const baseModules = [
-    //`${base}/modules/core/module.js`,
     `./modules/core/module.js`,
     `./modules/database/module.js`,
-    //`${base}/modules/database/module.js`,
     //`${base}/modules/integrations/module.js`,
     //`${base}/modules/builder/module.js`,
-    //`${base}/modules/dashboard/module.js`,
+    `./modules/dashboard/module.js`,
     //`${base}/modules/automation/module.js`,
   ]
 

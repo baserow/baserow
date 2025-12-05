@@ -1,32 +1,85 @@
-import path from 'path'
+// import path from 'path'
 
+// import { routes } from './routes'
+// import en from './locales/en.json'
+// import nl from './locales/nl.json'
+// import fr from './locales/fr.json'
+// import de from './locales/de.json'
+// import es from './locales/es.json'
+// import it from './locales/it.json'
+// import pl from './locales/pl.json'
+// import ko from './locales/ko.json'
+
+// export default function DashboardModule(options) {
+//   this.addPlugin({ src: path.resolve(__dirname, 'middleware.js') })
+
+//   // Add the plugin to register the dashboard application.
+//   this.appendPlugin({
+//     src: path.resolve(__dirname, 'plugin.js'),
+//   })
+
+//   // Add all the related routes.
+//   this.extendRoutes((configRoutes) => {
+//     configRoutes.push(...routes)
+//   })
+
+//   let alreadyExtended = false
+//   this.nuxt.hook('i18n:extend-messages', function (additionalMessages) {
+//     if (alreadyExtended) return
+//     additionalMessages.push({ en, fr, nl, de, es, it, pl, ko })
+//     alreadyExtended = true
+//   })
+// }
+
+import {
+  defineNuxtModule,
+  addPlugin,
+  createResolver,
+  addRouteMiddleware,
+  extendPages,
+} from 'nuxt/kit'
 import { routes } from './routes'
-import en from './locales/en.json'
-import nl from './locales/nl.json'
-import fr from './locales/fr.json'
-import de from './locales/de.json'
-import es from './locales/es.json'
-import it from './locales/it.json'
-import pl from './locales/pl.json'
-import ko from './locales/ko.json'
 
-export default function DashboardModule(options) {
-  this.addPlugin({ src: path.resolve(__dirname, 'middleware.js') })
+const locales = [
+  { code: 'en', name: 'English', file: 'en.json' },
+  { code: 'fr', name: 'Français', file: 'fr.json' },
+  { code: 'nl', name: 'Nederlands', file: 'nl.json' },
+  { code: 'de', name: 'Deutsch', file: 'de.json' },
+  { code: 'es', name: 'Español', file: 'es.json' },
+  { code: 'it', name: 'Italiano', file: 'it.json' },
+  { code: 'pl', name: 'Polski (Beta)', file: 'pl.json' },
+]
 
-  // Add the plugin to register the dashboard application.
-  this.appendPlugin({
-    src: path.resolve(__dirname, 'plugin.js'),
-  })
+export default defineNuxtModule({
+  meta: {
+    name: 'dashboard-module',
+  },
 
-  // Add all the related routes.
-  this.extendRoutes((configRoutes) => {
-    configRoutes.push(...routes)
-  })
+  setup(options, nuxt) {
+    const { resolve } = createResolver(import.meta.url)
 
-  let alreadyExtended = false
-  this.nuxt.hook('i18n:extend-messages', function (additionalMessages) {
-    if (alreadyExtended) return
-    additionalMessages.push({ en, fr, nl, de, es, it, pl, ko })
-    alreadyExtended = true
-  })
-}
+    // Register main plugin
+    addPlugin({
+      src: resolve('./plugin.js'),
+    })
+    addPlugin({
+      src: resolve('./plugin/store.js'),
+    })
+
+    addRouteMiddleware({
+      name: 'dashboardLoading',
+      path: resolve('./middleware/dashboardLoading'),
+    })
+
+    extendPages((pages) => {
+      pages.push(...routes)
+    })
+
+    nuxt.hook('i18n:registerModule', (register) => {
+      register({
+        langDir: resolve('./locales'),
+        locales,
+      })
+    })
+  },
+})

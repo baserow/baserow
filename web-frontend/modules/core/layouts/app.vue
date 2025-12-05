@@ -83,6 +83,10 @@ import {
   keyboardShortcutsToPriorityEventBus,
 } from '@baserow/modules/core/utils/events'
 
+definePageMeta({
+  middleware: ['authenticated', 'workspacesAndApplications', 'pendingJobs'],
+})
+
 const store = useStore()
 
 const col1Width = ref(240)
@@ -94,14 +98,6 @@ const workspaceSearchModal = ref(null)
 const workspaces = computed(() => store.state.workspace.items)
 const selectedWorkspace = computed(() => store.state.workspace.selected)
 const applications = computed(() => store.getters['application/getAll'])
-
-const registry = useNuxtApp().$registry
-
-const appLayoutComponents = computed(() =>
-  Object.values(registry.getAll('plugin'))
-    .map((plugin) => plugin.getAppLayoutComponent())
-    .filter((component) => component)
-)
 
 const isCollapsed = computed(() => col1Width.value < 170)
 

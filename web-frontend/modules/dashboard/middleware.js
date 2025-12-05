@@ -1,6 +1,6 @@
-import dashboardLoading from '@baserow/modules/dashboard/middleware/dashboardLoading'
+// import dashboardLoading from '@baserow/modules/dashboard/middleware/dashboardLoading'
 
-/* eslint-disable-next-line */
-import Middleware from './middleware'
+// /* eslint-disable-next-line */
+// import Middleware from './middleware'
 
-Middleware.dashboardLoading = dashboardLoading
+// Middleware.dashboardLoading = dashboardLoading
