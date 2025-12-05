@@ -73,7 +73,7 @@ export class SummaryWidgetType extends WidgetType {
   }
 
   get name() {
-    return this.app.i18n.t('summaryWidget.name')
+    return this.app?.i18n?.t('summaryWidget.name')
   }
 
   get createWidgetImage() {

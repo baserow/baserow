@@ -1,56 +1,90 @@
 <template>
-  <div class="dashboard-app">
+  <div v-if="dashboard" class="dashboard-app">
     <DashboardHeader :dashboard="dashboard" />
     <DashboardContent :dashboard="dashboard" />
   </div>
 </template>
 
-<script>
+<script setup>
+import { computed, onMounted, onBeforeUnmount } from 'vue'
+import { useStore } from 'vuex'
+import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
+import { useNuxtApp, useAsyncData, createError } from '#app'
+
 import DashboardHeader from '@baserow/modules/dashboard/components/DashboardHeader'
 import DashboardContent from '@baserow/modules/dashboard/components/DashboardContent'
 
-export default {
-  name: 'Dashboard',
-  components: { DashboardHeader, DashboardContent },
-  beforeRouteLeave(to, from, next) {
-    this.$store.dispatch('application/unselect')
-    next()
-  },
+definePageMeta({
   layout: 'app',
-  middleware: 'dashboardLoading',
-  async asyncData({ app, store, params, error, $registry }) {
-    const dashboardId = parseInt(params.dashboardId)
-    const data = {}
-    try {
-      const dashboard = await store.dispatch(
-        'application/selectById',
-        dashboardId
-      )
-      const workspace = await store.dispatch(
-        'workspace/selectById',
-        dashboard.workspace.id
-      )
-      data.workspace = workspace
-      data.dashboard = dashboard
-    } catch (e) {
-      return error({ statusCode: 404, message: 'Dashboard not found.' })
-    }
-    return data
-  },
-  mounted() {
-    const forEditing = this.$hasPermission(
-      'application.update',
-      this.dashboard,
-      this.dashboard.workspace.id
+  middleware: ['dashboardLoading'],
+})
+
+const store = useStore()
+const route = useRoute()
+const router = useRouter()
+const { $hasPermission, $realtime } = useNuxtApp()
+
+// Fetch dashboard data
+const {
+  data,
+  pending,
+  error: fetchError,
+} = await useAsyncData('dashboard-data', async () => {
+  const dashboardId = parseInt(route.params.dashboardId)
+
+  try {
+    const dashboard = await store.dispatch(
+      'application/selectById',
+      dashboardId
     )
-    this.$store.dispatch('dashboardApplication/fetchInitial', {
-      dashboardId: this.dashboard.id,
-      forEditing,
-    })
-    this.$realtime.subscribe('dashboard', { dashboard_id: this.dashboard.id })
-  },
-  beforeDestroy() {
-    this.$realtime.unsubscribe('dashboard', { dashboard_id: this.dashboard.id })
-  },
-}
+    const workspace = await store.dispatch(
+      'workspace/selectById',
+      dashboard.workspace.id
+    )
+
+    return {
+      workspace,
+      dashboard,
+    }
+  } catch (e) {
+    console.error('Error loading dashboard:', e)
+    throw createError({ statusCode: 404, message: 'Dashboard not found.' })
+  }
+})
+
+const dashboard = computed(() => data.value?.dashboard)
+const workspace = computed(() => data.value?.workspace)
+
+// Mounted logic
+onMounted(() => {
+  if (!dashboard.value) {
+    console.error('[Dashboard] Dashboard not loaded in mounted')
+    return
+  }
+
+  const forEditing = $hasPermission(
+    'application.update',
+    dashboard.value,
+    dashboard.value.workspace.id
+  )
+
+  store.dispatch('dashboardApplication/fetchInitial', {
+    dashboardId: dashboard.value.id,
+    forEditing,
+  })
+
+  $realtime.subscribe('dashboard', { dashboard_id: dashboard.value.id })
+})
+
+// Cleanup
+onBeforeUnmount(() => {
+  if (dashboard.value) {
+    $realtime.unsubscribe('dashboard', { dashboard_id: dashboard.value.id })
+  }
+})
+
+// Navigation guard
+onBeforeRouteLeave(() => {
+  store.dispatch('application/unselect')
+})
 </script>

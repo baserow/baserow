@@ -52,23 +52,21 @@ const locales = [
 
 export default defineNuxtModule({
   meta: {
-    name: 'dashboard-module',
+    name: '@baserow/dashboard',
+    configKey: 'dashboard',
+    compatibility: {
+      nuxt: '^3.0.0',
+    },
   },
-
-  setup(options, nuxt) {
+  async setup(options, nuxt) {
     const { resolve } = createResolver(import.meta.url)
 
-    // Register main plugin
-    addPlugin({
-      src: resolve('./plugin.js'),
-    })
-    addPlugin({
-      src: resolve('./plugin/store.js'),
-    })
+    addPlugin(resolve('./plugin.js'))
 
     addRouteMiddleware({
       name: 'dashboardLoading',
-      path: resolve('./middleware/dashboardLoading'),
+      path: resolve('./middleware/dashboardLoading.js'),
+      global: false,
     })
 
     extendPages((pages) => {
