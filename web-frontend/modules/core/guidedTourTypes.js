@@ -117,11 +117,14 @@ export class GuidedTourStep {
 
 class WelcomeGuidedTourStep extends GuidedTourStep {
   get title() {
-    return this.app.i18n.t('welcomeGuidedTourStep.title')
+    return this.app?.i18n?.t?.('welcomeGuidedTourStep.title') || 'Welcome'
   }
 
   get content() {
-    return this.app.i18n.t('welcomeGuidedTourStep.content')
+    return (
+      this.app?.i18n?.t?.('welcomeGuidedTourStep.content') ||
+      'Welcome to the guided tour'
+    )
   }
 
   get selectors() {
@@ -133,7 +136,9 @@ class WelcomeGuidedTourStep extends GuidedTourStep {
   }
 
   get buttonText() {
-    return this.app.i18n.t('welcomeGuidedTourStep.buttonText')
+    return (
+      this.app?.i18n?.t?.('welcomeGuidedTourStep.buttonText') || 'Get started'
+    )
   }
 
   get skipIfNotFirst() {
@@ -143,11 +148,17 @@ class WelcomeGuidedTourStep extends GuidedTourStep {
 
 class ControlCenterGuidedTourStep extends GuidedTourStep {
   get title() {
-    return this.app.i18n.t('controlCenterGuidedTourStep.title')
+    return (
+      this.app?.i18n?.t?.('controlCenterGuidedTourStep.title') ||
+      'Control Center'
+    )
   }
 
   get content() {
-    return this.app.i18n.t('controlCenterGuidedTourStep.content')
+    return (
+      this.app?.i18n?.t?.('controlCenterGuidedTourStep.content') ||
+      'This is the control center'
+    )
   }
 
   get selectors() {
@@ -161,11 +172,14 @@ class ControlCenterGuidedTourStep extends GuidedTourStep {
 
 class CreateNewGuidedTourStep extends GuidedTourStep {
   get title() {
-    return this.app.i18n.t('createNewGuidedTourStep.title')
+    return this.app?.i18n?.t?.('createNewGuidedTourStep.title') || 'Create New'
   }
 
   get content() {
-    return this.app.i18n.t('createNewGuidedTourStep.content')
+    return (
+      this.app?.i18n?.t?.('createNewGuidedTourStep.content') ||
+      'Create new items here'
+    )
   }
 
   get selectors() {
