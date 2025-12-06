@@ -460,8 +460,9 @@ export default {
         this.$emit('input', newValue)
         this.$emit('change', newValue)
       } else {
-        this.$emit('input', value)
-        this.$emit('change', value)
+        const newValue = _.isEqual(this.value, value) ? null : value
+        this.$emit('input', newValue)
+        this.$emit('change', newValue)
         this.hide()
       }
     },

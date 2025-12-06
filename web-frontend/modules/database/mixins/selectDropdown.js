@@ -49,6 +49,7 @@ export default {
             event.key === 'F2')
         ) {
           this.toggleDropdown()
+          event.preventDefault()
         }
       }
       document.body.addEventListener('keydown', this.$el.keydownEvent)

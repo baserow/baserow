@@ -200,7 +200,7 @@ export default {
       if (this.element.multiple) {
         return this.selectedOption.map(({ name }) => name).join(', ')
       } else {
-        return this.selectedOption?.name
+        return this.selectedOption?.name || ''
       }
     },
     elementContent() {

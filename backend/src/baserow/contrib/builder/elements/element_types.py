@@ -661,7 +661,7 @@ class RecordSelectorElementType(
         else:
             record_id = value
 
-            if not record_id:
+            if record_id is None:
                 if element.required:
                     msg = "The value is required"
                     raise ValueError(msg)
