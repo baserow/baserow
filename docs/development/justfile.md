@@ -1,9 +1,10 @@
 # Justfile Development Workflow
 
-Baserow uses [just](https://github.com/casey/just) as a command runner. There are two justfiles:
+Baserow uses [just](https://github.com/casey/just) as a command runner. There are three justfiles:
 
 - **Root justfile** (`/justfile`) - Docker Compose commands and delegates to component justfiles
 - **Backend justfile** (`/backend/justfile`) - Backend-specific commands using [uv](https://github.com/astral-sh/uv) for Python
+- **Frontend justfile** (`/web-frontend/justfile`) - Frontend-specific commands using yarn
 
 ## Installation
 
@@ -114,18 +115,30 @@ Start the entire local dev stack with a single command:
 
 | Command | Description |
 |---------|-------------|
-| `just start-dev-local` | Start local dev env (Docker services + migrations + backend + celery + frontend) |
-| `just stop-dev-local` | Stop all services started by start-dev-local |
+| `just dev up` | Start and follow logs (Ctrl+C stops everything) |
+| `just dev up -d` | Start in background (detached) |
+| `just dev stop` | Stop all services |
+| `just dev logs` | View logs (same as `just logs`) |
+| `just dev status` | Show running services |
 
 ```bash
-# Start everything
-just start-dev-local
+# Start everything and follow logs (Ctrl+C stops all)
+just dev up
 
-# Stop everything
-just stop-dev-local
+# Start in background
+just dev up -d
+
+# Check what's running
+just dev status
+
+# View logs (when running in background)
+just dev logs -f backend
+
+# Stop everything (when running in background)
+just dev stop
 ```
 
-The `start-dev-local` command:
+The `just dev up` command:
 1. Starts Docker services: `db`, `redis`, `mailhog`, `otel-collector`
 2. Waits for PostgreSQL and Redis to be ready
 3. Runs database migrations (`just b migrate`)
@@ -152,7 +165,7 @@ The `start-dev-local` command:
 - `/tmp/baserow-celery.log`
 - `/tmp/baserow-web-frontend.log`
 
-Use `just logs` to view them (see [Viewing Logs](#viewing-logs)).
+Use `just dev logs` or `just logs` to view them (see [Viewing Logs](#viewing-logs)).
 
 ### Calling Backend Commands from Root
 
@@ -305,11 +318,11 @@ This allows tests to run identically inside Docker (using container hostnames) a
 
 For significantly faster tests, use a PostgreSQL container with tmpfs (in-memory storage). This eliminates disk I/O and can speed up tests by 2-5x.
 
-> **Note:** The `just test-db` command is **host-only**. It starts a separate Docker container and cannot be run from inside another container. When running tests inside the backend container, use the existing `db` service instead.
+> **Note:** The `just start-test-db` command is **host-only**. It starts a separate Docker container and cannot be run from inside another container. When running tests inside the backend container, use the existing `db` service instead.
 
 ```bash
 # Start test database on port 5433 (always recreates for fresh state)
-just test-db
+just start-test-db
 ```
 
 The test database runs with optimized settings:
@@ -336,7 +349,7 @@ DATABASE_URL=postgres://baserow:baserow@localhost:5433/baserow just b test -n=au
 
 ```bash
 # Use a different port
-TEST_DB_PORT=5434 just test-db
+TEST_DB_PORT=5434 just start-test-db
 ```
 
 The container is named `baserow-test-db` and uses the `pgvector/pgvector:pg13` image.
@@ -463,7 +476,7 @@ CELERY_POOL=threads just run-dev-celery
 For services like Redis and PostgreSQL, either:
 - Run them locally
 - Use `just dc-dev up db redis` to start just the services
-- Use the test database: `just test-db-start`
+- Use the test database: `just start-test-db`
 
 ## Shell Completion
 
@@ -549,6 +562,57 @@ just --completions fish > ~/.config/fish/completions/just.fish
 ```
 
 After installation, `just b <TAB>` will complete recipe names like `test`, `lint`, `run-dev-server`, etc.
+
+## Personal Recipes
+
+You can add your own custom recipes that aren't tracked in git. This is useful for personal shortcuts, project-specific commands, or experimental recipes.
+
+### Setup
+
+```bash
+# Copy the example file
+cp local.just.example local.just
+
+# Edit with your own recipes
+vim local.just
+```
+
+The `local.just` file is automatically imported by the main justfile (using `import? 'local.just'`). Your recipes will appear in `just --list` alongside the standard recipes.
+
+### Example local.just
+
+```just
+# Personal recipes - not tracked in git
+
+# Quick test for a specific module I'm working on
+my-test:
+    just b test tests/baserow/contrib/builder/
+
+# My preferred dev startup (services only, no frontend)
+my-dev:
+    just dc-dev up -d redis db mailhog
+    just b run-dev-server
+
+# Reset my local database
+my-reset:
+    just dc-dev exec db psql -U baserow -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
+    just b migrate
+```
+
+### Per-Component Recipes
+
+You can also create `local.just` in component directories:
+
+- `backend/local.just` - Backend-specific personal recipes
+- `web-frontend/local.just` - Frontend-specific personal recipes
+
+Each component's justfile imports its own `local.just` independently.
+
+### Notes
+
+- All `local.just` files are gitignored
+- Use `local.just.example` in the project root as a starting template
+- Your recipes can call other recipes using `just <recipe>`
 
 ## Troubleshooting
 

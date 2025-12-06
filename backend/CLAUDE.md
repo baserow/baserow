@@ -108,7 +108,7 @@ just test -k "test_create"
 just test-coverage
 
 # Fast tests with ramdisk DB (2-5x faster, run from project root)
-just test-db
+just start-test-db
 DATABASE_URL=postgres://baserow:baserow@localhost:5433/baserow just b test
 ```
 

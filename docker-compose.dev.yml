@@ -5,6 +5,10 @@ services:
     ports:
       - "${HOST_PUBLISH_IP:-127.0.0.1}:${POSTGRES_PORT:-5432}:5432"
     command: "${POSTGRES_DEV_EXTRA_ARGS}"
+    volumes:
+      # Use a different volume in case the Major version is different from the
+      # production one to avoid issues.
+      - pgdatadev:/var/lib/postgresql/data 
 
   redis:
     ports:
@@ -19,7 +23,6 @@ services:
 
   backend:
     image: baserow_backend:dev
-    user: "${UID}:${GID}"
     environment:
       - BASEROW_BACKEND_DEBUGGER_ENABLED
       - BASEROW_BACKEND_DEBUGGER_PORT=${BASEROW_BACKEND_DEBUGGER_PORT:-5678}
@@ -30,6 +33,11 @@ services:
       dockerfile: ./backend/Dockerfile
       context: .
       target: dev
+      args:
+        # We allow configuring the UID/GID here so you can run as the dev's actual user
+        # reducing the chance the containers screw up the bind mounted folders.
+        UID: $UID
+        GID: $GID
     ports:
       - "${HOST_PUBLISH_IP:-127.0.0.1}:8000:8000"
       - "${HOST_PUBLISH_IP:-127.0.0.1}:${BASEROW_BACKEND_DEBUGGER_PORT:-5678}:${BASEROW_BACKEND_DEBUGGER_PORT:-5678}"
@@ -37,7 +45,7 @@ services:
       - ./backend:/baserow/backend
       - ./premium/backend/:/baserow/premium/backend
       - ./enterprise/backend/:/baserow/enterprise/backend
-      - ./deploy/plugins/install_plugin.sh:/baserow/plugins/install_plugin.sh
+      - ./deploy/plugins/:/baserow/plugins/
       - ./tests:/baserow/tests
     # Open stdin and tty so when attaching key input works as expected.
     stdin_open: true
@@ -47,28 +55,32 @@ services:
 
   web-frontend:
     image: baserow_web-frontend:dev
-    user: "${UID}:${GID}"
     build:
       dockerfile: ./web-frontend/Dockerfile
       context: .
       target: dev
+      args:
+        # We allow configuring the UID/GID here so you can run as the dev's actual user
+        # reducing the chance the containers screw up the bind mounted folders.
+        UID: $UID
+        GID: $GID
     ports:
       - "${HOST_PUBLISH_IP:-127.0.0.1}:3000:3000"
     volumes:
       - ./web-frontend:/baserow/web-frontend
-      # Override the above mounts for node_modules so we use the node_modules built
-      # directly into the image instead of whatever is on your local filesystem.
-      - /baserow/web-frontend/node_modules
       - ./premium/web-frontend/:/baserow/premium/web-frontend
       - ./enterprise/web-frontend/:/baserow/enterprise/web-frontend
       - ./tests/:/baserow/tests
+      - ./deploy/plugins:/baserow/plugins
+      # Override the above mounts for node_modules so we use the node_modules built
+      # directly into the image instead of whatever is on your local filesystem.
+      - /baserow/web-frontend/node_modules
     # Open stdin and tty so when attaching key input works as expected.
     stdin_open: true
     tty: true
 
   web-frontend-storybook:
     image: baserow_web-frontend:dev
-    user: "${UID}:${GID}"
     profiles: ["optional"]
     restart: unless-stopped
     depends_on:
@@ -82,12 +94,13 @@ services:
       - "${HOST_PUBLISH_IP:-127.0.0.1}:6006:6006"
     volumes:
       - ./web-frontend:/baserow/web-frontend
-      # Override the above mounts for node_modules so we use the node_modules built
-      # directly into the image instead of whatever is on your local filesystem.
-      - /baserow/web-frontend/node_modules
       - ./premium/web-frontend/:/baserow/premium/web-frontend
       - ./enterprise/web-frontend/:/baserow/enterprise/web-frontend
       - ./tests/:/baserow/tests
+      - ./deploy/plugins:/baserow/plugins
+      # Override the above mounts for node_modules so we use the node_modules built
+      # directly into the image instead of whatever is on your local filesystem.
+      - /baserow/web-frontend/node_modules
     # Open stdin and tty so when attaching key input works as expected.
     stdin_open: true
     tty: true
@@ -103,6 +116,7 @@ services:
       - ./backend:/baserow/backend
       - ./premium/backend/:/baserow/premium/backend
       - ./enterprise/backend/:/baserow/enterprise/backend
+      - ./deploy/plugins:/baserow/plugins
     # Open stdin and tty so when attaching key input works as expected.
     stdin_open: true
     tty: true
@@ -121,6 +135,7 @@ services:
       - ./backend:/baserow/backend
       - ./premium/backend/:/baserow/premium/backend
       - ./enterprise/backend/:/baserow/enterprise/backend
+      - ./deploy/plugins:/baserow/plugins
     # Open stdin and tty so when attaching key input works as expected.
     stdin_open: true
     tty: true
@@ -138,6 +153,7 @@ services:
       - ./backend:/baserow/backend
       - ./premium/backend/:/baserow/premium/backend
       - ./enterprise/backend/:/baserow/enterprise/backend
+      - ./deploy/plugins:/baserow/plugins
     # Open stdin and tty so when attaching key input works as expected.
     stdin_open: true
     tty: true
@@ -206,3 +222,6 @@ services:
       local:
     ports:
       - "4318:4318"
+
+volumes:
+  pgdatadev:

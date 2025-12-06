@@ -25,19 +25,38 @@ default:
 
 # Build CI images for E2E testing
 [doc("Build backend and frontend images for E2E tests")]
-build:
+build *ARGS:
     #!/usr/bin/env bash
     set -euo pipefail
     cd "$(git rev-parse --show-toplevel)"
 
-    echo "Building backend CI image..."
-    docker build -f backend/Dockerfile --target ci -t {{ backend_image }} .
+    echo "Building backend and frontend images in parallel..."
+    echo ""
+
+    # Build both images in parallel
+    docker build {{ ARGS }} -f backend/Dockerfile --target ci -t {{ backend_image }} . &
+    BACKEND_PID=$!
+
+    docker build {{ ARGS }} -f web-frontend/Dockerfile --target prod -t {{ frontend_image }} . &
+    FRONTEND_PID=$!
+
+    # Wait for both to complete
+    BACKEND_EXIT=0
+    FRONTEND_EXIT=0
+    wait $BACKEND_PID || BACKEND_EXIT=$?
+    wait $FRONTEND_PID || FRONTEND_EXIT=$?
 
     echo ""
-    echo "Building frontend E2E image (prod target with Nuxt build)..."
-    docker build -f web-frontend/Dockerfile --target prod -t {{ frontend_image }} .
+    if [ $BACKEND_EXIT -ne 0 ]; then
+        echo "ERROR: Backend build failed (exit code: $BACKEND_EXIT)"
+    fi
+    if [ $FRONTEND_EXIT -ne 0 ]; then
+        echo "ERROR: Frontend build failed (exit code: $FRONTEND_EXIT)"
+    fi
+    if [ $BACKEND_EXIT -ne 0 ] || [ $FRONTEND_EXIT -ne 0 ]; then
+        exit 1
+    fi
 
-    echo ""
     echo "Images built:"
     echo "  {{ backend_image }}"
     echo "  {{ frontend_image }}"
@@ -62,6 +81,10 @@ up:
         echo "Run 'just e2e db-dump' to generate it first."
         exit 1
     fi
+
+    # Clean up any stopped containers from previous runs
+    docker rm -f e2e-frontend e2e-backend e2e-celery e2e-redis e2e-db 2>/dev/null || true
+    docker volume rm e2e-media 2>/dev/null || true
 
     # Create network if it doesn't exist
     docker network create {{ network }} 2>/dev/null || true
@@ -190,8 +213,8 @@ logs *SERVICE:
 # Test
 # =============================================================================
 
-# Run E2E tests
-[doc("Run E2E tests")]
+# Run E2E tests (tears down containers when done)
+[doc("Run E2E tests (tears down containers when done)")]
 test *ARGS:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -202,6 +225,14 @@ test *ARGS:
         echo "E2E environment not running. Start with: just e2e up"
         exit 1
     fi
+
+    # Ensure cleanup on exit (success or failure)
+    cleanup() {
+        echo ""
+        echo "Tearing down E2E environment..."
+        just down
+    }
+    trap cleanup EXIT
 
     export PUBLIC_BACKEND_URL=http://localhost:8000
     export PUBLIC_WEB_FRONTEND_URL=http://localhost:3000
@@ -221,9 +252,9 @@ test *ARGS:
         yarn playwright test {{ ARGS }}
     fi
 
-# Full E2E cycle: build, start, test
-[doc("Full E2E cycle: build, up, test")]
-run: build up test
+# Full E2E cycle: build, start, test, stop
+[doc("Full E2E cycle: build, up, test, down")]
+run: build up test down
 
 # =============================================================================
 # Database Dump

@@ -1,17 +1,17 @@
 [build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
 name = "baserow-enterprise"
-authors = [{ name = "Bram Wiepjes (Baserow)", email="bram@baserow.io" }]
-description="""Baserow is an open source no-code database tool and Airtable \
+authors = [{ name = "Bram Wiepjes (Baserow)", email = "bram@baserow.io" }]
+description = """Baserow is an open source no-code database tool and Airtable \
                     alternative. Easily create a relational database without any \
                     technical expertise. Build a table and define custom fields \
                     like text, number, file and many more."""
 # mixed license
-license={file="LICENSE"}
-requires-python=">=3.11"
+license = { file = "../LICENSE" }
+requires-python = "==3.11.*"
 version = "2.0.6"
 classifiers = []
 
@@ -22,6 +22,9 @@ Documentation = "https://baserow.io/user-docs"
 Support = "https://community.baserow.io/"
 Changelog = "https://github.com/baserow/baserow/blob/develop/changelog.md"
 
+[tool.hatch.build.targets.wheel]
+packages = ["src/baserow_enterprise"]
+
 [tool.black]
 exclude = '''
 /(
@@ -29,15 +32,3 @@ exclude = '''
   | generated
 )/
 '''
-
-[tool.setuptools]
-include-package-data = true
-# https://setuptools.pypa.io/en/latest/userguide/pyproject_config.html
-platforms = ["Linux"]
-
-[tool.setuptools.packages.find]
-where = ["src/"]
-include = ["baserow_enterprise", "baserow_enterprise.*"]
-
-
-

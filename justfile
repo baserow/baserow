@@ -1,243 +1,166 @@
 # Baserow Project Justfile
-# Root justfile that delegates to component-specific justfiles
+# Run `just` to see all available commands organized by category
 
-# Default recipe - show help
+set unstable := true
+
+# Import personal recipes if they exist (not tracked in git)
+import? 'local.just'
+
+# Default recipe - show help with groups
 default:
     @just --list
 
 # =============================================================================
-# Backend
+# Help & Documentation
 # =============================================================================
 
-# Run any backend command (e.g., just b init, just b test)
-[doc("Run backend command: just b <cmd>")]
-backend *args:
-    @just --justfile backend/justfile --working-directory backend {{ args }}
-
-# Shortcut alias for backend
-alias b := backend
-
-# =============================================================================
-# Web-Frontend
-# =============================================================================
-
-# Run any web-frontend command (e.g., just f lint, just f test)
-[doc("Run frontend command: just f <cmd>")]
-frontend *args:
-    @just --justfile web-frontend/justfile --working-directory web-frontend {{ args }}
-
-# Shortcut alias for frontend
-alias f := frontend
-
-# =============================================================================
-# Docker Compose
-# =============================================================================
-
-_dc_help:
-    @echo "Usage: just dc <cmd> [args]       (production - uses published images)"
-    @echo "       just dc-dev <cmd> [args]   (development - builds dev images)"
-    @echo "       just dc-prod <cmd> [args]  (production images built locally)"
+# Show getting started guide and documentation links
+[group('0 - help')]
+help:
+    @echo "Baserow Development - Getting Started"
+    @echo "======================================"
     @echo ""
-    @echo "Examples:"
-    @echo "  just dc-dev build --parallel     # Build all dev images"
-    @echo "  just dc-dev build backend        # Build specific service"
-    @echo "  just dc-dev up -d                # Start containers (detached)"
-    @echo "  just dc-dev up -d backend db     # Start specific services"
-    @echo "  just dc-dev stop                 # Stop containers (keep volumes)"
-    @echo "  just dc-dev down                 # Stop and remove containers"
-    @echo "  just dc-dev logs -f backend      # Follow logs for a service"
-    @echo "  just dc-dev exec backend bash    # Open shell in container"
-    @echo "  just dc-dev ps                   # Show running containers"
+    @echo "Choose your development approach:"
     @echo ""
-    @echo "Optional services (storybook, flower) - not started by default:"
-    @echo "  just dc-dev --profile optional up -d    # Include optional services"
-    @echo "  just dc-dev-full up -d                  # Shorthand for above"
+    @echo "  Option 1: Local processes (faster hot-reload, requires local Python/Node)"
+    @echo "  -------------------------------------------------------------------------"
+    @echo "    just init           # First time: install dependencies"
+    @echo "    just dev up         # Start all services (Ctrl+C stops everything)"
+    @echo "    just dev up -d      # Start in background"
+    @echo "    just dev stop       # Stop background services"
     @echo ""
-    @echo "Production (uses published images from registry):"
-    @echo "  just dc up -d"
-    @echo "  just dc pull"
+    @echo "  Option 2: Docker containers (easier setup, everything containerized)"
+    @echo "  ---------------------------------------------------------------------"
+    @echo "    just dc-dev build --parallel   # First time: build images"
+    @echo "    just dc-dev up -d              # Start all containers"
+    @echo "    just dc-dev logs -f            # Follow logs"
+    @echo "    just dc-dev down               # Stop containers"
     @echo ""
-    @echo "Build production images locally:"
-    @echo "  just dc-prod build --parallel"
-
-# Production compose (base docker-compose.yml only)
-[doc("Docker compose (prod): just dc <cmd> [args]")]
-dc *ARGS:
-    #!/usr/bin/env bash
-    if [ -z "{{ ARGS }}" ]; then
-        just _dc_help
-    else
-        docker compose -f docker-compose.yml {{ ARGS }}
-    fi
-
-# Dev compose (includes docker-compose.dev.yml overlay)
-[doc("Docker compose (dev): just dc-dev <cmd> [args]")]
-dc-dev *ARGS:
-    #!/usr/bin/env bash
-    if [ -z "{{ ARGS }}" ]; then
-        just _dc_help
-    else
-        if [ ! -f .env.docker-dev ] && [ -f .env.docker-dev.example ]; then
-            echo "Creating .env.docker-dev from .env.docker-dev.example..."
-            cp .env.docker-dev.example .env.docker-dev
-        fi
-        # Export UID/GID for docker-compose user: directive
-        if [[ -z "$UID" ]]; then
-            UID=$(id -u)
-        fi
-        export UID
-        if [[ -z "$GID" ]]; then
-            GID=$(id -g)
-        fi
-        export GID
-        docker compose --env-file .env.docker-dev -f docker-compose.yml -f docker-compose.dev.yml {{ ARGS }}
-    fi
-
-# Dev compose with optional services (storybook, flower)
-[doc("Docker compose (dev) with optional services: just dc-dev-full <cmd> [args]")]
-dc-dev-full *ARGS:
-    just dc-dev --profile optional {{ ARGS }}
-
-# Build production images locally (includes docker-compose.build.yml overlay)
-[doc("Docker compose (prod local): just dc-prod <cmd> [args]")]
-dc-prod *ARGS:
-    #!/usr/bin/env bash
-    if [ -z "{{ ARGS }}" ]; then
-        just _dc_help
-    else
-        BASEROW_VERSION=latest docker compose -f docker-compose.yml -f docker-compose.build.yml {{ ARGS }}
-    fi
-
-# Run docker compose for specific deployment configurations
-[doc("Docker compose for deployments: just dc-deploy <name> <cmd>")]
-dc-deploy name="" *ARGS:
-    #!/usr/bin/env bash
-    set -euo pipefail
-
-    case "{{ name }}" in
-        "all-in-one")
-            docker compose -f deploy/all-in-one/docker-compose.yml {{ ARGS }}
-            ;;
-        "all-in-one-dev")
-            # Export UID/GID for docker-compose user: directive
-            if [[ -z "${UID:-}" ]]; then
-                UID=$(id -u)
-            fi
-            export UID
-            if [[ -z "${GID:-}" ]]; then
-                GID=$(id -g)
-            fi
-            export GID
-            docker compose -f deploy/all-in-one/docker-compose.yml -f deploy/all-in-one/docker-compose.dev.yml {{ ARGS }}
-            ;;
-        "cloudron")
-            docker compose -f deploy/cloudron/docker-compose.yml {{ ARGS }}
-            ;;
-        "heroku")
-            docker compose -f deploy/heroku/docker-compose.yml {{ ARGS }}
-            ;;
-        "traefik")
-            docker compose -f deploy/traefik/docker-compose.yml {{ ARGS }}
-            ;;
-        "nginx")
-            docker compose -f deploy/nginx/recommended/docker-compose.yml {{ ARGS }}
-            ;;
-        "apache")
-            docker compose -f deploy/apache/recommended/docker-compose.yml {{ ARGS }}
-            ;;
-        "local-testing")
-            docker compose -f deploy/local_testing/docker-compose.local.yml {{ ARGS }}
-            ;;
-        *)
-            echo "Run docker compose for deployment configurations"
-            echo ""
-            echo "Usage: just dc-deploy <name> <cmd> [args]"
-            echo ""
-            echo "Deployments:"
-            echo "  all-in-one      - All-in-one container (production)"
-            echo "  all-in-one-dev  - All-in-one container (development)"
-            echo "  cloudron        - Cloudron deployment"
-            echo "  heroku          - Heroku deployment"
-            echo "  traefik         - Traefik reverse proxy"
-            echo "  nginx           - Nginx reverse proxy"
-            echo "  apache          - Apache reverse proxy"
-            echo "  local-testing   - Local testing setup"
-            echo ""
-            echo "Examples:"
-            echo "  just dc-deploy cloudron up -d"
-            echo "  just dc-deploy all-in-one logs -f"
-            echo "  just dc-deploy heroku build"
-            [[ -n "{{ name }}" ]] && exit 1 || exit 0
-            ;;
-    esac
+    @echo "Documentation:"
+    @echo "  docs/development/justfile.md                        - Just command reference"
+    @echo "  docs/development/running-the-dev-env-locally.md     - Local development setup"
+    @echo "  docs/development/running-the-dev-env-with-docker.md - Docker development setup"
+    @echo "  docs/development/running-tests.md                   - Running tests"
+    @echo "  docs/development/code-quality.md                    - Linting and formatting"
+    @echo ""
+    @echo "Component-specific help:"
+    @echo "  just b help           # Backend commands and docs"
+    @echo "  just f help           # Frontend commands and docs"
 
 # =============================================================================
-# Frontend (placeholder for future)
+# Getting Started (run these first!)
 # =============================================================================
 
-# frontend *args:
-#     @just --justfile web-frontend/justfile {{ args }}
-
-# =============================================================================
-# Environment
-# =============================================================================
-
-# Print command to load .env.local (use with: eval "$(just env-load)")
-[doc("Print command to load .env.local: eval \"$(just env-load)\"")]
-env-load:
-    @echo 'set -a; source "'"$PWD"'/.env.local"; set +a'
-
-# Print command to unset all vars from .env.local (use with: eval "$(just env-clear)")
-[doc("Print command to clear .env.local vars: eval \"$(just env-clear)\"")]
-env-clear:
-    #!/usr/bin/env bash
-    if [ -f .env.local ]; then
-        vars=$(grep -v '^#' .env.local | grep -v '^$' | grep '=' | cut -d= -f1 | xargs)
-        if [ -n "$vars" ]; then
-            echo "unset $vars"
-        fi
-    else
-        echo "echo 'No .env.local found'"
-    fi
-
-# =============================================================================
-# Full Stack
-# =============================================================================
-
-# Initialize everything
+# Initialize the project (install all dependencies)
+[group('1 - local-dev')]
+[doc("First time setup: install backend + frontend dependencies")]
 init:
     @just b init
     @just f install
 
-# Run all linters (backend + frontend)
-lint:
-    @just b lint
-    @just f lint
-
-# Run all tests (backend + frontend)
-test:
-    @just b test
-    @just f test
-
-# Fix all code style (backend + frontend)
-fix:
-    @just b fix
-    @just f fix
-
-# =============================================================================
-# Full Development Environment
-# =============================================================================
-
-# Log files for dev servers (shared with logs recipe below)
-backend_log_file := "/tmp/baserow-backend.log"
-celery_log_file := "/tmp/baserow-celery.log"
-frontend_log_file := "/tmp/baserow-web-frontend.log"
-
-# Start full local development environment (docker services + backend + celery + frontend)
-[doc("Start local dev env: docker services + backend + celery + frontend")]
-start-dev-local:
+# Local development environment management
+[group('1 - local-dev')]
+[doc("Local dev: just dev <up|up -d|stop|logs|status>")]
+dev *ARGS:
     #!/usr/bin/env bash
     set -euo pipefail
+
+    # Parse args from just
+    ALLARGS=({{ ARGS }})
+    CMD="${ALLARGS[0]:-}"
+    REST=("${ALLARGS[@]:1}")
+
+    case "$CMD" in
+        up)
+            # Check for -d flag
+            DETACHED=false
+            for arg in "${REST[@]:-}"; do
+                if [[ "$arg" == "-d" ]]; then
+                    DETACHED=true
+                fi
+            done
+
+            just _dev-start
+
+            if [ "$DETACHED" = false ]; then
+                # Trap Ctrl+C to stop services
+                trap 'echo ""; echo "Stopping services..."; just _dev-stop; exit 0' INT
+                echo ""
+                echo "Following logs (Ctrl+C to stop all services)..."
+                echo ""
+                just logs -f backend celery frontend
+            fi
+            ;;
+        stop)
+            just _dev-stop
+            ;;
+        logs)
+            just logs "${REST[@]:-}"
+            ;;
+        status)
+            echo "==> Process Status"
+            for name in backend celery frontend; do
+                pid_file="/tmp/baserow-${name}.pid"
+                if [ -f "$pid_file" ]; then
+                    PID=$(cat "$pid_file")
+                    if kill -0 "$PID" 2>/dev/null; then
+                        echo "  $name: running (PID: $PID)"
+                    else
+                        echo "  $name: stopped (stale PID file)"
+                    fi
+                else
+                    echo "  $name: not running"
+                fi
+            done
+            echo ""
+            echo "==> Docker Services"
+            just dc-dev ps redis db mailhog otel-collector 2>/dev/null || echo "  Not running"
+            ;;
+        *)
+            echo "Local development environment"
+            echo ""
+            echo "Usage: just dev <command>"
+            echo ""
+            echo "Commands:"
+            echo "  up       Start and follow logs (Ctrl+C stops everything)"
+            echo "  up -d    Start in background (detached)"
+            echo "  stop     Stop all services"
+            echo "  logs     View logs: just dev logs [-f] [backend|celery|frontend]"
+            echo "  status   Show running services"
+            echo ""
+            echo "Examples:"
+            echo "  just dev up              # Start and watch logs (Ctrl+C stops all)"
+            echo "  just dev up -d           # Start in background"
+            echo "  just dev logs -f backend # Follow backend logs"
+            echo "  just dev stop            # Stop everything"
+            [[ -n "$CMD" ]] && exit 1 || exit 0
+            ;;
+    esac
+
+# Internal: Start local dev environment
+[private]
+_dev-start:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    # Create .env.local from example if it doesn't exist
+    if [ ! -f .env.local ]; then
+        if [ -f .env.local.example ]; then
+            echo "Creating .env.local from .env.local.example..."
+            cp .env.local.example .env.local
+            echo ""
+        else
+            echo "Warning: .env.local.example not found, skipping .env.local creation"
+            echo ""
+        fi
+    fi
+
+    # Load environment variables from .env.local
+    if [ -f .env.local ]; then
+        set -a
+        source .env.local
+        set +a
+    fi
 
     echo "Starting Baserow local development environment..."
     echo ""
@@ -299,7 +222,7 @@ start-dev-local:
     FRONTEND_PID=$!
     echo "    PID: $FRONTEND_PID (log: {{ frontend_log_file }})"
 
-    # Save PIDs for stop-dev-local
+    # Save PIDs
     echo "$BACKEND_PID" > /tmp/baserow-backend.pid
     echo "$CELERY_PID" > /tmp/baserow-celery.pid
     echo "$FRONTEND_PID" > /tmp/baserow-frontend.pid
@@ -315,15 +238,14 @@ start-dev-local:
     echo "  Mailhog:   http://localhost:8025"
     echo ""
     echo "Commands:"
-    echo "  just logs                  # View all logs"
-    echo "  just logs -f backend       # Follow backend logs"
-    echo "  just logs -f frontend      # Follow frontend logs"
-    echo "  just stop-dev-local        # Stop all services"
+    echo "  just dev logs              # View logs"
+    echo "  just dev logs -f backend   # Follow backend logs"
+    echo "  just dev stop              # Stop all services"
     echo ""
 
-# Stop full local development environment
-[doc("Stop local dev env started with start-dev-local")]
-stop-dev-local:
+# Internal: Stop local dev environment
+[private]
+_dev-stop:
     #!/usr/bin/env bash
     set -euo pipefail
 
@@ -367,88 +289,55 @@ stop-dev-local:
     echo "Development environment stopped."
 
 # =============================================================================
-# Test Database (ramdisk for fast tests)
+# Local Development (native Python/Node - faster, requires local setup)
 # =============================================================================
 
-# Test DB settings
-test_db_name := "baserow-test-db"
-test_db_port := env("TEST_DB_PORT", "5433")
-test_db_image := "pgvector/pgvector:pg13"
+# Run any backend command (e.g., just b init, just b test, just b lint)
+[group('1 - local-dev')]
+[doc("Run backend command: just b <cmd> (e.g., b test, b lint, b shell)")]
+backend *args:
+    @just --justfile backend/justfile --working-directory backend {{ args }}
 
-# Start PostgreSQL with tmpfs (ramdisk) for fast backend tests
-# Data is stored in RAM - 2-5x faster than disk-based tests
-[doc("Start ramdisk PostgreSQL for fast tests")]
-test-db:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    # Always remove and recreate to get fresh tmpfs
-    if docker ps -a --format '{{ '{{.Names}}' }}' | grep -q "^{{ test_db_name }}$"; then
-        echo "Removing existing container to get fresh tmpfs..."
-        docker rm -f {{ test_db_name }} > /dev/null
-    fi
-    echo "Creating test database container with tmpfs (ramdisk)..."
-    docker run -d \
-        --name {{ test_db_name }} \
-        -e POSTGRES_USER=baserow \
-        -e POSTGRES_PASSWORD=baserow \
-        -e POSTGRES_DB=baserow \
-        -p {{ test_db_port }}:5432 \
-        --tmpfs /var/lib/postgresql/data:size=8G \
-        {{ test_db_image }} \
-        -c shared_buffers=512MB \
-        -c fsync=off \
-        -c full_page_writes=off \
-        -c synchronous_commit=off \
-        -c max_locks_per_transaction=512 \
-        -c logging_collector=off \
-        -c log_statement=none \
-        -c log_duration=off \
-        -c log_min_duration_statement=-1 \
-        -c log_checkpoints=off \
-        -c log_connections=off \
-        -c log_disconnections=off \
-        -c log_lock_waits=off \
-        -c log_temp_files=-1 \
-        -c checkpoint_timeout=1h \
-        -c max_wal_size=10GB \
-        -c min_wal_size=1GB \
-        -c wal_level=minimal \
-        -c max_wal_senders=0 \
-        -c autovacuum=off \
-        -c random_page_cost=1.0 \
-        -c effective_io_concurrency=200 \
-        -c work_mem=256MB \
-        -c maintenance_work_mem=512MB
-    echo ""
-    echo "Test database running on port {{ test_db_port }}"
-    echo ""
-    echo "Run tests with:"
-    echo "  DATABASE_URL=postgres://baserow:baserow@localhost:{{ test_db_port }}/baserow just b test -n=auto"
+# Shortcut alias for backend
+alias b := backend
 
-# Stop the ramdisk test database
-[doc("Stop ramdisk PostgreSQL")]
-test-db-stop:
-    docker rm -f {{ test_db_name }} 2>/dev/null || true
+# Run any web-frontend command (e.g., just f lint, just f test)
+[group('1 - local-dev')]
+[doc("Run frontend command: just f <cmd> (e.g., f lint, f test)")]
+frontend *args:
+    @just --justfile web-frontend/justfile --working-directory web-frontend {{ args }}
 
-# =============================================================================
-# E2E Tests
-# =============================================================================
+# Shortcut alias for frontend
+alias f := frontend
 
-# Run E2E commands (delegates to e2e-tests/justfile)
-# Usage: just e2e <command> [args]
-# Commands: build, up, down, test, logs, run, db-dump, db-restore
-[doc("E2E tests: just e2e <build|up|down|test|logs|run|db-dump>")]
-e2e *ARGS:
-    @just --justfile e2e-tests/justfile {{ ARGS }}
+# Run all linters (backend + frontend)
+[group('1 - local-dev')]
+[doc("Lint all code (backend + frontend)")]
+lint:
+    @just b lint
+    @just f lint
 
-# =============================================================================
-# Logs
-# =============================================================================
+# Run all tests (backend + frontend)
+[group('1 - local-dev')]
+[doc("Test all code (backend + frontend)")]
+test:
+    @just b test
+    @just f test
+
+# Fix all code style (backend + frontend)
+[group('1 - local-dev')]
+[doc("Auto-fix code style (backend + frontend)")]
+fix:
+    @just b fix
+    @just f fix
+
+# Log files for dev servers
+backend_log_file := "/tmp/baserow-backend.log"
+celery_log_file := "/tmp/baserow-celery.log"
+frontend_log_file := "/tmp/baserow-web-frontend.log"
 
 # View logs (works with Docker or local processes)
-# Usage: just logs [options] [services...]
-# Options: -f (follow), -n 100 (last 100 lines), etc.
-# Services: backend, celery, frontend (default: backend celery)
+[group('1 - local-dev')]
 [doc("View logs: just logs [-f] [-n 100] [backend] [celery] [frontend]")]
 logs *ARGS:
     #!/usr/bin/env bash
@@ -513,12 +402,185 @@ logs *ARGS:
     fi
 
 # =============================================================================
-# Build
+# Docker Development (everything runs in containers - easier setup)
 # =============================================================================
 
+_dc_help:
+    @echo "Usage: just dc-prod <cmd> [args]  (production - uses published images)"
+    @echo "       just dc-dev <cmd> [args]   (development - builds dev images)"
+    @echo ""
+    @echo "Examples:"
+    @echo "  just dc-dev build --parallel     # Build all dev images"
+    @echo "  just dc-dev build backend        # Build specific service"
+    @echo "  just dc-dev up -d                # Start containers (detached)"
+    @echo "  just dc-dev up -d backend db     # Start specific services"
+    @echo "  just dc-dev stop                 # Stop containers (keep volumes)"
+    @echo "  just dc-dev down                 # Stop and remove containers"
+    @echo "  just dc-dev logs -f backend      # Follow logs for a service"
+    @echo "  just dc-dev exec backend bash    # Open shell in container"
+    @echo "  just dc-dev ps                   # Show running containers"
+    @echo ""
+    @echo "Optional services (storybook, flower) - not started by default:"
+    @echo "  just dc-dev --profile optional up -d    # Include optional services"
+    @echo "  just dc-dev-full up -d                  # Shorthand for above"
+    @echo ""
+    @echo "Production (builds locally if BASEROW_VERSION is unset/latest):"
+    @echo "  just dc-prod up -d                          # Build and run latest locally"
+    @echo "  just dc-prod build --parallel               # Build latest images"
+    @echo "  BASEROW_VERSION=1.29.0 just dc-prod up -d   # Pull and run v1.29.0 from registry"
+    @echo ""
+    @echo "Troubleshooting:"
+    @echo "  just dc-cache-clear                  # Clear build cache if builds fail"
+    @echo "  just dc-fix-network                  # Fix 'network not found' errors"
+
+# Dev compose (includes docker-compose.dev.yml overlay)
+[group('2 - docker-dev')]
+[doc("Docker compose (dev): just dc-dev <build|up|down|logs|exec|ps>")]
+dc-dev *ARGS:
+    #!/usr/bin/env bash
+    if [ -z "{{ ARGS }}" ]; then
+        just _dc_help
+    else
+        if [ ! -f .env.docker-dev ] && [ -f .env.docker-dev.example ]; then
+            echo "Creating .env.docker-dev from .env.docker-dev.example..."
+            cp .env.docker-dev.example .env.docker-dev
+        fi
+        # Export UID/GID for docker-compose user: directive
+        if [[ -z "$UID" ]]; then
+            UID=$(id -u)
+        fi
+        export UID
+        if [[ -z "$GID" ]]; then
+            GID=$(id -g)
+        fi
+        export GID
+        docker compose --env-file .env.docker-dev -f docker-compose.yml -f docker-compose.dev.yml {{ ARGS }}
+    fi
+
+# Dev compose with optional services (storybook, flower)
+[group('2 - docker-dev')]
+[doc("Docker compose (dev) with optional services")]
+dc-dev-full *ARGS:
+    just dc-dev --profile optional {{ ARGS }}
+
+# Attach to a running container (interactive shell)
+[group('2 - docker-dev')]
+[doc("Attach to running container: just dc-attach [name]")]
+dc-attach container="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    # Colors
+    CYAN='\033[0;36m'
+    GREEN='\033[0;32m'
+    YELLOW='\033[0;33m'
+    DIM='\033[2m'
+    BOLD='\033[1m'
+    NC='\033[0m' # No Color
+
+    if [ -n "{{ container }}" ]; then
+        docker exec -it "{{ container }}" bash
+    else
+        # Get running containers
+        mapfile -t containers < <(docker ps --format '{{ '{{.Names}}\t{{.Image}}\t{{.Status}}' }}')
+
+        if [ ${#containers[@]} -eq 0 ]; then
+            echo -e "${YELLOW}No running containers found.${NC}"
+            exit 1
+        fi
+
+        echo -e "${BOLD}Running containers:${NC}"
+        echo ""
+        for i in "${!containers[@]}"; do
+            name=$(echo "${containers[$i]}" | cut -f1)
+            image=$(echo "${containers[$i]}" | cut -f2)
+            status=$(echo "${containers[$i]}" | cut -f3)
+            printf "  ${CYAN}%2d)${NC} ${GREEN}%-30s${NC} ${DIM}%-40s${NC} ${YELLOW}%s${NC}\n" "$((i+1))" "$name" "$image" "$status"
+        done
+        echo ""
+        echo -e "  ${DIM}q)  Quit${NC}"
+        echo ""
+
+        # Read single character without waiting for Enter
+        printf "Select container [1-${#containers[@]}]: "
+        read -rsn1 choice
+
+        # Handle ESC (reads as empty with -s, or as escape sequence)
+        if [[ "$choice" == $'\x1b' || -z "$choice" ]]; then
+            echo ""
+            exit 0
+        fi
+
+        # Handle quit
+        if [[ "$choice" == "q" || "$choice" == "Q" ]]; then
+            echo "$choice"
+            exit 0
+        fi
+
+        # For numbers, check if valid single digit selection
+        if [[ "$choice" =~ ^[0-9]$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le ${#containers[@]} ]; then
+            echo "$choice"
+            name=$(echo "${containers[$((choice-1))]}" | cut -f1)
+            docker exec -it "$name" bash
+        else
+            echo "$choice"
+            echo -e "${YELLOW}Invalid selection${NC}"
+            exit 1
+        fi
+    fi
+
+# Shortcut alias for dc-attach
+alias a := dc-attach
+
+# Clear Docker BuildKit cache
+# WARNING: This clears ALL Docker builder cache, not just Baserow!
+[group('2 - docker-dev')]
+[doc("Clear ALL Docker builder cache (not just Baserow)")]
+dc-cache-clear:
+    @echo "WARNING: This will clear ALL Docker builder cache, not just Baserow."
+    @echo "This affects all projects on your system."
+    @echo ""
+    docker builder prune -a -f
+
+alias prune := dc-cache-clear
+
+# Fix Docker network issues (removes containers referencing missing networks)
+[group('2 - docker-dev')]
+[doc("Fix 'network not found' errors")]
+dc-fix-network:
+    #!/usr/bin/env bash
+    echo "Stopping and removing Baserow containers with stale network references..."
+    docker compose -f docker-compose.yml -f docker-compose.dev.yml down --remove-orphans 2>/dev/null || true
+    # Remove any containers still referencing the old network
+    docker ps -aq --filter "name=baserow" | xargs -r docker rm -f 2>/dev/null || true
+    echo ""
+    echo "Done. You can now run: just dc-dev up -d"
+
+# =============================================================================
+# Production Images (build & test production Docker images)
+# =============================================================================
+
+# Production compose (builds locally if BASEROW_VERSION is unset/latest, otherwise pulls images)
+[group('3 - production')]
+[doc("Docker compose (prod): just dc-prod <build|up|down|logs>")]
+dc-prod *ARGS:
+    #!/usr/bin/env bash
+    if [ -z "{{ ARGS }}" ]; then
+        just _dc_help
+    else
+        VERSION="${BASEROW_VERSION:-latest}"
+        if [ "$VERSION" = "latest" ] || [ -z "$BASEROW_VERSION" ]; then
+            # Build locally for latest/unset
+            BASEROW_VERSION="$VERSION" docker compose -f docker-compose.yml -f docker-compose.build.yml {{ ARGS }}
+        else
+            # Pull from registry for specific versions
+            BASEROW_VERSION="$VERSION" docker compose -f docker-compose.yml {{ ARGS }}
+        fi
+    fi
+
 # Build deployment images
-# Usage: just build <target> [tag] [docker-args...]
-[doc("Build image: backend, web-frontend, all-in-one, all-in-one-lite, heroku, cloudron, render, apache")]
+[group('3 - production')]
+[doc("Build image: backend, web-frontend, all-in-one, heroku, cloudron, etc.")]
 build target="" tag="latest" *ARGS:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -595,3 +657,375 @@ build target="" tag="latest" *ARGS:
     esac
     echo ""
     echo "Built: $(docker images --format '{{ '{{.Repository}}:{{.Tag}}' }}' | grep -m1 'baserow')"
+
+# Run docker compose for specific deployment configurations
+[group('3 - production')]
+[doc("Docker compose for deployments: just dc-deploy <name> <cmd>")]
+dc-deploy name="" *ARGS:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    case "{{ name }}" in
+        "all-in-one")
+            docker compose -f deploy/all-in-one/docker-compose.yml {{ ARGS }}
+            ;;
+        "all-in-one-dev")
+            # Export UID/GID for docker-compose user: directive
+            if [[ -z "${UID:-}" ]]; then
+                UID=$(id -u)
+            fi
+            export UID
+            if [[ -z "${GID:-}" ]]; then
+                GID=$(id -g)
+            fi
+            export GID
+            docker compose -f deploy/all-in-one/docker-compose.yml -f deploy/all-in-one/docker-compose.dev.yml {{ ARGS }}
+            ;;
+        "cloudron")
+            docker compose -f deploy/cloudron/docker-compose.yml {{ ARGS }}
+            ;;
+        "heroku")
+            docker compose -f deploy/heroku/docker-compose.yml {{ ARGS }}
+            ;;
+        "traefik")
+            docker compose -f deploy/traefik/docker-compose.yml {{ ARGS }}
+            ;;
+        "nginx")
+            docker compose -f deploy/nginx/recommended/docker-compose.yml {{ ARGS }}
+            ;;
+        "apache")
+            docker compose -f deploy/apache/recommended/docker-compose.yml {{ ARGS }}
+            ;;
+        "local-testing")
+            docker compose -f deploy/local_testing/docker-compose.local.yml {{ ARGS }}
+            ;;
+        *)
+            echo "Run docker compose for deployment configurations"
+            echo ""
+            echo "Usage: just dc-deploy <name> <cmd> [args]"
+            echo ""
+            echo "Deployments:"
+            echo "  all-in-one      - All-in-one container (production)"
+            echo "  all-in-one-dev  - All-in-one container (development)"
+            echo "  cloudron        - Cloudron deployment"
+            echo "  heroku          - Heroku deployment"
+            echo "  traefik         - Traefik reverse proxy"
+            echo "  nginx           - Nginx reverse proxy"
+            echo "  apache          - Apache reverse proxy"
+            echo "  local-testing   - Local testing setup"
+            echo ""
+            echo "Examples:"
+            echo "  just dc-deploy cloudron up -d"
+            echo "  just dc-deploy all-in-one logs -f"
+            echo "  just dc-deploy heroku build"
+            [[ -n "{{ name }}" ]] && exit 1 || exit 0
+            ;;
+    esac
+
+# =============================================================================
+# Testing (fast test database, E2E tests)
+# =============================================================================
+
+# Test DB settings
+test_db_name := "baserow-test-db"
+test_db_port := env("TEST_DB_PORT", "5433")
+test_db_image := "pgvector/pgvector:pg13"
+
+# Start PostgreSQL with tmpfs (ramdisk) for fast backend tests
+[group('4 - testing')]
+[doc("Start ramdisk PostgreSQL for fast tests (2-5x faster)")]
+start-test-db:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # Always remove and recreate to get fresh tmpfs
+    if docker ps -a --format '{{ '{{.Names}}' }}' | grep -q "^{{ test_db_name }}$"; then
+        echo "Removing existing container to get fresh tmpfs..."
+        docker rm -f {{ test_db_name }} > /dev/null
+    fi
+    echo "Creating test database container with tmpfs (ramdisk)..."
+    docker run -d \
+        --name {{ test_db_name }} \
+        -e POSTGRES_USER=baserow \
+        -e POSTGRES_PASSWORD=baserow \
+        -e POSTGRES_DB=baserow \
+        -p {{ test_db_port }}:5432 \
+        --tmpfs /var/lib/postgresql/data:size=8G \
+        {{ test_db_image }} \
+        -c shared_buffers=512MB \
+        -c fsync=off \
+        -c full_page_writes=off \
+        -c synchronous_commit=off \
+        -c max_locks_per_transaction=512 \
+        -c logging_collector=off \
+        -c log_statement=none \
+        -c log_duration=off \
+        -c log_min_duration_statement=-1 \
+        -c log_checkpoints=off \
+        -c log_connections=off \
+        -c log_disconnections=off \
+        -c log_lock_waits=off \
+        -c log_temp_files=-1 \
+        -c checkpoint_timeout=1h \
+        -c max_wal_size=10GB \
+        -c min_wal_size=1GB \
+        -c wal_level=minimal \
+        -c max_wal_senders=0 \
+        -c autovacuum=off \
+        -c random_page_cost=1.0 \
+        -c effective_io_concurrency=200 \
+        -c work_mem=256MB \
+        -c maintenance_work_mem=512MB
+    echo ""
+    echo "Test database running on port {{ test_db_port }}"
+    echo ""
+    echo "Run tests with:"
+    echo "  DATABASE_URL=postgres://baserow:baserow@localhost:{{ test_db_port }}/baserow just b test -n=auto"
+
+# Stop the ramdisk test database
+[group('4 - testing')]
+[doc("Stop ramdisk PostgreSQL")]
+stop-test-db:
+    docker rm -f {{ test_db_name }} 2>/dev/null || true
+
+# Run E2E commands (delegates to e2e-tests/justfile)
+[group('4 - testing')]
+[doc("E2E tests: just e2e <build|up|down|test|logs|run|db-dump>")]
+e2e *ARGS:
+    @just --justfile e2e-tests/justfile {{ ARGS }}
+
+# =============================================================================
+# Environment & Utilities
+# =============================================================================
+
+# Print command to load .env.local (use with: eval "$(just env-load)")
+[group('5 - utilities')]
+[doc("Print command to load .env.local: eval \"$(just env-load)\"")]
+env-load:
+    @echo 'set -a; source "'"$PWD"'/.env.local"; set +a'
+
+# Print command to unset all vars from .env.local (use with: eval "$(just env-clear)")
+[group('5 - utilities')]
+[doc("Print command to clear .env.local vars: eval \"$(just env-clear)\"")]
+env-clear:
+    #!/usr/bin/env bash
+    if [ -f .env.local ]; then
+        vars=$(grep -v '^#' .env.local | grep -v '^$' | grep '=' | cut -d= -f1 | xargs)
+        if [ -n "$vars" ]; then
+            echo "unset $vars"
+        fi
+    else
+        echo "echo 'No .env.local found'"
+    fi
+
+# =============================================================================
+# CI Docker Image Testing
+# =============================================================================
+
+# CI image names
+ci_backend_image := "baserow_backend:ci"
+ci_frontend_image := "baserow_frontend:ci"
+
+# CI Docker commands: build, lint, test, run (full pipeline)
+# Usage:
+#   just ci build                # Build both CI images
+#   just ci build backend        # Build backend CI image only
+#   just ci build frontend       # Build frontend CI image only
+#   just ci lint                 # Lint both
+#   just ci lint backend         # Lint backend only
+#   just ci test                 # Test both
+#   just ci test frontend        # Test frontend only
+#   just ci run                  # Full pipeline for both
+#   just ci run backend          # Full pipeline for backend only
+[group('6 - ci')]
+[doc("CI Docker: just ci <build|lint|test|run> [backend|frontend]")]
+ci cmd="" target="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    # Helper: should we run for backend?
+    run_backend() {
+        [[ -z "{{ target }}" || "{{ target }}" == "backend" || "{{ target }}" == "b" ]]
+    }
+
+    # Helper: should we run for frontend?
+    run_frontend() {
+        [[ -z "{{ target }}" || "{{ target }}" == "frontend" || "{{ target }}" == "f" ]]
+    }
+
+    # Build backend CI image
+    build_backend() {
+        echo "Building backend CI image..."
+        docker build -t {{ ci_backend_image }} -f backend/Dockerfile --target ci .
+        echo "Backend CI image built: {{ ci_backend_image }}"
+    }
+
+    # Build frontend CI image
+    build_frontend() {
+        echo "Building frontend CI image..."
+        docker build -t {{ ci_frontend_image }} -f web-frontend/Dockerfile --target ci .
+        echo "Frontend CI image built: {{ ci_frontend_image }}"
+    }
+
+    # Lint backend
+    lint_backend() {
+        build_backend
+        echo "Running lint in backend CI image..."
+        docker run --rm {{ ci_backend_image }} lint
+    }
+
+    # Lint frontend
+    lint_frontend() {
+        build_frontend
+        echo "Running lint in frontend CI image..."
+        docker run --rm {{ ci_frontend_image }} lint
+    }
+
+    # Test backend (needs postgres + redis)
+    test_backend() {
+        build_backend
+
+        # Create a temporary network for the test
+        NETWORK="baserow-ci-test-$$"
+
+        # Clean up any leftover containers from previous runs
+        docker rm -f ci-test-db ci-test-redis 2>/dev/null || true
+
+        cleanup() {
+            echo "Cleaning up..."
+            docker rm -f ci-test-db ci-test-redis 2>/dev/null || true
+            docker network rm "$NETWORK" 2>/dev/null || true
+        }
+        trap cleanup EXIT
+
+        echo "Creating test network..."
+        docker network create "$NETWORK" 2>/dev/null || true
+
+        echo "Starting PostgreSQL..."
+        docker run -d --name ci-test-db --network "$NETWORK" \
+            -e POSTGRES_USER=baserow \
+            -e POSTGRES_PASSWORD=baserow \
+            -e POSTGRES_DB=baserow \
+            pgvector/pgvector:pg15
+
+        echo "Starting Redis..."
+        docker run -d --name ci-test-redis --network "$NETWORK" \
+            redis:7 redis-server --requirepass baserow
+
+        # Wait for postgres to be ready
+        echo "Waiting for PostgreSQL to be ready..."
+        for i in {1..30}; do
+            if docker exec ci-test-db pg_isready -U baserow > /dev/null 2>&1; then
+                echo "PostgreSQL is ready!"
+                break
+            fi
+            if [ $i -eq 30 ]; then
+                echo "PostgreSQL failed to start"
+                exit 1
+            fi
+            sleep 1
+        done
+
+        # Wait for redis to be ready
+        echo "Waiting for Redis to be ready..."
+        for i in {1..30}; do
+            if docker exec ci-test-redis redis-cli -a baserow ping 2>/dev/null | grep -q PONG; then
+                echo "Redis is ready!"
+                break
+            fi
+            if [ $i -eq 30 ]; then
+                echo "Redis failed to start"
+                exit 1
+            fi
+            sleep 1
+        done
+
+        # Run tests
+        echo "Running tests in backend CI image..."
+        docker run --rm --network "$NETWORK" \
+            -e DATABASE_HOST=ci-test-db \
+            -e DATABASE_PORT=5432 \
+            -e DATABASE_NAME=baserow \
+            -e DATABASE_USER=baserow \
+            -e DATABASE_PASSWORD=baserow \
+            -e REDIS_HOST=ci-test-redis \
+            -e REDIS_PORT=6379 \
+            -e REDIS_PASSWORD=baserow \
+            -e PYTEST_SPLITS=1 \
+            -e PYTEST_SPLIT_GROUP=1 \
+            {{ ci_backend_image }} ci-test
+    }
+
+    # Test frontend (no external services needed)
+    test_frontend() {
+        build_frontend
+        echo "Running tests in frontend CI image..."
+        docker run --rm {{ ci_frontend_image }} ci-test
+    }
+
+    # Full pipeline for backend
+    run_backend_pipeline() {
+        echo "=== Running backend CI pipeline ==="
+        echo ""
+        echo "Step 1/2: Lint"
+        lint_backend
+        echo ""
+        echo "Step 2/2: Tests"
+        test_backend
+        echo ""
+        echo "=== Backend CI pipeline completed successfully ==="
+    }
+
+    # Full pipeline for frontend
+    run_frontend_pipeline() {
+        echo "=== Running frontend CI pipeline ==="
+        echo ""
+        echo "Step 1/2: Lint"
+        lint_frontend
+        echo ""
+        echo "Step 2/2: Tests"
+        test_frontend
+        echo ""
+        echo "=== Frontend CI pipeline completed successfully ==="
+    }
+
+    case "{{ cmd }}" in
+        build)
+            if run_backend; then build_backend; fi
+            if run_frontend; then build_frontend; fi
+            ;;
+        lint)
+            if run_backend; then lint_backend; fi
+            if run_frontend; then lint_frontend; fi
+            ;;
+        test)
+            if run_backend; then test_backend; fi
+            if run_frontend; then test_frontend; fi
+            ;;
+        run)
+            if run_backend; then run_backend_pipeline; fi
+            if run_frontend; then run_frontend_pipeline; fi
+            ;;
+        *)
+            echo "CI Docker commands for testing in containers"
+            echo ""
+            echo "Usage: just ci <command> [target]"
+            echo ""
+            echo "Commands:"
+            echo "  build        Build CI Docker image(s)"
+            echo "  lint         Build and run lint checks"
+            echo "  test         Build and run tests"
+            echo "  run          Run full CI pipeline (build + lint + test)"
+            echo ""
+            echo "Targets (optional, defaults to both):"
+            echo "  backend, b   Backend only"
+            echo "  frontend, f  Frontend only"
+            echo ""
+            echo "Examples:"
+            echo "  just ci build              # Build both CI images"
+            echo "  just ci build backend      # Build backend CI image only"
+            echo "  just ci lint frontend      # Lint frontend only"
+            echo "  just ci test               # Test both"
+            echo "  just ci run backend        # Full pipeline for backend"
+            [[ -n "{{ cmd }}" ]] && exit 1 || exit 0
+            ;;
+    esac
