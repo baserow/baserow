@@ -625,5 +625,5 @@ ENV DATA_DIR=/baserow/data
 # Set this to change the user Baserow will run its Caddy, backend, Celery and
 # web-frontend services as. However be warned, the default entrypoint needs to be run
 # as root so using USER may break things.
-ENV DOCKER_USER=baserow_docker_user
+ENV DOCKER_USER=baserow_user
 ```

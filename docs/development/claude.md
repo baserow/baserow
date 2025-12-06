@@ -18,14 +18,19 @@ Example for local development:
 ## Environment
 I run the backend locally (not in Docker).
 
-## How to check logs
-- Backend: logs go to stdout in the terminal where I run `just b run-dev-server`
-- Celery: logs go to stdout in the terminal where I run `just b run-dev-celery`
-- Frontend: logs go to stdout in the terminal where I run `yarn dev`
+## How to start
+`just dev up` (Ctrl+C to stop) or `just dev up -d` for background
 
-## Database
-I use docker compose for PostgreSQL and Redis only:
-`just dc-dev up -d db redis`
+## How to check logs
+- All logs: `just dev logs` or `just logs -f`
+- Backend only: `just logs backend`
+- Celery only: `just logs celery`
+- Frontend only: `just logs frontend`
+
+## Log files (when running in background)
+- Backend: /tmp/baserow-backend.log
+- Celery: /tmp/baserow-celery.log
+- Frontend: /tmp/baserow-web-frontend.log
 ```
 
 Example for Docker-based setup:

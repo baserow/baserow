@@ -418,7 +418,7 @@ services:
   # the same user that django is running as, so it can write user files.
   volume-permissions-fixer:
     image: bash:4.4
-    command: chown 9999:9999 -R /baserow/media
+    command: chown 999:999 -R /baserow/media
     volumes:
       - media:/baserow/media
     networks:

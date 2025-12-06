@@ -61,7 +61,7 @@ just b test tests/baserow/core/test_models.py
 just b test-coverage
 
 # Fast tests with ramdisk DB (2-5x faster)
-just test-db  # Start postgres with tmpfs
+just start-test-db  # Start postgres with tmpfs
 DATABASE_URL=postgres://baserow:baserow@localhost:5433/baserow just b test
 
 # Test settings: DATABASE_* and REDIS_* vars can be passed via env vars
