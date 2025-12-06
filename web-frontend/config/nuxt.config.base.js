@@ -52,7 +52,10 @@ export default function (
         logErrors: true,
       },
     },
+    buildDir: process.env.NUXT_BUILD_DIR || '.nuxt',
     build: {
+      cache: true,
+      cacheDirectory: process.env.NUXT_CACHE_DIR || 'node_modules/.cache',
       loaders: {
         scss: {
           sassOptions: {
@@ -92,6 +95,7 @@ export default function (
         'vue-chartjs',
         'chart.js',
         '@vue2-flow/core',
+        'pathe',
       ],
     },
   }

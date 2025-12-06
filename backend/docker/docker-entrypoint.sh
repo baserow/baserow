@@ -3,16 +3,6 @@
 set -euo pipefail
 
 # ======================================================
-# FIX "I have no name!" FOR ARBITRARY UIDs
-# ======================================================
-# When running with user: "${UID}:${GID}" in docker-compose, the container
-# may run as a UID that doesn't exist in /etc/passwd. This causes "I have no name!"
-# in shell prompts. We fix this by adding an entry for the current UID if missing.
-if ! getent passwd "$(id -u)" > /dev/null 2>&1; then
-    echo "baserow:x:$(id -u):$(id -g):Baserow Dev:/baserow:/bin/bash" >> /etc/passwd 2>/dev/null || true
-fi
-
-# ======================================================
 # ENVIRONMENT VARIABLES USED DIRECTLY BY THIS ENTRYPOINT
 # ======================================================
 

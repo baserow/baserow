@@ -6,7 +6,8 @@
 
 /* prettier-ignore */
 %icon {
-  vertical-align: middle;
+  /* stylelint-disable-next-line scss/at-extend-no-missing-placeholder, scss/operator-no-unspaced */
+  @extend *, [class^=iconoir-];
 }
 
 /* prettier-ignore */

@@ -1,6 +1,9 @@
 # Baserow Backend Justfile
 # Uses uv for Python package management
 
+# Import personal recipes if they exist (not tracked in git)
+import? 'local.just'
+
 # Environment file configuration:
 # - .env.dev : Local development (recommended, gitignored)
 # - .env       : Docker/production (used by docker-compose)
@@ -16,11 +19,50 @@
 default:
     @just --list
 
+# Show documentation links for each command group
+[group('0 - help')]
+help:
+    @echo "Baserow Backend - Documentation Links"
+    @echo "======================================"
+    @echo ""
+    @echo "Setup & Development:"
+    @echo "  docs/development/running-the-dev-env-locally.md    - Local development setup"
+    @echo "  docs/development/running-the-dev-env-with-docker.md - Docker development setup"
+    @echo "  docs/development/directory-structure.md            - Project structure"
+    @echo ""
+    @echo "Testing:"
+    @echo "  docs/development/running-tests.md                  - Running backend tests"
+    @echo "  docs/development/e2e-testing.md                    - End-to-end testing"
+    @echo ""
+    @echo "Code Quality:"
+    @echo "  docs/development/code-quality.md                   - Linting and formatting"
+    @echo ""
+    @echo "CI/CD & Production:"
+    @echo "  docs/development/ci-cd.md                          - CI/CD pipelines"
+    @echo "  docs/development/building-and-running-production-images.md - Production images"
+    @echo ""
+    @echo "IDE Setup:"
+    @echo "  docs/development/vscode-setup.md                   - VS Code configuration"
+    @echo "  docs/development/intellij-setup.md                 - IntelliJ/PyCharm setup"
+    @echo ""
+    @echo "Other:"
+    @echo "  docs/development/justfile.md                       - Just command reference"
+    @echo "  docs/development/debugging.md                      - Debugging tips"
+    @echo "  docs/development/feature-flags.md                  - Feature flags"
+    @echo ""
+    @echo "Quick shortcuts: l=lint, t=test, dev=run-dev-server, m=manage"
+
 # Allow `just backend <cmd>` or `just b <cmd>` to work (for consistency with root justfile)
 backend *ARGS:
     @just {{ ARGS }}
 
 alias b := backend
+
+# Common shortcuts
+alias l := lint
+alias t := test
+alias dev := run-dev-server
+alias serve := run-dev-server
 
 # Variables
 python_version := "3.11"
@@ -62,7 +104,10 @@ pytest_extra_args := env("PYTEST_EXTRA_ARGS", "")
 # =============================================================================
 
 # Initialize: create Python venv with uv, lock deps, and install everything
-init: _setup-env _create-venv lock sync
+[group('1 - setup')]
+init: _setup-env _create-venv
+    uv lock
+    uv sync
     @echo ""
     @echo "Backend initialized successfully!"
     @echo ""
@@ -87,6 +132,7 @@ _setup-env:
     fi
 
 # Print the command to activate the virtual environment
+[group('1 - setup')]
 activate:
     @echo "Run this command to activate the virtual environment:"
     @echo ""
@@ -106,51 +152,57 @@ _create-venv:
         echo "Virtual environment already exists at {{ venv_dir }}"
     fi
 
-# Install dependencies (includes baserow + premium + enterprise via uv.sources)
-install: _create-venv sync
+# Install dependencies (includes baserow + premium + enterprise via workspace)
+[group('1 - setup')]
+install: _create-venv
+    uv sync
     @echo "Baserow installed successfully!"
 
 # =============================================================================
-# Dependency Management (uv native)
+# Dependency Management (uv)
 # =============================================================================
 
-# Generate/update uv.lock from pyproject.toml
-lock:
-    uv lock
-
-# Sync dependencies from uv.lock (production only)
-sync-prod:
-    uv sync --frozen --no-dev
-
-# Sync all dependencies from uv.lock (including dev)
-sync:
-    uv sync --frozen
-
-# Upgrade all dependencies and regenerate lock file
-deps-upgrade:
-    uv lock --upgrade
-
-# Upgrade a specific dependency
-deps-upgrade-package package:
-    uv lock --upgrade-package {{ package }}
-
-# Add a new dependency
-deps-add package:
-    uv add {{ package }}
-
-# Add a new dev dependency
-deps-add-dev package:
-    uv add --dev {{ package }}
-
-# Remove a dependency
-deps-remove package:
-    uv remove {{ package }}
+# Run uv commands directly. Examples:
+#   just uv lock                      # Generate/update uv.lock
+#   just uv sync                      # Install all deps from lockfile
+#   just uv sync --frozen --no-dev    # Install prod deps only
+#   just uv lock --upgrade            # Upgrade all dependencies
+#   just uv lock --upgrade-package X  # Upgrade specific package
+#   just uv add <package>             # Add dependency
+#   just uv add --dev <package>       # Add dev dependency
+#   just uv remove <package>          # Remove dependency
+#   just uv pip list                  # List installed packages
+#   just uv pip show <package>        # Show package info
+#   just uv tree                      # Show dependency tree
+[group('6 - dependencies')]
+uv *ARGS:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ -z "{{ ARGS }}" ]; then
+        echo "Usage: just uv <command> [args...]"
+        echo ""
+        echo "Examples:"
+        echo "  just uv lock                      # Generate/update uv.lock"
+        echo "  just uv sync                      # Install all deps from lockfile"
+        echo "  just uv sync --frozen --no-dev    # Install prod deps only"
+        echo "  just uv lock --upgrade            # Upgrade all dependencies"
+        echo "  just uv lock --upgrade-package X  # Upgrade specific package"
+        echo "  just uv add <package>             # Add dependency"
+        echo "  just uv add --dev <package>       # Add dev dependency"
+        echo "  just uv remove <package>          # Remove dependency"
+        echo "  just uv pip list                  # List installed packages"
+        echo "  just uv pip show <package>        # Show package info"
+        echo "  just uv tree                      # Show dependency tree"
+        exit 0
+    fi
+    uv {{ ARGS }}
 
 # =============================================================================
 # Code Quality & Linting
 # =============================================================================
 
 # Run all lint checks
+[group('4 - code-quality')]
 lint: _check-dev
     {{ uv_run }} flake8 {{ backend_source_dirs }} {{ backend_tests_dirs }}
     {{ uv_run }} black {{ backend_source_dirs }} {{ backend_tests_dirs }} --check --config=pyproject.toml
@@ -160,14 +212,17 @@ lint: _check-dev
 
 
 # Format code with black
+[group('4 - code-quality')]
 format: _check-dev
     {{ uv_run }} black --config=pyproject.toml {{ backend_source_dirs }} {{ backend_tests_dirs }}
 
 # Sort imports with isort
+[group('4 - code-quality')]
 sort: _check-dev
     {{ uv_run }} isort --skip generated --overwrite-in-place {{ backend_source_dirs }} {{ backend_tests_dirs }}
 
 # Fix code style (sort imports + format)
+[group('4 - code-quality')]
 fix: sort format
 
 # =============================================================================
@@ -179,6 +234,7 @@ test_pythonpath := "tests:../premium/backend/tests:../enterprise/backend/tests"
 _pytest := 'PYTHONPATH="' + test_pythonpath + ':${PYTHONPATH:-}" ' + uv_run + ' pytest'
 
 # Run tests. Pass -n=auto to run in parallel with pytest-xdist
+[group('3 - testing')]
 test *ARGS: _check-dev
     #!/usr/bin/env bash
     set -euo pipefail
@@ -186,6 +242,7 @@ test *ARGS: _check-dev
     {{ _pytest }} {{ ARGS }}
 
 # Run tests with coverage report
+[group('3 - testing')]
 test-coverage: _check-dev
     #!/usr/bin/env bash
     set -euo pipefail
@@ -193,6 +250,7 @@ test-coverage: _check-dev
     {{ _pytest }} -n 10 --cov-report term --cov-report html:reports/html --cov=src {{ backend_tests_dirs }}
 
 # Run builder tests
+[group('3 - testing')]
 test-builder: _check-dev
     #!/usr/bin/env bash
     set -euo pipefail
@@ -200,6 +258,7 @@ test-builder: _check-dev
     {{ _pytest }} tests/baserow/contrib/integrations tests/baserow/contrib/builder
 
 # Run automation tests
+[group('3 - testing')]
 test-automation: _check-dev
     #!/usr/bin/env bash
     set -euo pipefail
@@ -207,6 +266,7 @@ test-automation: _check-dev
     {{ _pytest }} tests/baserow/contrib/integrations tests/baserow/contrib/automation
 
 # Regenerate CI test durations
+[group('3 - testing')]
 test-regenerate-ci-durations: _check-dev
     #!/usr/bin/env bash
     set -euo pipefail
@@ -219,6 +279,7 @@ test-regenerate-ci-durations: _check-dev
 
 # Run tests for CI with coverage, splits, and reports
 # Usage: just ci-test --splits 8 --group 1 [extra pytest args]
+[group('8 - ci')]
 ci-test *ARGS: _check-dev
     #!/usr/bin/env bash
     set -euo pipefail
@@ -253,6 +314,7 @@ ci-test *ARGS: _check-dev
         $EXTRA_ARGS {{ backend_tests_dirs_from_root }}
 
 # Check Django startup (used in CI)
+[group('8 - ci')]
 ci-check-startup: _check-dev
     #!/usr/bin/env bash
     set -euo pipefail
@@ -264,6 +326,7 @@ ci-check-startup: _check-dev
         -k uvicorn.workers.UvicornWorker baserow.config.asgi:application
 
 # Check Django startup with OSS only (used in CI)
+[group('8 - ci')]
 ci-check-startup-oss-only: _check-dev
     #!/usr/bin/env bash
     set -euo pipefail
@@ -279,6 +342,7 @@ ci-check-startup-oss-only: _check-dev
 # =============================================================================
 
 # Generate translation files
+[group('7 - translations')]
 make-translations: _check-dev
     #!/usr/bin/env bash
     set -euo pipefail
@@ -289,22 +353,12 @@ make-translations: _check-dev
         cd -
     done
 
-# Compile translation files
-compile-translations: _check-dev
-    #!/usr/bin/env bash
-    set -euo pipefail
-    for pkg_dir in ./ ../premium/backend/ ../enterprise/backend/; do
-        echo "Processing $pkg_dir"
-        cd "$pkg_dir"
-        {{ uv_run }} django-admin compilemessages -l en || true
-        cd -
-    done
-
 # =============================================================================
 # CI Tasks
 # =============================================================================
 
 # Run CI Python tests with coverage
+[group('8 - ci')]
 ci-test-python: _check-dev
     #!/usr/bin/env bash
     set -euo pipefail
@@ -323,6 +377,7 @@ ci-test-python: _check-dev
         {{ pytest_extra_args }} {{ backend_tests_dirs_from_root }}
 
 # Generate CI coverage report
+[group('8 - ci')]
 ci-coverage-report: _check-dev
     #!/usr/bin/env bash
     set -euo pipefail
@@ -334,6 +389,7 @@ ci-coverage-report: _check-dev
     {{ uv_run }} coverage xml -o coverage.xml
 
 # Check Python startup (full version)
+[group('8 - ci')]
 ci-check-startup-python: _check-dev
     #!/usr/bin/env bash
     set -euxo pipefail
@@ -343,6 +399,7 @@ ci-check-startup-python: _check-dev
         -k uvicorn.workers.UvicornWorker baserow.config.asgi:application
 
 # Check Python startup (OSS only)
+[group('8 - ci')]
 ci-check-startup-python-oss-only: _check-dev
     #!/usr/bin/env bash
     set -euxo pipefail
@@ -360,6 +417,7 @@ server_bind := env("SERVER_BIND", "0.0.0.0:8000")
 gunicorn_workers := env("GUNICORN_WORKERS", "5")
 
 # Run development server (Django)
+[group('2 - development')]
 run-dev-server *ARGS: _check-dev
     #!/usr/bin/env bash
     set -euo pipefail
@@ -367,6 +425,7 @@ run-dev-server *ARGS: _check-dev
     {{ uv_run }} baserow runserver {{ ARGS }} 2>&1 | tee {{ log_file }}
 
 # Run production ASGI server (gunicorn + uvicorn)
+[group('5 - production')]
 run-asgi *ARGS: _check-dev
     #!/usr/bin/env bash
     set -euo pipefail
@@ -374,6 +433,7 @@ run-asgi *ARGS: _check-dev
     {{ uv_run }} gunicorn -w {{ gunicorn_workers }} -b {{ server_bind }} -k uvicorn.workers.UvicornWorker baserow.config.asgi:application {{ ARGS }}
 
 # Run production WSGI server (gunicorn)
+[group('5 - production')]
 run-wsgi *ARGS: _check-dev
     #!/usr/bin/env bash
     set -euo pipefail
@@ -381,6 +441,7 @@ run-wsgi *ARGS: _check-dev
     {{ uv_run }} gunicorn -w {{ gunicorn_workers }} -b {{ server_bind }} baserow.config.wsgi:application {{ ARGS }}
 
 # Run production Celery worker (main queues)
+[group('5 - production')]
 run-celery: _check-dev
     #!/usr/bin/env bash
     set -euo pipefail
@@ -388,6 +449,7 @@ run-celery: _check-dev
     {{ uv_run }} celery -A baserow worker -Q celery,automation_workflow -l INFO
 
 # Run production Celery export worker
+[group('5 - production')]
 run-celery-export: _check-dev
     #!/usr/bin/env bash
     set -euo pipefail
@@ -395,6 +457,7 @@ run-celery-export: _check-dev
     {{ uv_run }} celery -A baserow worker -Q export -l INFO
 
 # Run production Celery beat scheduler
+[group('5 - production')]
 run-celery-beat: _check-dev
     #!/usr/bin/env bash
     set -euo pipefail
@@ -408,6 +471,7 @@ celery_log_level := env("CELERY_LOG_LEVEL", "INFO")  # INFO default, override wi
 celery_pool := env("CELERY_POOL", "solo")
 
 # Run all Celery workers and beat together for development
+[group('2 - development')]
 run-dev-celery: _check-dev
     #!/usr/bin/env bash
     set -euo pipefail
@@ -455,6 +519,7 @@ run-dev-celery: _check-dev
     wait
 
 # Run any command in the venv (with .env.local loaded)
+[group('2 - development')]
 run *args: _check-dev
     #!/usr/bin/env bash
     set -euo pipefail
@@ -462,6 +527,7 @@ run *args: _check-dev
     {{ uv_run }} {{ args }}
 
 # Run Django manage.py commands (e.g., just b manage makemigrations)
+[group('2 - development')]
 manage *args: _check-dev
     #!/usr/bin/env bash
     set -euo pipefail
@@ -472,20 +538,23 @@ manage *args: _check-dev
 alias m := manage
 
 # Run database migrations
+[group('2 - development')]
 migrate *args: _check-dev
     #!/usr/bin/env bash
     set -euo pipefail
     {{ _load_env }}
     {{ uv_run }} baserow migrate {{ args }}
 
-# Open Django shell with shell_plus and SQL logging
+# Open Django shell with shell_plus and SQL logging. Pass --print-sql to enable SQL query logging.
+[group('2 - development')]
 shell: _check-dev
     #!/usr/bin/env bash
     set -euo pipefail
     {{ _load_env }}
-    {{ uv_run }} baserow shell_plus --print-sql
+    {{ uv_run }} baserow shell_plus
 
 # Show current environment info
+[group('2 - development')]
 env-info:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -523,34 +592,6 @@ env-info:
         echo "  .env             - Production Docker"
     fi
 
-# =============================================================================
-# Build & Package
-# =============================================================================
-
-# Build wheel packages
-package-build: _check-dev
-    {{ uv_run }} python -m build . -o dist/
-    {{ uv_run }} python -m build ../premium/backend/ -o dist/ || true
-    {{ uv_run }} python -m build ../enterprise/backend/ -o dist/ || true
-
-# ======t=================================================================
-# Cleanup
-# =============================================================================
-
-# Remove build artifacts
-clean:
-    rm -rf dist/*
-
-# Remove virtual environment
-venv-clean:
-    rm -rf "{{ venv_dir }}"
-
-# Remove lock file
-lock-clean:
-    rm -f uv.lock
-
-# Remove all (build artifacts + venv + lock)
-clean-all: clean venv-clean lock-clean
 
 # =============================================================================
 # Internal helpers

@@ -1,12 +1,15 @@
 services:
   # A dev compose file for quickly setting up an all in one with hot code reloading
   baserow_all_in_one:
-    image: baserow:${BASEROW_VERSION:-dev-latest}
-    user: "${UID}:${GID}"
     build:
       dockerfile: $PWD/deploy/all-in-one/Dockerfile
       context: $PWD
       target: dev
+      args:
+        # We allow configuring the UID/GID here so you can run as the dev's actual user
+        # reducing the chance the containers screw up the bind mounted folders.
+        UID: $UID
+        GID: $GID
     environment:
       EMAIL_SMTP: 'yes'
       EMAIL_SMTP_HOST: 'mailhog'
@@ -14,8 +17,10 @@ services:
     ports:
       - "80:80"
       - "443:443"
+      - "5432:5432"
+      - "6379:6379"
     volumes:
-      - baserow_all_in_one_data:/baserow/data
+      - baserow_all_in_one_data_dev:/baserow/data
       - $PWD/deploy/all-in-one/baserow.sh:/baserow.sh
       - $PWD/backend:/baserow/backend
       - $PWD/premium/backend/:/baserow/premium/backend
@@ -26,6 +31,8 @@ services:
       - /baserow/web-frontend/node_modules
       - $PWD/premium/web-frontend/:/baserow/premium/web-frontend
       - $PWD/enterprise/web-frontend/:/baserow/enterprise/web-frontend
+      - $PWD/deploy/plugins/:/baserow/plugins/
+      - $PWD/tests:/baserow/tests
     stdin_open: true
     tty: true
   mailhog:
@@ -35,4 +42,4 @@ services:
     ports:
       - "8025:8025" # web ui
 volumes:
-  baserow_all_in_one_data:
+  baserow_all_in_one_data_dev:

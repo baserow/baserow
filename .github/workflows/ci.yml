@@ -6,9 +6,16 @@ on:
       - develop
       - master
   pull_request:
+  workflow_dispatch:
+    inputs:
+      clear_cache:
+        description: 'Clear Docker build cache before building'
+        required: false
+        default: false
+        type: boolean
 
 # Customize the workflow run name to show branch/PR info
-run-name: "CI: ${{ github.event_name == 'pull_request' && github.event.pull_request.title || github.ref_name }}"
+run-name: "CI: ${{ github.event_name == 'pull_request' && github.event.pull_request.title || github.ref_name }}${{ inputs.clear_cache && ' (cache cleared)' || '' }}"
 
 # Automatically cancel in-progress workflows for the same branch/PR
 concurrency:
@@ -90,7 +97,7 @@ jobs:
           target: ci
           push: true
           tags: ${{ steps.image.outputs.full }}
-          cache-from: type=gha,scope=backend-ci
+          cache-from: ${{ inputs.clear_cache != true && 'type=gha,scope=backend-ci' || '' }}
           cache-to: type=gha,scope=backend-ci,mode=max
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
@@ -135,7 +142,7 @@ jobs:
           target: ci
           push: true
           tags: ${{ steps.image.outputs.full }}
-          cache-from: type=gha,scope=frontend-ci
+          cache-from: ${{ inputs.clear_cache != true && 'type=gha,scope=frontend-ci' || '' }}
           cache-to: type=gha,scope=frontend-ci,mode=max
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
@@ -182,8 +189,8 @@ jobs:
           push: true
           tags: ${{ steps.image.outputs.full }}
           cache-from: |
-            type=gha,scope=frontend-e2e
-            type=gha,scope=frontend-ci
+            ${{ inputs.clear_cache != true && 'type=gha,scope=frontend-e2e' || '' }}
+            ${{ inputs.clear_cache != true && 'type=gha,scope=frontend-ci' || '' }}
           cache-to: type=gha,scope=frontend-e2e,mode=max
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
@@ -935,8 +942,10 @@ jobs:
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/backend:ci-tested-${{ env.REAL_GITHUB_SHA }}
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/backend_dev:ci-${{ env.REAL_GITHUB_SHA }}
-          cache-to: type=registry,ref=${{ steps.cache.outputs.branch }},mode=max
+          cache-from: |
+            type=gha,scope=backend-ci
+            type=gha,scope=backend-prod
+          cache-to: type=gha,scope=backend-prod,mode=max
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ env.REAL_GITHUB_SHA }}
@@ -975,8 +984,11 @@ jobs:
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/web-frontend:ci-tested-${{ env.REAL_GITHUB_SHA }}
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/web-frontend_dev:ci-${{ env.REAL_GITHUB_SHA }}
-          cache-to: type=registry,ref=${{ steps.cache.outputs.branch }},mode=max
+          cache-from: |
+            type=gha,scope=frontend-ci
+            type=gha,scope=frontend-e2e
+            type=gha,scope=frontend-prod
+          cache-to: type=gha,scope=frontend-prod,mode=max
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ env.REAL_GITHUB_SHA }}
@@ -1016,7 +1028,8 @@ jobs:
             FROM_WEBFRONTEND_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/web-frontend:ci-tested-${{ env.REAL_GITHUB_SHA }}
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/baserow:ci-tested-${{ env.REAL_GITHUB_SHA }}
-          cache-to: type=registry,ref=${{ steps.cache.outputs.branch }},mode=max
+          cache-from: type=gha,scope=all-in-one
+          cache-to: type=gha,scope=all-in-one,mode=max
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ env.REAL_GITHUB_SHA }}
@@ -1054,7 +1067,8 @@ jobs:
             FROM_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/baserow:ci-tested-${{ env.REAL_GITHUB_SHA }}
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/cloudron:ci-tested-${{ env.REAL_GITHUB_SHA }}
-          cache-to: type=registry,ref=${{ steps.cache.outputs.branch }},mode=max
+          cache-from: type=gha,scope=cloudron
+          cache-to: type=gha,scope=cloudron,mode=max
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ env.REAL_GITHUB_SHA }}
