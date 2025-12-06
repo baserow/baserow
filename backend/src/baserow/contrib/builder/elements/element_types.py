@@ -38,6 +38,7 @@ from baserow.contrib.builder.elements.mixins import (
     ContainerElementTypeMixin,
     FormElementTypeMixin,
     MultiPageElementTypeMixin,
+    PositionedContainerElementTypeMixin,
 )
 from baserow.contrib.builder.elements.models import (
     INPUT_TEXT_TYPES,
@@ -2513,3 +2514,17 @@ class MenuElementType(ElementType):
                 if new_formula is not None:
                     setattr(item, formula_field, new_formula)
                     yield item
+
+class PositionedContainerElementType(
+    PositionedContainerElementTypeMixin, ElementType
+):
+    type = "positioned_container"
+    model_class = PositionedContainerElement
+    allowed_fields = ["alignment", "behaviour"]
+    serializer_field_names = ["alignment", "behaviour"]
+    
+
+    class SerializedDict(PositionedContainerElementTypeMixin.SerializedDict):
+        alignment: str
+        behaviour: str
+x

@@ -1120,3 +1120,30 @@ class SimpleContainerElement(ContainerElement):
     """
     A simple container to group elements
     """
+
+class PositionedContainerElement(ContainerElement):
+    """
+    A container element that can be positioned at the top or bottom of the page
+    with fixed or sticky behavior.
+    """
+
+    class ALIGNMENTS(models.TextChoices):
+        TOP = "top"
+        BOTTOM = "bottom"
+
+    class BEHAVIOURS(models.TextChoices):
+        FIXED = "fixed"
+
+    alignment = models.CharField(
+        choices=ALIGNMENTS.choices,
+        max_length=10,
+        default=ALIGNMENTS.TOP,
+        help_text="The alignment of the container on the page.",
+    )
+
+    behaviour = models.CharField(
+        choices=BEHAVIOURS.choices,
+        max_length=10,
+        default=BEHAVIOURS.FIXED,
+        help_text="How the container behaves during page scroll.",
+    )

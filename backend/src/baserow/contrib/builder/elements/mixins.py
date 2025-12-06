@@ -84,7 +84,7 @@ class ContainerElementTypeMixin:
     ) -> List[str]:
         """
         This method defines what elements in the container have been removed preceding
-        an update of hte container element.
+        an update of the container element.
 
         :param values: The new values that are being set
         :param instance: The current state of the element
@@ -130,6 +130,24 @@ class ContainerElementTypeMixin:
         """
 
         return True
+
+
+class PositionedContainerElementTypeMixin(ContainerElementTypeMixin):
+    """
+    Mixin for positioned container element types with alignment and behaviour.
+    """
+
+    @property
+    def allowed_fields(self):
+        return super().allowed_fields + ["alignment", "behaviour"]
+
+    @property
+    def serializer_field_names(self):
+        return super().serializer_field_names + ["alignment", "behaviour"]
+
+    class SerializedDict(ContainerElementTypeMixin.SerializedDict):
+        alignment: str
+        behaviour: str
 
 
 class CollectionElementTypeMixin:

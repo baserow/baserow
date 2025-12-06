@@ -99,6 +99,7 @@ import elementImageRepeat from '@baserow/modules/builder/assets/icons/element-re
 import elementImageSimpleContainer from '@baserow/modules/builder/assets/icons/element-simple_container.svg'
 import elementImageTable from '@baserow/modules/builder/assets/icons/element-table.svg'
 import elementImageText from '@baserow/modules/builder/assets/icons/element-text.svg'
+import elementImagePositionedContainer from '@baserow/modules/builder/assets/icons/element-positioned_container.svg'
 import moment from '@baserow/modules/core/moment'
 
 import _ from 'lodash'
@@ -1184,6 +1185,87 @@ export class SimpleContainerElementType extends ContainerElementTypeMixin(
 
   getElementPlaces(element) {
     return [null]
+  }
+}
+
+export class PositionedContainerElementType extends ContainerElementTypeMixin(
+  ElementType
+) {
+  static getType() {
+    return 'positioned_container'
+  }
+
+  category() {
+    return 'layoutElement'
+  }
+
+  get name() {
+    return this.app.i18n.t('elementType.positionedContainer')
+  }
+
+  get description() {
+    return this.app.i18n.t('elementType.positionedContainerDescription')
+  }
+
+  get iconClass() {
+    return 'iconoir-position-align'
+  }
+
+  get image() {
+    return elementImagePositionedContainer
+  }
+
+  get component() {
+    return PositionedContainerElement
+  }
+
+  get generalFormComponent() {
+    return PositionedContainerElementForm
+  }
+
+  getDefaultValues(page, values) {
+    const superValues = super.getDefaultValues(page, values)
+    return {
+      ...superValues,
+      style_padding_left: 0,
+      style_padding_right: 0,
+      style_padding_top: 0,
+      style_padding_bottom: 0,
+    }
+  }
+
+  getDefaultChildValues(page, values) {
+    return {}
+  }
+
+  getElementPlaces(element) {
+    return [null]
+  }
+
+  /**
+   * We can't have this element inside another container.
+   */
+  isDisallowedReason({
+    workspace,
+    builder,
+    page,
+    parentElement,
+    beforeElement,
+    placeInContainer,
+    pagePlace,
+  }) {
+    if (parentElement) {
+      return this.app.i18n.t('elementType.notAllowedInsideContainer')
+    }
+    return super.isDisallowedReason({
+      workspace,
+      builder,
+      page,
+      parentElement,
+      beforeElement,
+      placeInContainer,
+      pagePlace,
+    })
   }
 }
 
