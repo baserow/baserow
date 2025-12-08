@@ -584,14 +584,16 @@
         "requiredTitle": "Requerido"
     },
     "generalForm": {
-        "placeholderPlaceholder": "Introduce un marcador de posición (opcional)",
+        "placeholderPlaceholder": "Introduce un marcador de posición",
         "requiredTitle": "Requerido",
         "labelTitle": "Etiqueta",
-        "labelPlaceholder": "Introduce una etiqueta (opcional)",
+        "labelPlaceholder": "Introduce la etiqueta",
         "valueTitle": "Valor",
-        "valuePlaceholder": "Introduce un valor por defecto (opcional)",
+        "valuePlaceholder": "Introduce un valor",
         "placeholderTitle": "Marcador de posición",
-        "validationTitle": "Validación"
+        "validationTitle": "Validación",
+        "defaultValueTitle": "Valor predeterminado",
+        "defaultValuePlaceholder": "Introduce el valor predeterminado"
     },
     "iframeElementForm": {
         "empty": "Iframe vacío...",
@@ -762,7 +764,7 @@
         "size": "Tamaño",
         "textAlignment": "Alineación",
         "bodyLabel": "Cuerpo",
-        "fontFamily": "Fuente"
+        "fontFamily": "Fuente tipográfica"
     },
     "buttonThemeConfigBlock": {
         "backgroundColor": "Color de fondo",
@@ -778,12 +780,12 @@
         "borderRadius": "Radio del borde",
         "borderColor": "Color del borde",
         "borderSize": "Tamaño del borde",
-        "fontFamily": "Fuente"
+        "fontFamily": "Fuente tipográfica"
     },
     "linkThemeConfigBlock": {
         "defaultState": "Estado por defecto",
         "alignment": "Alineación",
-        "fontFamily": "Fuente",
+        "fontFamily": "Fuente tipográfica",
         "link": "Enlace",
         "color": "Color",
         "hoverState": "Estado de la imagen flotante"
@@ -842,7 +844,7 @@
         "borderSize": "Tamaño del borde",
         "borderRadius": "Radio del borde",
         "padding": "Acolchado",
-        "fontFamily": "Fuente",
+        "fontFamily": "Fuente tipográfica",
         "size": "Tamaño de letra",
         "label": "Etiqueta",
         "input": "Entrada",
@@ -1047,6 +1049,10 @@
         "menuItemAddButton": "Botón",
         "menuItemAddSeparator": "Separador",
         "menuItemAddSpacer": "Espaciador",
-        "eventDescription": "Para configurar acciones para este botón, abre la pestaña «Eventos» de este elemento."
+        "eventDescription": "Para configurar acciones para este botón, abre la pestaña «Eventos» de este elemento.",
+        "noMenuItemsMessage": "Haz clic en «Añadir» para añadir tu primer elemento de menú."
+    },
+    "simpleContainerElementForm": {
+        "noConfigurationOptions": "El elemento contenedor no tiene ninguna opción de configuración."
     }
 }
