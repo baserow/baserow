@@ -15,8 +15,6 @@ export default defineNuxtRouteMiddleware(async () => {
   // Get the selected workspace id
   let workspaceId = getWorkspaceCookie(nuxtApp)
 
-  console.log('middleware workspaces loaded', workspaceId)
-
   // If the workspaces haven't already been selected we will
   if (store.getters['auth/isAuthenticated']) {
     // If the workspaces haven't been loaded we will load them all.
@@ -24,7 +22,6 @@ export default defineNuxtRouteMiddleware(async () => {
       await store.dispatch('workspace/fetchAll')
 
       const workspaces = store.getters['workspace/getAll']
-      console.log('All workspaces', toRaw(workspaces))
       const workspaceExists =
         workspaces.find((w) => w.id === workspaceId) !== undefined
       if (!workspaceExists) {
