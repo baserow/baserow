@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "nuxt build",
-    "dev": "nuxt dev",
+    "build": "APP_ENV=production nuxt build",
+    "dev": "APP_ENV=dev nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "_postinstall": "nuxt prepare"
