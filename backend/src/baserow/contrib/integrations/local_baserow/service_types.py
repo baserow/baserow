@@ -2104,13 +2104,22 @@ class LocalBaserowUpsertRowServiceType(
         model = table.get_model()
 
         if row_id:
+            row_ids_to_update = row_id if isinstance(row_id, list) else [row_id]
+            
             try:
-                (row,) = UpdateRowsActionType.do(
+                rows_values_to_update = [
+                    {**row_values, "id": rid} for rid in row_ids_to_update
+                ]
+                
+                result = UpdateRowsActionType.do(
                     service.integration.authorized_user,
                     table,
-                    rows_values=[{**row_values, "id": row_id}],
+                    rows_values=rows_values_to_update,
                     model=model,
-                ).updated_rows
+                )
+                
+                row = result.updated_rows[0] if len(row_ids_to_update) == 1 else result.updated_rows
+                
             except RowDoesNotExist as exc:
                 raise ServiceImproperlyConfiguredDispatchException(
                     f"The row with id {row_id} does not exist."

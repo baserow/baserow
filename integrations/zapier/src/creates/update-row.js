@@ -11,36 +11,45 @@ const updateRowInputFields = [
     type: 'integer',
     required: true,
     altersDynamicFields: true,
-    helpText: 'Please enter the table ID where the row must be updated in. You can ' +
-      'find the ID by clicking on the three dots next to the table. It\'s the ' +
-      'number between brackets.'
+    helpText:
+      'Please enter the table ID where the row must be updated. ' +
+      'You can find the ID by clicking on the three dots next to the table. ' +
+      'It’s the number between brackets.'
   },
   {
     key: 'rowID',
     label: 'Row ID',
-    type: 'integer',
+    type: 'string',
     required: true,
-    helpText: 'Please enter the row ID that must be updated.'
+    helpText:
+      'Enter a single row ID or comma-separated IDs to update multiple rows at once.'
   },
 ]
 
 const updateRow = async (z, bundle) => {
   const rowData = await prepareInputDataForBaserow(z, bundle)
-  const rowPatchRequest = await z.request({
-    url: `${bundle.authData.apiURL}/api/database/rows/table/${bundle.inputData.tableID}/${bundle.inputData.rowID}/`,
+
+  const rowIds = bundle.inputData.rowID.includes(',')
+    ? bundle.inputData.rowID.split(',').map(id => id.trim())
+    : [bundle.inputData.rowID]
+
+  const rowIdPath = rowIds.join(',')
+
+  const response = await z.request({
+    url: `${bundle.authData.apiURL}/api/database/rows/table/${bundle.inputData.tableID}/${rowIdPath}/`,
     method: 'PATCH',
     headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'Authorization': `Token ${bundle.authData.apiToken}`,
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+      Authorization: `Token ${bundle.authData.apiToken}`,
     },
     params: {
-      'user_field_names': 'true',
+      user_field_names: 'true',
     },
     body: rowData,
   })
 
-  return rowPatchRequest.json
+  return response.json
 }
 
 module.exports = {
@@ -48,7 +57,7 @@ module.exports = {
   noun: 'Row',
   display: {
     label: 'Update Row',
-    description: 'Updates an existing row.'
+    description: 'Updates one or more existing rows.'
   },
   operation: {
     perform: updateRow,

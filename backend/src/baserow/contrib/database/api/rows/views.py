@@ -865,8 +865,8 @@ class RowView(APIView):
             OpenApiParameter(
                 name="row_id",
                 location=OpenApiParameter.PATH,
-                type=OpenApiTypes.INT,
-                description="Updates the row related to the value.",
+                type=OpenApiTypes.ANY,
+                description="Updates the row(s) related to the value. Can be a single integer or comma-separated integers.",
             ),
             OpenApiParameter(
                 name="view",
@@ -903,8 +903,9 @@ class RowView(APIView):
         tags=["Database table rows"],
         operation_id="update_database_table_row",
         description=(
-            "Updates an existing row in the table if the user has access to the "
-            "related table's workspace. The accepted body fields are depending on the "
+            "Updates an existing row or multiple rows in the table if the user has access to the "
+            "related table's workspace. The row_id can be a single integer or a comma-separated "
+            "list of integers to update multiple rows at once. The accepted body fields are depending on the "
             "fields that the table has. For a complete overview of fields use the "
             "**list_database_table_fields** endpoint to list them all. None of the "
             "fields are required, if they are not provided the value is not going to "
@@ -946,17 +947,14 @@ class RowView(APIView):
     )
     @atomic_with_retry_on_deadlock()
     @require_request_data_type(dict)
-    @validate_query_parameters(UpdateRowQueryParamsSerializer)
-    def patch(
-        self, request: Request, table_id: int, row_id: int, query_params
-    ) -> Response:
+    def patch(self, request: Request, table_id: int, row_id: int) -> Response:
         """
-        Updates the row with the given row_id for the table with the given
+        Updates the row(s) with the given row_id(s) for the table with the given
         table_id. Also the post data is validated according to the tables field types.
 
         :param request: The request object
         :param table_id: The id of the table to update the row in
-        :param row_id: The id of the row to update
+        :param row_id: The id(s) of the row(s) to update (can be comma-separated)
         :return: The updated row values serialized as a json object
         """
 
@@ -967,10 +965,6 @@ class RowView(APIView):
 
         user_field_names = extract_user_field_names_from_params(request.GET)
         send_webhook_events = extract_send_webhook_events_from_params(request.GET)
-
-        view_id = query_params.get("view")
-        view = ViewHandler().get_view(view_id) if view_id else None
-
         field_ids, field_names = None, None
 
         if user_field_names:
@@ -986,28 +980,38 @@ class RowView(APIView):
             user_field_names=user_field_names,
         )
         data = validate_data(validation_serializer, request_data, return_validated=True)
+        
         try:
-            data["id"] = int(row_id)
-            row = (
+            rows_data = [{"id": rid, **data} for rid in row_ids]
+            
+            result = (
                 action_type_registry.get_by_type(UpdateRowsActionType)
                 .do(
                     request.user,
                     table,
-                    [data],
+                    rows_data,
                     model=model,
                     view=view,
                     send_webhook_events=send_webhook_events,
                 )
-                .updated_rows[0]
             )
+            
+            if len(row_ids) == 1:
+                row = result.updated_rows[0]
+                serializer_class = get_row_serializer_class(
+                    model, RowSerializer, is_response=True, user_field_names=user_field_names
+                )
+                serializer = serializer_class(row)
+                return Response(serializer.data)
+            else:
+                serializer_class = get_row_serializer_class(
+                    model, RowSerializer, is_response=True, user_field_names=user_field_names
+                )
+                serializer = serializer_class(result.updated_rows, many=True)
+                return Response({"items": serializer.data})
+                
         except ValidationError as exc:
             raise RequestBodyValidationException(detail=exc.message) from exc
-
-        serializer_class = get_row_serializer_class(
-            model, RowSerializer, is_response=True, user_field_names=user_field_names
-        )
-        serializer = serializer_class(row)
-        return Response(serializer.data)
 
     @extend_schema(
         parameters=[
@@ -1027,8 +1031,8 @@ class RowView(APIView):
             OpenApiParameter(
                 name="row_id",
                 location=OpenApiParameter.PATH,
-                type=OpenApiTypes.INT,
-                description="Deletes the row related to the value.",
+                type=OpenApiTypes.ANY,
+                description="Deletes the row(s) related to the value. Can be a single integer or comma-separated integers.",
             ),
             OpenApiParameter(
                 name="send_webhook_events",
@@ -1046,8 +1050,9 @@ class RowView(APIView):
         tags=["Database table rows"],
         operation_id="delete_database_table_row",
         description=(
-            "Deletes an existing row in the table if the user has access to the "
-            "table's workspace."
+            "Deletes an existing row or multiple rows in the table if the user has access to the "
+            "table's workspace. The row_id can be a single integer or a comma-separated "
+            "list of integers to delete multiple rows at once."
         ),
         responses={
             204: None,
@@ -1075,7 +1080,7 @@ class RowView(APIView):
     @validate_query_parameters(DeleteRowQueryParamsSerializer)
     def delete(self, request, table_id, row_id, query_params):
         """
-        Deletes an existing row with the given row_id for table with the given
+        Deletes an existing row or rows with the given row_id(s) for table with the given
         table_id.
         """
 
@@ -1088,11 +1093,7 @@ class RowView(APIView):
         view = ViewHandler().get_view(view_id) if view_id else None
 
         action_type_registry.get_by_type(DeleteRowActionType).do(
-            request.user,
-            table,
-            row_id,
-            view=view,
-            send_webhook_events=send_webhook_events,
+            request.user, table, row_id, send_webhook_events=send_webhook_events
         )
 
         return Response(status=204)

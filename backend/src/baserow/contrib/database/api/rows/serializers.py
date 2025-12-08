@@ -642,3 +642,59 @@ class RowHistorySerializer(serializers.ModelSerializer):
             "after",
             "fields_metadata",
         ]
+
+
+class RowIdSerializer(serializers.Serializer):
+    row_id = serializers.IntegerField(
+        min_value=0,
+        help_text="The ID of the row to update or delete."
+    )
+
+
+class BatchRowIdSerializer(serializers.Serializer):
+    row_ids = serializers.ListField(
+        child=serializers.IntegerField(min_value=0),
+        min_length=1,
+        help_text="An array of row IDs to update or delete."
+    )
+
+
+class FlexibleRowIdField(serializers.Field):
+    """
+    A field that accepts either a single integer or an array of integers for row_id.
+    """
+
+    def to_internal_value(self, data):
+        if isinstance(data, int):
+            return [data]
+        elif isinstance(data, list):
+            if not data:
+                raise serializers.ValidationError("row_id array cannot be empty")
+            for item in data:
+                if not isinstance(item, int) or item < 0:
+                    raise serializers.ValidationError(
+                        "All row_id values must be positive integers"
+                    )
+            return data
+        else:
+            raise serializers.ValidationError(
+                "row_id must be an integer or an array of integers"
+            )
+
+    def to_representation(self, value):
+        return value
+
+
+class UpdateRowQueryParamsSerializer(serializers.Serializer):
+    row_id = FlexibleRowIdField(
+        help_text="The ID of the row(s) to update. Can be a single integer or an array of integers."
+    )
+    user_field_names = serializers.BooleanField(required=False, default=False)
+    send_webhook_events = serializers.BooleanField(required=False, default=True)
+
+
+class DeleteRowQueryParamsSerializer(serializers.Serializer):
+    row_id = FlexibleRowIdField(
+        help_text="The ID of the row(s) to delete. Can be a single integer or an array of integers."
+    )
+    send_webhook_events = serializers.BooleanField(required=False, default=True)
