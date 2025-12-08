@@ -105,6 +105,24 @@ def test_update_domain(data_fixture):
 
 
 @pytest.mark.django_db
+def test_update_domain_with_duplicate_name(data_fixture):
+    builder = data_fixture.create_builder_application()
+    domain = data_fixture.create_builder_custom_domain(
+        domain_name="test.com", builder=builder
+    )
+
+    existing_domain = "other.com"
+    DomainHandler().create_domain(
+        CustomDomainType(), builder, domain_name=existing_domain
+    )
+
+    with pytest.raises(DomainNameNotUniqueError) as exc_info:
+        DomainHandler().update_domain(domain, domain_name=existing_domain)
+
+    assert exc_info.value.domain_name == existing_domain
+
+
+@pytest.mark.django_db
 def test_order_domains(data_fixture):
     builder = data_fixture.create_builder_application()
     domain_one = data_fixture.create_builder_custom_domain(builder=builder, order=1)
