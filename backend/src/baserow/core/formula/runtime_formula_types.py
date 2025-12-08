@@ -446,7 +446,7 @@ class RuntimeLength(RuntimeFormulaFunction):
 
         try:
             return len(ensure_object(value))
-        except ValidationError:
+        except (TypeError, ValidationError):
             pass
 
         try:
@@ -459,7 +459,7 @@ class RuntimeLength(RuntimeFormulaFunction):
         except ValidationError:
             pass
 
-        return 0
+        return None
 
 
 class RuntimeContains(RuntimeFormulaFunction):

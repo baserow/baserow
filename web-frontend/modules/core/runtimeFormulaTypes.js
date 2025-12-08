@@ -1819,7 +1819,9 @@ export class RuntimeLength extends RuntimeFormulaFunction {
   execute(context, [value]) {
     try {
       const val = ensureObject(value)
-      return Object.keys(val).length
+      if (typeof val === 'object' && !Array.isArray(val)) {
+        return Object.keys(val).length
+      }
     } catch {}
 
     try {
@@ -1832,7 +1834,7 @@ export class RuntimeLength extends RuntimeFormulaFunction {
       return val.length
     } catch {}
 
-    return 0
+    return null
   }
 
   getDescription() {
