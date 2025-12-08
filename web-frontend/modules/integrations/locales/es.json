@@ -264,9 +264,23 @@
         "toEmailsPlaceholder": "destinatario1@ejemplo.com, destinatario2@ejemplo.com",
         "ccEmails": "Correos en copia (CC)",
         "bccEmails": "Correos en copia oculta (BCC)",
-        "ccEmailsPlaceholder": "destinatarioencopia1@ejemplo.com, destinatarioencopia2@ejemplo.com"
+        "ccEmailsPlaceholder": "destinatarioencopia1@ejemplo.com, destinatarioencopia2@ejemplo.com",
+        "bccEmailsPlaceholder": "destinatarioencopiaoculta1@ejemplo.com, destinatarioencopiaoculta2@ejemplo.com",
+        "subject": "Asunto",
+        "subjectPlaceholder": "Asunto del mensaje de correo",
+        "bodyType": "Tipo de contenido",
+        "bodyTypePlain": "Texto plano",
+        "bodyTypeHtml": "HTML",
+        "body": "Contenido",
+        "bodyPlaceholder": "Tu contenido de correo…"
     },
     "routerForm": {
-        "defaultEdgeLabelLabel": "Etiqueta de rama predeterminada"
+        "defaultEdgeLabelLabel": "Etiqueta de rama predeterminada",
+        "defaultEdgeLabelPlaceholder": "Predeterminado",
+        "defaultEdgeLabelDescription": "Opcionalmente elige la etiqueta para mostrar en la rama predeterminada."
+    },
+    "coreIterationServiceForm": {
+        "source": "Fuente",
+        "sourcePlaceholder": "Selecciona una fuente…"
     }
 }
