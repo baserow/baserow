@@ -148,12 +148,12 @@ export class EventsPageSidePanelType extends pageSidePanelType {
     // If we don't have an element, then this element type
     // doesn't support events, so it can't be in-error.
     if (element) {
-      const elementPage = this.app.store.getters['page/getById'](
+      const elementPage = this.app.$store.getters['page/getById'](
         builder,
         element.page_id
       )
 
-      const workflowActions = this.app.store.getters[
+      const workflowActions = this.app.$store.getters[
         'builderWorkflowAction/getElementWorkflowActions'
       ](elementPage, element.id)
 

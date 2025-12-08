@@ -21,7 +21,7 @@ export class PreviousNodeDataProviderType extends DataProviderType {
   getDataSchema(applicationContext) {
     const { automation, workflow, node: currentNode } = applicationContext
 
-    const previousNodes = this.app.store.getters[
+    const previousNodes = this.app.$store.getters[
       'automationWorkflowNode/getPreviousNodes'
     ](workflow, currentNode, {
       predicate: (referenceNode, position, output) => position !== 'child',
@@ -65,7 +65,7 @@ export class PreviousNodeDataProviderType extends DataProviderType {
       const workflow = applicationContext?.workflow
       const nodeId = parseInt(pathParts[1])
 
-      const node = this.app.store.getters['automationWorkflowNode/findById'](
+      const node = this.app.$store.getters['automationWorkflowNode/findById'](
         workflow,
         nodeId
       )
@@ -98,7 +98,7 @@ export class CurrentIterationDataProviderType extends DataProviderType {
   getDataSchema(applicationContext) {
     const { automation, workflow, node: currentNode } = applicationContext
 
-    const ancestors = this.app.store.getters[
+    const ancestors = this.app.$store.getters[
       'automationWorkflowNode/getAncestors'
     ](workflow, currentNode)
 
@@ -149,7 +149,7 @@ export class CurrentIterationDataProviderType extends DataProviderType {
       const workflow = applicationContext?.workflow
       const nodeId = parseInt(pathParts[1])
 
-      const node = this.app.store.getters['automationWorkflowNode/findById'](
+      const node = this.app.$store.getters['automationWorkflowNode/findById'](
         workflow,
         nodeId
       )

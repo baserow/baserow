@@ -60,7 +60,7 @@ export class AuthFormElementType extends ElementType {
     if (!element.user_source_id) {
       return this.$t('elementType.errorUserSourceMissing')
     }
-    const userSource = this.app.store.getters['userSource/getUserSourceById'](
+    const userSource = this.app.$store.getters['userSource/getUserSourceById'](
       builder,
       element.user_source_id
     )

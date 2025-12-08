@@ -2677,18 +2677,18 @@ export class LastModifiedByFieldType extends FieldType {
       let userNameA = a[name] === null ? '' : a[name].name
       let userNameB = b[name] === null ? '' : b[name].name
 
-      const workspaces = this.app.store.getters['workspace/getAll']
+      const workspaces = this.app.$store.getters['workspace/getAll']
       const workspaceAvailable = workspaces.length > 0
       if (workspaceAvailable) {
         if (a[name] !== null) {
-          const workspaceUserA = this.app.store.getters[
+          const workspaceUserA = this.app.$store.getters[
             'workspace/getUserById'
           ](a[name].id)
           userNameA = workspaceUserA ? workspaceUserA.name : userNameA
         }
 
         if (b[name] !== null) {
-          const workspaceUserB = this.app.store.getters[
+          const workspaceUserB = this.app.$store.getters[
             'workspace/getUserById'
           ](b[name].id)
           userNameB = workspaceUserB ? workspaceUserB.name : userNameB
@@ -2705,8 +2705,8 @@ export class LastModifiedByFieldType extends FieldType {
 
   _getCurrentUserValue() {
     return {
-      id: this.app.store.getters['auth/getUserId'],
-      name: this.app.store.getters['auth/getName'],
+      id: this.app.$store.getters['auth/getUserId'],
+      name: this.app.$store.getters['auth/getName'],
     }
   }
 
@@ -2725,9 +2725,9 @@ export class LastModifiedByFieldType extends FieldType {
 
     const name = value.name
 
-    const workspaces = this.app.store.getters['workspace/getAll']
+    const workspaces = this.app.$store.getters['workspace/getAll']
     if (workspaces.length > 0) {
-      const workspaceUser = this.app.store.getters['workspace/getUserById'](
+      const workspaceUser = this.app.$store.getters['workspace/getUserById'](
         value.id
       )
       return workspaceUser ? workspaceUser.name : name
@@ -2819,18 +2819,18 @@ export class CreatedByFieldType extends FieldType {
       let userNameA = a[name] === null ? '' : a[name].name
       let userNameB = b[name] === null ? '' : b[name].name
 
-      const workspaces = this.app.store.getters['workspace/getAll']
+      const workspaces = this.app.$store.getters['workspace/getAll']
       const workspaceAvailable = workspaces.length > 0
       if (workspaceAvailable) {
         if (a[name] !== null) {
-          const workspaceUserA = this.app.store.getters[
+          const workspaceUserA = this.app.$store.getters[
             'workspace/getUserById'
           ](a[name].id)
           userNameA = workspaceUserA ? workspaceUserA.name : userNameA
         }
 
         if (b[name] !== null) {
-          const workspaceUserB = this.app.store.getters[
+          const workspaceUserB = this.app.$store.getters[
             'workspace/getUserById'
           ](b[name].id)
           userNameB = workspaceUserB ? workspaceUserB.name : userNameB
@@ -2847,8 +2847,8 @@ export class CreatedByFieldType extends FieldType {
 
   _getCurrentUserValue() {
     return {
-      id: this.app.store.getters['auth/getUserId'],
-      name: this.app.store.getters['auth/getName'],
+      id: this.app.$store.getters['auth/getUserId'],
+      name: this.app.$store.getters['auth/getName'],
     }
   }
 
@@ -2867,9 +2867,9 @@ export class CreatedByFieldType extends FieldType {
 
     const name = value.name
 
-    const workspaces = this.app.store.getters['workspace/getAll']
+    const workspaces = this.app.$store.getters['workspace/getAll']
     if (workspaces.length > 0) {
-      const workspaceUser = this.app.store.getters['workspace/getUserById'](
+      const workspaceUser = this.app.$store.getters['workspace/getUserById'](
         value.id
       )
       return workspaceUser ? workspaceUser.name : name
@@ -4485,7 +4485,7 @@ export class MultipleCollaboratorsFieldType extends FieldType {
   }
 
   parseFromLinkedRowItemValue(field, value) {
-    return this.app.store.getters['workspace/getUserByEmail'](value) || null
+    return this.app.$store.getters['workspace/getUserByEmail'](value) || null
   }
 
   getName() {
@@ -4561,13 +4561,13 @@ export class MultipleCollaboratorsFieldType extends FieldType {
       let stringA = ''
       let stringB = ''
 
-      const workspaces = this.app.store.getters['workspace/getAll']
+      const workspaces = this.app.$store.getters['workspace/getAll']
 
       if (valuesA.length > 0 && workspaces.length > 0) {
         stringA = valuesA
           .map(
             (obj) =>
-              this.app.store.getters['workspace/getUserById'](obj.id).name
+              this.app.$store.getters['workspace/getUserById'](obj.id).name
           )
           .join('')
       } else if (valuesA.length > 0) {
@@ -4578,7 +4578,7 @@ export class MultipleCollaboratorsFieldType extends FieldType {
         stringB = valuesB
           .map(
             (obj) =>
-              this.app.store.getters['workspace/getUserById'](obj.id).name
+              this.app.$store.getters['workspace/getUserById'](obj.id).name
           )
           .join('')
       } else if (valuesB.length > 0) {
@@ -4599,11 +4599,11 @@ export class MultipleCollaboratorsFieldType extends FieldType {
   }
 
   _collaboratorCellValueToListOfNames(value) {
-    const workspaces = this.app.store.getters['workspace/getAll']
+    const workspaces = this.app.$store.getters['workspace/getAll']
 
     if (workspaces.length > 0) {
       return value.map((value) => {
-        const workspaceUser = this.app.store.getters['workspace/getUserById'](
+        const workspaceUser = this.app.$store.getters['workspace/getUserById'](
           value.id
         )
         return workspaceUser.name
@@ -4652,11 +4652,11 @@ export class MultipleCollaboratorsFieldType extends FieldType {
               email = matches[2]
             }
             const workspaceUser =
-              this.app.store.getters['workspace/getUserByEmail'](email)
+              this.app.$store.getters['workspace/getUserByEmail'](email)
             if (workspaceUser !== undefined) {
               return workspaceUser
             }
-            return this.app.store.getters['workspace/getUserByName'](
+            return this.app.$store.getters['workspace/getUserByName'](
               emailOrName
             )
           })

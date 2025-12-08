@@ -181,7 +181,7 @@ export class LinkCollectionFieldType extends CollectionFieldType {
         url: resolveElementUrl(
           field,
           builder,
-          this.app.store.getters['page/getVisiblePages'](builder),
+          this.app.$store.getters['page/getVisiblePages'](builder),
           resolveFormula,
           mode
         ),
@@ -208,7 +208,7 @@ export class LinkCollectionFieldType extends CollectionFieldType {
       if (
         pathParametersInError(
           field,
-          this.app.store.getters['page/getVisiblePages'](builder)
+          this.app.$store.getters['page/getVisiblePages'](builder)
         )
       ) {
         return this.app.i18n.t('elementType.errorPageParameterInError')

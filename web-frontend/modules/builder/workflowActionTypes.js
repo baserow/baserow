@@ -39,7 +39,7 @@ export class NotificationWorkflowActionType extends WorkflowActionType {
   }
 
   execute({ workflowAction: { title, description }, resolveFormula }) {
-    return this.app.store.dispatch('builderToast/info', {
+    return this.app.$store.dispatch('builderToast/info', {
       title: ensureString(resolveFormula(title)),
       message: ensureString(resolveFormula(description)),
     })
@@ -81,7 +81,7 @@ export class OpenPageWorkflowActionType extends WorkflowActionType {
       if (
         pathParametersInError(
           workflowAction,
-          this.app.store.getters['page/getVisiblePages'](
+          this.app.$store.getters['page/getVisiblePages'](
             applicationContext.builder
           )
         )
@@ -106,7 +106,7 @@ export class OpenPageWorkflowActionType extends WorkflowActionType {
     const url = resolveElementUrl(
       workflowAction,
       builder,
-      this.app.store.getters['page/getVisiblePages'](builder),
+      this.app.$store.getters['page/getVisiblePages'](builder),
       resolveFormula,
       mode
     )
@@ -158,7 +158,7 @@ export class LogoutWorkflowActionType extends WorkflowActionType {
   }
 
   execute({ applicationContext }) {
-    return this.app.store.dispatch('userSourceUser/logoff', {
+    return this.app.$store.dispatch('userSourceUser/logoff', {
       application: applicationContext.builder,
     })
   }
@@ -202,7 +202,7 @@ export class RefreshDataSourceWorkflowActionType extends WorkflowActionType {
         return element.data_source_id === workflowAction.data_source_id
       })
       .map(async (element) => {
-        await this.app.store.dispatch(
+        await this.app.$store.dispatch(
           'elementContent/triggerElementContentReset',
           { element }
         )
@@ -214,7 +214,7 @@ export class RefreshDataSourceWorkflowActionType extends WorkflowActionType {
     )
 
     try {
-      await this.app.store.dispatch(
+      await this.app.$store.dispatch(
         'dataSourceContent/fetchPageDataSourceContentById',
         {
           page: dataSourcePage,
@@ -225,7 +225,7 @@ export class RefreshDataSourceWorkflowActionType extends WorkflowActionType {
         }
       )
     } catch (error) {
-      const dataSource = this.app.store.getters[
+      const dataSource = this.app.$store.getters[
         'dataSource/getPageDataSourceById'
       ](applicationContext.page, workflowAction.data_source_id)
       handleDispatchError(
@@ -275,7 +275,7 @@ export class WorkflowActionServiceType extends WorkflowActionType {
         return [key, value]
       })
     )
-    return this.app.store.dispatch('builderWorkflowAction/dispatchAction', {
+    return this.app.$store.dispatch('builderWorkflowAction/dispatchAction', {
       workflowActionId: id,
       data: result,
       files,

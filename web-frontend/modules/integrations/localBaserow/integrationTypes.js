@@ -35,7 +35,7 @@ export class LocalBaserowIntegrationType extends IntegrationType {
   }
 
   getDefaultValues() {
-    const user = this.app.store.getters['auth/getUserObject']
+    const user = this.app.$store.getters['auth/getUserObject']
     return {
       authorized_user: { username: user.username, first_name: user.first_name },
     }

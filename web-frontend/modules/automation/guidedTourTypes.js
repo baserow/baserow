@@ -156,7 +156,7 @@ export class AutomationGuidedTourType extends GuidedTourType {
 
   isActive() {
     return (
-      this.app.store.getters['routeMounted/routeMounted']?.name ===
+      this.app.$store.getters['routeMounted/routeMounted']?.name ===
       'automation-workflow'
     )
   }

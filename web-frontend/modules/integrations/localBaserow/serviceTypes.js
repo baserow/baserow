@@ -56,7 +56,7 @@ export class LocalBaserowTableServiceType extends ServiceType {
    * @returns {string} - The description of the service.
    */
   getDescription(service, application) {
-    const integration = this.app.store.getters[
+    const integration = this.app.$store.getters[
       'integration/getIntegrationById'
     ](application, service.integration_id)
 
@@ -372,7 +372,7 @@ export class LocalBaserowAggregateRowsServiceType extends DataSourceLocalBaserow
   }
 
   getDescription(service, application) {
-    const integration = this.app.store.getters[
+    const integration = this.app.$store.getters[
       'integration/getIntegrationById'
     ](application, service.integration_id)
 

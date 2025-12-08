@@ -100,13 +100,15 @@ export const SamlAuthProviderTypeMixin = (Base) =>
     }
 
     getRelayStateUrl() {
-      return this.app.store.getters['authProviderAdmin/getType'](this.getType())
-        .relayStateUrl
+      return this.app.$store.getters['authProviderAdmin/getType'](
+        this.getType()
+      ).relayStateUrl
     }
 
     getAcsUrl() {
-      return this.app.store.getters['authProviderAdmin/getType'](this.getType())
-        .acsUrl
+      return this.app.$store.getters['authProviderAdmin/getType'](
+        this.getType()
+      ).acsUrl
     }
 
     populateLoginOptions(authProviderOption) {
@@ -162,7 +164,7 @@ export const OAuth2AuthProviderTypeMixin = (Base) =>
     getCallbackUrl(authProvider) {
       if (!authProvider.id) {
         const nextProviderId =
-          this.app.store.getters['authProviderAdmin/getNextProviderId']
+          this.app.$store.getters['authProviderAdmin/getNextProviderId']
         return `${this.app.$config.PUBLIC_BACKEND_URL}/api/sso/oauth2/callback/${nextProviderId}/`
       }
       return `${this.app.$config.PUBLIC_BACKEND_URL}/api/sso/oauth2/callback/${authProvider.id}/`
@@ -287,7 +289,7 @@ export class GitLabAuthProviderType extends AuthProviderType {
   getCallbackUrl(authProvider) {
     if (!authProvider.id) {
       const nextProviderId =
-        this.app.store.getters['authProviderAdmin/getNextProviderId']
+        this.app.$store.getters['authProviderAdmin/getNextProviderId']
       return `${this.app.$config.PUBLIC_BACKEND_URL}/api/sso/oauth2/callback/${nextProviderId}/`
     }
     return `${this.app.$config.PUBLIC_BACKEND_URL}/api/sso/oauth2/callback/${authProvider.id}/`
@@ -324,7 +326,7 @@ export class OpenIdConnectAuthProviderType extends OAuth2AuthProviderTypeMixin(
   getCallbackUrl(authProvider) {
     if (!authProvider.id) {
       const nextProviderId =
-        this.app.store.getters['authProviderAdmin/getNextProviderId']
+        this.app.$store.getters['authProviderAdmin/getNextProviderId']
       return `${this.app.$config.PUBLIC_BACKEND_URL}/api/sso/oauth2/callback/${nextProviderId}/`
     }
     return `${this.app.$config.PUBLIC_BACKEND_URL}/api/sso/oauth2/callback/${authProvider.id}/`

@@ -169,7 +169,7 @@ export class WorkspaceOnboardingType extends OnboardingType {
   }
 
   async complete(data, responses) {
-    return await this.app.store.dispatch('workspace/create', {
+    return await this.app.$store.dispatch('workspace/create', {
       name: data[this.getType()].name,
     })
   }

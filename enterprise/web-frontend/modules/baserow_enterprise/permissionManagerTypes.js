@@ -86,7 +86,7 @@ export class WriteFieldValuesPermissionManagerType extends PermissionManagerType
     canWriteFieldValues,
     canSubmitAnonymousValues
   ) {
-    const store = this.app.store
+    const store = this.app.$store
     const permissions =
       store.getters['workspace/getAllPermissions'](workspaceId)
     const newPermissions = permissions.map((manager) => {
