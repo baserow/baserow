@@ -659,9 +659,10 @@ def test_query_data_sources_excludes_trashed_service(data_fixture):
 
 
 @pytest.mark.django_db
-def test_get_specific_services(data_fixture):
+def test_query_data_sources_with_missing_specific_service(data_fixture):
     """
-    Test that _get_specific_services handles Services with missing specific records.
+    Test that a missing specific instance of a local baserow service
+    doesn't cause an exception.
     """
 
     user = data_fixture.create_user()
@@ -673,18 +674,17 @@ def test_get_specific_services(data_fixture):
     service_1 = data_fixture.create_local_baserow_get_row_service(
         integration=integration
     )
-    data_source_1 = data_fixture.create_builder_local_baserow_get_row_data_source(
+    data_source = data_fixture.create_builder_local_baserow_get_row_data_source(
         page=page, service=service_1
     )
     service_2 = data_fixture.create_local_baserow_get_row_service(
         integration=integration
     )
-    data_source_2 = data_fixture.create_builder_local_baserow_get_row_data_source(
+    data_fixture.create_builder_local_baserow_get_row_data_source(
         page=page, service=service_2
     )
 
     missing_service_id = service_2.id
-    service_ids = [service_1.id, missing_service_id]
 
     # Simulate a data integrity issue
     specific_table_name = LocalBaserowGetRow._meta.db_table
@@ -696,13 +696,12 @@ def test_get_specific_services(data_fixture):
             [missing_service_id],
         )
 
-    with mock.patch(
-        "baserow.contrib.builder.data_sources.handler.logger"
-    ) as mock_logger:
-        specific_services_map = DataSourceHandler()._get_specific_services(service_ids)
+    with mock.patch("baserow.core.db.logger") as mock_logger:
+        data_sources = DataSourceHandler()._query_data_sources(
+            DataSource.objects.filter(page=page), specific=True
+        )
 
     mock_logger.error.assert_called_once_with(
-        f"Specific service {missing_service_id} doesn't exist."
+        f"The specific object with id {missing_service_id} does not exist."
     )
-    assert len(specific_services_map) == 1
-    assert service_1.id in specific_services_map
+    assert data_sources == [data_source]
