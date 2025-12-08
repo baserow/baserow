@@ -91,10 +91,10 @@ export class LocalBaserowUserSourceType extends UserSourceType {
   }
 
   getSummary(userSource) {
-    const application = this.app.store.getters['application/get'](
+    const application = this.app.$store.getters['application/get'](
       userSource.application_id
     )
-    const integration = this.app.store.getters[
+    const integration = this.app.$store.getters[
       'integration/getIntegrationById'
     ](application, userSource.integration_id)
 

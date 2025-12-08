@@ -75,7 +75,7 @@ export class ChartWidgetType extends WidgetType {
         series_chart_type: widget.default_series_chart_type,
       }
       values.series_config.push(seriesConfig)
-      await this.app.store.dispatch(`dashboardApplication/updateWidget`, {
+      await this.app.$store.dispatch(`dashboardApplication/updateWidget`, {
         widgetId: widget.id,
         values,
         originalValues,
@@ -168,7 +168,7 @@ export class PieChartWidgetType extends WidgetType {
         series_chart_type: widget.default_series_chart_type,
       }
       values.series_config.push(seriesConfig)
-      await this.app.store.dispatch(`dashboardApplication/updateWidget`, {
+      await this.app.$store.dispatch(`dashboardApplication/updateWidget`, {
         widgetId: widget.id,
         values,
         originalValues,

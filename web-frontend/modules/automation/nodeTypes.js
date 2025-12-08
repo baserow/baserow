@@ -272,7 +272,7 @@ export class LocalBaserowNodeType extends NodeType {
    * @returns {object} - An object containing the table name.
    */
   getLabelContext({ automation, node }) {
-    const integration = this.app.store.getters[
+    const integration = this.app.$store.getters[
       'integration/getIntegrationById'
     ](automation, node.service?.integration_id)
     const databases = integration?.context_data?.databases || []
@@ -640,7 +640,7 @@ export class CoreIteratorNodeType extends containerNodeTypeMixin(
    * @returns {string} - An error message if the router cannot be deleted.
    */
   getDeleteErrorMessage({ workflow, node }) {
-    const children = this.app.store.getters[
+    const children = this.app.$store.getters[
       'automationWorkflowNode/getChildren'
     ](workflow, node)
     const count = children.length
@@ -668,7 +668,7 @@ export class CoreIteratorNodeType extends containerNodeTypeMixin(
    * @returns {string} - An error message if the router cannot be replaced.
    */
   getReplaceErrorMessage({ workflow, node }) {
-    const children = this.app.store.getters[
+    const children = this.app.$store.getters[
       'automationWorkflowNode/getChildren'
     ](workflow, node)
     const count = children.length
@@ -808,7 +808,7 @@ export class CoreRouterNodeType extends ActionNodeTypeMixin(
    * @returns {Array} - An array of output nodes that are connected to the router's edges.
    */
   getOutputNodes({ workflow, router }) {
-    return this.app.store.getters['automationWorkflowNode/getNextNodes'](
+    return this.app.$store.getters['automationWorkflowNode/getNextNodes'](
       workflow,
       router
     )

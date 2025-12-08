@@ -89,8 +89,8 @@ export class DataSourcesPageHeaderItemType extends PageHeaderItemType {
    * @returns {boolean} - If the data sources header is in error.
    */
   isInError({ builder, page }) {
-    const pages = [page, this.app.store.getters['page/getSharedPage'](builder)]
-    const dataSources = this.app.store.getters[
+    const pages = [page, this.app.$store.getters['page/getSharedPage'](builder)]
+    const dataSources = this.app.$store.getters[
       'dataSource/getPagesDataSources'
     ](pages).filter((dataSource) => dataSource.type)
     return dataSources.some((dataSource) => {

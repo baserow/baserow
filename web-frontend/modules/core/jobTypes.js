@@ -178,7 +178,7 @@ export class DuplicateApplicationJobType extends JobType {
       },
       { root: true }
     )
-    await this.app.store.dispatch('job/forceDelete', job)
+    await this.app.$store.dispatch('job/forceDelete', job)
   }
 }
 
@@ -240,7 +240,7 @@ export class InstallTemplateJobType extends JobType {
       },
       { root: true }
     )
-    await this.app.store.dispatch('job/forceDelete', job)
+    await this.app.$store.dispatch('job/forceDelete', job)
   }
 }
 

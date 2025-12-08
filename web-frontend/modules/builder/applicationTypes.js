@@ -91,7 +91,7 @@ export class BuilderApplicationType extends ApplicationType {
   }
 
   getFrontendUrls(application) {
-    const domains = this.app.store.getters['domain/getDomains']
+    const domains = this.app.$store.getters['domain/getDomains']
 
     return [
       ...domains.map((domain) => {

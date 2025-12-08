@@ -130,7 +130,7 @@ export class SamlAppAuthProviderType extends SamlAuthProviderTypeMixin(
   }
 
   getRelayStateUrls(userSource) {
-    const application = this.app.store.getters['application/get'](
+    const application = this.app.$store.getters['application/get'](
       userSource.application_id
     )
     const applicationType = this.app.$registry.get(
