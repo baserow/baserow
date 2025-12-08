@@ -216,7 +216,7 @@ export default {
       columnSorts: this.defaultColumnSorts,
     }
   },
-  async fetch() {
+  async mounted() {
     await this.fetch()
   },
   watch: {
@@ -273,6 +273,7 @@ export default {
      * Fetches the rows of a given page and adds them to the state.
      */
     async fetch(page = null) {
+      console.log('should fetch')
       if (page == null && this.service.options.isPaginated) {
         page = 1
       }

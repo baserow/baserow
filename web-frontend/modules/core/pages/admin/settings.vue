@@ -252,17 +252,9 @@ import SettingsService from '@baserow/modules/core/services/settings'
 import { copyToClipboard } from '@baserow/modules/database/utils/clipboard'
 import { EMAIL_VERIFICATION_OPTIONS } from '@baserow/modules/core/enums'
 
-/* -------------------------------------------------------------------------- */
-/*  Nuxt context and store                                                    */
-/* -------------------------------------------------------------------------- */
-
 const { $registry, $client, $baserowVersion } = useNuxtApp()
 const { t: $t } = useI18n()
 const store = useStore()
-
-/* -------------------------------------------------------------------------- */
-/*  State                                                                     */
-/* -------------------------------------------------------------------------- */
 
 const instanceIdCopied = ref(null)
 

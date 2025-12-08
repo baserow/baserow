@@ -3,15 +3,15 @@
  * will be shown to the user.
  */
 export default defineNuxtRouteMiddleware(() => {
-  const nuxtApp = useNuxtApp()
-  const store = nuxtApp.$store
+  const { $store } = useNuxtApp()
+
   const event = process.server ? useRequestEvent() : null
 
   // If nuxt generate, pass this middleware
   if (process.server && !event) return
 
   // If the user is not staff we want to show a forbidden error.
-  if (!store.getters['auth/isStaff']) {
+  if (!$store.getters['auth/isStaff']) {
     throw createError({ statusCode: 403, message: 'Forbidden.' })
   }
 })
