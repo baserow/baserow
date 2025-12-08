@@ -2184,7 +2184,11 @@ export class RuntimeStrip extends RuntimeFormulaFunction {
   }
 
   execute(context, [arg]) {
-    return arg.trim()
+    if (typeof arg === "string" && isNaN(Number(v))) {
+      return arg.trim()
+    }
+
+    return null    
   }
 
   getDescription() {

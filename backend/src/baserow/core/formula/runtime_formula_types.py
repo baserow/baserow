@@ -588,7 +588,11 @@ class RuntimeStrip(RuntimeFormulaFunction):
     ]
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
-        return args[0].strip()
+        arg = args[0]
+        if isinstance(arg, str):
+            return arg.strip()
+
+        return None
 
 
 class RuntimeSum(RuntimeFormulaFunction):
