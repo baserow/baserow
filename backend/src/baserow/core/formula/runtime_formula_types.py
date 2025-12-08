@@ -476,7 +476,7 @@ class RuntimeContains(RuntimeFormulaFunction):
         try:
             value = ensure_object(value)
             return args[1] in value
-        except ValidationError:
+        except (TypeError, ValidationError):
             pass
 
         try:
@@ -484,7 +484,7 @@ class RuntimeContains(RuntimeFormulaFunction):
         except ValidationError:
             pass
 
-        return False
+        return None
 
 
 class RuntimeReverse(RuntimeFormulaFunction):

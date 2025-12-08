@@ -1897,7 +1897,7 @@ export class RuntimeContains extends RuntimeFormulaFunction {
       return val.includes(args[1])
     } catch {}
 
-    return false
+    return null
   }
 
   getDescription() {
