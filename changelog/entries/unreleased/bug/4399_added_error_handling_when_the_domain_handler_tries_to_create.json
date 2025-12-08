@@ -1,6 +1,6 @@
 {
     "type": "bug",
-    "message": "Added error handling when the domain handler tries to create a duplicate domain.",
+    "message": "Fixed a bug where domain names were not correctly validated during domain creation.",
     "issue_origin": "github",
     "issue_number": 4399,
     "domain": "builder",
