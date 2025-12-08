@@ -143,7 +143,7 @@ export class BuilderGuidedTourType extends GuidedTourType {
     return (
       // Use the `routeMounted` because that gives us the route that's actually
       // mounted, making sure that the selector elements have been rendered.
-      this.app.store.getters['routeMounted/routeMounted']?.name ===
+      this.app.$store.getters['routeMounted/routeMounted']?.name ===
       'builder-page'
     )
   }

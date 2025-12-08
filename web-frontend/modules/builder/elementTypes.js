@@ -203,7 +203,7 @@ export class ElementType extends Registerable {
       return this.isDeactivatedReason({ workspace })
     }
     if (!parentElement) {
-      const sharedPage = this.app.store.getters['page/getSharedPage'](builder)
+      const sharedPage = this.app.$store.getters['page/getSharedPage'](builder)
 
       if (pagePlace === PAGE_PLACES.HEADER) {
         if (beforeElement && beforeElement.page_id === sharedPage.id) {
@@ -218,7 +218,7 @@ export class ElementType extends Registerable {
           // Not allowed as last child of footer
           return this.app.i18n.t('elementType.notAllowedLocation')
         } else {
-          const footerElements = this.app.store.getters[
+          const footerElements = this.app.$store.getters[
             'element/getRootElements'
           ](sharedPage).filter(
             (element) =>
@@ -280,9 +280,9 @@ export class ElementType extends Registerable {
   isVisible({ element, applicationContext }) {
     const { builder } = applicationContext
 
-    const user = this.app.store.getters['userSourceUser/getUser'](builder)
+    const user = this.app.$store.getters['userSourceUser/getUser'](builder)
     const isAuthenticated =
-      this.app.store.getters['userSourceUser/isAuthenticated'](builder)
+      this.app.$store.getters['userSourceUser/isAuthenticated'](builder)
 
     const { roles, role_type: roleType, visibility } = element
 
@@ -327,11 +327,11 @@ export class ElementType extends Registerable {
    */
   workflowActionsInError(element, applicationContext) {
     const { builder } = applicationContext
-    const elementPage = this.app.store.getters['page/getById'](
+    const elementPage = this.app.$store.getters['page/getById'](
       builder,
       element.page_id
     )
-    const workflowActions = this.app.store.getters[
+    const workflowActions = this.app.$store.getters[
       'builderWorkflowAction/getElementWorkflowActions'
     ](elementPage, element.id)
 
@@ -384,7 +384,7 @@ export class ElementType extends Registerable {
     // By default if an element is inside a container we apply the
     // `.getDefaultChildValues()` method of the parent to it.
     if (values?.parent_element_id) {
-      const parentElement = this.app.store.getters['element/getElementById'](
+      const parentElement = this.app.$store.getters['element/getElementById'](
         page,
         values.parent_element_id
       )
@@ -506,13 +506,13 @@ export class ElementType extends Registerable {
       ? element.parent_element_id
       : null
 
-    const elementPage = this.app.store.getters['page/getById'](
+    const elementPage = this.app.$store.getters['page/getById'](
       builder,
       element.page_id
     )
 
     const parentElement = element.parent_element_id
-      ? this.app.store.getters['element/getElementById'](
+      ? this.app.$store.getters['element/getElementById'](
           elementPage,
           element.parent_element_id
         )
@@ -544,7 +544,7 @@ export class ElementType extends Registerable {
     // AFTER
     const nextElement = elementsAround[DIRECTIONS.AFTER]
     if (nextElement) {
-      const nextNextElement = this.app.store.getters['element/getNextElement'](
+      const nextNextElement = this.app.$store.getters['element/getNextElement'](
         elementPage,
         nextElement
       )
@@ -590,7 +590,7 @@ export class ElementType extends Registerable {
       )
       if (placeIndex < places.length - 1) {
         placeInContainer = places[placeIndex + 1]
-        const elementsInNextPlace = this.app.store.getters[
+        const elementsInNextPlace = this.app.$store.getters[
           'element/getElementsInPlace'
         ](elementPage, element.parent_element_id, placeInContainer)
         if (elementsInNextPlace.length) {
@@ -636,12 +636,12 @@ export class ElementType extends Registerable {
     const elementPlace = elementType.getPagePlace()
     const isRootElement = !element.parent_element_id
 
-    const elementPage = this.app.store.getters['page/getById'](
+    const elementPage = this.app.$store.getters['page/getById'](
       builder,
       element.page_id
     )
 
-    const siblings = this.app.store.getters['element/getElementsInPlace'](
+    const siblings = this.app.$store.getters['element/getElementsInPlace'](
       elementPage,
       element.parent_element_id,
       element.place_in_container
@@ -668,13 +668,13 @@ export class ElementType extends Registerable {
     // If we are considering the shared page and we have no previous or next element
     // we want to potentially use the elements from the shared page
     if (withSharedPage && isRootElement) {
-      const sharedPage = this.app.store.getters['page/getSharedPage'](builder)
+      const sharedPage = this.app.$store.getters['page/getSharedPage'](builder)
 
       if (!previousElement) {
         // no previous element and we are in the page content, then previous element
         // could come from the HEADER
         if (elementPlace === PAGE_PLACES.CONTENT) {
-          const headerElements = this.app.store.getters[
+          const headerElements = this.app.$store.getters[
             'element/getRootElements'
           ](sharedPage).filter(
             (element) =>
@@ -688,7 +688,7 @@ export class ElementType extends Registerable {
           // previous element could come from the page CONTENT if we don't have previous
           // yet
           const contentElements =
-            this.app.store.getters['element/getRootElements'](page)
+            this.app.$store.getters['element/getRootElements'](page)
           if (contentElements.length) {
             previousElement = contentElements.at(-1)
           }
@@ -701,12 +701,12 @@ export class ElementType extends Registerable {
       if (!nextElement) {
         if (elementPlace === PAGE_PLACES.HEADER) {
           const contentElements =
-            this.app.store.getters['element/getRootElements'](page)
+            this.app.$store.getters['element/getRootElements'](page)
           if (contentElements.length) {
             nextElement = contentElements[0]
           }
         } else if (elementPlace === PAGE_PLACES.CONTENT) {
-          const footerElements = this.app.store.getters[
+          const footerElements = this.app.$store.getters[
             'element/getRootElements'
           ](sharedPage).filter(
             (element) =>
@@ -725,7 +725,7 @@ export class ElementType extends Registerable {
 
     // We have a parent, so we can find left and right elements.
     if (element.parent_element_id) {
-      const parentElement = this.app.store.getters['element/getElementById'](
+      const parentElement = this.app.$store.getters['element/getElementById'](
         elementPage,
         element.parent_element_id
       )
@@ -740,7 +740,7 @@ export class ElementType extends Registerable {
 
       let placeLeftIndex = placeIndex - 1
       while (placeLeftIndex >= 0) {
-        const elementsInNextPlace = this.app.store.getters[
+        const elementsInNextPlace = this.app.$store.getters[
           'element/getElementsInPlace'
         ](elementPage, element.parent_element_id, places[placeLeftIndex])
         if (elementsInNextPlace.length > 0) {
@@ -751,7 +751,7 @@ export class ElementType extends Registerable {
       }
       let placeRightIndex = placeIndex + 1
       while (placeRightIndex <= places.length - 1) {
-        const elementsInNextPlace = this.app.store.getters[
+        const elementsInNextPlace = this.app.$store.getters[
           'element/getElementsInPlace'
         ](elementPage, element.parent_element_id, places[placeRightIndex])
         if (elementsInNextPlace.length > 0) {
@@ -793,7 +793,7 @@ export class ElementType extends Registerable {
     const elementPage =
       element.page_id === page.id
         ? page
-        : this.app.store.getters['page/getById'](builder, element.page_id)
+        : this.app.$store.getters['page/getById'](builder, element.page_id)
 
     const collectionAncestorLength = this.getCollectionAncestry({
       page: elementPage,
@@ -830,7 +830,7 @@ export class ElementType extends Registerable {
    * @returns {Boolean} Whether the element has an ancestor of the specified type.
    */
   hasAncestorOfType(page, element, ancestorType) {
-    return this.app.store.getters['element/getAncestors'](page, element).some(
+    return this.app.$store.getters['element/getAncestors'](page, element).some(
       ({ type }) => type === ancestorType
     )
   }
@@ -842,7 +842,7 @@ export class ElementType extends Registerable {
    * that has a data source.
    */
   getCollectionAncestry({ page, element, allowSameElement }) {
-    const allCollectionAncestry = this.app.store.getters[
+    const allCollectionAncestry = this.app.$store.getters[
       'element/getAncestors'
     ](page, element, {
       predicate: (ancestor) =>
@@ -1006,7 +1006,7 @@ export class FormContainerElementType extends ContainerElementTypeMixin(
     pagePlace,
   }) {
     if (parentElement) {
-      const hasSameTypeAncestor = !!this.app.store.getters[
+      const hasSameTypeAncestor = !!this.app.$store.getters[
         'element/getAncestors'
       ](page, parentElement, {
         predicate: (ancestor) => ancestor.type === this.type,
@@ -1034,12 +1034,12 @@ export class FormContainerElementType extends ContainerElementTypeMixin(
   getErrorMessage(element, applicationContext) {
     const { builder } = applicationContext
 
-    const elementPage = this.app.store.getters['page/getById'](
+    const elementPage = this.app.$store.getters['page/getById'](
       builder,
       element.page_id
     )
 
-    const workflowActions = this.app.store.getters[
+    const workflowActions = this.app.$store.getters[
       'builderWorkflowAction/getElementWorkflowActions'
     ](elementPage, element.id)
 
@@ -1101,7 +1101,7 @@ export class ColumnElementType extends ContainerElementTypeMixin(ElementType) {
     pagePlace,
   }) {
     if (parentElement) {
-      const hasSameTypeAncestor = !!this.app.store.getters[
+      const hasSameTypeAncestor = !!this.app.$store.getters[
         'element/getAncestors'
       ](page, parentElement, {
         predicate: (ancestor) => ancestor.type === this.type,
@@ -1368,7 +1368,7 @@ export class FormElementType extends ElementType {
   }
 
   afterDelete(element, page) {
-    return this.app.store.dispatch('formData/removeFormData', {
+    return this.app.$store.dispatch('formData/removeFormData', {
       page,
       elementId: element.id,
     })
@@ -1610,7 +1610,7 @@ export class LinkElementType extends ElementType {
       if (
         pathParametersInError(
           element,
-          this.app.store.getters['page/getVisiblePages'](builder)
+          this.app.$store.getters['page/getVisiblePages'](builder)
         )
       ) {
         return this.app.i18n.t('elementType.errorPageParameterInError')
@@ -1629,7 +1629,7 @@ export class LinkElementType extends ElementType {
     if (element.navigation_type === 'page') {
       const builder = applicationContext.builder
 
-      const destinationPage = this.app.store.getters['page/getVisiblePages'](
+      const destinationPage = this.app.$store.getters['page/getVisiblePages'](
         builder
       ).find(({ id }) => id === element.navigate_to_page_id)
 
@@ -1756,12 +1756,12 @@ export class ButtonElementType extends ElementType {
     if (!element.value.formula) {
       return this.app.i18n.t('elementType.errorValueMissing')
     }
-    const elementPage = this.app.store.getters['page/getById'](
+    const elementPage = this.app.$store.getters['page/getById'](
       builder,
       element.page_id
     )
 
-    const workflowActions = this.app.store.getters[
+    const workflowActions = this.app.$store.getters[
       'builderWorkflowAction/getElementWorkflowActions'
     ](elementPage, element.id)
 
@@ -2316,7 +2316,7 @@ export class HeaderElementType extends MultiPageElementTypeMixin(
       return this.app.i18n.t('elementType.notAllowedInsideContainer')
     }
 
-    const sharedPage = this.app.store.getters['page/getSharedPage'](builder)
+    const sharedPage = this.app.$store.getters['page/getSharedPage'](builder)
 
     if (
       page.id === sharedPage.id &&
@@ -2329,7 +2329,7 @@ export class HeaderElementType extends MultiPageElementTypeMixin(
 
     if (page.id !== sharedPage.id) {
       const orderedElements =
-        this.app.store.getters['element/getElementsOrdered'](page)
+        this.app.$store.getters['element/getElementsOrdered'](page)
       // Can't be inserted after the first element of the page
       if (beforeElement && beforeElement.id !== orderedElements[0].id) {
         return this.app.i18n.t('elementType.notAllowedUnlessTop')
@@ -2394,7 +2394,7 @@ export class FooterElementType extends HeaderElementType {
       return this.app.i18n.t('elementType.notAllowedInsideContainer')
     }
 
-    const sharedPage = this.app.store.getters['page/getSharedPage'](builder)
+    const sharedPage = this.app.$store.getters['page/getSharedPage'](builder)
     if (
       page.id === sharedPage.id &&
       pagePlace &&
@@ -2557,7 +2557,7 @@ export class MenuElementType extends ElementType {
       return this.app.i18n.t('elementType.errorNoMenuItem')
     }
 
-    const elementPage = this.app.store.getters['page/getById'](
+    const elementPage = this.app.$store.getters['page/getById'](
       builder,
       element.page_id
     )
@@ -2579,7 +2579,7 @@ export class MenuElementType extends ElementType {
   }
 
   getItemMenuError({ builder, elementPage, element, menuItem }) {
-    const workflowActions = this.app.store.getters[
+    const workflowActions = this.app.$store.getters[
       'builderWorkflowAction/getElementWorkflowActions'
     ](elementPage, element.id)
 
@@ -2623,7 +2623,7 @@ export class MenuElementType extends ElementType {
             if (
               pathParametersInError(
                 menuItem,
-                this.app.store.getters['page/getVisiblePages'](builder)
+                this.app.$store.getters['page/getVisiblePages'](builder)
               )
             ) {
               return this.app.i18n.t('elementType.errorPageParameterInError')
