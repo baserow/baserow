@@ -189,7 +189,6 @@ export default {
       return this.modelValue !== null ? this.modelValue : this.value
     },
     selectedName() {
-      console.log('selectedName in progress', this.currentValue)
       return this.getSelectedProperty(this.currentValue, 'name')
     },
     selectedIcon() {

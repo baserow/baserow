@@ -3,11 +3,11 @@
     <h2 class="box__title">{{ $t('deleteUserModal.title', user) }}</h2>
     <Error :error="error"></Error>
     <div>
-      <i18n path="deleteUserModal.confirmation" tag="p">
+      <i18n-t keypath="deleteUserModal.confirmation" tag="p">
         <template #name>
           <strong class="user-admin-delete__strong">{{ user.username }}</strong>
         </template>
-      </i18n>
+      </i18n-t>
       <p>
         {{ $t('deleteUserModal.comment1') }}
       </p>

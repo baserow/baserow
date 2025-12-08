@@ -5,14 +5,14 @@
     @click.native="markAsReadAndHandleClick"
   >
     <div class="notification-panel__notification-content-title">
-      <i18n path="formSubmittedNotification.title" tag="span">
+      <i18n-t keypath="formSubmittedNotification.title" tag="span">
         <template #formName>
           <strong>{{ notification.data.form_name }}</strong>
         </template>
         <template #tableName>
           <strong>{{ notification.data.table_name }}</strong>
         </template>
-      </i18n>
+      </i18n-t>
     </div>
     <div class="notification-panel__notification-content-desc">
       <ul class="notification-panel__notification-content-summary">

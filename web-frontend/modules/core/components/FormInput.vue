@@ -150,6 +150,8 @@ function focus() {
 
 const slots = useSlots()
 const hasSuffixSlot = computed(() => !!slots.suffix)
+
+defineExpose({ focus })
 </script>
 
 <sscript>

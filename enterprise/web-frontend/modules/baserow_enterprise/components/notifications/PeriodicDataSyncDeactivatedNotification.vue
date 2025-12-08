@@ -5,7 +5,7 @@
     @click.native="markAsReadAndHandleClick"
   >
     <div class="notification-panel__notification-content-title">
-      <i18n
+      <i18n-t
         :path="
           isLicenseUnavailable
             ? 'periodicDataSyncDeactivatedNotification.licenseUnavailable'
@@ -16,7 +16,7 @@
         <template #name>
           <strong>{{ notification.data.table_name }}</strong>
         </template>
-      </i18n>
+      </i18n-t>
     </div>
   </nuxt-link>
 </template>

@@ -5,11 +5,11 @@
     </h2>
     <Error :error="error"></Error>
     <div>
-      <i18n path="deleteWorkspaceModal.confirmation" tag="p">
+      <i18n-t keypath="deleteWorkspaceModal.confirmation" tag="p">
         <template #name>
           <strong>{{ workspace.name }}</strong>
         </template>
-      </i18n>
+      </i18n-t>
       <p>
         {{ $t('deleteWorkspaceModal.comment') }}
       </p>
