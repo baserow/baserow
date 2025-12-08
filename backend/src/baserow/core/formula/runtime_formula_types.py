@@ -445,7 +445,9 @@ class RuntimeLength(RuntimeFormulaFunction):
         value = args[0]
 
         try:
-            return len(ensure_object(value))
+            value = ensure_object(value)
+            if isinstance(value, (dict, list)):
+                return len(value)
         except (TypeError, ValidationError):
             pass
 
@@ -475,7 +477,8 @@ class RuntimeContains(RuntimeFormulaFunction):
 
         try:
             value = ensure_object(value)
-            return args[1] in value
+            if isinstance(value, (dict, list)):
+                return args[1] in value
         except (TypeError, ValidationError):
             pass
 
@@ -557,11 +560,24 @@ class RuntimeIsEmpty(RuntimeFormulaFunction):
 
         try:
             value = ensure_object(value)
-            return len(value) == 0
+            if isinstance(value, (dict, list)):
+                return len(value) == 0
         except ValidationError:
             pass
 
-        return len(value) == 0
+        if isinstance(value, str):
+            value = value.strip()
+            try:
+                return not bool(int(value))
+            except ValueError:
+                return not bool(value)
+        
+        try:
+            return not bool(int(value))
+        except ValueError:
+            pass
+
+        return None
 
 
 class RuntimeStrip(RuntimeFormulaFunction):
