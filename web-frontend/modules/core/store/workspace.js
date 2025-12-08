@@ -208,18 +208,14 @@ export const actions = {
    * Fetches all the workspaces of an authenticated user.
    */
   async fetchAll({ commit, dispatch, state }) {
-    console.log('fetch all workspaces')
-
     const { $registry, $client } = useNuxtApp()
     commit('SET_LOADING', true)
 
     try {
       const { data } = await WorkspaceService($client).fetchAll()
-      console.log('received workspaces', data)
       commit('SET_LOADED', true)
       commit('SET_ITEMS', data)
-    } catch (e) {
-      console.log('Error while fetching workspace', e)
+    } catch {
       commit('SET_ITEMS', [])
     }
     commit('SET_LOADING', false)

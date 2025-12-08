@@ -3,7 +3,7 @@
     <Toasts />
     <GuidedTour />
 
-    <div class="layout">
+    <div class="layout" ref="app">
       <div class="layout__col-1" :style="{ width: col1Width + 'px' }">
         <Sidebar
           :workspaces="workspaces"
@@ -83,15 +83,13 @@ import {
   keyboardShortcutsToPriorityEventBus,
 } from '@baserow/modules/core/utils/events'
 
-definePageMeta({
-  middleware: ['authenticated', 'workspacesAndApplications', 'pendingJobs'],
-})
-
 const store = useStore()
+const { $registry, $priorityBus, $realtime, $bus } = useNuxtApp()
 
 const col1Width = ref(240)
 const col3Width = ref(400)
 const col3Visible = ref(false)
+const app = ref()
 
 const workspaceSearchModal = ref(null)
 
@@ -103,7 +101,6 @@ const isCollapsed = computed(() => col1Width.value < 170)
 
 const route = useRoute()
 const router = useRouter()
-const nuxtApp = useNuxtApp()
 
 // Preserve authentication logic
 if (route.query.token) {
@@ -149,28 +146,29 @@ function keyDown(event) {
     }
   }
 
-  keyboardShortcutsToPriorityEventBus(event, nuxtApp.$priorityBus)
+  keyboardShortcutsToPriorityEventBus(event, $priorityBus)
 }
 
 onMounted(() => {
-  nuxtApp.$realtime.connect()
+  $realtime.connect()
 
   const handler = (e) => keyDown(e)
   document.body.addEventListener('keydown', handler)
-  nuxtApp.$el = { keydownEvent: handler }
+  //nuxtApp.$el = { keydownEvent: handler }
+  app.keydownEvent = handler
 
   store.dispatch('undoRedo/updateCurrentScopeSet', CORE_ACTION_SCOPES.root())
 
   store.dispatch('job/initializePoller')
 
-  nuxtApp.$bus.$on('toggle-right-sidebar', toggleRightSidebar)
+  $bus.$on('toggle-right-sidebar', toggleRightSidebar)
 })
 
 onBeforeUnmount(() => {
-  nuxtApp.$realtime.disconnect()
+  $realtime.disconnect()
 
-  if (nuxtApp.$el?.keydownEvent) {
-    document.body.removeEventListener('keydown', nuxtApp.$el.keydownEvent)
+  if (app?.keydownEvent) {
+    document.body.removeEventListener('keydown', app?.keydownEvent)
   }
 
   store.dispatch(
@@ -178,6 +176,12 @@ onBeforeUnmount(() => {
     CORE_ACTION_SCOPES.root(false)
   )
 
-  nuxtApp.$bus.$off('toggle-right-sidebar', toggleRightSidebar)
+  $bus.$off('toggle-right-sidebar', toggleRightSidebar)
+})
+
+const appLayoutComponents = computed(() => {
+  return Object.values($registry.getAll('plugin'))
+    .map((plugin) => plugin.getAppLayoutComponent())
+    .filter((component) => component !== null)
 })
 </script>
