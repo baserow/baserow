@@ -5,6 +5,7 @@ from django.core.exceptions import FieldDoesNotExist
 from django.db import ProgrammingError
 from django.db.models.signals import post_migrate, pre_migrate
 
+from baserow.contrib.database.fields.utils.pg_datetime import pg_init
 from baserow.contrib.database.table.cache import clear_generated_model_cache
 from baserow.contrib.database.table.operations import RestoreDatabaseTableOperationType
 from baserow.core.registries import (
@@ -1139,6 +1140,9 @@ class DatabaseConfig(AppConfig):
         # `related_name="+"` because the relation won't be created on the user side.
         get_user_model()._meta._expire_cache = lambda *a, **kw: None
         SelectOption._meta._expire_cache = lambda *a, **kw: None
+
+        # date/datetime min/max year handling - replace overflowed date with None
+        pg_init()
 
 
 # noinspection PyPep8Naming

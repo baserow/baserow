@@ -255,7 +255,7 @@ def test_row_comment_deleted_signal_called(
     assert args == call(RowCommentHandler, row_comment=c, user=user, mentions=[])
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_row_comment_mentions_are_created(premium_data_fixture):
     user = premium_data_fixture.create_user(
@@ -277,7 +277,7 @@ def test_row_comment_mentions_are_created(premium_data_fixture):
     assert list(c.mentions.all()) == [user2]
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_row_comment_cant_mention_user_outside_workspace(premium_data_fixture):
     user = premium_data_fixture.create_user(
@@ -297,7 +297,7 @@ def test_row_comment_cant_mention_user_outside_workspace(premium_data_fixture):
     assert comment.mentions.count() == 0
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_user_change_row_comments_notification_mode(premium_data_fixture):
     user = premium_data_fixture.create_user(

@@ -46,6 +46,7 @@ from baserow.contrib.automation.workflows.tasks import start_workflow_celery_tas
 from baserow.contrib.automation.workflows.types import UpdatedAutomationWorkflow
 from baserow.core.cache import global_cache, local_cache
 from baserow.core.exceptions import IdDoesNotExist
+from baserow.core.psycopg import is_unique_violation_error
 from baserow.core.registries import ImportExportConfig
 from baserow.core.services.exceptions import DispatchException
 from baserow.core.storage import ExportZipFile, get_default_storage
@@ -247,7 +248,7 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         try:
             workflow.save()
         except IntegrityError as e:
-            if "unique constraint" in e.args[0] and "name" in e.args[0]:
+            if is_unique_violation_error(e) and "name" in str(e):
                 raise AutomationWorkflowNameNotUnique(
                     name=workflow.name, automation_id=workflow.automation_id
                 ) from e

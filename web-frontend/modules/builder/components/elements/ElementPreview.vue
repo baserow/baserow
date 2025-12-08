@@ -111,6 +111,13 @@ export default {
       getClosestSiblingElement: 'element/getClosestSiblingElement',
       loggedUser: 'userSourceUser/getUser',
     }),
+    applicationContext() {
+      return {
+        ...this.injectedApplicationContext,
+        ...this.applicationContextAdditions,
+        element: this.element,
+      }
+    },
     pageTop() {
       return this.pageTopData.value
     },

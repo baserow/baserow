@@ -16,6 +16,11 @@ from baserow.core.snapshots.handler import SnapshotHandler
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import Progress
 
+pytestmark = pytest.mark.enable_signals(
+    "baserow.contrib.database.search.tasks.schedule_update_search_data.delay",
+    "baserow.contrib.database.search.tasks.update_search_data.delay",
+)
+
 
 def test_escape_query():
     # Spacing is standardized.

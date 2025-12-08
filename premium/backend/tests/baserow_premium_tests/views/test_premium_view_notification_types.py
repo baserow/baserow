@@ -14,6 +14,7 @@ from baserow.contrib.database.views.handler import ViewHandler
 @pytest.mark.django_db(transaction=True)
 @override_settings(DEBUG=True)
 @patch("baserow.ws.tasks.broadcast_to_users.apply")
+@pytest.mark.enable_signals("baserow.ws.tasks.broadcast_to_users.delay")
 def test_user_stop_receiving_notification_if_another_user_change_view_ownership(
     mocked_broadcast_to_users, api_client, premium_data_fixture
 ):

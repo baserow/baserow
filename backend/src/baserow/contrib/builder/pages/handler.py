@@ -42,6 +42,7 @@ from baserow.contrib.builder.workflow_actions.handler import (
 )
 from baserow.core.cache import global_cache
 from baserow.core.exceptions import IdDoesNotExist
+from baserow.core.psycopg import is_unique_violation_error
 from baserow.core.storage import ExportZipFile
 from baserow.core.user_sources.user_source_user import UserSourceUser
 from baserow.core.utils import ChildProgressBuilder, MirrorDict, find_unused_name
@@ -201,9 +202,9 @@ class PageHandler:
         try:
             page.save()
         except IntegrityError as e:
-            if "unique constraint" in e.args[0] and "name" in e.args[0]:
+            if is_unique_violation_error(e) and "name" in e.args[0]:
                 raise PageNameNotUnique(name=page.name, builder_id=page.builder_id)
-            if "unique constraint" in e.args[0] and "path" in e.args[0]:
+            if is_unique_violation_error(e) and "path" in e.args[0]:
                 raise PagePathNotUnique(path=page.path, builder_id=page.builder_id)
             raise e
 

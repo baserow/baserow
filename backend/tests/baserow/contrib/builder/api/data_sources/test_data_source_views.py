@@ -1183,6 +1183,10 @@ def test_dispatch_data_source_with_adhoc_sortings(api_client, data_fixture):
 
 
 @pytest.mark.django_db(transaction=True)
+@pytest.mark.enable_signals(
+    "baserow.contrib.database.search.tasks.schedule_update_search_data.delay",
+    "baserow.contrib.database.search.tasks.update_search_data.delay",
+)
 def test_dispatch_data_source_with_adhoc_search(api_client, data_fixture):
     with transaction.atomic():
         user, token = data_fixture.create_user_and_token()

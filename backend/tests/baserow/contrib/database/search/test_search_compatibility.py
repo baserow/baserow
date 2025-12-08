@@ -11,6 +11,11 @@ from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.core.user_files.handler import UserFileHandler
 
+pytestmark = pytest.mark.enable_signals(
+    "baserow.contrib.database.search.tasks.schedule_update_search_data.delay",
+    "baserow.contrib.database.search.tasks.update_search_data.delay",
+)
+
 
 @pytest.mark.django_db(transaction=True)
 def test_search_compatibility_between_current_and_postgres(data_fixture, tmpdir):

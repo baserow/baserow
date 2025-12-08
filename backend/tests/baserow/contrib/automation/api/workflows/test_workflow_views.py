@@ -596,3 +596,26 @@ def test_get_workflow_history_permission_error(api_client, data_fixture):
         "detail": "You don't have the required permission to execute this operation.",
         "error": "PERMISSION_DENIED",
     }
+
+
+@pytest.mark.django_db
+def test_rename_workflow_using_existing_workflow_name(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    automation = data_fixture.create_automation_application(user)
+    workflow_1 = data_fixture.create_automation_workflow(
+        user, automation=automation, name="test1", order=1
+    )
+    workflow_2 = data_fixture.create_automation_workflow(
+        user, automation=automation, name="test2", order=2
+    )
+
+    url = reverse(API_URL_WORKFLOW_ITEM, kwargs={"workflow_id": workflow_2.id})
+    response = api_client.patch(
+        url,
+        {"name": workflow_1.name},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_AUTOMATION_WORKFLOW_NAME_NOT_UNIQUE"

@@ -64,6 +64,13 @@ export default {
     BACKGROUND_TYPES: () => BACKGROUND_TYPES,
     CHILD_WIDTH_TYPES: () => CHILD_WIDTH_TYPES,
     WIDTH_TYPES: () => WIDTH_TYPES,
+    applicationContext() {
+      return {
+        ...this.injectedApplicationContext,
+        ...this.applicationContextAdditions,
+        element: this.element,
+      }
+    },
     themeConfigBlocks() {
       return this.$registry.getOrderedList('themeConfigBlock')
     },

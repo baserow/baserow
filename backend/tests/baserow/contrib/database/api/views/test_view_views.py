@@ -1172,6 +1172,9 @@ def test_view_cant_update_allow_public_export(data_fixture, api_client):
 
 
 @pytest.mark.django_db(transaction=True)
+@pytest.mark.enable_signals(
+    "baserow.contrib.database.views.tasks.update_view_index.delay"
+)
 def test_loading_a_sortable_view_will_create_an_index(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     table = data_fixture.create_database_table(user=user)

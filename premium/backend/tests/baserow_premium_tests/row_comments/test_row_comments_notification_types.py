@@ -274,6 +274,7 @@ def test_email_notifications_are_created_correctly(
 @pytest.mark.django_db(transaction=True)
 @patch("baserow.ws.tasks.broadcast_to_users.apply")
 @override_settings(DEBUG=True)
+@pytest.mark.enable_signals("baserow.ws.tasks.broadcast_to_users.delay")
 def test_user_receive_notification_if_subscribed_for_comments_on_a_row(
     mocked_broadcast_to_users, api_client, premium_data_fixture
 ):
@@ -435,6 +436,7 @@ def test_user_receive_notification_if_subscribed_for_comments_on_a_row(
 @pytest.mark.django_db(transaction=True)
 @patch("baserow.ws.tasks.broadcast_to_users.apply")
 @override_settings(DEBUG=True)
+@pytest.mark.enable_signals("baserow.ws.tasks.broadcast_to_users.delay")
 def test_all_interested_users_receive_the_notification_when_a_comment_is_posted(
     mocked_broadcast_to_users, api_client, premium_data_fixture
 ):
@@ -516,6 +518,7 @@ def test_all_interested_users_receive_the_notification_when_a_comment_is_posted(
 @pytest.mark.django_db(transaction=True)
 @patch("baserow.ws.tasks.broadcast_to_users.apply")
 @override_settings(DEBUG=True)
+@pytest.mark.enable_signals("baserow.ws.tasks.broadcast_to_users.delay")
 def test_only_users_with_access_to_the_table_receive_the_notification_for_new_comments(
     mocked_broadcast_to_users, api_client, premium_data_fixture
 ):

@@ -434,6 +434,10 @@ def test_local_baserow_table_service_sortable_mixin_get_dispatch_sorts_raises_ex
 
 
 @pytest.mark.django_db(transaction=True)
+@pytest.mark.enable_signals(
+    "baserow.contrib.database.search.tasks.schedule_update_search_data.delay",
+    "baserow.contrib.database.search.tasks.update_search_data.delay",
+)
 def test_local_baserow_table_service_searchable_mixin_get_table_queryset(
     data_fixture,
 ):

@@ -1163,6 +1163,7 @@ def test_create_rows_action_row_history_with_undo_redo(
 )
 @pytest.mark.django_db
 @pytest.mark.row_history
+@pytest.mark.enable_signals("baserow.ws.tasks.broadcast_to_users.delay")
 def test_delete_rows_action_row_history_with_undo_redo(
     data_fixture, action_type: "ActionType", input_values: Callable
 ):

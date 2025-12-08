@@ -84,3 +84,13 @@ def open_test_file(test_data_dir):
     yield get_path
     if fhandle and not fhandle.closed:
         fhandle.close()
+
+
+@pytest.fixture()
+def on_db_connection(db):
+    def register(callback):
+        from django.db import connection
+
+        callback(connection)
+
+    yield register

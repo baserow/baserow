@@ -3,7 +3,7 @@ import contextlib
 import os
 import sys
 import threading
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from datetime import date, datetime
 from decimal import Decimal
 from functools import partial
@@ -47,6 +47,22 @@ from baserow.test_utils.setup_formulas import iter_formula_pgsql_functions
 
 SKIP_FLAGS = ["disabled-in-ci", "once-per-day-in-ci"]
 COMMAND_LINE_FLAG_PREFIX = "--run-"
+
+# List of heavy callables to defer by default during tests
+# Used by defer_heavy_signals fixture
+DEFAULT_DEFERRED_CALLABLES: List[str] = [
+    "baserow.ws.tasks.broadcast_to_channel_group.delay",
+    "baserow.ws.tasks.broadcast_to_users.delay",
+    "baserow.ws.tasks.broadcast_to_permitted_users.delay",
+    "baserow.ws.tasks.broadcast_to_group.delay",
+    "baserow.ws.tasks.broadcast_to_groups.delay",
+    "baserow.ws.tasks.broadcast_application_created.delay",
+    "baserow.contrib.database.search.tasks.schedule_update_search_data.delay",
+    "baserow.contrib.database.search.tasks.update_search_data.delay",
+    "baserow.contrib.database.table.tasks.update_table_usage.delay",
+    "baserow.core.notifications.tasks.send_queued_notifications_to_users.delay",
+    "baserow.contrib.database.views.tasks.update_view_index.delay",
+]
 
 
 # Provides a new fake instance for each class. Solve uniqueness problem sometimes.
@@ -150,6 +166,41 @@ def clear_cache():
 
     # Thread-local cache
     with local_cache.context():
+        yield
+
+
+@pytest.fixture(autouse=True)
+def defer_heavy_signals(request):
+    """
+    Defer heavy callables by default to speed up tests.
+
+    Opt-out options:
+        @pytest.mark.enable_all_signals - Enable all deferred signals
+        @pytest.mark.enable_signals("path.to.callable") - Enable specific signal(s)
+    """
+
+    if request.node.get_closest_marker("enable_all_signals"):
+        yield
+        return
+
+    signals_to_defer = set(DEFAULT_DEFERRED_CALLABLES)
+
+    enable_signals_marker = request.node.get_closest_marker("enable_signals")
+    if enable_signals_marker:
+        signals_to_enable = set()
+        if enable_signals_marker.args:
+            signals_to_enable.update(enable_signals_marker.args)
+        if enable_signals_marker.kwargs.get("signals"):
+            signals_to_enable.update(enable_signals_marker.kwargs["signals"])
+        signals_to_defer -= signals_to_enable
+
+    if not signals_to_defer:
+        yield
+        return
+
+    with ExitStack() as stack:
+        for name in signals_to_defer:
+            stack.enter_context(patch(name, lambda *args, **kwargs: None))
         yield
 
 
@@ -498,6 +549,14 @@ def pytest_configure(config):
                 f"{flag}: mark test so it only runs when the "
                 f"{COMMAND_LINE_FLAG_PREFIX}{flag} flag is provided to pytest",
             )
+        config.addinivalue_line(
+            "markers",
+            "enable_all_signals: Disables signal deferral for this test",
+        )
+        config.addinivalue_line(
+            "markers",
+            "enable_signals(callable_paths): Enables specific signals for this test",
+        )
         pytest_configure.already_run = True
 
 

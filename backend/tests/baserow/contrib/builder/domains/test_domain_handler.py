@@ -3,6 +3,7 @@ import pytest
 from baserow.contrib.builder.domains.domain_types import CustomDomainType
 from baserow.contrib.builder.domains.exceptions import (
     DomainDoesNotExist,
+    DomainNameNotUniqueError,
     DomainNotInBuilder,
 )
 from baserow.contrib.builder.domains.handler import DomainHandler
@@ -69,6 +70,21 @@ def test_create_domain(data_fixture):
 
 
 @pytest.mark.django_db
+def test_create_domain_with_duplicate_name(data_fixture):
+    builder = data_fixture.create_builder_application()
+    domain_name = "test.com"
+
+    DomainHandler().create_domain(CustomDomainType(), builder, domain_name=domain_name)
+
+    with pytest.raises(DomainNameNotUniqueError) as exc_info:
+        DomainHandler().create_domain(
+            CustomDomainType(), builder, domain_name=domain_name
+        )
+
+    assert exc_info.value.domain_name == domain_name
+
+
+@pytest.mark.django_db
 def test_delete_domain(data_fixture):
     domain = data_fixture.create_builder_custom_domain()
 
@@ -86,6 +102,24 @@ def test_update_domain(data_fixture):
     domain.refresh_from_db()
 
     assert domain.domain_name == "new.com"
+
+
+@pytest.mark.django_db
+def test_update_domain_with_duplicate_name(data_fixture):
+    builder = data_fixture.create_builder_application()
+    domain = data_fixture.create_builder_custom_domain(
+        domain_name="test.com", builder=builder
+    )
+
+    existing_domain = "other.com"
+    DomainHandler().create_domain(
+        CustomDomainType(), builder, domain_name=existing_domain
+    )
+
+    with pytest.raises(DomainNameNotUniqueError) as exc_info:
+        DomainHandler().update_domain(domain, domain_name=existing_domain)
+
+    assert exc_info.value.domain_name == existing_domain
 
 
 @pytest.mark.django_db
