@@ -5,14 +5,14 @@
     @click.native="markAsReadAndHandleClick"
   >
     <div class="notification-panel__notification-content-title">
-      <i18n path="twoWaySyncUpdateFailed.title" tag="span">
+      <i18n-t keypath="twoWaySyncUpdateFailed.title" tag="span">
         <template #name>
           <strong>{{ notification.data.table_name }}</strong>
         </template>
         <template #error>
           {{ notification.data.error }}
         </template>
-      </i18n>
+      </i18n-t>
     </div>
   </nuxt-link>
 </template>

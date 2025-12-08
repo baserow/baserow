@@ -4,13 +4,13 @@
       {{ $t('registerLicenseModal.titleRegisterLicense') }}
     </h2>
     <div>
-      <i18n path="registerLicenseModal.licenseDescription" tag="p">
+      <i18n-t keypath="registerLicenseModal.licenseDescription" tag="p">
         <template #pricingLink>
           <a target="_blank" :href="viewPricingURL">{{
             $t('registerLicenseModal.viewPricing')
           }}</a>
         </template>
-      </i18n>
+      </i18n-t>
       <p></p>
       <Error :error="error"></Error>
       <RegisterLicenseForm @submitted="submit">
@@ -37,7 +37,7 @@ import error from '@baserow/modules/core/mixins/error'
 import LicenseService from '@baserow_premium/services/license'
 import RegisterLicenseForm from '@baserow_premium/components/license/RegisterLicenseForm'
 import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandler'
-import {getPricingURL} from '@baserow_premium/utils/pricing'
+import { getPricingURL } from '@baserow_premium/utils/pricing'
 
 export default {
   name: 'RegisterLicenseModal',

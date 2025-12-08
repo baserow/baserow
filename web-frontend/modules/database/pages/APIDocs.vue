@@ -2,14 +2,14 @@
   <div class="auth__wrapper">
     <h1 class="box__title">{{ $t('apiDocsComponent.title') }}</h1>
     <template v-if="isAuthenticated">
-      <i18n path="apiDocsComponent.intro" tag="p">
+      <i18n-t keypath="apiDocsComponent.intro" tag="p">
         <template #settingsLink>
           <a @click.prevent="$refs.settingsModal.show('tokens')">{{
             $t('apiDocsComponent.settings')
           }}</a
           >,
         </template>
-      </i18n>
+      </i18n-t>
       <div class="select-application__title">
         {{ $t('apiDocsComponent.selectApplicationTitle') }}
       </div>
@@ -21,10 +21,10 @@
       <SettingsModal ref="settingsModal"></SettingsModal>
     </template>
     <template v-else>
-      <i18n path="apiDocsComponent.intro" tag="p">
+      <i18n-t keypath="apiDocsComponent.intro" tag="p">
         <template #settingsLink>{{ $t('apiDocsComponent.settings') }},</template
         >,
-      </i18n>
+      </i18n-t>
 
       <Button
         tag="nuxt-link"

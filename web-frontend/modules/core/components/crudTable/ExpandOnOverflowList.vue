@@ -112,6 +112,10 @@ export default {
         let expandOrder = 0
         let numHiddenRecords = this.records.length
 
+        if (!this.$refs.empty) {
+          return
+        }
+
         /*
            The starting empty element never flex-wraps down into a new row as it has 0
            width.

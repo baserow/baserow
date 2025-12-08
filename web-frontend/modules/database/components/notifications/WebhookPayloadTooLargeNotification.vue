@@ -5,7 +5,7 @@
     @click.native="markAsReadAndHandleClick"
   >
     <div class="notification-panel__notification-content-title">
-      <i18n path="webhookPayloadTooLargeNotification.body" tag="span">
+      <i18n-t keypath="webhookPayloadTooLargeNotification.body" tag="span">
         <template #name>
           <strong>{{ notification.data.webhook_name }}</strong>
         </template>
@@ -15,7 +15,7 @@
         <template #batch_limit>
           <strong>{{ notification.data.batch_limit }}</strong>
         </template>
-      </i18n>
+      </i18n-t>
     </div>
   </nuxt-link>
 </template>

@@ -5,13 +5,13 @@
     </h2>
     <Error :error="error"></Error>
     <div>
-      <i18n path="disconnectLicenseModal.disconnectDescription" tag="p">
+      <i18n-t keypath="disconnectLicenseModal.disconnectDescription" tag="p">
         <template #contact>
           <a href="https://baserow.io/contact" target="_blank"
             >baserow.io/contact</a
           >
         </template>
-      </i18n>
+      </i18n-t>
       <div class="actions">
         <div class="align-right">
           <Button

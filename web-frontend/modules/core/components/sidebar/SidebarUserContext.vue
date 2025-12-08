@@ -209,8 +209,8 @@ export default {
       )
     },
     async admin() {
-      this.$emit('toggle-admin', true)
       this.hide()
+      this.$emit('toggle-admin', true)
       const activatedAdminTypes = this.sortedAdminTypes.filter(
         (adminType) => !adminType.isDeactivated()
       )
