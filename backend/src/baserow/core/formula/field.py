@@ -41,9 +41,19 @@ class FormulaField(models.TextField):
         self.null = True
         self.blank = True
 
-    def _value_is_serialized_object(
+    def _deserialize_baserow_object(
         self, value: FormulaFieldDatabaseValue
     ) -> Optional[Dict[str, Any]]:
+        """
+        Given a value from the database, attempts to deserialize it into a dictionary
+        representing a Baserow formula object. If the value is not a valid JSON string
+        representing a Baserow formula object, returns None.
+
+        :param value: The value from the database to deserialize.
+        :return: A dictionary representing the Baserow formula object, or None if
+            deserialization fails.
+        """
+
         if not isinstance(value, str):
             return None
 
@@ -76,7 +86,7 @@ class FormulaField(models.TextField):
                 # receive an integer, we convert it to a string.
                 value = str(value)
             # We could encounter a serialized object...
-            if context := self._value_is_serialized_object(value):
+            if context := self._deserialize_baserow_object(value):
                 # If we have, then we can parse it and return the `BaserowFormulaObject`
                 return BaserowFormulaObject(
                     mode=context["m"], version=context["v"], formula=context["f"]
