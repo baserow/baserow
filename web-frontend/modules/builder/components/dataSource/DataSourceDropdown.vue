@@ -46,6 +46,7 @@
       </template>
     </Dropdown>
     <DataSourceCreateEditModal
+      :key="modalKey"
       ref="dataSourceCreateEditModal"
       @updated="onDataSourceUpdated"
     />
@@ -78,6 +79,11 @@ export default {
       required: false,
       default: false,
     },
+  },
+  data() {
+    return {
+      modalKey: 0,
+    }
   },
   computed: {
     isOnSharedPage() {
@@ -119,6 +125,7 @@ export default {
       const serviceType =
         dataSource.type && this.$registry.get('service', dataSource.type)
       if (serviceType?.getDataSchema(dataSource)) {
+        this.modalKey++
         this.$emit('input', dataSource.id)
       }
     },
