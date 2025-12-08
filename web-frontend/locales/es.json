@@ -294,7 +294,9 @@
         "hasValueLengthIsLowerThan": "tiene un valor inferior a",
         "hasValueContainsWord": "el valor contiene una palabra",
         "hasAnySelectOptionEqual": "tiene alguna opción de selección igual",
-        "hasNoneSelectOptionEqual": "no tiene ninguna opción de selección igual"
+        "hasNoneSelectOptionEqual": "no tiene ninguna opción de selección igual",
+        "hasAnyOf": "tiene alguno de",
+        "hasNotAnyOf": "no tiene ninguno de"
     },
     "viewType": {
         "grid": "Cuadrícula",
