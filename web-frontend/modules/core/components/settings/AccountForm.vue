@@ -27,7 +27,7 @@
         size="large"
       >
         <DropdownItem
-          v-for="locale in $i18n.locales"
+          v-for="locale in locales"
           :key="locale.code"
           :name="locale.name"
           :value="locale.code"
@@ -59,6 +59,12 @@ export default {
         language: '',
       },
     }
+  },
+  computed: {
+    locales() {
+      const { locales } = useI18n()
+      return locales.value
+    },
   },
 
   validations() {
