@@ -13,7 +13,7 @@
         :disabled="loading"
       >
         {{ $t('action.add') }}
-        {{ automationApplicationType.getName() | lowercase }}
+        {{ $filters.lowercase(automationApplicationType.getName()) }}
       </Button>
     </div>
   </ApplicationForm>
