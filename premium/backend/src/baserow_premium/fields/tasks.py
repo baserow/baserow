@@ -108,9 +108,6 @@ def generate_scheduled_ai_field_generation(field_id: int, retry: int = 3):
                 user,
                 "generate_ai_values",
                 field_id=field_id,
-                # We don't pass specific row ids here, because the job will fetch
-                # row ids and process them, removing scheduled rows that have been
-                # successfully processed.
                 row_ids=row_ids,
                 is_auto_update=True,
                 sync=True,

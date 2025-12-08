@@ -95,6 +95,7 @@ class GenerateAIValuesJobType(JobType):
         "row_ids",
         "view_id",
         "only_empty",
+        "is_auto_update",
     ]
     serializer_field_overrides = {
         "field_id": serializers.IntegerField(
@@ -115,6 +116,12 @@ class GenerateAIValuesJobType(JobType):
             required=False,
             help_text="Whether to only generate AI values for rows where the "
             "field is empty.",
+        ),
+        "is_auto_update": serializers.BooleanField(
+            required=False,
+            read_only=True,
+            help_text="Indicates if the job has been created because values in a "
+            "dependent field changed.",
         ),
     }
 

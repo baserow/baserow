@@ -270,4 +270,4 @@ class BaserowPremiumConfig(AppConfig):
         widget_type_registry.register(ChartWidgetType())
         widget_type_registry.register(PieChartWidgetType())
 
-        from baserow_premium.fields import tasks  # noqa: F401)
+        from baserow_premium.fields import tasks  # noqa: F401
