@@ -306,7 +306,14 @@
         "advancedWebhooksContent": "Activar webhooks cuando una fila entra en una vista específica — ideal para automatizar flujos de trabajo basados en condiciones de filtro.",
         "fieldLevelPermissions": "Permisos a nivel de campo",
         "fieldLevelPermissionsContent": "Controla quién puede editar campos específicos en una tabla. Establece permisos para editores, creadores, administradores o desactiva por completo las modificaciones de los valores de los campos.",
-        "builderBranding": "Marca de la aplicación"
+        "builderBranding": "Marca de la aplicación",
+        "builderBrandingContent": "Aplica marca blanca a la identidad de tu aplicación eliminando la marca «Hecho con Baserow» del pie de página de tu aplicación.",
+        "builderFileInputElement": "Elemento de entrada de archivo",
+        "builderFileInputElementContent": "El elemento de entrada de archivo te permite añadir un campo a las páginas de tu aplicación para subir archivos. Da a tus usuarios la posibilidad de almacenar documentos importantes o imágenes.",
+        "builderCustomCode": "Código personalizado para aplicaciones",
+        "builderCustomCodeContent": "Puedes añadir código CSS/JavaScript personalizado para personalizar aún más el aspecto y el comportamiento de tu aplicación. Por ejemplo, puedes integrar servicios externos como analítica o redes sociales.",
+        "dateDependency": "Dependencia de fecha",
+        "dateDependencyContent": "Puedes definir una dependencia entre dos fechas y una duración como fecha de inicio/final y duración. Con dependencia de fecha, si un valor cambia, los demás valores se ajustarán en consecuencia."
     },
     "chatwootSupportSidebarWorkspace": {
         "directSupport": "Apoyo directo"
@@ -445,6 +452,12 @@
         "realtimePushDescription": "Permite editar los valores de las celdas directamente en Baserow y los envía en tiempo real a la fuente de sincronización de datos. Ten en cuenta que los cambios no se extraen en tiempo real porque dependen de la acción de sincronización (periódica) para completarse. Se recomienda encarecidamente crear copias de seguridad de la base de datos PostgreSQL para evitar modificaciones accidentales."
     },
     "assistantPanel": {
-        "close": "Cerrar asistente de IA"
+        "close": "Cerrar asistente de IA",
+        "title": "Asistente IA",
+        "history": "Historial de chat",
+        "back": "Atrás"
+    },
+    "assistantSidebarItem": {
+        "title": "Kuma IA"
     }
 }
