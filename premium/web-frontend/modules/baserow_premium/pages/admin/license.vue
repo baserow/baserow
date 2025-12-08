@@ -176,13 +176,13 @@
               </div>
               {{ $t('license.disconnectLicense') }}
             </div>
-            <i18n path="license.disconnectDescription" tag="p">
+            <i18n-t keypath="license.disconnectDescription" tag="p">
               <template #contact>
                 <a href="https://baserow.io/contact" target="_blank"
                   >baserow.io/contact</a
                 >
               </template>
-            </i18n>
+            </i18n-t>
 
             <Button type="danger" @click="$refs.disconnectModal.show()">
               {{ $t('license.disconnectLicense') }}

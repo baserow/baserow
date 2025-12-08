@@ -19,7 +19,7 @@
             : ''
         "
       >
-        <i18n path="functionalGridViewFieldAI.generate" tag="span" />
+        <i18n-t keypath="functionalGridViewFieldAI.generate" tag="span" />
       </Button>
     </div>
   </div>
