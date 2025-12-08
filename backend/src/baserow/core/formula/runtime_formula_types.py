@@ -571,7 +571,7 @@ class RuntimeIsEmpty(RuntimeFormulaFunction):
                 return not bool(int(value))
             except ValueError:
                 return not bool(value)
-        
+
         try:
             return not bool(int(value))
         except ValueError:

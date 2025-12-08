@@ -1885,7 +1885,8 @@ export class RuntimeContains extends RuntimeFormulaFunction {
 
     try {
       const val = ensureObject(value)
-      const isArrayOrObject = val !== null && (Array.isArray(val) || typeof val === "object")
+      const isArrayOrObject =
+        val !== null && (Array.isArray(val) || typeof val === 'object')
 
       if (isArrayOrObject) {
         if (Array.isArray(val)) {
@@ -1893,7 +1894,7 @@ export class RuntimeContains extends RuntimeFormulaFunction {
         } else {
           return Object.keys(val).includes(args[1])
         }
-      }      
+      }
     } catch {}
 
     try {
@@ -2103,7 +2104,8 @@ export class RuntimeIsEmpty extends RuntimeFormulaFunction {
 
     try {
       const val = ensureObject(arg)
-      const isArrayOrObject = val !== null && (Array.isArray(val) || typeof val === "object")
+      const isArrayOrObject =
+        val !== null && (Array.isArray(val) || typeof val === 'object')
       if (isArrayOrObject) {
         if (Array.isArray(val)) {
           return val.length === 0
@@ -2113,19 +2115,19 @@ export class RuntimeIsEmpty extends RuntimeFormulaFunction {
       }
     } catch {}
 
-    if (typeof arg === "string") {
-      let trimmed = arg.trim()
+    if (typeof arg === 'string') {
+      const trimmed = arg.trim()
       const intValue = Number.parseInt(trimmed, 10)
 
       if (!Number.isNaN(intValue) && String(intValue) === trimmed) {
-        return !Boolean(intValue)
+        return !intValue
       }
 
-      return !Boolean(trimmed)
+      return !trimmed
     }
 
-    if (typeof arg === "number") {
-      return !Boolean(arg)
+    if (typeof arg === 'number') {
+      return !arg
     }
 
     return null
@@ -2184,11 +2186,11 @@ export class RuntimeStrip extends RuntimeFormulaFunction {
   }
 
   execute(context, [arg]) {
-    if (typeof arg === "string" && isNaN(Number(v))) {
+    if (typeof arg === 'string' && isNaN(Number(arg))) {
       return arg.trim()
     }
 
-    return null    
+    return null
   }
 
   getDescription() {
