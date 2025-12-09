@@ -1,6 +1,6 @@
 import random
 import uuid
-from typing import Any, List, Optional
+from typing import Optional
 from zoneinfo import ZoneInfo
 
 from django.core.exceptions import ValidationError
