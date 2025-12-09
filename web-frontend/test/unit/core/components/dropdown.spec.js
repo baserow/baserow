@@ -87,7 +87,7 @@ describe('Dropdown component', () => {
   test('test interactions', async () => {
     let wrapper = null
 
-    const onInput = jest.fn(async (newVal) => {
+    const onInput = vi.fn(async (newVal) => {
       wrapper.setProps({ value: newVal })
       await wrapper.vm.$nextTick()
     })
@@ -120,7 +120,7 @@ describe('Dropdown component', () => {
   test('test focus', async () => {
     let wrapper = null
 
-    const onInput = jest.fn(async (newVal) => {
+    const onInput = vi.fn(async (newVal) => {
       wrapper.setProps({ value: newVal })
       await wrapper.vm.$nextTick()
     })

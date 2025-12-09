@@ -988,7 +988,7 @@ describe('(DEPRECATED) Date in this week, month and year tests', () => {
   beforeAll(() => {
     testApp = new TestApp()
     // Wed Jun 01 2022 00:00:00 UTC
-    dateNowSpy = jest.spyOn(Date, 'now').mockImplementation(() => 1654041600000)
+    dateNowSpy = vi.spyOn(Date, 'now').mockImplementation(() => 1654041600000)
   })
 
   afterAll(() => {

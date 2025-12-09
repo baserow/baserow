@@ -57,7 +57,7 @@ describe('GridViewFieldFile component', () => {
     wrapper.findComponent(UploadFileUserFileUpload).vm.addFile(event)
     await wrapper.vm.$nextTick()
 
-    const documentClick = jest.fn()
+    const documentClick = vi.fn()
     document.body.addEventListener('click', documentClick)
 
     // After clicking remove file, the modal should still be visible

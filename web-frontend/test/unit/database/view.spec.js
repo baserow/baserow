@@ -9,7 +9,7 @@ import {
 
 // Mock out debounce so we don't have to wait or simulate waiting for the various
 // debounces in the search functionality.
-jest.mock('lodash/debounce', () => jest.fn((fn) => fn))
+vi.mock('lodash/debounce', () => vi.fn((fn) => fn))
 
 describe('View Tests', () => {
   let testApp = null

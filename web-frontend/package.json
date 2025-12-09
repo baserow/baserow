@@ -100,6 +100,7 @@
     "vuex": "^4.1.0"
   },
   "devDependencies": {
+    "axios-mock-adapter": "1.21.4",
     "@nuxt/test-utils": "^3.21.0",
     "@vue/test-utils": "^2.4.6",
     "happy-dom": "^20.0.11",

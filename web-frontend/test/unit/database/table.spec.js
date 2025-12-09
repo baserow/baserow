@@ -4,7 +4,7 @@ import flushPromises from 'flush-promises'
 
 // Mock out debounce so we dont have to wait or simulate waiting for the various
 // debounces in the search functionality.
-jest.mock('lodash/debounce', () => jest.fn((fn) => fn))
+vi.mock('lodash/debounce', () => vi.fn((fn) => fn))
 
 describe('Table Component Tests', () => {
   let testApp = null

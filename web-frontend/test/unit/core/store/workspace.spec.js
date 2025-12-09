@@ -1,6 +1,6 @@
 import workspaceStore from '@baserow/modules/core/store/workspace'
 import { TestApp } from '@baserow/test/helpers/testApp'
-import { expect } from '@jest/globals'
+import { expect } from 'vitest'
 
 describe('Workspace store', () => {
   let testApp = null

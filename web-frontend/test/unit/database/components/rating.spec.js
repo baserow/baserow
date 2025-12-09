@@ -42,7 +42,7 @@ describe('Rating component', () => {
   })
 
   test('Test interactions with rating component', async () => {
-    const onUpdate = jest.fn()
+    const onUpdate = vi.fn()
     const wrapper = await mountComponent(
       {
         value: 3,

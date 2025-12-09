@@ -10,7 +10,7 @@ describe('FormTextarea.vue', () => {
       },
     })
 
-    const spy = jest.spyOn(wrapper.vm, 'resizeTextArea')
+    const spy = vi.spyOn(wrapper.vm, 'resizeTextArea')
 
     await wrapper.setProps({ value: 'new value' })
 
@@ -25,7 +25,7 @@ describe('FormTextarea.vue', () => {
       },
     })
 
-    const spy = jest.spyOn(wrapper.vm, 'resizeTextArea')
+    const spy = vi.spyOn(wrapper.vm, 'resizeTextArea')
 
     await wrapper.setProps({ value: 'new value' })
 
@@ -39,7 +39,7 @@ describe('FormTextarea.vue', () => {
       },
     })
 
-    const spy = jest.spyOn(wrapper.vm, 'resizeTextArea')
+    const spy = vi.spyOn(wrapper.vm, 'resizeTextArea')
 
     await wrapper.setProps({ value: 'new value' })
 
@@ -53,7 +53,7 @@ describe('FormTextarea.vue', () => {
       },
     })
 
-    const spy = jest.spyOn(wrapper.vm, 'resizeTextArea')
+    const spy = vi.spyOn(wrapper.vm, 'resizeTextArea')
 
     expect(spy).not.toHaveBeenCalled()
   })
