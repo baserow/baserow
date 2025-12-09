@@ -149,54 +149,6 @@ jobs:
             org.opencontainers.image.revision=${{ env.REAL_GITHUB_SHA }}
             org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
 
-  # E2E tests need the built Nuxt app (nuxt-local), so we build prod target separately
-  build-frontend-e2e:
-    name: Build Web-Frontend E2E Image
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    outputs:
-      image: ${{ steps.image.outputs.full }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Generate image tag
-        id: image
-        run: |
-          IMAGE_NAME="${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/web-frontend_e2e"
-          IMAGE_TAG="${{ env.CI_IMAGE_TAG_PREFIX }}${{ env.REAL_GITHUB_SHA }}"
-          FULL_IMAGE="${IMAGE_NAME}:${IMAGE_TAG}"
-          echo "full=${FULL_IMAGE}" >> $GITHUB_OUTPUT
-
-      - name: Build and push web-frontend E2E image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: web-frontend/Dockerfile
-          target: prod
-          push: true
-          tags: ${{ steps.image.outputs.full }}
-          cache-from: |
-            ${{ inputs.clear_cache != true && 'type=gha,scope=frontend-e2e' || '' }}
-            ${{ inputs.clear_cache != true && 'type=gha,scope=frontend-ci' || '' }}
-          cache-to: type=gha,scope=frontend-e2e,mode=max
-          labels: |
-            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-            org.opencontainers.image.revision=${{ env.REAL_GITHUB_SHA }}
-            org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
-
   # ==========================================================================
   # LINT STAGE - Run linting on backend, frontend, and Dockerfiles
   # ==========================================================================
@@ -425,7 +377,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [1, 2, 3, 4, 5, 6, 7, 8]
+        group: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
     services:
       db:
         image: pgvector/pgvector:pg13
@@ -454,7 +406,7 @@ jobs:
           docker run \
             --name=baserow_backend_test_container \
             --network="${{ job.services.db.network }}" \
-            -e PYTEST_SPLITS=8 \
+            -e PYTEST_SPLITS=10 \
             -e PYTEST_SPLIT_GROUP=${{ matrix.group }} \
             -e DATABASE_HOST=db \
             -e DATABASE_PORT=5432 \
@@ -604,7 +556,7 @@ jobs:
     needs:
       - detect-changes
       - build-backend
-      - build-frontend-e2e
+      - build-frontend
     if: needs.detect-changes.outputs.backend == 'true' || needs.detect-changes.outputs.frontend == 'true' || needs.detect-changes.outputs.dockerfiles == 'true' || github.ref_name == 'develop' || github.ref_name == 'master'
     permissions:
       contents: read
@@ -614,7 +566,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: [1, 2]
     services:
       db:
         image: pgvector/pgvector:pg13
@@ -729,7 +681,7 @@ jobs:
             -e PRIVATE_BACKEND_URL=http://backend:8000 \
             -e FEATURE_FLAGS="*" \
             -p 3000:3000 \
-            ${{ needs.build-frontend-e2e.outputs.image }} nuxt-local &
+            ${{ needs.build-frontend.outputs.image }} nuxt-local &
 
           # Wait for all docker run commands to complete
           wait
@@ -774,7 +726,7 @@ jobs:
           PRIVATE_BACKEND_URL: http://backend:8000
         run: |
           cd e2e-tests
-          CI=1 npx playwright test --timeout=30000 --grep-invert=@slow --shard=${{ matrix.shard }}/4 --project=firefox
+          CI=1 npx playwright test --timeout=30000 --grep-invert=@slow --shard=${{ matrix.shard }}/2 --project=firefox
 
       - name: Upload E2E test results
         uses: actions/upload-artifact@v4
@@ -986,7 +938,6 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}/web-frontend:ci-tested-${{ env.REAL_GITHUB_SHA }}
           cache-from: |
             type=gha,scope=frontend-ci
-            type=gha,scope=frontend-e2e
             type=gha,scope=frontend-prod
           cache-to: type=gha,scope=frontend-prod,mode=max
           labels: |

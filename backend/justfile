@@ -479,12 +479,21 @@ run-dev-celery: _check-dev
 
     LOG_FILE="{{ celery_log_file }}"
 
-    # Function to prefix output with process name and tee to log file
+    # ANSI color codes
+    COLOR_WORKER=$'\033[38;5;39m'   # Blue for worker
+    COLOR_EXPORT=$'\033[38;5;208m'  # Orange for export
+    COLOR_BEAT=$'\033[38;5;129m'    # Purple for beat
+    COLOR_RESET=$'\033[0m'
+
+    # Function to prefix output with colored process name and tee to log file
     prefix_output() {
         local prefix="$1"
+        local color="$2"
         while IFS= read -r line; do
-            echo "[$prefix] $line"
-        done | tee -a "$LOG_FILE"
+            # Colored output to terminal, plain prefix to log file
+            echo "${color}[$prefix]${COLOR_RESET} $line"
+            echo "[$prefix] $line" >> "$LOG_FILE"
+        done
     }
 
     cleanup() {
@@ -500,15 +509,15 @@ run-dev-celery: _check-dev
     > "$LOG_FILE"
 
     echo "Starting Celery worker (celery,automation_workflow queues)..."
-    {{ uv_run }} celery -A baserow worker -Q celery,automation_workflow -n default-worker@%h -l {{ celery_log_level }} --pool {{ celery_pool }} 2>&1 | prefix_output "WORKER" &
+    {{ uv_run }} celery -A baserow worker -Q celery,automation_workflow -n default-worker@%h -l {{ celery_log_level }} --pool {{ celery_pool }} 2>&1 | prefix_output "WORKER" "$COLOR_WORKER" &
     WORKER_PID=$!
 
     echo "Starting Celery export worker (export queue)..."
-    {{ uv_run }} celery -A baserow worker -Q export -n export-worker@%h -l {{ celery_log_level }} --pool {{ celery_pool }} 2>&1 | prefix_output "EXPORT" &
+    {{ uv_run }} celery -A baserow worker -Q export -n export-worker@%h -l {{ celery_log_level }} --pool {{ celery_pool }} 2>&1 | prefix_output "EXPORT" "$COLOR_EXPORT" &
     EXPORT_PID=$!
 
     echo "Starting Celery beat with redbeat scheduler..."
-    {{ uv_run }} celery -A baserow beat -l {{ celery_log_level }} -S redbeat.RedBeatScheduler 2>&1 | prefix_output "BEAT" &
+    {{ uv_run }} celery -A baserow beat -l {{ celery_log_level }} -S redbeat.RedBeatScheduler 2>&1 | prefix_output "BEAT" "$COLOR_BEAT" &
     BEAT_PID=$!
 
     echo ""

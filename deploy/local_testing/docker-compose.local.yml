@@ -50,7 +50,7 @@ services:
   # environment here.
   media-volume-fixer:
     image: bash:4.4
-    command: chown 999:999 -R /baserow/media
+    command: chown 9999:9999 -R /baserow/media
     volumes:
       - media:/baserow/media
     networks:

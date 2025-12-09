@@ -77,7 +77,7 @@ RUN dos2unix /baserow/web-frontend/docker/docker-entrypoint.sh \
     && chmod a+x /baserow/web-frontend/docker/docker-entrypoint.sh \
     && chown $UID:$GID /baserow/web-frontend/docker/docker-entrypoint.sh
 
-    USER $UID:$GID
+USER $UID:$GID
 WORKDIR /baserow/web-frontend
 
 # Build, then clean reinstall production only
@@ -104,7 +104,7 @@ RUN groupadd --system --gid $GID baserow_user && \
 COPY --link --from=tool-builder /usr/local/bin/su-exec /usr/local/bin/su-exec
 COPY --link --from=tool-builder /usr/bin/tini /usr/bin/tini
 
-RUN mkdir -p /baserow && \
+RUN mkdir -p /baserow/web-frontend/.cache /baserow/reports /baserow/.cache /baserow/.yarn /baserow/web-frontend/reports/coverage && \
     chown -R $UID:$GID /baserow
 
 # Copy dependencies and source code
@@ -160,6 +160,7 @@ RUN pip3 install --break-system-packages rust-just
 
 COPY --link --from=tool-builder /usr/local/bin/su-exec /usr/local/bin/su-exec
 COPY --link --from=tool-builder /usr/bin/tini /usr/bin/tini
+COPY --link --from=tool-builder /usr/bin/curl /usr/bin/curl
 COPY --link --from=tool-builder /usr/bin/dos2unix /usr/local/bin/dos2unix
 
 RUN getent group $GID || groupadd --system --gid $GID baserow_dev && \
@@ -225,6 +226,7 @@ ENV DOCKER_USER=baserow_user \
 
 COPY --link --from=tool-builder /usr/local/bin/su-exec /usr/local/bin/su-exec
 COPY --link --from=tool-builder /usr/bin/tini /usr/bin/tini
+COPY --link --from=tool-builder /usr/bin/curl /usr/bin/curl
 
 RUN groupadd --system --gid $GID baserow_user && \
     useradd --shell /bin/bash -u $UID -g $GID -o -c "" -d /baserow -m baserow_user
@@ -237,7 +239,7 @@ WORKDIR /baserow/web-frontend
 RUN --mount=type=cache,target=$YARN_CACHE_FOLDER,uid=$UID,gid=$GID,sharing=locked \
     --mount=type=bind,source=web-frontend/package.json,target=/baserow/web-frontend/package.json \
     --mount=type=bind,source=web-frontend/yarn.lock,target=/baserow/web-frontend/yarn.lock \
-    yarn install --production  --pure-lockfile --cache-folder $YARN_CACHE_FOLDER \
+    yarn install --production --pure-lockfile --cache-folder $YARN_CACHE_FOLDER \
     # Clean up unnecessary files to reduce image size
     && find node_modules -type f -name "*.map" -delete \
     && find node_modules -type f \( \

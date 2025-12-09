@@ -270,8 +270,8 @@ BASEROW_TRIGGER_SYNC_TEMPLATES_AFTER_MIGRATION=false docker-compose up -d
 ```bash
 mkdir ~/baserow_backups
 # The folder must be the same UID:GID as the user running inside the container, which
-# for the local env is 9999:9999, for the dev env it is 1000:1000 or your own UID:GID
-# when using ./dev.sh
+# for the local env is 9999:9999, for the dev env it is your own UID:GID
+# when using `just dc-dev`
 sudo chown 9999:9999 ~/baserow_backups/ 
 docker-compose run -v ~/baserow_backups:/baserow/backups backend backup -f /baserow/backups/baserow_backup.tar.gz 
 # backups/ now contains your Baserow backup.

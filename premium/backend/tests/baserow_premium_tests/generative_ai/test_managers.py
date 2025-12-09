@@ -1,5 +1,8 @@
+import os
 from io import BytesIO
 from unittest.mock import Mock
+
+from django.conf import settings
 
 import pytest
 from baserow_premium.generative_ai.managers import AIFileManager
@@ -47,7 +50,7 @@ def test_upload_files_from_file_field(premium_data_fixture, django_assert_num_qu
 
     assert len(generative_ai_model_type._files) == 1
     assert generative_ai_model_type._files[file_ids[0]]["file_name"].endswith(
-        f"/media/user_files/{user_file_1.name}"
+        os.path.join(settings.MEDIA_ROOT, f"user_files/{user_file_1.name}")
     )
 
 

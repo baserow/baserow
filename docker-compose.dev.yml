@@ -8,7 +8,7 @@ services:
     volumes:
       # Use a different volume in case the Major version is different from the
       # production one to avoid issues.
-      - pgdatadev:/var/lib/postgresql/data 
+      - pgdatadev:/var/lib/postgresql/data
 
   redis:
     ports:
@@ -210,6 +210,18 @@ services:
     networks:
       local:
 
+  # When switching between dev and local the media files in the media volume will be
+  # owned by different users. Ensure that we chown them to the user appropriate for the
+  # environment here.
+  volume-permissions-fixer:
+    image: bash:4.4
+    command: chown UID:$GID -R /baserow/media
+    volumes:
+      - media:/baserow/media
+      - caddy_config:/config
+      - caddy_data:/data
+    networks:
+      local:
 
   otel-collector:
     image: otel/opentelemetry-collector:0.106.1

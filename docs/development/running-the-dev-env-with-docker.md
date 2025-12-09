@@ -160,19 +160,28 @@ just dc-dev up -d --force-recreate
 
 ## Optional Services
 
-Some services are not started by default to save resources:
+By default, all services including optional ones are started:
 
 | Service | Description | Port |
 |---------|-------------|------|
 | `storybook` | Component development UI | 6006 |
 | `flower` | Celery task monitoring | 5555 |
 
-```bash
-# Start with optional services
-just dc-dev-full up -d
+This is controlled by the `COMPOSE_PROFILES` variable in `.env.docker-dev`:
 
-# Or explicitly
-just dc-dev --profile optional up -d
+```bash
+# Default: start all services including optional ones
+COMPOSE_PROFILES=optional
+
+# To disable optional services (save resources), set to empty:
+COMPOSE_PROFILES=
+```
+
+After changing this setting, restart the services:
+
+```bash
+just dc-dev down
+just dc-dev up -d
 ```
 
 ## Hot Reloading

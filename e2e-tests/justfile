@@ -9,6 +9,8 @@
 network := "baserow-e2e"
 backend_image := "baserow-backend-ci"
 frontend_image := "baserow-frontend-e2e"
+db_image := "pgvector/pgvector:pg${POSTGRES_IMAGE_VERSION:-13}"
+redis_image := "redis:6"
 
 # Database dump settings
 dump_file := "fixtures/e2e-db.dump"
@@ -97,7 +99,7 @@ up:
             -e POSTGRES_PASSWORD=baserow \
             -e POSTGRES_DB=baserow \
             --tmpfs /var/lib/postgresql/data:size=2G \
-            pgvector/pgvector:pg13
+            {{ db_image }}
     fi
 
     # Start Redis
@@ -105,7 +107,7 @@ up:
         echo "Starting Redis..."
         docker run -d --network={{ network }} --name e2e-redis \
             --tmpfs /data:size=256m \
-            redis:6-alpine
+            {{ redis_image }}
     fi
 
     # Create shared tmpfs volume for user files (backend + celery)
@@ -283,7 +285,7 @@ db-dump:
         -e POSTGRES_USER=baserow \
         -e POSTGRES_PASSWORD=baserow \
         -e POSTGRES_DB=baserow \
-        pgvector/pgvector:pg13
+        {{ db_image }}
 
     # Wait for PostgreSQL
     echo "Waiting for PostgreSQL to be ready..."
@@ -302,7 +304,7 @@ db-dump:
 
     # Start Redis (needed for Django)
     echo "Starting Redis..."
-    docker run -d --network={{ dump_network }} --name e2e-dump-redis redis:6-alpine
+    docker run -d --network={{ dump_network }} --name e2e-dump-redis {{ redis_image }}
     sleep 2
 
     # Run migrations only (use test settings which doesn't sync templates)
