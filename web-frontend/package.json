@@ -8,7 +8,9 @@
     "dev": "APP_ENV=dev nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
-    "_postinstall": "nuxt prepare"
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "postinstall": "nuxt prepare"
   },
   "resolutions": {
     "sass": "~1.70.0"
@@ -96,5 +98,11 @@
     "vue-chartjs": "^5.3.3",
     "vue-router": "^4.6.3",
     "vuex": "^4.1.0"
+  },
+  "devDependencies": {
+    "@nuxt/test-utils": "^3.21.0",
+    "@vue/test-utils": "^2.4.6",
+    "happy-dom": "^20.0.11",
+    "vitest": "^4.0.15"
   }
 }
