@@ -1,4 +1,4 @@
-import { isRelativeUrl } from '@baserow/modules/core/utils/url'
+import { isRelativeUrl } from '@baserow/modules/core/utils/url.js'
 import {
   isValidAbsoluteURL,
   isValidURL,
