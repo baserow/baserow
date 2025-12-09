@@ -7,6 +7,7 @@ import {
   BooleanBaserowRuntimeFormulaArgumentType,
   TimezoneBaserowRuntimeFormulaArgumentType,
   AnyBaserowRuntimeFormulaArgumentType,
+  ArrayBaserowRuntimeFormulaArgumentType,
 } from '@baserow/modules/core/runtimeFormulaArgumentTypes'
 import {
   InvalidFormulaArgumentType,
@@ -2222,15 +2223,16 @@ export class RuntimeSum extends RuntimeFormulaFunction {
   }
 
   get args() {
-    return [new AnyBaserowRuntimeFormulaArgumentType()]
+    return [
+      new ArrayBaserowRuntimeFormulaArgumentType({ allowLiteralArray: true }),
+    ]
   }
 
   execute(context, [arg]) {
     try {
-      const val = ensureArray(arg, { allowLiteralArray: true })
-      return sum(val)
+      return sum(arg)
     } catch {
-      return 0
+      return null
     }
   }
 

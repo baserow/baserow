@@ -5,6 +5,7 @@ from django.core.exceptions import ValidationError
 import pytz
 
 from baserow.core.formula.validator import (
+    ensure_array,
     ensure_boolean,
     ensure_datetime,
     ensure_numeric,
@@ -112,3 +113,34 @@ class AnyBaserowRuntimeFormulaArgumentType(BaserowRuntimeFormulaArgumentType):
 
     def parse(self, value):
         return value
+
+
+class ArrayOfNumbersBaserowRuntimeFormulaArgumentType(
+    BaserowRuntimeFormulaArgumentType
+):
+    def __init__(self, *args, **kwargs):
+        self.allow_literal_array = kwargs.pop("allow_literal_array", False)
+        super().__init__(*args, **kwargs)
+
+    def test(self, value):
+        try:
+            value = ensure_array(value, allow_literal_array=self.allow_literal_array)
+        except ValidationError:
+            return False
+
+        for item in value:
+            try:
+                ensure_numeric(item)
+            except ValidationError:
+                return False
+
+        return True
+
+    def parse(self, value):
+        value = ensure_array(value, allow_literal_array=self.allow_literal_array)
+
+        data = []
+        for item in value:
+            data.append(ensure_numeric(item))
+
+        return data

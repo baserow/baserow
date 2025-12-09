@@ -8,6 +8,7 @@ from django.utils import timezone
 
 from baserow.core.formula.argument_types import (
     AnyBaserowRuntimeFormulaArgumentType,
+    ArrayOfNumbersBaserowRuntimeFormulaArgumentType,
     BooleanBaserowRuntimeFormulaArgumentType,
     DateTimeBaserowRuntimeFormulaArgumentType,
     DictBaserowRuntimeFormulaArgumentType,
@@ -599,32 +600,11 @@ class RuntimeSum(RuntimeFormulaFunction):
     type = "sum"
 
     args = [
-        AnyBaserowRuntimeFormulaArgumentType(),
+        ArrayOfNumbersBaserowRuntimeFormulaArgumentType(allow_literal_array=True),
     ]
 
-    def _get_sum(self, values: List[Any]) -> float:
-        valid_numbers = []
-        for value in values:
-            try:
-                valid_numbers.append(float(value))
-            except (ValueError, TypeError):
-                pass
-
-        return sum(valid_numbers)
-
     def execute(self, context: FormulaContext, args: FormulaArgs):
-        try:
-            list_of_values = ensure_object(args[0])
-            if isinstance(list_of_values, list):
-                return self._get_sum(list_of_values)
-        except ValidationError:
-            pass
-
-        try:
-            list_of_values = ensure_array(args[0])
-            return self._get_sum(list_of_values)
-        except ValidationError:
-            return 0
+        return sum(args[0])
 
 
 class RuntimeAvg(RuntimeFormulaFunction):
