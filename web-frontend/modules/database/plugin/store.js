@@ -53,7 +53,6 @@ export default defineNuxtPlugin({
   async setup(nuxtApp) {
     const { $store } = nuxtApp
     if (!$store.hasModule('table')) {
-      console.log('Load db store modules')
       $store.registerModule('table', tableStore)
       $store.registerModule('view', viewStore)
       $store.registerModule('field', fieldStore)
