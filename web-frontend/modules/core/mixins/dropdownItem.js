@@ -109,10 +109,10 @@ export default {
     },
     isActive(value) {
       if (this.multiple.value) {
-        const parentValue = this.parent.value ?? []
+        const parentValue = this.parent.currentValue ?? []
         return parentValue.includes(value)
       } else {
-        return this.parent.value === value
+        return this.parent.currentValue === value
       }
     },
     isHovering(value) {
