@@ -43,8 +43,8 @@ export default {
    * mousedown event on the element, which is used to start the drag and drop
    * process.
    */
-  bind(el, binding) {
-    binding.def.update(el, binding)
+  beforeMount(el, binding) {
+    binding.dir.updated(el, binding)
     el.sortableAutoScrolling = false
 
     const mousedownElement = binding.value.handle
@@ -60,16 +60,16 @@ export default {
       el.sortableStartClientX = event.clientX
       el.sortableStartClientY = event.clientY
 
-      el.mouseMoveEvent = (event) => binding.def.move(el, binding, event)
+      el.mouseMoveEvent = (event) => binding.dir.move(el, binding, event)
       window.addEventListener('mousemove', el.mouseMoveEvent)
 
-      el.mouseUpEvent = (event) => binding.def.up(el, binding, event)
+      el.mouseUpEvent = (event) => binding.dir.up(el, binding, event)
       window.addEventListener('mouseup', el.mouseUpEvent)
 
       el.keydownEvent = (event) => {
         if (event.key === 'Escape') {
           // When the user presses the escape key we want to cancel the action
-          binding.def.cancel(el, event)
+          binding.dir.cancel(el, event)
         }
       }
       document.body.addEventListener('keydown', el.keydownEvent)
@@ -92,9 +92,9 @@ export default {
    * When the directive must unbind from the element, we will remove all the events
    * that could have been added.
    */
-  unbind(el, binding) {
+  unmounted(el, binding) {
     if (el.sortableMoved) {
-      binding.def.cancel(el)
+      binding.dir.cancel(el)
     }
 
     const mousedownElement = binding.value.handle
@@ -102,7 +102,7 @@ export default {
       : el
     mousedownElement.removeEventListener('mousedown', el.mousedownEvent)
   },
-  update(el, binding) {
+  updated(el, binding) {
     el.sortableId = binding.value.id
     el.sortableEnabled =
       binding.value.enabled || binding.value.enabled === undefined
@@ -140,7 +140,9 @@ export default {
 
     // Set pointer events to none because that will prevent hover and click
     // effects.
-    const all = [...parent.childNodes].filter((e) => e !== indicator)
+    const all = [...parent.childNodes].filter(
+      (e) => e !== indicator && e.nodeType === 1
+    )
 
     // Add the `sortable-sorting-item` which disables the pointer events and user
     // select of all the sortable items. This will give a smoother user experience
@@ -218,7 +220,7 @@ export default {
         el.sortableAutoScrolling = true
         scrollableParent.scrollTop += speed
         el.sortableScrollTimeout = setTimeout(() => {
-          binding.def.move(el, binding, null, false)
+          binding.dir.move(el, binding, null, false)
         }, 10)
       } else {
         el.sortableAutoScrolling = false
@@ -233,7 +235,7 @@ export default {
    * of the items.
    */
   up(el, binding) {
-    binding.def.cancel(el, binding)
+    binding.dir.cancel(el, binding)
 
     if (!el.sortableMoved) {
       return
@@ -257,7 +259,9 @@ export default {
       window.removeEventListener('click', preventOtherClickEvent, true)
     })
 
-    const oldOrder = [...parent.childNodes].map((e) => e.sortableId)
+    const oldOrder = [...parent.childNodes]
+      .filter((e) => e.nodeType === 1)
+      .map((e) => e.sortableId)
     const newOrder = oldOrder.filter((id) => id !== el.sortableId)
     const targetIndex = el.sortableBeforeElement
       ? newOrder.findIndex((id) => id === el.sortableBeforeElement.sortableId)
@@ -291,7 +295,7 @@ export default {
       indicator.parentNode.removeChild(indicator)
     }
 
-    const all = parent.childNodes
+    const all = [...parent.childNodes].filter((e) => e.nodeType === 1)
     all.forEach((s) => {
       s.classList.remove('sortable-sorting-item')
     })

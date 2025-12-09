@@ -20,7 +20,7 @@
  *       to be tested.
  */
 export default {
-  bind(el, binding) {
+  beforeMount(el, binding) {
     const DOM_DELTA_PIXEL = 0
     const DOM_DELTA_LINE = 1
     el.scrollDirectiveEvent = (event) => {
@@ -99,7 +99,7 @@ export default {
     el.addEventListener('touchmove', el.scrollTouchMoveEvent)
     el.addEventListener('touchend', el.scrollTouchEndEvent)
   },
-  unbind(el) {
+  unmounted(el) {
     el.removeEventListener('wheel', el.scrollDirectiveEvent)
     el.removeEventListener('touchstart', el.scrollTouchStartEvent)
     el.removeEventListener('touchmove', el.scrollTouchMoveEvent)
