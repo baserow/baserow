@@ -1498,6 +1498,8 @@ describe('RuntimeReplace', () => {
 describe('RuntimeLength', () => {
   test.each([
     { args: ['Hello, world!'], expected: 13 },
+    { args: ['0'], expected: 1 },
+    { args: [4], expected: 1 },
     { args: ['{"a": "b", "c": "d"}'], expected: 2 },
     { args: ['["a", "b", "c", "d"]'], expected: 4 },
   ])('execute returns expected value', ({ args, expected }) => {
@@ -1672,6 +1674,8 @@ describe('RuntimeIsEmpty', () => {
     { args: ['[]'], expected: true },
     { args: ['{}'], expected: true },
     { args: [' '], expected: true },
+    { args: ['0'], expected: true },
+    { args: [0], expected: true },
     { args: ['foo'], expected: false },
     { args: [['foo']], expected: false },
     { args: [{ foo: 'bar' }], expected: false },
