@@ -378,6 +378,9 @@ class BaserowEnterpriseConfig(AppConfig):
 
         # The signals must always be imported last because they use the registries
         # which need to be filled first.
+        import baserow_enterprise.assistant.tasks  # noqa: F401
+        import baserow_enterprise.audit_log.signals  # noqa: F401
+        import baserow_enterprise.ws.signals  # noqa: F401
 
 
 def sync_default_roles_after_migrate(sender, **kwargs):

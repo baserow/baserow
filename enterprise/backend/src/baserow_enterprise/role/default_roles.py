@@ -298,6 +298,9 @@ from baserow_enterprise.teams.operations import (
     RestoreTeamOperationType,
     UpdateTeamOperationType,
 )
+from baserow_enterprise.views.operations import (
+    ListenToAllRestrictedViewEventsOperationType,
+)
 from baserow_premium.row_comments.operations import (
     CreateRowCommentsOperationType,
     DeleteRowCommentsOperationType,

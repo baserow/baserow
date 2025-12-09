@@ -708,7 +708,7 @@ def text_value_sql_to_duration(field: "DurationField") -> str:
 
 
 if is_psycopg3:
-    from psycopg.types.datetime import IntervalLoader  # noqa: BPG001
+    from psycopg.types.datetime import IntervalLoader
 
     from baserow.core.psycopg import psycopg
 

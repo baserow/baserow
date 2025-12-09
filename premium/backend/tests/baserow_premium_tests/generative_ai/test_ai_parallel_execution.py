@@ -1,13 +1,13 @@
 from io import BytesIO
 
 import pytest
-from baserow_premium.fields.job_types import AIValueGenerator
 
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.core.generative_ai.exceptions import GenerativeAIPromptError
 from baserow.core.storage import get_default_storage
 from baserow.core.user_files.handler import UserFileHandler
 from baserow.core.utils import Progress
+from baserow_premium.fields.job_types import AIValueGenerator
 
 
 @pytest.mark.django_db

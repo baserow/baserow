@@ -220,32 +220,22 @@ jobs:
     name: Web-Frontend Lint
     runs-on: ubuntu-latest
     needs:
+      - build-frontend
       - detect-changes
     if: needs.detect-changes.outputs.frontend == 'true' || github.ref_name == 'develop' || github.ref_name == 'master'
+    permissions:
+      contents: read
+      packages: read
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
         with:
-          node-version: '24'
-          cache: 'yarn'
-          cache-dependency-path: web-frontend/yarn.lock
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Cache lint results
-        uses: actions/cache@v4
-        with:
-          path: web-frontend/.cache
-          key: lint-${{ runner.os }}-${{ hashFiles('web-frontend/**/*.js', 'web-frontend/**/*.vue', 'web-frontend/**/*.scss') }}
-          restore-keys: lint-${{ runner.os }}-
-
-      - name: Install dependencies
-        working-directory: web-frontend
-        run: yarn install --frozen-lockfile
-
-      - name: Run lint
-        working-directory: web-frontend
-        run: yarn lint
+      - name: Run frontend lint
+        run: docker run --rm ${{ needs.build-frontend.outputs.image }} lint
 
   dockerfile-lint:
     name: Dockerfile Lint (hadolint)
@@ -450,7 +440,6 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - build-frontend
-      - frontend-lint
       - detect-changes
     if: needs.detect-changes.outputs.frontend == 'true' || github.ref_name == 'develop' || github.ref_name == 'master'
     permissions:

@@ -210,8 +210,9 @@ lint-migrations: _check-dev
 # Run all lint checks including migrations (for CI)
 ci-lint: lint lint-migrations
 
-# Format code with black
+# Fix code style (sort imports + format)
 [group('4 - code-quality')]
+fix: _check-dev
     #!/usr/bin/env bash
     set -euo pipefail
     {{ _load_env }}

@@ -139,7 +139,7 @@ class BaserowBackupRunner:
         params = [
             "--host=" + self.host,
             "--dbname=" + self.database,
-            "--port=" + self.port,
+            "--port=" + str(self.port),
             "--username=" + self.username,
             # Run in directory mode so we can do parallel dumps using the jobs flag.
             "-Fd",

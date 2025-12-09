@@ -167,9 +167,9 @@ def views_rows_updated(
 
     old_row_views: List[FilteredViewRows] = before_return_dict["old_rows_views"]
     existing_checker = before_return_dict["caching_row_checker"]
-    view_rows: List[
-        FilteredViewRows
-    ] = existing_checker.get_filtered_views_where_rows_are_visible(rows)
+    view_rows: List[FilteredViewRows] = (
+        existing_checker.get_filtered_views_where_rows_are_visible(rows)
+    )
 
     view_slug_to_updated_view_rows = {view.view.slug: view for view in view_rows}
 

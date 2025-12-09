@@ -79,8 +79,8 @@ USER_THUMBNAILS = {"tiny": [21, 21]}
 # Make sure that we are not using the `MEDIA_URL` environment variable because that
 # could break the tests. They are expecting it to be 'http://localhost:8000/media/'
 # because that is default value in `base.py`.
-MEDIA_ROOT = "/tmp/media-test/"  # nosec
 MEDIA_URL = "http://localhost:8000/media/"
+MEDIA_ROOT = "/tmp/media-test/"  # noqa: S108
 
 
 CACHES = {
