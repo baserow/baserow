@@ -39,7 +39,7 @@
 </template>
 
 <script>
-import { Editor, EditorContent, Node } from '@tiptap/vue-2'
+import { Editor, EditorContent, Node } from '@tiptap/vue-3'
 import { Document } from '@tiptap/extension-document'
 import { Text } from '@tiptap/extension-text'
 import { History } from '@tiptap/extension-history'

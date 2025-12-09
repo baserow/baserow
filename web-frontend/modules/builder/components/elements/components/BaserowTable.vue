@@ -4,9 +4,9 @@
       <template v-if="orientation === ORIENTATIONS.HORIZONTAL">
         <thead>
           <tr class="baserow-table__row">
-            <template v-for="field in fields">
+            <template v-for="field in fields" :key="field.__id__">
               <slot name="field-name" :field="field">
-                <th :key="field.__id__" class="baserow-table__header-cell">
+                <th class="baserow-table__header-cell">
                   {{ field.name }}
                 </th>
               </slot>
@@ -19,7 +19,7 @@
             :key="row.__id__"
             class="baserow-table__row"
           >
-            <template v-for="field in fields">
+            <template v-for="field in fields" :key="field.id">
               <slot
                 name="cell-content"
                 :value="row[field.__id__]"
@@ -27,7 +27,7 @@
                 :row-index="index"
                 :row="row"
               >
-                <td :key="field.id" class="baserow-table__cell">
+                <td class="baserow-table__cell">
                   {{ row[field.__id__] }}
                 </td>
               </slot>

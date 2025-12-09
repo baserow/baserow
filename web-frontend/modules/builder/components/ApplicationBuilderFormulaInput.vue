@@ -13,13 +13,6 @@
 </template>
 
 <script setup>
-import {
-  inject,
-  computed,
-  useContext,
-  ref,
-  watch,
-} from '@nuxtjs/composition-api'
 import FormulaInputField from '@baserow/modules/core/components/formula/FormulaInputField'
 import { DataSourceDataProviderType } from '@baserow/modules/builder/dataProviderTypes'
 import { buildFormulaFunctionNodes } from '@baserow/modules/core/formula'

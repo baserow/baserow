@@ -12,10 +12,7 @@
       @click="$refs.dateContext.show($refs.wrapper, 'bottom', 'left', 0)"
       @input="updateCalendar"
       @keydown.enter.prevent="$event.target.blur()"
-      @blur="
-        updateDate($event.target.value)
-        $refs.dateContext.hide()
-      "
+      @blur="handleDateBlur($event)"
     />
     <div ref="timeWrapper">
       <ABInput
@@ -26,10 +23,7 @@
         @focus="$refs.timeContext.toggle($refs.timeWrapper, 'bottom', 'left')"
         @click="$refs.timeContext.show($refs.timeWrapper, 'bottom', 'left')"
         @keydown.enter.prevent="$event.target.blur()"
-        @blur="
-          updateTime($event.target.value)
-          $refs.timeContext.hide()
-        "
+        @blur="handleTimeBlur($event)"
       />
     </div>
     <Context
@@ -228,6 +222,22 @@ export default {
      */
     updateCalendar(value) {
       this.calendarValue = parseDateForCalendar(value, this.dateFormat)
+    },
+    /**
+     * Handle blur event on the date input field.
+     * @param {Event} event - The blur event.
+     */
+    handleDateBlur(event) {
+      this.updateDate(event.target.value)
+      this.$refs.dateContext.hide()
+    },
+    /**
+     * Handle blur event on the time input field.
+     * @param {Event} event - The blur event.
+     */
+    handleTimeBlur(event) {
+      this.updateTime(event.target.value)
+      this.$refs.timeContext.hide()
     },
   },
 }

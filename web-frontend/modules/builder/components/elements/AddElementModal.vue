@@ -11,10 +11,9 @@
         icon-left="iconoir-search"
       />
       <div class="add-element-modal__element-cards">
-        <template v-for="group in elementTypes">
+        <template v-for="group in elementTypes" :key="group.subject">
           <div
             v-if="group.elementTypes.length > 0"
-            :key="group.subject"
             class="add-element-modal__category"
           >
             <Expandable

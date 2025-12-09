@@ -1,9 +1,8 @@
 <template>
   <div class="radio-group" :class="{ 'radio-group--vertical': verticalLayout }">
-    <template v-for="(option, index) in options">
+    <template v-for="(option, index) in options" :key="index">
       <Radio
         v-if="type === 'radio'"
-        :key="index"
         class="radio-group__radio"
         :value="option.value"
         :model-value="modelValue"
@@ -16,7 +15,6 @@
       </Radio>
       <RadioButton
         v-else
-        :key="index * 2"
         class="radio-group__radio-button"
         :model-value="modelValue"
         :value="option.value"

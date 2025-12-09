@@ -23,9 +23,8 @@ function baserowModuleConfig(
     `./modules/core/module.js`,
     `./modules/database/module.js`,
     `./modules/dashboard/module.js`,
+    `./modules/builder/module.js`,
     //`${base}/modules/integrations/module.js`,
-    //`${base}/modules/builder/module.js`,
-
     //`${base}/modules/automation/module.js`,
   ]
 

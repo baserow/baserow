@@ -1,13 +1,12 @@
 <template>
-  <div class="preview-navigation-bar">
+  <div v-if="page" class="preview-navigation-bar">
     <div class="preview-navigation-bar__user-selector">
       <UserSelector />
     </div>
     <div class="preview-navigation-bar__address-bar">
-      <template v-for="pathPart in splitPath">
+      <template v-for="pathPart in splitPath" :key="pathPart.key">
         <PreviewNavigationBarInput
           v-if="pathPart.type === 'variable'"
-          :key="pathPart.key"
           :class="`preview-navigation-bar__parameter-input--${
             paramTypeMap[pathPart.value]
           }`"
@@ -21,25 +20,20 @@
             })
           "
         />
-        <div
-          v-else
-          :key="`else_${pathPart.key}`"
-          class="preview-navigation-bar__address-bar-path"
-        >
+        <div v-else class="preview-navigation-bar__address-bar-path">
           {{ pathPart.value }}
         </div>
       </template>
-      <template v-for="(queryParam, index) in queryParams">
-        <span
-          :key="`separator-${queryParam.key}`"
-          class="preview-navigation-bar__query-separator"
-        >
+      <template
+        v-for="(queryParam, index) in queryParams"
+        :key="queryParam.key"
+      >
+        <span class="preview-navigation-bar__query-separator">
           {{ index === 0 ? '?' : '&' }}
 
           <label :for="queryParam.name">{{ queryParam.name }}=</label>
           <PreviewNavigationBarInput
             :id="queryParam.name"
-            :key="`param-${queryParam.key}`"
             :class="`preview-navigation-bar__query-parameter-input--${queryParam.type}`"
             :validation-fn="queryParam.validationFn"
             :default-value="pageParameters[queryParam.name]"
@@ -77,9 +71,11 @@ export default {
   },
   computed: {
     pageParameters() {
+      if (!this.page) return {}
       return this.$store.getters['pageParameter/getParameters'](this.page)
     },
     queryParams() {
+      if (!this.page || !this.page.query_params) return []
       return this.page.query_params.map((queryParam, idx) => ({
         ...queryParam,
         key: `query-param-${queryParam.name}-${idx}`,
@@ -87,6 +83,7 @@ export default {
       }))
     },
     splitPath() {
+      if (!this.page || !this.page.path) return []
       return splitPath(this.page.path).map((pathPart, index) => ({
         ...pathPart,
         key:
@@ -100,6 +97,7 @@ export default {
       }))
     },
     paramTypeMap() {
+      if (!this.page || !this.page.path_params) return {}
       return Object.fromEntries(
         this.page.path_params.map(({ name, type }) => [name, type])
       )

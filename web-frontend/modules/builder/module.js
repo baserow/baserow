@@ -1,47 +1,57 @@
-import path from 'path'
-
+import {
+  defineNuxtModule,
+  addPlugin,
+  createResolver,
+  extendPages,
+  addTemplate,
+} from 'nuxt/kit'
 import { routes } from './routes'
-import en from './locales/en.json'
-import fr from './locales/fr.json'
-import nl from './locales/nl.json'
-import de from './locales/de.json'
-import it from './locales/it.json'
-import es from './locales/es.json'
-import pl from './locales/pl.json'
-import ko from './locales/ko.json'
 
-export default function BuilderModule(options) {
-  this.addPlugin({ src: path.resolve(__dirname, 'middleware.js') })
+const locales = [
+  { code: 'en', name: 'English', file: 'en.json' },
+  { code: 'fr', name: 'Français', file: 'fr.json' },
+  { code: 'nl', name: 'Nederlands', file: 'nl.json' },
+  { code: 'de', name: 'Deutsch', file: 'de.json' },
+  { code: 'es', name: 'Español', file: 'es.json' },
+  { code: 'it', name: 'Italiano', file: 'it.json' },
+  { code: 'pl', name: 'Polski (Beta)', file: 'pl.json' },
+  { code: 'ko', name: '한국어', file: 'ko.json' },
+]
 
-  // Add the plugin to register the builder application.
-  this.appendPlugin({
-    src: path.resolve(__dirname, 'plugin.js'),
-  })
+export default defineNuxtModule({
+  meta: {
+    name: '@baserow/builder',
+    configKey: 'builder',
+    compatibility: {
+      nuxt: '^3.0.0',
+    },
+  },
+  async setup(options, nuxt) {
+    const { resolve } = createResolver(import.meta.url)
 
-  // Override the existing generated Nuxt router.js file, so that we can change the
-  // router by our own.
-  this.addPlugin({
-    src: path.resolve(__dirname, 'plugins/router.js'),
-    fileName: 'router.js',
-  })
-  this.addPlugin({ src: path.resolve(__dirname, 'plugins/global.js') })
+    // Add main plugin
+    addPlugin(resolve('./plugin.js'))
 
-  // Create a "fake" template with the existing Nuxt router file that can be used by the
-  // `plugins/router.js` above.
-  this.addTemplate({
-    fileName: 'defaultRouter.js',
-    src: require.resolve('@nuxt/vue-app/template/router'),
-  })
+    // Add router plugin
+    addPlugin({
+      src: resolve('./plugins/router.js'),
+      mode: 'client',
+    })
 
-  // Add all the related routes.
-  this.extendRoutes((configRoutes) => {
-    configRoutes.push(...routes)
-  })
+    // Add global plugin
+    addPlugin(resolve('./plugins/global.js'))
 
-  let alreadyExtended = false
-  this.nuxt.hook('i18n:extend-messages', function (additionalMessages) {
-    if (alreadyExtended) return
-    additionalMessages.push({ en, fr, nl, de, es, it, pl, ko })
-    alreadyExtended = true
-  })
-}
+    // Add routes
+    extendPages((pages) => {
+      pages.push(...routes)
+    })
+
+    // Register i18n translations
+    nuxt.hook('i18n:registerModule', (register) => {
+      register({
+        langDir: resolve('./locales'),
+        locales,
+      })
+    })
+  },
+})
