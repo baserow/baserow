@@ -17,6 +17,9 @@ import _ from 'lodash'
 import defu from 'defu'
 import pathe from 'pathe'
 import page from '../builder/services/page'
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
+import { createRequire } from 'node:module'
+
 
 //import head from './head'
 // import { routes as customRoutes } from './routes'
@@ -29,6 +32,8 @@ import es from './locales/es.json'
 import it from './locales/it.json'
 import pl from './locales/pl.json'
 import ko from './locales/ko.json'*/
+
+const require = createRequire(import.meta.url)
 
 const locales = [
   { code: 'en', name: 'English', file: 'en.json' },
@@ -372,24 +377,25 @@ export default defineNuxtModule({
       name: 'urlCheck',
       path: resolve('./middleware/urlCheck'),
     })
-    //
-    // Template iconoir
-    //
-    /*const iconoirCSS = readFileSync(
-      require.resolve('iconoir/css/iconoir.css')
-    ).toString()*/
 
-    // addTemplate({
-    //   filename: 'iconoir.css',
-    //   getContents: () =>
-    //     readFileSync(require.resolve('iconoir/css/iconoir.css')).toString(),
-    // })
+    // Changes the stroke-width of the iconoir svg files because this way, we don't
+    // have to fork the repository and change it there.
+    const iconoirCssPath = require.resolve('iconoir/css/iconoir.css')
+    const patchedIconoirPath = pathe.join(
+      nuxt.options.buildDir,
+      'baserow',
+      'iconoir.scss',
+    )
+    mkdirSync(pathe.dirname(patchedIconoirPath), { recursive: true })
+    const originalIconoirCss = readFileSync(iconoirCssPath, 'utf-8')
+    const patchedIconoirCss = originalIconoirCss.replace(
+      /stroke-width="1\.5"/g,
+      'stroke-width="2.0"',
+    )
+    writeFileSync(patchedIconoirPath, patchedIconoirCss, 'utf-8')
 
-    /* nuxt.options.build.templates.push({
-      filename: 'baserow/iconoir.css',
-      src: resolve('templates/iconoir.js'),
-      options: { iconoirCSS },
-    })*/
+    // Alias the npm import to our patched file
+    nuxt.options.alias['iconoir/css/iconoir'] = patchedIconoirPath
 
     // Add the main scss file which contains all the generic scss code.
     nuxt.options.css.push(resolve('./assets/scss/default.scss'))
