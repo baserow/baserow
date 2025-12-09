@@ -75,20 +75,34 @@ class RatingCollectionFieldType(CollectionFieldType):
 
 class TextCollectionFieldType(CollectionFieldType):
     type = "text"
-    allowed_fields = ["value"]
-    serializer_field_names = ["value"]
+    allowed_fields = ["value", "format"]
+    serializer_field_names = ["value", "format"]
     simple_formula_fields = ["value"]
 
     class SerializedDict(TypedDict):
         value: BaserowFormulaObject
+        format: str
 
     @property
     def serializer_field_overrides(self):
+        from baserow.core.formula.serializers import FormulaSerializerField
+
         return {
             "value": FormulaSerializerField(
-                help_text="The formula for the text.",
+                help_text="The value of the field.",
+            ),
+            "format": serializers.ChoiceField(
+                choices=[("plain", "Plain"), ("markdown", "Markdown")],
+                default="plain",
+                help_text="The format of the text: plain or markdown",
                 required=False,
             ),
+        }
+
+    def get_pytest_params(self, pytest_data_fixture):
+        return {
+            "value": "'test'",
+            "format": "plain",
         }
 
 

@@ -166,7 +166,10 @@ class BuilderApplicationTypeInitApplication:
                 {
                     "name": "Notes",
                     "type": "text",
-                    "config": {"value": "'Some notes about this user.'"},
+                    "config": {
+                        "value": "'Some notes about this user.'",
+                        "format": "plain",
+                    },
                 },
             ],
         )
