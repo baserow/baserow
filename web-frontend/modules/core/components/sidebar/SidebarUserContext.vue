@@ -199,6 +199,7 @@ export default {
       })
     },
     logoff() {
+      this.hide()
       this.logoffLoading = true
       logoutAndRedirectToLogin(
         this.$nuxt.$router,
