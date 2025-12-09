@@ -51,7 +51,6 @@ export default defineNuxtPlugin({
   name: 'database-store',
   dependsOn: ['store'],
   async setup(nuxtApp) {
-    console.log('this setup is executed again')
     const { $store } = nuxtApp
     if (!$store.hasModule('table')) {
       console.log('Load db store modules')
@@ -70,8 +69,5 @@ export default defineNuxtPlugin({
       $store.registerModule('template/view/gallery', galleryStore)
       $store.registerModule('template/view/form', formStore)
     }
-
-    //nuxtApp.vueApp.use(store)
-    //nuxtApp.provide('store', store)
   },
 })
