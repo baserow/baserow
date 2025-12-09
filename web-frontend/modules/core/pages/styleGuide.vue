@@ -2003,8 +2003,8 @@ export default {
       ],
       radioOptionIcons: [
         { value: 'a', icon: 'iconoir-align-left' },
-        { value: 'a', icon: 'iconoir-align-center' },
-        { value: 'a', icon: 'iconoir-align-right' },
+        { value: 'b', icon: 'iconoir-align-center' },
+        { value: 'c', icon: 'iconoir-align-right' },
       ],
     }
   },
