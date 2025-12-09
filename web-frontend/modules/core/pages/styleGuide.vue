@@ -28,19 +28,19 @@
         <div class="margin-bottom-3">
           <FormTextarea
             ref="input"
+            v-model="textarea"
             placeholder="Textarea"
             class="margin-bottom-2"
-            value=""
             :rows="6"
           />
 
           <FormTextarea
             ref="input"
+            v-model="textarea"
             auto-expandable
             placeholder="Auto expandable textarea"
             class="margin-bottom-2"
             :max-rows="14"
-            value=""
           />
 
           <FormInput
@@ -1976,6 +1976,7 @@ export default {
   },
   data() {
     return {
+      textarea: '',
       checkbox: false,
       radio: 'a',
       radioButton: 'a',
