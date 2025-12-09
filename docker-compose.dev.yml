@@ -187,15 +187,16 @@ services:
     tty: true
 
   mjml-email-compiler:
-    build:
-      target: dev
-      context: .
-      dockerfile: ./web-frontend/Dockerfile
+    
     image: baserow_web-frontend:dev
+    depends_on:
+      - web-frontend
     user: "${UID}:${GID}"
     command: "bash -c 'cd /baserow/backend/email_compiler/ && yarn install && yarn run watch'"
     volumes:
       - ./backend:/baserow/backend
+      - ./web-frontend/docker:/baserow/web-frontend/docker
+      - ./deploy/plugins:/baserow/plugins
     # Open stdin and tty so when attaching key input works as expected.
     stdin_open: true
     tty: true
