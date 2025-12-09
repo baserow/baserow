@@ -1725,6 +1725,8 @@ def test_runtime_replace_validate_number_of_args(args, expected):
         (["Hello, world!"], 13),
         (['{"a": "b", "c": "d"}'], 2),
         (['["a", "b", "c", "d"]'], 4),
+        ([3], 1),
+        (["0"], 1),
     ],
 )
 def test_runtime_length_execute(args, expected):
@@ -1893,7 +1895,6 @@ def test_runtime_join_validate_number_of_args(args, expected):
 def test_runtime_split_execute(args, expected):
     parsed_args = RuntimeSplit().parse_args(args)
     result = RuntimeSplit().execute({}, parsed_args)
-    print("parsed args: ", parsed_args)
     assert result == expected
 
 
@@ -1932,7 +1933,7 @@ def test_runtime_split_validate_number_of_args(args, expected):
         ([{}], True),
         (["[]"], True),
         (["{}"], True),
-        ([" "], False),
+        ([" "], True),
         (["foo"], False),
         ([["foo"]], False),
         ([{"foo": "bar"}], False),
@@ -2019,7 +2020,7 @@ def test_runtime_strip_validate_number_of_args(args, expected):
         (['["1", "2", "3"]'], 6.0),
         (["[1, 2, 3]"], 6.0),
         ([[1, 2, 3]], 6.0),
-        ([[1, 2, "foo", 3.5]], 6.5),
+        ([[1, 2, "foo", 3.5]], None),  # "foo" causes the entire arg to be invalid
     ],
 )
 def test_runtime_sum_execute(args, expected):
@@ -2032,7 +2033,7 @@ def test_runtime_sum_execute(args, expected):
     "args,expected",
     [
         ([""], None),
-        (['["1", "foo"]'], None),
+        (['["1", "foo"]'], '["1", "foo"]'),
         ([["1", 2]], None),
     ],
 )
@@ -2060,7 +2061,7 @@ def test_runtime_sum_validate_number_of_args(args, expected):
         (['["1", "2", "3", "4"]'], 2.5),
         (["[1, 2, 3, 4]"], 2.5),
         ([[1, 2, 3, 4]], 2.5),
-        ([[1, 2, "foo", 3, 4.5]], 2.625),
+        ([[1, 2, "foo", 3, 4.5]], None),  # "foo" causes the entire arg to be invalid
     ],
 )
 def test_runtime_avg_execute(args, expected):
@@ -2073,7 +2074,7 @@ def test_runtime_avg_execute(args, expected):
     "args,expected",
     [
         ([""], None),
-        (['["1", "foo"]'], None),
+        (['["1", "foo"]'], '["1", "foo"]'),
         ([["1", 2]], None),
     ],
 )

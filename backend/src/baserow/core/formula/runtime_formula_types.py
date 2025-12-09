@@ -561,8 +561,18 @@ class RuntimeIsEmpty(RuntimeFormulaFunction):
 
         try:
             value = ensure_object(value)
-            if isinstance(value, (dict, list)):
-                return len(value) == 0
+            return len(value) == 0
+        except ValidationError:
+            pass
+
+        try:
+            value = ensure_array(value)
+
+            # Handle case where ensure_array converts " " to [""]
+            if len(value) == 1 and not value[0].strip():
+                return True
+
+            return len(value) == 0
         except ValidationError:
             pass
 
@@ -575,7 +585,7 @@ class RuntimeIsEmpty(RuntimeFormulaFunction):
 
         try:
             return not bool(int(value))
-        except ValueError:
+        except (TypeError, ValueError):
             pass
 
         return None
@@ -604,7 +614,10 @@ class RuntimeSum(RuntimeFormulaFunction):
     ]
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
-        return sum(args[0])
+        try:
+            return sum(args[0])
+        except TypeError:
+            return None
 
 
 class RuntimeAvg(RuntimeFormulaFunction):
@@ -617,8 +630,8 @@ class RuntimeAvg(RuntimeFormulaFunction):
     def execute(self, context: FormulaContext, args: FormulaArgs):
         try:
             return sum(args[0]) / len(args[0])
-        except ValidationError:
-            return 0
+        except TypeError:
+            return None
 
 
 class RuntimeAt(RuntimeFormulaFunction):

@@ -141,6 +141,9 @@ class ArrayOfNumbersBaserowRuntimeFormulaArgumentType(
 
         data = []
         for item in value:
-            data.append(ensure_numeric(item))
+            try:
+                data.append(ensure_numeric(item))
+            except ValidationError:
+                return None
 
         return data
