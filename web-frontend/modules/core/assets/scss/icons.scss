@@ -4,18 +4,8 @@
   }
 }
 
-// Extracted from iconoir.css
 %icon {
-  display: inline-block;
-  &::before {
-    content: ' ';
-    display: block;
-    background: currentColor;
-    mask-size: cover;
-    -webkit-mask-size: cover;
-    width: 1em;
-    height: 1em;
-  }
+  @extend [class^="iconoir-"], [class*=" iconoir-"];
 }
 
 /* prettier-ignore */
