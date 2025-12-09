@@ -1,3 +1,4 @@
 @import 'normalize.css';
-@import 'iconoir/css/iconoir.css';
+// Omit .css file so that it's parsed as scss and the selectors can be extended.
+@import 'iconoir/css/iconoir';
 @import 'highlight.js/styles/github.css';
