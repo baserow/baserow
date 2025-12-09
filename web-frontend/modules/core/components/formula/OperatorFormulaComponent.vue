@@ -3,6 +3,7 @@
     as="span"
     class="operator-formula-component"
     :contenteditable="false"
+    @click.stop="handleClick"
   >
     <span class="operator-formula-component__symbol">{{ operatorSymbol }}</span>
   </NodeViewWrapper>
@@ -21,6 +22,14 @@ export default {
   computed: {
     operatorSymbol() {
       return this.node?.attrs?.operatorSymbol || ''
+    },
+  },
+  methods: {
+    handleClick() {
+      this.emitToEditor('operator-clicked', {
+        operatorSymbol: this.operatorSymbol,
+        type: 'operator',
+      })
     },
   },
 }

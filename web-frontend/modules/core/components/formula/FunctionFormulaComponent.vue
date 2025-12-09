@@ -3,6 +3,7 @@
     as="span"
     class="function-formula-component"
     :data-no-args="hasNoArgs ? 'true' : undefined"
+    @click.stop="handleClick"
   >
     <span class="function-formula-component__name">{{ functionName }}(</span>
   </NodeViewWrapper>
@@ -24,6 +25,14 @@ export default {
     },
     hasNoArgs() {
       return this.node?.attrs?.hasNoArgs || false
+    },
+  },
+  methods: {
+    handleClick() {
+      this.emitToEditor('function-clicked', {
+        functionName: this.functionName,
+        type: 'function',
+      })
     },
   },
 }

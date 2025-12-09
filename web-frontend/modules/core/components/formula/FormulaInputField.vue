@@ -10,6 +10,8 @@
         :class="classes"
         :editor="editor"
         @data-node-clicked="dataNodeClicked"
+        @function-clicked="functionClicked"
+        @operator-clicked="operatorClicked"
       />
     </div>
 
@@ -22,6 +24,7 @@
       :has-value="value.length > 0"
       :allow-node-selection="allowNodeSelection"
       :nodes-hierarchy="nodesHierarchy"
+      :selected-function-or-operator="selectedFunctionOrOperator"
       @node-selected="handleNodeSelected"
       @node-unselected="unSelectNode"
       @mode-changed="handleModeChange"
@@ -161,6 +164,7 @@ export default {
       isHandlingModeChange: false,
       intersectionObserver: null,
       key: 0,
+      selectedFunctionOrOperator: null,
     }
   },
   computed: {
@@ -537,6 +541,31 @@ export default {
     },
     dataNodeClicked(node) {
       this.editor.commands.selectNode(node)
+      this.selectedFunctionOrOperator = null
+    },
+    functionClicked(data) {
+      this.selectedFunctionOrOperator = {
+        name: data.functionName,
+        type: 'function',
+      }
+      this.isFocused = true
+      this.$nextTick(() => {
+        if(this.editor) {
+          this.editor.commands.showContext()
+        }
+      })
+    },
+    operatorClicked(data) {
+      this.selectedFunctionOrOperator = {
+        symbol: data.operatorSymbol,
+        type: 'operator',
+      }
+      this.isFocused = true
+      this.$nextTick(() => {
+        if(this.editor) {
+          this.editor.commands.showContext()
+        }
+      })
     },
     handleEditorClick() {
       if (this.editor && !this.disabled && !this.readOnly) {
@@ -590,6 +619,7 @@ export default {
     },
     unSelectNode() {
       this.editor?.commands.unselectNode()
+      this.selectedFunctionOrOperator = null
     },
   },
 }

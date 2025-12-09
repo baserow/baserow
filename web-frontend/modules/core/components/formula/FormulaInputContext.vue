@@ -6,7 +6,7 @@
     overflow-scroll
   >
     <NodeExplorer
-      :node-selected="nodeSelected"
+      :node-selected="selectedPath"
       :mode="mode"
       :nodes-hierarchy="nodesHierarchy"
       :allow-node-selection="allowNodeSelection"
@@ -105,6 +105,11 @@ export default {
       required: false,
       default: false,
     },
+    selectedFunctionOrOperator: {
+      type: Object,
+      required: false,
+      default: null,
+    },
   },
   data() {
     return {
@@ -120,6 +125,15 @@ export default {
   computed: {
     isAdvancedMode() {
       return this.mode === 'advanced'
+    },
+    selectedPath() {
+      if (this.selectedFunctionOrOperator) {
+        return this.findNodePath(
+          this.nodesHierarchy,
+          this.selectedFunctionOrOperator
+        )
+      }
+      return this.nodeSelected
     },
   },
   watch: {
@@ -246,6 +260,25 @@ export default {
     },
     cancelModeChange() {
       this.$refs.advancedModeModal.hide()
+    },
+    findNodePath(nodes, target, currentPath = '') {
+      for (const node of nodes) {
+        const nodePath = currentPath ? `${currentPath}.${node.name}` : node.name
+        
+        if (target.type === 'function' && node.type === 'function' && node.name === target.name) {
+          return nodePath
+        }
+        
+        if (target.type === 'operator' && node.type === 'operator' && node.signature?.operator === target.symbol) {
+          return nodePath
+        }
+        
+        if (node.nodes && node.nodes.length > 0) {
+          const found = this.findNodePath(node.nodes, target, nodePath)
+          if (found) return found
+        }
+      }
+      return null
     },
   },
 }

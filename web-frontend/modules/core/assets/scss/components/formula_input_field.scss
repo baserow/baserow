@@ -141,3 +141,12 @@
     padding-right: 2px;
   }
 }
+
+.function-formula-component,
+.operator-formula-component {
+  cursor: pointer;
+
+  &:hover {
+    opacity: 0.8;
+  }
+}
