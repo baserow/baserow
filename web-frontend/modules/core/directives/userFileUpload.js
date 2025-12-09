@@ -39,8 +39,8 @@ export default {
   /**
    * Registers all the needed drop, drag and click events needed.
    */
-  bind(el, binding, vnode) {
-    binding.def.update(el, binding)
+  beforeMount(el, binding, vnode) {
+    binding.dir.updated(el, binding)
 
     // The input that is needed to open the file chooser.
     el.userFileUploadElement = document.createElement('input')
@@ -48,7 +48,7 @@ export default {
     el.userFileUploadElement.type = 'file'
     el.userFileUploadElement.style.display = 'none'
     el.userFileUploadElement.addEventListener('change', (event) => {
-      binding.def.upload(el, event, vnode.context.$client)
+      binding.dir.upload(el, event, binding.instance.$client)
     })
 
     // The counter that is used to calculate if the user is dragging a file over the
@@ -58,7 +58,7 @@ export default {
 
     el.userFileUploadDrop = (event) => {
       event.preventDefault()
-      binding.def.upload(el, event, vnode.context.$client)
+      binding.dir.upload(el, event, binding.instance.$client)
     }
     el.addEventListener('drop', el.userFileUploadDrop)
 
@@ -93,14 +93,14 @@ export default {
   /**
    * Removes all the events registered in the bind function.
    */
-  unbind(el) {
+  unmounted(el) {
     el.removeEventListener('drop', el.userFileUploadDrop)
     el.removeEventListener('dragover', el.userFileUploadDragOver)
     el.removeEventListener('dragenter', el.userFileUploadDragEnter)
     el.removeEventListener('dragleave', el.userFileUploadDragLeave)
     el.removeEventListener('click', el.userFileUploadClick)
   },
-  update(el, binding) {
+  updated(el, binding) {
     const defaults = {
       accept() {
         return '*'
