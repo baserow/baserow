@@ -1,4 +1,4 @@
-# Creating A Plugin
+# Creating A Plugin [Outdated]
 
 > Check out our [Plugin community sub-forum](https://community.baserow.io/c/plugins/17)
 > for community made plugins and further discussion.

@@ -17,6 +17,7 @@ ENV SU_EXEC_VERSION=212b75144bbc06722fbd7661f651390dc47a43d1 \
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update && \
+    apt-get upgrade -y && \
     apt-get install -y --no-install-recommends ca-certificates curl build-essential dos2unix tini && \
     curl -fsSL -o /usr/local/bin/su-exec.c "https://github.com/ncopa/su-exec/raw/${SU_EXEC_VERSION}/su-exec.c" && \
     echo "${SU_EXEC_SHA256}  /usr/local/bin/su-exec.c" | sha256sum -c - && \
@@ -37,8 +38,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     apt-get update && \
     apt-get upgrade -y && \
     apt-get install -y --no-install-recommends \
-    build-essential \
-    xmlsec1
+    build-essential
 
 ENV UV_PYTHON_DOWNLOADS=0 \
     UV_COMPILE_BYTECODE=1 \
@@ -93,7 +93,7 @@ RUN --mount=type=cache,target=$UV_CACHE_DIR,sharing=locked,uid=$UID,gid=$GID \
     --mount=type=bind,source=premium/backend/pyproject.toml,target=/baserow/premium/backend/pyproject.toml \
     --mount=type=bind,source=enterprise/LICENSE,target=/baserow/enterprise/LICENSE \
     --mount=type=bind,source=enterprise/backend/pyproject.toml,target=/baserow/enterprise/backend/pyproject.toml \
-    uv sync --locked --no-install-workspace --no-install-project \
+    uv sync --frozen --no-install-workspace --no-install-project \
     && find /baserow/venv -type f \( -name "*.c" -o -name "*.h" \) -not -path "*/autobahn/*" -delete \
     # Strip test/doc directories from site-packages (keep django/drf tests - used at runtime)
     # Keep botocore/docs and boto3/docs - they're imported at runtime
@@ -124,7 +124,7 @@ RUN dos2unix /baserow/backend/docker/docker-entrypoint.sh \
 
 # Install the project with premium and enterprise workspaces
 RUN --mount=type=cache,target=$UV_CACHE_DIR,sharing=locked,uid=$UID,gid=$GID \
-    uv sync --locked \
+    uv sync --frozen \
     && find /baserow/venv -type f \( -name "*.c" -o -name "*.h" \) -not -path "*/autobahn/*" -delete \
     # Strip test/doc directories from site-packages (keep django/drf tests - used at runtime)
     # Keep botocore/docs and boto3/docs - they're imported at runtime
@@ -136,7 +136,7 @@ RUN --mount=type=cache,target=$UV_CACHE_DIR,sharing=locked,uid=$UID,gid=$GID \
 # =============================================================================
 # Production builder stage - creates runtime packages only
 # =============================================================================
-FROM builder-prod-base as builder-prod
+FROM builder-prod-base AS builder-prod
 ARG UID
 ARG GID
 
@@ -158,9 +158,9 @@ COPY --chown=$UID:$GID enterprise/backend /baserow/enterprise/backend
 RUN dos2unix /baserow/backend/docker/docker-entrypoint.sh \
     && chmod a+x /baserow/backend/docker/docker-entrypoint.sh
 
-# Install the project with premium and enterprise workspaces, removing tests and unneeded filess
+# Install the project with premium and enterprise workspaces, removing tests and unneeded files
 RUN --mount=type=cache,target=$UV_CACHE_DIR,sharing=locked,uid=$UID,gid=$GID \
-    uv sync --locked --no-dev \
+    uv sync --frozen --no-dev \
     && find /baserow/venv -type f \( -name "*.c" -o -name "*.h" \) -not -path "*/autobahn/*" -delete \
     # Strip test/doc directories from site-packages (keep django/drf tests - used at runtime)
     # Keep botocore/docs and boto3/docs - they're imported at runtime
@@ -176,6 +176,13 @@ RUN --mount=type=cache,target=$UV_CACHE_DIR,sharing=locked,uid=$UID,gid=$GID \
 FROM ghcr.io/astral-sh/uv:python3.11-bookworm-slim AS ci
 ARG UID
 ARG GID
+
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && \
+    apt-get upgrade -y && \
+    apt-get install -y --no-install-recommends \
+    xmlsec1
 
 ENV DOCKER_USER=baserow_user \
     BASEROW_IMAGE_TYPE="backend" \
@@ -193,7 +200,7 @@ COPY --link --from=tool-builder /usr/local/bin/su-exec /usr/local/bin/su-exec
 COPY --link --from=tool-builder /usr/bin/tini /usr/bin/tini      
 
 # Create baserow directory structure (including subdirs for COPY targets)
-RUN mkdir -p /baserow/backend /baserow/premium/backend /baserow/enterprise/backend /baserow/media && \
+RUN mkdir -p /baserow/backend/reports /baserow/premium/backend /baserow/enterprise/backend /baserow/media && \
     chown -R $UID:$GID /baserow/
 
 # Copy the virtual environment and source code with tests
@@ -220,6 +227,7 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update && \
+    apt-get upgrade -y && \
     apt-get install -y --no-install-recommends \
     build-essential \
     python3.11-dev \
@@ -356,6 +364,9 @@ COPY --link --from=builder-prod /baserow/premium /baserow/premium/
 COPY --link --from=builder-prod /baserow/enterprise /baserow/enterprise/
 
 COPY --chown=$UID:$GID deploy/plugins/*.sh /baserow/plugins/
+
+USER $UID:$GID
+WORKDIR /baserow/backend
 
 HEALTHCHECK --interval=60s CMD ["/bin/bash", "/baserow/backend/docker/docker-entrypoint.sh", "backend-healthcheck"]
 ENTRYPOINT ["/usr/bin/tini", "--", "/bin/bash", "/baserow/backend/docker/docker-entrypoint.sh"]

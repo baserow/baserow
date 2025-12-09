@@ -318,11 +318,14 @@ This allows tests to run identically inside Docker (using container hostnames) a
 
 For significantly faster tests, use a PostgreSQL container with tmpfs (in-memory storage). This eliminates disk I/O and can speed up tests by 2-5x.
 
-> **Note:** The `just start-test-db` command is **host-only**. It starts a separate Docker container and cannot be run from inside another container. When running tests inside the backend container, use the existing `db` service instead.
+> **Note:** The `just test-db` command is **host-only**. It starts a separate Docker container and cannot be run from inside another container. When running tests inside the backend container, use the existing `db` service instead.
 
 ```bash
 # Start test database on port 5433 (always recreates for fresh state)
-just start-test-db
+just test-db up
+
+# Stop and remove the test database
+just test-db down
 ```
 
 The test database runs with optimized settings:
@@ -349,10 +352,16 @@ DATABASE_URL=postgres://baserow:baserow@localhost:5433/baserow just b test -n=au
 
 ```bash
 # Use a different port
-TEST_DB_PORT=5434 just start-test-db
+TEST_DB_PORT=5434 just test-db up
 ```
 
 The container is named `baserow-test-db` and uses the `pgvector/pgvector:pg13` image.
+
+To stop the test database:
+
+```bash
+just test-db down
+```
 
 ### Dependency Management
 
@@ -387,6 +396,133 @@ The container is named `baserow-test-db` and uses the `pgvector/pgvector:pg13` i
 | `just venv-clean` | Remove virtual environment |
 | `just lock-clean` | Remove lock file |
 | `just clean-all` | Remove all (artifacts + venv + lock) |
+
+---
+
+## Frontend Commands
+
+The following commands are available in the frontend justfile. Run them from the `web-frontend/` directory, or from the project root using `just f <command>`.
+
+### Quick Start
+
+```bash
+cd web-frontend
+
+# Install dependencies
+just install
+
+# Run the development server
+just run-dev-server
+```
+
+Or from project root:
+
+```bash
+just f install
+just f run-dev-server
+```
+
+### Setup
+
+| Command | Description |
+|---------|-------------|
+| `just install` | Install yarn dependencies |
+
+### Development
+
+| Command | Description |
+|---------|-------------|
+| `just run-dev-server` | Run Nuxt development server |
+| `just storybook` | Run Storybook for component development |
+
+Aliases: `just dev`, `just serve`
+
+### Code Quality
+
+| Command | Description |
+|---------|-------------|
+| `just lint` | Run ESLint + Stylelint |
+| `just fix` | Auto-fix code style issues |
+| `just format-scss` | Format SCSS files with Prettier |
+
+Alias: `just l` for lint
+
+### Testing
+
+| Command | Description |
+|---------|-------------|
+| `just test` | Run Jest tests |
+| `just test --watch` | Run tests in watch mode |
+| `just ci-test` | Run tests with coverage (for CI) |
+| `just update-snapshots` | Update Jest snapshots |
+
+Alias: `just t` for test
+
+### Build
+
+| Command | Description |
+|---------|-------------|
+| `just build-nuxt` | Build Nuxt for local development |
+
+### Cleanup
+
+| Command | Description |
+|---------|-------------|
+| `just clean-nuxt` | Remove Nuxt build artifacts (.nuxt/, dist/) |
+| `just clean-all` | Remove all (build artifacts + node_modules) |
+
+### Passthrough
+
+| Command | Description |
+|---------|-------------|
+| `just yarn <args>` | Pass-through to yarn |
+| `just npm <args>` | Pass-through to npm |
+
+---
+
+## Tmux Development Sessions
+
+For a more integrated development experience, Baserow provides tmux-based sessions that open multiple panes with shells and logs.
+
+### Local Development with Tmux
+
+```bash
+just dev tmux
+```
+
+Starts a tmux session with:
+- Backend shell + dev server logs
+- Celery shell + worker logs
+- Database shell + logs
+- Redis logs
+- Frontend shell + dev server logs
+
+### Docker Development with Tmux
+
+```bash
+just dc-dev tmux
+```
+
+Starts a tmux session with Docker containers:
+- Backend container shell + logs
+- Celery container shell + logs (4 panes: shell, redbeat, worker, export worker)
+- Database shell + logs
+- Redis shell + logs
+- Frontend container shell + logs
+
+### Terminal Tabs (like dev.sh)
+
+```bash
+just dc-dev tabs
+```
+
+Opens terminal tabs for each service (similar to the old `dev.sh` behavior). Works with:
+- macOS Terminal.app
+- iTerm2
+- GNOME Terminal
+- Konsole
+
+---
 
 ## Examples
 
@@ -451,9 +587,9 @@ just m my_custom_command
 
 The `run-dev-celery` command runs all Celery components together with colored output:
 
-- **WORKER** (cyan): Main worker for celery and automation_workflow queues
-- **EXPORT** (green): Export worker
-- **BEAT** (yellow): Scheduler with redbeat
+- **WORKER** (blue): Main worker for celery and automation_workflow queues
+- **EXPORT** (orange): Export worker
+- **BEAT** (purple): Scheduler with redbeat
 
 Press Ctrl+C to stop all workers.
 
@@ -476,7 +612,7 @@ CELERY_POOL=threads just run-dev-celery
 For services like Redis and PostgreSQL, either:
 - Run them locally
 - Use `just dc-dev up db redis` to start just the services
-- Use the test database: `just start-test-db`
+- Use the test database: `just test-db up`
 
 ## Shell Completion
 

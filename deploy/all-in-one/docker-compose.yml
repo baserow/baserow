@@ -1,7 +1,7 @@
 services:
   # A dev / testing /example compose file for quickly setting up an all in one
   baserow_all_in_one:
-    image: baserow:${BASEROW_VERSION:-latest}
+    image: baserow:${BASEROW_VERSION:-2.0.3}
     build:
       dockerfile: $PWD/deploy/all-in-one/Dockerfile
       context: $PWD

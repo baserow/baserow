@@ -10,14 +10,14 @@ Add/remove features flags to the list below:
 ## Enabling feature flags
 
 To enable specific feature flags set the environment variable
-`FEATURE_FLAGS=feature1,feature2,feature3`. Using `dev.sh` this would look like:
+`FEATURE_FLAGS=feature1,feature2,feature3`. Using `just` this would look like:
 
 ```bash
-FEATURE_FLAGS=feature1,feature2,feature3 ./dev.sh xyz
+FEATURE_FLAGS=feature1,feature2,feature3 just dc-dev up -d
 ```
 
-You could also use a docker-compose `.env` file and set the FEATURE_FLAGS variable in 
-there.
+You could also add the variable to your `.env.docker-dev` file (for Docker development)
+or `.env.local` file (for local development).
 
 ## Enabling all feature flags
 
@@ -25,7 +25,7 @@ Use the `*` feature flag to enable every single feature flag without having to s
 each one.
 
 ```bash
-FEATURE_FLAGS=* ./dev.sh xyz
+FEATURE_FLAGS=* just dc-dev up -d
 ```
 
 ## Naming convention

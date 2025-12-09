@@ -25,7 +25,10 @@ HONEYCOMB_API_KEY=YOUR_KEY
 BASEROW_ENABLE_OTEL=true
 ```
 
-6. `./dev.sh restart`
+6. Restart the dev environment:
+   ```bash
+   just dc-dev restart
+   ```
 7. Go to your honeycomb environment and you should start seeing new datasets being
    created!
 

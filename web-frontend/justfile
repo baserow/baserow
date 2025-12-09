@@ -128,26 +128,21 @@ run-dev-server:
 storybook:
     yarn run storybook
 
-# Build Nuxt for local development
-[group('5 - build')]
-build-local:
-    yarn run build-local
-
 # Build Nuxt for production
 [group('5 - build')]
-build-prod:
-    yarn run build
+build-nuxt:
+    yarn run build-local
 
 # =============================================================================
 # Cleanup
 # =============================================================================
 
-# Clean Nuxt sbuild artifacts
+# Clean Nuxt build artifacts
 [group('6 - cleanup')]
-clean:
+clean-nuxt:
     rm -rf .nuxt/ dist/
 
 # Clean all (Nuxt build artifacts + node_modules)
 [group('6 - cleanup')]
-clean-all: clean
+clean-all: clean-nuxt
     rm -rf node_modules/

@@ -26,7 +26,7 @@ else:
     TEST_ENV_VARS = {}
 
 # Prefixes for vars that can be overridden via env vars (for DB/Redis configuration)
-ALLOWED_ENV_PREFIXES = ("DATABASE_", "REDIS_", "MEDIA_ROOT")
+ALLOWED_ENV_PREFIXES = ("DATABASE_",)
 
 
 def getenv_for_tests(key: str, default: str = "") -> str:

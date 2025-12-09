@@ -60,7 +60,7 @@ init:
 
 # Local development environment management
 [group('1 - local-dev')]
-[doc("Local dev: just dev <up|up -d|stop|logs|status>")]
+[doc("Local dev: just dev <up|up -d|stop|logs|status|wipe>")]
 dev *ARGS:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -71,6 +71,13 @@ dev *ARGS:
     REST=("${ALLARGS[@]:1}")
 
     case "$CMD" in
+        wipe)
+            just _dev-stop 2>/dev/null || true
+            just dc-dev wipe
+            if [ ${#REST[@]} -gt 0 ]; then
+                just dev "${REST[@]}"
+            fi
+            ;;
         up)
             # Check for -d flag
             DETACHED=false
@@ -116,6 +123,9 @@ dev *ARGS:
             echo "==> Docker Services"
             just dc-dev ps redis db mailhog otel-collector 2>/dev/null || echo "  Not running"
             ;;
+        tmux)
+            just _dev-tmux
+            ;;
         *)
             echo "Local development environment"
             echo ""
@@ -127,12 +137,16 @@ dev *ARGS:
             echo "  stop     Stop all services"
             echo "  logs     View logs: just dev logs [-f] [backend|celery|frontend]"
             echo "  status   Show running services"
+            echo "  wipe     Delete database volume (wipe up to restart fresh)"
+            echo "  tmux     Start tmux session with all services"
             echo ""
             echo "Examples:"
             echo "  just dev up              # Start and watch logs (Ctrl+C stops all)"
             echo "  just dev up -d           # Start in background"
             echo "  just dev logs -f backend # Follow backend logs"
             echo "  just dev stop            # Stop everything"
+            echo "  just dev wipe up         # Wipe DB and start fresh"
+            echo "  just dev tmux            # Start tmux session"
             [[ -n "$CMD" ]] && exit 1 || exit 0
             ;;
     esac
@@ -292,6 +306,55 @@ _dev-stop:
 # Local Development (native Python/Node - faster, requires local setup)
 # =============================================================================
 
+# Start tmux dev session with all services (local processes)
+[private]
+_dev-tmux:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    SESSION="baserow-dev"
+    ROOT="$(pwd)"
+
+    # Helper: create window
+    create_window() {
+        local name=$1
+        local dir=$2
+        local run_cmd=${3:-}
+        local run_cmd_2=${4:-}
+
+        tmux new-window -t $SESSION -n "$name" -c "$dir"
+        tmux split-window -h -t "$SESSION:$name" -c "$dir"
+        if [ -n "$run_cmd" ]; then
+            tmux send-keys -t "$SESSION:$name.left" "$run_cmd" Enter
+        fi
+        tmux select-pane -t "$SESSION:$name.right"
+        if [ -n "$run_cmd_2" ]; then
+            tmux send-keys -t "$SESSION:$name.right" "$run_cmd_2" Enter
+        fi
+    }
+
+    just dc-dev up -d redis db mailhog otel-collector
+    # Kill any existing session
+    if tmux has-session -t $SESSION 2>/dev/null; then
+        tmux kill-session -t $SESSION
+    fi
+
+    # Create session with a temporary window (will be closed after creating real windows)
+    tmux new-session -d -s $SESSION -n _tmp -c "$ROOT"
+
+    create_window "backend"  "$ROOT/backend"       "just run-dev-server"
+    create_window "frontend" "$ROOT/web-frontend"  "just run-dev-server"
+    create_window "celery"   "$ROOT/backend"       "just run-dev-celery"
+    create_window "db"       "$ROOT"               "just dc-dev logs -f db"       "PGPASSWORD=${DATABASE_PASSWORD:-baserow} just dc-dev exec db psql -U ${DATABASE_USER:-baserow} -d ${DATABASE_NAME:-baserow}"
+    create_window "redis"    "$ROOT"               "just dc-dev logs -f redis"    "just dc-dev exec redis redis-cli -a ${REDIS_PASSWORD:-baserow}"
+
+    # Kill the temporary window
+    tmux kill-window -t $SESSION:_tmp
+
+    # Select backend window and attach
+    tmux select-window -t $SESSION:backend
+    tmux attach-session -t $SESSION
+
 # Run any backend command (e.g., just b init, just b test, just b lint)
 [group('1 - local-dev')]
 [doc("Run backend command: just b <cmd> (e.g., b test, b lint, b shell)")]
@@ -410,19 +473,21 @@ _dc_help:
     @echo "       just dc-dev <cmd> [args]   (development - builds dev images)"
     @echo ""
     @echo "Examples:"
-    @echo "  just dc-dev build --parallel     # Build all dev images"
-    @echo "  just dc-dev build backend        # Build specific service"
+    @echo "  just dc-dev tabs                 # Open terminal tabs for each service (like dev.sh). Alias: just dt"
     @echo "  just dc-dev up -d                # Start containers (detached)"
     @echo "  just dc-dev up -d backend db     # Start specific services"
+    @echo "  just dc-dev tmux                 # Start tmux session with all services"
     @echo "  just dc-dev stop                 # Stop containers (keep volumes)"
     @echo "  just dc-dev down                 # Stop and remove containers"
+    @echo "  just dc-dev build --parallel     # Build all dev images"
+    @echo "  just dc-dev build backend        # Build specific service"
     @echo "  just dc-dev logs -f backend      # Follow logs for a service"
     @echo "  just dc-dev exec backend bash    # Open shell in container"
     @echo "  just dc-dev ps                   # Show running containers"
     @echo ""
-    @echo "Optional services (storybook, flower) - not started by default:"
-    @echo "  just dc-dev --profile optional up -d    # Include optional services"
-    @echo "  just dc-dev-full up -d                  # Shorthand for above"
+    @echo "Optional services (storybook, flower):"
+    @echo "  Started by default via COMPOSE_PROFILES=optional in .env.docker-dev"
+    @echo "  To disable: set COMPOSE_PROFILES= (empty) in .env.docker-dev"
     @echo ""
     @echo "Production (builds locally if BASEROW_VERSION is unset/latest):"
     @echo "  just dc-prod up -d                          # Build and run latest locally"
@@ -435,7 +500,7 @@ _dc_help:
 
 # Dev compose (includes docker-compose.dev.yml overlay)
 [group('2 - docker-dev')]
-[doc("Docker compose (dev): just dc-dev <build|up|down|logs|exec|ps>")]
+[doc("Docker compose (dev): just dc-dev <build|up|down|logs|exec|ps|wipe>")]
 dc-dev *ARGS:
     #!/usr/bin/env bash
     if [ -z "{{ ARGS }}" ]; then
@@ -454,14 +519,181 @@ dc-dev *ARGS:
             GID=$(id -g)
         fi
         export GID
-        docker compose --env-file .env.docker-dev -f docker-compose.yml -f docker-compose.dev.yml {{ ARGS }}
+
+        DC="docker compose --env-file .env.docker-dev -f docker-compose.yml -f docker-compose.dev.yml"
+        ALLARGS=({{ ARGS }})
+        CMD="${ALLARGS[0]:-}"
+
+        REST=("${ALLARGS[@]:1}")
+
+        case "$CMD" in
+            wipe)
+                echo "Wiping dev environment (down -v)..."
+                $DC down -v
+                if [ ${#REST[@]} -gt 0 ]; then
+                    $DC "${REST[@]}"
+                fi
+                ;;
+            tmux)
+                just _dc-dev-tmux
+                ;;
+            tabs)
+                just _dc-dev-tabs "${REST[@]}"
+                ;;
+            *)
+                $DC {{ ARGS }}
+                ;;
+        esac
     fi
 
-# Dev compose with optional services (storybook, flower)
-[group('2 - docker-dev')]
-[doc("Docker compose (dev) with optional services")]
-dc-dev-full *ARGS:
-    just dc-dev --profile optional {{ ARGS }}
+# Start tmux dev session with all services (Docker Compose)
+[private]
+_dc-dev-tmux:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    SESSION="baserow-dc-dev"
+    ROOT="$(pwd)"
+
+    # Helper: create window if it doesn't exist
+    create_window() {
+        local name=$1
+        local shell_cmd=$2
+        local log_cmd=$3
+
+        tmux new-window -t $SESSION -n "$name" -c "$ROOT"
+        tmux split-window -h -t "$SESSION:$name" -c "$ROOT"
+        tmux send-keys -t "$SESSION:$name.left" "$shell_cmd" Enter
+        tmux send-keys -t "$SESSION:$name.right" "$log_cmd" Enter
+        tmux select-pane -t "$SESSION:$name.left"
+    }
+
+    # Start services if not running
+    if ! docker ps --format '{{ '{{.Names}}' }}' | grep -q "^baserow.*db"; then
+        just dc-dev up -d
+    fi
+    # Kill any existing session
+    if tmux has-session -t $SESSION 2>/dev/null; then
+        tmux kill-session -t $SESSION
+    fi
+
+    # Create session with a temporary window (will be closed after creating real windows)
+    tmux new-session -d -s $SESSION -n _tmp -c "$ROOT"
+
+    create_window "backend"  "just dc-dev exec backend bash"  "just dc-dev logs -f backend"
+    create_window "frontend" "just dc-dev exec web-frontend bash" "just dc-dev logs -f web-frontend"
+    create_window "celery"   "just dc-dev exec celery bash" "just dc-dev logs -f celery celery-beat-worker celery-export-worker"
+    create_window "db"       "just dc-dev exec db psql -U baserow" "just dc-dev logs -f db"
+    create_window "redis"    "just dc-dev exec redis redis-cli"   "just dc-dev logs -f redis"
+
+    # Kill the temporary window
+    tmux kill-window -t $SESSION:_tmp
+
+    # Select backend window and attach
+    tmux select-window -t $SESSION:backend
+    tmux attach-session -t $SESSION
+
+# Start dev environment with terminal tabs (like dev.sh)
+[private]
+_dc-dev-tabs *ARGS:
+    #!/usr/bin/env bash
+    set -eo pipefail
+
+    RED=$(tput setaf 1)
+    GREEN=$(tput setaf 2)
+    YELLOW=$(tput setaf 3)
+    NC=$(tput sgr0) # No Color
+
+    print_manual_instructions(){
+      COMMAND=$1
+      echo -e "\nTo inspect the now running dev environment open a new tab/terminal and run:"
+      echo "    $COMMAND"
+    }
+
+    PRINT_WARNING=true
+    new_tab() {
+      TAB_NAME=$1
+      COMMAND=$2
+      echo "Attempting to open tab with command $GREEN$COMMAND$NC"
+
+      if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        if [ -x "$(command -v gnome-terminal)" ]; then
+          gnome-terminal \
+          --tab --title="$TAB_NAME" --working-directory="$(pwd)" -- /bin/bash -c "$COMMAND"
+        elif [ -x "$(command -v konsole)" ]; then
+          ktab=$(qdbus $KONSOLE_DBUS_SERVICE $KONSOLE_DBUS_WINDOW newSession)
+          qdbus $KONSOLE_DBUS_SERVICE /Sessions/$(($ktab)) setTitle 1 "$TAB_NAME"
+          qdbus $KONSOLE_DBUS_SERVICE /Sessions/$(($ktab)) runCommand "cd $(pwd); $COMMAND"
+          qdbus $KONSOLE_DBUS_SERVICE $KONSOLE_DBUS_WINDOW prevSession
+        else
+          if $PRINT_WARNING; then
+              echo -e "\n${YELLOW}WARNING${NC}: gnome-terminal is the only currently supported way of opening
+              multiple tabs/terminals for linux by this script, add support for your setup!"
+              PRINT_WARNING=false
+          fi
+          print_manual_instructions "$COMMAND"
+        fi
+      elif [[ "$OSTYPE" == "darwin"* ]]; then
+        osascript \
+            -e "tell application \"Terminal\"" \
+            -e "tell application \"System Events\" to keystroke \"t\" using {command down}" \
+            -e "do script \"printf '\\\e]1;$TAB_NAME\\\a'; $COMMAND\" in front window" \
+            -e "end tell" > /dev/null
+      else
+        if $PRINT_WARNING; then
+            echo -e "\n${YELLOW}WARNING${NC}: The OS '$OSTYPE' is not supported yet for creating tabs to setup
+            baserow's dev environment, please add support!"
+            PRINT_WARNING=false
+        fi
+        print_manual_instructions "$COMMAND"
+      fi
+    }
+
+    launch_tab_and_attach(){
+      tab_name=$1
+      service_name=$2
+      container_name=$(docker inspect -f '{{ '{{.Name}}' }}' "$(just dc-dev ps -q "$service_name")" | cut -c2-)
+      command="docker logs $container_name && docker attach $container_name"
+      if [[ $(docker inspect "$container_name" --format='{{ '{{.State.ExitCode}}' }}') -eq 0 ]]; then
+        new_tab "$tab_name" "$command"
+      else
+        echo -e "\n${RED}$service_name crashed on launch!${NC}"
+        docker logs "$container_name"
+        echo -e "\n${RED}$service_name crashed on launch, see above for logs!${NC}"
+      fi
+    }
+
+    launch_tab_and_exec(){
+      tab_name=$1
+      service_name=$2
+      exec_command=$3
+      container_name=$(docker inspect -f '{{ '{{.Name}}' }}' "$(just dc-dev ps -q "$service_name")" | cut -c2-)
+      command="docker exec -it $container_name $exec_command"
+      new_tab "$tab_name" "$command"
+    }
+
+    # Start services using dc-dev recipe
+    just dc-dev up -d {{ ARGS }}
+
+    # Open tabs for main services
+    launch_tab_and_attach "backend" "backend"
+    launch_tab_and_attach "web frontend" "web-frontend"
+    launch_tab_and_attach "celery" "celery"
+    launch_tab_and_attach "export worker" "celery-export-worker"
+    launch_tab_and_attach "beat worker" "celery-beat-worker"
+
+    # Open lint tabs
+    launch_tab_and_exec "web frontend lint" \
+            "web-frontend" \
+            "/bin/bash /baserow/web-frontend/docker/docker-entrypoint.sh lint-fix"
+    launch_tab_and_exec "backend lint" \
+            "backend" \
+            "/bin/bash /baserow/backend/docker/docker-entrypoint.sh lint-shell"
+
+# Shortcut for dc-dev tabs
+[private]
+dt *ARGS:
+    @just dc-dev tabs {{ ARGS }}
 
 # Attach to a running container (interactive shell)
 [group('2 - docker-dev')]
@@ -585,56 +817,89 @@ build target="" tag="latest" *ARGS:
     #!/usr/bin/env bash
     set -euo pipefail
 
+    # Parse args - check for --multi flag
+    MULTI=false
+    BUILD_ARGS=()
+    for arg in {{ ARGS }}; do
+        if [[ "$arg" == "--multi" ]]; then
+            MULTI=true
+        else
+            BUILD_ARGS+=("$arg")
+        fi
+    done
+
+    # Set up build command
+    if [[ "$MULTI" == "true" ]]; then
+        echo "Multi-platform build enabled (linux/amd64, linux/arm64)"
+        # Ensure buildx builder exists
+        if ! docker buildx inspect baserow-multiarch >/dev/null 2>&1; then
+            echo "Creating buildx builder 'baserow-multiarch'..."
+            docker buildx create --name baserow-multiarch --use
+        else
+            docker buildx use baserow-multiarch
+        fi
+        BUILD_CMD="docker buildx build --platform linux/amd64,linux/arm64"
+        # Check if --push or --output is specified, warn if not
+        if [[ ! " ${BUILD_ARGS[*]} " =~ " --push " ]] && [[ ! " ${BUILD_ARGS[*]} " =~ " --output " ]]; then
+            echo ""
+            echo "WARNING: Multi-platform builds require --push or --output to export."
+            echo "         Add --push to push to registry, or --output type=tar,dest=image.tar"
+            echo ""
+        fi
+    else
+        BUILD_CMD="docker build"
+    fi
+
     case "{{ target }}" in
         "backend")
-            docker build {{ ARGS }} -f backend/Dockerfile --target prod -t baserow/backend:{{ tag }} .
+            $BUILD_CMD "${BUILD_ARGS[@]}" -f backend/Dockerfile --target prod -t baserow/backend:{{ tag }} .
             ;;
         "web-frontend")
-            docker build {{ ARGS }} -f web-frontend/Dockerfile --target prod -t baserow/web-frontend:{{ tag }} .
+            $BUILD_CMD "${BUILD_ARGS[@]}" -f web-frontend/Dockerfile --target prod -t baserow/web-frontend:{{ tag }} .
             ;;
         "all-in-one")
             echo "Building backend (prod)..."
-            docker build {{ ARGS }} -f backend/Dockerfile --target prod -t baserow_backend:latest .
+            $BUILD_CMD "${BUILD_ARGS[@]}" -f backend/Dockerfile --target prod -t baserow_backend:latest .
             echo "Building web-frontend (prod)..."
-            docker build {{ ARGS }} -f web-frontend/Dockerfile --target prod -t baserow_web-frontend:latest .
+            $BUILD_CMD "${BUILD_ARGS[@]}" -f web-frontend/Dockerfile --target prod -t baserow_web-frontend:latest .
             echo "Building all-in-one..."
-            docker build {{ ARGS }} -f deploy/all-in-one/Dockerfile --target prod -t baserow/baserow:{{ tag }} .
+            $BUILD_CMD "${BUILD_ARGS[@]}" -f deploy/all-in-one/Dockerfile --target prod -t baserow/baserow:{{ tag }} .
             ;;
         "all-in-one-lite")
             echo "Building backend (prod)..."
-            docker build {{ ARGS }} -f backend/Dockerfile --target prod -t baserow_backend:latest .
+            $BUILD_CMD "${BUILD_ARGS[@]}" -f backend/Dockerfile --target prod -t baserow_backend:latest .
             echo "Building web-frontend (prod)..."
-            docker build {{ ARGS }} -f web-frontend/Dockerfile --target prod -t baserow_web-frontend:latest .
+            $BUILD_CMD "${BUILD_ARGS[@]}" -f web-frontend/Dockerfile --target prod -t baserow_web-frontend:latest .
             echo "Building all-in-one-lite (no postgres/redis)..."
-            docker build {{ ARGS }} -f deploy/all-in-one/Dockerfile --target prod-lite -t baserow/baserow:lite-{{ tag }} .
+            $BUILD_CMD "${BUILD_ARGS[@]}" -f deploy/all-in-one/Dockerfile --target prod-lite -t baserow/baserow:lite-{{ tag }} .
             ;;
         "all-in-one-dev")
             echo "Building backend (dev)..."
-            docker build {{ ARGS }} -f backend/Dockerfile --target dev -t baserow_backend:dev .
+            $BUILD_CMD "${BUILD_ARGS[@]}" -f backend/Dockerfile --target dev -t baserow_backend:dev .
             echo "Building web-frontend (dev)..."
-            docker build {{ ARGS }} -f web-frontend/Dockerfile --target dev -t baserow_web-frontend:dev .
+            $BUILD_CMD "${BUILD_ARGS[@]}" -f web-frontend/Dockerfile --target dev -t baserow_web-frontend:dev .
             echo "Building all-in-one-dev..."
-            docker build {{ ARGS }} -f deploy/all-in-one/Dockerfile --target dev -t baserow/baserow:dev-{{ tag }} .
+            $BUILD_CMD "${BUILD_ARGS[@]}" -f deploy/all-in-one/Dockerfile --target dev -t baserow/baserow:dev-{{ tag }} .
             ;;
         "heroku")
-            docker build {{ ARGS }} -f heroku.Dockerfile -t baserow/heroku:{{ tag }} .
+            $BUILD_CMD "${BUILD_ARGS[@]}" -f heroku.Dockerfile -t baserow/heroku:{{ tag }} .
             ;;
         "cloudron")
-            docker build {{ ARGS }} -f deploy/cloudron/Dockerfile -t baserow/cloudron:{{ tag }} .
+            $BUILD_CMD "${BUILD_ARGS[@]}" -f deploy/cloudron/Dockerfile -t baserow/cloudron:{{ tag }} .
             ;;
         "render")
-            docker build {{ ARGS }} -f deploy/render/Dockerfile -t baserow/render:{{ tag }} .
+            $BUILD_CMD "${BUILD_ARGS[@]}" -f deploy/render/Dockerfile -t baserow/render:{{ tag }} .
             ;;
         "apache")
-            docker build {{ ARGS }} -f deploy/apache/recommended/Dockerfile -t baserow/apache:{{ tag }} deploy/apache/recommended/
+            $BUILD_CMD "${BUILD_ARGS[@]}" -f deploy/apache/recommended/Dockerfile -t baserow/apache:{{ tag }} deploy/apache/recommended/
             ;;
         "apache-no-caddy")
-            docker build {{ ARGS }} -f deploy/apache/no-caddy/Dockerfile -t baserow/apache-no-caddy:{{ tag }} deploy/apache/no-caddy/
+            $BUILD_CMD "${BUILD_ARGS[@]}" -f deploy/apache/no-caddy/Dockerfile -t baserow/apache-no-caddy:{{ tag }} deploy/apache/no-caddy/
             ;;
         *)
             echo "Build deployment images"
             echo ""
-            echo "Usage: just build <target> [tag]"
+            echo "Usage: just build <target> [tag] [--multi] [docker-args]"
             echo ""
             echo "Targets:"
             echo "  backend         - Backend API server"
@@ -648,15 +913,23 @@ build target="" tag="latest" *ARGS:
             echo "  apache          - Apache reverse proxy"
             echo "  apache-no-caddy - Apache reverse proxy (no Caddy)"
             echo ""
+            echo "Options:"
+            echo "  --multi         - Build for linux/amd64 and linux/arm64 (requires --push or --output)"
+            echo ""
             echo "Examples:"
-            echo "  just build all-in-one           # Tags as :latest"
-            echo "  just build all-in-one 2.0.0     # Tags as :2.0.0"
+            echo "  just build all-in-one                        # Local build, current platform"
+            echo "  just build all-in-one 2.0.0                  # Tag as :2.0.0"
+            echo "  just build all-in-one latest --multi --push  # Multi-platform, push to registry"
             echo "  just build backend"
             [[ -n "{{ target }}" ]] && exit 1 || exit 0
             ;;
     esac
     echo ""
-    echo "Built: $(docker images --format '{{ '{{.Repository}}:{{.Tag}}' }}' | grep -m1 'baserow')"
+    if [[ "$MULTI" != "true" ]]; then
+        echo "Built: $(docker images --format '{{ '{{.Repository}}:{{.Tag}}' }}' | grep -m1 'baserow')"
+    else
+        echo "Multi-platform build complete."
+    fi
 
 # Run docker compose for specific deployment configurations
 [group('3 - production')]
@@ -729,12 +1002,42 @@ dc-deploy name="" *ARGS:
 # Test DB settings
 test_db_name := "baserow-test-db"
 test_db_port := env("TEST_DB_PORT", "5433")
-test_db_image := "pgvector/pgvector:pg13"
+test_db_image := "pgvector/pgvector:pg${POSTGRES_IMAGE_VERSION:-13}"
 
-# Start PostgreSQL with tmpfs (ramdisk) for fast backend tests
+# Ramdisk PostgreSQL for fast tests (2-5x faster)
 [group('4 - testing')]
-[doc("Start ramdisk PostgreSQL for fast tests (2-5x faster)")]
-start-test-db:
+[doc("Test database: just test-db <up|down|status>")]
+test-db cmd="":
+    #!/usr/bin/env bash
+    case "{{ cmd }}" in
+        up|start)
+            just _test-db-start
+            ;;
+        down|stop)
+            just _test-db-stop
+            ;;
+        status)
+            just _test-db-status
+            ;;
+        *)
+            echo "Ramdisk PostgreSQL for fast tests (2-5x faster)"
+            echo ""
+            echo "Usage: just test-db <command>"
+            echo ""
+            echo "Commands:"
+            echo "  up, start    Start test database on port {{ test_db_port }}"
+            echo "  down, stop   Stop and remove test database"
+            echo "  status       Check if test database is running"
+            echo ""
+            echo "Example:"
+            echo "  just test-db up"
+            echo "  DATABASE_URL=postgres://baserow:baserow@localhost:{{ test_db_port }}/baserow just b test -n=auto"
+            echo "  just test-db down"
+            ;;
+    esac
+
+[private]
+_test-db-start:
     #!/usr/bin/env bash
     set -euo pipefail
     # Always remove and recreate to get fresh tmpfs
@@ -781,11 +1084,24 @@ start-test-db:
     echo "Run tests with:"
     echo "  DATABASE_URL=postgres://baserow:baserow@localhost:{{ test_db_port }}/baserow just b test -n=auto"
 
-# Stop the ramdisk test database
-[group('4 - testing')]
-[doc("Stop ramdisk PostgreSQL")]
-stop-test-db:
+[private]
+_test-db-stop:
     docker rm -f {{ test_db_name }} 2>/dev/null || true
+
+[private]
+_test-db-status:
+    #!/usr/bin/env bash
+    if docker ps --format '{{ '{{.Names}}' }}' | grep -q "^{{ test_db_name }}$"; then
+        echo "Test database is running on port {{ test_db_port }}"
+        echo ""
+        echo "DATABASE_URL=postgres://baserow:baserow@localhost:{{ test_db_port }}/baserow"
+    elif docker ps -a --format '{{ '{{.Names}}' }}' | grep -q "^{{ test_db_name }}$"; then
+        echo "Test database exists but is stopped"
+        echo "Run 'just test-db up' to start it"
+    else
+        echo "Test database is not running"
+        echo "Run 'just test-db up' to start it"
+    fi
 
 # Run E2E commands (delegates to e2e-tests/justfile)
 [group('4 - testing')]
@@ -905,7 +1221,7 @@ ci cmd="" target="":
             -e POSTGRES_USER=baserow \
             -e POSTGRES_PASSWORD=baserow \
             -e POSTGRES_DB=baserow \
-            pgvector/pgvector:pg15
+            ${test_db_image}
 
         echo "Starting Redis..."
         docker run -d --name ci-test-redis --network "$NETWORK" \
