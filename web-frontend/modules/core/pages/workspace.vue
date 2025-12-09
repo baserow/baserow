@@ -265,9 +265,6 @@ const createApplicationContextLink2 = ref(null)
 const rename = ref(null)
 const templateModal = ref(null)
 
-// ----------------------------------------------------------------------------
-// ASYNC DATA (replacement for asyncData)
-// ----------------------------------------------------------------------------
 await useAsyncData('currentWorkspace', async () => {
   const workspaceId = parseInt(route.params.workspaceId, 10)
   let workspace
@@ -303,16 +300,10 @@ await useAsyncData('currentWorkspace', async () => {
   }
 })
 
-// ----------------------------------------------------------------------------
-// HEAD
-// ----------------------------------------------------------------------------
 useHead(() => ({
   title: $i18n.t('dashboard.title'),
 }))
 
-// ----------------------------------------------------------------------------
-// COMPUTED
-// ----------------------------------------------------------------------------
 const workspaceInvitations = computed(
   () => $store.getters['auth/getWorkspaceInvitations']
 )
