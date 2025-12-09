@@ -13,7 +13,8 @@
         data-highlight="builder-preview"
         @keydown="handleKeyDown"
       >
-        <ThemeProvider class="page">
+        <!-- //TODO MIG Enable this again when themeProvider is working again properly -->
+        <!-- <ThemeProvider class="page">
           <template v-if="headerElements.length !== 0">
             <header
               class="page__header"
@@ -119,7 +120,7 @@
               show-paid-features-modal
             />
           </client-only>
-        </ThemeProvider>
+        </ThemeProvider> -->
       </div>
       <AddElementModal ref="addElementModal" :page="currentPage" />
     </div>
