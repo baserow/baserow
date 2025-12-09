@@ -8,7 +8,7 @@ import {
   ensurePositiveInteger,
   ensureDate,
 } from '@baserow/modules/core/utils/validator'
-import { expect } from '@jest/globals'
+import { expect } from 'vitest'
 import { QUERY_PARAM_TYPE_HANDLER_FUNCTIONS } from '@baserow/modules/builder/enums'
 import { DateOnly } from '@baserow/modules/core/utils/date'
 

@@ -3,7 +3,7 @@ import RecordSelectorElement from '@baserow/modules/builder/components/elements/
 import flushPromises from 'flush-promises'
 
 // Ignore `notifyIf` and `notifyIf404` function calls
-jest.mock('@baserow/modules/core/utils/error.js')
+vi.mock('@baserow/modules/core/utils/error.js')
 
 describe('RecordSelectorElement', () => {
   let testApp = null
