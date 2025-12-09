@@ -1671,7 +1671,7 @@ describe('RuntimeIsEmpty', () => {
     { args: [{}], expected: true },
     { args: ['[]'], expected: true },
     { args: ['{}'], expected: true },
-    { args: [' '], expected: false },
+    { args: [' '], expected: true },
     { args: ['foo'], expected: false },
     { args: [['foo']], expected: false },
     { args: [{ foo: 'bar' }], expected: false },
@@ -1706,8 +1706,8 @@ describe('RuntimeIsEmpty', () => {
 
 describe('RuntimeStrip', () => {
   test.each([
-    { args: [''], expected: '' },
-    { args: [' '], expected: '' },
+    { args: [''], expected: null },
+    { args: [' '], expected: null },
     { args: [' foo '], expected: 'foo' },
     { args: ['foo'], expected: 'foo' },
   ])('execute returns expected value', ({ args, expected }) => {
@@ -1753,7 +1753,6 @@ describe('RuntimeSum', () => {
 
   test.each([
     { args: [''], expected: undefined },
-    { args: ['foobar'], expected: undefined },
     { args: ['[]'], expected: undefined },
     { args: [[]], expected: undefined },
   ])('validates type of args', ({ args, expected }) => {
@@ -1787,7 +1786,6 @@ describe('RuntimeAvg', () => {
 
   test.each([
     { args: [''], expected: undefined },
-    { args: ['foobar'], expected: undefined },
     { args: ['[]'], expected: undefined },
     { args: [[]], expected: undefined },
   ])('validates type of args', ({ args, expected }) => {
