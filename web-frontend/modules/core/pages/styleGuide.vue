@@ -1918,17 +1918,18 @@
           class="margin-bottom-3"
           style="background-color: #ffffff; padding: 20px"
         >
-          <ColorPicker ref="colorPicker" v-model="color"></ColorPicker>
+          <ColorPicker ref="colorPickerComponent" v-model="color"></ColorPicker>
           <br /><br />
           <a
             ref="colorPickerLink"
-            @click="$refs.colorPicker.toggle($refs.colorPickerLink)"
+            @click="$refs.colorPickerContext.toggle($refs.colorPickerLink)"
           >
             Open color picker context
           </a>
           <ColorPickerContext
-            ref="colorPicker"
+            ref="colorPickerContext"
             v-model="color"
+            :value="color"
             :variables="colorVariables"
           ></ColorPickerContext>
           <br /><br />
@@ -1960,7 +1961,7 @@
 
 <script>
 import Toasts from '@baserow/modules/core/components/toasts/Toasts'
-import BaserowIcon from '@baserow/modules/core/static/img/logoOnly.svg'
+import BaserowIcon from '@baserow/modules/core/static/img/logoOnly.svg?url'
 import ColorPickerContext from '@baserow/modules/core/components/ColorPickerContext.vue'
 import ColorPicker from '@baserow/modules/core/components/ColorPicker.vue'
 import Paginator from '@baserow/modules/core/components/Paginator.vue'
