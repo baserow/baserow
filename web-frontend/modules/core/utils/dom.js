@@ -1,3 +1,5 @@
+import { Comment, Fragment } from 'vue'
+
 /**
  * Checks if the target is the same as the provided element of that the element
  * contains the target. Returns true is this is the case.
@@ -199,4 +201,28 @@ export const getCombinedBoundingClientRect = (elements) => {
     width: right - left,
     height: bottom - top,
   }
+}
+
+/**
+ * Checks if the provided argument contains real nodes and not just comments. This is
+ * typically used to detect if a slot is not empty.
+ */
+export const hasRealNodes = (nodes) => {
+  if (!nodes) return false
+  if (!Array.isArray(nodes)) nodes = [nodes]
+
+  return nodes.some((node) => {
+    if (!node) return false
+
+    // Ignore pure comments
+    if (node.type === Comment) return false
+
+    // For fragments, look into children
+    if (node.type === Fragment) {
+      return hasRealNodes(node.children)
+    }
+
+    // Anything else (element, text, component) counts as real content
+    return true
+  })
 }

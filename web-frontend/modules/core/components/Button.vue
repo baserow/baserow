@@ -27,6 +27,8 @@
 </template>
 
 <script>
+import { hasRealNodes } from '@baserow/modules/core/utils/dom.js'
+
 export default {
   props: {
     /**
@@ -174,7 +176,8 @@ export default {
   },
   computed: {
     hasSlot() {
-      return !!this.$slots.default
+      const slot = this.$slots.default
+      return slot ? hasRealNodes(slot()) : false
     },
     classes() {
       const hasIcon = this.prependIcon || this.appendIcon || this.icon
