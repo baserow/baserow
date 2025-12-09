@@ -1,7 +1,6 @@
 <template>
   <div>
     <h2 class="box__title">{{ $t('deleteAccountSettings.title') }}</h2>
-
     <p>
       {{
         $t('deleteAccountSettings.description', {
@@ -9,18 +8,15 @@
         })
       }}
     </p>
-
-    <div v-if="pending" class="loading__wrapper">
+    <div v-if="fetchPending" class="loading__wrapper">
       <div class="loading loading-absolute-center" />
     </div>
-
     <Alert v-else-if="fetchError" type="error">
-      <template #title>{{
-        $t('deleteAccountSettings.workspaceLoadingError')
-      }}</template>
+      <template #title>
+        {{ $t('deleteAccountSettings.workspaceLoadingError') }}
+      </template>
       <p>{{ $t('deleteAccountSettings.workspaceLoadingErrorDescription') }}</p>
     </Alert>
-
     <div v-else-if="orphanWorkspaces.length" class="delete-section">
       <div class="delete-section__label">
         <div class="delete-section__label-icon">
@@ -45,9 +41,7 @@
         </li>
       </ul>
     </div>
-
-    <Error :error="error" />
-
+    <Error :error="error"></Error>
     <form
       v-if="!success"
       class="delete-account-settings__form"
@@ -67,118 +61,132 @@
     </form>
   </div>
 </template>
-
 <script>
-import {
-  defineComponent,
-  ref,
-  reactive,
-  computed,
-  getCurrentInstance,
-} from 'vue'
-
-import { useStore } from 'vuex'
-import { useFetch, useRouter, useNuxtApp } from '#app'
-
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import { mapGetters } from 'vuex'
 import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandler'
 import error from '@baserow/modules/core/mixins/error'
 import AuthService from '@baserow/modules/core/services/auth'
 import WorkspaceService from '@baserow/modules/core/services/workspace'
 import { logoutAndRedirectToLogin } from '@baserow/modules/core/utils/auth'
-
-export default defineComponent({
-  name: 'DeleteAccountSettings',
+export default {
   mixins: [error],
-  setup() {
-    const store = useStore()
-    const router = useRouter()
-    const { $client, $t } = useNuxtApp()
-    const { proxy } = getCurrentInstance()
 
-    const loading = ref(false)
-    const success = ref(false)
-    const workspaceMembers = ref({})
-
-    const userId = computed(() => store.getters['auth/getUserId'])
-    const settings = computed(() => store.getters['settings/get'])
-    const sortedWorkspaces = computed(
-      () => store.getters['workspace/getAllSorted']
-    )
-
-    const loadWorkspaceMembersInternal = async () => {
-      const entries = await Promise.all(
-        sortedWorkspaces.value
-          .filter(({ permissions }) => permissions === 'ADMIN')
-          .map(async ({ id }) => {
-            const { data } = await WorkspaceService($client).fetchAllUsers(id)
-            return [
-              id,
-              data.filter(({ user_id: member }) => member !== userId.value),
-            ]
-          })
-      )
-
-      return Object.fromEntries(entries)
+  data() {
+    return {
+      loading: false,
+      success: false,
+      account: {
+        password: '',
+        passwordConfirm: '',
+      },
+      workspaceMembers: {},
+      fetchPending: true,
+      fetchError: null,
     }
+  },
 
-    const { pending, error: fetchError } = useFetch(async () => {
-      workspaceMembers.value = await loadWorkspaceMembersInternal()
-      return workspaceMembers.value
-    })
+  async mounted() {
+    try {
+      this.fetchPending = true
+      this.fetchError = null
 
-    const orphanWorkspaces = computed(() =>
-      sortedWorkspaces.value.filter(({ id }) => {
-        const members = workspaceMembers.value[id]
+      this.workspaceMembers = Object.fromEntries(
+        await Promise.all(
+          this.sortedWorkspaces
+            .filter(({ permissions }) => permissions === 'ADMIN')
+            .map(async ({ id: workspaceId }) => {
+              const { data } = await WorkspaceService(
+                this.$client
+              ).fetchAllUsers(workspaceId)
+              return [
+                workspaceId,
+                data.filter(({ user_id: userId }) => userId !== this.userId),
+              ]
+            })
+        )
+      )
+    } catch (error) {
+      this.fetchError = error
+    } finally {
+      this.fetchPending = false
+    }
+  },
+
+  computed: {
+    ...mapGetters({
+      userId: 'auth/getUserId',
+      settings: 'settings/get',
+      sortedWorkspaces: 'workspace/getAllSorted',
+    }),
+
+    orphanWorkspaces() {
+      return this.sortedWorkspaces.filter(({ id: workspaceId }) => {
         return (
-          members && members.every(({ permissions }) => permissions !== 'ADMIN')
+          this.workspaceMembers[workspaceId] &&
+          this.workspaceMembers[workspaceId].every(
+            ({ permissions }) => permissions !== 'ADMIN'
+          )
         )
       })
-    )
-
-    const logoff = () => {
-      logoutAndRedirectToLogin(router, store, false, false, true)
-      store.dispatch('toast/success', {
-        title: $t('deleteAccountSettings.accountDeletedSuccessTitle'),
-        message: $t('deleteAccountSettings.accountDeletedSuccessMessage'),
+    },
+  },
+  methods: {
+    logoff() {
+      logoutAndRedirectToLogin(
+        this.$nuxt.$router,
+        this.$store,
+        false,
+        false,
+        true
+      )
+      this.$store.dispatch('toast/success', {
+        title: this.$t('deleteAccountSettings.accountDeletedSuccessTitle'),
+        message: this.$t('deleteAccountSettings.accountDeletedSuccessMessage'),
       })
-    }
-
-    const deleteAccount = async () => {
-      loading.value = true
-      proxy.hideError()
-
+    },
+    async loadWorkspaceMembers() {
+      this.workspaceLoading = true
       try {
-        await AuthService($client).deleteAccount()
-        success.value = true
-        logoff()
-      } catch (err) {
-        proxy.handleError(err, 'deleteAccount', {
+        this.workspaceMembers = Object.fromEntries(
+          await Promise.all(
+            this.sortedWorkspaces
+              .filter(({ permissions }) => permissions === 'ADMIN')
+              .map(async ({ id: workspaceId }) => {
+                const { data } = await WorkspaceService(
+                  this.$client
+                ).fetchAllUsers(workspaceId)
+                return [
+                  workspaceId,
+                  data.filter(({ user_id: userId }) => userId !== this.userId),
+                ]
+              })
+          )
+        )
+      } catch (error) {
+        notifyIf(error, 'workspace')
+      } finally {
+        this.workspaceLoading = false
+      }
+    },
+    async deleteAccount() {
+      this.loading = true
+      this.hideError()
+      try {
+        await AuthService(this.$client).deleteAccount()
+        this.success = true
+        this.logoff()
+      } catch (error) {
+        this.handleError(error, 'deleteAccount', {
           ERROR_USER_IS_LAST_ADMIN: new ResponseErrorMessage(
-            $t('deleteAccountSettings.errorUserIsLastAdminTitle'),
-            $t('deleteAccountSettings.errorUserIsLastAdminMessage')
+            this.$t('deleteAccountSettings.errorUserIsLastAdminTitle'),
+            this.$t('deleteAccountSettings.errorUserIsLastAdminMessage')
           ),
         })
       } finally {
-        loading.value = false
+        this.loading = false
       }
-    }
-
-    return {
-      // State
-      loading,
-      success,
-      workspaceMembers,
-      settings,
-      orphanWorkspaces,
-
-      // Fetch state
-      pending,
-      fetchError,
-
-      // Methods
-      deleteAccount,
-    }
+    },
   },
-})
+}
 </script>
