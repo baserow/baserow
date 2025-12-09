@@ -1,5 +1,5 @@
 import { TestApp } from '@baserow/test/helpers/testApp'
-import { expect } from '@jest/globals'
+import { expect } from 'vitest'
 import flushPromises from 'flush-promises'
 
 import ViewFilterForm from '@baserow/modules/database/components/view/ViewFilterForm.vue'
@@ -8,11 +8,11 @@ import ViewFilterForm from '@baserow/modules/database/components/view/ViewFilter
 let nextFilterUuid = 100
 const mockUuid = () => nextFilterUuid++
 
-jest.mock('@baserow/modules/core/utils/string', () => ({
+vi.mock('@baserow/modules/core/utils/string', () => ({
   uuid: () => mockUuid(),
 }))
 
-jest.mock('uuid', () => ({
+vi.mock('uuid', () => ({
   v1: () => mockUuid(),
   v4: () => mockUuid(),
 }))
@@ -99,7 +99,7 @@ describe('ViewFilterForm match snapshots', () => {
   })
 
   afterEach(() => {
-    jest.useRealTimers()
+    vi.useRealTimers()
     testApp.afterEach()
     mockServer.resetMockEndpoints()
   })
@@ -137,7 +137,7 @@ describe('ViewFilterForm match snapshots', () => {
   test('Test rating filter', (done) => {
     const f = async function () {
       // We want to bypass some setTimeout
-      jest.useFakeTimers()
+      vi.useFakeTimers()
       // Mock server filter update call
       mockServer.updateViewFilter(11, '5')
 
@@ -154,7 +154,7 @@ describe('ViewFilterForm match snapshots', () => {
         },
       ]
 
-      const onChange = jest.fn(() => {
+      const onChange = vi.fn(() => {
         // The test is about to finish
         expect(wrapper.emitted().changed).toBeTruthy()
         // The Five star option should be selected
@@ -183,7 +183,7 @@ describe('ViewFilterForm match snapshots', () => {
 
       await option.trigger('click')
       // Wait some timers
-      await jest.runAllTimers()
+      await vi.runAllTimers()
 
       // Test finishes only when onChange callback is called
       // Wait for mockServer to respond -> see onChange callback

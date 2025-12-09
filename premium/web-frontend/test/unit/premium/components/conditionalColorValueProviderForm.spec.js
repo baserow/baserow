@@ -6,11 +6,11 @@ import { afterEach } from 'node:test'
 let nextFilterUuid = 100
 const mockUuid = () => nextFilterUuid++
 
-jest.mock('@baserow/modules/core/utils/string', () => ({
+vi.mock('@baserow/modules/core/utils/string', () => ({
   uuid: () => mockUuid(),
 }))
 
-jest.mock('uuid', () => ({
+vi.mock('uuid', () => ({
   v1: () => mockUuid(),
   v4: () => mockUuid(),
 }))

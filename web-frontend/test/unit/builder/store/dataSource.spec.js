@@ -1,5 +1,5 @@
 import { TestApp } from '@baserow/test/helpers/testApp'
-import { expect } from '@jest/globals'
+import { expect } from 'vitest'
 
 describe('dataSource store', () => {
   let testApp = null

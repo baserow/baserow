@@ -279,7 +279,7 @@ describe('GridView checkbox selection', () => {
 
     Object.assign(navigator, {
       clipboard: {
-        writeText: jest.fn(),
+        writeText: vi.fn(),
       },
     })
 

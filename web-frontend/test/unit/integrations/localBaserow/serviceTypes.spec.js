@@ -74,7 +74,7 @@ describe('Local baserow service types', () => {
       },
     }
 
-    dataProvider.getDataSourceContent = jest.fn(() => [
+    dataProvider.getDataSourceContent = vi.fn(() => [
       { id: 1, 'Field 42': 'Field 42 content row 1' },
       { id: 2, 'Field 42': 'Field 42 content row 2' },
     ])
@@ -124,7 +124,7 @@ describe('Local baserow service types', () => {
       },
     }
 
-    dataProvider.getDataSourceContent = jest.fn(() => ({
+    dataProvider.getDataSourceContent = vi.fn(() => ({
       id: 1,
       'Field 42': 'Field 42 content',
     }))

@@ -5,12 +5,12 @@ describe('test stub interceptors', () => {
     return {
       interceptors: {
         request: {
-          use: jest.fn(() => {
+          use: vi.fn(() => {
             operations.push('request.use')
           }),
         },
         response: {
-          use: jest.fn(() => {
+          use: vi.fn(() => {
             operations.push('response.use')
           }),
         },
@@ -19,7 +19,7 @@ describe('test stub interceptors', () => {
   }
 
   const refreshAuthMock = (operations) =>
-    jest.fn(() => {
+    vi.fn(() => {
       operations.push('promise.created')
       return new Promise((resolve) => {
         operations.push('promise.resolved')
@@ -28,7 +28,7 @@ describe('test stub interceptors', () => {
     })
 
   const onRetryMock = (operations) =>
-    jest.fn(() => {
+    vi.fn(() => {
       operations.push('retry')
     })
 

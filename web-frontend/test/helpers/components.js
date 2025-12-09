@@ -33,10 +33,10 @@ export const bootstrapVueContext = (configureContext) => {
 
   const context = {}
   const teardownVueContext = () => {
-    jest.resetModules()
+    vi.resetModules()
   }
 
-  jest.isolateModules(() => {
+  vi.isolateModules(() => {
     context.vueTestUtils = require('@vue/test-utils')
     context.vueTestUtils.config.stubs.nuxt = { template: '<div />' }
     context.vueTestUtils.config.stubs.NuxtChild = { template: '<div />' }
@@ -50,10 +50,10 @@ export const bootstrapVueContext = (configureContext) => {
     setupVue(context.vue)
     setupVueForAB(context.vue)
 
-    jest.doMock('vue', () => context.vue)
+    vi.doMock('vue', () => context.vue)
 
     // Ensure any error logs cause the test to fail!
-    jest.spyOn(console, 'error')
+    vi.spyOn(console, 'error')
     console.error.mockImplementation(fail)
 
     configureContext && configureContext(context)
