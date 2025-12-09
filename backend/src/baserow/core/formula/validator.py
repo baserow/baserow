@@ -180,7 +180,7 @@ def ensure_array(
             if value.startswith("[") and value.endswith("]"):
                 try:
                     return ast.literal_eval(value)
-                except SyntaxError:
+                except (ValueError, SyntaxError):
                     raise ValidationError("Value isn't a literal string array.")
             raise ValidationError(
                 "Literal string array must start with `[` and end with `]`."
