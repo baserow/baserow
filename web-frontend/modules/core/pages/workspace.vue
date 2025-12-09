@@ -217,8 +217,8 @@
 <script setup>
 definePageMeta({ layout: 'app' })
 
-import { ref, computed, onMounted } from 'vue'
-import { useRoute, useRouter, useNuxtApp } from '#app'
+import { ref, computed, watchEffect } from 'vue'
+import { useRoute, useRouter, useNuxtApp, createError } from '#app'
 import { useHead, useAsyncData } from '#imports'
 
 import WorkspaceContext from '@baserow/modules/core/components/workspace/WorkspaceContext'
@@ -265,26 +265,36 @@ const createApplicationContextLink2 = ref(null)
 const rename = ref(null)
 const templateModal = ref(null)
 
-await useAsyncData('currentWorkspace', async () => {
+/**
+ * Fetch all dashboard-related data for the current workspace.
+ * `useAsyncData` now returns the data and we hydrate our refs from it.
+ */
+const {
+  data: dashboardData,
+  pending,
+  error,
+} = await useAsyncData('currentWorkspace', async () => {
   const workspaceId = parseInt(route.params.workspaceId, 10)
+
   let workspace
   try {
     workspace = await $store.dispatch('workspace/selectById', workspaceId)
   } catch (e) {
-    throw createError({ statusCode: 404, message: 'Workspace not found.' })
+    throw createError({
+      statusCode: 404,
+      statusMessage: 'Workspace not found.',
+    })
   }
 
   try {
     await $store.dispatch('auth/fetchWorkspaceInvitations')
-    selectedWorkspace.value = workspace
 
     let asyncData = {
       workspaceComponentArguments: {},
       selectedWorkspace: workspace,
     }
-    // Loop over all the plugin and call the `fetchAsyncDashboardData` because there
-    // might be plugins that extend the dashboard and we want to fetch that async data
-    // here.
+
+    // Loop over all plugins and let them extend the dashboard data.
     const plugins = Object.values($registry.getAll('plugin'))
     for (const p of plugins) {
       asyncData = await p.fetchAsyncDashboardData(
@@ -294,10 +304,28 @@ await useAsyncData('currentWorkspace', async () => {
       )
     }
 
-    workspaceComponentArguments.value = asyncData.workspaceComponentArguments
+    return {
+      selectedWorkspace: asyncData.selectedWorkspace,
+      workspaceComponentArguments: asyncData.workspaceComponentArguments,
+    }
   } catch {
-    throw createError({ statusCode: 400, message: 'Error loading dashboard.' })
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'Error loading dashboard.',
+    })
   }
+})
+
+/**
+ * Hydrate local refs from the async data.
+ * Keeps your existing `selectedWorkspace` and `workspaceComponentArguments`
+ * reactive and writable for later updates (e.g. `workspaceUpdated`).
+ */
+watchEffect(() => {
+  if (!dashboardData.value) return
+  selectedWorkspace.value = dashboardData.value.selectedWorkspace
+  workspaceComponentArguments.value =
+    dashboardData.value.workspaceComponentArguments
 })
 
 useHead(() => ({
@@ -355,6 +383,7 @@ const canCreateCreateApplication = computed(() => {
     selectedWorkspace.value.id
   )
 })
+
 /**
  * Check if the workspace exists, because if not, it doesn't make any sense to
  * render anything. This can happen when the workspace is a state where it's
