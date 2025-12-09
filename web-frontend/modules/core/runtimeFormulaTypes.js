@@ -2255,10 +2255,6 @@ export class RuntimeSum extends RuntimeFormulaFunction {
         formula: 'sum(\'["1", 2.5, 3]\')',
         result: '6.5',
       },
-      {
-        formula: 'sum(\'["1", 2.5, "foo", 3]\')',
-        result: '6.5',
-      },
     ]
   }
 }
@@ -2277,15 +2273,16 @@ export class RuntimeAvg extends RuntimeFormulaFunction {
   }
 
   get args() {
-    return [new AnyBaserowRuntimeFormulaArgumentType()]
+    return [
+      new ArrayBaserowRuntimeFormulaArgumentType({ allowLiteralArray: true }),
+    ]
   }
 
   execute(context, [arg]) {
     try {
-      const val = ensureArray(arg, { allowLiteralArray: true })
-      return avg(val)
+      return avg(arg)
     } catch {
-      return 0
+      return null
     }
   }
 
@@ -2298,10 +2295,6 @@ export class RuntimeAvg extends RuntimeFormulaFunction {
     return [
       {
         formula: "avg('[1, 2, 3, 4]')",
-        result: '2.5',
-      },
-      {
-        formula: 'avg(\'[1, 2, "foo", 3, 4]\')',
         result: '2.5',
       },
     ]
