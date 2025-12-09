@@ -283,23 +283,23 @@ export default {
     window.removeEventListener('scroll', el.updatePositionEvent, true)
     window.removeEventListener('resize', el.updatePositionEvent)
   },
-  bind(el, binding) {
+  beforeMount(el, binding) {
     el.tooltipElement = null
     el.tooltipContentElement = null
-    binding.def.update(el, binding)
+    binding.dir.updated(el, binding)
   },
-  update(el, binding) {
+  updated(el, binding) {
     const { value } = binding
 
     if (!!value && el.tooltipElement) {
       el.tooltipOptions = getOptions(el, binding)
     } else if (!!value && el.tooltipElement === null) {
-      binding.def.initialize(el, binding)
+      binding.dir.initialize(el, binding)
     } else if (!value) {
-      binding.def.terminate(el)
+      binding.dir.terminate(el)
     }
   },
-  unbind(el, binding) {
-    binding.def.terminate(el)
+  unmounted(el, binding) {
+    binding.dir.terminate(el)
   },
 }

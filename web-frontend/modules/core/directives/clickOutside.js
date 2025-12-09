@@ -1,12 +1,14 @@
 import { onClickOutside } from '@baserow/modules/core/utils/dom'
 
 export default {
-  bind(el, binding, vnode) {
+  beforeMount(el, binding, vnode) {
     el.onClickOutsideEventCancelDirective = onClickOutside(el, (target) => {
-      vnode.context[binding.expression](target)
+      if (typeof binding.value === 'function') {
+        binding.value(target)
+      }
     })
   },
-  unbind(el) {
+  unmounted(el) {
     el.onClickOutsideEventCancelDirective()
   },
 }
