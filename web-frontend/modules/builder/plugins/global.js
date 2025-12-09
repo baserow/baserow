@@ -1,5 +1,3 @@
-import Vue from 'vue'
-
 import ABButton from '@baserow/modules/builder/components/elements/baseComponents/ABButton'
 import ABInput from '@baserow/modules/builder/components/elements/baseComponents/ABInput'
 import ABFormGroup from '@baserow/modules/builder/components/elements/baseComponents/ABFormGroup'
@@ -18,26 +16,23 @@ import ABAvatar from '@baserow/modules/builder/components/elements/baseComponent
 import ABPresentation from '@baserow/modules/builder/components/elements/baseComponents/ABPresentation'
 import ABIcon from '@baserow/modules/builder/components/elements/baseComponents/ABIcon'
 
-function setupVueForAB(Vue) {
-  Vue.component('ABButton', ABButton)
-  Vue.component('ABInput', ABInput)
-  Vue.component('ABFormGroup', ABFormGroup)
-  Vue.component('ABLink', ABLink)
-  Vue.component('ABHeading', ABHeading)
-  Vue.component('ABDropdown', ABDropdown)
-  Vue.component('ABDropdownItem', ABDropdownItem)
-  Vue.component('ABCheckbox', ABCheckbox)
-  Vue.component('ABRadio', ABRadio)
-  Vue.component('ABImage', ABImage)
-  Vue.component('ABParagraph', ABParagraph)
-  Vue.component('ABTag', ABTag)
-  Vue.component('ABTable', ABTable)
-  Vue.component('ABFileInput', ABFileInput)
-  Vue.component('ABAvatar', ABAvatar)
-  Vue.component('ABPresentation', ABPresentation)
-  Vue.component('ABIcon', ABIcon)
-}
-
-setupVueForAB(Vue)
-
-export { setupVueForAB }
+export default defineNuxtPlugin((nuxtApp) => {
+  // Register global components for Application Builder
+  nuxtApp.vueApp.component('ABButton', ABButton)
+  nuxtApp.vueApp.component('ABInput', ABInput)
+  nuxtApp.vueApp.component('ABFormGroup', ABFormGroup)
+  nuxtApp.vueApp.component('ABLink', ABLink)
+  nuxtApp.vueApp.component('ABHeading', ABHeading)
+  nuxtApp.vueApp.component('ABDropdown', ABDropdown)
+  nuxtApp.vueApp.component('ABDropdownItem', ABDropdownItem)
+  nuxtApp.vueApp.component('ABCheckbox', ABCheckbox)
+  nuxtApp.vueApp.component('ABRadio', ABRadio)
+  nuxtApp.vueApp.component('ABImage', ABImage)
+  nuxtApp.vueApp.component('ABParagraph', ABParagraph)
+  nuxtApp.vueApp.component('ABTag', ABTag)
+  nuxtApp.vueApp.component('ABTable', ABTable)
+  nuxtApp.vueApp.component('ABFileInput', ABFileInput)
+  nuxtApp.vueApp.component('ABAvatar', ABAvatar)
+  nuxtApp.vueApp.component('ABPresentation', ABPresentation)
+  nuxtApp.vueApp.component('ABIcon', ABIcon)
+})

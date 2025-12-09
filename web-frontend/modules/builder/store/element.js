@@ -489,6 +489,7 @@ const actions = {
 
 const getters = {
   getElementById: (state, getters) => (page, id) => {
+    if (!page || !page.elementMap) return null // TODO MIG remove this
     if (id && Object.prototype.hasOwnProperty.call(page.elementMap, `${id}`)) {
       return page.elementMap[`${id}`]
     }
@@ -504,6 +505,7 @@ const getters = {
     return null
   },
   getElementsOrdered: (state, getters) => (page) => {
+    if (!page || !page.orderedElements) return [] // TODO MIG remove this
     return page.orderedElements
   },
   getRootElements: (state, getters) => (page) => {
@@ -609,6 +611,7 @@ const getters = {
     return elementsInPlace.find((e) => getOrder(e).gt(getOrder(after)))
   },
   getSelected: (state) => (builder) => {
+    if (!builder) return null // TODO MIG remove this
     return builder.selectedElement
   },
   getElementNamespacePath: (state) => (element) => {

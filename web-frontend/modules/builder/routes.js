@@ -4,7 +4,7 @@ export const routes = [
   {
     name: 'builder-page',
     path: '/builder/:builderId/page/:pageId',
-    component: path.resolve(__dirname, 'pages/pageEditor.vue'),
+    file: path.resolve(__dirname, 'pages/pageEditor.vue'),
     props(route) {
       const p = { ...route.params }
       p.builderId = parseInt(p.builderId)
@@ -14,8 +14,8 @@ export const routes = [
   },
   {
     name: 'application-builder-page',
-    path: '*',
-    component: path.resolve(__dirname, 'pages/publicPage.vue'),
+    path: '/:pathMatch(.*)*',
+    file: path.resolve(__dirname, 'pages/publicPage.vue'),
     // If publishedBuilderRoute is true, then that route will only be used on a
     // different subdomain.
     meta: { publishedBuilderRoute: true },
@@ -23,13 +23,13 @@ export const routes = [
   {
     name: 'health-check',
     path: '/_health',
-    component: path.resolve(__dirname, '../core/pages/_health.vue'),
+    file: path.resolve(__dirname, '../core/pages/_health.vue'),
     meta: { publishedBuilderRoute: true },
   },
   {
-    name: 'application-builder-page',
+    name: 'application-builder-preview',
     // This route to the preview of the builder page
-    path: '/builder/:builderId/preview*',
-    component: path.resolve(__dirname, 'pages/publicPage.vue'),
+    path: '/builder/:builderId/preview/:pathMatch(.*)*',
+    file: path.resolve(__dirname, 'pages/publicPage.vue'),
   },
 ]

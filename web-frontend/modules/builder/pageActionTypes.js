@@ -67,6 +67,7 @@ export class PublishPageActionType extends PageActionType {
   }
 
   isActive({ workspace, page }) {
+    if (!page || !workspace) return false // TODO MIG remove this
     return this.app.$hasPermission('builder.domain.publish', page, workspace.id)
   }
 
@@ -97,6 +98,8 @@ export class PreviewPageActionType extends PageActionType {
      * @param page        The Page object.
      */
 
+    if (!page || !page.path) return '' // TODO MIG remove this
+
     const toPath = compile(page.path, { encode: encodeURIComponent })
     const pageParams = Object.fromEntries(
       page.path_params.map(({ name, value }) => [name, page.parameters[name]])
@@ -117,6 +120,7 @@ export class PreviewPageActionType extends PageActionType {
   }
 
   isActive({ workspace, page }) {
+    if (!page || !workspace) return false // TODO MIG remove this
     return this.app.$hasPermission('builder.domain.publish', page, workspace.id)
   }
 

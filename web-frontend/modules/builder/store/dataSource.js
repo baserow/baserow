@@ -381,9 +381,11 @@ const actions = {
 
 const getters = {
   getPageDataSources: (state) => (page) => {
+    if (!page || !page.dataSources) return [] // TODO MIG: remove this
     return page.dataSources
   },
   getPagesDataSources: (state) => (pages) => {
+    if (!pages) return [] // TODO MIG: remove this
     return pages.map(({ dataSources }) => dataSources).flat()
   },
   getPagesDataSourceById: (state, getters) => (pages, id) => {
@@ -395,6 +397,7 @@ const getters = {
     return getters.getPagesDataSourceById([page], id)
   },
   getLoading: (state) => (page) => {
+    if (!page || !page._) return false // TODO MIG: remove this
     return page._.dataSourceLoading
   },
 }

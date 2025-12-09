@@ -1,5 +1,4 @@
 import _ from 'lodash'
-import Vue from 'vue'
 import DataSourceService from '@baserow/modules/builder/services/dataSource'
 import PublishedBuilderService from '@baserow/modules/builder/services/publishedBuilder'
 
@@ -10,7 +9,8 @@ const fetchTimeoutPerPage = {}
 const mutations = {
   SET_CONTENT(state, { page, dataSourceId, value }) {
     if (!page.contents) {
-      Vue.set(page, 'contents', {})
+      // In Vue 3, direct assignment is reactive
+      page.contents = {}
     }
 
     if (!_.isEqual(page.contents[dataSourceId], value)) {
@@ -24,13 +24,13 @@ const mutations = {
     }
   },
   CLEAR_CONTENTS(state, { page }) {
-    Vue.set(page, 'contents', {})
+    page.contents = {}
   },
   // Clear only the contents for the specified data source.
   CLEAR_CONTENT(state, { page, dataSourceId }) {
     const contents = Object.assign({}, page.contents)
     delete contents[dataSourceId]
-    Vue.set(page, 'contents', contents)
+    page.contents = contents
   },
   SET_LOADING(state, { page, value }) {
     page._.dataSourceContentLoading = value
