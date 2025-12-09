@@ -1,8 +1,8 @@
 <template>
-  <div class="checkbox" :class="classNames" @click="toggle(modelValue)">
+  <div class="checkbox" :class="classNames" @click="toggle(currentValue)">
     <div class="checkbox__button">
       <svg
-        v-show="modelValue && !indeterminate"
+        v-show="currentValue && !indeterminate"
         class="checkbox__tick"
         xmlns="http://www.w3.org/2000/svg"
         width="9"
@@ -61,12 +61,20 @@ export default {
   name: 'Checkbox',
   props: {
     /**
-     * The state of the checkbox.
+     * The model value of the textarea in Vue 3 style.
      */
     modelValue: {
       type: Boolean,
       required: false,
-      default: false,
+      default: undefined,
+    },
+    /**
+     * The model value of the textarea in Vue 2 style.
+     */
+    checked: {
+      type: Boolean,
+      required: false,
+      default: undefined,
     },
     /**
      * Whether the checkbox is disabled.
@@ -104,12 +112,16 @@ export default {
       },
     },
   },
+  emits: ['update:modelValue', 'input'],
   data() {
     return {
       uniqClipId: uuid(),
     }
   },
   computed: {
+    currentValue() {
+      return this.modelValue !== undefined ? this.modelValue : this.checked
+    },
     /**
      * The `clip-path` IDs are expected to be unique in the DOM. If we have
      * multiple checkboxes on the same page, and IDs are re-used, this can
@@ -121,7 +133,7 @@ export default {
     classNames() {
       return {
         'checkbox--disabled': this.disabled,
-        'checkbox--checked': this.modelValue,
+        'checkbox--checked': this.currentValue,
         'checkbox--indeterminate': this.indeterminate,
         'checkbox--error': this.error,
         'checkbox--small': this.size === 'small',
@@ -135,7 +147,9 @@ export default {
     toggle(checked) {
       if (this.disabled) return
 
-      this.$emit('update:modelValue', !checked)
+      const value = !checked
+      this.$emit('update:modelValue', value)
+      this.$emit('input', value)
     },
   },
 }
