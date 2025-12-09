@@ -203,7 +203,7 @@ export const buildFormulaFunctionNodes = (app, i18n = null) => {
   const nodes = []
 
   // Get translation methods once at the beginning
-  const tcMethod = i18nInstance.tc || i18nInstance.$tc
+  const tcMethod = i18nInstance.t || i18nInstance.$t
   const tMethod = i18nInstance.t || i18nInstance.$t
 
   // Process regular functions
