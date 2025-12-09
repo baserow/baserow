@@ -39,8 +39,6 @@ import { StoreItemLookupError } from '@baserow/modules/core/errors'
 import { getDefaultView } from '@baserow/modules/database/utils/view'
 import { normalizeError } from '@baserow/modules/database/utils/errors'
 
-console.log('setup')
-
 definePageMeta({
   name: 'database-table',
   layout: 'app',
@@ -95,22 +93,16 @@ const { data } = await useAsyncData('database-table-page', async () => {
     result.database = database
     result.table = table
 
-    console.log({ database, table })
-
     if (error) {
-      console.log('error', error)
       result.error = normalizeError(error)
       return result
     }
   } catch (e) {
-    console.log('error catched', e)
     if (e.response === undefined && !(e instanceof StoreItemLookupError))
       throw e
     result.error = normalizeError(e)
     return result
   }
-
-  console.log('ok')
 
   // Fields
   result.fields = $store.getters['field/getAll']
@@ -119,15 +111,12 @@ const { data } = await useAsyncData('database-table-page', async () => {
   if (viewId === null) {
     const rowId = params.rowId ? parseInt(params.rowId) : null
     const workspaceId = result.database.workspace.id
-    console.log('ça marche', workspaceId)
     const viewToUse = getDefaultView(
       nuxtApp,
       $store,
       workspaceId,
       rowId !== null
     )
-
-    console.log('view', viewToUse)
 
     if (viewToUse) {
       params.viewId = viewToUse.id
@@ -136,24 +125,18 @@ const { data } = await useAsyncData('database-table-page', async () => {
     }
   }
 
-  console.log('normal', viewId)
-
   // Select view
   if (viewId !== null && viewId !== 0) {
     try {
-      console.log('search')
       const { view } = await $store.dispatch('view/selectById', viewId)
 
       result.view = view
       const type = $registry.get('view', view.type)
-      console.log('ça walid')
 
       if (type.isDeactivated(result.database.workspace.id)) {
         result.error = { statusCode: 400, message: type.getDeactivatedText() }
         return result
       }
-
-      console.log('not is deactivated')
 
       await type.fetch(
         { store: $store, app: nuxtApp },
@@ -162,17 +145,13 @@ const { data } = await useAsyncData('database-table-page', async () => {
         result.fields,
         'page/'
       )
-      console.log('after fetch')
     } catch (e) {
-      console.log('iiii', e)
       if (e.response === undefined && !(e instanceof StoreItemLookupError))
         throw e
       result.error = normalizeError(e)
       return result
     }
   }
-
-  console.log('cool')
 
   // Possibly fetch selected row
   if (params.rowId) {
@@ -181,8 +160,6 @@ const { data } = await useAsyncData('database-table-page', async () => {
       rowId: params.rowId,
     })
   }
-
-  console.log('return result', result)
 
   return result
 })
