@@ -66,14 +66,14 @@ export default {
      */
     modelValue: {
       type: String,
-      default: null,
+      default: undefined,
     },
     /**
      * The model value of the textarea in Vue 2 style.
      */
     value: {
       type: String,
-      default: null,
+      default: undefined,
     },
     toValue: {
       type: Function,
@@ -139,7 +139,7 @@ export default {
   computed: {
     // Support both Vue 2 (value) and Vue 3 (modelValue)
     currentValue() {
-      return this.modelValue !== null ? this.modelValue : this.value
+      return this.modelValue !== undefined ? this.modelValue : this.value
     },
     textBoxSize() {
       if (this.autoExpandable) {
